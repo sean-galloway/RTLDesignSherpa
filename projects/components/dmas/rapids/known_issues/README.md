@@ -40,11 +40,16 @@ known_issues/
     └── snk_scheduler_write_commit_stall.md
 ```
 
-> **Status (2026-07-22):** The `resolved/` directory (scheduler.md,
-> program_engine_bugs_found.md, descriptor_engine_apb_rda_sequential.md) was retired with the
-> pre-beats RTL those write-ups describe; the resolution summaries below preserve the outcome.
-> The lifecycle process in this file still refers to `resolved/` - recreate it if a new issue
-> is resolved and worth archiving.
+> **Status (2026-09-14):** `resolved/` exists again. The 2026-07-22 note said it
+> had been retired with the pre-beats RTL its write-ups described, and invited
+> whoever next resolved an issue to recreate it — but the next resolution
+> (`snk_scheduler_write_commit_stall`, fixed 2026-07-16) was simply left sitting
+> in `active/` with a body reading "RESOLVED". It stayed there for two months and
+> made the active list read one issue longer than it was. Moved 2026-09-14.
+>
+> If you resolve an issue, MOVE THE FILE. A status line inside a file in
+> `active/` is invisible to anyone counting the directory, which is how everyone
+> counts it.
 
 ---
 

@@ -2905,3 +2905,824 @@ in it; passing costs 103 minutes. It has moved to the long-budget list.
 an overflow in `axi_split_combi`'s next-boundary arithmetic -- filed as
 TASK-095, not fixed here. The harness now states the module's own
 Assumption 4 (no address wraparound).
+
+## AMBA-INTEG-EXAMPLES — CLOSED 2026-08-27: resolved by deletion, plus the residue it left
+**Status:** CLOSED (option 1, "Retire", taken -- see the decision list in the
+original text below)
+
+The RTL was deleted in `01d1c3e6` ("removed old integ_* code that was used for
+bfm development"), which took BOTH `rtl/integ_amba/` and `rtl/integ_common/`.
+Sean asked whether it was already gone; it was -- but the deletion left residue
+in four places, and no tooling flagged any of it (deletion 2026-08-19, found 2026-08-27):
+
+  * `bin/filelists.toml` still declared both areas, pointing at directories
+    that no longer existed;
+  * `docs/markdown/rtl-integ-amba/` and `rtl-integ-common/` -- two whole doc
+    books, 11 pages total, documenting deleted modules;
+  * `docs/markdown/index.md` linked both books in two places, one of them
+    still saying "2 modules -- currently not building, see
+    AMBA-INTEG-EXAMPLES";
+  * `docs/DOCUMENTATION_INDEX.md` listed integration examples as repo
+    structure item 3.
+  The review pipeline was still bundling both books, so a future qc round
+  would have spent units reviewing docs for code that does not exist.
+
+ROOT CAUSE, and the reason this is worth reading: `filelist_registry.py
+--check` PASSED the whole time. `rglob("*.sv")` on a missing directory yields
+nothing, so a dead area reports "[OK] 0 modules, 0 uncovered" and passes
+forever. That is the SAME blind-spot class this registry was built to close,
+one level up -- the original task said "a module can hide by having too little,
+not just by being wrong"; it turns out an AREA can hide by not existing.
+Fixed: --check now fails on an rtl_root that is not a directory, mutation-
+verified with an injected ghost area (FAIL, exit 1) and the clean tree still
+PASS.
+
+Original analysis kept below for the record.
+
+### Original filing (2026-07-26), kept for the decision list
+
+*This was a second `## AMBA-INTEG-EXAMPLES` heading in `open.md`, directly under the CLOSED one. The closed block refers to "the original text below", so the two were one entry that a duplicate heading split in half -- and the split is why the tracker counted this task as both closed and open. Rejoined 2026-09-14.*
+**Status:** open 2026-07-26
+**Priority:** P2 (nothing depends on them, but `make verilator` at rtl/ is RED)
+
+`rtl/integ_amba/examples/apb4_peripheral_subsystem.sv` (340 lines) and
+`apbx_xbar_monitored.sv` (364) do not elaborate: **51 Verilator errors**, all
+PINNOTFOUND. They instantiate `apb4_monitor` with an interface it no longer has.
+
+| the examples pass | `apb4_monitor` actually takes |
+|---|---|
+| `pclk`, `presetn` | `aclk`, `aresetn` |
+| `psel`, `penable`, `pwrite`, `paddr`, `pwdata`, `pready`, `prdata`, `pslverr` | `cmd_valid`/`cmd_ready` + `cmd_pwrite`/`cmd_paddr`/`cmd_pwdata`/`cmd_pstrb`/`cmd_pprot`, and `rsp_valid`/`rsp_ready` + `rsp_prdata`/`rsp_pslverr` |
+
+Both files are **unchanged since the initial commit (2025-11-01)**; `apb4_monitor`
+was redesigned underneath them. They are its ONLY consumers anywhere in the tree
+— no test, no project, no doc references either file.
+
+### Why nobody noticed for nine months
+
+`rtl/integ_amba` had modules but no filelists, no registration and no Makefile,
+so it was invisible to `--check` (unregistered) **and** to `--blindspots` (the
+orphan scan looks for `.f` files no area covers, and an area with no `.f` at all
+has nothing to find). A module can hide by having too little, not just by being
+wrong. Registering it (`0c822bd5`) is what surfaced this.
+
+### The shape of the fix
+
+The APB family splits cleanly, and the examples are on the wrong side of it:
+
+- **Bridges** — `apb4_master{,_cg,_stub}`, `apb4_slave{,_cg,_cdc,_cdc_cg,_stub}`
+  and the 8 `apb5_*` equivalents — carry BOTH raw APB (`s_apb_PSEL`, ARM
+  uppercase) and `cmd_*`/`rsp_*`.
+- **Observers** — `apb4_monitor`, `apb5_monitor`, `apb_monitor_addr_check` —
+  are cmd/rsp only. That is deliberate: it makes a monitor
+  protocol-version-agnostic, since APB4 and APB5 bridges hand it the same shape.
+- The monitor is a **sibling, not a submodule**: no bridge instantiates it. You
+  tap the bridge's handshake.
+
+So the correct structure is to insert a bridge and tap it:
+
+    raw APB ──> apb4_slave ──cmd/rsp──> fabric
+                     └── tap cmd_*/rsp_* ──> apb4_monitor ──> monbus
+
+`apbx_xbar_thin` was raw-APB on both sides (lowercase
+`s_apb_psel`/`m_apb_psel`), which is why `apbx_xbar_monitored` had raw APB in
+hand and fed it straight to a monitor that stopped accepting it.
+
+### Decide first, then do
+
+1. **Retire** — delete both and the area. They demonstrate an API that is gone
+   and nothing uses them. Cheapest and honest.
+2. **Rewrite** against the bridge-tap structure above. Worth it only if a worked
+   `apb4_monitor` integration example is wanted — there is none anywhere else in
+   the repo today, which is arguably the entire point of `rtl/integ_amba`.
+
+If rewriting: lint-clean is the floor, and add a smoke test under
+`val/integ_amba/` taking its sources from
+`rtl/integ_amba/filelists/<module>.f`. Without a test they rot again exactly as
+they did — nine months, undetected, because nothing ever compiled them.
+
+**Do not just delete the area registration to make the sweep green.** The
+registration is what found this; reverting it re-hides the problem.
+
+---
+
+## AMBA-CDC-REORG — pull CDC out of amba into a top-level rtl/cdc area
+**Status:** ✅ DONE 2026-07-25 — every checklist item worked and verified.
+Move this block to closed.md.
+
+**Completed 2026-07-25** (commits `dc922a54`, `cd2a2dc3`, `8b2de284`):
+
+- [x] `bin/filelists.toml`: `cdc` area registered. `--check` reports cdc 12
+      modules / 12 covered / 0 uncovered, no exemptions needed.
+- [x] `.f` for `gaxi_skid_buffer_async` created (it was the one module of twelve
+      without one).
+- [x] `bin/filelist_registry.py --check` PASS **and `--audit` PASS**. Registering
+      the area exposed 27 cross-area hand-listed sources — all pre-existing but
+      invisible, since they were intra-area before the move. All 27 converted to
+      `-f` includes. Verified behaviour-preserving: `fifo_async.f` resolves to
+      the same 14 sources in the same order.
+- [x] Moved-module tests run: `val/cdc` 62 passed after `clean-all`;
+      `val/amba/test_apb5_slave_cdc` 3 passed; `test_gaxi_buffer_async` 12 passed.
+- [x] `val/cdc/` exists — 11 tests git-moved from val/common (7) and val/amba (4),
+      plus a four-line Makefile and a conftest that DERIVES its area name rather
+      than typing it.
+- [x] `docs/markdown/rtl-cdc/` — 8 module pages + cdc.md moved in, with `index.md`,
+      `overview.md` and `_book_cdc_index.md`. Casing settled on **rtl-cdc**; the
+      empty lowercase `RTLcdc/` is gone. 14 referring pages repathed, 0 broken
+      links to any moved page.
+- [x] `formal/` — 10 harnesses moved to `formal/cdc/`, 13 files repathed.
+- [x] Kimi findings referencing old paths: handled during the round_2 integration
+      (the bundle was rebuilt post-move, so `common_meta` flagged the relocation
+      itself rather than producing stale-path findings).
+
+**Two things this surfaced that were NOT part of the move:**
+
+1. `test_fifo_async_wavedrom` hand-listed eight `rtl/common` source paths instead
+   of taking a filelist, so it had been broken since `c0daf18a` — the one test
+   the original path rewrite missed, unnoticed because val/common's suite had not
+   been run since. Now takes `rtl/cdc/filelists/fifo_async.f`.
+2. The four `apb*_slave_cdc` formal harnesses referenced `cdc_handshake.sv`,
+   which exists nowhere and which neither slave instantiates — and they were
+   also missing `gaxi_fifo_async` and its whole dependency tree, which the
+   slaves DO instantiate. **Fixed 2026-07-25 (`6eab2377`):** each harness's
+   `[script]`/`[files]` are now GENERATED from the area's audited filelist, so
+   they cannot drift from the closure the cocotb tests compile. 14/17/17/21
+   sources, up from 3/4/4/5; all 77 refs resolve and each set elaborates under
+   Verilator. The proofs themselves are still unrun — `sby`/`yosys` are not
+   installed on this box.
+
+3. Two more stranded tests, same defect as (1): `test_counter_bingray_wavedrom`
+   and `test_counter_johnson_wavedrom` sat in val/common hand-listing
+   `rtl/common/<dut>.sv`, broken since the move. Confirmed RED, moved to
+   val/cdc, put on their filelists. They were missed initially because the move
+   swept tests referencing a cdc FILELIST; these referenced a PATH.
+
+**Not blocking, noted:** 387 unresolvable source refs remain in `formal/common/`
+`.sby` files, all `math_*` fallout from the earlier arithmetic split. Untouched
+here; they want their own task. *(They got one: paths mechanically repaired
+2026-08-09, 5 modules spot-verified prove+cover PASS; the full re-run is
+MATH-006 in vault/Tasks/math. The TOOL-012 blindspots baseline can be
+lowered accordingly.)*
+
+---
+
+## AMBA-MONTRACK — CLOSED 2026-08-26 (root cause was [[AMBA-BLOCKMARGIN]], fixed + measured)
+**Status:** CLOSED  **Found:** STREAM Genesys 2 monitor cosim
+
+CLOSURE: the loss mechanism was never capping per se -- it was commands
+ADMITTED against stale occupancy with no free slot (the BLOCKMARGIN
+margin-of-1 defect), whose un-backpressureable data beats were then
+discarded. With cmd_entry_reserve=4 (margin 3, all three same-cycle
+allocators covered; landed 16e4c18b, verified 2026-08-26):
+  * unit level: test_axi_mon_block_ready asserts NO untracked
+    admissions on every wrapper (31/31 with trans_mgr suite);
+  * harness level: obs_equiv PASSES on today's tree -- in-core RD
+    prod=8192 = observer 8192, WR 8192 = 8192, all three histogram
+    totals match (rd firstR 511, rd RLAST 511, wr AW->B 512).
+The remaining open questions dissolve: a dropped-command counter is
+unnecessary when no command can be admitted untracked (block_ready now
+throttles honestly -- loss became flow control); the fewer-cones-per-
+bitstream idea is moot for completeness (still valid as a congestion
+knob, see monitor-configuration). The pipelined trans-CAM idea remains
+a real FUTURE scalability lever (depth >16 at 100 MHz) but is a feature,
+not a defect -- not tracked here. Original analysis kept below.
+
+The in-core `axi4_master_rd_mon` does not track every burst it sees. Measured on
+the STREAM harness, external observer vs in-core, same traffic, same window:
+
+| cones compiled | table | observer | in-core | tracked |
+|---|---|---|---|---|
+| 1 (perf only)  | 16 | 4096 | 3513 | 86% |
+| 5 (mon build)  | 16 | 4096 | 3073 | 75% |
+
+Reproduce: `test_stream_mon_perf.py::obs_equiv` (5 cones) and the pre-migration
+`test_stream_char.py::obs_equiv` with `SIM_AR_OUTSTANDING=2` (1 cone). Both fail;
+this is NOT a migration regression and predates the shared harness.
+
+**Mechanism.** A table slot frees on `event_reported`, not on RLAST
+(`axi_monitor_trans_mgr`: `w_can_cleanup = event_reported` for
+COMPLETE/ERROR/ORPHANED). While the table is capped, `block_ready` throttles the
+upstream handshake, but commands that get through while capped are simply not
+tracked -- documented as "lossy-but-honest" in [[monitor-configuration]]. More
+compiled cones means more packets owed per transaction, more time capped, more
+loss. Hence 86% -> 75% from cone count alone, at identical depth.
+
+**Why it matters more than it looks.** A missed burst is a missed MATCH. On a
+coverage run the symptom is a tuple that reads as "never observed" when it did
+occur and the monitor was full. That is the exact wrong failure mode for a
+board campaign whose goal is observing lots of matches under specific patterns
+-- it produces confident false negatives.
+
+Related and separate: `rw_perf` fails `RD AR->firstR histogram total 255 !=
+burst count 256`, byte-identical on both trees. A one-burst histogram
+off-by-one, independent of the loss above.
+
+**ANSWERED 2026-08-05: depth closes it completely.**
+
+| table | observer | in-core | tracked |
+|---|---|---|---|
+| 16 | 4096 | 3073 | 75% |
+| **40** | 4096 | **4096** | **100%** -- `obs_equiv` PASSES |
+
+So the loss is not inherent to the monitor: it is capping, and a table that
+never caps tracks everything. Sizing is the lever for BOTH failure modes -- the
+wedge (fixed by the floor of 16) and the loss (needs enough depth that the
+table never fills at the sustained match rate).
+
+**RESOLVED 2026-08-06: 40 slots is NOT affordable. Timing, not area.**
+
+|  slots | WNS        | LUTs (325T)     | in-core tracking |
+|---|---|---|---|
+|  16    | **+1.018 ns** | 81393 (39.9%) | 3073/4096 (75%) |
+|  40    | **-25.183 ns** | 131663 (64.6%) | 4096/4096 (100%) |
+
+A 25 ns miss on a 10 ns period -- the path is over THREE times the clock, not a
+marginal overshoot. `monitor_trans_cam` performs three combinational ID lookups
+plus a free-slot priority encode across every entry, so the critical cone scales
+with depth; 64.6% utilisation then adds routing congestion. Depth buys tracking
+completeness and spends timing, steeply and nonlinearly.
+
+So the board ships 16: saturation is RECOVERABLE (no more permanent wedge) but
+tracking is ~75% under 5 compiled cones. Closing the completeness gap requires
+one of:
+
+1. **Pipeline the CAM lookup.** The real fix -- decouples depth from the
+   combinational cone. `monbus_cam_pipe` already exists as precedent for the
+   monbus CAM; the trans CAM has no pipelined variant.
+2. **Fewer cones per bitstream.** Tracking loss scales with cones (86% at 1 cone
+   vs 75% at 5, same depth). A coverage bitstream compiling only the classes it
+   is matching would track them completely, at the cost of more bitstreams --
+   the flavor split already established for error vs all-except-error.
+3. **Floorplanning.** A pblock around the monitor CAMs, as was done for
+   `pblock_compressor` on the stream_char timing knife-edge.
+
+**The tension this creates.** The board runs `AR_MAX_OUTSTANDING=2` explicitly
+to keep the trans_mgr CAM small enough to close timing with every cone built.
+The sizing change decouples table depth from that knob, so `AR=2` + a larger
+`MON_TRANS_MARGIN` can give 40 slots without touching the datapath -- but the
+CAM timing arc scales with DEPTH, not with AR, so a 40-deep CAM reintroduces
+exactly the pressure `AR=2` was avoiding. Completeness vs timing closure is a
+real trade here and only synthesis settles it.
+
+**Remaining open questions:**
+- Should coverage builds compile only the cones being matched, trading breadth
+  per bitstream for completeness within one?
+- Should the monitor expose a dropped-command counter, so loss is visible
+  instead of silent? Today nothing distinguishes "not observed" from "not
+  tracked".
+
+Fixed separately on 2026-08-05: the WEDGE (not the loss). Tables below 16 got
+`cmd_entry_reserve()==0` and no recovery guarantee, so the first overrun hung
+the monitored bus permanently -- live in the shipping monitor bitstream at
+4ch x AR=2 = 12 slots. `stream_core` now sizes
+`MAX(16, NUM_CHANNELS*Ax_MAX + MON_TRANS_MARGIN)`. See [[monitor-sizing]].
+
+## AMBA-BLOCKMARGIN — CLOSED 2026-08-26 (fix landed 2026-08-20 in 16e4c18b; verified + reconciled today)
+**Status:** CLOSED  **Supersedes the mechanism in** [[AMBA-MONTRACK]]
+
+CLOSURE: cmd_entry_reserve() returns 4 on tables >= 16 since 16e4c18b
+(2026-08-20), which makes the derived BLOCK_MARGIN exactly 3 -- covering
+all three allocators in the stale cycle while keeping the recovery
+contract (margin <= reserve-1). Verified 2026-08-26 on clean rebuilds:
+test_axi_monitor_trans_mgr + test_axi_mon_block_ready 31/31, which
+enforce BOTH requested invariants (assert_no_untracked_admissions -- no
+command admitted without an allocation -- and peak_occupancy <= depth);
+formal ap_cmd_entry_cap proves the command cap. The stale
+axi_monitor_base.sv comment block that still described reserve=2 as
+current and the fix as "left as is" (written before 16e4c18b, never
+reconciled) is rewritten to the post-fix truth -- that comment was the
+last place the pre-fix narrative survived, and the monitors doc book
+would have been re-corrupted from it. Cost accepted: 4 reserved slots
+per table >= 16 (12 usable command slots at depth 16, 60 at 64).
+
+Original analysis kept below for the record.
+
+`block_ready` is computed from `active_count`, a REGISTERED pop-count that lags
+true occupancy by one cycle (axi_monitor_trans_mgr.sv:1082, deliberately -- the
+former accumulator could underflow to 0xFF). The comment says the lag is
+"absorbed by block_ready's BLOCK_MARGIN". It is not, on any table >= 16:
+
+```
+BLOCK_MARGIN = (CMD_ENTRY_RESERVE > 0) ? (CMD_ENTRY_RESERVE - 1) : 3
+             = 1   for MAX >= 16        (CMD_ENTRY_RESERVE = 2)
+             = 3   for MAX <  16        (legacy flat margin)
+```
+
+THREE independent allocators can fire in the same cycle -- `addr_wants_alloc`,
+`data_wants_alloc`, `resp_wants_alloc`, each with its own `*_alloc_oh` out of
+monitor_trans_cam. One cycle of stale occupancy therefore admits up to three
+allocations against a margin of one.
+
+**The legacy margin of 3 was exactly right.** The saturation-recovery refactor
+replaced it with `CMD_ENTRY_RESERVE - 1` and regressed it to 1 on precisely the
+tables the reserve was added to protect.
+
+**Why the data drop is a symptom, not the defect.** Every data beat belongs to a
+command that was already accepted; if that command got a slot, its beats MATCH
+and never need allocation. Unmatched data can only exist when a command was
+accepted WITHOUT being allocated -- i.e. when block_ready failed to stop it. So
+the observable loss (unmatched data/resp beats discarded at a full table,
+because they cannot be backpressured -- a monitor must never stall returning
+data) is downstream of a command that should never have been admitted.
+
+**Measured.** val/amba/test_axi_monitor_trans_mgr.py::phase_saturation_recovers,
+depth 8: after fill `active_count=8, block_ready=0`; 32 unmatched data beats
+driven; `peak=8`, final 7 -- all 32 discarded. At the harness level obs_equiv
+reports observer 4096 vs in-core 3073, IDENTICAL at drain 2,000 and 200,000
+clocks, so it is loss and not backlog. At 40 slots the margin is still 1 but
+occupancy never nears full (8 max outstanding), so nothing is lost -- the bug
+only bites on genuine saturation.
+
+**FIX CANDIDATE 1 IS WRONG — MEASURED 2026-08-17.**
+
+`BLOCK_MARGIN = max(3, CMD_ENTRY_RESERVE - 1)` was implemented and it BREAKS
+saturation recovery. The margin must satisfy two constraints simultaneously:
+
+  (a) >= 3, to cover the three allocators that can fire in the one stale cycle
+  (b) <= CMD_ENTRY_RESERVE - 1, or `block_ready` can never RE-ASSERT
+
+With `CMD_ENTRY_RESERVE = 2` on tables >= 16 these are unsatisfiable. At
+margin 3 on a 16-slot table `block_ready` needs `active_count < 13`, while the
+reserve only guarantees 2 free slots -- so occupancy parks at 14 and the gate
+never recovers. `test_axi_monitor_trans_mgr` catches it directly:
+
+    block_ready never re-asserted after traffic stopped
+    (active_count stuck at 14/16) -- peak=16 block_ready=0
+
+That is the permanent wedge the reserve was added to prevent, which is a worse
+failure than the tracking loss it was meant to fix. Reverted; the reasoning is
+now recorded in `axi_monitor_base.sv` beside the localparam so the next person
+does not re-try it.
+
+**THE ACTUAL FIX: raise `CMD_ENTRY_RESERVE` to 4** (in `monitor_common_pkg`),
+so both constraints can hold at margin 3. That costs 4 slots of capacity per
+table rather than 2 and touches every wrapper's effective depth, so it wants
+sizing review alongside -- it is not a one-liner, and this task should stop
+describing it as one.
+
+**Fix candidates (original):**
+1. `BLOCK_MARGIN = max(3, CMD_ENTRY_RESERVE - 1)` -- restores the legacy cover
+   while keeping the reserve. Cheapest, and the margin then matches the number
+   of allocators by construction rather than by coincidence.
+2. Derive block_ready from the COMBINATIONAL `w_occupancy` instead of the
+   registered `r_active_count`, removing the lag entirely. Costs the timing the
+   registration was added to buy -- measure before choosing.
+3. Gate `data_wants_alloc` / `resp_wants_alloc` on free slots and count the
+   rejects, so loss becomes visible instead of silent (still no counter today).
+
+Whichever is taken, add an assertion that occupancy never exceeds
+`MAX_TRANSACTIONS` AND that no command is accepted without an allocation -- the
+second is the invariant that actually failed here.
+
+**Credit:** found by the user's observation that "if the cmds are stopped
+correctly, there won't be data to drop", which reframed a documented
+"lossy-but-honest" behaviour as a flow-control defect.
+
+---
+
+### TASK-070: mon_cg monbus_valid held through gating -- FIXED 2026-08-26, residual CLOSED same day
+**Priority:** was P2 -- CONFIRMED then fixed; residual documented below
+
+CONFIRMED by directed test before the fix: park a completion packet
+(monbus_ready low), idle into gating, raise ready -- the ungated consumer
+accepted the SAME packet 30 times in 30 cycles off the frozen valid, at
+both idle counts. Fix (all 12 wrappers: axi4 + axi5 + axil4): (1)
+w_monbus_valid ORed into user_valid -- a pending packet is outstanding
+work, holds the block awake and re-wakes it within a cycle; (2) external
+monbus_valid masked with !cg_gating -- covers the knife-edge where gating
+asserts on the same edge the packet arrives (1-cycle wake), so a consumer
+can never sample a valid the reporter's stopped clock could not retire.
+The mask only defers valid's rise, never truncates a visible valid,
+because once w_monbus_valid is high gating cannot engage.
+
+Directed test = val/amba/test_mon_cg_gating.py phase 6 (park, watch
+gating, release, record packet VALUES -- a count cannot tell one packet
+re-delivered N times from N distinct packets draining). 24/24 gating +
+36/36 functional green after clean rebuild.
+
+RESIDUAL CLOSED (same day, after the monitor-stack dive): no port
+export was needed. The wrappers already receive the CAM occupancy as
+active_transactions (filtered's active_count), and CAM entries stay
+valid until their packet is marked into the reporter FIFO -- the
+registered count then lags one cycle further, meeting monbus_valid's
+assertion. ORing (|active_transactions) into user_valid therefore covers
+the entire retire -> FIFO -> output emission window with an existing
+port. Phase 6 tightened to assert len(delivered) == 1 (was <= 3, which
+tolerated the stranded phase-5 packet surfacing in phase 6's drain);
+tightened test RED against the wrapper-only fix (2 deliveries: the
+0x8000 stranded packet + the 0xA000 phase packet), GREEN after the
+occupancy term: gating 24/24, functional 36/36, clean rebuilds. One
+sequencing subtlety: w_monbus_valid alone is NOT redundant with the
+occupancy term -- the threshold/perf/debug bypass packets never come
+from CAM entries, so both terms are needed. w_output_busy export NOT
+needed; nothing further owed here. Docs updated to the closed contract
+(no idle-count advisory).
+
+## AMBA-COMPTP — CLOSED 2026-08-27: SKID_DEPTH 2 -> 3 recovers 1 record/cycle
+**Status:** CLOSED (measured 0.670 -> 1.000; one localparam)
+**Priority:** was P3
+
+FIX: `localparam int SKID_DEPTH = 2` -> `3` in monbus_compressor.sv. That
+one line feeds both the credit guard and the skid instance, so nothing
+else changed. r_credit is [2:0] and w_skid_count is [3:0] (headroom), and
+gaxi_skid_buffer takes 2..8 inclusive, so 3 is legal -- see
+[[skid-depth-contract]].
+
+WHY 3 EXACTLY: the credit round trip is 3 cycles -- present at T, CAM
+result T+1, REGISTERED skid rd_valid and pop T+2, credit visible again
+T+3 -- so N credits sustain N/3 records/cycle. Depth 2 predicts 0.667 and
+phase 4 measured 0.670 (134/200); depth 3 predicts and measured exactly
+1.000 (200/200). Depth 4 would buy nothing: the input handshake caps at 1.
+
+WHY THE CREDIT CEILING COULD NOT BE RAISED ALONE (the constraint that
+made this a skid change rather than a guard change): monbus_cam_pipe has
+NO result_ready -- results are autonomous -- and skid_wr_ready is
+connected but never consulted. The credit guard is therefore the only
+thing guaranteeing a landing slot for every in-flight result. More
+credits than skid entries = a result arriving at a full skid, silently
+dropped.
+
+COST: one skid entry, P_W = 382 bits (hit + idx + old_data + delta_ts +
+event_data + src_ts60 + packet).
+
+TIMING: deepening the skid does NOT reopen the 65-bit format-C path the
+skid exists to break -- it adds an entry, it does not shorten a cone.
+Regression 61/61 clean. A synthesis run on the target part is still the
+honest confirmation for a design that fought for 100 MHz once; flagged
+rather than claimed.
+
+The phase-4 assertion is now a LOWER bound only (>= 0.98). 1.0 is the
+handshake ceiling, so nothing can legitimately exceed it and any drop is
+a regression -- the two-sided bound had done its job by firing here.
+
+CLOSED TOO (2026-08-28): the credit invariant is now asserted.
+test_monbus_compressor.py phase 0 checks `pipe_res_valid |-> skid_wr_ready`
+every cycle -- a CAM result presented while the skid is full is a silently
+dropped record, and skid_wr_ready is connected but never consulted.
+
+An in-RTL `ifdef FORMAL` property was the obvious home and would have been
+DECORATION: there is no formal proof for the compressor, so it would never
+run. The check lives in the testbench, where monbus_compressor is the
+toplevel so its internals are reachable, and it fails loudly rather than
+skipping if they are not.
+
+Two things it took to make the check real, both worth remembering:
+  * IT RUNS FIRST. Breaking the invariant desyncs the slot stream, so the
+    golden comparison already caught it -- as a four-minute
+    SimTimeoutError with nothing pointing at the cause. Ordered before
+    phase 1, it names the cause in seconds.
+  * IT NEEDED CONSUMER BACK-PRESSURE. The first version drove with
+    out_ready high, so the skid drained as fast as it filled, the credit
+    never neared its ceiling, and it reported violations=0 against a
+    DELIBERATELY BROKEN guard -- stimulus that could not expose the bug.
+    Stalling the consumer backs the skid up. Mutation-verified after the
+    fix: ceiling raised above SKID_DEPTH gives peak credit 5 and 2
+    result-at-full-skid violations; the good RTL gives peak 3 and 0.
+
+The compressor's Tier-1 input rate is **0.67 records/cycle**, not the
+1 record/cycle both the RTL header and monbus_compressor.md claimed.
+Measured, not argued: val/amba/test_monbus_compressor.py phase 4 holds
+in_valid high across a long same-template run and counts input
+handshakes -- 134 in 200 cycles, stable.
+
+MECHANISM. The CAM result path is credit-gated at SKID_DEPTH=2 while the
+credit round trip is ~2 cycles: present at T -> CAM result T+1 ->
+gaxi_skid_buffer rd_valid is REGISTERED so it appears T+2 -> pop T+2 ->
+credit decrement visible T+3. Two credits against a 2-cycle round trip
+stalls the input one cycle in three.
+
+WHY NOT JUST FIXED. Recovering 1/cycle needs either >=3 credits or a
+fall-through result interface, and that skid is exactly what keeps the
+65-bit format-C ed_delta path off the stage-1 commit path -- which was
+the 100 MHz critical path this design already fought once. Trading it
+back for a third more throughput is a timing decision that wants a
+synthesis run, not a one-line parameter bump.
+
+DONE MEANWHILE: both texts now state the measured 2/3, and phase 4
+asserts 0.60 <= rate <= 0.72 so the claim and the hardware cannot drift
+apart again. The UPPER bound is deliberate -- if a future change
+improves the credit round trip, the test fires and says to re-measure
+and update all three places together.
+
+### TASK-062: CLOSED 2026-08-28 -- stale as filed; the real gap was inside sdpram_core
+**Status:** CLOSED
+
+AS FILED, stale. Tests for all three untested wrappers landed 2026-08-13,
+three days after the task was written (2026-08-10). Measured, not assumed:
+all four permutations build and pass (12 cases), and the shared suite in
+sdpram_slave_mixed_tb is substantive -- single beat, write burst, read
+burst, random fill, bulk clear, plus a valid/ready monitor.
+
+THE REAL GAP, found while checking Sean's "all sdpram modules should have
+tests": sdpram_core has FIVE modules' worth of coverage but a parameter
+that selects between TWO WRITE IMPLEMENTATIONS, and only one was ever
+built.
+
+  * `USE_WSTRB=1` -> `g_wstrb`, the byte-enable loop (infers distributed
+    RAM);
+  * `USE_WSTRB=0` -> `g_fullword`, the single full-word write that
+    block-RAM inference wants, which IGNORES fub_wstrb by construction.
+
+Only sdpram_slave_axil_axil even exposes the parameter; the other three
+wrappers take the default. So `g_fullword` had never been elaborated, let
+alone simulated -- and separately, NO test had ever driven a partial write
+strobe, so the byte-enable behaviour the parameter exists for was
+unproven in BOTH modes.
+
+Fixed: a phase_partial_strobe in the shared TB that asserts each branch's
+real contract (merge under USE_WSTRB=1, whole-word overwrite under 0), and
+a USE_WSTRB=0 row on the axil_axil test. Mutation-verified by forcing both
+configs down the byte-enable path: only the ws0 row fails, with the
+specific message. All 12 cases green.
+
+TWO TEST BUGS OF MINE, caught before commit and worth recording:
+  * the sim_build tag omitted the new axis, so the ws0 and ws1 rows at the
+    same dw/depth/level would have SHARED A BUILD DIR -- the second run
+    reusing the first build and reporting a pass for RTL it never
+    simulated;
+  * the phase was VACUOUS at DATA_WIDTH=256. Fixed 64-bit constants masked
+    into a 256-bit word leave the upper bytes zero in both the seed and the
+    new value, so the masked-off region was identical either way and the
+    check could not tell honoured strobes from ignored ones. Caught by
+    reading the LOGGED VALUES, not the pass/fail -- every dw256 row was
+    green and proving nothing. Patterns now fill the width, and an explicit
+    guard fails the phase if seed and new ever agree outside the strobed
+    bytes.
+
+NOT taken: exposing USE_WSTRB on the other three wrappers. That is an RTL
+API change, and the core's both branches are now covered through
+axil_axil. Raise it if a caller needs block-RAM inference on an AXI4
+write side.
+
+## AMBA-HISTCH1 — CLOSED 2026-08-26: NUM_CHANNELS=1 channel decode guarded
+**Status:** CLOSED (fixed same day it was filed; the pumice consumer-path
+retirement proceeds independently -- this fix is defensive for every
+other NUM_CHANNELS=1 instantiation and cannot conflict with it)
+
+CLOSURE: the three channel decodes are now
+`(NUM_CHANNELS > 1) ? id[CW-1:0] : '0` -- exactly the fix the filing
+prescribed. Mutation-proven: new latency_hist_ch1_odd_id_test (odd-ids
+counted 0/4 on the unguarded RTL under Verilator; 4/4 fixed, plus a
+mixed-id bin-exact check) and a NUM_CHANNELS x IS_READ parametrization
+of val/amba/test_axi_perf_latency_hist.py (was ch8-only -- structurally
+blind to this). The old RTL also failed the pre-existing interleave
+phase on a ch1 build (cmd id=1's push vanished out-of-bounds), so the
+bug was reachable from existing stimulus, just never built at ch1.
+8/8 val cases green. The timestamp-FIFO sizing contract note below
+(MAX_OUTSTANDING vs consumer admission domain) remains true and stays
+documented in the module's o_cmd_block comment.
+
+`rtl/amba/shared/axi_perf_latency_hist.sv` derives
+`CW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1` and then indexes every
+per-channel array with `id[CW-1:0]`. At `NUM_CHANNELS=1` that makes the
+channel index ID BIT 0 into a ONE-entry array:
+
+- Simulation (Verilator): out-of-bounds accesses silently vanish — only
+  even-ID commands are counted. Deterministic: an LFSR-id run counted
+  33/64 transactions (the even-id subset), byte-identical across configs.
+- Synthesis: the index truncates instead, so odd/even ids ALIAS onto the
+  single entry — same-cycle push/pop hit the same registers, the occupancy
+  count corrupts, and `r_burst_active` churn produces multiple "first
+  beat" events per burst. This is the likely mechanism behind the pumice
+  board's EXTRA-returns side of PUMICE-020 (168409 vs 64000).
+
+Fix when touched: `w_ch_* = (NUM_CHANNELS > 1) ? id[CW-1:0] : '0;` for the
+cmd/data/resp decodes. NUM_CHANNELS>1 instantiations (the stream observers
+at 8) are unaffected. Also note the timestamp-FIFO sizing contract the same
+investigation surfaced: with `o_cmd_block` unconsumed, MAX_OUTSTANDING must
+cover the consumer's WHOLE admission domain or samples are silently lost
+(the module's own comment documents the degradation; the char macro ran at
+8 vs an ~10+ deep engine pipeline and lost up to 6/64 samples even with
+single-id traffic).
+
+### TASK-081: monitor_trans_cam has a combinational loop that only a cocotb-flavoured build can see
+
+**Priority:** P1. It was the cause of 12 of the 13 red `*_mon_monitor` bridge
+tests, red for an unknown but long time. NOT the sole cause, as first written:
+the 13th (`bridge_1x2_rd_regblock_mon`) has a SECOND, independent build failure
+-- BLKLOOPINIT in its PeakRDL regblock -- and stays red after this fix. That
+one is [[TASK-082]] finding 4.
+**Status:** FIXED 2026-09-05, same day. It was a FALSE cycle, created by
+Verilator's block-level scheduling, not a real feedback path -- see the fix at
+the end. Kept open-page until the val/amba sweep in [[TASK-025]] absorbs it.
+**Raised:** 2026-09-05. Found while running the bridge suite from a
+CLEAN build tree during the axil5 work.
+
+**Symptom.** Every monitor-variant bridge fails to BUILD:
+
+```
+%Warning-UNOPTFLAT: rtl/amba/monitor/monitor_trans_cam.sv:92:47:
+  Signal unoptimizable: Circular combinational logic:
+  '...trans_mgr.g_cam_bank[0].u_cam.addr_wants_alloc'
+%Warning-UNOPTFLAT: ...:93:47: ... 'data_wants_alloc'
+%Error: Exiting due to 2 warning(s)
+```
+
+Same signal pair appears in the Genesys2 `bridge_stream_*_mon` lint output, so
+it is not specific to the components fixtures.
+
+**NOT caused by the recent monitor work.** The obvious suspect was
+[[6617b0d2]] ("bank-local pre-reduction on the trans_mgr hit_any cones",
+2026-08-31), which reworked the very cone these signals feed. It is not: a
+worktree at `6617b0d2^` reproduces the SAME 4 UNOPTFLAT. The loop predates it.
+Do not start there.
+
+**Why nothing caught it — this is the transferable part.** The warning is
+invisible to every lint gate in the repo, and it takes THREE things to see it:
+
+| invocation | UNOPTFLAT |
+|---|---|
+| `verilator --lint-only -Wall` (what `make lint` runs) | 0 |
+| `verilator -cc -Wall` (a real model build) | 0 |
+| `verilator -cc --public-flat-rw --trace` (what cocotb runs) | **4** |
+
+`--lint-only` never runs the scheduling analysis that finds circular
+combinational logic. Even `-cc` finds nothing, because Verilator optimises
+across the loop and the problem disappears. It takes `--public-flat-rw` --
+which cocotb always passes, so every signal stays addressable and nothing can
+be flattened -- to make the cycle real. Elaborating the design is necessary
+and NOT sufficient; see [[lint-gate-must-elaborate]], which this sharpens.
+
+Standalone `monitor_trans_cam` is clean at default parameters; it needs the
+bridge's parameterisation (multiple CAM banks) to appear.
+
+**Where to start.** `monitor_trans_cam.sv:92-93` -- `addr_wants_alloc` and
+`data_wants_alloc` are combinational outputs that feed a cone which comes back
+to them. Either break the cycle or, if it is a false cycle across independent
+bits, split the signals so Verilator can see the bits are independent. A
+`lint_off UNOPTFLAT` would silence it and is the wrong answer: a real
+combinational loop is a synthesis hazard, and this RTL is on two boards.
+
+**Also worth doing:** add a `-cc --public-flat-rw` build to whatever gate is
+supposed to catch this. A gate that cannot see the failure class is not a
+gate.
+
+---
+
+### TASK-082: lint findings in the monitor that the bridge gate now surfaces
+
+**Priority:** P3.
+**Status:** CLOSED 2026-09-14. ALL FOUR FIXED -- 1 and 4 on 2026-09-05, 2 and 3 on 2026-09-06.
+`make verilator` in projects/components/bridge/rtl now passes 36 of 36
+variants; it was failing all 36 when this task opened. The status line read 'ALL FOUR FIXED' but never said
+CLOSED, so the tracker kept flagging it; said plainly now.
+**Raised:** 2026-09-05. Split out of the [[TASK-081]] work: with
+PINCONNECTEMPTY waived, `make verilator` in projects/components/bridge/rtl
+went from 36/36 variants failing to 13, and those 13 are these three findings
+repeated across the monitor-variant bridges.
+
+**1. `pipe_ready` is undriven when `ADD_PIPELINE_STAGE = 0`** (13 variants)
+**-- FIXED 2026-09-05.**
+`rtl/amba/monitor/axi_monitor_filtered.sv:245`. The signal is declared at
+module scope but only assigned inside `generate if (ADD_PIPELINE_STAGE)`,
+while line 444 references it unconditionally:
+
+```systemverilog
+assign base_monbus_ready = pkt_drop ||
+                          (ADD_PIPELINE_STAGE ? pipe_ready : monbus_ready);
+```
+
+With the parameter 0 the ternary constant-folds to `monbus_ready`, so this
+cannot change behaviour -- but the reference keeps the net alive and undriven,
+which is an X source under tools that do not fold as eagerly.
+
+Fixed with `assign pipe_ready = 1'b1;` in the `gen_no_pipeline` branch. Single
+driver per elaboration (the two assigns are in mutually exclusive generate
+branches), and the only read outside the generate is the ternary that folds
+away. The other `pipe_*` signals need no tie -- nothing reads them in this
+branch.
+
+**Verified:** bridge lint's 13 UNDRIVEN gone (3 causes -> 2; the same 13
+variants still fail, now on finding 2 alone); `axi_monitor_filtered` formal
+prove PASS against a REGENERATED flat; all 15 components `*_mon` variants and
+both Genesys2 `*_mon` bridges build clean of UNOPTFLAT/UNDRIVEN under the
+cocotb flag set; val/amba monitor subset 13/13.
+
+**2. Two WIDTHEXPAND in `axi_monitor_trans_mgr.sv` -- FIXED 2026-09-06.** (26 sites)
+- `:677` `EQ expects 8 bits on the RHS, but 'w_widq_head' generates 4`
+- `:1458` `MODDIV expects 32 or 7 bits on the LHS, but 'resp_id' generates 4`
+
+Both were benign and both are now explicit.
+
+`:677` compared the 8-bit payload `id` field against the IW-wide
+`w_widq_head`. Safe because `ID_WIDTH > 8` is a hard elaboration error and the
+write side does `next.id = '0; next.id[IW-1:0] = cmd_id;`, so the upper bits
+are zero by construction -- the implicit zero-extend was right. Now uses the
+`[IW-1:0]` part-select this same file already uses at `next_id`.
+
+`:1458` was `resp_id % 64` into a 6-bit field, with a `lint_off WIDTHTRUNC`
+around it; its twin at `:1396` spelled the same operation `{24'h0, data_id} %
+64`. `% 64` into a 6-bit field IS "the low 6 bits", so both are now `6'(...)`
+-- one spelling, no modulo whose operand width tracks IW, and the waiver is
+gone. Two spellings of one operation is how `:677` drifted from its own
+file's idiom in the first place.
+
+**Verified:** bridge lint 36/36 pass; formal prove for trans_mgr,
+trans_mgr_banked, base and filtered plus trans_mgr cover, each against a
+regenerated flat; val/amba monitor sweep 43/43.
+
+**3. Two WIDTHTRUNC in the regblock bridge top -- FIXED 2026-09-06.** (1 variant)
+`bridge_1x2_rd_regblock_mon.sv:673,684`: `s_axil_awaddr` / `s_axil_araddr`
+expect 8 bits, driven by a 32-bit `s_cfg_axil_*`. This is the CSR window
+narrowing and is intentional, but it is implicit.
+
+Fixed generator-side. The catch is ordering: PeakRDL sizes `s_axil_a{w,r}addr`
+from the register map, and the bridge top is emitted BEFORE the regblock
+exists, so the width is not knowable when those connection lines are written.
+`bridge_generator` now reads the width out of the emitted regblock and rewrites
+the two lines, raising if the port declaration or either connection is not
+found -- a silent skip would put the WIDTHTRUNC back with nothing to say why.
+
+**With this and finding 2, `make verilator` in projects/components/bridge/rtl
+passes 36 of 36 variants** -- it was failing all 36 when this task opened.
+
+**4. `BLKLOOPINIT` in the PeakRDL regblock -- FIXED 2026-09-05.** (1 test:
+`test_bridge_1x2_rd_regblock_mon_monitor`, and the same shape in the Genesys2
+`*_mon` bridges). Not a lint finding -- it fails the BUILD:
+
+```
+%Error-BLKLOOPINIT: bridge_1x2_rd_regblock_mon_cfg.sv:165:41:
+  Unsupported: Non-blocking assignment to array with compound element type
+  inside loop
+```
+
+`axil_resp_buffer` is an unpacked array of a struct, reset with NBAs inside a
+`for(int i=0; i<2; i++)`. Verilator does not support that shape.
+
+**An unroll budget does NOT fix this one, and that is worth writing down**
+because it is the obvious first guess -- [[feedback_lint_gate_must_elaborate]]
+records a different BLKLOOPINIT that `--unroll-count`/`--unroll-stmts` DID
+fix, by unrolling the loop until the NBAs were no longer inside one. Measured
+here 2026-09-05:
+
+| flags | BLKLOOPINIT |
+|---|---|
+| default | 9 |
+| `--unroll-count 16384 --unroll-stmts 200000` | 9 |
+
+So the two BLKLOOPINIT cases in this repo have different fixes. This one needs
+the generated code to change shape -- a whole-array reset
+(`axil_resp_buffer <= '{default: '0};`) rather than a per-element loop. That is
+PeakRDL's template, so the fix belongs upstream or in a post-process step, NOT
+in the generated `.sv` ([[generated-rtl-discipline]]).
+
+**Fixed** in `cfg_rdl_generator.run_peakrdl`, which now rewrites that reset
+after invoking peakrdl. It UNROLLS the loop rather than collapsing it, and the
+difference matters: `axil_resp_buffer <= '{default: '0};` also clears
+BLKLOOPINIT, but then trips a Verilator CODEGEN bug -- the emitted C++ assigns
+`unsigned int` to the struct type and g++ rejects it with "no match for
+operator=". Per-field scalar assignments, which is what the loop expanded to
+anyway, avoid both.
+
+Worth recording HOW that nearly shipped: `verilator -cc` GENERATES C++ but does
+not COMPILE it, so a BLKLOOPINIT count of 0 from `-cc` looked like success while
+the build still died in g++. Counting the symptom is not building the design --
+run the test. The transform asserts it matched, so a PeakRDL upgrade that
+changes the template fails loudly instead of silently emitting RTL that will
+not build.
+
+**Do not silence any of these with a waiver.** The gate was just repaired
+precisely because a blanket waiver is how the UNOPTFLAT in [[TASK-081]] stayed
+invisible for weeks. And BLKLOOPINIT is not waivable in any case -- it is
+Verilator refusing to elaborate, not a style opinion.
+
+
+**FIXED 2026-09-05.** A false cycle, twice over, both times the same rule:
+**Verilator schedules an `always_comb` as ONE node, so every signal written in
+a block inherits the dependencies of every signal read in it.**
+`axi_monitor_trans_mgr.sv` had two blocks that each mixed alloc-dependent and
+alloc-independent signals:
+
+1. the per-bank -> flat flattening wrote `addr_match_oh` and `addr_alloc_oh`
+   together, so match inherited alloc's dependency on `addr_wants_alloc`;
+2. the per-bank reduction wrote `wb_addr_pend_any` and `wb_data_bypass_any`
+   together, and the bypass is computed from the addr-alloc mirror -- so the
+   addr reduction inherited it too.
+
+Either one closes `addr_hit_any -> addr_wants_alloc -> ... -> addr_hit_any`.
+The true dependency is acyclic: an allocation pick never feeds a match result,
+and `addr_hit_any` reads only the addr-pend term. The fix is to SPLIT both
+blocks on the alloc boundary -- identical right-hand sides, identical single
+driver per signal, purely a bracketing change. Comments at both sites say why
+they must stay split.
+
+This is the same fusion the CAM's own alloc block causes, which the author had
+already worked around once with the addr-alloc mirror further down the file.
+The mirror cut the data path; these two blocks re-created the problem at the
+bank level.
+
+**Verified:** all 15 bridge `*_mon` variants build clean under the cocotb flag
+set (4 UNOPTFLAT -> 0); `axi_monitor_base` and `axi_monitor_filtered` likewise;
+formal prove+cover PASS for `axi_monitor_trans_mgr`, and prove PASS for
+`axi_monitor_trans_mgr_banked`, `axi_monitor_base`, `axi_monitor_filtered` --
+each against a FRESHLY REGENERATED flat, because the `.sby` reads a generated
+`*_flat.v` and a stale one proves the old RTL; val/amba monitor sweep 43/43;
+and the full components/bridge suite went 25 failed / 45 passed -> 3 failed /
+67 passed across this session's fixes. The 3 that remain are all diagnosed and
+filed: the regblock BLKLOOPINIT above, and the two boundary probes in
+[[BRIDGE-008]].
+
+The gate gap is closed too: `make build-check` in projects/components/bridge/
+rtl now runs every variant through a real build with `--public-flat-rw`. See
+[[TASK-082]] for the three findings the repaired lint gate surfaced alongside.
+

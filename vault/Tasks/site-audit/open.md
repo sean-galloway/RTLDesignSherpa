@@ -2,7 +2,7 @@
 
 # site-audit — open
 
-## AUDIT-002 — triage 11 tasks whose body status contradicts their page
+## AUDIT-002 — teach the checker to see BOTH directions (the 11-task triage is done)
 **Status:** open 2026-08-28 — surfaced by `bin/check_task_ids.py`
 **Priority:** P3 — bookkeeping, but it makes the rollup counts lie
 **Area:** cross-cutting (common + pumice + amba) — filed here rather
@@ -32,6 +32,37 @@ need OPPOSITE fixes, which is why it was not automated:
 Auto-flipping the text would launder the second kind into the closed pile,
 which is worse than the inconsistency it fixes. Read each, decide, then the
 warning count should reach zero.
+
+---
+
+**Worked 2026-09-14 — warning count is now ZERO, and the caution above was
+justified by the outcome.**
+
+The COMMON-* and NEXYSA7-STREAM items named above are gone; someone cleared
+them between 08-28 and now. A different set had taken their place, all in
+amba, and it split exactly along the two-bug line this task predicted:
+
+* **Genuinely done, stale line —** TASK-082. Its body already read "ALL FOUR
+  FIXED ... safe to close" but never said CLOSED, so the checker kept flagging
+  it. Status line updated; it stays in `closed.md`.
+* **Still open and misfiled —** TASK-078, -083, -084, -085, -095. Every one
+  says `open` or "NOT fixed" or "deliberately not fixed" in its own body, and
+  four of them are real defects: monitor TIMEOUT saturation, SOFT_RESET not
+  resetting the monitor subsystem, two deterministically seed-failing
+  val/amba tests, and an arithmetic overflow in `axi_split_combi` found by
+  formal. **Auto-flipping would have buried four defects.** Moved back to
+  `open.md`.
+
+The inverse problem was fixed in the same pass and is worth recording here
+because the checker does NOT catch it: six entries sat in amba's `open.md`
+with bodies reading CLOSED or DONE, including a duplicate
+`AMBA-INTEG-EXAMPLES` heading that split one entry in half and made the task
+count as both open and closed. `bin/check_task_ids.py` only warns on terminal
+pages holding open bodies, not on `open.md` holding closed ones — so that
+direction has to be looked for by hand, or the checker taught to see it.
+
+Remaining: this task stays open only for that checker gap. The triage itself
+is done.
 
 ## AUDIT-001 — Site-wide audit: RTL correct, docs match, docs humanized, verification covers it
 **Status:** open 2026-07-28 — scope clarifying as it goes; expect a split into per-part children
