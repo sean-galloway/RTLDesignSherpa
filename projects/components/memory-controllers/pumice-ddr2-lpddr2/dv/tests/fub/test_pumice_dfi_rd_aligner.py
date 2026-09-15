@@ -145,6 +145,101 @@ async def _run(dut, op_src, obs, RDEN):
     assert last_at == [BL_WORDS - 1], f"rd_last at {last_at}, expected only [{BL_WORDS-1}]"
 
 @cocotb.test(timeout_time=3, timeout_unit="ms")
+async def cocotb_test_rd_aligner_phy_preamble(dut):
+    """The a7ddrphy PREAMBLE valid, which no test has ever injected.
+
+    From the ILA capture that drove commit 2f08eb23e: the a7ddrphy asserts a
+    dfi_rddata_valid ONE CYCLE BEFORE the aligner's enable window, with the data
+    lines not yet driven, and then the real valid+data after. If the aligner
+    captures that beat, rd_last fires a word early and every read's real word
+    becomes the NEXT read's word 0 -- the whole stream shifts.
+
+    Three fixes for this were committed and reverted within an hour on
+    2026-07-14 (2f08eb23e/f0354c137, dcaedce4b/39827800a, 144b3860f/19d483880),
+    and the multi-outstanding redesign that replaced them gates capture on
+    `r_outstanding != 0` -- which its own comment calls "a WIDE admit->return
+    gate". The preamble arrives while the read IS outstanding, so a wide gate
+    does not exclude it. NOTHING in this suite injects a preamble, so whether
+    the replacement covers the case has never been tested either way.
+
+    This test settles it. It is written to PASS on correct behaviour, so a
+    failure is a real defect rather than a spec disagreement.
+    """
+    cocotb.start_soon(Clock(dut.dfi_clk, 10, units='ns').start())
+    dut.dfi_rstn.value = 0
+    dut.t_rddata_en_i.value = 0
+    dut.dfi_rddata_i.value = 0
+    dut.dfi_rddata_valid_i.value = 0
+    op_src = fub_pulse_producer(dut, "op", dut.dfi_clk, log=dut._log,
+                                valid="op_valid_i", ready="op_ready_o")
+    fub_consumer(dut, "rd", dut.dfi_clk, log=dut._log,
+                 valid="rd_valid_o", ready="rd_ready_i",
+                 fields={'data': ("rd_data_o", DFI_DW),
+                         'resp': ("rd_resp_o", 2),
+                         'last': ("rd_last_o", 1)})
+    obs = _CycleObs(dut)
+    cocotb.start_soon(obs.run())
+    for _ in range(4):
+        await RisingEdge(dut.dfi_clk)
+    dut.dfi_rstn.value = 1
+    for _ in range(3):
+        await RisingEdge(dut.dfi_clk)
+
+    RDEN = 4
+    dut.t_rddata_en_i.value = RDEN
+    rng = random.Random(0xB1A5)
+    words = [rng.randrange(1 << DFI_DW) for _ in range(BL_WORDS)]
+
+    n_fire0, n_en0 = len(obs.fires), len(obs.ens)
+    await op_src._driver_send(op_src.create_packet(req=1))
+    # Advance to exactly ONE CYCLE BEFORE the enable window opens.
+    for _ in range(RDEN):
+        await RisingEdge(dut.dfi_clk)
+
+    # The preamble: valid asserted, data NOT driven by the device. Modelled as
+    # all-ones, which is what an undriven DQ bus reads as on the board (59% of
+    # the PUMICE-037 failing beats). The original ILA saw zeros; either way it
+    # is not real data and must not be captured.
+    PREAMBLE = (1 << DFI_DW) - 1
+    dut.dfi_rddata_i.value = PREAMBLE
+    dut.dfi_rddata_valid_i.value = (1 << DFI_RATE) - 1
+    captured_preamble = False
+    await RisingEdge(dut.dfi_clk)
+    if int(dut.rd_valid_o.value) and int(dut.rd_ready_i.value):
+        captured_preamble = True
+    dut.dfi_rddata_valid_i.value = 0
+
+    # Now the REAL burst.
+    for _ in range(2):
+        await RisingEdge(dut.dfi_clk)
+    got, last_at = [], []
+    for w in words:
+        dut.dfi_rddata_i.value = w
+        dut.dfi_rddata_valid_i.value = (1 << DFI_RATE) - 1
+        await RisingEdge(dut.dfi_clk)
+        if int(dut.rd_valid_o.value) and int(dut.rd_ready_i.value):
+            got.append(int(dut.rd_data_o.value))
+            if int(dut.rd_last_o.value):
+                last_at.append(len(got) - 1)
+    dut.dfi_rddata_valid_i.value = 0
+    await RisingEdge(dut.dfi_clk)
+
+    assert not captured_preamble, (
+        "PUMICE-037: the aligner CAPTURED the a7ddrphy preamble valid "
+        f"(data {PREAMBLE:#x}, one cycle before the enable window). rd_last then "
+        "fires a word early and every read's real word becomes the next read's "
+        "word 0 -- the whole read stream shifts. This is what the reverted "
+        "enable-window credit (2f08eb23e) prevented; `r_outstanding != 0` does "
+        "not, because the read IS outstanding when the preamble arrives.")
+    assert got == words, (
+        f"PUMICE-037: read stream SHIFTED by the preamble. got "
+        f"{[hex(x) for x in got]} != {[hex(x) for x in words]}")
+    assert last_at == [BL_WORDS - 1], (
+        f"PUMICE-037: rd_last at {last_at}, expected only [{BL_WORDS-1}] -- "
+        f"an early last is the shift signature.")
+
+
+@cocotb.test(timeout_time=2, timeout_unit="ms")
 async def cocotb_test_rd_aligner_tccd_paced(dut):
     """x16 BL4 (BL_WORDS=1): reads paced at tCCD=2, one cycle WIDER than the
     DQ-bus occupancy (BL_WORDS=1). The aligner must place each read's
@@ -302,6 +397,12 @@ def _run_fub(testcase: str, bl_words: int, max_outstanding: int = 8):
 
 def test_pumice_dfi_rd_aligner(request):
     _run_fub("cocotb_test_pumice_dfi_rd_aligner", bl_words=4)
+
+
+def test_pumice_dfi_rd_aligner_phy_preamble(request):
+    # x16 BL4 (BL_WORDS=1), the board's shape: inject the a7ddrphy preamble
+    # valid one cycle before the enable window and check it is not captured.
+    _run_fub("cocotb_test_rd_aligner_phy_preamble", bl_words=1)
 
 
 def test_pumice_dfi_rd_aligner_tccd_paced(request):

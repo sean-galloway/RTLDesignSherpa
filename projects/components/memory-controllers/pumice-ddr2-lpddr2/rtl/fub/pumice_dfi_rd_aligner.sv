@@ -105,15 +105,46 @@ module pumice_dfi_rd_aligner #(
     )
 
     // ---- capture: BL_WORDS per outstanding read, in order -------------------
-    // Capture only while a read is outstanding (a WIDE admit->return gate that
-    // drops truly-stray valids arriving with nothing in flight). r_rcnt counts
-    // words within the current read; the BL_WORDS-th word marks last and retires
-    // one outstanding read.
+    // Two gates, and BOTH are needed.
+    //
+    // 1. r_outstanding != 0 -- a WIDE admit->return gate that drops truly-stray
+    //    valids arriving with nothing in flight.
+    //
+    // 2. r_credit != 0 -- the ENABLE-WINDOW gate. The a7ddrphy asserts a
+    //    PREAMBLE dfi_rddata_valid one cycle BEFORE this read's enable window,
+    //    with the device not yet driving DQ. The wide gate above does NOT
+    //    exclude it, because the read IS outstanding when the preamble arrives;
+    //    capturing it makes rd_last fire a word early and every read's real
+    //    word becomes the next read's word 0 -- the whole stream shifts, and
+    //    the bogus beat reads as whatever the undriven bus floats to (all-ones
+    //    on this board; the original 2026-07-14 ILA saw zeros).
+    //
+    // Credit accrues +1 per ENABLE cycle and spends -1 per captured word, so it
+    // can never be non-zero before the window opens, while still tolerating the
+    // PHY's return latency -- the data arrives well after the enable that
+    // authorised it, so a plain combinational "capture only while w_en" would
+    // reject the real data too.
+    //
+    // This restores 2f08eb23e, which was reverted the same day (f0354c137) and
+    // replaced by the multi-outstanding redesign in 79a848b69. That redesign
+    // solved backpressure, not the preamble, and nothing in the suite injected
+    // a preamble to notice -- see cocotb_test_rd_aligner_phy_preamble, which
+    // fails without this gate. PUMICE-037.
+    localparam int CRDW = $clog2((PIPE + 1) * BL_WORDS + 1) + 1;
+    logic [CRDW-1:0] r_credit;
+
     logic [CNTW:0] r_rcnt;
     logic          w_word_valid, w_cap_fire;
-    assign w_word_valid = |dfi_rddata_valid_i;
+    assign w_word_valid = (|dfi_rddata_valid_i) && (r_credit != '0);
     assign w_cap_fire   = w_word_valid && (r_outstanding != '0) && rd_ready_i;
     assign w_read_done  = w_cap_fire && (r_rcnt == (CNTW+1)'(BL_WORDS - 1));
+
+    `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
+        if (`RST_ASSERTED(dfi_rstn)) r_credit <= '0;
+        else                         r_credit <= r_credit
+                                                 + CRDW'(w_en ? 1 : 0)
+                                                 - CRDW'(w_cap_fire ? 1 : 0);
+    )
 
     assign rd_valid_o = w_word_valid && (r_outstanding != '0);
     assign rd_data_o  = dfi_rddata_i;
