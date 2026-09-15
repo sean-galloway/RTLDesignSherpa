@@ -866,7 +866,42 @@ FAILING 59% vs GOOD 59% -- no discrimination at all. At 7 cycles it is 81% vs
 67%, which is weak and not worth building on. Do not re-open tWTR/tRTW on this
 evidence.
 
-**Next:** this is now a PHY read-capture question, so it belongs with the
+**Read-eye narrowing under write load is RULED OUT (2026-09-15).** It was the
+natural follow-up to the all-ones signature and it is wrong. Tap sweep at the
+operating bitslip, quiet vs with three background writers hammering other
+banks, load VERIFIED in flight on every row (`gen_done` checked after each
+read, printed per row):
+
+| tap | quiet | loaded |
+|---|---|---|
+| 0-9 | clean | clean |
+| 10 | 3055 mismatched | 3034 mismatched |
+| 11-13 | 4096 mismatched | 4096 mismatched |
+
+Same eye edge, same counts. Write traffic does not move the read eye, so the
+corruption is not read-capture margin against bus loading.
+
+**Three earlier attempts at this measurement were WRONG and are recorded so
+nobody repeats them.** The first reported "no passing tap when loaded" -- an
+eye collapse -- and it was an artifact: it armed the load and then called
+`_test()`, which begins with `_reinit()` (a soft reset) and stops it. The
+second had the same ordering bug. The third died on a bad API call. Worse,
+each left `TXN_MAX` writers running, and **a runaway generator survives
+`soft_reset`** ([[feedback_runaway_generators_survive_soft_reset]]): the next
+run's leveling reported "no passing tap at ANY bitslip -- analog read path not
+recoverable, check sys4x_dqs / IO / pins", which reads as dead silicon. The
+board was fine; a reprogram plus re-level gave `verify OK` immediately. Only
+reprogramming clears a runaway.
+
+**Open and worth a look: the operating tap may be marginal.** `level_cache.json`
+records the bring-up eye as `[0, 16]`, width 17, tap 8 centred. Today's scan
+gives **0..9, width 10, with tap 8 ONE tap from the upper edge**. That is
+either drift since bring-up or an artifact of test depth (more beats per tap =
+more chances for a marginal tap to fail = a narrower measured eye). The
+depth sweep meant to settle it was the run that hit the runaway, so it is
+UNMEASURED. Re-run `txn` 16/64/256/1024 from a freshly programmed board.
+
+**Next:** this is still a PHY read-capture question, so it belongs with the
 leveling tuple ([[project_pumice_board_bringup_tuple]]: wrlat 1, rden 6,
 rddata_delay 7, bitslip 0 / tap 8, eye 17 wide). Re-run the read-eye scan
 WHILE a concurrent write stream is running -- the eye was characterised on a
