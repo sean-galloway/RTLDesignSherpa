@@ -469,6 +469,38 @@ requested it. And `timing` imported the same helper twice while
 `2to2_mixed` never imported pytest at all.
 
 
+## TOOL-019: delta's lint runs, passes, and gates nothing
+
+**Priority:** P3
+**Status:** 🔴 Not Started
+**Owner:** TBD
+
+The last area still on the old per-file lint template. `make lint-delta`
+exits 0 always, because the recipe lints each `.sv` individually and ends
+every invocation with `|| true`:
+
+    verilator --lint-only ... $file > lint_reports/... 2>&1 || true; \
+    verible-verilog-lint ... $file > lint_reports/... 2>&1 || true; \
+
+Three `|| true` remain in `projects/components/delta/rtl/Makefile`; every
+other area has zero. It also never elaborates -- no `--top-module`, no
+filelist -- so it would not catch what the same defect hid in misc
+(axi4_slave_rom could not elaborate at its own defaults; see [[TOOL-017]]).
+
+**Why it was left out of TOOL-017.** The fix applied everywhere else was a
+four-line `rtl/make/area.mk` include plus `filelists/<area>_all.f`. delta has
+**one** `.sv` (`delta_axis_flat_4x16.sv`), **zero** filelists, and no entry in
+`bin/filelists.toml`, so converting it means inventing both a filelist and a
+registry area for a single-module stub. That is a judgement call about an area
+that may not warrant one, not a mechanical conversion, so it was filed rather
+than guessed at.
+
+delta is not in `COMPONENTS`, so `make -C projects/components lint-all` does
+not cover it; only the top-level `lint-delta` / `lint-projects` do. Its shell
+syntax error (empty `$(call print_*)`) WAS fixed under TOOL-017 -- it surfaced
+the moment the masking `|| true` came off the top-level target -- so the target
+runs today. It just does not gate.
+
 <!-- Moved from vault/Tasks/amba/ 2026-09-14: the root cause is the pytest-xdist runner deleting local_sim_build concurrently, which hits every area, not amba RTL -->
 ## VAL-XDIST-INTERMITTENT — OPEN on the durable fix (root cause proven 2026-08-28: concurrent deletion of local_sim_build)
 **Status:** root cause PROVEN; remaining item is the durable fix below

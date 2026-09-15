@@ -2,14 +2,14 @@
 
 # Tooling tasks
 
-**Next ID: TOOL-019** — never recycle a number, even when its task closed.
+**Next ID: TOOL-020** — never recycle a number, even when its task closed.
 
 Repo tooling, scripts, and process work.
 
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 2 | in progress right now |
-| [open.md](open.md) | 12 | accepted, not started |
+| [open.md](open.md) | 13 | accepted, not started |
 | [closed.md](closed.md) | 6 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
@@ -47,6 +47,10 @@ Repo tooling, scripts, and process work.
   hardcoded paths.
 - **TOOL-012** — burn down `--blindspots`, then make it a gate.
 - **TOOL-014** — Scripts book link rot + DOCUMENTATION_INDEX refresh/retire.
+- **TOOL-019** (P3) — delta's lint runs and always exits 0: per-file
+  `|| true`, no `--top-module`, no filelist. Last area not on
+  `rtl/make/area.mk`; converting a one-module stub needs a filelist and a
+  registry area invented, so it was filed rather than guessed at.
 
 ## Note
 
