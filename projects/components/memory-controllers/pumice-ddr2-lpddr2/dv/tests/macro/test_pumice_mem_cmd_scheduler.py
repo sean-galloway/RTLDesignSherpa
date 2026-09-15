@@ -83,7 +83,13 @@ async def cocotb_test_refresh_vs_inflight_read(dut):
 
     # cmds carry their issue cycle; fall back to index order if not stamped.
     def at(c, i):
-        return c.get('cycle', i)
+        # No silent fallback to the list INDEX. That fallback is what made the
+        # first version of this test report "PRE 1 cycle after RD" when it had
+        # actually measured "PRE is the next COMMAND after RD" -- a false
+        # positive that nearly drove an RTL change.
+        assert 'cycle' in c, ("command stream carries no cycle stamp; spacing "
+                              "cannot be checked (see _cmd_sink)")
+        return c['cycle']
 
     ref_i, ref_c = refs[0]
     last_rd = max((x for x in rds if x[0] < ref_i), default=None, key=lambda x: x[0])
@@ -250,13 +256,100 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
                 "concurrent-turnaround audit")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "PUMICE-037, open: the refresh-drain PRE picks on r_bank_pre_ready, a "
-    "REGISTERED copy that is 1-2 cycles stale after a column, so it precharges "
-    "a bank whose RD fired last cycle (observed: PRE 1 cycle after RD, tRTP=2). "
-    "strict=True so this flips to XPASS the moment it is fixed."))
+@cocotb.test(timeout_time=10, timeout_unit="ms")
+async def cocotb_test_refresh_vs_read_stream(dut):
+    """PUMICE-037: a SUSTAINED read stream across a refresh.
+
+    The first attempt at this had ONE read outstanding, which is not the board's
+    state at all -- there a queue of reads is in flight when the refresh lands,
+    and the failing beats read all-ones (an undriven DQ bus), the signature of a
+    column issued to a row that is not open.
+
+    So this streams reads to one bank continuously by re-arming the mock CAM as
+    each issues, forces a refresh into the middle of it, and checks the
+    invariant the board violates: EVERY column command must land on a bank whose
+    row is currently open, with the right row. Row state is modelled from the
+    command stream itself -- ACT opens, PRE closes that bank, REF closes all
+    (DDR2 REFab requires every bank precharged), auto-precharge closes on the
+    column.
+
+    tRTP/tRP spacing is NOT re-checked here; the companion test covers it and
+    found it correct.
+    """
+    tb = PumiceMemCmdSchedulerTB(dut)
+    await tb.setup_clocks_and_reset()
+    assert await tb.complete_init(), "init_done never asserted"
+    tb.cmds.clear()
+
+    BANK, ROW = 4, 0x55
+    dut.t_refi_i.value = 0x0010          # takes effect after the 0x800 load
+
+    # Keep a read pending at all times: re-arm the instant the previous issues,
+    # so the scheduler always has a column it wants and the refresh has to cut
+    # into a live stream.
+    col = 0
+    tb.rd_entry = {'bank': BANK, 'row': ROW, 'col': col, 'id': 1, 'age': 1, 'slot': 2}
+    for _ in range(4000):
+        await tb.wait_clocks('aclk', 1)
+        if tb.rd_entry is None:          # retired by _track_commit_issue
+            col = (col + 1) & 0x3FF
+            tb.rd_entry = {'bank': BANK, 'row': ROW, 'col': col,
+                           'id': 1, 'age': 1, 'slot': 2}
+        if len(tb.ops_of(OP_REF)) >= 2:  # refresh has cut in, twice
+            break
+
+    refs = tb.ops_of(OP_REF)
+    cols = [c for c in tb.cmds if c['op'] in (OP_RD, OP_WR)]
+    assert refs, "no REF issued -- the refresh never cut into the stream"
+    assert len(cols) >= 20, (
+        f"only {len(cols)} column commands -- the stream was not sustained, "
+        f"so a refresh never landed mid-flight and this proves nothing")
+
+    # Model row state from the command stream and find any column on a closed
+    # or wrong row. That is the board's all-ones beat, expressed as commands.
+    open_row = {}
+    bad = []
+    for c in tb.cmds:
+        op, bk = c['op'], c['bank']
+        if op == OP_ACT:
+            open_row[bk] = c['row']
+        elif op == OP_PRE:
+            open_row.pop(bk, None)
+        elif op == OP_REF:
+            open_row.clear()             # REFab: all banks precharged
+        elif op in (OP_RD, OP_WR):
+            # Only the "is a row open" half is checkable from the stream: a
+            # DDR2 column command carries the COLUMN, so cmd_row_o reads 0 on
+            # RD/WR and comparing it against the open row flags every column
+            # (408 of 408 on the first run -- a broken model, not a finding).
+            if bk not in open_row:
+                bad.append((c['cycle'], op, bk, 'no open row'))
+            if c['ap']:
+                open_row.pop(bk, None)
+
+    assert not bad, (
+        f"PUMICE-037: {len(bad)} column command(s) issued to a bank with no open "
+        f"row, across {len(refs)} refresh(es) and {len(cols)} columns. "
+        f"First: cycle {bad[0][0]} op={bad[0][1]} bank={bad[0][2]} ({bad[0][3]}). "
+        f"A read to a closed row returns undriven DQ -- the board's all-ones.")
+
+    tb.log.info(f"read stream across refresh: {len(cols)} columns, {len(refs)} REF, "
+                f"every column on an open row")
+
+
+def test_pumice_mem_cmd_scheduler_refresh_read_stream(request):
+    """PUMICE-037: sustained read stream across a refresh."""
+    _run_scheduler(request, "cocotb_test_refresh_vs_read_stream")
+
+
 def test_pumice_mem_cmd_scheduler_refresh_inflight_read(request):
-    """PUMICE-037 at the layer that decides command spacing."""
+    """Refresh vs an in-flight read: JEDEC spacing holds. PASSES.
+
+    Written to reproduce PUMICE-037 and it does NOT: the refresh path respects
+    tRTP from the last same-bank column and tRP into the REF. Kept as a
+    regression guard on that property, and as the record that the
+    scheduler's command spacing is NOT the mechanism.
+    """
     _run_scheduler(request, "cocotb_test_refresh_vs_inflight_read")
 
 

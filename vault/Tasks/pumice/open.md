@@ -987,7 +987,47 @@ That leaves the collision itself as the defect: pumice issues precharge + REF
 while reads are in flight, and tREFI only sets how OFTEN that window comes
 round, not whether it corrupts when it does.
 
-### REPRODUCED IN SIM at the scheduler layer (2026-09-15)
+### RETRACTED: the scheduler-layer "reproduction" was a FALSE POSITIVE
+
+The section below claimed `PRE(bank 4) issued 1 cycles after RD, tRTP=2` and
+named a stale-registered-readiness hole in `w_rfsh_pre_found`. **All of it was
+wrong.** The scheduler TB did not stamp cycles on captured commands and the
+helper fell back to the LIST INDEX, so "1 cycle after RD" actually meant "PRE
+was the next COMMAND in the stream" -- a statement about ordering, not timing.
+It nearly drove an RTL change to code that was already correct: `r_guard0` IS
+set on a fired column (`pumice_cmd_arbiter.sv:1282` includes `r_do_rd`) and
+`w_rfsh_pre_found` DOES gate on `!w_guarded[j]`.
+
+`_cmd_sink` now stamps the issue cycle, and the helper asserts rather than
+falling back to an index.
+
+### The scheduler layer does NOT reproduce it -- two tests, both passing
+
+| test | what it checks | result |
+|---|---|---|
+| `..._refresh_inflight_read` | tRTP from the last same-bank column, tRP into the REF | **spacing respects tRTP=2 tRP=3** |
+| `..._refresh_read_stream` | every column lands on a bank with an OPEN ROW, across a sustained stream | **408 columns, 2 REF, all on an open row** |
+
+The second is the one that matters: the first attempt had ONE read outstanding,
+which is not the board's state. This streams reads continuously by re-arming the
+mock CAM as each issues, so a refresh has to cut into a live queue -- 408
+columns across 2 refreshes -- and models row state from the command stream
+itself (ACT opens, PRE closes that bank, REF closes all, AP closes on the
+column). Not one column is issued to a bank with no open row.
+
+**So the command stream pumice generates is correct**, in both respects that
+could produce the board's all-ones: spacing, and never reading a closed row.
+That eliminates the scheduler and pushes the defect BELOW it -- the DFI layer's
+phase packing and read-return alignment, or the PHY capture. Note the prior
+VCD work already pointing there: commit 79fb58a66, "mask-removal corruption is
+DFI read-return alignment".
+
+(One more modelling trap recorded: a DDR2 column command carries the COLUMN, so
+`cmd_row_o` reads 0 on RD/WR. Comparing it against the open row flags every
+column -- 408 of 408 on the first run. Only the "is a row open" half is
+checkable from the command stream.)
+
+### Superseded: "REPRODUCED IN SIM at the scheduler layer"
 
 `test_pumice_mem_cmd_scheduler_refresh_inflight_read` — no board, no PHY, no
 data path:

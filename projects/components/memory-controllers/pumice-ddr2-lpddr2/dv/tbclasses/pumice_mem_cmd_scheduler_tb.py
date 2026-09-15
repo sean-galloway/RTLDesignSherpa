@@ -179,10 +179,17 @@ class PumiceMemCmdSchedulerTB(TBBase):
                 self.rd_entry = None       # retire
 
     async def _cmd_sink(self):
+        # Stamp the CYCLE each command issues on. Without it a caller reasoning
+        # about JEDEC spacing has only the list index, which is the number of
+        # commands in between -- not cycles. That distinction silently turned a
+        # PUMICE-037 "PRE 1 cycle after RD" into a false positive.
+        cyc = 0
         while True:
             await RisingEdge(self.dut.aclk)
+            cyc += 1
             if int(self.dut.cmd_valid_o.value) and int(self.dut.cmd_ready_i.value):
                 self.cmds.append({
+                    'cycle': cyc,
                     'op':   int(self.dut.cmd_op_o.value),
                     'bank': int(self.dut.cmd_bank_o.value),
                     'row':  int(self.dut.cmd_row_o.value),
