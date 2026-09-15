@@ -242,11 +242,6 @@ filelist_dirs = ["val/amba/filelists"]
 # is its only instantiation anywhere). No val/common test is wanted --
 # Sean, 2026-08-07 -- so it will never appear in this area's line-coverage
 # denominator, and that absence is a decision rather than a gap.
-gaxi_fifo_async_multi        = "multi-instance wrapper; no consumer yet"
-gaxi_fifo_sync_multi         = "multi-instance wrapper; no consumer yet"
-gaxi_skid_buffer_async_multi = "multi-instance wrapper; no consumer yet"
-gaxi_skid_buffer_multi       = "multi-instance wrapper; no consumer yet"
-gaxi_skid_buffer_multi_sigmap = "multi-instance wrapper; no consumer yet"
 
 # Two-stage bank scheduler (per-bank pickers + tournament core). Correct and
 # fully verified, but 2.3x the flat arbiter's LUTs -> 97% slices -> route

@@ -74,11 +74,6 @@ GAXI is a lightweight valid/ready handshake protocol for streaming data between 
 
 | Test-code wrapper | Base module | Full documentation |
 |-------------------|-------------|--------------------|
-| `gaxi_fifo_sync_multi` | `gaxi_fifo_sync` | [gaxi_fifo_sync.md](gaxi_fifo_sync.md) |
-| `gaxi_fifo_async_multi` | `gaxi_fifo_async` | [gaxi_fifo_async.md](../../rtl-cdc/gaxi_fifo_async.md) |
-| `gaxi_skid_buffer_multi` | `gaxi_skid_buffer` | [gaxi_skid_buffer.md](gaxi_skid_buffer.md) |
-| `gaxi_skid_buffer_multi_sigmap` | `gaxi_skid_buffer` | [gaxi_skid_buffer.md](gaxi_skid_buffer.md) |
-| `gaxi_skid_buffer_async_multi` | `gaxi_skid_buffer_async` | [gaxi_skid_buffer_async.md](../../rtl-cdc/gaxi_skid_buffer_async.md) |
 
 ---
 
