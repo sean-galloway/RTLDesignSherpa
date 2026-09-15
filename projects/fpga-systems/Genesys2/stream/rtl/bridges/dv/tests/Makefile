@@ -190,7 +190,7 @@ rtl:
 		--output-dir $(RTL_DIR)
 	@echo "✅ RTL regenerated at $(RTL_DIR)/$(BRIDGE_NAME)/"
 
-REGEN_BRIDGES = $(REPO_ROOT)/projects/NexysA7/stream_characterization/stream_char_framework/bin/regen_bridges.sh
+REGEN_BRIDGES = $(REPO_ROOT)/projects/fpga-systems/Genesys2/stream/bin/regen_bridges.sh
 
 .PHONY: tests
 tests:

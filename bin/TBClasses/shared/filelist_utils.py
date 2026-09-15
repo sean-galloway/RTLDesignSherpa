@@ -97,7 +97,6 @@ def get_sources_from_filelist(repo_root, filelist_path):
     # override any of these.
     components_root = os.path.join(repo_root, 'projects', 'components')
     nexys_root = os.path.join(repo_root, 'projects', 'NexysA7')
-    stream_char = os.path.join(nexys_root, 'stream_characterization')
 
     genesys2_stream = os.path.join(repo_root, 'projects', 'fpga-systems', 'Genesys2', 'stream')
 
@@ -116,7 +115,10 @@ def get_sources_from_filelist(repo_root, filelist_path):
         'STREAM_CHAR_ROOT': genesys2_stream,
         'STREAM_CHAR_FRAMEWORK_ROOT': genesys2_stream,
         'DDR2_CHAR_FRAMEWORK_ROOT': os.path.join(repo_root, 'projects', 'fpga-systems', 'NexysA7', 'pumice', 'ddr2_char_framework'),
-        'TIMING_CHAR_ROOT': os.path.join(nexys_root, 'timing_characterization'),
+        # timing_characterization moved to projects/asic-trials/ in f5a4a50b1;
+        # it is an ASIC run, not a Nexys board flow. filelist_registry.py's
+        # ROOT_VARS already mapped it there -- this default was missed.
+        'TIMING_CHAR_ROOT': os.path.join(repo_root, 'projects', 'asic-trials', 'timing_characterization'),
     }
     for var, value in defaults.items():
         os.environ.setdefault(var, value)

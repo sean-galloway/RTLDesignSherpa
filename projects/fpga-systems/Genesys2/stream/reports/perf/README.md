@@ -381,7 +381,7 @@ D=0,32,64,96,112,128,144,160,192,256,384,512
 # NOTE: -o paths are relative to host/; the reports dir is two levels up, so
 # use an ABSOLUTE path (or ../../reports/perf) -- "../reports/perf" does NOT
 # exist and the run will compute then crash on save.
-R=$REPO_ROOT/projects/NexysA7/stream_characterization/reports/perf
+R=$REPO_ROOT/projects/fpga-systems/Genesys2/stream/reports/perf
 J=$R/json   # datasets live in reports/perf/json/ ; plots in reports/perf/plots/
 # IMPORTANT: re-program the board (make program) before the matrix / size
 # sweeps. The --resp-delays sweep leaves the RESP_DELAY CSR set; a leftover
