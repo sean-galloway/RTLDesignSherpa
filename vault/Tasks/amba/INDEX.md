@@ -2,7 +2,7 @@
 
 # AMBA tasks
 
-**Next ID: TASK-096** — never recycle a number, even when its task closed.
+**Next ID: TASK-097** — never recycle a number, even when its task closed.
 
 Canonical task tracker for `rtl/amba/` (AXI4/AXI5, APB, AXI-Stream, the
 monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
@@ -12,7 +12,7 @@ monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
 | [active.md](active.md) | 1 | in progress right now |
 | [open.md](open.md) | 12 | accepted, not started |
 | [deferred.md](deferred.md) | 0 | accepted, parked on a named condition |
-| [closed.md](closed.md) | 56 | done (kept for history) |
+| [closed.md](closed.md) | 57 | done (kept for history) |
 | [dropped.md](dropped.md) | 1 | ended without completing (won't do / superseded) |
 
 *Counts re-measured 2026-09-14 by matching task-ID headings, not by hand. They

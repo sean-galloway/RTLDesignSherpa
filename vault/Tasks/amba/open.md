@@ -2,6 +2,44 @@
 
 # AMBA tasks — open (not started)
 
+## TASK-096: no monitor TB drives cfg_id_filter_enable, so it is X in every test
+
+**Priority:** P3 — simulation-only. On silicon the bit ships low; in cocotb it
+is undriven, which is a different and quieter problem.
+**Status:** open 2026-09-15, found while building the [[TASK-073]] regression.
+**Owner:** TBD
+
+`AXI4MasterMonitorTB.initialize()` sets ELEVEN `cfg_*` inputs on the DUT --
+`cfg_monitor_enable`, `cfg_error_enable`, `cfg_timeout_enable`, `cfg_perf_enable`,
+`cfg_compl_enable`, `cfg_threshold_enable`, `cfg_debug_enable`,
+`cfg_timeout_cycles`, `cfg_latency_threshold`, and the `cfg_axi_*_mask` family --
+and does **not** set these three:
+
+    cfg_id_filter_enable
+    cfg_id_match_base
+    cfg_id_match_count
+
+Same omission in `axi4_slave_monitor_tb.py` and `axi5_master_monitor_tb.py`. They
+are plain top-level inputs on all four write wrappers and their read siblings
+(declared once each, confirmed by port grep), so nothing else drives them either.
+
+**Why it matters.** `axi_monitor_base.id_owned()` opens with
+`if (cfg_id_filter_enable)`. With the input undriven that branch is selected on
+an X, so every existing monitor test has been exercising the filter path in an
+undefined state. The reason no test has ever failed for it is that the OTHER
+branch also returns `1'b1` by default (`ID_FILTER_ENABLE` defaults to `1'b0`),
+so both arms agree today -- the X is inert by coincidence, not by design.
+
+This also qualifies [[TASK-073]]'s "inert today because the runtime bit ships
+low": true on silicon, but not in simulation, where the bit is not low, it is
+undefined.
+
+**Fix:** drive all three to their disabled values in each monitor TB's
+`initialize()`, alongside the eleven already there. `val/amba/test_axi4_wr_mon_id_filter.py`
+drives them explicitly and is the model.
+
+---
+
 ## TASK-077: four instantiation examples in components docs name ports that do not exist
 
 **Priority:** P3. A reader copies the example and it does not compile.
@@ -129,69 +167,6 @@ itself is the obvious candidate). Capture the failing worker's build log:
 bug in the runner, the harness or the RTL ([[feedback_no_flaky_dismissal]]);
 `--reruns` would hide the one signal we have.
 
-
-## TASK-073: write monitors ID-filter W beats against the LIVE AWID
-
-**Priority:** P2 — latent, but reachable at RUNTIME on any shipped build, and
-the failure is a false error report rather than a missed one.
-**Status:** open 2026-09-01. Found as a passing observation in qc round_30
-(axi4_part_02), verified against the RTL, not yet fixed. Filed rather than
-fixed because the fix is in `axi_monitor_base`, which is shared by the whole
-family — scope call belongs to Sean ([[feedback_confirm_scope_shared_rtl]]).
-
-**What the RTL does.** `axi_monitor_base` filters each channel's valid by the
-ID window:
-
-    assign w_cmd_valid_f  = cmd_valid  && id_owned(cmd_id);
-    assign w_data_valid_f = data_valid && id_owned(data_id);
-    assign w_resp_valid_f = resp_valid && id_owned(resp_id);
-
-On READ monitors `data_id` is `RID` — the beat's own ID, correct. On the four
-AXI4/AXI5 WRITE monitors it is the LIVE `AWID`:
-
-| module | `.data_id` |
-|---|---|
-| `axi4_master_wr_mon` | `m_axi_awid` |
-| `axi4_slave_wr_mon` | `s_axi_awid` |
-| `axi5_master_wr_mon` | `m_axi_awid` |
-| `axi5_slave_wr_mon` | `fub_axi_awid` |
-| `axil4_*_wr_mon` | `1'b0` — correct, AXI4-Lite has no IDs |
-
-AXI4 dropped WID, so a W beat carries no ID and the monitor cannot derive one
-from the W channel. Sampling whatever AW happens to be presenting is not a
-substitute: with more than one outstanding write, the AW on the bus belongs to
-a LATER transaction than the W beats in flight.
-
-**Failure scenario.** Runtime filter on, `cfg_id_match_base=0`,
-`cfg_id_match_count=1` (own ID 0). AW id=0 is accepted and allocates an entry;
-AW id=1 follows and is filtered out, correctly. While the W beats for
-transaction 0 stream, `AWID` reads 1, so `id_owned(1)` is false,
-`w_data_valid_f` drops, and NONE of transaction 0's W beats reach
-`axi_monitor_trans_mgr`. Its data phase never completes: the entry holds a CAM
-slot until `EVT_DATA_TIMEOUT` fires and reports a timeout on a transaction
-that was healthy the whole time. The mirror case admits a beat for a
-transaction the filter was supposed to exclude.
-
-**Why it is reachable.** `id_owned` activates on `cfg_id_filter_enable` ALONE
-— the `ID_FILTER_ENABLE` parameter is only the fallback branch — so this is a
-CSR write away on any existing bitstream, not a synthesis-time choice. It is
-inert today only because the runtime bit ships low.
-
-**Proposed fix (needs the scope call).** Do not ID-filter the write data
-channel at all: pass `w_data_valid_f = data_valid` when `!IS_READ`. The
-justification is that the filter's job is already done upstream — an entry
-exists only if its AW passed `id_owned(cmd_id)`, so a W beat can only be
-attributed to an owned transaction, and gating the beat by a fabricated ID
-can only ever drop beats belonging to owned transactions. The alternative
-(carry the allocating entry's ID down the ordering queue and filter on that)
-is more machinery for the same answer.
-
-**Verify like a bug, not like a change.** The regression must fail against the
-current RTL: two outstanding writes with different IDs, the runtime filter
-owning only the first, asserting no `EVT_DATA_TIMEOUT` and a completed entry.
-Revert the fix, confirm RED, restore ([[kimi-review-rounds]] rule 8).
-
----
 
 ## TASK-072: Lighten the gate-heavy monitor modules
 **Status:** open 2026-08-31 (Sean)

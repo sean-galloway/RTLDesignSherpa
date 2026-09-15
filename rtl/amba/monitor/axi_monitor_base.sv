@@ -375,7 +375,17 @@ module axi_monitor_base
 
     logic w_cmd_valid_f, w_data_valid_f, w_resp_valid_f;
     assign w_cmd_valid_f  = cmd_valid  && id_owned(cmd_id);
-    assign w_data_valid_f = data_valid && id_owned(data_id);
+    // TASK-073: do NOT ID-filter the write data channel. AXI4 dropped WID,
+    // so a W beat carries no ID and a WRITE monitor is handed the LIVE
+    // m_axi_awid as data_id -- with more than one write outstanding that is a
+    // LATER transaction's ID than the beats in flight, so an OWNED
+    // transaction's beats get refused and its data phase never closes.
+    // The filter's work is already done upstream: an entry exists only if its
+    // AW passed id_owned(cmd_id), so any W beat that can be attributed at all
+    // belongs to an owned transaction. Reads are unaffected -- data_id is RID
+    // there, the beat's own ID, and filtering it is correct.
+    assign w_data_valid_f = IS_READ ? (data_valid && id_owned(data_id))
+                                    : data_valid;
     assign w_resp_valid_f = resp_valid && id_owned(resp_id);
 
     // Transaction Table Manager

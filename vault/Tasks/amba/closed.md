@@ -4161,3 +4161,124 @@ dead code the next time someone audits."
   `gaxi_buffer_seq.py` and `gaxi_buffer_configs.py` are now a closed orphan
   set. Retiring ~1500 lines of tutorial is a bigger call than the instruction
   covered.
+
+---
+
+## TASK-073: write monitors ID-filter W beats against the LIVE AWID
+
+**Priority:** P2 — latent, but reachable at RUNTIME on any shipped build, and
+the failure is a false error report rather than a missed one.
+**Status:** open 2026-09-01. Found as a passing observation in qc round_30
+(axi4_part_02), verified against the RTL, not yet fixed. Filed rather than
+fixed because the fix is in `axi_monitor_base`, which is shared by the whole
+family — scope call belongs to Sean ([[feedback_confirm_scope_shared_rtl]]).
+
+**What the RTL does.** `axi_monitor_base` filters each channel's valid by the
+ID window:
+
+    assign w_cmd_valid_f  = cmd_valid  && id_owned(cmd_id);
+    assign w_data_valid_f = data_valid && id_owned(data_id);
+    assign w_resp_valid_f = resp_valid && id_owned(resp_id);
+
+On READ monitors `data_id` is `RID` — the beat's own ID, correct. On the four
+AXI4/AXI5 WRITE monitors it is the LIVE `AWID`:
+
+| module | `.data_id` |
+|---|---|
+| `axi4_master_wr_mon` | `m_axi_awid` |
+| `axi4_slave_wr_mon` | `s_axi_awid` |
+| `axi5_master_wr_mon` | `m_axi_awid` |
+| `axi5_slave_wr_mon` | `fub_axi_awid` |
+| `axil4_*_wr_mon` | `1'b0` — correct, AXI4-Lite has no IDs |
+
+AXI4 dropped WID, so a W beat carries no ID and the monitor cannot derive one
+from the W channel. Sampling whatever AW happens to be presenting is not a
+substitute: with more than one outstanding write, the AW on the bus belongs to
+a LATER transaction than the W beats in flight.
+
+**Failure scenario.** Runtime filter on, `cfg_id_match_base=0`,
+`cfg_id_match_count=1` (own ID 0). AW id=0 is accepted and allocates an entry;
+AW id=1 follows and is filtered out, correctly. While the W beats for
+transaction 0 stream, `AWID` reads 1, so `id_owned(1)` is false,
+`w_data_valid_f` drops, and NONE of transaction 0's W beats reach
+`axi_monitor_trans_mgr`. Its data phase never completes: the entry holds a CAM
+slot until `EVT_DATA_TIMEOUT` fires and reports a timeout on a transaction
+that was healthy the whole time. The mirror case admits a beat for a
+transaction the filter was supposed to exclude.
+
+**Why it is reachable.** `id_owned` activates on `cfg_id_filter_enable` ALONE
+— the `ID_FILTER_ENABLE` parameter is only the fallback branch — so this is a
+CSR write away on any existing bitstream, not a synthesis-time choice. It is
+inert today only because the runtime bit ships low.
+
+**Proposed fix (needs the scope call).** Do not ID-filter the write data
+channel at all: pass `w_data_valid_f = data_valid` when `!IS_READ`. The
+justification is that the filter's job is already done upstream — an entry
+exists only if its AW passed `id_owned(cmd_id)`, so a W beat can only be
+attributed to an owned transaction, and gating the beat by a fabricated ID
+can only ever drop beats belonging to owned transactions. The alternative
+(carry the allocating entry's ID down the ordering queue and filter on that)
+is more machinery for the same answer.
+
+**Verify like a bug, not like a change.** The regression must fail against the
+current RTL: two outstanding writes with different IDs, the runtime filter
+owning only the first, asserting no `EVT_DATA_TIMEOUT` and a completed entry.
+Revert the fix, confirm RED, restore ([[kimi-review-rounds]] rule 8).
+
+---
+
+
+**FIXED AND CLOSED 2026-09-15 (Sean: "since no port changes fix it").**
+
+The fix is one line in `axi_monitor_base.sv`, using the `IS_READ` parameter
+already in scope, and changes no port list:
+
+    assign w_data_valid_f = IS_READ ? (data_valid && id_owned(data_id))
+                                    : data_valid;
+
+Reads are untouched -- `data_id` is RID there, the beat's own ID, and filtering
+it is correct. Writes no longer filter W beats against the live AWID.
+
+**Verified like a bug, as this entry demanded, not like a change.** New
+regression `val/amba/test_axi4_wr_mon_id_filter.py`:
+
+| step | result |
+|---|---|
+| vs UNFIXED rtl | RED -- owned write 4 loses its completion |
+| vs FIXED rtl   | GREEN -- owned {0,2,4,6} all complete |
+| revert the fix | RED again (mutation check) |
+| restore        | `cmp` IDENTICAL, sha d5879656 |
+
+Area evidence: `val/amba` **2157 passed, 0 failed, 19:02** via
+`make clean-all && make run-all-full-parallel` (baseline before the fix was
+2156/0/18:57 -- the +1 is this test and nothing else moved). `rtl/amba` lint
+unchanged at PASS, 402 modules, exit 0.
+
+**The test had to be DIFFERENTIAL, and the first two attempts were wrong.**
+Recorded because the failure mode is subtle:
+
+* Attempt 1 asserted an absolute `completions == 4` and went red -- but the
+  control with the filter DISABLED also produced only 6 of 8 completions. Some
+  loss is inherent to this stimulus and the observation window and is NOT this
+  bug, so that red would have "confirmed" any RTL change put in front of it.
+* Attempt 1 also drew a random SEED, so identical code gave 3, then 1, then 2
+  completions. A regression that cannot replay is not a regression.
+
+The final form runs the SAME stimulus twice -- filter off, then on -- and
+asserts that enabling the filter loses no owned-ID transaction that completed
+without it, attributing completions by ADDRESS (`pkt_data` is
+`pad_address(trans_table[w_sel].addr)`, a plain zero-extend). The baseline loss
+cancels. Seed pinned at 20260915.
+
+Two armed checks stop it passing vacuously: the filter-off leg must produce
+owned completions, and the foreign-AWID overlap must actually occur
+(`w_xfers_foreign_awid > 0` -- measured 3 of 16).
+
+**Note for anyone re-running it:** the two legs are NOT timing-identical. The
+monitor is not purely passive -- `block_ready` gates commands, so filtering
+changes allocation and therefore AXI timing. The differential compares owned
+completions, not timing, which is why that does not matter.
+
+Spun out: [[TASK-096]] -- no monitor TB drives the three `cfg_id_*` inputs, so
+they are X in every existing test. That qualifies this entry's "inert today"
+reasoning, which holds on silicon but not in simulation.
