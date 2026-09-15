@@ -336,9 +336,18 @@ def load_registry() -> dict:
 
 
 def area_filelists(area: dict) -> list[Path]:
+    # Tracked files only, for the same reason --blindspots uses `git ls-files`:
+    # if git does not track it, it is not ours to register. rtl/make/area.mk
+    # writes a FLATTENED filelist to <area>/rtl/lint_reports/verilator/ on every
+    # lint run, and an area whose filelist_dirs names the whole rtl/ tree (e.g.
+    # retro_legacy_blocks) would otherwise pick that generated file up. A
+    # flattened list hand-lists every source by definition, so --audit reported
+    # 29 cross-area sources and the pre-commit hook blocked every commit until
+    # the untracked artifact was deleted -- a gate no commit could fix.
     out: list[Path] = []
     for d in area.get("filelist_dirs", []):
-        out.extend(sorted((REPO_ROOT / d).rglob("*.f")))
+        out.extend(p for p in sorted((REPO_ROOT / d).rglob("*.f"))
+                   if not _git_ignored(p))
     return out
 
 

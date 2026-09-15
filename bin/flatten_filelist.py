@@ -54,6 +54,8 @@ class FilelistFlattener:
         self.verbose = verbose
         self.seen_files: Set[str] = set()
         self.seen_incdirs: Set[str] = set()
+        # Filelists currently being expanded, to catch `-f` cycles.
+        self._active: Set[str] = set()
 
         # Track environment variable mappings for path restoration
         # Exclude generic env vars that would match too broadly
@@ -142,6 +144,25 @@ class FilelistFlattener:
         return False
 
     def _parse_filelist(self, filepath: str, base_dir: Path) -> Tuple[List[str], List[str], List[str]]:
+        """Cycle-guarded wrapper around the real parser.
+
+        A filelist that `-f` includes itself (directly or through a ring) used
+        to recurse until Python raised RecursionError, which names neither the
+        file nor the cycle. That is an easy list to write by accident: generate
+        a master with a glob over its own directory and it includes itself.
+        """
+        resolved = self._resolve_path(filepath, base_dir)
+        if resolved in self._active:
+            chain = " -> ".join(list(self._active) + [resolved])
+            print(f"Error: filelist include cycle: {chain}", file=sys.stderr)
+            sys.exit(2)
+        self._active.add(resolved)
+        try:
+            return self._parse_filelist_inner(filepath, base_dir)
+        finally:
+            self._active.discard(resolved)
+
+    def _parse_filelist_inner(self, filepath: str, base_dir: Path) -> Tuple[List[str], List[str], List[str]]:
         """
         Parse a single filelist file.
 

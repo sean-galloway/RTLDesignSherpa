@@ -299,3 +299,163 @@ not a CI gate). `hand_listed_tests` at 12 remains TOOL-012's backlog.
 ---
 
 ---
+
+---
+
+## TOOL-017: `lint-<component>` is advertised but cannot run for two areas
+**Priority:** P3
+**Status:** 🔴 Not Started
+**Owner:** TBD
+
+`projects/components/Makefile` generates a lint target per component and
+advertises them in `make help`:
+
+    make lint-retro_legacy_blocks  Lint Retro Legacy Blocks RTL
+
+Both of these fail immediately, measured 2026-09-14:
+
+    $ make lint-retro_legacy_blocks
+    make[1]: *** No rule to make target 'lint-all'.  Stop.
+    make: *** [Makefile:463: lint-retro_legacy_blocks] Error 2
+
+    $ make lint-apbx_xbar
+    make[1]: *** apbx_xbar/rtl: No such file or directory.  Stop.
+    make: *** [Makefile:463: lint-apbx_xbar] Error 2
+
+The template at `Makefile:456` delegates to `$(MAKE) -C $(1)/rtl lint-all`.
+stream, rapids, bridge and converters each have an `rtl/Makefile` providing
+`lint-all`; **retro_legacy_blocks and apbx_xbar do not**, and apbx_xbar has no
+`rtl/` directory under that name at all.
+
+**Why it matters rather than being cosmetic.** A gate that cannot run is not a
+gate, and this one is advertised in `help`, so the natural assumption is that
+the area is linted. It is not: [[RLB-015]] sat unverified for days partly
+because the reporter concluded "retro_legacy_blocks has no lint target, so
+nothing is measured" -- the right conclusion from the wrong premise. The area
+IS lintable; every block has a working top filelist and
+`verilator --lint-only -Wall --timing -f <filelist>` runs clean today.
+
+**Fix options, in order of preference:** give the two areas an `rtl/Makefile`
+with a `lint-all` that loops their top filelists (the sweep in RLB-015's
+closure is a working prototype); or have the template discover filelists
+directly and drop the per-area Makefile requirement; or, at minimum, stop
+advertising targets that cannot run.
+
+**SAME ROOT CAUSE, WORSE SYMPTOM, found 2026-09-14: the whole component
+regression cannot run either.** `projects/components/Makefile` line 31 lists
+the component as `apbx_xbar`, but the directory was renamed to the hyphenated
+house style and is `apbx-xbar` on disk. It is the FIRST entry in `COMPONENTS`,
+and the loop at `Makefile:259` ends each iteration with `|| exit 1`, so:
+
+    $ make clean-all && make run-all-full-parallel
+    ==> Testing apbx_xbar (FULL, 48 workers)
+    make[1]: *** apbx_xbar/dv/tests: No such file or directory.  Stop.
+    make: *** [Makefile:259: test-all-full-parallel] Error 1
+
+That aborts before a single test of ANY component executes. So the documented
+whole-repo command -- `make clean-all && make run-all-full-parallel`, which is
+the standing instruction for every area -- has been exiting 2 without testing
+anything, and the failure is 3 lines into a long log where it reads like
+progress. It affects all six `test-all-*` targets, which share the loop.
+
+**FIXED 2026-09-14** (Sean: "I fixed the apbx-xbar a couple of weeks ago.
+That is the correct reference" -- the hyphenated directory is canonical, so
+the Makefile was simply the stale side).
+
+The history is a two-step rename that half-landed. `f28581b3d`
+("refactor(apbx_xbar): rename apb4_xbar -> apbx_xbar", 2026-08-12) touched the
+Makefile; `95f7006fc` ("...+ hyphenated dir", the SAME DAY) renamed the
+directory to `apbx-xbar`. The Makefile kept step 1's name and was never
+advanced to step 2b's, so `COMPONENTS` has pointed at a path that stopped
+existing hours later. An earlier note here blamed f28581b3d for the rename;
+that was wrong -- f28581b3d is the commit that was left BEHIND by it.
+
+Fix applied: `apbx_xbar` -> `apbx-xbar` in `COMPONENTS`, plus the matching
+`make lint-apbx_xbar` help line (the `lint-$(1)` template derives its target
+name from COMPONENTS, so the advertised name moves with it). Only PATH
+references changed -- the SystemVerilog modules stay `apbx_xbar_*`.
+
+**The lint half of this entry stays OPEN.** `lint-apbx-xbar` now resolves the
+path but still fails, for the separate reason above: apbx-xbar has no
+`rtl/Makefile` providing `lint-all`. Same for retro_legacy_blocks.
+
+Same lesson as the lint half: a gate that cannot run is not a gate. This one
+additionally reported a non-zero exit that is easy to read as "the suite ran
+and something failed" rather than "nothing ran at all".
+
+**CLOSED 2026-09-15 — and the scope was SIX areas, not two.**
+
+The entry named retro_legacy_blocks and apbx_xbar. Measuring every component
+found four more, each broken differently, which is why a survey beat reasoning
+from the template:
+
+| area | what was actually wrong | now |
+|---|---|---|
+| retro_legacy_blocks | no `rtl/Makefile` at all | PASS, 84 modules |
+| apbx-xbar | had a Makefile; `verible` target died on a shell syntax error | PASS, 21 modules |
+| misc | no `rtl/Makefile` | PASS, 57 modules |
+| pumice | no `rtl/Makefile` | PASS, 52 modules |
+| stream | Makefile referenced `filelists/stream_all.f`, which never existed | PASS, 76 modules |
+| rapids | same, `filelists/rapids_all.f` | PASS, 69 modules |
+| converters | ran, but `|| true` per file and no `--top-module` — gated nothing | PASS, 65 modules |
+| bridge | already a real gate (filelist-driven, `--top-module`, waivers) | left alone |
+
+**The fix was not new lint logic.** `rtl/make/area.mk` already did exactly what
+this entry asked for, and the four `rtl/` areas use it through a four-line
+Makefile. Each component got the same four-line Makefile plus the
+`filelists/<area>_all.f` master that `area.mk` (and stream's and rapids' own
+Makefiles) had always expected. The 180-to-295-line per-area Makefiles are gone.
+
+Verified per area with `make -C projects/components lint-<component>`; the
+counts above are modules linted each as its own top.
+
+**`area.mk` needed one change**, because it looked for a module's own filelist
+only at a flat `filelists/<mod>.f`, which never matches an area that nests them
+(`gpio/filelists/`, `filelists/core/`, `filelists/top/`). It now falls back to a
+recursive search, flat-first so existing areas are unchanged. Proven against a
+baseline captured BEFORE the edit: common 218, cdc 20, math 174, amba 402,
+exit 0 — identical after, with per-module resolution now also working
+(46/14/172/149 via own filelist).
+
+**Three defects fell out of having a gate that actually runs:**
+
+1. **An RTL bug in `axi4_slave_rom`** (misc). It had no ROM size parameter and
+   derived one from the whole address space -- `ROM_ADDR_WIDTH = AXI_ADDR_WIDTH
+   - $clog2(BYTES_PER_WORD)` = 29, so `2**29` entries, ~34 Gbit at 64-bit data.
+   Verilator refuses to elaborate it ("vector of over 1 billion bits") and no
+   flag suppresses it -- `--max-num-width` caps number width, not array depth.
+   Nothing in the repo instantiates the module or overrides that width, which is
+   why nobody noticed: the old per-file gate never elaborated anything. Fixed by
+   giving the ROM a real `ROM_ADDR_WIDTH` parameter (default 12) and indexing it
+   from the low address bits.
+
+2. **`filelist_registry.py` audited its own generated output.** `area.mk` writes
+   a flattened filelist to `<area>/rtl/lint_reports/` on every run, and
+   `area_filelists()` did a bare `rglob("*.f")` with no tracked-file filter.
+   retro_legacy_blocks declares the whole `rtl/` tree as `filelist_dirs`, so the
+   auditor picked that artifact up; a flattened list hand-lists every source by
+   definition, so `--audit` reported 29 cross-area sources and the pre-commit
+   hook blocked EVERY commit until the untracked file was deleted -- a red gate
+   no commit could fix. Now filtered through the existing `_git_ignored()`, the
+   same rule `--blindspots` already used ("if git does not track it, it is not
+   ours to register"). Verified with the artifact PRESENT, not merely deleted.
+
+3. **`flatten_filelist.py` had no cycle guard.** A filelist that `-f` includes
+   itself recursed until `RecursionError`, naming neither the file nor the
+   cycle. That is easy to write by accident -- generate a master by globbing its
+   own directory and it includes itself, which is exactly what I did to misc.
+   It now exits 2 naming the chain.
+
+**The top-level `Makefile` carried a third, worse copy of this defect** and was
+fixed too: all ten project lint targets ended `|| true` so none could fail, each
+was wrapped in a `[ -f .../Makefile ]` guard that printed "not found" and then
+exited 0, `lint-apbx_xbar` still pointed at the pre-rename `apbx_xbar/` path,
+and `lint-shims`/`lint-hive` named areas that do not exist. A target that
+reports success for a missing area is worse than one that errors.
+
+**Not fixed, deliberately:** bridge. Its Makefile is a genuine gate -- it loops
+its filelists, lints each with `--top-module`, counts failures and carries real
+lint waivers -- so converting it would have thrown away the waivers to make it
+resemble the others. It is slow (54 filelists, each flattened then linted) and
+buffers into its own log, which reads as a hang from the outside; it is not one.
+I killed it twice on that mistaken reading before probing at the right level.

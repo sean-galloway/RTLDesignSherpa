@@ -217,9 +217,7 @@ help:
 	@echo "  make lint-delta              Run Delta RTL lint"
 	@echo "  make lint-apbx_xbar           Run APB Crossbar RTL lint"
 	@echo "  make lint-converters         Run Converters RTL lint"
-	@echo "  make lint-shims              Run Shims RTL lint"
 	@echo "  make lint-retro_legacy_blocks Run Retro Legacy Blocks RTL lint"
-	@echo "  make lint-hive               Run HIVE RTL lint"
 	@echo ""
 	@echo "COMBINED TARGETS (tests + lint at each level):"
 	@echo "  make all-gate             GATE tests + lint (quick checkin)"
@@ -604,7 +602,7 @@ lint-rtl:
 	@echo "================================================================================"
 	@echo "Running RTL Lint (rtl/common + rtl/amba)"
 	@echo "================================================================================"
-	@$(MAKE) -C $(RTL_DIR) lint-all || true
+	@$(MAKE) -C $(RTL_DIR) lint-all
 	@echo ""
 
 # ==============================================================================
@@ -615,7 +613,7 @@ lint-rtl:
 lint-stream:
 	@echo "=== STREAM RTL Lint ==="
 	@if [ -f $(PROJECTS_DIR)/dmas/stream/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/dmas/stream/rtl lint-all || true; \
+		$(MAKE) -C $(PROJECTS_DIR)/dmas/stream/rtl lint-all; \
 	else \
 		echo "⚠ STREAM RTL Makefile not found"; \
 	fi
@@ -624,7 +622,7 @@ lint-stream:
 lint-rapids:
 	@echo "=== RAPIDS RTL Lint ==="
 	@if [ -f $(PROJECTS_DIR)/dmas/rapids/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/dmas/rapids/rtl lint-all || true; \
+		$(MAKE) -C $(PROJECTS_DIR)/dmas/rapids/rtl lint-all; \
 	else \
 		echo "⚠ RAPIDS RTL Makefile not found"; \
 	fi
@@ -633,7 +631,7 @@ lint-rapids:
 lint-bridge:
 	@echo "=== Bridge RTL Lint ==="
 	@if [ -f $(PROJECTS_DIR)/bridge/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/bridge/rtl lint-all || true; \
+		$(MAKE) -C $(PROJECTS_DIR)/bridge/rtl lint-all; \
 	else \
 		echo "⚠ Bridge RTL Makefile not found"; \
 	fi
@@ -642,7 +640,7 @@ lint-bridge:
 lint-delta:
 	@echo "=== Delta RTL Lint ==="
 	@if [ -f $(PROJECTS_DIR)/delta/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/delta/rtl lint-all || true; \
+		$(MAKE) -C $(PROJECTS_DIR)/delta/rtl lint-all; \
 	else \
 		echo "⚠ Delta RTL Makefile not found"; \
 	fi
@@ -650,8 +648,8 @@ lint-delta:
 .PHONY: lint-apbx_xbar
 lint-apbx_xbar:
 	@echo "=== APB Crossbar RTL Lint ==="
-	@if [ -f $(PROJECTS_DIR)/apbx_xbar/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/apbx_xbar/rtl lint-all || true; \
+	@if [ -f $(PROJECTS_DIR)/apbx-xbar/rtl/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/apbx-xbar/rtl lint-all; \
 	else \
 		echo "⚠ APB Crossbar RTL Makefile not found"; \
 	fi
@@ -660,41 +658,23 @@ lint-apbx_xbar:
 lint-converters:
 	@echo "=== Converters RTL Lint ==="
 	@if [ -f $(PROJECTS_DIR)/converters/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/converters/rtl lint-all || true; \
+		$(MAKE) -C $(PROJECTS_DIR)/converters/rtl lint-all; \
 	else \
 		echo "⚠ Converters RTL Makefile not found"; \
-	fi
-
-.PHONY: lint-shims
-lint-shims:
-	@echo "=== Shims RTL Lint ==="
-	@if [ -f $(PROJECTS_DIR)/shims/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/shims/rtl lint-all || true; \
-	else \
-		echo "⚠ Shims RTL Makefile not found"; \
 	fi
 
 .PHONY: lint-retro_legacy_blocks
 lint-retro_legacy_blocks:
 	@echo "=== Retro Legacy Blocks RTL Lint ==="
 	@if [ -f $(PROJECTS_DIR)/retro_legacy_blocks/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/retro_legacy_blocks/rtl lint-all || true; \
+		$(MAKE) -C $(PROJECTS_DIR)/retro_legacy_blocks/rtl lint-all; \
 	else \
 		echo "⚠ Retro Legacy Blocks RTL Makefile not found"; \
 	fi
 
 
-.PHONY: lint-hive
-lint-hive:
-	@echo "=== HIVE RTL Lint ==="
-	@if [ -f $(PROJECTS_DIR)/hive/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/hive/rtl lint-all || true; \
-	else \
-		echo "⚠ HIVE RTL Makefile not found (may not have RTL yet)"; \
-	fi
-
 .PHONY: lint-projects
-lint-projects: lint-stream lint-rapids lint-bridge lint-delta lint-apbx_xbar lint-converters lint-shims lint-retro_legacy_blocks lint-hive
+lint-projects: lint-stream lint-rapids lint-bridge lint-delta lint-apbx_xbar lint-converters lint-retro_legacy_blocks
 	@echo "================================================================================"
 	@echo "✓ All project RTL lint completed"
 	@echo "================================================================================"

@@ -100,8 +100,10 @@ verilator: ## Verilator lint over the area's master filelist
 	    case "$$mod" in *_pkg|*_defs) continue;; esac; \
 	    grep -qE "^[[:space:]]*module[[:space:]]+$$mod\b" $$f || continue; \
 	    n=$$((n+1)); \
-	    if [ -f "filelists/$$mod.f" ]; then \
-	        python3 $(RDS_ROOT)/bin/flatten_filelist.py filelists/$$mod.f \
+	    own=filelists/$$mod.f; \
+	    [ -f "$$own" ] || own=$$(find . -name "$$mod.f" -not -path './lint_reports/*' | head -1); \
+	    if [ -n "$$own" ] && [ -f "$$own" ]; then \
+	        python3 $(RDS_ROOT)/bin/flatten_filelist.py "$$own" \
 	            --resolve-env --absolute-paths -o $(VERILATOR_DIR)/$$mod.f >/dev/null 2>&1; \
 	        fl=$(VERILATOR_DIR)/$$mod.f; viafl=$$((viafl+1)); \
 	    else fl=$(VERILATOR_DIR)/$(AREA)_flat.f; viatop=$$((viatop+1)); fi; \
@@ -162,7 +164,9 @@ verilator-%:
 	bad=0; viafl=0; viatop=0; \
 	for f in $$files; do \
 	    mod=$$(basename $$f .sv); \
-	    if [ -f "filelists/$$mod.f" ]; then fl="filelists/$$mod.f"; viafl=$$((viafl+1)); \
+	    own=filelists/$$mod.f; \
+	    [ -f "$$own" ] || own=$$(find . -name "$$mod.f" -not -path './lint_reports/*' | head -1); \
+	    if [ -n "$$own" ] && [ -f "$$own" ]; then fl="$$own"; viafl=$$((viafl+1)); \
 	    elif [ -f "$(MASTER_FILELIST)" ]; then fl="$(MASTER_FILELIST)"; viatop=$$((viatop+1)); \
 	    else echo -e "  $(YELLOW)SKIP$(RESET) $$mod (no filelist)"; continue; fi; \
 	    if ! $(VERILATOR) $(VERILATOR_FLAGS) -f $$fl --top-module $$mod \

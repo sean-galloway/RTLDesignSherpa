@@ -40,6 +40,7 @@ module axi4_slave_rom
     parameter int AXI_ADDR_WIDTH    = 32,                   // AXI address width
     parameter int AXI_DATA_WIDTH    = 64,                   // AXI data width
     parameter int AXI_USER_WIDTH    = 1,                    // AXI user width
+    parameter int ROM_ADDR_WIDTH    = 12,                   // ROM depth = 2**ROM_ADDR_WIDTH words
     parameter string ROM_INIT_FILE  = "none"                // ROM initialization file
 )
 (
@@ -81,7 +82,7 @@ module axi4_slave_rom
     //==========================================================================
 
     localparam int BYTES_PER_WORD = AXI_DATA_WIDTH / 8;
-    localparam int ROM_ADDR_WIDTH = AXI_ADDR_WIDTH - $clog2(BYTES_PER_WORD);
+    localparam int ADDR_LSB       = $clog2(BYTES_PER_WORD);
 
     //==========================================================================
     // Internal Signals - FUB (Functional Unit Backend) Interface
@@ -116,7 +117,7 @@ module axi4_slave_rom
 
     // Convert byte-aligned AXI address to word-aligned ROM address
     logic [ROM_ADDR_WIDTH-1:0] rom_addr;
-    assign rom_addr = fub_axi_araddr[AXI_ADDR_WIDTH-1:$clog2(BYTES_PER_WORD)];
+    assign rom_addr = fub_axi_araddr[ADDR_LSB +: ROM_ADDR_WIDTH];
 
     // ROM enable: active when valid address transaction
     logic rom_en;
