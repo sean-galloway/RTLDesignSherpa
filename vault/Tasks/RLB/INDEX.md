@@ -40,12 +40,12 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
   343.50s. NOTE: the open count above read 9 while listing ten tasks, so it was
   already wrong by one; it is now 9 listing nine, corrected deliberately rather
   than made right by the removal.
-- **Nothing is active.** What remains open is deliberate scope. RLB-008's
-  ioapic items are now all SHIPPED as companions (LowestPriority arbitration,
-  multi-IOAPIC merge, MSI emit, boot-interrupt rerouting, 2026-09-14); the one
-  question left there is the posted-timing one -- deliv_retry cannot be acted
-  on while the MSI write is posted, so drops are COUNTED in IOAPICMSIDROP
-  rather than re-offered. Plus the two filed 2026-09-14.
+- **Nothing is active.** RLB-008 CLOSED 2026-09-14 -- every ioapic feature it
+  tracked is built (LowestPriority arbitration, multi-IOAPIC merge, MSI emit
+  and boot-interrupt rerouting, all as companions), and the posted-timing
+  question was ruled on rather than left dangling: deliv_retry cannot be acted
+  on while the MSI write is posted, so drops are COUNTED in IOAPICMSIDROP.
+  What remains open is deliberate scope, plus the two filed 2026-09-14.
 
 ## Done
 

@@ -151,11 +151,12 @@ LowestPriority delivery on 2026-09-11. Multi-IOAPIC routing landed 2026-09-14
 as the `ioapic_deliv_merge` companion, and MSI the same day as
 `ioapic_msi_emit` -- a posted write issued through an `apb4_master_stub`, with
 its address and data held in registers and late refusals counted in
-IOAPICMSIDROP. What remains is boot-interrupt delivery, tracked as RLB-008 in
-`vault/Tasks/RLB/`. It was previously recorded here as structurally blocked on
-the absence of a SIPI encoding; that was a category error -- INIT-SIPI-SIPI is
-a local APIC's business, and the actual feature is chipset INTx rerouting to
-the legacy PIC while IOAPIC delivery is masked.
+IOAPICMSIDROP. Boot-interrupt delivery followed the same day as
+`ioapic_boot_intx`, the fourth companion: chipset INTx rerouting to the legacy
+PIC while IOAPIC delivery is masked, gated on an enable bit AND the pin's RTE
+mask. It had been recorded here as structurally blocked on the absence of a
+SIPI encoding; that was a category error -- INIT-SIPI-SIPI is a local APIC's
+business. RLB-008 closed 2026-09-14 with every feature built.
 
 **Next Steps:**
 1. Review specification for completeness
@@ -169,7 +170,7 @@ the legacy PIC while IOAPIC delivery is masked.
 
 **RLB Module Documentation:**
 - [README.md](../../rtl/ioapic/README.md) - Block summary and verification entry point
-- `vault/Tasks/RLB/open.md` (RLB-008) - Deferred IOAPIC features
+- `vault/Tasks/RLB/closed.md` (RLB-008) - The IOAPIC feature arc, closed
 - [PeakRDL README](../../rdl/ioapic/README.md) - Register generation guide
 
 **RLB System Documentation:**

@@ -290,7 +290,7 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
       alongside the destination; the local APICs do the matching)
 - [x] Round-robin arbitration behind `IOAPICARBCFG.rr_enable`
 
-**Deferred features (tracked as RLB-008 in `vault/Tasks/RLB/open.md`, not defects):**
+**Feature history (RLB-008, closed 2026-09-14 in `vault/Tasks/RLB/closed.md`):**
 - [x] LowestPriority delivery mode, delegated: the IOAPIC forwards the mode
       and the destination set, the local APICs arbitrate, and `irq_out_retry`
       carries a failed arbitration back so the interrupt is re-offered
@@ -298,11 +298,13 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 - [x] Multi-IOAPIC support, delegated: `ioapic_deliv_merge` merges N delivery
       channels onto one in round robin and tags each message with its source
       id, so an EOI routes back to the IOAPIC holding that pin's Remote IRR
-- [ ] Boot interrupt delivery -- in progress as the `ioapic_boot_intx`
-      companion. This entry used to say BLOCKED because the delivery-mode
-      field has no SIPI encoding; that was a category error. INIT-SIPI-SIPI
-      is a local APIC's AP-startup IPI. The real feature is chipset INTx
-      rerouting to the legacy PIC while IOAPIC delivery is masked
+- [x] Boot interrupt delivery, delegated: `ioapic_boot_intx` reroutes a
+      masked pin to its mapped legacy PIC input, gated on
+      IOAPICBOOTINTX.enable (selector 0x07) AND that pin's RTE mask -- both
+      terms matter, since without the mask an actively delivered pin would
+      be taken twice. This entry used to say BLOCKED because the
+      delivery-mode field has no SIPI encoding; that was a category error.
+      INIT-SIPI-SIPI is a local APIC's AP-startup IPI
 - [x] MSI/MSI-X, delegated: `ioapic_msi_emit` turns a delivery message into a
       posted write through an `apb4_master_stub`. The old "an APB slave has
       no initiator port" was true and beside the point -- the companion does
@@ -314,7 +316,7 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 ### Related Documentation
 
 - `../../rtl/ioapic/README.md` - Block summary and verification entry point
-- `vault/Tasks/RLB/open.md` - RLB-008, deferred IOAPIC features
+- `vault/Tasks/RLB/closed.md` - RLB-008, the IOAPIC feature arc (closed)
 - `../../rdl/ioapic/README.md` - Register generation guide
 - `../../rtl/RLB_STATUS_AND_ROADMAP.md` - System-wide planning
 - Intel 82093AA I/O APIC Datasheet
