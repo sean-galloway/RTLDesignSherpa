@@ -10,8 +10,8 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 | State | Count | Tasks |
 |---|---|---|
 | active | 0 | — |
-| open | 1 | RLB-016 (unmapped APB address hangs the bus) |
-| closed | 15 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README), RLB-006 (test scrub), RLB-007 (RDL relocation), RLB-008 (ioapic features -- four companions), RLB-009 (pm_acpi residual features), RLB-010 (rtc leftovers), RLB-011 (smbus residual features), RLB-012 (regblock reset polarity), RLB-013 (uart_16550 residual features), RLB-014 (800-line cap -- owner: a guideline, over is fine), RLB-015 (SYNCASYNCNET, measured + waived) |
+| open | 0 | — |
+| closed | 16 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README), RLB-006 (test scrub), RLB-007 (RDL relocation), RLB-008 (ioapic features -- four companions), RLB-009 (pm_acpi residual features), RLB-010 (rtc leftovers), RLB-011 (smbus residual features), RLB-012 (regblock reset polarity), RLB-013 (uart_16550 residual features), RLB-014 (800-line cap -- owner: a guideline, over is fine), RLB-015 (SYNCASYNCNET, measured + waived), RLB-016 (unmapped address hung the bus -- crossbar is generated now) |
 | dropped | 0 | — |
 
 ## Shortlist
@@ -40,12 +40,15 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
   343.50s. NOTE: the open count above read 9 while listing ten tasks, so it was
   already wrong by one; it is now 9 listing nine, corrected deliberately rather
   than made right by the removal.
-- **Nothing is active, and ONE entry is open.** Six closed 2026-09-14: five
+- **Nothing is active and nothing is open.** SEVEN closed 2026-09-14: five
   were already carrying a DONE status of their own (006, 007, 009, 011, 013),
-  and RLB-014 closed on the owner's call that the 800-line figure is a
+  RLB-014 closed on the owner's call that the 800-line figure is a
   guideline rather than a rule -- going over is fine, and it is not a repo
-  requirement in any case. What remains is RLB-016, where an unmapped APB
-  address never completes and wedges the bus.
+  requirement in any case -- and RLB-016 closed when rlb_top moved onto the
+  GENERATED crossbar. The hand-rolled sibling sat outside the generator flow
+  and so never received its decode-miss fix, which is why an unmapped address
+  wedged the bus; the variant is now REGISTERED in generate_xbars.py, so it
+  regenerates with the family instead of drifting again.
 
 ## Done
 

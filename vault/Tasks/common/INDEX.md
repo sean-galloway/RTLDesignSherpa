@@ -8,9 +8,9 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 2 | accepted, ready to start |
+| [open.md](open.md) | 3 | accepted, ready to start |
 | [deferred.md](deferred.md) | 1 | parked pending a named condition |
-| [closed.md](closed.md) | 21 | done (kept for history) |
+| [closed.md](closed.md) | 22 | done (kept for history) |
 | [dropped.md](dropped.md) | 2 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%

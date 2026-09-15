@@ -715,8 +715,6 @@ the MAS flip. Kept here as the record of what they were.
 
 ---
 
----
-
 ## RLB-014 — the 800-line core cap is honored in the breach
 
 **OWNER DECISION 2026-09-14, Sean: "800 is more of a guideline. Going over is
@@ -860,5 +858,70 @@ nothing here is measured". The target EXISTS -- `projects/components/Makefile`
 generates `lint-<component>` and advertises it in `make help` -- but it
 delegates to `$(MAKE) -C <component>/rtl lint-all` and this area has no
 `rtl/Makefile`. Filed as [[TOOL-017]]; `lint-apbx_xbar` is broken the same way.
+
+---
+
+## RLB-016 — an unmapped APB address hung the RLB bus
+**Status:** closed 2026-09-14
+
+The RLB crossbar was a HAND-WRITTEN sibling outside the apbx-xbar generator
+flow, so it never received a fix the rest of the family got. Two divergences:
+
+1. **No decode-miss agent.** `apbx_xbar_rlb_1to10` drove `m_cmd_ready` only
+   inside `if (m_cmd_valid && addr_in_range)`, so an access outside the 40KB
+   window was never accepted: `apb4_slave` never left IDLE, PREADY never
+   asserted, and there was no timeout anywhere in that path. Its response-mux
+   `default:` did set `m_rsp_pslverr = 1'b1`, but was unreachable --
+   `r_slave_sel` only updates on an ACCEPTED command.
+2. **Raw-PADDR decode.** It selected on `m_cmd_paddr[15:12]` where the family
+   uses the OFFSET (`paddr - BASE_ADDR`). Latent: benign only because
+   BASE_ADDR[15:12] is zero at 0xFEC00000; it breaks on any re-base.
+
+**The finding was never "the responder is missing" -- it was that a hand-rolled
+copy sat outside the generator flow.** The fix lives in the generator
+(guarded `if N > 1`), whose own comment reads: "Emitting the decode without
+this is what shipped that bug in every decoding variant."
+
+**FIX.** `rlb_top` now instantiates the GENERATED `apbx_xbar_1to10.sv`, and the
+variant is REGISTERED in `apbx-xbar/bin/generate_xbars.py` (an `external` list;
+the only variant emitted outside apbx-xbar, at 0xFEC00000 with 4KB windows vs
+the family's 0x10000000/64KB). Registration is the actual fix -- regenerating
+once would simply have drifted again, which is what produced this entry.
+`apbx_xbar_rlb_1to10.sv` and its orphan `.f` are deleted.
+
+Full regeneration verified twice: all five shipped variants stay byte-identical
+to HEAD and the RLB file reproduces exactly.
+
+**Integration cost.** The generator emits indexed `sN_apb_*` carrying the FULL
+address while all nine peripherals take `[11:0]`. rlb_top widens its ten
+internal PADDR wires to [31:0] and slices `[11:0]` at each peripheral -- no
+shadow signals, truncation visible at the consumer. Port count is unchanged at
+112. The reserved slave-9 tie-off (0xDEADBEEF/PSLVERR/PREADY) stays in rlb_top;
+the generator has no reserved-slave concept and does not need one.
+
+**EVIDENCE (measured, not inferred).**
+- `rlb_top` FULL: 3 cells, 5/5 checks PASSED, 426s.
+- New `test_unmapped_address_errors` (func) probes BOTH failing edges of
+  `addr_in_range` -- 0xFEBFFFFC below the map, 0xFEC0A000 the first address
+  past it, 0xFEC0F000 well past -- each completing with PSLVERR, then a normal
+  HPET read (0x01010180, PSLVERR=0) proving the single `r_m0_decerr_pending`
+  bit CLEARS. Without that last check the test would pass against a crossbar
+  that errors permanently after the first miss. 4 counted checks.
+- **Negative control:** mutating the decerr branch to `m0_rsp_pslverr = 1'b0`
+  makes it FAIL ("returned PSLVERR=0 ... must be reported, not silently
+  served") while the three sibling checks stay green -- so the checker is armed
+  and specific, not passing blindly. RTL restored and sha256-verified.
+- Lint elaborates rlb_top with a passing negative control (a mis-named pin
+  gives PINNOTFOUND); zero PINMISSING across all 112 connections.
+
+This was previously recorded as untestable -- the BFM's completion loop would
+hang until the cocotb timeout. That was true of the OLD crossbar; the generated
+one completes the miss, so the case became reachable and is now encoded.
+
+**Known cosmetic cost:** the generated crossbar adds 2 CASEINCOMPLETE warnings
+(179 -> 181 in the rlb_top lint). Generator-wide -- no shipped variant emits
+`default:` -- and benign: outputs are pre-assigned before the case and
+slave_sel is bounded by addr_in_range, so 0xa-0xf are unreachable. The DV build
+passes -Wno-CASEINCOMPLETE. NOT hand-patched, per the same rule this entry is about.
 
 ---

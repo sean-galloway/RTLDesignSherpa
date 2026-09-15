@@ -11,7 +11,7 @@ per-part children.
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 1 |
+| [open](open.md) | 2 |
 | [closed](closed.md) | 0 |
 | [dropped](dropped.md) | 0 |
 

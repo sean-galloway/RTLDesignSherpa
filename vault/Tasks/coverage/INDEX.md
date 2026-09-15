@@ -12,7 +12,7 @@ most of that tracker had already landed via the shared `make/tests.mk` +
 | [active.md](active.md) | 0 | in progress right now |
 | [open.md](open.md) | 1 | accepted, not started |
 | [closed.md](closed.md) | 1 | done (kept for history) |
-| [dropped.md](dropped.md) | 0 | ended without completing |
+| [dropped.md](dropped.md) | 1 | ended without completing |
 
 Method lives in the handbook ([[coverage]] note: how to run, toggle-vs-line
 semantics, the monbus matrix); thresholds live in

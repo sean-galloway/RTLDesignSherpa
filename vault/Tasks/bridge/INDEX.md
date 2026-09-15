@@ -9,8 +9,8 @@ generator, its generated wrappers/xbars/adapters, and their DV.
 |---|---|
 | [active](active.md) | 0 |
 | [open](open.md) | 0 |
-| [closed](closed.md) | 19 |
-| [dropped](dropped.md) | 3 |
+| [closed](closed.md) | 21 |
+| [dropped](dropped.md) | 0 |
 
 ## Open
 

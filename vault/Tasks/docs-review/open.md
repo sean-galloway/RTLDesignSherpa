@@ -658,8 +658,8 @@ The `_meta` interface change paid immediately: `quickstart.md` and `index.md`
 carried the same broken integration examples `CLAUDE.md` did, and round_1 could
 not see them. That class is now checked mechanically by
 **`bin/review/check_doc_instantiations.py`** (`5a9ab654`) — for every
-```systemverilog block, resolve the instantiated module and report parameter or
-port names it does not declare. Measured after integration:
+fenced `systemverilog` block, resolve the instantiated module and report
+parameter or port names it does not declare. Measured after integration:
 
 | area | undeclared names |
 |---|---|

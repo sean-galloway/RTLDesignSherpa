@@ -49,7 +49,13 @@ HEADING = re.compile(r"^#{2,3}\s+([A-Z][A-Z0-9]*-[A-Z0-9]+(?:\.\d+)?)\s*[—\-�
 # read one level missed nine open items in amba alone -- several of them real
 # defects filed and then invisible.
 ENTRY_LEVEL = re.compile(r"^(#{2,6})\s+([A-Z][A-Z0-9]*-[A-Z0-9]+(?:\.\d+)?)\s*[—\-–:]")
-FENCE = re.compile(r"^\s*(```|~~~)")
+# CommonMark fence rules, not a naive toggle. A closing fence carries NO info
+# string, so a ```systemverilog line INSIDE a block is content and does not
+# close it, and a longer fence can nest a shorter one. The toggle version
+# desynced on three real files and made the scanner skip whole regions of
+# amba/closed.md and bridge/closed.md -- it was silently checking far less than
+# it claimed, which is the exact failure this file warns about at the top.
+FENCE = re.compile(r"^\s*(`{3,}|~{3,})\s*(\S*)")
 # Tolerant on purpose: the line is written by humans, so accept bold either
 # side of the colon and any trailing prose after the ID.
 NEXT_ID = re.compile(r"Next ID\**\s*:\s*\**\s*([A-Z][A-Z0-9]*-(\d+))")
@@ -83,12 +89,16 @@ def scan_area(area: pathlib.Path):
         if f.name == "INDEX.md":
             continue
         lines = f.read_text().split("\n")
-        infence = False
+        infence, fence_marker = False, ""
         for i, line in enumerate(lines, 1):
             # Never read inside a fenced block: task pages quote code whose
             # comments start with '#', and those are not headings.
-            if FENCE.match(line):
-                infence = not infence
+            fm = FENCE.match(line)
+            if fm:
+                if not infence:
+                    infence, fence_marker = True, fm.group(1)
+                elif fm.group(2) == "" and len(fm.group(1)) >= len(fence_marker):
+                    infence = False
                 continue
             if infence:
                 continue

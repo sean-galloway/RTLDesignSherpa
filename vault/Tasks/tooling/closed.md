@@ -238,3 +238,64 @@ run's log survives its own retry.
 
 **Related:** [[silent-fallbacks]] rule 11, [[seeds-and-determinism]],
 [[running-regressions]].
+
+<!-- Moved from vault/Tasks/amba/ 2026-09-14: a tooling task, filed under amba -- RENUMBERED to TOOL-018 on arrival, because tooling already has a DIFFERENT live TOOL-014 (Scripts book link rot) -->
+## TOOL-018 — the filelist gate was blind outside registered areas, to +incdir+, and to its own build output
+**Status:** CLOSED 2026-08-28 (opened same day)
+**Renumbered 2026-09-14:** filed as TOOL-014 in `amba/closed.md`, where that number was free. Moving it to tooling put it against a DIFFERENT live TOOL-014 (Scripts book link rot), so it took the next free tooling number. The area is the ID namespace.
+**Priority:** was P2 — CI was green with a half-finished rename on main
+
+CI failed on `--check` with 7 broken `-f` targets: 35036222 renamed the monbus
+group filelists and committed the rename, but the consumers were fixed in the
+working tree only (cd954548). Three blind spots let that happen; all fixed in
+ecdf5a3e, each mutation-tested.
+
+1. **`--check` SKIPPED every area with no `rtl_roots`.** Ten areas -- the
+   NexysA7 boards, Genesys2, val -- declare `filelist_dirs` but no roots, and
+   `cmd_check` did `if not roots: continue`. They were not orphans either, so
+   `--blindspots` missed them too. Coverage is meaningless without roots;
+   reference integrity is not. They are now resolved for broken refs.
+2. **`+incdir+` was never checked.** Ten filelists searched
+   `rtl/common/includes`, a directory that never existed (3873c812).
+3. **`--blindspots` counted SymbiYosys BUILD OUTPUT.** It walked
+   `rglob("*.sby")`, which finds the `config.sby` sby generates in every
+   `<task>_prove/` and `<task>_cover/`. So the count depended on whether you
+   had run formal: 1564 locally vs 2 clean, against a baseline of 387 --
+   REGRESSED locally, PASS in CI, same commit. Now tracked-only.
+
+**It took three commits to finish one rename** (cd954548, 7b1eac2b, 4c4ead1b)
+because the gate could only see a third of the tree. The last one was found by
+the fixed gate itself on a fresh clone -- the intended demonstration.
+
+**Widening --check exposed three under-resolutions**, fixed rather than muted
+since each would have been a false failure:
+
+  * Relative entries resolve against the filelist's PARENT too. 41 real
+    timing_characterization files would have read as missing.
+  * **Flow variables are MULTI-VALUED, and this corrects an earlier wrong
+    call.** `STREAM_CHAR_ROOT` was pinned in ROOT_VARS to flows-stream-bridge,
+    but flows-stream-bridge, flows-stream-monitor and Genesys2/stream each
+    `export STREAM_CHAR_ROOT := $(SELF_DIR)`; FRAMEWORK_ROOT likewise has three
+    values. `_scan_flow_roots()` now harvests the real values from the
+    Makefiles that export them, so adding a flow cannot silently un-cover it.
+  * A target inside a git-ignored path is supplied externally.
+    `flows-idma-bridge/external/` is gitignored and bender-populated; its eight
+    include dirs would have made the gate permanently red for a condition no
+    commit can fix.
+
+**Mutation-tested**, because a gate that cannot fail is not a gate: breaking a
+`-f` in an rtl_roots=0 area and adding a dead `+incdir+` each produce exit 1
+with the right message; a dropped-in generated `config.sby` is not counted
+while the two TRACKED dead .sby paths still are (positive control that the fix
+did not just blind the check); all restored -> exit 0.
+
+Baseline relowered to honest numbers: dead_harness_paths 387 -> 2,
+hand_listed_tests 125 -> 12, unregistered_filelists 1 -> 0.
+
+**Still open, deliberately:** `--check` does not verify `+incdir+` reachability
+for flow-scoped vars it cannot enumerate, and `--unrolled` exits 1 (pre-existing,
+not a CI gate). `hand_listed_tests` at 12 remains TOOL-012's backlog.
+
+---
+
+---
