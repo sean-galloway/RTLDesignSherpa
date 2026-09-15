@@ -1,143 +1,128 @@
-"""
-RAPIDS FUB (Legacy Network-Based) Validation Test Configuration for pytest
+"""RAPIDS FUB test configuration for pytest.
 
-Configures the test environment for RAPIDS FUB (Functional Unit Block) validation.
-These modules use the legacy network-based interfaces (not AXIS).
+The coverage/log boilerplate (log dir, coverage dir creation, log-file config,
+marker registration, session-end coverage aggregation, scratch-dir ignore)
+lives in ``bin/cov_utils/conftest_base.py`` -- the SAME shared base the val
+areas, stream, bridge and converters use. This file declares only the
+RAPIDS-FUB-specific bits.
 
-Modules Tested:
-- ctrlwr_engine: Control write engine for pre-descriptor operations
-- ctrlrd_engine: Control read engine with retry mechanism
+This replaced a hand-written conftest that re-implemented that boilerplate
+locally. fub_beats and macro_beats had each grown a ~175-line private
+_aggregate_coverage/_generate_coverage_report pair, byte-identical to one
+another apart from five title strings, duplicating
+cov_utils.conftest_coverage.aggregate_all_coverage.
+
+MARKERS are the union of what this area's tests actually apply (measured) and
+what the previous conftest registered. The two had drifted: fub_beats tests
+apply `fub` 34 times and never `fub_beats`, while the old conftest registered
+`fub_beats` and not `fub`; macro and top_beats registered nothing at all.
+
+Coverage: `COVERAGE=1` (line) / `COVERAGE_PROTOCOL=1` (protocol); aggregated at
+session end by the shared base.
 """
 
 import os
 import sys
-import logging
-import pytest
 
-# Configure pytest to always collect logs
+# Repo root + bin for the shared conftest base; the RAPIDS dv dir for the area's
+# own imports (rapids_coverage, tbclasses). env_python already exports these on
+# PYTHONPATH -- added here too so a bare pytest invocation still resolves them.
+# NOTE the tests import fully-qualified
+# (projects.components.dmas.rapids.dv.tbclasses.*), which resolves from the REPO
+# ROOT -- not from rapids/ or rapids/dv/. The old conftests inserted one of those
+# two instead, inconsistently (fub went up three levels, the rest up two); neither
+# was what made the imports work.
+_here = os.path.dirname(os.path.abspath(__file__))
+_repo_root = os.path.abspath(os.path.join(_here, '../../../../../../..'))
+for _p in (_repo_root, os.path.join(_repo_root, 'bin')):
+    if _p in sys.path:
+        sys.path.remove(_p)
+    sys.path.insert(0, _p)
+_rapids_dv = os.path.abspath(os.path.join(_here, '../..'))
+if _rapids_dv in sys.path:
+    sys.path.remove(_rapids_dv)
+sys.path.insert(0, _rapids_dv)
+
+import pytest  # noqa: E402
+from cov_utils.conftest_base import configure, sessionfinish, ignore_collect  # noqa: E402
+from cov_utils.conftest_coverage import get_coverage_compile_args  # noqa: E402,F401 -- re-exported for test files
+
+AREA_NAME = 'RAPIDS FUB'
+LOG_BASENAME = 'pytest_rapids_fub.log'
+MARKERS = (
+    'coverage: Tests that collect coverage data',
+    'protocol_coverage: Tests that collect protocol coverage',
+    'fub: FUB (Functional Unit Block) level tests',
+    'ctrlwr: Control write engine tests',
+    'ctrlrd: Control read engine tests',
+    'stress: Stress testing',
+    'regression: Regression test suite',
+    'error: Error injection tests',
+)
+
+
 def pytest_configure(config):
-    # Add RAPIDS DV directory to path BEFORE pytest imports test modules
-    # CRITICAL: Must be at position 0, even if already in sys.path from PYTHONPATH
-    rapids_dv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+    configure(config, __file__, LOG_BASENAME, markers=MARKERS)
 
-    # Remove if already present (from PYTHONPATH), then insert at position 0
-    if rapids_dv_path in sys.path:
-        sys.path.remove(rapids_dv_path)
-    sys.path.insert(0, rapids_dv_path)
 
-    # Create logs directory if it doesn't exist
-    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
-    os.makedirs(log_dir, exist_ok=True)
-
-    # Configure log file for pytest itself
-    config.option.log_file = os.path.join(log_dir, "pytest_rapids_fub.log")
-    config.option.log_file_level = "DEBUG"
-
-    # Enable console logging
-    config.option.log_cli = True
-    config.option.log_cli_level = "INFO"
-
-    # Register RAPIDS-specific pytest markers
-    # Test type markers
-    config.addinivalue_line("markers", "fub: FUB (Functional Unit Block) level tests")
-    config.addinivalue_line("markers", "ctrlwr: Control write engine tests")
-    config.addinivalue_line("markers", "ctrlrd: Control read engine tests")
-
-    # Performance markers
-    config.addinivalue_line("markers", "stress: Stress testing")
-    config.addinivalue_line("markers", "regression: Regression test suite")
-    config.addinivalue_line("markers", "error: Error injection tests")
-
-# Preserve all files regardless of test outcome
 @pytest.hookimpl(trylast=True)
 def pytest_sessionfinish(session, exitstatus):
-    """
-    Called after whole test run finished, right before returning the exit status.
-    """
-    logging.info("RAPIDS FUB test session finished. Preserving all logs and build artifacts.")
+    sessionfinish(__file__, AREA_NAME)
 
-# Disable automatic test collection in the logs directory if it exists
+
 def pytest_ignore_collect(collection_path, config):
-    return 'logs' in str(collection_path) or 'local_sim_build' in str(collection_path)
+    return ignore_collect(collection_path)
 
-# RAPIDS FUB-specific test parametrization fixtures
-@pytest.fixture(scope="module", params=[
-    # Channel configurations: (channel_id, num_channels, addr_width)
-    (0, 8, 64),      # Default configuration
-])
-def rapids_fub_config(request):
-    """RAPIDS FUB configuration parameters"""
-    channel_id, num_channels, addr_width = request.param
-    return {
-        'CHANNEL_ID': channel_id,
-        'NUM_CHANNELS': num_channels,
-        'ADDR_WIDTH': addr_width,
-    }
 
-@pytest.fixture(scope="module", params=[
-    # Test levels: (level, description, transaction_count, timeout_factor)
-    ('gate', 'Gate smoke test', 10, 1.0),
-    ('func', 'Functional coverage', 50, 1.5),
-    ('full', 'Full comprehensive testing', 200, 2.0),
-])
-def rapids_test_level(request):
-    """RAPIDS test level configuration"""
-    level, description, transaction_count, timeout_factor = request.param
+# ----------------------------------------------------------------------
+# RAPIDS fixtures (kept local to the area)
+# ----------------------------------------------------------------------
+@pytest.fixture(scope="function")
+def test_level():
+    """Test level: REG_LEVEL (GATE/FUNC/FULL, set by make/tests.mk) wins so the
+    4-line area Makefiles drive it; TEST_LEVEL is the manual fallback."""
+    reg = os.environ.get('REG_LEVEL')
+    if reg:
+        return {'GATE': 'gate', 'FUNC': 'func', 'FULL': 'full'}.get(reg.upper(), reg.lower())
+    return os.environ.get('TEST_LEVEL', 'gate')
 
-    # Override from environment if specified
-    env_level = os.environ.get('TEST_LEVEL', level).lower()
-    if env_level in ['gate', 'func', 'full']:
-        level = env_level
 
-    return {
-        'level': level,
-        'description': description,
-        'transaction_count': transaction_count,
-        'timeout_factor': timeout_factor
-    }
+@pytest.fixture(scope="function")
+def coverage_enabled():
+    """Whether coverage collection is enabled for this run."""
+    return os.environ.get('COVERAGE', '0') == '1'
 
-# RAPIDS-specific environment variable helpers
-def get_rapids_fub_env_config():
-    """Get RAPIDS FUB configuration from environment variables"""
-    return {
-        'CHANNEL_ID': int(os.environ.get('RAPIDS_CHANNEL_ID', '0')),
-        'NUM_CHANNELS': int(os.environ.get('RAPIDS_NUM_CHANNELS', '8')),
-        'ADDR_WIDTH': int(os.environ.get('RAPIDS_ADDR_WIDTH', '64')),
-        'AXI_ID_WIDTH': int(os.environ.get('RAPIDS_AXI_ID_WIDTH', '8')),
-        'AXI_DATA_WIDTH': int(os.environ.get('RAPIDS_AXI_DATA_WIDTH', '64')),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate').lower(),
-        'ENABLE_COVERAGE': os.environ.get('ENABLE_COVERAGE', '0') == '1',
-        'ENABLE_WAVEDUMP': os.environ.get('ENABLE_WAVEDUMP', '1') == '1',
-    }
 
-# Test collection hooks for RAPIDS-specific organization
+@pytest.fixture(scope="function")
+def coverage_config():
+    """RAPIDS functional-coverage config (rapids_coverage package)."""
+    from projects.components.dmas.rapids.dv.rapids_coverage.coverage_config import (
+        RapidsCoverageConfig,
+    )
+    return RapidsCoverageConfig.from_environment()
+
+
 def pytest_collection_modifyitems(config, items):
-    """Modify test collection to add RAPIDS-specific markers"""
+    """Tag every test in this area, plus the per-engine markers."""
     for item in items:
-        # Add FUB marker to all tests in this directory
         item.add_marker(pytest.mark.fub)
-
-        # Add component-specific markers
         if 'ctrlwr' in item.nodeid.lower():
             item.add_marker(pytest.mark.ctrlwr)
         if 'ctrlrd' in item.nodeid.lower():
             item.add_marker(pytest.mark.ctrlrd)
 
+
 # ----------------------------------------------------------------------
 # REG_LEVEL -> TEST_LEVEL bridge
 # ----------------------------------------------------------------------
-# make/tests.mk drives the regression level through REG_LEVEL; this area's test
-# modules read TEST_LEVEL, and most read it at MODULE IMPORT time. conftest is
-# imported before any test module, so setting it here is early enough.
-#
-# WITHOUT THIS BRIDGE THE MAKEFILE CONVERGENCE SILENTLY REDUCES COVERAGE: the
-# 4-line area Makefile sets REG_LEVEL=full, nothing reads it, TEST_LEVEL falls
-# back to its default, and `make run-all-full-parallel` quietly runs a smaller
-# matrix while still reporting "passed". Measured on pumice fub during this
-# conversion: 91 tests -> 79.
-#
-# REG_LEVEL wins over TEST_LEVEL, matching stream's conftest: the make target
-# you typed is more explicit than an inherited environment variable.
+# make/tests.mk drives the level through REG_LEVEL. The test_level fixture above
+# already prefers REG_LEVEL, so this stamp is belt-and-braces for any consumer
+# reading the env var directly rather than taking the fixture. Measured
+# 2026-09-14: no rapids test module references TEST_LEVEL, and the only two files
+# that do (conftest_scheduler_beats.py, conftest_descriptor_engine_beats.py) are
+# never imported -- so it is vestigial. KEPT rather than removed: it costs
+# nothing, and deleting it is a behaviour change unrelated to converting the
+# conftest structure.
 _reg_level = os.environ.get('REG_LEVEL')
 if _reg_level:
     os.environ['TEST_LEVEL'] = _reg_level.upper()
