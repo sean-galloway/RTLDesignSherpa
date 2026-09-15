@@ -909,7 +909,61 @@ col_major is the page-MISS family: every burst activates a different row, so it
 can never hold a stale belief about an open one. The two families that DO fail
 are page-HIT streams, where a gap leaves a row **open and idle** between bursts.
 
-### It is the OPEN PAGE, and it is NOT refresh
+### RETRACTED: it IS a refresh collision (Sean was right, 2026-09-15)
+
+The section below concluded "not refresh" from an invalid experiment, and the
+ILA trace refutes it. **Both of my arguments were wrong:**
+
+1. *"Rare refresh is no better, so refresh does not drive it."* tREFI 32767 MC
+   cycles at 75 MHz is **437 us** between refreshes against a JEDEC tREFI of
+   7.8 us. That run was not testing a refresh collision, it was violating DRAM
+   RETENTION -- those 62439 mismatched beats are decayed cells, a different
+   failure wearing the same symptom. The experiment could not have answered the
+   question it was asked.
+2. *"Close page fixes it, so it is the open page."* Backwards. Close page
+   removes the open-row state that a refresh would invalidate, so close page
+   fixing it is evidence **FOR** a refresh collision, not against it.
+
+**The trace, from the capture already committed** (`reports/ila_mism.csv`,
+window around the refresh at sample 2551):
+
+```
+ 2538  RD  bank4          reads issued to bank 4
+ 2539  RD  bank4
+ 2540  RD  bank4
+ 2546  PRE bank0
+ 2547  PRE bank4      <-- bank 4 precharged 7 cycles after its reads
+ 2551  REF            <-- refresh
+ 2568  ACT bank4      <-- row re-activated 17 cycles later
+ 2575  RD  bank4          reads resume
+```
+
+`rd_dbg_mismatch` is asserted CONTINUOUSLY from 2530 to 2579 -- the entire
+window from the reads, through the precharge and refresh, until well after the
+re-ACT. The refresh's precharge lands on a bank with reads still in flight
+through the PHY, and everything in that window comes back wrong. All-ones is
+what an undriven DQ bus reads as, which is the 59% signature.
+
+Three of the five refreshes in the capture show the clean pattern
+(REF -> ACT bank4 +17 -> ACT bank0 +23 -> RDs +24); the mismatch clusters are
+the ones where reads were already outstanding when the refresh arrived.
+
+**This also explains every trait of the failure distribution** without needing
+the open-page argument to be about page policy per se: col_major never fails
+because it precharges per access and has no in-flight window for a refresh to
+collide with; the gap dependence is monotonic because more idle means more
+chance a refresh lands mid-flight; low generator counts fail because the read
+pipeline is sparser.
+
+**What to look at:** whether the refresh scheduler drains (or blocks on)
+outstanding reads before issuing precharge-all + REF. The standing suspicion in
+[[project_pumice_board_bringup_tuple]] -- "residual corruption is a
+refresh-collision bug" -- was right all along.
+
+Close page remains a usable WORKAROUND (33725 beats -> 6), but it is a
+workaround, not a diagnosis.
+
+### Superseded: "it is the OPEN PAGE, and it is NOT refresh"
 
 The obvious hypothesis was a refresh landing in that idle window, precharging
 the bank while the tracker still believes the row is open -- which would
