@@ -105,7 +105,15 @@ module ddr2_char_harness
     // bounded by RD_RET_DEPTH / (ticket alloc -> R drain), and this board's
     // PHY read latency is long enough for that to bind: with the read intake
     // fixed (PUMICE-025) reads sit at 78.5% of peak while writes reach 95%.
-    parameter int RD_RET_DEPTH        = 32
+    parameter int RD_RET_DEPTH        = 32,
+    // Reader debug stream depth. 0 = NOT BUILT, which is the normal build:
+    // the stream costs a FIFO and a pair of DW-wide buses and nothing reads it
+    // on a production bitstream. Set > 0 for the ILA build, where
+    // rd_dbg_mismatch is the only signal that can TRIGGER on the PUMICE-037
+    // corruption at the moment it happens -- a free-running capture at a ~15%
+    // beat error rate is a lottery, and one that tells you nothing about which
+    // address lost.
+    parameter int RD_DBG_FIFO_DEPTH  = 0
 ) (
     // Clock / reset (aclk = mc_clk = pclk = 100 MHz on the Nexys A7 board)
     input  logic                        aclk,
@@ -652,8 +660,19 @@ module ddr2_char_harness
     // =========================================================================
     // ddr2_char_macro — the DUT (writer + reader + controller top)
     // =========================================================================
-    logic w_rd_dbg_valid, w_rd_dbg_ready, w_rd_dbg_mismatch;
-    logic [AXI_DATA_WIDTH-1:0] w_rd_dbg_actual, w_rd_dbg_expected;
+    // (* mark_debug *) so the ILA build can TRIGGER on the corruption itself.
+    // w_rd_dbg_mismatch pulses on the exact beat whose data did not match, and
+    // actual/expected carry what came back and what should have. Paired with
+    // the DFI-boundary probes in ddr2_char_top, one capture answers the
+    // question the sim could not: was the data already wrong when the PHY
+    // returned it, or correct at the DFI boundary and mangled on the way back
+    // to AXI? These cost nothing when RD_DBG_FIFO_DEPTH = 0 -- the stream is
+    // not built and the nets are tied off.
+    (* mark_debug = "true" *) logic w_rd_dbg_valid;
+    (* mark_debug = "true" *) logic w_rd_dbg_mismatch;
+    logic w_rd_dbg_ready;
+    (* mark_debug = "true" *) logic [AXI_DATA_WIDTH-1:0] w_rd_dbg_actual;
+    (* mark_debug = "true" *) logic [AXI_DATA_WIDTH-1:0] w_rd_dbg_expected;
 
     // Controller DFI command outputs (pre-delay). The command bus is delayed by
     // CMD_DELAY (in dfi_cmd_delay below) to land concurrent with the undelayed
@@ -683,6 +702,7 @@ module ddr2_char_harness
         // deep reorder belongs to an enhanced variant.
         .WR_CAM_DEPTH     (8),
         .RD_RET_DEPTH     (RD_RET_DEPTH),
+        .RD_DBG_FIFO_DEPTH(RD_DBG_FIFO_DEPTH),
         .APB_ADDR_WIDTH   (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH   (APB_DATA_WIDTH)
     ) u_dut (

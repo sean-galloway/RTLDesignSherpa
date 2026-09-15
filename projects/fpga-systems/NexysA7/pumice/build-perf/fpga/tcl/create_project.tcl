@@ -147,6 +147,19 @@ if {[info exists ::env(PUMICE_SYS_75)] && $::env(PUMICE_SYS_75) ne "" && $::env(
     lappend current_defines "PUMICE_SYS_75"
     puts "verilog_define: PUMICE_SYS_75 (75 MHz / DDR2-300 profile)"
 }
+# Reader debug stream: env PUMICE_RD_DBG_FIFO=<depth> builds the per-beat
+# actual/expected/mismatch stream out of read generator 0. Default (unset) = 0,
+# not built, because it costs a FIFO plus two AXI-data-wide buses and nothing
+# reads it on a production bitstream.
+#
+# It exists for the ILA build. rd_dbg_mismatch pulses on the exact beat whose
+# data did not match, which is the only thing that can TRIGGER on the
+# PUMICE-037 corruption as it happens; a free-running capture would be a
+# lottery and would not say WHICH address lost.
+if {[info exists ::env(PUMICE_RD_DBG_FIFO)] && $::env(PUMICE_RD_DBG_FIFO) ne "" && $::env(PUMICE_RD_DBG_FIFO) ne "0"} {
+    lappend current_defines "PUMICE_RD_DBG_FIFO=$::env(PUMICE_RD_DBG_FIFO)"
+    puts "verilog_define: PUMICE_RD_DBG_FIFO=$::env(PUMICE_RD_DBG_FIFO) (reader debug stream built)"
+}
 # Scheduling tier: env PUMICE_ENHANCED=1 compiles the arbiter's ORDER_MODE
 # overlays (in_order / age_threshold, SCHED_POLICY.order_mode). Default off:
 # the overlays add the cross-CAM global-oldest compare to the pick cone, so

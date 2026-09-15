@@ -291,6 +291,14 @@ module ddr2_char_top #(
 `else
         .RD_RET_DEPTH    (64),
 `endif
+        // Reader debug stream. 0 (not built) on the production bitstream; the
+        // ILA build defines PUMICE_RD_DBG_FIFO so rd_dbg_mismatch exists to
+        // trigger on (PUMICE-037).
+`ifdef PUMICE_RD_DBG_FIFO
+        .RD_DBG_FIFO_DEPTH(`PUMICE_RD_DBG_FIFO),
+`else
+        .RD_DBG_FIFO_DEPTH(0),
+`endif
         .ROW_WIDTH       (ROW_WIDTH),
 `ifdef PUMICE_SYS_75
         .FPGA_CLK_HZ     (75_000_000)   // sys = 75 MHz  -> UART baud divisor

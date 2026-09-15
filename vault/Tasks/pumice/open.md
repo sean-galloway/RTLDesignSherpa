@@ -814,7 +814,66 @@ merge and boundary skids, the geared wrapper's dwidth converters, and the real
 a7ddrphy against a real device. The board traverses all three; none of these
 sims do.
 
-**Recommended next step is on the BOARD, not in sim:** run the failing
+---
+
+### CAUGHT ON THE BOARD WITH AN ILA, 2026-09-14 — it is PHY-side, not the AXI return path
+
+Sim could not reproduce it, so the defect was captured where it lives.
+`reports/ila_mism.csv` (4097 samples, 394 mismatching beats in one window).
+
+**How.** `char_engine_block` already exposed a per-beat debug stream --
+`rd_dbg_valid / actual / expected / mismatch` -- that was never wired to the
+top and whose FIFO defaulted to depth 0, so nothing had ever used it.
+Threaded `RD_DBG_FIFO_DEPTH` through the harness and top (default 0, so the
+production bitstream is unchanged), `mark_debug`ged the stream, and added a
+`mism` trigger mode to `capture_ila.tcl`. **Triggering on the corruption
+itself** is the whole point: every other trigger fires on normal traffic, and
+at this error rate a free-running capture is a lottery that would not say
+which beat lost. ILA build closes at **WNS +0.010 ns, 0 failing endpoints**,
+so the capture is trustworthy.
+
+**What the failing beats look like:**
+
+| | |
+|---|---|
+| mismatching beats captured | 394 |
+| `actual` == `ffffffffffffffff` (all-ones) | 233 (59%) |
+| `actual` == all-zeros | 0 |
+| other (genuinely different data) | 161 (41%) |
+
+All-ones with zero all-zeros is the signature of an **undriven DQ bus** -- a
+read whose capture window missed -- not of a mangled datapath.
+
+**The corruption is already present at the DFI boundary.** Baseline all-ones on
+`w_dfi_rddata` is 1.6% of samples, and with GOOD beats in the same capture as
+the control:
+
+| | within 11 cycles of an all-ones on the DFI bus |
+|---|---|
+| FAILING beats | **82%** |
+| GOOD beats | **30%** |
+
+So pumice's return path is faithfully delivering what the PHY handed it. That
+moves the defect from the controller's AXI/return logic to the PHY read
+capture, and is consistent with 32 clean points at `pumice_top` -- the sim's
+DFI slave BFM always returns correct data, so no controller-level test could
+ever have seen this.
+
+**Write-to-read turnaround is RULED OUT as the mechanism.** It was the obvious
+hypothesis from the waveform (writes sit a few cycles before the failing
+reads), and the control kills it: within 4 cycles of a `dfi_wrdata_en`,
+FAILING 59% vs GOOD 59% -- no discrimination at all. At 7 cycles it is 81% vs
+67%, which is weak and not worth building on. Do not re-open tWTR/tRTW on this
+evidence.
+
+**Next:** this is now a PHY read-capture question, so it belongs with the
+leveling tuple ([[project_pumice_board_bringup_tuple]]: wrlat 1, rden 6,
+rddata_delay 7, bitslip 0 / tap 8, eye 17 wide). Re-run the read-eye scan
+WHILE a concurrent write stream is running -- the eye was characterised on a
+quiet bus, and if it narrows under write activity that is the whole story.
+`bin/` already has the leveling and eye tooling.
+
+**Still recommended as the cheap partition:** run the failing
 configuration with LiteDRAM swapped in for pumice. Both sit behind the
 identical `char_engine_block`, and that A/B already localized the read ceiling
 once ([[project_litedram_same_harness_ab]]). If LiteDRAM corrupts too, the
