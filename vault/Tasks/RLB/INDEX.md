@@ -1,6 +1,6 @@
 # RLB — Retro Legacy Blocks
 
-**Next ID: RLB-016** — never recycle a number, even when its task closed.
+**Next ID: RLB-017** — never recycle a number, even when its task closed.
 
 Task rollup for the retro legacy peripheral blocks (gpio, hpet, ioapic,
 pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
@@ -10,7 +10,7 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 | State | Count | Tasks |
 |---|---|---|
 | active | 0 | — |
-| open | 6 | RLB-006 (test scrub -- DONE for RLB, residual is in rtl/ areas), RLB-007 (RDL relocation), RLB-009 (pm_acpi residual features), RLB-011 (smbus residual features), RLB-013 (uart_16550 residual features), RLB-014 (800-line core cap) |
+| open | 7 | RLB-006 (test scrub -- DONE for RLB, residual is in rtl/ areas), RLB-007 (RDL relocation), RLB-009 (pm_acpi residual features), RLB-011 (smbus residual features), RLB-013 (uart_16550 residual features), RLB-014 (800-line core cap) |
 | closed | 9 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README), RLB-008 (ioapic features -- four companions), RLB-010 (rtc leftovers), RLB-012 (regblock reset polarity), RLB-015 (SYNCASYNCNET, measured + waived) |
 | dropped | 0 | — |
 
