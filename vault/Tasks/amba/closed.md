@@ -3586,7 +3586,8 @@ and slot-leak failures it documents.
 ---
 
 ## AMBA-FILELIST-CONSISTENCY — normalize where .f lists live
-**Status:** open 2026-07-24 — **the RTL-area filelists are already consistent; the actual stragglers are all under projects/ and moved to TOOL-010.** This entry is kept only to record that rtl/amba, rtl/common, rtl/math are clean.
+**Status:** ✅ Closed 2026-09-15 -- verified; the remaining work is TOOL-010's.
+Was: open 2026-07-24 — **the RTL-area filelists are already consistent; the actual stragglers are all under projects/ and moved to TOOL-010.** This entry is kept only to record that rtl/amba, rtl/common, rtl/math are clean.
 **Priority:** P3
 
 The convention (see [[filelists]]) is: a module's `.f` lives in the owning
@@ -3647,7 +3648,8 @@ it is.
 seed base is a regression nobody can trust; both tests survived three
 reruns of the same seed, so this is not a flake.
 
-**Status:** open 2026-09-09. Found by the val/amba GATE run that landed the
+**Status:** ✅ Closed 2026-09-15 -- all five named seeds replay green.
+Was: open 2026-09-09. Found by the val/amba GATE run that landed the
 Wishbone B4 tests (seed base 3266401392: 2 failed, 714 passed); the run two
 hours earlier with another base was 714/714. Reproduced standalone from a
 clean build with the per-test seed, and reproduced again with the pre-edit
@@ -3786,7 +3788,8 @@ count, and belongs with TOOL-008.
 ---
 
 ## AMBA-MONRATE-INTERMITTENT — OPEN on a scope decision for six sibling TBs (root-caused, primary fix landed 2026-08-28)
-**Status:** root-caused 2026-08-28; fix for `test_axi4_monitor` landed in
+**Status:** ✅ Closed 2026-09-15 -- Sean made the scope call; the three TBs
+stay as they are. Was: root-caused 2026-08-28; fix for `test_axi4_monitor` landed in
 68e66676. Residual is a SCOPE DECISION on six sibling TBs — see "Residual"
 below. Was: open, NOT root-caused.
 **Priority:** P2 — blocks reading val/amba as a clean signal, so every shared
@@ -4168,7 +4171,8 @@ dead code the next time someone audits."
 
 **Priority:** P2 — latent, but reachable at RUNTIME on any shipped build, and
 the failure is a false error report rather than a missed one.
-**Status:** open 2026-09-01. Found as a passing observation in qc round_30
+**Status:** ✅ Closed 2026-09-15 -- fixed in axi_monitor_base.sv, verified
+RED/GREEN/RED. Was: open 2026-09-01. Found as a passing observation in qc round_30
 (axi4_part_02), verified against the RTL, not yet fixed. Filed rather than
 fixed because the fix is in `axi_monitor_base`, which is shared by the whole
 family — scope call belongs to Sean ([[feedback_confirm_scope_shared_rtl]]).
@@ -4289,7 +4293,8 @@ reasoning, which holds on silicon but not in simulation.
 
 **Priority:** P3 — simulation-only. On silicon the bit ships low; in cocotb it
 is undriven, which is a different and quieter problem.
-**Status:** open 2026-09-15, found while building the [[TASK-073]] regression.
+**Status:** ✅ Closed 2026-09-15 -- fixed in the four AXI monitor TBs.
+Was: open 2026-09-15, found while building the [[TASK-073]] regression.
 **Owner:** TBD
 
 `AXI4MasterMonitorTB.initialize()` sets ELEVEN `cfg_*` inputs on the DUT --
