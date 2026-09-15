@@ -955,6 +955,38 @@ collide with; the gap dependence is monotonic because more idle means more
 chance a refresh lands mid-flight; low generator counts fail because the read
 pipeline is sparser.
 
+### Correct refresh programming does NOT fix it (2026-09-15)
+
+Two separate refresh problems, and only one of them is PUMICE-037.
+
+**Problem 1, real and now fixed: the host had the clock wrong.**
+`pumice_char.Config.mc_clk_hz` defaulted to 100 MHz; the board measures
+**72 MHz** (bus meter: 233,964,081 cycles in 3.248 s). Every JEDEC timing was
+converted into cycles for the wrong clock. Most land conservative at a slower
+clock -- a cycle count for a faster clock buys MORE real time -- but tREFI
+inverts: 780 cycles is 7.8 us at 100 MHz and **10.8 us at 72 MHz**, against a
+JEDEC MAXIMUM of 7.8. The part was under-refreshed ~38% for this entire
+investigation. Fixed in `bfcff909d`, with `measure_mc_clk_hz()` /
+`check_mc_clk_hz()` so a host can ask the board instead of being told.
+
+**Problem 2, still open: that was not the cause.** Same workload, open page,
+`incremental`, 3 repeats, beats mismatched PER RUN:
+
+| refresh programmed for | gap 8 | gap 12 |
+|---|---|---|
+| 100 MHz (wrong, tREFI 10.8 us) | 5727 | 1959 |
+| 75 MHz (correct, tREFI 7.8 us) | 5158 | 2790 |
+
+3/3 runs fail either way and the rates are the same to within run-to-run
+scatter. **Correcting the refresh interval does not suppress the corruption**,
+so the under-refresh was a genuine misprogramming sitting on top of the defect,
+not the defect. (row_major was still running when the window closed; incremental
+alone settles the question.)
+
+That leaves the collision itself as the defect: pumice issues precharge + REF
+while reads are in flight, and tREFI only sets how OFTEN that window comes
+round, not whether it corrupts when it does.
+
 **What to look at:** whether the refresh scheduler drains (or blocks on)
 outstanding reads before issuing precharge-all + REF. The standing suspicion in
 [[project_pumice_board_bringup_tuple]] -- "residual corruption is a
