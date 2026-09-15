@@ -5,6 +5,10 @@ summary: Task rollup for the STREAM DMA component (projects/components/dmas/stre
 
 # STREAM tasks
 
+**Next ID: STREAM-001** — never recycle a number, even when its task closed.
+
+This area's older entries use the bare `TASK-` prefix, which is amba's namespace -- `TASK-060` and `TASK-073` each name one task here and a DIFFERENT one in amba, and `TASK-080` clashes with RAPIDS. New IDs take the `STREAM-` prefix so the collision cannot grow; the existing `TASK-` entries are left alone pending a decision, since renaming them moves live wikilinks. Numbering starts at 001: the PREFIX already disambiguates, so STREAM-001 cannot be confused with TASK-060, and starting high would invent 80 phantom gaps in the ID sequence.
+
 Task tracking for the STREAM component (nested under `projects/components/dmas/`
 to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md)
 · [closed](closed.md) · dropped (created when first needed). Convention:

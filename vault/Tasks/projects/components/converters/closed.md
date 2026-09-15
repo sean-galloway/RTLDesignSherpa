@@ -146,7 +146,7 @@ AXIL4 slaves) to make the injection possible at all.
 
 Width family: 46 passed.
 
-### CONV-009: converters RTL used manual async reset, against the components mandate
+## CONV-009: converters RTL used manual async reset, against the components mandate
 
 **Priority:** P2.
 **Status:** FIXED 2026-09-06. All 11 blocks across the four files are on

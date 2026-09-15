@@ -5,7 +5,7 @@
 ---
 
 
-### APBX-007: scrub the tests for completeness (apbx crossbar)
+## APBX-007: scrub the tests for completeness (apbx crossbar)
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be

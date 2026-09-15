@@ -108,8 +108,20 @@ def scan_area(area: pathlib.Path):
     return ids, blocks, level_errs
 
 
-def highest(ids) -> int:
-    nums = [int(m.group(1)) for i in ids for m in [re.search(r"-(\d+)$", i)] if m]
+def highest(ids, prefix: str | None = None) -> int:
+    """Highest number in use, counting only IDs with `prefix` when given.
+
+    Prefix-scoped because an area may legitimately hold more than one
+    namespace: STREAM's older entries are bare `TASK-` (amba's prefix, and the
+    source of three live cross-area collisions) while new ones are `STREAM-`.
+    Taking the max across ALL of them demanded `Next ID: STREAM-081` purely
+    because a TASK-080 sits in the same directory -- which would invent 80
+    phantom gaps in the STREAM sequence to dodge a collision the prefix
+    already prevents. A number only collides with the same prefix.
+    """
+    nums = [int(m.group(2)) for i in ids
+            for m in [re.fullmatch(r"([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*?)-(\d+)", i)]
+            if m and (prefix is None or m.group(1) == prefix)]
     return max(nums) if nums else 0
 
 
@@ -145,13 +157,22 @@ def check_area(area: pathlib.Path) -> tuple[list[str], list[str]]:
         errs.append(f"{area.name}: no INDEX.md")
     else:
         m = NEXT_ID.search(index.read_text())
-        hi = highest(ids)
         if not m:
             errs.append(f"{area.name}: INDEX.md has no 'Next ID:' line "
-                        f"(highest in use is {hi}); add one")
-        elif int(m.group(2)) <= hi:
-            errs.append(f"{area.name}: Next ID is {m.group(1)} but "
-                        f"{hi} is already in use -- bump it past {hi}")
+                        f"(highest in use is {highest(ids)}); add one")
+        else:
+            # NEXT_ID group 1 is the WHOLE id ("MATH-005"), not the prefix.
+            # Passing it as the prefix matched nothing, so `hi` came back 0 and
+            # every Next ID compared as valid -- the check passed vacuously and
+            # a deliberately broken MATH-005 against a live MATH-010 sailed
+            # through. Caught by mutation, which is the only reason it was
+            # caught at all.
+            prefix = m.group(1).rsplit("-", 1)[0]
+            hi = highest(ids, prefix)
+            if int(m.group(2)) <= hi:
+                errs.append(f"{area.name}: Next ID is {m.group(1)} but "
+                            f"{prefix}-{hi} is already in use -- bump it "
+                            f"past {hi}")
 
     for tid, page, status in blocks:
         want = TERMINAL_PAGES.get(page)
@@ -169,9 +190,17 @@ def main() -> int:
     args = ap.parse_args()
 
     tasks = repo_root() / "vault" / "Tasks"
-    areas = [d for d in sorted(tasks.iterdir()) if d.is_dir()]
+    # An AREA is any directory holding task pages, at ANY depth -- not just the
+    # top level. `vault/Tasks/projects/components/**` nests two and three deep,
+    # and a top-level-only scan silently skipped six areas: it reported "13
+    # areas" while 19 existed, so 14 mis-levelled headings and every ID in
+    # those areas went unchecked (2026-09-14). A checker that quietly covers
+    # less than it claims is the failure mode this file already warns about.
+    PAGES = {"open.md", "active.md", "closed.md", "deferred.md", "dropped.md"}
+    areas = sorted({f.parent for f in tasks.rglob("*.md") if f.name in PAGES})
     if args.area:
-        areas = [a for a in areas if a.name == args.area]
+        areas = [a for a in areas
+                 if a.name == args.area or str(a.relative_to(tasks)) == args.area]
 
     if args.next:
         a = tasks / args.next

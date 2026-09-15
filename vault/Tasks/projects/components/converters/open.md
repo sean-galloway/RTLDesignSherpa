@@ -179,7 +179,7 @@ vault/handbook/dv/seeds-and-determinism.md.
 
 ---
 
-### CONV-008: scrub the tests for completeness (converters)
+## CONV-008: scrub the tests for completeness (converters)
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be

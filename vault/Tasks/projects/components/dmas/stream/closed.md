@@ -2,7 +2,7 @@
 
 # STREAM tasks — closed (done)
 
-### TASK-059: Fix STREAM extended chained strided (transpose) descriptor corruption
+## TASK-059: Fix STREAM extended chained strided (transpose) descriptor corruption
 
 **Priority:** High
 **Status:** [x] Done (2026-07-29) — fixed + regression-tested.

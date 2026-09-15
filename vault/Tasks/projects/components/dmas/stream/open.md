@@ -2,7 +2,7 @@
 
 # STREAM tasks — open (not started)
 
-### TASK-073: build-mon host walks slvmon_apb with the wrong regmap
+## TASK-073: build-mon host walks slvmon_apb with the wrong regmap
 
 **Priority:** Medium — silent wrong-field writes, but build-mon is not going
 near the board until it closes timing, so nothing is at risk today.
@@ -53,7 +53,7 @@ running.
 
 ---
 
-### TASK-058: Signal contracts + K-maps for the significant STREAM signals (prove-by-construction)
+## TASK-058: Signal contracts + K-maps for the significant STREAM signals (prove-by-construction)
 
 **Priority:** High
 **Status:** [~] In progress (2026-07-29) — the canonical workbook already existed
@@ -198,7 +198,7 @@ Found while writing that test: with monitors ON, the MON window at 0x1000+ needs
 
 ---
 
-### TASK-060: Kick STREAM from its own registers — delete the sideband kick ports and apb4todescr
+## TASK-060: Kick STREAM from its own registers — delete the sideband kick ports and apb4todescr
 
 **Priority:** High
 **Status:** [ ] Open (2026-08-11)
@@ -318,7 +318,7 @@ convenience (decode in hardware, tally directly) rather than a prerequisite.
 **Related:** [[project_stream_mon_tally_coverage]]. Format spec + dataset:
 `projects/NexysA7/stream_characterization/reports/compression_dataset/README_COMPRESSION_DATASET.md`.
 
-### TASK-079: scrub the tests for completeness (stream)
+## TASK-079: scrub the tests for completeness (stream)
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be
@@ -371,7 +371,7 @@ same task in the rtl/ areas.
 
 ---
 
-### TASK-080: STREAM formal proofs read a hand-copied gaxi_fifo_sync, not the RTL
+## TASK-080: STREAM formal proofs read a hand-copied gaxi_fifo_sync, not the RTL
 
 **Priority:** Medium. Nothing fails, which is the problem: a proof about a
 copy says nothing about the module that ships.

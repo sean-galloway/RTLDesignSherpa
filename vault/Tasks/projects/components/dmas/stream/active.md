@@ -2,7 +2,7 @@
 
 # STREAM tasks — active (in progress)
 
-### TASK-056: RFC Stage-E — in-core R/W datapath perf monitors (retire `axi_bus_meter`)
+## TASK-056: RFC Stage-E — in-core R/W datapath perf monitors (retire `axi_bus_meter`)
 
 **Priority:** Medium
 **Status:** [~] In progress (2026-07-28) — **RTL + COSIM COMPLETE (E.1–E.4)**;

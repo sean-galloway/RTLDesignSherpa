@@ -2,7 +2,7 @@
 
 # misc — Open (accepted, ready to start)
 
-### MISC-001: all RDL lives in the rdl directory
+## MISC-001: all RDL lives in the rdl directory
 
 **Priority:** P3. Hygiene, but it is the kind that silently rots -- a stray
 source has no obvious home, so the next person adds theirs beside it.
@@ -59,7 +59,7 @@ repo-wide rather than misc-local, that is a much larger task and should be
 filed per area -- this block deliberately covers only misc, which is what was
 asked for.
 
-### MISC-002: scrub the tests for completeness (misc)
+## MISC-002: scrub the tests for completeness (misc)
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** open 2026-09-04. The misc slice of the repo-wide test scrub that

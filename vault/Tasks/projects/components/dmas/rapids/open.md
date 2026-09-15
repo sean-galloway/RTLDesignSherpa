@@ -2,7 +2,7 @@
 
 # RAPIDS tasks — open (not started)
 
-### TASK-057: Enforce register-map hygiene in RAPIDS DV (port the STREAM lessons)
+## TASK-057: Enforce register-map hygiene in RAPIDS DV (port the STREAM lessons)
 
 **Priority:** P2
 **Status:** 🔴 Not Started
@@ -114,7 +114,7 @@ conflicts.md`): RAPIDS has already been bitten by two signals whose names
 implied a relationship they did not have. That is the same failure mode the
 axis-equation requirement (criterion 3) exists to catch.
 
-### TASK-080: scrub the tests for completeness (rapids)
+## TASK-080: scrub the tests for completeness (rapids)
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be

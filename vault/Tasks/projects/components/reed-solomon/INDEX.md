@@ -1,5 +1,7 @@
 # reed-solomon — task rollup
 
+**Next ID: RS-002** — never recycle a number, even when its task closed.
+
 Future `projects/components/reed-solomon/` component. No RTL, DV or PRD
 exists yet — this area holds the intent so it does not vanish when
 COMMON-009 (BCH/Reed-Solomon ECC as library work) was dropped 2026-08-09.

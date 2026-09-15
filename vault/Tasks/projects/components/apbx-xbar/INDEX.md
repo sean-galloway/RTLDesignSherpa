@@ -1,5 +1,7 @@
 # apbx-xbar — task rollup
 
+**Next ID: APBX-008** — never recycle a number, even when its task closed.
+
 APB crossbar family (`projects/components/apbx-xbar/`): the generated
 fixed-configuration variants `1to1`, `2to1`, `1to4`, `2to4` and
 `2to2_mixed`. Every port independently speaks APB4 or APB5.
