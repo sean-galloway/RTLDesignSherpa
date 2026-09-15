@@ -538,13 +538,16 @@ Single output interface for all STREAM monitoring events.
 gaxi_fifo_sync #(
     .DATA_WIDTH(64),
     .DEPTH(256)
-) u_mon_fifo (
-    .i_clk    (clk),
-    .i_rst_n  (rst_n),
-    .i_data   (mon_packet),
-    .i_valid  (mon_valid),
-    .o_ready  (mon_ready),
-    // ... downstream connection
+) u_gaxi_fifo_sync (
+    .axi_aclk              (axi_aclk),
+    .axi_aresetn           (axi_aresetn),
+    .wr_valid              (wr_valid),
+    .wr_ready              (wr_ready),
+    .wr_data               (wr_data),
+    .rd_ready              (rd_ready),
+    .count                 (count),
+    .rd_valid              (rd_valid),
+    .rd_data               (rd_data)
 );
 ```
 

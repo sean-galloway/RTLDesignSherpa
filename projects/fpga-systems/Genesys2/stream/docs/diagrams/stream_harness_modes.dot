@@ -1,0 +1,30 @@
+digraph modes {
+  rankdir=TB; nodesep=0.5; ranksep=0.5;
+  graph [fontname="Helvetica", fontsize=10, bgcolor="#fbfbfd",
+         label=<<B>The three flavours — identical RTL, identical address map, different generics</B><BR/>
+         <FONT POINT-SIZE="9">from build-{perf,obs,mon}/Makefile · enforced by bin/tests/test_builds_share_rtl_and_map.py (14/14)</FONT>>,
+         labelloc=t];
+  node [fontname="Helvetica", fontsize=9, shape=plaintext];
+
+  cmp [label=<
+  <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+   <TR><TD BGCOLOR="#eceff4"><B>generic</B></TD>
+       <TD BGCOLOR="#d7e5f7"><B>perf</B></TD>
+       <TD BGCOLOR="#f7dede"><B>obs</B></TD>
+       <TD BGCOLOR="#cfe4d4"><B>mon</B></TD></TR>
+   <TR><TD ALIGN="LEFT">USE_AXI_MONITORS</TD><TD>0</TD><TD>0</TD><TD BGCOLOR="#e8f4ea"><B>1</B></TD></TR>
+   <TR><TD ALIGN="LEFT">OBS_ENABLE_MON_TAPS</TD><TD>0</TD><TD BGCOLOR="#fdeaea"><B>1</B></TD><TD>0</TD></TR>
+   <TR><TD ALIGN="LEFT">MON_ERROR_FLAVOR</TD><TD>0</TD><TD>2 (all cones)</TD><TD>2 (all cones)</TD></TR>
+   <TR><TD ALIGN="LEFT">STREAM_VCO_MHZ</TD><TD>1200</TD><TD>1200</TD><TD>1200</TD></TR>
+   <TR><TD ALIGN="LEFT">STREAM_CLKOUT0_DIVIDE</TD><TD>12</TD><TD>20</TD><TD>20</TD></TR>
+   <TR><TD ALIGN="LEFT"><B>=&gt; aclk</B></TD><TD><B>100 MHz</B></TD><TD><B>60 MHz</B></TD><TD><B>60 MHz</B></TD></TR>
+   <TR><TD ALIGN="LEFT">STREAM_NUM_CHANNELS</TD><TD>8</TD><TD>8</TD><TD>8</TD></TR>
+   <TR><TD ALIGN="LEFT">MON_N_PROFILE</TD><TD>64</TD><TD>64</TD><TD>64</TD></TR>
+   <TR><TD ALIGN="LEFT">instrument built</TD><TD>none</TD><TD>2 observers,<BR/>all cones</TD><TD>in-core mons<BR/>+ compression</TD></TR>
+   <TR><TD ALIGN="LEFT">records flow to</TD><TD>—</TD><TD>slave_tally /<BR/>stream_tally</TD><TD>comp_sram<BR/>(compressed)</TD></TR>
+   <TR><TD ALIGN="LEFT">board result</TD><TD>40/40<BR/>1525.7 MB/s</TD><TD>40/40<BR/>7/7 classes</TD><TD>40/40<BR/>6/6 classes</TD></TR>
+   <TR><TD ALIGN="LEFT">status of rebuild</TD><TD BGCOLOR="#e8f4ea">BUILT<BR/>WNS +0.995</TD>
+       <TD BGCOLOR="#fdd8d8"><B>DOES NOT FIT</B><BR/>LUT 203,827 /<BR/>203,800 = 100.01%</TD>
+       <TD BGCOLOR="#fdf3d8">building</TD></TR>
+  </TABLE>>];
+}

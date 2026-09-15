@@ -381,33 +381,23 @@ sram_controller_unit #(
     .DATA_WIDTH(DW),
     .SRAM_DEPTH(SRAM_DEPTH),
     .SEG_COUNT_WIDTH(SEG_COUNT_WIDTH)
-) u_channel_unit (
-    .clk                (clk),
-    .rst_n              (rst_n),
-
-    // Write interface (decoded valid from ID)
-    .axi_rd_sram_valid  (axi_rd_sram_valid_decoded[i]),
-    .axi_rd_sram_ready  (axi_rd_sram_ready_per_channel[i]),
-    .axi_rd_sram_data   (axi_rd_sram_data),      // SHARED
-
-    // Read interface (decoded drain)
-    .axi_wr_sram_valid  (axi_wr_sram_valid[i]),
-    .axi_wr_sram_ready  (axi_wr_sram_drain_decoded[i]),
-    .axi_wr_sram_data   (axi_wr_sram_data_per_channel[i]),
-
-    // Allocation interface (decoded req from ID)
-    .rd_alloc_req       (axi_rd_alloc_req_decoded[i]),
-    .rd_alloc_size      (axi_rd_alloc_size),     // SHARED
-    .rd_space_free      (axi_rd_alloc_space_free[i]),
-
-    // Drain interface (per-channel)
-    .wr_drain_req       (axi_wr_drain_req[i]),
-    .wr_drain_size      (axi_wr_drain_size[i]),
-    .wr_drain_data_avail(axi_wr_drain_data_avail[i]),
-
-    // Debug
-    .dbg_bridge_pending     (dbg_bridge_pending[i]),
-    .dbg_bridge_out_valid   (dbg_bridge_out_valid[i])
+) u_sram_controller_unit (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .axi_rd_alloc_req      (axi_rd_alloc_req),
+    .axi_rd_alloc_size     (axi_rd_alloc_size),
+    .axi_rd_alloc_space_free(axi_rd_alloc_space_free),
+    .axi_rd_sram_valid     (axi_rd_sram_valid),
+    .axi_rd_sram_ready     (axi_rd_sram_ready),
+    .axi_rd_sram_data      (axi_rd_sram_data),
+    .axi_wr_drain_data_avail(axi_wr_drain_data_avail),
+    .axi_wr_drain_req      (axi_wr_drain_req),
+    .axi_wr_drain_size     (axi_wr_drain_size),
+    .axi_wr_sram_valid     (axi_wr_sram_valid),
+    .axi_wr_sram_ready     (axi_wr_sram_ready),
+    .axi_wr_sram_data      (axi_wr_sram_data),
+    .dbg_bridge_pending    (dbg_bridge_pending),
+    .dbg_bridge_out_valid  (dbg_bridge_out_valid)
 );
 ```
 
