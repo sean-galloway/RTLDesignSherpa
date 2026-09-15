@@ -482,10 +482,7 @@ axi_master_rd_splitter, axi_master_wr_splitter,
 arbiter_monbus_common, arbiter_rr_pwm_monbus, arbiter_wrr_pwm_monbus,
 axi_monitor_base (prove only), axi_monitor_filtered (prove only),
 axi_monitor_trans_mgr (prove only), axi_monitor_reporter, axi_monitor_timeout,
-axi_monitor_timer, amba_clock_gate_ctrl,
-gaxi_fifo_async_multi, gaxi_fifo_sync_multi,
-gaxi_skid_buffer_multi, gaxi_skid_buffer_multi_sigmap,
-gaxi_skid_buffer_async_multi
+axi_monitor_timer, amba_clock_gate_ctrl
 
 ### projects/components/dmas/stream/ -- 19 of 30 PASS
 
