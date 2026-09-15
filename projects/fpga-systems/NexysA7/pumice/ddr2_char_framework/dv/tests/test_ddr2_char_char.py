@@ -40,6 +40,9 @@ from CocoTBFramework.components.dfi.dram_state import (
     AddressMapping, DramStateModel, ViolationPolicy,
 )
 from CocoTBFramework.components.dfi.jedec_timings import builtin_timings
+from CocoTBFramework.components.dfi.dfi_timing import (
+    READ_REF_COMMAND, WRITE_REF_WRDATA_EN, DFITimingProfile,
+)
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 _REPO = os.environ["REPO_ROOT"]
@@ -91,8 +94,45 @@ def _make_dfi_slave(dut):
     base = DFIBase(dfi_version=DFIVersion.V2_1, memory_type=MemoryType.DDR2,
                    timings=builtin_timings("ddr2-650-mt47h64m16hr"),
                    mapping=mapping, beats_per_burst=BEATS_PER_BURST)
+    # READ CAPTURE WINDOW (read_en_gated) -- the ONE deviation from the stock
+    # "legacy" profile, and it is a physics fix, not a tuning knob.
+    #
+    # The default profile self-times reads off the RD command and IGNORES
+    # dfi_rddata_en, presenting each word for exactly ONE cycle and popping it
+    # from the pending queue whether or not the controller captured it
+    # (dfi_slave_phy.py::_serve_reads). Measured here, that put the first
+    # rddata_valid a full cycle BEFORE the controller had EVER asserted
+    # dfi_rddata_en (probe: first_valid=712950 first_en=712960,
+    # en_cycles_before=0) -- a device answering before it was asked.
+    #
+    # That waveform is bit-identical to the a7ddrphy READ PREAMBLE, where the
+    # cycle before the capture window carries UNDRIVEN DQ (all-ones on the
+    # board ILA) and MUST be discarded. The two cannot be told apart by any
+    # controller-side gate, so a rejected preamble and a destroyed data word
+    # look the same; the aligner correctly rejects it and this model loses a
+    # real beat, which then shifts every later beat ("read engine did not
+    # complete", 62 beats mismatched).
+    #
+    # Real silicon does not behave the way the stock profile does: a gated PHY
+    # holds the word until the capture window opens (the early-return path does
+    # not popleft), and the free-running a7ddrphy model holds its last DQ word
+    # for the same reason. Gating here makes the loopback obey that, changing
+    # NOTHING else -- read_ref and the JEDEC-CL latency stay exactly as the
+    # legacy profile had them, so the families still move identical data in
+    # identical time and this test's scope (mechanism, not PHY fidelity) is
+    # unchanged. The rest of this framework already moved off the unphysical
+    # zero-latency loopback (test_ddr2_char_uart.py, test_ddr2_char_macro.py's
+    # DFI_PROFILE=a7ddrphy); this file was the last one left on it.
+    timing = DFITimingProfile(
+        name="char_gated",
+        read_ref=READ_REF_COMMAND,   # as legacy
+        read_latency=None,           # as legacy: JEDEC CL
+        read_en_gated=True,          # the fix: present data only in the window
+        write_ref=WRITE_REF_WRDATA_EN,  # as legacy
+        write_latency=None,             # as legacy
+    )
     slave = DFISlavePHY(dut, dut.aclk, base=base, memory=memory,
-                        dfi_phase_bytes=DRAM_BEAT_BYTES)
+                        timing=timing, dfi_phase_bytes=DRAM_BEAT_BYTES)
     slave.dram = DramStateModel(timings=base.timings, num_banks=NUM_BANKS,
                                 policy=ViolationPolicy(hard=frozenset()))
     return slave, memory

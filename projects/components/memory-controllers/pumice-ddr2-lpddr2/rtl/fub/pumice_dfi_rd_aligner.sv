@@ -168,6 +168,82 @@ module pumice_dfi_rd_aligner #(
     // turns any future sizing break into a hard failure instead of a
     // silent data drop.
 `ifndef SYNTHESIS
+    // ---- credit-gate probe (+define+RD_ALIGN_TRACE) -------------------------
+    // The enable-window credit is meant to reject exactly one thing: the PHY
+    // preamble valid that arrives BEFORE this read's window. If it ever rejects
+    // a valid that the device really was driving, that beat is gone and the
+    // burst framing goes short -- the same damage the preamble does, from the
+    // other direction. These two counters separate those cases, so "the credit
+    // is eating real data" is a number rather than a theory.
+    //
+    //   blocked_pre  a valid rejected with NO read outstanding      -> stray/preamble
+    //   blocked_real a valid rejected WHILE a read was outstanding  -> a DROPPED
+    //                BEAT. Not "small is fine": this is a stream aligner, so a
+    //                single dropped word shifts every later beat by one and the
+    //                run ends "read engine did not complete" with the whole
+    //                remainder mismatched. Any nonzero blocked_real is a defect
+    //                in either the gate or the model driving it.
+    //
+    // The credit is CUMULATIVE, so a device whose valid leads the enable window
+    // by a constant offset only trips this ONCE -- on the first read, before any
+    // enable has minted credit. After that, credit banked from earlier enables
+    // covers each early return. So a count of 1 does not mean "nearly right"; it
+    // means "the very first return was thrown away".
+    //
+    // first_blk_* snapshots that first rejection so the cause is a reading, not
+    // an inference: en_cycles==0 there proves the valid ARRIVED BEFORE ANY
+    // ENABLE (an unphysical device model), while en_cycles>0 means credit was
+    // minted and then mis-spent (a real gate bug).
+    integer dbg_valids, dbg_captured, dbg_blocked_pre, dbg_blocked_real;
+    integer dbg_en_cycles;
+    integer dbg_first_en_time, dbg_first_valid_time;
+    integer dbg_first_blk_time, dbg_first_blk_captured, dbg_first_blk_en_cycles;
+    integer dbg_first_blk_outst;
+    always @(posedge dfi_clk or negedge dfi_rstn)
+        if (!dfi_rstn) begin
+            dbg_valids <= 0; dbg_captured <= 0;
+            dbg_blocked_pre <= 0; dbg_blocked_real <= 0;
+            dbg_en_cycles <= 0;
+            dbg_first_en_time <= -1; dbg_first_valid_time <= -1;
+            dbg_first_blk_time <= -1; dbg_first_blk_captured <= -1;
+            dbg_first_blk_en_cycles <= -1; dbg_first_blk_outst <= -1;
+        end else begin
+            if (|dfi_rddata_valid_i) dbg_valids <= dbg_valids + 1;
+            if (w_cap_fire)          dbg_captured <= dbg_captured + 1;
+            if (w_en)                dbg_en_cycles <= dbg_en_cycles + 1;
+            if (w_en && (dbg_first_en_time < 0))
+                dbg_first_en_time <= 32'($time);
+            if ((|dfi_rddata_valid_i) && (dbg_first_valid_time < 0))
+                dbg_first_valid_time <= 32'($time);
+            if ((|dfi_rddata_valid_i) && (w_credit_avail == '0)) begin
+                if (r_outstanding == '0) dbg_blocked_pre  <= dbg_blocked_pre + 1;
+                else                     dbg_blocked_real <= dbg_blocked_real + 1;
+                if (dbg_first_blk_time < 0) begin
+                    dbg_first_blk_time      <= 32'($time);
+                    dbg_first_blk_captured  <= dbg_captured;
+                    dbg_first_blk_en_cycles <= dbg_en_cycles;
+                    dbg_first_blk_outst     <= 32'(r_outstanding);
+                end
+            end
+`ifdef RD_ALIGN_TRACE
+            if (|dfi_rddata_valid_i)
+                $display("RD_ALIGN @%0t valid data=%h credit=%0d(avail %0d) outst=%0d rcnt=%0d -> %s",
+                         $time, dfi_rddata_i, r_credit, w_credit_avail,
+                         r_outstanding, r_rcnt,
+                         (w_credit_avail == '0) ? "BLOCKED" : "captured");
+`endif
+        end
+
+    final begin
+        $display("RD_ALIGNER probe: valids=%0d captured=%0d blocked_pre=%0d blocked_real=%0d",
+                 dbg_valids, dbg_captured, dbg_blocked_pre, dbg_blocked_real);
+        $display("RD_ALIGNER probe: en_cycles=%0d first_en=%0d first_valid=%0d",
+                 dbg_en_cycles, dbg_first_en_time, dbg_first_valid_time);
+        $display("RD_ALIGNER probe: first_block t=%0d captured_before=%0d en_cycles_before=%0d outst=%0d",
+                 dbg_first_blk_time, dbg_first_blk_captured,
+                 dbg_first_blk_en_cycles, dbg_first_blk_outst);
+    end
+
     always @(posedge dfi_clk)
         if (dfi_rstn) begin
             assert (!(rd_valid_o && !rd_ready_i))
