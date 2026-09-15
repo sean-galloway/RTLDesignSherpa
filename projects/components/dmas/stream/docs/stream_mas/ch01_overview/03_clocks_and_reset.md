@@ -253,26 +253,42 @@ write_apb(ADDR_GLOBAL_CTRL, CHANNEL_0_RESET);  // Auto-clears after 1 cycle
 
 ```systemverilog
 // APB to STREAM domain (pclk -> aclk)
+// apb4_slave_cdc is an APB SLAVE on the pclk side and a cmd/rsp pair on the
+// aclk side -- there is no second APB port, so there are no m_p* signals.
 apb4_slave_cdc #(
-    .ADDR_WIDTH(32),
-    .DATA_WIDTH(32),
-    .SYNC_STAGES(2)  // Dual-flop synchronizer
+    .ADDR_WIDTH (32),
+    .DATA_WIDTH (32)
+    // DEPTH, PROT_WIDTH, STRB_WIDTH, USE_2_PHASE_CDC and USE_JOHNSON
+    // select sizing and CDC style; see the module header for their meaning.
 ) u_apb_cdc (
-    // APB side (pclk domain)
-    .s_pclk(pclk),
-    .s_presetn(presetn),
-    .s_paddr(paddr),
-    .s_pwrite(pwrite),
-    .s_pwdata(pwdata),
-    .s_prdata(prdata),
+    // APB slave side (pclk domain)
+    .pclk          (pclk),
+    .presetn       (presetn),
+    .s_apb_PSEL    (cfg_psel),
+    .s_apb_PENABLE (cfg_penable),
+    .s_apb_PREADY  (cfg_pready),
+    .s_apb_PADDR   (cfg_paddr),
+    .s_apb_PWRITE  (cfg_pwrite),
+    .s_apb_PWDATA  (cfg_pwdata),
+    .s_apb_PSTRB   (cfg_pstrb),
+    .s_apb_PPROT   (cfg_pprot),
+    .s_apb_PRDATA  (cfg_prdata),
+    .s_apb_PSLVERR (cfg_pslverr),
 
-    // STREAM side (aclk domain)
-    .m_pclk(aclk),
-    .m_presetn(aresetn),
-    .m_paddr(paddr_sync),
-    .m_pwrite(pwrite_sync),
-    .m_pwdata(pwdata_sync),
-    .m_prdata(prdata_sync)
+    // STREAM side (aclk domain): command out, response back
+    .aclk          (aclk),
+    .aresetn       (aresetn),
+    .cmd_valid     (cfg_cmd_valid),
+    .cmd_ready     (cfg_cmd_ready),
+    .cmd_pwrite    (cfg_cmd_pwrite),
+    .cmd_paddr     (cfg_cmd_paddr),
+    .cmd_pwdata    (cfg_cmd_pwdata),
+    .cmd_pstrb     (cfg_cmd_pstrb),
+    .cmd_pprot     (cfg_cmd_pprot),
+    .rsp_valid     (cfg_rsp_valid),
+    .rsp_ready     (cfg_rsp_ready),
+    .rsp_prdata    (cfg_rsp_prdata),
+    .rsp_pslverr   (cfg_rsp_pslverr)
 );
 ```
 
@@ -367,14 +383,14 @@ end
 // Clock gate when channel idle
 clock_gate_ctrl u_ch0_clk_gate (
     .clk_in(aclk),
-    .enable(ch0_enable),
+    .cfg_cg_enable(ch0_enable),
     .clk_out(ch0_gated_clk)
 );
 
 // Use gated clock for channel logic
 scheduler #(.CHANNEL_ID(0)) u_ch0_sched (
-    .aclk(ch0_gated_clk),  // Gated clock
-    .aresetn(aresetn),
+    .clk(ch0_gated_clk),  // Gated clock
+    .rst_n(aresetn),
     // ...
 );
 ```
