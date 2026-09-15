@@ -109,10 +109,35 @@ module pumice_dfi_rd_aligner #(
     // drops truly-stray valids arriving with nothing in flight). r_rcnt counts
     // words within the current read; the BL_WORDS-th word marks last and retires
     // one outstanding read.
+    // Second gate: the ENABLE-WINDOW credit. The a7ddrphy asserts a PREAMBLE
+    // dfi_rddata_valid one cycle BEFORE this read's enable window with the
+    // device not driving DQ; r_outstanding does NOT exclude it (the read IS
+    // outstanding then), so capturing it fires rd_last a word early and shifts
+    // the whole stream. Credit accrues per ENABLE cycle and is spent per
+    // captured word, so it cannot be non-zero before the window opens.
+    //
+    // COMBINATIONAL, and that is the whole difference between this working and
+    // not. Under the a7_read_gated model the device drives data INSIDE the
+    // enable window -- data and enable land on the SAME cycle -- so a purely
+    // registered credit still reads 0 on the first enable cycle and drops the
+    // first word. That is what broke the two a7gated uart cases when this was
+    // tried with a registered credit (2026-09-15), and it is what dcaedce4b
+    // ("make enable-window credit combinational") was fixing in July before it
+    // too was reverted. Include this cycle's enable in the available credit.
+    localparam int CRDW = $clog2((PIPE + 1) * BL_WORDS + 2) + 1;
+    logic [CRDW-1:0] r_credit, w_credit_avail;
+    assign w_credit_avail = r_credit + CRDW'(w_en ? 1 : 0);
+
     logic [CNTW:0] r_rcnt;
     logic          w_word_valid, w_cap_fire;
-    assign w_word_valid = |dfi_rddata_valid_i;
+    assign w_word_valid = (|dfi_rddata_valid_i) && (w_credit_avail != '0);
     assign w_cap_fire   = w_word_valid && (r_outstanding != '0) && rd_ready_i;
+
+    `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
+        if (`RST_ASSERTED(dfi_rstn)) r_credit <= '0;
+        else                         r_credit <= w_credit_avail
+                                                 - CRDW'(w_cap_fire ? 1 : 0);
+    )
     assign w_read_done  = w_cap_fire && (r_rcnt == (CNTW+1)'(BL_WORDS - 1));
 
     assign rd_valid_o = w_word_valid && (r_outstanding != '0);
