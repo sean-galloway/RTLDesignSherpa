@@ -186,8 +186,10 @@ of work.
 **Concrete known stragglers (from the 2026-07-24 survey):**
 - [ ] **bridge** — `rtl/filelists_static/` → `filelists/` (or justify "static")
 - [ ] **rapids_char** (NexysA7) — `flows-rapids-beats/flists/` → `filelists/`
-- [ ] **retro_legacy_blocks** — loose `rtl/rlb_top/rlb_top.f`,
-      `rtl/apbx_xbar/apbx_xbar_rlb_1to10.f` → `filelists/` subdirs
+- [ ] **retro_legacy_blocks** — loose `rtl/rlb_top/rlb_top.f` → `filelists/`
+      subdir. (`rtl/apbx_xbar/apbx_xbar_rlb_1to10.f` is gone: deleted
+      2026-09-14 along with the hand-rolled crossbar it listed, which was
+      replaced by the generated `apbx_xbar_1to10.sv`.)
 - [ ] **ddr2_char** (NexysA7) — loose `rtl/ddr2_char_macro.f` → `filelists/`;
       the `dv/` harness `.f` get a `filelists/` dir WITH the TB
 - [ ] **pumice** — `dv/tb/*_tb_top.f` → a `filelists/` dir with the TB.
@@ -505,3 +507,41 @@ with a `lint-all` that loops their top filelists (the sweep in RLB-015's
 closure is a working prototype); or have the template discover filelists
 directly and drop the per-area Makefile requirement; or, at minimum, stop
 advertising targets that cannot run.
+
+**SAME ROOT CAUSE, WORSE SYMPTOM, found 2026-09-14: the whole component
+regression cannot run either.** `projects/components/Makefile` line 31 lists
+the component as `apbx_xbar`, but the directory was renamed to the hyphenated
+house style and is `apbx-xbar` on disk. It is the FIRST entry in `COMPONENTS`,
+and the loop at `Makefile:259` ends each iteration with `|| exit 1`, so:
+
+    $ make clean-all && make run-all-full-parallel
+    ==> Testing apbx_xbar (FULL, 48 workers)
+    make[1]: *** apbx_xbar/dv/tests: No such file or directory.  Stop.
+    make: *** [Makefile:259: test-all-full-parallel] Error 1
+
+That aborts before a single test of ANY component executes. So the documented
+whole-repo command -- `make clean-all && make run-all-full-parallel`, which is
+the standing instruction for every area -- has been exiting 2 without testing
+anything, and the failure is 3 lines into a long log where it reads like
+progress. It affects all six `test-all-*` targets, which share the loop.
+
+`projects/components/Makefile` is UNMODIFIED vs HEAD, so this is committed
+state, not a local edit. The rename landed in f28581b3d
+("refactor(apbx_xbar): rename apb4_xbar -> apbx_xbar").
+
+**The one-word fix** is `apbx_xbar` -> `apbx-xbar` in `COMPONENTS`. Verified
+non-invasively: with the hyphen, `make -n -C apbx-xbar/dv/tests
+run-all-full-parallel` resolves for all eight components (the targets come
+from an included .mk, not each local Makefile). Deliberately NOT applied here
+-- it is tooling, outside the RLB crossbar change that found it, and it wants
+its own commit plus a real regression behind it.
+
+**Workaround until then:** override the variable rather than editing the file:
+
+    make run-all-full-parallel COMPONENTS="apbx-xbar bridge converters \
+      dmas/rapids dmas/stream memory-controllers/pumice-ddr2-lpddr2 misc \
+      retro_legacy_blocks"
+
+Same lesson as the lint half: a gate that cannot run is not a gate. This one
+additionally reported a non-zero exit that is easy to read as "the suite ran
+and something failed" rather than "nothing ran at all".

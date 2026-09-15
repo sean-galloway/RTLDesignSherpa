@@ -21,8 +21,9 @@ and `###` and any count that assumes one level is wrong. Two separate fixes
 landed the same day: six entries whose bodies said CLOSED were moved OUT of
 `open.md`, and five whose bodies said "open" or "NOT fixed" were moved BACK IN
 from `closed.md` (TASK-078, -083, -084, -085, -095). A scan that only reads `##` misses
-TASK-077, -075, -074, -073, -014, -015, -022, -024 and CONV-001 — nine real
-open items, several of them defects.*
+TASK-077, -075, -074, -073, -014, -015, -022, -024 — eight real open items,
+several of them defects. (A ninth, CONV-001, has since moved to the converters
+area as CONV-010, where it belongs.)*
 
 ## Active
 

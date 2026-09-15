@@ -1545,7 +1545,9 @@ instantiation examples are enumerations too, and sixteen of them dropped it.
 Rule 7 says integration status is measured, not inferred — but the measurement
 has to cover every form the claim takes, and a table-row grep is not that.
 
-**Filed CONV-001** (amba/open.md): the dwidth converter's split fold pops one
+**Filed CONV-010** (converters/open.md; filed as CONV-001 in amba/open.md and
+renumbered when it moved to the converters area 2026-09-14): the dwidth
+converter's split fold pops one
 FIFO entry per downstream B — exact within an ID, wrong if a downstream
 interleaves B across IDs, which AXI4 permits. Documented as a constraint rather
 than fixed; it touches the converter pumice's host gearing depends on.

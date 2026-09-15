@@ -29,6 +29,41 @@ a consumer, which `open` kept misrepresenting as ready-to-start work).
 Areas create `deferred.md` when they first need it; an absent file means
 nothing is parked.
 
+## The AREA is the namespace — a task lives in its own component's files (Sean, 2026-09-14)
+
+**A pumice task goes in `vault/Tasks/pumice/`. A converter task goes in the
+converters area. Same for every component.** Not wherever it happened to be
+found, and not in whichever area the person filing it had open.
+
+**The same number in two areas is EXPECTED, not a collision.** `TASK-080` names
+one task in amba and a different one in STREAM, and that is fine — the area
+tells them apart. Do not renumber across areas, and do not invent per-area
+prefixes to dodge it.
+
+**When citing a task outside its own file, name the area:**
+
+```
+Pumice TASK-037          amba TASK-073          STREAM TASK-080
+```
+
+Duplicates only matter WITHIN an area, and `bin/check_task_ids.py` blocks on
+exactly that case.
+
+**The practical consequence, learned the hard way.** A task filed in the wrong
+area is invisible to anyone reading the component it belongs to. `CONV-001`
+("dwidth converter split-fold assumes in-order B across IDs") sat in
+`amba/open.md` — an open RTL defect that nobody working on the converters would
+ever have seen. `CDC-FORMAL-STALE` sat there too, filed under amba because CDC
+used to live there before `AMBA-CDC-REORG` moved it to `rtl/cdc`; the task never
+followed the code. Both moved 2026-09-14.
+
+Moving one can expose a REAL duplicate, and that is the system working: the
+converter task was `CONV-001` in amba where the number was free, and landed on
+the converters' own `CONV-001`. It was renumbered to `CONV-010`, because inside
+one area a number means one thing. amba still holds several misfiled CLOSED
+entries (BRIDGE-, TOOL-, NEXYSA7-, FORMAL-) — lower value to move, but they are
+the same mistake.
+
 ## Task IDs are permanent — never recycle one
 
 Each area's `INDEX.md` carries a **`Next ID:`** line near the top. Take that

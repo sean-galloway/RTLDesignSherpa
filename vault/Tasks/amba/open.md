@@ -130,44 +130,6 @@ bug in the runner, the harness or the RTL ([[feedback_no_flaky_dismissal]]);
 `--reruns` would hide the one signal we have.
 
 
-## CONV-001: dwidth converter split-fold assumes in-order B across IDs
-
-**Priority:** P3 — latent, needs an interleaving downstream AND a master using
-multiple write IDs through the converter at once. No shipped integration in
-this repo does both today.
-**Status:** open 2026-09-01. Raised as a SUSPECTED finding in qc round_31,
-verified against the RTL, documented in
-`docs/markdown/rtl-amba/axi4/axi4_dwidth_converter.md`. Filed rather than fixed
-because it changes a converter used by pumice's host gearing
-([[project_pumice_axi_width_gearing]]) — scope call belongs to Sean.
-
-**What the RTL does.** `axi4_dwidth_converter_wr.sv` splits one oversized slave
-burst into several master bursts and records each in a single FIFO:
-
-    logic [9:0]         splitq_mem [SPLITQ_DEPTH];
-    logic [SPLITQ_AW:0] splitq_wptr, splitq_rptr_w, splitq_rptr_b;
-    assign split_b_final = splitq_mem[splitq_rptr_b[SPLITQ_AW-1:0]][9];
-
-The B fold pops one entry per downstream response and forwards a B to the slave
-only on the record marked final.
-
-**Why it is only sometimes correct.** All pieces of one split burst carry the
-AWID of the burst they came from, and AXI4 guarantees same-ID B responses come
-back in order — so within one ID the FIFO fold is exact. Across IDs AXI4 places
-no such ordering requirement. If two slave bursts with different IDs are both
-split and the downstream interleaves their responses, the FIFO cannot tell them
-apart and decrements the wrong record: one burst's B is released early, the
-other's never completes.
-
-**Fix shape.** Make the fold ID-aware — a small CAM keyed by AWID, or one split
-counter per outstanding ID — rather than a single ordered FIFO. The read side
-(`axi4_dwidth_converter_rd.sv`) should be checked for the same pattern.
-
-**Test that would catch it.** Two concurrent split write bursts on distinct
-AWIDs against a downstream model that returns B out of order; assert each slave
-B arrives exactly once, after its own last master burst.
-
-
 ## TASK-073: write monitors ID-filter W beats against the LIVE AWID
 
 **Priority:** P2 — latent, but reachable at RUNTIME on any shipped build, and
@@ -975,7 +937,6 @@ an index, not storage). Most of the 366 `.f` follow this
 
 **Loose `.f` directly beside RTL, no `filelists/` subdir:**
 - [ ] `projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.f`
-- [ ] `projects/components/retro_legacy_blocks/rtl/apbx_xbar/apbx_xbar_rlb_1to10.f`
 - [ ] `projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.f`
 
 **TB/harness `.f` -- RESOLVED (Sean, 2026-07-24):** a testbench with its own
@@ -992,45 +953,6 @@ waits behind the RTL-area work (cdc reorg, amba cleanup). Re-check with
 `bin/filelist_registry.py --check` when it runs.
 
 ---
-
-## CDC-FORMAL-STALE — the 4-phase handshake formal proof runs against a pre-rename DUT copy
-**Status:** open 2026-07-28 (found by kimi round 10, verified)
-**Priority:** P2
-
-`formal/cdc/cdc_handshake/` proves `formal_cdc_handshake.sv`, which compiles
-`cdc_handshake_formal.sv` -- a Yosys-compatible copy of the DUT. That copy was
-taken before the module became `cdc_4_phase_handshake` and gained parameters:
-
-| | parameters |
-|---|---|
-| `cdc_handshake_formal.sv` (proved) | `DATA_WIDTH` |
-| `rtl/cdc/cdc_4_phase_handshake.sv` (live) | `DATA_WIDTH`, `SYNC_STAGES`, `TIMEOUT_CYCLES`, `FAST_PATH` |
-
-So the proof says nothing about the timeout path (`TIMEOUT_CYCLES > 0` asserting
-`src_timeout`) or the fast path (`FAST_PATH=1`, dst accepting when `dst_ready`
-is already high) -- the two most recent additions, and the two most likely to
-carry a protocol bug.
-
-The doc now scopes its claim
-(`docs/markdown/rtl-cdc/cdc.md`, "Verification status"), so nothing currently
-overclaims. The work is:
-
-1. Refresh `cdc_handshake_formal.sv` from the live module (it exists because
-   Yosys cannot take the `reset_defs.svh` macros -- keep that transformation,
-   change nothing else).
-2. Extend `formal_cdc_handshake.sv` with properties for the two new parameters.
-3. Re-run and confirm the existing properties still pass.
-
-Note the harness is ALSO single-clock/single-reset by construction, which is a
-separate and already-documented limitation -- it cannot express the asymmetric
-reset hazard. Fixing that is a bigger job and is not this task.
-
-Not a false alarm about the filename: the reviewer flagged
-`formal_cdc_handshake.sv` vs `cdc_handshake_formal.sv` as a possible
-transposition. Both files exist and both names are correct --
-`formal_cdc_handshake.sv` is the harness (`cdc_handshake.sby` has
-`prep -top formal_cdc_handshake`) and `cdc_handshake_formal.sv` is the DUT copy.
-Confusing, but not wrong.
 
 ## OBS-PORTS — OPEN on the board-code residue (the monitor side is done, measured 2026-08-30)
 
