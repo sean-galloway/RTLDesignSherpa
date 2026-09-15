@@ -546,12 +546,6 @@ references changed -- the SystemVerilog modules stay `apbx_xbar_*`.
 path but still fails, for the separate reason above: apbx-xbar has no
 `rtl/Makefile` providing `lint-all`. Same for retro_legacy_blocks.
 
-**Workaround until then:** override the variable rather than editing the file:
-
-    make run-all-full-parallel COMPONENTS="apbx-xbar bridge converters \
-      dmas/rapids dmas/stream memory-controllers/pumice-ddr2-lpddr2 misc \
-      retro_legacy_blocks"
-
 Same lesson as the lint half: a gate that cannot run is not a gate. This one
 additionally reported a non-zero exit that is easy to read as "the suite ran
 and something failed" rather than "nothing ran at all".
