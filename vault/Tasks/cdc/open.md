@@ -2,7 +2,7 @@
 
 # cdc — Open (accepted, ready to start)
 
-### CDC-001: scrub the tests for completeness (cdc)
+## CDC-001: scrub the tests for completeness (cdc)
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be

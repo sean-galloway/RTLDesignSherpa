@@ -2,7 +2,7 @@
 
 # common — Open (accepted, ready to start)
 
-### COMMON-025: scrub the tests for completeness (common)
+## COMMON-025: scrub the tests for completeness (common)
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be
@@ -56,7 +56,7 @@ worse than no test, and this area has already produced them:
 **Related:** [[TASK-077]] documents the doc-side equivalent (examples that
 name ports which do not exist). The test-side is this task.
 
-### COMMON-026: FIFO-family reset bodies hardcoded active-low - FIXED
+## COMMON-026: FIFO-family reset bodies hardcoded active-low - FIXED
 
 **Status:** fixed 2026-09-10 (Sean authorized the shared-RTL edit: "they are
 innocent and make RLB coding easier"). Raised by the smbus #58 round-6 review.
@@ -89,7 +89,7 @@ and axis5 clock-gate wrappers, `axil5_opt_slave`, `amba_clock_gate_ctrl`,
 `clock_gate_ctrl.sv`. They are a separate family with a separate regression;
 see [[COMMON-027]]. The sibling in the RLB wrappers is [[RLB-012]].
 
-### COMMON-027: non-FIFO reset bodies hardcoded active-low
+## COMMON-027: non-FIFO reset bodies hardcoded active-low
 
 **Priority:** P3 today (no build sets `RESET_ACTIVE_HIGH`).
 **Status:** open 2026-09-10. Split out of [[COMMON-026]], which fixed the

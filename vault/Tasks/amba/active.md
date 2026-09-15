@@ -2,7 +2,7 @@
 
 # AMBA tasks — active (in progress)
 
-### TASK-025: Update formal proofs for the monitor logic
+## TASK-025: Update formal proofs for the monitor logic
 
 **Priority:** Medium
 **Status:** [~] In progress (2026-07-18) — infrastructure fixed, **all 12 pass**;

@@ -2,7 +2,7 @@
 
 # math — Open
 
-### MATH-010: scrub the tests for completeness (math)
+## MATH-010: scrub the tests for completeness (math)
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be

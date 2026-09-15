@@ -2,7 +2,7 @@
 
 ---
 
-### RLB-016: an unmapped APB address hangs the RLB bus
+## RLB-016: an unmapped APB address hangs the RLB bus
 
 **Priority:** P2. Not a defect in any block -- it is the subsystem's response
 to an address nobody implements, and today that response is "never answer".

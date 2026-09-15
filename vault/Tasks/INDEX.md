@@ -64,6 +64,52 @@ launder open work into the closed pile. Eleven of those exist today — see [[AU
     bin/check_task_ids.py --next pumice   # -> PUMICE-016
 
 
+## Heading shape — every task is `## <ID>`, uniformly (Sean, 2026-09-14)
+
+**A task entry is an `##` heading, and the ID is the heading.** Not `###`, not
+a bare number, not a mixture:
+
+```
+## TASK-078: scrub the tests for completeness (amba)
+## PUMICE-037 — concurrent read+write with reader gap >= 8 corrupts cells
+```
+
+**A subtask extends the parent's ID with a two-digit suffix, still at `##`:**
+
+```
+## TASK-078: scrub the tests for completeness (amba)
+## TASK-078.01: the val/amba half
+## TASK-078.02: the components half
+```
+
+Hierarchy lives in the ID, never in the heading level. That is what makes the
+pages uniform and countable.
+
+**Anything inside a task body is `###` or deeper** — "Root cause", "Residual",
+"Definition of done" are prose sections, not subtasks, and must never be
+promoted to `##`.
+
+Numbers are assigned **per area and are stable once assigned**: a task keeps
+its ID when it moves between `open.md`, `active.md` and `closed.md`, so each
+page's sequence has gaps. That is correct and expected — the ID is a handle,
+not a position.
+
+**Why this is a rule and not a preference.** Before 2026-09-14 entries sat at
+BOTH `##` and `###` across every area — 136 at one level, 103 at the other.
+Any count that assumed a single level was wrong, so the rollup numbers in the
+area INDEX pages drifted in both directions and nobody noticed. Worse, a scan
+that read only `##` silently missed nine open items in amba alone, several of
+them real defects, which is exactly how a "what is open?" answer came back
+with about half the truth. 102 headings were promoted to `##` that day; the
+count is now 235 at `##` and zero at `###`.
+
+Note the 24 slug-style IDs that predate this (`AMBA-CDC-REORG`,
+`BRIDGE-NEXYSA7-REGEN`, `PUMICE-CLEANUP`, ...). They are uniform in SHAPE now
+— `## <ID>` like everything else — but they are not numeric, so they cannot
+take a `.01` subtask suffix meaningfully. Renaming them would break 134
+`[[ID]]` wikilinks plus commit history, so they stay until someone decides
+otherwise. New IDs should be numeric.
+
 ## The one rule
 
 **All task tracking lives here.** Do not create a `TASKS.md`, `TODO.md`, or

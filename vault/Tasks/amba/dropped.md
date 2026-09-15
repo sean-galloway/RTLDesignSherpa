@@ -22,7 +22,7 @@ recoverable from git (`git log --all -- rtl/amba/PRD/`); pulled back into
 
 ---
 
-### NEXYSA7-STREAM-MON-SPLIT — WITHDRAWN, this was my own tooling bug
+## NEXYSA7-STREAM-MON-SPLIT — WITHDRAWN, this was my own tooling bug
 **Status:** DROPPED 2026-08-28, same day it was filed
 **Priority:** n/a -- there was never a defect here
 

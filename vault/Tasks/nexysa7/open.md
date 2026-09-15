@@ -2,7 +2,7 @@
 
 # NexysA7 tasks — open (not started)
 
-### NEXYS-004: ddr2-char harness needs TWO bridges, 8 bank-targeted masters each
+## NEXYS-004: ddr2-char harness needs TWO bridges, 8 bank-targeted masters each
 
 **Priority:** Medium
 **Status:** [x] RTL + DV + host LANDED 2026-08-31; read/write mix sweep still open
@@ -92,7 +92,7 @@ Endpoints are the sanity check: 100/0 and 0/100 should reproduce the existing
 single-direction numbers. A dip that is deeper than turnaround alone explains
 points at scheduler behaviour rather than at the device.
 
-### NEXYS-001: Consistent Makefiles across the stream characterization flows
+## NEXYS-001: Consistent Makefiles across the stream characterization flows
 
 **Priority:** Medium
 **Status:** [ ] Open (2026-07-29)
@@ -165,7 +165,7 @@ common contract.
 
 ---
 
-### NEXYS-002: Rehome NexysA7 under projects/fpga-systems + split Genesys2-specific flows
+## NEXYS-002: Rehome NexysA7 under projects/fpga-systems + split Genesys2-specific flows
 
 **Priority:** Medium
 **Status:** [ ] Open (2026-07-29)
@@ -195,7 +195,7 @@ of the move; fold NEXYS-001 in with it.
 
 ---
 
-### NEXYS-003: Migrate the remaining char flows onto the shared projects/fpga-systems/bin layer
+## NEXYS-003: Migrate the remaining char flows onto the shared projects/fpga-systems/bin layer
 
 **Priority:** Medium
 **Status:** [ ] Open (2026-07-30)
@@ -287,7 +287,7 @@ plan. The pumice area was created there. NEXYS-002's move of the existing
 board path have NOT been run against hardware (no board attached, and pyserial
 is not installed in the venv — `pip install pyserial` before board work).
 
-### NEXYS-005: One name per quantity — BYTES_PER_AXI_BEAT / BYTES_PER_DFI_BEAT / DRAM_BL
+## NEXYS-005: One name per quantity — BYTES_PER_AXI_BEAT / BYTES_PER_DFI_BEAT / DRAM_BL
 
 **Priority:** Medium
 **Status:** [ ] Open (2026-08-30)
@@ -336,7 +336,7 @@ bit-identity. Do NOT fold into a functional change.
 
 ---
 
-### NEXYS-006: RISC-V SoC on pumice, running memory-controller stress benchmarks
+## NEXYS-006: RISC-V SoC on pumice, running memory-controller stress benchmarks
 
 **Priority:** Medium
 **Status:** [ ] Open (2026-08-31)
@@ -432,7 +432,7 @@ LiteDRAM on the same board with the same binaries.
 
 ---
 
-### NEXYS-007: timing_characterization lost the ability to characterise sync-reset cells
+## NEXYS-007: timing_characterization lost the ability to characterise sync-reset cells
 
 **Priority:** Low
 **Status:** Open. Capability gap, not a defect — nothing is broken, something

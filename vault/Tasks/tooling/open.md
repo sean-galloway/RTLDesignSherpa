@@ -3,7 +3,7 @@
 # Tooling tasks — open (not started)
 
 
-### TOOL-002: Migrate the remaining method docs out of bin/ into the handbook
+## TOOL-002: Migrate the remaining method docs out of bin/ into the handbook
 **Priority:** P2
 **Status:** 🔴 Not Started
 **Owner:** TBD
@@ -37,7 +37,7 @@ before moving anything.
 
 ---
 
-### TOOL-003: One gate that runs filelist_registry --check and --audit
+## TOOL-003: One gate that runs filelist_registry --check and --audit
 **Priority:** P2
 **Status:** 🔴 Not Started
 **Owner:** TBD
@@ -66,7 +66,7 @@ counts. See [[filelists]].
 
 ---
 
-### TOOL-004: Finish validating the cloud bootstrap on a genuinely clean box
+## TOOL-004: Finish validating the cloud bootstrap on a genuinely clean box
 **Priority:** P2
 **Status:** 🔴 Not Started
 **Owner:** TBD
@@ -91,7 +91,7 @@ with oss-cad-suite on PATH. That was the part most likely to be silently wrong.
 
 ---
 
-### TOOL-005: env_python hardcodes /mnt/data/tools
+## TOOL-005: env_python hardcodes /mnt/data/tools
 **Priority:** P3
 **Status:** 🔴 Not Started
 **Owner:** TBD
@@ -110,7 +110,7 @@ problem. See [[cloud-sandbox]].
 
 ---
 
-### TOOL-006: Triage the 18 Dependabot vulnerabilities on the default branch
+## TOOL-006: Triage the 18 Dependabot vulnerabilities on the default branch
 **Priority:** P2
 **Status:** 🔴 Not Started
 **Owner:** TBD
@@ -132,7 +132,7 @@ whether any are already fixed by the current pins before doing work.
 
 ---
 
-### TOOL-007: Two real gaps in the RDS-DV arbiter BFM
+## TOOL-007: Two real gaps in the RDS-DV arbiter BFM
 **Priority:** P2
 **Status:** 🔴 Not Started
 **Owner:** TBD
@@ -164,7 +164,7 @@ round-robin arbiter that starved half its clients pass its own testbench. See
 
 ---
 
-### TOOL-010: Project-area cleanup — apply the RTL-area pattern to projects/
+## TOOL-010: Project-area cleanup — apply the RTL-area pattern to projects/
 **Priority:** P2
 **Status:** 🔴 Not Started — **DEFERRED until the RTL area is complete** (Sean)
 **Owner:** Sean (pumice push) / TBD
@@ -203,7 +203,7 @@ cdc reorg + amba cleanup land.
 
 ---
 
-### TOOL-011: Tests resolve filelists through the toml registry, not hardcoded paths
+## TOOL-011: Tests resolve filelists through the toml registry, not hardcoded paths
 **Priority:** P2
 **Status:** 🔴 Not Started
 **Owner:** TBD
@@ -467,7 +467,7 @@ requested it. And `timing` imported the same helper twice while
 `2to2_mixed` never imported pytest at all.
 
 
-### TOOL-017: `lint-<component>` is advertised but cannot run for two areas
+## TOOL-017: `lint-<component>` is advertised but cannot run for two areas
 **Priority:** P3
 **Status:** 🔴 Not Started
 **Owner:** TBD

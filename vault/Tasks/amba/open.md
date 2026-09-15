@@ -2,7 +2,7 @@
 
 # AMBA tasks — open (not started)
 
-### TASK-077: four instantiation examples in components docs name ports that do not exist
+## TASK-077: four instantiation examples in components docs name ports that do not exist
 
 **Priority:** P3. A reader copies the example and it does not compile.
 **Status:** open 2026-09-02, reduced from 5 pages to 4 findings. Two fixed:
@@ -42,7 +42,7 @@ The extra findings at HEAD are in `stream_mas/ch01_overview/02_port_list.md`,
 `pit_8254_mas/ch03_interfaces/01_top_level.md`; some already have fixes in
 flight from their owners, so the number should fall on its own.
 
-### TASK-075: one module has no test coverage (was seven -- five of those claims were wrong)
+## TASK-075: one module has no test coverage (was seven -- five of those claims were wrong)
 
 **Priority:** P3.
 **Status:** open 2026-09-02, corrected. qc round_38 disputed my "no coverage"
@@ -82,7 +82,7 @@ both gating assertions.
 it, not merely if `test_<module>.py` exists. Tests that synthesise a wrapper
 are invisible to the filename convention.
 
-### TASK-074: test_axis4_slave dies with SystemExit under heavy parallel load
+## TASK-074: test_axis4_slave dies with SystemExit under heavy parallel load
 
 **Priority:** P3 — intermittent, and the cocotb test itself PASSES every time.
 What fails is the pytest wrapper, so this costs a red suite rather than hiding
@@ -130,7 +130,7 @@ bug in the runner, the harness or the RTL ([[feedback_no_flaky_dismissal]]);
 `--reruns` would hide the one signal we have.
 
 
-### CONV-001: dwidth converter split-fold assumes in-order B across IDs
+## CONV-001: dwidth converter split-fold assumes in-order B across IDs
 
 **Priority:** P3 — latent, needs an interleaving downstream AND a master using
 multiple write IDs through the converter at once. No shipped integration in
@@ -168,7 +168,7 @@ AWIDs against a downstream model that returns B out of order; assert each slave
 B arrives exactly once, after its own last master burst.
 
 
-### TASK-073: write monitors ID-filter W beats against the LIVE AWID
+## TASK-073: write monitors ID-filter W beats against the LIVE AWID
 
 **Priority:** P2 — latent, but reachable at RUNTIME on any shipped build, and
 the failure is a false error report rather than a missed one.
@@ -734,7 +734,7 @@ expected. Read all three numbers, not the `PASS`.
 
 ---
 
-### TASK-014: Performance Characterization
+## TASK-014: Performance Characterization
 **Priority:** P2
 **Status:** 🔴 Not Started
 **Owner:** TBD
@@ -756,7 +756,7 @@ Characterize resource utilization and performance impact of monitors.
 
 ---
 
-### TASK-015: Add Address Range and ID Filtering
+## TASK-015: Add Address Range and ID Filtering
 **Priority:** P3
 **Status:** 🟢 COMPLETE 2026-08-30. All four features implemented, and the
 address filter is proven by a mutation-checked test, not just present.
@@ -855,7 +855,7 @@ none -- it would silently drop packets.
 
 ---
 
-### TASK-022: Make APB Crossbar Variants Functional
+## TASK-022: Make APB Crossbar Variants Functional
 **Priority:** P2
 **Status:** 🔴 Not Started
 **Owner:** TBD
@@ -901,7 +901,7 @@ rather than doing.**
 
 ---
 
-### TASK-024: Write Monitor System Whitepaper
+## TASK-024: Write Monitor System Whitepaper
 **Priority:** P3
 **Status:** 🔴 Not Started (stub created 2026-05-29)
 **Owner:** Sean (author) / Claude (assist)
@@ -1095,7 +1095,7 @@ unconnected `debug_block_ready` for exactly this reason, hidden behind
 routing and area on a 325T that is already the reason build-mon is 4 channels.
 
 <!-- Moved back from closed.md 2026-09-14: each of these says 'open' or 'NOT fixed' in its own body. They were filed to closed.md by mistake; see AUDIT-002 for why auto-flipping the status line instead would have been the wrong fix. -->
-### TASK-078: scrub the tests for completeness (amba)
+## TASK-078: scrub the tests for completeness (amba)
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be
@@ -1156,7 +1156,7 @@ name ports which do not exist). The test-side is this task.
 
 ---
 
-### TASK-083: monitor TIMEOUT packets saturate at ~table depth per reset
+## TASK-083: monitor TIMEOUT packets saturate at ~table depth per reset
 
 **Priority:** P2. The class is proven reachable but its throughput is not, so
 no campaign can use timeout counts as evidence of anything.
@@ -1224,7 +1224,7 @@ delete it, until a campaign shows timeout tracking the other classes.**
 order of magnitude as the other classes from the same traffic, and
 `host_obs_matrix.py` clears its 1000-packet floor on 7/7 instead of 6/7.
 
-### TASK-084: SOFT_RESET does not fully reset the monitor subsystem
+## TASK-084: SOFT_RESET does not fully reset the monitor subsystem
 
 **Priority:** P2. It makes the board campaign order-dependent, so a packet class
 can read as broken purely because of what ran before it.
@@ -1336,7 +1336,7 @@ extend whatever reset the monitor subsystem is missing.
 Related: TASK-083 (timeout saturation) is a different defect in the same
 subsystem. The owner has monitor simplification planned, which may subsume both.
 
-### TASK-085: two val/amba tests fail deterministically on specific seeds
+## TASK-085: two val/amba tests fail deterministically on specific seeds
 
 **Priority:** P2. A GATE regression that passes or fails depending on the
 seed base is a regression nobody can trust; both tests survived three
@@ -1442,7 +1442,7 @@ in the test (or the DUT, if the seed really found one), not in the seed.
 
 ---
 
-### TASK-095: axi_split_combi's next-boundary arithmetic overflows in the top alignment window
+## TASK-095: axi_split_combi's next-boundary arithmetic overflows in the top alignment window
 
 **Priority:** P3. A latent hazard the design DOCUMENTS as out of scope, found
 while proving TASK-094. Not a regression, and no in-tree RTL instantiates the

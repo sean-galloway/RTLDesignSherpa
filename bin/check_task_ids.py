@@ -39,7 +39,17 @@ import sys
 # and still report "check passed" -- which is how a duplicate NEXYS-002
 # got committed under an enabled checker. A checker that silently sees
 # nothing is worse than no checker.
-HEADING = re.compile(r"^#{2,3}\s+([A-Z][A-Z0-9]*-[A-Z0-9]+)\s*[—\-–:]")
+HEADING = re.compile(r"^#{2,3}\s+([A-Z][A-Z0-9]*-[A-Z0-9]+(?:\.\d+)?)\s*[—\-–:]")
+# Level is part of the contract, not cosmetics (Sean, 2026-09-14): a task entry
+# is `## <ID>`, a subtask is `## <ID>.nn`, and prose sections inside a body are
+# `###` or deeper. Hierarchy lives in the ID, never in the heading level.
+#
+# Enforced because mixing the two levels broke COUNTING, not looks. With 136
+# entries at ## and 103 at ###, every rollup count was wrong and a scan that
+# read one level missed nine open items in amba alone -- several of them real
+# defects filed and then invisible.
+ENTRY_LEVEL = re.compile(r"^(#{2,6})\s+([A-Z][A-Z0-9]*-[A-Z0-9]+(?:\.\d+)?)\s*[—\-–:]")
+FENCE = re.compile(r"^\s*(```|~~~)")
 # Tolerant on purpose: the line is written by humans, so accept bold either
 # side of the colon and any trailing prose after the ID.
 NEXT_ID = re.compile(r"Next ID\**\s*:\s*\**\s*([A-Z][A-Z0-9]*-(\d+))")
@@ -68,11 +78,26 @@ def scan_area(area: pathlib.Path):
     """-> (ids{id: [loc]}, blocks[(id, page, status)])"""
     ids = collections.defaultdict(list)
     blocks = []
+    level_errs: list[str] = []
     for f in sorted(area.glob("*.md")):
         if f.name == "INDEX.md":
             continue
         lines = f.read_text().split("\n")
+        infence = False
         for i, line in enumerate(lines, 1):
+            # Never read inside a fenced block: task pages quote code whose
+            # comments start with '#', and those are not headings.
+            if FENCE.match(line):
+                infence = not infence
+                continue
+            if infence:
+                continue
+            lm = ENTRY_LEVEL.match(line)
+            if lm and len(lm.group(1)) != 2:
+                level_errs.append(
+                    f"{area.name}: {f.name}:{i} {lm.group(2)} is a task entry at "
+                    f"'{lm.group(1)}' -- every task entry must be '##' "
+                    f"(subtasks are '## {lm.group(2)}.01', not a deeper heading)")
             m = HEADING.match(line)
             if not m:
                 continue
@@ -80,7 +105,7 @@ def scan_area(area: pathlib.Path):
             body = "\n".join(lines[i:i + 6])
             sm = STATUS.search(body)
             blocks.append((m.group(1), f.name, sm.group(1).lower() if sm else None))
-    return ids, blocks
+    return ids, blocks, level_errs
 
 
 def highest(ids) -> int:
@@ -100,7 +125,8 @@ def check_area(area: pathlib.Path) -> tuple[list[str], list[str]]:
     """
     errs: list[str] = []
     warns: list[str] = []
-    ids, blocks = scan_area(area)
+    ids, blocks, level_errs = scan_area(area)
+    errs += level_errs
 
     # A directory with no numbered task headings is not a task AREA -- e.g.
     # vault/Tasks/projects/ holds handoff documents. Demanding an INDEX and a
@@ -149,7 +175,7 @@ def main() -> int:
 
     if args.next:
         a = tasks / args.next
-        ids, _ = scan_area(a)
+        ids, _, _ = scan_area(a)
         prefix = next((i.rsplit("-", 1)[0] for i in ids if re.search(r"-\d+$", i)),
                       args.next.upper())
         print(f"{prefix}-{highest(ids) + 1:03d}")

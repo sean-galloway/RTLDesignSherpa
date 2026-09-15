@@ -2,7 +2,7 @@
 
 # AMBA tasks — closed (complete)
 
-### TASK-065: SPLIT axi4_intf_observer into master + slave versions; retire the original and dma_slave_monitors
+## TASK-065: SPLIT axi4_intf_observer into master + slave versions; retire the original and dma_slave_monitors
 **Priority:** P1
 **Status:** 🟢 BOTH HALVES DONE (re-measured 2026-08-31). The retirement
 completed itself while the page went stale -- again. One NEW defect fell out of
@@ -362,7 +362,7 @@ pinned `local_sim_build/ch3-hang.fst`.
 
 ---
 
-### TASK-027: Split the address-range checker into independent DEBUG and ERROR range sets
+## TASK-027: Split the address-range checker into independent DEBUG and ERROR range sets
 **Priority:** P3
 **Status:** 🟢 CLOSED 2026-08-31. The goal was achieved by a different and
 cheaper mechanism than this task specifies (per-range flavor over ONE comparator
@@ -779,7 +779,7 @@ scaffolding.
 
 ---
 
-### TASK-001: Validate axi_monitor Base Functionality
+## TASK-001: Validate axi_monitor Base Functionality
 **Priority:** P0
 **Status:** 🟢 Complete (2025-09-30)
 **Owner:** Claude AI
@@ -809,7 +809,7 @@ Comprehensive validation of the base AXI monitor infrastructure including transa
 
 ---
 
-### TASK-002: Integrate axi_monitor in AXI4 Master Read
+## TASK-002: Integrate axi_monitor in AXI4 Master Read
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-04)
 **Owner:** seang
@@ -828,7 +828,7 @@ Integrate the validated axi_monitor_base into the AXI4 master read monitor wrapp
 
 ---
 
-### TASK-003: Integrate axi_monitor in AXI4 Master Write
+## TASK-003: Integrate axi_monitor in AXI4 Master Write
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-04)
 **Owner:** seang
@@ -847,7 +847,7 @@ Integrate the validated axi_monitor_base into the AXI4 master write monitor wrap
 
 ---
 
-### TASK-004: Integrate axi_monitor in AXI4 Slave Read
+## TASK-004: Integrate axi_monitor in AXI4 Slave Read
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-04)
 **Owner:** seang
@@ -866,7 +866,7 @@ Integrate the validated axi_monitor_base into the AXI4 slave read monitor wrappe
 
 ---
 
-### TASK-005: Integrate axi_monitor in AXI4 Slave Write
+## TASK-005: Integrate axi_monitor in AXI4 Slave Write
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-04)
 **Owner:** seang
@@ -885,7 +885,7 @@ Integrate the validated axi_monitor_base into the AXI4 slave write monitor wrapp
 
 ---
 
-### TASK-006: Validate All AXI4 Monitors (Without Clock Gating)
+## TASK-006: Validate All AXI4 Monitors (Without Clock Gating)
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-11)
 **Owner:** Claude AI
@@ -936,7 +936,7 @@ Run comprehensive validation of all four AXI4 monitor wrappers to ensure proper 
 
 ---
 
-### TASK-007: Validate All AXI4 Monitors with Clock Gating
+## TASK-007: Validate All AXI4 Monitors with Clock Gating
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-11)
 **Owner:** Claude AI
@@ -996,7 +996,7 @@ Validate all AXI4 monitor variants that include clock gating support, ensuring m
 
 ---
 
-### TASK-008: Create AXIL Monitor (Adapt from AXI4)
+## TASK-008: Create AXIL Monitor (Adapt from AXI4)
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-11)
 **Owner:** Claude AI
@@ -1067,7 +1067,7 @@ Create AXI4-Lite monitor wrappers by adapting the existing AXI4 monitor pattern 
 
 ---
 
-### TASK-009: Integrate AXIL Monitor in All AXIL Modules
+## TASK-009: Integrate AXIL Monitor in All AXIL Modules
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-11) - MERGED with TASK-008
 **Owner:** Claude AI
@@ -1102,7 +1102,7 @@ This task was MERGED with TASK-008. Creating monitor wrappers IS the integration
 
 ---
 
-### TASK-010: Validate All AXIL Monitors (Without Clock Gating)
+## TASK-010: Validate All AXIL Monitors (Without Clock Gating)
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-11)
 **Owner:** Claude AI
@@ -1167,7 +1167,7 @@ Comprehensive validation of all AXI4-Lite monitor wrappers using the same proven
 
 ---
 
-### TASK-011: Validate All AXIL Monitors with Clock Gating
+## TASK-011: Validate All AXIL Monitors with Clock Gating
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-11)
 **Owner:** Claude AI
@@ -1222,7 +1222,7 @@ Validate clock-gated variants of all AXIL monitors following the proven AXI4 CG 
 
 ---
 
-### TASK-012: Fix Error Response and Orphan Detection Tests
+## TASK-012: Fix Error Response and Orphan Detection Tests
 **Priority:** P2
 **Status:** 🟢 Complete (2025-10-12) - No Action Required
 **Owner:** Claude AI (Verification)
@@ -1261,7 +1261,7 @@ Test 6: Zero-Delay Stress - PASSED (40-66% completion rate)
 
 ---
 
-### TASK-013: Create Integration Examples
+## TASK-013: Create Integration Examples
 **Priority:** P2
 **Status:** 🟢 Complete (2026-07-22) — integration guide + 2 working APB examples shipped (rtl/integ_amba/examples/). Example 3 (AXI4-to-APB bridge) and the other future examples were deferred, not delivered; reopen a new task if they are wanted. Original marker: Near Complete ~90% (2025-10-12).
 **Owner:** Claude AI
@@ -1328,7 +1328,7 @@ Create example designs showing how to integrate monitors in real SoC environment
 
 ---
 
-### TASK-016: AXI Monitor Test Validation and Refinement
+## TASK-016: AXI Monitor Test Validation and Refinement
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-06)
 **Owner:** Verified by Claude AI
@@ -1352,7 +1352,7 @@ Complete final validation of AXI monitor tests following the event_reported feed
 
 ---
 
-### TASK-017: Add WaveDrom Support to APB Monitor Tests
+## TASK-017: Add WaveDrom Support to APB Monitor Tests
 **Priority:** P2
 **Status:** 🟢 Complete (2025-10-06)
 **Owner:** Claude AI
@@ -1383,7 +1383,7 @@ Add minimal WaveDrom timing diagram generation to APB monitor tests, following t
 
 ---
 
-### TASK-018: Add WaveDrom Support to AXI4 Monitor Tests
+## TASK-018: Add WaveDrom Support to AXI4 Monitor Tests
 **Priority:** P2
 **Status:** 🟢 Complete (2025-10-11)
 **Owner:** Claude AI
@@ -1426,7 +1426,7 @@ Add minimal WaveDrom timing diagram generation to AXI4 monitor tests. Generate w
 
 ---
 
-### TASK-019: Create GAXI Integration Tutorial Documentation
+## TASK-019: Create GAXI Integration Tutorial Documentation
 **Priority:** P2
 **Status:** 🟢 Complete (2025-10-11)
 **Owner:** Claude AI
@@ -1490,7 +1490,7 @@ Create comprehensive tutorial documentation for GAXI multi-field integration exa
 
 ---
 
-### TASK-020: Identify Tests That Would Benefit from WaveDrom
+## TASK-020: Identify Tests That Would Benefit from WaveDrom
 **Priority:** P3
 **Status:** 🟢 Complete (2025-10-11)
 **Owner:** Claude AI
@@ -1555,7 +1555,7 @@ Survey the entire test suite to identify additional tests that would significant
 
 ---
 
-### TASK-021: Fix APB Monitor Core Functionality
+## TASK-021: Fix APB Monitor Core Functionality
 **Priority:** P1
 **Status:** 🟢 Complete (2025-10-11) - No fixes needed
 **Owner:** Claude AI (verification)
@@ -1598,7 +1598,7 @@ APB monitor is **fully functional** and ready for WaveDrom integration (TASK-017
 
 ---
 
-### TASK-023: Complete rtl-amba Documentation and Waveform Integration
+## TASK-023: Complete rtl-amba Documentation and Waveform Integration
 **Priority:** P0
 **Status:** 🟢 Complete (2026-07-22) — rtl-amba doc set rebuilt from 41 to 182 markdown files; the CG-variant, stub, and monitor-module pages this task listed as gaps now exist and render into the RTL library PDFs. Original marker: In Progress (2025-10-23).
 **Owner:** Claude AI
@@ -1831,7 +1831,7 @@ shape as rtl/common.
 
 ---
 
-### TASK-060: `axi4_dma_observer` does not elaborate — CLOSED: module deleted
+## TASK-060: `axi4_dma_observer` does not elaborate — CLOSED: module deleted
 **Closed 2026-08-21 (Sean: "the dma observer should be deleted"), measured
 against the tree:** rtl/amba/shared/axi4_dma_observer.sv and its doc page are
 gone (retired 2026-08-14 with the observer rework); the successors are
@@ -1894,7 +1894,7 @@ look; recorded here rather than fixed.
 
 ---
 
-### TASK-061: splitter block_ready duplication — CLOSED (fixed pre-537c7af8, verified against tree 2026-08-23)
+## TASK-061: splitter block_ready duplication — CLOSED (fixed pre-537c7af8, verified against tree 2026-08-23)
 
 Both splitters gate the acceptance path fully: m_axi_arvalid/awvalid in IDLE,
 fub_ready, and the FSM capture (`m_axi_arvalid = fub_arvalid && !block_ready`).
@@ -1943,7 +1943,7 @@ wrong?" shape from [escape-analysis](../../handbook/dv/escape-analysis.md).
 
 ---
 
-### TASK-063: splitter defect cluster round 2 — CLOSED (537c7af8; verified against tree 2026-08-23)
+## TASK-063: splitter defect cluster round 2 — CLOSED (537c7af8; verified against tree 2026-08-23)
 
 Items 1-5 fixed and mutation-proven in 537c7af8 (final-split BRESP fold now
 combinational worst-of with the in-flight response; acceptance fenced on
@@ -2085,7 +2085,7 @@ exercises any of these.
 
 ---
 
-### TASK-064: converter read-path PSLVERR + peakrdl held-req — CLOSED (537c7af8 + revert; verified against tree 2026-08-23)
+## TASK-064: converter read-path PSLVERR + peakrdl held-req — CLOSED (537c7af8 + revert; verified against tree 2026-08-23)
 
 Item 1 (PSLVERR loss on width-converted reads): fixed — per-beat accumulator
 `w_resp_rd = (w_pslverr | r_beat_pslverr)`, restarting each beat.
@@ -2176,7 +2176,7 @@ dropped, PSTRB constant all-ones from a blocking-order guard in
 
 ---
 
-### TASK-068: apb4_master response-backpressure deadlock -- CLOSED (fixed + mutation-proven, 2026-08-25)
+## TASK-068: apb4_master response-backpressure deadlock -- CLOSED (fixed + mutation-proven, 2026-08-25)
 
 Fix = LAUNCH-GATING: IDLE starts a transfer only when r_rsp_ready (the FSM
 is the response skid's only writer, so space at launch holds through
@@ -2205,7 +2205,7 @@ transfers, expect either backpressure (fixed) or the wedge (RED).
 
 ---
 
-### TASK-066 / TASK-069 / TASK-067 -- CLOSED together (fixed + witnessed, 2026-08-25)
+## TASK-066 / TASK-069 / TASK-067 -- CLOSED together (fixed + witnessed, 2026-08-25)
 
 **066 (both monitors):** terminal entries now retire UNCONDITIONALLY -- the
 completion/error packet is pulse-based, so its only FIFO chance is the
@@ -2234,7 +2234,7 @@ harness integration) -- the assertion is the tripwire.
 
 ---
 
-### TASK-071 — apb4_master/apb5_master drove a TWO-cycle APB setup phase out of IDLE
+## TASK-071 — apb4_master/apb5_master drove a TWO-cycle APB setup phase out of IDLE
 **Status:** CLOSED 2026-08-28 (opened 2026-08-27 from apbx-xbar qc round_8)
 **Priority:** was P2 — spec deviation, worked against tolerant slaves
 
@@ -2304,7 +2304,7 @@ the suite now, not by argument.
 
 ---
 
-### AMBA-WAVEDROM-FLAKY — wavedrom runners handed themselves a random seed
+## AMBA-WAVEDROM-FLAKY — wavedrom runners handed themselves a random seed
 **Status:** CLOSED 2026-08-28 (opened same day while closing TASK-071)
 **Priority:** was P2 — a required test that was not deterministic
 
@@ -2363,7 +2363,7 @@ works is a separate piece of work, not currently scheduled.
 
 ---
 
-### TOOL-014 — the filelist gate was blind outside registered areas, to +incdir+, and to its own build output
+## TOOL-014 — the filelist gate was blind outside registered areas, to +incdir+, and to its own build output
 **Status:** CLOSED 2026-08-28 (opened same day)
 **Priority:** was P2 — CI was green with a half-finished rename on main
 
@@ -2422,7 +2422,7 @@ not a CI gate). `hand_listed_tests` at 12 remains TOOL-012's backlog.
 
 ---
 
-### FORMAL-INTEG-COMMON-ORPHANS — two harnesses for RTL deleted a month earlier
+## FORMAL-INTEG-COMMON-ORPHANS — two harnesses for RTL deleted a month earlier
 **Status:** CLOSED 2026-08-28 (opened same day)
 **Priority:** was P3
 
@@ -2453,7 +2453,7 @@ leaves residue in every system that indexes code -- formal harnesses, test
 environment config, generated make targets, file headers -- and each one is
 found by a different check, or by none.
 
-### TASK-076: axis5 _cg pages claim TREADY is held low while gated -- unverified
+## TASK-076: axis5 _cg pages claim TREADY is held low while gated -- unverified
 
 **Priority:** P3 documentation-accuracy, but it describes a data-loss window, so
 worth settling rather than leaving.
@@ -2513,7 +2513,7 @@ generic gating test.
 Docs corrected on both pages. 70 tests pass, lint clean on 388 modules.
 
 ---
-### TASK-086: three monitors read the event FIFO's registered output in the handshake clock
+## TASK-086: three monitors read the event FIFO's registered output in the handshake clock
 
 **Priority:** P2. Silent under light traffic, wrong under a burst: one packet
 duplicated and the next lost, with no counter moving.
@@ -2600,7 +2600,7 @@ unmodified HEAD RTL, so it predates this work. FORMAL_PRIORITY listed it as
 PASSING; that claim is now corrected.
 
 ---
-### TASK-087: Wishbone B4 CTI/BTE burst hints on wb4_master / wb4_slave
+## TASK-087: Wishbone B4 CTI/BTE burst hints on wb4_master / wb4_slave
 
 **Priority:** P4 when filed. **Status:** CLOSED 2026-09-10 -- Sean asked for
 the bursts, so the parking condition was met by direction rather than by a
@@ -2660,7 +2660,7 @@ what the RTL promises. `wb4_monitor` does not report hints either; its
 
 ---
 
-### TASK-089: the converters spec PDF is two revisions behind its source
+## TASK-089: the converters spec PDF is two revisions behind its source
 
 **Priority:** P4, mechanical.
 
@@ -2686,7 +2686,7 @@ the AXI4-Lite side. The book is 248 pages against v1.1's 224.
 
 ---
 
-### TASK-088: the Wishbone BFMs do not sample CTI/BTE, and wb4_monitor does not report them
+## TASK-088: the Wishbone BFMs do not sample CTI/BTE, and wb4_monitor does not report them
 
 **Priority:** P3, a coverage hole rather than a defect.
 
@@ -2739,7 +2739,7 @@ extracting its text. RDS-DV: ruff clean, 1492 unit tests pass,
 
 ---
 
-### TASK-092: formal harnesses that pin a DUT input at a constant
+## TASK-092: formal harnesses that pin a DUT input at a constant
 
 **Priority:** P2. **Status:** CLOSED 2026-09-11 -- resolved by fixing SCRIPT
 ORDER in 25 tasks, and the premise it was filed on was partly wrong.
@@ -2764,7 +2764,7 @@ flow-aware and reports 0.
 
 ---
 
-### TASK-093: the four axi4 *_mon covers had never been reachable
+## TASK-093: the four axi4 *_mon covers had never been reachable
 
 **Priority:** P2. **Status:** CLOSED 2026-09-11 -- same root cause as
 TASK-092.
@@ -2786,7 +2786,7 @@ a packet in formal at all.
 
 ---
 
-### TASK-091: apb4/apb5_master_cg -- the wake property checked one clock too early
+## TASK-091: apb4/apb5_master_cg -- the wake property checked one clock too early
 
 **Priority:** P2. **Status:** CLOSED 2026-09-11 -- harness bug. The RTL was
 correct the whole time.
@@ -2815,7 +2815,7 @@ all. Shared RTL restored by absolute path and verified byte-identical.
 
 ---
 
-### TASK-090: the four axi4 *_mon_cg formal proofs
+## TASK-090: the four axi4 *_mon_cg formal proofs
 
 **Priority:** P3. **Status:** CLOSED 2026-09-11 -- all four written, proved
 and mutation-tested.
@@ -2863,7 +2863,7 @@ the wrapper's own assigns rather than assuming the master naming.
 
 ---
 
-### TASK-094: axi_master_rd_splitter returned read data before accepting the read (AXI A3.3.1)
+## TASK-094: axi_master_rd_splitter returned read data before accepting the read (AXI A3.3.1)
 
 **Priority:** P2. **Status:** CLOSED 2026-09-13 -- fixed, proved and
 mutation-tested. Commit 968c8a8f7.
@@ -3280,7 +3280,7 @@ correctly, there won't be data to drop", which reframed a documented
 
 ---
 
-### TASK-070: mon_cg monbus_valid held through gating -- FIXED 2026-08-26, residual CLOSED same day
+## TASK-070: mon_cg monbus_valid held through gating -- FIXED 2026-08-26, residual CLOSED same day
 **Priority:** was P2 -- CONFIRMED then fixed; residual documented below
 
 CONFIRMED by directed test before the fix: park a completion packet
@@ -3404,7 +3404,7 @@ apart again. The UPPER bound is deliberate -- if a future change
 improves the credit round trip, the test fires and says to re-measure
 and update all three places together.
 
-### TASK-062: CLOSED 2026-08-28 -- stale as filed; the real gap was inside sdpram_core
+## TASK-062: CLOSED 2026-08-28 -- stale as filed; the real gap was inside sdpram_core
 **Status:** CLOSED
 
 AS FILED, stale. Tests for all three untested wrappers landed 2026-08-13,
@@ -3495,7 +3495,7 @@ cover the consumer's WHOLE admission domain or samples are silently lost
 8 vs an ~10+ deep engine pipeline and lost up to 6/64 samples even with
 single-id traffic).
 
-### TASK-081: monitor_trans_cam has a combinational loop that only a cocotb-flavoured build can see
+## TASK-081: monitor_trans_cam has a combinational loop that only a cocotb-flavoured build can see
 
 **Priority:** P1. It was the cause of 12 of the 13 red `*_mon_monitor` bridge
 tests, red for an unknown but long time. NOT the sole cause, as first written:
@@ -3559,7 +3559,7 @@ gate.
 
 ---
 
-### TASK-082: lint findings in the monitor that the bridge gate now surfaces
+## TASK-082: lint findings in the monitor that the bridge gate now surfaces
 
 **Priority:** P3.
 **Status:** CLOSED 2026-09-14. ALL FOUR FIXED -- 1 and 4 on 2026-09-05, 2 and 3 on 2026-09-06.

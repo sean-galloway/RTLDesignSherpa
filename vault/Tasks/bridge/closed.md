@@ -198,7 +198,7 @@ pre-existing and unrelated by stashing this change and reproducing the
 identical failure at HEAD in 1.1 s, before any traffic runs. Tracked as
 [[BRIDGE-004]].
 
-### BRIDGE-009: an out-of-range address hangs the master forever; the docs promise DECERR
+## BRIDGE-009: an out-of-range address hangs the master forever; the docs promise DECERR
 
 **Status:** FIXED 2026-09-07 (1d442e76 + 24260594). An address matching no
 slave range is claimed by an internal subtractive slave and answered with
@@ -271,7 +271,7 @@ leaving the one-hot all-zero.
 defensible documented limitation only if someone chooses it deliberately; it is
 not the sort of thing to arrive at by editing a sentence.
 
-### BRIDGE-010: slave-port response routing assumes in-order completion, and nothing says so
+## BRIDGE-010: slave-port response routing assumes in-order completion, and nothing says so
 
 **Status:** RESOLVED 2026-09-08 by way (1) below -- document the constraint
 and make the violation loud. The constraint is now stated in the PRD
@@ -343,7 +343,7 @@ while the RTL implements (1) without saying so.
 **Related:** [[BRIDGE-009]] (the other round_1 RTL finding, fixed). The
 in-order `bridge_id` FIFO is the same structure both touch.
 
-### BRIDGE-011: Response-tracking FIFOs overflow silently (HIGH)
+## BRIDGE-011: Response-tracking FIFOs overflow silently (HIGH)
 
 **Status:** FIXED 2026-09-08 (`c64660f47`, master-side analysis corrected in
 `6a824aeb2`). `awready`/`arready` now gate on the tracking FIFO being not-full
@@ -426,7 +426,7 @@ against the broken RTL.
 Related: BRIDGE-010 (ordering, same FIFOs). Both are consequences of routing
 by FIFO position rather than by returned ID.
 
-### BRIDGE-008: the two slave BFMs disagree about an out-of-range access
+## BRIDGE-008: the two slave BFMs disagree about an out-of-range access
 
 **Status:** CLOSED 2026-09-09 -- unified in the framework (RDS-DV `fc0112e`),
 Sean: "unify what out of range means". One contract, every memory-backed
@@ -533,7 +533,7 @@ asserting a behaviour no BFM implements is what let this sit unnoticed.
 
 ---
 
-### BRIDGE-012: trace is not echoed on B/R when the slave lacks trace; the AXI5 checker calls that a violation
+## BRIDGE-012: trace is not echoed on B/R when the slave lacks trace; the AXI5 checker calls that a violation
 
 **Status:** CLOSED 2026-09-10 by way (1), echo at the boundary -- Sean asked
 for the most robust option. The master adapter's AW/AR tracking FIFO already
@@ -599,7 +599,7 @@ have to know) that the slave behind the path is trace-less.
 (1) is cheap and makes the AXI5 port honest; (2) leaves a port that
 advertises trace and sometimes does not return it. Owner decides.
 
-### BRIDGE-013: in the _mon variants the subtractive slave's monitor is built and left unconnected
+## BRIDGE-013: in the _mon variants the subtractive slave's monitor is built and left unconnected
 
 **Status:** CLOSED 2026-09-10 by way (2), stop emitting it. An INTERNAL
 slave now gets no monitor: `enable_monitoring and not slave.internal` in
@@ -675,7 +675,7 @@ verilator` fails on "all 36 variants, entirely from pre-existing
 PINCONNECTEMPTY on deliberate open pins". Measured: 13 of 38, all
 PINMISSING, one instance, not deliberate.
 
-### BRIDGE-002: AMBA5 bridge support (AXI5 ports alongside AXI4)
+## BRIDGE-002: AMBA5 bridge support (AXI5 ports alongside AXI4)
 **Status:** CLOSED 2026-09-10. Every phase landed: A5-1 (AXI5 masters on
 the AMBA4 fabric), A5-2 (AXI5 slaves, native sideband through the structs),
 A5-3a (store-class atomics, filter for write-only ports), A5-3b (read-return
@@ -1060,7 +1060,7 @@ so the WIDTHEXPAND/UNDRIVEN noise this note attributed to
   from AXI4 slaves (closes the A5-1 deferred values item); all
   interop axi5 fixtures re-simed green with the new plumbing.
 
-### BRIDGE-007: scrub the tests for completeness (bridge)
+## BRIDGE-007: scrub the tests for completeness (bridge)
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** CLOSED 2026-09-10. The testqc round ran end to end: twelve units,
@@ -1371,7 +1371,7 @@ test name.
 
 ---
 
-### BRIDGE-015: Out-of-order slave tracking (enable_ooo) could not elaborate
+## BRIDGE-015: Out-of-order slave tracking (enable_ooo) could not elaborate
 **Status:** CLOSED 2026-09-10, same day. The mode builds, lints and passes: fixture
 `bridge_2x2_ooo`, `test_bridge_cam.py` (RED on the old CAM), and the full bridge
 regression 264/264. Originally: open 2026-09-10 (Sean: "it worked fine a few
@@ -1405,7 +1405,7 @@ on a CAM-tracked bridge stalled on it. The CAM had never had a test;
 `dv/tests/test_bridge_cam.py` now reproduces the gap (RED on the old RTL)
 and runs a random per-tag FIFO model at gate/func/full.
 
-### BRIDGE-016: Master-unique transaction IDs: prepend the master index
+## BRIDGE-016: Master-unique transaction IDs: prepend the master index
 **Status:** CLOSED 2026-09-10, same day. Every fabric ID is {master index,
 master id}; the reorder test proves it at the slave ports and its mutation went
 RED; full bridge regression 264/264. Originally: open 2026-09-10 (Sean: "there
@@ -1466,7 +1466,7 @@ The pumice (ddr2-char) and Genesys2 stream builds were respun on the widened
 bridges and came up fine (Sean, 2026-09-11). Only the LiteDRAM comparison
 build is still pending its core regeneration.
 
-### BRIDGE-014: AXI5-Lite and APB5 as MASTER protocols
+## BRIDGE-014: AXI5-Lite and APB5 as MASTER protocols
 **Status:** CLOSED 2026-09-11. Every protocol value the generator accepts on a
 slave port is now legal on a master port: `axil`, `axil5`, `apb`, `apb5`
 requesters, each with a fixture in the batch. Originally: open 2026-09-10
@@ -1536,7 +1536,7 @@ batch is dead code").
 
 ---
 
-### BRIDGE-019: Wishbone B4 as a bridge protocol, both sides
+## BRIDGE-019: Wishbone B4 as a bridge protocol, both sides
 **Status:** CLOSED 2026-09-11, same day. `protocol = "wb4"` is legal on
 slave ports (the bridge is the Wishbone requester) and master ports (the
 bridge is the completer), B4 pipelined, with a fixture in the batch and a

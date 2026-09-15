@@ -4,7 +4,7 @@
 
 _None._
 
-### COV-002: delta has five RTL files, no tests at all, and two copies of one module
+## COV-002: delta has five RTL files, no tests at all, and two copies of one module
 
 **Status:** DROPPED 2026-09-07 -- Sean: "delta should be skipped." delta is
 deliberately out of scope, not an oversight. Recorded rather than deleted so

@@ -6,7 +6,7 @@ _None._
 
 ---
 
-### TOOL-009: Python version mismatch breaks EVERY Verilator build on this box
+## TOOL-009: Python version mismatch breaks EVERY Verilator build on this box
 **Priority:** P0 — blocks all simulation, and blocks TOOL-008 validation
 **Status:** ✅ Closed 2026-07-23 — fixed and verified green (see Resolution)
 **Owner:** Sean (decide the fix) / Claude (apply)
@@ -119,7 +119,7 @@ becomes real work, open it fresh.
 
 ---
 
-### TOOL-012: Burn down --blindspots, then make it a gate
+## TOOL-012: Burn down --blindspots, then make it a gate
 **Status:** CLOSED 2026-08-28 (opened 2026-07-26, measured at `0928fb0b`)
 **Priority:** was P2
 
@@ -152,7 +152,7 @@ standard the rest of this gate should be held to.
 
 See [[filelists]], TOOL-014 for the three gate blind spots fixed alongside.
 
-### TOOL-015: `--reruns 3` re-rolls the seed, so a seed-exposed RTL bug retries until it passes
+## TOOL-015: `--reruns 3` re-rolls the seed, so a seed-exposed RTL bug retries until it passes
 
 **Status:** FIXED 2026-09-07, commit 071711af. One repo-root `conftest.py`
 derives each test's seed from sha256(session base, node id), so a retry repeats

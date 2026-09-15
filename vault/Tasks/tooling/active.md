@@ -2,7 +2,7 @@
 
 # Tooling tasks — active (in progress)
 
-### TOOL-001: Migrate the remaining areas into /vault/Tasks/<area>/
+## TOOL-001: Migrate the remaining areas into /vault/Tasks/<area>/
 **Priority:** P2
 **Status:** 🟡 In Progress (2026-07-22) — amba pilot done; 13 areas pending.
 **Owner:** Claude (assist) / Sean (review)
@@ -45,7 +45,7 @@ originals → verify block count + links against the original.
 
 ---
 
-### TOOL-008: Redo the Makefiles from scratch
+## TOOL-008: Redo the Makefiles from scratch
 **Priority:** P1
 **Status:** 🟡 In Progress (2026-07-23) — proof of concept built, **awaiting
 Sean's full validation run before anything is pushed or swapped in**
@@ -86,7 +86,7 @@ than this.
 
 ---
 
-#### R1 — Every Makefile figures out its own thread count. No hardcoded numbers.
+### R1 — Every Makefile figures out its own thread count. No hardcoded numbers.
 
 **This is the requirement that killed a machine.** The hardcoded worker counts
 assume a big host; on a smaller one they oversubscribe until it dies. Sean had
@@ -112,7 +112,7 @@ Verilator sims — each worker is a compile+sim process, so the right divisor is
 not necessarily 1-per-core; whatever the rule is, it lives in the master
 Makefile and nowhere else.
 
-#### R2 — One consistent target grammar, everywhere.
+### R2 — One consistent target grammar, everywhere.
 
 ```
 make run-<all|testroot>-<gate|func|full>[-serial|-parallel][-waves]
@@ -135,13 +135,13 @@ make run-<all|testroot>-<gate|func|full>[-serial|-parallel][-waves]
   **613 / 35**. Adding a module means hand-editing several targets across
   several files and nothing checks that you did.
 
-#### R3 — Discover tests by globbing. Do not enumerate them.
+### R3 — Discover tests by globbing. Do not enumerate them.
 
 Targets are generated from globbing `test_*.py`, so a new test is runnable the
 moment it lands. This is what makes R2 maintainable and kills the combinatorial
 hand-written target lists.
 
-#### R4 — One master Makefile; every other Makefile is ~4 lines.
+### R4 — One master Makefile; every other Makefile is ~4 lines.
 
 All logic lives in the master (include/`.mk`). A leaf `Makefile` in
 `val/common/`, `projects/**/dv/tests/fub/`, `macro/`, `top/` etc. sets its few
