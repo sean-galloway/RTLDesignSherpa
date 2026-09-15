@@ -10,8 +10,8 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 | State | Count | Tasks |
 |---|---|---|
 | active | 0 | — |
-| open | 2 | RLB-014 (800-line core cap -- a POLICY question for the owner), RLB-016 (unmapped APB address hangs the bus) |
-| closed | 14 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README), RLB-006 (test scrub), RLB-007 (RDL relocation), RLB-008 (ioapic features -- four companions), RLB-009 (pm_acpi residual features), RLB-010 (rtc leftovers), RLB-011 (smbus residual features), RLB-012 (regblock reset polarity), RLB-013 (uart_16550 residual features), RLB-015 (SYNCASYNCNET, measured + waived) |
+| open | 1 | RLB-016 (unmapped APB address hangs the bus) |
+| closed | 15 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README), RLB-006 (test scrub), RLB-007 (RDL relocation), RLB-008 (ioapic features -- four companions), RLB-009 (pm_acpi residual features), RLB-010 (rtc leftovers), RLB-011 (smbus residual features), RLB-012 (regblock reset polarity), RLB-013 (uart_16550 residual features), RLB-014 (800-line cap -- owner: a guideline, over is fine), RLB-015 (SYNCASYNCNET, measured + waived) |
 | dropped | 0 | — |
 
 ## Shortlist
@@ -40,13 +40,12 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
   343.50s. NOTE: the open count above read 9 while listing ten tasks, so it was
   already wrong by one; it is now 9 listing nine, corrected deliberately rather
   than made right by the removal.
-- **Nothing is active, and only TWO entries are genuinely open.** Five were
-  carrying a DONE status of their own and were closed 2026-09-14 in a tracker
-  cleanup (006, 007, 009, 011, 013) -- RLB-006's residual lives in the rtl/
-  areas as TASK-078 / COMMON-025 / MATH-010 / CDC-001, so closing it here
-  hides nothing. What is left: RLB-014, a policy question about the 800-line
-  core cap that only the owner can settle, and RLB-016, a real defect where an
-  unmapped APB address never completes.
+- **Nothing is active, and ONE entry is open.** Six closed 2026-09-14: five
+  were already carrying a DONE status of their own (006, 007, 009, 011, 013),
+  and RLB-014 closed on the owner's call that the 800-line figure is a
+  guideline rather than a rule -- going over is fine, and it is not a repo
+  requirement in any case. What remains is RLB-016, where an unmapped APB
+  address never completes and wedges the bus.
 
 ## Done
 

@@ -2,41 +2,6 @@
 
 ---
 
-### RLB-014: the 800-line core cap is honored in the breach
-
-**Priority:** P3. Hygiene and reviewability, not a defect — every block is
-green. Raised 2026-09-14 by the uart_16550 verification agent and confirmed
-by measurement.
-**Status:** open, and it is a POLICY question for the owner, not a fix an
-agent should take unilaterally.
-
-Measured `wc -l` on the nine RLB cores:
-
-```
-1706  rtc/rtc_core.sv
-1328  pm_acpi/pm_acpi_core.sv
- 888  smbus/smbus_core.sv
- 842  uart_16550/uart_16550_core.sv     <- 759 before the RLB-013 features
- 705  hpet/hpet_core.sv
- 666  pic_8259/pic_8259_core.sv
- 552  ioapic/ioapic_core.sv
- 331  pit_8254/pit_core.sv
- 227  gpio/gpio_core.sv
-```
-
-Four are over the repo's 800-line guidance. smbus is the pointed one: it was
-held to exactly 800 during the #58 review and has since grown to 888.
-
-**The obvious cut in uart is blocked by DV.** The tests whitebox
-`r_tx_state`, `r_tx_wr_ptr`, `r_tx_rd_ptr`, `w_tx_fifo_count`, `w_tx_bit` and
-the RX equivalents at `u_uart_core` scope, so extracting TX or RX breaks tests
-that an RTL agent may not edit. That constraint is why round 2 split modem and
-intr instead, and the sweep confirmed that split was DV-safe (zero references
-into `u_intr` or `u_modem`). Any split here is a DV change first and an RTL
-change second.
-
----
-
 ### RLB-016: an unmapped APB address hangs the RLB bus
 
 **Priority:** P2. Not a defect in any block -- it is the subsystem's response
