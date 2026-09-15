@@ -34,7 +34,7 @@ if _DV_DIR not in sys.path:
 
 from tbclasses.pumice_top_csr_tb import PumiceTopCsrTB  # noqa: E402
 from CocoTBFramework.components.axi4.axi4_sequence import (  # noqa: E402
-    AXI4Sequence,
+    AXI4Sequence, run_axi4_sequence_engine,
 )
 from tbclasses.pumice_sequences import (  # noqa: E402
     build_b2b_wr_rd_sequences, build_addr_pattern_sequences,
@@ -527,8 +527,10 @@ async def cocotb_test_pumice_top(dut):
         # row_major 1+1 shape -- the two never touch the same address, so a
         # mismatch cannot be a same-address race between them.
         gap = int(os.environ.get("RD_GAP", "8"))
-        n   = {"gate": 8, "basic": 8, "func": 24, "medium": 24,
-               "full": 64}.get(level, 8)
+        depth = int(os.environ.get("RD_DEPTH", "1"))   # reads in flight
+        # Enough bursts that a deep group is a group and not one short batch.
+        n   = max({"gate": 32, "basic": 32, "func": 64, "medium": 64,
+                   "full": 128}.get(level, 32), depth * 2)
         bpw = DW // 8
         WR_BANK, RD_BANK = 0, 4
         wr_base = BASE + WR_BANK * 0x2000
@@ -548,24 +550,38 @@ async def cocotb_test_pumice_top(dut):
 
         rd_results: list = []
 
+        async def _engine(seq):
+            """Engine-style: AR/AW queued back-to-back, no per-burst response
+            wait. The default runner serialises a burst against its own B/R and
+            leaves ~5-15 idle cycles between commands, which caps outstanding at
+            one and is NOT what the board's generators do."""
+            return await run_axi4_sequence_engine(
+                seq, master_wr=tb.axi_master_wr, master_rd=tb.axi_master_rd,
+                log=tb.log)
+
         async def _writer():
-            # All write bursts queued as one sequence, so AW stays occupied
-            # and the two directions genuinely overlap.
             wseq = AXI4Sequence(name="cc_wr", data_width=DW)
             for a, data in wr_reqs:
                 wseq.add_write(a, list(data), axid=0)
-            await tb.run_sequence(wseq)
+            await _engine(wseq)
 
         async def _reader():
-            # ONE burst at a time with `gap` idle clocks between them. The
-            # inter-burst pacing IS the board's trigger, so issuing the whole
-            # read sequence back-to-back would not exercise it at all.
-            for k in range(n):
-                a = rd_base + k * BL_WORDS * bpw
-                rseq = AXI4Sequence(name=f"cc_rd{k}", data_width=DW)
-                rseq.add_read(a, length=BL_WORDS, axid=k & 0xF)
-                res = await tb.run_sequence(rseq)
-                rd_results.append((a, list(res[0]["data"]) if res else []))
+            # GROUPS of `depth` bursts issued back-to-back, then `gap` idle
+            # clocks. This is the board's shape: its reader runs many reads
+            # outstanding AND paces between them. At depth=1 the gap lands
+            # with an empty pipe and nothing is ever in flight across it --
+            # which is the state the first version of this test measured, and
+            # why it could not have seen an in-flight hazard.
+            for k0 in range(0, n, depth):
+                grp = list(range(k0, min(k0 + depth, n)))
+                rseq = AXI4Sequence(name=f"cc_rd{k0}", data_width=DW)
+                for k in grp:
+                    rseq.add_read(rd_base + k * BL_WORDS * bpw,
+                                  length=BL_WORDS, axid=k & 0xF)
+                res = await _engine(rseq)
+                for k, d in zip(grp, res):
+                    rd_results.append((rd_base + k * BL_WORDS * bpw,
+                                       list(d.get("data") or [])))
                 if gap:
                     await ClockCycles(dut.aclk, gap)
 
@@ -944,11 +960,18 @@ _FUNC = ["smoke", "configure_via_csr", "axi_write_smoke", "wr_rd_roundtrip",
 # corruption as a possible refresh collision. The default t_refi here is far
 # enough apart that a short run may see no refresh at all, so the tight point
 # forces refreshes INTO the concurrent traffic rather than around it.
+# Reads IN FLIGHT when the gap lands. At depth 1 the pipe is empty across every
+# gap, so nothing can be in flight over it -- the board's generators run up to
+# 32 outstanding AND pace, which is a different machine state entirely and the
+# one the S_GAP / stray-beat path would bite. The BFM engine runner queues ARs
+# back-to-back with no per-burst response wait, so this is the board's shape
+# rather than an approximation of it.
+@pytest.mark.parametrize("depth", [1, 32], ids=["depth1", "depth32_board"])
 @pytest.mark.parametrize("trefi", [0x400, 0x40], ids=["refi_default", "refi_tight"])
 @pytest.mark.parametrize("rdlat", [2, 7], ids=["rdlat2", "rdlat7_board"])
 @pytest.mark.parametrize("geom", ["bl4x16", "bl8"])
 @pytest.mark.parametrize("rd_gap", [0, 4, 8, 15])
-def test_pumice_top_concurrent_rw(request, geom, rd_gap, rdlat, trefi):
+def test_pumice_top_concurrent_rw(request, geom, rd_gap, rdlat, trefi, depth):
     """Read and write in flight together, reader pacing itself between bursts.
 
     The board returns wrong data and corrupts cells whenever the reader's gap
@@ -961,7 +984,7 @@ def test_pumice_top_concurrent_rw(request, geom, rd_gap, rdlat, trefi):
     _run(request, "cocotb_test_pumice_top",
          extra_env={"TEST_TYPE": "concurrent_rw", "MEM_TYPE": "DDR2",
                     "RD_GAP": str(rd_gap), "DFI_READ_LATENCY": str(rdlat),
-                    "T_REFI": str(trefi), **env},
+                    "T_REFI": str(trefi), "RD_DEPTH": str(depth), **env},
          params_over=params)
 
 

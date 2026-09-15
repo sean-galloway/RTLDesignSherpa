@@ -785,21 +785,42 @@ the golden MemoryModel checking BOTH symptoms separately (read beats vs golden
 | geometry | bl8 sim point, **bl4x16 board** | clean |
 | DFI read latency | 2, **7** (board tuple rden 6 / rddata_delay 7) | clean |
 | refresh | default, tight (forces refresh INTO the traffic) | clean |
+| reads in flight | 1, **32** (board depth, engine-style B2B ARs) | clean |
 
 Armed, verified twice: corrupting the expected value fails and names the
 address, and a permanent count guard asserts the reader compared
 `n x BL_WORDS` beats — a concurrent test that returns zero beats would
 otherwise pass vacuously.
 
-**So it is not the controller alone** at board geometry, board read latency or
-refresh frequency. **Next hypothesis: read CONCURRENCY.** This test issues one
-burst, waits for it, then gaps — at most ONE read outstanding. The board's
-reader runs up to 32 outstanding AND a gap, which is a different machine state
-entirely, and it is exactly where the `S_GAP` / stray-beat analysis above would
-bite. Drive multiple outstanding reads paced in groups before looking further
-afield. Still untested beyond that: the char harness path (char_gen_unit's N:1
-merge and boundary skids), the geared wrapper's dwidth converters, and the real
-a7ddrphy against a real device.
+**Read concurrency was the leading hypothesis and it is now TESTED AND DEAD.**
+The first cut of this test used the default sequence runner, which serialises
+each burst against its own response and caps outstanding at ONE -- so the gap
+always landed on an empty pipe and nothing could ever be in flight across it,
+which is precisely the state an `S_GAP`-class hazard needs. Sean: "the bfms
+fully support b2b cycles". Re-driven through `run_axi4_sequence_engine`, which
+queues ARs back-to-back with no per-burst response wait, at the board's depth
+of 32. Still clean.
+
+The depth axis is real, not decorative -- measured, not assumed: depth 1 gives
+64 groups and 40990 ns of sim, depth 32 gives 2 groups and 30000 ns, both
+comparing the same 64 beats.
+
+**So it is not the controller, across every board-faithful axis inside it:**
+geometry, read latency, refresh, and read concurrency. Four rounds of "add an
+axis, still clean" says the search space is wrong, not under-sampled.
+
+**Everything still untested is OUTSIDE pumice_top** -- `char_gen_unit`'s N:1
+merge and boundary skids, the geared wrapper's dwidth converters, and the real
+a7ddrphy against a real device. The board traverses all three; none of these
+sims do.
+
+**Recommended next step is on the BOARD, not in sim:** run the failing
+configuration with LiteDRAM swapped in for pumice. Both sit behind the
+identical `char_engine_block`, and that A/B already localized the read ceiling
+once ([[project_litedram_same_harness_ab]]). If LiteDRAM corrupts too, the
+harness owns it and pumice is exonerated; if it does not, the defect is
+pumice's and lives in something only the real PHY exposes. That is one board
+run and it partitions the remaining space in half.
 
 **Three pre-existing defects found while getting there** (all in
 `dv/tests/top/test_pumice_top.py`, all fixed):
