@@ -723,41 +723,6 @@ spine, here are the axes, here are the tweaks."
 
 ---
 
-## AMBA-FILELIST-CONSISTENCY — normalize where .f lists live
-**Status:** open 2026-07-24 — **the RTL-area filelists are already consistent; the actual stragglers are all under projects/ and moved to TOOL-010.** This entry is kept only to record that rtl/amba, rtl/common, rtl/math are clean.
-**Priority:** P3
-
-The convention (see [[filelists]]) is: a module's `.f` lives in the owning
-area's **`filelists/` dir**, and `bin/filelists.toml` REGISTERS it (the toml is
-an index, not storage). Most of the 366 `.f` follow this
-(`rtl/amba/filelists/` 118, `rtl/common/filelists/` 56, `rtl/math/filelists/`
-38). Sean, 2026-07-24: right now placement is inconsistent. The stragglers:
-
-**Naming -- not called `filelists/`:**
-- [ ] `projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/flists/`
-      (3 files) -> `filelists/`
-- [ ] `projects/components/bridge/rtl/filelists_static/` -> fold into
-      `filelists/` (or justify why "static" is a distinct dir)
-
-**Loose `.f` directly beside RTL, no `filelists/` subdir:**
-- [ ] `projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.f`
-- [ ] `projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.f`
-
-**TB/harness `.f` -- RESOLVED (Sean, 2026-07-24):** a testbench with its own
-harness gets its own filelist, co-located WITH the TB (its `filelists/` dir),
-not with the RTL. So `*_tb_top.f` under `dv/` are correctly placed in principle;
-they just need the same `filelists/`-dir naming. `val/amba/filelists/
-monbus_arbiter_grant_hold_dut.f` is a TB list and stays with its TB.
-
-**SCOPE / SEQUENCING (Sean, 2026-07-24):** the RTL-area filelists are ALREADY
-consistent -- `rtl/amba/`, `rtl/common/`, `rtl/math/` all use `filelists/`. Every
-straggler above is under `projects/` (or a project's `val/`). **Projects are
-deferred until the RTL area is complete.** So this task does not start now; it
-waits behind the RTL-area work (cdc reorg, amba cleanup). Re-check with
-`bin/filelist_registry.py --check` when it runs.
-
----
-
 ## OBS-PORTS — OPEN on the board-code residue (the monitor side is done, measured 2026-08-30)
 
 **Status:** 🟢 the telemetry ports are GONE and the regblock owns them. Landed
