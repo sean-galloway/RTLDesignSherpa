@@ -3638,3 +3638,147 @@ So nothing here is actionable in amba: the RTL side is done, and the
 projects side is TOOL-010's, deferred behind the RTL-area work by Sean's own
 sequencing note. Keeping it open in amba only made the area look busier than
 it is.
+
+---
+
+## TASK-085: two val/amba tests fail deterministically on specific seeds
+
+**Priority:** P2. A GATE regression that passes or fails depending on the
+seed base is a regression nobody can trust; both tests survived three
+reruns of the same seed, so this is not a flake.
+
+**Status:** open 2026-09-09. Found by the val/amba GATE run that landed the
+Wishbone B4 tests (seed base 3266401392: 2 failed, 714 passed); the run two
+hours earlier with another base was 714/714. Reproduced standalone from a
+clean build with the per-test seed, and reproduced again with the pre-edit
+`TBBase` (24b4387d5~1) swapped in, so neither the Wishbone work nor the
+type-check edits are the cause.
+
+- `val/amba/test_apb4_master.py::test_apb4_master_wavedrom[32-32-6-6]`,
+  `SEED=56798 REG_LEVEL=GATE pytest test_apb4_master.py -k wavedrom`: fails
+  (SystemExit from cocotb); passes with other seeds.
+- `val/amba/test_axil4_master_rd_mon.py::test_axil4_master_rd_mon[gate]`,
+  `SEED=66068 REG_LEVEL=GATE pytest test_axil4_master_rd_mon.py`: "TEST 1:
+  Basic Connectivity" sees 0 monitor packets and raises
+  `RuntimeError: Monitor not generating packets`; passes with SEED=14399.
+
+- `val/amba/test_axil5_master_wr_mon_cg.py::test_axil5_master_wr_mon_cg[gate]`,
+  `SEED=10268 REG_LEVEL=GATE pytest test_axil5_master_wr_mon_cg.py`: "No
+  monitor packets generated!" -- the same symptom as the axil4 case, on the
+  AXI5-Lite clock-gated monitor. Found 2026-09-09 by the val/amba GATE run
+  that landed the wb4 clock-gated/CDC variants (728 passed, this one
+  failed); reproduced standalone with the seed.
+
+**Suspect:** a randomizer draw that the seed steers into a configuration the
+test does not handle (a zero-length or all-masked basic transfer, a timing
+profile that leaves the monitor idle for the whole check window) rather
+than a DUT defect -- but that is a guess until the seed is bisected.
+[[seeds-and-determinism]]: replay with the seed above, do not re-roll.
+
+**Two more instances, 2026-09-09 (val/amba FULL, 1887 passed / 2 failed),**
+found by the run that validated the RDS-DV out-of-range contract. Neither
+cell's log contains an out-of-range access, so the contract is not the
+cause; both are the same shape as above and replay by seed:
+
+- `test_axil5_master_rd_mon.py::test_axil5_master_rd_mon[full]`,
+  `SEED=54803 REG_LEVEL=FULL pytest test_axil5_master_rd_mon.py -k full`:
+  fails ("Monitor not generating packets"); `SEED=14399` passes.
+- `test_axil5_master_wr_mon_cg.py::test_axil5_master_wr_mon_cg[full]`,
+  `SEED=19002`: same error.
+
+The AXI5-Lite ports of the same tests, so the draw the seed steers into is
+shared by the axil4 and axil5 TB families. Also in that run:
+`test_gaxi_regslice` needed 11 reruns before its cells passed -- seed-pinned
+reruns replay the same run, so those are not the same mechanism and want
+their own look.
+
+**ROOT-CAUSED AND FIXED 2026-09-10. Two defects, not one, both in test
+collateral -- the RTL and the framework are correct in both.**
+
+*(a) The three "Monitor not generating packets" failures.* Test 1 of the
+AXI4-Lite monitor TBs waits a FIXED 20 cycles for the completion packet, then
+counts. The MonbusSlave is built with no randomizer, so it takes the framework
+default whose `ready_delay` has a `(9,30)` bin drawn about one time in eight.
+When the draw lands there the packet is still on the bus, unaccepted, when the
+TB counts. Waveform evidence: on SEED=54803 `monbus_valid` rose at 290 ns and
+`monbus_ready` never rose before the sim ended at 480 ns -- the RTL HELD valid
+exactly as the handshake contract requires. The passing seed's own later
+packets show 24, 26 and 29-cycle delays, so the >20 bin is drawn routinely;
+Test 1 is just the only check with a window short enough to lose.
+
+This was already fixed once and never ported: the AXI4 and AXI5 monitor TBs
+replaced the fixed wait with a bounded poll and document the same ~12% race.
+The Lite pair still had it. Fixed both (`axil4_master_monitor_tb.py`, and the
+slave TB's 50-cycle variant -- a wider margin, same mechanism).
+Mutation-proven: SEED=54803 GREEN with the poll, RED again with the fixed
+wait restored. SEED=66068 and SEED=10268 also now pass.
+
+*(b) `test_apb4_master.py -k wavedrom` on SEED=56798.* Unrelated. The read
+constraint is the ordered sequence PSEL(0->1) -> PWRITE==0 -> PENABLE(0->1) ->
+PREADY(0->1), and the solver orders transitions STRICTLY, so it can only match
+a read with at least one wait state whose PREADY edge lands AFTER the PENABLE
+edge. The slave's `constrained` profile draws ready-delay 0 five times in
+nine; a run whose reads all draw 0 offers nothing to match. Pinning SEED was
+the old mitigation and a regression that exports SEED walks straight past it.
+Fixed by making the capture seed-independent: the wavedrom test now uses a
+FIXED slave wait-state count. Measured: delay 1 still fails (one wait state
+puts PREADY's edge ON the PENABLE edge, and the ordering is strict), 2/3/4 all
+capture all seven scenarios; pinned at 2. Verified across eight seeds
+including 56798: 8/8.
+
+*The regslice reruns look like WORKER LOAD, not a test defect.* Seed-pinned
+reruns replay the same run, so a cell that fails then passes on retry is not
+seed-dependent at all. Measured across the two val/amba FULL runs of
+2026-09-09/10: at `workers=48` on this box the suite needed 17 reruns (11 of
+them `test_gaxi_regslice`); at `workers=24`, zero reruns across the whole
+suite. 48 workers is more than this machine sustains for Verilator builds,
+and a build that runs long enough gets killed and retried. Before treating
+this as a test bug, reproduce it at a worker count the box can carry --
+[[running-regressions]] and TOOL-008 (worker count derived from cores and
+RAM) are the relevant threads.
+
+*Also noted:* `val/amba/test_axil5_master_rd_mon.py` sets `RANDOM_SEED` /
+`COCOTB_RANDOM_SEED` as a mitigation, and it is DEAD -- the TB calls
+`random.seed(os.environ['SEED'])` afterwards and overrides it.
+
+**Done when:** both seeds pass, the cause is recorded here, and the fix is
+in the test (or the DUT, if the seed really found one), not in the seed.
+
+
+---
+
+
+**CLOSED 2026-09-15 — all five named seeds replayed and pass.**
+
+| seed | test | result |
+|---|---|---|
+| 54803 | `test_axil5_master_rd_mon` FULL | pass 22.9s |
+| 19002 | `test_axil5_master_wr_mon_cg` FULL | pass 23.9s |
+| 10268 | `test_axil5_master_wr_mon_cg` GATE | pass 23.7s |
+| 66068 | `test_axil4_master_rd_mon` GATE | pass 23.4s |
+| 56798 | `test_apb4_master -k wavedrom` GATE | pass 8.5s |
+
+The wavedrom case was run with `ENABLE_WAVEDROM=1`; that test skips when the
+variable is 0, and a skip reporting "passed" would have proved nothing.
+
+Both fixes confirmed in the collateral, not just in this entry's prose: the
+bounded `for _ in range(100)` poll is in `axil4_master_monitor_tb.py` and the
+slave TB, and `test_apb4_master.py` pins the slave wait-state count at two.
+
+**One correction to the entry above.** It lists three AXIL5 failures but names
+only axil4 files as fixed, which reads like the axil5 half was missed -- I
+built a case that it had been. It had not: `axil5_master_monitor_tb.py` and
+`axil5_slave_monitor_tb.py` are 58-line subclasses
+(`AXIL5MasterMonitorTB(AXIL4MasterMonitorTB)`) with no wait or poll of their
+own, so fixing axil4 fixed axil5 by inheritance.
+
+The dead `RANDOM_SEED`/`COCOTB_RANDOM_SEED` mitigation this entry noted is now
+removed from all 16 files, along with its comment claiming a port to
+`bin/TBClasses/axil5/monitor/*` was still owed. The four tests passing
+`str(seed)` were left alone -- those propagate the per-test seed deliberately.
+
+Area evidence: `val/amba` is green at FULL -- **2156 passed, 0 failed, 18:57**,
+via `make clean-all && make run-all-full-parallel`.
+
+The regslice-rerun observation stays live and is NOT this bug: it is worker
+count, and belongs with TOOL-008.
