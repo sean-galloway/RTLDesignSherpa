@@ -30,12 +30,19 @@ PIT has no inert writable register at all, and HPET's only one lives inside a
 timer sub-block. Writing SMBus COMMAND or the PIC's ICW sequence would start
 real transactions rather than test address decode.
 
-NOT TESTED, deliberately -- an out-of-range access (outside the 40KB window)
-never completes: the crossbar drives m_cmd_ready only when addr_in_range, so
-apb4_slave never leaves IDLE and PREADY never asserts. There is no timeout
-anywhere in that path, and the APB BFM's completion loop is unbounded, so
-probing it would hang until the cocotb timeout killed the whole test. It is
-reported as a finding rather than encoded as a test.
+AN UNMAPPED ADDRESS IS NOW TESTED, and the history is the point. This file
+used to say the case was deliberately untestable: the hand-written crossbar
+drove m_cmd_ready only when addr_in_range, so an out-of-range access was never
+accepted, apb4_slave never left IDLE, PREADY never asserted, and with no
+timeout in that path and an unbounded BFM completion loop, probing it would
+hang until the cocotb timeout killed the run. That was true of the crossbar
+that shipped then (RLB-016).
+
+It is no longer true of the DUT. rlb_top now instantiates the GENERATED
+apbx_xbar_1to10, which carries the apbx-xbar family's decode-miss agent: an
+unmapped access is accepted and answered locally with PSLVERR. So the case
+became reachable through the BFM, and test_unmapped_address_errors encodes it
+rather than leaving it as a written-down finding.
 """
 
 from cocotb.triggers import ClockCycles
@@ -113,6 +120,64 @@ class RLBTopTests:
             return True
         except Exception as e:
             self.log.error(f"reserved-window test error: {e}")
+            return False
+
+    async def test_unmapped_address_errors(self) -> bool:
+        """An address outside the 40KB map completes, with PSLVERR.
+
+        This is the behaviour RLB-016 recorded as missing, and it is the whole
+        reason rlb_top moved onto the generated crossbar. The decode-miss agent
+        accepts the miss and answers it locally rather than leaving the master
+        stalled in ACCESS with PREADY low and no error signature.
+
+        The SECOND half matters as much as the first. The miss is tracked by a
+        SINGLE pending bit (r_m0_decerr_pending), so if it ever failed to clear
+        it would poison every later access on the bus. A normal read afterwards
+        is what proves it cleared -- without it this test would pass against a
+        crossbar that errors permanently after the first unmapped access.
+        """
+        self.log.info("=== smoke: unmapped address errors ===")
+        try:
+            checks = 0
+            # addr_in_range is (paddr >= BASE) && (paddr < BASE + 40KB), so it
+            # has TWO failing edges and both are probed here. Testing only the
+            # upper one would leave the `>= BASE` half unexercised, which is
+            # exactly where an off-by-one or a signedness slip would hide. The
+            # family's own APB-2TO4-21 scenario probes both edges for the same
+            # reason. Slave 9 is the last mapped window and ends at BASE+0x9FFF,
+            # so window_addr(10, 0) is the first unmapped address above it.
+            probes = (
+                (self.tb.BASE_ADDR - 4,          "just below the map"),
+                (self.tb.window_addr(10, 0x000), "first address past the map"),
+                (self.tb.window_addr(15, 0x000), "well past the map"),
+            )
+            for addr, label in probes:
+                _, value, slverr = await self.tb.apb_read(addr)
+                if not slverr:
+                    self.log.error(
+                        f"  unmapped 0x{addr:08X} ({label}) returned PSLVERR=0 "
+                        f"(data 0x{value:08X}) -- an unmapped access must be "
+                        "reported, not silently served")
+                    return False
+                checks += 1
+                self.log.info(f"  unmapped 0x{addr:08X} -> PSLVERR ({label})")
+
+            probe = self.tb.window_addr(self.tb.SLAVE_HPET, 0x000)
+            _, value, slverr = await self.tb.apb_read(probe)
+            if slverr:
+                self.log.error(
+                    f"  HPET read after a decode miss returned PSLVERR=1 "
+                    f"(data 0x{value:08X}) -- the decode-error flag did not "
+                    "clear, so one unmapped access poisoned the bus")
+                return False
+            checks += 1
+            self.log.info(f"  bus still healthy after the miss "
+                          f"(HPET 0x{value:08X}, PSLVERR=0)")
+
+            self.log.info(f"smoke unmapped-address GREEN ({checks} checks)")
+            return True
+        except Exception as e:
+            self.log.error(f"unmapped-address test error: {e}")
             return False
 
     async def test_decode_isolation(self) -> bool:

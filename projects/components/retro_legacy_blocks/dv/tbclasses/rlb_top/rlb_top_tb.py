@@ -57,7 +57,7 @@ class RLBTopTB(TBBase):
     BASE_ADDR = 0xFEC00000
     WINDOW = 0x1000
 
-    # Slave index == PADDR[15:12], per apbx_xbar_rlb_1to10.
+    # Slave index == PADDR[15:12], per the generated apbx_xbar_1to10.
     SLAVE_HPET, SLAVE_PIC, SLAVE_PIT, SLAVE_RTC, SLAVE_SMBUS = 0, 1, 2, 3, 4
     SLAVE_PM, SLAVE_IOAPIC, SLAVE_GPIO, SLAVE_UART = 5, 6, 7, 8
     SLAVE_RESERVED = 9
@@ -208,9 +208,12 @@ class RLBTopTB(TBBase):
                 done = True
                 break
         if not done:
-            # An access outside the 40KB window never completes -- the xbar
-            # only drives m_cmd_ready when addr_in_range, so apb4_slave never
-            # leaves IDLE. Say so rather than returning a silent zero.
+            # Reaching here means PREADY never asserted within 100 cycles.
+            # With the generated apbx_xbar_1to10 even an UNMAPPED address
+            # completes -- its decode-miss agent accepts the access and answers
+            # locally with PSLVERR -- so this now indicates a REAL stall, not
+            # the expected behaviour of the hand-rolled crossbar this TB was
+            # first written against. Say so rather than returning a silent zero.
             self.log.error(
                 f"APB {'write' if pwrite else 'read'} at 0x{addr:08X} never "
                 "completed -- PREADY did not assert within 100 cycles")

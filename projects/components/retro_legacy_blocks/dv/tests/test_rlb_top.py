@@ -77,6 +77,8 @@ async def cocotb_test_rlb_top_smoke(dut):
          tests.test_reserved_window_errors),
         ('Decode isolation across windows',
          tests.test_decode_isolation),
+        ('Unmapped address errors instead of hanging',
+         tests.test_unmapped_address_errors),
     ]
     full_methods = [
         ('Boot interrupt reaches the 8259',

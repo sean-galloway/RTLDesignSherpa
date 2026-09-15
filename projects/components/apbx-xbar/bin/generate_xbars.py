@@ -18,7 +18,8 @@
 Convenience script to generate all APB crossbar variants.
 
 Usage:
-    # Generate all standard variants (1:1, 2:1, 1:4, 2:4):
+    # Generate every registered variant (1:1, 2:1, 1:4, 2:4, 2:2_mixed into
+    # rtl/, plus the RLB 1:10 into retro_legacy_blocks/):
     python generate_xbars.py
 
     # Generate specific variant:
@@ -37,7 +38,14 @@ from apbx_xbar_generator import generate_apbx_xbar
 
 
 def generate_all_standard():
-    """Generate all standard crossbar variants."""
+    """Generate every registered crossbar variant.
+
+    Six in total: four plain (1:1, 2:1, 1:4, 2:4) and one mixed-version
+    (2:2) into this component's rtl/, plus the Retro Legacy Blocks 1:10,
+    which is emitted into retro_legacy_blocks/ because that is where it
+    is consumed. Keeping the RLB one here is what stops it drifting --
+    see the comment on `external` below.
+    """
 
     variants = [
         (1, 1),  # 1-to-1 passthrough
@@ -96,7 +104,42 @@ def generate_all_standard():
             f.write(code)
         print(f"  ✅ {output_file}")
 
-    print(f"\n✅ Generated {len(variants) + len(mixed)} crossbar variants")
+    # Retro Legacy Blocks 1-to-10 (RLB-016). Unlike everything above, this
+    # variant is CONSUMED BY ANOTHER COMPONENT, so it is emitted into that
+    # component's tree rather than rtl/. It is registered here deliberately:
+    # the RLB crossbar used to be hand-written, which meant it never received
+    # the generator's decode-miss fix (an unmapped address completed with
+    # PSLVERR instead of wedging the bus) and decoded on raw PADDR bits rather
+    # than the offset. That divergence is what RLB-016 recorded. Generating it
+    # with the family is what stops it drifting a second time.
+    #
+    # NOTE the address map differs from the rtl/ family on purpose: the RLB
+    # subsystem is documented at 0xFEC00000 with 4KB windows, not 0x10000000
+    # with 64KB. Both are passed explicitly for exactly the reason the
+    # generate_custom() comment below gives.
+    external = [
+        dict(masters=1, slaves=10, base_addr=0xFEC00000, slave_size=0x1000,
+             path=(Path(__file__).resolve().parents[2] / 'retro_legacy_blocks'
+                   / 'rtl' / 'apbx_xbar' / 'apbx_xbar_1to10.sv')),
+    ]
+
+    for v in external:
+        output_file = v['path']
+        print(f"Generating {v['masters']}-to-{v['slaves']} crossbar -> {output_file}...")
+        code = generate_apbx_xbar(
+            num_masters=v['masters'],
+            num_slaves=v['slaves'],
+            base_addr=v['base_addr'],
+            addr_width=32,
+            data_width=32,
+            output_file=str(output_file),
+            slave_size=v['slave_size'],
+        )
+        with open(output_file, 'w') as f:
+            f.write(code)
+        print(f"  \u2705 {output_file}")
+
+    print(f"\n\u2705 Generated {len(variants) + len(mixed) + len(external)} crossbar variants")
 
 
 def generate_custom(masters, slaves, base_addr=0x10000000, slave_size=0x10000):
@@ -137,7 +180,8 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  Generate all standard variants (1:1, 2:1, 1:4, 2:4):
+  Generate every registered variant (1:1, 2:1, 1:4, 2:4, 2:2_mixed and the
+  Retro Legacy Blocks 1:10):
     %(prog)s
 
   Generate custom 3-to-6 crossbar:
