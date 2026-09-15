@@ -1,7 +1,7 @@
 # Document Information
 
 This is the operator / developer guide for the Nexys A7 **RAPIDS
-Characterization** project (`projects/fpga-systems/NexysA7/rapids_characterization`). It
+Characterization** project (`projects/fpga-systems/Genesys2/rapids_characterization`). It
 explains what the project characterizes, how the harness works, how to build /
 simulate / program / run it, and how the harness CSR is configured.
 

@@ -1,18 +1,18 @@
 ---
-title: projects/fpga-systems/NexysA7/rapids_characterization
+title: projects/fpga-systems/Genesys2/rapids_characterization
 summary: RAPIDS board characterization
-repo: projects/fpga-systems/NexysA7/rapids_characterization
+repo: projects/fpga-systems/Genesys2/rapids_characterization
 ---
 
-# projects/fpga-systems/NexysA7/rapids_characterization
+# projects/fpga-systems/Genesys2/rapids_characterization
 
-**Code:** [`projects/fpga-systems/NexysA7/rapids_characterization/`](../../../../../projects/fpga-systems/NexysA7/rapids_characterization)
+**Code:** [`projects/fpga-systems/Genesys2/rapids_characterization/`](../../../../../projects/fpga-systems/Genesys2/rapids_characterization)
 
 RAPIDS board characterization
 
 ## What lives here
 
-Knowledge notes about `projects/fpga-systems/NexysA7/rapids_characterization` - design intent, gotchas, decisions and
+Knowledge notes about `projects/fpga-systems/Genesys2/rapids_characterization` - design intent, gotchas, decisions and
 their rationale. Not a duplicate of the code and not a substitute for it.
 
 Method and practice belong in [the handbook](../../../../../vault/handbook/INDEX.md); work items belong in

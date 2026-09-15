@@ -225,18 +225,18 @@ return to idle on its own at end-of-descriptor so no host reset is needed — th
 ```bash
 # full channel x size matrix in ONE programming (CHANNEL_RESET per run):
 source env_python
-python3 projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/host/run_characterization.py \
+python3 projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/host/run_characterization.py \
     --port /dev/ttyUSB1 --channels 8 --suite \
     --suite-channels 1,2,4,8 --suite-beats 4,16,64,256,1024,4096 --suite-bp off \
-    --results projects/fpga-systems/NexysA7/rapids_characterization/reports/perf/json/genesys_full_matrix.json
+    --results projects/fpga-systems/Genesys2/rapids_characterization/reports/perf/json/genesys_full_matrix.json
 
 # figures:
-python3 projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/host/plot_char_reports.py \
-    --size   projects/fpga-systems/NexysA7/rapids_characterization/reports/perf/json/genesys_full_matrix.json \
-    --outdir projects/fpga-systems/NexysA7/rapids_characterization/reports/perf/plots
+python3 projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/host/plot_char_reports.py \
+    --size   projects/fpga-systems/Genesys2/rapids_characterization/reports/perf/json/genesys_full_matrix.json \
+    --outdir projects/fpga-systems/Genesys2/rapids_characterization/reports/perf/plots
 
 # this report (DOCX + PDF, house style):
-cd projects/fpga-systems/NexysA7/rapids_characterization/reports && ./generate_reports_pdf.sh --rev 1.0
+cd projects/fpga-systems/Genesys2/rapids_characterization/reports && ./generate_reports_pdf.sh --rev 1.0
 ```
 
 Genesys 2 host link: JTAG on the FT2232 (`200300B818A0`), UART on the separate

@@ -243,7 +243,7 @@ assign integrity_ok = (rd_crc[ch] == wr_crc[ch]);
 
 ### Used By
 - `projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/stream_char_harness.sv` — attaches to STREAM's `m_axi_rd` / `m_axi_wr`
-- `projects/NexysA7/rapids_characterization/flows-rapids-beats/rtl/rapids_char_harness.sv` — source/sink termination
+- `projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/rtl/rapids_char_harness.sv` — source/sink termination
 
 ### Uses
 - **axi4_slave_rd_pattern_gen.sv** — the read-side LFSR data source + CRC

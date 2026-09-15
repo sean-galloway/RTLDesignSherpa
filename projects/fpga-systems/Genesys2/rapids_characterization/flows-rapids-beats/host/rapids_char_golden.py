@@ -11,7 +11,7 @@
 #          exactly as wired by axi4_slave_rd_pattern_gen.sv /
 #          axi4_slave_wr_crc_check.sv / axis4_master_pattern_gen.sv.
 #
-# Documentation: projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/
+# Documentation: projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/
 # Subsystem: rapids_char_harness
 #
 # Author: sean galloway

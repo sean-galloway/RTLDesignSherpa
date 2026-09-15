@@ -3,7 +3,7 @@
 # (snk_system_idle stuck 0), leaving it frozen for an ILA snapshot. The wedge is
 # an intermittent timing race, so one run may not trip it; back-to-back runs do.
 import sys, io as _io, contextlib
-sys.path.insert(0, 'projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/host')
+sys.path.insert(0, 'projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/host')
 from rapids_char_io import RapidsCharIO
 import run_characterization as rc
 port  = sys.argv[1] if len(sys.argv) > 1 else '/dev/ttyUSB1'

@@ -833,7 +833,7 @@ an index, not storage). Most of the 366 `.f` follow this
 38). Sean, 2026-07-24: right now placement is inconsistent. The stragglers:
 
 **Naming -- not called `filelists/`:**
-- [ ] `projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/flists/`
+- [ ] `projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/flists/`
       (3 files) -> `filelists/`
 - [ ] `projects/components/bridge/rtl/filelists_static/` -> fold into
       `filelists/` (or justify why "static" is a distinct dir)

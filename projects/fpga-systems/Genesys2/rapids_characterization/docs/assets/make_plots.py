@@ -36,7 +36,7 @@ REPO_ROOT = os.environ.get(
 )
 REPORTS = os.path.join(
     REPO_ROOT,
-    "projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/reports",
+    "projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/reports",
 )
 
 

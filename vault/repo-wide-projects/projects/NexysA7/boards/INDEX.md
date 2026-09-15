@@ -1,18 +1,18 @@
 ---
-title: projects/NexysA7/boards
+title: projects/fpga-systems/boards
 summary: board definitions
-repo: projects/NexysA7/boards
+repo: projects/fpga-systems/boards
 ---
 
-# projects/NexysA7/boards
+# projects/fpga-systems/boards
 
-**Code:** [`projects/NexysA7/boards/`](../../../../../projects/NexysA7/boards)
+**Code:** [`projects/fpga-systems/boards/`](../../../../../projects/fpga-systems/boards)
 
 board definitions
 
 ## What lives here
 
-Knowledge notes about `projects/NexysA7/boards` - design intent, gotchas, decisions and
+Knowledge notes about `projects/fpga-systems/boards` - design intent, gotchas, decisions and
 their rationale. Not a duplicate of the code and not a substitute for it.
 
 Method and practice belong in [the handbook](../../../../../vault/handbook/INDEX.md); work items belong in

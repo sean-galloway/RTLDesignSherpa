@@ -294,7 +294,7 @@ semaphore memory) are all verified end-to-end at the top through the real APB re
 
 STAGE G step 4 (characterization harness) STARTED:
 - [x] rapids_char_harness.sv (+ flists/rapids_char_harness.f) built + LINT-CLEAN (RC 0). Location:
-      projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/. Wraps rapids_beats_top with:
+      projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/. Wraps rapids_beats_top with:
       axis4_master_pattern_gen -> s_axis (sink stimulus); axis4_slave_pattern_check <- m_axis (source
       check); axi4_slave_rd_pattern_gen <- m_axi_rd (source data, 512b); axi4_slave_wr_crc_check <-
       m_axi_wr (sink verify, 512b); TWO sdpram_slave_axi4_axi4 desc RAMs (DUT reads port A, host writes
@@ -317,7 +317,7 @@ STAGE G step 4 (characterization harness) STARTED:
 - [x] rapids_char_harness.sv REWIRED to the multi-channel AXIS blocks (NUM_CHANNELS, cfg_gen_channel_mask,
       per-channel o_gen_expected_crc/o_chk_actual_crc replacing the old scalar signatures). Lint RC 0.
       All four self-check blocks in the harness share identical LFSR/CRC params.
-- [x] cocotb harness TB (projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/dv/
+- [x] cocotb harness TB (projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/dv/
       rapids_char_harness_tb.py + test_rapids_char_harness.py) GREEN. Drives the harness like the host:
       APBMaster on s_apb + two RegisterMap (SRC 0x0000 / SNK 0x1000) config BY NAME; descriptors loaded
       via desc-RAM host write ports (create_axi4_master_wr, 256b); kicked over apb4todescr windows.
@@ -330,7 +330,7 @@ STAGE G step 4 (characterization harness) STARTED:
       the per-channel CRCs would collapse to ch0. No RTL/harness edits needed.
 STAGE G step 4 / task 55 (FPGA enablement) — BOARD RTL DONE + LINT-CLEAN:
 - [x] rapids_char_top.sv (NexysA7 pin-top) + rapids_char_top.xdc + flists/rapids_char_top.f, under
-      projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/. Lint RC 0 (clean even w/o -Wno-fatal,
+      projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/. Lint RC 0 (clean even w/o -Wno-fatal,
       98 sources). uart_axil_bridge -> AXIL router: 0x0_0000 DUT-REG (apb4_master -> harness s_apb ->
       SRC/SNK reg spaces + kick windows); 0x1_0000 DESC-LOAD (8x32b -> 256b descriptor -> AXI4 write to
       desc_src/desc_snk host ports, half-select via data[0], DESC_KICK issues); 0x2_0000 CSR (cfg_gen_*/

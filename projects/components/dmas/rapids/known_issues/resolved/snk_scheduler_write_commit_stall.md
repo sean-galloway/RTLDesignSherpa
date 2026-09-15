@@ -76,7 +76,7 @@ stuck state is in the **scheduler/descriptor completion path**.
 ## 3. ILA evidence
 
 Two on-silicon ILA passes (Genesys 2; `tcl/build_ila.tcl` + `tcl/capture_ila.tcl`,
-wedge reproduced by `projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/host/run_sink_once.py` with `CHANNEL_RESET` disabled).
+wedge reproduced by `projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/host/run_sink_once.py` with `CHANNEL_RESET` disabled).
 
 **The wedge is INTERMITTENT** — a single fresh run often completes; back-to-back
 runs (no reset) trip it within 1-2 runs. Intermittency = a timing race, not a
@@ -275,12 +275,12 @@ this becomes a shared rapids+stream RTL fix. Separately correct the
 
 - ILA build:   `BOARD=genesys2 vivado -mode batch -source tcl/build_ila.tcl`
 - ILA capture: `RAPIDS_CHAR_JTAG_SERIAL=200300B818A0 vivado -mode batch -source tcl/capture_ila.tcl`
-- Wedge repro (no reset): `projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/host/run_sink_once.py /dev/ttyUSB1`
+- Wedge repro (no reset): `projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/host/run_sink_once.py /dev/ttyUSB1`
 - Capture evidence: `reports/ila_sched_state.csv`
 
 ## 9. Current workaround
 
-`projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/host/run_characterization.py` `reset_channels()` pulses `CHANNEL_RESET` on both
+`projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/host/run_characterization.py` `reset_channels()` pulses `CHANNEL_RESET` on both
 halves before every run. It makes the full 24-config char matrix run in one
 programming and unblocks `active<8`, but it does **not** fix the RTL — the sink
 must self-return to `CH_IDLE`.

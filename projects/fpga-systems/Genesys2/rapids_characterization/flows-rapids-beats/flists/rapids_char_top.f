@@ -1,5 +1,5 @@
 # Filelist for rapids_char_top — FPGA synthesis / lint target for Nexys A7-100T.
-# Location: projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/flists/rapids_char_top.f
+# Location: projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/flists/rapids_char_top.f
 #
 # Wraps rapids_char_harness with board I/O (clock, reset button, UART, LEDs,
 # 7-seg) plus the host front-end (UART->AXIL bridge, AXIL slave decode/router,
@@ -7,7 +7,7 @@
 # converter filelists resolve to the same absolute path and are de-duplicated.
 
 # ---- The characterization harness (+ DUT + pattern/mem blocks + incdirs) ----
--f $REPO_ROOT/projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/flists/rapids_char_harness.f
+-f $REPO_ROOT/projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/flists/rapids_char_harness.f
 
 # ---- Host front-end: UART <-> AXIL master (uart_rx/tx, axil4_master_wr/rd,
 #      gaxi_skid_buffer) ----
@@ -27,4 +27,4 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/seven_seg_4digit.sv
 -f $REPO_ROOT/projects/components/misc/rtl/filelists/verilator_xilinx_stubs.f
 
 # ---- Board-level top (pins + host front-end + harness instantiation) ----
-$REPO_ROOT/projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/rtl/rapids_char_top.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/rtl/rapids_char_top.sv

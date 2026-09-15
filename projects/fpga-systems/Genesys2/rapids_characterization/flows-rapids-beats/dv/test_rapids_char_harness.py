@@ -8,7 +8,7 @@
 # Purpose: pytest runner for the RAPIDS beats characterization harness self-check
 #          (Pattern B: cocotb_test_* functions + pytest wrappers).
 #
-# Documentation: projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/
+# Documentation: projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/
 # Subsystem: rapids_char_harness
 #
 # Author: sean galloway
@@ -97,7 +97,7 @@ def _run_harness(testcase, test_name):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_local,
-        filelist_path=('projects/fpga-systems/NexysA7/rapids_characterization/'
+        filelist_path=('projects/fpga-systems/Genesys2/rapids_characterization/'
                        'flows-rapids-beats/flists/rapids_char_harness.f')
     )
 

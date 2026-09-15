@@ -7,9 +7,9 @@
 # Usage: source env_python; ./gather_size_sweep.sh <port> <out_matrix.json>
 set -uo pipefail
 PORT="${1:-/dev/ttyUSB1}"
-OUT="${2:-projects/fpga-systems/NexysA7/rapids_characterization/reports/perf/json/genesys_8ch_size_sweep.json}"
+OUT="${2:-projects/fpga-systems/Genesys2/rapids_characterization/reports/perf/json/genesys_8ch_size_sweep.json}"
 : "${REPO_ROOT:?source env_python first}"
-FLOW="${REPO_ROOT}/projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats"
+FLOW="${REPO_ROOT}/projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats"
 export RAPIDS_CHAR_JTAG_SERIAL=200300B818A0
 SIZES=(1 4 16 64 256 1024 4096)
 TMPDIR="$(dirname "$OUT")/_size_parts"

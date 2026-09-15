@@ -9,7 +9,7 @@
 #          (rapids_char_harness). Drives the harness exactly the way the host
 #          will and verifies the on-chip self-check end-to-end (per-channel CRC).
 #
-# Documentation: projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/
+# Documentation: projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/
 # Subsystem: rapids_char_harness
 #
 # Author: sean galloway

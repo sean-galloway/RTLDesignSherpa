@@ -5,7 +5,7 @@ without `REPO_ROOT`):
 
 ```bash
 cd /path/to/RTLDesignSherpa && source env_python
-cd projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats
+cd projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats
 ```
 
 ## Make targets (`flows-rapids-beats/Makefile`)

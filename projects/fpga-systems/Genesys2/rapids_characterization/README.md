@@ -41,7 +41,7 @@ rapids_characterization/                    ← this directory (umbrella)
 
 ```bash
 source env_python                 # sets REPO_ROOT / SIM=verilator
-cd projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats
+cd projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats
 
 make sim          # cocotb harness self-check (sink + source, golden CRC)
 make bitstream    # synth + impl + bitstream (NexysA7, timing-closed @ 100 MHz)

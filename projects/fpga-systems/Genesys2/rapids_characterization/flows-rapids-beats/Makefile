@@ -34,7 +34,7 @@ endif
 
 SELF_DIR         := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 export REPO_ROOT
-export CHAR_ROOT := $(REPO_ROOT)/projects/fpga-systems/NexysA7/rapids_characterization
+export CHAR_ROOT := $(REPO_ROOT)/projects/fpga-systems/Genesys2/rapids_characterization
 export FLOW_ROOT := $(SELF_DIR)
 
 VIVADO      ?= vivado
@@ -45,7 +45,7 @@ PROJECT   := $(SELF_DIR)/build/vivado_project/rapids_char.xpr
 BITSTREAM := $(SELF_DIR)/bitstream/rapids_char.bit
 REPORTS   := $(SELF_DIR)/reports
 
-HARNESS_TEST := projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/dv/test_rapids_char_harness.py
+HARNESS_TEST := projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/dv/test_rapids_char_harness.py
 
 # ---- Board target ----------------------------------------------------------
 # BOARD selects the FPGA target: nexys (Artix-7 100T, default) or genesys2

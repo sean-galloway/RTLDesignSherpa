@@ -35,7 +35,7 @@ set ila [get_hw_ilas -of_objects [current_hw_device]]
 # the frozen values (r_write_beats_to_commit stuck value + FIFO state + last
 # commit). Reliable — no trigger-probe-name lookup needed.
 puts "Driving SINK run (beats=$beats) over $uart to reproduce the wedge ..."
-set st [catch {exec bash -c "cd $repo_root && source ./env_python >/dev/null 2>&1 && python3 projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/host/run_sink_once.py $uart $beats"} msg]
+set st [catch {exec bash -c "cd $repo_root && source ./env_python >/dev/null 2>&1 && python3 projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/host/run_sink_once.py $uart $beats"} msg]
 puts "sink run output: $msg"
 
 run_hw_ila -trigger_now $ila

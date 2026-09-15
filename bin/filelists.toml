@@ -198,10 +198,10 @@ filelist_dirs = [
 ]
 
 [[area]]
-name = "nexys_rapids_char"
+name = "genesys2_rapids_char"
 kind = "board"
 rtl_roots = []
-filelist_dirs = ["projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/flists"]
+filelist_dirs = ["projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/flists"]
 
 [[area]]
 name = "nexys_cdc_display"
