@@ -893,6 +893,55 @@ recoverable, check sys4x_dqs / IO / pins", which reads as dead silicon. The
 board was fine; a reprogram plus re-level gave `verify OK` immediately. Only
 reprogramming clears a runaway.
 
+### NOT all board tests fail -- 11%, and the failing ones share three traits
+
+Sean asked the right question: do ALL board tests fail? They do not. Of the
+192-point sweep, **22 points (11%) mismatch**; `axlen_sweep` and
+`outstanding_sweep` are entirely clean. The failures are sharply structured:
+
+| trait | failing points |
+|---|---|
+| generator count | n_gen **1 (19) and 2 (3)** -- never 3 or 4 |
+| address order | incremental (14), row_major (8) -- **col_major NEVER** |
+| gap | mismatches rise MONOTONICALLY: 80 / 122 / 435 at gaps 1/3/6, then ~5000 from gap 8 |
+
+col_major is the page-MISS family: every burst activates a different row, so it
+can never hold a stale belief about an open one. The two families that DO fail
+are page-HIT streams, where a gap leaves a row **open and idle** between bursts.
+
+### It is the OPEN PAGE, and it is NOT refresh
+
+The obvious hypothesis was a refresh landing in that idle window, precharging
+the bank while the tracker still believes the row is open -- which would
+explain the all-ones. **Tested and REFUTED.** Six repeats per cell, because the
+failure is intermittent (gap 12 and 15 failed in the sweep and came back clean
+on a re-run, so single points prove nothing):
+
+| config | gap 8 | gap 12 |
+|---|---|---|
+| open + refresh normal (tREFI 780) | 6/6 runs, 33725 beats | 0/6 |
+| open + refresh RARE (tREFI 32767) | 6/6 runs, **62439 beats** | 0/6 |
+| open + refresh FAST (tREFI 256) | 6/6 runs, 16529 beats | 6/6, 2759 |
+| **close page**, refresh normal | 6/6 runs, **6 beats** | 6/6, **6 beats** |
+
+Making refresh RARE does not help -- it is slightly WORSE -- so refresh rate
+does not drive this. Page policy does: **close page cuts the corruption from
+33725 beats to 6**, a ~5600x reduction on the identical workload. (Not zero:
+about one beat per run survives, which is its own small question.)
+
+So the trigger is an OPEN ROW left IDLE across the reader's gap, and the next
+access to it returning undriven data. Refresh is ruled out as the mechanism;
+what the controller does with a page it is holding open across an idle window
+is not.
+
+**Close page is a usable workaround** for anyone blocked by this, at the cost
+of the open-page bandwidth.
+
+**Next:** ILA again, but trigger on the mismatch with the DFI COMMAND bus in
+the capture (ras/cas/we/bank/address are already marked) and read back the
+command sequence before the failing beat: was an ACT actually issued for that
+row, or did the read go out against a row the DRAM had already closed?
+
 **Open and worth a look: the operating tap may be marginal.** `level_cache.json`
 records the bring-up eye as `[0, 16]`, width 17, tap 8 centred. Today's scan
 gives **0..9, width 10, with tap 8 ONE tap from the upper edge**. That is
