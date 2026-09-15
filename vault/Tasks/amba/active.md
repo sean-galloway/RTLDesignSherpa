@@ -40,12 +40,17 @@ CAM pipelining). The `formal/amba/*` Makefiles + `.sby` files were path-updated 
       passes at MAX_TRANSACTIONS=16. Added a port-only `ap_clear_zeroes_count`
       (cam_clear) property to trans_mgr. See
       `rtl/amba/KNOWN_ISSUES/axi_monitor_active_count_underflow.md`.
-- [ ] **val/amba monitor-test path sweep (NEW, pending).** The monitor move left
-      ~75 val/amba tests building monitor source paths via
-      `os.path.join(rtl_dict['rtl_shared'], "...")` where `rtl_shared='rtl/amba/shared'`
-      — the earlier string-based sweep missed these because the path is assembled at
-      runtime. `test_axi4_master_rd_mon.py` fixed (repointed to `rtl/amba/monitor`);
-      the rest still need the same repoint.
+- [x] **val/amba monitor-test path sweep — DONE, verified 2026-09-15.** The
+      "~75 tests" figure is no longer true: the area moved to filelist-based
+      sourcing, which resolves monitor paths through the registry rather than by
+      string-joining `rtl_shared`. Measured across all 170 val/amba tests:
+      **166 use `get_sources_from_filelist`**, exactly **1** still hand-lists
+      `verilog_sources`, and only **1** uses `os.path.join(rtl_dict[...])` at all
+      — whose 2 joined paths both resolve to files that exist. Zero tests
+      string-reference the old `shared/<monitor>` path, `rtl/amba/shared/` holds
+      **no** monitor sources, and all 31 monitor modules live in
+      `rtl/amba/monitor/`. Checked by resolving each test's own `rtl_dict` keys
+      and testing the joined path for existence, not by grepping one line.
 - [ ] Extend the proofs to cover the new perfmon window state machine + the four
       utilization / beat-byte-burst counters (`axi_monitor_base`). *(pending)*
 - [ ] Add a `cam_clear` synchronous-clear property to the trans-CAM proofs. *(pending)*
