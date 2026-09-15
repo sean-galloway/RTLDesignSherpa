@@ -122,6 +122,39 @@ class Geometry:
 DEFAULT_GEOM = Geometry()
 
 
+def measure_mc_clk_hz(drv, seconds: float = 2.0) -> float:
+    """Measure the controller clock from the board's free-running bus meter.
+
+    The meter counts every mc_clk cycle between clear_stats and the read, so
+    cycles-over-wall-time IS the clock. Costs a couple of seconds and removes
+    the entire class of "the host was told the wrong frequency", which is how
+    tREFI ended up 38% long.
+    """
+    import time
+    drv.clear_stats()
+    t0 = time.time(); m0 = _read_meter(drv, "rd").total
+    time.sleep(seconds)
+    m1 = _read_meter(drv, "rd").total; t1 = time.time()
+    return (m1 - m0) / (t1 - t0)
+
+
+def check_mc_clk_hz(drv, claimed: int, tol: float = 0.10) -> float:
+    """Warn loudly if `claimed` disagrees with the board by more than `tol`.
+
+    A warning rather than an exception: the measurement carries a few percent
+    of UART overhead, so it is a smoke alarm for a wrong CONSTANT (100 vs 75 is
+    33% out), not a calibration source.
+    """
+    got = measure_mc_clk_hz(drv)
+    if abs(got - claimed) / claimed > tol:
+        print(f"[mc_clk] WARNING: configured {claimed/1e6:.2f} MHz but the board "
+              f"measures {got/1e6:.2f} MHz. Every JEDEC timing is being computed "
+              f"for the wrong clock -- tREFI most dangerously, since a cycle "
+              f"count for a FASTER clock refreshes LESS often in real time.",
+              file=sys.stderr, flush=True)
+    return got
+
+
 def _stable_seed(name: str) -> int:
     """Deterministic 32-bit seed from a scenario name (FNV-1a). Python's
     built-in hash() is per-process randomized, which would make runs
@@ -230,7 +263,18 @@ class ControllerConfig:
     # the 100 MHz default is safe (never fewer cycles) on any slower board clock,
     # and the 75 MHz board build should export PUMICE_MC_CLK_HZ=75000000.
     jedec_timings: bool = os.environ.get("TEST_JEDEC_TIMINGS", "1") != "0"
-    mc_clk_hz:     int = int(float(os.environ.get("PUMICE_MC_CLK_HZ", "100000000")))
+    # The CONTROLLER clock, which is what every JEDEC timing is converted into
+    # cycles against. This board is 75 MHz (ddr2_char_top: PUMICE_SYS_75 ->
+    # FPGA_CLK_HZ 75_000_000; 66.67 MHz without it) -- it was NEVER 100.
+    #
+    # The old 100 MHz default silently mis-programmed every timing on every
+    # sweep in this area. Most land conservative at a slower clock, because a
+    # cycle count computed for a faster clock buys MORE real time -- but tREFI
+    # errs the other way: 780 cycles is 7.8 us at 100 MHz and 10.8 us at the
+    # measured 72 MHz, so the part was refreshed ~38% less often than JEDEC
+    # allows, for the whole PUMICE-037 investigation. Deriving it from the
+    # board (see check_mc_clk_hz) beats trusting this number.
+    mc_clk_hz:     int = int(float(os.environ.get("PUMICE_MC_CLK_HZ", "75000000")))
 
     def apply(self, drv: DDR2CharDriver) -> None:
         # rd_in_order + the DFI latencies live on the harness CTRLR_CFG (one
