@@ -52,20 +52,35 @@ DDR2_BL            = 4                                        # board burst leng
 
 
 def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
-                           part: Dict[str, float] = DDR2_MT47H64M16_NS) -> Dict[str, int]:
+                           part: Dict[str, float] = DDR2_MT47H64M16_NS,
+                           t_rddata_en: int = 6, dram_bl: int = None,
+                           dfi_rate: int = 2) -> Dict[str, int]:
     """JEDEC DDR2 timings in MC cycles for a controller at ``mc_clk_hz`` driving
     the DRAM at ``ck_per_mc`` CK per MC cycle (DFI_RATE=2 -> 2). Every ns value
     rounds UP; every CK minimum rounds up too and the larger of the two wins.
     Turnarounds are command-to-command distances, which is what the RTL's global
     counters measure (reload on the column FIRE, ok at zero):
       tWTR: WR cmd -> RD cmd = WL + BL/2 + tWTR        (WL = CL-1 for DDR2)
-      tRTW: RD cmd -> WR cmd = CL + BL/2 + 2 - WL      (JESD79-2 read-to-write)
+      tWR : WR cmd -> PRE    = WL + BL/2 + tWR         (bank_timer port contract)
+      tRTW: RD cmd -> WR cmd = max(CL + BL/2 + 2 - WL, t_rddata_en + BL/DFI_RATE)
+            -- the JEDEC term alone ignores the PHY read pipeline (see below)
     A HIGHER mc_clk_hz yields more cycles, so a 100 MHz derivation is always safe
     on a slower board clock -- the ns-bound rows just get conservative."""
     period_ns = 1e9 / float(mc_clk_hz)
+    # PHASE MARGIN. A JEDEC delay is a CK-granular constraint, but these
+    # counters are MC-cycle granular and a command may sit on ANY of the
+    # ck_per_mc phases inside its MC cycle. Converting without allowing for
+    # that placement can round a constraint DOWN by up to (ck_per_mc-1) CK.
+    # LiteDRAM carries the same term explicitly (modules.py: margin =
+    # clk_period * (1 - 1/nphases)) and it is why its tRFC is 11 where this
+    # function returned 10 for the identical part and clock.
+    # NOT applied to tREFI: that is a maximum interval, not a minimum delay,
+    # so padding it would refresh LESS often. LiteDRAM likewise passes
+    # margin=False there.
+    margin_ns = period_ns * (1.0 - 1.0 / ck_per_mc)
 
     def ns(x: float) -> int:
-        return max(1, ceil(x / period_ns))
+        return max(1, ceil((x + margin_ns) / period_ns))
 
     def ck(c: float) -> int:
         return max(1, ceil(c / ck_per_mc))
@@ -74,16 +89,46 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
         return max(ns(part[name]), ck(DDR2_CK_MIN[name]))
 
     wl = cl - 1
-    half_bl = DDR2_BL // 2
-    twtr_ck = max(ceil(part["tWTR"] * ck_per_mc / period_ns), DDR2_CK_MIN["tWTR"])
+    bl = DDR2_BL if dram_bl is None else int(dram_bl)
+    half_bl = bl // 2
+    # ns -> CK with the SAME phase margin as ns() above. Applying it to the MC
+    # conversions but not to these left tWTR at 3 where LiteDRAM derives 4 from
+    # the identical part and clock -- the margin belongs on every ns-derived
+    # MINIMUM delay, at whatever granularity it is converted.
+    def ns_ck(x: float) -> int:
+        return ceil((x + margin_ns) * ck_per_mc / period_ns)
+
+    twtr_ck = max(ns_ck(part["tWTR"]), DDR2_CK_MIN["tWTR"])
+    twr_ck  = ns_ck(part["tWR"])
+    # READ CAPTURE WINDOW -- the floor on RD -> WR.
+    #
+    # The JEDEC tRTW below (CL + BL/2 + 2 - WL) is a DRAM-internal turnaround;
+    # it says nothing about how long the PHY keeps returning data. On this
+    # board the aligner opens dfi_rddata_en at t_rddata_en and holds it for
+    # ceil(BL/DFI_RATE) cycles, so read data is still on DQ until
+    #     t_rddata_en + ceil(BL/DFI_RATE)
+    # MC cycles after the RD command (6 + 2 = 8 here). A WRITE issued before
+    # that drives DQ into returning read data: the beats are correctly FRAMED
+    # and their CONTENTS are wrong, with zero stray beats -- the measured
+    # PUMICE-037 signature. LiteDRAM ties the same edge to the PHY rather than
+    # to JEDEC (multiplexer.py: delayed_enter("RTW","WRITE", read_latency-1))
+    # and lands on 8 for this build; taking the max of the two reproduces that
+    # from pumice's OWN parameters instead of copying the constant.
+    rd_window_mc = int(t_rddata_en) + ceil(bl / max(1, int(dfi_rate)))
     return dict(
         tRCD=ns(part["tRCD"]), tRP=ns(part["tRP"]), tRAS=ns(part["tRAS"]),
-        tRC=ns(part["tRC"]), tWR=ns(part["tWR"]),
+        tRC=ns(part["tRC"]),
+        # tWR is measured from the END of the write burst, and the RTL port
+        # contract says so outright (bank_timer.sv: "WR cmd -> earliest PRE
+        # (incl WL+BL/2)"). This passed the RAW ns value and broke that
+        # contract by WL+BL/2. LiteDRAM adds the same two terms
+        # (bankmachine.py: precharge_time = write_latency + tWR + tCCD).
+        tWR=ck(wl + half_bl + twr_ck),
         tRTP=ns_or_ck("tRTP"), tRRD=ns_or_ck("tRRD"), tFAW=ns(part["tFAW"]),
         tRFC=ns(part["tRFC"]), tREFI=int(part["tREFI"] / period_ns),   # floor: never late
         tCCD=ck(DDR2_CK_MIN["tCCD"]),
         tWTR=ck(wl + half_bl + twtr_ck),
-        tRTW=ck(cl + half_bl + 2 - wl),
+        tRTW=max(ck(cl + half_bl + 2 - wl), rd_window_mc),
     )
 HARNESS_CSR_BASE = 0x0001_0000   # char-harness control block
 
