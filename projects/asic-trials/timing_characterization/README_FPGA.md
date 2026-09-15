@@ -143,7 +143,7 @@ fpga/
 Quick start (with `REPO_ROOT` exported via the repo's `env_python`):
 
 ```bash
-cd projects/NexysA7/timing_characterization/fpga
+cd projects/asic-trials/timing_characterization/fpga
 make help            # see all targets
 make synth           # ~2 min, posts utilization + post-synth timing
 make bitstream       # ~10-30 min, full flow + all reports
@@ -302,7 +302,7 @@ source: feed them back into `work/build_fpga_characterization_xlsx.py`'s
 ### 5.5 Quick command
 
 ```bash
-cd projects/NexysA7/timing_characterization/fpga
+cd projects/asic-trials/timing_characterization/fpga
 make bitstream-mmcm   # builds char_top_fpga_mmcm with 4 test clocks
 make program          # flash the board
                       # watch LED[3:0] for clock-domain liveness

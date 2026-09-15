@@ -20,7 +20,7 @@
 //   100 MHz board clock, the CPU_RESETN button, and 4 board switches that
 //   set the seed.
 //
-//   Documentation: projects/NexysA7/timing_characterization/README.md
+//   Documentation: projects/asic-trials/timing_characterization/README.md
 //   Subsystem: timing_characterization (FPGA)
 //
 // Author: sean galloway

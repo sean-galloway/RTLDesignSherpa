@@ -44,7 +44,7 @@
 //     math_adder_carry_save, math_compressor_4to2 from rtl/common/
 //   - Output is 2*WIDTH bits (full product)
 //
-// Documentation: projects/NexysA7/timing_characterization/README.md
+// Documentation: projects/asic-trials/timing_characterization/README.md
 // Subsystem: timing_characterization
 //
 // Author: sean galloway

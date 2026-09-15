@@ -482,52 +482,52 @@ test-retro-legacy-full-serial:
 .PHONY: test-timing-char
 test-timing-char:
 	@echo "=== timing-char FUNC (parallel) ==="
-	@cd projects/NexysA7/timing_characterization/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/asic-trials/timing_characterization/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-timing-char-gate
 test-timing-char-gate:
 	@echo "=== timing-char GATE (parallel) ==="
-	@cd projects/NexysA7/timing_characterization/dv/tests && REG_LEVEL=GATE $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/asic-trials/timing_characterization/dv/tests && REG_LEVEL=GATE $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-timing-char-func
 test-timing-char-func:
 	@echo "=== timing-char FUNC (parallel) ==="
-	@cd projects/NexysA7/timing_characterization/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/asic-trials/timing_characterization/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-timing-char-full
 test-timing-char-full:
 	@echo "=== timing-char FULL (parallel) ==="
-	@cd projects/NexysA7/timing_characterization/dv/tests && REG_LEVEL=FULL $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/asic-trials/timing_characterization/dv/tests && REG_LEVEL=FULL $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-timing-char-gate-waves
 test-timing-char-gate-waves:
 	@echo "=== timing-char GATE (parallel + waves) ==="
-	@cd projects/NexysA7/timing_characterization/dv/tests && REG_LEVEL=GATE WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/asic-trials/timing_characterization/dv/tests && REG_LEVEL=GATE WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-timing-char-func-waves
 test-timing-char-func-waves:
 	@echo "=== timing-char FUNC (parallel + waves) ==="
-	@cd projects/NexysA7/timing_characterization/dv/tests && REG_LEVEL=FUNC WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/asic-trials/timing_characterization/dv/tests && REG_LEVEL=FUNC WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-timing-char-full-waves
 test-timing-char-full-waves:
 	@echo "=== timing-char FULL (parallel + waves) ==="
-	@cd projects/NexysA7/timing_characterization/dv/tests && REG_LEVEL=FULL WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/asic-trials/timing_characterization/dv/tests && REG_LEVEL=FULL WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-timing-char-gate-serial
 test-timing-char-gate-serial:
 	@echo "=== timing-char GATE (serial) ==="
-	@cd projects/NexysA7/timing_characterization/dv/tests && REG_LEVEL=GATE $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/asic-trials/timing_characterization/dv/tests && REG_LEVEL=GATE $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-timing-char-func-serial
 test-timing-char-func-serial:
 	@echo "=== timing-char FUNC (serial) ==="
-	@cd projects/NexysA7/timing_characterization/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/asic-trials/timing_characterization/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-timing-char-full-serial
 test-timing-char-full-serial:
 	@echo "=== timing-char FULL (serial) ==="
-	@cd projects/NexysA7/timing_characterization/dv/tests && REG_LEVEL=FULL $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/asic-trials/timing_characterization/dv/tests && REG_LEVEL=FULL $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
 
 # ==============================================================================
 # Aggregate targets — all environments

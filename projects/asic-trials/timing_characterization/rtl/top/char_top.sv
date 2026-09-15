@@ -44,7 +44,7 @@
 //   - Disabled features generate no logic (conditional generate)
 //   - LFSR provides pseudo-random toggling data for all enabled blocks
 //
-// Documentation: projects/NexysA7/timing_characterization/README.md
+// Documentation: projects/asic-trials/timing_characterization/README.md
 // Subsystem: timing_characterization
 //
 // Author: sean galloway

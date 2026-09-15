@@ -30,7 +30,7 @@
 //   - Output is WIDTH+1 bits (includes carry-out)
 //   - Critical path = WIDTH carry-chain delays
 //
-// Documentation: projects/NexysA7/timing_characterization/README.md
+// Documentation: projects/asic-trials/timing_characterization/README.md
 // Subsystem: timing_characterization
 //
 // Author: sean galloway

@@ -1,1 +1,1 @@
-# XDC for this build. Start from projects/NexysA7/boards/<board>/master.xdc and uncomment only what is used.
+# XDC for this build. Start from projects/fpga-systems/boards/<board>/master.xdc and uncomment only what is used.

@@ -19,7 +19,7 @@ endif
 
 SELF_DIR              := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 export REPO_ROOT
-export TIMING_CHAR_ROOT := $(REPO_ROOT)/projects/NexysA7/timing_characterization
+export TIMING_CHAR_ROOT := $(REPO_ROOT)/projects/asic-trials/timing_characterization
 export FPGA_FLOW_ROOT   := $(SELF_DIR)
 
 # Companion artifacts (spreadsheet + whitepaper) live one level up.

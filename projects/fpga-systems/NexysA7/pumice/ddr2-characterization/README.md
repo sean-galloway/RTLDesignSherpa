@@ -140,7 +140,7 @@ Multi-rank (`NUM_RANKS ∈ {1, 2, 4}`) is not exercised on this board — the on
 - MAS: `projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/DDR2_LPDDR2_MAS_v0.5.pdf`
 - Controller RTL home: `projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/`
 - DFI BFM (DV side): `RTLDesignSherpa-DV/src/CocoTBFramework/components/dfi/` — released as `cocotb-framework==0.3.0`
-- Sibling characterization projects: `projects/NexysA7/stream_characterization/`, `projects/NexysA7/timing_characterization/`
+- Sibling characterization projects: `projects/NexysA7/stream_characterization/`, `projects/asic-trials/timing_characterization/`
 - Stream harness blocks we're adapting on the master side: `rtl/amba/shared/axi4_slave_rd_pattern_gen.sv`, `rtl/amba/shared/axi4_slave_wr_crc_check.sv`, `rtl/amba/shared/axi4_dma_slaves.sv`
 - Address generator: `projects/components/misc/rtl/dma_address_gen.sv`
 - LiteX upstream: https://github.com/enjoy-digital/litex

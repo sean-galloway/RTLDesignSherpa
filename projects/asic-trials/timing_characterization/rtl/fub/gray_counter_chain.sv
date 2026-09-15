@@ -31,7 +31,7 @@
 //   - Output flops preserve both binary and Gray for timing analysis
 //   - Enable is always asserted for free-running characterization
 //
-// Documentation: projects/NexysA7/timing_characterization/README.md
+// Documentation: projects/asic-trials/timing_characterization/README.md
 // Subsystem: timing_characterization
 //
 // Author: sean galloway

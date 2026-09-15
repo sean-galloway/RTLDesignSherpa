@@ -42,7 +42,7 @@
 //   - All outputs are brought to top-level ports to prevent output pruning
 //   - Physical flop count per instance = min(2^LEVELS, NUM_FLOPS)
 //
-// Documentation: projects/NexysA7/timing_characterization/README.md
+// Documentation: projects/asic-trials/timing_characterization/README.md
 // Subsystem: timing_characterization
 //
 // Author: sean galloway

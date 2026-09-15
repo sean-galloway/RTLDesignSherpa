@@ -29,7 +29,7 @@
 //   - Critical path = LEVELS XOR gate delays
 //   - XOR gates test LUT usage differently than NAND on FPGAs
 //
-// Documentation: projects/NexysA7/timing_characterization/README.md
+// Documentation: projects/asic-trials/timing_characterization/README.md
 // Subsystem: timing_characterization
 //
 // Author: sean galloway

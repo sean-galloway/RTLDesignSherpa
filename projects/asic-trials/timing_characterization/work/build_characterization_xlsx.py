@@ -28,7 +28,7 @@ from openpyxl.formatting.rule import CellIsRule
 from openpyxl.styles.differential import DifferentialStyle
 
 CSV_IN  = Path("/tmp/charwork/asap7/timing_char_data.csv")
-OUT     = Path("/mnt/data/github/RTLDesignSherpa/projects/NexysA7/timing_characterization/work/asap7_characterization.xlsx")
+OUT     = Path("/mnt/data/github/RTLDesignSherpa/projects/asic-trials/timing_characterization/work/asap7_characterization.xlsx")
 
 CORNERS = ["TT", "FF", "SS"]
 FREQS   = [2000, 2250, 2500, 2750, 3000]  # MHz - sweep where modern designs fail

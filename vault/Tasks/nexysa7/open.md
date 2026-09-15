@@ -445,7 +445,7 @@ disagreed about what the design was; making it unconditional removed a knob that
 let two tools hold different answers and both report success. That was the right
 call for the design.
 
-It has a side effect here. `projects/NexysA7/timing_characterization` exists to
+It has a side effect here. `projects/asic-trials/timing_characterization` exists to
 characterise a target ASIC cell library, and its README documented sync-reset
 numbers as coming from the macro-driven `rtl/` tree with `USE_ASYNC_RESET` left
 undefined. That is now impossible: the define is a no-op, so the tree cannot emit a

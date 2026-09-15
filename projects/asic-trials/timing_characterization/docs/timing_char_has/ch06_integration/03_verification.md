@@ -71,11 +71,11 @@ The `test_char_top.py` integration test verifies:
 
 ```bash
 # All tests
-PYTHONPATH=bin:$PYTHONPATH pytest projects/NexysA7/timing_characterization/dv/tests/ -v
+PYTHONPATH=bin:$PYTHONPATH pytest projects/asic-trials/timing_characterization/dv/tests/ -v
 
 # FUB tests only
-PYTHONPATH=bin:$PYTHONPATH pytest projects/NexysA7/timing_characterization/dv/tests/fub/ -v
+PYTHONPATH=bin:$PYTHONPATH pytest projects/asic-trials/timing_characterization/dv/tests/fub/ -v
 
 # Integration only
-PYTHONPATH=bin:$PYTHONPATH pytest projects/NexysA7/timing_characterization/dv/tests/top/ -v
+PYTHONPATH=bin:$PYTHONPATH pytest projects/asic-trials/timing_characterization/dv/tests/top/ -v
 ```

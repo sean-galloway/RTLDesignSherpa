@@ -30,7 +30,7 @@
 //   - Sweep DEPTH to find memory type transitions
 //   - o_count exposes FIFO occupancy for monitoring
 //
-// Documentation: projects/NexysA7/timing_characterization/README.md
+// Documentation: projects/asic-trials/timing_characterization/README.md
 // Subsystem: timing_characterization
 //
 // Author: sean galloway

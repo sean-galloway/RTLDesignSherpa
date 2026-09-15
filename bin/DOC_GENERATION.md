@@ -24,7 +24,7 @@ non-obvious parts (the caption encoding, the LibreOffice `--style` path, the
 6. `./generate_<doc>_pdf.sh` → `<Name>_v<rev>.docx` + `.pdf`.
 
 Reference implementations to clone:
-- **Guide** (per-project, operator/dev): `projects/NexysA7/cdc_counter_display/docs/cdc_demo_guide/` + `docs/generate_guide_pdf.sh`
+- **Guide** (per-project, operator/dev): `projects/fpga-systems/NexysA7/cdc_counter_display/docs/cdc_demo_guide/` + `docs/generate_guide_pdf.sh`
 - **Spec** (HAS/MAS): `projects/components/dmas/stream/docs/stream_mas/` + `generate_mas_pdf.sh`
 - **Report** (single-file): `projects/NexysA7/stream_characterization/docs/generate_pdf.sh`
 

@@ -18,7 +18,7 @@ bridge and converters are all on it. Three areas are not:
 
 - `projects/components/apbx-xbar/dv/tests/Makefile`
 - `projects/components/retro_legacy_blocks/dv/tests/Makefile`
-- `projects/NexysA7/timing_characterization/dv/tests/Makefile`
+- `projects/asic-trials/timing_characterization/dv/tests/Makefile`
 
 The fix per area is inclusion of the base tests.mk (see any val area's
 Makefile for the pattern), NOT hand-rolled `run-coverage` targets — the

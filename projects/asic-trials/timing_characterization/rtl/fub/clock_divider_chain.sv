@@ -33,7 +33,7 @@
 //   - All stages share the same rst_n
 //   - The pickoff point is fixed at elaboration time
 //
-// Documentation: projects/NexysA7/timing_characterization/README.md
+// Documentation: projects/asic-trials/timing_characterization/README.md
 // Subsystem: timing_characterization
 //
 // Author: sean galloway

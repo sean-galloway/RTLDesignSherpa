@@ -60,7 +60,7 @@
 //   - Critical path = LEVELS NAND gate delays
 //   - All flops use reset macros per repository standards
 //
-// Documentation: projects/NexysA7/timing_characterization/README.md
+// Documentation: projects/asic-trials/timing_characterization/README.md
 // Subsystem: timing_characterization
 //
 // Author: sean galloway

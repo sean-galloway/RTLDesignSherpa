@@ -23,10 +23,10 @@
 // Regenerate the regmap collateral (regmap only, no RTL/docs):
 //   cd $REPO_ROOT && source env_python
 //   python3 bin/peakrdl_generate.py \
-//       projects/NexysA7/cdc_counter_display/rtl/cdc_demo_csr.rdl \
+//       projects/fpga-systems/NexysA7/cdc_counter_display/rtl/cdc_demo_csr.rdl \
 //       --regmap --docs-only --no-html --no-markdown \
-//       --regmap-output projects/NexysA7/cdc_counter_display/dv/tbclasses/cdc_demo_csr_regmap.py
-//   (or: make -C projects/NexysA7/cdc_counter_display regmap)
+//       --regmap-output projects/fpga-systems/NexysA7/cdc_counter_display/dv/tbclasses/cdc_demo_csr_regmap.py
+//   (or: make -C projects/fpga-systems/NexysA7/cdc_counter_display regmap)
 //
 // Address space: cdc_demo_harness is a single flat AXI4-Lite slave; the harness
 // base is 0x0 (UartRegisterMap start_address=0x0). Offsets below are absolute.

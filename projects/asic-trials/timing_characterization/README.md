@@ -221,7 +221,7 @@ characterise sync-reset cells from the shared macro -- see section 12.
 ### 7.1 Open-source flow (Yosys + OpenSTA)
 
 ```bash
-cd projects/NexysA7/timing_characterization/rtl/syn
+cd projects/asic-trials/timing_characterization/rtl/syn
 
 # Minimal invocation -- 500 MHz, every FUB enabled
 make report LIB_PATH=/path/to/stdcell.lib
@@ -317,7 +317,7 @@ mood swing or a netlist topology change.
 
 ```bash
 PYTHONPATH=bin:$PYTHONPATH pytest \
-    projects/NexysA7/timing_characterization/dv/tests/ -v
+    projects/asic-trials/timing_characterization/dv/tests/ -v
 ```
 
 The TB class lives in `dv/tbclasses/timing_char_tb.py` and implements the
@@ -330,7 +330,7 @@ match the left-shift LFSR baked into `char_top`.
 ## 10. Directory layout
 
 ```
-projects/NexysA7/timing_characterization/
+projects/asic-trials/timing_characterization/
 ├── README.md                    <-- this file
 ├── CLAUDE.md                    AI assistance guide
 ├── PRD.md                       Product Requirements
@@ -377,7 +377,7 @@ and are rendered to PNG by `mmdc` (`@mermaid-js/mermaid-cli`).  Re-render
 after editing the source:
 
 ```bash
-cd projects/NexysA7/timing_characterization/assets
+cd projects/asic-trials/timing_characterization/assets
 make            # render every *.mmd -> *.png
 make clean      # delete the PNGs
 ```

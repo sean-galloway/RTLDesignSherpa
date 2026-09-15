@@ -88,7 +88,7 @@ ROOT_VARS = {
     # consumer of this variable now lives.
     "STREAM_CHAR_FRAMEWORK_ROOT": "projects/fpga-systems/Genesys2/stream",
     "DDR2_CHAR_FRAMEWORK_ROOT": "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework",
-    "TIMING_CHAR_ROOT": "projects/NexysA7/timing_characterization",
+    "TIMING_CHAR_ROOT": "projects/asic-trials/timing_characterization",
 }
 
 

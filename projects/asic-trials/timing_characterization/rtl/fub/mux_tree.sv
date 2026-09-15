@@ -46,7 +46,7 @@
 //   - NUM_MUXES = 2^LEVELS - 1 select bits
 //   - Critical path = LEVELS mux delays
 //
-// Documentation: projects/NexysA7/timing_characterization/README.md
+// Documentation: projects/asic-trials/timing_characterization/README.md
 // Subsystem: timing_characterization
 //
 // Author: sean galloway
