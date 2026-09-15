@@ -507,6 +507,21 @@ module rlb_top #(
         .timer_irq     (hpet_timer_irq)
     );
 
+    // ========================================================================
+    // Boot-interrupt rerouting (RLB-008)
+    // ========================================================================
+    // The IOAPIC exports which pins it is NOT delivering; ioapic_boot_intx
+    // turns that into legacy PIC inputs. Declared here because the 8259 is
+    // instantiated below, ahead of the IOAPIC.
+    //
+    // SAFE BY DEFAULT: IOAPICBOOTINTX.enable resets to 0, so
+    // w_boot_intx_pic_irq is all zeros and the OR below is exactly
+    // pic_irq_in until software opts in.
+    logic [7:0]                    w_boot_intx_pic_irq;
+    logic [IOAPIC_NUM_IRQS-1:0]    w_ioapic_cfg_mask;
+    logic                          w_ioapic_boot_intx_en;
+    logic [IOAPIC_NUM_IRQS-1:0]    w_boot_intx_reroute;
+
     // 8259 PIC (Programmable Interrupt Controller)
     apb4_pic_8259 u_pic (
         .pclk          (pclk),
@@ -521,7 +536,9 @@ module rlb_top #(
         .s_apb_PPROT   (pic_apb_PPROT),
         .s_apb_PRDATA  (pic_apb_PRDATA),
         .s_apb_PSLVERR (pic_apb_PSLVERR),
-        .irq_in        (pic_irq_in),
+        // Boot interrupt ORs in here: a masked IOAPIC pin also drives
+        // its mapped legacy input. Zero unless software enables it.
+        .irq_in        (pic_irq_in | w_boot_intx_pic_irq),
         .int_out       (pic_int_out)
     );
 
@@ -670,8 +687,41 @@ module rlb_top #(
         // is a board/chipset decision, and this subsystem has no INTx
         // concept of its own. Connected explicitly and left open so the
         // gap is visible rather than hidden behind PINMISSING.
-        .cfg_mask_vec     (),
-        .cfg_boot_intx_en ()
+        .cfg_mask_vec     (w_ioapic_cfg_mask),
+        .cfg_boot_intx_en (w_ioapic_boot_intx_en)
+    );
+
+    // ========================================================================
+    // Boot-interrupt companion
+    // ========================================================================
+    // THE MAP: IOAPIC pin n -> legacy PIC input n for n in 0..7, and no
+    // reroute above that. This is the 82093AA convention the ioapic overview
+    // already states -- pins 0-15 mirror the legacy IRQs -- narrowed to the
+    // eight inputs a single 8259 has. It encodes the boot-interrupt semantic
+    // exactly: one source, two possible destinations, chosen by whether the
+    // IOAPIC is delivering that pin.
+    //
+    // Pins 8 and above carry the no-reroute code, so a board that drives
+    // them sees no change. An integrator wanting a different assignment
+    // overrides PIC_MAP; the module defaults to rerouting nothing at all.
+    //
+    // Field 0 is the LSB, so the identity fields are written last.
+    localparam logic [IOAPIC_NUM_IRQS*4-1:0] BOOT_INTX_PIC_MAP = {
+        {(IOAPIC_NUM_IRQS-8){4'h8}},
+        4'h7, 4'h6, 4'h5, 4'h4, 4'h3, 4'h2, 4'h1, 4'h0
+    };
+
+    ioapic_boot_intx #(
+        .NUM_IRQS  (IOAPIC_NUM_IRQS),
+        .NUM_PIC   (8),
+        .PIC_IDX_W (4),
+        .PIC_MAP   (BOOT_INTX_PIC_MAP)
+    ) u_ioapic_boot_intx (
+        .irq_in       (ioapic_irq_in),
+        .cfg_mask     (w_ioapic_cfg_mask),
+        .boot_intx_en (w_ioapic_boot_intx_en),
+        .reroute      (w_boot_intx_reroute),
+        .pic_irq      (w_boot_intx_pic_irq)
     );
 
     // GPIO Controller
