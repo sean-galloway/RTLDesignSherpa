@@ -32,7 +32,13 @@ import pathlib
 import re
 import sys
 
-SKIP = ("venv", "__pycache__", "local_sim_build", ".git", "obj_dir")
+SKIP = ("venv", "__pycache__", "local_sim_build", ".git", "obj_dir",
+        # Worktrees are OTHER sessions' checkouts of this same repo. Scanning
+        # them double-counts every finding and attributes it to a path nobody
+        # can fix from here: the one scenario-level discard this tool reported
+        # on 2026-09-14 was a stale copy of a file the main tree had already
+        # fixed. Never report on a tree you are not in.
+        ".claude", "worktrees")
 
 
 def _returns_false(fn):
@@ -117,9 +123,59 @@ def scan(root):
     return findings
 
 
+# Ratchet baseline, in the shape filelist_registry.py already uses: a count
+# per file that may shrink but never grow. A hard gate is not an option here --
+# there are 100 pre-existing discards in helpers (generate_test_report,
+# wait_for_channel_idle, _set), and CONV-002's own lesson is that turning on
+# a wall of red "diagnoses nothing and blocks everyone".
+BASELINE = pathlib.Path(__file__).resolve().parents[2] / "bin" / "review" / \
+    "discarded_verdicts_baseline.json"
+
+
+def _ratchet(findings) -> int:
+    import collections, json
+    cur = collections.Counter()
+    for path, _l, _t, _m, _o in findings:
+        cur[_rel(path)] += 1
+    if not BASELINE.exists():
+        BASELINE.write_text(json.dumps(dict(sorted(cur.items())), indent=2) + "\n")
+        print(f"wrote baseline: {sum(cur.values())} discard(s) in {len(cur)} file(s)")
+        return 0
+    base = json.loads(BASELINE.read_text())
+    grew = {f: (base.get(f, 0), n) for f, n in cur.items() if n > base.get(f, 0)}
+    if grew:
+        print("Discarded verdicts GREW -- a False in these is invisible:\n")
+        for f, (was, now) in sorted(grew.items()):
+            print(f"  {f}: {was} -> {now}")
+        print("\nAssign and assert the result, or make the scenario assert "
+              "internally.\nIf a file legitimately shrank elsewhere, re-baseline "
+              "with --baseline.")
+        return 1
+    shrank = sum(base.get(f, 0) - cur.get(f, 0) for f in base)
+    print(f"PASS (ratchet): no file grew. {sum(cur.values())} discard(s) "
+          f"outstanding" + (f", {shrank} fewer than baseline" if shrank > 0 else "")
+          + ". See CONV-002.")
+    return 0
+
+
+def _rel(path):
+    try:
+        return str(pathlib.Path(path).resolve().relative_to(
+            pathlib.Path(__file__).resolve().parents[2]))
+    except ValueError:
+        return str(path)
+
+
 def main():
-    root = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
+    args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    flags = {a for a in sys.argv[1:] if a.startswith("-")}
+    root = pathlib.Path(args[0] if args else ".")
     findings = scan(root)
+    if "--baseline" in flags:
+        BASELINE.unlink(missing_ok=True)
+        return _ratchet(findings)
+    if "--ratchet" in flags:
+        return _ratchet(findings)
     if not findings:
         print("No discarded scenario verdicts.")
         return 0

@@ -236,3 +236,117 @@ fold it into a feature change.
 manual style so a single compiled design would not be half sync-reset and half
 async. That hazard no longer exists — every build is async — and those
 wrappers are on the macro too.
+
+## CONV-002 — the dnsize and upsize test files are decorative: 22/22 configs fail when asserted
+**Status:** CLOSED 2026-09-14 — all 11 scenarios asserted, 48/48 configs green
+across five seed bases, and the class is now ratcheted in the pre-commit hook.
+**Priority:** was P0 — two primitives had no working verification at all
+
+[[CONV-001]] found one scenario whose result was discarded. Sweeping for the
+pattern found that **every** scenario in both width-primitive test files does
+it, and that all of them are failing.
+
+| File | Scenarios discarded | Configs |
+|---|---|---|
+| `test_axi_data_dnsize.py` | 5 (all) | 16 |
+| `test_axi_data_upsize.py` | 4 (all) | 6 |
+| `test_dnsize_quick.py` | 1 (all) | — |
+
+**Assert the verdicts and 22 of 22 configurations fail.** They report green
+today only because nothing reads the return value.
+
+Failures seen on `axi_data_upsize` (32to256_no_sideband):
+
+```
+Transaction 0: Expected 1 wide beat, got 0
+Transaction 0: Expected wide_last=1 for early termination
+Continuous streaming: Expected 30 beats, got 31
+```
+
+`basic_accumulation` and `early_last` fail; `backpressure` and
+`continuous_streaming` pass. On dnsize, `burst_tracking` fails (that is
+CONV-001) and `basic_splitting` logs a data mismatch while still returning
+true.
+
+### Why this matters more than the individual failures
+
+`axi_data_upsize` and `axi_data_dnsize` are the primitives underneath
+`axi4_dwidth_converter_rd/wr`, which the bridge fabric instantiates. They
+have had no effective verification, and the four RTL bugs already found this
+round were all in paths whose tests did not check what they claimed.
+
+Whether these are RTL defects or scenario defects is **unknown** and must be
+settled one at a time -- the upsize "expected 1 wide beat, got 0" could be
+either.
+
+### Do not simply turn the asserts on
+
+22 red configurations diagnose nothing and block everyone. Take one scenario
+at a time: assert it, decide RTL-vs-test, fix, keep the assert.
+
+**Triage RESOLVED (2026-08-23, shared-scrub session; supersedes the earlier
+"not reproducible from the seed" paragraph, which was wrong):** the failures
+are fully DETERMINISTIC per (RANDOM_SEED, compiled binary). Replay recipe:
+grep "Seeding Python random module with N" from the failing test's captured
+output, then `RANDOM_SEED=N pytest <that test>` -- reproduced dnsize
+[512to128_rresp_burst_track_DUAL] identically, twice, against the sweep's own
+binary (seeds 1787509080 / 1787510673, matching RNG-state fingerprints). The
+earlier "same seed passed on replay" observations were all explained by
+REBUILDS between fail and replay: any recompile (including a WAVES=1 toggle)
+shifts Verilator codegen and with it the bad-seed set. Sweeps cluster
+failures because same-second xdist launches share one time-based seed.
+Full mechanics + the stacked-BFM teardown gap (four slaves driving one ready
+by sub-test 4 -- RDS-DV work) recorded in
+vault/handbook/dv/seeds-and-determinism.md.
+
+**Work — all closed 2026-09-14:**
+- [x] `axi_data_upsize`: basic_accumulation, early_last -- fixed in the
+      2026-08-23 session; **verified green here**, 18/18.
+- [x] `axi_data_dnsize`: basic_splitting -- **verified green**, 24/24, and
+      `dnsize_quick` 6/6. Burst tracking is [[CONV-010]] (was CONV-001).
+- [x] Every scenario verdict is asserted: 4 in upsize, 6 in dnsize, 1 in
+      dnsize_quick. `check_discarded_verdicts.py` reports ZERO scenario-level
+      discards in the main tree.
+- [x] Wired into the pre-commit hook. **Ratcheted, not hard-gated**: 110
+      discards already exist in HELPERS and a wall of red would violate this
+      task's own "do not simply turn the asserts on". It blocks only when a
+      file grows one. Mutation-verified: discarding `test_basic_splitting`
+      again reports `0 -> 1` and fails; restoring passes.
+
+**Verified, not assumed.** The 2026-08-23 status said "mostly resolved" and
+this session re-ran everything rather than trusting it:
+
+| suite | configs | result |
+|---|---|---|
+| `axi_data_upsize` | 18 | green |
+| `axi_data_dnsize` | 24 | green |
+| `dnsize_quick` | 6 | green |
+
+Re-run at `RDS_SEED_BASE` 11 / 222 / 3333 / 44444 / 555555 -- all green at
+every seed. That matters because the triage below established these failures
+are DETERMINISTIC per (seed, compiled binary), so a single green run would
+have proved almost nothing.
+
+**Found while sweeping, and left open deliberately:** 110 discarded verdicts
+remain repo-wide, all in helpers rather than scenarios -- but 60 of them are
+`generate_test_report()` in STREAM and RAPIDS, which documents itself as
+"True if no errors, False otherwise". Those ARE real discarded verdicts of
+this exact class, in a different area. Not converter work; filed as the
+ratchet baseline so they cannot grow, and they want their own task.
+
+**Also fixed:** the checker was scanning `.claude/worktrees/` -- other
+sessions'"'"' checkouts of this same repo. It double-counted every finding and
+reported the one scenario-level discard against a stale copy of a file the
+main tree had already fixed. Worktrees are now skipped.
+- [ ] Sweep the rest of the repo -- the tool finds 93 discards overall, most
+      of them helpers rather than scenarios, but
+      `dmas/stream/.../test_sram_controller_alloc.py:257`
+      (`run_full_allocation_test`) is the same shape and is unexamined.
+
+
+---
+
+
+---
+
+---

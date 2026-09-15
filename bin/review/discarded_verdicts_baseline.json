@@ -1,0 +1,21 @@
+{
+  "projects/components/converters/dv/tests/test_axil4_to_wb4.py": 2,
+  "projects/components/converters/dv/tests/test_wb4_to_axil4.py": 1,
+  "projects/components/dmas/rapids/dv/tests/fub_beats/test_alloc_ctrl_beats.py": 5,
+  "projects/components/dmas/rapids/dv/tests/fub_beats/test_descriptor_engine_beats.py": 9,
+  "projects/components/dmas/rapids/dv/tests/fub_beats/test_drain_ctrl_beats.py": 5,
+  "projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py": 11,
+  "projects/components/dmas/rapids/dv/tests/macro_beats/test_scheduler_group_beats.py": 6,
+  "projects/components/dmas/rapids/dv/tests/macro_beats/test_snk_sram_controller_beats.py": 3,
+  "projects/components/dmas/rapids/dv/tests/macro_beats/test_src_sram_controller_beats.py": 3,
+  "projects/components/dmas/rapids/dv/tests/top_beats/test_rapids_beats_top.py": 1,
+  "projects/components/dmas/stream/dv/tests/fub/test_scheduler.py": 18,
+  "projects/components/dmas/stream/dv/tests/macro/test_stream_core.py": 2,
+  "projects/components/dmas/stream/dv/tests/macro/test_stream_performance_profile.py": 2,
+  "projects/components/dmas/stream/dv/tests/top/test_stream_top.py": 5,
+  "projects/components/dmas/stream/dv/tests/top/test_stream_top_monbus.py": 1,
+  "projects/fpga-systems/Genesys2/stream/build-mon/dv/tests/test_stream_mon.py": 5,
+  "projects/fpga-systems/Genesys2/stream/build-obs/dv/tests/test_stream_mon.py": 3,
+  "val/amba/test_mon_cg_gating.py": 18,
+  "val/amba/test_wb4_monitor.py": 10
+}

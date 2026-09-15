@@ -68,6 +68,23 @@ if echo "$STAGED" | grep -qE '(^|/)test_[^/]*\.py$'; then
     fi
 fi
 
+# --- a scenario verdict must be read by somebody -----------------------------
+# A TB scenario that returns False on failure is only a test if the caller
+# looks at the answer. Written as a bare statement the failure goes into the
+# void and the suite stays green: CONV-002 found two entire converter test
+# files, 22 configurations, every scenario failing and every one reporting
+# pass. Ratcheted rather than hard-gated -- 110 discards already exist in
+# helpers, and CONV-002's own lesson is that a wall of red "diagnoses nothing
+# and blocks everyone". This blocks only on a file that GROWS one.
+if echo "$STAGED" | grep -qE '(^|/)test_[^/]*\.py$|/tbclasses/.*\.py$'; then
+    echo "[pre-commit] Checking discarded scenario verdicts..."
+    if ! out=$("$PY" "$REPO_ROOT/bin/review/check_discarded_verdicts.py" \
+                    "$REPO_ROOT" --ratchet 2>&1); then
+        echo "$out" >&2
+        fail=1
+    fi
+fi
+
 # --- a doc example must name ports the module actually has -------------------
 # Twenty-eight pages carried instantiations with invented ports. Every qc round
 # had the RTL and the example in the SAME bundle unit and missed them; two were
