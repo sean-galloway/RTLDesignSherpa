@@ -121,14 +121,18 @@ def main() -> int:
                 names = ', '.join(sorted(set(missing))[:6])
                 print(f'  {path}: example names ports the module lacks -- {names}')
     print(f'\n{pages} module pages checked, {bad} with a fabricated example')
-    # Five known findings in projects/components are tracked as TASK-077 and
-    # are being fixed by hand -- a whole-block regeneration drops the other
-    # instantiations in the same block. Ratchet: this must not GROW.
+    # One known finding in projects/components is tracked as TASK-077 and is
+    # being fixed by hand -- a whole-block regeneration drops the other
+    # instantiations in the same block. Was 9; the stream clocks-and-reset page
+    # (three findings) was fixed 2026-09-15, and the rest had already been
+    # fixed by their owners. The one left is rapids_core_beats, whose page
+    # documents three interfaces the module does not have at all, so it needs
+    # the rapids owner rather than a rename. Ratchet: this must not GROW.
     # Measured against a clean HEAD checkout, NOT the working tree. A dirty
     # tree carries other sessions' uncommitted fixes, so a baseline taken
     # there is lower than what CI sees -- I set 4 that way and CI failed with
     # 9. `git worktree add --detach /tmp/chk HEAD` and run it there.
-    BASELINE = 9
+    BASELINE = 1
     if bad > BASELINE:
         print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} (TASK-077)')
         return 1
