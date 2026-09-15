@@ -103,7 +103,7 @@ register block (base config at 0x100-0x3FF, monitor regfile at 0x1000).
 
 When `USE_AXI_MONITORS = 1`, AXI transaction monitors observe the read and write
 data masters; their packets are merged with the core descriptor-monitor packet
-by a `monbus_arbiter` and delivered through a `monbus_axil_axil_group` to an
+by a `monbus_arbiter` and delivered through a `monbus_axil4_axil4_group` to an
 AXI-Lite error-drain slave, an AXI-Lite capture master, and a `mon_irq`
 interrupt.
 
@@ -124,7 +124,7 @@ graph TB
     CORE -->|"desc mon pkt"| ARB["monbus_arbiter (3:1)"]
     RDMON --> ARB
     WRMON --> ARB
-    ARB --> GRP["monbus_axil_axil_group"]
+    ARB --> GRP["monbus_axil4_axil4_group"]
     GRP --> ERR["s_axil_err_*<br/>(error drain)"]
     GRP --> CAP["m_axil_mon_*<br/>(capture master)"]
     GRP --> IRQ["mon_irq"]

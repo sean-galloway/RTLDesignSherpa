@@ -226,25 +226,17 @@ MonBus consumers must:
 gaxi_fifo_sync #(
     .DATA_WIDTH(64),
     .DEPTH(256)
-) u_monbus_fifo (
-    .i_clk      (clk),
-    .i_rst_n    (rst_n),
-    .i_valid    (monbus_pkt_valid),
-    .i_data     (monbus_pkt_data),
-    .o_ready    (monbus_pkt_ready),
-    .o_valid    (fifo_valid),
-    .o_data     (fifo_data),
-    .i_ready    (consumer_ready)
+) u_gaxi_fifo_sync (
+    .axi_aclk              (axi_aclk),
+    .axi_aresetn           (axi_aresetn),
+    .wr_valid              (wr_valid),
+    .wr_ready              (wr_ready),
+    .wr_data               (wr_data),
+    .rd_ready              (rd_ready),
+    .count                 (count),
+    .rd_valid              (rd_valid),
+    .rd_data               (rd_data)
 );
-
-// Pattern 2: Software register interface
-always_ff @(posedge clk) begin
-    if (monbus_pkt_valid && monbus_pkt_ready) begin
-        sw_monbus_data <= monbus_pkt_data;
-        sw_monbus_valid <= 1'b1;
-    end
-end
-assign monbus_pkt_ready = !sw_monbus_valid || sw_read;
 ```
 
 ---

@@ -222,7 +222,7 @@ STAGE F (top rewrite) DONE + LINT-CLEAN (rapids_beats_top RC 0, 73 unique source
 - [x] Core wired src_/snk_ prefixed + data ports (m_axi_rd/m_axis source, m_axi_wr/s_axis sink).
 - [x] TWO descriptor masters + TWO control pairs at top boundary: src_m_axi_desc_* / snk_m_axi_desc_*,
       src_m_axi_ctrlrd_*/snk_m_axi_ctrlrd_*, src_m_axi_ctrlwr_*/snk_m_axi_ctrlwr_*.
-- [x] SINGLE merged monitor egress: core.mon_* -> monbus_axil_axil_group -> m_axil_mon. Old top
+- [x] SINGLE merged monitor egress: core.mon_* -> monbus_axil4_axil4_group -> m_axil_mon. Old top
       USE_AXI_MONITORS tap+3-source-arbiter block REMOVED (taps relocate into halves later). Egress
       packet-filter cfg sourced from hwif_out.SRC.MON.* (shared egress; SNK.MON filter fields exist
       but not yet wired to the shared egress -- per-half egress split is a later refinement).
@@ -266,7 +266,7 @@ STAGE G step 3 (top TB, split + AXIS + APB-by-name) DONE + GREEN:
       channel=apb_addr[5:3], LOW/HIGH=apb_addr[2], desc addr written LOW-then-HIGH (HIGH blocks until
       engine accepts); SRC base 0x000, SNK base 0x1000.
 - [x] m_axil_mon backed by always-accept AXIL write responder (split top has NO USE_AXI_MONITORS
-      param -- monbus_axil_axil_group is ALWAYS instantiated + always consumes the core's merged
+      param -- monbus_axil4_axil4_group is ALWAYS instantiated + always consumes the core's merged
       monbus, so the core can't stall on monbus backpressure). s_axil_err quiesced; mon_irq ignored.
       APB_ADDR_WIDTH pinned to 13 (bit[12]=half). Removed stale USE_AXI_MONITORS param + obsolete
       fill/drain smoke/datapath/stress/monbus tests.
@@ -294,7 +294,7 @@ semaphore memory) are all verified end-to-end at the top through the real APB re
 
 STAGE G step 4 (characterization harness) STARTED:
 - [x] rapids_char_harness.sv (+ flists/rapids_char_harness.f) built + LINT-CLEAN (RC 0). Location:
-      projects/NexysA7/rapids_characterization/flows-rapids-beats/. Wraps rapids_beats_top with:
+      projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/. Wraps rapids_beats_top with:
       axis4_master_pattern_gen -> s_axis (sink stimulus); axis4_slave_pattern_check <- m_axis (source
       check); axi4_slave_rd_pattern_gen <- m_axi_rd (source data, 512b); axi4_slave_wr_crc_check <-
       m_axi_wr (sink verify, 512b); TWO sdpram_slave_axi4_axi4 desc RAMs (DUT reads port A, host writes
@@ -317,7 +317,7 @@ STAGE G step 4 (characterization harness) STARTED:
 - [x] rapids_char_harness.sv REWIRED to the multi-channel AXIS blocks (NUM_CHANNELS, cfg_gen_channel_mask,
       per-channel o_gen_expected_crc/o_chk_actual_crc replacing the old scalar signatures). Lint RC 0.
       All four self-check blocks in the harness share identical LFSR/CRC params.
-- [x] cocotb harness TB (projects/NexysA7/rapids_characterization/flows-rapids-beats/dv/
+- [x] cocotb harness TB (projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/dv/
       rapids_char_harness_tb.py + test_rapids_char_harness.py) GREEN. Drives the harness like the host:
       APBMaster on s_apb + two RegisterMap (SRC 0x0000 / SNK 0x1000) config BY NAME; descriptors loaded
       via desc-RAM host write ports (create_axi4_master_wr, 256b); kicked over apb4todescr windows.
@@ -330,7 +330,7 @@ STAGE G step 4 (characterization harness) STARTED:
       the per-channel CRCs would collapse to ch0. No RTL/harness edits needed.
 STAGE G step 4 / task 55 (FPGA enablement) — BOARD RTL DONE + LINT-CLEAN:
 - [x] rapids_char_top.sv (NexysA7 pin-top) + rapids_char_top.xdc + flists/rapids_char_top.f, under
-      projects/NexysA7/rapids_characterization/flows-rapids-beats/. Lint RC 0 (clean even w/o -Wno-fatal,
+      projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/. Lint RC 0 (clean even w/o -Wno-fatal,
       98 sources). uart_axil_bridge -> AXIL router: 0x0_0000 DUT-REG (apb4_master -> harness s_apb ->
       SRC/SNK reg spaces + kick windows); 0x1_0000 DESC-LOAD (8x32b -> 256b descriptor -> AXI4 write to
       desc_src/desc_snk host ports, half-select via data[0], DESC_KICK issues); 0x2_0000 CSR (cfg_gen_*/
@@ -372,7 +372,7 @@ Each half (rapids_src_beats / rapids_snk_beats) instantiates its OWN monbus_arbi
 (rtl/amba/monitor/monbus_arbiter.sv) aggregating that half's monitor source(s) -> single
 per-half monitor_packet_t stream. rapids_core_beats instantiates ONE MORE monbus_arbiter
 merging src_mon + snk_mon -> a SINGLE mon output. The top then routes that single stream to
-the axil-mon module (monbus_axil_axil_group -> m_axil_mon). Half mon interface widened from
+the axil-mon module (monbus_axil4_axil4_group -> m_axil_mon). Half mon interface widened from
 64-bit to full monitor_packet_t + monbus_timestamp_t. Data-path AXI monitor taps (rd tap in
 src, wr tap in snk, under USE_AXI_MONITORS) become the 2nd client of each half's arbiter.
 

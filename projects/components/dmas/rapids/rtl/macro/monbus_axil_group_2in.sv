@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
 // Module: monbus_axil_group_2in
-// Purpose: RAPIDS 2-input wrapper around the shared monbus_axil_axil_group
+// Purpose: RAPIDS 2-input wrapper around the shared monbus_axil4_axil4_group
 //          (member of the monbus_<p1>_<p2>_group family; this 2in
 //          wrapper merges source + sink monbus streams via monbus_arbiter
 //          before feeding the AXIL/AXIL shared group).
@@ -188,7 +188,7 @@ module monbus_axil_group_2in
     // ----------------------------------------------------------------
     // Shared single-input AXIL group consumes the arbitrated stream
     // ----------------------------------------------------------------
-    monbus_axil_axil_group #(
+    monbus_axil4_axil4_group #(
         .FIFO_DEPTH_ERR       (FIFO_DEPTH_ERR),
         .FIFO_DEPTH_WRITE     (FIFO_DEPTH_WRITE),
         .ADDR_WIDTH           (ADDR_WIDTH),

@@ -72,7 +72,7 @@ and interrupt).
      |                        |
      |                   monbus_arbiter (3:1)
      |                        |
-     |               monbus_axil_axil_group
+     |               monbus_axil4_axil4_group
      |                 |          |         |
      |          s_axil_err_*  m_axil_mon_*  mon_irq
      v
@@ -101,7 +101,7 @@ master (`m_axi_rd`) and an `axi4_master_wr_mon` on the write master
 (`m_axi_wr`). Their `monitor_packet_t` outputs are combined with the core's
 descriptor-monitor packet (zero-extended to 128 bits) by a 3-input
 `monbus_arbiter` (round-robin, with input/output skid buffers). The combined
-stream feeds `monbus_axil_axil_group`, which provides:
+stream feeds `monbus_axil4_axil4_group`, which provides:
 
 - `s_axil_err_*` -- AXI-Lite (32-bit) **error-drain slave**: CPU reads captured
   error events from the error FIFO.
