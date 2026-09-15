@@ -1009,32 +1009,75 @@ module axi_monitor_reporter (
 	assign err_valid_f = err_valid && !filtered_mask[err_idx];
 	assign to_valid_f = to_valid && !filtered_mask[to_idx];
 	assign compl_valid_f = compl_valid && !filtered_mask[compl_idx];
+	localparam [1:0] CLS_ERR = 2'd0;
+	localparam [1:0] CLS_TO = 2'd1;
+	localparam [1:0] CLS_COMPL = 2'd2;
+	wire [2:0] w_cls_valid;
+	reg [1:0] r_grant_ptr;
+	reg [1:0] w_grant_sel;
+	reg w_grant_valid;
+	assign w_cls_valid = {compl_valid_f, to_valid_f, err_valid_f};
+	function automatic [1:0] rot3;
+		input reg [1:0] base;
+		input reg [1:0] off;
+		reg [2:0] sum;
+		begin
+			sum = {1'b0, base} + {1'b0, off};
+			if (sum >= 3'd3)
+				sum = sum - 3'd3;
+			rot3 = sum[1:0];
+		end
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_grant_sel = CLS_ERR;
+		w_grant_valid = 1'b0;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] k;
+			for (k = 0; k < 3; k = k + 1)
+				begin : sv2v_autoblock_2
+					reg [1:0] cls;
+					cls = rot3(r_grant_ptr, k[1:0]);
+					if (!w_grant_valid && w_cls_valid[cls]) begin
+						w_grant_sel = cls;
+						w_grant_valid = 1'b1;
+					end
+				end
+		end
+	end
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		w_fifo_wr_valid = 1'b0;
 		w_fifo_wr_data = 85'b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000;
-		if (err_valid_f) begin
-			w_fifo_wr_valid = 1'b1;
-			w_fifo_wr_data[84-:4] = err_type;
-			w_fifo_wr_data[80-:8] = err_code;
-			w_fifo_wr_data[72-:9] = err_chan;
-			w_fifo_wr_data[63-:64] = err_data;
-		end
-		else if (to_valid_f) begin
-			w_fifo_wr_valid = 1'b1;
-			w_fifo_wr_data[84-:4] = to_type;
-			w_fifo_wr_data[80-:8] = to_code;
-			w_fifo_wr_data[72-:9] = to_chan;
-			w_fifo_wr_data[63-:64] = to_data;
-		end
-		else if (compl_valid_f) begin
-			w_fifo_wr_valid = 1'b1;
-			w_fifo_wr_data[84-:4] = compl_type;
-			w_fifo_wr_data[80-:8] = compl_code;
-			w_fifo_wr_data[72-:9] = compl_chan;
-			w_fifo_wr_data[63-:64] = compl_data;
-		end
+		if (w_grant_valid)
+			(* full_case, parallel_case *)
+			case (w_grant_sel)
+				CLS_ERR: begin
+					w_fifo_wr_valid = 1'b1;
+					w_fifo_wr_data[84-:4] = err_type;
+					w_fifo_wr_data[80-:8] = err_code;
+					w_fifo_wr_data[72-:9] = err_chan;
+					w_fifo_wr_data[63-:64] = err_data;
+				end
+				CLS_TO: begin
+					w_fifo_wr_valid = 1'b1;
+					w_fifo_wr_data[84-:4] = to_type;
+					w_fifo_wr_data[80-:8] = to_code;
+					w_fifo_wr_data[72-:9] = to_chan;
+					w_fifo_wr_data[63-:64] = to_data;
+				end
+				CLS_COMPL: begin
+					w_fifo_wr_valid = 1'b1;
+					w_fifo_wr_data[84-:4] = compl_type;
+					w_fifo_wr_data[80-:8] = compl_code;
+					w_fifo_wr_data[72-:9] = compl_chan;
+					w_fifo_wr_data[63-:64] = compl_data;
+				end
+				default:
+					;
+			endcase
 	end
 	assign w_fifo_rd_ready = !monbus_valid;
 	reg [MAX_TRANSACTIONS - 1:0] w_events_to_mark;
@@ -1045,6 +1088,11 @@ module axi_monitor_reporter (
 	reg w_mark_is_error;
 	reg w_mark_is_compl;
 	assign w_fifo_wr_accept = w_fifo_wr_valid && w_fifo_wr_ready;
+	always @(posedge aclk or negedge aresetn)
+		if (!aresetn)
+			r_grant_ptr <= CLS_ERR;
+		else if (w_fifo_wr_accept)
+			r_grant_ptr <= rot3(w_grant_sel, 2'd1);
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -1054,18 +1102,24 @@ module axi_monitor_reporter (
 		w_mark_idx = 1'sb0;
 		w_mark_is_error = 1'b0;
 		w_mark_is_compl = 1'b0;
-		if (err_valid_f) begin
-			w_mark_idx = err_idx;
-			w_mark_is_error = 1'b1;
-		end
-		else if (to_valid_f) begin
-			w_mark_idx = to_idx;
-			w_mark_is_error = 1'b1;
-		end
-		else if (compl_valid_f) begin
-			w_mark_idx = compl_idx;
-			w_mark_is_compl = 1'b1;
-		end
+		if (w_grant_valid)
+			(* full_case, parallel_case *)
+			case (w_grant_sel)
+				CLS_ERR: begin
+					w_mark_idx = err_idx;
+					w_mark_is_error = 1'b1;
+				end
+				CLS_TO: begin
+					w_mark_idx = to_idx;
+					w_mark_is_error = 1'b1;
+				end
+				CLS_COMPL: begin
+					w_mark_idx = compl_idx;
+					w_mark_is_compl = 1'b1;
+				end
+				default:
+					;
+			endcase
 		if (w_fifo_wr_accept) begin
 			w_events_to_mark[w_mark_idx] = 1'b1;
 			w_error_events[w_mark_idx] = w_mark_is_error;
@@ -1077,7 +1131,7 @@ module axi_monitor_reporter (
 		if (_sv2v_0)
 			;
 		w_auto_retire = 1'sb0;
-		begin : sv2v_autoblock_1
+		begin : sv2v_autoblock_3
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 				if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && filtered_mask[idx])
@@ -1218,7 +1272,7 @@ module axi_monitor_reporter (
 	endfunction
 	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
-			begin : sv2v_autoblock_2
+			begin : sv2v_autoblock_4
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					r_trans_table_local[((MAX_TRANSACTIONS - 1) - idx) * 285+:285] <= 1'sb0;
@@ -1232,14 +1286,14 @@ module axi_monitor_reporter (
 			r_event_channel <= 1'sb0;
 		end
 		else begin
-			begin : sv2v_autoblock_3
+			begin : sv2v_autoblock_5
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					r_trans_table_local[((MAX_TRANSACTIONS - 1) - idx) * 285+:285] <= trans_table[((MAX_TRANSACTIONS - 1) - idx) * 285+:285];
 			end
 			if (monbus_valid && monbus_ready)
 				monbus_valid <= 1'b0;
-			begin : sv2v_autoblock_4
+			begin : sv2v_autoblock_6
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					if (!r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])

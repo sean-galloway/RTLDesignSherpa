@@ -144,7 +144,7 @@ async def setup_dut(dut, *, error_en=1, compl_en=1, timeout_en=1,
     """Clock, reset, quiet configuration. Returns the table model."""
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
 
-    tbl = TransTable(dut)
+    tbl = TransTable(dut, n=int(os.environ.get('N_SLOTS', str(N_SLOTS))))
     tbl.push()
 
     dut.aresetn.value = 0
@@ -574,7 +574,7 @@ async def cocotb_test_timeout_enable_gates_detection(dut):
 # ============================================================================
 # PyTest runners
 # ============================================================================
-def _run_pktgen(request, testcase):
+def _run_pktgen(request, testcase, n_slots=N_SLOTS):
     """Shared cocotb-test invocation for the packet-generation harness."""
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
 
@@ -602,13 +602,14 @@ def _run_pktgen(request, testcase):
             raise FileNotFoundError(f"RTL source not found: {src}")
 
     rtl_parameters = {
-        'MAX_TRANSACTIONS': str(N_SLOTS),
+        'MAX_TRANSACTIONS': str(n_slots),
         'INTR_FIFO_DEPTH':  '8',
         'IS_READ':          '1',
     }
 
     extra_env = {
         'DUT':              dut_name,
+        'N_SLOTS':          str(n_slots),
         'LOG_PATH':         log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'TEST_CLK_PERIOD':  '10',
@@ -667,3 +668,248 @@ def test_axi_monitor_pktgen_timeout_fires(request):
 def test_axi_monitor_pktgen_timeout_enable(request):
     """Issue #41: cfg_timeout_enable actually gates detection."""
     _run_pktgen(request, "cocotb_test_timeout_enable_gates_detection")
+
+
+# ============================================================================
+# TASK-083 -- MEASUREMENT ONLY: which class wins a monbus write?
+# ============================================================================
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_timeout_starvation(dut):
+    """Count reporter grants per class under deliberate contention.
+
+    TASK-083 measures 21 timeout packets against 13k of every other class from
+    the same board traffic -- ~= the table depth, the shape of "each slot
+    reports once and is never reusable". Its suspect (1) is arbitration
+    starvation in axi_monitor_reporter, whose write mux is a strict
+    `if (err) / else if (to) / else if (compl)` chain with ONE FIFO write per
+    cycle, and whose marking block re-derives the same priority so exactly one
+    slot is marked reported. trans_mgr's w_can_cleanup then gates TRANS_ERROR
+    on event_reported, so a slot that never wins is never freed.
+
+    BUT the entry's stated mechanism does not follow from its stated priority:
+    it says timeout "may never win under completion traffic", while compl is
+    the LOWEST priority. If the priority is as written, completions cannot
+    starve timeout -- only errors can. This measures both arms rather than
+    assuming which.
+
+    Measurement only: no assertion on the result beyond an armed check. Read
+    the numbers, then decide the fix.
+    """
+    _apply_seed()
+    n = int(os.environ.get('N_SLOTS', str(N_SLOTS)))
+    half = n // 2
+
+    async def measure(competitor_state, label):
+        """Half the slots timed out, half held by `competitor_state`."""
+        tbl = await setup_dut(dut, timeout_en=1, error_en=1, compl_en=1,
+                              addr_cnt=2, data_cnt=0xF, resp_cnt=0xF)
+        captured = []
+        start_capture(dut, captured)
+
+        async def ticker():
+            while True:
+                for _ in range(3):
+                    await RisingEdge(dut.aclk)
+                    dut.timer_tick.value = 0
+                await RisingEdge(dut.aclk)
+                dut.timer_tick.value = 1
+        tick = cocotb.start_soon(ticker())
+
+        # Slots [0, half): stalled in address phase so their timer expires.
+        for i in range(half):
+            tbl.set(i, valid=1, state=TRANS_ADDR_PHASE, cmd_received=0,
+                    addr=0xD0000000 + i * 0x40, channel=i)
+        # Slots [half, n): the competing class. All phases done, so no timer
+        # runs and timeout_detected stays clear -- these are NOT timeouts.
+        for i in range(half, n):
+            tbl.set(i, valid=1, state=competitor_state, cmd_received=1,
+                    data_started=1, data_completed=1, resp_received=1,
+                    addr=0xC0000000 + i * 0x40, channel=i, event_code=0x4)
+        tbl.push()
+
+        # Let the timers expire, then act as trans_mgr for the timed-out half.
+        for _ in range(40 * 4):
+            await RisingEdge(dut.aclk)
+            await ReadOnly()
+            if int(dut.timeout_detected.value) & ((1 << half) - 1) == (1 << half) - 1:
+                break
+        await RisingEdge(dut.aclk)
+        detected = int(dut.timeout_detected.value)
+        for i in range(half):
+            if detected & (1 << i):
+                tbl.set(i, state=TRANS_ERROR)
+        tbl.push()
+        await idle(dut, 400)
+
+        tick.kill()
+        by_class = {}
+        for pkt in captured:
+            by_class[pkt['packet_type']] = by_class.get(pkt['packet_type'], 0) + 1
+        flags = int(dut.event_reported_flags.value)
+        dut._log.info(
+            f"[{label}] slots={n} timed_out={half} competitor={n-half} "
+            f"timeout_detected={detected:#0{n+2}b} event_reported={flags:#0{n+2}b}")
+        dut._log.info(
+            f"[{label}] grants: error={by_class.get(PKT_ERROR,0)} "
+            f"timeout={by_class.get(PKT_TIMEOUT,0)} "
+            f"compl={by_class.get(PKT_COMPLETION,0)} "
+            f"threshold={by_class.get(PKT_THRESHOLD,0)} "
+            f"perf={by_class.get(PKT_PERF,0)} total={len(captured)}")
+        return by_class, detected, flags
+
+    err_arm, det_e, flags_e = await measure(TRANS_ERROR, "vs ERROR")
+    cmp_arm, det_c, flags_c = await measure(TRANS_COMPLETE, "vs COMPL")
+
+    # Armed only: a silent DUT would make every number above meaningless.
+    assert det_e and det_c, (
+        f"timeout_detected never asserted in one or both arms "
+        f"(error arm {det_e:#x}, compl arm {det_c:#x}) -- the stimulus did not "
+        f"create timeouts, so the grant counts say nothing")
+
+    dut._log.info(
+        f"TASK-083 SUMMARY: timeout grants -- vs ERROR "
+        f"{err_arm.get(PKT_TIMEOUT,0)}, vs COMPL {cmp_arm.get(PKT_TIMEOUT,0)}")
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_timeout_starvation_sustained(dut):
+    """TASK-083: does timeout EVER win while a higher class is always pending?
+
+    The finite-burst measurement above showed timeout winning all 8 grants in
+    both arms -- but that only proves drain ORDER. With one FIFO write per
+    cycle and 16 total events, everything drains in ~16 cycles whatever the
+    priority is. The board sees 13,206 competing events SUSTAINED across a run,
+    so the higher-priority class always has something pending. That is the
+    condition under which a strict if/else-if mux can starve a lower class, and
+    it is what this reproduces.
+
+    Competitors are continuously re-armed: a slot whose event_reported is set
+    is driven invalid for a cycle (w_slot_retired requires !valid or
+    TRANS_IDLE to clear the flag) and then re-armed with a fresh error event.
+    The 8 timed-out slots are set up once and never touched again.
+
+    Measurement only. 0 timeout grants over the window = starvation confirmed;
+    8 = refuted.
+    """
+    _apply_seed()
+    n = int(os.environ.get('N_SLOTS', str(N_SLOTS)))
+    n_to = n // 2                      # slots 0..n_to-1 time out
+    comp = list(range(n_to, n))        # the rest compete, continuously
+
+    tbl = await setup_dut(dut, timeout_en=1, error_en=1, compl_en=1,
+                          addr_cnt=2, data_cnt=0xF, resp_cnt=0xF)
+    captured = []
+    start_capture(dut, captured)
+
+    async def ticker():
+        while True:
+            for _ in range(3):
+                await RisingEdge(dut.aclk)
+                dut.timer_tick.value = 0
+            await RisingEdge(dut.aclk)
+            dut.timer_tick.value = 1
+    tick = cocotb.start_soon(ticker())
+
+    # Stall the timeout half in address phase until their timers expire.
+    for i in range(n_to):
+        tbl.set(i, valid=1, state=TRANS_ADDR_PHASE, cmd_received=0,
+                addr=0xD0000000 + i * 0x40, channel=i)
+    tbl.push()
+    for _ in range(40 * 4):
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        if int(dut.timeout_detected.value) & ((1 << n_to) - 1) == (1 << n_to) - 1:
+            break
+    await RisingEdge(dut.aclk)
+    detected = int(dut.timeout_detected.value)
+
+    # Act as trans_mgr: detected timeouts move to TRANS_ERROR. Never touched again.
+    for i in range(n_to):
+        if detected & (1 << i):
+            tbl.set(i, state=TRANS_ERROR)
+
+    def arm(i, tag):
+        # An ERROR entry with no timeout flag: all phases done so no timer runs.
+        tbl.set(i, valid=1, state=TRANS_ERROR, cmd_received=1, data_started=1,
+                data_completed=1, resp_received=1,
+                addr=0xC0000000 + (tag & 0xFFFF), channel=i, event_code=0x4)
+    for k, i in enumerate(comp):
+        arm(i, k)
+    tbl.push()
+
+    WINDOW = 3000
+    tag = len(comp)
+    pending_free = []
+    first_timeout_cycle = None
+    for cyc in range(WINDOW):
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        flags = int(dut.event_reported_flags.value)
+        if first_timeout_cycle is None:
+            for p in captured:
+                if p['packet_type'] == PKT_TIMEOUT:
+                    first_timeout_cycle = cyc
+                    break
+        to_free = [i for i in comp if flags & (1 << i)]
+        await RisingEdge(dut.aclk)          # leave ReadOnly before driving
+        if pending_free:
+            for i in pending_free:
+                tag += 1
+                arm(i, tag)
+            pending_free = []
+            tbl.push()
+        if to_free:
+            for i in to_free:
+                tbl.free(i)
+            pending_free = to_free
+            tbl.push()
+
+    tick.kill()
+    by_class = {}
+    for pkt in captured:
+        by_class[pkt['packet_type']] = by_class.get(pkt['packet_type'], 0) + 1
+
+    dut._log.info(
+        f"[SUSTAINED] slots={n} timed_out={n_to} competitors={len(comp)} "
+        f"window={WINDOW} cycles")
+    dut._log.info(
+        f"[SUSTAINED] grants: error={by_class.get(PKT_ERROR,0)} "
+        f"timeout={by_class.get(PKT_TIMEOUT,0)} "
+        f"compl={by_class.get(PKT_COMPLETION,0)} total={len(captured)}")
+    dut._log.info(
+        f"[SUSTAINED] first timeout grant at cycle {first_timeout_cycle}; "
+        f"timeout_detected={detected:#x} "
+        f"event_reported={int(dut.event_reported_flags.value):#x}")
+
+    # Armed FIRST: the competing class must actually have been busy, or a
+    # timeout count from this window says nothing about starvation.
+    assert by_class.get(PKT_ERROR, 0) > 100, (
+        f"only {by_class.get(PKT_ERROR,0)} error grants in {WINDOW} cycles -- "
+        f"the competing class was not sustained, so a timeout count from this "
+        f"run says nothing about starvation")
+    assert detected, "no timeouts were ever detected; stimulus failed"
+
+    # THE REGRESSION. Eight transactions timed out and were moved to
+    # TRANS_ERROR; over a 3000-cycle window not one may be left unreported
+    # merely because a higher-priority class always had work. The reporter's
+    # write mux is a strict if/else-if chain (error > timeout > compl) with one
+    # FIFO write per cycle, so a continuously-pending error class starves
+    # timeout outright -- and trans_mgr's w_can_cleanup gates freeing on
+    # event_reported, so those slots are never recycled either. That is the
+    # board's "timeout ~= table depth" signature. TASK-083.
+    assert by_class.get(PKT_TIMEOUT, 0) > 0, (
+        f"ZERO timeout grants in {WINDOW} cycles while error took "
+        f"{by_class.get(PKT_ERROR,0)}. All {n_to} timed-out slots were detected "
+        f"(timeout_detected={detected:#x}) and none was reported "
+        f"(event_reported={int(dut.event_reported_flags.value):#x}), so none can "
+        f"ever be freed. The priority mux needs a fairness term. TASK-083.")
+
+
+def test_axi_monitor_pktgen_timeout_starvation_sustained(request):
+    """TASK-083: sustained-competition measurement at board table depth."""
+    _run_pktgen(request, "cocotb_test_timeout_starvation_sustained", n_slots=16)
+
+
+def test_axi_monitor_pktgen_timeout_starvation(request):
+    """TASK-083 measurement at the board's table depth (16, not the default 4)."""
+    _run_pktgen(request, "cocotb_test_timeout_starvation", n_slots=16)

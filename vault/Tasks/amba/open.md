@@ -508,7 +508,10 @@ name ports which do not exist). The test-side is this task.
 **Priority:** P2. The class is proven reachable but its throughput is not, so
 no campaign can use timeout counts as evidence of anything.
 
-**Status:** open 2026-09-07. Scoped only, deliberately not fixed.
+**Status:** FIXED IN COSIM 2026-09-15 -- rotating-priority grant in
+`axi_monitor_reporter.sv`, gated by a sustained-competition regression.
+Entry stays OPEN: the Done-when is board evidence, which is still owed.
+Was: open 2026-09-07, scoped only, deliberately not fixed.
 
 **The measurement, which is the part worth keeping.** Genesys 2 `build-obs`
 (4ch, 60 MHz, three reps across both observers, slave response delayed 2048
@@ -566,6 +569,74 @@ the RTL pointers below as "true on 2026-09-07", not as durable addresses:
 `axi_monitor_trans_mgr.sv` (`w_can_cleanup`). **If the monitor is rewritten and
 those files change shape, this page is the surviving copy — re-point it, do not
 delete it, until a campaign shows timeout tracking the other classes.**
+
+**MEASURED AND FIXED 2026-09-15 (fix landed; entry stays OPEN -- see Done when).**
+
+**Suspect (1) was right, but its stated MECHANISM was wrong, and the wrong
+mechanism is the expensive part.** This page said timeout "may never win under
+completion traffic". Completion is the LOWEST of the three priorities, so it
+cannot starve timeout, and anyone who instrumented completions -- as this page
+told them to -- would have found nothing and concluded the suspect was wrong.
+Measured on a 16-slot table, both arms, same harness:
+
+| competing class | timeout grants |
+|---|---|
+| vs COMPL | 8 of 8 |
+| vs ERROR | 8 of 8 (finite burst) |
+| vs ERROR, SUSTAINED | **0** |
+
+Only ERROR starves timeout, and only when it is CONTINUOUSLY pending.
+
+**Why the finite-burst arms both said "no bug".** With one FIFO write per cycle
+and 16 total events, everything drains in ~16 cycles whatever the priority is --
+a finite burst measures drain ORDER, not starvation. The board sees ~13,206
+competing events sustained across a run. Reproducing that needs the higher class
+to always have something pending:
+
+    sustained 3000-cycle window, 8 timed-out slots + 8 continuously re-armed
+    error slots:   error=2999  timeout=0  compl=0
+                   timeout_detected=0xff   event_reported=0x600
+
+Eight slots detected as timed out; not one ever reported. And because
+trans_mgr's `w_can_cleanup` gates freeing on `event_reported`, those slots are
+never freed either -- which is exactly this page's "~= table depth" signature.
+Suspects (2) monbus FIFO backpressure and (3) a stuck phase-pending were not
+needed to explain it and were not implicated.
+
+**The fix: a rotating-priority grant in `axi_monitor_reporter.sv`.** As this
+page required, it is a fairness term in the priority mux and NOT a change to the
+retire policy; `w_auto_retire` is keyed off state and `cfg_*_enable` only and is
+untouched, and TRANS_ERROR was NOT added to any retire path.
+
+The one non-obvious constraint: the write mux and the event-MARKING block each
+re-derived the same `err > to > compl` chain INDEPENDENTLY. A fairness term
+applied to one alone would write one class's packet while crediting a different
+class's slot -- worse than the starvation. So the grant is computed once
+(`w_grant_sel`/`w_grant_valid`) and both consume it. The three classes are
+disjoint by construction (reporter_error takes ERROR&&!detected plus ORPHANED,
+reporter_timeout takes ERROR&&detected, reporter_compl takes COMPLETE), so
+rotation can never double-claim a slot. The pointer advances only on an
+ACCEPTED write -- advancing on a refused grant would rotate past a class that
+never got to report.
+
+    same sustained window, after the fix:
+                   error=2991  timeout=8  compl=0
+                   first timeout grant at cycle 3
+                   event_reported=0x3ff   (was 0x600)
+
+All eight timed-out slots now report and become reclaimable, and the dominant
+class gives up 8 of 2999 grants to get it.
+
+**Regression:** `cocotb_test_timeout_starvation_sustained` in
+`val/amba/test_axi_monitor_pktgen.py` is the RED-to-GREEN gate (it arms on
+`error > 100` first, so a quiet run cannot pass it vacuously);
+`cocotb_test_timeout_starvation` is the finite-burst control that must stay
+green. Both at `n_slots=16`, seed pinned.
+
+**This entry stays OPEN.** The Done-when below is a Genesys 2 `build-obs`
+campaign clearing `host_obs_matrix.py` at 7/7, which cannot be run on the
+development host. The cosim defect is fixed and gated; the board evidence is
+still owed.
 
 **Done when:** a monitors-on campaign drives timeout packets into the same
 order of magnitude as the other classes from the same traffic, and
