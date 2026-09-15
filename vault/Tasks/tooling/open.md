@@ -525,16 +525,26 @@ the standing instruction for every area -- has been exiting 2 without testing
 anything, and the failure is 3 lines into a long log where it reads like
 progress. It affects all six `test-all-*` targets, which share the loop.
 
-`projects/components/Makefile` is UNMODIFIED vs HEAD, so this is committed
-state, not a local edit. The rename landed in f28581b3d
-("refactor(apbx_xbar): rename apb4_xbar -> apbx_xbar").
+**FIXED 2026-09-14** (Sean: "I fixed the apbx-xbar a couple of weeks ago.
+That is the correct reference" -- the hyphenated directory is canonical, so
+the Makefile was simply the stale side).
 
-**The one-word fix** is `apbx_xbar` -> `apbx-xbar` in `COMPONENTS`. Verified
-non-invasively: with the hyphen, `make -n -C apbx-xbar/dv/tests
-run-all-full-parallel` resolves for all eight components (the targets come
-from an included .mk, not each local Makefile). Deliberately NOT applied here
--- it is tooling, outside the RLB crossbar change that found it, and it wants
-its own commit plus a real regression behind it.
+The history is a two-step rename that half-landed. `f28581b3d`
+("refactor(apbx_xbar): rename apb4_xbar -> apbx_xbar", 2026-08-12) touched the
+Makefile; `95f7006fc` ("...+ hyphenated dir", the SAME DAY) renamed the
+directory to `apbx-xbar`. The Makefile kept step 1's name and was never
+advanced to step 2b's, so `COMPONENTS` has pointed at a path that stopped
+existing hours later. An earlier note here blamed f28581b3d for the rename;
+that was wrong -- f28581b3d is the commit that was left BEHIND by it.
+
+Fix applied: `apbx_xbar` -> `apbx-xbar` in `COMPONENTS`, plus the matching
+`make lint-apbx_xbar` help line (the `lint-$(1)` template derives its target
+name from COMPONENTS, so the advertised name moves with it). Only PATH
+references changed -- the SystemVerilog modules stay `apbx_xbar_*`.
+
+**The lint half of this entry stays OPEN.** `lint-apbx-xbar` now resolves the
+path but still fails, for the separate reason above: apbx-xbar has no
+`rtl/Makefile` providing `lint-all`. Same for retro_legacy_blocks.
 
 **Workaround until then:** override the variable rather than editing the file:
 
