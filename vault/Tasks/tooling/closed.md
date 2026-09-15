@@ -453,9 +453,36 @@ exited 0, `lint-apbx_xbar` still pointed at the pre-rename `apbx_xbar/` path,
 and `lint-shims`/`lint-hive` named areas that do not exist. A target that
 reports success for a missing area is worse than one that errors.
 
-**Not fixed, deliberately:** bridge. Its Makefile is a genuine gate -- it loops
-its filelists, lints each with `--top-module`, counts failures and carries real
-lint waivers -- so converting it would have thrown away the waivers to make it
-resemble the others. It is slow (54 filelists, each flattened then linted) and
-buffers into its own log, which reads as a hang from the outside; it is not one.
-I killed it twice on that mistaken reading before probing at the right level.
+**Bridge was NOT converted, and should not be.** Its Makefile is a genuine
+gate -- it loops its filelists, lints each with `--top-module`, counts failures
+and carries real lint waivers -- so converting it would have thrown away the
+waivers to make it resemble the others. It is slow (53 filelists, each flattened
+then linted, ~7 min) and buffers into its own log, so it looks hung from the
+outside. It is not; I killed it twice on that mistaken reading before probing at
+the right level, which is the lesson: a make with no visible children is not
+evidence of a hang until you have walked down to the level that would show them.
+
+**But bridge WAS broken, in a fourth way, and it was hiding behind the same
+`|| true` this task removed.** `make -C projects/components lint-all` still
+exited 2 after every area passed, because `lint-all = verilator verible` and
+bridge's `verible` recipe died with `/bin/sh: Syntax error: ";" unexpected`.
+
+Cause: these Makefiles `-include $(REPO_ROOT)/makefiles/common.mk` and **that
+file does not exist** -- there is no `makefiles/` directory in the repo, and
+`print_success`/`print_warning` are defined nowhere. `-include` is silent by
+design, so every `$(call print_success,...)` expanded to EMPTY. On its own
+recipe line that is harmless, which is why nobody noticed; inside a continued
+shell block it leaves a bare `;` between `cat ...;` and `else`, and the shell
+refuses to parse it. So bridge's verilator half passed, printed its tick, and
+the area still returned 2.
+
+The same defect sat in **delta**, and only became visible once the top-level
+`|| true` came off -- removing the mask is what turned a latent break into a
+failing target. Fixed in both by replacing the four in-shell `$(call print_*)`
+calls per file with plain `echo`s; the calls left on their own recipe lines are
+harmless and were not touched. Verified: bridge `verible` exit 0, delta
+`lint-all` exit 0, and no in-shell `$(call print_*)` remains anywhere.
+
+apbx-xbar had this too -- it is why `lint-apbx-xbar` failed at
+`Makefile:49: verible` rather than for the reason this entry originally
+recorded -- but its Makefile was replaced wholesale, so the bug went with it.

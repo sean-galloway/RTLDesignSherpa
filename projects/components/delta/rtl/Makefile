@@ -51,9 +51,9 @@ verible: ## Run Verible lint on all files
 			echo "Linting $$file..."; \
 			$(VERIBLE) $(VERIBLE_FLAGS) $$file > $(VERIBLE_DIR)/$$(basename $$file .sv).log 2>&1 || true; \
 		done; \
-		$(call print_success,Verible lint complete); \
+		echo "Verible lint complete"; \
 	else \
-		$(call print_warning,Verible not found. Skipping.); \
+		echo "Verible not found. Skipping."; \
 	fi
 
 .PHONY: yosys
@@ -65,9 +65,9 @@ yosys: ## Run Yosys synthesis check on all files
 			echo "Checking $$file..."; \
 			$(YOSYS) $(YOSYS_FLAGS) $$file -p "hierarchy -check" > $(YOSYS_DIR)/$$(basename $$file .sv).log 2>&1 || true; \
 		done; \
-		$(call print_success,Yosys synthesis check complete); \
+		echo "Yosys synthesis check complete"; \
 	else \
-		$(call print_warning,Yosys not found. Skipping.); \
+		echo "Yosys not found. Skipping."; \
 	fi
 
 .PHONY: lint-all

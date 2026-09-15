@@ -152,9 +152,9 @@ verible: ## Run Verible lint on all files
 		echo "" >> $(VERIBLE_DIR)/summary.txt; \
 		echo "Summary: $$pass_count passed, $$fail_count failed" >> $(VERIBLE_DIR)/summary.txt; \
 		cat $(VERIBLE_DIR)/summary.txt; \
-		$(call print_success,Verible lint complete. Reports: $(VERIBLE_DIR)/); \
+		echo "Verible lint complete. Reports: $(VERIBLE_DIR)/"; \
 	else \
-		$(call print_warning,Verible not found. Install: https://github.com/chipsalliance/verible); \
+		echo "Verible not found. Install: https://github.com/chipsalliance/verible"; \
 		echo "Skipping Verible lint."; \
 	fi
 
@@ -178,9 +178,9 @@ yosys: ## Run Yosys synthesis check on all files
 		echo "" >> $(YOSYS_DIR)/summary.txt; \
 		echo "Summary: $$pass_count passed, $$fail_count failed" >> $(YOSYS_DIR)/summary.txt; \
 		cat $(YOSYS_DIR)/summary.txt; \
-		$(call print_success,Yosys synthesis check complete. Reports: $(YOSYS_DIR)/); \
+		echo "Yosys synthesis check complete. Reports: $(YOSYS_DIR)/"; \
 	else \
-		$(call print_warning,Yosys not found. Install: http://www.clifford.at/yosys/); \
+		echo "Yosys not found. Install: http://www.clifford.at/yosys/"; \
 		echo "Skipping Yosys synthesis check."; \
 	fi
 
