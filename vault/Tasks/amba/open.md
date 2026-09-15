@@ -648,6 +648,59 @@ order of magnitude as the other classes from the same traffic, and
 can read as broken purely because of what ran before it.
 
 **Status:** open 2026-09-08. Diagnosed to the boundary; NOT fixed.
+Narrowed 2026-09-15: the monbus GROUP is excluded in cosim (mutation-checked);
+the cause is still unidentified and is now upstream of the group.
+
+**MEASURED 2026-09-15: the monbus GROUP is excluded as the carrier of the
+surviving state.** This is the group-level half of the "next probe should be
+internal" step this entry asks for, run in cosim, not reasoned from CSR reads.
+
+`val/amba/test_monbus_group_soft_reset.py` drives two back-to-back scenarios
+across a reset pulse on `monbus_axil4_axil4_group` and samples the group's own
+FIFO-occupancy ports either side of it:
+
+| phase | err_fifo_count | write_fifo_count |
+|---|---|---|
+| A: fill BOTH paths, no drain | 8 | 14 |
+| B: after a 16-cycle reset pulse | **0** | **0** |
+| C: drive + drain after the reset | 8/8 records decoded | - |
+
+The group clears completely across the reset and emits normally afterwards,
+with all eight phase-C records drained back OUT through the AXIL slave-read
+port and each one's packet_type, protocol, channel_id and event_data verified.
+It does not reproduce the order dependence.
+
+**Mutation-checked, because a probe that has never failed proves nothing.**
+With the reset pulse suppressed, phase B reports err=8 write=9 -- state
+retained -- and phase C's decode fails on CONTENT (it drains stale phase-A
+records). Both assertions fire with their intended diagnostics, so the test can
+tell the defect from its absence.
+
+**What this does NOT exclude, and where the next probe goes.** Only the LAST
+stage of the board path is cleared here. The board path is
+stream -> monitors -> observers -> tallies -> monbus group, so
+`axi_monitor_base`, the two observers and the tally CAMs are all still live
+candidates. And this pulses the group's own `axi_aresetn` directly, whereas
+`CTRL.SOFT_RESET` drives `unit_aresetn` across a much larger subsystem -- the
+reset FANOUT is not what is being tested here.
+
+**Re-measure on the board before hunting further.** TASK-083's reporter
+starvation fix landed the same day (b4d00d995). That defect left terminal slots
+permanently unreported and therefore never freed, and "only the scenario that
+runs first emits anything" is a plausible signature of slots leaking across a
+run. Whether the two are connected is a board question, not a cosim one -- but
+a `build-mon` campaign should be re-run on the fixed RTL before anyone spends
+more time on this entry.
+
+**Criterion discipline, recorded because it nearly produced a fake result.**
+The first draft of this probe keyed on `test_basic_packet_flow`, whose
+`success_rate` counts `send_packet()` returns -- the GAXI master accepting
+packets INTO the group. That is the STIMULUS, not the emission: it reads 1.0
+even when the group emits nothing, so it could never have detected this defect,
+and it passed on the first run. The fix was to key on records drained back OUT.
+Separately, an all-ERROR fill left `write_fifo_count` at 0, which made the
+"write FIFO cleared" half of phase B vacuous -- a path that never held state
+cannot demonstrate that reset clears it. Fill both paths, and arm on both.
 
 **The observation.** On Genesys 2 `build-mon`, the `addr_error` scenario emits
 129/122 ADDR_RANGE packets when it is the FIRST thing run after the bitstream is
