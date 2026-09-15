@@ -3782,3 +3782,196 @@ via `make clean-all && make run-all-full-parallel`.
 
 The regslice-rerun observation stays live and is NOT this bug: it is worker
 count, and belongs with TOOL-008.
+
+---
+
+## AMBA-MONRATE-INTERMITTENT — OPEN on a scope decision for six sibling TBs (root-caused, primary fix landed 2026-08-28)
+**Status:** root-caused 2026-08-28; fix for `test_axi4_monitor` landed in
+68e66676. Residual is a SCOPE DECISION on six sibling TBs — see "Residual"
+below. Was: open, NOT root-caused.
+**Priority:** P2 — blocks reading val/amba as a clean signal, so every shared
+DV-framework change has to be A/B'd instead of just run.
+
+### Root cause — the monbus CONSUMER was applying unrequested backpressure
+
+`MonbusSlave` inherits `GAXISlave`, which drives `ready` itself from a
+`FlexRandomizer`, and `FlexRandomizer` draws from the GLOBAL UNSEEDED
+`random` module. `initialize_inputs` sets `monbus_ready = 1` and the
+framework silently overrode it.
+
+That is decisive here because the monitor frees a transaction-table slot
+ONLY on an accepted monbus write. So consumer backpressure — not the RTL —
+decided how many of the 100 zero-delay transactions were tracked at all:
+4 to 33 completions against a fixed floor of 20.
+
+How it was isolated, because two plausible hypotheses were WRONG first:
+
+* Clearing the transaction table between phases made it WORSE (4/8 failing).
+* A full DUT reset between phases did not fix it either.
+* The phase run ENTIRELY ALONE still scored 18, 26, 18, 33, 22. With a reset
+  DUT and fixed stimulus Verilator is deterministic, so the variation could
+  not be DUT state and had to be on the testbench side.
+
+The fix passes an explicit zero-delay ready randomizer, so `monbus_ready`
+behaves as the TB always intended, and seeds the RNG from `SEED` as 467
+other TBs here do. Verified 8/8 unpinned-seed runs, phase stable at 100/100
+(was 18-33); full 11-config sweep 11/11, worst-case margin 67% vs the 20%
+floor.
+
+The 20% floor is UNCHANGED. Tightening it was considered and rejected on
+evidence: `MAX_TRANS=2` deterministically yields 67/100, so the count is
+legitimately config-dependent and "require 100" would be wrong.
+
+### Residual — SCOPE DECISION, do not sweep without deciding
+
+RESOLVED 2026-08-29 in c25a2b4c. An earlier version of this list claimed six
+unseeded TBs; that was WRONG and is corrected here, because the error is easy
+to repeat: it counted files with no local `random.seed()` call rather than
+files with no seeding PATH. The axi4 and axi5 monitor TBs delegate to base
+TBs (AXI4MasterWriteTB and friends) that already seed, so they were
+deterministic per seed the whole time.
+
+Only three genuinely had no seeding anywhere in the chain -- they build their
+BFM components directly instead of going through a base TB:
+
+    axil4/monitor/axil4_master_monitor_tb.py   seeded in c25a2b4c
+    axil4/monitor/axil4_slave_monitor_tb.py    seeded in c25a2b4c
+    axi4/monitor/axi_monitor_config_tb.py      DELETED -- no importers
+                                               anywhere in the tree; its
+                                               filter/cfg-enable coverage is
+                                               carried by
+                                               val/amba/test_axi4_master_rd_mon_enable_sweep.py
+
+Measured on test_axi_mon_block_ready[axil4_master_wr_mon-12], three
+consecutive runs: block_ready_low was 512, 507, 495 before and 451, 451, 451
+after.
+
+Still backpressure-sensitive, but seeded and therefore replayable, so not
+urgent:
+
+    val/amba/test_axi_monitor_trans_mgr.py
+    bin/TBClasses/axi_monitor/axi_monitor_tb.py
+    amba/arbiter_monbus/arbiter_monbus_common_tb.py
+
+`test_axi_monitor_trans_mgr_wr_bank[64-4-1]` is the run-1 failure in the
+table below, and it is in that list — likely the same mechanism, NOT yet
+confirmed. Not swept here: whether a given TB WANTS randomized consumer
+backpressure is a per-TB judgement, and changing the family on one
+instance's evidence is the mistake this repo has already paid for twice.
+**Related — READ BOTH FIRST, this is a THIRD distinct cause in the same
+family, and both known ones are already ruled out below:**
+* [[VAL-XDIST-INTERMITTENT]] (this page) — concurrent deletion of the shared
+  `val/amba/local_sim_build` root. Signature is
+  `FileNotFoundError: RTL source not found`.
+* AMBA-WAVEDROM-FLAKY (closed.md) — runners drawing a random per-run seed.
+
+### Symptom
+
+Full `val/amba` at `-n 24` reports a small, non-empty failure set that is
+NOT STABLE between runs. Observed across four full runs:
+
+| run | result | failing |
+|---|---|---|
+| 1 (seed unpinned) | 1 failed / 742 passed | `test_axi_monitor_trans_mgr_wr_bank[64-4-1]` |
+| 2 (seed unpinned) | 1 failed / 742 passed | `test_axi4_monitor[8-64-16-True-True-combined]` |
+| 3 (SEED=1234) | 3 failed / 740 passed | `test_axi4_monitor[8-64-16-True-True-combined]`, `test_axi_mon_block_ready[axi4_master_wr_mon-12]`, +1 |
+| 4 (SEED=1234) | 3 failed / 740 passed | `test_axi4_monitor[4-64-8-True-True-addr64]`, `test_axi_mon_block_ready[axi4_master_wr_mon-12]`, +1 |
+
+The assertion is a STATISTICAL THRESHOLD, not a functional check:
+
+    ❌ FAIL: Got 16 completions (16.0%), expected >= 20 (20%)
+
+`test_axi_mon_block_ready[axi4_master_wr_mon-12]` was stable across runs 3
+and 4; the `test_axi4_monitor` parameter MOVED. So at least part of the set
+is genuinely nondeterministic and part may be a real always-failing test
+that only shows up at `-n 24` — separating those two is step one.
+
+### Already ruled out — do not re-check these
+
+* ~~**Random seed.**~~ **THIS RULING WAS WRONG — corrected 2026-08-28.**
+  The observation was right (pinning `SEED=1234` did not stabilise it) but
+  the conclusion did not follow. The runner passed `SEED` into `extra_env`
+  and TBBase logged "reproduce with: SEED=<n>", but the TB never called
+  `random.seed()` — so NOTHING CONSUMED THE SEED, and pinning it could not
+  possibly have stabilised anything. The seed was not exonerated by that
+  experiment; the experiment was inert. Randomness was in fact half the
+  cause. Do not re-derive "seed ruled out" from those two runs.
+* **sim_build collisions.** Names are fully unique — they carry both the
+  xdist worker id and every parameter, e.g.
+  `test_gw11_axi_monitor_combined_iw8_aw64_mt16_axi4_rd` and
+  `test_{worker_id}_axi_monitor_trans_mgr_wr_bank_mt{N}_nb{N}_wq{N}`.
+* **Concurrent deletion of `local_sim_build`** (the VAL-XDIST-INTERMITTENT
+  cause). Nothing deleted the build root during these runs, and the
+  signature is different — a threshold assertion, not `FileNotFoundError`.
+* **A shared-framework change.** These runs were the A/B for a GAXISlave
+  change (RDS-DV c220c19/aacb90d) that is provably inert here: nothing in
+  `val/` or `bin/TBClasses/` passes its `ready_policy` kwarg. Runs 3 and 4
+  are exactly that A/B — same counts with and without it.
+* **Serial execution.** `test_axi_monitor_trans_mgr_wr_bank` passes 5/5
+  serially from a clean build (367s wall, genuinely simulated), both with
+  and without the framework change. Only `-n 24` shows the failures.
+
+### Leads worth chasing
+
+1. **Resource pressure tripping a safety monitor.** The monitor TBs log
+   `Safety limits: {'max_test_duration_minutes': 30, 'max_memory_mb': 2048,
+   'progress_timeout_minutes': 5, 'max_cpu_percent': 95,
+   'enable_safety_monitoring': True, ...}`. At 24 workers CPU is pinned and
+   memory is contended, so a duration/progress/CPU guard aborting a run
+   would look exactly like a completion shortfall. Check whether an abort
+   path reduces the completion count rather than failing loudly, and sweep
+   `-n` (24 / 12 / 8 / 4) to see if the failure rate tracks worker count.
+2. **The threshold itself.** ">= 20% completions" with an observed 16% may
+   simply be too tight for a congested monitor — CLAUDE.md documents AXI
+   Monitor packet congestion, and warns never to enable `cfg_compl_enable`
+   and `cfg_perf_enable` together. Check what the failing configs enable.
+3. **Is the count a rate or a race?** 16 vs 20 completions is a small
+   absolute number; confirm whether the test drains completions for a fixed
+   wall/sim window that a loaded machine can shorten.
+
+### Definition of done
+
+MET for `test_axi4_monitor` (mechanism + fix, threshold untouched). Still
+open for the residual above, and note two of the three survivors in a clean
+`-n 24` run are separate issues, NOT this one:
+* `test_apb4_master_wavedrom[32-32-6-6]` — AMBA-WAVEDROM-FLAKY, already
+  closed as seed-sensitive with 1234 documented as a failing seed. The
+  reproducer below PINS 1234, so it is a permanent false positive here.
+  Stop pinning that seed in this reproducer.
+* `test_axi_mon_block_ready[axi4_master_wr_mon-12]` — fails at 1234, 42, 7
+  and 99999 alike, serially. A STABLE failure, not nondeterminism; needs
+  its own investigation and must not be folded into this task.
+
+Original bar:
+
+Either a mechanism + fix that makes `val/amba -n 24` reproducibly clean, or
+a documented reason each affected test cannot be deterministic at that
+width plus a concrete guard (pinned seed, widened bound with rationale,
+serial marker, or reduced default `-n`). Silently loosening the threshold
+to make it pass is NOT acceptable — the point of the assertion is to catch
+monitor congestion regressions.
+
+Reproduce with:
+
+    source env_python
+    SEED=1234 python3 -m pytest val/amba/ -q --tb=short -n 24
+
+
+**CLOSED 2026-09-15 — Sean made the scope call: leave the three TBs as they
+are.** The residual was never code, it was the judgement this entry reserved:
+whether a given TB WANTS randomized consumer backpressure is per-TB, and it
+warns that changing the family on one instance's evidence is a mistake this
+repo has already paid for twice.
+
+Supporting evidence at the time of closing:
+
+* all three named TBs have a seeding path -- `test_axi_monitor_trans_mgr.py`,
+  `axi_monitor_tb.py` and `arbiter_monbus_common_tb.py` all reach `TBBase`'s
+  `random.seed(self.seed)`, so they are replayable per seed, which is the
+  property the entry said made them "not urgent".
+* `val/amba` is green at FULL: **2156 passed, 0 failed, 18:57**, run
+  canonically with `make clean-all && make run-all-full-parallel`. The
+  non-stable failure set this entry exists to explain did not appear.
+
+The root cause -- `MonbusSlave` inheriting `GAXISlave`, which drove `ready`
+from an unseeded `FlexRandomizer` -- was fixed in c25a2b4c and is unchanged.
