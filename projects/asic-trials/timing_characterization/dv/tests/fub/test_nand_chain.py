@@ -21,7 +21,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.NexysA7.timing_characterization.dv.tbclasses.timing_char_tb import TimingCharTB
+from tbclasses.timing_char_tb import TimingCharTB
 
 
 # -------------------------------------------------------------------------
@@ -85,7 +85,7 @@ def test_nand_chain(request, levels, num_flops, test_level):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/NexysA7/timing_characterization/rtl/filelists/char_top.f'
+        filelist_path='projects/asic-trials/timing_characterization/rtl/filelists/char_top.f'
     )
 
     lv_str = TBBase.format_dec(levels, 2)

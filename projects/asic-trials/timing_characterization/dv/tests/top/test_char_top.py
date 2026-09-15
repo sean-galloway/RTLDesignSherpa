@@ -34,7 +34,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.NexysA7.timing_characterization.dv.tbclasses.timing_char_tb import (
+from tbclasses.timing_char_tb import (
     TimingCharTB, lfsr_step, lfsr_sequence, bit,
 )
 
@@ -509,7 +509,7 @@ def test_char_top(request, tag, rtl_params, test_level):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/NexysA7/timing_characterization/rtl/filelists/char_top.f'
+        filelist_path='projects/asic-trials/timing_characterization/rtl/filelists/char_top.f'
     )
 
     test_name_plus_params = f"test_{dut_name}_{tag}"
@@ -583,7 +583,7 @@ def test_char_top_lfsr_seed(request, tag, rtl_params, test_level):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/NexysA7/timing_characterization/rtl/filelists/char_top.f'
+        filelist_path='projects/asic-trials/timing_characterization/rtl/filelists/char_top.f'
     )
 
     test_name_plus_params = f"test_{dut_name}_lfsr_seed_{tag}"

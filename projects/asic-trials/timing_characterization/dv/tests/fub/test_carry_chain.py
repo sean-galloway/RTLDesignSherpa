@@ -20,7 +20,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.NexysA7.timing_characterization.dv.tbclasses.timing_char_tb import TimingCharTB
+from tbclasses.timing_char_tb import TimingCharTB
 
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
@@ -70,7 +70,7 @@ def test_carry_chain(request, width, test_level):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/NexysA7/timing_characterization/rtl/filelists/char_top.f'
+        filelist_path='projects/asic-trials/timing_characterization/rtl/filelists/char_top.f'
     )
 
     w_str = TBBase.format_dec(width, 3)
