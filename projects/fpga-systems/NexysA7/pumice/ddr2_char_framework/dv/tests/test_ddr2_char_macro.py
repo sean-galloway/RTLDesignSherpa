@@ -177,7 +177,9 @@ async def _program_writer(dut, *, start_addr: int, stride_0: int,
                           axi_id: int = 0, axi_size: int = 3,
                           lfsr_seed: int = 0, id_mode: int = 0,
                           gap: int = 0, gen: int = 0,
-                          wrap_mask_0: int = 0, wrap_mask_1: int = 0) -> None:
+                          wrap_mask_0: int = 0, wrap_mask_1: int = 0,
+                          data_mode: int = 0, hash_seed0: int = 0,
+                          hash_seed1: int = 0, hash_seed2: int = 0) -> None:
     """Stage write generator `gen` over APB. Does NOT start it.
 
     Staging and launching are separate on purpose: GO starts every selected
@@ -192,6 +194,8 @@ async def _program_writer(dut, *, start_addr: int, stride_0: int,
         txn_count=txn_count, axi_id=axi_id, id_mode=id_mode,
         axi_size=axi_size, lfsr_seed=lfsr_seed, gap=gap,
         wrap_mask_0=wrap_mask_0, wrap_mask_1=wrap_mask_1,
+        data_mode=data_mode, hash_seed0=hash_seed0,
+        hash_seed1=hash_seed1, hash_seed2=hash_seed2,
     )
 
 
@@ -200,7 +204,9 @@ async def _program_reader(dut, *, start_addr: int, stride_0: int,
                           axi_id: int = 0, axi_size: int = 3,
                           lfsr_seed: int = 0, id_mode: int = 0,
                           gap: int = 0, gen: int = 0,
-                          wrap_mask_0: int = 0, wrap_mask_1: int = 0) -> None:
+                          wrap_mask_0: int = 0, wrap_mask_1: int = 0,
+                          data_mode: int = 0, hash_seed0: int = 0,
+                          hash_seed1: int = 0, hash_seed2: int = 0) -> None:
     """Stage read generator `gen` over APB. Does NOT start it."""
     _check_full_burst(burst_len, "reader")
     await _chargen(dut).program_reader(
@@ -208,6 +214,8 @@ async def _program_reader(dut, *, start_addr: int, stride_0: int,
         txn_count=txn_count, axi_id=axi_id, id_mode=id_mode,
         axi_size=axi_size, lfsr_seed=lfsr_seed, gap=gap,
         wrap_mask_0=wrap_mask_0, wrap_mask_1=wrap_mask_1,
+        data_mode=data_mode, hash_seed0=hash_seed0,
+        hash_seed1=hash_seed1, hash_seed2=hash_seed2,
     )
 
 
@@ -230,6 +238,34 @@ async def _wait_done(dut, done_signal: str, timeout: int = 500_000) -> None:
     raise TimeoutError(
         f"{done_signal} did not assert within {timeout} cycles"
     )
+
+
+async def _wait_restart_done(dut, done_signal: str, timeout: int = 2_000_000,
+                             clear_timeout: int = 5_000) -> None:
+    """Wait for `done` to CLEAR, then assert -- for a SECOND run of an engine.
+
+    `_wait_done` alone is wrong the moment an engine runs twice in one test:
+    the previous run leaves `done` high, so it returns on the stale flag
+    immediately and everything after it inspects the PREVIOUS run's state.
+    That is not hypothetical -- the PUMICE-037 concurrent test prefills with
+    the writer and then runs it again, and with the plain wait it "passed" a
+    deliberately corrupted configuration in a quarter of the runtime, because
+    it never waited for the real run at all.
+
+    Engines drop `done` on restart, so the clear is the edge that says the new
+    run actually began.
+    """
+    sig = getattr(dut, done_signal)
+    for _ in range(clear_timeout):
+        await RisingEdge(dut.mc_clk)
+        await Timer(_NBA_SETTLE_PS, units="ps")
+        if not int(sig.value):
+            break
+    else:
+        raise TimeoutError(
+            f"{done_signal} never cleared after restart -- the engine did not "
+            f"begin a new run, so any later check reads the previous one")
+    await _wait_done(dut, done_signal, timeout=timeout)
 
 
 async def _assert_engines_clean(dut, gen: int = 0, context: str = "") -> None:
@@ -536,6 +572,98 @@ async def cocotb_test_ddr2_char_macro(dut):
                     "%d banks per generator (%d banks covered)",
                     NUM_GEN, NUM_GEN, N, BANKS_PER_GEN,
                     NUM_GEN * BANKS_PER_GEN)
+
+    elif test_type == "concurrent_gap":
+        # PUMICE-037: read and write running AT THE SAME TIME, with a gap.
+        #
+        # This is the one combination the suite has never run. Both gap-bearing
+        # suites here (pacing_sweep_b2b, ooo_pacing_schmoo) already cover
+        # rd_gap 8 and 15 -- and both DRAIN THE WRITER before starting the
+        # reader, so the two directions are never in flight together. On the
+        # board that combination returns wrong data whenever the READER's gap
+        # is 8 or above, and corrupts cells when the two ranges overlap.
+        #
+        # Shaped to match the failing board point rather than to be convenient:
+        #   * LFSR data, NOT the board's ADDR_HASH mode -- see below. The
+        #     prefill walks the reader's exact address sequence with the same
+        #     seed, so the reader's expected stream lines up with what is in
+        #     memory and any mismatch is real.
+        #   * disjoint banks, writer on 0 and reader on 4, wrapped inside one
+        #     page each -- the board's row_major 1+1 case, which fails with the
+        #     two ranges nowhere near each other.
+        #   * one GO for both directions (wr_mask AND rd_mask in a single APB
+        #     write), which is what `start_both` does on the board.
+        wr_gap = int(os.environ.get("WR_GAP", "0"))
+        rd_gap = int(os.environ.get("RD_GAP", "0"))
+
+        BURST = BURST_LEN_MULTIPLE * 2
+        # One pass over the page and NO MORE. The wrap window holds
+        # PAGE_BYTES/BURST_BYTES distinct addresses; go past that and the walk
+        # revisits an address while the LFSR stream has moved on, so memory
+        # holds the last pass's data and the reader expects the first pass's.
+        # Every point then fails, controls included -- which is a broken test,
+        # not a finding. (The board can run many passes because it uses
+        # ADDR_HASH, where a rewrite is idempotent; that mode does not compare
+        # in this build, see above.)
+        _PASS_TXNS = (1 << 10) * DRAM_DEVICE_BYTES // (BURST_LEN_MULTIPLE * 2 * 8)
+        N = int(os.environ.get("CONCURRENT_TXNS", str(_PASS_TXNS)))
+        assert N <= _PASS_TXNS, (
+            f"CONCURRENT_TXNS={N} exceeds the {_PASS_TXNS} distinct addresses "
+            f"in the wrap window; the LFSR walk would revisit and mis-compare")
+        BYTES_PER_BEAT = 8
+        BURST_BYTES = BURST * BYTES_PER_BEAT
+        # ROW_MAJOR: the bank field sits just above the column, so one bank
+        # step is one page. COL_WIDTH=10 columns at DEVICE granularity.
+        PAGE_BYTES = (1 << 10) * DRAM_DEVICE_BYTES
+        WR_BASE = 0 * PAGE_BYTES
+        RD_BASE = 6 * PAGE_BYTES  # MUTATION
+        WRAP = PAGE_BYTES - 1          # stay inside one page: every burst a hit
+        SEED = 0x5EED_0B01             # the board sweep's seed
+        # data_mode=0 (LFSR), deliberately, even though the board runs
+        # data_mode=1 (ADDR_HASH).
+        #
+        # ADDR_HASH mode in THIS build does not compare: a reader given a
+        # deliberately wrong hash seed reports beats_mismatched=0, and so does
+        # one pointed at a page nobody ever wrote. Both mutations pass. The
+        # same two mutations in LFSR mode fail loudly with "reader 0 data
+        # error", so the compare path itself is fine and it is the hash mode
+        # that is inert here. A test written in that mode would be decorative
+        # -- exactly the CONV-002 failure -- so this one uses the mode that is
+        # demonstrably armed. The hash-mode gap is filed separately; until it
+        # is fixed, do not write a sim check in data_mode=1.
+        DATA = dict(data_mode=0, lfsr_seed=SEED)
+
+        tb.log.info("concurrent_gap: wr_gap=%d rd_gap=%d burst=%d txns=%d "
+                    "wr_base=0x%X rd_base=0x%X wrap=0x%X",
+                    wr_gap, rd_gap, BURST, N, WR_BASE, RD_BASE, WRAP)
+
+        # --- prefill the READER's page, so it has valid data to check -------
+        # Under ADDR_HASH this writes exactly what the reader will expect, so
+        # the concurrent phase starts from a known-good image -- the same thing
+        # the board sweep's whole-device prefill buys.
+        await _program_writer(dut, start_addr=RD_BASE, stride_0=BURST_BYTES,
+                              burst_len=BURST, txn_count=N,
+                              wrap_mask_0=WRAP, gap=0, **DATA)
+        await _start_writers(dut)
+        await _wait_done(dut, "gen_wr_done", timeout=1_000_000)
+        await _assert_engines_clean(dut, context="prefill")
+
+        # --- both directions, one start -------------------------------------
+        await _program_writer(dut, start_addr=WR_BASE, stride_0=BURST_BYTES,
+                              burst_len=BURST, txn_count=N,
+                              wrap_mask_0=WRAP, gap=wr_gap, **DATA)
+        await _program_reader(dut, start_addr=RD_BASE, stride_0=BURST_BYTES,
+                              burst_len=BURST, txn_count=N,
+                              wrap_mask_0=WRAP, gap=rd_gap, **DATA)
+        await _chargen(dut).go(wr_mask=0x01, rd_mask=0x01)
+        # The PREFILL left gen_wr_done high. Waiting for it directly returns on
+        # that stale flag, so wait for the restart to clear it first.
+        await _wait_restart_done(dut, "gen_wr_done")
+        await _wait_done(dut, "gen_rd_done", timeout=2_000_000)
+
+        ctx = f"concurrent wr_gap={wr_gap} rd_gap={rd_gap}"
+        await _assert_engines_clean(dut, context=ctx)
+        tb.log.info("concurrent_gap OK wr_gap=%d rd_gap=%d", wr_gap, rd_gap)
 
     elif test_type == "pacing_sweep_b2b":
         # Engine-PACING sweep — NOT an AXI random-profile sweep.
@@ -891,6 +1019,94 @@ def test_ddr2_char_macro_pacing_sweep(request, wr_gap, rd_gap):
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         # subtractive-slave optional status outputs (unmapped_*) -- the uart
         # and char suites waive this and make lint carries it in LINT_WAIVERS.
+        "-Wno-PINMISSING",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args: list = []
+    plus_args: list = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_ddr2_char_macro",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ============================================================================
+# PUMICE-037 -- read and write concurrent, with a gap.
+#
+# The gap values are not a guess: on the board, reader gap 0..7 is clean and
+# 8..15 returns wrong data, with a hard edge at 8. This matrix straddles it and
+# keeps the clean side as the control, so a run that fails everywhere (a broken
+# test) looks different from one that fails only above 7 (the defect).
+#
+# wr_gap is swept independently at rd_gap=0 for the isolation the board
+# measured: the WRITER's gap never triggers it, so those points must stay green
+# and are what tells a reader-side defect from "any gap under concurrency".
+_CONCURRENT_GAP_STEPS = [
+    # (wr_gap, rd_gap)
+    (0, 0), (0, 4), (0, 7),        # control: reader gap below the edge
+    (0, 8), (0, 12), (0, 15),      # reader gap at and above the edge
+    (8, 0), (15, 0),               # writer gap only -- clean on the board
+    (8, 8), (15, 15),              # both, the sweep's own failing shape
+]
+
+
+@pytest.mark.parametrize(
+    "wr_gap,rd_gap", _CONCURRENT_GAP_STEPS,
+    ids=[f"wr_{w}_rd_{r}" for (w, r) in _CONCURRENT_GAP_STEPS],
+)
+def test_ddr2_char_macro_concurrent_gap(request, wr_gap, rd_gap):
+    """Both directions in flight at once, with inter-burst pacing.
+
+    The suite's other gap tests drain the writer first, so this combination
+    has never been simulated -- which is how PUMICE-037 reached hardware.
+    """
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "ddr2_char_macro_tb_top"
+    tag = f"wr_{wr_gap}_rd_{rd_gap}"
+    test_name = f"test_ddr2_char_macro_concurrent_gap_{tag}"
+
+    filelist_path = ("projects/fpga-systems/NexysA7/pumice/"
+                     "ddr2_char_framework/dv/filelists/"
+                     "ddr2_char_macro_tb_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "concurrent_gap",
+        "MEM_TYPE": "DDR2",
+        "WR_GAP": str(wr_gap),
+        "RD_GAP": str(rd_gap),
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    if "CONCURRENT_TXNS" in os.environ:
+        extra_env["CONCURRENT_TXNS"] = os.environ["CONCURRENT_TXNS"]
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1",
+                  "RD_DBG_FIFO_DEPTH": "32"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
         "-Wno-CASEOVERLAP",

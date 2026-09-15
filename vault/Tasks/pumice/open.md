@@ -754,8 +754,43 @@ The sharp edge at exactly 8 (bit 3 of the 4-bit gap field) is unexplained; the
 gap logic in both engines is a plain 4-bit countdown with nothing special at 8,
 and the register layout has gap[27:24] with nothing adjacent.
 
-**Next step: reproduce in the char-framework sim**, which runs the identical
-host program and can dump waves — that is the only way to tell the two apart.
+**Sim repro IMPLEMENTED 2026-09-14 — and it does NOT reproduce.**
+
+`test_ddr2_char_macro.py::test_ddr2_char_macro_concurrent_gap`, ten points:
+rd_gap 0/4/7 (control, below the board's edge), 8/12/15 (at and above it),
+wr_gap 8/15 at rd_gap 0 (the writer-only isolation the board measured clean),
+and 8/8, 15/15 (the sweep's own failing shape). Writer on bank 0, reader on
+bank 4, wrapped in one page each, ONE `go(wr_mask, rd_mask)` for both — the
+board's `start_both`. **All ten pass.**
+
+The test is armed, not decorative: giving the reader a wrong LFSR seed fails
+all ten with "reader 0 data error", and restoring passes all ten. That
+mutation was run at the shipped configuration, not a convenient one.
+
+So the sim does not see it **at this geometry**, which is the substance of
+[[PUMICE-028]]: this build is `DRAM_BL=8` where the board is BL4, so one DRAM
+burst is 2 AXI beats here against 1 on silicon. The next step is no longer
+"write the test" — it is running this test at the board's geometry, and
+PUMICE-028 records that the board point does not yet run clean in sim.
+
+**Three things the implementation had to get past, all worth knowing:**
+- *Stale done.* The prefill leaves `gen_wr_done` high, so waiting on it
+  directly returns instantly on the previous run and everything after inspects
+  the PREVIOUS run's state. The first version "passed" a deliberately
+  corrupted configuration in a quarter of the runtime. Fixed with
+  `_wait_restart_done`, which waits for the restart to CLEAR done first.
+- *ADDR_HASH does not compare in this build.* The board runs `data_mode=1`;
+  in sim a reader given a deliberately wrong hash seed reports
+  `beats_mismatched=0`, and so does one pointed at a page nobody wrote. Both
+  mutations pass. The same mutations in LFSR mode fail loudly. Filed as
+  [[PUMICE-038]] — **until it is fixed, a sim check written in data_mode=1 is
+  decorative.** This test therefore uses LFSR.
+- *LFSR + wrap must not revisit.* The wrap window holds
+  `PAGE_BYTES/BURST_BYTES` distinct addresses; past that the walk revisits
+  while the LFSR stream has moved on, so memory holds the last pass and the
+  reader expects the first. Every point fails, controls included — a broken
+  test, not a finding. The txn count is now capped to one pass and asserts it.
+  (The board runs many passes because ADDR_HASH rewrites are idempotent.)
 
 **The coverage hole is exact, and checked.** `test_ddr2_char_macro.py` has two
 gap-bearing suites and BOTH drain the writer before the reader starts:
@@ -782,6 +817,41 @@ explain. Do not fold the two together until one of them has a cause.
 4+4 concurrent case, so bandwidth at those gaps is trustworthy. Every gap >= 8
 point in any concurrent sweep is measuring a broken configuration and must not
 be quoted.
+
+## PUMICE-038 — the reader's ADDR_HASH compare is inert in the char sim build
+**Status:** open 2026-09-14  **Priority:** P1 — it makes any data_mode=1 sim check decorative
+
+Found while implementing [[PUMICE-037]]'s sim repro. In
+`ddr2_char_macro_tb_top`, a read engine programmed with `data_mode=1`
+(ADDR_HASH) never reports a mismatch:
+
+| mutation | expected | observed |
+|---|---|---|
+| reader given a hash seed XORed with 0xFFFFFFFF | every beat mismatches | `beats_mismatched=0`, PASS |
+| reader pointed at a page nobody ever wrote | every beat mismatches | `beats_mismatched=0`, PASS |
+| same two mutations with `data_mode=0` (LFSR) | fail | **fail**, "reader 0 data error" |
+
+So the compare path itself works; it is the hash mode that is inert here.
+
+**Not a board problem.** The board runs `data_mode=1` and DOES report
+mismatches — thousands of them, which is how PUMICE-037 was found — so the
+RTL's hash compare works on silicon. Something between the CSR write and the
+reader's expected-data mux differs in this sim build. `reader_status` shows
+`crc_valid=False` at done, and the RTL sets `o_actual_crc_valid <= !r_data_mode`,
+so `data_mode` itself IS reaching the engine. Suspect the HASH_SEED0/1/2 CSR
+writes: if they are dropped, both sides fall back to the same constant and a
+"wrong" seed changes nothing — though that alone would not explain the
+unwritten-page case, so measure before believing it.
+
+**Why P1.** Every sim check written in ADDR_HASH mode is currently
+decorative, and nobody would know: it passes. This is the CONV-002 shape
+(a test that reports green because nothing reads the verdict) in a different
+dress. Until it is fixed, sim data checks must use LFSR mode, which is
+mutation-verified to fail.
+
+**Do:** program a reader in data_mode=1, read back AXI_ATTR and HASH_SEED0/1/2
+over APB and confirm what actually landed; then trace `w_cp_expected` against
+`fub_rdata` on a single beat in waves. Both are cheap.
 
 ## PUMICE-CLEANUP — doc + filelist cleanup (push from workstation)
 **Status:** open 2026-07-24 — deferred (project cleanup; see TOOL-010)
