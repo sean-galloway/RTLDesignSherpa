@@ -99,6 +99,20 @@ class AXI5MasterMonitorTB:
         self.dut.cfg_timeout_cycles.value = 1000
         self.dut.cfg_latency_threshold.value = 500
 
+        # TASK-096: the ID-range filter's three inputs. Every other cfg_* here
+        # was driven and these three were not, so they sat at X and
+        # id_owned()'s `if (cfg_id_filter_enable)` branch was selected on an
+        # undefined value in every monitor test. It never failed because the
+        # other branch also returns 1 when ID_FILTER_ENABLE defaults to 0 --
+        # the X was inert by coincidence, not by design. Driven disabled here
+        # (count=0 means "all IDs", matching the parameter rule), so the filter
+        # is explicitly off rather than undefined. The axil4/axil5 TBs are NOT
+        # given these: AXI-Lite has no IDs and those wrappers expose no such
+        # ports.
+        self.dut.cfg_id_filter_enable.value = 0
+        self.dut.cfg_id_match_base.value = 0
+        self.dut.cfg_id_match_count.value = 0
+
         # Disable all filtering (pass everything through)
         self.dut.cfg_axi_pkt_mask.value = 0x0000
         self.dut.cfg_axi_err_select.value = 0x0000

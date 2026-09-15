@@ -4282,3 +4282,86 @@ completions, not timing, which is why that does not matter.
 Spun out: [[TASK-096]] -- no monitor TB drives the three `cfg_id_*` inputs, so
 they are X in every existing test. That qualifies this entry's "inert today"
 reasoning, which holds on silicon but not in simulation.
+
+---
+
+## TASK-096: no monitor TB drives cfg_id_filter_enable, so it is X in every test
+
+**Priority:** P3 — simulation-only. On silicon the bit ships low; in cocotb it
+is undriven, which is a different and quieter problem.
+**Status:** open 2026-09-15, found while building the [[TASK-073]] regression.
+**Owner:** TBD
+
+`AXI4MasterMonitorTB.initialize()` sets ELEVEN `cfg_*` inputs on the DUT --
+`cfg_monitor_enable`, `cfg_error_enable`, `cfg_timeout_enable`, `cfg_perf_enable`,
+`cfg_compl_enable`, `cfg_threshold_enable`, `cfg_debug_enable`,
+`cfg_timeout_cycles`, `cfg_latency_threshold`, and the `cfg_axi_*_mask` family --
+and does **not** set these three:
+
+    cfg_id_filter_enable
+    cfg_id_match_base
+    cfg_id_match_count
+
+Same omission in `axi4_slave_monitor_tb.py` and `axi5_master_monitor_tb.py`. They
+are plain top-level inputs on all four write wrappers and their read siblings
+(declared once each, confirmed by port grep), so nothing else drives them either.
+
+**Why it matters.** `axi_monitor_base.id_owned()` opens with
+`if (cfg_id_filter_enable)`. With the input undriven that branch is selected on
+an X, so every existing monitor test has been exercising the filter path in an
+undefined state. The reason no test has ever failed for it is that the OTHER
+branch also returns `1'b1` by default (`ID_FILTER_ENABLE` defaults to `1'b0`),
+so both arms agree today -- the X is inert by coincidence, not by design.
+
+This also qualifies [[TASK-073]]'s "inert today because the runtime bit ships
+low": true on silicon, but not in simulation, where the bit is not low, it is
+undefined.
+
+**Fix:** drive all three to their disabled values in each monitor TB's
+`initialize()`, alongside the eleven already there. `val/amba/test_axi4_wr_mon_id_filter.py`
+drives them explicitly and is the model.
+
+---
+
+
+**FIXED AND CLOSED 2026-09-15.**
+
+The three inputs are now driven, disabled, in the four monitor TBs whose DUTs
+have them -- `axi4_master`, `axi4_slave`, `axi5_master`, `axi5_slave` -- placed
+beside the eleven `cfg_*` assignments that were already there:
+
+    self.dut.cfg_id_filter_enable.value = 0
+    self.dut.cfg_id_match_base.value = 0
+    self.dut.cfg_id_match_count.value = 0
+
+`count = 0` means "all IDs" by the same rule the parameter path uses, so the
+filter is explicitly OFF rather than undefined.
+
+**The scope was wider than this entry said, and narrower than a blanket sweep.**
+Measured rather than assumed:
+
+* **All twelve** monitor TBs drove zero `cfg_id_*`, not the three this entry
+  named -- so the omission was universal among the AXI TBs.
+* **All eight** axi4/axi5 wrappers expose the three ports; **all eight**
+  axil4/axil5 wrappers expose **none**. AXI-Lite has no IDs, so a blanket edit
+  would have crashed the Lite TBs with AttributeError. The axil4 TBs are left
+  alone and the axil5 pair inherit from them, so neither touches these signals.
+* `bin/TBClasses/axi_monitor/axi_monitor_tb.py` drives `axi_monitor_base`
+  DIRECTLY rather than through a wrapper and is a fifth candidate -- but no
+  val/amba test uses it, so it was left rather than edited blind.
+
+**Verification.** `val/amba` **2157 passed, 0 failed, 18:50** via
+`make clean-all && make run-all-full-parallel` -- identical to the count before
+this change, with no tests added, so the X-to-0 transition is provably
+behaviour-neutral. That is the expected result: both arms of `id_owned()`
+return `1` in this configuration, which is exactly why the undefined value never
+surfaced as a failure.
+
+Blast radius confirmed confined to `val/amba`: every importer of the four
+edited TBs is a val/amba test (21 of them), the only other references being a
+package `__init__.py` re-export and tree listings. Nothing under `projects/`
+uses them.
+
+See [[TASK-073]], which this qualifies: its "inert today because the runtime bit
+ships low" holds on silicon, but in simulation the bit was not low, it was
+undefined.

@@ -2,44 +2,6 @@
 
 # AMBA tasks — open (not started)
 
-## TASK-096: no monitor TB drives cfg_id_filter_enable, so it is X in every test
-
-**Priority:** P3 — simulation-only. On silicon the bit ships low; in cocotb it
-is undriven, which is a different and quieter problem.
-**Status:** open 2026-09-15, found while building the [[TASK-073]] regression.
-**Owner:** TBD
-
-`AXI4MasterMonitorTB.initialize()` sets ELEVEN `cfg_*` inputs on the DUT --
-`cfg_monitor_enable`, `cfg_error_enable`, `cfg_timeout_enable`, `cfg_perf_enable`,
-`cfg_compl_enable`, `cfg_threshold_enable`, `cfg_debug_enable`,
-`cfg_timeout_cycles`, `cfg_latency_threshold`, and the `cfg_axi_*_mask` family --
-and does **not** set these three:
-
-    cfg_id_filter_enable
-    cfg_id_match_base
-    cfg_id_match_count
-
-Same omission in `axi4_slave_monitor_tb.py` and `axi5_master_monitor_tb.py`. They
-are plain top-level inputs on all four write wrappers and their read siblings
-(declared once each, confirmed by port grep), so nothing else drives them either.
-
-**Why it matters.** `axi_monitor_base.id_owned()` opens with
-`if (cfg_id_filter_enable)`. With the input undriven that branch is selected on
-an X, so every existing monitor test has been exercising the filter path in an
-undefined state. The reason no test has ever failed for it is that the OTHER
-branch also returns `1'b1` by default (`ID_FILTER_ENABLE` defaults to `1'b0`),
-so both arms agree today -- the X is inert by coincidence, not by design.
-
-This also qualifies [[TASK-073]]'s "inert today because the runtime bit ships
-low": true on silicon, but not in simulation, where the bit is not low, it is
-undefined.
-
-**Fix:** drive all three to their disabled values in each monitor TB's
-`initialize()`, alongside the eleven already there. `val/amba/test_axi4_wr_mon_id_filter.py`
-drives them explicitly and is the model.
-
----
-
 ## TASK-077: four instantiation examples in components docs name ports that do not exist
 
 **Priority:** P3. A reader copies the example and it does not compile.
