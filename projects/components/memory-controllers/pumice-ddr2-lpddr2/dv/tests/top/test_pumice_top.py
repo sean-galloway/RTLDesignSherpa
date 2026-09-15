@@ -56,19 +56,50 @@ _LEVEL = {"GATE": "gate", "BASIC": "gate",
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "dv/tb/pumice_top_csr_tb_top.f")
 
-# ---- geometry (from env; defaults match the wrapper's RTL params) ----------
+# ---- geometry -------------------------------------------------------------
+# Selected per TEST by the wrapper (see GEOMETRIES), not by a global env knob
+# nobody sets. BL4-on-x16 is the BOARD's shape and BL8 is the historical sim
+# point; both are now real pytest parameters so the board geometry actually
+# runs instead of being merely "overridable" (PUMICE-028).
 DFI_RATE   = int(os.environ.get("DFI_RATE", "2"))
 DRAM_BEAT  = int(os.environ.get("DRAM_BEAT_WIDTH", "64"))
-BL         = int(os.environ.get("BL", "8"))          # DRAM beats / burst
+# Read DRAM_BL, which is what the wrapper actually exports. This used to read
+# "BL" -- a name nothing ever set -- so the Python side believed BL=8 no matter
+# what the RTL was built as. At the default that is harmless because both
+# formulas agree; at the board point it silently computes 2 AXI beats per burst
+# where the hardware has 1, which is exactly how a geometry "override" can be
+# present and still never test anything. "BL" stays as a fallback for anyone
+# who set it by hand.
+BL         = int(os.environ.get("DRAM_BL", os.environ.get("BL", "8")))
+# Device width. Defaults to the beat width (the historical sim point, where
+# device == beat); the board's x16 part is 16.
+DRAM_DEV_W = int(os.environ.get("DRAM_DEVICE_WIDTH", str(DRAM_BEAT)))
 NUM_RANKS  = int(os.environ.get("NUM_RANKS", "1"))
 NUM_BANKS, ROW_WIDTH, COL_WIDTH = 8, 14, 10
 DW         = DRAM_BEAT * DFI_RATE                     # AXI data width
-BL_WORDS   = BL // DFI_RATE                           # AXI beats / burst
+# AXI beats per DRAM burst = (BL x device bits) / core width -- the same
+# formula test_pumice_core_dfi.py uses. The old `BL // DFI_RATE` happens to
+# agree when device == beat, and is wrong the moment it does not.
+BL_WORDS   = max(1, (BL * DRAM_DEV_W) // DW)
 BASE       = 0x10000                                 # 64 KB-aligned base
+
+# name -> (dfi_rate, dram_beat_width, dram_device_width, dram_bl)
+GEOMETRIES = {
+    "bl8":   (2, 64, 64, 8),   # historical sim point: one burst = 4 AXI beats
+    "bl4x16": (2, 32, 16, 4),  # the Nexys A7 board: one burst = 1 AXI beat
+}
+
+
+def _geom_params(name):
+    """RTL parameters + matching TEST env for one named geometry."""
+    rate, beat, dev, bl = GEOMETRIES[name]
+    return ({"DFI_RATE": str(rate), "DRAM_BEAT_WIDTH": str(beat),
+             "DRAM_BL": str(bl)},
+            {"DRAM_DEVICE_WIDTH": str(dev)})
 
 
 async def _bringup(dut, *, mem_type="DDR2", page_policy=2, profile="backtoback",
-                   t_refi=0x0400):
+                   t_refi=None):
     # Seed the global RNG so the AXI BFM timing randomizers are DETERMINISTIC
     # run-to-run (else "flaky" failures can't be reproduced from the SEED).
     random.seed(int(os.environ.get("SEED", "1")))
@@ -77,6 +108,10 @@ async def _bringup(dut, *, mem_type="DDR2", page_policy=2, profile="backtoback",
                         row_width=ROW_WIDTH, col_width=COL_WIDTH, mem_type=mem_type)
     await tb.reset()
     tb.init_dfi_slave()
+    # T_REFI from the environment when the caller did not pin one, so a test
+    # can drive refreshes INTO its traffic instead of around it.
+    if t_refi is None:
+        t_refi = int(os.environ.get("T_REFI", "0x400"), 0)
     await tb.program_defaults(page_policy=page_policy, mem_type=mem_type, t_refi=t_refi)
     await tb.wait_for_init_done()
     # bready/rready are NOT tied high here: init_axi_masters() builds the
@@ -475,6 +510,118 @@ async def cocotb_test_pumice_top(dut):
         return
 
     # ---- write+read each bank ----
+    # ---- concurrent read + write, reader paced (PUMICE-037) ----------------
+    if test_type == "concurrent_rw":
+        # Reproduce the board defect at the CONTROLLER, not through the char
+        # harness: concurrent read and write with the READER pacing itself.
+        #
+        # On silicon, reader gap 0..7 is clean and 8..15 returns wrong data and
+        # corrupts cells. The char-framework sim does not reproduce it, and the
+        # leading explanation is geometry: that build is BL8 where the board is
+        # BL4, so one DRAM burst is 2 AXI beats there against 1 on silicon
+        # (PUMICE-028). This test lives where the geometry is an env knob, so
+        # the board point is actually reachable:
+        #     TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16
+        #
+        # Writer and reader use DISJOINT banks, which is the board's failing
+        # row_major 1+1 shape -- the two never touch the same address, so a
+        # mismatch cannot be a same-address race between them.
+        gap = int(os.environ.get("RD_GAP", "8"))
+        n   = {"gate": 8, "basic": 8, "func": 24, "medium": 24,
+               "full": 64}.get(level, 8)
+        bpw = DW // 8
+        WR_BANK, RD_BANK = 0, 4
+        wr_base = BASE + WR_BANK * 0x2000
+        rd_base = BASE + RD_BANK * 0x2000
+
+        # Preload the reader's region into the golden model AND the device, so
+        # the reader has something correct to find.
+        for k in range(n):
+            for ki in range(BL_WORDS):
+                tb.preload_memory(rd_base + (k * BL_WORDS + ki) * bpw,
+                                  payload(RD_BANK, k * BL_WORDS + ki)
+                                  .to_bytes(bpw, "little"))
+
+        wr_reqs = [(wr_base + k * BL_WORDS * bpw,
+                    [payload(WR_BANK, k * BL_WORDS + ki)
+                     for ki in range(BL_WORDS)]) for k in range(n)]
+
+        rd_results: list = []
+
+        async def _writer():
+            # All write bursts queued as one sequence, so AW stays occupied
+            # and the two directions genuinely overlap.
+            wseq = AXI4Sequence(name="cc_wr", data_width=DW)
+            for a, data in wr_reqs:
+                wseq.add_write(a, list(data), axid=0)
+            await tb.run_sequence(wseq)
+
+        async def _reader():
+            # ONE burst at a time with `gap` idle clocks between them. The
+            # inter-burst pacing IS the board's trigger, so issuing the whole
+            # read sequence back-to-back would not exercise it at all.
+            for k in range(n):
+                a = rd_base + k * BL_WORDS * bpw
+                rseq = AXI4Sequence(name=f"cc_rd{k}", data_width=DW)
+                rseq.add_read(a, length=BL_WORDS, axid=k & 0xF)
+                res = await tb.run_sequence(rseq)
+                rd_results.append((a, list(res[0]["data"]) if res else []))
+                if gap:
+                    await ClockCycles(dut.aclk, gap)
+
+        wt = cocotb.start_soon(_writer())
+        rt = cocotb.start_soon(_reader())
+        await wt
+        await rt
+        await ClockCycles(dut.aclk, 300)
+
+        # A verdict needs a COUNT behind it. The golden model is the same
+        # memory the DFI slave serves, so a read that returned NOTHING compares
+        # nothing and the loop below passes vacuously -- which is how a
+        # concurrent test can report clean while measuring zero beats. Assert
+        # the traffic happened before asserting it was correct.
+        want_beats = n * BL_WORDS
+        got_beats = sum(len(b) for _a, b in rd_results)
+        assert len(rd_results) == n, (
+            f"concurrent_rw rd_gap={gap}: {len(rd_results)} read bursts "
+            f"returned, programmed {n}")
+        assert got_beats == want_beats, (
+            f"concurrent_rw rd_gap={gap}: compared {got_beats} read beats, "
+            f"expected {want_beats} -- the check would have been vacuous")
+
+        # 1. every READ beat matches golden -- the board's "returns bad data".
+        bad_rd = []
+        for a, beats in rd_results:
+            for ki, val in enumerate(beats):
+                ba = a + ki * bpw
+                g = _golden_beat(tb, ba)
+                if (val & _mask()) != g:
+                    bad_rd.append((ba, val & _mask(), g))
+        # 2. every WRITTEN cell holds what was written -- the board's
+        #    "corrupts cells". Checked separately because on silicon the two
+        #    symptoms come apart: disjoint banks gave transient bad reads with
+        #    memory intact, overlapping ranges left real damage.
+        bad_wr = []
+        for a, data in wr_reqs:
+            for ki, val in enumerate(data):
+                ba = a + ki * bpw
+                g = _golden_beat(tb, ba)
+                if g != (val & _mask()):
+                    bad_wr.append((ba, g, val & _mask()))
+
+        assert not bad_rd, (
+            f"concurrent_rw rd_gap={gap}: {len(bad_rd)} read beat(s) != golden "
+            f"(first: @{bad_rd[0][0]:#x} got {bad_rd[0][1]:#x} want "
+            f"{bad_rd[0][2]:#x})")
+        assert not bad_wr, (
+            f"concurrent_rw rd_gap={gap}: {len(bad_wr)} written cell(s) wrong "
+            f"(first: @{bad_wr[0][0]:#x} holds {bad_wr[0][1]:#x} wrote "
+            f"{bad_wr[0][2]:#x})")
+        tb.log.info(f"PASS concurrent_rw: rd_gap={gap}, {n} bursts each way, "
+                    f"BL={BL} beat={DRAM_BEAT} dev={DRAM_DEV_W} "
+                    f"({BL_WORDS} AXI beat(s)/burst)")
+        return
+
     if test_type == "wr_rd_bank_sweep":
         addrs = [BASE + b * 0x2000 for b in range(NUM_BANKS)]   # bank stride 8 KB
         wr, rd, exp = build_addr_pattern_sequences(
@@ -722,7 +869,17 @@ def _run(request, testcase, extra_env=None, params_over=None):
     # suffix keeps the compile-sharing win inside a worker while removing all
     # cross-process sharing. ccache absorbs the duplicate C++ compiles.
     _worker = os.environ.get("PYTEST_XDIST_WORKER", "")
-    build_key = "nr" + params["NUM_RANKS"] + (f"_{_worker}" if _worker else "")
+    # The build key MUST carry every RTL parameter that changes the netlist.
+    # It used to be NUM_RANKS alone, which was fine while geometry was fixed --
+    # but a BL4 test sharing a key with the BL8 suite recompiles the shared
+    # sim_build out from under it, and the tests that ran before it silently
+    # became tests of a different DUT. Geometry is a parameter now, so it goes
+    # in the key.
+    build_key = ("nr" + params["NUM_RANKS"]
+                 + "_r" + params["DFI_RATE"]
+                 + "_b" + params["DRAM_BEAT_WIDTH"]
+                 + "_bl" + params["DRAM_BL"]
+                 + (f"_{_worker}" if _worker else ""))
     sim_build = sim_build_path(tests_dir, "shared_" + build_key)
     os.makedirs(sim_build, exist_ok=True)
     # PUMICE-019: echo the per-test seed. pytest shows captured stdout for
@@ -764,6 +921,48 @@ _FUNC = ["smoke", "configure_via_csr", "axi_write_smoke", "wr_rd_roundtrip",
          "fresh_read_each_bank", "row_hit_pattern", "workload_mix",
          "wr_rd_ooo_multi_id", "open_page_workload", "adapt_time_workload",
          "smoke_lpddr2", "open_page_lpddr2", "workload_mix_lpddr2"]
+
+
+# ---- PUMICE-037: concurrent read + write, reader paced ---------------------
+# Geometry is a PARAMETER, not an env override. The board is BL4 on an x16
+# device (one DRAM burst = one AXI beat); the historical sim point is BL8 with
+# device == beat (one burst = four beats). PUMICE-028's whole point is that the
+# board shape was reachable in principle and never actually run, so both shapes
+# run here and the board one is not opt-in.
+#
+# Gaps straddle the silicon edge: 0 and 4 are clean on the board, 8 and 15 are
+# not. Keeping the clean side in the matrix is what separates "reproduced the
+# defect" from "the test is broken".
+# DFI read latency is the third board-faithful axis and it matters more than
+# it looks. The default DFISlavePHY returns read data 2 cycles after the
+# command, which is close enough to a loopback that same-bank overlap never
+# builds up -- that is precisely how the per-entry arbiter bug stayed hidden
+# until the open_page test drove real a7ddrphy latency. The board's bring-up
+# tuple is rden 6 / rddata_delay 7, so 7 is the silicon-faithful point.
+# Refresh is the last board-faithful axis, and the one with a standing
+# suspicion attached: the bring-up notes record the residual on-silicon
+# corruption as a possible refresh collision. The default t_refi here is far
+# enough apart that a short run may see no refresh at all, so the tight point
+# forces refreshes INTO the concurrent traffic rather than around it.
+@pytest.mark.parametrize("trefi", [0x400, 0x40], ids=["refi_default", "refi_tight"])
+@pytest.mark.parametrize("rdlat", [2, 7], ids=["rdlat2", "rdlat7_board"])
+@pytest.mark.parametrize("geom", ["bl4x16", "bl8"])
+@pytest.mark.parametrize("rd_gap", [0, 4, 8, 15])
+def test_pumice_top_concurrent_rw(request, geom, rd_gap, rdlat, trefi):
+    """Read and write in flight together, reader pacing itself between bursts.
+
+    The board returns wrong data and corrupts cells whenever the reader's gap
+    is 8 or above; gap 0..7 is clean. This drives the same shape straight at
+    pumice_top, with the golden MemoryModel checking BOTH symptoms separately:
+    read beats against golden (bad data) and written cells against what was
+    written (corruption).
+    """
+    params, env = _geom_params(geom)
+    _run(request, "cocotb_test_pumice_top",
+         extra_env={"TEST_TYPE": "concurrent_rw", "MEM_TYPE": "DDR2",
+                    "RD_GAP": str(rd_gap), "DFI_READ_LATENCY": str(rdlat),
+                    "T_REFI": str(trefi), **env},
+         params_over=params)
 
 
 @pytest.mark.parametrize("test_type", _FUNC)

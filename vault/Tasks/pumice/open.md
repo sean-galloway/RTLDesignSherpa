@@ -773,6 +773,52 @@ burst is 2 AXI beats here against 1 on silicon. The next step is no longer
 "write the test" — it is running this test at the board's geometry, and
 PUMICE-028 records that the board point does not yet run clean in sim.
 
+**Driven at pumice_top too 2026-09-14 — also does NOT reproduce.**
+`test_pumice_top_concurrent_rw`, 32 points, all clean. Writer and reader in
+flight together on disjoint banks, reader pacing itself between bursts, with
+the golden MemoryModel checking BOTH symptoms separately (read beats vs golden
+= "bad data"; written cells vs what was written = "corruption"):
+
+| axis | values swept | result |
+|---|---|---|
+| reader gap | 0, 4, **8**, **15** | clean |
+| geometry | bl8 sim point, **bl4x16 board** | clean |
+| DFI read latency | 2, **7** (board tuple rden 6 / rddata_delay 7) | clean |
+| refresh | default, tight (forces refresh INTO the traffic) | clean |
+
+Armed, verified twice: corrupting the expected value fails and names the
+address, and a permanent count guard asserts the reader compared
+`n x BL_WORDS` beats — a concurrent test that returns zero beats would
+otherwise pass vacuously.
+
+**So it is not the controller alone** at board geometry, board read latency or
+refresh frequency. **Next hypothesis: read CONCURRENCY.** This test issues one
+burst, waits for it, then gaps — at most ONE read outstanding. The board's
+reader runs up to 32 outstanding AND a gap, which is a different machine state
+entirely, and it is exactly where the `S_GAP` / stray-beat analysis above would
+bite. Drive multiple outstanding reads paced in groups before looking further
+afield. Still untested beyond that: the char harness path (char_gen_unit's N:1
+merge and boundary skids), the geared wrapper's dwidth converters, and the real
+a7ddrphy against a real device.
+
+**Three pre-existing defects found while getting there** (all in
+`dv/tests/top/test_pumice_top.py`, all fixed):
+- The module read `BL` from env `"BL"`, a name nothing sets, while the runner
+  exports `"DRAM_BL"` — so the Python side believed BL8 no matter what the RTL
+  was built as. Harmless at the default where both formulas agree; at the board
+  point it computes 2 AXI beats per burst where hardware has 1. That is
+  [[PUMICE-028]]'s "overridable but never actually tested", made concrete.
+- `BL_WORDS` used `BL // DFI_RATE`, correct only when device width == beat
+  width. Now `(BL x device) / core`, matching `test_pumice_core_dfi.py`.
+- The shared `sim_build` key was NUM_RANKS alone. A BL4 test would recompile
+  the shared build out from under the BL8 suite in the same xdist worker,
+  silently turning the tests that ran before it into tests of a different DUT.
+  The key now carries every netlist-affecting parameter.
+
+Geometry, read latency and refresh are pytest PARAMETERS now, not env knobs
+(Sean, 2026-09-14) — an override nobody sets is how the board shape stayed
+unrun.
+
 **Three things the implementation had to get past, all worth knowing:**
 - *Stale done.* The prefill leaves `gen_wr_done` high, so waiting on it
   directly returns instantly on the previous run and everything after inspects
