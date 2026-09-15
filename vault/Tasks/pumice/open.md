@@ -987,6 +987,48 @@ That leaves the collision itself as the defect: pumice issues precharge + REF
 while reads are in flight, and tREFI only sets how OFTEN that window comes
 round, not whether it corrupts when it does.
 
+### The aligner DOES capture the PHY preamble -- but fixing it is not viable, and it is not the board defect
+
+Sean: "We had rd alignment there before but an earlier Claude removed it." The
+history is exactly that. Three fixes landed and were reverted within an HOUR on
+2026-07-14 (2f08eb23e/f0354c137, dcaedce4b/39827800a, 144b3860f/19d483880), and
+79a848b69 replaced them with the multi-outstanding redesign, which gates
+capture on `r_outstanding != 0` -- its own comment calls that "a WIDE
+admit->return gate".
+
+**The defect is real and now has a test.** `cocotb_test_rd_aligner_phy_preamble`
+injects what the 2026-07-14 ILA saw: a `dfi_rddata_valid` one cycle BEFORE the
+enable window with the device not driving DQ. The aligner captures it, because
+the read IS outstanding at that moment and a wide gate cannot exclude it.
+`rd_last` then fires a word early and the whole read stream shifts. Nothing in
+the suite had ever injected a preamble, so this had never been tested either
+way.
+
+**But the fix is not viable, and this is why it keeps being reverted.**
+Restoring 2f08eb23e's enable-window credit (+1 per enable cycle, -1 per
+captured word):
+
+| check | result |
+|---|---|
+| rd_aligner unit suite | 4/4 pass |
+| full pumice fub+macro+top | 274 pass / 0 fail |
+| board bitstream at 75 MHz | builds, **WNS +0.055 ns** (better than the +0.016 without it) |
+| `test_ddr2_char_uart` a7gated cases | **2 passed WITHOUT the fix, 2 FAILED WITH it** (direct A/B, clean build each way) |
+| board corruption, gap 8 | 5158 -> 4795 beats/run -- **inside run-to-run scatter** |
+| board corruption, gap 12 | 2790 -> 2020 beats/run -- same |
+
+So it breaks a previously-passing path AND does not reduce the corruption. The
+July reverts were almost certainly this same wall, hit three times in an hour.
+
+RTL reverted. The test stays as `xfail(strict=True)` so the preamble capture is
+documented, reproducible and impossible to lose again -- and flips to XPASS the
+moment a viable fix lands.
+
+**What this leaves.** The preamble capture is a genuine bug that needs a fix
+compatible with the a7gated path -- look at what those two tests model before
+attempting another credit scheme. And PUMICE-037 itself is still open: the
+aligner preamble is NOT its cause.
+
 ### RETRACTED: the scheduler-layer "reproduction" was a FALSE POSITIVE
 
 The section below claimed `PRE(bank 4) issued 1 cycles after RD, tRTP=2` and

@@ -14,6 +14,7 @@ import sys
 import random
 
 import cocotb
+import pytest
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
@@ -399,6 +400,15 @@ def test_pumice_dfi_rd_aligner(request):
     _run_fub("cocotb_test_pumice_dfi_rd_aligner", bl_words=4)
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "OPEN, PUMICE-037 adjacent. The aligner DOES capture the a7ddrphy preamble "
+    "valid (this test proves it), but the obvious fix -- restoring the "
+    "enable-window credit from 2f08eb23e -- is NOT viable: it breaks "
+    "test_ddr2_char_uart's two a7gated cases (A/B'd, 2 passed without it, 2 "
+    "failed with it) and it does NOT reduce the board corruption (gap8 5158 -> "
+    "4795 beats/run, inside run-to-run scatter). That is almost certainly why "
+    "the same fix was reverted three times within an hour on 2026-07-14. "
+    "strict=True so this flips to XPASS the moment a viable fix lands."))
 def test_pumice_dfi_rd_aligner_phy_preamble(request):
     # x16 BL4 (BL_WORDS=1), the board's shape: inject the a7ddrphy preamble
     # valid one cycle before the enable window and check it is not captured.
