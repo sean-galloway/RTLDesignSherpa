@@ -314,3 +314,21 @@ What actually discriminates:
 - and above all **MUTATE**. Route 4's proof passed both mutations; the
   port-only rewrite failed the one that matters and passed the documented
   control. Nothing short of the mutation settled it.
+
+## An sby task with no Makefile target is invisible (2026-09-16)
+
+`bin/formal_status.py` drives each task through its Makefile, so a task listed
+in the `.sby` but missing from the Makefile is never run and reports NORESULT
+-- not FAIL, not PASS, just absent from the measured table.
+
+Caught the same day it was introduced: extending
+`formal/cdc/cdc_4_phase_handshake` from 2 sby tasks to 6 without adding the
+four matching make targets turned a previously-measured PASS into NORESULT,
+and would have hidden the CDC-002 data-loss finding entirely -- the failing
+proof simply would not have been run. The measurement caught it because the
+arithmetic did not add up: 28 mode-runs but only 24 results.
+
+When you add an sby task, add its make target in the same edit (see
+`formal/amba/wb4_slave` and `wb4_retry` for the shape), and put a
+deliberately-red task LAST in `all` -- make stops at the first failure, so
+anything after it never runs.
