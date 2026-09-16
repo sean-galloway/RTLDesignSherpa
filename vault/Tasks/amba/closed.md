@@ -2,6 +2,279 @@
 
 # AMBA tasks — closed (complete)
 
+## TASK-074: test_axis4_slave dies with SystemExit under heavy parallel load
+
+**Priority:** P3. SUPERSEDED RATIONALE, kept for provenance -- it read:
+"intermittent, and the cocotb test itself PASSES every time. What fails is the
+pytest wrapper, so this costs a red suite rather than hiding a functional
+defect." EVERY CLAUSE OF THAT IS FALSE. The failure is deterministic per seed,
+not intermittent; the cocotb test itself fails on an assertion; and it is not
+the wrapper. See the CORRECTED block below.
+**Status:** 🟢 CLOSED 2026-09-15. Root-caused to a fixed 50-cycle drain window
+racing the slave BFM's randomized ready_delay; fixed in `axis_slave_tb.py`
+(e4e9fc704) by draining to quiescence. Verified across 8 seeds on the cell that
+used to fail, 14 parameter sets at two seeds, and the CG sibling (confirmed to
+execute the changed code, not merely to pass). THE RTL IS EXONERATED --
+`axis4_slave.sv` never dropped anything. Two follow-ups are recorded at the end
+of this entry; both are separate work, neither is a blocker.
+NOTE the title is wrong and is kept only so the ID stays findable: it is not a
+wrapper death, and not load-dependent.
+Was: open 2026-09-02. Found while validating the clock-gating activity
+term fix; NOT caused by it (see below).
+Re-diagnosed 2026-09-15: seed-dependent, reproduces STANDALONE, confined to
+skid depth 8. The load/ccache framing below is falsified -- read the next
+block, not the original analysis.
+RESOLVED 2026-09-15: a TESTBENCH DRAIN RACE, fixed. An intermediate diagnosis
+of "genuine packet loss" was WRONG and is corrected in place below; the RTL is
+exonerated. The P3 rationale ("the cocotb test itself PASSES") remains void --
+the test really does fail -- but nothing is lost.
+
+**CORRECTED 2026-09-15, same day, by waveform. THE PACKETS ARE NOT LOST, and
+the block below saying so is wrong.** Dumped an FST for the failing seed and
+counted handshakes at every `aclk` rising edge, independent of every BFM (150
+edges seen, all seven symbols resolved -- the parse reports its own validity):
+
+    s_axis  : valid_hi=10  handshakes=10  tlast=10     <- all 10 packets ENTER
+    fub_axis: valid_hi=90  handshakes=8   tlast=8      <- only 8 leave in-window
+    fub_axis_tready high: 10 of 150 cycles
+    STATE AT FINAL EDGE: fub_valid=1, fub_ready=0
+
+`fub_axis_tvalid` is STILL ASSERTED at the last edge with ready low. The DUT is
+holding data the sink never took: the two packets are PENDING INSIDE THE SKID
+BUFFER when the test stops looking, not dropped.
+
+**Root cause: a fixed drain window racing a randomized ready.** The test waited
+a fixed `wait_clocks(50)` after sending. The slave BFM's default
+`ready_policy='valid_first'` waits for valid and THEN applies the randomizer's
+`ready_delay` -- and GAXISlave's own comment says that delay "is not
+controllable". So drain time is a function of the SEED. Measured at skid
+depth 8:
+
+| seed | cycles needed to drain | old fixed window |
+|---|---|---|
+| 28162 | **67** | 50 -> 2 packets left behind |
+| 42 | **exactly 50** | 50 -> passed by ONE cycle |
+
+Every "passing" run of this test was passing by a single cycle. That is also
+why it looked load-sensitive and why a different parameter set failed each run.
+
+Note `self.fub_slave._set_ready(1)` -- the line whose comment says "Configure
+FUB slave to be always ready" -- does NOT pin ready: it pokes the pin, and the
+receive loop reasserts the policy on its next iteration. Ready was high for 10
+of 150 cycles despite it.
+
+**THE RTL IS EXONERATED.** `axis4_slave.sv` is 138 lines wrapping a single
+`gaxi_skid_buffer`, with no drop, discard or flush logic anywhere. Ten packets
+in, ten out, once the test waits for them.
+
+**Fix (in `bin/TBClasses/axis4/axis_slave_tb.py`):** drain until
+`fub_axis_tvalid` falls, floored at the original 50 cycles and bounded at 2000,
+with a WARNING if the ceiling is hit -- a DUT that never quiesces must still
+fail loudly rather than be smoothed over by a longer wait.
+
+Verified: 8/8 seeds on the previously-failing sd8 cell (including 28162);
+14/14 parameter sets at SEED=28162 and at SEED=42; and the CG sibling 2/2,
+confirmed to actually execute the changed drain (24 log lines, all at the
+floor, so its timing is unchanged).
+
+**Follow-ups, deliberately NOT done here:**
+- `_set_ready(1)` not pinning ready is misleading and should probably be
+  `set_ready_policy('always')`, which is the supported API. NOT changed,
+  because 'always' makes valid and ready coincide on the same cycle and so
+  shifts DUT-visible timing -- a behaviour decision for the owner, not a bug
+  fix, and the CG test's gating detection depends on that timing.
+- the same fixed-drain-window pattern probably exists in the sibling TBs
+  (`axis_master_tb.py` has its own `run_basic_transfer_test`; axis5 too).
+  Worth a sweep: any fixed post-send wait against a randomized ready is the
+  same latent race.
+
+**SUPERSEDED the same day by the block above: the packets were NOT lost, only undrained. Kept for provenance, because the measurement in it is sound and only its CONCLUSION was wrong.**
+
+**PACKET LOSS CONFIRMED 2026-09-15. This entry's whole premise -- "the cocotb
+test itself PASSES ... this costs a red suite rather than hiding a functional
+defect" -- is now false in both halves.** Instrumented
+`bin/TBClasses/axis4/axis_slave_tb.py` to log PACKET counts (not just the
+`*_transactions` fields) and re-ran the failing seed against a passing one:
+
+| | fub_slave packets | axis_mon packets | fub_mon packets | sent |
+|---|---|---|---|---|
+| SEED=28162 (fails) | **8** | 10 | 8 | 10 |
+| SEED=42 (passes) | 10 | 10 | 10 | 10 |
+
+`packets_received` on the FUB SLAVE -- the receiving BFM, not an observer -- is
+8. Ten packets enter at the AXIS input and eight arrive. This is not monitor
+timing and not a counting artifact: two packets are LOST.
+
+**Why it very nearly went unnoticed, and the reusable lesson.** Two independent
+guards were both incapable of seeing it:
+
+1. `assert received_packets >= num_packets` compared `received_transactions`
+   -- which runs **2x** the packet count on this component -- against a PACKET
+   count. It read `16 >= 10` and passed while only 8 packets had arrived. A
+   UNIT MISMATCH made the packet-loss guard structurally unable to fire.
+2. `min_expected_fub = num_packets - 1` for skid depth > 4 absorbed one of the
+   two lost packets as "skid buffer depth effects on monitor timing".
+
+So the only assertion that fired was the -1-tolerance one, pointing at the
+monitor, which is why this read as a harness/monitor problem for two weeks.
+**When a guard compares two counts, check they are the same UNIT.**
+
+**Fixed in the TB (behaviour-neutral on passing runs, verified: all 14 param
+sets pass at SEED=42):**
+- the guard now compares packets to packets and names both numbers;
+- `run_basic_transfer_test` logs a `[counts]` line with packet AND transaction
+  counts side by side;
+- the verification block is wrapped in try/finally so a FAILING run dumps the
+  component Stats. Until now the assert aborted before
+  `generate_final_report()` ever ran, so **a failing run produced ZERO Stats
+  blocks and was undiagnosable from its own log** -- which is why the first
+  attempt to settle this had to re-run the test to get any numbers at all.
+
+**One LIMITATION of that fix, recorded so nobody trusts it further than it
+goes.** The BFM stat counters are CUMULATIVE across calls on a single TB
+instance -- they are never reset between phases. So `fub_pkts >= num_packets`
+only bites on the FIRST call in a TB's life; on any later call the count has
+already grown past the threshold and the guard can no longer fail, even if that
+call loses packets. Measured in `test_axis4_slave_cg`, which calls the method
+repeatedly on one instance:
+
+    [counts] packets: fub_slave=5  ... | sent=5
+    [counts] packets: fub_slave=10 ... | sent=5     <-- 10 received, 5 sent
+
+The pre-existing guard had exactly the same property, so this is not a
+regression -- but a CORRECT version would snapshot the counts before each phase
+and compare DELTAS. Not done here: that changes the accounting for every
+consumer of this shared TB (`AXISSlaveCGTB` subclasses it) and is a larger
+change than settling this entry required.
+
+**STILL OPEN: where the two packets go.** Not yet root-caused, and the entry
+stays open for it. Unknown whether the loss is in `axis4_slave.sv` or in the
+AXIS BFM, and only skid depth 8 reproduces (SEED=28162 across all 14 params:
+1 failed, 13 passed, the sole failure being the only sd8 set). Next step is a
+waveform on the failing seed: `WAVES=1 SEED=28162 pytest
+val/amba/test_axis4_slave.py -k "8-32-8-4-1"`, and compare fub_axis handshakes
+against s_axis.
+
+**Priority should be re-read as a real defect, not a red-suite nuisance.**
+
+**FALSIFIED AND REPRODUCED DETERMINISTICALLY 2026-09-15. Almost everything
+below this block is wrong, and the "heavy parallel load" framing sent the
+investigation at ccache when the failure is seed-dependent and reproduces
+standalone in eight seconds.**
+
+    SEED=28162 pytest val/amba/test_axis4_slave.py -k "8-32-8-4-1"
+
+Single test, no parallel load, 13 other params deselected. Fails 2/2. Seeds
+1, 7, 42, 999 and 12345 all pass, so it is DETERMINISTIC PER SEED and rare
+across the seed space -- not intermittent.
+
+| this page claims | measured |
+|---|---|
+| "the cocotb test itself PASSES every time" | the cocotb test FAILS: `assert 8 >= 9` |
+| "Not the RTL ... the simulation succeeds; the wrapper exits" | sim reports FAIL at 1500.10ns, 4/4 attempts |
+| "dies under heavy parallel load", "load-sensitive" | reproduces standalone, zero load |
+| "A DIFFERENT parameter set each time" | the wrapper re-rolls the seed each run |
+| "look at ccache / Verilator artifact contention" | wrong layer entirely |
+
+**Why it looked load-sensitive.** `val/amba/test_axis4_slave.py` lines 214/339
+set `'SEED': os.environ.get('SEED', str(random.randint(0, 100000)))`, so every
+regression run rolls a NEW seed. A different seed exposes a different parameter
+set, which reads as "a different one each time under load". Within one run the
+seed is fixed, which is why all four attempts (initial + 3 reruns) failed
+identically rather than flickering. The observed rate across three full val/amba
+runs was 1 in 3.
+
+**The real failure, and it is CONFINED TO SKID DEPTH 8.** With SEED=28162 across
+all 14 parameter sets: 1 failed, 13 passed, and the only failure is
+`[8-32-8-4-1]` -- the sole set with skid depth 8. Every sd4 and sd2 set passes
+on the identical seed. `axis_slave_tb.py:250` already grants deep-skid builds a
+tolerance for exactly this:
+
+    min_expected_fub = max(1, num_packets - 1) if self.TEST_SKID_DEPTH > 4 else num_packets
+
+with the comment "Allow for skid buffer depth effects on monitor timing".
+So the TB already KNOWS the FUB monitor under-counts at deep skid and papers
+over it with -1; this seed makes it under-count by 2. Same class as the axil4
+monitor TB drain-window race.
+
+**SUPERSEDED -- this WAS settled the same day; see the packet-loss block at
+the top of this entry.** Whether
+those two packets physically reached the FUB output is still open:
+
+    FUB slave received 16    (received_transactions)
+    AXIS monitor observed 10 (input side -- all 10 arrive)
+    FUB monitor observed 8   (output side)
+
+In a PASSING run the slave reports `packets_received: 10` alongside
+`received_transactions: 20`, i.e. that field runs 2x the packet count -- so 16
+implies 8 packets, agreeing with the FUB monitor. Two FUB-side components say 8
+while the input says 10. But the 2x relation is INFERRED from one passing run,
+not measured here, and it cannot be measured from a failing run: the assert at
+line 251 aborts BEFORE the `log.info(... Stats ...)` calls, so a failing log
+contains zero Stats blocks. Note also that the guard at line 246
+(`received_packets >= num_packets`) compares `received_transactions` against a
+PACKET count -- 16 >= 10 passes on a unit mismatch, so it is not evidence that
+all 10 arrived.
+
+To settle it, log the Stats before the asserts (or catch and re-raise) and read
+`packets_received` directly on the failing seed.
+
+**Priority should be re-read.** The P3 rationale was "the cocotb test itself
+PASSES ... this costs a red suite rather than hiding a functional defect". The
+cocotb test does not pass, so that rationale no longer holds as written. It is
+still most likely a monitor-timing artifact rather than data loss, but that is
+now an open question rather than an established premise.
+
+**The rerun flag this page forbids IS in place:** `make/tests.mk:70` sets
+`PYTEST_RERUNS ?= --reruns 3 --reruns-delay 1`. It masked nothing here (the
+failure is deterministic within a run and lost 4/4), but it is there, contrary
+to the instruction below.
+
+**Method note worth keeping:** re-running the failure overwrote its log with a
+passing seed's, and the passing log's numbers were briefly mistaken for the
+failing ones. Copy a failing log aside BEFORE re-running anything.
+
+**Superseded analysis follows.**
+
+**What happens.** In a 16-worker run of
+`test_mon_cg_gating + test_axil4_* + test_axil5_* + test_axis* +
+test_axil_perf_byte_count`, exactly one `test_axis4_slave` parameter set fails
+with `SystemExit`. Measured 4 runs: 2 failed, 2 clean (314 passed).
+
+    run 1: FAILED test_axis4_slave[4-64-8-4-1]   313 passed
+    run 2: FAILED test_axis4_slave[8-32-8-4-1]   313 passed
+    run 3: clean, 314 passed
+    run 4: clean, 314 passed
+
+**A DIFFERENT parameter set each time**, so it is load-sensitive, not a bad
+case.
+
+**What it is not.**
+- Not the RTL: the cocotb test reports `TESTS=1 PASS=1 FAIL=0` in the same run
+  that pytest marks failed. The simulation succeeds; the wrapper exits.
+- Not the 2026-09-02 gating change: the failing DUT is `axis4_slave`, and
+  `rtl/amba/filelists/axis4_slave.f` does not reference `axis4_slave_cg.sv` at
+  all. The edited file is not in that build.
+- Not a sim_build collision between workers: `test_name_plus_params` includes
+  `worker_id`, so each case owns its directory.
+- Not the TB safety monitor: `_check_cpu_usage` only warns, and
+  `_check_memory_usage` raises `MemoryLimitExceeded`, not `SystemExit`.
+- Not axis in isolation: `test_axis*.py -n 16` alone is 58/58 clean,
+  repeatedly. It needs the heavier mixed load.
+
+**Where to look next.** `SystemExit` from `cocotb_test.simulator.run` is what a
+failed BUILD raises. Under 16 concurrent Verilator invocations the likely
+mechanism is ccache or Verilator artifact contention — the same class as
+PUMICE-019 ("concurrent Verilator/ccache compiles destroy each other's
+artifacts"), but that one was diagnosed for a SHARED sim_build and this one
+has per-worker directories, so the shared resource is something else (ccache
+itself is the obvious candidate). Capture the failing worker's build log:
+`--tb=long` did not surface the message, so the runner is swallowing it.
+
+**Do not paper over it with a rerun flag.** An intermittent failure is a real
+bug in the runner, the harness or the RTL ([[feedback_no_flaky_dismissal]]);
+`--reruns` would hide the one signal we have.
+
 ## TASK-075: one module has no test coverage (was seven -- five of those claims were wrong)
 
 **Priority:** P3.
