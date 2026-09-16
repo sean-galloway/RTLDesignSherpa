@@ -1936,7 +1936,33 @@ explain. Do not fold the two together until one of them has a cause.
 point in any concurrent sweep is measuring a broken configuration and must not
 be quoted.
 
-### CLOSED 2026-09-15 — fixed and verified across the full matrix
+### REOPENED then RE-CLOSED 2026-09-16 — the first closure was premature
+
+**The 2026-09-15 closure below was wrong and is kept for the record.** It rested
+on a 0-of-192 `bank_gap_sweep` pass. That sweep runs **ONE rep per point**, and
+`incremental / n_gen=1 / gap=14` was failing **8 of 10 reps** at 2-6 beats --
+a point clean ~20% of the time passes a single-sample sweep one time in five.
+
+Cause: the empirical `rtw_guard` over the derived minimum of 14 was one step
+short. Gap 14 sat between the 13 and 15 the focused sweeps stepped, so nothing
+probed it. Fixed in **735ea519e**, guard 4 -> 6, tRTW 18 -> 20:
+
+    gap 14, incremental, n_gen=1, 6 reps per value
+      tRTW=18 -> 5/6 failing [6,4,0,2,4,2]
+      tRTW=20 -> 0/6    22 -> 0/6    24 -> 0/6    28 -> 0/6
+
+Re-closed on DEEP plus BROAD evidence, not one pass:
+  * repeat validation: **0 failing of 128 runs** (16 gaps x n_gen 1,2 x 4 reps)
+  * full matrix: 192 records, 0 mismatched, 0 stray
+  * char gate FULL: 213 passed, 3 xfailed, 0 failed
+
+**Standard for any future claim on this task:** repeat every point. A single
+pass over the matrix cannot distinguish 0% from 20%. This task was closed
+prematurely TWICE -- once with gaps 8-12 fixed while 13-15 still failed, once
+on the single-sample matrix. Both times the measurement was sound and the
+inference from it was too strong.
+
+### CLOSED 2026-09-15 — fixed and verified across the full matrix (SUPERSEDED, see above)
 
 Board, bank_gap_sweep (3 families x 1..4 generator pairs x 16 gaps):
 **22 of 192 failing points -> 0 of 192**. Zero mismatches, zero stray beats,
