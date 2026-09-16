@@ -426,6 +426,10 @@ class DDR2CharDriver:
         return self.pumice.set_jedec_timings(
             ddr2_timings_mc_cycles(mc_clk_hz, **align))
 
+    def set_sched_wr_wm(self, high_wm: int, low_wm: int) -> None:
+        """Write-batching watermarks -- see Pumice.set_sched_wr_wm."""
+        self.pumice.set_sched_wr_wm(high_wm, low_wm)
+
     def set_controller_cap(self, cap_lookahead_max: int,
                            cap_synth_mask: int) -> None:
         self.regs.write("CTRLR_CAP",

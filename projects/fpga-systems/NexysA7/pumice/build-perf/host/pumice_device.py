@@ -458,6 +458,25 @@ class Pumice(Device):
                 applied.update(kw)
         return applied
 
+    def set_sched_wr_wm(self, high_wm: int, low_wm: int) -> None:
+        """Write-batching watermarks (SCHED_WR_WM) -- PUMICE-039.
+
+        Once the write CAM's schedulable occupancy crosses `high_wm`, WRITES
+        outrank reads in every demand class until it falls to `low_wm`, so a
+        run of writes drains back to back and the tWTR/tRTW bus turnaround is
+        paid ONCE for the batch instead of on every ping-pong. high_wm=0
+        disables it, which is the build default -- so pumice ships with this
+        off and pays the full turnaround on every direction switch.
+
+        That is the whole difference from LiteDRAM, which stays in READ until
+        reads are exhausted or anti-starvation fires and then pays its
+        turnaround once per batch (multiplexer.py). The mechanism was already
+        in pumice_cmd_arbiter.sv; it had no host accessor, so nothing had ever
+        programmed it.
+        """
+        self._wr("SCHED_WR_WM", wr_high_wm=high_wm & 0xFF,
+                 wr_low_wm=low_wm & 0xFF)
+
     # ----- command scheduler ------------------------------------------------
     # (set_scheduler / get_lookahead_max were retired 2026-09-09 with the
     # SCHED_TUNING fields they wrote: the CAM+arbiter scheduler never read

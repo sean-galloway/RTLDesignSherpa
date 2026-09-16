@@ -790,6 +790,40 @@ async def cocotb_test_pumice_top(dut):
         # what separates "concurrent hazard" from "the reader/checker is wrong":
         # reader-alone is clean at every gap there. If it is dirty HERE, the
         # fault is in this test's addressing or preload, not in the DUT.
+        # PUMICE-039 write batching. SCHED_WR_WM is the arbiter's existing
+        # drain: once write-CAM occupancy crosses high_wm, writes outrank reads
+        # until it falls to low_wm, so the tWTR/tRTW turnaround is amortised
+        # over a batch instead of paid per direction switch. It ships DISABLED
+        # (high_wm=0) and had no host accessor, so it is untested RTL.
+        #
+        # On the board, enabling it recovers +25-30% bus bandwidth AND corrupts:
+        # an ILA capture caught dfi_wrdata_en and dfi_rddata_en asserted on the
+        # SAME cycle (a write driving DQ inside an open read window), twice per
+        # run. With CMD_HISTORY_EN armed, check (7) GLOBAL tRTW ($fatal, "a
+        # WR-class column must be >= T_RTW cycles after a RD") decides WHERE
+        # that comes from: fire => the ARBITER issues the violation; silent =>
+        # the spacing is compressed downstream in the DFI cmd path, which a
+        # DFI-boundary capture cannot distinguish.
+        wr_hi = int(os.environ.get("GEN_WR_HIGH_WM", "0"))
+        wr_lo = int(os.environ.get("GEN_WR_LOW_WM", "0"))
+        if wr_hi:
+            await tb.csr_write_field("SCHED_WR_WM", "wr_high_wm", wr_hi)
+            await tb.csr_write_field("SCHED_WR_WM", "wr_low_wm", wr_lo)
+            # READ IT BACK. A CSR write that silently did not land makes the
+            # whole run meaningless -- it would report "batching clean" while
+            # batching was off, which is the same class of false-clean that
+            # cost this investigation repeatedly (SCHED_WR_WM had no host
+            # accessor at all; CMD_HISTORY_EN was unbuildable; the char suite
+            # could not reach the board's BL). Verify, do not trust.
+            rb_hi = await tb.csr_read_field("SCHED_WR_WM", "wr_high_wm")
+            rb_lo = await tb.csr_read_field("SCHED_WR_WM", "wr_low_wm")
+            assert (rb_hi, rb_lo) == (wr_hi, wr_lo), (
+                f"SCHED_WR_WM readback {rb_hi}/{rb_lo} != written "
+                f"{wr_hi}/{wr_lo} -- batching did NOT take, so any verdict "
+                f"from this run is about the DISABLED path")
+            tb.log.info(f"gen_replica: write batching ON hi={rb_hi} lo={rb_lo} "
+                        f"(readback verified)")
+
         dq_stop, dq_hits = [False], []
         dq_mon = cocotb.start_soon(_dq_collision_monitor(dut, dq_stop, dq_hits))
 
@@ -1323,5 +1357,15 @@ def test_pumice_top_gen_replica(request, gap):
                     # DFI_PROFILE=a7ddrphy anchors the data to the READ COMMAND
                     # at read_latency like the board's PHY.
                     "DFI_PROFILE": os.environ.get("DFI_PROFILE", "ideal"),
+                    "GEN_WR_HIGH_WM": os.environ.get("GEN_WR_HIGH_WM", "0"),
+                    "GEN_WR_LOW_WM": os.environ.get("GEN_WR_LOW_WM", "0"),
                     **env},
-         params_over=params)
+         params_over={**params,
+                      # Arm the command-history scoreboard when asked: its
+                      # check (7) is the GLOBAL tRTW assertion. Added ONLY when
+                      # non-zero -- a 0 here is consumed as a filename further
+                      # down the parameter plumbing ("TypeError: expected str,
+                      # bytes or os.PathLike object, not int", filename=0) and
+                      # kills the run before it simulates.
+                      **({"CMD_HISTORY_EN": int(os.environ["CMD_HISTORY_EN"])}
+                         if int(os.environ.get("CMD_HISTORY_EN", "0")) else {})})

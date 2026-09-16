@@ -98,6 +98,18 @@ DRAM_BL        = int(os.environ.get("TEST_DRAM_BL", "8"))
 DFI_RATE        = int(os.environ.get("TEST_DFI_RATE", "2"))
 DRAM_BEAT_BYTES = int(os.environ.get("TEST_DRAM_BEAT_BYTES", "8"))
 DRAM_DEVICE_BYTES = int(os.environ.get("TEST_DRAM_DEVICE_BYTES", str(DRAM_BEAT_BYTES)))
+# DFI beats per DRAM burst.
+#
+# TRIED AND REVERTED 2026-09-16: BL/K, where K = beat_bytes/device_bytes. The
+# BFM documents beats_per_burst as DFI beats per DRAM burst with a BL//2
+# default "assuming the canonical K=2 ratio" and BL as the K=1 override, which
+# made BL/K look obviously right for the board's x16-under-32-bit-beat (K=2).
+# It is not: it did NOT fix the BL4 stall (PUMICE-041 stayed xfail) and it
+# BROKE both families tests -- including the default-geometry one, whose value
+# does not even change under the formula (K=1 -> BL//1 = BL). That last part is
+# unexplained and is the reason this is reverted rather than tuned: something
+# second-order depends on this value beyond the arithmetic, and guessing again
+# without understanding it would just be another round.
 BEATS_PER_BURST  = DRAM_BL
 
 
@@ -304,6 +316,15 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         "TEST_CHAR_PROFILE": os.environ.get("TEST_CHAR_PROFILE", "smoke"),
         "TEST_T_PHY_WRLAT": os.environ.get("TEST_T_PHY_WRLAT", "0"),
         "TEST_RDDATA_DELAY": os.environ.get("TEST_RDDATA_DELAY", "0"),
+        # PIN t_rddata_en TOO. These three are ONE tuple describing the read/
+        # write path, and only two were pinned -- so when the BOARD default
+        # moved 6 -> 1 (PUMICE-040, a real board win) it silently changed this
+        # sim's read capture window and broke both families tests. The failure
+        # looked like it came from an unrelated edit in this file, and a
+        # correct hypothesis about BEATS_PER_BURST got reverted chasing it.
+        # Pin the whole tuple: a zero-skew loopback needs its own alignment,
+        # independent of whatever the board has been tuned to.
+        "TEST_T_RDDATA_EN": os.environ.get("TEST_T_RDDATA_EN", "6"),
         "DUT": dut_name,
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),

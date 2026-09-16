@@ -257,19 +257,33 @@ class ControllerConfig:
     # working-but-slow because a late rddata_en does not corrupt reads -- the
     # a7ddrphy DQ capture free-runs and rddata_en only gates WHEN VALID IS
     # EMITTED, so rddata_delay silently hides the cost.
-    t_rddata_en:   int = int(os.environ.get("TEST_T_RDDATA_EN", "6"))
+    t_rddata_en:   int = int(os.environ.get("TEST_T_RDDATA_EN", "1"))
     # rddata_delay slides the read DATA onto the rddata_valid cycle. VERIFIED
     # 75/DDR2-300 value = 7 (ILA 2026-09-05: data arrived 1 cycle after valid
     # at 8; razor-sharp single-cycle optimum 6->fail,7->clean,8->fail). Was
     # MISSING from apply() -> stayed 0 -> every read mismatched.
-    # Default stays 7/6 while PUMICE-037's gap-14 residue is open -- see
-    # PUMICE-040. rden=1/delay=2 is MEASURED clean and faster (single-beat
-    # reads 366.8 -> 406.6 MB/s, +10.9%, no overlap across 3 reps; blen>=2
-    # unchanged because those are bandwidth-bound), and TEST_T_RDDATA_EN /
-    # TEST_RDDATA_DELAY reach it. It is not the default yet only because the
-    # residue should not move under a changed alignment mid-investigation --
-    # the residue is present at BOTH alignments, so the two are independent.
-    rddata_delay:  int = int(os.environ.get("TEST_RDDATA_DELAY", "7"))
+    # 2, paired with t_rddata_en=1 -- PUMICE-040.
+    #
+    # A joint (t_rddata_en x rddata_delay) board sweep found EVERY clean pair on
+    # the diagonal rddata_delay = t_rddata_en + 1: the a7ddrphy's data-vs-valid
+    # offset is a FIXED 1 cycle, so any t_rddata_en works provided the delay
+    # tracks it. The old 6/7 was therefore 5 cycles of read latency buying
+    # nothing -- a bring-up artifact, not a feature. A single-axis sweep
+    # converges on working-but-slow and nothing flags it: the a7ddrphy DQ
+    # capture free-runs and rddata_en only gates WHEN VALID IS EMITTED, so a
+    # late rddata_en does not corrupt reads and rddata_delay silently absorbs
+    # the cost.
+    #
+    # MEASURED: single-beat reads 366.8 -> 406.6 MB/s (+10.9%, no overlap
+    # across 3 reps each). blen>=2 unchanged (+0.7%, within noise) because
+    # those are bandwidth-bound, not latency-bound -- which is exactly the
+    # regime PUMICE-030 describes.
+    #
+    # Does NOT reduce tRTW: occupancy is set by the DRAM driving DQ at CL after
+    # the READ command, not by when pumice samples. Proven on the board -- at
+    # this alignment with tRTW=8 gaps 13/15 failed exactly as before the
+    # PUMICE-037 fix, while tRTW=20 is clean at BOTH alignments.
+    rddata_delay:  int = int(os.environ.get("TEST_RDDATA_DELAY", "2"))
     rd_phase:      int = 0
     wr_phase:      int = 0
     # JEDEC DDR2 timings (MC cycles) derived from the part + the MC clock.
