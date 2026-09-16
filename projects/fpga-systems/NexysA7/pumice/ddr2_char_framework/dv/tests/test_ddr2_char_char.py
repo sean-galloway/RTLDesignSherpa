@@ -72,12 +72,28 @@ FPGA_CLK_HZ    = 100_000_000
 UART_BAUD      = FPGA_CLK_HZ // CLKS_PER_BIT
 ROW_W, COL_W   = 13, 10
 NUM_BANKS      = 8
-# JEDEC burst length in device beats. BL8 is what the board runs: 72a73fe2
-# moved DDR2 to BL8 end-to-end because BL8 is the only legal a7ddrphy burst at
-# nphases=4 (a BL4 read filled only 4 of the fixed 8 de-interleave slots, the
-# rest stale -- that was the on-silicon read failure). This suite stayed at 4,
-# so its perf numbers described a burst length the board no longer uses.
-DRAM_BL        = 8
+# JEDEC burst length in device beats, FOLLOWING the build under test.
+#
+# History, because the stale version of this comment cost real time: 72a73fe2
+# moved DDR2 to BL8 because BL8 is the only legal a7ddrphy burst at nphases=4
+# (a BL4 read filled 4 of the fixed 8 de-interleave slots and left the rest
+# stale). That reasoning applied to an nphases=4 board. The board has since
+# moved to DFI_RATE=2 / BL4 (build-perf ddr2_char_top.sv: DFI_RATE=2,
+# DRAM_BL=4), where a BL4 burst fills its slots exactly and the constraint
+# does not apply -- but the constant stayed pinned at 8 with a comment still
+# asserting "BL8 is what the board runs".
+#
+# Consequence: no test in this suite could reach the geometry silicon ships,
+# and "the char sim does not reproduce PUMICE-037" was recorded as a property
+# of the DEFECT when it was a property of the TEST. Worse, a wrapper asking
+# for BL4 got a BL4 *RTL* build with the HOST still programming BL8 through
+# set_dfi_phase(bl=...) and bank_lsb -- a configuration matching neither.
+# Follows the RTL parameter the wrapper elaborated with (_run passes the
+# same value as TEST_DRAM_BL). As a hard literal this silently pinned the
+# HOST to BL8 while a BL4 build ran underneath it: set_dfi_phase(bl=...)
+# and the host's bank_lsb both come from here, so a BL4 test programmed
+# BL8 and was not the configuration it claimed to be.
+DRAM_BL        = int(os.environ.get("TEST_DRAM_BL", "8"))
 DFI_RATE        = int(os.environ.get("TEST_DFI_RATE", "2"))
 DRAM_BEAT_BYTES = int(os.environ.get("TEST_DRAM_BEAT_BYTES", "8"))
 DRAM_DEVICE_BYTES = int(os.environ.get("TEST_DRAM_DEVICE_BYTES", str(DRAM_BEAT_BYTES)))
@@ -127,7 +143,12 @@ def _make_dfi_slave(dut):
         name="char_gated",
         read_ref=READ_REF_COMMAND,   # as legacy
         read_latency=None,           # as legacy: JEDEC CL
-        read_en_gated=True,          # the fix: present data only in the window
+        # CHAR_READ_EN_GATED=0 reverts to the stock ungated model. Kept as a
+        # switch so 'gating broke this' is a measurement rather than a
+        # guess -- at BL4 the aligner's enable window is ceil(BL/DFI_RATE)
+        # = 2 cycles against BL8's 4, so a model that only presents data
+        # INSIDE that window has half the slack to hit it.
+        read_en_gated=(os.environ.get("CHAR_READ_EN_GATED", "1") != "0"),
         write_ref=WRITE_REF_WRDATA_EN,  # as legacy
         write_latency=None,             # as legacy
     )
@@ -252,9 +273,14 @@ async def cocotb_test_char_families(dut):
 # pytest wrapper
 # =============================================================================
 def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
-         dram_device_width: int = 0):
+         dram_device_width: int = 0, dram_bl: int = None):
     if dram_device_width == 0:
         dram_device_width = dram_beat_width
+    # BL is per-test, not a module constant. The board runs BL4 and this suite
+    # was pinned to BL8, so the one geometry the board actually uses could not
+    # be reached from here -- which is why the concurrent-gap defect was called
+    # "does not reproduce in the char sim".
+    bl = DRAM_BL if dram_bl is None else int(dram_bl)
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "ddr2_char_uart_tb_top"
     filelist_path = ("projects/fpga-systems/NexysA7/pumice/"
@@ -291,9 +317,15 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         # span, striping every burst across banks -- which is the 2026-08-25
         # silicon signature this suite exists to reproduce, and exactly what
         # it reported here: "bank_interleave: 16 beats mismatched".
-        "TEST_DRAM_BL": str(DRAM_BL),
+        # Pass-through knobs for the concurrent-gap repro. These must ride in
+        # extra_env: cocotb_test hands the simulator THIS dict, so a shell
+        # export alone is not guaranteed to reach the test.
+        "TEST_GAPS": os.environ.get("TEST_GAPS", "0,8,13,15"),
+        "TEST_TXN": os.environ.get("TEST_TXN", "64"),
+        "CONCURRENT_DUMP": os.environ.get("CONCURRENT_DUMP", ""),
+        "TEST_DRAM_BL": str(bl),
         # MR0 burst-length field must agree: A[2:0] 010 = BL4, 011 = BL8.
-        "TEST_MR0": "0x0433" if DRAM_BL == 8 else "0x0432",
+        "TEST_MR0": "0x0433" if bl == 8 else "0x0432",
     }
     compile_args = [
         "+define+USE_ASYNC_RESET",
@@ -326,6 +358,79 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         keep_files=True, timescale="1ns/1ps")
 
 
+@cocotb.test(timeout_time=6000, timeout_unit="ms")
+async def cocotb_test_char_concurrent_gap(dut):
+    """The PUMICE-037 shape, driven by the REAL hardware engines.
+
+    Everything about the stimulus here is the silicon datapath: the same
+    axi4_master_wr_pattern_gen / axi4_master_rd_crc_check instances inside
+    char_gen_unit, the same pumice_top, the same harness CSRs, programmed by
+    the same host code (pumice_char.measure_concurrent) that runs on the board.
+    Only the PHY + DRAM are modelled. Nothing here approximates a generator
+    with an AXI sequence and a delay -- that approximation is what made the
+    controller-level TB pass at rd_gap=15 while silicon failed: at the board
+    geometry it issued ONE column command per transaction inside a single DRAM
+    page, where the board issues eight and crosses a page every 2048 B.
+
+    On silicon (75 MHz, BL4 x16, open_page, 1 writer + 1 reader, incremental):
+        gap 0..12  clean
+        gap >= 13  wrong data -- 13: 1547, 14: 1436, 15: 709 beats mismatched
+    with the fixed timing derivation applied. Reader-alone is clean at every
+    gap, so it needs the concurrent writer.
+    """
+    drv, chan, _dfi, _mem = await _bringup(dut)
+    gaps = [int(x) for x in os.environ.get("TEST_GAPS", "0,8,13,15").split(",")]
+    txn = int(os.environ.get("TEST_TXN", "64"))
+
+    def prog():
+        drv.soft_reset()
+        drv.set_dfi_cmd_delay(int(os.environ.get("TEST_CMD_DELAY", "0")))
+        drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
+                          wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
+                          gear_ratio=DFI_RATE.bit_length() - 1,
+                          bl=DRAM_BL)
+        out = []
+        for gap in gaps:
+            sc = pc.Scenario(name=f"concurrent_gap{gap}",
+                             family=pc.FAM_INCREMENTAL,
+                             burst_len=8, txn_count=txn, gap=gap)
+            r = pc.measure_concurrent(drv, sc, cfg=pc.CONFIGS["open_page"],
+                                      n_wr=1, n_rd=1, timeout_s=120.0)
+            out.append((gap, r))
+        return out
+
+    recs = await cocotb.external(prog)()
+
+    # Results to a FILE, not just the log. cocotb output is swallowed on a
+    # PASS, so a passing run leaves no evidence of what it actually ran -- and
+    # a run that silently did not simulate (stale sim_build, a leftover
+    # .sim_busy lock in the shared build dir) is indistinguishable from a
+    # genuine clean result. Writing the per-gap numbers out makes "it passed"
+    # checkable instead of trusted.
+    dump = os.environ.get("CONCURRENT_DUMP")
+    if dump:
+        with open(dump, "w") as fh:
+            fh.write(f"gaps={gaps} txn={txn} BL={DRAM_BL} "
+                     f"rate={DFI_RATE} beat={DRAM_BEAT_BYTES}B "
+                     f"dev={DRAM_DEVICE_BYTES}B\n")
+            for gap, r in recs:
+                fh.write(f"gap={gap} ok={r.ok} mismatched={r.mismatched} "
+                         f"bytes={r.bytes_moved} notes={r.notes}\n")
+
+    # A verdict needs a count behind it: a scenario that moved no read beats
+    # would "pass" the mismatch check while proving nothing.
+    bad = []
+    for gap, r in recs:
+        dut._log.info("gap %-3d ok=%s mismatched=%s notes=%s",
+                      gap, r.ok, r.mismatched, r.notes)
+        assert r.bytes_moved > 0, f"gap {gap}: no bytes moved -- vacuous check"
+        if r.mismatched or not r.ok:
+            bad.append((gap, r.mismatched, r.notes))
+    assert not bad, ("concurrent gap defect reproduced: "
+                     + "; ".join(f"gap{g}: {m} beats mismatched {n}"
+                                 for g, m, n in bad))
+
+
 def test_ddr2_char_char_families(request):
     _run(request, "cocotb_test_char_families")
 
@@ -342,3 +447,12 @@ def test_ddr2_char_char_families_x16(request):
     # families test above cannot catch this class.
     _run(request, "cocotb_test_char_families", dfi_rate=2, dram_beat_width=32,
          dram_device_width=16)
+
+
+def test_ddr2_char_char_concurrent_gap_board(request):
+    # The BOARD point exactly: DFI_RATE=2, 32b pumice beat over an x16 device,
+    # and BL4 -- the burst length silicon runs. The x16 families test already
+    # used the first three; BL was stuck at the module's 8, so no test in this
+    # suite has ever run the geometry the board actually ships.
+    _run(request, "cocotb_test_char_concurrent_gap", dfi_rate=2,
+         dram_beat_width=32, dram_device_width=16, dram_bl=4)

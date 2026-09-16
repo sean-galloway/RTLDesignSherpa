@@ -531,22 +531,39 @@ async def cocotb_test_pumice_top(dut):
         # Enough bursts that a deep group is a group and not one short batch.
         n   = max({"gate": 32, "basic": 32, "func": 64, "medium": 64,
                    "full": 128}.get(level, 32), depth * 2)
+        n   = int(os.environ.get("RD_N", str(n)))
         bpw = DW // 8
+        # AXI BEATS PER BURST -- the board's shape, not this test's default.
+        #
+        # The board generators issue AxLEN=8 bursts (8 beats x 8 B = 64 B), so
+        # ONE AXI transaction becomes 8 DRAM column commands. The default here
+        # is BL_WORDS, which is 1 for the board geometry (bl4x16: 4*16//64 = 1)
+        # -- one column command per transaction. That is not a smaller version
+        # of the board's command stream, it is a different one, and it is the
+        # likeliest reason this test passes at rd_gap=15 while silicon fails.
+        NB = int(os.environ.get("RD_BEATS", str(BL_WORDS)))
         WR_BANK, RD_BANK = 0, 4
         wr_base = BASE + WR_BANK * 0x2000
-        rd_base = BASE + RD_BANK * 0x2000
+        # SPAN must cross pages and banks. At the old NB=1 / n=32 this moved
+        # 256 B and never left a single 2048 B page, so after the first ACTIVATE
+        # it generated no page management at all -- while the board marches
+        # 128 KB (64 pages) and crosses a bank every bank_stride (2048 B) with a
+        # writer doing the same thing concurrently. Keep the reader clear of the
+        # writer's whole span so a mismatch still cannot be a same-cell race.
+        span = n * NB * bpw
+        rd_base = BASE + max(RD_BANK * 0x2000, span + 0x2000)
 
         # Preload the reader's region into the golden model AND the device, so
         # the reader has something correct to find.
         for k in range(n):
-            for ki in range(BL_WORDS):
-                tb.preload_memory(rd_base + (k * BL_WORDS + ki) * bpw,
-                                  payload(RD_BANK, k * BL_WORDS + ki)
+            for ki in range(NB):
+                tb.preload_memory(rd_base + (k * NB + ki) * bpw,
+                                  payload(RD_BANK, k * NB + ki)
                                   .to_bytes(bpw, "little"))
 
-        wr_reqs = [(wr_base + k * BL_WORDS * bpw,
-                    [payload(WR_BANK, k * BL_WORDS + ki)
-                     for ki in range(BL_WORDS)]) for k in range(n)]
+        wr_reqs = [(wr_base + k * NB * bpw,
+                    [payload(WR_BANK, k * NB + ki)
+                     for ki in range(NB)]) for k in range(n)]
 
         rd_results: list = []
 
@@ -576,11 +593,11 @@ async def cocotb_test_pumice_top(dut):
                 grp = list(range(k0, min(k0 + depth, n)))
                 rseq = AXI4Sequence(name=f"cc_rd{k0}", data_width=DW)
                 for k in grp:
-                    rseq.add_read(rd_base + k * BL_WORDS * bpw,
-                                  length=BL_WORDS, axid=k & 0xF)
+                    rseq.add_read(rd_base + k * NB * bpw,
+                                  length=NB, axid=k & 0xF)
                 res = await _engine(rseq)
                 for k, d in zip(grp, res):
-                    rd_results.append((rd_base + k * BL_WORDS * bpw,
+                    rd_results.append((rd_base + k * NB * bpw,
                                        list(d.get("data") or [])))
                 if gap:
                     await ClockCycles(dut.aclk, gap)
@@ -596,7 +613,7 @@ async def cocotb_test_pumice_top(dut):
         # nothing and the loop below passes vacuously -- which is how a
         # concurrent test can report clean while measuring zero beats. Assert
         # the traffic happened before asserting it was correct.
-        want_beats = n * BL_WORDS
+        want_beats = n * NB
         got_beats = sum(len(b) for _a, b in rd_results)
         assert len(rd_results) == n, (
             f"concurrent_rw rd_gap={gap}: {len(rd_results)} read bursts "
@@ -635,7 +652,144 @@ async def cocotb_test_pumice_top(dut):
             f"{bad_wr[0][2]:#x})")
         tb.log.info(f"PASS concurrent_rw: rd_gap={gap}, {n} bursts each way, "
                     f"BL={BL} beat={DRAM_BEAT} dev={DRAM_DEV_W} "
-                    f"({BL_WORDS} AXI beat(s)/burst)")
+                    f"({NB} AXI beat(s)/burst, span {span} B = "
+                    f"{span/2048:.1f} pages)")
+        return
+
+    if test_type == "gen_replica":
+        # EXACT replica of the two HARDWARE generators, driven through the AXI4
+        # master BFMs at the pumice_top boundary.
+        #
+        # The concurrent_rw shape above approximates the reader as "issue a
+        # group, then idle". That is NOT what the silicon engines do, and the
+        # difference is the whole defect. From
+        # rtl/amba/shared/axi4_master_rd_crc_check.sv:
+        #
+        #     input logic [3:0] cfg_rd_gap,   // 0..15 cycles between RLAST on
+        #                                     // burst N and the AR for N+1
+        #     assign fub_arvalid   = (r_state == S_RUN) && ...
+        #     assign w_r_consuming = (r_state == S_RUN);
+        #
+        #   ... else if (r_rd_gap != 4'd0) begin
+        #           r_state    <= S_GAP;      // entered on EVERY rlast
+        #           r_gap_left <= r_rd_gap;
+        #
+        # so a non-zero gap does TWO things on every RLAST: it stops issuing
+        # ARs, and it DEASSERTS RREADY -- the header says it outright, "cfg_rd_
+        # gap > 0 pauses both AR and R together". With reads still outstanding
+        # that backpressures read data already in flight, while a concurrent
+        # writer keeps running. An "issue a group then idle" model never
+        # deasserts RREADY mid-return and therefore cannot produce that state,
+        # which is why this test passed at rd_gap=15 while silicon failed.
+        #
+        # The writer is symmetric (cfg_wr_gap > 0 pauses AW and W together).
+        # RREADY is driven through the BFM's documented ready_policy hook, not
+        # by poking the handshake.
+        gap  = int(os.environ.get("GEN_GAP", "13"))
+        n    = int(os.environ.get("GEN_N", "256"))
+        NB   = int(os.environ.get("GEN_BEATS", "8"))    # board AxLEN=8
+        oslim = int(os.environ.get("GEN_OS", "8"))
+        bpw  = DW // 8
+        stride = NB * bpw                 # contiguous march == FAM_INCREMENTAL
+        span = n * stride
+        wr_base = BASE
+        rd_base = BASE + max(4 * 0x2000, span + 0x2000)
+
+        for k in range(n):
+            for ki in range(NB):
+                tb.preload_memory(rd_base + (k * NB + ki) * bpw,
+                                  payload(4, k * NB + ki).to_bytes(bpw, "little"))
+
+        r_ch = tb.axi_master_rd.r_channel
+        normal_policy = getattr(r_ch, "ready_policy", "valid_first")
+        rd_results: list = []
+        stalls = {"n": 0}
+
+        async def _gap_pause():
+            """S_GAP: ARs stop AND RREADY drops, for `gap` cycles."""
+            r_ch.ready_policy = "stall"
+            stalls["n"] += 1
+            await ClockCycles(dut.aclk, gap)
+            r_ch.ready_policy = normal_policy
+
+        async def _reader():
+            k, pending = 0, []
+            while len(rd_results) < n:
+                while k < n and len(pending) < oslim:
+                    # id= NOT axid=. read_transaction() reads the ID from
+                    # transaction_kwargs['id']; an axid= kwarg is silently
+                    # swallowed and every read goes out as ID 0. With several
+                    # in flight they then share one per-ID response deque and
+                    # each coroutine picks up whichever burst finished first --
+                    # which showed up as reads returning a neighbouring burst's
+                    # data at EVERY gap, gap 0 included. (The sequence API used
+                    # by concurrent_rw does spell it axid; these are different
+                    # interfaces that look alike.)
+                    t = cocotb.start_soon(tb.axi_master_rd.read_transaction(
+                        rd_base + k * stride, burst_len=NB, id=k & 0xF))
+                    pending.append((k, t))
+                    k += 1
+                kk, t = pending.pop(0)
+                data = await t
+                rd_results.append((rd_base + kk * stride, list(data or [])))
+                if gap:
+                    await _gap_pause()
+
+        async def _writer():
+            # SERIALISED on purpose. AXI4 forbids W-channel interleaving, so
+            # firing several write_transaction() coroutines at once makes their
+            # W beats interleave -- an illegal stream the slave cannot match to
+            # its AWs. That showed up as "W_Master TIMEOUT waiting for ready"
+            # plus "timeout waiting for B response", and it corrupted the run so
+            # thoroughly that ALL FOUR gaps failed at the same address, gap 0
+            # included, which silicon passes. The hardware writer keeps W in AW
+            # order too; one burst at a time is the faithful model here, and
+            # write outstanding is not what this test is probing.
+            for k in range(n):
+                d = [payload(0, k * NB + ki) for ki in range(NB)]
+                await tb.axi_master_wr.write_transaction(
+                    wr_base + k * stride, d, id=0)
+                if gap:
+                    await ClockCycles(dut.aclk, gap)
+
+        # GEN_NOWRITER=1 runs the reader ALONE. On the board that control is
+        # what separates "concurrent hazard" from "the reader/checker is wrong":
+        # reader-alone is clean at every gap there. If it is dirty HERE, the
+        # fault is in this test's addressing or preload, not in the DUT.
+        no_wr = os.environ.get("GEN_NOWRITER", "0") == "1"
+        wt = None if no_wr else cocotb.start_soon(_writer())
+        rt = cocotb.start_soon(_reader())
+        if wt is not None:
+            await wt
+        await rt
+        await ClockCycles(dut.aclk, 400)
+
+        # Anti-vacuity FIRST: a run that returned nothing, or never actually
+        # entered the gap state, proves nothing about the gap.
+        want_beats = n * NB
+        got_beats = sum(len(b) for _a, b in rd_results)
+        assert len(rd_results) == n, (
+            f"gen_replica gap={gap}: {len(rd_results)} bursts returned of {n}")
+        assert got_beats == want_beats, (
+            f"gen_replica gap={gap}: {got_beats} beats compared, want "
+            f"{want_beats} -- the check would have been vacuous")
+        if gap:
+            assert stalls["n"] >= n // 2, (
+                f"gen_replica gap={gap}: only {stalls['n']} RREADY stalls for "
+                f"{n} bursts -- the S_GAP backpressure this test exists to "
+                f"reproduce did not happen")
+
+        bad_rd = [(a + ki * bpw, v & _mask(), _golden_beat(tb, a + ki * bpw))
+                  for a, beats in rd_results
+                  for ki, v in enumerate(beats)
+                  if (v & _mask()) != _golden_beat(tb, a + ki * bpw)]
+        assert not bad_rd, (
+            f"gen_replica gap={gap}: {len(bad_rd)} read beat(s) != golden "
+            f"(first @{bad_rd[0][0]:#x} got {bad_rd[0][1]:#x} want "
+            f"{bad_rd[0][2]:#x}) -- {stalls['n']} RREADY stalls applied")
+        tb.log.info(f"PASS gen_replica: gap={gap} n={n} beats/burst={NB} "
+                    f"os={oslim} span={span}B ({span/2048:.1f} pages) "
+                    f"{stalls['n']} RREADY stalls")
         return
 
     if test_type == "wr_rd_bank_sweep":
@@ -1086,3 +1240,27 @@ def test_pumice_top_nr2(request):
 def test_pumice_top_refpb(request):
     """PUMICE-006 Axis 3: LPDDR2 per-bank refresh round-robin."""
     _run(request, "cocotb_test_refpb", extra_env={"MEM_TYPE": "LPDDR2"})
+
+
+@pytest.mark.parametrize("gap", [0, 8, 13, 15])
+def test_pumice_top_gen_replica(request, gap):
+    """Board geometry + the hardware generators' EXACT pacing, including the
+    S_GAP RREADY backpressure that the concurrent_rw model cannot express."""
+    params, env = _geom_params("bl4x16")
+    _run(request, "cocotb_test_pumice_top",
+         extra_env={"TEST_TYPE": "gen_replica", "MEM_TYPE": "DDR2",
+                    "GEN_GAP": str(gap),
+                    "GEN_N": os.environ.get("GEN_N", "256"),
+                    "GEN_BEATS": os.environ.get("GEN_BEATS", "8"),
+                    "GEN_OS": os.environ.get("GEN_OS", "8"),
+                    # Board tuple: read latency 7, deep return ring.
+                    "DFI_READ_LATENCY": "7", "RD_DEPTH": "8",
+                    # DFI read model. The default here is the IDEALISED
+                    # loopback, which returns data with no PHY pipeline at all
+                    # -- so a read/write turnaround hazard cannot appear in it
+                    # no matter how faithfully the generators are replicated.
+                    # DFI_PROFILE=a7ddrphy anchors the data to the READ COMMAND
+                    # at read_latency like the board's PHY.
+                    "DFI_PROFILE": os.environ.get("DFI_PROFILE", "ideal"),
+                    **env},
+         params_over=params)
