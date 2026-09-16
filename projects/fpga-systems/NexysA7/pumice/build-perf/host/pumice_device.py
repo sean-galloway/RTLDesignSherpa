@@ -57,7 +57,7 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
                            dfi_rate: int = 2, rddata_delay: int = 7,
                            t_phy_wrlat: int = 1,
                            phy_rd_dq_busy: int = 14,
-                           rtw_guard: int = 4) -> Dict[str, int]:
+                           rtw_guard: int = 6) -> Dict[str, int]:
     """JEDEC DDR2 timings in MC cycles for a controller at ``mc_clk_hz`` driving
     the DRAM at ``ck_per_mc`` CK per MC cycle (DFI_RATE=2 -> 2). Every ns value
     rounds UP; every CK minimum rounds up too and the larger of the two wins.
@@ -144,9 +144,17 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
     #
     # A write drives DQ t_phy_wrlat after its command, so:
     #     tRTW >= phy_rd_dq_busy + 1 - t_phy_wrlat        (= 14 on this board)
-    # rtw_guard is EMPIRICAL, covering the arbiter's registered turnaround ok:
-    # the board shows a single-digit residue at 14/15/16 and is clean at 18,
-    # at BOTH read alignments.
+    # rtw_guard is EMPIRICAL, covering the arbiter's registered turnaround ok.
+    # It is 6, NOT 4. 4 (tRTW=18) clears gaps 13 and 15 but leaves an
+    # INTERMITTENT 2-6 beat residue at gap 14 -- 5 of 6 reps, and 8 of 10 in a
+    # separate run. That residue is why an earlier 0-of-192 matrix result was
+    # not closure: bank_gap_sweep runs ONE rep per point, and a point that is
+    # clean ~20% of the time passes a single-sample sweep one time in five.
+    # Measured at gap 14, incremental, n_gen=1, 6 reps per value:
+    #     tRTW=18 -> 5/6 failing [6,4,0,2,4,2]
+    #     tRTW=20 -> 0/6      22 -> 0/6      24 -> 0/6      28 -> 0/6
+    # Anything that claims to close this must REPEAT each point; a single pass
+    # over the matrix cannot distinguish 0% from 20%.
     rd_window_mc = (int(phy_rd_dq_busy) + 1 - int(t_phy_wrlat)
                     + int(rtw_guard))
     return dict(

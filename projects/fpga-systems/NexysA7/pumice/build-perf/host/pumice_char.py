@@ -262,6 +262,13 @@ class ControllerConfig:
     # 75/DDR2-300 value = 7 (ILA 2026-09-05: data arrived 1 cycle after valid
     # at 8; razor-sharp single-cycle optimum 6->fail,7->clean,8->fail). Was
     # MISSING from apply() -> stayed 0 -> every read mismatched.
+    # Default stays 7/6 while PUMICE-037's gap-14 residue is open -- see
+    # PUMICE-040. rden=1/delay=2 is MEASURED clean and faster (single-beat
+    # reads 366.8 -> 406.6 MB/s, +10.9%, no overlap across 3 reps; blen>=2
+    # unchanged because those are bandwidth-bound), and TEST_T_RDDATA_EN /
+    # TEST_RDDATA_DELAY reach it. It is not the default yet only because the
+    # residue should not move under a changed alignment mid-investigation --
+    # the residue is present at BOTH alignments, so the two are independent.
     rddata_delay:  int = int(os.environ.get("TEST_RDDATA_DELAY", "7"))
     rd_phase:      int = 0
     wr_phase:      int = 0
