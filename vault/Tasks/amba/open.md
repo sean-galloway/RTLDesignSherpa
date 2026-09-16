@@ -52,8 +52,71 @@ term fix; NOT caused by it (see below).
 Re-diagnosed 2026-09-15: seed-dependent, reproduces STANDALONE, confined to
 skid depth 8. The load/ccache framing below is falsified -- read the next
 block, not the original analysis.
-RESOLVED 2026-09-15 (same day): it is GENUINE PACKET LOSS, measured. The P3
-rationale is void -- see the top block.
+RESOLVED 2026-09-15: a TESTBENCH DRAIN RACE, fixed. An intermediate diagnosis
+of "genuine packet loss" was WRONG and is corrected in place below; the RTL is
+exonerated. The P3 rationale ("the cocotb test itself PASSES") remains void --
+the test really does fail -- but nothing is lost.
+
+**CORRECTED 2026-09-15, same day, by waveform. THE PACKETS ARE NOT LOST, and
+the block below saying so is wrong.** Dumped an FST for the failing seed and
+counted handshakes at every `aclk` rising edge, independent of every BFM (150
+edges seen, all seven symbols resolved -- the parse reports its own validity):
+
+    s_axis  : valid_hi=10  handshakes=10  tlast=10     <- all 10 packets ENTER
+    fub_axis: valid_hi=90  handshakes=8   tlast=8      <- only 8 leave in-window
+    fub_axis_tready high: 10 of 150 cycles
+    STATE AT FINAL EDGE: fub_valid=1, fub_ready=0
+
+`fub_axis_tvalid` is STILL ASSERTED at the last edge with ready low. The DUT is
+holding data the sink never took: the two packets are PENDING INSIDE THE SKID
+BUFFER when the test stops looking, not dropped.
+
+**Root cause: a fixed drain window racing a randomized ready.** The test waited
+a fixed `wait_clocks(50)` after sending. The slave BFM's default
+`ready_policy='valid_first'` waits for valid and THEN applies the randomizer's
+`ready_delay` -- and GAXISlave's own comment says that delay "is not
+controllable". So drain time is a function of the SEED. Measured at skid
+depth 8:
+
+| seed | cycles needed to drain | old fixed window |
+|---|---|---|
+| 28162 | **67** | 50 -> 2 packets left behind |
+| 42 | **exactly 50** | 50 -> passed by ONE cycle |
+
+Every "passing" run of this test was passing by a single cycle. That is also
+why it looked load-sensitive and why a different parameter set failed each run.
+
+Note `self.fub_slave._set_ready(1)` -- the line whose comment says "Configure
+FUB slave to be always ready" -- does NOT pin ready: it pokes the pin, and the
+receive loop reasserts the policy on its next iteration. Ready was high for 10
+of 150 cycles despite it.
+
+**THE RTL IS EXONERATED.** `axis4_slave.sv` is 138 lines wrapping a single
+`gaxi_skid_buffer`, with no drop, discard or flush logic anywhere. Ten packets
+in, ten out, once the test waits for them.
+
+**Fix (in `bin/TBClasses/axis4/axis_slave_tb.py`):** drain until
+`fub_axis_tvalid` falls, floored at the original 50 cycles and bounded at 2000,
+with a WARNING if the ceiling is hit -- a DUT that never quiesces must still
+fail loudly rather than be smoothed over by a longer wait.
+
+Verified: 8/8 seeds on the previously-failing sd8 cell (including 28162);
+14/14 parameter sets at SEED=28162 and at SEED=42; and the CG sibling 2/2,
+confirmed to actually execute the changed drain (24 log lines, all at the
+floor, so its timing is unchanged).
+
+**Follow-ups, deliberately NOT done here:**
+- `_set_ready(1)` not pinning ready is misleading and should probably be
+  `set_ready_policy('always')`, which is the supported API. NOT changed,
+  because 'always' makes valid and ready coincide on the same cycle and so
+  shifts DUT-visible timing -- a behaviour decision for the owner, not a bug
+  fix, and the CG test's gating detection depends on that timing.
+- the same fixed-drain-window pattern probably exists in the sibling TBs
+  (`axis_master_tb.py` has its own `run_basic_transfer_test`; axis5 too).
+  Worth a sweep: any fixed post-send wait against a randomized ready is the
+  same latent race.
+
+**SUPERSEDED the same day by the block above: the packets were NOT lost, only undrained. Kept for provenance, because the measurement in it is sound and only its CONCLUSION was wrong.**
 
 **PACKET LOSS CONFIRMED 2026-09-15. This entry's whole premise -- "the cocotb
 test itself PASSES ... this costs a red suite rather than hiding a functional

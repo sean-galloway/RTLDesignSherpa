@@ -227,8 +227,40 @@ class AXISSlaveTB(TBBase):
             # Small delay between packets
             await self.wait_clocks(self.aclk_name, 2)
 
-        # Wait for all transfers to complete
-        await self.wait_clocks(self.aclk_name, 50)
+        # Drain until the DUT stops presenting data, floored at the original
+        # 50 cycles and bounded above.
+        #
+        # TASK-074: this used to be a fixed `wait_clocks(50)`, which RACED the
+        # slave BFM's randomized ready_delay. Under ready_policy='valid_first'
+        # (the default) the slave waits for valid and THEN applies a random
+        # ready_delay, so how long the DUT takes to drain depends on the seed
+        # -- and `_set_ready(1)` above does not pin ready, because the receive
+        # loop reasserts the policy every iteration.
+        #
+        # Measured at skid depth 8 from the waveform: SEED=28162 needs 67
+        # cycles and lost 2 packets to the 50-cycle window, while SEED=42 needs
+        # exactly 50 -- every passing run was passing by one cycle. The packets
+        # were never lost: fub_axis_tvalid was still asserted, with ready low,
+        # at the moment the test stopped looking.
+        DRAIN_FLOOR, DRAIN_CEIL = 50, 2000
+        drained = 0
+        for _ in range(DRAIN_CEIL):
+            await self.wait_clocks(self.aclk_name, 1)
+            drained += 1
+            if drained >= DRAIN_FLOOR:
+                try:
+                    if int(self.dut.fub_axis_tvalid.value) == 0:
+                        break
+                except Exception:
+                    break
+        if drained >= DRAIN_CEIL:
+            # Loud, not silent: a DUT that never quiesces is a real failure and
+            # must not be smoothed over by a longer wait.
+            self.log.warning(
+                f"drain hit the {DRAIN_CEIL}-cycle ceiling with fub_axis_tvalid "
+                f"still asserted -- the DUT is genuinely stuck, not merely slow")
+        self.log.info(f"drained in {drained} cycles (floor {DRAIN_FLOOR}, "
+                      f"was a fixed 50)")
 
         # Verify packets were received
         fub_stats = self.fub_slave.get_stats()
