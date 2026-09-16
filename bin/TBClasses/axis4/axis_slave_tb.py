@@ -243,12 +243,49 @@ class AXISSlaveTB(TBBase):
         self.log.info(f"FUB monitor observed {fub_observed} packets")
 
         received_packets = fub_stats.get('received_transactions', fub_stats.get('slave_stats', {}).get('received_transactions', 0))
-        assert received_packets >= num_packets, f"Not all packets received by FUB slave: {received_packets}/{num_packets}"
-        assert axis_observed >= num_packets, f"Not all packets observed on AXIS input: {axis_observed}/{num_packets}"
 
-        # Allow for skid buffer depth effects on monitor timing - deeper buffers may cause timing differences
-        min_expected_fub = max(1, num_packets - 1) if self.TEST_SKID_DEPTH > 4 else num_packets
-        assert fub_observed >= min_expected_fub, f"Not all packets observed on FUB output: {fub_observed}/{num_packets} (minimum expected: {min_expected_fub})"
+        # PACKET counts, logged separately from the *_transactions fields.
+        # received_transactions runs 2x the packet count on this component, so
+        # the `received_packets >= num_packets` guard below compares a
+        # TRANSACTION count against a PACKET count and passes on a unit
+        # mismatch (16 >= 10) even when only 8 packets arrived. Log the real
+        # packet counts so a failure can be diagnosed. TASK-074.
+        fub_pkts = fub_stats.get('packets_received',
+                                 fub_stats.get('slave_stats', {}).get('packets_received', 0))
+        axis_pkts = axis_monitor_stats.get('packets_observed',
+                                           axis_monitor_stats.get('monitor_stats', {}).get('packets_observed', 0))
+        fub_mon_pkts = fub_monitor_stats.get('packets_observed',
+                                             fub_monitor_stats.get('monitor_stats', {}).get('packets_observed', 0))
+        self.log.info(f"[counts] packets: fub_slave={fub_pkts} axis_mon={axis_pkts} "
+                      f"fub_mon={fub_mon_pkts} | transactions: fub_slave={received_packets} "
+                      f"axis_mon={axis_observed} fub_mon={fub_observed} | sent={num_packets}")
+
+        # try/finally so a FAILING run still emits the component Stats. Until
+        # TASK-074 this test aborted at the assert below, before
+        # generate_final_report() ever ran, so a failing run produced ZERO
+        # Stats blocks and was undiagnosable from its own log.
+        try:
+            # Compare PACKETS to PACKETS. This used to test
+            # received_transactions -- which runs 2x the packet count on this
+            # component -- against a PACKET count, so it read 16 >= 10 and
+            # passed while only 8 of the 10 packets had actually arrived. It
+            # could not detect packet loss at all. TASK-074.
+            assert fub_pkts >= num_packets, (
+                f"Not all packets received by FUB slave: {fub_pkts}/{num_packets} "
+                f"(received_transactions={received_packets} -- that field is 2x "
+                f"the packet count and must not be compared against num_packets)")
+            assert axis_observed >= num_packets, f"Not all packets observed on AXIS input: {axis_observed}/{num_packets}"
+
+            # Allow for skid buffer depth effects on monitor timing - deeper buffers may cause timing differences
+            min_expected_fub = max(1, num_packets - 1) if self.TEST_SKID_DEPTH > 4 else num_packets
+            assert fub_observed >= min_expected_fub, f"Not all packets observed on FUB output: {fub_observed}/{num_packets} (minimum expected: {min_expected_fub})"
+        except AssertionError:
+            self.log.error(f"[TASK-074] verification FAILED -- component stats follow")
+            self.log.error(f"[TASK-074] AXIS Master Stats: {self.axis_master.get_stats()}")
+            self.log.error(f"[TASK-074] FUB Slave Stats: {fub_stats}")
+            self.log.error(f"[TASK-074] AXIS Monitor Stats: {axis_monitor_stats}")
+            self.log.error(f"[TASK-074] FUB Monitor Stats: {fub_monitor_stats}")
+            raise
 
         self.log.info("Basic transfer test completed successfully")
 

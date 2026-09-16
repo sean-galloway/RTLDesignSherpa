@@ -42,46 +42,6 @@ The extra findings at HEAD are in `stream_mas/ch01_overview/02_port_list.md`,
 `pit_8254_mas/ch03_interfaces/01_top_level.md`; some already have fixes in
 flight from their owners, so the number should fall on its own.
 
-## TASK-075: one module has no test coverage (was seven -- five of those claims were wrong)
-
-**Priority:** P3.
-**Status:** open 2026-09-02, corrected. qc round_38 disputed my "no coverage"
-claim on the ECC pair and was RIGHT.
-
-**What I got wrong.** I searched for `val/**/test_<module>.py` and for parents
-in the RTL instantiation graph. Neither finds a test that names the module in a
-Python string and builds its own wrapper. Re-checked by searching test SOURCES
-for each module name:
-
-| Module | Actually covered by |
-|---|---|
-| `dataint_ecc_hamming_encode_secded` | `test_dataint_ecc_hamming_secded.py` -- builds `ecc_secded_wrapper` around encoder+decoder, 5 tests |
-| `dataint_ecc_hamming_decode_secded` | same |
-| `sdpram_slave_axi4_axi4` | `test_sdpram_slave.py` |
-| `axis4_master_pattern_gen` | `test_axis4_pattern_pair.py` |
-| `axis4_slave_pattern_check` | same |
-
-Both ECC modules were the P2 items in the original filing. They were covered
-all along, and five of the seven pages carried a false "no test coverage"
-warning that I put there. All five corrected.
-
-**Fixed while checking:** `apb4_master_cg` had no coverage, and the reason was
-that it had **no filelist** -- nothing could build it. Created
-`rtl/amba/filelists/apb4_master_cg.f` and added it to
-`val/amba/test_cg_peer_ready.py`, which needed per-DUT clock names because the
-APB family uses `pclk`/`presetn` rather than `aclk`/`aresetn`. It now passes
-both gating assertions.
-
-**Genuinely uncovered, still open:**
-
-| Module | Note |
-|---|---|
-| `monbus_axi4_axi4_group` | No test names it and no filelist-reachable parent has one. The axil/axil variant IS tested, so the gap is this variant only. |
-
-**Method for next time:** a module is covered if any file under `val/` names
-it, not merely if `test_<module>.py` exists. Tests that synthesise a wrapper
-are invisible to the filename convention.
-
 ## TASK-074: test_axis4_slave dies with SystemExit under heavy parallel load
 
 **Priority:** P3 — intermittent, and the cocotb test itself PASSES every time.
@@ -92,6 +52,75 @@ term fix; NOT caused by it (see below).
 Re-diagnosed 2026-09-15: seed-dependent, reproduces STANDALONE, confined to
 skid depth 8. The load/ccache framing below is falsified -- read the next
 block, not the original analysis.
+RESOLVED 2026-09-15 (same day): it is GENUINE PACKET LOSS, measured. The P3
+rationale is void -- see the top block.
+
+**PACKET LOSS CONFIRMED 2026-09-15. This entry's whole premise -- "the cocotb
+test itself PASSES ... this costs a red suite rather than hiding a functional
+defect" -- is now false in both halves.** Instrumented
+`bin/TBClasses/axis4/axis_slave_tb.py` to log PACKET counts (not just the
+`*_transactions` fields) and re-ran the failing seed against a passing one:
+
+| | fub_slave packets | axis_mon packets | fub_mon packets | sent |
+|---|---|---|---|---|
+| SEED=28162 (fails) | **8** | 10 | 8 | 10 |
+| SEED=42 (passes) | 10 | 10 | 10 | 10 |
+
+`packets_received` on the FUB SLAVE -- the receiving BFM, not an observer -- is
+8. Ten packets enter at the AXIS input and eight arrive. This is not monitor
+timing and not a counting artifact: two packets are LOST.
+
+**Why it very nearly went unnoticed, and the reusable lesson.** Two independent
+guards were both incapable of seeing it:
+
+1. `assert received_packets >= num_packets` compared `received_transactions`
+   -- which runs **2x** the packet count on this component -- against a PACKET
+   count. It read `16 >= 10` and passed while only 8 packets had arrived. A
+   UNIT MISMATCH made the packet-loss guard structurally unable to fire.
+2. `min_expected_fub = num_packets - 1` for skid depth > 4 absorbed one of the
+   two lost packets as "skid buffer depth effects on monitor timing".
+
+So the only assertion that fired was the -1-tolerance one, pointing at the
+monitor, which is why this read as a harness/monitor problem for two weeks.
+**When a guard compares two counts, check they are the same UNIT.**
+
+**Fixed in the TB (behaviour-neutral on passing runs, verified: all 14 param
+sets pass at SEED=42):**
+- the guard now compares packets to packets and names both numbers;
+- `run_basic_transfer_test` logs a `[counts]` line with packet AND transaction
+  counts side by side;
+- the verification block is wrapped in try/finally so a FAILING run dumps the
+  component Stats. Until now the assert aborted before
+  `generate_final_report()` ever ran, so **a failing run produced ZERO Stats
+  blocks and was undiagnosable from its own log** -- which is why the first
+  attempt to settle this had to re-run the test to get any numbers at all.
+
+**One LIMITATION of that fix, recorded so nobody trusts it further than it
+goes.** The BFM stat counters are CUMULATIVE across calls on a single TB
+instance -- they are never reset between phases. So `fub_pkts >= num_packets`
+only bites on the FIRST call in a TB's life; on any later call the count has
+already grown past the threshold and the guard can no longer fail, even if that
+call loses packets. Measured in `test_axis4_slave_cg`, which calls the method
+repeatedly on one instance:
+
+    [counts] packets: fub_slave=5  ... | sent=5
+    [counts] packets: fub_slave=10 ... | sent=5     <-- 10 received, 5 sent
+
+The pre-existing guard had exactly the same property, so this is not a
+regression -- but a CORRECT version would snapshot the counts before each phase
+and compare DELTAS. Not done here: that changes the accounting for every
+consumer of this shared TB (`AXISSlaveCGTB` subclasses it) and is a larger
+change than settling this entry required.
+
+**STILL OPEN: where the two packets go.** Not yet root-caused, and the entry
+stays open for it. Unknown whether the loss is in `axis4_slave.sv` or in the
+AXIS BFM, and only skid depth 8 reproduces (SEED=28162 across all 14 params:
+1 failed, 13 passed, the sole failure being the only sd8 set). Next step is a
+waveform on the failing seed: `WAVES=1 SEED=28162 pytest
+val/amba/test_axis4_slave.py -k "8-32-8-4-1"`, and compare fub_axis handshakes
+against s_axis.
+
+**Priority should be re-read as a real defect, not a red-suite nuisance.**
 
 **FALSIFIED AND REPRODUCED DETERMINISTICALLY 2026-09-15. Almost everything
 below this block is wrong, and the "heavy parallel load" framing sent the
@@ -133,7 +162,8 @@ So the TB already KNOWS the FUB monitor under-counts at deep skid and papers
 over it with -1; this seed makes it under-count by 2. Same class as the axil4
 monitor TB drain-window race.
 
-**What is NOT yet established, and do not write it down as settled.** Whether
+**SUPERSEDED -- this WAS settled the same day; see the packet-loss block at
+the top of this entry.** Whether
 those two packets physically reached the FUB output is still open:
 
     FUB slave received 16    (received_transactions)
