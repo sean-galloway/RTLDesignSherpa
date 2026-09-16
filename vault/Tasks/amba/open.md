@@ -89,6 +89,87 @@ What fails is the pytest wrapper, so this costs a red suite rather than hiding
 a functional defect.
 **Status:** open 2026-09-02. Found while validating the clock-gating activity
 term fix; NOT caused by it (see below).
+Re-diagnosed 2026-09-15: seed-dependent, reproduces STANDALONE, confined to
+skid depth 8. The load/ccache framing below is falsified -- read the next
+block, not the original analysis.
+
+**FALSIFIED AND REPRODUCED DETERMINISTICALLY 2026-09-15. Almost everything
+below this block is wrong, and the "heavy parallel load" framing sent the
+investigation at ccache when the failure is seed-dependent and reproduces
+standalone in eight seconds.**
+
+    SEED=28162 pytest val/amba/test_axis4_slave.py -k "8-32-8-4-1"
+
+Single test, no parallel load, 13 other params deselected. Fails 2/2. Seeds
+1, 7, 42, 999 and 12345 all pass, so it is DETERMINISTIC PER SEED and rare
+across the seed space -- not intermittent.
+
+| this page claims | measured |
+|---|---|
+| "the cocotb test itself PASSES every time" | the cocotb test FAILS: `assert 8 >= 9` |
+| "Not the RTL ... the simulation succeeds; the wrapper exits" | sim reports FAIL at 1500.10ns, 4/4 attempts |
+| "dies under heavy parallel load", "load-sensitive" | reproduces standalone, zero load |
+| "A DIFFERENT parameter set each time" | the wrapper re-rolls the seed each run |
+| "look at ccache / Verilator artifact contention" | wrong layer entirely |
+
+**Why it looked load-sensitive.** `val/amba/test_axis4_slave.py` lines 214/339
+set `'SEED': os.environ.get('SEED', str(random.randint(0, 100000)))`, so every
+regression run rolls a NEW seed. A different seed exposes a different parameter
+set, which reads as "a different one each time under load". Within one run the
+seed is fixed, which is why all four attempts (initial + 3 reruns) failed
+identically rather than flickering. The observed rate across three full val/amba
+runs was 1 in 3.
+
+**The real failure, and it is CONFINED TO SKID DEPTH 8.** With SEED=28162 across
+all 14 parameter sets: 1 failed, 13 passed, and the only failure is
+`[8-32-8-4-1]` -- the sole set with skid depth 8. Every sd4 and sd2 set passes
+on the identical seed. `axis_slave_tb.py:250` already grants deep-skid builds a
+tolerance for exactly this:
+
+    min_expected_fub = max(1, num_packets - 1) if self.TEST_SKID_DEPTH > 4 else num_packets
+
+with the comment "Allow for skid buffer depth effects on monitor timing".
+So the TB already KNOWS the FUB monitor under-counts at deep skid and papers
+over it with -1; this seed makes it under-count by 2. Same class as the axil4
+monitor TB drain-window race.
+
+**What is NOT yet established, and do not write it down as settled.** Whether
+those two packets physically reached the FUB output is still open:
+
+    FUB slave received 16    (received_transactions)
+    AXIS monitor observed 10 (input side -- all 10 arrive)
+    FUB monitor observed 8   (output side)
+
+In a PASSING run the slave reports `packets_received: 10` alongside
+`received_transactions: 20`, i.e. that field runs 2x the packet count -- so 16
+implies 8 packets, agreeing with the FUB monitor. Two FUB-side components say 8
+while the input says 10. But the 2x relation is INFERRED from one passing run,
+not measured here, and it cannot be measured from a failing run: the assert at
+line 251 aborts BEFORE the `log.info(... Stats ...)` calls, so a failing log
+contains zero Stats blocks. Note also that the guard at line 246
+(`received_packets >= num_packets`) compares `received_transactions` against a
+PACKET count -- 16 >= 10 passes on a unit mismatch, so it is not evidence that
+all 10 arrived.
+
+To settle it, log the Stats before the asserts (or catch and re-raise) and read
+`packets_received` directly on the failing seed.
+
+**Priority should be re-read.** The P3 rationale was "the cocotb test itself
+PASSES ... this costs a red suite rather than hiding a functional defect". The
+cocotb test does not pass, so that rationale no longer holds as written. It is
+still most likely a monitor-timing artifact rather than data loss, but that is
+now an open question rather than an established premise.
+
+**The rerun flag this page forbids IS in place:** `make/tests.mk:70` sets
+`PYTEST_RERUNS ?= --reruns 3 --reruns-delay 1`. It masked nothing here (the
+failure is deterministic within a run and lost 4/4), but it is there, contrary
+to the instruction below.
+
+**Method note worth keeping:** re-running the failure overwrote its log with a
+passing seed's, and the passing log's numbers were briefly mistaken for the
+failing ones. Copy a failing log aside BEFORE re-running anything.
+
+**Superseded analysis follows.**
 
 **What happens.** In a 16-worker run of
 `test_mon_cg_gating + test_axil4_* + test_axil5_* + test_axis* +
