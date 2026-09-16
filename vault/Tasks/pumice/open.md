@@ -742,7 +742,21 @@ box. (Reason per Sean — workstation is where pumice is pushed from.)
 Gated behind the RTL area completing (Tasks/INDEX.md sequencing).
 
 ## PUMICE-039 — batch same-direction columns to amortise the R/W turnaround
-**Status:** open 2026-09-15  **Priority:** P2
+**Status:** open 2026-09-15  **Priority:** P2  **BLOCKED on PUMICE-042**
+
+2026-09-16: the mechanism ALREADY EXISTS -- `SCHED_WR_WM` in
+pumice_cmd_arbiter.sv, shipped with high_wm=0 (disabled) and, until
+6ba9dba62, with no host accessor at all. Enabling it on the board recovers
+**+25-30% bus bandwidth** (240.7 -> 312.6 MB/s at gap 12), more than the
+-17.4% that PUMICE-037's tRTW=20 costs.
+
+It also CORRUPTS: 4 beats/run, 50% all-ones -- PUMICE-037's DQ-collision
+fingerprint. Cause is NOT the arbiter (see PUMICE-042): with CMD_HISTORY_EN
+armed, check (7) GLOBAL tRTW fired ZERO violations while batching was on with
+the watermark readback verified. The scheduler spaces correctly; the DFI cmd
+path compresses it.
+
+So 039 is a CHARACTERIZATION task gated on PUMICE-042, not a design task.
 
 PUMICE-037's fix costs **-17.4% of bus bandwidth at gap 15** (writes -17.4%,
 reads unaffected): the arbiter pays the full ~18-cycle tRTW on EVERY direction
@@ -761,7 +775,7 @@ Realignment cannot substitute: tRTW is alignment-independent (proven on the
 board, PUMICE-037). Batching is the only route that recovers this bandwidth.
 
 ## PUMICE-040 — read alignment wastes 5 cycles of latency
-**Status:** open 2026-09-15  **Priority:** P2
+**Status:** CLOSED 2026-09-16 (6ba9dba62)  **Priority:** P2
 
 A joint (t_rddata_en x rddata_delay) board sweep found EVERY clean pair on the
 diagonal `rddata_delay = t_rddata_en + 1` -- the a7ddrphy's data-vs-valid offset
@@ -796,3 +810,40 @@ as a property of the DEFECT when it was a property of the TEST.
 
 Marked xfail(strict) so it converts back to a real test the moment BL4 works.
 
+## PUMICE-042 — mc_clk timing is not preserved across the CDC to the DFI
+**Status:** open 2026-09-16  **Priority:** P1
+
+Direction turnaround (tRTW/tWTR) is enforced ONLY on the scheduler side, in
+`mc_clk`. Between the scheduler and the DFI bus sits the async CDC command
+FIFO, which preserves ORDER but not SPACING. On the `dfi_clk` side the only
+column gate is DQ-occupancy pacing, and it is direction-blind:
+
+    pumice_dfi_cmd_path.sv
+      // A column command's burst owns the DQ bus for COL_BURST_CYC DFI cycles.
+      assign w_col_ok = (r_col_pace == '0);
+      ...
+      if (w_fire && w_is_col) r_col_pace <= PCW'(COL_BURST_CYC - 1);
+
+COL_BURST_CYC is ~2. So a RD followed by a WR is gated by 2 cycles at the DFI,
+where tRTW requires 20.
+
+**Why it normally hides:** the arbiter issues at roughly the DFI drain rate, so
+the FIFO stays near-empty and the arbiter's spacing propagates unchanged --
+tRTW appears honoured, coincidentally. Any condition that lets the FIFO BACK UP
+converts a correct schedule into an incorrect command stream.
+
+**First workload to expose it:** write batching (PUMICE-039). The drain bursts
+commands in, the FIFO fills, and the cmd path drains them back-to-back --
+compressing a 20-cycle RD->WR gap to 1. Every observation fits: the scheduler
+scoreboard is silent (the arbiter DID space them), the ILA shows RD->WR
+distance 1 on the DFI bus, there are exactly 2 violations per run (2 drain
+entries), and `dfi_wrdata_en` co-asserts with `dfi_rddata_en`.
+
+**Fix direction:** `r_col_pace` must reload direction-aware -- COL_BURST_CYC
+for same-direction, the turnaround (tRTW/tWTR in DFI cycles) on a direction
+change -- so the DFI side is independently safe instead of relying on the
+scheduler's spacing surviving a FIFO. Shared datapath: wants a scheduler-TB
+check and a board A/B behind it.
+
+**Note:** PUMICE-037 was the same LAYER (below DFI) but a different cause
+(tRTW derived too small). This is the enforcement not surviving the crossing.
