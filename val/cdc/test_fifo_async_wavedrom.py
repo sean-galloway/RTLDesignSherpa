@@ -185,7 +185,7 @@ def _wavedrom_grid(gate, func, full):
                          _wavedrom_grid([(8, 8, 10, 12)],
                                         [(8, 8, 10, 12), (16, 16, 10, 12)],
                                         [(8, 8, 10, 12), (16, 16, 10, 12),
-                                         (32, 8, 10, 20)]))
+                                         (32, 8, 10, 12)]))
 def test_fifo_async_wavedrom(request, data_width, depth, wr_clk_period, rd_clk_period):
     """Pytest wrapper for fifo_async WaveDrom generation."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({

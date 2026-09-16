@@ -9,9 +9,14 @@
 #
 # Subsystem: cdc
 # Author: sean galloway
-"""WaveDrom scenario testbench for gaxi_fifo_async.
+"""WaveDrom scenario testbench for fifo_async (rtl/cdc/fifo_async.sv).
 
-Moved out of val/cdc/test_fifo_async_wavedrom.py (CDC-004): a 349-line TB
+    NOT gaxi_fifo_async -- that is a different module in rtl/amba/gaxi with a
+    valid/ready interface. This DUT has the write/wr_data/wr_full and
+    read/rd_data/rd_empty ports the wavedrom constraints key on, and the test
+    builds it from rtl/cdc/filelists/fifo_async.f.
+
+Moved out of val/cdc/test_fifo_async_wavedrom.py (CDC-004): a 237-line TB
 class lived inside its own 526-line test file, against the convention every
 other TB here follows -- the cdc wavedrom siblings
 (counter_johnson_wavedrom_tb, counter_bingray_wavedrom_tb) already live here.
@@ -27,6 +32,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
 )
 from CocoTBFramework.components.wavedrom.wavejson_gen import WaveJSONGenerator
 from CocoTBFramework.components.shared.field_config import FieldConfig
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
 
 class FifoAsyncWaveDromTB(FifoBufferTB):
@@ -136,7 +142,18 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
                     TemporalEvent("write_high", SignalTransition("fifo_write", 0, 1))
                 ],
                 temporal_relation=TemporalRelation.SEQUENCE,
-                max_window_size=200,  # Large enough to capture FIFO scenarios
+                # The emitted wave is sliced at
+                #   start = seq_start - context_before
+                #   end   = seq_end + context_after + post_match_cycles + 1
+                # and with context_* left at None they resolve to
+                # max(3, window_size // 4). At window=200 that gave ~50 trailing
+                # samples, which ends the capture while the fill is still
+                # finishing -- so BFM reads, which can only follow the fill,
+                # never appeared. max_window_size alone changes nothing; the
+                # trailing context is the knob. (CDC-003)
+                max_window_size=300,
+                context_cycles_before=5,
+                context_cycles_after=150,
                 required=False,
                 max_matches=10,  # Allow multiple captures
                 clock_group="wr_clk",
@@ -156,12 +173,36 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
             self.wave_solver = None
             self.wave_generator = None
 
+
+    # ---- CDC-003: reads go through the BFM, not the pin -------------------
+    # FifoBufferTB starts an auto-consuming FIFOSlave; poking dut.read by hand
+    # contends with it. Instead give the slave an exact read_delay SEQUENCE.
+    # FlexRandomizer takes a list and LOOPS it (value = sequence[0];
+    # sequence.rotate(-1)), so the first consult holds the reader off while the
+    # FIFO fills and every consult after that is the scenario's drain spacing.
+    # One randomizer, no mid-scenario switch, no sleeping-slave latency.
+    def _read_schedule(self, fill_hold, spacing):
+        """read_delay = [fill_hold, spacing] looping forever."""
+        self.read_slave.set_randomizer(
+            FlexRandomizer({'read_delay': [fill_hold, spacing]}))
+
+    async def _await_drain(self, timeout_cycles=400):
+        """Wait for the BFM to empty the FIFO; the sequence paces the reads."""
+        empty = getattr(self.dut, 'rd_empty', None)
+        for _ in range(timeout_cycles):
+            await self.wait_clocks(self.rd_clk_name, 1)
+            if empty is not None and empty.value.is_resolvable and empty.value.integer == 1:
+                return True
+        self.log.error("drain did not complete within timeout")
+        return False
+
     async def scenario_write_fill_read_empty(self):
         """
         SCENARIO 1: Basic write-fill-read-empty cycle
 
         Demonstrates standard async FIFO operation with Gray code CDC.
         """
+        self._read_schedule(fill_hold=44, spacing=2)
         self.log.info("=== Scenario 1: Write-Fill-Read-Empty (Gray Code) ===")
 
         await self.wait_clocks(self.wr_clk_name, 3)
@@ -182,13 +223,7 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
 
         # Read everything out
         await self.wait_clocks(self.rd_clk_name, 3)
-        for i in range(self.TEST_DEPTH):
-            self.dut.read.value = 1
-            await RisingEdge(self.rd_clk)
-            self.dut.read.value = 0
-            await self.wait_clocks(self.rd_clk_name, 2)
-
-        await self.wait_clocks(self.rd_clk_name, 5)
+        await self._await_drain()
         self.log.info("✓ Scenario 1 complete")
 
     async def scenario_gray_code_sync(self):
@@ -197,6 +232,7 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
 
         Demonstrates efficient Gray code CDC with logarithmic pointer width.
         """
+        self._read_schedule(fill_hold=31, spacing=4)
         self.log.info("=== Scenario 2: Gray Code Synchronization ===")
 
         await self.wait_clocks(self.wr_clk_name, 3)
@@ -212,13 +248,7 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
 
         # Reads with async clock
         await self.wait_clocks(self.rd_clk_name, 3)
-        for i in range(4):
-            self.dut.read.value = 1
-            await RisingEdge(self.rd_clk)
-            self.dut.read.value = 0
-            await self.wait_clocks(self.rd_clk_name, 4)
-
-        await self.wait_clocks(self.rd_clk_name, 5)
+        await self._await_drain()
         self.log.info("✓ Scenario 2 complete")
 
     async def scenario_power_of_2_depth(self):
@@ -227,6 +257,7 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
 
         Demonstrates efficient addressing with power-of-2 depth.
         """
+        self._read_schedule(fill_hold=33, spacing=1)
         self.log.info("=== Scenario 3: Power-of-2 Depth Utilization ===")
 
         await self.wait_clocks(self.wr_clk_name, 3)
@@ -242,13 +273,7 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
 
         # Read out showing wrap-around
         await self.wait_clocks(self.rd_clk_name, 3)
-        for i in range(self.TEST_DEPTH):
-            self.dut.read.value = 1
-            await RisingEdge(self.rd_clk)
-            self.dut.read.value = 0
-            await self.wait_clocks(self.rd_clk_name, 1)
-
-        await self.wait_clocks(self.rd_clk_name, 5)
+        await self._await_drain()
         self.log.info("✓ Scenario 3 complete")
 
     async def generate_all_wavedrom_scenarios(self):

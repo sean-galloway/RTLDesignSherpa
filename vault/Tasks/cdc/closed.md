@@ -184,3 +184,59 @@ completions) is the mutation evidence.
 **Still owed:** a directed cocotb test. `val/cdc/test_cdc_4_phase_handshake.py`
 sweeps only clock-period combinations and sets no parameters, so `TIMEOUT_CYCLES`
 has no directed coverage either.
+
+---
+
+## CDC-003: fifo_async wavedrom scenarios hand-drove dut.read against a live BFM
+**Status:** CLOSED 2026-09-16 — reads now go through the BFM, and the captured
+diagrams are strictly better than the ones they replace.
+
+**The contention was real:** `FifoBufferTB` constructs a `FIFOSlave` whose
+`BusMonitor` base auto-starts `_monitor_recv`, and it drives `read_sig` through
+`_set_rd_ready` at five sites. The scenarios poked `dut.read` by hand anyway.
+
+**What the evidence actually showed, against this task as filed.** The filed
+fix said "drive reads through the BFM". Measuring the baseline first showed the
+BFM was *already* driving everything visible: 7 of the 8 read edges in the
+pre-change diagrams occur DURING the fill — slave drainage on its own randomizer
+schedule — while the hand-driven loops fell almost entirely outside the capture.
+So the diagrams had been recording the contention since they were promoted
+2026-07-25.
+
+**Three BFM attempts failed before the real obstacle was found**, and it was not
+the randomizer: switched profiles, a park sized to the fill, and a looping
+`read_delay` sequence all produced ZERO in-window reads. The cause was the
+capture slice in `constraint_solver.py`:
+
+    start = seq_start - context_before
+    end   = seq_end + context_after + post_match_cycles + 1
+
+with `context_cycles_*` left at `None`, both resolve to `max(3, window_size//4)`.
+At `max_window_size=200` that is ~50 trailing samples, which closes the capture
+while the fill is still finishing — and BFM reads can only follow the fill.
+Raising `max_window_size` alone changes nothing; the trailing context is the knob.
+
+**The fix:** `read_delay` is an exact looping sequence `[fill_hold, spacing]`
+(FlexRandomizer loops a list: `value = sequence[0]; sequence.rotate(-1)`), so the
+first consult holds the reader off while the FIFO fills and every consult after
+is the scenario's drain spacing. The constraint gained
+`context_cycles_before=5`, `context_cycles_after=150`, `max_window_size=300`.
+The clock grid is now uniformly 10/12 ns (the `(32,8,10,20)` pair went).
+
+**Result, measured against the pre-change baseline:**
+
+| diagram | wave len | read edges | after last write |
+|---|---|---|---|
+| gray_code_sync | 50 -> 98 | 2 -> 4 | 0 -> 3 |
+| power_of_2_depth | 50 -> 141 | 3 -> 6 | 0 -> 4 |
+| write_fill_read_empty | 50 -> 127 | 2 -> 4 | 1 -> 4 |
+
+`wr_full` TRANSITIONS in write_fill_read_empty for the first time in any
+version, including the committed artifacts: scenario 1 writes `TEST_DEPTH - 1`
+in its loop PLUS one more after it, so with the reader parked the FIFO genuinely
+fills. (An earlier note in this task claiming it could never fill was wrong.)
+
+**Staged only.** `get_wavejson_dir` writes to the gitignored
+`WAVES/staged/<module>/`; promoting to the tracked diagrams is a deliberate
+`WAVEJSON_DIR=docs/markdown/assets/WAVES` run, not done here — the committed
+`.png` files beside the JSON would need regenerating with them.

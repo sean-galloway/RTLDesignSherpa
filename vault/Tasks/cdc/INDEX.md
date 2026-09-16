@@ -15,8 +15,8 @@ test scrub rather than a design item.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 1 | accepted, ready to start |
-| [closed.md](closed.md) | 4 | done (kept for history) |
+| [open.md](open.md) | 0 | accepted, ready to start |
+| [closed.md](closed.md) | 5 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 ## Open
