@@ -54,7 +54,10 @@ DDR2_BL            = 4                                        # board burst leng
 def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
                            part: Dict[str, float] = DDR2_MT47H64M16_NS,
                            t_rddata_en: int = 6, dram_bl: int = None,
-                           dfi_rate: int = 2) -> Dict[str, int]:
+                           dfi_rate: int = 2, rddata_delay: int = 7,
+                           t_phy_wrlat: int = 1,
+                           phy_rd_dq_busy: int = 14,
+                           rtw_guard: int = 4) -> Dict[str, int]:
     """JEDEC DDR2 timings in MC cycles for a controller at ``mc_clk_hz`` driving
     the DRAM at ``ck_per_mc`` CK per MC cycle (DFI_RATE=2 -> 2). Every ns value
     rounds UP; every CK minimum rounds up too and the larger of the two wins.
@@ -114,7 +117,38 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
     # to JEDEC (multiplexer.py: delayed_enter("RTW","WRITE", read_latency-1))
     # and lands on 8 for this build; taking the max of the two reproduces that
     # from pumice's OWN parameters instead of copying the constant.
-    rd_window_mc = int(t_rddata_en) + ceil(bl / max(1, int(dfi_rate)))
+    # READ DQ OCCUPANCY -- a property of the PART and PHY, not of pumice.
+    #
+    # The DRAM drives DQ at CL after the READ command. t_rddata_en and
+    # rddata_delay only decide when pumice SAMPLES that data; they cannot
+    # change when the device DRIVES it. So the window a write must not land in
+    # is fixed by the silicon.
+    #
+    # phy_rd_dq_busy is MEASURED, not derived: an ILA decode of the failing
+    # config (reports/ila_pumice037_wrdata_into_read.csv) put every one of 49
+    # write-into-read overlaps EXACTLY 13 cycles after the most recent RD
+    # command -- 49 of 49, one value -- with per-RD rddata_valid extent
+    # clustering at 13 (48 reads) and 14 (5). None violated the tRTW of 8 in
+    # force at the time: the timing was obeyed and the WINDOW was wrong.
+    #
+    # An earlier version of this computed the window as
+    #     t_rddata_en + rddata_delay + BL/DFI_RATE
+    # which gives 6+7+2 = 15 on the board tuple and LOOKED right because
+    # 6+7 = 13 coincidentally equals the measured occupancy. It is wrong, and
+    # provably so: re-aligning the read path to rden=1/rddata_delay=2 (a clean
+    # alignment -- every working pair sits on rddata_delay = t_rddata_en + 1)
+    # made that formula derive tRTW=8, and gaps 13/15 then failed exactly as
+    # they had before the fix, while tRTW=18 stayed clean at BOTH alignments.
+    # Occupancy does not move with the capture alignment. Do not reintroduce
+    # that term: it silently under-derives tRTW for any shortened read path.
+    #
+    # A write drives DQ t_phy_wrlat after its command, so:
+    #     tRTW >= phy_rd_dq_busy + 1 - t_phy_wrlat        (= 14 on this board)
+    # rtw_guard is EMPIRICAL, covering the arbiter's registered turnaround ok:
+    # the board shows a single-digit residue at 14/15/16 and is clean at 18,
+    # at BOTH read alignments.
+    rd_window_mc = (int(phy_rd_dq_busy) + 1 - int(t_phy_wrlat)
+                    + int(rtw_guard))
     return dict(
         tRCD=ns(part["tRCD"]), tRP=ns(part["tRP"]), tRAS=ns(part["tRAS"]),
         tRC=ns(part["tRC"]),

@@ -174,6 +174,42 @@ module pumice_top
         endcase
     end
 
+
+    // ---- tRTW FLOOR: a read owns DQ until its capture window closes --------
+    //
+    // PUMICE-037. tRTW is nominally the JEDEC read-to-write turnaround, and a
+    // host that derives it from JESD79-2 alone gets a DRAM-internal number
+    // that says nothing about how long the PHY keeps returning data. On the
+    // Nexys A7 that produced tRTW=3 while the read was still on DQ, and an ILA
+    // decode of the failing config found every one of 49 write-into-read
+    // overlaps sitting EXACTLY 13 cycles after the most recent RD command --
+    // none of them violating the programmed tRTW. The timing was being obeyed;
+    // the NUMBER described a window that had already closed.
+    //
+    // This floors tRTW at the read window pumice itself owns: a read's capture
+    // runs [t_rddata_en, t_rddata_en + RD_EN_CYC - 1] and a write drives DQ
+    // t_phy_wrlat after its command, so a write issued closer than
+    //     t_rddata_en + RD_EN_CYC - t_phy_wrlat
+    // lands inside pumice's own read window. Programming tRTW below that is
+    // never correct, so the RTL refuses to honour it.
+    //
+    // LIMIT, stated because it matters: this floor covers only what pumice can
+    // SEE. Any read-path delay added OUTSIDE the controller is invisible here
+    // -- on this board ddr2_char_harness realigns dfi_rddata to the late
+    // a7ddrphy valid via its own DFI_TUNING.rddata_delay (7), which pushes true
+    // DQ occupancy to ~13-14 and is a harness CSR, not a pumice one. Covering
+    // that remains the integrator's contract: tRTW must include the PHY's
+    // read-data return latency. The floor stops the grossly-wrong case; it
+    // cannot stop the subtly-wrong one.
+    localparam int RD_EN_CYC_TOP = (DRAM_BL + DFI_RATE - 1) / DFI_RATE;
+    logic [7:0] w_t_rtw_floor, w_t_rtw_eff;
+    assign w_t_rtw_floor = 8'(hwif_out.PHY_TIMING.t_rddata_en.value)
+                         + 8'(RD_EN_CYC_TOP)
+                         - 8'(hwif_out.PHY_TIMING.t_phy_wrlat.value);
+    assign w_t_rtw_eff   = (8'(hwif_out.TIMINGS_RTP_RTW.tRTW.value) > w_t_rtw_floor)
+                         ?  8'(hwif_out.TIMINGS_RTP_RTW.tRTW.value)
+                         :  w_t_rtw_floor;
+
     pumice_core #(
         .AXI_ID_WIDTH     (IW),
         .AXI_ADDR_WIDTH   (AW),
@@ -240,7 +276,7 @@ module pumice_top
         .t_faw_i            (hwif_out.TIMINGS_RRD_FAW_WTR_CCD.tFAW.value),
         .t_rrd_i            (hwif_out.TIMINGS_RRD_FAW_WTR_CCD.tRRD.value),
         .t_wtr_i            (hwif_out.TIMINGS_RRD_FAW_WTR_CCD.tWTR.value),
-        .t_rtw_i            (hwif_out.TIMINGS_RTP_RTW.tRTW.value),
+        .t_rtw_i            (w_t_rtw_eff),
         .t_ccd_i            (hwif_out.TIMINGS_RRD_FAW_WTR_CCD.tCCD.value),
         .t_refi_i           (hwif_out.TIMINGS_RFC_REFI.tREFI.value),
         // DV-only knob; the production build never pulses it, so the

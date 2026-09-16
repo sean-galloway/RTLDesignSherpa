@@ -247,7 +247,17 @@ class ControllerConfig:
     # -> every read mismatches (0/N integrity). This bit us twice: first with a
     # hardcoded 4, then with the pre-tuple 0.
     t_phy_wrlat:   int = int(os.environ.get("TEST_T_PHY_WRLAT", "1"))
-    t_rddata_en:   int = 6
+    # Env-overridable, because 6 was never required. A joint
+    # (t_rddata_en x rddata_delay) board sweep found EVERY clean pair on the
+    # diagonal rddata_delay = t_rddata_en + 1 -- the a7ddrphy's data-vs-valid
+    # offset is a fixed 1 cycle, so any rden works if the delay tracks it.
+    # rden=6/delay=7 is therefore 5 cycles of avoidable read latency over
+    # rden=1/delay=2, and that latency is what inflates tRTW (and cost 17.4%
+    # of bus bandwidth at gap 15). A single-axis sweep converges on
+    # working-but-slow because a late rddata_en does not corrupt reads -- the
+    # a7ddrphy DQ capture free-runs and rddata_en only gates WHEN VALID IS
+    # EMITTED, so rddata_delay silently hides the cost.
+    t_rddata_en:   int = int(os.environ.get("TEST_T_RDDATA_EN", "6"))
     # rddata_delay slides the read DATA onto the rddata_valid cycle. VERIFIED
     # 75/DDR2-300 value = 7 (ILA 2026-09-05: data arrived 1 cycle after valid
     # at 8; razor-sharp single-cycle optimum 6->fail,7->clean,8->fail). Was
@@ -291,7 +301,12 @@ class ControllerConfig:
         # JEDEC timings BEFORE the per-config refresh override below, so a
         # config's deliberate t_refi (the *_refresh pair) still wins.
         if self.jedec_timings:
-            applied = drv.set_jedec_timings(self.mc_clk_hz)
+            # Derive tRTW from the alignment this config ACTUALLY programs,
+            # not from the derivation's defaults.
+            applied = drv.set_jedec_timings(
+                self.mc_clk_hz, t_rddata_en=self.t_rddata_en,
+                rddata_delay=self.rddata_delay,
+                t_phy_wrlat=self.t_phy_wrlat)
             print(f"[config {self.name}] jedec timings @ {self.mc_clk_hz/1e6:.2f} MHz: "
                   + " ".join(f"{k}={v}" for k, v in applied.items()),
                   file=sys.stderr, flush=True)

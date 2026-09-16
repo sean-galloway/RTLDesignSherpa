@@ -411,12 +411,20 @@ class DDR2CharDriver:
         # rd_in_order is the HARNESS CTRLR_CFG bit (the check engine's R
         # ordering); the controller's ordering is set_sched_policy().
 
-    def set_jedec_timings(self, mc_clk_hz: float) -> dict:
+    def set_jedec_timings(self, mc_clk_hz: float, **align) -> dict:
         """Program the controller's JEDEC DDR2 timing CSRs (MC cycles) derived
         from the board part and the MC clock -- see pumice_device.
-        ddr2_timings_mc_cycles(). Returns the applied dict for the log."""
+        ddr2_timings_mc_cycles(). Returns the applied dict for the log.
+
+        `align` forwards the READ-PATH alignment (t_rddata_en, rddata_delay,
+        t_phy_wrlat). tRTW is derived from it -- a read owns DQ until
+        t_rddata_en + rddata_delay + BL/DFI_RATE -- so a caller that programs
+        one alignment while this derives tRTW from the DEFAULT of another gets
+        a turnaround for a read window the controller is not using. That is not
+        hypothetical: it is the PUMICE-037 failure mode, one layer up."""
         from pumice_device import ddr2_timings_mc_cycles
-        return self.pumice.set_jedec_timings(ddr2_timings_mc_cycles(mc_clk_hz))
+        return self.pumice.set_jedec_timings(
+            ddr2_timings_mc_cycles(mc_clk_hz, **align))
 
     def set_controller_cap(self, cap_lookahead_max: int,
                            cap_synth_mask: int) -> None:
