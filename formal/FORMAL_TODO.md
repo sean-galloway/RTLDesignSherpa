@@ -19,21 +19,16 @@ counted here.
 |------|------|------|-------|------------------------|---------|-------|
 | common (non-math) | 52 | 0 | 0 | 0 | 2 | 54 |
 | common (math) | 163 | 0 | 0 | 7 | 0 | 170 |
-| cdc | 11 | 1 | 0 | 0 | 0 | 12 |
+| cdc | 12 | 0 | 0 | 0 | 0 | 12 |
 | amba | 61 | 0 | 0 | 0 | 0 | 61 |
-| **Total** | **287** | **1** | **0** | **7** | **2** | **297** |
+| **Total** | **288** | **0** | **0** | **7** | **2** | **297** |
 
-**One FAIL, and it is a finding held open on purpose.** TASK-094 (the rd
-splitter's AXI A3.3.1 violation) was fixed on 2026-09-13, and the suite was
-briefly clean; extending the cdc handshake proof to its two unproven
-parameters on 2026-09-16 immediately found a real data-loss defect in the
-FAST_PATH branch (CDC-002), and that proof is left red so the finding cannot
-quietly disappear. Everything else below is not failure:
+**No FAILs.** The cdc handshake proof that was held red on purpose is green:
+CDC-002 (the FAST_PATH lost-transfer defect it found) was fixed on 2026-09-16 by
+removing the unsound fast path, and the parameter with it. What remains below is
+not failure:
 
 ```
-cdc/cdc_4_phase_handshake: FAIL   <- FAST_PATH acks a transfer the receiver
-                                     never took -- CDC-002 (prove_fast only;
-                                     its other five tasks pass)
   common/dataint_ecc_hamming_decode_secded: NOSBY
   common/dataint_ecc_hamming_encode_secded: NOSBY
   common/math_ieee754_2008_fp16_mantissa_mult: TIMEOUT

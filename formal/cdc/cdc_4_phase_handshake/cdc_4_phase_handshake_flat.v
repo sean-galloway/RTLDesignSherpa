@@ -14,7 +14,6 @@ module cdc_4_phase_handshake (
 	parameter signed [31:0] DATA_WIDTH = 8;
 	parameter signed [31:0] SYNC_STAGES = 3;
 	parameter signed [31:0] TIMEOUT_CYCLES = 0;
-	parameter [0:0] FAST_PATH = 1'b0;
 	input wire clk_src;
 	input wire rst_src_n;
 	input wire src_valid;
@@ -127,15 +126,8 @@ module cdc_4_phase_handshake (
 					r_ack_dst <= 1'b0;
 					if (w_req_sync) begin
 						r_dst_data <= r_src_data_hold;
-						if (FAST_PATH && dst_ready) begin
-							dst_valid <= 1'b1;
-							r_ack_dst <= 1'b1;
-							r_dst_state <= 2'd2;
-						end
-						else begin
-							dst_valid <= 1'b1;
-							r_dst_state <= 2'd1;
-						end
+						dst_valid <= 1'b1;
+						r_dst_state <= 2'd1;
 					end
 					else
 						dst_valid <= 1'b0;

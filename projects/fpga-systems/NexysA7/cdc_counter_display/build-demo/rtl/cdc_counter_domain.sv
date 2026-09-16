@@ -496,8 +496,7 @@ module cdc_counter_domain #(
 
     cdc_4_phase_handshake #(
         .DATA_WIDTH  (VAL_WIDTH),
-        .SYNC_STAGES (SYNC_STAGES),
-        .FAST_PATH   (1'b1)
+        .SYNC_STAGES (SYNC_STAGES)
     ) u_hs4p (
         .clk_src     (ctr_clk),
         .rst_src_n   (ctr_rstn),

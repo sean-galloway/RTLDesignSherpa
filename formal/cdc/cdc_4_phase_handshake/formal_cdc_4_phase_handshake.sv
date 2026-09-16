@@ -22,8 +22,7 @@ module formal_cdc_4_phase_handshake #(
     // CDC-FORMAL-STALE items 2/3: the two parameters the old forked proof
     // could not reach. Driven per sby task via chparam; sv2v keeps them as
     // real parameters in the flat, so the generate-gated logic is present.
-    parameter int TIMEOUT_CYCLES = 0,
-    parameter bit FAST_PATH      = 1'b0
+    parameter int TIMEOUT_CYCLES = 0
 ) (
     input  logic                    clk,
     input  logic                    rst_n,
@@ -41,8 +40,7 @@ module formal_cdc_4_phase_handshake #(
     // Single clock drives both domains
     cdc_4_phase_handshake #(
         .DATA_WIDTH     (DATA_WIDTH),
-        .TIMEOUT_CYCLES (TIMEOUT_CYCLES),
-        .FAST_PATH      (FAST_PATH)
+        .TIMEOUT_CYCLES (TIMEOUT_CYCLES)
     ) dut (
         .clk_src   (clk),
         .rst_src_n (rst_n),
@@ -250,14 +248,4 @@ module formal_cdc_4_phase_handshake #(
     end endgenerate
 
     // =========================================================================
-    // FAST_PATH = 1 -- the other path the forked proof could not see
-    // =========================================================================
-    generate if (FAST_PATH) begin : g_fast_props
-        // The fast branch is only worth anything if it is actually taken:
-        // dst_valid rises already accompanied by dst_ready.
-        always @(posedge clk)
-            if (rst_n && f_past_valid > 0)
-                cp_fastpath_taken: cover (dst_valid && dst_ready && !$past(dst_valid));
-    end endgenerate
-
 endmodule

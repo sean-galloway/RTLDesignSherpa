@@ -68,8 +68,10 @@
 module cdc_4_phase_handshake #(
     parameter int DATA_WIDTH     = 8,   // Width of the data bus for transfer
     parameter int SYNC_STAGES    = 3,   // Synchronizer depth for req/ack (2 or 3)
-    parameter int TIMEOUT_CYCLES = 0,   // 0 = disabled; >0 asserts src_timeout
-    parameter bit FAST_PATH      = 1'b0 // 1 = dst fast-path when dst_ready is already high
+    parameter int TIMEOUT_CYCLES = 0    // 0 = disabled; >0 asserts src_timeout
+    // FAST_PATH removed (CDC-002): it acknowledged transfers the receiver never
+    // took. Made correct, it saved nothing, so the knob went rather than
+    // remaining as a parameter that did nothing.
 ) (
     // Source clock domain signals
     input  logic                  clk_src,     // Source domain clock
@@ -252,16 +254,13 @@ module cdc_4_phase_handshake #(
                     r_ack_dst <= 1'b0;
                     if (w_req_sync) begin
                         r_dst_data <= r_src_data_hold;
-                        if (FAST_PATH && dst_ready) begin
-                            // Receiver already ready: ack immediately, skip
-                            // D_WAIT_READY to save one dst clock.
-                            dst_valid   <= 1'b1;
-                            r_ack_dst   <= 1'b1;
-                            r_dst_state <= D_WAIT_REQ_CLR;
-                        end else begin
-                            dst_valid   <= 1'b1;
-                            r_dst_state <= D_WAIT_READY;
-                        end
+                        // CDC-002: always wait for an OBSERVED handshake.
+                        // The old FAST_PATH branch set dst_valid and r_ack_dst
+                        // together on the NEXT cycle after sampling dst_ready,
+                        // so a receiver that dropped ready in between was acked
+                        // for a beat it never took -- silent data loss.
+                        dst_valid   <= 1'b1;
+                        r_dst_state <= D_WAIT_READY;
                     end else begin
                         dst_valid <= 1'b0;
                     end

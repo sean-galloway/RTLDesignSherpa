@@ -492,7 +492,6 @@ falls. Slower than 2-phase, and tolerant of independent domain resets.
 | `DATA_WIDTH` | 8 | Width of the data bus (1 to 1024+) |
 | `SYNC_STAGES` | 3 | Synchronizer depth for req/ack (2 or 3) |
 | `TIMEOUT_CYCLES` | 0 | 0 = disabled; >0 asserts `src_timeout` after stall |
-| `FAST_PATH` | 0 | `bit` type; 1 = destination fast-path when `dst_ready` already high |
 
 : cdc_4_phase_handshake parameters
 
@@ -956,11 +955,14 @@ renamed to `cdc_4_phase_handshake` and grew parameters. The copy carries
 **Updated 2026-09-16 (CDC-FORMAL-STALE closed).** The fork is gone: the proof
 now flattens and reads the shipped module, and drives each parameter from its
 own sby task. The timeout path is proven -- it never fires before a transfer is
-sent and always fires once one stalls past the programmed count. The FAST_PATH
-branch is proven UNSOUND: it acknowledges a transfer the receiver never took
-when `dst_ready` falls between the sample and `dst_valid` rising, silently
-dropping the beat. Do not set `FAST_PATH=1` unless `dst_ready` is tied high.
-Tracked as CDC-002.
+sent and always fires once one stalls past the programmed count.
+
+`FAST_PATH` no longer exists (CDC-002, 2026-09-16). Formal proved it unsound:
+`D_IDLE` sampled `dst_ready` and then raised `dst_valid` and the ack together on
+the NEXT cycle, so a receiver that dropped ready in between was acknowledged for
+a beat it never took -- silent data loss. Made correct it saved nothing, so the
+parameter was removed rather than left as a knob that did nothing. The
+destination now always waits for an observed `dst_valid && dst_ready`.
 
 The reset behavior described in this document is argued from the RTL encoding and
 -- for the 2-phase hazard -- confirmed on silicon. It is **not** currently covered

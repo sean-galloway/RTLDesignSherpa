@@ -152,3 +152,35 @@ signal names. All three hold.
 Note `TEST_LEVEL` gates how many scenarios emit — `gate` emits two of three —
 so this was baselined and validated at `full`, or a third of the output would
 never have been exercised.
+
+---
+
+## CDC-002: cdc_4_phase_handshake FAST_PATH acknowledged a transfer the receiver never took
+**Status:** CLOSED 2026-09-16 — fixed by option 2, and the parameter deleted.
+
+`D_IDLE` sampled `dst_ready` and then set `dst_valid` AND `r_ack_dst` together on
+the following cycle. A receiver that dropped ready in between was acked for a
+beat it never took: `dst_valid && dst_ready` never held, `D_WAIT_REQ_CLR` drove
+valid low, and the beat was silently lost.
+
+The destination now always transitions to `D_WAIT_READY`, which acks only on an
+OBSERVED handshake. That made `FAST_PATH` save nothing, so it was removed rather
+than left as a knob that did nothing.
+
+**Blast radius was wider than this task first recorded** — it said "two
+instantiations in cdc_counter_domain.sv". In fact the consumers were in two
+different areas: `cdc_counter_domain.sv` (FPGA demo build, passed `1'b1`) and
+`retro_legacy_blocks/rtl/rtc/rtc_core.sv` (passed `1'b0`). Both had the
+connection dropped.
+
+**Evidence:** the flat rebuilt from the fixed RTL contains no `FAST_PATH`, and
+the four remaining proofs pass — `prove`, `cover`, `prove_timeout`,
+`cover_timeout`. `prove_fast`/`cover_fast` are gone with the parameter, along
+with their Makefile targets and sby tasks. `ap_no_lost_transfer` — the property
+that caught this — remains and still passes; its counterexample against the
+unfixed design (`D_WAIT_REQ_CLR` with `r_ack_dst=1` and zero destination
+completions) is the mutation evidence.
+
+**Still owed:** a directed cocotb test. `val/cdc/test_cdc_4_phase_handshake.py`
+sweeps only clock-period combinations and sets no parameters, so `TIMEOUT_CYCLES`
+has no directed coverage either.

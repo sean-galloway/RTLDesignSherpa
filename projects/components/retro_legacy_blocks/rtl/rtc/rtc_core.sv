@@ -966,8 +966,7 @@ module rtc_core #(
     cdc_4_phase_handshake #(
         .DATA_WIDTH       (TIME_WIDTH),
         .SYNC_STAGES      (SYNC_STAGES),
-        .TIMEOUT_CYCLES   (COMMIT_TIMEOUT_CYCLES),
-        .FAST_PATH        (1'b0)
+        .TIMEOUT_CYCLES   (COMMIT_TIMEOUT_CYCLES)
     ) u_commit_cdc (
         .clk_src          (clk),
         .rst_src_n        (w_commit_src_rst_n),
