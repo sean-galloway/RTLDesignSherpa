@@ -41,7 +41,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from projects.components.misc.dv.tbclasses.axi4_intf_observer_tb import AXI4IntfObserverTB  # noqa: E402
-from TBClasses.monbus.monbus_types import AXIErrorCode  # noqa: E402
+from TBClasses.monbus.monbus_types import AXIErrorCode, PktType  # noqa: E402
 
 
 def _p(name, default):
@@ -358,6 +358,180 @@ async def cocotb_test_observer_all_classes(dut):
             f"AddrMatch packet. Saw: {sorted(seen)}")
 
 
+def _types_since(tb, n0):
+    """Packet-class names among packets captured after index n0.
+
+    The sink is started ONCE for the whole test (start_egress_sink does
+    cocotb.start_soon on an infinite loop, so calling it twice would run two
+    samplers against the same signals and corrupt the 3-beat framing), so
+    batches are separated by slicing rather than by re-arming.
+    """
+    out = set()
+    for pk in tb.packets[n0:]:
+        try:
+            out.add(PktType(pk.packet_type).name.replace("PktType", ""))
+        except ValueError:
+            out.add(f"type{pk.packet_type}")
+    return out
+
+
+@cocotb.test(timeout_time=200, timeout_unit="us")
+async def cocotb_test_observer_reset_reissue(dut):
+    """TASK-084: does a scenario still emit after an earlier one has run?
+
+    The board symptom (Genesys 2 build-mon): the addr_error scenario emits
+    129/122 ADDR_RANGE packets when it is the FIRST thing run after the
+    bitstream is programmed, and ZERO if any other scenario ran first. Only
+    REPROGRAMMING recovers, and programming is what asserts the global
+    aresetn. Every scenario already begins with CTRL.SOFT_RESET.
+
+    The monbus GROUP was excluded in cosim (val/amba/test_monbus_group_soft_reset.py):
+    it clears completely across a reset and emits normally afterwards. This is
+    the UPSTREAM half, on the observer itself -- and unlike the group probe it
+    can count the packet class the board actually lost, AddrMatch.
+
+    Two identical batches separated by a reset pulse; batch 2 must still emit.
+
+    THE REPROGRAM BETWEEN BATCHES IS REQUIRED, NOT INCIDENTAL. The reset
+    returns every observer CSR to its reset value -- confirmed behaviour, not
+    a defect -- which disarms the address ranges. A board scenario does exactly
+    this: SOFT_RESET, then setup() reprograms. Skipping the reprogram here
+    would leave batch 2 with no ranges armed; it would emit no AddrMatch for a
+    completely legitimate reason and the test would report a reproduction that
+    is not one.
+    """
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink()          # ONCE for the whole test
+
+    caps0 = await tb.read_reg("OBS_CAPS0")
+    n_ranges = (caps0 >> 12) & 0xF
+    assert n_ranges, (
+        f"caps0=0x{caps0:08X} reports 0 address ranges, so AddrMatch is "
+        f"structurally impossible and this probe cannot say anything about "
+        f"TASK-084. It must run on _PARAMS_ALL (N_ADDR_RANGES=4).")
+
+    # Pristine post-reset value, read rather than hardcoded: the mid-test
+    # reset is later required to return this register to THIS value.
+    rng_ctrl_reset = await tb.read_reg("ADDR_RANGE_CTRL")
+
+    async def _program():
+        """Exactly what a board scenario's setup() does after SOFT_RESET."""
+        await tb.write_reg("OBS_CTRL", 0)
+        await tb.write_reg("OBS_BASE_ADDR", 0x0000_0000)
+        await tb.write_reg("OBS_LIMIT_ADDR", 0x0000_FFFF)
+        await tb.write_reg("MON_CTRL", 0xFF)      # all EN + ADDR_CHECK + MONITOR
+        await tb.write_reg("MON_TIMEOUT", 4)
+        await tb.write_reg("MON_LATENCY", 8)
+        await tb.write_reg("ADDR_RANGE0_LOW", 0x0000_1000)
+        await tb.write_reg("ADDR_RANGE0_HIGH", 0x0000_1FFF)
+        await tb.write_reg("ADDR_RANGE_CTRL", 0x1)
+
+    async def _batch(label):
+        n = {"gate": 3, "func": 5, "full": 8}[current_level()]
+        for i in range(n):
+            await tb.drive_read_burst(addr=0x1000 + i * 0x40, arid=i, beats=4)
+            await tb.wait_clocks("aclk", 40)
+            await tb.drive_write_burst(addr=0x1000 + i * 0x40, awid=i + 8, beats=4)
+            await tb.wait_clocks("aclk", 40)
+        # deliberately OUT of range 0, so a match is a match and not "everything"
+        await tb.drive_read_burst(addr=0x8000, arid=15, beats=2)
+        await tb.wait_clocks("aclk", 200)
+        tb.log.info(f"[TASK-084] {label}: {len(tb.packets)} packets captured total")
+
+    # ---- Scenario 1 ------------------------------------------------------
+    await _program()
+    n0 = len(tb.packets)
+    await _batch("BATCH-1")
+    first = _types_since(tb, n0)
+    tb.log.info(f"[TASK-084] batch 1 classes: {sorted(first)}")
+
+    # ---- The reset a board scenario pulses between runs ------------------
+    await tb.assert_reset()
+    await tb.wait_clocks("aclk", 16)
+    await tb.deassert_reset()
+    await tb.wait_clocks("aclk", 5)
+    await tb.apb.reset_bus()
+    # A reset can land mid-record: records are 3 AXIL beats. Drop any partial
+    # or batch 2's beats append onto the stub and every later record is
+    # mis-framed (check_record_framing below would then fail for the wrong
+    # reason).
+    tb._rec = []
+
+    rng_ctrl_after = await tb.read_reg("ADDR_RANGE_CTRL")
+    tb.log.info(f"[TASK-084] ADDR_RANGE_CTRL: power-on={rng_ctrl_reset:#x} "
+                f"programmed=0x1 after-reset={rng_ctrl_after:#x}")
+
+    # ---- Scenario 2: identical traffic, reprogrammed as a scenario would --
+    await _program()
+    n1 = len(tb.packets)
+    await _batch("BATCH-2")
+    second = _types_since(tb, n1)
+    tb.log.info(f"[TASK-084] batch 2 classes: {sorted(second)}")
+    tb.log_tally("both batches")
+
+    # ARMED FIRST: if batch 1 never emitted AddrMatch, batch 2 says nothing.
+    assert "AddrMatch" in first, (
+        f"batch 1 emitted no AddrMatch with {n_ranges} ranges built and range0 "
+        f"armed over 0x1000-0x1FFF. The stimulus or the arming is wrong, so "
+        f"nothing about a reset can be concluded. Saw: {sorted(first)}")
+
+    # The reset must genuinely clear config, or the reprogram above is a no-op
+    # and batch 2 would prove nothing about recovery.
+    assert rng_ctrl_after == rng_ctrl_reset, (
+        f"ADDR_RANGE_CTRL reads {rng_ctrl_after:#x} after the reset pulse but "
+        f"{rng_ctrl_reset:#x} after power-on reset. The mid-test reset did not "
+        f"restore it, so this probe is not reproducing what SOFT_RESET does.")
+
+    # THE REGRESSION: a scenario must not be dead merely because one ran before.
+    assert "AddrMatch" in second, (
+        f"batch 2 emitted NO AddrMatch after a reset that followed prior "
+        f"traffic, while batch 1 did. Identical stimulus, reprogrammed exactly "
+        f"as a board scenario does. This reproduces the board's order "
+        f"dependence at the observer. batch1={sorted(first)} "
+        f"batch2={sorted(second)}. TASK-084.")
+
+    # Framing must survive the reset -- but validate it PER BATCH. The stock
+    # check_record_framing() walks EVERY record with a 64-tick monotonicity
+    # tolerance, and the reset RESTARTS the observer's timebase, so batch 2's
+    # timestamps legitimately sit far below batch 1's. Measured across the
+    # boundary: 197 ticks "backwards", which is the reset working, not a
+    # framing fault. Calling the stock check here fails for the wrong reason.
+    def _framing(recs, label):
+        assert recs, f"{label}: no records captured"
+        last, back = -1, 0
+        for i, (b0, _hi, _lo) in enumerate(recs):
+            tag = (b0 >> 60) & 0xF
+            ts = b0 & ((1 << 60) - 1)
+            assert tag == 0, f"{label} record {i}: beat0 tag={tag}, expected 0"
+            assert ts > 0, f"{label} record {i}: source_ts is 0 -- timebase stopped"
+            if ts < last:
+                back = max(back, last - ts)
+            last = max(last, ts)
+        assert back < 64, (
+            f"{label}: records reordered by {back} ticks, beyond arbiter "
+            f"interleave -- the timebase or the merge is wrong WITHIN a batch")
+        tb.log.info(f"[TASK-084] {label} framing OK: {len(recs)} records, "
+                    f"max out-of-order depth {back}")
+        return recs
+
+    b1 = _framing(tb.records[n0:n1], "batch 1")
+    b2 = _framing(tb.records[n1:], "batch 2")
+
+    # POSITIVE evidence that the reset reached the observer's TIMEBASE and not
+    # merely its CSRs. Compared as min/max rather than first/last because the
+    # arbiter legitimately interleaves the read and write monitors.
+    ts1_max = max((b0 & ((1 << 60) - 1)) for b0, _h, _l in b1)
+    ts2_min = min((b0 & ((1 << 60) - 1)) for b0, _h, _l in b2)
+    tb.log.info(f"[TASK-084] timebase: batch1 max ts={ts1_max} "
+                f"batch2 min ts={ts2_min}")
+    assert ts2_min < ts1_max, (
+        f"batch 2's lowest timestamp ({ts2_min}) is not below batch 1's "
+        f"highest ({ts1_max}), so the reset did NOT restart the observer's "
+        f"timebase. The pulse never reached the block's counters and this "
+        f"probe is not testing what it claims to test.")
+
+
 def _run_observer(request, dut_name, params, testcase="cocotb_test_observer_regs",
                   test_level="gate"):
     module, repo_root_, tests_dir, log_dir, rtl_dict = get_paths({
@@ -514,4 +688,20 @@ def test_axi4_intf_slave_observer_all_classes(request, test_level):
     """Every packet class, SLAVE observer, all cones built."""
     _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS_ALL),
                   testcase="cocotb_test_observer_all_classes",
+                  test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_master_observer_reset_reissue(request, test_level):
+    """TASK-084: MASTER observer still emits after a mid-run reset."""
+    _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS_ALL),
+                  testcase="cocotb_test_observer_reset_reissue",
+                  test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_slave_observer_reset_reissue(request, test_level):
+    """TASK-084: SLAVE observer still emits after a mid-run reset."""
+    _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS_ALL),
+                  testcase="cocotb_test_observer_reset_reissue",
                   test_level=test_level)

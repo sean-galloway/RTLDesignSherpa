@@ -729,8 +729,9 @@ order of magnitude as the other classes from the same traffic, and
 can read as broken purely because of what ran before it.
 
 **Status:** open 2026-09-08. Diagnosed to the boundary; NOT fixed.
-Narrowed 2026-09-15: the monbus GROUP is excluded in cosim (mutation-checked);
-the cause is still unidentified and is now upstream of the group.
+Narrowed 2026-09-15: BOTH the monbus GROUP and the OBSERVER are excluded in
+cosim, each mutation-checked. The cause is still unidentified; what remains is
+the tally CAMs, u_stream, the unit_aresetn FANOUT, and the host side.
 
 **MEASURED 2026-09-15: the monbus GROUP is excluded as the carrier of the
 surviving state.** This is the group-level half of the "next probe should be
@@ -782,6 +783,72 @@ and it passed on the first run. The fix was to key on records drained back OUT.
 Separately, an all-ERROR fill left `write_fifo_count` at 0, which made the
 "write FIFO cleared" half of phase B vacuous -- a path that never held state
 cannot demonstrate that reset clears it. Fill both paths, and arm on both.
+
+**THE UPSTREAM HALF, MEASURED 2026-09-15: the OBSERVER is excluded too.**
+
+`cocotb_test_observer_reset_reissue` in
+`projects/components/misc/dv/tests/fub/test_axi4_intf_observer.py` (master and
+slave wrappers, on `_PARAMS_ALL` so `N_ADDR_RANGES=4` and AddrMatch is
+reachable). Two identical traffic batches separated by a reset pulse, with the
+observer REPROGRAMMED between them exactly as a board scenario's `setup()` does
+after `CTRL.SOFT_RESET`.
+
+| | master | slave |
+|---|---|---|
+| batch 1 classes | AddrMatch, Completion, Debug, Perf, Threshold | same |
+| batch 2 classes | **identical set** | **identical set** |
+| packets (b1 / b2) | 39 / 39 | 42 / 55 |
+| ADDR_RANGE_CTRL | 0x0 power-on -> 0x1 programmed -> **0x0 after reset** | same |
+| timebase (b1 max ts -> b2 min ts) | 334 -> 135 | 256 -> 123 |
+
+Batch 2 emits the same packet classes as batch 1, AddrMatch included -- the
+exact class the board loses. So the observer does not carry the surviving state
+either.
+
+The timebase numbers are worth keeping: batch 2's lowest timestamp is BELOW
+batch 1's highest, so the reset reaches the block's COUNTERS and not merely its
+CSRs. (Corroborating evidence, not a mutation-proven assertion -- suppressing
+the reset trips the CSR check first, which sits earlier.)
+
+**Mutation-checked on both load-bearing assertions:**
+- skip the reprogram after the reset -> "batch 2 emitted NO AddrMatch after a
+  reset that followed prior traffic" fires;
+- suppress the reset pulse -> "ADDR_RANGE_CTRL reads 0x1 after the reset pulse
+  but 0x0 after power-on reset" fires.
+
+**THE REPROGRAM BETWEEN BATCHES IS LOAD-BEARING, and mutation A is the proof.**
+The reset disarms the address ranges (correctly -- it restores CSR reset
+values). Omit the reprogram and batch 2 emits no AddrMatch for a completely
+legitimate reason, which reads exactly like a reproduction of the board bug. A
+probe written without it would have "confirmed" TASK-084 and been wrong.
+
+**WHERE THIS LEAVES THE HUNT.** Cosim now clears both stages that were the
+leading suspects:
+
+    stream -> monitors/OBSERVER (cleared) -> tallies -> monbus GROUP (cleared)
+
+Still untested here, in rough order of promise:
+- the TALLY CAMs between the observers and the group;
+- `u_stream` itself;
+- the board's reset FANOUT. Every probe so far pulses one block's own
+  `aresetn` directly; `CTRL.SOFT_RESET` drives `unit_aresetn` across a much
+  larger subsystem, and nothing in cosim has exercised that distribution;
+- the HOST side. The board runs scenarios from a host program over UART. An
+  order dependence can live in host-side state or in the programming sequence
+  and would look identical from the packet counts.
+
+**Re-measure on the board before spending more on cosim.** TASK-083's reporter
+starvation fix (b4d00d995) landed the same day; it left terminal slots
+permanently unreported and therefore never freed, and "only the scenario that
+runs first emits anything" is a plausible signature of slots leaking across a
+run. A `build-mon` campaign on the fixed RTL may simply close this.
+
+**Method note worth reusing:** the stock `check_record_framing()` CANNOT be used
+across a reset. It walks every record with a 64-tick timestamp-monotonicity
+tolerance, and the reset restarts the timebase -- measured 197 ticks
+"backwards" at the batch boundary, which is the reset working correctly. It
+failed the probe for entirely the wrong reason. Validate framing PER BATCH and
+treat the backwards jump as evidence instead.
 
 **The observation.** On Genesys 2 `build-mon`, the `addr_error` scenario emits
 129/122 ADDR_RANGE packets when it is the FIRST thing run after the bitstream is
