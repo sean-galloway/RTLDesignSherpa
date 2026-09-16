@@ -98,18 +98,3 @@ wavedrom diagrams, and the committed JSON is a deliverable. Moving reads onto
 the BFM changes capture timing and therefore the diagrams, which needs a look
 at the rendered output rather than a green test.
 
----
-
-## CDC-004: a 349-line TB class lives inside test_fifo_async_wavedrom.py
-
-**Priority:** P3. Convention, not correctness.
-**Status:** open 2026-09-16. Found by the CDC-001 testqc round (part_03).
-
-`class FifoAsyncWaveDromTB(FifoBufferTB)` spans lines 66-415 -- 349 lines of a
-526-line test file. Every other TB in this area lives in `bin/TBClasses/`; the
-cdc wavedrom siblings are already there
-(`bin/TBClasses/cdc/counter_johnson_wavedrom_tb.py`).
-
-Mechanical to move, but it is a refactor with import rewiring and a validation
-run, not a scrub fix, and it is entangled with [[CDC-003]] which touches the
-same class. Do them together.
