@@ -303,7 +303,9 @@ vault/handbook/dv/seeds-and-determinism.md.
 - [x] `axi_data_upsize`: basic_accumulation, early_last -- fixed in the
       2026-08-23 session; **verified green here**, 18/18.
 - [x] `axi_data_dnsize`: basic_splitting -- **verified green**, 24/24, and
-      `dnsize_quick` 6/6. Burst tracking is [[CONV-010]] (was CONV-001).
+      `dnsize_quick` 6/6. (Burst tracking is [[CONV-001]] itself, resolved as a
+      test fault. This line used to point at CONV-010, which is a DIFFERENT
+      task -- the dwidth split fold, renumbered out of amba on 2026-09-14.)
 - [x] Every scenario verdict is asserted: 4 in upsize, 6 in dnsize, 1 in
       dnsize_quick. `check_discarded_verdicts.py` reports ZERO scenario-level
       discards in the main tree.
@@ -350,3 +352,44 @@ main tree had already fixed. Worktrees are now skipped.
 ---
 
 ---
+
+---
+
+## CONV-001 — axi_data_dnsize burst-tracking LAST: early LAST on TRACK_BURSTS
+**Status:** CLOSED 2026-09-16 — resolved as a test fault 2026-08-23; verified
+and moved off the open page today. No RTL defect ever existed.
+
+The entry had been marked RESOLVED in its own first line since 2026-08-23, and
+the converters INDEX said so too, but the body stayed on `open.md` for three
+weeks with a superseded `**Priority:** P1` line still in it. A priority sweep
+reads that stale line and ranks a finished task as the area's top item, which
+is exactly what happened on 2026-09-16.
+
+**The mechanism is correct.** In TRACK_BURSTS, `narrow_last` is driven only by
+the counter (`r_wide_buffered && r_burst_active && (r_slave_beat_count + 1 >=
+r_slave_total_beats)`), and `test_burst_len_drives_last` — which holds
+`wide_last` LOW so nothing else can assert LAST — lands exactly on `burst_len`.
+Every fault was test-side: an unbound LAST signal, wide-vs-narrow framing
+units, and fixed waits letting a previous burst's tail read as the next
+burst's beat 0.
+
+**Its checklist is complete, verified 2026-09-16 rather than taken on trust:**
+- Verdicts asserted: all six dnsize scenarios assert their result
+  (`test_axi_data_dnsize.py` lines 152/179/187/189/197/205), and the two
+  throughput measurements assert a floor on the returned rate.
+- The sweep for other discarded verdicts was done under [[CONV-002]], which
+  also wired `bin/review/check_discarded_verdicts.py` into the pre-commit hook
+  as a ratchet. No dnsize scenario appears in its 110 remaining helper-level
+  discards.
+- The one residual — `test_burst_tracking` intermittently red on DUAL — is
+  gone with its code path: [[CONV-003]] deleted `DUAL_BUFFER` entirely. The
+  dnsize RTL now contains zero occurrences of it, no `DUAL_BUFFER(1)` exists
+  anywhere, and the test grid no longer sweeps it.
+- Suite re-run after `make clean-all`: **16 passed** (124 s), every
+  configuration, with TRACK_BURSTS still swept.
+
+Also fixed while closing: `docs/markdown/rtl-amba/axi4/axi4_dwidth_converter.md`
+told readers the split-fold ordering hazard was "tracked as CONV-001". That
+task was renumbered to [[CONV-010]] on 2026-09-14, so the shipped book pointed
+at an ID that means a resolved dnsize fault in this area. Now points at
+CONV-010.

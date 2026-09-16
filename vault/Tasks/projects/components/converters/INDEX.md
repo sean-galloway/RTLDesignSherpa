@@ -8,7 +8,7 @@ upsize/downsize primitives and the dwidth converter wrappers.
 
 | State | Count |
 |---|---|
-| [open](open.md) | 3 |
+| [open](open.md) | 2 |
 | [closed](closed.md) | 7 |
 
 ## Open shortlist

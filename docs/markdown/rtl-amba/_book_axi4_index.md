@@ -3,6 +3,7 @@
 <!-- Auto-generated link index for PDF build. Regenerate via generate_rtl_pdfs.sh -->
 
 - [AXI4 (Advanced eXtensible Interface) Modules](axi4/README.md)
+- [axi4_cdc_wr / axi4_cdc_rd](axi4/axi4_cdc.md)
 - [AXI4 Clock-Gated Variants Guide](axi4/axi4_clock_gating_guide.md)
 - [axi4_dwidth_converter](axi4/axi4_dwidth_converter.md)
 - [axi4_master_rd](axi4/axi4_master_rd.md)
