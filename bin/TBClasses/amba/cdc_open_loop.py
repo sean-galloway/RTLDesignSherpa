@@ -226,6 +226,29 @@ class CDCOpenLoopTB(TBBase):
                 return False
         return True
 
+    def verify_slice_no_loss(self, sent_before, recv_before, label):
+        """verify_no_loss restricted to ONE phase's own slice.
+
+        The phases measure deltas (`before = len(self.received)`), so calling
+        verify_no_loss directly would compare whole queues and false-fail after
+        any earlier phase that legitimately dropped pulses (the stretch-cliff
+        and src_busy cases in the header). Both callers send with
+        wait_for_busy_clear=True, which is header case 1: every pulse arrives,
+        with matching data.
+        """
+        sent = list(self.sent_queue)[sent_before:]
+        recv = self.received[recv_before:]
+        if len(sent) != len(recv):
+            self.total_errors += 1
+            self.log.error(f"{label}: COUNT MISMATCH sent={len(sent)} received={len(recv)}")
+            return False
+        for i, ((_, sd), (_, rd)) in enumerate(zip(sent, recv)):
+            if sd != rd:
+                self.total_errors += 1
+                self.log.error(f"{label}: DATA MISMATCH at #{i}: sent=0x{sd:X} recv=0x{rd:X}")
+                return False
+        return True
+
     def verify_received_subset(self):
         """For unsafe (cliff) configs: every received value MUST be one
         we sent (no spurious values), but some sent values may not arrive.
@@ -283,6 +306,7 @@ class CDCOpenLoopTB(TBBase):
         per-bit stuck/skew issues."""
         self.log.info(f"=== WALKING: {2*self.DATA_WIDTH} pulses ===")
         before = len(self.received)
+        sent_before = len(self.sent_queue)
         for i in range(self.DATA_WIDTH):
             await self.send_one(1 << i, wait_for_busy_clear=True)
         for i in range(self.DATA_WIDTH):
@@ -295,7 +319,9 @@ class CDCOpenLoopTB(TBBase):
             self.total_errors += 1
             self.log.error(f"WALKING: delivered {delivered}, expected {expected}")
             return False
-        self.log.info(f"  ✓ walking: {delivered}/{expected} arrived")
+        if not self.verify_slice_no_loss(sent_before, before, "WALKING"):
+            return False
+        self.log.info(f"  ✓ walking: {delivered}/{expected} arrived, data verified")
         return True
 
     async def run_back_to_back(self, count=50):
@@ -303,6 +329,7 @@ class CDCOpenLoopTB(TBBase):
         busy each time). All should arrive."""
         self.log.info(f"=== BACK-TO-BACK: {count} pulses ===")
         before = len(self.received)
+        sent_before = len(self.sent_queue)
         for i in range(count):
             await self.send_one((i * 0x101) & ((1 << self.DATA_WIDTH) - 1),
                                 wait_for_busy_clear=True)
@@ -312,7 +339,9 @@ class CDCOpenLoopTB(TBBase):
             self.total_errors += 1
             self.log.error(f"B2B: delivered {delivered}, expected {count}")
             return False
-        self.log.info(f"  ✓ b2b: {delivered}/{count} arrived")
+        if not self.verify_slice_no_loss(sent_before, before, "B2B"):
+            return False
+        self.log.info(f"  ✓ b2b: {delivered}/{count} arrived, data verified")
         return True
 
     async def run_cliff_probe(self, count=40):

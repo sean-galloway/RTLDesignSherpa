@@ -20,7 +20,7 @@ This test verifies the Gray Johnson counter to binary conversion functionality:
 
 CONFIGURATION:
     JCW: Johnson Counter Width (10, 12, 16, 20)
-    WIDTH: Binary output width (4, 5, 6, 8)
+    WIDTH: Binary output width (5 or 6; a 2*JCW-state sequence needs ceil(log2(2*JCW)) bits)
 
 TEST LEVELS:
     gate (1-2 min):   Quick verification during development
@@ -28,10 +28,10 @@ TEST LEVELS:
     full (8-15 min):   Comprehensive validation for regression
 
 PARAMETER COMBINATIONS:
-    - (JCW=10, WIDTH=4): Johnson counter 10 bits -> 4-bit binary
-    - (JCW=12, WIDTH=5): Johnson counter 12 bits -> 5-bit binary
-    - (JCW=16, WIDTH=6): Johnson counter 16 bits -> 6-bit binary
-    - (JCW=20, WIDTH=8): Johnson counter 20 bits -> 8-bit binary
+    - (JCW=10, WIDTH=5): 10-bit Johnson counter, 20 states -> 5-bit binary
+    - (JCW=12, WIDTH=5): 12-bit Johnson counter, 24 states -> 5-bit binary
+    - (JCW=16, WIDTH=5): 16-bit Johnson counter, 32 states -> 5-bit binary
+    - (JCW=20, WIDTH=6): 20-bit Johnson counter, 40 states -> 6-bit binary
 
 Environment Variables:
     TEST_LEVEL: Set test level in cocotb (gate/func/full)
@@ -84,10 +84,10 @@ def generate_params():
     """Generate test parameters"""
     # Valid parameter combinations
     param_combinations = [
-        (10, 5),  # 10-bit Johnson counter -> 4-bit binary
-        (12, 5),  # 12-bit Johnson counter -> 5-bit binary
-        (16, 5),  # 16-bit Johnson counter -> 6-bit binary
-        (20, 6),  # 20-bit Johnson counter -> 8-bit binary
+        (10, 5),  # 10-bit Johnson counter, 20 states -> 5-bit binary
+        (12, 5),  # 12-bit Johnson counter, 24 states -> 5-bit binary
+        (16, 5),  # 16-bit Johnson counter, 32 states -> 5-bit binary
+        (20, 6),  # 20-bit Johnson counter, 40 states -> 6-bit binary
     ]
 
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
@@ -204,7 +204,7 @@ def test_johnson2bin(request, jcw, width, test_level):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=includes,   # were resolved from the filelist then discarded (testqc)
             toplevel=toplevel,
             module=module,
             parameters=parameters,

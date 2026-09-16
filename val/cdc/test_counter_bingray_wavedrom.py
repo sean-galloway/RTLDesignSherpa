@@ -177,7 +177,10 @@ def _wavedrom_grid(gate, func, full):
     return {'GATE': gate, 'FULL': full}.get(reg_level, func)
 
 
-@pytest.mark.parametrize("wave_cfg", _wavedrom_grid([0], [0, 1], [0, 1, 2]))
+# wave_cfg is unused: it only named the sim_build dir, so REG_LEVEL=FULL ran
+# three IDENTICAL generations. Scenario count is gated by TEST_LEVEL inside
+# the test, which cocotb_test delivers by copying os.environ.
+@pytest.mark.parametrize("wave_cfg", _wavedrom_grid([0], [0], [0]))
 def test_counter_bingray_wavedrom(request, wave_cfg):
     """
     Pytest entry point for Binary-Gray Counter WaveDrom test

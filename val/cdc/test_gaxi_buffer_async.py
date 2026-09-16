@@ -18,13 +18,13 @@ GAXI Async Buffer Test - Clock Domain Crossing Validation
 
 Tests async buffers with independent write/read clock domains, validating:
 - Clock domain crossing (CDC) behavior
-- Various clock ratios (1x to 2.5x)
+- Various clock ratios (1.0x, 1.2x, 1.5x, 2.0x -- the FULL grid's four pairs)
 - Backpressure handling across domains
 - Multiple buffer modes (skid, fifo_mux, fifo_flop)
 
 TEST LEVELS (per-test depth):
-    basic (3-5 min):   Quick verification during development
-    medium (8-12 min): Integration testing for CI/branches
+    gate (3-5 min):    Quick verification during development
+    func (8-12 min):   Integration testing for CI/branches
     full (20-35 min):  Comprehensive validation for regression
 
 REG_LEVEL Control (parameter combinations):
@@ -39,7 +39,7 @@ PARAMETER COMBINATIONS:
 
 Environment Variables:
     REG_LEVEL: GATE|FUNC|FULL - controls parameter combinations (default: FUNC)
-    TEST_LEVEL: basic|medium|full - controls per-test depth (set by REG_LEVEL)
+    TEST_LEVEL: gate|func|full - controls per-test depth (set by REG_LEVEL)
     SEED: Set random seed for reproducibility
 """
 
@@ -88,7 +88,7 @@ async def gaxi_async_test(dut):
     msg = f'seed changed to {seed}'
     tb.log.info(msg)
 
-    # Get test level from environment (default: basic)
+    # Get test level from environment (default: gate)
     test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
     valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
@@ -187,7 +187,7 @@ async def gaxi_async_test(dut):
         )
         tb.log.info(f"✓ Completed '{delay_key}' configuration")
 
-    # Run comprehensive sweep for medium and full levels
+    # Run comprehensive sweep for func and full levels
     if run_comprehensive_sweep:
         tb.log.info("Running comprehensive randomizer sweep...")
         await tb.comprehensive_randomizer_sweep(packets_per_config=comprehensive_packets)

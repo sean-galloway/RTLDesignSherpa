@@ -219,3 +219,22 @@ Related: [[test-runner]], [[tb-structure]], [[bfm-usage]],
   UNCERTAIN routed to human triage -- the verifier settles mechanical
   classes (SEED, level presence) and punts semantics, which is the right
   division.
+
+## A mutation that does not elaborate proves nothing (2026-09-16)
+
+Mutation-checking a cocotb check means corrupting the RTL and demanding the
+test go RED. The trap is that a BROKEN mutation also goes red -- and looks
+like success.
+
+Case: proving a new data check in `cdc_open_loop`, the first mutation XORed
+`dst_data` with `1'b1`. Width mismatch, Verilator refused it, and 28 tests
+"failed" in 1.85 seconds with zero `DATA MISMATCH` lines. That is a compile
+abort being mistaken for a detection.
+
+Two rules:
+- Mutate WIDTH-SAFELY. `~x` preserves width; `x ^ 1'b1` against a vector does
+  not. Prefer an operator that cannot change the type.
+- Check the run ELAPSED long enough to have simulated, and that it failed for
+  the NAMED reason. `1 failed in 1.85s` with no assertion text is inconclusive;
+  `1 failed in 7.25s` with `DATA MISMATCH at #0: sent=0xA5A5 recv=0x5A5A` is
+  evidence.

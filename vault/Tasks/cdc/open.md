@@ -2,61 +2,6 @@
 
 # cdc — Open (accepted, ready to start)
 
-## CDC-001: scrub the tests for completeness (cdc)
-
-**Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
-**Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be
-part of the kimi review packets and got dropped along the way.
-
-**Sequencing.** This is a FOCUSED pass, run after qc/humanize is finished
-everywhere, and BEFORE coverage and formal are driven clean. Doing it after
-coverage would mean chasing numbers produced by tests nobody has audited.
-
-**Scope:** `val/cdc/` -- `bin2gray`, `gray2bin`, the async FIFOs and the
-pointer-synchroniser family.
-
-**The capability already exists and was simply never run here.**
-`bin/review/run_batch.py` has a `testqc` mode alongside `qc` and `humanize`,
-with `bin/review/TEST_REVIEWER_BRIEF.md` as its brief and
-`bin/review/build_test_review_bundle.py` to build the units. The brief audits
-test collateral against the project's test contract, with the CocoTBFramework
-treated as reviewed ground truth rather than an audit target. Start there
-rather than inventing a method.
-
-**Why this is not busywork.** A test that passes because the RTL is broken is
-worse than no test, and the repo has already produced them:
-
-- `bin2gray` and `gray2bin` were invisible to the doc/port auditor for weeks
-  because their ports are declared `input wire` rather than `logic` -- the
-  tooling reported zero ports and scored them fully documented. Tooling that
-  silently sees nothing is the same class of failure a test scrub looks for.
-- In `amba` the same week, the apb5 master suite was green *because* the RTL
-  was broken: nothing drove `rsp_ready`, and the TB's completion check
-  returned True on exactly the state the defect produced. See [[TASK-078]].
-- This area is small enough that a complete scrub is cheap, and it feeds the
-  async-FIFO and pointer-encoding work the rest of the repo depends on.
-
-**What "complete" has to mean, at minimum:**
-
-- Every `test_*.py` actually exercises the DUT it names.
-- No test asserts a condition the bug itself satisfies.
-- Inputs the DUT needs are actually driven.
-- gate/func/full levels mean something distinct, not three names for one run.
-- No `run()` call pins `testcase=` to a single cocotb test. A pinned
-  `testcase=` silently hides every OTHER `@cocotb.test` in that module, so a
-  test can sit in the file for months and never execute. `test_apb5_master.py`
-  did exactly this (2026-09-04) -- the TASK-068 witness added beside the basic
-  test ran zero times until the pin was widened. Grep for `testcase=`
-  repo-wide; a comma-separated list is the fix when a pin is genuinely wanted.
-- A fix landed with a test has a mutation check recorded: the test was seen
-  RED against the unfixed RTL. Without that the test is decoration.
-
-**Related:** [[TASK-078]], [[COMMON-025]], [[MATH-010]] are the same task in
-the other three areas.
-
-<!-- Moved from vault/Tasks/amba/open.md 2026-09-14: a CDC formal defect,
-filed under amba because that is where CDC used to live before
-AMBA-CDC-REORG pulled it out to rtl/cdc. The task never followed. -->
 ## CDC-002: cdc_4_phase_handshake FAST_PATH acknowledges a transfer the receiver never took
 
 **Priority:** P2 — a real data-loss defect in a shared CDC primitive. Latent in
@@ -120,3 +65,51 @@ purpose**, so the finding cannot quietly disappear. `prove`, `cover`,
 **Test gap worth noting:** `val/cdc/test_cdc_4_phase_handshake.py` sweeps only
 clock-period combinations. It sets neither `FAST_PATH` nor `TIMEOUT_CYCLES`,
 so no directed test covers either path. That belongs to [[CDC-001]].
+
+---
+
+## CDC-003: fifo_async wavedrom scenarios hand-drive dut.read against a live BFM
+
+**Priority:** P3. A TB defect, not an RTL one. Found by the CDC-001 testqc
+round (part_03), raised SUSPECTED and confirmed by reading the framework.
+**Status:** open 2026-09-16.
+
+`FifoAsyncWaveDromTB` (in `val/cdc/test_fifo_async_wavedrom.py`) writes through
+the BFM -- `await self.write_master.send(packet)` -- but reads by poking the
+pin directly, at three sites:
+
+```python
+self.dut.read.value = 1
+await RisingEdge(self.rd_clk)
+self.dut.read.value = 0
+```
+
+Its base `FifoBufferTB` constructs `self.read_slave = FIFOSlave(...)`, and
+`FIFOSlave` extends `FIFOMonitorBase(FIFOComponentBase, BusMonitor)` -- cocotb's
+`BusMonitor.__init__` auto-starts `_monitor_recv`. `FIFOSlave` drives the same
+pin through `_set_rd_ready()` at five sites (line 191 drives it HIGH during the
+receive phase). So two drivers contend for `dut.read`.
+
+This also breaks the repo's standing rule: drive through the BFMs, never
+hand-poke a valid/ready interface.
+
+**Why it is filed rather than fixed:** the scenarios exist to emit specific
+wavedrom diagrams, and the committed JSON is a deliverable. Moving reads onto
+the BFM changes capture timing and therefore the diagrams, which needs a look
+at the rendered output rather than a green test.
+
+---
+
+## CDC-004: a 349-line TB class lives inside test_fifo_async_wavedrom.py
+
+**Priority:** P3. Convention, not correctness.
+**Status:** open 2026-09-16. Found by the CDC-001 testqc round (part_03).
+
+`class FifoAsyncWaveDromTB(FifoBufferTB)` spans lines 66-415 -- 349 lines of a
+526-line test file. Every other TB in this area lives in `bin/TBClasses/`; the
+cdc wavedrom siblings are already there
+(`bin/TBClasses/cdc/counter_johnson_wavedrom_tb.py`).
+
+Mechanical to move, but it is a refactor with import rewiring and a validation
+run, not a scrub fix, and it is entangled with [[CDC-003]] which touches the
+same class. Do them together.

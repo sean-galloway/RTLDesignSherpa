@@ -161,13 +161,13 @@ async def fifo_async_test(dut):
     if run_comprehensive_sweep:
         tb.log.info("=== Scenario FIFO-04: Almost-full/almost-empty thresholds ===")
         tb.log.info("Running comprehensive randomizer sweep...")
-        await tb.comprehensive_randomizer_sweep(packets_per_config=comprehensive_packets)
+        assert await tb.comprehensive_randomizer_sweep(packets_per_config=comprehensive_packets), 'scenario reported failure'
         tb.log.info("✓ Completed comprehensive sweep")
 
     # Always run back-to-back test (essential for FIFO validation)
     tb.log.info("=== Scenario FIFO-05: FIFO fill and drain ===")
     tb.log.info("Running back-to-back test...")
-    await tb.back_to_back_test(count=packet_counts['back_to_back'])
+    assert await tb.back_to_back_test(count=packet_counts['back_to_back']), 'scenario reported failure'
     tb.log.info("✓ Completed back-to-back test")
 
     # Run stress test for func and full levels
@@ -176,10 +176,10 @@ async def fifo_async_test(dut):
         tb.log.info("=== Scenario FIFO-07: Memory storage and retrieval ===")
         tb.log.info("Running stress test...")
         stress_config = 'fifo_stress' if 'fifo_stress' in config_names else 'stress'
-        await tb.stress_test_with_random_patterns(
+        assert await tb.stress_test_with_random_patterns(
             count=packet_counts['stress_test'],
             delay_key=stress_config
-        )
+        ), 'scenario reported failure'
         tb.log.info("✓ Completed stress test")
 
     tb.log.info(f"✓ ALL {test_level.upper()} ASYNC TESTS PASSED!")

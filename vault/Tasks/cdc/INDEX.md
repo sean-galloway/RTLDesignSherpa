@@ -2,7 +2,7 @@
 
 # cdc — task rollup
 
-**Next ID: CDC-003** — never recycle a number, even when its task closed.
+**Next ID: CDC-005** — never recycle a number, even when its task closed.
 
 Canonical tracker for `rtl/cdc/` (`bin2gray`, `gray2bin`, the async FIFOs and
 the pointer-synchroniser family), plus `val/cdc/` and
@@ -15,8 +15,8 @@ test scrub rather than a design item.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 2 | accepted, ready to start |
-| [closed.md](closed.md) | 1 | done (kept for history) |
+| [open.md](open.md) | 3 | accepted, ready to start |
+| [closed.md](closed.md) | 2 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 ## Open

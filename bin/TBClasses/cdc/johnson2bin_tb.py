@@ -81,6 +81,16 @@ class GrayJ2BinTB(TBBase):
         self.rst_n.value = 1
         await RisingEdge(self.clk)
 
+    async def setup_clocks_and_reset(self):
+        """Contract lifecycle method (GLOBAL_REQUIREMENTS 2.2).
+
+        This TB had setup_clock()/reset_dut() under invented names, so it did
+        not satisfy the three-method contract every other TB implements.
+        Delegates to them, so behaviour is unchanged.
+        """
+        await self.setup_clock()
+        await self.reset_dut()
+
     def generate_johnson_sequence(self):
         """Generate valid Johnson counter sequence"""
         # Johnson counter sequence: shift register with inverted feedback
