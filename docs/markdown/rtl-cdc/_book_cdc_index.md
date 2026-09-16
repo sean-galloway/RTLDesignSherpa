@@ -15,5 +15,5 @@
 - [clock_pulse](../rtl-common/clock_pulse.md)
 - [apb4_slave_cdc](../rtl-amba/apb4/apb4_slave_cdc.md)
 - [apb4_slave_cdc_cg](../rtl-amba/apb4/apb4_slave_cdc_cg.md)
-- [apb5_slave_cdc](../rtl-amba/apb5/apb5_slave_cdc.md)
-- [apb5_slave_cdc_cg](../rtl-amba/apb5/apb5_slave_cdc_cg.md)
+- [APB5 Slave CDC](../rtl-amba/apb5/apb5_slave_cdc.md)
+- [APB5 Slave CDC (Clock-Gated)](../rtl-amba/apb5/apb5_slave_cdc_cg.md)
