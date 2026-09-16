@@ -1,0 +1,88 @@
+# Dependabot configuration.
+#
+# Added 2026-09-15 after eleven advisories accumulated against a SINGLE stale
+# pin (GitPython 3.1.57) with nothing configured to surface them as PRs. They
+# were visible only as a banner on every `git push`, which is easy to scroll
+# past -- and did get scrolled past for months.
+#
+# Two deliberate choices, both about noise and about not letting a bot break
+# the DV suite:
+#
+#   1. requirements.txt is fully `==` pinned across ~90 packages. Ungrouped,
+#      that is a flood of single-package PRs nobody reads. Patch and minor
+#      updates are therefore GROUPED into one PR per ecosystem per week.
+#
+#   2. MAJOR bumps of the simulation-critical packages are ignored here. Those
+#      pins are load-bearing: cocotb/cocotb-test/cocotb-bus set the whole DV
+#      runtime, numpy and pytest sit under every testbench, and the peakrdl and
+#      systemrdl-compiler versions must agree with the checked-in generated RTL
+#      and regmaps. A major bump to any of them is a migration, not a
+#      dependency update, and belongs to a human with a full regression run.
+#      Security advisories are NOT affected by these ignores -- Dependabot
+#      security updates are a separate channel and still fire for every package.
+
+version: 2
+
+updates:
+  # ---- Python ------------------------------------------------------------
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      python-patch-and-minor:
+        update-types:
+          - "patch"
+          - "minor"
+    ignore:
+      # DV runtime -- a major bump here changes simulator behaviour.
+      - dependency-name: "cocotb"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "cocotb-bus"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "cocotb-test"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "cocotb-coverage"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "cocotb-framework"
+        update-types: ["version-update:semver-major"]
+      # Under every testbench.
+      - dependency-name: "numpy"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pytest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pytest-xdist"
+        update-types: ["version-update:semver-major"]
+      # Must agree with the checked-in generated RTL, docs and regmaps.
+      - dependency-name: "systemrdl-compiler"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "peakrdl*"
+        update-types: ["version-update:semver-major"]
+
+  # ---- GitHub Actions ----------------------------------------------------
+  # filelist-checks.yml and track-clones.yml pin action versions; those go
+  # stale silently and are never surfaced by the push-time banner at all.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions-all:
+        update-types:
+          - "patch"
+          - "minor"
