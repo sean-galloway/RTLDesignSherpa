@@ -951,10 +951,16 @@ handshakes as scoped to protocol correctness under a common clock and reset.
 `cdc_handshake_formal.sv`, a Yosys-compatible copy taken before the module was
 renamed to `cdc_4_phase_handshake` and grew parameters. The copy carries
 `DATA_WIDTH` alone; the live `rtl/cdc/cdc_4_phase_handshake.sv` carries
-`DATA_WIDTH`, `SYNC_STAGES`, `TIMEOUT_CYCLES` and `FAST_PATH`. Nothing in the
-proof exercises the timeout path or the fast path, because the copy has neither.
-Scope the claim accordingly until the copy is refreshed and the proof re-run --
-see AMBA/CDC task CDC-FORMAL-STALE.
+`DATA_WIDTH`, `SYNC_STAGES`, `TIMEOUT_CYCLES` and `FAST_PATH`.
+
+**Updated 2026-09-16 (CDC-FORMAL-STALE closed).** The fork is gone: the proof
+now flattens and reads the shipped module, and drives each parameter from its
+own sby task. The timeout path is proven -- it never fires before a transfer is
+sent and always fires once one stalls past the programmed count. The FAST_PATH
+branch is proven UNSOUND: it acknowledges a transfer the receiver never took
+when `dst_ready` falls between the sample and `dst_valid` rising, silently
+dropping the beat. Do not set `FAST_PATH=1` unless `dst_ready` is tied high.
+Tracked as CDC-002.
 
 The reset behavior described in this document is argued from the RTL encoding and
 -- for the 2-phase hazard -- confirmed on silicon. It is **not** currently covered

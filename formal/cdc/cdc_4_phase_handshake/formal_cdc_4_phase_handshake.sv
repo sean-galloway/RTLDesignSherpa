@@ -18,7 +18,12 @@
 //   - Full handshake: src_valid -> src_ready -> dst_valid -> dst_ready
 
 module formal_cdc_4_phase_handshake #(
-    parameter int DATA_WIDTH = 8
+    parameter int DATA_WIDTH     = 8,
+    // CDC-FORMAL-STALE items 2/3: the two parameters the old forked proof
+    // could not reach. Driven per sby task via chparam; sv2v keeps them as
+    // real parameters in the flat, so the generate-gated logic is present.
+    parameter int TIMEOUT_CYCLES = 0,
+    parameter bit FAST_PATH      = 1'b0
 ) (
     input  logic                    clk,
     input  logic                    rst_n,
@@ -31,10 +36,13 @@ module formal_cdc_4_phase_handshake #(
     logic                    src_ready;
     logic                    dst_valid;
     logic [DATA_WIDTH-1:0]   dst_data;
+    logic                    src_timeout;
 
     // Single clock drives both domains
     cdc_4_phase_handshake #(
-        .DATA_WIDTH (DATA_WIDTH)
+        .DATA_WIDTH     (DATA_WIDTH),
+        .TIMEOUT_CYCLES (TIMEOUT_CYCLES),
+        .FAST_PATH      (FAST_PATH)
     ) dut (
         .clk_src   (clk),
         .rst_src_n (rst_n),
@@ -46,7 +54,7 @@ module formal_cdc_4_phase_handshake #(
         .dst_valid (dst_valid),
         .dst_ready (dst_ready),
         .dst_data  (dst_data),
-        .src_timeout ()          // TIMEOUT_CYCLES defaults to 0: disabled
+        .src_timeout (src_timeout)
     );
 
     // =========================================================================
@@ -186,5 +194,70 @@ module formal_cdc_4_phase_handshake #(
         if (rst_n)
             cp_second_transfer: cover (f_transfer_count >= 1 && dst_valid);
     end
+
+    // =========================================================================
+    // No lost transfer -- checked in EVERY configuration (CDC-FORMAL-STALE)
+    // =========================================================================
+    // The source may only accept a new transfer once the destination has
+    // actually taken the previous one. This is the property the FAST_PATH
+    // branch puts at risk: D_IDLE samples dst_ready and then raises dst_valid
+    // AND r_ack_dst together on the NEXT cycle, so if dst_ready falls in
+    // between, the source is told the transfer completed while
+    // (dst_valid && dst_ready) never happened.
+    reg [7:0] f_src_accepts = 0;
+    reg [7:0] f_dst_completes = 0;
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            f_src_accepts   <= 0;
+            f_dst_completes <= 0;
+        end else begin
+            if (src_valid && src_ready) f_src_accepts   <= f_src_accepts + 1;
+            if (dst_valid && dst_ready) f_dst_completes <= f_dst_completes + 1;
+        end
+    end
+
+    always @(posedge clk) begin
+        if (rst_n && src_valid && src_ready)
+            ap_no_lost_transfer: assert (f_src_accepts == f_dst_completes);
+    end
+
+    // =========================================================================
+    // TIMEOUT_CYCLES > 0 -- the path the forked proof could not see
+    // =========================================================================
+    generate if (TIMEOUT_CYCLES > 0) begin : g_timeout_props
+        // cycles a transfer has been outstanding at the source
+        reg [15:0] f_stall = 0;
+        always @(posedge clk) begin
+            if (!rst_n)                      f_stall <= 0;
+            else if (src_valid && src_ready) f_stall <= 1;
+            else if (f_data_in_flight)       f_stall <= f_stall + 1;
+            else                             f_stall <= 0;
+        end
+
+        always @(posedge clk) begin
+            // Never flags a timeout before anything was ever sent.
+            if (rst_n && !f_any_transfer)
+                ap_timeout_quiet_when_idle: assert (!src_timeout);
+            // It must actually FIRE: a transfer stalled well past the
+            // programmed count has to raise src_timeout. Slack covers the
+            // IDLE->WAIT_ACK entry and the registered output.
+            if (rst_n && f_stall > (TIMEOUT_CYCLES + 4))
+                ap_timeout_fires: assert (src_timeout);
+        end
+
+        always @(posedge clk)
+            if (rst_n) cp_timeout: cover (src_timeout);
+    end endgenerate
+
+    // =========================================================================
+    // FAST_PATH = 1 -- the other path the forked proof could not see
+    // =========================================================================
+    generate if (FAST_PATH) begin : g_fast_props
+        // The fast branch is only worth anything if it is actually taken:
+        // dst_valid rises already accompanied by dst_ready.
+        always @(posedge clk)
+            if (rst_n && f_past_valid > 0)
+                cp_fastpath_taken: cover (dst_valid && dst_ready && !$past(dst_valid));
+    end endgenerate
 
 endmodule

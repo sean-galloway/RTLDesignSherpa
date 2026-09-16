@@ -1,20 +1,40 @@
 [tasks]
 prove
 cover
+prove_timeout
+cover_timeout
+prove_fast
+cover_fast
 
 [options]
 prove: mode bmc
 prove: depth 25
 cover: mode cover
 cover: depth 30
+prove_timeout: mode bmc
+prove_timeout: depth 30
+cover_timeout: mode cover
+cover_timeout: depth 30
+prove_fast: mode bmc
+prove_fast: depth 25
+cover_fast: mode cover
+cover_fast: depth 30
 
 [engines]
 prove: smtbmc z3
 cover: smtbmc z3
+prove_timeout: smtbmc z3
+cover_timeout: smtbmc z3
+prove_fast: smtbmc z3
+cover_fast: smtbmc z3
 
 [script]
 read_verilog -formal -sv cdc_4_phase_handshake_flat.v
 read -formal -sv formal_cdc_4_phase_handshake.sv
+prove_timeout: chparam -set TIMEOUT_CYCLES 4 formal_cdc_4_phase_handshake
+cover_timeout: chparam -set TIMEOUT_CYCLES 4 formal_cdc_4_phase_handshake
+prove_fast: chparam -set FAST_PATH 1 formal_cdc_4_phase_handshake
+cover_fast: chparam -set FAST_PATH 1 formal_cdc_4_phase_handshake
 prep -top formal_cdc_4_phase_handshake
 # a clocked $display becomes a cell async2sync refuses; it is a sim aid
 delete t:$print
