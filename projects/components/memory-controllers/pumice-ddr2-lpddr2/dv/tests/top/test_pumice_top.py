@@ -150,6 +150,40 @@ def _mask():
     return (1 << DW) - 1
 
 
+async def _dq_collision_monitor(dut, stop, hits):
+    """Flag every cycle where the controller drives WRITE data while a READ is
+    still returning.
+
+    This is the PUMICE-037 mechanism, and the reason it never showed up in
+    simulation before: DFI carries wrdata and rddata on SEPARATE buses, so the
+    overlap is perfectly legal AT THE DFI BOUNDARY and only becomes destructive
+    on the PHY's shared DQ pins, one layer below anything a DFI-level model
+    represents. The board ILA (reports/ila_pumice037_wrdata_into_read.csv)
+    caught 49 such cycles, with 80% of corrupted beats landing within 12 cycles
+    of one and 51% of them reading back all-ones -- an undriven bus.
+
+    The COLLISION cannot be simulated here. The OVERLAP can, exactly, because
+    both enables are controller outputs. So this turns a defect that only
+    reproduces on silicon into one a sim can fail on.
+
+    Deliberately not an RTL assertion: this repo keeps properties out of the
+    modules (they break some tools), so the check lives in the testbench.
+    """
+    while not stop[0]:
+        await RisingEdge(dut.aclk)
+        try:
+            # TB-top net names, not the DUT port names: the DUT here is the
+            # wrapper pumice_top_csr_tb_top, which wires pumice_top's dfi_*_o
+            # ports to phy_dfi_* nets one level up.
+            wen = int(dut.phy_dfi_wrdata_en.value)
+            ren = int(dut.phy_dfi_rddata_en.value)
+            rvl = int(dut.phy_dfi_rddata_valid.value)
+        except (ValueError, AttributeError):
+            continue          # X/Z during reset
+        if wen and (ren or rvl):
+            hits.append((cocotb.utils.get_sim_time("ns"), wen, ren, rvl))
+
+
 def _golden_beat(tb, byte_addr):
     return int.from_bytes(bytes(tb.peek_memory(byte_addr, DW // 8)), "little")
 
@@ -756,6 +790,9 @@ async def cocotb_test_pumice_top(dut):
         # what separates "concurrent hazard" from "the reader/checker is wrong":
         # reader-alone is clean at every gap there. If it is dirty HERE, the
         # fault is in this test's addressing or preload, not in the DUT.
+        dq_stop, dq_hits = [False], []
+        dq_mon = cocotb.start_soon(_dq_collision_monitor(dut, dq_stop, dq_hits))
+
         no_wr = os.environ.get("GEN_NOWRITER", "0") == "1"
         wt = None if no_wr else cocotb.start_soon(_writer())
         rt = cocotb.start_soon(_reader())
@@ -763,6 +800,10 @@ async def cocotb_test_pumice_top(dut):
             await wt
         await rt
         await ClockCycles(dut.aclk, 400)
+
+        dq_stop[0] = True
+        await ClockCycles(dut.aclk, 2)
+        dq_mon.kill()
 
         # Anti-vacuity FIRST: a run that returned nothing, or never actually
         # entered the gap state, proves nothing about the gap.
@@ -787,6 +828,26 @@ async def cocotb_test_pumice_top(dut):
             f"gen_replica gap={gap}: {len(bad_rd)} read beat(s) != golden "
             f"(first @{bad_rd[0][0]:#x} got {bad_rd[0][1]:#x} want "
             f"{bad_rd[0][2]:#x}) -- {stalls['n']} RREADY stalls applied")
+        # The DQ-collision check. Reported with a COUNT so "no collisions" is a
+        # measurement and not the monitor having silently failed to run.
+        tb.log.info(f"gen_replica gap={gap}: DQ overlap cycles = {len(dq_hits)}")
+        # OFF by default, deliberately. Measured 2026-09-15: this fires with a
+        # count of 1 even at gap 0, which the BOARD passes cleanly -- so a
+        # single overlap is evidently not sufficient to corrupt, and turning
+        # this on now would fail a configuration that works on silicon. The
+        # board's damage comes from 49 overlaps at a 42-cycle cadence (see
+        # reports/ila_pumice037_wrdata_into_read.csv). Turn it on to verify a
+        # fix drives the count to zero; until then the count is logged, not
+        # asserted, so the number is visible without manufacturing a failure.
+        if os.environ.get("GEN_DQ_STRICT", "0") == "1":
+            assert not dq_hits, (
+                f"gen_replica gap={gap}: {len(dq_hits)} cycle(s) drove WRITE "
+                f"data while a READ was still returning -- the PUMICE-037 "
+                f"mechanism (first at {dq_hits[0][0]}ns: wrdata_en={dq_hits[0][1]:#x} "
+                f"rddata_en={dq_hits[0][2]:#x} rddata_valid={dq_hits[0][3]:#x}). "
+                f"Legal on DFI's separate buses; destructive on the PHY's "
+                f"shared DQ.")
+
         tb.log.info(f"PASS gen_replica: gap={gap} n={n} beats/burst={NB} "
                     f"os={oslim} span={span}B ({span/2048:.1f} pages) "
                     f"{stalls['n']} RREADY stalls")
