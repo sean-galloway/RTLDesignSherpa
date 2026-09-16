@@ -692,7 +692,74 @@ failures to triage: `smoke_rate2_faithful`, `smoke_rate2_rdphase1`,
 convention (`regressions` skill) and to the components master Makefile.
 
 ## PUMICE-037 — concurrent read+write with reader gap >= 8 returns bad data AND corrupts cells
-**Status:** open 2026-09-14  **Priority:** P0
+**Status:** open 2026-09-14  **Priority:** P0  **Root cause FOUND 2026-09-15**
+
+### ROOT CAUSE (ILA, 2026-09-15): write data driven into a read return
+
+`dfi_wrdata_en` asserts while read data is still returning. One capture
+(trigger = `rd_dbg_mismatch`, 4096 samples, gap 13/15, tRTW already 8):
+
+* 49 cycles with `wrdata_en` asserted while `rddata_valid`/`rddata_en` active
+* 89 corrupted beats; **80% within 12 cycles of such an overlap** (median 7,
+  min 6)
+* **51% of corrupted beats read back `ffffffffffffffff`** — all ones, the
+  signature of an UNDRIVEN DQ bus (matches the 59% all-ones in the earlier
+  capture). 0% all-zeros.
+
+Sample 2042 has `wrdata_en=3` while `rddata_valid=3`; the first mismatch lands
+at 2048 with `actual=ffffffffffffffff` against `expected=fe1daf8638b768c3`.
+The write driver turning on collapses the read data on the shared DQ pins and
+the controller returns the floating bus as valid read data -- correct framing,
+`stray=0`, exact beat count, wrong payload, which is the whole board signature.
+
+**It is deterministic, not a race.** Overlap spacing is 42 cycles, 44 of 49
+occurrences (rest 84 = 2x42). The char generators are fixed-function machines,
+so a fixed period hits the same boundary every time -- which is why counts
+repeat to ~2% and why tRTW oscillates rather than improving monotonically.
+
+### Why tRTW cannot fix it
+
+tRTW constrains RD **command** -> WR **command**. The collision is between DATA
+phases, which sit at different offsets from their commands: read data returns
+`t_rddata_en`+ (6..8) cycles after the RD, write data goes out ~WL (1) cycle
+after the WR. An 8-cycle command spacing still lets a write's data land inside
+a read's return. Measured: tRTW=8 clears gaps 0-12, tRTW=16 still leaves
+[2,4,0] at gap 15, and the required value appears to "scale with gap" because
+each value shifts one fixed period against the other.
+
+The correct constraint is expressible from the aligner, whose window is
+stateless (`pumice_dfi_rd_aligner.sv`: a read admitted at A occupies DQ over
+`[A + t_rddata_en, A + t_rddata_en + EN_CYC - 1]`). A write issued at T drives
+DQ from `T + wrlat`, so no-collision requires
+
+    T > A + t_rddata_en + EN_CYC - 1 - wrlat
+
+Board: 6 + 2 - 1 - 1 = 6, +1 for the registered ok = **8** -- exactly the tRTW
+the board wanted, confirming the arithmetic from two directions. The fix is to
+gate write-column issue on the read-return window being clear (tracked per
+in-flight read), not on a static command-distance counter.
+
+### Why every simulation missed it
+
+DFI carries `wrdata` and `rddata` on SEPARATE buses, so this overlap is legal
+at the DFI boundary and only destructive on the PHY's shared DQ pins. Clean at
+`pumice_top` with the hardware generators replicated exactly (including the
+S_GAP RREADY backpressure), board geometry, board burst shape, 64 KB / 32
+pages, under both the idealised and a7ddrphy read models. LiteDRAM is clean at
+every gap on the identical harness and ties its RD->WR edge to
+`phy.read_latency`, not to any JEDEC number.
+
+### Fixed so far
+
+`65968b9b4` corrected three timing-derivation defects (tWR anchor, tRTW read-
+window floor, phase margin), all confirmed against LiteDRAM on the same part
+and clock. Board: gaps 0,2,4,6,8,10,12 now **0/3 failing** (8 and 12 were 3/3).
+Residual gap >= 13 remains -- 13:1547, 14:1436, 15:709 -- and is the overlap
+above. Note an earlier report of "only gap 15 fails" was a sampling artifact
+(the sweep stepped 0,2,..,12,15); 13 and 14 fail too.
+
+Not throughput-related: pumice still corrupts at 64 MB/s with one burst in
+flight, less than HALF LiteDRAM's 142.9 MB/s.
 
 Found while running PUMICE-036 on the board (4+4 bitstream, 75 MHz, BL4, x16,
 `open_page`). It is a correctness defect, not a performance one, and it is the
