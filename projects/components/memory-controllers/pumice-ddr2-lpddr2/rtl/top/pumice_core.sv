@@ -566,6 +566,8 @@ module pumice_core
         // + 2 bursts without stalling the CAM drain -- or the lag comes back.
         .WD_FIFO_DEPTH   (32)
     ) u_dfi (
+        .t_rtw_i            (t_rtw_i),
+        .t_wtr_i            (t_wtr_i),
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),
         .cmd_valid_i        (w_cmd_v),

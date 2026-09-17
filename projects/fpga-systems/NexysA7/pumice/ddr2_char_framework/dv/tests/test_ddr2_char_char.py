@@ -100,16 +100,26 @@ DRAM_BEAT_BYTES = int(os.environ.get("TEST_DRAM_BEAT_BYTES", "8"))
 DRAM_DEVICE_BYTES = int(os.environ.get("TEST_DRAM_DEVICE_BYTES", str(DRAM_BEAT_BYTES)))
 # DFI beats per DRAM burst.
 #
-# TRIED AND REVERTED 2026-09-16: BL/K, where K = beat_bytes/device_bytes. The
-# BFM documents beats_per_burst as DFI beats per DRAM burst with a BL//2
-# default "assuming the canonical K=2 ratio" and BL as the K=1 override, which
-# made BL/K look obviously right for the board's x16-under-32-bit-beat (K=2).
-# It is not: it did NOT fix the BL4 stall (PUMICE-041 stayed xfail) and it
-# BROKE both families tests -- including the default-geometry one, whose value
-# does not even change under the formula (K=1 -> BL//1 = BL). That last part is
-# unexplained and is the reason this is reverted rather than tuned: something
-# second-order depends on this value beyond the arithmetic, and guessing again
-# without understanding it would just be another round.
+# TESTED TWICE AND REJECTED: BL/K, where K = beat_bytes/device_bytes.
+#
+# The BFM documents beats_per_burst as DFI beats per DRAM burst, defaulting to
+# BL//2 "assuming the canonical K=2 PHY-to-DRAM ratio" with BL as the K=1
+# override (dfi_base.py). The board is x16 under a 32-bit beat, so K=2, which
+# makes BL/K look obviously correct.
+#
+# It is not. First attempt was CONFOUNDED -- it appeared to break both families
+# tests, but that was the PUMICE-040 board default (t_rddata_en 6 -> 1) leaking
+# into the sim because _run pinned two of the three read-path knobs. With
+# TEST_T_RDDATA_EN pinned and the confound gone, re-tested cleanly:
+#
+#     families      (default geometry, K=1, value UNCHANGED at 8)  PASSED
+#     families_x16  (K=2, value changed 8 -> 4)                    FAILED
+#     concurrent_gap_board (BL4, K=2, 4 -> 2)                      still xfail
+#
+# So the formula is wrong on its own merits: it breaks the one test whose value
+# it changes and does not fix BL4 (PUMICE-041). Whatever the BFM means by
+# beats_per_burst here, these tests want DRAM_BL. Do not re-derive it from K
+# without first explaining why families_x16 passes at 8 and fails at 4.
 BEATS_PER_BURST  = DRAM_BL
 
 
