@@ -56,39 +56,6 @@ worse than no test, and this area has already produced them:
 **Related:** [[TASK-077]] documents the doc-side equivalent (examples that
 name ports which do not exist). The test-side is this task.
 
-## COMMON-026: FIFO-family reset bodies hardcoded active-low - FIXED
-
-**Status:** fixed 2026-09-10 (Sean authorized the shared-RTL edit: "they are
-innocent and make RLB coding easier"). Raised by the smbus #58 round-6 review.
-
-`reset_defs.svh` makes reset polarity a compile-time property: the
-`ALWAYS_FF_RST` sensitivity follows the define, and `RST_ASSERTED()` is how a
-body is meant to test the level. Ten files in the FIFO family tested it by
-hand instead, in two shapes: a body of `if (!rst_n)` inside the macro (18
-sites), and a raw `always_ff @(posedge clk, negedge rst_n)` that bypassed the
-macro entirely (3 sites, in `fifo_control.sv` and `counter_bingray.sv`).
-Under `-DRESET_ACTIVE_HIGH` the storage then sat in reset forever while the
-wrapper counters kept counting, so a FIFO reported empty with data in it.
-
-Measured before and after on a standalone `fifo_sync`, three bytes written:
-
-| build | before | after |
-|---|---|---|
-| default (active-low) | `empty=0 head=0xA0` | `empty=0 head=0xA0` |
-| `-DRESET_ACTIVE_HIGH` | `empty=1 head=0xA2` | `empty=0 head=0xA0` |
-
-Files: `rtl/common/{fifo_control,fifo_sync,counter_bin,counter_bin_load}.sv`,
-`rtl/cdc/{fifo_async,gaxi_fifo_async,counter_bingray,counter_johnson}.sv`,
-`rtl/amba/gaxi/{gaxi_fifo_sync,gaxi_drop_fifo_sync}.sv`. `counter_bingray.sv`
-also gained the `reset_defs.svh` include it never had.
-
-**Still open, same defect class, NOT in this change:** twelve non-FIFO files
-carry the same hand-written `if (!rst_n)` inside the macro - the apb4/apb5
-and axis5 clock-gate wrappers, `axil5_opt_slave`, `amba_clock_gate_ctrl`,
-`clock_divider`, `dataint_checksum`, and the raw block in
-`clock_gate_ctrl.sv`. They are a separate family with a separate regression;
-see [[COMMON-027]]. The sibling in the RLB wrappers is [[RLB-012]].
-
 ## COMMON-027: non-FIFO reset bodies hardcoded active-low
 
 **Priority:** P3 today (no build sets `RESET_ACTIVE_HIGH`).

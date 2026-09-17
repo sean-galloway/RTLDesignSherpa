@@ -1988,7 +1988,8 @@ migrate or retire them (they cannot build as-is).
 (original record follows)
 
 **Priority:** P1
-**Status:** 🔴 Not Started (found 2026-08-10)
+**Status:** ✅ CLOSED — module deleted; verified absent from the tree
+2026-09-16. Status line corrected 2026-09-16: it still read "Not Started" while this entry's own heading recorded the closure, so every scan of this page counted it as unfinished work.
 **Owner:** TBD
 
 `rtl/amba/shared/axi4_dma_observer.sv` instantiates `axi_perf_latency_hist`
@@ -2048,7 +2049,8 @@ Original filing follows for the record:
 
 ### Original filing: splitter `block_ready` duplicates transactions instead of blocking them
 **Priority:** P2
-**Status:** 🔴 Not Started (found 2026-08-09, doc qc round_1)
+**Status:** ✅ CLOSED — fixed pre-537c7af8, verified against the tree
+2026-08-23 (found 2026-08-09, doc qc round_1). Status line corrected 2026-09-16: it still read "Not Started" while this entry's own heading recorded the closure, so every scan of this page counted it as unfinished work.
 **Owner:** TBD
 
 In `rtl/amba/shared/axi_master_rd_splitter.sv` the downstream valid is not
@@ -2178,7 +2180,8 @@ Tests: `val/amba/test_axi_master_{rd,wr}_splitter.py` +
 `val/amba/test_axi_splitter_block_ready.py`.
 
 **Priority:** P2 (latent — nothing instantiates either splitter; pumice wrote its own)
-**Status:** Not Started (found 2026-08-12, shared doc qc re-round)
+**Status:** ✅ CLOSED — 537c7af8, verified against the tree 2026-08-23
+(found 2026-08-12, shared doc qc re-round). Status line corrected 2026-09-16: it still read "Not Started" while this entry's own heading recorded the closure, so every scan of this page counted it as unfinished work.
 **Owner:** TBD
 
 Three more defects in the same two modules TASK-061 covers, found by the
@@ -4395,7 +4398,10 @@ monitor change.
 
 ## TASK-026: Every module MUST have a filelist and a registry entry
 **Priority:** P2
-**Status:** 🔴 Not Started
+**Status:** ✅ CLOSED 2026-09-16 -- re-measured; the last open item resolved
+itself by the "or drop the module" branch. The entry sat on this page with a
+`🔴 Not Started` status line and three-week-old numbers, which is why it read as
+unfinished.
 **Owner:** TBD
 
 **The rule** (authority: `vault/handbook/design/filelists.md`): every module in
@@ -4404,19 +4410,29 @@ in `bin/filelists.toml`. A new module lands with its `.f` **in the same commit**
 — not "before the test lands". A module with no filelist has no consumers and is
 indistinguishable from dead code the next time someone audits.
 
-**Current state is good but unenforced.** `bin/filelist_registry.py --check`
-reports amba at 152 modules / 147 covered / 0 uncovered. The 5-module gap is the
-`[exempt]` ledger, not a hole:
+**Current state, measured 2026-09-16.** `bin/filelist_registry.py --check`
+reports amba at **176 modules / 176 covered / 0 uncovered / 0 broken refs**, and
+every other area OK -- overall PASS. `--audit` passes too ("no filelist
+hand-lists another area's sources"). Read all three numbers rather than the
+PASS: amba now carries **no exemptions at all**, so covered == declared is a
+real pass and not an exemption-masked one. The `[exempt]` ledger retains only
+`pumice_bank_cmd_picker` / `pumice_bank_sched_core`, both set aside under
+`rtl/OLD/` with a stated reason.
 
-- `gaxi_fifo_async_multi` — multi-instance wrapper; no consumer yet
-- `gaxi_fifo_sync_multi` — multi-instance wrapper; no consumer yet
-- `gaxi_skid_buffer_async_multi` — multi-instance wrapper; no consumer yet
-- `gaxi_skid_buffer_multi` — multi-instance wrapper; no consumer yet
-- `gaxi_skid_buffer_multi_sigmap` — multi-instance wrapper; no consumer yet
+The five modules this entry listed as the gap are simply gone from the tree --
+no `.sv`, no filelist, no reference anywhere in `rtl/` or `projects/`:
+
+- `gaxi_fifo_async_multi` — dropped
+- `gaxi_fifo_sync_multi` — dropped
+- `gaxi_skid_buffer_async_multi` — dropped
+- `gaxi_skid_buffer_multi` — dropped
+- `gaxi_skid_buffer_multi_sigmap` — dropped
 
 **Work:**
-- [ ] Resolve the five exemptions: give each a filelist and a consumer, or drop
-      the module. "No consumer yet" is a debt entry, not a permanent state.
+- [x] Resolve the five exemptions. **Done** by deletion: all five multi-instance
+      wrappers were dropped rather than given consumers, which the item
+      explicitly allowed. Verified 2026-09-16 -- absent repo-wide, and no
+      `gaxi_*_multi` entries remain in the `[exempt]` ledger.
 - [x] Wire `--check` into a gate. **Done** — `.github/workflows/filelist-checks.yml`
       runs on every push and treats `--check` and `--audit` as hard gates, with
       `--blindspots` ratcheted against `bin/blindspots_baseline.json`. (The

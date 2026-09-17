@@ -2,7 +2,7 @@
 
 # AMBA tasks
 
-**Next ID: TASK-097** — never recycle a number, even when its task closed.
+**Next ID: TASK-098** — never recycle a number, even when its task closed.
 
 Canonical task tracker for `rtl/amba/` (AXI4/AXI5, APB, AXI-Stream, the
 monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
@@ -10,10 +10,18 @@ monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 1 | in progress right now |
-| [open.md](open.md) | 11 | accepted, not started |
+| [open.md](open.md) | 10 | accepted, not started |
 | [deferred.md](deferred.md) | 0 | accepted, parked on a named condition |
-| [closed.md](closed.md) | 58 | done (kept for history) |
+| [closed.md](closed.md) | 63 | done (kept for history) |
 | [dropped.md](dropped.md) | 1 | ended without completing (won't do / superseded) |
+
+*Re-measured again 2026-09-16 and corrected: the table claimed 11 open / 58
+closed against an actual 10 / 63. Two things caused it. Entries were added and
+moved without the table following, and -- the subtler one -- a count that matches
+only `TASK-nnn` and `AMBA-*` headings silently MISSES entries filed under other
+ID forms. `OBS-PORTS` is one such entry and went uncounted for exactly that
+reason. Match any `ID-number` or all-caps-name heading at `##`/`###`, and read
+the number rather than trusting this table.*
 
 *Counts re-measured 2026-09-14 by matching task-ID headings, not by hand. They
 had drifted in both directions, because entries in this area sit at BOTH `##`

@@ -4,6 +4,47 @@
 
 ---
 
+## COMMON-026: FIFO-family reset bodies hardcoded active-low - FIXED
+
+**Status:** CLOSED 2026-09-16 -- fixed 2026-09-10 (Sean authorized the
+shared-RTL edit: "they are innocent and make RLB coding easier"), raised by the
+smbus #58 round-6 review. It stayed on the OPEN page for six days with a title
+that already said FIXED. Re-verified against the tree 2026-09-16 before moving:
+all ten named files carry the `reset_defs.svh` include and test the level through
+`RST_ASSERTED`, with zero hand-written `if (!rst_n)` bodies and zero raw
+`always_ff @(posedge ... negedge ...)` blocks remaining. The follow-on work for
+the twelve non-FIFO files is tracked separately as [[COMMON-027]].
+
+`reset_defs.svh` makes reset polarity a compile-time property: the
+`ALWAYS_FF_RST` sensitivity follows the define, and `RST_ASSERTED()` is how a
+body is meant to test the level. Ten files in the FIFO family tested it by
+hand instead, in two shapes: a body of `if (!rst_n)` inside the macro (18
+sites), and a raw `always_ff @(posedge clk, negedge rst_n)` that bypassed the
+macro entirely (3 sites, in `fifo_control.sv` and `counter_bingray.sv`).
+Under `-DRESET_ACTIVE_HIGH` the storage then sat in reset forever while the
+wrapper counters kept counting, so a FIFO reported empty with data in it.
+
+Measured before and after on a standalone `fifo_sync`, three bytes written:
+
+| build | before | after |
+|---|---|---|
+| default (active-low) | `empty=0 head=0xA0` | `empty=0 head=0xA0` |
+| `-DRESET_ACTIVE_HIGH` | `empty=1 head=0xA2` | `empty=0 head=0xA0` |
+
+Files: `rtl/common/{fifo_control,fifo_sync,counter_bin,counter_bin_load}.sv`,
+`rtl/cdc/{fifo_async,gaxi_fifo_async,counter_bingray,counter_johnson}.sv`,
+`rtl/amba/gaxi/{gaxi_fifo_sync,gaxi_drop_fifo_sync}.sv`. `counter_bingray.sv`
+also gained the `reset_defs.svh` include it never had.
+
+**Still open, same defect class, NOT in this change:** twelve non-FIFO files
+carry the same hand-written `if (!rst_n)` inside the macro - the apb4/apb5
+and axis5 clock-gate wrappers, `axil5_opt_slave`, `amba_clock_gate_ctrl`,
+`clock_divider`, `dataint_checksum`, and the raw block in
+`clock_gate_ctrl.sv`. They are a separate family with a separate regression;
+see [[COMMON-027]]. The sibling in the RLB wrappers is [[RLB-012]].
+
+---
+
 
 ## COMMON-015 — shifter_beat_pack: runtime cfg wider than COUNT_BITS corrupts occupancy
 **Status:** CLOSED 2026-08-04 (fixed in 7d879f95, closed in 623bd254) —
