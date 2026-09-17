@@ -232,26 +232,46 @@ before moving anything.
 ---
 
 ## TOOL-003: One gate that runs filelist_registry --check and --audit
-**Priority:** P2
-**Status:** 🔴 Not Started
+**Priority:** P2 -> P3 (re-scoped)
+**Status:** MOSTLY DONE, re-scoped 2026-09-16. Three of the four items landed
+without this entry being updated, so it still read as untouched work.
 **Owner:** TBD
 
 Shared deliverable for COMMON-010 and AMBA TASK-026 — build it once here rather
 than twice in the areas.
 
-`bin/filelist_registry.py --check` is currently run by **nothing**: not the
-pre-commit hook (which does check `.sv` declaration order, so the hook exists
-and is the obvious home), not CI (`track-clones.yml` is the only workflow), not
-a Makefile target. Every module having a filelist is a stated MUST that nothing
-verifies.
+**The premise below was true when filed and is FALSE now** -- kept because the
+re-scope only makes sense against it. It read: "`--check` is currently run by
+nothing: not the pre-commit hook, not CI (`track-clones.yml` is the only
+workflow), not a Makefile target."
 
-- [ ] Add `--check` to the pre-commit hook, scoped to commits touching `.sv` or
-      `.f` so it does not tax unrelated commits.
-- [ ] Add `--audit` (consumers hand-listing `rtl/common` / `rtl/amba` sources).
-- [ ] Decide whether a CI workflow is also wanted, given the repo currently has
-      almost no CI.
-- [ ] Make the failure message name the offending module and the area's
-      `filelists/` dir, so the fix is obvious without reading the tool.
+Measured 2026-09-16, all three clauses are wrong:
+
+- `.github/workflows/filelist-checks.yml` runs `--check`, `--audit` and
+  `--blindspots --ratchet` as hard gates on push, PR and dispatch, plus
+  `check_doc_examples.py` and `check_test_dut_family.py`.
+- `.git/hooks/pre-commit` runs the same three locally, gated on staged
+  `.f/.sv/.svh/.sby/.toml` or `test_*.py` -- a deliberate superset of the
+  ".sv or .f" this entry asked for, because `.sby` and `test_*.py` are the
+  blindspot carriers.
+
+- [x] Add `--check` to the pre-commit hook, scoped. **Done**, and scoped wider
+      than asked (see above).
+- [x] Add `--audit`. **Done** -- the hook loops `for check in --check --audit`,
+      and CI runs it as its own step.
+- [x] Decide whether a CI workflow is also wanted. **Done, decided yes.**
+- [ ] PARTIAL -- make the failure message name the offending module **and the
+      area's `filelists/` dir**. `cmd_check` prints `uncovered module: {m}` and
+      the area name, but never the directory the `.f` belongs in, so the fix
+      still is not obvious without reading the tool. One f-string.
+- [ ] NOT DONE, and this is the substantive half -- fail (or delta-report) when
+      the `[exempt]` ledger GROWS. `cmd_check` line ~436 is
+      `missing = sorted(m for m in declared - covered if m not in exempt)`, so
+      an exempt module is silently subtracted and a new exemption passes every
+      gate. `--blindspots --ratchet` does NOT cover this: it ratchets
+      unregistered `.f`, hand-listed tests and dead `.sby` paths, a different
+      class. Validating [[TASK-026]] on 2026-09-16 required reading the ledger
+      by hand for exactly this reason.
 
 **Gotcha to preserve:** `--check` exits PASS when `declared - covered - exempt`
 is empty, so a gate that only inspects the exit code will not notice the
