@@ -69,7 +69,12 @@ class WrBatch(Sequence):
         # particular generator count starves under the drain.
         gens = [int(g) for g in str(ctx.param("gens", "1")).split(",")]
         wms  = [(0, 0), (2, 1), (8, 4)]
-        cfg  = pc.CONFIGS["open_page"]
+        # Config selectable so the page policy can be varied. The leading
+        # hypothesis is that the write drain's ACT/PRE closes a row an
+        # already-issued read depends on; OPEN vs CLOSE page changes how
+        # much row state a read carries between accesses, so it is the
+        # cheapest discriminator available.
+        cfg  = pc.CONFIGS[str(ctx.param("config", "open_page"))]
         out  = {}
 
         for hi, lo in wms:
@@ -151,7 +156,7 @@ class WrBatch(Sequence):
                 fails = sum(1 for m in mism if m)
                 avg   = sum(bus) / len(bus) if bus else 0.0
                 out[(hi, n_gen, gap)] = (fails, len(mism), avg, mism)
-                ctx.say(f"[wr_batch] hi={hi}/lo={lo} {n_gen}+{n_gen} gap={gap}: "
+                ctx.say(f"[wr_batch] {cfg.name} hi={hi}/lo={lo} {n_gen}+{n_gen} gap={gap}: "
                         f"{fails}/{len(mism)} failing  bus={avg:.1f} MB/s  "
                         f"timeouts={timeouts}  {mism}")
 

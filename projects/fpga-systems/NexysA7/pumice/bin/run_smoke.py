@@ -79,6 +79,8 @@ def main(argv=None) -> int:
                          "closed prematurely.")
     ap.add_argument("--wb-gaps", default="12,15",
                     help="wr_batch: reader gaps to test")
+    ap.add_argument("--wb-config", default="open_page",
+                    help="wr_batch: ControllerConfig name (open_page=OPEN, baseline=CLOSE)")
     ap.add_argument("--wb-gens", default="1",
                     help="wr_batch: generator pair counts to sweep")
     ap.add_argument("--wb-txn", type=int, default=2000,
@@ -135,6 +137,7 @@ def main(argv=None) -> int:
         "gaps": args.wb_gaps,
         "txn": args.wb_txn,
         "gens": args.wb_gens,
+        "config": args.wb_config,
     }
 
     try:

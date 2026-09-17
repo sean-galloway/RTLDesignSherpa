@@ -845,7 +845,17 @@ and a long uninterrupted write run is exactly what would defeat a guard sized
 for ping-pong traffic. Testable: CLOSE page policy, or writer/reader forced
 onto banks that share no rows.
 
-Next: identify the ~180-beat unit. It is the strongest clue available -- a
+**CLOSE page is clean -- but the test is CONFOUNDED.** baseline (page_policy=2)
+runs 0/12 failing at every watermark, where open_page fails 2-4/12. But CLOSE
+page also drops the bus from ~435 MB/s to 33 MB/s -- 13x. A clean result at
+one-thirteenth the command rate does not separate "row state was the mechanism"
+from "the hazard needs a density CLOSE page cannot reach". Suggestive, not
+evidence. A better discriminator holds the rate roughly constant while changing
+row reuse -- e.g. open_page with writer and reader forced onto banks that share
+no rows.
+
+Next: identify the ~180-beat unit (stable at exactly 180 across both read
+alignments), and find a row-state test that is not rate-confounded. It is the strongest clue available -- a
 fixed quantum of mis-delivered data, not scattered collisions. Candidates:
 the concurrent region size (0x20000 per the notes), the read CAM / return-ring
 depth, or the number of bursts in one drain.
