@@ -65,6 +65,8 @@ except ImportError:
 # Performance Test Configurations
 # ============================================================================
 
+_GATE_PERF = ('single_ch_dw128', 'single_ch_dw512')
+
 PERF_TEST_CONFIGS = [
     # Single channel - various data widths
     # Weighted distribution: min 256, most at 512 for proper machinery stress
@@ -424,8 +426,20 @@ async def cocotb_test_perf_window_arm(dut):
 # Pytest Wrapper
 # ============================================================================
 
-@pytest.mark.parametrize("config", PERF_TEST_CONFIGS, ids=lambda c: c['name'])
-def test_stream_performance_profile(request, config):
+def _perf_configs():
+    """REG_LEVEL gates the GRID breadth. FUNC runs every config this file
+    already ran, so existing coverage is unchanged; GATE is the smoke subset.
+    FULL matches FUNC rather than inventing configurations never elaborated.
+    """
+    import os as _os
+    lvl = _os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if lvl == 'GATE':
+        return [c for c in PERF_TEST_CONFIGS if c['name'] in _GATE_PERF]
+    return PERF_TEST_CONFIGS
+
+
+@pytest.mark.parametrize("config", _perf_configs(), ids=lambda c: c['name'])
+def test_stream_performance_profile(request, config, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Run performance profiling for a specific configuration"""
 
@@ -473,6 +487,9 @@ def test_stream_performance_profile(request, config):
 
     # Get coverage environment variables
     coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
+    # Per-cell depth: the other half of the contract. The grid above is
+    # REG_LEVEL-selected; this is what the TB reads to size each cell.
+    coverage_env['TEST_LEVEL'] = test_level
 
     # Build and run
     run(

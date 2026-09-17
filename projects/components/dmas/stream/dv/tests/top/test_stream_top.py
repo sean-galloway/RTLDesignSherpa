@@ -36,6 +36,7 @@ import cocotb
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, get_repo_root, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -76,9 +77,11 @@ def get_coverage_helper(test_name: str, log=None):
 # Test Parameters
 # ==============================================================================
 
-def generate_test_params():
+def _params_for_level(test_level):
     """Generate test parameter sets based on TEST_LEVEL"""
-    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    # test_level arrives as an ARGUMENT: collection happens before any
+    # per-cell environment exists, so an os.environ read here pinned every
+    # REG_LEVEL to the gate config.
 
     # Test level configurations
     level_configs = {
@@ -154,7 +157,22 @@ def generate_test_params():
                 'scenario': tag,
             })
 
+    for _p in params:
+        _p['test_level'] = test_level
     return params
+
+
+def generate_test_params():
+    """Union of the per-level param sets REG_LEVEL selects.
+
+    The level COMPOSES with the existing grid instead of multiplying it.
+    Reading TEST_LEVEL at collection time is what pinned this generator to
+    'gate' for every REG_LEVEL, so its func and full configs never ran.
+    """
+    out = []
+    for _lvl in reg_level_grid():
+        out.extend(_params_for_level(_lvl))
+    return out
 
 
 # ==============================================================================
@@ -621,6 +639,7 @@ def test_stream_top_basic(request, params):
 
     # Set environment variables for test configuration
     extra_env = {
+        **level_env(params['test_level']),
         'NUM_CHANNELS': str(params['num_channels']),
         'DATA_WIDTH': str(params['data_width']),
         'FIFO_DEPTH': str(params['fifo_depth']),

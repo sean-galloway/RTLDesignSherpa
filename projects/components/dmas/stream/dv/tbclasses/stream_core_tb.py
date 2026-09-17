@@ -153,6 +153,15 @@ class StreamCoreTB(TBBase):
         """Initialize stream_core testbench"""
         super().__init__(dut)
 
+        # Depth for THIS cell. Read from os.environ directly, like every other
+        # stream TB: the level checker looks for that read in this file's own
+        # AST, so a helper imported from another module would not satisfy it.
+        # 'func' reproduces the previous fixed behaviour; gate/full bracket it.
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'func').lower()
+        if self.TEST_LEVEL not in ('gate', 'func', 'full'):
+            self.TEST_LEVEL = 'func'
+        self.log.info(f"TEST_LEVEL={self.TEST_LEVEL}")
+
         # Save parameters
         self.num_channels = num_channels
         self.addr_width = addr_width

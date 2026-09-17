@@ -44,6 +44,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -187,6 +188,12 @@ async def cocotb_test_mon_cfg_hookup(dut):
     await tb.write_reg('GLOBAL_CTRL', 1)      # GLOBAL_EN
     await ClockCycles(dut.aclk, 5)
 
+    _lvl = os.environ.get('TEST_LEVEL', 'func').lower()
+    if _lvl not in ('gate', 'func', 'full'):
+        _lvl = 'func'
+    tb.log.info(f"TEST_LEVEL={_lvl}: enable fields"
+                f"{'' if _lvl == 'gate' else ' + value fields + aliasing cross-check'}")
+
     for mon, (pfx, reg_pfx) in CFG_MAP.items():
         # ---- ENABLE fields: one bit at a time -------------------------------
         # One at a time ON PURPOSE. Writing all-ones and reading all-ones passes
@@ -236,7 +243,7 @@ async def cocotb_test_mon_cfg_hookup(dut):
                             f"{pfx}_{port_suffix}")
 
         # ---- ENABLE aliasing: each bit must move ONLY its own port ----------
-        for field, port_suffix in ENABLE_FIELDS:
+        for field, port_suffix in (ENABLE_FIELDS if _lvl != 'gate' else []):
             bit = _field_offset(regs, f"{reg_pfx}_ENABLE", field)
             await tb.write_reg(f"{reg_pfx}_ENABLE", 1 << bit)
             await ClockCycles(dut.aclk, 5)
@@ -251,7 +258,7 @@ async def cocotb_test_mon_cfg_hookup(dut):
                         f"(aliasing)")
 
         # ---- VALUE fields: full width, not just small numbers ---------------
-        for reg_tmpl, field, port_suffix, value in VALUE_FIELDS:
+        for reg_tmpl, field, port_suffix, value in (VALUE_FIELDS if _lvl != 'gate' else []):
             reg_name = reg_tmpl.format(mon=reg_pfx)
             if reg_name not in regs:
                 continue
@@ -289,7 +296,12 @@ async def cocotb_test_mon_cfg_hookup(dut):
     tb.log.info("monitor cfg hookup: all register fields reach their ports")
 
 
-def test_stream_top_mon_cfg(request):
+# A CONTRACT test: it proves APB writes reach the monitor cfg ports. There is
+# no count to scale, so REG_LEVEL selects how many cells run it rather than
+# how much work each does -- the same call apbx-xbar made for its contract
+# tests. The depth still reaches the TB, which reads TEST_LEVEL.
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_stream_top_mon_cfg(request, test_level):
     """APB register field -> stream_core cfg port, for every monitor class."""
     module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_stream_top': '../../../../rtl/top',
@@ -334,6 +346,7 @@ def test_stream_top_mon_cfg(request):
         parameters=rtl_parameters,
         sim_build=sim_build,
         extra_env={
+            **level_env(test_level),
             'DUT': dut_name,
             'NUM_CHANNELS': '4',
             'DATA_WIDTH': '128',

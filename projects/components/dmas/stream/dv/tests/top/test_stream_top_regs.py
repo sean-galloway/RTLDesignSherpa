@@ -41,6 +41,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -133,6 +134,12 @@ async def cocotb_test_reg_walk(dut):
     regs = _regmap()
     fails, checked, skipped = [], 0, 0
 
+    _lvl = os.environ.get('TEST_LEVEL', 'func').lower()
+    if _lvl not in ('gate', 'func', 'full'):
+        _lvl = 'func'
+    tb.log.info(f"TEST_LEVEL={_lvl}: reset-value sweep"
+                f"{'' if _lvl == 'gate' else ' + write/readback'}")
+
     # ---- 1. reset values, before anything is written ------------------------
     for name, reg in sorted(regs.items()):
         if _is_mon(name) and not monitors:
@@ -163,7 +170,7 @@ async def cocotb_test_reg_walk(dut):
     tb.log.info(f"reset-value sweep done over {len(regs)} registers")
 
     # ---- 2. write / readback, masked to the writable bits -------------------
-    for name, reg in sorted(regs.items()):
+    for name, reg in sorted(regs.items() if _lvl != 'gate' else []):
         if _is_mon(name) and not monitors:
             continue
         wmask = _writable_mask(reg)
@@ -222,7 +229,7 @@ async def cocotb_test_reg_walk(dut):
         + ("\n  ..." if len(fails) > 25 else ""))
 
 
-def _run_regs(request, use_monitors):
+def _run_regs(request, use_monitors, test_level):
     module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_stream_top': '../../../../rtl/top',
         'rtl_stream_macro': '../../../../rtl/macro',
@@ -260,6 +267,7 @@ def _run_regs(request, use_monitors):
         },
         sim_build=sim_build,
         extra_env={
+            **level_env(test_level),
             'DUT': dut_name,
             'NUM_CHANNELS': '4',
             'DATA_WIDTH': '128',
@@ -277,9 +285,10 @@ def _run_regs(request, use_monitors):
     )
 
 
-def test_stream_top_regs_monitors_present(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_stream_top_regs_monitors_present(request, test_level):
     """All 139 registers, monitors built. The 86 MON registers must work."""
-    _run_regs(request, 1)
+    _run_regs(request, 1, test_level)
 
 
 @pytest.mark.xfail(
@@ -287,6 +296,7 @@ def test_stream_top_regs_monitors_present(request):
     reason="STREAM-MONREGS: the monitor regfile is instantiated unconditionally "
            "(stream_regs.rdl:758), so it answers even when USE_AXI_MONITORS=0. "
            "This test is the regression gate for gating it.")
-def test_stream_top_regs_monitors_absent(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_stream_top_regs_monitors_absent(request, test_level):
     """Monitors NOT built: the MON window must not answer."""
-    _run_regs(request, 0)
+    _run_regs(request, 0, test_level)

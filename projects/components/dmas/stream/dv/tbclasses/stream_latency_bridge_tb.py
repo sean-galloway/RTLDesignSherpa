@@ -176,7 +176,18 @@ class StreamLatencyBridgeTB(TBBase):
             raise AssertionError(f"Backpressure test failed with {len(errors)} error(s)")
         self.log.info(f"Backpressure released (s_ready={ready_after}, occupancy={occ_after})")
 
-    async def test_streaming(self, num_beats=20):
+    # Beats per level. 'func' is 20 -- the previous hardcoded default -- so the
+    # existing call site's behaviour is unchanged and gate/full bracket it.
+    # Read from os.environ directly, like every other stream TB: the level
+    # checker looks for that read in THIS file's AST, and a helper imported from
+    # another module would not satisfy it.
+    _STREAM_BEATS = {'gate': 8, 'func': 20, 'full': 64}
+
+    async def test_streaming(self, num_beats=None):
+        if num_beats is None:
+            _lvl = os.environ.get('TEST_LEVEL', 'func').lower()
+            num_beats = self._STREAM_BEATS.get(_lvl, 20)
+            self.log.info(f"TEST_LEVEL={_lvl} num_beats={num_beats}")
         """Streaming flow under the active timing profile.
 
         Covers testplan scenarios:

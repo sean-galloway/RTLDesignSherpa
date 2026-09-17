@@ -392,7 +392,18 @@ async def _one_transfer(tb, channel, desc_count):
 # ===========================================================================
 # Pytest wrappers -- one per (class, monitor block)
 # ===========================================================================
-def _run_mon_class(request, mon_class, mon_block):
+def _mon_blocks():
+    """REG_LEVEL gates the GRID breadth. FUNC and FULL sweep both monitor
+    blocks -- today's behaviour, unchanged. GATE proves the wiring on the read
+    monitor only; the two blocks are the same cone instantiated twice, so one
+    of them is a smoke test and both are the sign-off sweep.
+    """
+    import os as _os
+    return ['RDMON'] if _os.environ.get('REG_LEVEL', 'FUNC').upper() == 'GATE' \
+        else ['RDMON', 'WRMON']
+
+
+def _run_mon_class(request, mon_class, mon_block, test_level):
     module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_stream_macro': '../../../../rtl/stream_macro',
         'rtl_stream_fub': '../../../../rtl/stream_fub',
@@ -430,6 +441,7 @@ def _run_mon_class(request, mon_class, mon_block):
     os.makedirs(log_dir, exist_ok=True)
 
     extra_env = {
+        'TEST_LEVEL': test_level,
         'DUT': dut_name,
         'MON_CLASS': mon_class,
         'MON_BLOCK': mon_block,
@@ -458,28 +470,28 @@ def _run_mon_class(request, mon_class, mon_block):
     )
 
 
-@pytest.mark.parametrize("mon_block", ["RDMON", "WRMON"])
-def test_stream_core_mon_timeout(request, mon_block):
+@pytest.mark.parametrize("mon_block", _mon_blocks())
+def test_stream_core_mon_timeout(request, mon_block, test_level):
     """TIMEOUT_EN + *_TIMEOUT (microseconds) must yield PktTypeTimeout."""
-    _run_mon_class(request, 'timeout', mon_block)
+    _run_mon_class(request, 'timeout', mon_block, test_level)
 
 
-@pytest.mark.parametrize("mon_block", ["RDMON", "WRMON"])
-def test_stream_core_mon_threshold(request, mon_block):
+@pytest.mark.parametrize("mon_block", _mon_blocks())
+def test_stream_core_mon_threshold(request, mon_block, test_level):
     """THRESH_EN + *_LATENCY_THRESH (clocks) must yield PktTypeThreshold."""
-    _run_mon_class(request, 'threshold', mon_block)
+    _run_mon_class(request, 'threshold', mon_block, test_level)
 
 
-@pytest.mark.parametrize("mon_block", ["RDMON", "WRMON"])
-def test_stream_core_mon_compl(request, mon_block):
+@pytest.mark.parametrize("mon_block", _mon_blocks())
+def test_stream_core_mon_compl(request, mon_block, test_level):
     """COMPL_EN must yield PktTypeCompletion -- the field that was ALIASED to
     int_cfg_*_mon_enable, so 'disable completions' silently disabled the whole
     monitor instead."""
-    _run_mon_class(request, 'compl', mon_block)
+    _run_mon_class(request, 'compl', mon_block, test_level)
 
 
-@pytest.mark.parametrize("mon_block", ["RDMON", "WRMON"])
-def test_stream_core_mon_perf(request, mon_block):
+@pytest.mark.parametrize("mon_block", _mon_blocks())
+def test_stream_core_mon_perf(request, mon_block, test_level):
     """PERF_EN must yield PktTypePerf -- and note THRESH_EN used to be wired to
     this same signal, so the two classes were indistinguishable."""
-    _run_mon_class(request, 'perf', mon_block)
+    _run_mon_class(request, 'perf', mon_block, test_level)

@@ -275,7 +275,7 @@ def _monbus_timing_profiles():
 
 
 @pytest.mark.parametrize("timing_profile", _monbus_timing_profiles())
-def test_stream_top_monbus(request, timing_profile):
+def test_stream_top_monbus(request, timing_profile, test_level):
     module, repo_root_, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_stream_top': '../../../../rtl/stream_top',
         'rtl_stream_macro': '../../../../rtl/stream_macro',
@@ -315,6 +315,9 @@ def test_stream_top_monbus(request, timing_profile):
     os.makedirs(log_dir, exist_ok=True)
 
     extra_env = {
+        # Per-cell depth. The grid above is already REG_LEVEL-selected by
+        # _monbus_timing_profiles(); this is the other half of the contract.
+        'TEST_LEVEL': test_level,
         'NUM_CHANNELS': str(num_channels), 'DATA_WIDTH': str(data_width),
         'FIFO_DEPTH': str(fifo_depth), 'DUT': dut_name, 'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO', 'COCOTB_RESULTS_FILE': results_path,

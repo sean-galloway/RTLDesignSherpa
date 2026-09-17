@@ -217,10 +217,10 @@ async def cocotb_test_scheduler(dut):
         tb.log.info("=== Scenario SCHED-STRESS: Random stress test ===")
         tb.log.info("  Random descriptor parameters to increase line coverage")
         # Get num_descriptors based on test level
-        test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
-        if test_level == 'full':
+        _lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if _lvl == 'full':
             num_desc = 50
-        elif test_level == 'func':
+        elif _lvl == 'func':
             num_desc = 25
         else:
             num_desc = 15
@@ -311,8 +311,8 @@ async def cocotb_test_scheduler(dut):
         tb.log.info("=== Scenario SCHED-02-EXT: True descriptor chaining ===")
         tb.log.info("  Exercises CH_NEXT_DESC state machine path")
         # True descriptor chaining - exercises CH_NEXT_DESC state
-        test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
-        chain_len = 5 if test_level == 'full' else 3
+        _lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
+        chain_len = 5 if _lvl == 'full' else 3
         result = await tb.test_true_descriptor_chaining(chain_length=chain_len)
         # Sample chained descriptor scenario
         coverage.sample_scenario("descriptor_chaining")
@@ -519,9 +519,20 @@ def generate_scheduler_test_params():
         for base in base_params:
             params.append((test_type,) + base + ('default',))
 
+    # REG_LEVEL gates the GRID breadth. FUNC reproduces every type and profile
+    # this file already ran, so existing coverage is unchanged; GATE is the
+    # smoke subset. FULL matches FUNC rather than fabricating configurations
+    # this DUT has never elaborated.
+    _reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if _reg_level == 'GATE':
+        test_types = [t for t in test_types if t in (
+            'basic_flow', 'descriptor_chaining', 'timeout_detection',
+            'irq_generation', 'full_protocol_coverage')]
+
     # Focused GAXI descriptor-master timing sweep on one representative scenario.
-    gaxi_timing_sweep = ['constrained', 'gaxi_pipeline', 'gaxi_backpressure',
-                         'gaxi_realistic', 'gaxi_stress', 'mixed']
+    gaxi_timing_sweep = [] if _reg_level == 'GATE' else [
+        'constrained', 'gaxi_pipeline', 'gaxi_backpressure',
+        'gaxi_realistic', 'gaxi_stress', 'mixed']
     for tp in gaxi_timing_sweep:
         params.append(('basic_flow',) + base_params[0] + (tp,))
 

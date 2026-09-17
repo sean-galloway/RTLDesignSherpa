@@ -212,7 +212,7 @@ params = generate_params()
 #===============================================================================
 
 @pytest.mark.parametrize("test_type, data_width, timing_profile", params)
-def test_stream_latency_bridge(request, test_type, data_width, timing_profile):
+def test_stream_latency_bridge(request, test_type, data_width, timing_profile, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for stream latency bridge tests - handles all test types."""
 
@@ -252,6 +252,9 @@ def test_stream_latency_bridge(request, test_type, data_width, timing_profile):
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        # Per-cell depth. REG_LEVEL already selects this file's grid (1/2/3 data
+        # widths); this is the other half -- the depth the TB runs each cell at.
+        'TEST_LEVEL': test_level,
     }
     if timing_profile != 'default':
         extra_env['GAXI_TIMING_PROFILE'] = timing_profile

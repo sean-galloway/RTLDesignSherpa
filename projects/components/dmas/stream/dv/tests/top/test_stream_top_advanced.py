@@ -314,14 +314,14 @@ async def cocotb_test_multi_channel_concurrent(dut):
     # Get level-based configuration
     level_config = get_test_level_config()
     test_config = level_config['multi_channel']
-    test_level = os.environ.get('TEST_LEVEL', 'gate')
+    _lvl = os.environ.get('TEST_LEVEL', 'gate')
 
     test_channels = test_config['channels']
     desc_count = test_config['desc_count']
     transfer_sizes = test_config['transfer_sizes']
 
     tb.log.info(f"\n{'='*80}")
-    tb.log.info(f"Multi-Channel Concurrent Test (TEST_LEVEL={test_level})")
+    tb.log.info(f"Multi-Channel Concurrent Test (TEST_LEVEL={_lvl})")
     tb.log.info(f"{'='*80}")
     tb.log.info(f"Channels: {test_channels}, Descriptors per channel: {desc_count}")
     tb.log.info(f"Transfer sizes: {transfer_sizes}")
@@ -401,14 +401,14 @@ async def cocotb_test_long_descriptor_chain(dut):
     # Get level-based configuration
     level_config = get_test_level_config()
     test_config = level_config['long_chain']
-    test_level = os.environ.get('TEST_LEVEL', 'gate')
+    _lvl = os.environ.get('TEST_LEVEL', 'gate')
 
     channel = 0  # Always use channel 0 for this test
     chain_length = test_config['chain_length']
     transfer_size = test_config['transfer_size']
 
     tb.log.info(f"\n{'='*80}")
-    tb.log.info(f"Long Descriptor Chain Test (TEST_LEVEL={test_level})")
+    tb.log.info(f"Long Descriptor Chain Test (TEST_LEVEL={_lvl})")
     tb.log.info(f"{'='*80}")
     tb.log.info(f"Channel: {channel}, Chain length: {chain_length}, Transfer size: {transfer_size}")
 
@@ -474,13 +474,13 @@ async def cocotb_test_variable_transfer_sizes(dut):
     # Get level-based configuration
     level_config = get_test_level_config()
     test_config = level_config['variable_sizes']
-    test_level = os.environ.get('TEST_LEVEL', 'gate')
+    _lvl = os.environ.get('TEST_LEVEL', 'gate')
 
     channel = 0  # Always use channel 0 for this test
     transfer_sizes = test_config['transfer_sizes']
 
     tb.log.info(f"\n{'='*80}")
-    tb.log.info(f"Variable Transfer Sizes Test (TEST_LEVEL={test_level})")
+    tb.log.info(f"Variable Transfer Sizes Test (TEST_LEVEL={_lvl})")
     tb.log.info(f"{'='*80}")
     tb.log.info(f"Channel: {channel}")
     tb.log.info(f"Transfer sizes to test: {transfer_sizes}")
@@ -567,14 +567,14 @@ async def cocotb_test_stress_all_channels(dut):
     # Get level-based configuration
     level_config = get_test_level_config()
     test_config = level_config['stress']
-    test_level = os.environ.get('TEST_LEVEL', 'gate')
+    _lvl = os.environ.get('TEST_LEVEL', 'gate')
 
     num_channels = test_config['channels']
     desc_per_channel = test_config['desc_count']
     transfer_sizes = test_config['transfer_sizes']
 
     tb.log.info(f"\n{'='*80}")
-    tb.log.info(f"Stress Test - {num_channels} Channels (TEST_LEVEL={test_level})")
+    tb.log.info(f"Stress Test - {num_channels} Channels (TEST_LEVEL={_lvl})")
     tb.log.info(f"{'='*80}")
     tb.log.info(f"Channels: {num_channels}, Descriptors per channel: {desc_per_channel}")
     tb.log.info(f"Transfer sizes: {transfer_sizes}")
@@ -673,12 +673,12 @@ async def cocotb_test_register_access(dut):
     # Get level-based configuration
     level_config = get_test_level_config()
     test_config = level_config['registers']
-    test_level = os.environ.get('TEST_LEVEL', 'gate')
+    _lvl = os.environ.get('TEST_LEVEL', 'gate')
 
     test_patterns = test_config['test_patterns']
 
     tb.log.info(f"\n{'='*80}")
-    tb.log.info(f"Register Access Validation Test (TEST_LEVEL={test_level})")
+    tb.log.info(f"Register Access Validation Test (TEST_LEVEL={_lvl})")
     tb.log.info(f"{'='*80}")
     tb.log.info(f"Test patterns: {[hex(p) for p in test_patterns]}")
 
@@ -815,14 +815,14 @@ async def cocotb_test_back_to_back_transfers(dut):
     # Get level-based configuration
     level_config = get_test_level_config()
     test_config = level_config['back_to_back']
-    test_level = os.environ.get('TEST_LEVEL', 'gate')
+    _lvl = os.environ.get('TEST_LEVEL', 'gate')
 
     channel = 0  # Always use channel 0 for this test
     num_iterations = test_config['iterations']
     transfer_size = test_config['transfer_size']
 
     tb.log.info(f"\n{'='*80}")
-    tb.log.info(f"Back-to-Back Transfers Test (TEST_LEVEL={test_level})")
+    tb.log.info(f"Back-to-Back Transfers Test (TEST_LEVEL={_lvl})")
     tb.log.info(f"{'='*80}")
     tb.log.info(f"Channel: {channel}, Iterations: {num_iterations}, Transfer size: {transfer_size}")
 
@@ -908,7 +908,7 @@ def create_pytest_wrapper(test_name, cocotb_testcase, default_params=None):
     if default_params is None:
         default_params = {}
 
-    def test_func(request, timing_profile='fixed'):
+    def test_func(request, timing_profile='fixed', test_level='gate'):
         module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
             'rtl_stream_top': '../../../../rtl/stream_top',
         })
@@ -932,7 +932,8 @@ def create_pytest_wrapper(test_name, cocotb_testcase, default_params=None):
         }
 
         # Get test level from environment (default: basic)
-        test_level = os.environ.get('TEST_LEVEL', 'gate')
+        # test_level arrives per cell from the wrapper's parametrize axis; an
+        # os.environ read here would be the process level, not this cell's.
         test_name_plus_params = f"test_{dut_name}_{test_name}_{test_level}_{timing_profile}"
 
         worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -1026,61 +1027,61 @@ def create_pytest_wrapper(test_name, cocotb_testcase, default_params=None):
 # Tests: Channel arbitration, resource sharing, concurrent data integrity
 # Scales: basic=2ch, medium=4ch, full=8ch
 @pytest.mark.parametrize("timing_profile", top_timing_profiles())
-def test_stream_top_multi_channel(request, timing_profile):
+def test_stream_top_multi_channel(request, timing_profile, test_level):
     return create_pytest_wrapper(
         'multi_channel_concurrent',
         'cocotb_test_multi_channel_concurrent'
-    )(request, timing_profile)
+    )(request, timing_profile, test_level)
 
 # Test 2: Long Descriptor Chain
 # Tests: Descriptor chain following, next pointer handling
 # Scales: basic=4 desc, medium=8 desc, full=16 desc
 @pytest.mark.parametrize("timing_profile", top_timing_profiles())
-def test_stream_top_long_chain(request, timing_profile):
+def test_stream_top_long_chain(request, timing_profile, test_level):
     return create_pytest_wrapper(
         'long_descriptor_chain',
         'cocotb_test_long_descriptor_chain'
-    )(request, timing_profile)
+    )(request, timing_profile, test_level)
 
 # Test 3: Variable Transfer Sizes
 # Tests: Edge cases (1 beat, boundary-1, boundary+1, max)
 # Scales: basic=3 sizes, medium=6 sizes, full=16 sizes
 @pytest.mark.parametrize("timing_profile", top_timing_profiles())
-def test_stream_top_variable_sizes(request, timing_profile):
+def test_stream_top_variable_sizes(request, timing_profile, test_level):
     return create_pytest_wrapper(
         'variable_transfer_sizes',
         'cocotb_test_variable_transfer_sizes'
-    )(request, timing_profile)
+    )(request, timing_profile, test_level)
 
 # Test 4: Stress Test - Multiple Channels
 # Tests: Maximum resource contention, throughput under load
 # Scales: basic=4ch, medium=6ch, full=8ch
 @pytest.mark.parametrize("timing_profile", top_timing_profiles())
-def test_stream_top_stress(request, timing_profile):
+def test_stream_top_stress(request, timing_profile, test_level):
     return create_pytest_wrapper(
         'stress_all_channels',
         'cocotb_test_stress_all_channels'
-    )(request, timing_profile)
+    )(request, timing_profile, test_level)
 
 # Test 5: Register Access Validation
 # Tests: APB register read/write for all registers
 # Scales: basic=3 patterns, medium=6 patterns, full=9 patterns
 @pytest.mark.parametrize("timing_profile", top_timing_profiles())
-def test_stream_top_registers(request, timing_profile):
+def test_stream_top_registers(request, timing_profile, test_level):
     return create_pytest_wrapper(
         'register_access',
         'cocotb_test_register_access'
-    )(request, timing_profile)
+    )(request, timing_profile, test_level)
 
 # Test 6: Back-to-Back Transfers
 # Tests: Channel re-use, state machine reset, resource leaks
 # Scales: basic=3 iter, medium=5 iter, full=10 iter
 @pytest.mark.parametrize("timing_profile", top_timing_profiles())
-def test_stream_top_back_to_back(request, timing_profile):
+def test_stream_top_back_to_back(request, timing_profile, test_level):
     return create_pytest_wrapper(
         'back_to_back_transfers',
         'cocotb_test_back_to_back_transfers'
-    )(request, timing_profile)
+    )(request, timing_profile, test_level)
 
 
 # ==============================================================================

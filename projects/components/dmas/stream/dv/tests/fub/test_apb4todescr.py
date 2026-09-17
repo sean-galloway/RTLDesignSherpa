@@ -292,6 +292,9 @@ async def cocotb_test_apb4todescr(dut):
 # PARAMETER GENERATION
 # ===========================================================================
 
+_GATE_TYPES = ('basic_all_channels', 'errors', 'full_protocol_coverage')
+
+
 def generate_apb4todescr_test_params():
     """Generate test parameters for APB-to-Descriptor tests.
 
@@ -310,6 +313,16 @@ def generate_apb4todescr_test_params():
         # (addr_width, data_width, num_channels)
         (32, 32, 8),  # Standard STREAM configuration
     ]
+
+    # REG_LEVEL gates the GRID breadth; TEST_LEVEL gates depth inside each cell.
+    # FUNC reproduces the full list this file already ran, so existing coverage
+    # is unchanged; GATE is the smoke subset. FULL matches FUNC deliberately --
+    # a wider tier here would mean fabricating RTL parameter combinations this
+    # DUT has never elaborated, and a grid that expands into unsupported configs
+    # is worse than one that does not expand.
+    _reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if _reg_level == 'GATE':
+        test_types = [t for t in test_types if t in _GATE_TYPES]
 
     # Generate final params by adding test_type to each base config
     params = []

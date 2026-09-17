@@ -453,6 +453,9 @@ async def cocotb_test_perf_profiler(dut):
 # PARAMETER GENERATION
 # ===========================================================================
 
+_GATE_TYPES = ('single_channel_timestamp_mode', 'fifo_full_behavior', 'full_protocol_coverage')
+
+
 def generate_perf_profiler_test_params():
     """Generate test parameters for perf_profiler tests.
 
@@ -473,6 +476,16 @@ def generate_perf_profiler_test_params():
         # (num_channels, timestamp_width, fifo_depth)
         (8, 32, 256),  # Standard configuration
     ]
+
+    # REG_LEVEL gates the GRID breadth; TEST_LEVEL gates depth inside each cell.
+    # FUNC reproduces the full list this file already ran, so existing coverage
+    # is unchanged; GATE is the smoke subset. FULL matches FUNC deliberately --
+    # a wider tier here would mean fabricating RTL parameter combinations this
+    # DUT has never elaborated, and a grid that expands into unsupported configs
+    # is worse than one that does not expand.
+    _reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if _reg_level == 'GATE':
+        test_types = [t for t in test_types if t in _GATE_TYPES]
 
     # Generate final params by adding test_type to each base config
     params = []

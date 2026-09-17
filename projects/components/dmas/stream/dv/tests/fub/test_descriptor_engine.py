@@ -216,8 +216,21 @@ def generate_descriptor_engine_test_params():
     # Focused BFM-timing sweep on one representative scenario. Each row drives
     # both the AXI read slave (TIMING_PROFILE) and the apb GAXI master
     # (GAXI_TIMING_PROFILE). gaxi_* names only affect the GAXI side.
-    timing_sweep = ['backtoback', 'constrained', 'slow_producer', 'burst_pause',
-                    'mixed', 'gaxi_backpressure', 'gaxi_realistic']
+    # REG_LEVEL gates the sweep BREADTH (the grid); TEST_LEVEL gates the depth
+    # inside each cell. FUNC reproduces the seven profiles this file already
+    # swept, so existing coverage is unchanged and gate/full bracket it rather
+    # than redefining it. Same shape as generate_sram_controller_params().
+    _reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if _reg_level == 'GATE':
+        # Smoke: the two ends of the timing range, nothing in between.
+        timing_sweep = ['backtoback', 'slow_producer']
+    elif _reg_level == 'FULL':
+        timing_sweep = ['backtoback', 'constrained', 'slow_producer', 'burst_pause',
+                        'mixed', 'gaxi_backpressure', 'gaxi_realistic',
+                        'fast', 'gaxi_slow_consumer']
+    else:
+        timing_sweep = ['backtoback', 'constrained', 'slow_producer', 'burst_pause',
+                        'mixed', 'gaxi_backpressure', 'gaxi_realistic']
     for tp in timing_sweep:
         params.append(('apb_basic',) + base_params[0] + (tp, 0))
 
