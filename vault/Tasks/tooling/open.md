@@ -602,16 +602,34 @@ read written as `test_level = os.environ.get('TEST_LEVEL', 'gate')` inside a
 cocotb body reports as `depth:pinned-grid(gate)` -- rename the local and the
 finding clears.
 
-*Step 4 is PARTIAL and step 5 was NOT RUN.* Verified at runtime:
-`latency_bridge` (num_beats 8 -> 64), `regs` (0 vs 160 vs 400 write/readback
-checks per level), `mon_cfg` (three distinct section banners); `mon_classes` has
-one passing cell. NOT executed since editing: `stream_core`, `stream_top`,
-`test_stream_top_advanced`, `monbus`, `performance_profile` -- these collect
-cleanly (0 errors at all three REG_LEVELs) but have no runtime confirmation. Six
+*Step 4 is COMPLETE; step 5 was NOT RUN.* All nine edited files have been
+executed since editing, one cell at a time:
+
+| file | runtime evidence |
+|---|---|
+| `latency_bridge` | num_beats 8 -> 64 across levels, clean builds |
+| `regs` | 0 vs 160 vs 400 write/readback checks per level |
+| `mon_cfg` | three distinct section banners; aliasing restored to FUNC |
+| `mon_classes` | passing cell, 21 s |
+| `monbus` | passing cell, 19 s |
+| `stream_core` | passing gate cell, 33 s |
+| `test_stream_top_advanced` | passing cell, 81 s |
+| `test_stream_top` | passing cell, 123 s |
+| `performance_profile` | passing cell, 201 s |
+
+Depth genuinely VARIES, not merely labels: `regs` performs 0 / 160 / 400
+write/readback checks and `mon_cfg` runs one / two / three sections by level.
+
+NOT obtained: a FULL-level `stream_core` cell (`params17`, 4 channels x 3
+transfer sizes x mixed timing), and step 5's clean 861-cell FULL run. NINE
 simulator jobs were killed by the harness citing low memory, on a machine
-reporting 175 GB available with ZERO kernel OOM records and no process above
-725 MB; the last died before its build started. Concurrency, build parallelism,
-cell count and macro-vs-top were each proposed and refuted by measurement.
+reporting ~175 GB available with ZERO kernel OOM records and no process above
+725 MB; several died before their build started. Concurrency, macro-vs-top,
+build parallelism, cell count and per-launch machine state were each proposed
+and refuted by measurement -- and the "small cells survive" boundary was wrong
+too, since 81 s, 123 s and 201 s cells all passed afterwards. No mechanism was
+established. Whoever runs step 5 should expect it to be the binding constraint,
+not the conversion.
 
 *A green checker is not a passing suite.* During this conversion one misplaced
 line -- `self.log` called before `super().__init__()` in `StreamCoreTB` -- broke
