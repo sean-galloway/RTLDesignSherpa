@@ -742,7 +742,7 @@ box. (Reason per Sean — workstation is where pumice is pushed from.)
 Gated behind the RTL area completing (Tasks/INDEX.md sequencing).
 
 ## PUMICE-039 — batch same-direction columns to amortise the R/W turnaround
-**Status:** open 2026-09-15  **Priority:** P2  **UNBLOCKED 2026-09-16** (042 fixed in 91db52b47)
+**Status:** open 2026-09-15  **Priority:** P2  **RE-SCOPED 2026-09-16: batching STALLS, stays disabled**
 
 2026-09-16: the mechanism ALREADY EXISTS -- `SCHED_WR_WM` in
 pumice_cmd_arbiter.sv, shipped with high_wm=0 (disabled) and, until
@@ -755,6 +755,43 @@ fingerprint. Cause is NOT the arbiter (see PUMICE-042): with CMD_HISTORY_EN
 armed, check (7) GLOBAL tRTW fired ZERO violations while batching was on with
 the watermark readback verified. The scheduler spaces correctly; the DFI cmd
 path compresses it.
+
+### 2026-09-16 (later): batching STALLS. Default reverted to disabled.
+
+The clean-and-fast result below was measured at gaps 12 and 15 ONLY. A wider
+sweep (seq_wr_batch, 8 gaps x 2 generator counts x 3 watermarks x 4 reps = 192
+runs) found intermittent stalls immediately:
+
+    hi=0 (off)   16 points   0 non-clean
+    hi=2/lo=1    16 points   1 -- 1+1 gap=4,  2/4 runs, timeouts=2, [360,0,0,359]
+    hi=8/lo=4    16 points   1 -- 1+1 gap=11, 1/4 runs, timeouts=1, [0,0,1,0]
+
+Every failing point carries a MATCHING timeout count, so the engines did not
+complete and those mismatch numbers are partial-run artifacts. The defect is an
+intermittent STALL, not (necessarily) corruption. Batching-off is clean at
+every point tested.
+
+**Both failures are at 1+1 -- which is also the ONLY configuration batching
+helps.** +30.6% at 1+1; ~0% at 2+2/3+3/4+4, where the bus plateaus at ~160 MB/s
+regardless because multiple generators already keep same-direction work queued
+and there is no turnaround left to amortise. So the one regime it benefits is
+the one where it breaks.
+
+**Correction:** the two bank_gap_sweep runs that died/stalled in the 2+2 stage
+were blamed on the sweep script, on the strength of a measure_concurrent check
+at gap 12 ONLY showing no timeouts. Both had batching defaulted on, and
+batching demonstrably stalls at other gaps. Same defect -- the tooling was not
+at fault.
+
+**PUMICE-043 folds into this.** Its 1-beat-in-1/8 residue at hi=8 is this stall
+seen from another angle, not a separate defect.
+
+Next: find why a write drain stalls the engines. The suspects are the drain's
+interaction with the read path's outstanding limit and with the aligner's
+op-tracking backpressure -- a long uninterrupted write run is exactly what
+would starve a reader whose credit is never returned.
+
+### Earlier the same day (superseded by the above)
 
 2026-09-16: PUMICE-042 is fixed, and batching is now CLEAN and FAST:
   gap12 hi=2/lo=1  0 mismatched, bus +29.9%
@@ -797,7 +834,7 @@ as a property of the DEFECT when it was a property of the TEST.
 Marked xfail(strict) so it converts back to a real test the moment BL4 works.
 
 ## PUMICE-043 — batching residue at the aggressive watermark
-**Status:** open 2026-09-16  **Priority:** P2
+**Status:** FOLDED INTO PUMICE-039 2026-09-16  **Priority:** P2
 
 With PUMICE-042 fixed, write batching is clean at hi=2/lo=1 (0 mismatched
 across 8 reps at gap 15). At **hi=8/lo=4** one run in eight returns a single
