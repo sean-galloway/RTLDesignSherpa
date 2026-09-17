@@ -1118,6 +1118,12 @@ def generate_mon_backpressure_params():
         'timing_profile': 'mixed',
         'scenario': 'mon_small16',
         'mon_max_trans': 16,
+        # Graded by SEED COUNT, not TEST_LEVEL: the geometry is pinned on
+        # purpose (undersized table). 'func' is the depth these cells ran at
+        # before per-cell TEST_LEVEL existed (stream_core_tb's default), so
+        # stamping it here keeps behaviour identical and gives level_env the
+        # key it requires.
+        'test_level': 'func',
     }]
 
 
