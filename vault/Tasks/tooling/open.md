@@ -536,7 +536,9 @@ handbook when /TESTING.md was retired 2026-08-09).
 ---
 
 ## TOOL-016 — Twelve component conftests stamp TEST_LEVEL into os.environ, which kills every per-cell depth export
-**Status:** open 2026-09-09 (found while leveling the bridge suite, BRIDGE-007)
+**Status:** open 2026-09-09 (found while leveling the bridge suite, BRIDGE-007).
+**RE-MEASURED 2026-09-16 -- the "everything in scope is converted" claim below
+was WRONG; stream and pumice are not converted.**
 **Priority:** P2. Any Pattern B area that has a real REG_LEVEL grid runs
 every cell of a FULL run at full depth and every cell of a GATE run at
 gate depth -- the grid exists in pytest collection only.
@@ -558,14 +560,52 @@ gate/func/full triple of every test, all logging `level=full` with
 identical wall-clock. Removing the stamp and re-running one test at
 REG_LEVEL=FULL gave gate/func/full cells at 1/4/16 offsets.
 
-**Everything in scope is converted.** The five rapids areas are all that is
-left and they are out of scope until that suite is green again ([[feedback_rapids_out_of_scope]]). Originally, and true then: Measured 2026-09-10
-with `check_test_levels.py`: every area except the bridge reports
-`depth:not-exported` on nearly every test -- their wrappers export nothing,
-so the stamp is the ONLY thing mapping REG_LEVEL onto a depth. Deleting it
-alone would drop those tests to the default and quietly shrink every FULL
-run, which is the failure its own comment was written to prevent (pumice
-fub, 91 tests -> 79).
+**Measured 2026-09-16, per area, with the step-4 checker itself**
+(`python3 bin/review/check_test_levels.py <dir>` -- note its glob is NOT
+recursive, so it takes the leaf directory holding `test_*.py`; pointing it at an
+area root silently reports "0 of 0 compliant", which reads like a pass and is
+not one):
+
+| area | compliant | state |
+|---|---|---|
+| bridge | 72 / 72 | converted |
+| converters | 23 / 23 | converted |
+| misc | 4 / 4 | converted |
+| apbx-xbar | 6 / 6 | converted |
+| retro_legacy_blocks | 14 / 14 | converted |
+| **stream** | **4 / 17** | **NOT converted** |
+| **pumice** | **13 / 34** | **NOT converted** |
+| rapids | 0 / 17 | stamp still present |
+
+**The previous claim confused "stamp removed" with "converted."** Stream and
+pumice no longer carry the `os.environ['TEST_LEVEL']` stamp, which is what a
+grep for it shows -- but neither ever got the other half. Zero of stream's 17
+wrappers use `reg_level_grid()` or `level_env()`, and the checker reports
+`depth:not-exported, depth:never-read` across them. That is the half-state THIS
+TASK WARNS ABOUT, in the paragraph it replaced: deleting the stamp alone drops
+those tests to the default and quietly shrinks every FULL run. Both areas are
+sitting in it now.
+
+**stream is the actionable piece and it is NOT rapids-blocked.** It has zero
+open known issues (`known_issues/` holds only `resolved/`), so the
+[[feedback_rapids_out_of_scope]] gate does not apply to it. Size: 17 wrappers
+(fub 7, macro 5, top 5) plus a `stream_levels.py` modelled on the bridge's, and
+7 of its TBs already reference `test_level`, so the depth knobs mostly exist and
+need wiring rather than inventing -- the same favourable start `misc`'s
+`dma_address_gen` had. The cost is step 5, a clean FULL run for the area.
+
+**rapids remains genuinely blocked:** five active known issues, three of them
+data-path (`drain_size_gt1_source_beat_drop`, `sink_data_path`,
+`sink_sram_control`, plus `desc_arsize_exceeds_bus_width` and
+`char_harness_sink_selfcheck_no_beats`). Grading depth against a suite that
+drops beats would be meaningless.
+
+*Original text, true when written 2026-09-10: every area except the bridge
+reported `depth:not-exported` on nearly every test -- their wrappers export
+nothing, so the stamp was the ONLY thing mapping REG_LEVEL onto a depth.
+Deleting it alone would drop those tests to the default and quietly shrink every
+FULL run, which is the failure its own comment was written to prevent (pumice
+fub, 91 tests -> 79).*
 
 **What does NOT work, so nobody tries it twice.** Re-stamping the cell's
 own value into `os.environ` from the wrapper, just before `run()`, so that
