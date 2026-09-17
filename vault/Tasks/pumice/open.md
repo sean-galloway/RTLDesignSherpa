@@ -1034,6 +1034,77 @@ OUTPUT, which is exactly why its tRFC check stayed silent through this entire
 failure while the wire was violating tRFC by 12 cycles. Retarget it at the DFI
 wire and this class of bug is caught in sim instead of by an ILA capture.
 
+### 2026-09-17 BOARD: the DFI fix WORKED for tRFC and exposed a real arbiter bug
+
+Measured on silicon, ILA-verified, 3 watermarks x 10 reps, gap 4, 1+1.
+
+**Round 1 -- DFI pacer removed (5f043e6f8) alone:**
+
+    hi=0 (off)   0/10 clean       <- control, platform sound
+    hi=2/lo=1    10/10 failing    ~150 beats
+    hi=8/lo=4    10/10 failing    ~155 beats
+
+WORSE than the 2/8 it replaced. But the ILA showed the fix did exactly what it
+was designed to do, and named the reason for the regression:
+
+    (1) REF->ACT   min=15  required>=15  violations=0   <- tRFC FIXED
+    (2) rddata_valid on an idle bus: all-ones=0         <- 180-beat runs GONE
+    (4) RD->WR     min=1   required>=20                 <- NEW: tRTW violated
+
+So the tRFC diagnosis and remedy were both correct. Removing the wire-level
+pacer exposed a PRE-EXISTING arbiter defect the pacer had been masking.
+
+**The arbiter defect.** Not FIFO compression -- the ILA shows a lone write
+spliced into a back-to-back read stream, surrounding idle gaps regular:
+
+    @2025 RD b0   @2026 RD b0   @2027 RD b0   @2028 WR b2   @2029 RD b0
+
+The column MASKS apply `trtw_ok_i`/`twtr_ok_i` and the fire-history guards at
+CLASSIFY time, ~3 pick-pipeline cycles before the command issues. A write
+selected while no read had recently fired issues INTO a read burst that started
+meanwhile; `w_wr_turn_block` is only 2 cycles wide and is long spent. Four
+violations in one 4096-sample capture, all the same shape.
+
+**Fix:** live turnaround re-validation at the FINAL PICK, exactly mirroring the
+`w_act_gate_live` pattern already used for ACT (which exists for the identical
+staleness reason -- see PUMICE-018).
+
+    assign w_rd_turn_live = twtr_ok_i && !w_rd_turn_block;   // RD after a WR
+    assign w_wr_turn_live = trtw_ok_i && !w_wr_turn_block;   // WR after a RD
+
+applied to both column branches, plus the read-priority override so an ILLEGAL
+write can no longer defer a legal read. Coverage is continuous at the issue
+cycle: cycles 1-2 by the fire history, 3+ by the loaded tRTW counter.
+
+**Round 2 -- with the arbiter fix:**
+
+    hi=0 (off)   0/10 clean    400.6 MB/s
+    hi=2/lo=1    2/10 failing  448.2 MB/s   mism [0,1,0,2,0,0,0,0,0,0]
+    hi=8/lo=4    2/10 failing  448.2 MB/s   mism [0,0,0,1,0,0,2,0,0,0]
+
+Bulk corruption GONE: magnitude 150-360 beats -> **1-2 beats**, ~100x. Rate back
+to the pre-existing ~2/10. Batching now yields +11.9% bus.
+
+**STILL OPEN.** Three things, none of them the bug above:
+
+ 1. **1-2 beat residue at 2/10.** Matches the PUMICE-043 signature already
+    recorded here (1 beat in 1/8 at hi=8/lo=4), which PREDATES this work. Not
+    yet characterised on the ILA.
+ 2. **Read eye is NARROW and leveling's final verify FAILS, reproducibly.**
+    `chosen bitslip 0, read tap 4 (eye 0..9)` = 10 taps, against the recorded
+    bring-up tuple of tap 8 / eye 17 wide, plus
+    `WARNING: leveling not clean: ['final verify at centred (bitslip, tap) failed']`
+    on every run. A marginal read eye is a CREDIBLE cause of a sporadic 1-2 beat
+    miscapture with nothing to do with the scheduler. Do not assume the residue
+    is a controller bug until this is explained. See
+    [[project_pumice_board_bringup_tuple]].
+ 3. **Timing margin dropped +294ps -> +25ps.** The live gate sits in the
+    final-pick cone, which is the known critical path. It CLOSES (post-phys-opt
+    WNS=+0.025, TNS=0, hold met) but there is no headroom. Cheaper formulation
+    available: because the DFI path is now constant-latency, the turnaround
+    counter could be loaded AND checked at the selection stage, making spacing
+    correct by construction and keeping the term out of the final-pick cone.
+
 ## PUMICE-041 — BL4 read path does not work in the char sim
 **Status:** open 2026-09-15  **Priority:** P1
 

@@ -924,6 +924,27 @@ module pumice_cmd_arbiter
     // covering across the added stage; precharge is per-bank (guard-covered).
     logic w_act_gate_live;
     assign w_act_gate_live = !w_rfc_busy && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
+
+    // LIVE TURNAROUND RE-VALIDATION (PUMICE-039 board, 2026-09-17). Exactly the
+    // same class of bug as the ACT gate above, fixed the same way. The column
+    // MASKS apply trtw_ok_i/twtr_ok_i and the fire-history guards at CLASSIFY
+    // time, ~3 pick-pipeline cycles before the command actually issues. A WRITE
+    // selected while no read had recently fired therefore issues INTO a read
+    // burst that began in the meantime. Board ILA, batching on:
+    //     @2025 RD b0   @2026 RD b0   @2027 RD b0   @2028 WR b2   @2029 RD b0
+    // a RD->WR turnaround of ONE cycle where tRTW is 20 -- four times in one
+    // 4096-sample capture, each the same lone-write-spliced-into-a-read-stream
+    // shape (not a compressed burst: the surrounding idle gaps are regular).
+    //
+    // The DFI command path used to absorb this with a pacer of its own. That
+    // pacer is gone -- all JEDEC timing belongs to the scheduler and the DFI
+    // path must never stall -- so the gate has to hold HERE, in the cycle the
+    // command actually leaves. Squashing the class is safe: it costs a bubble
+    // and the column re-arms once the turnaround timer clears (same argument as
+    // the ACT gate). Cheap: two single-bit rank-global terms, no deep match.
+    logic w_rd_turn_live, w_wr_turn_live;
+    assign w_rd_turn_live = twtr_ok_i && !w_rd_turn_block;   // RD after a WR
+    assign w_wr_turn_live = trtw_ok_i && !w_wr_turn_block;   // WR after a RD
     always_comb begin
         {w_sel_rd_col_f, w_sel_rd_col_s} =
             arg_sel(r_col_sel, r_rd_col_q & rd_sch_valid_i, r_rd_older, r_rd_pop);
@@ -1144,7 +1165,9 @@ module pumice_cmd_arbiter
                 w_valid = 1'b1; w_op = OP_REF; w_grant = 1'b1;
             end
         end else if (w_pick_class == CL_COL && rd_col_f && rd_issue_ready_i
-                     && !(w_col_wrf && wr_col_f && wr_commit_ready_i)) begin
+                     && w_rd_turn_live
+                     && !(w_col_wrf && wr_col_f && wr_commit_ready_i
+                          && w_wr_turn_live)) begin
             // 3a. READ row-hit (read-priority). The AP verdict is the one the
             // column mask saw at classify time (carried with the pick).
             // rd_issue_ready_i / wr_commit_ready_i are re-checked LIVE here:
@@ -1155,8 +1178,9 @@ module pumice_cmd_arbiter
             w_bank = rd_col_bank; w_col = rd_col_col;
             w_valid = 1'b1; w_op = rd_col_ap ? OP_RDA : OP_RD;
             w_ap_out = rd_col_ap; w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = rd_col_s;
-        end else if (w_pick_class == CL_COL && wr_col_f && wr_commit_ready_i) begin
-            // 3b. WRITE row-hit (live commit-ready re-check, see 3a).
+        end else if (w_pick_class == CL_COL && wr_col_f && wr_commit_ready_i
+                     && w_wr_turn_live) begin
+            // 3b. WRITE row-hit (live commit-ready + live tRTW re-check, see 3a).
             w_bank = wr_col_bank; w_col = wr_col_col;
             w_valid = 1'b1; w_op = wr_col_ap ? OP_WRA : OP_WR;
             w_ap_out = wr_col_ap; w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
