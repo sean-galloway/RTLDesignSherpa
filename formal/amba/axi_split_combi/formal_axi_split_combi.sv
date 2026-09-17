@@ -76,6 +76,13 @@ module formal_axi_split_combi #(
     wire [AW-1:0] end_addr       = fc_current_addr + total_bytes - AW'(1);
     wire [AW-1:0] boundary_addr  = (fc_current_addr | AW'(fc_alignment_mask)) + AW'(1);
 
+    // TASK-095: in the TOP alignment window the next boundary is 2**AW, which
+    // does not fit in AW bits -- boundary_addr above overflows to 0. Carry it
+    // in AW+1 so the properties below compare against the real boundary
+    // instead of a wrapped zero.
+    wire [AW:0] boundary_addr_ext = {1'b0, (fc_current_addr | AW'(fc_alignment_mask))} + 1'b1;
+    wire [AW:0] end_addr_ext      = {1'b0, end_addr};
+
     // =========================================================================
     // Environment assumptions
     // =========================================================================
@@ -104,11 +111,9 @@ module formal_axi_split_combi #(
             assume (end_addr >= fc_current_addr);
     end
 
-    // No boundary wraparound
-    always @(posedge clk) begin
-        if (rst_n && fc_transaction_valid)
-            assume (boundary_addr > fc_current_addr);
-    end
+    // The "no boundary wraparound" assumption is GONE (TASK-095). It hid the
+    // top alignment window from the solver; the RTL now carries the boundary
+    // in AW+1 bits, so that window is in scope and must behave.
 
     // =========================================================================
     // Safety properties
@@ -117,7 +122,7 @@ module formal_axi_split_combi #(
     // P1: If transaction does not cross 4KB boundary, split_required must be 0
     always @(posedge clk) begin
         if (rst_n && fc_transaction_valid)
-            if (end_addr < boundary_addr)
+            if (end_addr_ext < boundary_addr_ext)
                 ap_no_cross_no_split: assert (!split_required);
     end
 
@@ -166,10 +171,12 @@ module formal_axi_split_combi #(
                                         (split_required && fc_is_idle_state && fc_transaction_valid));
     end
 
-    // P8: next_boundary_addr is strictly greater than current_addr
+    // P8: the AW-wide port equals the true boundary truncated to AW bits.
+    //     In the top alignment window that is 0, and split_required is false
+    //     there, so no consumer ever uses the truncated value.
     always @(posedge clk) begin
         if (rst_n && fc_transaction_valid)
-            ap_boundary_gt_addr: assert (next_boundary_addr > fc_current_addr);
+            ap_boundary_matches: assert (next_boundary_addr == boundary_addr_ext[AW-1:0]);
     end
 
     // =========================================================================

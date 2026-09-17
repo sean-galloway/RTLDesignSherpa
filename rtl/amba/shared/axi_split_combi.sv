@@ -31,6 +31,11 @@
  * - Wraparound creates unnecessary complexity for a case that never occurs in practice
  * - Simplifies boundary crossing logic significantly
  *
+ * TASK-095 (fixed): the BOUNDARY arithmetic is carried in AW+1 bits, so the
+ * top alignment window -- where the next boundary is 2**AW and does not fit
+ * in AW -- no longer produces a spurious split. The TRANSACTION still must
+ * not wrap; that assumption is unchanged and still asserted.
+ *
  * OPTIMIZATIONS:
  * - Replaced integer division with bit shifts (synthesis friendly)
  * - Leveraged fixed alignment assumptions for simpler logic
@@ -96,7 +101,18 @@ module axi_split_combi #(
     assign transaction_end_addr = current_addr + total_bytes - AW'(1);
 
     // Boundary calculation - SIMPLIFIED (no wraparound)
-    assign next_boundary_addr = (current_addr | AW'(alignment_mask)) + AW'(1);
+    // TASK-095: carry the boundary in AW+1 bits. In the TOP alignment window
+    // (current_addr | mask) is all ones, so +1 overflowed to 0 in AW bits and
+    // crosses_boundary compared the end address against 0 -- always true, so a
+    // transaction that crosses nothing was split anyway.
+    logic [AW:0] w_next_boundary_ext;
+    assign w_next_boundary_ext = {1'b0, (current_addr | AW'(alignment_mask))} + 1'b1;
+
+    // The AW-wide port truncates a 2**AW boundary to 0. That is safe: both
+    // splitters read it only on the split path (r_current_addr <= it), and
+    // split_required is false in that window. bytes_to_boundary below stays
+    // correct either way -- the modular subtraction gives the true byte count.
+    assign next_boundary_addr = w_next_boundary_ext[AW-1:0];
     assign bytes_to_boundary = next_boundary_addr - current_addr;
     assign beats_to_boundary = bytes_to_boundary >> ax_size;
 
@@ -113,7 +129,7 @@ module axi_split_combi #(
     logic beats_fit_before_boundary;
 
     // SIMPLIFIED: No wraparound means straightforward comparison
-    assign crosses_boundary = (transaction_end_addr >= next_boundary_addr);
+    assign crosses_boundary = ({1'b0, transaction_end_addr} >= w_next_boundary_ext);
     assign has_beats_before_boundary = (beats_to_boundary > 0);
     assign beats_fit_before_boundary = (beats_to_boundary <= (AW'(current_len) + AW'(1)));
 
@@ -173,7 +189,7 @@ module axi_split_combi #(
                         current_addr, transaction_end_addr);
 
             // NO WRAPAROUND ASSERTION: Verify boundary calculation doesn't wrap
-            assert (next_boundary_addr > current_addr) else
+            assert (w_next_boundary_ext > {1'b0, current_addr}) else
                 $error("WRAPAROUND VIOLATION: Boundary calculation wrapped! Addr=0x%08X, NextBoundary=0x%08X",
                         current_addr, next_boundary_addr);
         end
@@ -219,7 +235,7 @@ module axi_split_combi #(
             end
 
             // Validate boundary calculations - SIMPLIFIED (no wraparound checks)
-            assert (next_boundary_addr > current_addr) else
+            assert (w_next_boundary_ext > {1'b0, current_addr}) else
                 $error("next_boundary_addr (0x%08X) should be > current_addr (0x%08X)",
                         next_boundary_addr, current_addr);
 

@@ -46,13 +46,15 @@ module axi_split_combi (
 	endfunction
 	assign total_bytes = (sv2v_cast_DE851(current_len) + sv2v_cast_DE851_signed(1)) << ax_size;
 	assign transaction_end_addr = (current_addr + total_bytes) - sv2v_cast_DE851_signed(1);
-	assign next_boundary_addr = (current_addr | sv2v_cast_DE851(alignment_mask)) + sv2v_cast_DE851_signed(1);
+	wire [AW:0] w_next_boundary_ext;
+	assign w_next_boundary_ext = {1'b0, current_addr | sv2v_cast_DE851(alignment_mask)} + 1'b1;
+	assign next_boundary_addr = w_next_boundary_ext[AW - 1:0];
 	assign bytes_to_boundary = next_boundary_addr - current_addr;
 	assign beats_to_boundary = bytes_to_boundary >> ax_size;
 	wire crosses_boundary;
 	wire has_beats_before_boundary;
 	wire beats_fit_before_boundary;
-	assign crosses_boundary = transaction_end_addr >= next_boundary_addr;
+	assign crosses_boundary = {1'b0, transaction_end_addr} >= w_next_boundary_ext;
 	assign has_beats_before_boundary = beats_to_boundary > 0;
 	assign beats_fit_before_boundary = beats_to_boundary <= (sv2v_cast_DE851(current_len) + sv2v_cast_DE851_signed(1));
 	assign split_required = (crosses_boundary && has_beats_before_boundary) && beats_fit_before_boundary;

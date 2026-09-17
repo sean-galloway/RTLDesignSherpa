@@ -232,7 +232,7 @@ A combinational logic module (axi_split_combi) provides the real-time splitting 
 
 **Key calculation:**
 ```
-next_boundary_addr = (current_addr | alignment_mask) + 1
+next_boundary_ext = (current_addr | alignment_mask) + 1   // AW+1 bits, so 2**AW is representable
 bytes_to_boundary = next_boundary_addr - current_addr
 beats_to_boundary = bytes_to_boundary >> ax_size
 split_len = beats_to_boundary - 1  // AXI encoding
@@ -467,6 +467,9 @@ The module enforces several assumptions you need to hold for correct operation:
 - Transactions never wrap 0xFFFFFFFF → 0x00000000
 - Guaranteed by system software / memory allocators
 - Enables the simplified boundary crossing logic
+- The BOUNDARY above the transaction may still land at `2**AW`;
+  `axi_split_combi` carries it in AW+1 bits so the top alignment window does
+  not produce a spurious split (TASK-095)
 
 ### Performance Characteristics
 

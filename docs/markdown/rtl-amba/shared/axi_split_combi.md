@@ -41,7 +41,7 @@ This is the arithmetic engine both splitters share: pure combinational boundary-
 - Optimized for synthesis (bit shifts instead of division)
 - Comprehensive assertion-based validation
 - Configurable address and data widths
-- No address wraparound assumption (simplified logic)
+- Transactions are assumed not to wrap; boundary arithmetic is exact even in the top window
 
 AXI transaction splitting needs three questions answered, fast:
 1. Does this transaction cross a boundary?
@@ -122,7 +122,7 @@ transaction_end_addr = current_addr + total_bytes - 1
 
 **Step 2: Calculate Next Boundary**
 ```
-next_boundary_addr = (current_addr | alignment_mask) + 1
+next_boundary_ext = (current_addr | alignment_mask) + 1   // AW+1 bits, so 2**AW is representable
 ```
 
 Example (4KB boundary, ADDR=0x0FC0, mask=0xFFF):
@@ -406,13 +406,24 @@ assert (ax_size == EXPECTED_AX_SIZE)
 **Assumption:** Transactions never wrap around top of address space (0xFFFFFFFF → 0x00000000).
 
 **Implication:**
-- No wraparound detection or handling
+- No wraparound detection or handling for the TRANSACTION itself
 - Simplified comparison logic
+
+**The BOUNDARY is a separate matter (TASK-095).** For a transaction in the final
+alignment window the next boundary is `2**AW`, one past the top of the address
+space -- and the transaction itself does not have to wrap for that to happen. A
+one-beat read at `0xFFFC` (AW=16, mask `0xFFF`) ends exactly at the top, crosses
+nothing, and still had `(addr | mask) + 1` overflow to `0` in `AW` bits, so
+`transaction_end_addr >= next_boundary_addr` compared against zero, read TRUE,
+and the transaction was split anyway. The boundary is now carried in `AW+1` bits,
+so the comparison is against the real value. The `next_boundary_addr` port stays
+`AW` wide and truncates that boundary to `0`, which is harmless: both splitters
+read it only on the split path, and `split_required` is false in that window.
 
 **Verification:**
 ```systemverilog
-assert (transaction_end_addr >= current_addr) // No overflow
-assert (next_boundary_addr > current_addr)    // Boundary doesn't wrap
+assert (transaction_end_addr >= current_addr)       // Transaction doesn't wrap
+assert (w_next_boundary_ext > {1'b0, current_addr}) // Boundary math doesn't wrap
 ```
 
 **Rationale:**
@@ -444,7 +455,7 @@ The module includes comprehensive assertions for validation:
 - Address alignment to data width
 - ax_size matches expected value for data width
 - No address wraparound in transaction
-- No boundary calculation wraparound
+- No boundary calculation wraparound (checked in AW+1 bits)
 
 **Output Validation (Triggered on transaction_valid):**
 - Beats to boundary within reasonable range

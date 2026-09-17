@@ -299,7 +299,7 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 **axi_master_rd_splitter.sv**
 - Splits AXI read transactions across boundary crossings
 - Assumptions: aligned addresses, fixed transfer size, incrementing bursts
-- No address wraparound handling
+- No address wraparound handling (boundary arithmetic is AW+1 bits, TASK-095)
 - Split information FIFO for tracking
 - State machine: IDLE, SPLITTING
 
@@ -313,7 +313,7 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 **axi_split_combi.sv**
 - Pure combinational split decision logic
 - Simplified boundary crossing detection
-- No wraparound handling
+- No transaction wraparound handling; boundary arithmetic is AW+1 bits (TASK-095)
 - Comprehensive assertions for validation
 - Used by both read and write splitters
 

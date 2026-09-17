@@ -110,9 +110,14 @@ class RealisticAxiSplitTB(TBBase):
         total_bytes = (length + 1) * self.BYTES_PER_BEAT
         end_addr = aligned_addr + total_bytes - 1
 
-        # Ensure transaction doesn't wrap around or get too close to limit
+        # The real constraint is the documented one: the transaction must not
+        # WRAP the top of the address space. This also demanded the LOWER HALF
+        # (end_addr < SAFE_ADDR_LIMIT), which silently skipped every directed
+        # case in the top alignment window -- exactly where TASK-095's boundary
+        # overflow lives. Random stimulus is unaffected: it comes from
+        # generate_safe_random_address(), which still stays in the safe region.
         return (end_addr >= aligned_addr and  # No wraparound
-                end_addr < self.SAFE_ADDR_LIMIT)  # Stay in safe region
+                end_addr <= self.MAX_ADDR)
 
     def generate_safe_random_address(self, max_transaction_bytes: int = 4096) -> int:
         """Generate a random address that's guaranteed safe"""
@@ -208,7 +213,10 @@ class RealisticAxiSplitTB(TBBase):
         return {
             'split_required': split_required,
             'split_len': split_len,
-            'next_boundary_addr': next_boundary_addr,
+            # The RTL port is AW bits wide, so a boundary at 2**AW (the top
+            # alignment window) truncates to 0. Model the PORT, not the ideal
+            # value -- the crossing decision above already used the full one.
+            'next_boundary_addr': next_boundary_addr & self.ADDR_MASK,
             'remaining_len_after_split': remaining_len_after_split,
             'new_split_needed': new_split_needed,
             # Debug info
@@ -242,6 +250,15 @@ class RealisticAxiSplitTB(TBBase):
 
             # Edge of safe address space (but not wraparound)
             ("High address region", self.SAFE_ADDR_LIMIT - 0x10000, 15, "auto", 0x0FF),
+
+            # TOP ALIGNMENT WINDOW (TASK-095). The next boundary above these
+            # transactions is 2**AW, which does not fit in AW bits. Nothing
+            # crosses the top of the space, so nothing may split. The RTL
+            # computed (addr|mask)+1 in AW bits, overflowed to 0, and compared
+            # the end address against 0 -- which is always true.
+            ("Top window single beat", self.MAX_ADDR + 1 - self.BYTES_PER_BEAT, 0, "auto", 0xFFF),
+            ("Top window four beats", self.MAX_ADDR + 1 - 4 * self.BYTES_PER_BEAT, 3, "auto", 0xFFF),
+            ("Top window base of last 4KB", self.MAX_ADDR + 1 - 0x1000, 3, "auto", 0xFFF),
         ]
 
         all_passed = True

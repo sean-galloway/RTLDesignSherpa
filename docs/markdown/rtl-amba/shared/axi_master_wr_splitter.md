@@ -506,6 +506,9 @@ Same assumptions as read splitter:
 
 **Assumption 4: No Address Wraparound**
 - Transactions never wrap address space
+- The boundary above a transaction may still land at `2**AW`; `axi_split_combi`
+  carries it in AW+1 bits so the top alignment window does not split spuriously
+  (TASK-095)
 
 ### Response Consolidation Details
 
