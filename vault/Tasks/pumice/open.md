@@ -766,10 +766,31 @@ runs) found intermittent stalls immediately:
     hi=2/lo=1    16 points   1 -- 1+1 gap=4,  2/4 runs, timeouts=2, [360,0,0,359]
     hi=8/lo=4    16 points   1 -- 1+1 gap=11, 1/4 runs, timeouts=1, [0,0,1,0]
 
-Every failing point carries a MATCHING timeout count, so the engines did not
-complete and those mismatch numbers are partial-run artifacts. The defect is an
-intermittent STALL, not (necessarily) corruption. Batching-off is clean at
-every point tested.
+**CORRECTION (same day):** that "matching timeout count" was an artifact of my
+own instrument, and the conclusion drawn from it was WRONG. The sequence
+counted `not r.ok` as a timeout, but pumice_char computes
+
+    ok = wr_ok and rd_ok and mism == 0 and rd_total == expect_rd_txn
+
+so `not r.ok` counts MISMATCHES too, and "fails == timeouts" was tautological
+rather than corroborating -- the two were computed from the same condition.
+
+Re-measured with engine completion read from the NOTES instead: `stalled=False`
+on every failure, `timeouts=0` everywhere. **Both engines complete. This is
+data corruption, not a stall.**
+
+    hi=0 (off)   0/8 failing
+    hi=2/lo=1    2/8 failing   mism = 180, 359
+    hi=8/lo=4    1/8 failing   mism = 360
+
+Batching-off is clean on the identical workload. The counts are QUANTIZED
+around 180 and 360 (and 179/359, one short) out of 16000 beats per run --
+roughly 1.1% and 2.2%, with 360 = 2x180. Random DQ collisions would scatter;
+a fixed ~180-beat unit means something structural is mis-delivered. Identifying
+what has size 180 (region, CAM depth, drain length, burst count) should name
+the mechanism.
+
+PUMICE-042's fix cleaned gaps 12/15 but NOT gap 4.
 
 **Both failures are at 1+1 -- which is also the ONLY configuration batching
 helps.** +30.6% at 1+1; ~0% at 2+2/3+3/4+4, where the bus plateaus at ~160 MB/s
@@ -783,13 +804,13 @@ at gap 12 ONLY showing no timeouts. Both had batching defaulted on, and
 batching demonstrably stalls at other gaps. Same defect -- the tooling was not
 at fault.
 
-**PUMICE-043 folds into this.** Its 1-beat-in-1/8 residue at hi=8 is this stall
-seen from another angle, not a separate defect.
+**PUMICE-043 folds into this** -- its 1-beat-in-1/8 residue at hi=8 is the same
+corruption at a different gap, not a separate defect.
 
-Next: find why a write drain stalls the engines. The suspects are the drain's
-interaction with the read path's outstanding limit and with the aligner's
-op-tracking backpressure -- a long uninterrupted write run is exactly what
-would starve a reader whose credit is never returned.
+Next: identify the ~180-beat unit. It is the strongest clue available -- a
+fixed quantum of mis-delivered data, not scattered collisions. Candidates:
+the concurrent region size (0x20000 per the notes), the read CAM / return-ring
+depth, or the number of bursts in one drain.
 
 ### Earlier the same day (superseded by the above)
 
