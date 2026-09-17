@@ -246,11 +246,57 @@ module formal_axi_master_wr_splitter #(
     end
 
     // =========================================================================
+    // TASK-097: BEAT ACCOUNTING. Every other property here is a LOCAL relation
+    // -- pass-through equality, or "gating may withhold a beat but never invent
+    // one". A spurious extra split satisfies all of them, because each
+    // downstream beat it emits IS a faithful copy of a real upstream beat.
+    // There are simply MORE of them than were owed, and nothing else counts.
+    // That is how TASK-095 slipped through: this proof PASSED against the RTL
+    // that split a transaction crossing no boundary, while the read splitter
+    // caught it at once on ap_rvalid_after_ar, a counting property.
+    //
+    // The count must key off the PRESENTED REQUEST, not the upstream handshake.
+    // This splitter retires the original LAST: fub_awready is suppressed for the
+    // whole split and asserts only on the final one (w_is_final_split &&
+    // m_axi_awready), while SPLITTING drives m_axi_awvalid = 1'b1. So at the
+    // moment the splits are issued, a handshake-triggered "beats owed" is still
+    // holding the PREVIOUS transaction's value -- the first cut of this property
+    // did exactly that and failed on correct RTL at step 4.
+    // fub_awlen is stable while fub_awready is low (valid-stable, assumed
+    // above), so the presented length is the right reference.
+    // =========================================================================
+    reg [8:0] f_split_beats;  // downstream beats issued for the in-flight original
+    always @(posedge clk) begin
+        if (!rst_n)                               f_split_beats <= 9'd0;
+        else if (fub_awvalid && fub_awready)      f_split_beats <= 9'd0;
+        else if (m_axi_awvalid && m_axi_awready)  f_split_beats <= f_split_beats
+                                                                  + 9'(m_axi_awlen) + 9'd1;
+    end
+
+    // P7: the splits of one original may never total MORE beats than the
+    //     original asked for, counting the split completing this cycle. A
+    //     one-beat transaction wrongly split into two one-beat bursts makes the
+    //     second handshake 1+1 > 1.
+    always @(posedge clk)
+        if (rst_n && fub_awvalid && m_axi_awvalid && m_axi_awready)
+            ap_split_beats_conserved:
+                assert (f_split_beats + 9'(m_axi_awlen) + 9'd1 <= 9'(fub_awlen) + 9'd1);
+
+    // =========================================================================
     // Cover properties
     // =========================================================================
 
     always @(posedge clk) begin
         if (rst_n) cp_passthrough: cover (fub_awvalid && fub_awready);
+    end
+
+    // TASK-097: the antecedent of ap_split_beats_conserved. Without this, a
+    // PASS could mean the guard is simply never true -- which is precisely how
+    // the four axi4 *_mon covers sat unreachable at any depth (TASK-093). A
+    // verdict needs a count behind it.
+    always @(posedge clk) begin
+        if (rst_n) cp_split_beats_checked:
+            cover (fub_awvalid && m_axi_awvalid && m_axi_awready);
     end
 
     always @(posedge clk) begin

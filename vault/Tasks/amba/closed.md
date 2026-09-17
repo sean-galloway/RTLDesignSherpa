@@ -2,6 +2,78 @@
 
 # AMBA tasks — closed (complete)
 
+## TASK-097: the write splitter's proof cannot see an extra downstream beat
+
+**Priority:** P3. A verification gap, not an RTL defect. Found while fixing
+[[TASK-095]].
+
+**Status:** CLOSED 2026-09-16 -- the property exists, and it was verified in
+BOTH directions rather than merely added.
+
+`ap_split_beats_conserved` in `formal_axi_master_wr_splitter.sv`: a ghost
+`f_split_beats` accumulates downstream AW beats for the in-flight original and
+the assertion requires the split completing this cycle to keep the running total
+within the PRESENTED `fub_awlen + 1`.
+
+Keying it to the presented request rather than the upstream handshake is the
+whole trick, and the first cut got it wrong. This splitter retires the original
+LAST -- `fub_awready` is suppressed for the entire split and asserts only on the
+final one (`w_is_final_split && m_axi_awready`), while SPLITTING drives
+`m_axi_awvalid = 1'b1`. A handshake-keyed counter therefore still holds the
+PREVIOUS transaction's total while the new one's splits are being issued, and it
+failed on correct RTL at step 4 (trace: a 1-beat original retires, then
+`fub_awlen` legally changes to 2 and the splitter issues a 2-beat first split
+with `fub_awready` low -- down=3 against up=1). `fub_awlen` is stable while
+`fub_awready` is low under the existing valid-stable assumption, so the request
+is the sound reference.
+
+**Evidence.**
+- GREEN on the fixed RTL: prove `PASS 0 248`, cover `PASS`.
+- NOT VACUOUS: `cp_split_beats_checked` was added for the assertion's own
+  antecedent and is REACHED. Four `axi4 *_mon` covers once sat unreachable at any
+  depth ([[TASK-093]]), so a pass without a reached cover proves nothing.
+- RED: with `axi_split_combi.sv` reverted to its pre-TASK-095 state (overflow
+  restored, verified absent of the fix), the proof FAILS on
+  `ap_split_beats_conserved`. The RTL was restored and git-verified clean.
+
+So the property bites on exactly the defect this proof previously slept through,
+and the shared `axi_split_combi` arithmetic is now guarded on BOTH sides.
+
+`axi_master_wr_splitter`'s proof PASSES against the PRE-FIX RTL -- the design
+that demonstrably splits a transaction crossing nothing. Measured: `prove`
+returned PASS in 6:48 against the unfixed RTL with an unmodified harness, and it
+carries no containment assumption at all. The bug was simply invisible to it.
+Post-fix it still passes, prove and cover both, so nothing here is a regression
+-- the point is that the proof never had an opinion either way.
+
+The read splitter caught the same bug immediately, on `ap_rvalid_after_ar`:
+
+```systemverilog
+assert (!fub_rvalid || f_beats != 9'd0);   // no response beat when nothing is owed
+```
+
+That is a BEAT-ACCOUNTING property: it tracks what the upstream is owed and
+fails the moment a beat appears against no debt. The write splitter's entire
+safety set is local pass-through and no-invent relations -- `ap_reset_awvalid`,
+`ap_wdata_pass` / `ap_wstrb_pass` / `ap_wuser_pass`, `ap_wvalid_no_invent`,
+`ap_wready_no_invent`, `ap_w_handshake_equal`, `ap_len_bounded`,
+`ap_reset_no_bresp` -- plus covers. Every one compares two signals at a point in
+time. A spurious extra split satisfies all of them: each downstream beat it
+emits IS a faithful copy of a real upstream beat, so nothing is "invented" in
+the local sense. There are merely MORE of them than were owed, and nothing
+counts.
+
+**What it needs:** a counting property on the write side equivalent to `f_beats`
+on the read side -- downstream beats and B responses issued against upstream
+beats owed -- so an extra split fails the proof instead of sailing through it.
+
+**Why it matters:** the write splitter shares `axi_split_combi` with the read
+splitter and had identical exposure to [[TASK-095]]. The shared fix repaired it,
+but its own proof would never have reported the defect. Any future change to
+that shared arithmetic is guarded on the read side only.
+
+---
+
 ## TASK-074: test_axis4_slave dies with SystemExit under heavy parallel load
 
 **Priority:** P3. SUPERSEDED RATIONALE, kept for provenance -- it read:
