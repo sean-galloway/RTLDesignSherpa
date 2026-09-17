@@ -1982,3 +1982,62 @@ from default alignment args while programming different ones.
 Known cost, NOT fixed here: -17.4% bus bandwidth at gap 15, from paying the
 fixed ~18-cycle turnaround on every direction switch. Realignment provably
 cannot recover it (tRTW is alignment-independent). See PUMICE-039.
+
+## PUMICE-042 — mc_clk timing is not preserved across the CDC to the DFI
+**Status:** CLOSED 2026-09-16 (91db52b47)  **Priority:** P1
+
+Direction turnaround (tRTW/tWTR) is enforced ONLY on the scheduler side, in
+`mc_clk`. Between the scheduler and the DFI bus sits the async CDC command
+FIFO, which preserves ORDER but not SPACING. On the `dfi_clk` side the only
+column gate is DQ-occupancy pacing, and it is direction-blind:
+
+    pumice_dfi_cmd_path.sv
+      // A column command's burst owns the DQ bus for COL_BURST_CYC DFI cycles.
+      assign w_col_ok = (r_col_pace == '0);
+      ...
+      if (w_fire && w_is_col) r_col_pace <= PCW'(COL_BURST_CYC - 1);
+
+COL_BURST_CYC is ~2. So a RD followed by a WR is gated by 2 cycles at the DFI,
+where tRTW requires 20.
+
+**Why it normally hides:** the arbiter issues at roughly the DFI drain rate, so
+the FIFO stays near-empty and the arbiter's spacing propagates unchanged --
+tRTW appears honoured, coincidentally. Any condition that lets the FIFO BACK UP
+converts a correct schedule into an incorrect command stream.
+
+**First workload to expose it:** write batching (PUMICE-039). The drain bursts
+commands in, the FIFO fills, and the cmd path drains them back-to-back --
+compressing a 20-cycle RD->WR gap to 1. Every observation fits: the scheduler
+scoreboard is silent (the arbiter DID space them), the ILA shows RD->WR
+distance 1 on the DFI bus, there are exactly 2 violations per run (2 drain
+entries), and `dfi_wrdata_en` co-asserts with `dfi_rddata_en`.
+
+**Fix direction:** `r_col_pace` must reload direction-aware -- COL_BURST_CYC
+for same-direction, the turnaround (tRTW/tWTR in DFI cycles) on a direction
+change -- so the DFI side is independently safe instead of relying on the
+scheduler's spacing surviving a FIFO. Shared datapath: wants a scheduler-TB
+check and a board A/B behind it.
+
+**Note:** PUMICE-037 was the same LAYER (below DFI) but a different cause
+(tRTW derived too small). This is the enforcement not surviving the crossing.
+
+### CLOSED 2026-09-16 — direction turnaround enforced on the DFI side
+
+Separate turnaround counter beside the occupancy counter, armed by EVERY
+column, reading the SAME TIMINGS CSRs the scheduler enforces (t_rtw_i/t_wtr_i
+threaded core -> layer -> cmd path). No new CSR: a second copy of one timing is
+how two enforcers drift apart, which is PUMICE-037's failure mode.
+
+Board, batching enabled (was 4-152 mismatched beats/run):
+  gap12 hi=2/lo=1   0 mismatched, bus +29.9%
+  gap15 hi=2/lo=1   0 mismatched (0/8 reps), bus +25.0%
+  gap15 hi=8/lo=4   1 in 1/8 reps -> PUMICE-043
+Normal path unaffected: 192 records 0/0, read+bus BW median +0.00%.
+Timing WNS +0.150. Char gate 213 passed, 3 xfailed.
+
+FIRST ATTEMPT WAS WRONG and the board caught it by changing NOTHING -- same
+corruption, same bandwidth. Inverted mux (a RD armed t_wtr=4 where the next WR
+needs t_rtw=20) and armed only on direction CHANGES. A gate that blocks 4 where
+20 is needed is indistinguishable from no gate; "no observable change" was the
+tell. One counter also cannot express "same direction may go in 2, opposite
+must wait 20".

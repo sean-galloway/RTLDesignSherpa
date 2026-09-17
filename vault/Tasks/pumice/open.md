@@ -742,7 +742,7 @@ box. (Reason per Sean — workstation is where pumice is pushed from.)
 Gated behind the RTL area completing (Tasks/INDEX.md sequencing).
 
 ## PUMICE-039 — batch same-direction columns to amortise the R/W turnaround
-**Status:** open 2026-09-15  **Priority:** P2  **BLOCKED on PUMICE-042**
+**Status:** open 2026-09-15  **Priority:** P2  **UNBLOCKED 2026-09-16** (042 fixed in 91db52b47)
 
 2026-09-16: the mechanism ALREADY EXISTS -- `SCHED_WR_WM` in
 pumice_cmd_arbiter.sv, shipped with high_wm=0 (disabled) and, until
@@ -756,7 +756,13 @@ armed, check (7) GLOBAL tRTW fired ZERO violations while batching was on with
 the watermark readback verified. The scheduler spaces correctly; the DFI cmd
 path compresses it.
 
-So 039 is a CHARACTERIZATION task gated on PUMICE-042, not a design task.
+2026-09-16: PUMICE-042 is fixed, and batching is now CLEAN and FAST:
+  gap12 hi=2/lo=1  0 mismatched, bus +29.9%
+  gap15 hi=2/lo=1  0 mismatched (0/8 reps), bus +25.0%
+hi=2/lo=1 is both the cleanest AND the fastest setting -- higher watermarks
+give LESS bandwidth and a residual (PUMICE-043), so there is no trade-off to
+tune. What remains is deciding whether to make it the BUILD DEFAULT (currently
+high_wm=0 = disabled) and validating that with a batching-ON matrix + gate.
 
 PUMICE-037's fix costs **-17.4% of bus bandwidth at gap 15** (writes -17.4%,
 reads unaffected): the arbiter pays the full ~18-cycle tRTW on EVERY direction
@@ -810,40 +816,22 @@ as a property of the DEFECT when it was a property of the TEST.
 
 Marked xfail(strict) so it converts back to a real test the moment BL4 works.
 
-## PUMICE-042 — mc_clk timing is not preserved across the CDC to the DFI
-**Status:** open 2026-09-16  **Priority:** P1
+## PUMICE-043 — batching residue at the aggressive watermark
+**Status:** open 2026-09-16  **Priority:** P2
 
-Direction turnaround (tRTW/tWTR) is enforced ONLY on the scheduler side, in
-`mc_clk`. Between the scheduler and the DFI bus sits the async CDC command
-FIFO, which preserves ORDER but not SPACING. On the `dfi_clk` side the only
-column gate is DQ-occupancy pacing, and it is direction-blind:
+With PUMICE-042 fixed, write batching is clean at hi=2/lo=1 (0 mismatched
+across 8 reps at gap 15). At **hi=8/lo=4** one run in eight returns a single
+mismatched beat: `[0,0,0,1,0,0,0,0]`.
 
-    pumice_dfi_cmd_path.sv
-      // A column command's burst owns the DQ bus for COL_BURST_CYC DFI cycles.
-      assign w_col_ok = (r_col_pace == '0);
-      ...
-      if (w_fire && w_is_col) r_col_pace <= PCW'(COL_BURST_CYC - 1);
+NOT dismissed as noise. A single beat is exactly what PUMICE-037's residue
+looked like before it turned out to be failing 8 of 10 reps, and this repo's
+standing rule is that intermittent means a real bug.
 
-COL_BURST_CYC is ~2. So a RD followed by a WR is gated by 2 cycles at the DFI,
-where tRTW requires 20.
+Low practical urgency: hi=2/lo=1 is both cleaner AND faster (+29.9% vs +18.4%
+at gap 12), so nothing needs the aggressive setting. It matters as evidence
+that something still depends on drain depth -- a deeper drain means a longer
+uninterrupted write run, so the suspect is whatever accumulates over that run
+rather than the turnaround itself, which 042 now covers.
 
-**Why it normally hides:** the arbiter issues at roughly the DFI drain rate, so
-the FIFO stays near-empty and the arbiter's spacing propagates unchanged --
-tRTW appears honoured, coincidentally. Any condition that lets the FIFO BACK UP
-converts a correct schedule into an incorrect command stream.
+Repeat every point: a single pass cannot distinguish 0% from 12%.
 
-**First workload to expose it:** write batching (PUMICE-039). The drain bursts
-commands in, the FIFO fills, and the cmd path drains them back-to-back --
-compressing a 20-cycle RD->WR gap to 1. Every observation fits: the scheduler
-scoreboard is silent (the arbiter DID space them), the ILA shows RD->WR
-distance 1 on the DFI bus, there are exactly 2 violations per run (2 drain
-entries), and `dfi_wrdata_en` co-asserts with `dfi_rddata_en`.
-
-**Fix direction:** `r_col_pace` must reload direction-aware -- COL_BURST_CYC
-for same-direction, the turnaround (tRTW/tWTR in DFI cycles) on a direction
-change -- so the DFI side is independently safe instead of relying on the
-scheduler's spacing surviving a FIFO. Shared datapath: wants a scheduler-TB
-check and a board A/B behind it.
-
-**Note:** PUMICE-037 was the same LAYER (below DFI) but a different cause
-(tRTW derived too small). This is the enforcement not surviving the crossing.
