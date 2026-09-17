@@ -886,6 +886,94 @@ pumice's own source already anticipates this -- `pumice_cmd_arbiter.sv:80`:
 Realignment cannot substitute: tRTW is alignment-independent (proven on the
 board, PUMICE-037). Batching is the only route that recovers this bandwidth.
 
+### 2026-09-17: ROOT CAUSE FOUND ON THE ILA -- a swallowed ACT inside tRFC
+
+`reports/ila_pumice039_batching.csv` (hi=2/lo=1, gap 4, 1+1, a 180-beat
+failure). The 180 bad beats are NOT scattered and NOT corrupt data:
+
+    distinct ACTUAL values on 180 bad beats: 2
+        0xffffffffffffffff   x91    undriven DQ (bus pulled high)
+        0x2b53168cedf9d1c9   x89    one stale word held by the ISERDES
+
+That is an IDLE DQ BUS. a7ddrphy's free-running ISERDES holds its last capture,
+so "all-ones alternating with one fixed word" means the DRAM drove NOTHING and
+pumice sampled the float. Confirmed on the DFI side independently:
+`dfi_rddata_valid` is asserted for **180 consecutive samples (2028..2207)**
+while `w_dfi_rddata` carries only those two values -- one unbroken run, exactly
+matching the checker's 180 bad beats (they arrive later in 8-beat groups, +4 per
+group, which is just AXI burst pacing).
+
+**Why the DRAM was silent.** One tRFC violation in the capture:
+
+    REF @448   -> ACT bank7 @463    gap=15
+    REF @1036  -> ACT bank0 @1051   gap=15
+    REF @1632  -> ACT bank2 @1635   gap=3     *** VIOLATION ***
+                  ACT bank1 @1636   gap=4     *** VIOLATION ***
+    REF @2205  -> ACT bank3 @2220   gap=15
+    REF @2792/3378/3963 -> gap=15 each
+
+Six of seven refreshes pace the next ACT at 15. The seventh lets two ACTs out
+at 3 and 4 cycles. The DRAM is still refreshing, so it DISCARDS them -- bank 1
+never opens. Every following read to bank 1 is a column access to a closed
+bank, and DDR2 answers by driving nothing. The idle run starts with the first
+read return after that swallowed ACT and ends **two cycles after the NEXT
+refresh** (REF @2205), which re-synchronises the DRAM with the controller's
+bank image; the legal ACT bank1 @2308 (gap 103) then works.
+
+Everything else on the DFI was RULED OUT by the same capture, so do not re-test
+these: `wrdata_en` never overlaps a read return (0 cycles); zero column
+commands to a closed bank from sample 444 on (3..443 are the ILA window opening
+mid-stream); read columns march monotonically +4 with no row wrap; RD->WR
+accounting is exact (940 RD, 940 valid samples, balance never negative, the
+constant +18 is pipeline depth); and the return stream is NOT slipped -- a lag
+scan is flat at 0.11% for every nonzero lag. RD->WR turnaround is 20/27/29,
+so PUMICE-042's tRTW fix is working.
+
+**Mechanism: spacing computed in the arbiter is destroyed downstream.** The
+arbiter enforces tRFC correctly -- `w_act_gate_live = !w_rfc_busy && ...` gates
+every ACT branch, and `r_rfc_cnt` loads on the fired REF. But
+`pumice_dfi_cmd_path.sv` gates only COLUMN commands:
+
+    assign w_gate = ((!w_is_col) || w_col_ok) && ...
+
+ACT/REF/PRE pass through ungated. When the column gate stalls the single
+command stream, row commands queued behind it in the CDC FIFO lose their
+arbiter-enforced idle cycles and drain back-to-back on release. The capture
+shows exactly that shape immediately before the bad refresh: ACT@1585,
+RD@1589-1591, a **19-cycle dead gap**, WR@1611, another gap, 14 back-to-back
+reads @1615-1628, then PRE/PRE/PRE/REF/ACT/ACT @1629-1636 as one solid
+unpaced run. The good refresh @2205 shows the correct shape: four PREs, REF,
+then a clean 15-cycle gap before ACT.
+
+This is PUMICE-042's mechanism on a different command pair -- and PUMICE-042's
+own fix (tRTW 3 -> 20) LENGTHENED the column stalls, which is why the residue
+appeared after it. Write batching triggers it because the drain is what creates
+the long column stalls in the first place.
+
+**It is not only tRFC.** Full spacing audit of the DFI stream:
+
+    pair                          n     min   median
+    REF->ACT  (tRFC)              7       3       15   one gross violation
+    ACT->RD   same bank (tRCD)  754       1      368   2 violations, gap=1
+    PRE->REF  (tRP)              40       1        6
+    ACT->ACT  any bank (tRRD)    24       1      150   tRRD=1, legal
+
+The two tRCD=1 cases (ACT bank2 @2677 -> RD @2678; ACT bank3 @3336 -> RD @3337)
+are the reader's bank-handoff ACTs and did not corrupt in this run -- marginal
+rather than gross, but the same class and latent.
+
+**Fix direction:** enforce row-command spacing on the DFI side, the way
+PUMICE-042 enforced turnaround -- a pacer in `pumice_dfi_cmd_path.sv` loaded on
+a fired REF that blocks ACT for `tRFC`, plus a per-bank ACT->column pacer for
+tRCD. The CSRs already exist (`TIMINGS_RFC_REFI.tRFC`). The general statement
+is that ANY inter-command timing computed upstream of the CDC FIFO is
+unenforced on the wire; the column gate is currently the only thing that is not.
+
+**Not yet directly probed:** the FIFO-bunching mechanism is inferred from the
+command shape on the wire, not from an occupancy probe. An ILA on the CDC FIFO
+level + the arbiter-side command stream would confirm it and is the cheapest
+next measurement.
+
 ## PUMICE-041 — BL4 read path does not work in the char sim
 **Status:** open 2026-09-15  **Priority:** P1
 
