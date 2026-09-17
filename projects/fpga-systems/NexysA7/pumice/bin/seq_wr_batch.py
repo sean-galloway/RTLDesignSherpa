@@ -86,11 +86,62 @@ class WrBatch(Sequence):
 
                 mism, bus, timeouts = [], [], 0
                 for _ in range(reps):
+                    # PER-REP ISOLATION. soft_reset pulses CTRL.soft_reset,
+                    # which reverts every pumice CSR to its RTL default and
+                    # restores the build geometry -- everything except the UART
+                    # link. Without it each rep inherits whatever the previous
+                    # one left in the CAMs, meters and timers, so an
+                    # intermittent that is actually state-dependent looks
+                    # random. NOTE it also clears SCHED_WR_WM back to disabled,
+                    # so the config MUST be re-applied after (point_cfg.apply
+                    # below), or the batching under test silently turns itself
+                    # off.
+                    drv.soft_reset()
+                    point_cfg.apply(drv)
+                    drv.sync_gen_config()
                     r = self._point(drv, geom, gap, txn, point_cfg, n_gen)
                     # A point whose engines did not complete is a TIMEOUT, not a
                     # clean result -- that distinction is the whole question here.
-                    if not r.ok:
+                    # `ok` is NOT "engines completed" -- pumice_char computes
+                    #   ok = wr_ok and rd_ok and mism == 0 and rd_total == expect
+                    # so counting `not r.ok` as a timeout counts MISMATCHES too,
+                    # and then "every failing point has a matching timeout"
+                    # is tautological rather than evidence. That mistake turned
+                    # real corruption into a reported "stall". Read the notes for
+                    # the engine-completion facts instead.
+                    stalled = any("did not complete" in n for n in r.notes)
+                    if stalled:
                         timeouts += 1
+                    if not r.ok:
+                        # TRANSIENT or PERSISTENT? Re-read the same region with
+                        # NO writer running. If the mismatches vanish, the cells
+                        # are intact and the READ RETURN was wrong. If they
+                        # persist, writes landed in the wrong cells. That single
+                        # bit decides which half of the controller to look at,
+                        # and it is one extra read pass to find out.
+                        audit = pc.measure(
+                            drv,
+                            pc.Scenario(name="audit", family=pc.FAM_INCREMENTAL,
+                                        burst_len=8, txn_count=txn, gap=0),
+                            cfg=cfg, geom=geom, clk_mhz=75.0, timeout_s=120.0)
+                        ctx.say(f"[wr_batch]   AUDIT after failure: "
+                                f"mism={audit.mismatched} "
+                                f"({'PERSISTENT - cells damaged' if audit.mismatched else 'TRANSIENT - cells intact, read return was wrong'})")
+                        # STRAY beats: R beats the bus delivered with NO
+                        # outstanding AR to own them. stray>0 means the
+                        # controller OVER-DELIVERED (a return-ring / CAM
+                        # accounting bug); stray==0 with mismatches means wrong
+                        # DATA for beats that were legitimately asked for. With
+                        # the cells proven intact, that is the discriminator
+                        # for which half of the read path to open up.
+                        try:
+                            stray = sum(drv.stray_beats(g) for g in range(n_gen))
+                        except Exception as e:
+                            stray = f"unavailable ({type(e).__name__})"
+                        ctx.say(f"[wr_batch]   STRAY={stray}")
+                        ctx.say(f"[wr_batch]   BAD hi={hi} gap={gap} "
+                                f"mism={r.mismatched} stalled={stalled} "
+                                f"notes={r.notes}")
                     # Anti-vacuity: a record that moved no bytes compares
                     # nothing, and would report "clean".
                     if not r.bytes_moved:

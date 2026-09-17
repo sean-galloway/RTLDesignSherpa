@@ -807,6 +807,44 @@ at fault.
 **PUMICE-043 folds into this** -- its 1-beat-in-1/8 residue at hi=8 is the same
 corruption at a different gap, not a separate defect.
 
+### ILA, 2026-09-17 — the DRAM is not driving; pumice returns that faithfully
+
+Capture on a failing run (trigger rd_dbg_mismatch, batching hi=2/lo=1, gap 4,
+1+1), reports/ila_pumice039_batching.csv:
+
+    valid beats 940, mismatched 180
+    all-ones (undriven DQ)            91/180
+    wrdata_en during a read return     0 cycles
+    dfi_rddata == rd_dbg_actual        EVERY mismatched beat
+
+Three things follow, and they redirect the search:
+
+1. **NOT PUMICE-042's mechanism.** Zero write-during-read overlap. The DFI-side
+   turnaround fix is not implicated.
+2. **pumice does NOT mangle the data.** What the PHY delivers is bit-for-bit
+   what the reader receives.
+3. **The DRAM is not driving DQ.** The captured beats alternate between
+   all-ones (undriven) and ONE repeated stale word (2b53168cedf9d1c9) -- the
+   a7ddrphy's free-running ISERDES holding its last captured value. The
+   capture window is opening over a bus with nothing on it, for ~180 beats.
+
+Ruled out by measurement:
+  * read alignment -- batching is WORSE at the old rden=6/delay=7 (4/12 and
+    3/12 failing) than at rden=1/delay=2, so PUMICE-040 is not implicated
+  * accumulated state -- per-rep soft_reset (every CSR to RTL default, geometry
+    restored) does not change the rate
+  * over-delivery -- stray=0 on every failure
+  * cell damage -- the post-failure read-only audit is always mism=0
+  * engine stalls -- stalled=False, timeouts=0
+
+**Leading hypothesis:** the write drain's ACT/PRE activity closes a row that an
+already-issued read depends on, so the read finds no open row and the device
+drives nothing. That is the same class the arbiter's w_ap_col_guard /
+w_pre_col_guard exist for (issue #42: "batch-2 row-1 writes landed on row 0"),
+and a long uninterrupted write run is exactly what would defeat a guard sized
+for ping-pong traffic. Testable: CLOSE page policy, or writer/reader forced
+onto banks that share no rows.
+
 Next: identify the ~180-beat unit. It is the strongest clue available -- a
 fixed quantum of mis-delivered data, not scattered collisions. Candidates:
 the concurrent region size (0x20000 per the notes), the read CAM / return-ring
