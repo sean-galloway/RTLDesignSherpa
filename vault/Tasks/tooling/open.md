@@ -602,8 +602,8 @@ read written as `test_level = os.environ.get('TEST_LEVEL', 'gate')` inside a
 cocotb body reports as `depth:pinned-grid(gate)` -- rename the local and the
 finding clears.
 
-*Step 4 is COMPLETE; step 5 was NOT RUN.* All nine edited files have been
-executed since editing, one cell at a time:
+*Step 4 is COMPLETE. Step 5 was run at GATE for the whole area, not at FULL.*
+All nine edited files have been executed since editing, one cell at a time:
 
 | file | runtime evidence |
 |---|---|
@@ -620,16 +620,42 @@ executed since editing, one cell at a time:
 Depth genuinely VARIES, not merely labels: `regs` performs 0 / 160 / 400
 write/readback checks and `mon_cfg` runs one / two / three sections by level.
 
+*A GATE-level whole-area run stands in for step 5* (190 cells, per directory,
+serial): `fub` 56 passed in 557 s, `macro` 118 passed + 3 skipped in 448 s,
+`top` 12 passed + 1 xfailed in 863 s -- 186 passed, 3 skipped, 1 xfailed.
+
+*The first `macro` attempt reported 100 failed of 121, and the cause was THIS
+conversion.* The fourth `level_env(params['test_level'])` call site added by
+a33e68181 sits in `test_stream_core_mon_backpressure`, whose params come from
+`generate_mon_backpressure_params()` through `expand_seeds()` -- a generator
+that never stamped the key. All 100 seed cells raised `KeyError: 'test_level'`
+in the pytest wrapper BEFORE any build, so they cost no wall-clock and left no
+traceback in the cocotb session log; only the pytest summary showed it, and a
+summary-grep pipeline had discarded that. Fixed in 10ca707ed by stamping
+`'func'` -- the depth those cells ran at before per-cell TEST_LEVEL existed.
+Re-verified: 100/100 monbp cells run, ~3.2 s each after one shared build.
+
+*The lesson is narrower than "restructuring generators is risky".* Both
+restructured `generate_test_params()` functions were correct at all three
+levels (stream_core 3/6/18, stream_top 1/2/5, none missing the key). What
+broke was a call site added over a DIFFERENT generator. When adding
+`level_env(params[...])`, check the parametrize source feeding THAT site, not
+the file's main generator.
+
 NOT obtained: a FULL-level `stream_core` cell (`params17`, 4 channels x 3
-transfer sizes x mixed timing), and step 5's clean 861-cell FULL run. NINE
+transfer sizes x mixed timing), and step 5's clean 861-cell FULL run. TEN
 simulator jobs were killed by the harness citing low memory, on a machine
 reporting ~175 GB available with ZERO kernel OOM records and no process above
 725 MB; several died before their build started. Concurrency, macro-vs-top,
-build parallelism, cell count and per-launch machine state were each proposed
-and refuted by measurement -- and the "small cells survive" boundary was wrong
-too, since 81 s, 123 s and 201 s cells all passed afterwards. No mechanism was
-established. Whoever runs step 5 should expect it to be the binding constraint,
-not the conversion.
+build parallelism, cell count, per-launch machine state, log volume (183 MB
+written at kill time, and `/tmp` is disk-backed), cgroup caps (`memory.max` is
+`max` at every level, `oom_kill 0`) and committed-memory pressure (flat across
+a run, PSI `avg10=0.00`) were each proposed and refuted by measurement -- and
+the "small cells survive" boundary was wrong too, since 81 s, 123 s and 201 s
+cells all passed afterwards. The tenth kill kept the pattern inverted: it died
+at 131 s having written 183 MB, while a LATER run wrote 552 MB and ran 448 s to
+completion. No mechanism was established. Whoever runs step 5 at FULL should
+expect it to be the binding constraint, not the conversion.
 
 *A green checker is not a passing suite.* During this conversion one misplaced
 line -- `self.log` called before `super().__init__()` in `StreamCoreTB` -- broke
@@ -655,7 +681,8 @@ open known issues (`known_issues/` holds only `resolved/`), so the
 (fub 7, macro 5, top 5) plus a `stream_levels.py` modelled on the bridge's, and
 7 of its TBs already reference `test_level`, so the depth knobs mostly exist and
 need wiring rather than inventing -- the same favourable start `misc`'s
-`dma_address_gen` had. The cost is step 5, a clean FULL run for the area.
+`dma_address_gen` had. The cost is step 5 at FULL; the GATE-level whole-area
+run is done.
 
 **rapids remains genuinely blocked:** five active known issues, three of them
 data-path (`drain_size_gt1_source_beat_drop`, `sink_data_path`,
