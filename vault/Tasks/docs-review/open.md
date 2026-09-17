@@ -100,7 +100,18 @@ both generated families is ZERO. The two `rtl/cdc` headers that pointed at
 ---
 
 ## DOCREV-014 — emoji sweep: 4512 glyphs across 252 tracked .md files
-**Status:** open 2026-07-31; scope and figures corrected the same day
+**Status:** open 2026-07-31; scope and figures corrected the same day.
+**RE-MEASURED 2026-09-16 with the tool: 2979 glyphs in 133 of 1397 files** (was
+4512 in 252 of 1310). Roughly a third of the glyphs and half the files have been
+cleared since, by owners fixing pages for other reasons -- the headline above is
+stale, not the rule.
+
+The shape makes this far more tractable than the raw count suggests: **1700 of
+the 2979 are a single glyph**, U+2705 WHITE HEAVY CHECK MARK, with U+274C CROSS
+MARK at 248 and U+2713 CHECK MARK at 151. Three characters are ~70% of the
+sweep, and all three are status markers in tables and checklists that a
+scripted pass can replace with text. The long tail (open book 124, warning 116,
+the traffic-light circles, clipboard 84) is what needs judgement.
 **Priority:** P2
 
 The no-emoji rule ([[humanization-voice]], CLAUDE.md, the style guide's
