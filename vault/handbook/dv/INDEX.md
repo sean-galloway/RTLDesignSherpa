@@ -19,7 +19,9 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 - [[seeds-and-determinism]] - random seed per run, recorded and overridable;
   there is no such thing as a failing seed
 - [[tb-structure]] - Pattern A/B, TB location, the three mandatory methods
-- [[test-runner]] - the Makefile/pytest/run() stack; REG_LEVEL vs TEST_LEVEL, build-dir uniqueness
+- [[test-runner]] - the Makefile/pytest/run() stack; REG_LEVEL vs TEST_LEVEL,
+  build-dir uniqueness; check the generator feeding the call site you edit --
+  a missing `test_level` key fails 100 cells before any build, in silence
 - [[test-review]] - auditing test collateral with the review pipeline: what to grab, bundle layout, checklist
 - [[coverage]] - Verilator, functional bar, the monbus packet-type matrix
 - [[formal]] - sv2v/SBY flow, mutation rule, vacuity traps

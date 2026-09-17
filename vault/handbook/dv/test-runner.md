@@ -125,6 +125,35 @@ wrapper exports per cell (`reg_level_grid()` + `level_env()` from
 own drops that area to the default depth, which is what the stamp was there
 to prevent -- eleven of the twelve areas still depend on it that way.
 
+**When you add `level_env(params[...])`, check the generator feeding THAT
+call site, not the file's main one (2026-09-17).** Converting `stream`
+added four `level_env(params['test_level'])` sites to `test_stream_core.py`.
+Three read `generate_test_params()`, which stamps the key. The fourth was
+`test_stream_core_mon_backpressure`, parametrized from
+`expand_seeds(generate_mon_backpressure_params(), default_count=100)` -- a
+separate generator returning one pinned geometry that never carried
+`test_level`. All 100 seed cells raised `KeyError: 'test_level'`.
+
+That failure mode is nastier than it sounds, because it happens in the
+pytest wrapper BEFORE `run()` builds anything:
+
+- it costs no wall-clock, so the chunk finishes suspiciously fast rather
+  than slowly -- 100 cells died in under a second;
+- it writes NO cocotb session log and NO `results.xml`, so every per-cell
+  artifact you would normally grep is simply absent;
+- the only place it appears is pytest's own summary line.
+
+It survived a full area run because the run was piped through
+`grep -E 'passed|failed|error'`, which kept the summary and discarded the
+traceback. **Preserve the whole run output to a file; grep the file.** A
+summary-only pipeline cannot tell you why anything failed.
+
+It also read as 100% green to `check_test_levels.py` -- the file parses
+fine, the helper names are present, the call site is syntactically correct.
+See [[silent-fallbacks]]: the absence of a build is not evidence of a pass.
+The cheap check before trusting a conversion is to call each generator
+directly at GATE/FUNC/FULL and assert every dict carries the key.
+
 ## One build directory per parameter set
 
 The wrapper composes a human-readable identifier and derives everything from it:
