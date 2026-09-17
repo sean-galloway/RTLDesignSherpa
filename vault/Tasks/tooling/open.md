@@ -573,9 +573,54 @@ not one):
 | misc | 4 / 4 | converted |
 | apbx-xbar | 6 / 6 | converted |
 | retro_legacy_blocks | 14 / 14 | converted |
-| **stream** | **4 / 17** | **NOT converted** |
+| stream | **17 / 17** | **CONVERTED 2026-09-17 (a33e68181)** |
 | **pumice** | **13 / 34** | **NOT converted** |
 | rapids | 0 / 17 | stamp still present |
+
+**stream CONVERTED 2026-09-17 (`a33e68181`), 4 / 17 -> 17 / 17.** Thirteen
+wrappers plus two TBs; the other four already passed. Both halves landed
+together, as this task requires.
+
+*The find that justified it.* `test_stream_core.py` and `test_stream_top.py`
+read TEST_LEVEL at COLLECTION time, when no per-cell environment exists, so both
+were pinned to their `gate` branch at every REG_LEVEL -- their func and full
+configs had never been generated. stream_core's full config selects
+`timing_profile: 'mixed'`, which its own comment calls the regression sentinel
+for the `axi_write_engine` WLAST/drain bug. That sentinel had never run. Both
+generators now take the level as an argument and union across
+`reg_level_grid()`, so the axis COMPOSES with each file's existing grid rather
+than multiplying it: cells went GATE 221 -> 190, FUNC 315 -> 328, FULL 804 ->
+861, and FUNC coverage is preserved or additive everywhere (verified by diffing
+loop conditions against HEAD -- every new conditional gates only at GATE).
+
+*Two traps worth recording for the next area.* The checker's helper escape hatch
+(`check_test_levels.py:275`) requires BOTH `reg_level_grid` AND `level_env` in
+the source; importing only the former leaves the file falling through to
+`has_grid()`, which needs an inline REG_LEVEL plus a 'GATE'/'FULL' literal. And
+`grid_levels()` reads assignments to the NAME `test_level`, so a runtime depth
+read written as `test_level = os.environ.get('TEST_LEVEL', 'gate')` inside a
+cocotb body reports as `depth:pinned-grid(gate)` -- rename the local and the
+finding clears.
+
+*Step 4 is PARTIAL and step 5 was NOT RUN.* Verified at runtime:
+`latency_bridge` (num_beats 8 -> 64), `regs` (0 vs 160 vs 400 write/readback
+checks per level), `mon_cfg` (three distinct section banners); `mon_classes` has
+one passing cell. NOT executed since editing: `stream_core`, `stream_top`,
+`test_stream_top_advanced`, `monbus`, `performance_profile` -- these collect
+cleanly (0 errors at all three REG_LEVELs) but have no runtime confirmation. Six
+simulator jobs were killed by the harness citing low memory, on a machine
+reporting 175 GB available with ZERO kernel OOM records and no process above
+725 MB; the last died before its build started. Concurrency, build parallelism,
+cell count and macro-vs-top were each proposed and refuted by measurement.
+
+*A green checker is not a passing suite.* During this conversion one misplaced
+line -- `self.log` called before `super().__init__()` in `StreamCoreTB` -- broke
+EIGHT test files while the checker still read 17/17, because it parses
+statically and never executes. It was found by running tests, not by the tool.
+Three other self-inflicted defects surfaced the same way: `_run_regs` never
+receiving its `test_level`, a NameError from renaming assignments without their
+references, and an aliasing cross-check wrongly demoted out of FUNC.
+
 
 **The previous claim confused "stamp removed" with "converted."** Stream and
 pumice no longer carry the `os.environ['TEST_LEVEL']` stamp, which is what a
