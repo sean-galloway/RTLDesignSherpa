@@ -237,6 +237,37 @@ class ControllerConfig:
     page_tr_init:  Optional[int] = None     # PAGE_TIMEOUT_CFG.tr_init
     page_access:   Optional[Dict[str, int]] = None  # mode 5 table (set_page_access_cfg kw)
     page_rbl:      Optional[Dict[str, int]] = None  # modes 6/7 table (set_page_rbl_cfg kw)
+    # WRITE BATCHING (SCHED_WR_WM) -- PUMICE-039. Once the write CAM's
+    # schedulable occupancy crosses wr_high_wm, writes outrank reads until it
+    # falls to wr_low_wm, so a run of writes drains back-to-back and the
+    # tWTR/tRTW turnaround is paid ONCE per batch instead of on every direction
+    # switch. This is pumice's equivalent of what LiteDRAM does by staying in
+    # READ until reads are exhausted (multiplexer.py).
+    #
+    # The RTL CSR resets to 0 (disabled) and had no host accessor until
+    # 6ba9dba62, so this had NEVER run on hardware -- and when first enabled it
+    # corrupted, because the DFI-side pacer did not enforce direction
+    # turnaround (PUMICE-042, fixed 91db52b47).
+    #
+    # DEFAULT 0 = DISABLED. It was briefly defaulted to 2/1 on the strength of
+    # gap 12 and gap 15 being clean (+29.9% / +25.0%, 0 mismatched over 8 reps).
+    # Widening the gap coverage immediately found stalls:
+    #     hi=2/lo=1  1+1 gap=4   2/4 runs, timeouts=2, [360,0,0,359]
+    #     hi=8/lo=4  1+1 gap=11  1/4 runs, timeouts=1, [0,0,1,0]
+    # Every failing point has a MATCHING timeout count, so the engines did not
+    # complete and the mismatch numbers are partial-run artifacts -- the defect
+    # is an intermittent STALL, not (necessarily) corruption. Batching-off is
+    # clean at every point tested.
+    #
+    # This also explains the two bank_gap_sweep runs that died/stalled in the
+    # 2+2 stage with batching defaulted on; those were blamed on the sweep
+    # script after a gap-12-only check showed no timeouts. Same defect.
+    #
+    # Do not re-enable by default until the stall is understood. Two gaps is not
+    # coverage -- the same sampling error closed PUMICE-037 prematurely.
+    # TEST_WR_HIGH_WM=2 opts in.
+    wr_high_wm:    int = int(os.environ.get("TEST_WR_HIGH_WM", "0"))
+    wr_low_wm:     int = int(os.environ.get("TEST_WR_LOW_WM", "0"))
     rd_in_order:   bool = True              # HARNESS check-engine R ordering (CTRLR_CFG bit; pumice R is always AR-order)
     refresh:       Optional[Dict[str, int]] = None  # REF_CTRL (set_refresh kw: mode/postpone/pullin)
     t_refi:        Optional[int] = None      # refresh interval (MC cycles)
@@ -356,6 +387,10 @@ class ControllerConfig:
                                       "sets_log2": 0, "reset_interval": 0}))
         drv.set_page_mode(self.page_mode if self.page_mode is not None else 0,
                           tr_init=self.page_tr_init)
+        # Write batching (PUMICE-039). Programmed on EVERY config for the same
+        # reason the other mode axes are: leaving it to inherit whatever the
+        # previous config set makes the matrix order-dependent.
+        drv.set_sched_wr_wm(self.wr_high_wm, self.wr_low_wm)
         drv.set_sched_policy(
             order_mode=self.order_mode if self.order_mode is not None else 0,
             age_thresh=self.age_thresh if self.age_thresh is not None else 0)

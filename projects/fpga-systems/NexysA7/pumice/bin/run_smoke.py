@@ -71,6 +71,18 @@ def main(argv=None) -> int:
                     help="scenario families for the page_policy A/B (comma list)")
     ap.add_argument("--pp-txn", type=int, default=2000,
                     help="txn_count for the page_policy A/B (seq: page_policy)")
+    # wr_batch (PUMICE-039/042/043) knobs, same pattern as --pp-txn.
+    ap.add_argument("--wb-reps", type=int, default=8,
+                    help="wr_batch: repeats per (watermark, gap) point. "
+                         "A single pass cannot tell 0%% from a low-rate "
+                         "intermittent -- that is how PUMICE-037 was "
+                         "closed prematurely.")
+    ap.add_argument("--wb-gaps", default="12,15",
+                    help="wr_batch: reader gaps to test")
+    ap.add_argument("--wb-gens", default="1",
+                    help="wr_batch: generator pair counts to sweep")
+    ap.add_argument("--wb-txn", type=int, default=2000,
+                    help="wr_batch: transactions per point")
     ap.add_argument("--clk-mhz", type=float, default=100.0,
                     help="board clock (MHz) for bandwidth math")
     args = ap.parse_args(argv)
@@ -119,6 +131,10 @@ def main(argv=None) -> int:
         "families": [f.strip() for f in args.families.split(",") if f.strip()],
         "pp_txn": args.pp_txn,
         "clk_mhz": args.clk_mhz,
+        "reps": args.wb_reps,
+        "gaps": args.wb_gaps,
+        "txn": args.wb_txn,
+        "gens": args.wb_gens,
     }
 
     try:
