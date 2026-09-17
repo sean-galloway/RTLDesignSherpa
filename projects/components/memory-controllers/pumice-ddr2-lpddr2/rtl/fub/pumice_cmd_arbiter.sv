@@ -389,11 +389,12 @@ module pumice_cmd_arbiter
     // after the column was classified, so up to 3-4 columns classify against
     // a still-ok tCCD and fire back-to-back. Harmless when tCCD == 1 MC cycle
     // (the board: BL4 x16 at DFI_RATE 2, one DFI word per column), but at
-    // tCCD > 1 the bunch runs into the DFI cmd path's COL_BURST_CYC pacing and
-    // STALLS the in-order command stream -- and any stall downstream of these
-    // timers compresses the spacing of everything queued behind it (with
-    // CMD_DELAY holding a rolling window of commands, that is a tRFC/tRP fatal
-    // in the BL8 core sims). So reload a forward counter the cycle a column is
+    // tCCD > 1 the bunch is a tCCD VIOLATION on the wire. The DFI cmd path used
+    // to absorb it by pacing columns; it no longer does, because it must never
+    // stall -- any stall downstream of these timers compresses the spacing of
+    // everything queued behind it (with CMD_DELAY holding a rolling window of
+    // commands, that is a tRFC/tRP fatal in the BL8 core sims, and it is the
+    // PUMICE-039 silicon failure: REF -> ACT squeezed from 15 cycles to 3). So reload a forward counter the cycle a column is
     // SELECTED (STAGE-1b), and, for tCCD > 1, also refuse a column classify in
     // the very cycle another column is being selected (the register gap).
     // This REPLACES the flopped global tccd_ok_i on the column masks: that

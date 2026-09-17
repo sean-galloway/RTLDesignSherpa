@@ -46,12 +46,6 @@ module pumice_dfi_cmd_path
     parameter int COL_WIDTH      = 10,
     parameter int BURST_LEN_WIDTH = 8,
     parameter int DFI_RATE       = 4,
-    // DQ-bus occupancy of one column burst in DFI cycles (= BL/DFI_RATE = the
-    // burst's DFI-word count). A column (RD/WR) command owns the shared DQ bus
-    // for this many cycles, so the next column command must be held that long or
-    // its burst data collides with the previous burst. 1 => no pacing (issue a
-    // column every cycle, valid only when BL == DFI_RATE).
-    parameter int COL_BURST_CYC  = 1,
     // Sub-DFI-word burst packing (task #146). N_SUBCMD sub-column-commands of one
     // scheduled column command are issued in ONE DFI cycle at command phases
     // {base, base+SUB_PHASE_STRIDE, ...} and columns {col, col+SUB_COL_STRIDE,
@@ -89,11 +83,6 @@ module pumice_dfi_cmd_path
     input  logic [PHW-1:0]             rd_phase_i,
     input  logic [PHW-1:0]             wr_phase_i,
     // Direction-turnaround pacing (PUMICE-042), in DFI cycles. Driven from the
-    // SAME TIMINGS CSRs the scheduler enforces: a second copy of a timing is
-    // how two sides drift apart. dfi_clk == mc_clk on the current boards, so
-    // no conversion; quasi-static config, threaded exactly like t_rddata_en_i.
-    input  logic [7:0]                 t_rtw_i,   // RD -> WR turnaround
-    input  logic [7:0]                 t_wtr_i,   // WR -> RD turnaround
 
     // ---- runtime sub-DFI-word framing (from bl+gear CSRs; <= compile MAX) ----
     // n_subcmd_i        : active sub-column commands packed into one DFI word (>=1).
@@ -142,43 +131,46 @@ module pumice_dfi_cmd_path
     dram_op_e             w_op;
     assign {w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i;
 
-    // ---- DQ-bus occupancy pacing (column commands only) --------------------
-    // A column command's burst owns the DQ bus for COL_BURST_CYC DFI cycles.
-    // Hold the NEXT column command until that window clears; ACT/PRE/REF do not
-    // touch the DQ bus and flow freely. In-order: a stalled column at the FIFO
-    // head backpressures everything behind it (and, via the CDC, the arbiter).
-    // 8 bits: the pacer now loads either the compile-time burst span or the
-    // RUNTIME turnaround CSRs, which are 8-bit.
-    localparam int PCW = 8;
-    logic          w_is_wr, w_is_rd, w_is_col;
+    // ---- command accept gate (NO TIMING HERE) ------------------------------
+    // ALL JEDEC delays come from the scheduler. This layer is a constant-latency
+    // conduit: it must never insert an idle cycle of its own, because the CDC
+    // command FIFO preserves ORDER but not SPACING -- so any stall here silently
+    // rewrites the interval between every command queued behind it.
+    //
+    // That is not a theoretical risk, it is the PUMICE-039 failure. The previous
+    // revision paced columns here (DQ occupancy + a direction-aware tRTW/tWTR
+    // hold, added for PUMICE-042). Holding a column for tRTW=20 at the head of an
+    // 8-deep in-order FIFO backed the queue up, and the ACT/PRE/REF behind it --
+    // which need no DQ bus and were correctly spaced by the arbiter -- drained
+    // back to back on release. Board ILA: REF -> ACT compressed from 15 cycles to
+    // 3, inside tRFC. The DRAM discarded the activate, the bank never opened, and
+    // 180 consecutive reads returned an undriven DQ bus. PUMICE-042's own comment
+    // had already named FIFO compression as the mechanism; re-enforcing at the
+    // wire treated the symptom and supplied the stall that caused it.
+    //
+    // The scheduler already enforces every one of these, off the same CSRs:
+    //   tCCD       pumice_cmd_arbiter r_tccd_fwd, clamped to >= BURST_WORDS in
+    //              pumice_core (w_t_ccd_eff) so columns are never issued closer
+    //              than a burst's DQ occupancy -- exactly what the column pacer
+    //              here used to guarantee.
+    //   tRTW/tWTR  global_timers r_trtw_cnt/r_twtr_cnt -> trtw_ok_i/twtr_ok_i,
+    //              gating the arbiter's rd/wr column masks.
+    //   tRFC       pumice_cmd_arbiter r_rfc_cnt -> w_act_gate_live.
+    //   tRCD/tRP/tRAS/tRRD/tFAW   bank_timer + the arbiter's rank gates.
+    // A second copy of a timing is how two sides drift apart; there is now one.
+    logic          w_is_wr, w_is_rd;
     assign w_is_wr  = (w_op == OP_WR) || (w_op == OP_WRA);
     assign w_is_rd  = (w_op == OP_RD) || (w_op == OP_RDA);
-    assign w_is_col = w_is_wr || w_is_rd;
 
-    logic [PCW-1:0] r_col_pace;
-    // Direction of the last fired column, for the turnaround reload above.
-    // r_col_seen keeps the FIRST column of a run from counting as a direction
-    // change against the reset value.
-    logic           r_last_col_was_rd, r_col_seen;
-    // Cycles until an OPPOSITE-direction column may fire. Separate from
-    // r_col_pace: overloading one counter cannot express "same direction may
-    // go in 2, opposite must wait 20".
-    logic [7:0]     r_turn_pace;
-    logic           w_col_ok, w_gate;
-    // A column may fire when its OWN direction's constraint is clear:
-    //   same direction as the last column -> DQ occupancy (r_col_pace)
-    //   opposite direction               -> turnaround (r_turn_pace)
-    // Both must be clear for the first column after reset (r_col_seen==0 makes
-    // the direction test fall through to the occupancy path).
-    assign w_col_ok = (r_col_pace == '0)
-                   && ((!r_col_seen) || (w_is_rd == r_last_col_was_rd)
-                       || (r_turn_pace == '0));
-    // Column pacing (DQ occupancy) AND, for reads, the aligner's outstanding-op
-    // backpressure: hold a RD command if the read aligner's tracking queue is
-    // full so no return is ever untracked. Sized so it never fires in steady
-    // state (MAX_OUTSTANDING >= RD_CAM_DEPTH).
-    assign w_gate   = ((!w_is_col) || w_col_ok) && (!w_is_rd || rd_op_ready_i)
-                    && (!w_is_wr || wr_op_ready_i);
+    logic          w_gate;
+    // The ONLY remaining holds are structural, not timing: a read may not issue
+    // if the aligner has no free tracking slot, and a write may not issue before
+    // its data is staged. Both are sized never to fire in steady state
+    // (MAX_OUTSTANDING >= RD_CAM_DEPTH; CMD_DELAY_EFF makes WR data lead the
+    // command). If either DOES fire it compresses spacing exactly as above --
+    // r_wr_held_cnt below exists to catch that, and the fix belongs upstream
+    // (do not issue the command), never in a pacer here.
+    assign w_gate   = (!w_is_rd || rd_op_ready_i) && (!w_is_wr || wr_op_ready_i);
 
     // ---- sub-DFI-word burst packing (task #146) ----------------------------
     // A column command that packs n_subcmd_i JEDEC bursts into one DFI word is
@@ -315,8 +307,7 @@ module pumice_dfi_cmd_path
     logic [31:0] r_wr_held_cnt;
     logic [15:0] r_wr_held_run, r_wr_held_max;
     logic        w_wr_held;
-    assign w_wr_held = cmd_valid_i && w_is_wr && !wr_op_ready_i
-                     && ((!w_is_col) || w_col_ok) && w_fmt_ready;
+    assign w_wr_held = cmd_valid_i && w_is_wr && !wr_op_ready_i && w_fmt_ready;
     `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
         if (`RST_ASSERTED(dfi_rstn)) begin
             r_wr_held_cnt <= '0; r_wr_held_run <= '0; r_wr_held_max <= '0;
@@ -333,57 +324,6 @@ module pumice_dfi_cmd_path
     final $display("PUMICE_DFI_CMD_PATH: write-staged gate held %0d cycles total, longest hold %0d",
                    r_wr_held_cnt, r_wr_held_max);
 `endif
-
-    // DQ-occupancy pacing counter: loaded to COL_BURST_CYC-1 on the accepted
-    // column group. COL_BURST_CYC==1 => loads 0 => never blocks. The packed
-    // group occupies exactly one DFI word (BL_WORDS==1 in the sub-word regime).
-    `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
-        if (`RST_ASSERTED(dfi_rstn)) begin
-            r_col_pace        <= '0;
-            r_turn_pace       <= '0;
-            r_last_col_was_rd <= 1'b0;
-            r_col_seen        <= 1'b0;
-        end else begin
-            if (r_col_pace  != '0) r_col_pace  <= r_col_pace  - 1'b1;
-            if (r_turn_pace != '0) r_turn_pace <= r_turn_pace - 1'b1;
-            if (w_fire && w_is_col) begin
-                // PUMICE-042. This used to load COL_BURST_CYC-1 on EVERY column
-                // regardless of direction, so the only DFI-side gate between a
-                // RD and a following WR was DQ occupancy (~2 cycles) -- while
-                // tRTW needs 20. The turnaround is enforced at the SCHEDULER,
-                // in mc_clk, and the async CDC command FIFO between them keeps
-                // ORDER but not SPACING. It normally hides because the arbiter
-                // issues at about the DFI drain rate, so the FIFO stays
-                // near-empty and the spacing propagates -- tRTW looks honoured,
-                // coincidentally. Anything that BACKS THE FIFO UP turns a
-                // correct schedule into an incorrect command stream.
-                //
-                // Write batching (SCHED_WR_WM, PUMICE-039) is the first
-                // workload that does: the drain bursts commands in, the FIFO
-                // fills, the path drains them back to back, and a 20-cycle
-                // RD->WR gap is re-emitted as 1. Board ILA: dfi_wrdata_en
-                // co-asserted with dfi_rddata_en, RD->WR distance 1, exactly
-                // twice per run (two drain entries), while the scheduler's own
-                // command-history scoreboard reported ZERO tRTW violations --
-                // the arbiter had spaced them correctly.
-                //
-                // Reload direction-aware so the DFI side is independently safe
-                // instead of trusting that spacing survives a FIFO.
-                // Occupancy: every column owns the DQ for its burst span.
-                r_col_pace        <= PCW'(COL_BURST_CYC - 1);
-                // Turnaround for the NEXT opposite-direction column, armed by
-                // EVERY column (the next one may flip either way). A RD arms
-                // RD->WR = t_rtw; a WR arms WR->RD = t_wtr. Getting this mux
-                // backwards loads 4 where 20 is needed and the gate does
-                // nothing -- measured: corruption unchanged, bandwidth
-                // unchanged, because tWTR is short enough to never block.
-                // Uses the SAME CSRs the scheduler enforces, never a copy.
-                r_turn_pace       <= (w_is_rd ? t_rtw_i : t_wtr_i) - 8'd1;
-                r_last_col_was_rd <= w_is_rd;
-                r_col_seen        <= 1'b1;
-            end
-        end
-    )
 
     // Group fire strobes (registered 1 cycle to align with the formatter's
     // registered command outputs). Emitted ONCE per column command for the whole

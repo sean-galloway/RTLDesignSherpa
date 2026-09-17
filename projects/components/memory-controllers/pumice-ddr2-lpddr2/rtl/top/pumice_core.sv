@@ -249,8 +249,10 @@ module pumice_core
     // cycles at CMD_DELAY=6 -> 13; BL4 x16 (1 word) needs 7.
     localparam int CMD_DELAY_EFF = (CMD_DELAY == 0) ? (5 + 2 * BURST_WORDS) : CMD_DELAY;
     // tCCD can never be shorter than a column's DQ occupancy (BURST_WORDS DFI
-    // words); a smaller CSR value only makes the arbiter bunch columns into the
-    // DFI cmd path's COL_BURST_CYC pacing (a stall, hence spacing compression).
+    // words). This clamp is LOAD-BEARING: the DFI cmd path no longer paces
+    // columns (it must never stall -- see pumice_dfi_cmd_path), so this is the
+    // ONLY thing standing between a too-small tCCD CSR and columns issued on
+    // top of the previous burst's data on the shared DQ bus.
     logic [7:0] w_t_ccd_eff;
     assign w_t_ccd_eff = (t_ccd_i < 8'(BURST_WORDS)) ? 8'(BURST_WORDS) : t_ccd_i;
     logic [3:0]          w_bl_pumice;
@@ -566,8 +568,6 @@ module pumice_core
         // + 2 bursts without stalling the CAM drain -- or the lag comes back.
         .WD_FIFO_DEPTH   (32)
     ) u_dfi (
-        .t_rtw_i            (t_rtw_i),
-        .t_wtr_i            (t_wtr_i),
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),
         .cmd_valid_i        (w_cmd_v),

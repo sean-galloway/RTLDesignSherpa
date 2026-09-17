@@ -126,8 +126,6 @@ module pumice_dfi_layer
     input  logic [7:0]                 t_phy_wrlat_i,
     input  logic [7:0]                 t_rddata_en_i,
     // Direction turnaround for the DFI-side column pacer (PUMICE-042).
-    input  logic [7:0]                 t_rtw_i,
-    input  logic [7:0]                 t_wtr_i,
     // Active DFI gear = log2(active DFI rate). DFI_RATE is the compile-time MAX
     // rate that sizes every bus; gear_i selects how many of those phases are
     // active. active_rate = 1 << gear_i. At gear_i = log2(DFI_RATE) (board /
@@ -259,7 +257,6 @@ module pumice_dfi_layer
         .ROW_WIDTH       (ROW_WIDTH),
         .COL_WIDTH       (COL_WIDTH),
         .DFI_RATE        (DFI_RATE),
-        .COL_BURST_CYC   (BL_WORDS),
         .N_SUBCMD        (N_SUBCMD),
         .SUB_COL_STRIDE  (SUB_COL_STRIDE),
         .SUB_PHASE_STRIDE(SUB_PHASE_STRIDE),
@@ -268,8 +265,6 @@ module pumice_dfi_layer
         .DFI_CTRL_WIDTH  (DFI_CTRL_WIDTH),
         .DFI_CS_WIDTH    (DFI_CS_WIDTH)
     ) u_cmd (
-        .t_rtw_i           (t_rtw_i),
-        .t_wtr_i           (t_wtr_i),
         .dfi_clk           (dfi_clk),
         .dfi_rstn          (dfi_rstn),
         .memtype_i         (memtype_i),

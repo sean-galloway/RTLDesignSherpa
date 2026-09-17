@@ -974,6 +974,66 @@ command shape on the wire, not from an occupancy probe. An ILA on the CDC FIFO
 level + the arbiter-side command stream would confirm it and is the cheapest
 next measurement.
 
+### 2026-09-17: FIX -- the DFI layer no longer holds any timing
+
+Sean: "The dfi layer should be super simple. All delays must come from the
+scheduler." That is the correct architecture and it dissolves this bug class
+rather than patching one more command pair.
+
+Removed from `pumice_dfi_cmd_path.sv`: the `COL_BURST_CYC` parameter, the
+`t_rtw_i`/`t_wtr_i` ports, and the `r_col_pace` / `r_turn_pace` /
+`r_last_col_was_rd` / `r_col_seen` pacer. The accept gate is now
+
+    assign w_gate = (!w_is_rd || rd_op_ready_i) && (!w_is_wr || wr_op_ready_i);
+
+-- no timing term, only the two STRUCTURAL holds (aligner slot free, write data
+staged), both sized never to fire. `pumice_dfi_layer.sv` and `pumice_core.sv`
+drop the duplicate CSR plumbing, so tRTW/tWTR now reach exactly one consumer.
+
+Why it is safe, in order of strength:
+
+ 1. MEASURED. This task already records that with `CMD_HISTORY_EN` armed the
+    global tRTW check fired ZERO violations while batching was on. The
+    scheduler's turnaround enforcement was verified correct under the very
+    workload that corrupted -- the arbiter was always right, only the wire was
+    wrong. The backstop being removed was never load-bearing.
+ 2. The tCCD clamp `w_t_ccd_eff = max(t_ccd_i, BURST_WORDS)` has an IDENTICAL
+    floor to the deleted column pacer (`BL_WORDS == BURST_WORDS`), so that
+    pacer could never fire on a correctly-clamped tCCD. It only ever fired on
+    the turnaround -- the 20-cycle stall that compressed everything behind it.
+ 3. No staleness hole in the arbiter: `trtw_ok_i` is a strict flop of a counter
+    that loads a cycle after the RD event, so it is stale for exactly 2 cycles;
+    `w_wr_turn_block = r_rdfire0 || r_rdfire1` blocks writes for exactly those
+    2 cycles. Continuous coverage, and symmetric for reads.
+
+The path is now constant-latency end to end, which is the property that was
+missing: arbiter (all timing) -> CMD_DELAY shift register (fixed N, verified a
+token shift reg, not a stall) -> CDC FIFO (cannot accumulate, nothing
+downstream stalls) -> DFI cmd path (never inserts a cycle) -> wire. Spacing at
+the DRAM pins now equals what the scheduler computed.
+
+Consequence recorded in both files: `w_t_ccd_eff` and the arbiter's forward-tCCD
+counter are now LOAD-BEARING -- they are the only things keeping the column
+period honest, since nothing downstream will absorb a too-tight tCCD any more.
+
+**Gate:** char-framework `families_x16` PASSES on the final RTL --
+sim_time_ns=10,496,600 (10.5 ms simulated, 231.8 s wall), not a vacuous fast
+pass. Lint elaborates with no new warnings. Net -64 lines; the DFI command path
+loses 98 lines of logic.
+
+**STILL OPEN -- do not close this task.** The sim gate only proves the existing
+path is not broken. It does NOT prove PUMICE-039 is fixed, because the failure
+is a silicon-only intermittent. Board validation required:
+  - bitstream + `seq_wr_batch` with batching enabled at 1+1 gap 4,
+  - REF -> ACT must hold at 15 (it was 3), no 180-beat idle-bus runs,
+  - and watch for PUMICE-042's RD->WR collision returning, which is the one
+    thing this change could regress.
+
+**Follow-up (highest value):** `pumice_cmd_history_checker` watches the ARBITER
+OUTPUT, which is exactly why its tRFC check stayed silent through this entire
+failure while the wire was violating tRFC by 12 cycles. Retarget it at the DFI
+wire and this class of bug is caught in sim instead of by an ILA capture.
+
 ## PUMICE-041 — BL4 read path does not work in the char sim
 **Status:** open 2026-09-15  **Priority:** P1
 
