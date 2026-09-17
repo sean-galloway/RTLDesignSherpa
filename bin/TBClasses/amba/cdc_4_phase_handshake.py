@@ -837,6 +837,96 @@ class CDC4PhaseHandshakeTB(TBBase):
         success = await self.wait_for_completion(expected_count=count)
         return success and self.compare_transactions(count, test_name)
 
+    async def run_timeout_test(self, rtl_timeout_cycles, test_name="Timeout"):
+        """Directed src_timeout test: stall the destination, watch the source.
+
+        rtl_timeout_cycles is the TIMEOUT_CYCLES parameter THIS build
+        elaborated -- NOT self.TIMEOUT_CYCLES, which is a TB wait budget and
+        has nothing to do with the RTL knob. At 0 the feature is compiled out
+        (g_no_timeout ties the port to 1'b0) and the assertion inverts: the
+        same stall must NOT produce a timeout. A parameter's OFF state needs
+        its own test, driven with the feature's own stimulus.
+
+        The stall uses the slave's ready_policy rather than a large
+        ready_delay. Once phase 2 has latched a randomized delay it cannot be
+        shortened, which would put the recovery half of this test out of
+        reach; 'stall' is deterministic and reversible mid-test.
+        """
+        self.log.info(f"[{test_name}] RTL TIMEOUT_CYCLES={rtl_timeout_cycles}")
+
+        # Quiet profile: this test is about the stall, not about timing noise.
+        config = self.randomizer_configs.get('backtoback', self.randomizer_configs['fast'])
+        self.src_master.set_randomizer(FlexRandomizer(config['source']))
+        self.dst_slave.set_randomizer(FlexRandomizer(config['destination']))
+
+        await self.reset_dut()
+
+        if int(self.dut.src_timeout.value) != 0:
+            self.log.error(f"[{test_name}] src_timeout is already asserted out of reset")
+            self.total_errors += 1
+            return False
+
+        # Stall the destination: ready held low, deterministically.
+        self.dst_slave.ready_policy = 'stall'
+
+        await self.send_transaction(True, 0xC000, 0xDEADBEEF)
+
+        # It must not fire the instant the handshake leaves S_IDLE.
+        if int(self.dut.src_timeout.value) != 0:
+            self.dst_slave.ready_policy = 'valid_first'
+            self.log.error(f"[{test_name}] src_timeout asserted immediately on stall")
+            self.total_errors += 1
+            return False
+
+        budget = (2 * rtl_timeout_cycles + 200) if rtl_timeout_cycles > 0 else 512
+        observed = None
+        for cycle in range(budget):
+            await self.wait_clocks('clk_src', 1)
+            if int(self.dut.src_timeout.value) == 1:
+                observed = cycle + 1
+                break
+
+        # Release the stall so the transfer can finish either way.
+        self.dst_slave.ready_policy = 'valid_first'
+
+        if rtl_timeout_cycles == 0:
+            if observed is not None:
+                self.log.error(
+                    f"[{test_name}] TIMEOUT_CYCLES=0 but src_timeout asserted after "
+                    f"{observed} clk_src cycles")
+                self.total_errors += 1
+                return False
+            self.log.info(
+                f"[{test_name}] OFF build: src_timeout stayed low across {budget} "
+                f"stalled clk_src cycles")
+        else:
+            if observed is None:
+                self.log.error(
+                    f"[{test_name}] src_timeout never asserted within {budget} clk_src "
+                    f"cycles (TIMEOUT_CYCLES={rtl_timeout_cycles})")
+                self.total_errors += 1
+                return False
+            lower_bound = rtl_timeout_cycles // 2
+            if observed < lower_bound:
+                self.log.error(
+                    f"[{test_name}] src_timeout asserted after only {observed} cycles, "
+                    f"far below TIMEOUT_CYCLES={rtl_timeout_cycles}")
+                self.total_errors += 1
+                return False
+            self.log.info(
+                f"[{test_name}] src_timeout asserted after {observed} clk_src cycles "
+                f"(TIMEOUT_CYCLES={rtl_timeout_cycles})")
+
+        # Recovery: the stalled transfer must still complete and the flag clear.
+        success = await self.wait_for_completion(expected_count=1)
+        await self.wait_clocks('clk_src', 20)
+        if int(self.dut.src_timeout.value) != 0:
+            self.log.error(f"[{test_name}] src_timeout did not clear after the stall lifted")
+            self.total_errors += 1
+            return False
+
+        return success and self.compare_transactions(1, test_name)
+
     # Main test orchestration methods
 
     async def run_basic_tests(self):

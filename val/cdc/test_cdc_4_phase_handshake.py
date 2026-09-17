@@ -118,6 +118,50 @@ async def cdc_4_phase_handshake_test(dut):
         await tb.wait_clocks('clk_dst', 10)
 
 
+# One DUT configuration elaborates the optional timeout. Everything else in the
+# matrix leaves TIMEOUT_CYCLES at 0, where g_no_timeout ties src_timeout off --
+# so without this entry the timeout path is proven by formal and never
+# simulated. 512 clk_src cycles sits well clear of the worst normal round trip
+# (the slowest profile parks ready for ~80 clk_dst cycles), so the rest of the
+# suite cannot trip it.
+TIMEOUT_CONFIG = {
+    'clk_src_period_ns': 10,
+    'clk_dst_period_ns': 20,
+    'test_level': 'gate',
+    'timeout_cycles': 512,
+}
+
+
+@cocotb.test(timeout_time=30, timeout_unit="ms")
+async def cdc_4_phase_timeout_test(dut):
+    """Directed src_timeout test -- runs on every config, both ON and OFF.
+
+    On the TIMEOUT_CONFIG build this proves the timeout fires under a stalled
+    destination and clears on recovery. On every other build TIMEOUT_CYCLES is
+    0 and the same stimulus must leave src_timeout low, which is the OFF-state
+    half of the check.
+    """
+    tb = CDC4PhaseHandshakeTB(dut)
+
+    seed = int(os.environ.get('SEED', '42'))
+    random.seed(seed)
+
+    rtl_timeout_cycles = int(os.environ.get('TEST_TIMEOUT_CYCLES', '0'))
+
+    await tb.start_clock('clk_src', tb.clk_src_PERIOD_NS, 'ns')
+    await tb.start_clock('clk_dst', tb.clk_dst_PERIOD_NS, 'ns')
+
+    try:
+        success = await tb.run_timeout_test(rtl_timeout_cycles)
+        assert success, (
+            f"CDC timeout test failed (TIMEOUT_CYCLES={rtl_timeout_cycles}, "
+            f"{tb.total_errors} errors)")
+    finally:
+        tb.done = True
+        await tb.wait_clocks('clk_src', 10)
+        await tb.wait_clocks('clk_dst', 10)
+
+
 def generate_cdc_test_params():
     """
     Generate CDC test parameters with focus on clock domain crossing scenarios.
@@ -195,10 +239,11 @@ def generate_cdc_test_params():
     if reg_level == 'GATE':
         return [{'clk_src_period_ns': 10, 'clk_dst_period_ns': 10, 'test_level': 'gate'},
                 {'clk_src_period_ns': 10, 'clk_dst_period_ns': 20, 'test_level': 'gate'},
-                {'clk_src_period_ns': 20, 'clk_dst_period_ns': 10, 'test_level': 'gate'}]
+                {'clk_src_period_ns': 20, 'clk_dst_period_ns': 10, 'test_level': 'gate'},
+                TIMEOUT_CONFIG]
     if reg_level == 'FUNC':
-        return [p for p in params if p['test_level'] == 'func']
-    return params
+        return [p for p in params if p['test_level'] == 'func'] + [TIMEOUT_CONFIG]
+    return params + [TIMEOUT_CONFIG]
 
 
 @pytest.mark.parametrize("params", generate_cdc_test_params())
@@ -237,6 +282,7 @@ def test_cdc_4_phase_handshake(request, params):
     src_period = params['clk_src_period_ns']
     dst_period = params['clk_dst_period_ns']
     test_level = params['test_level']
+    timeout_cycles = params.get('timeout_cycles', 0)
 
     # Calculate CDC characteristics for naming and analysis
     ratio = dst_period / src_period
@@ -250,7 +296,8 @@ def test_cdc_4_phase_handshake(request, params):
     # Create descriptive test name
     test_name_plus_params = (f"test_{worker_id}_cdc_4_phase_handshake_"
                             f"src{src_period}ns_dst{dst_period}ns_"
-                            f"{ratio_desc}_{test_level}")
+                            f"{ratio_desc}_{test_level}"
+                            f"{f'_to{timeout_cycles}' if timeout_cycles else ''}")
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
@@ -268,6 +315,7 @@ def test_cdc_4_phase_handshake(request, params):
     total_width = 32 + 32 + 32//8 + 1 + 3  # addr + data + strb + write + prot
     rtl_parameters = {
         'DATA_WIDTH': str(total_width),
+        'TIMEOUT_CYCLES': str(timeout_cycles),
     }
 
     # Calculate timeouts based on test level and clock speeds
@@ -287,6 +335,7 @@ def test_cdc_4_phase_handshake(request, params):
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
         'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
         'TEST_LEVEL': test_level,
+        'TEST_TIMEOUT_CYCLES': str(timeout_cycles),
         'SUPER_DEBUG': 'false',
         'TEST_ADDR_WIDTH': '32',
         'TEST_DATA_WIDTH': '32',

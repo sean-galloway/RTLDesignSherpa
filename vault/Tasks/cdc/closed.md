@@ -181,9 +181,27 @@ that caught this — remains and still passes; its counterexample against the
 unfixed design (`D_WAIT_REQ_CLR` with `r_ack_dst=1` and zero destination
 completions) is the mutation evidence.
 
-**Still owed:** a directed cocotb test. `val/cdc/test_cdc_4_phase_handshake.py`
-sweeps only clock-period combinations and sets no parameters, so `TIMEOUT_CYCLES`
-has no directed coverage either.
+**Directed test added 2026-09-16, closing the debt above.**
+`val/cdc/test_cdc_4_phase_handshake.py` now carries a `TIMEOUT_CONFIG` entry
+(`TIMEOUT_CYCLES=512`, 10 ns / 20 ns) alongside the clock-period sweep, which
+had set no RTL parameters at all -- so every other config elaborates
+`g_no_timeout`, where `src_timeout` is tied to `1'b0`. A second cocotb test,
+`cdc_4_phase_timeout_test`, stalls the destination and watches the source in
+BOTH builds: when the counter is compiled in it must assert within bounds and
+clear once the stall lifts; under the same stimulus with the counter compiled
+out it must stay low. A parameter's OFF state needs its own test, and this is
+it. Measured: asserted at exactly 512 clk_src cycles.
+
+**Mutation evidence:** forcing `src_timeout <= 1'b0` inside `g_timeout` turns
+the new test red -- "src_timeout never asserted within 1224 clk_src cycles" --
+with the `TIMEOUT_CYCLES=512` build confirmed from the log as the one that ran.
+The RTL was restored byte-identical, 0 markers left.
+
+The stall uses `GAXISlave.ready_policy = 'stall'`, not a large `ready_delay`:
+once phase 2 has latched a randomized delay it cannot be shortened, which would
+put the recovery half of the test out of reach. The slave's own docstring makes
+the same point -- randomized `ready_delay` "cannot do that: it is not
+controllable."
 
 ---
 

@@ -127,3 +127,25 @@ takes `read_channel=` (the port's `AXI5MasterRead`) and returns
 original data to `AXI5SlaveRead.send_read_return`. The generated bridge TB
 pairs the two slave BFMs for every AXI5 rw slave.
 
+
+## Deterministic backpressure is ready_policy, not ready_delay (2026-09-16)
+
+To hold a consumer's ready low ON PURPOSE -- proving a producer parks its
+payload, or stalling a DUT long enough to trip a timeout -- set
+`slave.ready_policy = 'stall'` at runtime and set it back to `'valid_first'` to
+release. A large randomized `ready_delay` looks equivalent and is not: phase 2
+latches one delay per transaction and nothing can shorten it once taken, so a
+test that must stall AND THEN RECOVER cannot get its recovery half back.
+`GAXISlave`'s own constructor comment says so -- randomized `ready_delay`
+"cannot do that: it is not controllable."
+
+The three policies: `'valid_first'` (default; the wait for valid is clocked, so
+ready lands one cycle AFTER valid even at `ready_delay=0`), `'always'` (ready
+asserted up front, so valid and ready coincide -- the honest model of a
+consumer with permanent space), `'stall'` (held low).
+
+Where it bit: the directed `src_timeout` test for `cdc_4_phase_handshake`. It
+stalls the destination past `TIMEOUT_CYCLES`, then must lift the stall and see
+the transfer complete and the flag clear. Built on a parked `ready_delay` the
+second half is unreachable, and the test would have quietly checked only that
+the timeout fires -- never that it clears.

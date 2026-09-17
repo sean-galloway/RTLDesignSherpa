@@ -21,6 +21,7 @@ test scrub rather than a design item.
 
 ## Open
 
-- **CDC-001** — scrub the tests for completeness. Part of the repo-wide test
-  scrub that was meant to ride along with the kimi review packets and was
-  dropped; run after qc/humanize, before coverage and formal are driven clean.
+Nothing open -- all five tasks are closed; see [closed.md](closed.md). (CDC-001
+was listed here as open after it had already closed, which is the stale-index
+pattern this area keeps hitting: the work lands, the closed page is updated,
+and the open page keeps advertising it.)
