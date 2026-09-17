@@ -9,8 +9,8 @@ Repo tooling, scripts, and process work.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 2 | in progress right now |
-| [open.md](open.md) | 13 | accepted, not started |
-| [closed.md](closed.md) | 6 | done (kept for history) |
+| [open.md](open.md) | 14 | accepted, not started |
+| [closed.md](closed.md) | 5 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 ## Active
