@@ -643,19 +643,31 @@ broke was a call site added over a DIFFERENT generator. When adding
 the file's main generator.
 
 NOT obtained: a FULL-level `stream_core` cell (`params17`, 4 channels x 3
-transfer sizes x mixed timing), and step 5's clean 861-cell FULL run. TEN
-simulator jobs were killed by the harness citing low memory, on a machine
-reporting ~175 GB available with ZERO kernel OOM records and no process above
-725 MB; several died before their build started. Concurrency, macro-vs-top,
-build parallelism, cell count, per-launch machine state, log volume (183 MB
-written at kill time, and `/tmp` is disk-backed), cgroup caps (`memory.max` is
-`max` at every level, `oom_kill 0`) and committed-memory pressure (flat across
-a run, PSI `avg10=0.00`) were each proposed and refuted by measurement -- and
-the "small cells survive" boundary was wrong too, since 81 s, 123 s and 201 s
-cells all passed afterwards. The tenth kill kept the pattern inverted: it died
-at 131 s having written 183 MB, while a LATER run wrote 552 MB and ran 448 s to
-completion. No mechanism was established. Whoever runs step 5 at FULL should
-expect it to be the binding constraint, not the conversion.
+transfer sizes x mixed timing), and step 5's clean 861-cell FULL run. ELEVEN
+simulator jobs were killed mid-run.
+
+*THE MECHANISM IS ESTABLISHED, and it is not memory on this machine.* Claude
+Code registers `process.on("memoryPressure", ...)` and reaps the longest-running
+BACKGROUND bash task, reporting "stopped because the system is running low on
+memory". It is event-driven off the Node runtime's own pressure signal: nothing
+in that path reads `MemFree` or `MemAvailable` (the one `os.freemem()` call site
+is telemetry, beside `load_avg_1m`). That is why every host-level measurement
+came back clean and every proposed mechanism was refuted -- ~175 GB available,
+ZERO kernel OOM records, `memory.max` unset at every cgroup level, `oom_kill 0`,
+PSI `avg10=0.00`, no process above 725 MB, and the log-volume theory inverted
+(a run writing 552 MB completed in 448 s; one writing 183 MB died at 131 s).
+Only BACKGROUND tasks are reaped -- foreground runs never died.
+
+It is NOT the `TBBase` safety monitor: that samples process RSS against
+`max_memory_mb` 2048 and RAISES `MemoryLimitExceeded`, which would fail a test
+with a traceback. Peak observed RSS across every stream log is 66.7 MB, 3 % of
+the ceiling, and the kills produced no failures at all. (`TB_MAX_MEMORY_MB`
+overrides it if a FULL run ever does approach 2 GB.)
+
+The reaper is gated by `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP`, which must
+be set on the CLI process BEFORE it starts -- exporting it inside the task does
+nothing, which the eleventh kill confirmed. Whoever runs step 5 at FULL should
+start the session with it set, or run in the foreground.
 
 *A green checker is not a passing suite.* During this conversion one misplaced
 line -- `self.log` called before `super().__init__()` in `StreamCoreTB` -- broke
