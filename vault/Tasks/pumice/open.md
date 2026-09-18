@@ -1411,8 +1411,10 @@ corruption was DQ collisions (bad beats 36/64 bits wrong = random data); a
 marginal eye yields few-bit errors. 039 measured 210 clean runs with this exact
 eye. This is margin-hardening, not a defect -- drop to P3.
 
-## PUMICE-045 — write batching breaks refresh_credit at bl16 on the board
-**Status:** open 2026-09-18  **Priority:** P2
+## PUMICE-045 — one unattributed mismatched beat, seen once in 1008 matrix cells
+**Status:** open 2026-09-18  **Priority:** P3
+**TITLE AND PREMISE CORRECTED 2026-09-18: it does NOT break refresh_credit, and
+it is not reproducible. See the repeat data below before acting on this.**
 
 Enabling `SCHED_WR_WM` (2/1) by default broke exactly one cell of the 14-config
 board matrix. Measured both ways on the same bitstream, same session:
@@ -1438,7 +1440,46 @@ changed on evidence from ONE config (open_page) and shipped to all fourteen.
 The matrix that caught it should have been run BEFORE the change, not after.
 Any future default flip on a config-selectable knob needs the full matrix first.
 
-**Where to start:** refresh_credit is the only refresh policy that banks credits
+### CORRECTION 2026-09-18 -- not reproducible, not attributable
+
+The original entry (written from ONE matrix) claimed batching breaks
+refresh_credit at bl16. Repeating the full 14-config matrix three more times
+with batching ON:
+
+    original matrix : 1 non-OK   refresh_credit/incremental_bl16
+    rep 1           : 0 non-OK   (252/252, zero mismatched beats)
+    rep 2           : 0 non-OK   (252/252, zero mismatched beats)
+    rep 3           : 0 non-OK   (252/252, zero mismatched beats)
+    ------------------------------------------------------------
+    batching ON     : 1 mismatched beat in 1008 cells
+
+It did not recur in the 756 cells after it. The failure signature was ONE beat
+of 64000 transactions (8.2 MB), with wr/rd bandwidth, utilisation and latency
+IDENTICAL to the passing run to 3 significant figures -- batching perturbed the
+traffic by 10 and 35 cycles out of ~19.5M. Nothing about that says "refresh
+policy".
+
+**So the premise is withdrawn.** One event in 1008 cells attributes to neither
+refresh_credit nor batching. The batching-OFF comparison is a SINGLE 252-cell
+matrix (0 non-OK), which at this rate is not evidence of a difference either --
+matched repeat counts would be needed to claim batching is implicated at all.
+
+**Process note, and the actual lesson of this task:** the default was flipped on
+one config's evidence, then REVERTED on one matrix's evidence. Both directions
+were decided at n=1. The repeats should have come first in both cases.
+
+**What is still worth doing** (independent of this event):
+`refresh_ctrl.sv` has no headroom between demanding a refresh and losing one.
+While busy, `w_req = (r_pending > w_post_eff)` with post_eff clamped to 7, so
+the request asserts at pending == 8 -- which is exactly MAX_PENDING, where
+`else if (pend_n < MAX_PENDING)` stops incrementing and further tREFI ticks are
+silently dropped ("saturate (data retention violation looming)"). The threshold
+to START asking and the threshold to BEGIN LOSING refreshes are the same number,
+so any grant latency past that point costs real refreshes. Worth fixing on its
+own merits; it is NOT established as the cause of anything above.
+
+**Original starting hypothesis, kept for reference but NOT supported:**
+refresh_credit is the only refresh policy that banks credits
 rather than pacing refreshes at a fixed interval. A long write drain delays the
 refresh the credit scheme is counting on, so the suspect is drain length vs
 credit accumulation -- which also explains why only the LONGEST burst fails.
