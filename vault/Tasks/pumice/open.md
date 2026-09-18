@@ -1175,8 +1175,11 @@ was never the cause.
     tap 8 / eye 17**, with `leveling not clean: final verify at centred failed`
     on every run, reproducibly. Not causing the corruption (see above) but
     unexplained and a real deviation from [[project_pumice_board_bringup_tuple]].
- 3. **PUMICE-043** (the 1-beat-in-1/8 residue) should be re-tested: it may have
-    been this same seam all along, in which case it closes with this.
+ 3. ~~**PUMICE-043** should be re-tested~~ -- DONE 2026-09-17, and it WAS this
+    same seam. Retested at its exact point (hi=8/lo=4, gap 15) with 30 reps:
+    **0/30 failing** (1.8% chance of a false clean at its 12.5% rate).
+    PUMICE-043 CLOSED. Its drain-depth dependence was the number of direction
+    crossings, not accumulation over the run.
  4. `pumice_cmd_history_checker` still watches the ARBITER OUTPUT, which is why
     it reported zero tRTW violations throughout while the wire was violating it
     four times per capture. Retarget it at the DFI wire.
@@ -1244,25 +1247,6 @@ board's geometry, and "the char sim does not reproduce PUMICE-037" was recorded
 as a property of the DEFECT when it was a property of the TEST.
 
 Marked xfail(strict) so it converts back to a real test the moment BL4 works.
-
-## PUMICE-043 — batching residue at the aggressive watermark
-**Status:** FOLDED INTO PUMICE-039 2026-09-16  **Priority:** P2
-
-With PUMICE-042 fixed, write batching is clean at hi=2/lo=1 (0 mismatched
-across 8 reps at gap 15). At **hi=8/lo=4** one run in eight returns a single
-mismatched beat: `[0,0,0,1,0,0,0,0]`.
-
-NOT dismissed as noise. A single beat is exactly what PUMICE-037's residue
-looked like before it turned out to be failing 8 of 10 reps, and this repo's
-standing rule is that intermittent means a real bug.
-
-Low practical urgency: hi=2/lo=1 is both cleaner AND faster (+29.9% vs +18.4%
-at gap 12), so nothing needs the aggressive setting. It matters as evidence
-that something still depends on drain depth -- a deeper drain means a longer
-uninterrupted write run, so the suspect is whatever accumulates over that run
-rather than the turnaround itself, which 042 now covers.
-
-Repeat every point: a single pass cannot distinguish 0% from 12%.
 
 ## PUMICE-044 — read eye is 10 taps because the sampling phase is a compile-time constant
 **Status:** open 2026-09-17  **Priority:** P2

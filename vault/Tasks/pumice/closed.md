@@ -2,6 +2,52 @@
 
 # pumice — Closed (done)
 
+## PUMICE-043 — batching residue at the aggressive watermark
+**Status:** CLOSED 2026-09-17 (508f98200)  **Priority:** P2
+
+With PUMICE-042 fixed, write batching is clean at hi=2/lo=1 (0 mismatched
+across 8 reps at gap 15). At **hi=8/lo=4** one run in eight returns a single
+mismatched beat: `[0,0,0,1,0,0,0,0]`.
+
+NOT dismissed as noise. A single beat is exactly what PUMICE-037's residue
+looked like before it turned out to be failing 8 of 10 reps, and this repo's
+standing rule is that intermittent means a real bug.
+
+Low practical urgency: hi=2/lo=1 is both cleaner AND faster (+29.9% vs +18.4%
+at gap 12), so nothing needs the aggressive setting. It matters as evidence
+that something still depends on drain depth -- a deeper drain means a longer
+uninterrupted write run, so the suspect is whatever accumulates over that run
+rather than the turnaround itself, which 042 now covers.
+
+Repeat every point: a single pass cannot distinguish 0% from 12%.
+
+### CLOSED 2026-09-17 -- it was the one-cycle turnaround seam
+
+Retested at the EXACT configuration (hi=8/lo=4, gap 15, 1+1, txn=2000) with 30
+reps instead of 8:
+
+    hi=0 (control)   0/30 failing   209.3 MB/s
+    hi=2/lo=1        0/30 failing   262.8 MB/s
+    hi=8/lo=4        0/30 failing   257.4 MB/s   <- the PUMICE-043 point
+
+At the observed 12.5% rate (1 beat in 1/8) the chance of 30 clean reps by luck
+is **1.8%**, so this is evidence rather than a short-run fluke. The task's own
+rule -- "repeat every point: a single pass cannot distinguish 0% from 12%" --
+cuts both ways, and is why 4 reps (59% chance of a false clean) would not have
+settled it.
+
+**Cause: the one-cycle seam in the arbiter's turnaround guard** (PUMICE-039,
+fixed 508f98200). `r_rdfire0` records a fire the cycle AFTER it happens while
+the pick runs the cycle BEFORE its own fire, so a WRITE picked in the very cycle
+a READ fired out issued one cycle behind it -- a gap-1 RD->WR against tRTW=20.
+
+That explains the drain-depth dependence this task recorded as its key clue: a
+deeper drain (hi=8) means more write-run boundaries, hence more chances to hit
+the seam. It is also why hi=8 was consistently worse than hi=2 -- originally,
+and again mid-fix (5/30 vs 3/30 on 2026-09-17). The suspect named here was
+"whatever accumulates over that run"; the real answer was the number of
+direction crossings, not accumulation.
+
 ## PUMICE-040 — read alignment wastes 5 cycles of latency
 **Status:** CLOSED 2026-09-16 (6ba9dba62)  **Priority:** P2
 
