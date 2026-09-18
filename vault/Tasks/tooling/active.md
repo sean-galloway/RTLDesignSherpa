@@ -47,26 +47,49 @@ originals → verify block count + links against the original.
 
 ## TOOL-008: Redo the Makefiles from scratch
 **Priority:** P1
-**Status:** 🟡 In Progress (2026-07-23) — proof of concept built, **awaiting
-Sean's full validation run before anything is pushed or swapped in**
+**Status:** 🟡 In Progress — implementation LANDED and validated by real
+regressions (2026-09-18). R1-R4 all hold. Held open for Sean's sign-off and
+for the two areas still outside the sweep; see "Where it actually stands".
 **Owner:** Sean (spec + validation) / Claude (implementation)
 
-**Proof of concept, 2026-07-23 — not yet validated by a real regression:**
-- `make/tests.mk` — the master. ~180 lines carrying all logic.
-- `val/amba/Makefile.poc` — the four-line leaf, deliberately named `.poc` so the
-  existing 2074-line `val/amba/Makefile` keeps working untouched. Run it with
-  `make -f Makefile.poc <target>`.
+**Where it actually stands (2026-09-18).** The proof of concept this entry used
+to describe is gone: there is no `Makefile.poc` anywhere, and `val/amba/Makefile`
+is the 5-line leaf (the 2074-line original is retired). `make/tests.mk` is live
+at 312 lines and **26 Makefiles** include it across `val/`, `projects/components/`,
+`projects/fpga-systems/` and `projects/asic-trials/`.
 
-Structurally verified: worker count derives to **7** on an 8-core/15 GB box
-(was a hardcoded 48); **119** test roots discovered by glob; **2160** targets
-generated (120 selectors x 3 levels x 6 variants); serial emits no `-n`,
-parallel emits `-n 7 --dist=loadgroup`, waves prepends `WAVES=1`.
+| requirement | state |
+|---|---|
+| R1 derive the thread count | DONE — `JOBS = min(nproc, MemGB/GB_PER_WORKER)`; derived **48** on a 48-core/188 GB host, **7** on the 8-core box |
+| R2 one target grammar | DONE — `run-<all\|testglob>-<gate\|func\|full>[-serial\|-parallel][-waves]`, generated not enumerated |
+| R3 discover by glob | DONE — `TESTS := $(sort $(wildcard test_*.py))`; a new test is runnable the moment it lands |
+| R4 one master, 4-line leaves | DONE — leaves are 4-5 lines; `val/Makefile`, `projects/components/Makefile` and the per-component dispatchers forward and carry no test logic |
 
-**NOT yet verified: a green end-to-end test run through the new path.** Nothing
-here may be swapped in, and TOOL-008 may not close, until Sean has run the full
-suite through it. Structural verification is not a passing regression — see
-[[running-regressions]] on how a run gets more optimistic than the code
-deserves.
+**The blocker this entry named is satisfied — by runs, not by structure.**
+A whole-area FULL regression went through `clean-all` + `run-all-full-parallel`
+on 2026-09-18: 861 cells, `fub` 123 passed, `macro` 680 passed + 3 skipped,
+`top` 52 passed + 3 xfailed. And `make test-val-common-gate` — a generated
+target — ran 77 passed in 37 s through the delegated path.
+
+**The last R1 hole was the generated targets themselves** (c74e22c76).
+`test_targets.mk` hand-built `cd <dir> && pytest ... -n 48 test_*.py` for every
+environment, re-implementing tests.mk and pinning the worker count. The
+generator now emits `$(MAKE) -C <dir> run-all-<level>-<mode>`: 113 target names
+unchanged, hardcoded `-n` 59 -> 0, raw `cd` recipes 93 -> 0, delegations 8 -> 101.
+
+**What is left, and why it is not closed:**
+1. Sean's sign-off — the Done-when is his validation, not a session's.
+2. Two areas outside this sweep: `Genesys2/stream/rtl/bridges/dv/tests/Makefile`
+   (3 hardcoded `-n`, stream is owned elsewhere) and the pumice `dv/tests`
+   Makefiles (skipped by standing instruction).
+3. A decision c74e22c76 forces: delegation stopped reading `coverage_workers`
+   (24) and `coverage_reruns` (5/2), so coverage now runs at the derived width
+   with 3 reruns. The intent was memory headroom during instrumented runs.
+   `GB_PER_WORKER=4` would restore it host-aware rather than pinning 24.
+   Seven other toml keys (`pytest_flags`, `test_pattern`, `reruns`,
+   `reruns_delay`, `coverage_extra_env`, ...) are now read by nothing; their
+   values are reproduced by tests.mk, which is why delegating was safe, but
+   unread config rots and should be deleted once (3) is decided.
 
 **Worker-count rule as implemented:** `JOBS = min(nproc, MemTotalGB /
 GB_PER_WORKER)`, `GB_PER_WORKER ?= 2`, both overridable
