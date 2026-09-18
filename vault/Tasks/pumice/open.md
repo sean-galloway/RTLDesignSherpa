@@ -1181,6 +1181,54 @@ was never the cause.
     it reported zero tRTW violations throughout while the wire was violating it
     four times per capture. Retarget it at the DFI wire.
 
+### 2026-09-17 BREADTH: 0 failures in 120 runs across the configuration space
+
+The 90/30-clean result above was ONE operating point (gap 4, 1+1). PUMICE-037's
+history is exactly a fix that held at the tested points and failed elsewhere, so
+the fix was re-measured across 5 gaps x 2 generator counts x 3 watermarks,
+4 reps = 120 runs:
+
+    gens  gap |      off     hi=2     hi=8 |   gain2   gain8 | fails
+       1    0 |    550.3    550.5    550.7 |   +0.0%   +0.1% | 0/12
+       1    4 |    400.6    448.3    448.2 |  +11.9%  +11.9% | 0/12
+       1    8 |    300.7    335.1    379.9 |  +11.4%  +26.3% | 0/12
+       1   12 |    240.7    314.1    286.8 |  +30.5%  +19.2% | 0/12
+       1   15 |    209.3    263.0    258.0 |  +25.7%  +23.3% | 0/12
+       2  0-15|    160.7    163.0    163.0 |   +1.4%   +1.4% | 0/12 each
+
+    TOTAL: 0 failing runs out of 120   (210 clean runs counting the 90 above)
+
+Includes gap >= 8, which is PUMICE-037's regime, and 2+2, a different
+arbitration pattern (more same-direction work queued, fewer turnaround
+crossings).
+
+**The performance characterisation is UNCHANGED from the pre-fix measurements,**
+which is the check that matters: the fixes removed corruption without perturbing
+the scheduler's throughput behaviour.
+  * gap 12, 1+1 = **+30.5%**, against the "+30.6% at 1+1" recorded earlier in
+    this task from the original (corrupting) measurements. Same number, no
+    corruption.
+  * 2+2 flat at ~163 MB/s at EVERY gap, against the recorded "~0% at
+    2+2/3+3/4+4, bus plateaus at ~160 MB/s" -- multiple generators already keep
+    same-direction work queued, so there is no turnaround left to amortise.
+  * gap 0 shows no gain, the expected control: no read gap, nothing to batch.
+
+**PUMICE-039's data corruption is CLOSED on evidence.** What keeps the task open
+is the +16 ps timing margin (item 1 above), not correctness.
+
+**Refactor note (for item 1).** The obvious approach -- mirror `r_tccd_fwd` and
+load the turnaround counter at SELECTION -- does not transfer directly: tCCD is
+direction-AGNOSTIC and loads the same value whichever column wins, whereas a
+turnaround counter must know whether a read or a write was selected, and at that
+stage BOTH can be candidates with the winner decided downstream. Loading on a
+guess is wrong; loading conservatively (block both directions for max(tRTW,tWTR))
+would throttle reads behind tRTW=20 and destroy read bandwidth. Two workable
+options: (a) replicate the arbitration tie-break at selection, or (b) hold the
+arbiter's OUTPUT REGISTER when the registered command would violate turnaround --
+which keeps the term out of the pick cone entirely and is safe here precisely
+because the DFI path below is constant-latency and cannot compress what it
+receives. (b) is simpler and should be tried first.
+
 ## PUMICE-041 — BL4 read path does not work in the char sim
 **Status:** open 2026-09-15  **Priority:** P1
 
