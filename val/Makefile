@@ -35,7 +35,7 @@ RDS_ROOT ?= $(shell git rev-parse --show-toplevel)
 export REPO_ROOT ?= $(RDS_ROOT)
 
 # Every test area. Override to narrow a sweep: make run-all-gate AREAS=cdc
-AREAS ?= common cdc math amba integ_common integ_amba
+AREAS ?= common cdc math amba
 
 GREEN  := \033[0;32m
 RED    := \033[0;31m

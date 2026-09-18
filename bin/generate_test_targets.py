@@ -65,79 +65,32 @@ def merge_defaults(env: dict, defaults: dict) -> dict:
     return merged
 
 
-def gen_pytest_cmd(cfg: dict, level: str, *, parallel: bool,
-                   waves: bool, coverage: bool) -> str:
-    """Build a pytest invocation string."""
-    parts = []
-
-    # Environment variables
-    env_vars = []
-
-    # REG_LEVEL / TEST_LEVEL
-    rl_var = cfg.get("reg_level_var", "REG_LEVEL")
-    rl_values = cfg.get("reg_level_values", {})
-    rl_value = rl_values.get(level, level.upper())
-    env_vars.append(f"{rl_var}={rl_value}")
-
-    if waves:
-        env_vars.append("WAVES=1")
-
-    if coverage:
-        env_vars.append("COVERAGE=1")
-        extra = cfg.get("coverage_extra_env", {})
-        for k, v in extra.items():
-            env_vars.append(f"{k}={v}")
-
-    parts.extend(env_vars)
-
-    # pytest itself
-    parts.append("$(PYTEST)")
-
-    # Flags
-    flags = cfg.get("pytest_flags", "-v --tb=short")
-    parts.append(flags)
-
-    # Parallel
-    if parallel:
-        workers = cfg.get("parallel_workers", 48)
-        if coverage:
-            workers = cfg.get("coverage_workers", workers)
-        if workers and workers > 0:
-            reruns = cfg.get("coverage_reruns" if coverage else "reruns", 3)
-            delay = cfg.get("coverage_reruns_delay" if coverage else "reruns_delay", 1)
-            parts.append(f"-n {workers}")
-            if reruns > 0:
-                parts.append(f"--reruns {reruns} --reruns-delay {delay}")
-    else:
-        # Serial — still add reruns if configured
-        reruns = cfg.get("reruns", 3)
-        delay = cfg.get("reruns_delay", 1)
-        if reruns > 0:
-            parts.append(f"--reruns {reruns} --reruns-delay {delay}")
-
-    # Test pattern
-    pattern = cfg.get("test_pattern", "test_*.py")
-    parts.append(pattern)
-
-    return " ".join(parts)
-
-
 def gen_environment_targets(name: str, cfg: dict) -> list[str]:
     """Generate all Makefile targets for one environment."""
     lines = []
     directory = cfg["directory"]
     description = cfg.get("description", name)
-    can_parallel = cfg.get("parallel_workers", 48) > 0
+    can_parallel = cfg.get("parallel_workers", 1) > 0
 
     lines.append(f"# --- {name}: {description} ---")
     lines.append("")
 
-    # Helper: emit a target that cd's into the directory and runs pytest
+    # Helper: emit a target that DELEGATES to the area's own Makefile.
+    #
+    # The recipe used to be a hand-built `cd <dir> && pytest ... -n 48 test_*.py`.
+    # That re-implemented what make/tests.mk already does, and baked in a worker
+    # count (TOOL-008 R1: "every Makefile figures out its own thread count") --
+    # on a small host `-n 48` oversubscribes until the box dies. Delegating means
+    # the area Makefile supplies JOBS = min(nproc, MemGB / GB_PER_WORKER), the
+    # test glob, the reruns and the flags, so there is exactly one implementation.
     def emit(target: str, level: str, *, parallel: bool, waves: bool = False,
              coverage: bool = False):
-        cmd = gen_pytest_cmd(cfg, level, parallel=parallel, waves=waves,
-                             coverage=coverage)
         mode = "parallel" if parallel else "serial"
+        make_target = f"run-all-{level}-{mode}"
+        if waves:
+            make_target += "-waves"
+        # COVERAGE is the universal flag every area gates on (make/tests.mk).
+        prefix = "COVERAGE=1 " if coverage else ""
         extra = ""
         if waves:
             extra = " + waves"
@@ -148,7 +101,7 @@ def gen_environment_targets(name: str, cfg: dict) -> list[str]:
         lines.append(f".PHONY: {target}")
         lines.append(f"{target}:")
         lines.append(f'\t@echo "=== {label} ==="')
-        lines.append(f"\t@cd {directory} && {cmd}")
+        lines.append(f"\t@{prefix}$(MAKE) -C {directory} {make_target}")
         lines.append("")
 
     # ---- Default: test-{name} = FUNC parallel ----
@@ -265,8 +218,8 @@ def gen_help(envs: dict[str, dict]) -> list[str]:
 
     for name, cfg in envs.items():
         desc = cfg.get("description", "")
-        workers = cfg.get("parallel_workers", 48)
-        mode = f"{workers}w" if workers > 0 else "serial"
+        # Worker count is derived per host by make/tests.mk, not known here.
+        mode = "parallel" if cfg.get("parallel_workers", 1) > 0 else "serial"
         lines.append(f'\t@echo "  make test-{name:<28s} {desc} ({mode})"')
 
     lines.append('\t@echo ""')
@@ -359,8 +312,8 @@ def main():
         print("-" * 95)
         for name, env_cfg in envs.items():
             cfg = merge_defaults(env_cfg, defaults)
-            workers = cfg.get("parallel_workers", 48)
-            w_str = str(workers) if workers > 0 else "serial"
+            # Worker count is derived per host by make/tests.mk, not known here.
+            w_str = "parallel" if cfg.get("parallel_workers", 1) > 0 else "serial"
             cov = "yes" if cfg.get("coverage", False) else "no"
             print(f"{name:<25s} {cfg['directory']:<50s} {w_str:>7s}  {cov}")
         return
