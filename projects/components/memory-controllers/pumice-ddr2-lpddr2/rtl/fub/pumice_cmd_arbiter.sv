@@ -942,9 +942,21 @@ module pumice_cmd_arbiter
     // command actually leaves. Squashing the class is safe: it costs a bubble
     // and the column re-arms once the turnaround timer clears (same argument as
     // the ACT gate). Cheap: two single-bit rank-global terms, no deep match.
+    //
+    // ONE-CYCLE BLIND SPOT (board round 2). The guards above are not sufficient
+    // on their own: r_rdfire0 loads from `w_fire_out && r_do_rd`, i.e. the cycle
+    // AFTER a read leaves the output register, while this pick is evaluated the
+    // cycle BEFORE its own command leaves. So a WRITE picked in the very cycle a
+    // READ fires out sees r_rdfire0 still 0 and issues one cycle behind it --
+    // exactly the surviving `RD@2027 -> WR@2028 gap=1`. Adding the in-flight
+    // fire closes the seam between "firing now" and "fired, recorded".
+    // w_fire_out is r_pick_valid && cmd_ready_i -- registers and an input, never
+    // the combinational pick, so this cannot form a loop.
     logic w_rd_turn_live, w_wr_turn_live;
-    assign w_rd_turn_live = twtr_ok_i && !w_rd_turn_block;   // RD after a WR
-    assign w_wr_turn_live = trtw_ok_i && !w_wr_turn_block;   // WR after a RD
+    assign w_rd_turn_live = twtr_ok_i && !w_rd_turn_block
+                         && !(w_fire_out && r_do_wr);        // RD after a WR
+    assign w_wr_turn_live = trtw_ok_i && !w_wr_turn_block
+                         && !(w_fire_out && r_do_rd);        // WR after a RD
     always_comb begin
         {w_sel_rd_col_f, w_sel_rd_col_s} =
             arg_sel(r_col_sel, r_rd_col_q & rd_sch_valid_i, r_rd_older, r_rd_pop);

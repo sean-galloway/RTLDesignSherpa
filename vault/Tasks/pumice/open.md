@@ -1105,6 +1105,82 @@ to the pre-existing ~2/10. Batching now yields +11.9% bus.
     counter could be loaded AND checked at the selection stage, making spacing
     correct by construction and keeping the term out of the final-pick cone.
 
+### 2026-09-17 ROUND 3: 90/90 CLEAN. Batching is correct and ON by merit.
+
+The surviving gap-1 tRTW violation had a precise cause -- a ONE-CYCLE SEAM
+between the two halves of the guard:
+
+    r_rdfire0 <= w_fire_out && r_do_rd;   // records a fire the cycle AFTER it
+
+but the pick that selects the next command is evaluated the cycle BEFORE its own
+command fires. So a WRITE picked in the very cycle a READ fires out sees
+r_rdfire0 still 0, and issues one cycle behind it. Neither half is wrong; they
+simply do not overlap. Closed by folding the in-flight fire into the live gate:
+
+    assign w_wr_turn_live = trtw_ok_i && !w_wr_turn_block
+                         && !(w_fire_out && r_do_rd);
+
+(w_fire_out is r_pick_valid && cmd_ready_i -- registers and an input, never the
+combinational pick, so it cannot form a loop. Verilator confirms: no UNOPTFLAT.)
+
+**Board, 30 reps x 3 watermarks x 4000 txn, gap 4, 1+1 -- 90 runs:**
+
+    hi=0 (off)   0/30 failing   400.3 MB/s   <- control
+    hi=2/lo=1    0/30 failing   449.3 MB/s   +12.2%
+    hi=8/lo=4    0/30 failing   449.3 MB/s   +12.2%
+
+Zero mismatched beats anywhere. **PUMICE-039's corruption is FIXED**, and write
+batching -- the feature that could never be enabled -- now runs clean and pays
++12.2% bus bandwidth.
+
+**The whole arc, every step measured at the wire, not inferred:**
+
+    stage                  tRFC viol   idle-bus beats   tRTW viol   failures
+    original                       1              180           -   2/8, 1/8
+    + DFI constant-latency         0                0           4   10/10
+    + live turnaround gate         0                0           1   3/30, 5/30
+    + in-flight fire in gate       0                0           0   0/30 x3
+
+Three distinct defects, each real, each pre-existing:
+ 1. tRFC: the DFI layer's own pacer stalled the in-order FIFO, compressing
+    REF -> ACT from 15 cycles to 3. The DRAM discarded the ACT, the bank never
+    opened, 180 consecutive reads captured an undriven DQ bus.
+ 2. tRTW classify-time staleness: the column masks gate ~3 pick-pipeline cycles
+    before issue, so a write selected while no read had recently fired issues
+    INTO a read burst that started meanwhile.
+ 3. tRTW one-cycle seam: as above.
+
+(2) and (3) were latent for as long as the DFI pacer existed -- it masked them.
+Sean's architecture call ("the dfi layer should be super simple, all delays come
+from the scheduler") is what made them observable. A masked bug is strictly
+worse than an open one: it moves under you the moment anything downstream
+changes, which is exactly what PUMICE-042's tRTW=20 did.
+
+**Corrected along the way, for the record:** the residue was NOT the read eye.
+The bad beats carry a Hamming distance of 36/64 against expected -- random data
+from a DQ collision, not a marginal capture. The eye anomaly below is real but
+was never the cause.
+
+### STILL OPEN after the fix
+
+ 1. **Timing margin is +16 ps** (post-phys-opt WNS=+0.016, TNS=0, hold met; route
+    was -0.010 before phys-opt recovered it). It closes, but there is no road
+    left: +294 -> +25 -> +16 ps across the two arbiter edits, because the live
+    gate lands in the final-pick cone, the known critical path. **Refactor
+    needed before this is shippable:** now that the DFI path is constant-latency,
+    the turnaround counter can be loaded AND checked at the SELECTION stage,
+    making the spacing correct by construction and keeping these terms out of
+    the final-pick cone entirely.
+ 2. **Read eye is 10 taps (0..9, tap 4) against the recorded bring-up tuple of
+    tap 8 / eye 17**, with `leveling not clean: final verify at centred failed`
+    on every run, reproducibly. Not causing the corruption (see above) but
+    unexplained and a real deviation from [[project_pumice_board_bringup_tuple]].
+ 3. **PUMICE-043** (the 1-beat-in-1/8 residue) should be re-tested: it may have
+    been this same seam all along, in which case it closes with this.
+ 4. `pumice_cmd_history_checker` still watches the ARBITER OUTPUT, which is why
+    it reported zero tRTW violations throughout while the wire was violating it
+    four times per capture. Retarget it at the DFI wire.
+
 ## PUMICE-041 — BL4 read path does not work in the char sim
 **Status:** open 2026-09-15  **Priority:** P1
 
