@@ -842,22 +842,30 @@ request. All hw-readable so they drive the controller core.</p>
 - Base Offset: 0x6C
 - Size: 0x4
 
-<p>Write-batching drain hysteresis. 0/0 (default) disables it.</p>
-<p>DEFAULT REVERTED TO OFF 2026-09-18 after being briefly enabled
-at 2/1. The feature is CORRECT -- PUMICE-039's three defects are
-fixed and it measures clean over 210 board runs at open_page,
-worth +11.9%..+30.5% -- but 'on by default' was validated on ONE
-config and broke another. Full 14-config board matrix:</p>
-<pre><code>batching ON  (2/1) : 251/252, refresh_credit/incremental_bl16 FAILS
-batching OFF (0/0) : 252/252, zero non-OK cells
+<p>Write-batching drain hysteresis. 0/0 disables it; default
+2/1 = ON.</p>
+<p>Amortises tWTR/tRTW over a drain instead of paying it per
+direction switch. Worth +11.9%..+30.5% bus on the Nexys A7 at
+1+1 across gaps 4..15, and never below +0% -- at gap 0 and with
+2+2 generators there is no turnaround left to amortise, so it is
+a no-op there, not a cost.</p>
+<p>Shipped disabled until 2026-09-18 because it corrupted. Three
+defects, all fixed (PUMICE-039): tRFC compression from DFI-side
+pacing, tRTW classify-time staleness, and a one-cycle turnaround
+seam. Evidence for this default:</p>
+<pre><code>210 concurrent runs at open_page      0 failures
+4 x full 14-config matrix (1008 cells) 1 mismatched beat
 </code></pre>
-<p>So it stays OPT-IN until that interaction is understood; see
-PUMICE-045. Enable per-run with SCHED_WR_WM or TEST_WR_HIGH_WM.</p>
+<p>That one beat was seen once and never reproduced in the 756
+cells after it; it is unattributed (PUMICE-045), NOT a known
+batching defect. 2/1 over 8/4 because it wins at gaps 12 and 15,
+ties at 4, and a shallower drain parks reads behind a shorter
+write run. Still a runtime CSR: this is only the reset value.</p>
 
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|
-| 7:0 |wr_high_wm|  rw  | 0x0 |  — |
-| 15:8| wr_low_wm|  rw  | 0x0 |  — |
+| 7:0 |wr_high_wm|  rw  | 0x2 |  — |
+| 15:8| wr_low_wm|  rw  | 0x1 |  — |
 |31:16|   RSVD   |   r  | 0x0 |  — |
 
 #### wr_high_wm field
