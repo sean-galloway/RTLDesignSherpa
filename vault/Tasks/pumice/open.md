@@ -742,7 +742,10 @@ box. (Reason per Sean — workstation is where pumice is pushed from.)
 Gated behind the RTL area completing (Tasks/INDEX.md sequencing).
 
 ## PUMICE-039 — batch same-direction columns to amortise the R/W turnaround
-**Status:** open 2026-09-15  **Priority:** P2  **RE-SCOPED 2026-09-16: batching STALLS, stays disabled**
+**Status:** DEFERRED 2026-09-17  **Priority:** P3
+**Corruption FIXED and proven (210 clean board runs). Deferred on timing only --
+and that timing is ACCEPTED: Sean 2026-09-17, "this is designed for aggressive
+timing." Do NOT re-raise the +16 ps margin as a blocker.**
 
 2026-09-16: the mechanism ALREADY EXISTS -- `SCHED_WR_WM` in
 pumice_cmd_arbiter.sv, shipped with high_wm=0 (disabled) and, until
@@ -1163,14 +1166,14 @@ was never the cause.
 
 ### STILL OPEN after the fix
 
- 1. **Timing margin is +16 ps** (post-phys-opt WNS=+0.016, TNS=0, hold met; route
-    was -0.010 before phys-opt recovered it). It closes, but there is no road
-    left: +294 -> +25 -> +16 ps across the two arbiter edits, because the live
-    gate lands in the final-pick cone, the known critical path. **Refactor
-    needed before this is shippable:** now that the DFI path is constant-latency,
-    the turnaround counter can be loaded AND checked at the SELECTION stage,
-    making the spacing correct by construction and keeping these terms out of
-    the final-pick cone entirely.
+ 1. ~~**Timing margin is +16 ps** -- refactor needed~~ **ACCEPTED, NOT A
+    BLOCKER.** Sean 2026-09-17: *"this is designed for aggressive timing."*
+    pumice is a research MC deliberately pushed hard (see
+    [[project_pumice_at_rest]]), and a thin positive margin is the intended
+    operating point, not a defect. Post-phys-opt WNS=+0.016, TNS=0, hold met --
+    it CLOSES, which is the bar. The selection-stage / output-register refactor
+    is recorded below for whoever wants the slack back, but nothing is waiting
+    on it and it should not be treated as outstanding work.
  2. **Read eye is 10 taps (0..9, tap 4) against the recorded bring-up tuple of
     tap 8 / eye 17**, with `leveling not clean: final verify at centred failed`
     on every run, reproducibly. Not causing the corruption (see above) but
