@@ -320,6 +320,10 @@ async def cocotb_test_stream_top_basic(dut):
                 next_ptr=next_desc_addr,
                 priority=0,
                 last=is_last,
+                channel_id=channel,  # MUST match the kicked channel: the
+                # engine-vs-descriptor scoreboard keys on it, and the default
+                # (0) files every channel's descriptors under ch0, so a
+                # multi-channel run sees 2x the expected beats on ch0.
                 interrupt=is_last  # Generate interrupt on last descriptor
             )
 

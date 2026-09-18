@@ -602,7 +602,7 @@ read written as `test_level = os.environ.get('TEST_LEVEL', 'gate')` inside a
 cocotb body reports as `depth:pinned-grid(gate)` -- rename the local and the
 finding clears.
 
-*Step 4 is COMPLETE. Step 5 was run at GATE for the whole area, not at FULL.*
+*Step 4 is COMPLETE. Step 5 has now been run at FULL for the whole area.*
 All nine edited files have been executed since editing, one cell at a time:
 
 | file | runtime evidence |
@@ -620,9 +620,23 @@ All nine edited files have been executed since editing, one cell at a time:
 Depth genuinely VARIES, not merely labels: `regs` performs 0 / 160 / 400
 write/readback checks and `mon_cfg` runs one / two / three sections by level.
 
-*A GATE-level whole-area run stands in for step 5* (190 cells, per directory,
-serial): `fub` 56 passed in 557 s, `macro` 118 passed + 3 skipped in 448 s,
-`top` 12 passed + 1 xfailed in 863 s -- 186 passed, 3 skipped, 1 xfailed.
+*Step 5 is DONE at FULL* (861 cells, via the area Makefile's `clean-all` then
+`run-all-full-parallel`, JOBS=48, areas in series): `fub` 123 passed in 60 s,
+`macro` 680 passed + 3 skipped in 1450 s, `top` 52 passed + 3 xfailed in
+906 s. A GATE run over the same area (190 cells, serial) preceded it:
+56 / 118+3 / 12+1.
+
+*The FULL run's only failures were a PRE-EXISTING TEST DEFECT that this
+conversion exposed*, which is the strongest argument for having done it.
+`test_stream_top_basic` omitted `channel_id` when writing descriptors, so
+inside `for channel in test_channels:` every channel's descriptors were filed
+under `ch0` while the cycle side was attributed correctly by AXI ID. The
+engine-vs-descriptor scoreboard then compared two channels' descriptors
+against one channel's beats -- exactly 2x, only on the multi-channel cells,
+deterministic through three reruns. Latent since the scoreboard landed
+(e28cf1ab4, 2026-07-29) because the pinned generator never emitted a
+multi-channel config. Filed and fixed as STREAM TASK-081; `top` then ran
+clean at FULL. Not RTL, and not the conversion.
 
 *The first `macro` attempt reported 100 failed of 121, and the cause was THIS
 conversion.* The fourth `level_env(params['test_level'])` call site added by
@@ -642,9 +656,9 @@ broke was a call site added over a DIFFERENT generator. When adding
 `level_env(params[...])`, check the parametrize source feeding THAT site, not
 the file's main generator.
 
-NOT obtained: a FULL-level `stream_core` cell (`params17`, 4 channels x 3
-transfer sizes x mixed timing), and step 5's clean 861-cell FULL run. ELEVEN
-simulator jobs were killed mid-run.
+Both previously-missing items are now obtained: the FULL-level `stream_core`
+cells ran as part of macro's 683, and step 5's 861-cell FULL run is done.
+ELEVEN simulator jobs were killed mid-run before the mechanism was found.
 
 *THE MECHANISM IS ESTABLISHED, and it is not memory on this machine.* Claude
 Code registers `process.on("memoryPressure", ...)` and reaps the longest-running

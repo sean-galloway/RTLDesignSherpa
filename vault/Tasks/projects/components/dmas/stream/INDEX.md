@@ -5,7 +5,7 @@ summary: Task rollup for the STREAM DMA component (projects/components/dmas/stre
 
 # STREAM tasks
 
-**Next ID: TASK-081** — never recycle a number, even when its task closed.
+**Next ID: TASK-082** — never recycle a number, even when its task closed.
 
 Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "STREAM TASK-080" when writing outside this file.
 
@@ -36,6 +36,11 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
   write-only KICK_ENABLE bit per channel.
 
 ## Closed (done)
+- **TASK-081** (Medium) — `test_stream_top_basic` omitted `channel_id` when writing
+  descriptors, filing every channel's under `ch0`; the engine-vs-descriptor
+  scoreboard then compared two channels' descriptors against one channel's beats.
+  A TEST defect, latent since the scoreboard landed, surfaced when [[TOOL-016]]
+  unpinned the generator and multi-channel cells were emitted for the first time.
 - **TASK-059** (High) — Fixed the extended chained strided (transpose) descriptor
   corruption: gated the run-base generator start on `w_is_ext` in `scheduler.sv`.
   Repro `test_stream_top_extended_chained_transpose` now passes. See
