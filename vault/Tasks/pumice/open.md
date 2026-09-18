@@ -1251,8 +1251,8 @@ as a property of the DEFECT when it was a property of the TEST.
 
 Marked xfail(strict) so it converts back to a real test the moment BL4 works.
 
-## PUMICE-044 — read eye is 10 taps because the sampling phase is a compile-time constant
-**Status:** open 2026-09-17  **Priority:** P2
+## PUMICE-044 — read eye is 10 taps: IDELAY is the only read knob and it spans 75% of a UI
+**Status:** open 2026-09-17  **Priority:** P3
 
 Board leveling reports a 10-tap read eye and `leveling not clean: final verify
 at centred (bitslip, tap) failed` on every run, against the recorded bring-up
@@ -1327,14 +1327,52 @@ legal phase -- the static grid is multiples of 11.25 deg (67.5, 78.75, 90,
 101.25, 112.5, ...), so Vivado would silently round both and the comparison
 would be against points nobody chose.
 
-**Preferred fix: MMCME2_ADV + dynamic phase shift, not rebuilds.**
-`MMCME2_BASE` has no phase-shift port; `MMCME2_ADV` exposes PSEN / PSINCDEC /
-PSCLK with resolution VCO/56 = **29.8 ps (1.61 deg)** -- 7x finer than the static
-grid and swept at RUNTIME. That turns this from N bitstreams into one build plus
-a host sweep, exactly like the existing IDELAY sweep, and makes the sampling
-phase a CALIBRATION OUTPUT instead of a compile-time guess. That is the actual
-fix; a static sweep is only a diagnostic.
+**WITHDRAWN 2026-09-17 -- the MMCM phase CANNOT fix this. Built it, measured
+it, and the premise was wrong.**
 
-**Not related to PUMICE-039.** That corruption was DQ collisions (bad beats
-36/64 bits wrong, i.e. random data); a marginal eye produces few-bit errors.
-039 measured 90/90 clean with this same 10-tap eye.
+`CLKOUT2` (sys2x_dqs) is the WRITE DQS strobe, not the read capture clock.
+From the GENERATED netlist (`rtl-vivado/a7ddrphy/a7ddrphy_generated.v`), which
+is the authority here:
+
+    16 x ISERDESE2 (read) : .CLK(sys2x_clk)  .CLKB(~sys2x_clk)  .CLKDIV(sys_clk)
+     4 x OSERDESE2 (write): .CLK(sys2x_dqs_clk)
+
+`ddr2_char_top.sv:271` already said so ("all 16 read ISERDESE2 are
+.DATA_WIDTH(4) on .CLK(sys2x_clk)") and I read past it. The 90 deg on CLKOUT2
+is classic WRITE DQS centring -- which is what its name should have told me.
+
+**So there is NO independent read-capture phase in this PHY:**
+  * shifting CLKOUT2 moves the write strobe -- no effect on read capture;
+  * shifting CLKOUT1 (sys2x) moves CK **and** the capture edge together. The
+    DRAM returns data relative to CK, so the relationship is preserved and read
+    margin does not change -- while the write DQS relationship breaks, since
+    CLKOUT2 stays put;
+  * IDELAY on DQ is genuinely the only read knob: one-directional, 2.5 ns span
+    = 75% of a UI. **That, not a missing calibration step, is why the eye is
+    pinned at taps 0..9.**
+
+**The attempt also broke the board, instructively.** Swapping MMCME2_BASE ->
+MMCME2_ADV with `CLKOUT2_USE_FINE_PS("TRUE")` silently DROPPED the static
+`CLKOUT2_PHASE(90.0)`: on 7-series an output using fine phase shift is owned by
+the dynamic shifter, so the build-time phase no longer applies. Writes lost DQS
+centring, leveling could not lay down a pattern, and a freshly programmed board
+reported **no passing tap at ANY bitslip**. Timing was fine (WNS +0.113) -- it
+built and closed, it just could not write. REVERTED, board rebuilt.
+
+**Real fix, if the eye is ever worth the work:** give the read ISERDES their own
+phase-shiftable clock, separate from sys2x/CK -- a new MMCM output plus a change
+to `bin/gen_a7ddrphy.py` so the ISERDES `.CLK` uses it. A PHY change, not a
+config tweak, and the only route that moves the read sampling point
+independently of CK.
+
+**Worth salvaging separately:** the CSR + walk FSM built here is a working
+WRITE-DQS phase control, which this design does not otherwise have and which is
+a legitimate write-training knob. If revived it must be RENAMED to say so --
+leaving it called MMCM_PS implies read-capture control it does not provide --
+and the static 90 deg must be re-established, either by pre-walking the shifter
+at reset or by keeping a second non-fine-PS output for DQS.
+
+**Priority note:** the 10-tap eye has NOT caused a failure. PUMICE-039's
+corruption was DQ collisions (bad beats 36/64 bits wrong = random data); a
+marginal eye yields few-bit errors. 039 measured 210 clean runs with this exact
+eye. This is margin-hardening, not a defect -- drop to P3.
