@@ -1216,3 +1216,59 @@ rather than the turnaround itself, which 042 now covers.
 
 Repeat every point: a single pass cannot distinguish 0% from 12%.
 
+## PUMICE-044 — read eye is 10 taps because the sampling phase is a compile-time constant
+**Status:** open 2026-09-17  **Priority:** P2
+
+Board leveling reports a 10-tap read eye and `leveling not clean: final verify
+at centred (bitslip, tap) failed` on every run, against the recorded bring-up
+tuple of tap 8 / eye 17 ([[project_pumice_board_bringup_tuple]]). At 300 MT/s
+the UI is 3.33 ns, so a ~781 ps eye (10 x 78.125 ps) is ~23% of a bit period --
+poor for an interface this slow.
+
+**NOT inter-lane skew.** Ran `host_train_per_lane.py` (bl=4, txn=4) to test the
+obvious theory that the joint sweep -- `pumice_master.py` drives
+`PHY_DLY_SEL = self.lanes`, x16 => both byte lanes move together -- was
+reporting the INTERSECTION of two skewed lanes:
+
+    lane0: eye taps 0..9 (width 10), centred at 4
+    lane1: eye taps 0..9 (width 10), centred at 4
+
+Identical. Zero skew, and per-lane training buys nothing on this board. The
+joint sweep is not discarding margin. (Passing bitslip pairs: diagonal
+[(0,0),(4,4)], per-lane-only [(0,4),(4,0)] -- 0 and 4 alias, so bitslip
+contributes nothing either.)
+
+**The real cause: nothing can place the sampling point.**
+
+ 1. Capture is FIXED-PHASE, not DQS-strobed. `ddr2_char_top.sv:138`
+    `CLKOUT2_PHASE(90.0)` -- DQ is captured by ISERDES on an internally
+    generated 150 MHz clock at a hard-coded 90 deg. The DRAM's DQS clocks
+    nothing. So the margin is not the UI; it is how well one fixed FPGA edge
+    lands inside a window that moves with tDQSCK, tDQSQ, flight time and PVT.
+ 2. The FINE knob cannot reach half the eye. IDELAYCTRL is pinned at 200 MHz
+    (required, see the comment at ddr2_char_top.sv:106-108) => 78.125 ps/tap
+    x 32 = **2.5 ns total range, only 75% of one 3.33 ns UI** -- and IDELAY only
+    ever ADDS delay.
+ 3. The measured eye is therefore CLIPPED, not narrow: it starts at **tap 0 on
+    both lanes**, so its left edge is at or below the floor. The true eye is
+    wider than 10; we cannot see the part that lies at negative delay.
+ 4. The COARSE knob overshoots. Bitslip steps a full UI (3.33 ns) while the tap
+    range is 2.5 ns -- an 0.83 ns gap it cannot bridge. Exactly why bitslips
+    1,2,3,5,6,7 fail outright and only 0/4 (aliases) pass. No combination
+    centres the window.
+
+**Fix direction:** the MMCM phase is the continuous, full-range knob and it is
+frozen at 90 deg. Sweep `CLKOUT2_PHASE` at build time, or better use MMCM
+DYNAMIC PHASE SHIFT as a calibration step, to put the sampling edge mid-window;
+IDELAY then only trims. This is what MIG and LiteDRAM read calibration do, and
+is likely why LiteDRAM is healthy on this same board
+([[project_litedram_ref_proves_board.md]]).
+
+**Cheap first experiment:** build at 70/90/110 deg and compare measured eye
+width and left edge. If clipping is the story, at least one should show an eye
+materially wider than 10 taps with its left edge ABOVE tap 0 -- confirming the
+diagnosis and buying margin with no new calibration logic.
+
+**Not related to PUMICE-039.** That corruption was DQ collisions (bad beats
+36/64 bits wrong, i.e. random data); a marginal eye produces few-bit errors.
+039 measured 90/90 clean with this same 10-tap eye.
