@@ -1262,12 +1262,43 @@ frozen at 90 deg. Sweep `CLKOUT2_PHASE` at build time, or better use MMCM
 DYNAMIC PHASE SHIFT as a calibration step, to put the sampling edge mid-window;
 IDELAY then only trims. This is what MIG and LiteDRAM read calibration do, and
 is likely why LiteDRAM is healthy on this same board
-([[project_litedram_ref_proves_board.md]]).
+([[project_litedram_ref_proves_board]]).
 
-**Cheap first experiment:** build at 70/90/110 deg and compare measured eye
-width and left edge. If clipping is the story, at least one should show an eye
-materially wider than 10 taps with its left edge ABOVE tap 0 -- confirming the
-diagnosis and buying margin with no new calibration logic.
+**Put every knob on one axis first.** Let `s = theta - d` be the sampling point
+relative to data, in degrees of CLKOUT2 (150 MHz, 6.667 ns period, so
+**18.52 ps/deg**):
+
+    quantity                              time        degrees
+    one UI (300 MT/s)                     3.333 ns      180
+    IDELAY full range (32 x 78.125 ps)    2.500 ns      135
+    measured eye (10 taps)                  781 ps       42
+    MMCM STATIC phase step (VCO/8)          208 ps    11.25
+
+With theta = 90 fixed and d in [0, 135], only `s in [-45, 90]` is observable at
+all. The eye passes for d <= 9 taps (38 deg), i.e. `s in [52, 90]` -- and its
+upper edge cannot be seen because **s can never exceed theta**. That is the
+clipping, stated exactly, and it says which way to move: IDELAY delays DATA
+(equivalent to moving the clock EARLIER), so the unexplored direction is data
+earlier = clock LATER = phase ABOVE 90.
+
+**A static sweep, if done, must go UP and land on the grid.** theta = 90 / 180 /
+270 covers `s in [-45,90], [45,180], [135,270]` -- contiguous (steps <= the 135
+deg each build can scan) and 315 deg total, comfortably bracketing both edges of
+a 180 deg UI. Two points (90, 180) technically suffice at 225 deg.
+
+DO NOT sweep 70/90/110 (an earlier suggestion here, withdrawn): 70 explores the
+direction IDELAY already covers, so it adds nothing, and NEITHER 70 NOR 110 is a
+legal phase -- the static grid is multiples of 11.25 deg (67.5, 78.75, 90,
+101.25, 112.5, ...), so Vivado would silently round both and the comparison
+would be against points nobody chose.
+
+**Preferred fix: MMCME2_ADV + dynamic phase shift, not rebuilds.**
+`MMCME2_BASE` has no phase-shift port; `MMCME2_ADV` exposes PSEN / PSINCDEC /
+PSCLK with resolution VCO/56 = **29.8 ps (1.61 deg)** -- 7x finer than the static
+grid and swept at RUNTIME. That turns this from N bitstreams into one build plus
+a host sweep, exactly like the existing IDELAY sweep, and makes the sampling
+phase a CALIBRATION OUTPUT instead of a compile-time guess. That is the actual
+fix; a static sweep is only a diagnostic.
 
 **Not related to PUMICE-039.** That corruption was DQ collisions (bad beats
 36/64 bits wrong, i.e. random data); a marginal eye produces few-bit errors.
