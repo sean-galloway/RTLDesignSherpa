@@ -2161,7 +2161,7 @@ module pumice_csr (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SCHED_WR_WM.wr_high_wm.value <= 8'h2;
+            field_storage.SCHED_WR_WM.wr_high_wm.value <= 8'h0;
         end else begin
             if(field_combo.SCHED_WR_WM.wr_high_wm.load_next) begin
                 field_storage.SCHED_WR_WM.wr_high_wm.value <= field_combo.SCHED_WR_WM.wr_high_wm.next;
@@ -2184,7 +2184,7 @@ module pumice_csr (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SCHED_WR_WM.wr_low_wm.value <= 8'h1;
+            field_storage.SCHED_WR_WM.wr_low_wm.value <= 8'h0;
         end else begin
             if(field_combo.SCHED_WR_WM.wr_low_wm.load_next) begin
                 field_storage.SCHED_WR_WM.wr_low_wm.value <= field_combo.SCHED_WR_WM.wr_low_wm.next;

@@ -1251,6 +1251,40 @@ as a property of the DEFECT when it was a property of the TEST.
 
 Marked xfail(strict) so it converts back to a real test the moment BL4 works.
 
+### 2026-09-18: the BEATS_PER_BURST contradiction is EXPLAINED
+
+The task asked: "explain why families_x16 passes at 8 and fails at 4" before
+re-deriving beats_per_burst from K. Answer: **the BFM uses the value as DEVICE
+COLUMNS, not DFI beats**, despite its name and docstring
+(`dfi_slave_phy.py`, RD handler):
+
+    for k in range(beats):
+        col_k = base_col + k          # a device column, not a DFI beat
+
+So BL/K queues only HALF a burst's columns -- which is exactly why halving it
+(8 -> 4) broke families_x16. `BEATS_PER_BURST = DRAM_BL` is CORRECT and should
+stay. The BFM's docstring ("DFI beats per DRAM burst, defaulting to BL//2
+assuming the canonical K=2 ratio") is what misleads; file that upstream in
+RDS-DV rather than changing the value here.
+
+Also confirmed: the sim runs the SAME geometry as the board --
+`dfi_rate=2 bl=4 beat=32b dev=16b` on both -- with the same RTL, so the
+divergence is the MODEL, not the controller and not the geometry.
+
+### Leading candidate (NOT yet proven)
+
+`DFITimingProfile.a7ddrphy_bl4(...)` exists specifically for this case and sets
+`read_bl_anchored=True`; the char TB instead builds its slave with the generic
+`builtin_timings("ddr2-650-mt47h64m16hr")`, where that flag defaults False.
+
+CAVEAT before anyone spends a run on it: that profile's docstring models BL4 at
+**nphases=4**, where a BL4 read under-fills the phases and the undriven ones hold
+the previous read's beats. This board is **nphases=2**, where
+words_per_cycle = dfi_rate * words_per_beat = 2*2 = 4 and BL4 = 4 device words =
+exactly ONE full DFI cycle -- nothing under-fills, so the anchoring may simply
+not apply. Test it, but do not assume it.
+
+
 ## PUMICE-044 — read eye is 10 taps: IDELAY is the only read knob and it spans 75% of a UI
 **Status:** open 2026-09-17  **Priority:** P3
 
@@ -1376,3 +1410,37 @@ at reset or by keeping a second non-fine-PS output for DQS.
 corruption was DQ collisions (bad beats 36/64 bits wrong = random data); a
 marginal eye yields few-bit errors. 039 measured 210 clean runs with this exact
 eye. This is margin-hardening, not a defect -- drop to P3.
+
+## PUMICE-045 — write batching breaks refresh_credit at bl16 on the board
+**Status:** open 2026-09-18  **Priority:** P2
+
+Enabling `SCHED_WR_WM` (2/1) by default broke exactly one cell of the 14-config
+board matrix. Measured both ways on the same bitstream, same session:
+
+    batching ON  (2/1) : 251/252   refresh_credit/incremental_bl16  FAILS
+    batching OFF (0/0) : 252/252   zero non-OK cells
+
+It is specific on BOTH axes:
+  * 13 of 14 configs pass `incremental_bl16` -- only `refresh_credit` fails;
+  * `refresh_credit` passes its own `incremental_bl4` and `incremental_bl8`.
+
+So it is the interaction of the write drain with the refresh-CREDIT policy at
+the longest burst, not batching generally and not bl16 generally.
+
+**The default has been reverted to 0/0** (opt-in) until this is understood --
+"on by default" has to mean safe everywhere. The feature itself is correct:
+PUMICE-039's three defects are fixed and it measures clean over 210 runs at
+open_page, worth +11.9%..+30.5%. Enable per-run with `TEST_WR_HIGH_WM=2
+TEST_WR_LOW_WM=1` or by writing SCHED_WR_WM.
+
+**Process note, recorded because it is the actual lesson:** the default was
+changed on evidence from ONE config (open_page) and shipped to all fourteen.
+The matrix that caught it should have been run BEFORE the change, not after.
+Any future default flip on a config-selectable knob needs the full matrix first.
+
+**Where to start:** refresh_credit is the only refresh policy that banks credits
+rather than pacing refreshes at a fixed interval. A long write drain delays the
+refresh the credit scheme is counting on, so the suspect is drain length vs
+credit accumulation -- which also explains why only the LONGEST burst fails.
+Reproduce with `--profile full` and TEST_WR_HIGH_WM=2, then narrow with the ILA
+on REF spacing during a drain (the tRFC decode in reports/ already does this).

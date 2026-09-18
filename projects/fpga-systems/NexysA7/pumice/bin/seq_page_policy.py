@@ -51,7 +51,12 @@ class PagePolicy(Sequence):
             for pname, pol in policies:
                 cfg = pc.ControllerConfig(
                     f"ab_{pname.lower()}", scheme=dc.SCHEME_ROW_MAJOR,
-                    page_policy=pol, lookahead=0, force_inorder=False,
+                    # lookahead / force_inorder were PRE-REARCHITECTURE knobs,
+                    # removed from ControllerConfig in the cleanup noted at
+                    # pumice_char.py:404. This sequence still passed them, so it
+                    # died with TypeError before touching the board -- a 0.00s
+                    # "FAIL" that looked like a board failure and was not.
+                    page_policy=pol,
                     rd_in_order=True, t_phy_wrlat=_WRLAT, t_rddata_en=_T_RDDATA_EN)
                 rec = pc.measure(drv, sc, cfg=cfg, base_addr=base, clk_mhz=clk)
                 results[(fam, pname)] = rec
