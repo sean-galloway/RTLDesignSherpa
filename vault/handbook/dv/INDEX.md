@@ -18,7 +18,9 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 - [[registers-by-name]] - PeakRDL regmaps; offsets are forbidden
 - [[seeds-and-determinism]] - random seed per run, recorded and overridable;
   there is no such thing as a failing seed
-- [[tb-structure]] - Pattern A/B, TB location, the three mandatory methods
+- [[tb-structure]] - how one module's verification is composed: runner holds the
+  grid, a separate TB holds the stimulus; params make the matrix; gate/func/full
+  as val/common actually uses them (77 / 220 / 945 cells)
 - [[test-runner]] - the Makefile/pytest/run() stack; REG_LEVEL vs TEST_LEVEL,
   build-dir uniqueness; check the generator feeding the call site you edit --
   a missing `test_level` key fails 100 cells before any build, in silence
