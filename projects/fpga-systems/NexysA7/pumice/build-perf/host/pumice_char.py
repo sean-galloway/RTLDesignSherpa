@@ -266,8 +266,12 @@ class ControllerConfig:
     # Do not re-enable by default until the stall is understood. Two gaps is not
     # coverage -- the same sampling error closed PUMICE-037 prematurely.
     # TEST_WR_HIGH_WM=2 opts in.
-    wr_high_wm:    int = int(os.environ.get("TEST_WR_HIGH_WM", "0"))
-    wr_low_wm:     int = int(os.environ.get("TEST_WR_LOW_WM", "0"))
+    # Defaults track the CSR reset value (2/1, batching ON) -- Config.apply()
+    # PROGRAMS this register, so leaving 0/0 here would silently defeat the new
+    # hardware default for every char run. PUMICE-039: batching is clean over
+    # 210 board runs and worth +11.9%..+30.5%. Set TEST_WR_HIGH_WM=0 to disable.
+    wr_high_wm:    int = int(os.environ.get("TEST_WR_HIGH_WM", "2"))
+    wr_low_wm:     int = int(os.environ.get("TEST_WR_LOW_WM", "1"))
     rd_in_order:   bool = True              # HARNESS check-engine R ordering (CTRLR_CFG bit; pumice R is always AR-order)
     refresh:       Optional[Dict[str, int]] = None  # REF_CTRL (set_refresh kw: mode/postpone/pullin)
     t_refi:        Optional[int] = None      # refresh interval (MC cycles)

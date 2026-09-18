@@ -842,12 +842,21 @@ request. All hw-readable so they drive the controller core.</p>
 - Base Offset: 0x6C
 - Size: 0x4
 
-<p>Write-batching drain hysteresis. 0/0 = build default (no batching).</p>
+<p>Write-batching drain hysteresis. 0/0 disables batching. Default
+2/1 = ON: measured +11.9% to +30.5% bus on the Nexys A7 at 1+1
+across gaps 4..15, and never below +0% (gap 0 and 2+2 have no
+turnaround left to amortise, so batching is a no-op there, not a
+cost). Shipped disabled until 2026-09-17 because it corrupted --
+three defects, all fixed and proven over 210 clean board runs;
+see PUMICE-039. This is a scheduling POLICY, so it stays a
+runtime CSR: 2/1 is only the default, not a fixed behaviour.
+2/1 over 8/4 because it wins at gaps 12 and 15, ties at 4, and a
+shallower drain parks reads behind a shorter write run.</p>
 
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|
-| 7:0 |wr_high_wm|  rw  | 0x0 |  — |
-| 15:8| wr_low_wm|  rw  | 0x0 |  — |
+| 7:0 |wr_high_wm|  rw  | 0x2 |  — |
+| 15:8| wr_low_wm|  rw  | 0x1 |  — |
 |31:16|   RSVD   |   r  | 0x0 |  — |
 
 #### wr_high_wm field

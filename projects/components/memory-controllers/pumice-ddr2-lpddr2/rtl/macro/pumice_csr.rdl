@@ -602,17 +602,26 @@ addrmap pumice_csr {
 
     reg {
         name = "Scheduler Write Watermarks";
-        desc = "Write-batching drain hysteresis. 0/0 = build default (no batching).";
+        desc = "Write-batching drain hysteresis. 0/0 disables batching. Default
+                2/1 = ON: measured +11.9% to +30.5% bus on the Nexys A7 at 1+1
+                across gaps 4..15, and never below +0% (gap 0 and 2+2 have no
+                turnaround left to amortise, so batching is a no-op there, not a
+                cost). Shipped disabled until 2026-09-17 because it corrupted --
+                three defects, all fixed and proven over 210 clean board runs;
+                see PUMICE-039. This is a scheduling POLICY, so it stays a
+                runtime CSR: 2/1 is only the default, not a fixed behaviour.
+                2/1 over 8/4 because it wins at gaps 12 and 15, ties at 4, and a
+                shallower drain parks reads behind a shorter write run.";
 
         field {
             sw = rw; hw = r;
             desc = "Start back-to-back write drain when the write buffer crosses this";
-        } wr_high_wm[7:0] = 8'h0;
+        } wr_high_wm[7:0] = 8'h2;
 
         field {
             sw = rw; hw = r;
             desc = "Stop the drain when occupancy falls to this";
-        } wr_low_wm[15:8] = 8'h0;
+        } wr_low_wm[15:8] = 8'h1;
 
         field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:16] = 16'h0;
 
