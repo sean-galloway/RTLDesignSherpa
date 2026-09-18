@@ -201,12 +201,15 @@ make run-hpet-medium-waves
 
 ## Parallel Execution Details
 
-The Makefile uses pytest-xdist for parallel execution:
+The Makefile uses pytest-xdist for parallel execution. It is now a four-line
+leaf including `make/tests.mk` (TOOL-008), so these are no longer set here:
 
-- **Default threads:** 8 (via `PYTEST_XDIST = -n 8`)
-- **Reruns:** 0 retries on failure (via `PYTEST_RERUNS = --reruns 0`)
+- **Threads:** derived per host -- `JOBS = min(nproc, MemTotalGB / GB_PER_WORKER)`,
+  `GB_PER_WORKER ?= 2`. Run `make jobs` to see what your host resolves to.
+- **Reruns:** 3 retries, 1 s delay (`PYTEST_RERUNS ?= --reruns 3 --reruns-delay 1`).
 
-To change thread count, edit the Makefile `PYTEST_XDIST` variable or override:
+There is no `PYTEST_XDIST` variable in this Makefile to edit. Override on the
+command line instead:
 
 ```bash
 # Override on command line (NOT RECOMMENDED - use Makefile targets)
