@@ -50,6 +50,12 @@ module pumice_core
     // DV knob: arm the scheduler's command-history scoreboard (JEDEC same-bank
     // sequencing audit, $fatal on violation). 0 = generate-off, zero cost.
     parameter int CMD_HISTORY_EN = 0,
+    // Windows for the DFI-WIRE checker (pumice_dfi_cmd_path). Separate from the
+    // scheduler's HIST_T_*: same numbers, but a TB may want the wire checker
+    // armed while the scheduler one is not, or vice versa.
+    parameter int HIST_T_RFC_CORE = 0,
+    parameter int HIST_T_RTW_CORE = 0,
+    parameter int HIST_T_WTR_CORE = 0,
 
     // Narrow-device derivations: addr_mapper column stride is the physical
     // device word (BYTE_OFFSET_WIDTH), and the JEDEC burst length scales down
@@ -566,7 +572,11 @@ module pumice_core
         // Write data is STAGED for CMD_DELAY cycles before its command arrives
         // (that is the point), so the wrdata CDC must hold CMD_DELAY/BURST_WORDS
         // + 2 bursts without stalling the CAM drain -- or the lag comes back.
-        .WD_FIFO_DEPTH   (32)
+        .WD_FIFO_DEPTH   (32),
+        .CMD_HISTORY_EN  (CMD_HISTORY_EN),
+        .HIST_T_RFC      (HIST_T_RFC_CORE),
+        .HIST_T_RTW      (HIST_T_RTW_CORE),
+        .HIST_T_WTR      (HIST_T_WTR_CORE)
     ) u_dfi (
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),

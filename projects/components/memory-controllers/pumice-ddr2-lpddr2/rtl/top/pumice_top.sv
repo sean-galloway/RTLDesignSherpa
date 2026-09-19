@@ -32,6 +32,9 @@ module pumice_top
     parameter int RD_RET_DEPTH   = 32,   // reads in flight (return ring), power of 2
     parameter int CMD_DELAY      = 0,    // command release delay (aclk); 0 = auto: 5 + 2*BURST_WORDS (WR data must lead)
     parameter int CMD_HISTORY_EN = 0,  // DV: arm the scheduler's history scoreboard
+    parameter int HIST_T_RFC_CORE = 0,   // DV: DFI-WIRE checker windows; the
+    parameter int HIST_T_RTW_CORE = 0,   // scheduler-side checker is blind to
+    parameter int HIST_T_WTR_CORE = 0,   // spacing changed below its own output
 
     parameter int DW  = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int SW  = DW / 8,
@@ -225,7 +228,10 @@ module pumice_top
         .N_SRAM_SLOTS     (N_SRAM_SLOTS),
         .RD_RET_DEPTH     (RD_RET_DEPTH),
         .CMD_DELAY        (CMD_DELAY),
-        .CMD_HISTORY_EN   (CMD_HISTORY_EN)
+        .CMD_HISTORY_EN   (CMD_HISTORY_EN),
+        .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
+        .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
+        .HIST_T_WTR_CORE  (HIST_T_WTR_CORE)
     ) u_core (
         .aclk               (aclk),
         .aresetn            (aresetn),

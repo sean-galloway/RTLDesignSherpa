@@ -1368,4 +1368,19 @@ def test_pumice_top_gen_replica(request, gap):
                       # bytes or os.PathLike object, not int", filename=0) and
                       # kills the run before it simulates.
                       **({"CMD_HISTORY_EN": int(os.environ["CMD_HISTORY_EN"])}
-                         if int(os.environ.get("CMD_HISTORY_EN", "0")) else {})})
+                         if int(os.environ.get("CMD_HISTORY_EN", "0")) else {}),
+                      # Windows for the DFI-WIRE checker in pumice_dfi_cmd_path.
+                      # The scheduler-side checker binds at the scheduler's own
+                      # output, UPSTREAM of CMD_DELAY, the CDC FIFO and the DFI
+                      # path -- so it is structurally blind to spacing that is
+                      # correct where it looks and wrong at the pins. That is not
+                      # hypothetical: with it armed it reported ZERO tRTW
+                      # violations while the board ILA showed FOUR per capture
+                      # (PUMICE-039). These arm the twin instance that watches
+                      # the command stream where it leaves the FIFO.
+                      **({"HIST_T_RTW_CORE": int(os.environ["HIST_T_RTW_CORE"])}
+                         if int(os.environ.get("HIST_T_RTW_CORE", "0")) else {}),
+                      **({"HIST_T_RFC_CORE": int(os.environ["HIST_T_RFC_CORE"])}
+                         if int(os.environ.get("HIST_T_RFC_CORE", "0")) else {}),
+                      **({"HIST_T_WTR_CORE": int(os.environ["HIST_T_WTR_CORE"])}
+                         if int(os.environ.get("HIST_T_WTR_CORE", "0")) else {})})

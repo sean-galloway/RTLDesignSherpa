@@ -22,6 +22,9 @@ module pumice_top_csr_tb_top
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = 8,
     parameter int CMD_HISTORY_EN = 0,  // -G from DV: arm the history scoreboard
+    parameter int HIST_T_RFC_CORE = 0,   // DV: DFI-WIRE checker windows; the
+    parameter int HIST_T_RTW_CORE = 0,   // scheduler-side checker is blind to
+    parameter int HIST_T_WTR_CORE = 0,   // spacing changed below its own output
 
     parameter int DW  = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int SW  = DW / 8,
@@ -99,7 +102,10 @@ module pumice_top_csr_tb_top
         .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
         .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH), .DRAM_BL(DRAM_BL),
         .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS),
-        .CMD_HISTORY_EN(CMD_HISTORY_EN)
+        .CMD_HISTORY_EN(CMD_HISTORY_EN),
+        .HIST_T_RFC_CORE(HIST_T_RFC_CORE),
+        .HIST_T_RTW_CORE(HIST_T_RTW_CORE),
+        .HIST_T_WTR_CORE(HIST_T_WTR_CORE)
     ) u_top (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .s_cpuif_req(s_cpuif_req), .s_cpuif_req_is_wr(s_cpuif_req_is_wr),

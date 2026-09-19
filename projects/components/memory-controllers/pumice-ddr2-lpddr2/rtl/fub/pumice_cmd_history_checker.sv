@@ -62,6 +62,22 @@ module pumice_cmd_history_checker
     input  logic [($clog2(NUM_BANKS))-1:0]                     cmd_bank_i
 );
 
+    // WINDOW BOUND: `d < T_x - 1`, not `d < T_x`.
+    //
+    // Slot d holds the command d+1 cycles ago (the $fatal text prints d+1), so
+    // a loop bounded by T_x scans distances 1..T_x and flags a command at
+    // EXACTLY T_x -- which is legal. Every one of these constraints is "must be
+    // >= T_x cycles after", so only 1..T_x-1 is a violation.
+    //
+    // This was wrong in all six checks and it matters more than it looks: a
+    // well-tuned controller lands ON the minimum, so the false alarm fires
+    // precisely where the scheduler is doing its job. Found 2026-09-19 when the
+    // new DFI-wire instance reported four "tRTW violation -- WR only 20 cyc
+    // after a RD (need 20)" on RTL that is correct -- 20 >= 20.
+    //
+    // T_x = 1 now yields an empty loop, which is right: commands are one per
+    // cycle, so a distance of >= 1 holds by construction.
+
     // ---- helpers ------------------------------------------------------------
     function automatic logic opens_row (input dram_op_e op);
         return (op == OP_ACT);
@@ -196,21 +212,21 @@ module pumice_cmd_history_checker
             end
             // (2) tRCD: a column op must be >= T_RCD cycles after its bank's ACT.
             if (T_RCD > 0 && is_column_op(cmd_op_i)) begin
-                for (int d = 0; d < T_RCD; d++)
+                for (int d = 0; d < T_RCD - 1; d++)
                     assert (r_hist[cmd_rank_i][cmd_bank_i][d] != OP_ACT)
                       else $fatal(1, "CMD_HISTORY @%0t: tRCD violation -- bank%0d %s only %0d cyc after ACT (need %0d)",
                                   $time, cmd_bank_i, cmd_op_i.name(), d + 1, T_RCD);
             end
             // (3) tRP: an ACT must be >= T_RP cycles after its bank's PRE.
             if (T_RP > 0 && (cmd_op_i == OP_ACT)) begin
-                for (int d = 0; d < T_RP; d++)
+                for (int d = 0; d < T_RP - 1; d++)
                     assert (r_hist[cmd_rank_i][cmd_bank_i][d] != OP_PRE)
                       else $fatal(1, "CMD_HISTORY @%0t: tRP violation -- bank%0d ACT only %0d cyc after PRE (need %0d)",
                                   $time, cmd_bank_i, d + 1, T_RP);
             end
             // (4) tRAS: a PRE must be >= T_RAS cycles after its bank's ACT.
             if (T_RAS > 0 && (cmd_op_i == OP_PRE)) begin
-                for (int d = 0; d < T_RAS; d++)
+                for (int d = 0; d < T_RAS - 1; d++)
                     assert (r_hist[cmd_rank_i][cmd_bank_i][d] != OP_ACT)
                       else $fatal(1, "CMD_HISTORY @%0t: tRAS violation -- bank%0d PRE only %0d cyc after ACT (need %0d)",
                                   $time, cmd_bank_i, d + 1, T_RAS);
@@ -218,7 +234,7 @@ module pumice_cmd_history_checker
             // (6) GLOBAL tWTR: a RD-class column must be >= T_WTR cycles
             //     after ANY WR-class column (cross-bank DQ turnaround).
             if (T_WTR > 0 && is_rd_col(cmd_op_i)) begin
-                for (int d = 0; d < T_WTR; d++)
+                for (int d = 0; d < T_WTR - 1; d++)
                     assert (r_gdir[d] != 2'b10)
                       else $fatal(1, "CMD_HISTORY @%0t: GLOBAL tWTR violation -- RD only %0d cyc after a WR (need %0d) -- DQ bus turnaround contention",
                                   $time, d + 1, T_WTR);
@@ -226,7 +242,7 @@ module pumice_cmd_history_checker
             // (7) GLOBAL tRTW: a WR-class column must be >= T_RTW cycles
             //     after ANY RD-class column.
             if (T_RTW > 0 && is_wr_col(cmd_op_i)) begin
-                for (int d = 0; d < T_RTW; d++)
+                for (int d = 0; d < T_RTW - 1; d++)
                     assert (r_gdir[d] != 2'b01)
                       else $fatal(1, "CMD_HISTORY @%0t: GLOBAL tRTW violation -- WR only %0d cyc after a RD (need %0d) -- DQ bus turnaround contention",
                                   $time, d + 1, T_RTW);
@@ -236,7 +252,7 @@ module pumice_cmd_history_checker
             //     ACT's own bank window carries it. A too-soon ACT means the DRAM
             //     is still refreshing -> the following read returns garbage.
             if (T_RFC > 0 && (cmd_op_i == OP_ACT)) begin
-                for (int d = 0; d < T_RFC; d++)
+                for (int d = 0; d < T_RFC - 1; d++)
                     assert (r_hist[cmd_rank_i][cmd_bank_i][d] != OP_REF)
                       else $fatal(1, "CMD_HISTORY @%0t: tRFC violation -- bank%0d ACT only %0d cyc after REFab (need %0d) -- refresh recovery not enforced",
                                   $time, cmd_bank_i, d + 1, T_RFC);

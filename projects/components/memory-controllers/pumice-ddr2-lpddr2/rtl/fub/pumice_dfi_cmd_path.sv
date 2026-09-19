@@ -46,6 +46,26 @@ module pumice_dfi_cmd_path
     parameter int COL_WIDTH      = 10,
     parameter int BURST_LEN_WIDTH = 8,
     parameter int DFI_RATE       = 4,
+    // ---- DFI-WIRE command-history scoreboard (sim only, off by default) ----
+    // The scheduler has an identical checker on ITS output. That one cannot see
+    // this defect class: it binds at `cmd_valid_o && cmd_ready_i` inside
+    // pumice_mem_cmd_scheduler, which is UPSTREAM of the CMD_DELAY shift
+    // register, the CDC FIFO and this module. Every PUMICE-039 defect lived
+    // downstream of it -- with the scheduler checker armed it reported ZERO
+    // tRTW violations while the board ILA showed FOUR per capture. It was
+    // correct about what it could see and blind to where the bugs were.
+    //
+    // This instance watches the command stream where it is actually consumed
+    // from the FIFO, i.e. wire order and wire SPACING, so compression between
+    // the arbiter and the pins becomes a $fatal at the exact cycle instead of
+    // an ILA capture decoded by hand.
+    parameter int CMD_HISTORY_EN = 0,
+    parameter int HIST_T_RCD     = 0,
+    parameter int HIST_T_RP      = 0,
+    parameter int HIST_T_RAS     = 0,
+    parameter int HIST_T_RFC     = 0,
+    parameter int HIST_T_WTR     = 0,
+    parameter int HIST_T_RTW     = 0,
     // Sub-DFI-word burst packing (task #146). N_SUBCMD sub-column-commands of one
     // scheduled column command are issued in ONE DFI cycle at command phases
     // {base, base+SUB_PHASE_STRIDE, ...} and columns {col, col+SUB_COL_STRIDE,
@@ -299,6 +319,32 @@ module pumice_dfi_cmd_path
     assign cmd_ready_o = w_fmt_ready && w_gate;
     // ...and the staged-burst token with an accepted WR (same cycle).
     assign wr_accept_o = w_fire && w_is_wr;
+
+    // ---- DFI-wire command-history scoreboard (CMD_HISTORY_EN) --------------
+    // Same module the scheduler uses, bound one layer down. w_fire is the cycle
+    // a command is accepted OUT of the CDC FIFO, so the spacing it sees is the
+    // spacing the DRAM sees (the formatter below adds a constant register
+    // delay, which shifts every command equally and cannot hide a violation).
+    generate if (CMD_HISTORY_EN != 0) begin : g_dfi_cmd_history
+        pumice_cmd_history_checker #(
+            .NUM_RANKS(NUM_RANKS),
+            .NUM_BANKS(NUM_BANKS),
+            .DEPTH    (32),
+            .T_RCD    (HIST_T_RCD),
+            .T_RP     (HIST_T_RP),
+            .T_RAS    (HIST_T_RAS),
+            .T_RFC    (HIST_T_RFC),
+            .T_WTR    (HIST_T_WTR),
+            .T_RTW    (HIST_T_RTW)
+        ) u_dfi_cmd_history (
+            .clk        (dfi_clk),
+            .rst_n      (dfi_rstn),
+            .cmd_valid_i(w_fire),
+            .cmd_op_i   (w_op),
+            .cmd_rank_i (w_rank),
+            .cmd_bank_i (w_bank)
+        );
+    end endgenerate
 
     // ---- invariant observability: cycles a WR sat at the head without data --
     // Read hierarchically by the DV (r_wr_held_cnt total, r_wr_held_max longest

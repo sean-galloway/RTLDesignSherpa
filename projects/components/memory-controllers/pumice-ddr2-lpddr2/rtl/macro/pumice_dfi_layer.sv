@@ -80,6 +80,16 @@ module pumice_dfi_layer
     parameter int PHW = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1,
     // DFI words captured/driven per burst-group. Clamped to >=1 so the
     // sub-DFI-word regime (DFI_BEATS_PER_BURST/DFI_RATE < 1) frames exactly one DFI word.
+    // DFI-wire command-history scoreboard (sim only, off by default). Passed
+    // straight through to pumice_dfi_cmd_path; see the note there for why a
+    // second instance is needed when the scheduler already has one.
+    parameter int CMD_HISTORY_EN = 0,
+    parameter int HIST_T_RCD     = 0,
+    parameter int HIST_T_RP      = 0,
+    parameter int HIST_T_RAS     = 0,
+    parameter int HIST_T_RFC     = 0,
+    parameter int HIST_T_WTR     = 0,
+    parameter int HIST_T_RTW     = 0,
     parameter int BL_WORDS = BURST_WORDS,
     // Read aligner outstanding-read tracking depth (exposed). Size >= the read
     // CAM depth so op_ready never deasserts in steady state; the valid/ready
@@ -263,7 +273,14 @@ module pumice_dfi_layer
         .DFI_ADDR_WIDTH  (DFI_ADDR_WIDTH),
         .DFI_BANK_WIDTH  (DFI_BANK_WIDTH),
         .DFI_CTRL_WIDTH  (DFI_CTRL_WIDTH),
-        .DFI_CS_WIDTH    (DFI_CS_WIDTH)
+        .DFI_CS_WIDTH    (DFI_CS_WIDTH),
+        .CMD_HISTORY_EN  (CMD_HISTORY_EN),
+        .HIST_T_RCD      (HIST_T_RCD),
+        .HIST_T_RP       (HIST_T_RP),
+        .HIST_T_RAS      (HIST_T_RAS),
+        .HIST_T_RFC      (HIST_T_RFC),
+        .HIST_T_WTR      (HIST_T_WTR),
+        .HIST_T_RTW      (HIST_T_RTW)
     ) u_cmd (
         .dfi_clk           (dfi_clk),
         .dfi_rstn          (dfi_rstn),
