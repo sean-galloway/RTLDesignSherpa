@@ -31,10 +31,6 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
   signals (especially the read/write engines) to prove the design correct by
   construction.
 
-- **TASK-082** (High) — build-obs post-route WNS has fallen +2.191 -> +1.423 ->
-  +0.013 ns across three builds while mon and perf sit near +0.81. It still
-  closes, but `make bitstream` does not gate on timing, so the next change
-  that pushes it negative ships a violating bitstream that looks successful.
 
 ## Closed (done)
 
