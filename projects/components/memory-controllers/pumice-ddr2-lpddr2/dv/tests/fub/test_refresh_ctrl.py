@@ -34,10 +34,17 @@ class RefTB(TBBase):
     CLK = 10
 
     async def setup(self, t_refi: int = 10, refresh_burst: int = 1,
-                    refpb_mode: int = 0):
+                    refpb_mode: int = 0, postpone: int = 0, pullin: int = 0):
         self.dut.t_refi_i.value         = t_refi
         self.dut.refresh_burst_i.value  = refresh_burst
         self.dut.refpb_mode_i.value     = refpb_mode
+        # Credit limits. Defaulted to 0 (strict) so every existing scenario is
+        # bit-identical; postpone_headroom below is the only caller that sets
+        # them, because it is the only one that cares.
+        if hasattr(self.dut, "postpone_limit_i"):
+            self.dut.postpone_limit_i.value = postpone
+        if hasattr(self.dut, "pullin_limit_i"):
+            self.dut.pullin_limit_i.value   = pullin
         self.dut.enable_i.value         = 0
         self.dut.refresh_grant_i.value  = 0
         self.dut.grant_was_pb_i.value   = 0
@@ -299,6 +306,50 @@ async def cocotb_test_refresh_ctrl(dut):
         assert max_pending <= 8, f"JEDEC violation: max_pending={max_pending}"
         assert grants_done >= n_grants // 3
 
+    elif test_type == "postpone_headroom":
+        # REGRESSION GUARD (PUMICE-045, board 2026-09-18).
+        #
+        # The busy-side request is `r_pending > w_post_eff`. The clamp used to
+        # be 7, so with postpone programmed to its maximum the request first
+        # asserted at pending == 8 == MAX_PENDING -- the exact value at which
+        # the accumulator stops incrementing and further tREFI ticks are
+        # SILENTLY DROPPED. Asking for a refresh only once you are already at
+        # the JEDEC 8-postponed ceiling leaves no time to actually perform one:
+        # every tick spent waiting for the grant is a refresh permanently lost.
+        #
+        # Only refresh_credit programmed postpone (8), so it was the only board
+        # config exposed -- and the whole existing suite passed while the defect
+        # was live, which is why this scenario exists.
+        #
+        # INVARIANT: with NO grants, the request must assert while pending is
+        # still BELOW MAX_PENDING, i.e. there is at least one whole tREFI of
+        # lead time before refreshes start being dropped.
+        MAX_PENDING = 8
+        await tb.setup(t_refi=10, postpone=15, pullin=0)   # 15 -> clamped
+        await tb.enable()
+        # HOLD demand_i HIGH. w_idle = (r_idle_cnt >= IDLE_CONFIRM) and
+        # r_idle_cnt is zeroed by demand_i, so without this the DUT goes IDLE
+        # and takes the generous branch `(r_pending > 0) || (r_pullin < ...)`,
+        # which has headroom by construction. The defect lives ONLY on the busy
+        # branch `(r_pending > w_post_eff)`. A first draft of this scenario
+        # omitted it and PASSED against the unfixed RTL -- a blind guard.
+        dut.demand_i.value = 1
+        pend_at_req = None
+        for _ in range(400):                       # ~40 tREFI ticks at t_refi=10
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.req():
+                pend_at_req = tb.pending()
+                break
+        assert pend_at_req is not None, (
+            "request never asserted with postpone at maximum -- the backlog can "
+            "never exceed the clamp, so a refresh would never be forced at all")
+        assert pend_at_req < MAX_PENDING, (
+            f"NO HEADROOM: request first asserted at pending={pend_at_req}, but "
+            f"the accumulator saturates at MAX_PENDING={MAX_PENDING}. Every "
+            f"tREFI tick from here until the grant is a dropped refresh (data "
+            f"retention hazard). The postpone clamp must leave at least one "
+            f"tick of lead time -- see POSTPONE_MAX in refresh_ctrl.sv.")
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -309,6 +360,7 @@ _GATE = [("smoke",), ("grant_decrements",)]
 _FUNC = _GATE + [("multiple_pending",), ("saturating",), ("drain",),
                  ("drain_burst",), ("refpb_rotor",), ("refab_no_rotation",),
                  ("grant_no_reissue",),  # strict-flop strobe race guard
+                 ("postpone_headroom",), # PUMICE-045 retention-hazard guard
                  ("random_soak",)]
 _FULL = _FUNC
 

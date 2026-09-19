@@ -28,7 +28,15 @@
 // is low. DDR2 has no reset_n / act_n JEDEC pins, so those per-phase DFI
 // signals are tied inactive (reset_n = out-of-reset, act_n = 1).
 //
-// NPHASES is fixed at 4 to match the Artix-7 a7ddrphy (nphases=4, 4:1).
+// The a7ddrphy PORT SHELL always has 4 phases (dfi_p0..p3), but the board's
+// PHY is nphases=2, NOT 4 -- an earlier version of this comment said 4 and
+// contradicted the three below it. From the generated netlist
+// (rtl-vivado/a7ddrphy/a7ddrphy_generated.v): every SERDES is
+// .DATA_WIDTH(3'd4) with .CLK(sys2x_clk) / .CLKDIV(sys_clk), i.e. 4 beats
+// per sys cycle = 2 CK x 2 edges => nphases = 2. (LiteDRAM's own core is
+// generated with identical ISERDESE2 parameters, so the two agree.)
+// So CTRL_PHASES = DFI_RATE = 2 drives p0/p1 and p2/p3 are NOP'd -- the
+// PHY never serializes them.
 
 `timescale 1ns / 1ps
 

@@ -121,8 +121,33 @@ module refresh_ctrl
     // Credit limits, clamped: postpone <= 7 so the pending accumulator
     // (saturating at 8) can always exceed it and FORCE the refresh; pull-in
     // <= 8 per the JEDEC +-8 window.
+    // POSTPONE_MAX is derived from MAX_PENDING, not written as a literal, so
+    // the two cannot drift apart. It must leave HEADROOM, not merely allow the
+    // accumulator to exceed it:
+    //
+    //   The busy-side request is `r_pending > w_post_eff`. With the old clamp of
+    //   7 that first asserted at pending == 8 == MAX_PENDING -- the exact value
+    //   at which `else if (pend_n < MAX_PENDING)` stops incrementing and every
+    //   further tREFI tick is SILENTLY DROPPED. The threshold to START asking
+    //   for a refresh and the threshold to BEGIN LOSING them were the same
+    //   number, so any latency between the request and the grant (finishing a
+    //   write burst, precharging banks, tRFC) cost real refreshes -- a data
+    //   retention hazard, not just a scheduling delay.
+    //
+    //   Only `refresh_credit` was exposed: it is the sole config that programs
+    //   postpone (8, clamped to 7). Every other config leaves postpone = 0
+    //   (strict), where the request asserts at pending > 0 and the headroom is
+    //   the full JEDEC window.
+    //
+    //   MAX_PENDING - 2 makes the request assert at pending == MAX_PENDING - 1,
+    //   i.e. one whole tREFI (7.8 us at this tREFI) of lead time to drain a
+    //   burst and issue the REF before the JEDEC 8-postponed ceiling. JEDEC
+    //   permits 8 postponed refreshes, so saturating AT 8 is correct; asking
+    //   only once you are already there is not.
+    localparam logic [3:0] POSTPONE_MAX = MAX_PENDING - 4'd2;
     logic [3:0] w_post_eff, w_pull_eff;
-    assign w_post_eff = (postpone_limit_i > 4'd7) ? 4'd7 : postpone_limit_i;
+    assign w_post_eff = (postpone_limit_i > POSTPONE_MAX) ? POSTPONE_MAX
+                                                          : postpone_limit_i;
     assign w_pull_eff = (pullin_limit_i  > 4'd8) ? 4'd8 : pullin_limit_i;
 
     // Pull-in credit: refreshes already performed AHEAD of their tREFI tick.
