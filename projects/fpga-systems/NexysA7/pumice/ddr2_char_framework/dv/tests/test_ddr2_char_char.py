@@ -172,6 +172,23 @@ def _make_dfi_slave(dut):
         # = 2 cycles against BL8's 4, so a model that only presents data
         # INSIDE that window has half the slack to hit it.
         read_en_gated=(os.environ.get("CHAR_READ_EN_GATED", "1") != "0"),
+        # PUMICE-041 probe. DEFAULT 0 = unchanged, so no existing cell moves.
+        #
+        # The BFM models a short burst under-filling its DFI phases: the phases
+        # the burst does NOT drive hold the PREVIOUS read's beats (stale), which
+        # is what real a7ddrphy does. The stock profile instead presents ideal
+        # all-phase data. This TB never set the flag, so BL4 has always been
+        # modelled as if it filled every phase.
+        #
+        # Whether it APPLIES here is the open question and the reason this is a
+        # switch rather than a default: the a7ddrphy_bl4 preset that sets this
+        # flag documents BL4 at nphases=4, and this board is nphases=2. At
+        # nphases=2 with words_per_beat=2 a BL4 burst is 4 device words =
+        # exactly one full DFI cycle, which would under-fill nothing -- but the
+        # field's own doc computes the occupied phases as BL/(2*words_per_beat)
+        # = 1 of 2, which WOULD under-fill. The two readings disagree, so
+        # measure instead of arguing.
+        read_bl_anchored=(os.environ.get("CHAR_READ_BL_ANCHORED", "0") != "0"),
         write_ref=WRITE_REF_WRDATA_EN,  # as legacy
         write_latency=None,             # as legacy
     )

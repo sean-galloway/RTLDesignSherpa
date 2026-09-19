@@ -1251,6 +1251,53 @@ as a property of the DEFECT when it was a property of the TEST.
 
 Marked xfail(strict) so it converts back to a real test the moment BL4 works.
 
+### 2026-09-18: the RECORDED SYMPTOM IS WRONG -- measured signature below
+
+This task has said since it was filed: "only 8 of 64 reads return (the
+outstanding limit, then stall)". That prose was never produced by a run; it is
+the xfail reason, and I repeated it several times today as if it were data.
+Measured with CONCURRENT_DUMP at gap 0 (BL4, rate 2, beat 4B, dev 2B, txn 64):
+
+    gap=0 ok=False mismatched=61 bytes=4096
+    notes=('read engines did not complete',
+           '61 beats mismatched',
+           '1:1 VIOLATION: hist total 8 != 64',
+           'concurrent 1w+1r of 4w+4r built, region 0x1000')
+
+So: **61 of 64 beats are WRONG**, and the 8 is the read-latency HISTOGRAM
+total, not reads returned and not the outstanding limit. "8 of 64 reads return
+then stall" and "nearly every beat comes back wrong while the histogram only
+records 8" are different bugs and point at different code. Chase the measured
+one.
+
+### 2026-09-18: read_bl_anchored is NOT the fix (tested)
+
+The BFM's short-burst phase-anchoring model was the leading candidate:
+`DFITimingProfile.a7ddrphy_bl4` sets `read_bl_anchored=True` and the char TB
+never did (it builds its own `char_gated` profile). Added
+`CHAR_READ_BL_ANCHORED` (default 0, nothing moves) and ran BL4 with it on:
+
+    IDENTICAL failure -- still xfail, same signature.
+
+Hypothesis eliminated. It is consistent with the nphases arithmetic: the preset
+documents BL4 at nphases=4, but this board is nphases=2, where
+words_per_cycle = dfi_rate * words_per_beat = 2*2 = 4 and a BL4 burst is 4
+device words = exactly ONE full DFI cycle. Nothing under-fills, so there is
+nothing to anchor. Do not re-try this.
+
+### Next measurement (not yet run)
+
+The controlled comparison is BL8 vs BL4 on the SAME test, since `families_x16`
+(BL8, passes) and `concurrent_gap_board` (BL4, fails) share geometry
+(dfi_rate=2, beat=32, dev=16) and differ in burst length and scenario. Run
+both with CONCURRENT_DUMP and compare `hist total`: if BL8 records 64 and BL4
+records 8, the ratio is the clue -- the BFM queues 4 device columns per RD at
+BL4 landing in one due_cycle (k//words_per_cycle == 0 for all k), versus 8
+columns over two due_cycles at BL8, while the TB's own comment says the
+aligner's enable window is ceil(BL/DFI_RATE) = 2 cycles at BL4 and 4 at BL8.
+Those two accountings disagree by 2x at BOTH burst lengths, so why BL8 passes
+is itself unexplained -- resolve that before proposing a fix.
+
 ### 2026-09-18: the BEATS_PER_BURST contradiction is EXPLAINED
 
 The task asked: "explain why families_x16 passes at 8 and fails at 4" before
