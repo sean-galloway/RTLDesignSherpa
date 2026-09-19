@@ -350,8 +350,8 @@ Tests located in: `projects/components/retro_legacy_blocks/dv/tests/test_apb4_ua
 
 | Test Level | Description |
 |------------|-------------|
-| basic | Register access, simple TX/RX, baud rate |
-| medium | FIFOs, interrupts, modem signals, loopback |
+| gate | Register access, simple TX/RX, baud rate |
+| func | FIFOs, interrupts, modem signals, loopback |
 | full | Error injection, stress testing, CDC |
 
 ## Implementation Notes

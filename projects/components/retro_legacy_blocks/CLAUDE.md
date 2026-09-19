@@ -140,8 +140,8 @@ logic [DATA_WIDTH-1:0] mem [DEPTH];  // Use [DEPTH], not [0:DEPTH-1]
 projects/components/retro_legacy_blocks/dv/
 ├── tbclasses/{block}/             # ★ Block-specific TB classes HERE
 │   ├── {block}_tb.py              # Main testbench
-│   ├── {block}_tests_basic.py     # Basic test suite
-│   ├── {block}_tests_medium.py    # Medium test suite
+│   ├── {block}_tests_basic.py     # Gate test suite
+│   ├── {block}_tests_medium.py    # Func test suite
 │   └── {block}_tests_full.py      # Full test suite
 │
 └── tests/                         # Test runners, FLAT layout (import TB classes)
@@ -166,7 +166,7 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tests_
 ```
 
 **Why This Matters:**
-1. **Reusability**: Same TB class used in basic/medium/full tests
+1. **Reusability**: Same TB class used in gate/func/full tests
 2. **Maintainability**: Fix bug once in TB class, all tests benefit
 3. **Composition**: TB classes can inherit/compose for complex scenarios
 4. **Consistency**: All blocks follow same pattern
@@ -179,14 +179,14 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tests_
 
 **Every block must have 3 test levels:**
 
-1. **Basic Tests (Target: 4-6 tests, 100% pass rate)**
+1. **Gate Tests (Target: 4-6 tests, 100% pass rate)**
    - Register access (read/write)
    - Core functionality enable/disable
    - Simple operation verification
    - Interrupt generation
    - **Duration:** <30 seconds per test
 
-2. **Medium Tests (Target: 5-8 tests, 100% pass rate)**
+2. **Func Tests (Target: 5-8 tests, 100% pass rate)**
    - Mode switching (e.g., one-shot vs periodic)
    - Multi-feature interaction
    - 64-bit operations (if applicable)
@@ -203,19 +203,19 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tests_
 **Test Level Selection:**
 ```python
 # Use TEST_LEVEL environment variable
-test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-if test_level == 'basic':
+if test_level == 'gate':
     num_operations = 10
-elif test_level == 'medium':
+elif test_level == 'func':
     num_operations = 50
 else:  # full
     num_operations = 200
 ```
 
 **Why This Hierarchy:**
-- **Basic:** Quick smoke tests for CI/PR checks
-- **Medium:** Standard functional validation
+- **Gate:** Quick smoke tests for CI/PR checks
+- **Func:** Standard functional validation
 - **Full:** Comprehensive coverage for releases
 
 ---
@@ -425,8 +425,8 @@ def pytest_configure(config):
     os.makedirs(log_dir, exist_ok=True)
 
     # Register markers
-    config.addinivalue_line("markers", "basic: Basic functionality tests")
-    config.addinivalue_line("markers", "medium: Extended feature tests")
+    config.addinivalue_line("markers", "gate: Gate functionality tests")
+    config.addinivalue_line("markers", "func: Extended feature tests")
     config.addinivalue_line("markers", "full: Stress and corner case tests")
 ```
 
@@ -673,8 +673,8 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tb import GP
 ### ❌ Anti-Pattern 4: Inconsistent Test Levels
 
 ```python
-❌ WRONG: Only basic tests
-# Missing medium and full test suites
+❌ WRONG: Only gate tests
+# Missing func and full test suites
 
 ✅ CORRECT: All 3 levels
 # {block}_tests_basic.py - 4-6 tests
@@ -693,8 +693,8 @@ pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 # Run specific block tests (test runners are flat under dv/tests/)
 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_{block}.py -v
 
-# Run basic tests only
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_{block}.py -v -k "basic"
+# Run gate tests only
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_{block}.py -v -k "gate"
 
 # With waveforms
 WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_{block}.py -v
@@ -718,10 +718,10 @@ cat projects/components/retro_legacy_blocks/docs/{block}_mas/{block}_mas_index.m
 1. 🔧 **Reset Macros** - MANDATORY for all RTL (`ALWAYS_FF_RST`)
 2. 🏭 **FPGA Attributes** - MANDATORY for all memory arrays
 3. 🏗️ **TB Separation** - TB classes in `dv/tbclasses/{block}/`, NOT in test files
-4. 📊 **3 Test Levels** - Basic/Medium/Full for every block
+4. 📊 **3 Test Levels** - Gate/Func/Full for every block
 5. 📝 **PeakRDL** - Preferred for register generation
 6. 🧹 **Test Cleanup** - Reset state at end of tests (especially counters)
-7. ✅ **100% Pass Rate** - Target for basic and medium tests
+7. ✅ **100% Pass Rate** - Target for gate and func tests
 8. 📖 **Documentation** - Update PRD.md, README.md for every new block
 9. 🔍 **Lint Clean** - All RTL must pass Verilator --lint-only
 10. 🎯 **RLB Goal** - Working toward integrated RLB wrapper

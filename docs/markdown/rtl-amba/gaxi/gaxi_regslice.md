@@ -322,18 +322,18 @@ outputs (the table above and the RTL agree). Choose on depth.
 - Stress test with random patterns
 
 **Test Levels:**
-- **basic:** Quick smoke test (~30s, 4 loops)
-- **medium:** Moderate coverage (~2min, expanded patterns)
+- **gate:** Quick smoke test (~30s, 4 loops)
+- **func:** Moderate coverage (~2min, expanded patterns)
 - **full:** Comprehensive validation (~5min, 100+ loops)
 
 ### Running Tests
 
 ```bash
 # Basic test (quick validation)
-TEST_LEVEL=basic pytest val/amba/test_gaxi_regslice.py -v
+TEST_LEVEL=gate pytest val/amba/test_gaxi_regslice.py -v
 
 # Medium test (normal CI)
-TEST_LEVEL=medium pytest val/amba/test_gaxi_regslice.py -v
+TEST_LEVEL=func pytest val/amba/test_gaxi_regslice.py -v
 
 # Full test (pre-release validation)
 TEST_LEVEL=full pytest val/amba/test_gaxi_regslice.py -v

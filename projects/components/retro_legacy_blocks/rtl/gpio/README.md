@@ -145,6 +145,6 @@ Tests located in: `projects/components/retro_legacy_blocks/dv/tests/test_apb4_gp
 
 | Test Level | Description |
 |------------|-------------|
-| basic | Register access, direction control, basic I/O |
-| medium | Interrupt modes, edge detection, atomic ops |
+| gate | Register access, direction control, gate I/O |
+| func | Interrupt modes, edge detection, atomic ops |
 | full | CDC configurations, stress testing, corner cases |

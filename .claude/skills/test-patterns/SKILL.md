@@ -234,8 +234,8 @@ For complex modules (especially integration tests), use **ONE comprehensive test
 - Test levels controlled by `TEST_LEVEL` environment variable
 
 **Test Levels:**
-- **basic**: Quick smoke test (~30s, 10-20 ops per phase)
-- **medium**: Moderate coverage (~90s, 30-50 ops per phase)
+- **gate**: Quick smoke test (~30s, 10-20 ops per phase)
+- **func**: Moderate coverage (~90s, 30-50 ops per phase)
 - **full**: Comprehensive validation (~180s, 100+ ops, 3x typical FUB test duration)
 
 **Example Structure:**
@@ -247,12 +247,12 @@ async def test_scheduler_group_operation(dut):
     """Single comprehensive test with incremental levels."""
 
     # Get test level from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
     # Configure operation counts per level
     test_configs = {
-        'basic': {'descriptor_count': 8, 'timing_profile': 'fast'},
-        'medium': {'descriptor_count': 32, 'timing_profile': 'normal'},
+        'gate': {'descriptor_count': 8, 'timing_profile': 'fast'},
+        'func': {'descriptor_count': 32, 'timing_profile': 'normal'},
         'full': {'descriptor_count': 64, 'timing_profile': 'stress'}
     }
 
@@ -280,10 +280,10 @@ async def test_scheduler_group_operation(dut):
 ```python
 # ❌ DON'T: Multiple separate tests for same functionality
 @cocotb.test()
-async def test_basic_descriptors(dut): ...
+async def test_gate_descriptors(dut): ...
 
 @cocotb.test()
-async def test_medium_descriptors(dut): ...
+async def test_func_descriptors(dut): ...
 
 @cocotb.test()
 async def test_full_descriptors(dut): ...
@@ -291,7 +291,7 @@ async def test_full_descriptors(dut): ...
 # ✅ DO: Single test with levels
 @cocotb.test()
 async def test_descriptor_operation(dut):
-    test_level = os.environ.get('TEST_LEVEL', 'basic')
+    test_level = os.environ.get('TEST_LEVEL', 'gate')
     # ... configure based on level
 ```
 

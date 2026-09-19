@@ -754,7 +754,7 @@ cd projects/components/retro_legacy_blocks/dv/tests/
 
 # Run all HPET tests (test files are flat in dv/tests/)
 make run-hpet                     # All HPET tests
-make run-hpet-basic               # Quick smoke test
+make run-apb4_hpet-gate               # Quick smoke test
 make run-hpet-full                # Comprehensive test
 
 # Run all 8254 PIT tests

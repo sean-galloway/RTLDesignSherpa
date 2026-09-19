@@ -43,7 +43,7 @@ The testbench uses `load_match_value()` helper method to exercise the loadval in
 ## Test Configurations
 
 REG_LEVEL Control:
-- GATE: 1 test (max=32, basic level)
+- GATE: 1 test (max=32, gate level)
 - FUNC: 3 tests (all max_values, basic level)
 - FULL: 9 tests (all max_values, all test levels)
 

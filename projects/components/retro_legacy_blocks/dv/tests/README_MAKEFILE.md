@@ -37,10 +37,10 @@ cd projects/components/retro_legacy_blocks/dv/tests
 make help
 
 # Run quick tests (BASIC level, single-threaded)
-make run-hpet      # HPET tests only
-make run-pit       # PIT 8254 tests only
-make run-rtc       # RTC tests only
-make run-pic       # 8259 PIC tests only
+make run-apb4_hpet      # HPET tests only
+make run-apb4_pit_8254       # PIT 8254 tests only
+make run-apb4_rtc       # RTC tests only
+make run-apb4_pic_8259       # 8259 PIC tests only
 make run-ioapic    # IOAPIC tests only
 make run-all       # All tests
 ```
@@ -51,8 +51,8 @@ The RLB tests support three test levels controlled by the `TEST_LEVEL` environme
 
 | Level | Purpose | Duration | Coverage |
 |-------|---------|----------|----------|
-| **basic** | Quick smoke tests | ~30s | Core functionality |
-| **medium** | Moderate coverage | ~90s | Common scenarios |
+| **gate** | Quick smoke tests | ~30s | Core functionality |
+| **func** | Moderate coverage | ~90s | Common scenarios |
 | **full** | Comprehensive | ~180s | Edge cases, stress |
 
 ## Common Usage Patterns
@@ -61,14 +61,14 @@ The RLB tests support three test levels controlled by the `TEST_LEVEL` environme
 
 ```bash
 # HPET examples
-make run-hpet-basic         # Quick test
-make run-hpet-medium        # More thorough
-make run-hpet-full          # Comprehensive
+make run-apb4_hpet-gate         # Quick test
+make run-apb4_hpet-func        # More thorough
+make run-apb4_hpet-full          # Comprehensive
 
 # PIT examples
-make run-pit-basic          # Quick test
-make run-pit-medium         # More thorough
-make run-pit-full           # Comprehensive
+make run-apb4_pit_8254-gate          # Quick test
+make run-apb4_pit_8254-func         # More thorough
+make run-apb4_pit_8254-full           # Comprehensive
 ```
 
 ### Run with Waveforms
@@ -76,9 +76,9 @@ make run-pit-full           # Comprehensive
 Add `-waves` suffix to any target to enable VCD waveform generation:
 
 ```bash
-make run-hpet-basic-waves       # HPET basic with VCD
-make run-pit-medium-waves       # PIT medium with VCD
-make run-all-basic-waves        # All tests basic with VCD
+make run-apb4_hpet-gate-waves       # HPET gate with VCD
+make run-apb4_pit_8254-func-waves       # PIT func with VCD
+make run-all-gate-waves        # All tests gate with VCD
 ```
 
 Waveforms are saved to: `local_sim_build/test_*/dump.vcd`
@@ -88,8 +88,8 @@ Waveforms are saved to: `local_sim_build/test_*/dump.vcd`
 Add `-parallel` suffix to run tests in parallel (8 threads default):
 
 ```bash
-make run-hpet-basic-parallel    # HPET basic, 8 threads
-make run-all-medium-parallel    # All tests medium, 8 threads
+make run-apb4_hpet-gate-parallel    # HPET gate, 8 threads
+make run-all-func-parallel    # All tests func, 8 threads
 ```
 
 **Note:** Parallel execution does NOT currently work with waveforms due to pytest-xdist limitations.
@@ -99,19 +99,19 @@ make run-all-medium-parallel    # All tests medium, 8 threads
 You can combine level, parallel, and waves:
 
 ```bash
-make run-hpet-full-parallel         # Full test level, parallel
-make run-rtc-basic-waves            # Basic level, with waveforms
-make run-all-medium-parallel        # All tests, medium level, parallel
+make run-apb4_hpet-full-parallel         # Full test level, parallel
+make run-apb4_rtc-gate-waves            # Gate level, with waveforms
+make run-all-func-parallel        # All tests, func level, parallel
 ```
 
 ## All Test Blocks
 
 | Target Prefix | Block | Description |
 |---------------|-------|-------------|
-| `run-hpet-*` | HPET | High Precision Event Timer |
-| `run-pit-*` | PIT 8254 | Programmable Interval Timer |
-| `run-rtc-*` | RTC | Real-Time Clock |
-| `run-pic-*` | 8259 PIC | Programmable Interrupt Controller |
+| `run-apb4_hpet-*` | HPET | High Precision Event Timer |
+| `run-apb4_pit_8254-*` | PIT 8254 | Programmable Interval Timer |
+| `run-apb4_rtc-*` | RTC | Real-Time Clock |
+| `run-apb4_pic_8259-*` | 8259 PIC | Programmable Interrupt Controller |
 | `run-ioapic-*` | IOAPIC | I/O Advanced PIC |
 
 ## Combined Test Runs
@@ -120,14 +120,14 @@ Run all blocks together:
 
 ```bash
 # All tests at BASIC level
-make run-all-basic
-make run-all-basic-waves
-make run-all-basic-parallel
+make run-all-gate
+make run-all-gate-waves
+make run-all-gate-parallel
 
 # All tests at MEDIUM level
-make run-all-medium
-make run-all-medium-waves
-make run-all-medium-parallel
+make run-all-func
+make run-all-func-waves
+make run-all-func-parallel
 
 # All tests at FULL level
 make run-all-full
@@ -139,10 +139,10 @@ make run-all-full-parallel
 
 ```bash
 # Collect tests (show what would run without running)
-make collect-hpet
-make collect-pit
-make collect-rtc
-make collect-pic
+make collect-apb4_hpet
+make collect-apb4_pit_8254
+make collect-apb4_rtc
+make collect-apb4_pic_8259
 make collect-ioapic
 
 # Clean artifacts
@@ -154,13 +154,13 @@ make clean-all      # Clean everything (VCD, logs, build)
 
 ### Quick Smoke Test (Fastest)
 ```bash
-make run-all-basic
+make run-all-gate
 # ~2-3 minutes for all blocks
 ```
 
 ### Development Testing (Balanced)
 ```bash
-make run-hpet-medium-waves     # Test HPET with debug info
+make run-apb4_hpet-func-waves     # Test HPET with debug info
 # ~1-2 minutes, VCD available for debugging
 ```
 
@@ -173,7 +173,7 @@ make run-all-full-parallel
 ### Debug Specific Issue
 ```bash
 # Run single block at BASIC level with waveforms
-make run-pic-basic-waves
+make run-apb4_pic_8259-gate-waves
 
 # Open waveform
 gtkwave local_sim_build/test_apb4_pic_8259_*/dump.vcd &
@@ -185,7 +185,7 @@ The Makefile respects these environment variables:
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `TEST_LEVEL` | Test thoroughness | `basic` |
+| `TEST_LEVEL` | Test thoroughness | `gate` |
 | `WAVES` | Enable VCD generation | `0` (off) |
 | `REPO_ROOT` | Repository root | **Required** |
 
@@ -193,10 +193,10 @@ You can override them:
 
 ```bash
 # Manual override
-TEST_LEVEL=medium WAVES=1 make run-hpet
+TEST_LEVEL=func WAVES=1 make run-apb4_hpet
 
 # But Makefile targets are easier:
-make run-hpet-medium-waves
+make run-apb4_hpet-func-waves
 ```
 
 ## Parallel Execution Details
@@ -213,7 +213,7 @@ command line instead:
 
 ```bash
 # Override on command line (NOT RECOMMENDED - use Makefile targets)
-TEST_LEVEL=basic pytest test_apb4_hpet.py -v --tb=short -n 16
+TEST_LEVEL=gate pytest test_apb4_hpet.py -v --tb=short -n 16
 ```
 
 ## Comparison with Stream Tests
@@ -222,11 +222,11 @@ The RLB Makefile follows the same pattern as stream tests but uses different tes
 
 | RLB Tests | Stream Tests | Equivalent |
 |-----------|--------------|------------|
-| `basic` | `GATE` | Quick smoke test |
-| `medium` | `FUNC` | Functional test |
+| `gate` | `GATE` | Quick smoke test |
+| `func` | `FUNC` | Functional test |
 | `full` | `FULL` | Comprehensive test |
 
-**Key Difference:** RLB blocks use TEST_LEVEL (basic/medium/full) while stream uses TEST_LEVEL (GATE/FUNC/FULL).
+**Key Difference:** RLB blocks use TEST_LEVEL (gate/func/full) while stream uses TEST_LEVEL (GATE/FUNC/FULL).
 
 ## Troubleshooting
 
@@ -240,7 +240,7 @@ source env_python
 ### Tests hang or timeout
 ```bash
 # Try without parallel execution
-make run-hpet-basic
+make run-apb4_hpet-gate
 
 # Or increase timeout in test file
 ```
@@ -248,7 +248,7 @@ make run-hpet-basic
 ### Waveforms not generated
 ```bash
 # Ensure using -waves suffix
-make run-hpet-basic-waves
+make run-apb4_hpet-gate-waves
 
 # Check if WAVES env var is set
 echo $WAVES  # Should be "1"
@@ -257,7 +257,7 @@ echo $WAVES  # Should be "1"
 ### "No tests collected"
 ```bash
 # Check test discovery
-make collect-hpet
+make collect-apb4_hpet
 
 # Verify pytest can find tests
 pytest test_apb4_hpet.py --collect-only
@@ -268,11 +268,11 @@ pytest test_apb4_hpet.py --collect-only
 Recommended CI workflow:
 
 ```bash
-# Stage 1: Quick smoke test (all blocks, basic)
-make run-all-basic-parallel
+# Stage 1: Quick smoke test (all blocks, gate)
+make run-all-gate-parallel
 
-# Stage 2: Medium coverage (all blocks, medium)
-make run-all-medium-parallel
+# Stage 2: Func coverage (all blocks, func)
+make run-all-func-parallel
 
 # Stage 3: Full regression (nightly, all blocks, full)
 make run-all-full-parallel
@@ -291,5 +291,5 @@ make run-all-full-parallel
 
 - **v1.0** (2025-11-16) - Initial Makefile creation
   - Support for 5 test blocks (HPET, PIT, RTC, PIC, IOAPIC)
-  - Three test levels (basic, medium, full)
+  - Three test levels (gate, func, full)
   - Waveform and parallel execution support

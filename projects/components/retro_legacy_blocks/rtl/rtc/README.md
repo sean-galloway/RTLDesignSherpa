@@ -25,8 +25,8 @@
 # Real-Time Clock (RTC)
 
 **Status:** Implemented; GitHub #56 RTL defects fixed and covered by the
-regression suite. Measured: the runner's levels nest (gate = basic, func =
-basic + medium, full = all three), so `gate` reports 6/6, `func` 44/44 and
+regression suite. Measured: the runner's levels nest (each level runs
+everything the one below it runs), so `gate` reports 6/6, `func` 44/44 and
 `full` 60/60; the separate short-timeout sweep build (elaborated with
 `COMMIT_TIMEOUT_CYCLES = 200`) reports 8/8 - GH56-16, GH56-R8-1..R8-4 and
 GH56-R9-1..R9-3, which are the commit-watchdog and queued-slot cases that

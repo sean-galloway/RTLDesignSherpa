@@ -228,8 +228,8 @@ output logic                          m_axil_rready
 **Test Coverage:** >95%
 
 **Test Levels:**
-1. **GATE (basic):** Register access, simple operations (~10 min, 4 operations)
-2. **FUNC (medium):** Multiple configurations, timing profiles (~10 min, 10 operations)
+1. **GATE (gate):** Register access, simple operations (~10 min, 4 operations)
+2. **FUNC (func):** Multiple configurations, timing profiles (~10 min, 10 operations)
 3. **FULL:** All configurations, stress testing (~50 min, 30 operations with edge cases)
 
 **Verified Configurations:**
@@ -242,10 +242,10 @@ output logic                          m_axil_rready
 ```
 Test Suite: FULL (REG_LEVEL=FULL)
 Configurations tested: 6
-- params0: 32-bit data, basic level        ✅ PASSED
-- params1: 64-bit data, basic level        ✅ PASSED
+- params0: 32-bit data, gate level        ✅ PASSED
+- params1: 64-bit data, gate level        ✅ PASSED
 - params2: 32-bit data, different baud     ✅ PASSED
-- params3: 32-bit data, medium level       ✅ PASSED
+- params3: 32-bit data, func level       ✅ PASSED
 - params4: 32-bit data, full level         ✅ PASSED
 - params5: 64-bit data, full level         ✅ PASSED
 
@@ -437,7 +437,7 @@ env WAVES=1 REG_LEVEL=GATE pytest test_uart_axil_bridge.py -v
 |-----------|------|------|------|
 | Data widths | 32 | 32, 64 | 32, 64 |
 | Baud rates | 868 | 434, 868 | 434, 868 |
-| Test levels | basic | basic, medium | basic, medium, full |
+| Test levels | gate | gate, func | gate, func, full |
 | Duration | ~80s | ~240s | ~600s |
 
 ### File Locations

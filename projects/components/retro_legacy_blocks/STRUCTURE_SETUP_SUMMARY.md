@@ -211,7 +211,7 @@ retro_legacy_blocks/
 - Design standards
 
 ### Test README (`dv/tests/{block}/README.md`)
-- Test organization (basic/medium/full)
+- Test organization (gate/func/full)
 - Target metrics per level
 - Files to be created
 - Running instructions
@@ -244,10 +244,10 @@ To bring a block from "Structure Created" to "Production Ready":
 
 ### Phase 3: Verification
 1. Create testbench class (`{block}_tb.py`)
-2. Implement basic tests (4-6 tests)
-3. Implement medium tests (5-8 tests)
+2. Implement gate tests (4-6 tests)
+3. Implement func tests (5-8 tests)
 4. Implement full tests (3-5 tests)
-5. Achieve 100% pass on basic/medium
+5. Achieve 100% pass on gate/func
 6. Achieve ≥95% pass on full
 
 ### Phase 4: Documentation
@@ -287,7 +287,7 @@ To bring a block from "Structure Created" to "Production Ready":
 3. **PeakRDL** - Use SystemRDL for register generation
 4. **APB Interface** - Standard APB4 protocol
 5. **Testbench Location** - TB classes in project area, not framework
-6. **Test Levels** - 3 levels (basic/medium/full) required
+6. **Test Levels** - 3 levels (gate/func/full) required
 7. **Documentation** - 5-chapter specification structure
 
 ---

@@ -93,7 +93,7 @@ quietly.
 | FUNC | `REG_LEVEL=FUNC` (default) | ~2-3 min/module, 10-30 ops | normal development, CI |
 | FULL | `REG_LEVEL=FULL` | ~10-30 min/module, 100+ ops | pre-release, board gate, sign-off |
 
-Integration tests in `projects/components/` use `TEST_LEVEL=basic|medium|full`
+Integration tests in `projects/components/` use `TEST_LEVEL=gate|func|full`
 instead. See [[tb-structure]].
 
 Raw `pytest` on a directory does **not** give you a regression - it gives you

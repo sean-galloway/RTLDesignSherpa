@@ -92,7 +92,7 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 - 6 configurations tested (2/3/8 timers, CDC on/off)
 - 5/6 configurations at 100% pass rate
 - 1 configuration at 92% (minor stress test timeout)
-- 12 test cases per configuration (basic/medium/full)
+- 12 test cases per configuration (gate/func/full)
 
 **Architecture:**
 ```
@@ -579,8 +579,8 @@ end
 dv/
 ├── tbclasses/{block}/          # Block-specific TB classes
 │   ├── {block}_tb.py          # Main testbench
-│   ├── {block}_tests_basic.py # Basic test suite
-│   ├── {block}_tests_medium.py # Medium test suite
+│   ├── {block}_tests_basic.py # Gate test suite
+│   ├── {block}_tests_medium.py # Func test suite
 │   └── {block}_tests_full.py  # Full test suite
 └── tests/{block}/             # Test runners
     ├── test_apb_{block}.py    # Pytest wrapper
@@ -594,8 +594,8 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tb imp
 ```
 
 **Test Levels:**
-- **Basic:** Core functionality (register access, basic operation)
-- **Medium:** Extended features (modes, configurations, edge cases)
+- **Gate:** Core functionality (register access, basic operation)
+- **Func:** Extended features (modes, configurations, edge cases)
 - **Full:** Stress testing, CDC variants, corner cases
 
 **Target:** 100% pass rate at all levels
@@ -630,8 +630,8 @@ Each block must have:
 
 A block is considered "Production Ready" when:
 
-- ✅ All basic tests pass 100%
-- ✅ All medium tests pass 100%
+- ✅ All gate tests pass 100%
+- ✅ All func tests pass 100%
 - ✅ All full tests pass ≥95%
 - ✅ Complete register map specification
 - ✅ RTL lint clean (Verilator)
@@ -746,7 +746,7 @@ A block is considered "Production Ready" when:
 ### 9.1 Individual Block Success
 
 Each block must:
-- Pass all basic/medium tests at 100%
+- Pass all gate/func tests at 100%
 - Pass full tests at ≥95%
 - Have complete register map specification
 - Include integration guide with examples

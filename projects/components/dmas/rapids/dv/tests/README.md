@@ -145,8 +145,8 @@ TEST_LEVEL=full pytest projects/components/dmas/rapids/dv/tests/macro_beats/test
 
 ### Test Levels
 
-- **basic**: Core functionality validation (default)
-- **medium**: Stress testing with error injection
+- **gate**: Core functionality validation (default)
+- **func**: Stress testing with error injection
 - **full**: Comprehensive testing with all features
 
 ### Environment Configuration
@@ -156,7 +156,7 @@ TEST_LEVEL=full pytest projects/components/dmas/rapids/dv/tests/macro_beats/test
 export RAPIDS_NUM_CHANNELS=8
 export RAPIDS_DATA_WIDTH=512
 export RAPIDS_ADDR_WIDTH=64
-export TEST_LEVEL=basic
+export TEST_LEVEL=gate
 export ENABLE_WAVEDUMP=1
 ```
 
