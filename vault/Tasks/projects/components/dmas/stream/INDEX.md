@@ -5,7 +5,7 @@ summary: Task rollup for the STREAM DMA component (projects/components/dmas/stre
 
 # STREAM tasks
 
-**Next ID: TASK-082** — never recycle a number, even when its task closed.
+**Next ID: TASK-083** — never recycle a number, even when its task closed.
 
 Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "STREAM TASK-080" when writing outside this file.
 
@@ -30,6 +30,11 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
 - **TASK-058** (High) — Signal contracts + K-maps for the significant STREAM
   signals (especially the read/write engines) to prove the design correct by
   construction.
+
+- **TASK-082** (High) — build-obs post-route WNS has fallen +2.191 -> +1.423 ->
+  +0.013 ns across three builds while mon and perf sit near +0.81. It still
+  closes, but `make bitstream` does not gate on timing, so the next change
+  that pushes it negative ships a violating bitstream that looks successful.
 
 ## Closed (done)
 
