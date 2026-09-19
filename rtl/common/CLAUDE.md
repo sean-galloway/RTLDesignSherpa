@@ -586,101 +586,43 @@ Otherwise, adapt existing modules with parameters."
 
 ## Module Documentation Standards
 
-### Every Module Must Have:
+The SV header block, the parameter/port/usage-note checklist and the review
+checklist live in **`vault/handbook/authoring/module-doc-template.md`**
+([[module-doc-template]]). That note is the canonical version -- it carries
+the full template, Range/default/constraint fields, and a per-module
+checklist this file used to restate in shorter form.
 
-**1. Header Comment Block:**
-```systemverilog
-// Module: counter_bin
-// Description: Binary up counter with configurable maximum value
-// Parameters:
-//   - WIDTH: Total width; MSB is the wrap flag, WIDTH-1 count bits (default: 5)
-//   - MAX: Count bits run 0..MAX-1, then clear and toggle the MSB (default: 10)
-// Ports:
-//   - clk: Clock input
-//   - rst_n: Active-low asynchronous reset
-//   - enable: Count enable (active-high)
-//   - counter_bin_curr: Registered count [WIDTH-1:0]
-//   - counter_bin_next: Combinational next count [WIDTH-1:0]
-// Notes:
-//   - FIFO-pointer semantics: the MSB toggle is what separates full from empty
-//   - There is no overflow output; compare the MSBs of a pointer pair instead
-//   - Enable input gates counting operation
-```
-
-**2. Parameter Documentation:**
-- Valid ranges
-- Default values
-- Units (if applicable)
-- Constraints/dependencies
-
-**3. Port Documentation:**
-- Direction and purpose
-- Width (especially parameterized)
-- Active level (high/low)
-- Special timing requirements
-
-**4. Usage Notes:**
-- Common use cases
-- Gotchas or limitations
-- Related modules
-- Test file location
-
-### When Suggesting New Modules
-
-**Include all of the above** plus:
-- Justification (why no existing module works)
-- Comparison to alternatives
-- Test plan
+When suggesting a NEW module in `rtl/common/`, add to that template:
+justification (why no existing module works), a comparison to the
+alternatives you rejected, and the test plan.
 
 ---
 
 ## Test Integration Guidance
 
-### Running Existing Tests
+**Run tests through the area Makefile, never bare `pytest`.** A bare
+invocation silently drops the level, the derived worker count and the
+reruns the target supplies, and skips `clean-all` -- which is how a run
+reports green against a stale build. See
+`vault/handbook/dv/running-regressions.md` ([[running-regressions]]).
 
 ```bash
-# Test specific module
-pytest val/common/test_counter_bin.py -v
+source $REPO_ROOT/env_python
+cd val/common
 
-# Test all counters
-pytest val/common/test_counter*.py -v
-
-# Test all common modules
-pytest val/common/ -v
-
-# With waveform dump
-pytest val/common/test_counter_bin.py -v --vcd=waves.vcd
-gtkwave waves.vcd
+make clean-all                 # ALWAYS first for a run you intend to trust
+make run-all-gate              # whole area, gate depth
+make run-counter_bin-gate      # one test root (glob-discovered)
+make 'run-counter*-func'       # every counter test at func (QUOTE the *)
+make run-all-full-parallel     # full depth, workers derived per host
+make run-counter_bin-gate-waves   # same, with waves
+make list                      # what roots exist here
+make jobs                      # how the worker count was derived
 ```
 
-### Creating Tests for New Integrations
-
-**Template:**
-```python
-import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, Timer
-
-@cocotb.test()
-async def test_my_integration(dut):
-    """Test description"""
-
-    # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-
-    # Reset
-    dut.rst_n.value = 0
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-    dut.rst_n.value = 1
-    await RisingEdge(dut.clk)
-
-    # Test logic
-    # ...
-
-    assert condition, "Error message"
-```
+Grammar and the REG_LEVEL/TEST_LEVEL split are in
+`vault/handbook/dv/test-runner.md` ([[test-runner]]); how to write the test
+itself is `vault/handbook/dv/tb-structure.md` ([[tb-structure]]).
 
 ---
 
