@@ -125,3 +125,16 @@ PREBUILD := bash $(FRAMEWORK_ROOT)/bin/regen_bridges.sh bridge_stream_mon_axil
 include $(FRAMEWORK_ROOT)/stream.mk
 
 include $(RDS_ROOT)/make/fpga_flow.mk
+
+# build-obs shares FLOW with build-mon (same harness, different parameters), so
+# both resolved to $(RDS_HOLD_DIR)/$(BOARD)/stream_mon -- and `keep` does
+# `rm -f $(HOLD_DIR)/*.bit` before copying, so keeping either one silently
+# deleted the other's kept bitstream. Claim a distinct directory.
+#
+# AFTER the include on purpose: BOARD (above) and RDS_HOLD_DIR (fpga_flow.mk)
+# must both already be defined, and a later assignment wins in make. Setting
+# this earlier with := bakes in two empty values and yields "//stream_obs".
+#
+# The bitstream NAME is deliberately unchanged: obs_board_2026-09-09.txt and
+# stable-obs/MANIFEST.md reference it, and a rename would strand those records.
+HOLD_DIR := $(RDS_HOLD_DIR)/$(BOARD)/stream_obs
