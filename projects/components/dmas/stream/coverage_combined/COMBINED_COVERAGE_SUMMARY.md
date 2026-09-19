@@ -51,7 +51,6 @@
 | Module | Covered | Total | Coverage | Category |
 |--------|---------|-------|----------|----------|
 | apb4_slave.sv | 17 | 17 | 100.0% | other |
-| apb4todescr.sv | 25 | 25 | 100.0% | FUB |
 | arbiter_priority_encoder.sv | 7 | 7 | 100.0% | common |
 | arbiter_round_robin.sv | 16 | 16 | 100.0% | common |
 | axi4_master_rd.sv | 1 | 1 | 100.0% | other |
@@ -96,11 +95,6 @@
 | stream_top_ch8.sv | 73 | 73 | 100.0% | other |
 
 ## FUB Module Details
-
-### apb4todescr.sv
-
-- **Coverage:** 25/25 lines (100.0%)
-- **Uncovered:** 0 lines
 
 ### axi_read_engine.sv
 

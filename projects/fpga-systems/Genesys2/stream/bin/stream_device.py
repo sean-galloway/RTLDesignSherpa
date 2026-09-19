@@ -109,7 +109,7 @@ class Stream(Device):
 
         CHx_CTRL_{LOW,HIGH} are ordinary stored registers: writing them STAGES
         the address and starts nothing. The launch is the separate KICK_ENABLE
-        write. (Previously the HIGH write itself completed an apb4todescr FSM
+        write. (Previously the HIGH write itself completed a kick-block FSM
         handshake and kicked -- so an unmodified caller now stages and returns,
         and the channel silently never starts.)
 

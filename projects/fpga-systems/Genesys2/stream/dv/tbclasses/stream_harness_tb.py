@@ -946,7 +946,7 @@ class StreamHarnessTB(TBBase):
 
         # Stage the descriptor address, then launch with KICK_ENABLE. LOW only:
         # this harness is 32-bit addressed and CHx_CTRL_HIGH resets to 0, so the
-        # HIGH write would be a wasted UART round trip. (The old apb4todescr FSM
+        # HIGH write would be a wasted UART round trip. (The old kick-block FSM
         # REQUIRED both writes to complete its handshake; stored registers do not.)
         await self.uart_write(A(f"CH{channel}_CTRL_LOW"), kick & 0xFFFF_FFFF)
         await self.uart_write(A("KICK_ENABLE"), 1 << channel)

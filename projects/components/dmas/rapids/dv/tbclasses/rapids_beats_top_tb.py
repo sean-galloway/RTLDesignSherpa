@@ -29,7 +29,7 @@ core rig in exactly the two documented ways:
       register name to an absolute APB address (SRC.GLOBAL_CTRL->0x100,
       SNK.GLOBAL_CTRL->0x1100). No hardcoded offsets.
 
-  (b) DESCRIPTOR KICK-OFF goes through the per-half apb4todescr kick windows:
+  (b) DESCRIPTOR KICK-OFF goes through the per-half kick windows:
       SRC 0x000-0x03F, SNK 0x1000-0x103F. Each channel is a LOW/HIGH register
       pair (channel = paddr[5:3], paddr[2] = LOW(0)/HIGH(1)); the descriptor
       address is written LOW-then-HIGH and the HIGH write blocks until the
@@ -427,7 +427,7 @@ class RapidsBeatsTopTB(TBBase):
         KICK_ENABLE, which is a singlepulse: it self-clears, and one 32-bit
         write can launch several channels on the same cycle.
 
-        NOTE the behavioural change from the old apb4todescr kick window: its
+        NOTE the behavioural change from the old address-write kick window: its
         HIGH write stalled the APB until the descriptor engine had ACCEPTED the
         kick, so "the write completed" meant "accepted". Acceptance is now
         asynchronous -- the RTL holds the request until the engine takes it --

@@ -11,7 +11,7 @@ History, because the name of this module still says "harness": the launch used
 to live in the char harness. harness_csr.sv shadowed descriptor addresses in
 CH_KICK_ADDR (0xB0..0xD0, split around a KICK_GO slot at 0xC0) and pulsed
 STREAM's i_kick_burst_* ports. That existed only because the alternative was
-apb4todescr's LOW/HIGH APB handshake -- one full UART round trip per channel,
+the old LOW/HIGH APB handshake -- one full UART round trip per channel,
 milliseconds apart at 115200 baud. STREAM now owns both halves: the addresses
 are ordinary stored registers and KICK_ENABLE is the launch, so the harness
 carries no kick state and those ports are gone.

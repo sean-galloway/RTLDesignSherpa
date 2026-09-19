@@ -6,7 +6,7 @@
 
 The kick path had two mechanisms and neither stored the descriptor address:
 
-- `apb4todescr` snooped the **raw APB command stream**, decoding `0x000-0x03F` itself, so
+- the kick block snooped the **raw APB command stream**, decoding `0x000-0x03F` itself, so
   the *address write itself* kicked. The address existed nowhere as readable state, and an
   8-channel launch cost 8 APB-over-UART writes — channel 0 had been running for
   milliseconds before channel 7 started, biasing every cross-channel perf window.
@@ -20,7 +20,7 @@ Both are replaced by: stage 8 x 64-bit addresses, then launch with ONE write.
 | `CH{n}_CTRL_LOW/HIGH` @ `0x000-0x03F` | now **stored** (`sw=rw; hw=r`), exported via `hwif_out` |
 | `KICK_ENABLE` @ **`0x128`** | 8 x 1-bit `singlepulse` (`KICK0..KICK7`) |
 | `cmdrsp_router` | `addr_hit_m0 = 1'b0`; `0x000-0x03F` now falls through to the regblock on the default m1 route |
-| `stream_top_ch8` | one kick source (`hwif_out` + pulse -> pending latch -> `apb_valid/apb_addr`); `apb4todescr` instance and `i_kick_burst_*` ports removed; retired router m0 tied to safe constants |
+| `stream_top_ch8` | one kick source (`hwif_out` + pulse -> pending latch -> `apb_valid/apb_addr`); kick-block instance and `i_kick_burst_*` ports removed; retired router m0 tied to safe constants |
 | `stream_harness` | `kick_burst` connections removed |
 
 ### Two constraints that forced design choices
@@ -53,8 +53,10 @@ Known call sites (`grep -rn "CH[0-9]_CTRL_"`):
 3. Genesys2 UART cosim: `build-mon/dv/tests` perf (3) + monitor (2), `SIM_NUM_CHANNELS=8`.
 4. `make clean-all && make bitstream` in `build-mon`, gate with
    `bin/check_observer_params.sh`, program, re-run the board checks.
-5. Only then consider deleting `rtl/fub/apb4todescr.sv` + its `.f` + its test. **Currently
-   only unhooked, deliberately** — the module and its test still exist.
+5. ~~Only then consider deleting the kick block + its `.f` + its test.~~ **DONE
+   2026-09-18 (640670341):** module, filelist, TB, test, testplan, GTKW and the
+   formal block all deleted, with the `stream_all.f` include and the
+   `formal/stream/Makefile` MODULES entry removed in the same commit.
 
 ## Landmines (learned the hard way this session)
 

@@ -6,7 +6,7 @@
 // Description: Routes CMD/RSP transactions based on address
 //
 // Routing Architecture:
-//   - Explicit decode: 0x000-0x03F → Descriptor kick-off (apb4todescr)
+//   - m0: retired (0x000-0x03F now takes the default route; m0 tied inactive)
 //   - Explicit decode: 0x040-0x0FF → Performance profiler (integrated)
 //   - Default route:   Everything else → Configuration registers (peakrdl_to_cmdrsp)
 //
@@ -89,7 +89,7 @@ module cmdrsp_router #(
     logic addr_hit_m1;   // Everything else - Configuration registers (default route)
 
     always_comb begin
-        // 0x000-0x03F used to be carved out to apb4todescr, which snooped the
+        // 0x000-0x03F used to be carved out to a kick block, which snooped the
         // raw command stream to turn a descriptor-address WRITE into a kick.
         // Those addresses are now ordinary stored registers in the PeakRDL
         // block (launch moved to KICK_ENABLE), so the range falls through to

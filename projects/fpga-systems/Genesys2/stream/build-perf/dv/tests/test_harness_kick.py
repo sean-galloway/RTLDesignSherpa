@@ -158,7 +158,7 @@ def test_run_case_uses_the_batch_launch():
 
     Note the inversion versus the pre-refactor version of this test: it used to
     assert CH0_CTRL_LOW was never written, because writing it WAS the slow
-    apb4todescr kick. Now CH0_CTRL_LOW is the staging register and writing it is
+    address-write kick. Now CH0_CTRL_LOW is the staging register and writing it is
     correct; what must not happen is a launch that is not the final write.
     """
     br = RecordingBridge()

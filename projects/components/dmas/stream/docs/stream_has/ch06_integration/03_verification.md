@@ -70,7 +70,7 @@ STREAM verification follows a hierarchical approach:
 
 | Interface | Test Focus |
 |-----------|------------|
-| APB to Descriptor Engine | Kick-off handshake, blocking behavior |
+| Kick registers to Descriptor Engine | Kick-off handshake, blocking behavior |
 | Descriptor Engine to Scheduler | Descriptor passing, backpressure |
 | Scheduler to AXI Engines | Grant/request, data flow |
 | AXI Engines to SRAM | Concurrent access, pointer management |

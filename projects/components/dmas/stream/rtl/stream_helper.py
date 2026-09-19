@@ -205,7 +205,7 @@ class StreamHelper:
         Kick off a channel by writing descriptor address.
 
         This writes to the CHx_CTRL_LOW and CHx_CTRL_HIGH registers
-        which triggers descriptor fetch via apb4todescr.sv.
+        which triggers descriptor fetch via KICK_ENABLE.
 
         Args:
             channel: Channel number (0-7)

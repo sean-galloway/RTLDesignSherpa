@@ -6,7 +6,7 @@
 #     with the shared scheduler array included ONCE) via rapids_core_beats.f
 #   - MonBus AXI-Lite group (single merged egress)
 #   - APB -> reg chain: apb4_slave, peakrdl_to_cmdrsp (the kick windows are
-#     ordinary registers now, so apb4todescr is no longer built)
+#     ordinary registers now, so no separate kick block is built)
 #   - rapids_regs (PeakRDL, split SRC/SNK) + rapids_config_block (x2) + top
 #
 # The data-engine portion is modeled on rapids_core_beats.f, which is already

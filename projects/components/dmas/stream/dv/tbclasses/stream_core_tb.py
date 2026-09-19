@@ -39,7 +39,7 @@ STREAM_REGMAP_PATH = os.path.join(
 class StreamRegisterMap:
     """STREAM Register address definitions - PeakRDL generated registers."""
 
-    # Channel kick-off registers (0x000-0x03F) - handled by apb4todescr.sv
+    # Channel kick-off registers (0x000-0x03F) - staged; launch via KICK_ENABLE
     # These are NOT PeakRDL registers - used by existing kick_off_channel() method
     CH0_CTRL_LOW = 0x000
     CH0_CTRL_HIGH = 0x004
@@ -1383,7 +1383,7 @@ class StreamCoreTB(TBBase):
 
     def assert_descriptors_fetched(self):
         """MUST: every descriptor address launched by a kick-register write was
-        actually fetched by the descriptor engine (kick reg -> apb4todescr ->
+        actually fetched by the descriptor engine (kick reg ->
         descriptor engine). Independent of the datapath check -- a dead or
         mis-decoded kick leaves the kicked descriptor un-fetched."""
         fetched = set(self.desc_fetch_addrs)
@@ -1476,7 +1476,7 @@ class StreamCoreTB(TBBase):
             # (sw=rw, hw=r) -- writing them no longer kicks. That was the whole
             # point of the refactor: the address is readable state that can be
             # verified before launch, instead of a write side effect decoded off
-            # the raw APB stream by apb4todescr.
+            # the raw APB stream by the old kick block.
             await self.write_apb_register(ctrl_low_addr, desc_low)
             await self.write_apb_register(ctrl_high_addr, desc_high)
 

@@ -36,12 +36,13 @@ addrmap stream_regs {
     default alignment = 4;
 
     //=========================================================================
-    // Channel kick-off registers (0x000 - 0x03F) -- WRITE-ONLY.
-    // Writing the 64-bit descriptor address (LOW then HIGH) kicks the channel.
-    // These are DEFINED HERE (not hand-stuffed into the regmap) so DV/host
-    // resolve them by name and a regmap regen can never drop them. The actual
-    // write is decoded by cmdrsp_router (0x000-0x03F -> apb4todescr), so there is
-    // no PeakRDL storage/hwif effect (hw=na); they occupy the address map only.
+    // Channel kick-off registers (0x000 - 0x03F) -- staged address registers.
+    // Software writes the 64-bit descriptor address (LOW then HIGH) and then
+    // launches with ONE write to KICK_ENABLE; writing an address no longer
+    // kicks by itself. These are DEFINED HERE (not hand-stuffed into the
+    // regmap) so DV/host resolve them by name and a regmap regen can never
+    // drop them. They STORE (sw=rw, hw=r) and are read back by the kick
+    // logic in stream_top_ch8.
     //=========================================================================
     reg { name="Ch0 desc addr LOW"; desc="Ch0 descriptor addr [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0; } CH0_CTRL_LOW  @ 0x000;
     reg { name="Ch0 desc addr HIGH"; desc="Ch0 descriptor addr [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH0_CTRL_HIGH @ 0x004;

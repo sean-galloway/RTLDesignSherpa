@@ -9,7 +9,6 @@
 //     APB Interface
 //       → apb4_slave_cdc (or apb4_slave if CDC_ENABLE=0)
 //       → cmdrsp_router (address-based routing)
-//         → apb4todescr (channel kick-off, 0x000-0x03F)
 //         → peakrdl_to_cmdrsp (APB → CMD/RSP conversion)
 //           → stream_regs (PeakRDL registers, 0x100-0x3FF)
 //       → stream_config_block (register mapping)
@@ -17,7 +16,7 @@
 //       → monbus_axil_group (monitor bus → AXI-Lite, USE_AXI_MONITORS=1)
 //
 //   APB Address Map:
-//     0x000-0x03F: Channel kick-off (apb4todescr)
+//     0x000-0x03F: Channel kick-off registers (CHx_CTRL_{LOW,HIGH})
 //     0x100-0x3FF: Configuration registers (PeakRDL)
 //
 //   Features:
@@ -374,7 +373,7 @@ module stream_top_ch8 #(
     //-------------------------------------------------------------------------
     // Routed CMD/RSP - after address demux
     //-------------------------------------------------------------------------
-    // To apb4todescr (kick-off)
+    // To CMD/RSP master 0 (kick-off; retired, tied inactive)
     logic                       kickoff_cmd_valid;
     logic                       kickoff_cmd_ready;
     logic [APB_ADDR_WIDTH-1:0]  kickoff_cmd_paddr;
@@ -425,7 +424,7 @@ module stream_top_ch8 #(
     // launches with ONE write to KICK_ENABLE (0x128). Each KICKn field is a
     // singlepulse, so a write emits a one-cycle request and self-clears.
     //
-    // This replaces two mechanisms: apb4todescr, which snooped the raw APB
+    // This replaces two mechanisms: the old kick block, which snooped the raw APB
     // command stream so that the ADDRESS WRITE ITSELF kicked (the address was
     // never readable state, and an 8-channel launch cost 8 APB-over-UART
     // writes, starting the channels milliseconds apart), and the kick_burst
@@ -821,7 +820,7 @@ module stream_top_ch8 #(
     // CMD/RSP Address Router
     //=========================================================================
     // Routes CMD/RSP transactions (from apb4_slave_cdc) based on address:
-    //   0x000-0x03F: apb4todescr (channel kick-off)
+    //   0x000-0x03F: retired (m0 tied inactive; kick is via the PeakRDL registers)
     //   0x100-0x3FF: peakrdl_to_cmdrsp (configuration registers)
 
     // CMD/RSP signals to peakrdl_to_cmdrsp (m1 master)
@@ -853,7 +852,7 @@ module stream_top_ch8 #(
         .s_rsp_prdata               (apb_rsp_prdata),
         .s_rsp_pslverr              (apb_rsp_pslverr),
 
-        // CMD/RSP Master 0: retired (apb4todescr). addr_hit_m0 is hard 0 in the
+        // CMD/RSP Master 0: retired. addr_hit_m0 is hard 0 in the
         // router, so this port set never activates; driven to safe constants.
         .m0_cmd_valid               (kickoff_cmd_valid),
         .m0_cmd_ready               (kickoff_cmd_ready),
@@ -888,7 +887,7 @@ module stream_top_ch8 #(
         .perf_fifo_rd               (perf_fifo_rd)
     );
 
-    // (apb4todescr removed: the kick is now CHx_CTRL_{LOW,HIGH} + KICK_ENABLE
+    // (kick block removed: the kick is now CHx_CTRL_{LOW,HIGH} + KICK_ENABLE
     //  in the PeakRDL block, handled above. m0 of the router is tied inactive.)
 
     //=========================================================================

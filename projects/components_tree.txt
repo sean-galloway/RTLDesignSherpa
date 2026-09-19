@@ -692,7 +692,6 @@ components
     │       ├── ch01_overview
     │       │   └── 03_clocks_and_reset.md
     │       ├── ch02_blocks
-    │       │   ├── 00_apb4todescr.md
     │       │   ├── 01_01_descriptor_engine.md
     │       │   ├── 01_02_scheduler.md
     │       │   ├── 02_01_axi_read_engine.md
@@ -722,7 +721,6 @@ components
     │   │   └── __init__.py
     │   ├── tbclasses
     │   │   ├── __init__.py
-    │   │   ├── apb4todescr_tb.py
     │   │   ├── axi_read_engine_tb.py
     │   │   ├── axi_write_engine_tb.py
     │   │   ├── descriptor_engine_tb.py
@@ -735,13 +733,11 @@ components
     │       ├── Makefile
     │       ├── __init__.py
     │       ├── fub_tests
-    │       │   ├── README_apb4todescr.md
     │       │   ├── README_perf_profiler.md
     │       │   ├── cocotb_tests.py
     │       │   ├── conftest_descriptor_engine.py
     │       │   ├── conftest_perf_profiler.py
     │       │   ├── conftest_scheduler.py
-    │       │   ├── test_apb4todescr.py
     │       │   ├── test_axi_read_engine.py
     │       │   ├── test_axi_write_engine.py
     │       │   ├── test_descriptor_engine.py
@@ -781,7 +777,6 @@ components
     │       │       ├── Vtop_stream_pkg.h
     │       │       ├── Vtop_stream_pkg__DepSet_h801792c1__0__Slow.cpp
     │       │       ├── Vtop_stream_pkg__Slow.cpp
-    │       │       ├── apb4todescr
     │       │       ├── verilated.d
     │       │       ├── verilated.o
     │       │       ├── verilated_dpi.d
@@ -826,7 +821,6 @@ components
     │           ├── Vtop_stream_pkg.h
     │           ├── Vtop_stream_pkg__DepSet_h801792c1__0__Slow.cpp
     │           ├── Vtop_stream_pkg__Slow.cpp
-    │           ├── apb4todescr
     │           ├── dw2yg16y_results.xml
     │           ├── verilated.d
     │           ├── verilated.o
@@ -858,7 +852,6 @@ components
         │   ├── simple_sram.sv
         │   └── sram_controller.sv
         └── stream_macro
-            ├── apb4todescr.sv
             ├── datapath.sv
             ├── monbus_axil_group.sv
             ├── scheduler_group.sv

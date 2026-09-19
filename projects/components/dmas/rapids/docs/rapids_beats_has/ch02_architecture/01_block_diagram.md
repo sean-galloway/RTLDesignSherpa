@@ -95,9 +95,9 @@ graph TB
 
 `rapids_core_beats` is wrapped by `rapids_beats_top`, which adds the software
 register interface, configuration mapping, and monitoring infrastructure. A
-single APB slave feeds a command/response router that splits accesses between
-per-channel descriptor kick-off (`apb4todescr`, 0x000-0x03F) and the `rapids_regs`
-register block (base config at 0x100-0x3FF, monitor regfile at 0x1000).
+single APB slave feeds a command/response router into the `rapids_regs`
+register block (base config at 0x100-0x3FF, monitor regfile at 0x1000); the
+per-channel kick registers live at 0x000-0x03F inside that same block.
 `rapids_config_block` translates the register `hwif_out` into the core/monitor
 `cfg_*` signals.
 
@@ -110,11 +110,9 @@ interrupt.
 ```mermaid
 graph TB
     APB["APB4 Slave<br/>s_apb_*"] --> ROUTER["cmdrsp_router"]
-    ROUTER -->|"0x000-0x03F"| KICK["apb4todescr<br/>(descriptor kick-off)"]
-    ROUTER -->|"0x100+ / 0x1000"| REGS["rapids_regs<br/>(base + MON regfile)"]
+    ROUTER -->|"0x000-0x03F / 0x100+ / 0x1000"| REGS["rapids_regs<br/>(kick + base + MON regfile)"]
     REGS --> CFG["rapids_config_block<br/>(hwif_out -> cfg_*)"]
-    KICK --> CORE["rapids_core_beats"]
-    CFG --> CORE
+    CFG --> CORE["rapids_core_beats"]
 
     CORE -->|"m_axi_rd"| RDMON["axi4_master_rd_mon"]
     CORE -->|"m_axi_wr"| WRMON["axi4_master_wr_mon"]

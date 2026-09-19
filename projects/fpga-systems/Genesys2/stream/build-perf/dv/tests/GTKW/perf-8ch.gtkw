@@ -20,7 +20,6 @@
 [treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[1].
 [treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[1].u_scheduler_group.
 [treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[0].
-[treeopen] .stream_harness.u_stream.u_apb4todescr.
 [sst_width] 584
 [signals_width] 311
 [sst_expanded] 1
@@ -41,30 +40,12 @@ stream_harness.u_stream.s_apb_prdata[31:0]
 @28
 stream_harness.u_stream.s_apb_pslverr
 stream_harness.u_stream.s_apb_pready
-stream_harness.u_stream.u_apb4todescr.apb_cmd_valid
-stream_harness.u_stream.u_apb4todescr.apb_cmd_ready
 stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.apb_valid
 stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.apb_ready
-stream_harness.u_stream.u_apb4todescr.apb_cmd_valid
-stream_harness.u_stream.u_apb4todescr.apb_cmd_ready
 @23
-stream_harness.u_stream.u_apb4todescr.apb_cmd_addr[12:0]
 @22
-stream_harness.u_stream.u_apb4todescr.apb_cmd_wdata[31:0]
 @28
-stream_harness.u_stream.u_apb4todescr.apb_cmd_write
-stream_harness.u_stream.u_apb4todescr.apb_rsp_valid
-stream_harness.u_stream.u_apb4todescr.apb_rsp_ready
 @22
-stream_harness.u_stream.u_apb4todescr.apb_rsp_rdata[31:0]
-stream_harness.u_stream.u_apb4todescr.desc_apb_addr[0][31:0]
-stream_harness.u_stream.u_apb4todescr.desc_apb_addr[1][31:0]
-stream_harness.u_stream.u_apb4todescr.desc_apb_addr[2][31:0]
-stream_harness.u_stream.u_apb4todescr.desc_apb_addr[3][31:0]
-stream_harness.u_stream.u_apb4todescr.desc_apb_addr[4][31:0]
-stream_harness.u_stream.u_apb4todescr.desc_apb_addr[5][31:0]
-stream_harness.u_stream.u_apb4todescr.desc_apb_addr[6][31:0]
-stream_harness.u_stream.u_apb4todescr.desc_apb_addr[7][31:0]
 stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_valid[7:0]
 stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_ready[7:0]
 stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_addr[0][31:0]

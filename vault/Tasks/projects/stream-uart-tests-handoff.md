@@ -25,7 +25,7 @@ not a mystery, just unfinished work.
 |---|---|---|
 | 95 | `CSR_KICK_GO = H("KICK_GO")` | delete |
 | 109-114 | `kick_addr_csr()` -> `H(f"CH{ch}_KICK_ADDR")` | `A(f"CH{ch}_CTRL_LOW")` (a STREAM reg now) |
-| 134-135 | `APB_CH_KICK_BASE` "kick-off via apbtodescr" | comment is stale; writes no longer kick |
+| 134-135 | `APB_CH_KICK_BASE` "kick-off via the kick block" | comment is stale; writes no longer kick |
 
 The working reference implementation is already written — copy its shape:
 `bin/harness_kick.py::batch_kick()` stages `CHx_CTRL_{LOW,HIGH}` then writes
@@ -34,7 +34,7 @@ The working reference implementation is already written — copy its shape:
 ## Why the kick changed
 
 `CHx_CTRL_{LOW,HIGH}` (0x000-0x03F) used to be write-only address-map placeholders
-with NO storage; `apb4todescr` snooped the raw APB command stream so the WRITE
+with NO storage; the kick block snooped the raw APB command stream so the WRITE
 ITSELF kicked. Two consequences: the descriptor address was never readable state,
 and an 8-channel launch cost 8 APB-over-UART writes — channels started milliseconds
 apart, biasing every cross-channel measurement.
@@ -63,13 +63,13 @@ top 44 (+1 xfailed) = **800 passed**, `run-all-full-parallel` OK in every area.
 
 | area | state |
 |---|---|
-| RTL kick path | done; `apb4todescr` + `i_kick_burst_*` unhooked from STREAM |
+| RTL kick path | done; the kick block + `i_kick_burst_*` removed from STREAM |
 | STREAM TB | `kick_off_channel()` launches; `kick_off_channels_together()` added |
 | Genesys host | `stream_device`, `harness_kick`, `characterization`, `stream_ext_suite`, `stream_ext_report` all repointed at KICK_ENABLE |
 | `harness_csr` | KICK_GO/CH_KICK_ADDR removed (803->746 lines); regmap regenerated, 75 regs |
 | `BUILD_CLK_HZ` | done AND verified on hardware: `0x101DC = 90000000`, `clk=90.0MHz` |
 | `comp_sram` | bridge slave @ 0x001A0000 (64 KB) + `sdpram_slave_axil_axil` wired in harness |
-| `apb4todescr` | STILL EXISTS — **RAPIDS instantiates it twice** (`u_kick_src`, `u_kick_snk`). Do not delete. STREAM's MAS docs for it were removed; RTL/tests/formal stay. |
+| kick block | DELETED (640670341, 2026-09-18). The earlier note here claimed RAPIDS instantiated it twice as `u_kick_src`/`u_kick_snk` and said "do not delete" — that was STALE and wrong. Verified before deleting: zero module declarations, zero instantiation sites, all remaining references were comments, and both `rapids_beats_top` and `stream_top_ch8` elaborate clean without it. |
 
 ## After the cosim imports again
 

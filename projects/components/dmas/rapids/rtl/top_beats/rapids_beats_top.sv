@@ -408,7 +408,7 @@ module rapids_beats_top #(
     // APB -> register chain (single sink)
     //=========================================================================
     // This used to be a 3-way demux: 0x000-0x03F and 0x1000-0x103F were carved
-    // out as apb4todescr kick windows and everything else went to the register
+    // out as kick windows and everything else went to the register
     // chain. Those windows are now ordinary registers (CHx_DESC_ADDR_{LOW,HIGH}
     // and KICK_ENABLE at the same offsets), so every access goes to the
     // register block and the demux is gone.
@@ -826,7 +826,7 @@ module rapids_beats_top #(
     );
 
     //=========================================================================
-    // Channel kick: staged address + KICK_ENABLE (replaces apb4todescr)
+    // Channel kick: staged address + KICK_ENABLE (replaces the address-write kick)
     //=========================================================================
     // Software stages CHx_DESC_ADDR_{LOW,HIGH} per channel and then writes
     // KICK_ENABLE; one 32-bit write launches every selected channel on the
@@ -843,7 +843,7 @@ module rapids_beats_top #(
     //
     // The request is then HELD until the descriptor engine accepts it, so a
     // one-cycle pulse cannot be lost while a channel is briefly unready. That
-    // is the one behavioural change from apb4todescr, whose HIGH write stalled
+    // is the one behavioural change from the old kick block, whose HIGH write stalled
     // the APB until the engine accepted: acceptance is now asynchronous to the
     // bus write, so a completed write no longer means "accepted".
     //=========================================================================

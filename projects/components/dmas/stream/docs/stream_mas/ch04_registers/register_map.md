@@ -103,7 +103,7 @@ transfer. Launch is a separate write to `KICK_ENABLE` (0x128).
 
 This changed: these were previously write-only address-map placeholders with no
 storage, and the write itself kicked -- decoded off the raw APB command stream by
-`apb4todescr.sv`, which sat beside the register block rather than in it. Two
+a separate kick block, which sat beside the register block rather than in it. Two
 consequences drove the change. The descriptor address existed nowhere as readable
 state, so it could not be verified before launch. And because the write *was* the
 launch, starting N channels cost N APB transactions: over UART that is

@@ -28,8 +28,8 @@ certainly shares the patterns — audit and fix all three:
   `stream_top_tb._watch_desc_fetches()` + `assert_descriptors_fetched()`.
 
 - [ ] **No registers done by hand.** Every register must be DEFINED IN THE RDL
-  (kick registers as WO, `sw=w; hw=na`, routed to apb4todescr by the cmdrsp
-  decode). STREAM had 16 `CHx_CTRL` aliases hand-stuffed into `stream_regmap.py`
+  (kick registers STORE the staged address, `sw=rw; hw=r`, with launch via a
+  separate KICK_ENABLE write). STREAM had 16 `CHx_CTRL` aliases hand-stuffed into `stream_regmap.py`
   while the RDL declared them "NOT defined here"; a regmap regen dropped them and
   broke every by-name consumer. Verify `rapids_regmap.py` has NO hand-added
   entries — anything a clean `bin/peakrdl_generate.py` run does not emit is a

@@ -50,18 +50,19 @@ and interrupt).
      apb4_slave  (APB -> cmd/rsp)
         |
    cmdrsp_router (address decode)
-     |                         |
-     | 0x000-0x03F             | 0x100+ (and 0x1000 MON)
-     v                         v
-  apb4todescr            peakrdl_to_cmdrsp
-  (per-channel           |
-   descriptor kickoff)   v
-     |               rapids_regs  ---> hwif_out
-     |                   |
-     |                   v
-     |            rapids_config_block  (hwif_out -> cfg_*)
-     |                   |
-     +---------> rapids_core_beats <---+
+        |
+        | all ranges: 0x000-0x03F kick regs, 0x100+ base, 0x1000 MON
+        v
+                   peakrdl_to_cmdrsp
+                         |
+                         v
+                   rapids_regs  ---> hwif_out
+                         |
+                         v
+                   rapids_config_block  (hwif_out -> cfg_*)
+                         |
+                         v
+                rapids_core_beats
                         |
         core AXI rd/wr, descriptor-monitor packet
                         |
@@ -83,7 +84,7 @@ and interrupt).
 
 | Range | Target | Purpose |
 |-------|--------|---------|
-| 0x000-0x03F | `apb4todescr` | Per-channel descriptor kick-off |
+| 0x000-0x03F | `rapids_regs` (kick) | Per-channel descriptor kick-off registers |
 | 0x100-0x3FF | `rapids_regs` (base) | Configuration / status registers |
 | 0x1000+ | `rapids_regs` (MON regfile) | Monitor configuration / performance |
 

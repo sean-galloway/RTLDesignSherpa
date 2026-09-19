@@ -190,11 +190,11 @@ them — stable, versioned, faster builds, no build-time renderer needed.
   by a source link:
 
 ```markdown
-### Figure 2.13.1: APB to Descriptor Block Diagram
+### Figure 2.13.1: STREAM Core Block Diagram
 
-![APB to Descriptor Block Diagram](../assets/mermaid/02_apb4todescr_block.png)
+![STREAM Core Block Diagram](../assets/mermaid/01_stream_core_block.png)
 
-**Source:** [02_apb4todescr_block.mmd](../assets/mermaid/02_apb4todescr_block.mmd)
+**Source:** [01_stream_core_block.mmd](../assets/mermaid/01_stream_core_block.mmd)
 ```
 
 **Regenerate via the committed batch scripts** (one per asset dir), which already

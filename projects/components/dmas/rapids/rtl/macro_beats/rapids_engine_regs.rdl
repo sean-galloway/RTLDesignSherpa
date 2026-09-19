@@ -32,7 +32,7 @@ regfile rapids_engine_regs {
     // KICK_ENABLE. The address registers STORE (sw=rw, hw=r); writing one no
     // longer kicks by itself.
     //
-    // This replaces apb4todescr, which snooped the raw APB command stream so
+    // This replaces the old kick block, which snooped the raw APB command stream so
     // that the ADDRESS WRITE ITSELF kicked. Two consequences it had: the
     // staged address was never readable state, and an N-channel launch cost N
     // APB transactions, so channel 0 was already running before the last
@@ -40,7 +40,7 @@ regfile rapids_engine_regs {
     // One 32-bit write to KICK_ENABLE now starts every channel on the same
     // cycle.
     //
-    // The addresses deliberately keep apb4todescr's geometry (channel*8,
+    // The addresses deliberately keep the old kick window geometry (channel*8,
     // +0 = LOW, +4 = HIGH), so an existing writer stages the same words at the
     // same offsets; only the separate launch write is new.
 

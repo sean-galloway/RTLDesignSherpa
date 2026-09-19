@@ -30,12 +30,10 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
 - **TASK-058** (High) — Signal contracts + K-maps for the significant STREAM
   signals (especially the read/write engines) to prove the design correct by
   construction.
-- **TASK-060** (High) — Kick STREAM from its own registers: delete the sideband
-  `i_kick_burst_mask/addr` ports and the dead `apb4todescr` path, replace with a
-  FUB that drives the descriptor handshake from 64-bit cfg registers, gated on a
-  write-only KICK_ENABLE bit per channel.
 
 ## Closed (done)
+
+- **TASK-060** (High) — Kick STREAM from its own registers. Done 2026-09-18.
 - **TASK-081** (Medium) — `test_stream_top_basic` omitted `channel_id` when writing
   descriptors, filing every channel's under `ch0`; the engine-vs-descriptor
   scoreboard then compared two channels' descriptors against one channel's beats.

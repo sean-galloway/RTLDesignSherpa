@@ -489,7 +489,7 @@ axi_monitor_timer, amba_clock_gate_ctrl
 
 **FUB (11 PASS):** stream_alloc_ctrl, stream_drain_ctrl, stream_latency_bridge,
 axi_read_engine (prove), axi_write_engine (prove), descriptor_engine,
-scheduler (prove), sram_controller_unit, sram_controller, apb4todescr, perf_profiler
+scheduler (prove), sram_controller_unit, sram_controller, perf_profiler
 
 **FUB_beats (7 PASS):** axi_read_engine_beats (prove), axi_write_engine_beats (prove),
 descriptor_engine_beats (prove), scheduler_beats (prove), alloc_ctrl_beats,
