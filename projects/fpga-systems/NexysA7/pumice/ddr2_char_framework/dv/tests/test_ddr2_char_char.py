@@ -395,7 +395,22 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
                     # Explicit, not inherited: ddr2_char_uart_tb_top still
                     # defaults DRAM_BL=4, and a TB that does not pass an RTL
                     # parameter cannot track it when the RTL changes.
-                    "DRAM_BL": str(DRAM_BL)},
+                    "DRAM_BL": str(DRAM_BL),
+                    # DFI-WIRE command-history scoreboard. Off unless asked,
+                    # because it is a $fatal scoreboard and a wrong window turns
+                    # every cell red. Arm it with:
+                    #   CMD_HISTORY_EN=1 HIST_T_RTW_CORE=20 ...
+                    #
+                    # This is the gate that PUMICE-039 needed and did not have:
+                    # the scheduler-side checker binds upstream of CMD_DELAY,
+                    # the CDC FIFO and the DFI path, so it reported ZERO tRTW
+                    # violations while the board ILA showed four per capture.
+                    # These windows watch the command stream where it leaves the
+                    # FIFO, i.e. the spacing the DRAM actually sees.
+                    **{k: os.environ[k] for k in
+                       ("CMD_HISTORY_EN", "HIST_T_RFC_CORE",
+                        "HIST_T_RTW_CORE", "HIST_T_WTR_CORE")
+                       if int(os.environ.get(k, "0"))}},
         sim_build=sim_build, simulator="verilator",
         extra_env=extra_env, compile_args=compile_args,
         waves=bool(int(os.environ.get("WAVES", "0"))),

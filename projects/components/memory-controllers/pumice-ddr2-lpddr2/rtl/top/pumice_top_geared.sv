@@ -60,6 +60,15 @@ module pumice_top_geared
     import pumice_pkg::*;
 #(
     // ---- host AXI data width (free) ----
+    // DV-only command-history scoreboards (off by default). CMD_HISTORY_EN arms
+    // both the scheduler-side instance and the DFI-WIRE one; the HIST_T_*_CORE
+    // windows are the wire instance's. Threaded all the way from the TB so the
+    // board gate can watch spacing at the pins, which is where PUMICE-039's
+    // defects lived and where the scheduler-side checker cannot see.
+    parameter int CMD_HISTORY_EN  = 0,
+    parameter int HIST_T_RFC_CORE = 0,
+    parameter int HIST_T_RTW_CORE = 0,
+    parameter int HIST_T_WTR_CORE = 0,
     parameter int HOST_AXI_DATA_WIDTH = 128,
 
     // ---- core geometry (mirror pumice_top) ----
@@ -333,6 +342,10 @@ module pumice_top_geared
 
     // ---- controller core (fixed DW width) ----
     pumice_top #(
+        .CMD_HISTORY_EN   (CMD_HISTORY_EN),
+        .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
+        .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
+        .HIST_T_WTR_CORE  (HIST_T_WTR_CORE),
         .AXI_ID_WIDTH     (IW),
         .AXI_ADDR_WIDTH   (AW),
         .NUM_RANKS        (NUM_RANKS),

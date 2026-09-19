@@ -23,6 +23,15 @@ module ddr2_char_uart_tb_top
     import pumice_pkg::*;
 #(
     // ---- UART baud divisor (lowered for sim) ----
+    // DV-only command-history scoreboards (off by default). CMD_HISTORY_EN arms
+    // both the scheduler-side instance and the DFI-WIRE one; HIST_T_*_CORE are
+    // the wire instance's windows. Threaded from the TB so the board gate can
+    // watch spacing at the pins -- where PUMICE-039's defects lived, and where
+    // the scheduler-side checker is structurally blind.
+    parameter int CMD_HISTORY_EN  = 0,
+    parameter int HIST_T_RFC_CORE = 0,
+    parameter int HIST_T_RTW_CORE = 0,
+    parameter int HIST_T_WTR_CORE = 0,
     parameter int FPGA_CLK_HZ    = 100_000_000,
     // Sim runs the UART as close to the system clock as it will go.
     // uart_rx samples mid-bit at (CLKS_PER_BIT-1)/2, advances at
@@ -124,6 +133,10 @@ module ddr2_char_uart_tb_top
     // DUT — the full harness (real UART bridge + harness_csr + engines + ctrl)
     //=========================================================================
     ddr2_char_harness #(
+        .CMD_HISTORY_EN   (CMD_HISTORY_EN),
+        .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
+        .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
+        .HIST_T_WTR_CORE  (HIST_T_WTR_CORE),
         .FPGA_CLK_HZ     (FPGA_CLK_HZ),
         .UART_BAUD       (UART_BAUD),        // -> CLKS_PER_BIT = UART_CLKS_PER_BIT
         .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),

@@ -25,6 +25,15 @@
 module ddr2_char_harness
     import pumice_pkg::*;
 #(
+    // DV-only command-history scoreboards (off by default). CMD_HISTORY_EN arms
+    // both the scheduler-side instance and the DFI-WIRE one; HIST_T_*_CORE are
+    // the wire instance's windows. Threaded from the TB so the board gate can
+    // watch spacing at the pins -- where PUMICE-039's defects lived, and where
+    // the scheduler-side checker is structurally blind.
+    parameter int CMD_HISTORY_EN  = 0,
+    parameter int HIST_T_RFC_CORE = 0,
+    parameter int HIST_T_RTW_CORE = 0,
+    parameter int HIST_T_WTR_CORE = 0,
     parameter int FPGA_CLK_HZ        = 100_000_000,
     parameter int UART_BAUD          = 115_200,
     parameter int LED_UPDATE_HZ      = 200,
@@ -684,6 +693,10 @@ module ddr2_char_harness
     logic [DFI_RATE-1:0]       w_c_dfi_rddata_en;
 
     ddr2_char_macro #(
+        .CMD_HISTORY_EN   (CMD_HISTORY_EN),
+        .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
+        .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
+        .HIST_T_WTR_CORE  (HIST_T_WTR_CORE),
         .AXI_ADDR_WIDTH   (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH   (AXI_DATA_WIDTH),
         .DRAM_BEAT_WIDTH  (DRAM_BEAT_WIDTH),

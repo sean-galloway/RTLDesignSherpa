@@ -14,6 +14,13 @@
 # pumice controller top (geared) — pulls in axi4_ifc / scheduler / dfi_layer
 # / core / PeakRDL csr + the host<->core AXI dwidth converters.
 -f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/top/pumice_top_geared.f
+// pumice_cmd_history_checker is instantiated under a GENERATE gated by
+// CMD_HISTORY_EN, in BOTH pumice_mem_cmd_scheduler and (since the DFI-wire
+// instance) pumice_dfi_cmd_path. A gated submodule is invisible to a filelist
+// audit that only follows unconditional instantiations, so it has to be listed
+// explicitly -- exactly the trap that made it MODMISSING here the first time
+// the char gate tried to arm the scoreboard.
+-f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/fub/pumice_cmd_history_checker.f
 
 # APB CSR window -> controller cpuif shim (apb4_slave_cdc + peakrdl_to_cmdrsp).
 # counter_bin + fifo_control already come in via pumice_top_geared.f.

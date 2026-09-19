@@ -47,6 +47,15 @@ module ddr2_char_macro
     import pumice_pkg::*;
 #(
     // ---- AXI4 ----
+    // DV-only command-history scoreboards (off by default). CMD_HISTORY_EN arms
+    // both the scheduler-side instance and the DFI-WIRE one; HIST_T_*_CORE are
+    // the wire instance's windows. Threaded from the TB so the board gate can
+    // watch spacing at the pins -- where PUMICE-039's defects lived, and where
+    // the scheduler-side checker is structurally blind.
+    parameter int CMD_HISTORY_EN  = 0,
+    parameter int HIST_T_RFC_CORE = 0,
+    parameter int HIST_T_RTW_CORE = 0,
+    parameter int HIST_T_WTR_CORE = 0,
     parameter int AXI_ADDR_WIDTH   = 32,
     parameter int AXI_DATA_WIDTH   = 64,
     // AXI_ID_WIDTH=8 to match the pattern-gen engines' internal 8-bit LFSR
@@ -497,6 +506,10 @@ module ddr2_char_macro
     // DRAM_BEAT_WIDTH*DFI_RATE. pumice_top_geared bridges the two host<->core
     // widths with the formal AXI dwidth converters.
     pumice_top_geared #(
+        .CMD_HISTORY_EN   (CMD_HISTORY_EN),
+        .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
+        .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
+        .HIST_T_WTR_CORE  (HIST_T_WTR_CORE),
         .HOST_AXI_DATA_WIDTH (AXI_DATA_WIDTH),
         .AXI_ID_WIDTH    (AXI_ID_WIDTH),   // always 8; see PIW above
         .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
