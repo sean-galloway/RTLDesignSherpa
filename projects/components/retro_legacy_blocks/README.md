@@ -193,7 +193,7 @@ When adding a new legacy block (e.g., GPIO):
 **Testbenches:**
 - Main TB: `{block}_tb.py`
 - Test suites: `{block}_tests_basic.py`, `{block}_tests_medium.py`, `{block}_tests_full.py`
-- Test runner: `test_apb_{block}.py`
+- Test runner: `test_apb4_{block}.py`
 
 **Imports:**
 ```python

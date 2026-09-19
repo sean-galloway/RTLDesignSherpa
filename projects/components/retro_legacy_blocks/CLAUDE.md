@@ -140,14 +140,22 @@ logic [DATA_WIDTH-1:0] mem [DEPTH];  // Use [DEPTH], not [0:DEPTH-1]
 projects/components/retro_legacy_blocks/dv/
 ├── tbclasses/{block}/             # ★ Block-specific TB classes HERE
 │   ├── {block}_tb.py              # Main testbench
-│   ├── {block}_tests_basic.py     # Gate test suite
-│   ├── {block}_tests_medium.py    # Func test suite
-│   └── {block}_tests_full.py      # Full test suite
+│   ├── {block}_tests_basic.py     # runs at TEST_LEVEL=gate
+│   ├── {block}_tests_medium.py    # runs at TEST_LEVEL=func
+│   └── {block}_tests_full.py      # runs at TEST_LEVEL=full
 │
 └── tests/                         # Test runners, FLAT layout (import TB classes)
-    ├── test_apb_{block}.py        # Test runner only (one per block)
+    ├── test_apb4_{block}.py       # Test runner (one per block)
+    ├── test_{scenario}.py         # Extra scenario runners, e.g.
+    │                              # test_ioapic_msi_emit.py, test_rlb_top.py
     └── conftest.py                # Shared pytest configuration
 ```
+
+**The tier FILENAMES are historical; the LEVELS are gate/func/full.**
+`{block}_tests_basic.py` defines `{Block}BasicTests` and runs at
+`TEST_LEVEL=gate`; `_medium.py` / `{Block}MediumTests` runs at `func`.
+The files and classes really are named that way on disk -- do not rename
+them to match the level, and do not read the filename as the level.
 
 **Import Pattern (CORRECT):**
 ```python
@@ -384,7 +392,7 @@ class {Block}BasicTests:
 
 **5. Create Test Runner:**
 ```python
-# dv/tests/test_apb_{block}.py
+# dv/tests/test_apb4_{block}.py
 import os, sys
 
 # Import framework utilities (PYTHONPATH includes bin/)
@@ -691,13 +699,13 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tb import GP
 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
 # Run specific block tests (test runners are flat under dv/tests/)
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_{block}.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_{block}.py -v
 
 # Run gate tests only
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_{block}.py -v -k "gate"
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_{block}.py -v      # TEST_LEVEL selects the tier
 
 # With waveforms
-WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_{block}.py -v
+WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_{block}.py -v
 
 # Lint block RTL
 verilator --lint-only projects/components/retro_legacy_blocks/rtl/{block}/apb_{block}.sv

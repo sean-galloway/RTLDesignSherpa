@@ -583,7 +583,7 @@ dv/
 │   ├── {block}_tests_medium.py # Func test suite
 │   └── {block}_tests_full.py  # Full test suite
 └── tests/{block}/             # Test runners
-    ├── test_apb_{block}.py    # Pytest wrapper
+    ├── test_apb4_{block}.py   # Pytest wrapper
     └── conftest.py            # Pytest configuration
 ```
 
