@@ -1,55 +1,20 @@
-# Filelist for pumice_top_geared (pumice_top + formal AXI dwidth converters)
+# Filelist for pumice_top_geared (pumice_top + formal AXI dwidth converters).
 # Host AXI width decoupled from DW via axi4_dwidth_converter_wr/rd.
-+incdir+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
-+incdir+$REPO_ROOT/rtl/amba/includes
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes/pumice_pkg.sv
--f $REPO_ROOT/rtl/common/filelists/counter_bin.f
--f $REPO_ROOT/rtl/cdc/filelists/counter_johnson.f
--f $REPO_ROOT/rtl/common/filelists/find_first_set.f
--f $REPO_ROOT/rtl/common/filelists/find_last_set.f
--f $REPO_ROOT/rtl/common/filelists/leading_one_trailing_one.f
--f $REPO_ROOT/rtl/cdc/filelists/glitch_free_n_dff_arn.f
--f $REPO_ROOT/rtl/common/filelists/fifo_control.f
--f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
--f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
--f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
--f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr.f
--f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd.f
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_axi_burst_chopper.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_splitter.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/addr_mapper.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_intake.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_rd_intake.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_wr_data_cam.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_rd_cmd_cam.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_rd_return_ring.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_bank_timers.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/global_timers.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/init_sequencer.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/mode_register.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_row_pred_table.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_rbl_table.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_page_policy.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/dfi_cmd_formatter.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_cdc.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_cmd_path.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_wr_serializer.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_dfi_rd_aligner.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_axi4_ifc.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_mem_cmd_scheduler.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_dfi_layer.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_core.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr_pkg.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr.sv
-$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_top.sv
-# ---- AXI data-width converters (host <-> DW) ----
+#
+# COMPOSES pumice_top.f rather than re-listing its closure. It used to be a
+# parallel hand-maintained copy: 46 of its 47 entries were identical to
+# pumice_top.f, and the one that was not is how it broke -- pumice_top.f gained
+# the gated pumice_cmd_history_checker and this list did not, so building the
+# scoreboard through the GEARED top died with MODMISSING while the plain top
+# worked. Two lists that must agree will not stay agreed; one that includes the
+# other cannot drift. Anything the core top needs now arrives here for free.
+-f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/top/pumice_top.f
+
+# ---- AXI data-width converters (host <-> DW), the only thing geared adds ----
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_upsize.f
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_dnsize.f
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_wr.f
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_rd.f
+
 # ---- geared wrapper ----
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/top/pumice_top_geared.sv
