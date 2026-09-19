@@ -331,20 +331,20 @@ apbx_xbar_1to4 #(.BASE_ADDR(32'h8000_0000)) u_xbar2 (...);
 
 ### Q: "How do I run tests?"
 
-**A: Use pytest:**
+**A: Use the area Makefile (never bare pytest):**
 
 ```bash
 cd projects/components/apbx-xbar/dv/tests/
 
 # Run specific test
-pytest test_apbx_xbar_1to4.py -v
+make run-apbx_xbar_1to4-gate
 
-# Run all tests
-pytest test_apbx_xbar_*.py -v
+# Run all tests -- clean-all first for a run you intend to trust
+make clean-all && make run-all-gate
 
-# Run with waveforms
-pytest test_apbx_xbar_2to4.py --vcd=waves.vcd
-gtkwave waves.vcd
+# Run with waveforms (WAVES=1 via the target, not --vcd)
+make run-apbx_xbar_2to4-gate-waves
+# create_view_cmd() writes the gtkwave command beside the log
 ```
 
 **Test coverage:**
@@ -544,8 +544,8 @@ slave_index = (address - BASE_ADDR) >> 16  // Divide by 64KB
 
 **Debug commands:**
 ```bash
-pytest dv/tests/test_apbx_xbar_1to4.py --vcd=debug.vcd -v
-gtkwave debug.vcd  # Check address decode logic
+cd dv/tests && make run-apbx_xbar_1to4-gate-waves
+# gtkwave command is written beside the log by create_view_cmd()
 ```
 
 ### Issue: Arbitration Not Fair
@@ -561,7 +561,7 @@ gtkwave debug.vcd  # Check address decode logic
 
 **Verify with tests:**
 ```bash
-pytest dv/tests/test_apbx_xbar_2to1.py -v  # Arbitration stress test
+cd dv/tests && make run-apbx_xbar_2to1-gate   # Arbitration stress test
 ```
 
 ### Issue: Back-to-Back Transactions Stalling
@@ -573,8 +573,8 @@ pytest dv/tests/test_apbx_xbar_2to1.py -v  # Arbitration stress test
 
 **View waveforms:**
 ```bash
-pytest dv/tests/test_apbx_xbar_2to4.py --vcd=perf.vcd
-gtkwave perf.vcd  # Check for idle cycles
+cd dv/tests && make run-apbx_xbar_2to4-gate-waves
+# gtkwave command is written beside the log by create_view_cmd()
 ```
 
 ---
@@ -590,14 +590,14 @@ cd projects/components/apbx-xbar/bin/
 python generate_xbars.py --masters 3 --slaves 6
 
 # Run all tests
-cd projects/components/apbx-xbar/dv/tests/
-pytest test_apbx_xbar_*.py -v
+cd projects/components/apbx-xbar/dv/tests
+make clean-all && make run-all-gate
 
 # Run specific test with waveforms
-pytest test_apbx_xbar_2to4.py --vcd=debug.vcd -v
+make run-apbx_xbar_2to4-gate-waves
 
-# View waveforms
-gtkwave debug.vcd
+# View waveforms: create_view_cmd() writes a ready-made command
+# beside the log; no hand-built gtkwave path needed
 
 # Check documentation
 cat projects/components/apbx-xbar/PRD.md

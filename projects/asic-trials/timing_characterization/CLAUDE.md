@@ -345,16 +345,16 @@ from projects.NexysA7.timing_characterization.dv.tbclasses.timing_char_tb import
 
 ```bash
 # Run all FUB tests
-PYTHONPATH=bin:$PYTHONPATH pytest dv/tests/fub/ -v
+cd dv/tests && make run-all-gate AREAS=fub
 
 # Run char_top integration test
-PYTHONPATH=bin:$PYTHONPATH pytest dv/tests/top/ -v
+cd dv/tests && make run-all-gate AREAS=top
 
 # Run everything
-PYTHONPATH=bin:$PYTHONPATH pytest dv/tests/ -v
+cd dv/tests && make clean-all && make run-all-full-parallel
 
 # Run with waveforms
-WAVES=1 PYTHONPATH=bin:$PYTHONPATH pytest dv/tests/fub/test_carry_chain.py -v
+cd dv/tests && make run-carry_chain-gate-waves AREAS=fub
 
 # Lint single FUB
 verilator --lint-only rtl/fub/carry_chain.sv

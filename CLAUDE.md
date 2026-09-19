@@ -88,9 +88,12 @@ rm *_generated*.py  # If TB generator changed
 cd ../../bin
 ./regenerate_all_bridges.sh  # Or manually regenerate each config
 
-# Step 3: Verify ALL tests
+# Step 3: Verify ALL tests -- clean-all FIRST. You have just regenerated
+# every .sv; a run against stale build dirs reports green for the OLD
+# design, which is the exact failure this rule exists to prevent.
+# See vault/handbook/dv/running-regressions.md
 cd ../dv/tests
-pytest -v  # Run ALL tests, not just the one you think changed
+make clean-all && make run-all-func  # ALL tests, not just the one you think changed
 ```
 
 ### What Counts as "Generator Code"?

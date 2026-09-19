@@ -628,8 +628,9 @@ python3 bin/update_resets.py projects/components/{component}/rtl/ --dry-run
 python3 bin/update_resets.py projects/components/{component}/rtl/
 cp UPDATED/*.sv projects/components/{component}/rtl/
 
-# Run tests for a component
-pytest projects/components/{component}/dv/tests/ -v
+# Run tests for a component (Makefile, not bare pytest -- see
+# vault/handbook/dv/running-regressions.md)
+cd projects/components/{component}/dv/tests && make clean-all && make run-all-gate
 
 # Lint RTL
 verilator --lint-only projects/components/{component}/rtl/*.sv

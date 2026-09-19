@@ -695,17 +695,18 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tb import GP
 ## Quick Commands
 
 ```bash
-# Run all HPET tests
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
+# Run through the area Makefile, never bare pytest: a bare run drops the
+# level, the derived worker count and the reruns, and skips clean-all.
+# See vault/handbook/dv/running-regressions.md
+cd projects/components/retro_legacy_blocks/dv/tests
 
-# Run specific block tests (test runners are flat under dv/tests/)
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_{block}.py -v
-
-# Run gate tests only
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_{block}.py -v      # TEST_LEVEL selects the tier
-
-# With waveforms
-WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_{block}.py -v
+make clean-all                    # first, for a run you intend to trust
+make run-apb4_hpet-gate           # one block, gate depth
+make run-apb4_{block}-func        # one block, func depth
+make run-all-gate                 # every block here
+make run-all-full-parallel        # full depth, workers derived per host
+make run-apb4_{block}-gate-waves  # same, with waves (not --vcd)
+make list                         # the 14 roots discovered by glob
 
 # Lint block RTL
 verilator --lint-only projects/components/retro_legacy_blocks/rtl/{block}/apb_{block}.sv

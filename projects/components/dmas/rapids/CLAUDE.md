@@ -681,21 +681,26 @@ r_descriptor_credit_counter <= 32'h0;  // ❌ WRONG: Hardcoded to 0
 **A: Multi-layered test approach:**
 
 ```bash
-# 1. FUB (Functional Unit Block) Tests - Individual blocks
-pytest projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py -v
-pytest projects/components/dmas/rapids/dv/tests/fub_beats/test_descriptor_engine_beats.py -v
-pytest projects/components/dmas/rapids/dv/tests/fub_beats/ -v  # All beats FUB tests
-pytest projects/components/dmas/rapids/dv/tests/fub/ -v        # Control engines
+# All of these go through the area Makefile. A bare pytest drops the level,
+# the derived worker count and the reruns, and skips clean-all -- see
+# vault/handbook/dv/running-regressions.md
+cd projects/components/dmas/rapids/dv/tests
 
-# 2. Macro Tests - Multi-block scenarios
-pytest projects/components/dmas/rapids/dv/tests/macro_beats/ -v
+# 1. FUB tests - individual blocks. AREAS narrows the sweep;
+#    the dispatcher's areas are: fub fub_beats macro macro_beats top_beats
+make run-scheduler_beats-gate AREAS=fub_beats
+make run-all-gate AREAS=fub_beats      # every beats FUB test
+make run-all-gate AREAS=fub            # control engines
 
-# 3. Top Tests - Full RAPIDS operation
-pytest projects/components/dmas/rapids/dv/tests/top_beats/ -v
+# 2. Macro tests - multi-block scenarios
+make run-all-func AREAS=macro_beats
 
-# Run with waveforms for debugging
-pytest projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py --vcd=debug.vcd
-gtkwave debug.vcd
+# 3. Top tests - full RAPIDS operation
+make run-all-func AREAS=top_beats
+
+# Waves: WAVES=1 via the target, not --vcd. create_view_cmd() writes a
+# ready-made gtkwave command beside the log.
+make run-scheduler_beats-gate-waves AREAS=fub_beats
 ```
 
 **Test Organization:**
@@ -906,9 +911,10 @@ gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_mon_fifo (
 
 **Debug commands:**
 ```bash
-pytest projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py -v -s  # Verbose test
-pytest projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py --vcd=debug.vcd
-gtkwave debug.vcd  # Inspect FSM state transitions
+cd projects/components/dmas/rapids/dv/tests
+make run-scheduler_beats-gate AREAS=fub_beats          # -v --tb=short by default
+make run-scheduler_beats-gate-waves AREAS=fub_beats    # WAVES=1, not --vcd
+# create_view_cmd() writes the gtkwave command beside the log
 ```
 
 ### Issue: Data Path Stalls
@@ -968,23 +974,25 @@ projects/components/dmas/rapids/dv/tests/
 ### Running Tests
 
 ```bash
+cd projects/components/dmas/rapids/dv/tests
+
 # Single block test
-pytest projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py -v
+make run-scheduler_beats-gate AREAS=fub_beats
 
 # All beats FUB tests
-pytest projects/components/dmas/rapids/dv/tests/fub_beats/ -v
+make run-all-gate AREAS=fub_beats
 
 # Macro tests
-pytest projects/components/dmas/rapids/dv/tests/macro_beats/ -v
+make run-all-func AREAS=macro_beats
 
 # Top-level tests
-pytest projects/components/dmas/rapids/dv/tests/top_beats/ -v
+make run-all-func AREAS=top_beats
 
-# All RAPIDS tests
-pytest projects/components/dmas/rapids/dv/tests/ -v
+# All RAPIDS tests -- clean-all FIRST or the result is not trustworthy
+make clean-all && make run-all-full-parallel
 
-# With waveforms
-pytest projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py --vcd=waves.vcd
+# With waveforms (WAVES=1 via the target, not --vcd)
+make run-scheduler_beats-gate-waves AREAS=fub_beats
 ```
 
 ### Test Coverage Status
@@ -1044,8 +1052,9 @@ ls projects/components/dmas/rapids/known_issues/
 cat projects/components/dmas/rapids/known_issues/README.md
 
 # Run tests
-pytest projects/components/dmas/rapids/dv/tests/fub_beats/ -v
-pytest projects/components/dmas/rapids/dv/tests/macro_beats/ -v
+cd projects/components/dmas/rapids/dv/tests
+make run-all-gate AREAS=fub_beats
+make run-all-gate AREAS=macro_beats
 
 # Lint
 verilator --lint-only projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv
@@ -1258,16 +1267,16 @@ async def run_apb_only_test(self, num_packets: int, profile: DelayProfile):
 
 ```python
 # Test runner with multiple levels
-@pytest.mark.parametrize("test_level", ["basic", "medium", "full"])
+@pytest.mark.parametrize("test_level", ["gate", "func", "full"])
 def test_descriptor_engine(test_level, ...):
     """Hierarchical test levels for different coverage needs"""
 
-    if test_level == "basic":
+    if test_level == "gate":
         # Quick validation: 10 packets, simple timing
         num_packets = 10
         test_class = TestClass.APB_ONLY
 
-    elif test_level == "medium":
+    elif test_level == "func":
         # Moderate coverage: 3 packets × 4 profiles
         num_packets = 3
         test_classes = [TestClass.APB_ONLY, TestClass.MIXED]
@@ -1279,9 +1288,9 @@ def test_descriptor_engine(test_level, ...):
 ```
 
 **Benefits:**
-- **Basic:** Quick smoke tests (CI/CD)
-- **Medium:** Developer validation
-- **Full:** Comprehensive regression
+- **gate:** Quick smoke tests (CI/CD)
+- **func:** Developer validation
+- **full:** Comprehensive regression
 
 **Pattern: Parametrized Test Generation**
 

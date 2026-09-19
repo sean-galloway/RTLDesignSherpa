@@ -200,9 +200,12 @@ make clean   # Removes rtl/generated/ output
 # Step 3: Regenerate everything from bridge_batch.csv
 make all     # Runs bridge_generator.py --bulk bridge_batch.csv
 
-# Step 4: Run ALL tests
+# Step 4: Run ALL tests -- clean-all FIRST, or you test stale builds
+# against freshly regenerated RTL, which is the whole failure this
+# workflow exists to prevent. Bridge is parallel_workers=0 (serial,
+# ~1GB per test). See vault/handbook/dv/running-regressions.md
 cd ../dv/tests
-pytest -v  # ALL tests, not just the one you think changed
+make clean-all && make run-all-func   # ALL tests, not just the one you think changed
 
 # Step 5: Verify git diff makes sense
 git diff ../rtl/  # Review all changes
@@ -1162,7 +1165,7 @@ async def cocotb_test_basic(dut):
 **Run tests:**
 ```bash
 cd projects/components/bridge/dv/tests
-pytest test_bridge_2x2_rw.py -v
+make run-bridge_2x2_rw-gate   # bridge is serial by design (~1GB/test)
 ```
 
 ---
@@ -1232,8 +1235,8 @@ ls projects/components/bridge/dv/tests/
 cd projects/components/bridge/bin
 python3 bridge_generator.py --ports test_configs/bridge_2x2_rw.toml
 
-# Run tests
-pytest projects/components/bridge/dv/tests/test_bridge_2x2_rw.py -v
+# Run tests (bridge is parallel_workers=0 -- serial by design, ~1GB/test)
+cd projects/components/bridge/dv/tests && make run-bridge_2x2_rw-gate
 
 # Lint generated RTL
 verilator --lint-only projects/components/bridge/rtl/generated/bridge_2x2_rw/bridge_2x2_rw.sv

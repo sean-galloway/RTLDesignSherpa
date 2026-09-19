@@ -477,7 +477,7 @@ counter_bin #(
     .counter_bin_next (event_count_next)
 );
 
-// Test: pytest val/common/test_counter_bin.py -v
+// Test: val/common/test_counter_bin.py  (run: cd val/common && make run-counter_bin-gate)
 ```
 
 ### Step 5: Lint and Test Guidance
@@ -487,8 +487,9 @@ counter_bin #(
 # Lint top-level design
 verilator --lint-only your_top_module.sv
 
-# Run existing module test
-pytest val/common/test_{module}.py -v
+# Run existing module test (Makefile, not bare pytest -- it supplies the
+# level, the derived workers and the reruns; see running-regressions)
+cd val/common && make run-{module}-gate
 ```
 
 ---
@@ -671,7 +672,7 @@ grep -r "module_name" rtl/amba/ projects/components/
 cat val/common/test_module.py
 
 # Run test
-pytest val/common/test_module.py -v
+cd val/common && make run-module-gate
 
 # Lint
 verilator --lint-only rtl/common/module.sv

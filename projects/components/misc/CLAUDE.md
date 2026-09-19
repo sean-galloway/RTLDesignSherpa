@@ -632,14 +632,15 @@ mkdir -p docs
 # Lint RTL
 verilator --lint-only rtl/{name}.sv
 
-# Run tests
-pytest dv/tests/test_{name}.py -v
+# Run tests (Makefile, not bare pytest -- it supplies the level, the
+# derived worker count and the reruns; see running-regressions)
+cd dv/tests && make run-{name}-gate
 
 # Run with waveforms
-WAVES=1 pytest dv/tests/test_{name}.py -v
+cd dv/tests && make run-{name}-gate-waves
 
-# View waveforms
-gtkwave dv/tests/logs/test_{name}.vcd
+# View waveforms: create_view_cmd() writes a ready-made gtkwave command
+# beside the log -- do not hand-build the path
 ```
 
 ---

@@ -450,8 +450,8 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(1024)) u_agg_fifo (
 **A: Check current status first:**
 
 ```bash
-# View test results
-pytest val/amba/test_axi4_monitor.py -v
+# Through the area Makefile (see vault/handbook/dv/running-regressions.md)
+cd val/amba && make run-axi4_monitor-gate
 ```
 
 **Current Known Issues:**
@@ -651,9 +651,10 @@ axi4_master_rd_mon u_mon (
 
 **Debug commands:**
 ```bash
-pytest val/amba/test_axi4_monitor.py -v -s  # Verbose test
-pytest val/amba/test_axi4_monitor.py --vcd=debug.vcd
-gtkwave debug.vcd
+cd val/amba
+make run-axi4_monitor-gate           # verbose by default (-v --tb=short)
+make run-axi4_monitor-gate-waves     # WAVES=1; --vcd is not the mechanism
+# create_view_cmd() writes a ready-made gtkwave command beside the log
 ```
 
 ### Issue: Test Failures
@@ -688,18 +689,20 @@ cat rtl/amba/KNOWN_ISSUES/README.md
 ### Run Tests
 
 ```bash
-# Single test
-pytest val/amba/test_axi4_monitor.py -v
+cd val/amba
 
-# All AMBA tests
-pytest val/amba/ -v
+# Single test root
+make run-axi4_monitor-gate
+
+# All AMBA tests -- clean-all FIRST or the result is not trustworthy
+make clean-all && make run-all-full-parallel
 
 # Specific protocol
-pytest val/amba/test_apb4_monitor.py -v
+make run-apb4_monitor-func
 
-# With waveforms
-pytest val/amba/test_axi4_monitor.py --vcd=waves.vcd
-gtkwave waves.vcd
+# With waveforms -- WAVES=1 via the target, not --vcd
+make run-axi4_monitor-gate-waves
+# create_view_cmd() writes a ready-made gtkwave command beside the log
 ```
 
 ### Test Status (Current)
@@ -752,7 +755,7 @@ cat docs/markdown/rtl-amba/axi4/axi4_master_rd_mon.md
 cat docs/user-guides/AXI_Monitor_Configuration_Guide.md
 
 # Run tests
-pytest val/amba/test_axi4_monitor.py -v
+cd val/amba && make run-axi4_monitor-gate
 
 # Check known issues
 ls rtl/amba/KNOWN_ISSUES/
