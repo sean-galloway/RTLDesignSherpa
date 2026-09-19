@@ -58,6 +58,34 @@ BRIDGES_DIR="$FRAMEWORK_ROOT/rtl/bridges"
 CONFIGS_DIR="$BRIDGES_DIR/configs"
 RTL_OUT="$BRIDGES_DIR/generated"
 
+# Serialise. RTL_OUT is FRAMEWORK-level -- every build-* under this area shares
+# it -- and bridge_generator.py rmtree()s each bridge directory before rewriting
+# it (bridge_generator.py:700). Two builds running this script at once delete
+# each other's output mid-write:
+#
+#   FileNotFoundError: [Errno 2] No such file or directory:
+#       .../rtl/bridges/generated/bridge_stream_mon_axil
+#
+# which is exactly how a concurrent `make bitstream` across build-mon, build-obs
+# and build-perf killed the perf build (2026-09-19). It is a TOCTOU inside
+# rmtree: the directory existed at the check and was gone by the unlink.
+#
+# fpga_flow.mk's existing lock cannot cover this. BUILD_LOCK is deliberately per
+# BUILD DIRECTORY (fpga_flow.mk:82) so the three builds CAN run Vivado at the
+# same time -- right for Vivado, useless for a writer all three share.
+#
+# BLOCKING, unlike the Vivado lock's `flock -n`. A second Vivado run on one
+# project directory must abort; a second regen should just wait a few seconds
+# and then find the same bytes, because regeneration is idempotent.
+REGEN_LOCK="$BRIDGES_DIR/.regen.lock"     # *.lock is gitignored
+if [ -z "${REGEN_LOCKED:-}" ]; then
+    # `bash "$0"`, not `"$0"`: PREBUILD invokes this script as
+    # `bash regen_bridges.sh ...`, so the exec bit is not load-bearing
+    # anywhere else. Re-exec'ing it directly would quietly make every
+    # stream build depend on a mode bit a fresh clone need not carry.
+    exec env REGEN_LOCKED=1 flock "$REGEN_LOCK" bash "$0" "$@"
+fi
+
 GENERATOR="$REPO_ROOT/projects/components/bridge/bin/bridge_generator.py"
 
 if [ ! -x "$GENERATOR" ] && [ ! -f "$GENERATOR" ]; then
