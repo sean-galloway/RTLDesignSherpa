@@ -15,7 +15,6 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
--f $REPO_ROOT/projects/components/dmas/stream/rtl/filelists/fub/apb4todescr.f
 -f $REPO_ROOT/projects/components/dmas/stream/rtl/filelists/fub/axi_read_engine.f
 -f $REPO_ROOT/projects/components/dmas/stream/rtl/filelists/fub/axi_write_engine.f
 -f $REPO_ROOT/projects/components/dmas/stream/rtl/filelists/fub/descriptor_engine.f
