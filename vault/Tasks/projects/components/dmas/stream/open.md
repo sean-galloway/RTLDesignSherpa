@@ -65,6 +65,63 @@ block, update-in-place — the gap that nearly caused a duplicate). Remaining: t
 run-base-generator flush-on-start (invariant **I10** below) and optional formal
 SVA of the stated invariants.
 
+**Update 2026-09-20.** The citation gate was RED again (21 drifts, not caused by
+this area's edits -- `scheduler.sv` moved +3 in `db672cd03`, `stream_core.sv`
++26 in `4aeaf3e63`, the monitor files up to +195 in `657d413c1`). Restored to
+green; `CITES` is 73 -> 83. Four findings came out of doing it:
+
+1. **The saturation-recovery contract documented the DEFECT as the contract.**
+   Every row was stale: `cmd_entry_reserve` 2 -> **4**, `BLOCK_MARGIN` 1 -> **3**,
+   `MAX_TRANSACTIONS` `+4`/68 -> `+MON_TRANS_MARGIN`/**72**, thresholds 67 -> 69.
+   `axi_monitor_base.sv:679-690` states plainly that reserve=2 (margin 1) is the
+   mechanism behind the observer tracking loss (4096 observed vs 3073 tracked) --
+   so the workbook was publishing the broken sizing as correct. Corrected.
+2. **`stream_core.sv` carried the same stale arithmetic** in comments ("+4
+   covers in-flight skid/handshake overlap", "8ch default = 68"), orphaned by
+   `baac9a77a` when MON_TRANS_MARGIN became 8. Corrected (comment-only;
+   `stream_top_ch8` re-elaborates clean).
+3. **"invariant I10" is a dangling reference.** There is no I-numbering anywhere
+   in the generator -- invariants are free text in the "Key invariant" column.
+   The numbered list the status line above promises was never written. Rather
+   than invent an I10 to match the prose, the invariant is now recorded in the
+   required form and numbered locally (I1-I3).
+4. **86 source labels are structurally uncheckable.** `verify_citations` only
+   validates `CITES` quoted snippets; the `f"{SCHED}:924-940"`-style labels are
+   line RANGES, so drift in them is undetectable by design. Confirmed real, not
+   theoretical: `SCHED:924-940` labels the read-prefetch map, but line 924 is now
+   a comment and the expression sits at 927. Not fixed here -- making ranges
+   checkable is tooling work ([[TOOLING-KMAP]] step 5), which [[STREAM-KMAP]] is
+   already blocked on.
+
+**Run-base generator: documented, deliberately NOT fixed in RTL.** The hazard is
+confirmed and now bounded rather than vague: `u_rd_addr_gen`/`u_wr_addr_gen` take
+`.rst_n(rst_n)` (SCHED:1029, :1051) -- the BLOCK reset -- so `r_channel_reset_active`
+never reaches them (I1); `start` re-arms only the walker and never clears
+`i_addr_fifo` (ADDRGEN:152) (I2); depth is 4 per direction (I3). So a channel
+reset mid-generation strands up to **4 stale bases per direction**, and the next
+descriptor generates behind them. Landed as a three-part CONTRACT TABLE (terms ->
+invariants -> decision table) on the "K-maps scheduler" sheet. The decision table
+has NO illegal row: all eight combinations are reachable, so nothing structurally
+prevents the case -- it is bounded, not excluded.
+
+RTL was left alone on purpose. The task's own text calls this "a good candidate
+for the signal-contract treatment", the earlier `gaxi_drop_fifo_sync` `drop_all`
+attempt regressed working cases and was reverted, and that attempt exists in no
+branch, reflog or stash -- so it cannot be inspected and re-attempting it blind
+would just reproduce the regression. Recorded hypothesis for whoever picks it up:
+`gaxi_drop_fifo_sync` blocks normal read/write for the duration of a drop, which
+is the likely "flush/read-timing interaction". Note the block is shared with
+RAPIDS since `4aeaf3e63`, so an RTL flush has two consumers.
+
+Also worth knowing: **no table in the workbook used the 2026-08-28 required form
+until this one.** The handbook calls term-list -> invariants -> decision-table the
+governing requirement; the existing sheets are all the older shape. Converting
+them is [[STREAM-KMAP]] scope.
+
+**Remaining:** only the explicitly-optional formal SVA of the stated invariants.
+Everything the status line above listed as outstanding is now either done or
+consciously deferred with a reason, so High priority may no longer be right.
+
 **Goal:** Maintain explicit **signal contracts** and **Karnaugh maps** for the
 significant control/handshake signals in STREAM — **especially in the read and
 write engines** (`axi_read_engine.sv`, `axi_write_engine.sv`) and the scheduler /

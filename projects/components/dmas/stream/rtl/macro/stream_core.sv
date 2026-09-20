@@ -64,10 +64,10 @@ module stream_core #(
     // (monitor_common_pkg::cmd_entry_reserve) guarantees an undersized
     // monitor throttles and RECOVERS rather than deadlocking, and the
     // mon_small test config pins this small on purpose to keep that
-    // guarantee exercised end-to-end. +4 covers in-flight skid/handshake
-    // overlap beyond the engines' own counters.
+    // guarantee exercised end-to-end. MON_TRANS_MARGIN (8) covers in-flight
+    // skid/handshake overlap beyond the engines' own counters.
     // NOTE: Verilator 5.020's default --unroll-count is 64; monitor tables
-    // deeper than that (8ch default = 68) need --unroll-count raised in the
+    // deeper than that (8ch default = 72) need --unroll-count raised in the
     // sim build or the per-entry loops fail BLKLOOPINIT. The stream tests
     // pass --unroll-count 256. Synthesis tools are unaffected.
     //

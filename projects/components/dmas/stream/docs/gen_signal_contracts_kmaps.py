@@ -162,6 +162,8 @@ SRAM_UNIT = "projects/components/dmas/stream/rtl/fub/sram_controller_unit.sv"
 ALLOC = "projects/components/dmas/stream/rtl/fub/stream_alloc_ctrl.sv"
 DRAIN = "projects/components/dmas/stream/rtl/fub/stream_drain_ctrl.sv"
 CORE = "projects/components/dmas/stream/rtl/macro/stream_core.sv"
+# Shared with RAPIDS since 4aeaf3e63 -- an RTL change here has two consumers.
+ADDRGEN = "projects/components/misc/rtl/stream_run_addr_gen.sv"
 RD_MON = "rtl/amba/axi4/axi4_master_rd_mon.sv"
 WR_MON = "rtl/amba/axi4/axi4_master_wr_mon.sv"
 MON_BASE = "rtl/amba/monitor/axi_monitor_base.sv"
@@ -197,27 +199,27 @@ CITES = [
     (WR_ENG, 784, "else if (m_axi_wvalid && m_axi_wready && m_axi_wlast"),
     (WR_ENG, 941, "m_axi_bready = 1'b1"),
     (WR_ENG, 951, "if (m_axi_bvalid && m_axi_bready && (m_axi_bresp != 2'b00))"),
-    (SCHED, 829, "w_read_complete = (r_read_beats_remaining == 32'h0)"),
-    (SCHED, 899, "w_write_issued   = (r_write_beats_remaining == 32'h0)"),
-    (SCHED, 904, "w_write_complete = (r_write_beats_to_commit == 32'h0)"),
-    (SCHED, 906, "w_transfer_complete = w_read_complete && w_write_issued"),
-    (SCHED, 924, "w_rd_prefetch_en = cfg_rd_prefetch_enable && !w_is_ext"),
-    (SCHED, 929, "w_rd_peek   = w_rd_prefetch_en && w_state_xfer_data"),
-    (SCHED, 939, "w_wr_advance = w_rd_prefetch_en && w_state_xfer_data"),
-    (SCHED, 960, "w_sched_rd_completing_this_cycle = sched_rd_done_strobe"),
-    (SCHED, 975, "sched_rd_valid = (r_current_state == CH_XFER_DATA)"),
-    (SCHED, 1001, "sched_wr_valid = (r_current_state == CH_XFER_DATA)"),
+    (SCHED, 832, "w_read_complete = (r_read_beats_remaining == 32'h0)"),
+    (SCHED, 902, "w_write_issued   = (r_write_beats_remaining == 32'h0)"),
+    (SCHED, 907, "w_write_complete = (r_write_beats_to_commit == 32'h0)"),
+    (SCHED, 909, "w_transfer_complete = w_read_complete && w_write_issued"),
+    (SCHED, 927, "w_rd_prefetch_en = cfg_rd_prefetch_enable && !w_is_ext"),
+    (SCHED, 932, "w_rd_peek   = w_rd_prefetch_en && w_state_xfer_data"),
+    (SCHED, 942, "w_wr_advance = w_rd_prefetch_en && w_state_xfer_data"),
+    (SCHED, 963, "w_sched_rd_completing_this_cycle = sched_rd_done_strobe"),
+    (SCHED, 978, "sched_rd_valid = (r_current_state == CH_XFER_DATA)"),
+    (SCHED, 1004, "sched_wr_valid = (r_current_state == CH_XFER_DATA)"),
     (SCHED, 270, "w_is_ext = r_is_ext"),
     (SCHED, 317, "w_addrgen_start = w_state_fetch_desc && !r_fetch_desc_d && w_is_ext"),
     (SCHED, 523, "if (w_wr_advance) begin"),
     (SCHED, 525, "end else if (w_transfer_complete && !r_rd_ahead) begin"),
     (SCHED, 540, "if (r_descriptor.next_descriptor_ptr != 32'h0"),
     (SCHED, 542, "end else if (w_write_complete) begin"),
-    (SCHED, 1077, "descriptor_ready = (r_current_state == CH_IDLE)"),
-    (SCHED, 1115, "if (sched_wr_done_strobe || sched_wr_commit_strobe)"),
-    (SCHED, 1160, "w_timeout_expired = cfg_sched_timeout_enable"),
-    (SCHED, 1165, "w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0)"),
-    (SCHED, 1170, "w_hard_error = descriptor_error || sched_rd_error"),
+    (SCHED, 1080, "descriptor_ready = (r_current_state == CH_IDLE)"),
+    (SCHED, 1118, "if (sched_wr_done_strobe || sched_wr_commit_strobe)"),
+    (SCHED, 1163, "w_timeout_expired = cfg_sched_timeout_enable"),
+    (SCHED, 1168, "w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0)"),
+    (SCHED, 1173, "w_hard_error = descriptor_error || sched_rd_error"),
     (DESC_ENG, 333, "w_apb_skid_valid_in = apb_valid && !r_channel_reset_active"),
     (DESC_ENG, 449, "w_next_addr_valid = (w_next_addr_extended >= cfg_addr0_base"),
     (DESC_ENG, 454, "w_chain_condition = (w_next_addr != '0) && !w_desc_last"),
@@ -240,12 +242,22 @@ CITES = [
     (DRAIN, 142, "rd_ready = !r_rd_empty"),
     (DRAIN, 145, "data_available = w_count"),
     (CORE, 126, "parameter int RD_MON_MAX_TRANS = ((NUM_CHANNELS * AR_MAX_OUTSTANDING + MON_TRANS_MARGIN) < 16)"),
-    (CORE, 779, "int_cfg_rdeng_mon_enable = cfg_rdeng_mon_enable"),
-    (CORE, 840, "int_cfg_rdeng_mon_enable = 1'b0"),
-    (RD_MON, 496, "fub_axi_arready = w_core_fub_axi_arready &"),
-    (WR_MON, 501, "fub_axi_awready = w_core_fub_axi_awready &"),
-    (MON_BASE, 504, "block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)"),
-    (MON_PKG, 115, "return (max_transactions >= 16) ? 2 : 0"),
+    (CORE, 805, "int_cfg_rdeng_mon_enable = cfg_rdeng_mon_enable"),
+    (CORE, 866, "int_cfg_rdeng_mon_enable = 1'b0"),
+    (RD_MON, 577, "fub_axi_arready = w_core_fub_axi_arready &"),
+    (WR_MON, 582, "fub_axi_awready = w_core_fub_axi_awready &"),
+    (MON_BASE, 699, "block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)"),
+    (MON_PKG, 131, "return (max_transactions >= 16) ? 4 : 0"),
+    (SCHED, 440, "r_channel_reset_active <= cfg_channel_reset;"),
+    (SCHED, 468, "if (r_channel_reset_active) begin"),
+    (SCHED, 1025, ".FIFO_DEPTH   (4),"),
+    (SCHED, 1029, ".rst_n           (rst_n),"),
+    (SCHED, 1030, ".start           (w_addrgen_start),"),
+    (SCHED, 1051, ".rst_n           (rst_n),"),
+    (ADDRGEN, 152, "end else if (start) begin"),
+    (ADDRGEN, 210, ".DEPTH(FIFO_DEPTH)"),
+    (ADDRGEN, 213, ".axi_aresetn (rst_n),"),
+    (ADDRGEN, 217, ".rd_valid    (o_base_valid),"),
 ]
 
 
@@ -1235,7 +1247,7 @@ def build_scheduler_kmaps(wb):
 
     km.table(
         "r_timeout_counter next-value (priority order)",
-        f"{SCHED}:1115-1123",
+        f"{SCHED}:1118-1126",
         ["condition (first match wins)", "next", "meaning"],
         [("sched_wr_done_strobe || sched_wr_commit_strobe", "0",
           "ANY write progress (AW issue OR B commit) re-arms - commits "
@@ -1260,6 +1272,74 @@ def build_scheduler_kmaps(wb):
          (3, "state case (normal transitions)", "see exit-decision maps")],
         note="CH_ERROR self-loops until channel reset; scheduler_idle "
              "reports CH_IDLE only (a wedged channel must NOT read idle).")
+
+    # ---- run-base generator survives channel reset (TASK-058 contract) -------
+    # Three-part CONTRACT TABLE per the 2026-08-28 direction: terms, then the
+    # invariants that relate them, then the decision table.
+    km.table(
+        "run-base generator: TERMS",
+        f"{SCHED}:1021-1062, {ADDRGEN}:152-221",
+        ["term", "defining expression", "source"],
+        [("chan_reset", "r_channel_reset_active (registered cfg_channel_reset)",
+          f"{SCHED}:440"),
+         ("start", "w_addrgen_start -> stream_run_addr_gen.start",
+          f"{SCHED}:1030"),
+         ("fifo_nonempty", "o_base_valid (i_addr_fifo rd_valid)",
+          f"{ADDRGEN}:217"),
+         ("gen_rst", "i_addr_fifo.axi_aresetn == rst_n (BLOCK reset)",
+          f"{ADDRGEN}:213")],
+        note="u_rd_addr_gen / u_wr_addr_gen are instantiated per direction; "
+             "the block is shared with RAPIDS, so an RTL change has two "
+             "consumers.")
+
+    km.table(
+        "run-base generator: INVARIANTS",
+        f"{SCHED}:1029, {ADDRGEN}:152",
+        ["#", "invariant", "citation", "consequence for the table"],
+        [("I1", "channel reset NEVER reaches the generator: .rst_n is wired "
+                "to the block reset, not r_channel_reset_active",
+          f"{SCHED}:1029, :1051",
+          "chan_reset cannot empty i_addr_fifo"),
+         ("I2", "start re-arms the WALKER only (r_inner_count, r_gen_beats, "
+                "indices); it does not clear i_addr_fifo",
+          f"{ADDRGEN}:152",
+          "a new descriptor generates BEHIND whatever is still queued"),
+         ("I3", "i_addr_fifo depth is 4 per direction",
+          f"{SCHED}:1025, {ADDRGEN}:210",
+          "bounds the stale-base exposure at 4 addresses per direction")],
+        note="I1 and I2 do not EXCLUDE the hazard rows below -- they produce "
+             "them. That is the finding, not a footnote.")
+
+    km.table(
+        "run-base generator: DECISION TABLE (FIFO content at next start)",
+        f"{SCHED}:1021-1062, {ADDRGEN}:152-221",
+        ["chan_reset", "start", "fifo_nonempty", "verdict",
+         "behaviour / excluded by"],
+        [(0, 0, 0, "legal", "idle, nothing queued"),
+         (0, 0, 1, "legal", "normal drain: consumer pops generated bases"),
+         (0, 1, 0, "legal", "intended case - start on an empty FIFO"),
+         (0, 1, 1, "legal (benign)",
+          "start while this descriptor's own bases are still queued; the "
+          "walker reloads and appends in order"),
+         (1, 0, 0, "legal", "channel reset with an already-empty FIFO"),
+         (1, 0, 1, "HAZARD",
+          "reset returns the FSM to CH_IDLE but leaves up to 4 stale bases "
+          "per direction (I1, I2, I3)"),
+         (1, 1, 0, "legal", "reset then restart with an empty FIFO"),
+         (1, 1, 1, "HAZARD",
+          "next descriptor generates behind stale bases; the consumer pops "
+          "the STALE ones first (I1, I2, I3)")],
+        note="NO row is ILLEGAL: every combination is reachable, so nothing "
+             "structurally prevents the stale-base case -- it is bounded (4 "
+             "per direction), not excluded. Severity is low because "
+             "w_addrgen_start only pulses for EXT descriptors "
+             f"({SCHED}:1030) and channel reset mid-generation is rare. "
+             "A gaxi_drop_fifo_sync drop_all flush-on-start was attempted "
+             "and reverted after it regressed working cases on a flush/read "
+             "timing interaction; that attempt was never committed, so it "
+             "cannot be inspected. Note gaxi_drop_fifo_sync blocks normal "
+             "read/write for the duration of a drop, which is the likely "
+             "mechanism. Documented rather than fixed: see STREAM TASK-058.")
 
 
 def build_desc_engine_kmaps(wb):
@@ -1489,7 +1569,7 @@ def build_core_monitor_kmaps(wb):
         "(1,1,1) would be a monitor stalling while claiming capacity.")
 
     km.kmap(
-        "w_block_ready  (monitor capacity)", f"{MON_BASE}:483-485",
+        "w_block_ready  (monitor capacity)", f"{MON_BASE}:697-701",
         "block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN) ? (active_count "
         "< MAX_TRANSACTIONS - BLOCK_MARGIN) : 1'b1   [vars: max_gt_margin "
         "(param, compile-time), count_below (comparator)]",
@@ -1502,19 +1582,20 @@ def build_core_monitor_kmaps(wb):
 
     km.table(
         "saturation-recovery contract (stream default sizing)",
-        f"{MON_BASE}:456-485, {MON_PKG}:114-116, {CORE}:73-74",
+        f"{MON_BASE}:656-701, {MON_PKG}:115-132, {CORE}:125-129",
         ["quantity", "expression", "8ch default value"],
-        [("MAX_TRANSACTIONS", "NUM_CHANNELS * AR_MAX_OUTSTANDING + 4",
-          "68"),
-         ("cmd_entry_reserve(MAX)", "(MAX >= 16) ? 2 : 0", "2"),
-         ("command-entry cap (trans_mgr)", "MAX - reserve", "66"),
-         ("BLOCK_MARGIN", "reserve - 1 (or flat 3 if reserve==0)", "1"),
+        [("MAX_TRANSACTIONS",
+          "max(16, NUM_CHANNELS * AR_MAX_OUTSTANDING + MON_TRANS_MARGIN)",
+          "72"),
+         ("cmd_entry_reserve(MAX)", "(MAX >= 16) ? 4 : 0", "4"),
+         ("command-entry cap (trans_mgr)", "MAX - reserve", "68"),
+         ("BLOCK_MARGIN", "reserve - 1 (or flat 3 if reserve==0)", "3"),
          ("block threshold", "block when active_count >= MAX - margin",
-          ">= 67"),
+          ">= 69"),
          ("reopen threshold", "re-assert when active_count < MAX - margin",
-          "< 67")],
+          "< 69")],
         note="The reopen threshold sits STRICTLY ABOVE the command cap "
-             "(67 > 66): even a table whose command entries are all "
+             "(69 > 68): even a table whose command entries are all "
              "permanently in flight recovers block_ready as soon as "
              "orphan entries drain. The old flat MAX-3 margin parked the "
              "table exactly AT the threshold and never re-asserted "
