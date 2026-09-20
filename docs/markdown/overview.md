@@ -280,7 +280,7 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 | **PM/ACPI** | Power Management / ACPI support |
 | **IOAPIC** | I/O Advanced PIC |
 
-**Documentation:** [Block Status](../../projects/components/retro_legacy_blocks/BLOCK_STATUS.md) | [PRD](../../projects/components/retro_legacy_blocks/PRD.md)
+**Documentation:** [PRD](../../projects/components/retro_legacy_blocks/PRD.md)
 
 #### Future Components
 
