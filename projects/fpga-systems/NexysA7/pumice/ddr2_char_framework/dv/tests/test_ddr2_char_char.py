@@ -529,3 +529,24 @@ def test_ddr2_char_char_concurrent_gap_board(request):
     # suite has ever run the geometry the board actually ships.
     _run(request, "cocotb_test_char_concurrent_gap", dfi_rate=2,
          dram_beat_width=32, dram_device_width=16, dram_bl=4)
+
+
+
+def test_ddr2_char_char_concurrent_gap_board_bl8(request):
+    """PUMICE-041 CONTROL: the BL4 cell's twin, identical except dram_bl=8.
+
+    Not a coverage cell -- a controlled comparison. concurrent_gap_board (BL4)
+    fails and families_x16 (BL8) passes, but those differ in BOTH burst length
+    AND scenario, so neither isolates BL. This shares the scenario, geometry,
+    gaps and txn count with the failing cell and changes ONE variable.
+
+    If this passes, BL is the whole difference and the BFM's per-RD column
+    queuing is the place to look: at BL8 a burst spans two due_cycles
+    (k//words_per_cycle for k=0..7 with words_per_cycle=4), at BL4 exactly one.
+    If it ALSO fails, the fault is in the concurrent scenario rather than BL,
+    and the 61/64-beat signature recorded for BL4 is not BL-specific at all.
+
+    Deliberately NOT xfail: its verdict is the measurement.
+    """
+    _run(request, "cocotb_test_char_concurrent_gap", dfi_rate=2,
+         dram_beat_width=32, dram_device_width=16, dram_bl=8)

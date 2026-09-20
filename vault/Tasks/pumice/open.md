@@ -1322,51 +1322,40 @@ words_per_cycle = dfi_rate * words_per_beat = 2*2 = 4 and a BL4 burst is 4
 device words = exactly ONE full DFI cycle. Nothing under-fills, so there is
 nothing to anchor. Do not re-try this.
 
-### Next measurement (not yet run)
+### 2026-09-20 RESULT: burst length is the SOLE variable
 
-The controlled comparison is BL8 vs BL4 on the SAME test, since `families_x16`
-(BL8, passes) and `concurrent_gap_board` (BL4, fails) share geometry
-(dfi_rate=2, beat=32, dev=16) and differ in burst length and scenario. Run
-both with CONCURRENT_DUMP and compare `hist total`: if BL8 records 64 and BL4
-records 8, the ratio is the clue -- the BFM queues 4 device columns per RD at
-BL4 landing in one due_cycle (k//words_per_cycle == 0 for all k), versus 8
-columns over two due_cycles at BL8, while the TB's own comment says the
-aligner's enable window is ceil(BL/DFI_RATE) = 2 cycles at BL4 and 4 at BL8.
-Those two accountings disagree by 2x at BOTH burst lengths, so why BL8 passes
-is itself unexplained -- resolve that before proposing a fix.
+Ran the controlled comparison. Added `test_ddr2_char_char_concurrent_gap_board_bl8`
+-- the failing cell's twin, identical except `dram_bl=8`. Same scenario,
+geometry, gaps, txn count, bytes moved; one variable changed:
 
-### 2026-09-18: the BEATS_PER_BURST contradiction is EXPLAINED
+    BL8:  ok=True   mismatched=0    1 passed
+    BL4:  ok=False  mismatched=61   1 xfailed   '1:1 VIOLATION: hist total 8 != 64'
 
-The task asked: "explain why families_x16 passes at 8 and fails at 4" before
-re-deriving beats_per_burst from K. Answer: **the BFM uses the value as DEVICE
-COLUMNS, not DFI beats**, despite its name and docstring
-(`dfi_slave_phy.py`, RD handler):
+Until now the evidence was concurrent_gap_board (BL4, fails) vs families_x16
+(BL8, passes), which differ in BOTH burst length and scenario, so neither could
+attribute the failure. **It is BL.**
 
-    for k in range(beats):
-        col_k = base_col + k          # a device column, not a DFI beat
+The BL8 aligner trace is the useful half:
 
-So BL/K queues only HALF a burst's columns -- which is exactly why halving it
-(8 -> 4) broke families_x16. `BEATS_PER_BURST = DRAM_BL` is CORRECT and should
-stay. The BFM's docstring ("DFI beats per DRAM burst, defaulting to BL//2
-assuming the canonical K=2 ratio") is what misleads; file that upstream in
-RDS-DV rather than changing the value here.
+    RD_ALIGNER probe: valids=512 captured=512 blocked_pre=0 blocked_real=0
 
-Also confirmed: the sim runs the SAME geometry as the board --
-`dfi_rate=2 bl=4 beat=32b dev=16b` on both -- with the same RTL, so the
-divergence is the MODEL, not the controller and not the geometry.
+Every returned beat captured, nothing blocked, under the EXACT concurrent
+traffic that breaks BL4. So the read-return path is sound and the divergence is
+burst-length-specific -- consistent with the BFM's per-RD column queuing, where
+BL8 spans two due_cycles (k//words_per_cycle, k=0..7, words_per_cycle=4) and
+BL4 collapses to exactly one.
 
-### Leading candidate (NOT yet proven)
+The twin is deliberately NOT xfail: its verdict is the measurement, and it is
+now a permanent control -- if BL8 ever starts failing too, the attribution
+above is void and the fault moved to the scenario.
 
-`DFITimingProfile.a7ddrphy_bl4(...)` exists specifically for this case and sets
-`read_bl_anchored=True`; the char TB instead builds its slave with the generic
-`builtin_timings("ddr2-650-mt47h64m16hr")`, where that flag defaults False.
+### STILL UNEXPLAINED -- resolve before proposing a fix
 
-CAVEAT before anyone spends a run on it: that profile's docstring models BL4 at
-**nphases=4**, where a BL4 read under-fills the phases and the undriven ones hold
-the previous read's beats. This board is **nphases=2**, where
-words_per_cycle = dfi_rate * words_per_beat = 2*2 = 4 and BL4 = 4 device words =
-exactly ONE full DFI cycle -- nothing under-fills, so the anchoring may simply
-not apply. Test it, but do not assume it.
+The BFM's per-RD column queuing and the aligner's `ceil(BL/DFI_RATE)` enable
+window disagree by 2x at BOTH burst lengths (BL8: 2 cycles queued vs a 4-cycle
+window; BL4: 1 vs 2). **Yet BL8 passes.** Why the same 2x discrepancy is
+harmless at BL8 and fatal at BL4 is the open question. Any BL4 fix proposed
+before that is answered is a story fitted to one data point.
 
 
 ## PUMICE-044 — read eye is 10 taps: IDELAY is the only read knob and it spans 75% of a UI
