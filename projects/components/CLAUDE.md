@@ -45,7 +45,7 @@
 
 ---
 
-## 📖 Global Requirements Reference
+## Global Requirements Reference
 
 **IMPORTANT: Check `/GLOBAL_REQUIREMENTS.md` for all mandatory requirements**
 
@@ -87,7 +87,7 @@ Rationale: `vault/handbook/design/reset-and-clocking.md`.
 
 ### Rule #1: FPGA Synthesis Attributes (MANDATORY)
 
-**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 1.2 for complete requirement
+**See:** `/GLOBAL_REQUIREMENTS.md` Section 1.2 for complete requirement
 
 **Projects/Components-Specific Examples:**
 
@@ -126,15 +126,15 @@ logic [31:0] scaled_data = coefficient * input_data;
 
 ### Rule #2: Array Syntax Standards (MANDATORY)
 
-**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 1.3 for complete requirement
+**See:** `/GLOBAL_REQUIREMENTS.md` Section 1.3 for complete requirement
 
 **Quick Reference:** Use `[DEPTH]` not `[0:DEPTH-1]`
 
 ```systemverilog
-// ✅ CORRECT
+// CORRECT
 logic [DATA_WIDTH-1:0] mem [DEPTH];
 
-// ❌ WRONG
+// WRONG
 logic [DATA_WIDTH-1:0] mem [0:DEPTH-1];
 ```
 
@@ -154,7 +154,7 @@ The shared primitives are `rtl/amba/shared/sdpram_core.sv` and
 
 ### Rule #4: TB Location (MANDATORY)
 
-**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1 for complete requirement
+**See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1 for complete requirement
 
 **Projects/Components-Specific Import Pattern:**
 

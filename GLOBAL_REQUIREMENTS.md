@@ -43,7 +43,7 @@ This document consolidates all **MANDATORY** requirements found across repositor
 
 **NOT Allowed:**
 ```systemverilog
-// ❌ WRONG - Manual reset handling
+// WRONG - Manual reset handling
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         r_state <= IDLE;
@@ -119,10 +119,10 @@ logic [DATA_WIDTH-1:0] mem [DEPTH];
 
 **Pattern:**
 ```systemverilog
-// ✅ CORRECT
+// CORRECT
 logic [DATA_WIDTH-1:0] mem [DEPTH];
 
-// ❌ WRONG
+// WRONG
 logic [DATA_WIDTH-1:0] mem [0:DEPTH-1];
 ```
 
@@ -184,10 +184,10 @@ module simple_sram #(
 
 **Directory Structure:**
 ```
-✅ CORRECT:
+CORRECT:
 projects/components/{name}/dv/tbclasses/{module}_tb.py
 
-❌ WRONG:
+WRONG:
 bin/TBClasses/{name}/{module}_tb.py
 ```
 
@@ -313,7 +313,7 @@ class MyModuleTB(TBBase):
 
 **Pattern:**
 ```python
-# ✅ CORRECT: Direct queue access
+# CORRECT: Direct queue access
 aw_pkt = self.aw_monitor._recvQ.popleft()
 w_pkt = self.w_monitor._recvQ.popleft()
 
@@ -321,14 +321,14 @@ w_pkt = self.w_monitor._recvQ.popleft()
 assert aw_pkt.addr == expected_addr
 assert w_pkt.data == expected_data
 
-# ❌ WRONG: Memory model for simple test
+# WRONG: Memory model for simple test
 memory_model = MemoryModel()
 written_data = memory_model.read(addr, 4)  # Unnecessary complexity
 ```
 
 **When to Use:**
-- ✅ **Queue Access:** Simple in-order tests, single-master, no overlap
-- ✅ **Memory Models:** Complex OOO scenarios, multi-master with address overlap
+- **Queue Access:** Simple in-order tests, single-master, no overlap
+- **Memory Models:** Complex OOO scenarios, multi-master with address overlap
 
 **Applies to:** Simple in-order verification scenarios
 **Source:** `rapids/CLAUDE.md` Scoreboard Pattern, `CocoTBFramework/CLAUDE.md` Rule #5
@@ -345,12 +345,12 @@ written_data = memory_model.read(addr, 4)  # Unnecessary complexity
 ```python
 # Module: axi4_dwidth_converter_wr.sv
 
-✅ CORRECT:
+CORRECT:
 def test_axi4_dwidth_converter_wr(request, params):
     """Test for axi4_dwidth_converter_wr.sv"""
     ...
 
-❌ WRONG:
+WRONG:
 def test_converter(request, params):  # Too generic!
     ...
 ```
@@ -403,10 +403,10 @@ def test_basic(request, addr_width, data_width):
 
 **Pattern:**
 ```python
-# ❌ WRONG: Accepting partial success
+# WRONG: Accepting partial success
 assert success_rate >= 70  # "Good enough" - NO!
 
-# ✅ CORRECT: Require 100% success
+# CORRECT: Require 100% success
 assert success_rate >= 100  # 100% required
 ```
 
@@ -427,10 +427,10 @@ assert success_rate >= 100  # 100% required
 
 **Pattern:**
 ```python
-# ✅ CORRECT: Include simulation timestamp
+# CORRECT: Include simulation timestamp
 self.log.info(f"@ {cocotb.utils.get_sim_time('ns')}ns: Beat {i}: data=0x{data:X}, s_ready={ready}, occupancy={occ}")
 
-# ❌ WRONG: No simulation timestamp
+# WRONG: No simulation timestamp
 self.log.info(f"Beat {i}: data=0x{data:X}, s_ready={ready}, occupancy={occ}")
 ```
 
@@ -455,7 +455,7 @@ self.log.info(f"Beat {i}: data=0x{data:X}, s_ready={ready}, occupancy={occ}")
 
 **Anti-Pattern:**
 ```python
-# ❌ WRONG: Only Python logging timestamp
+# WRONG: Only Python logging timestamp
 self.log.info(f"Beat {i} completed")
 # Output: "2025-11-06 19:11:20,688 - INFO - Beat 1 completed"
 # Problem: Can't correlate with waveform!
@@ -486,10 +486,10 @@ find bin/TBClasses/ -name "*_tb.py"
 ```
 
 **Decision Tree:**
-- ✅ Exact match exists → Use it
-- ✅ Close match exists → Adapt with parameters
-- ⚠️ No match found → Document search, propose new
-- ❌ Didn't search → STOP, go back and search
+- Exact match exists → Use it
+- Close match exists → Adapt with parameters
+- No match found → Document search, propose new
+- Didn't search → STOP, go back and search
 
 **Applies to:** RTL modules, BFMs, TB components
 **Source:** `rtl/common/CLAUDE.md` Rule #1, `CocoTBFramework/CLAUDE.md` Rule #1
@@ -509,8 +509,8 @@ find bin/TBClasses/ -name "*_tb.py"
 (BFMs come from the RTLDesignSherpa-DV framework repo; shared TB classes in this repo are `bin/TBClasses/`)
 
 **NEVER:**
-- ❌ Manually drive valid/ready handshakes
-- ❌ Create custom protocol drivers when framework has them
+- Manually drive valid/ready handshakes
+- Create custom protocol drivers when framework has them
 
 **Applies to:** All RAPIDS FUB-level tests
 **Source:** `rapids/CLAUDE.md` Rule #1
@@ -564,15 +564,15 @@ Rationale and the history: `vault/handbook/authoring/commit-messages.md`.
 **Requirement:** STREAM has intentional simplifications - DO NOT "fix" them
 
 **Intentional Simplifications:**
-1. ✅ Aligned addresses only - No alignment fixup logic
-2. ✅ Length in beats - Not bytes or chunks
-3. ✅ No circular buffers - Explicit chain termination only
-4. ✅ No credit management - Simple transaction limits
-5. ✅ Pure memory-to-memory - No network interfaces
+1. Aligned addresses only - No alignment fixup logic
+2. Length in beats - Not bytes or chunks
+3. No circular buffers - Explicit chain termination only
+4. No credit management - Simple transaction limits
+5. Pure memory-to-memory - No network interfaces
 
 **When users ask "Can we add alignment fixup?"**
-- ✅ **Correct answer:** "STREAM intentionally keeps addresses aligned for tutorial simplicity. For complex alignment, see RAPIDS."
-- ❌ **Wrong answer:** "Sure, let me add alignment logic..." (defeats tutorial purpose!)
+- **Correct answer:** "STREAM intentionally keeps addresses aligned for tutorial simplicity. For complex alignment, see RAPIDS."
+- **Wrong answer:** "Sure, let me add alignment logic..." (defeats tutorial purpose!)
 
 **Applies to:** STREAM component only
 **Source:** `stream/CLAUDE.md` Rule #0.1
@@ -583,33 +583,33 @@ Rationale and the history: `vault/handbook/authoring/commit-messages.md`.
 
 ### P0 - Critical (Enforcement Required)
 
-1. ✅ Reset macro usage (`projects/components/`)
-2. ✅ TB location (project area, not framework)
-3. ✅ Three mandatory TB methods
-4. ✅ TBBase inheritance
-5. ✅ Three-layer architecture
-6. ✅ 100% test success requirement
+1. Reset macro usage (`projects/components/`)
+2. TB location (project area, not framework)
+3. Three mandatory TB methods
+4. TBBase inheritance
+5. Three-layer architecture
+6. 100% test success requirement
 
 ### P1 - High Priority (Strong Recommendation)
 
-7. ✅ FPGA synthesis attributes
-8. ✅ Array syntax standard
-9. ✅ SRAM module standards
-10. ✅ Test naming convention
-11. ✅ CocoTB + Pytest pattern
-12. ✅ Queue-based verification
+7. FPGA synthesis attributes
+8. Array syntax standard
+9. SRAM module standards
+10. Test naming convention
+11. CocoTB + Pytest pattern
+12. Queue-based verification
 
 ### P2 - Standard Practice (Best Practices)
 
-13. ✅ Search before creating
-14. ✅ BFM usage for protocols
-15. ✅ Active-low reset convention
-16. ✅ No emojis in technical docs
+13. Search before creating
+14. BFM usage for protocols
+15. Active-low reset convention
+16. No emojis in technical docs
 
 ### P3 - Project-Specific
 
-17. ✅ No attribution trailer on commit messages
-18. ✅ STREAM tutorial focus
+17. No attribution trailer on commit messages
+18. STREAM tutorial focus
 
 ---
 

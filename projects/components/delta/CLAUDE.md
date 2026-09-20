@@ -35,7 +35,7 @@
 **Status:** Early Proof of Concept (v0.3)
 **Your Role:** Help users understand NoC architecture, routing algorithms, and system integration
 
-**📖 Complete Specification:** `projects/components/delta/docs/delta_spec/` ← **Always reference this for technical details**
+**Complete Specification:** `projects/components/delta/docs/delta_spec/` ← **Always reference this for technical details**
 
 ---
 
@@ -104,7 +104,7 @@ DELTA Network Architecture (4×4 Mesh)
     └── PKT_STATUS (11) - Monitoring
 ```
 
-**📖 See:** `docs/delta_spec/ch02_blocks/00_block_overview.md`
+**See:** `docs/delta_spec/ch02_blocks/00_block_overview.md`
 
 ---
 
@@ -128,7 +128,7 @@ else route_LOCAL;  // Arrived
 - Deterministic paths
 - 3-4 cycles per hop latency
 
-**📖 See:** `docs/delta_spec/ch02_blocks/01_router_architecture.md`
+**See:** `docs/delta_spec/ch02_blocks/01_router_architecture.md`
 
 ### Q: "What's the difference between packet types?"
 
@@ -141,7 +141,7 @@ else route_LOCAL;  // Arrived
 | PKT_CONFIG | 10 | HIVE-C/SERV | Routers | Configuration |
 | PKT_STATUS | 11 | SERV | HIVE-C | Monitoring |
 
-**📖 See:** `docs/delta_spec/ch01_overview/03_packet_type_routing.md`
+**See:** `docs/delta_spec/ch01_overview/03_packet_type_routing.md`
 
 ### Q: "How do I integrate with RAPIDS DMA?"
 
@@ -160,7 +160,7 @@ logic         rapids_rx_tvalid;
 logic [3:0]   rapids_rx_tid;    // Source tile ID
 ```
 
-**📖 See:** `docs/delta_spec/ch03_interfaces/03_external_entities.md`
+**See:** `docs/delta_spec/ch03_interfaces/03_external_entities.md`
 
 ---
 
@@ -249,7 +249,7 @@ python bin/md_to_docx.py \
 - Pandoc installed and in PATH
 - For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
 
-**📖 See:** `bin/md_to_docx.py` (repo root) for complete implementation details
+**See:** `bin/md_to_docx.py` (repo root) for complete implementation details
 
 ---
 
@@ -272,18 +272,18 @@ The shell script will automatically:
 3. Generate both DOCX and PDF files in the docs/ directory
 4. Create table of contents and title page
 
-**📖 See:** `bin/md_to_docx.py` for complete implementation details
+**See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 
 ## Remember
 
-1. 📖 **Link to detailed spec** - `docs/delta_spec/` has complete architecture
-2. 🔀 **Clarify which Delta** - Network-on-Chip (NEW) vs AXIS Crossbar (older)
-3. 🎯 **Four packet types** - DATA, DESC, CONFIG, STATUS with different routing rules
-4. 🗺️ **XY routing** - Deadlock-free dimension-ordered routing
-5. 🔌 **Virtual tiles** - RAPIDS=16, HIVE-C=17 for external entities
-6. 📊 **Chapter organization** - Follows RAPIDS/STREAM convention
+1. **Link to detailed spec** - `docs/delta_spec/` has complete architecture
+2. **Clarify which Delta** - Network-on-Chip (NEW) vs AXIS Crossbar (older)
+3. **Four packet types** - DATA, DESC, CONFIG, STATUS with different routing rules
+4. **XY routing** - Deadlock-free dimension-ordered routing
+5. **Virtual tiles** - RAPIDS=16, HIVE-C=17 for external entities
+6. **Chapter organization** - Follows RAPIDS/STREAM convention
 
 ---
 

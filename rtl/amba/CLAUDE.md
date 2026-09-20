@@ -32,14 +32,14 @@
 ## Quick Context
 
 **What:** AMBA protocol monitoring infrastructure (AXI4, AXI4-Lite, APB, AXI-Stream)
-**Status:** 🟡 Active development - production-ready monitors, test refinement ongoing
+**Status:** Active development - production-ready monitors, test refinement ongoing
 **Your Role:** Help users integrate monitors, configure correctly, debug issues
 
-**📖 Detailed Specs:** `docs/markdown/rtl-amba/` ← **Always reference this for technical details**
+**Detailed Specs:** `docs/markdown/rtl-amba/` ← **Always reference this for technical details**
 
 ---
 
-## 📖 Global Requirements Reference
+## Global Requirements Reference
 
 **IMPORTANT: Check `/GLOBAL_REQUIREMENTS.md` for mandatory verification standards**
 
@@ -80,13 +80,13 @@ rather than restating a port list here.
 packet class under heavy traffic congests it.
 
 ```systemverilog
-❌ WRONG (User's code):
+WRONG (User's code):
 .cfg_error_enable   (1'b1),
 .cfg_compl_enable   (1'b1),
-.cfg_perf_enable    (1'b1),  // ❌ PACKET CONGESTION!
-.cfg_debug_enable   (1'b1)   // ❌ EVEN WORSE!
+.cfg_perf_enable    (1'b1),  // PACKET CONGESTION!
+.cfg_debug_enable   (1'b1)   // EVEN WORSE!
 
-✅ CORRECT (Functional debug mode):
+CORRECT (Functional debug mode):
 .cfg_error_enable   (1'b1),
 .cfg_compl_enable   (1'b1),
 .cfg_timeout_enable (1'b1),
@@ -111,11 +111,11 @@ suppressing emission, use `cfg_axi_pkt_mask` (drop mask, 1 = drop, in
 ### Rule #2: Know the Known Issues
 
 **Current Status (as of `95c9490a`):**
-- ✅ Event reported feedback bug FIXED (2025-09-30)
-- ✅ Multi-channel saturation wedge FIXED (`cb29e226`)
-- ✅ Runtime-disable leak / same-cycle AW+W / wrapper API / AXI5 W wiring FIXED (`95c9490a`)
-- ✅ val/amba regression fully green (679 passed / 0 failed); monitor formal 10/10
-- ⚠️ Open (framework): axil4 monitor TB drain-window race — seeds pinned; proper fix in RDS-DV
+- Event reported feedback bug FIXED (2025-09-30)
+- Multi-channel saturation wedge FIXED (`cb29e226`)
+- Runtime-disable leak / same-cycle AW+W / wrapper API / AXI5 W wiring FIXED (`95c9490a`)
+- val/amba regression fully green (679 passed / 0 failed); monitor formal 10/10
+- Open (framework): axil4 monitor TB drain-window race — seeds pinned; proper fix in RDS-DV
 
 **Always check:** `rtl/amba/KNOWN_ISSUES/` before diagnosing bugs
 
@@ -127,24 +127,24 @@ ls rtl/amba/KNOWN_ISSUES/   # 3 pages: active_count underflow,
 ### Rule #3: Integration = Configuration + Wiring + Downstream
 
 **Complete integration requires:**
-1. ✅ Module instantiation with correct parameters
-2. ✅ Configuration signals (cfg_*_enable)
-3. ✅ **Downstream monitor bus handling** (FIFO, arbiter, or consumer)
+1. Module instantiation with correct parameters
+2. Configuration signals (cfg_*_enable)
+3. **Downstream monitor bus handling** (FIFO, arbiter, or consumer)
 
 **Incomplete example:**
 ```systemverilog
-❌ INCOMPLETE:
+INCOMPLETE:
 axi4_master_rd_mon u_mon (
     // ... AXI signals ...
     .monbus_valid (mon_valid),
     .monbus_packet  (mon_data),
-    .monbus_ready (1'b1)  // ❌ Always ready = packet loss risk!
+    .monbus_ready (1'b1)  // Always ready = packet loss risk!
 );
 ```
 
 **Complete example:**
 ```systemverilog
-✅ COMPLETE:
+COMPLETE:
 // Monitor
 axi4_master_rd_mon u_mon (
     // ... AXI signals ...
@@ -274,7 +274,7 @@ axi4_master_rd_mon #(
     .cfg_error_enable   (1'b1),
     .cfg_compl_enable   (1'b1),
     .cfg_timeout_enable (1'b1),
-    .cfg_perf_enable    (1'b0)  // ⚠️ Disable to avoid congestion
+    .cfg_perf_enable    (1'b0)  // Disable to avoid congestion
 );
 
 // Add downstream FIFO
@@ -299,22 +299,22 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 .cfg_error_enable   (1'b1),  // Catch SLVERR, DECERR, orphans
 .cfg_compl_enable   (1'b1),  // Track completions
 .cfg_timeout_enable (1'b1),  // Detect stuck transactions
-.cfg_perf_enable    (1'b0),  // ⚠️ DISABLE (high traffic)
+.cfg_perf_enable    (1'b0),  // DISABLE (high traffic)
 .cfg_debug_enable   (1'b0)   // Only if deep debugging
 ```
 
 **Performance Analysis:**
 ```systemverilog
 .cfg_error_enable   (1'b1),  // Still catch errors
-.cfg_compl_enable   (1'b0),  // ⚠️ DISABLE (reduce traffic)
+.cfg_compl_enable   (1'b0),  // DISABLE (reduce traffic)
 .cfg_timeout_enable (1'b0),  // Disable
 .cfg_perf_enable    (1'b1),  // Enable performance metrics
 .cfg_debug_enable   (1'b0)
 ```
 
-**⚠️ CRITICAL:** "Never enable completions + performance together!"
+**CRITICAL:** "Never enable completions + performance together!"
 
-**📖 See:** `docs/user-guides/AXI_Monitor_Configuration_Guide.md` (comprehensive guide)
+**See:** `docs/user-guides/AXI_Monitor_Configuration_Guide.md` (comprehensive guide)
 
 ### Q: "Monitor packets format?"
 
@@ -341,7 +341,7 @@ logic [63:0] event_data = monbus_packet[63:0];
 // or use monitor_common_pkg::get_packet_type() etc.
 ```
 
-**📖 See:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md` (complete spec)
+**See:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md` (complete spec)
 
 ### Q: "How to handle multiple monitors?"
 
@@ -410,8 +410,8 @@ cd val/amba && make run-axi4_monitor-gate
 ```
 
 **Current Known Issues:**
-- ✅ **Event reported bug:** FIXED (2025-09-30)
-- ✅ **Saturation wedge / runtime-disable leak:** FIXED (`cb29e226`, `95c9490a`)
+- **Event reported bug:** FIXED (2025-09-30)
+- **Saturation wedge / runtime-disable leak:** FIXED (`cb29e226`, `95c9490a`)
 - val/amba is fully green; if a monitor test fails, suspect the change under test or the framework, not a documented known issue
 
 **If user reports test failure:**
@@ -529,29 +529,29 @@ axi4_master_rd_mon_cg #(
 
 ## Anti-Patterns to Catch
 
-### ❌ Anti-Pattern 1: Packet Congestion
+### Anti-Pattern 1: Packet Congestion
 
 ```systemverilog
-❌ WRONG:
+WRONG:
 .cfg_error_enable(1'b1),
 .cfg_compl_enable(1'b1),
 .cfg_perf_enable(1'b1),      // TOO MUCH!
 .cfg_debug_enable(1'b1)      // WAY TOO MUCH!
 
-✅ CORRECTED:
+CORRECTED:
 "Never enable all packet types! Use separate test configurations:
 - Functional debug: error + compl + timeout
 - Performance: error + perf (disable compl!)
 See docs/user-guides/AXI_Monitor_Configuration_Guide.md"
 ```
 
-### ❌ Anti-Pattern 2: No Downstream Handling
+### Anti-Pattern 2: No Downstream Handling
 
 ```systemverilog
-❌ WRONG:
+WRONG:
 assign monbus_ready = 1'b1;  // Always ready
 
-✅ CORRECTED:
+CORRECTED:
 "Connect to FIFO or proper consumer:
 gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
     .i_valid(monbus_valid),
@@ -562,27 +562,27 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 "
 ```
 
-### ❌ Anti-Pattern 3: Wrong MAX_TRANSACTIONS
+### Anti-Pattern 3: Wrong MAX_TRANSACTIONS
 
 ```systemverilog
-❌ WRONG:
+WRONG:
 .MAX_TRANSACTIONS(2)  // Too small for burst traffic
 
-✅ CORRECTED:
+CORRECTED:
 "For AXI4 with bursts, use MAX_TRANSACTIONS >= 16.
 Current value (2) is too small for realistic traffic."
 ```
 
-### ❌ Anti-Pattern 4: Missing Configuration
+### Anti-Pattern 4: Missing Configuration
 
 ```systemverilog
-❌ WRONG:
+WRONG:
 axi4_master_rd_mon u_mon (
     // ... signals ...
-    // ❌ No cfg_*_enable signals!
+    // No cfg_*_enable signals!
 );
 
-✅ CORRECTED:
+CORRECTED:
 "Must set configuration signals:
 .cfg_error_enable(1'b1),
 .cfg_compl_enable(1'b1),
@@ -598,11 +598,11 @@ axi4_master_rd_mon u_mon (
 ### Issue: No Monitor Packets
 
 **Check in order:**
-1. ✅ Configuration enables correct packet types?
-2. ✅ Monitor bus ready signal asserted?
-3. ✅ AXI/APB transactions actually occurring?
-4. ✅ Reset properly deasserted?
-5. ✅ Downstream path not stalled?
+1. Configuration enables correct packet types?
+2. Monitor bus ready signal asserted?
+3. AXI/APB transactions actually occurring?
+4. Reset properly deasserted?
+5. Downstream path not stalled?
 
 **Debug commands:**
 ```bash
@@ -621,8 +621,8 @@ ls rtl/amba/KNOWN_ISSUES/   # 3 pages: active_count underflow,
 ```
 
 **Current status:**
-- ✅ Event reported bug FIXED
-- ⚠️ 2 test config issues (non-RTL)
+- Event reported bug FIXED
+- 2 test config issues (non-RTL)
 
 ### Issue: Transaction Table Exhaustion
 
@@ -651,12 +651,12 @@ parallel, and `clean-all` first is not optional. Full grammar and the reasons:
 ### Test Status (Current)
 
 **AXI Monitor (as of `95c9490a`):** val/amba fully green — 679 passed / 0 failed
-- ✅ Basic / Burst / Outstanding / ID reorder / Backpressure / Timeout
-- ✅ Error response / Orphan
-- ✅ Saturation recovery (`test_axi_monitor_trans_mgr.py`)
-- ✅ Runtime-disable auto-retire (`test_axi_monitor_runtime_disable.py`)
-- ✅ Same-cycle AW+W (`test_axi_monitor_wr_same_cycle.py`)
-- ✅ Wrapper cfg API (`test_axi4_master_rd_mon_cfg.py`)
+- Basic / Burst / Outstanding / ID reorder / Backpressure / Timeout
+- Error response / Orphan
+- Saturation recovery (`test_axi_monitor_trans_mgr.py`)
+- Runtime-disable auto-retire (`test_axi_monitor_runtime_disable.py`)
+- Same-cycle AW+W (`test_axi_monitor_wr_same_cycle.py`)
+- Wrapper cfg API (`test_axi4_master_rd_mon_cfg.py`)
 
 ---
 

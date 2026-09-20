@@ -32,7 +32,7 @@
 ## Quick Context
 
 **What:** Rapid AXI Programmable In-band Descriptor System - Custom DMA-style accelerator with AXIS network interfaces
-**Status:** 🟡 Active development - "beats" rearchitecture is the current RTL
+**Status:** Active development - "beats" rearchitecture is the current RTL
 **Your Role:** Help users understand architecture, fix bugs, extend functionality
 
 > **Status (2026-07-22):** RAPIDS was rearchitected to the "beats" design. Current RTL lives in
@@ -41,14 +41,14 @@
 > program_engine.sv, network_slave.sv, ...) and the old `docs/rapids_spec/` tree are gone.
 > Sections below that describe the pre-beats design are marked accordingly.
 
-**📖 Complete Specification:**
+**Complete Specification:**
 - `projects/components/dmas/rapids/docs/rapids_beats_has/` - Architecture spec (HAS); index: `rapids_beats_has_index.md`
 - `projects/components/dmas/rapids/docs/rapids_beats_mas/` - Micro-architecture spec (MAS); index: `rapids_beats_mas_index.md`
 - Built PDFs: `docs/RAPIDS_Beats_HAS_v0.8.pdf`, `docs/RAPIDS_Beats_MAS_v0.7.pdf`
 
 ---
 
-## 📖 Global Requirements Reference
+## Global Requirements Reference
 
 **IMPORTANT: Check `/GLOBAL_REQUIREMENTS.md` before starting RAPIDS work**
 
@@ -126,17 +126,17 @@ See `projects/components/dmas/rapids/known_issues/scheduler_group_signal_naming_
 - `prog` prefix: 4 internal + 6 external (AW/W/B channels)
 
 **Recommended Workflow:**
-1. ✅ Write RTL module with signals
-2. ✅ **Run audit script to detect conflicts**
-3. ✅ Fix naming conflicts (rename internal signals with `_to_sched` suffix)
-4. ✅ Write testbench using factory pattern matching
+1. Write RTL module with signals
+2. **Run audit script to detect conflicts**
+3. Fix naming conflicts (rename internal signals with `_to_sched` suffix)
+4. Write testbench using factory pattern matching
 
 **Three Solutions When Conflicts Found:**
 1. **Rename internal signals** (recommended): `desc_valid` → `desc_to_sched_valid`
 2. **Use explicit signal_map**: Bypass pattern matching with manual signal mapping
 3. **Test at higher level**: Where internal signals aren't visible (e.g., rapids_top)
 
-**📖 Complete Guide:** `bin/SIGNAL_NAMING_AUDIT.md`
+**Complete Guide:** `bin/SIGNAL_NAMING_AUDIT.md`
 
 ---
 
@@ -247,7 +247,7 @@ RAPIDS Beats Architecture (rtl/)
     └── rapids_beats_top.sv          (top level: APB config, AXI4 masters, AXIS in/out, MonBus)
 ```
 
-**📖 See:** `docs/rapids_beats_mas/ch02_fub_blocks/` and `docs/rapids_beats_mas/ch03_macro_blocks/` for detailed block descriptions
+**See:** `docs/rapids_beats_mas/ch02_fub_blocks/` and `docs/rapids_beats_mas/ch03_macro_blocks/` for detailed block descriptions
 
 ### Module Quick Reference
 
@@ -301,7 +301,7 @@ The scheduler is a complex FSM that coordinates RAPIDS operations:
   (0→1, 1→2, 2→4, ..., 15→∞) - see Q&A below for the historical details
 - Current: `rtl/fub_beats/scheduler_beats.sv` has no credit management yet (planned later phase)
 
-**📖 See:**
+**See:**
 - `projects/components/dmas/rapids/docs/rapids_beats_mas/ch02_fub_blocks/01_scheduler.md` - Complete FSM specification
 - `projects/components/dmas/rapids/known_issues/README.md` - Known bugs and workarounds
 
@@ -326,7 +326,7 @@ write_axil(ADDR_TIMEOUT_THRESHOLD, 1000);
 // Configure initial credits (exponential encoding)
 // 0→1, 1→2, 2→4, 3→8, 4→16, etc.
 write_axil(ADDR_INITIAL_CREDIT, 4);  // 4 = 16 credits (2^4)
-write_axil(ADDR_CREDIT_ENABLE, 1);   // ✅ Enable credit mode (now fixed!)
+write_axil(ADDR_CREDIT_ENABLE, 1);   // Enable credit mode (now fixed!)
 
 // 2. Load descriptors
 write_descriptor(addr, length, control_bits);
@@ -335,7 +335,7 @@ write_descriptor(addr, length, control_bits);
 write_axil(ADDR_ENABLE, 1);
 ```
 
-**📖 See:**
+**See:**
 - `projects/components/dmas/rapids/docs/rapids_beats_has/ch05_programming/03_initialization.md` - Programming model
 - `projects/components/dmas/rapids/docs/rapids_beats_has/ch05_programming/02_register_map.md` - Register definitions
 
@@ -370,7 +370,7 @@ write_axil(ADDR_ENABLE, 1);
 - AXI4 bursts used for efficient memory access
 - Backpressure propagates from memory to network
 
-**📖 See:** `projects/components/dmas/rapids/docs/rapids_beats_mas/ch03_macro_blocks/03_sink_data_path.md`
+**See:** `projects/components/dmas/rapids/docs/rapids_beats_mas/ch03_macro_blocks/03_sink_data_path.md`
 
 ### Q: "What's the credit counter bug and how does exponential encoding work?"
 
@@ -398,7 +398,7 @@ The scheduler uses **exponential credit encoding** to provide a wide range of cr
 | 14 | 16384 | Maximum finite (2^14) |
 | 15 | ∞ (0xFFFFFFFF) | Unlimited credits |
 
-**✅ FIXED Implementation (in the retired pre-beats scheduler.sv):**
+**FIXED Implementation (in the retired pre-beats scheduler.sv):**
 ```systemverilog
 // Exponential credit encoding: 0→1, 1→2, 2→4, ..., 14→16384, 15→∞
 r_descriptor_credit_counter <= (cfg_initial_credit == 4'hF) ? 32'hFFFFFFFF :
@@ -408,7 +408,7 @@ r_descriptor_credit_counter <= (cfg_initial_credit == 4'hF) ? 32'hFFFFFFFF :
 
 **Was Broken (Before Fix):**
 ```systemverilog
-r_descriptor_credit_counter <= 32'h0;  // ❌ WRONG: Hardcoded to 0
+r_descriptor_credit_counter <= 32'h0;  // WRONG: Hardcoded to 0
 ```
 
 **Impact (Before Fix):**
@@ -424,7 +424,7 @@ r_descriptor_credit_counter <= 32'h0;  // ❌ WRONG: Hardcoded to 0
 
 **Important:** Exponential encoding applies **only at initialization**. Once running, the counter operates linearly (increment/decrement by 1).
 
-**📖 See:**
+**See:**
 - `projects/components/dmas/rapids/docs/rapids_beats_mas/ch02_fub_blocks/01_scheduler.md` - Current scheduler specification
 - `projects/components/dmas/rapids/known_issues/README.md` - Issue tracking (the old scheduler.md write-up was retired with the pre-beats RTL)
 
@@ -555,7 +555,7 @@ initial begin
     axil_write(ADDR_SOURCE_SRAM_DEPTH, 1024);
     axil_write(ADDR_TIMEOUT_THRESHOLD, 1000);
     axil_write(ADDR_INITIAL_CREDIT, 4);  // 4 = 16 credits (2^4, exponential encoding)
-    axil_write(ADDR_CREDIT_ENABLE, 1);  // ✅ Enable credit mode (now fixed!)
+    axil_write(ADDR_CREDIT_ENABLE, 1);  // Enable credit mode (now fixed!)
 
     // 3. Load descriptors
     for (int i = 0; i < num_descriptors; i++) begin
@@ -593,13 +593,13 @@ gaxi_fifo_sync #(
 
 ## Anti-Patterns to Catch
 
-### ❌ Anti-Pattern 1: Not Understanding Exponential Credit Encoding
+### Anti-Pattern 1: Not Understanding Exponential Credit Encoding
 
 ```systemverilog
-❌ WRONG:
+WRONG:
 .cfg_initial_credit(4'd16),  // Thinks this gives 16 credits - it doesn't!
 
-✅ CORRECTED:
+CORRECTED:
 "Credits use exponential encoding:
 - cfg_initial_credit = 4 → 16 credits (2^4)
 - cfg_initial_credit = 8 → 256 credits (2^8)
@@ -608,24 +608,24 @@ gaxi_fifo_sync #(
 table in the credit-counter Q&A above.)"
 ```
 
-### ❌ Anti-Pattern 2: Insufficient SRAM Depth
+### Anti-Pattern 2: Insufficient SRAM Depth
 
 ```systemverilog
-❌ WRONG:
+WRONG:
 .SRAM_DEPTH(16)  // Too small for realistic packets
 
-✅ CORRECTED:
+CORRECTED:
 "SRAM depth should match typical packet sizes.
 Recommended: 1024-4096 entries depending on data width and packet sizes."
 ```
 
-### ❌ Anti-Pattern 3: No MonBus Downstream Handling
+### Anti-Pattern 3: No MonBus Downstream Handling
 
 ```systemverilog
-❌ WRONG:
+WRONG:
 assign monbus_pkt_ready = 1'b1;  // Always ready = potential packet loss
 
-✅ CORRECTED:
+CORRECTED:
 "Connect to FIFO or proper consumer:
 gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_mon_fifo (
     .i_valid(monbus_pkt_valid),
@@ -635,13 +635,13 @@ gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_mon_fifo (
 );"
 ```
 
-### ❌ Anti-Pattern 4: Testing Individual Blocks in Isolation
+### Anti-Pattern 4: Testing Individual Blocks in Isolation
 
 ```systemverilog
-❌ WRONG:
+WRONG:
 "Only test scheduler without descriptor engine"
 
-✅ CORRECTED:
+CORRECTED:
 "RAPIDS blocks are tightly coupled. Always test:
 1. FUB tests for basic block functionality
 2. Integration tests for block interactions
@@ -655,11 +655,11 @@ gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_mon_fifo (
 ### Issue: Scheduler Not Processing Descriptors
 
 **Check in order:**
-1. ✅ Credit configuration correct? (Remember exponential encoding!)
-2. ✅ Descriptors loaded via AXIL4?
-3. ✅ RAPIDS enabled? (`ADDR_ENABLE = 1`)
-4. ✅ Reset properly deasserted?
-5. ✅ Descriptor engine FIFO not empty?
+1. Credit configuration correct? (Remember exponential encoding!)
+2. Descriptors loaded via AXIL4?
+3. RAPIDS enabled? (`ADDR_ENABLE = 1`)
+4. Reset properly deasserted?
+5. Descriptor engine FIFO not empty?
 
 **Debug commands:**
 ```bash
@@ -672,11 +672,11 @@ make run-scheduler_beats-gate-waves AREAS=fub_beats    # WAVES=1, not --vcd
 ### Issue: Data Path Stalls
 
 **Check in order:**
-1. ✅ SRAM depth sufficient?
-2. ✅ Downstream interfaces ready?
-3. ✅ AXI4 backpressure handling?
-4. ✅ Network flow control?
-5. ✅ Buffer overflow/underflow detection?
+1. SRAM depth sufficient?
+2. Downstream interfaces ready?
+3. AXI4 backpressure handling?
+4. Network flow control?
+5. Buffer overflow/underflow detection?
 
 **Waveform Analysis:**
 - Check SRAM read/write pointers
@@ -686,10 +686,10 @@ make run-scheduler_beats-gate-waves AREAS=fub_beats    # WAVES=1, not --vcd
 ### Issue: MonBus Packets Not Generated
 
 **Check in order:**
-1. ✅ Operations completing successfully?
-2. ✅ MonBus ready signal asserted?
-3. ✅ MonBus reporter enabled?
-4. ✅ Downstream FIFO not full?
+1. Operations completing successfully?
+2. MonBus ready signal asserted?
+3. MonBus reporter enabled?
+4. Downstream FIFO not full?
 
 ---
 

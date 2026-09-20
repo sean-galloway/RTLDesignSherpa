@@ -32,14 +32,14 @@
 ## Quick Context
 
 **What:** Collection of reusable utility components and adapters
-**Status:** ✅ Active - Currently planning AXI ROM wrapper
+**Status:** Active - Currently planning AXI ROM wrapper
 **Your Role:** Help users develop utility components following repository standards
 
-**📖 Complete Documentation:** `projects/components/misc/README.md` ← Component overview
+**Complete Documentation:** `projects/components/misc/README.md` ← Component overview
 
 ---
 
-## 📖 Global Requirements Reference
+## Global Requirements Reference
 
 **IMPORTANT: Check `/GLOBAL_REQUIREMENTS.md` for all mandatory requirements**
 
@@ -148,14 +148,14 @@ examples are in `dv/tbclasses/`.
 
 **Before adding to misc/, verify:**
 
-✅ **Belongs in misc/ if:**
+**Belongs in misc/ if:**
 - Solves common integration problem
 - Reusable across multiple projects
 - Doesn't fit existing categories
 - Uses standard interfaces
 - Production quality (tested, documented)
 
-❌ **Does NOT belong in misc/ if:**
+**Does NOT belong in misc/ if:**
 - Project-specific glue logic
 - Experimental or prototype code
 - Duplicates existing functionality
@@ -165,10 +165,10 @@ examples are in `dv/tbclasses/`.
 
 | Component | Belongs in misc/? | Reason |
 |-----------|-------------------|--------|
-| AXI ROM wrapper | ✅ Yes | Common, reusable, standard interface |
-| AXI RAM wrapper | ✅ Yes | Common, reusable, standard interface |
-| Project X custom mux | ❌ No | Project-specific, no standard interface |
-| Debug probe | ❌ No | Better in separate debug infrastructure |
+| AXI ROM wrapper | Yes | Common, reusable, standard interface |
+| AXI RAM wrapper | Yes | Common, reusable, standard interface |
+| Project X custom mux | No | Project-specific, no standard interface |
+| Debug probe | No | Better in separate debug infrastructure |
 
 ---
 

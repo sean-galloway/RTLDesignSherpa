@@ -35,7 +35,7 @@
 **Status:** Early Specification Phase (v0.1)
 **Your Role:** Help users understand hierarchical RISC-V architecture, distributed monitoring, and network reconfiguration
 
-**📖 Complete Specification:** `projects/components/hive/docs/hive_spec/` ← **Always reference this for technical details**
+**Complete Specification:** `projects/components/hive/docs/hive_spec/` ← **Always reference this for technical details**
 
 ---
 
@@ -119,7 +119,7 @@ HIVE System Architecture
     └── Atomic topology switching protocol
 ```
 
-**📖 See:** `docs/hive_spec/ch02_blocks/00_overview.md`
+**See:** `docs/hive_spec/ch02_blocks/00_overview.md`
 
 ---
 
@@ -139,7 +139,7 @@ HIVE System Architecture
 
 **Key Point:** HIVE-C is the master controller, SERV monitors are lightweight per-tile agents.
 
-**📖 See:**
+**See:**
 - `docs/hive_spec/ch02_blocks/00_overview.md`
 - `docs/hive_specification.md` sections 5-6 (the per-block chapter files 2.1-2.4 are not yet written)
 
@@ -166,7 +166,7 @@ HIVE System Architecture
 - No memory bus contention
 - Inband delivery through existing network
 
-**📖 See:** `docs/hive_specification.md` section 6 (HIVE-C control software; chapter file 2.1 not yet written)
+**See:** `docs/hive_specification.md` section 6 (HIVE-C control software; chapter file 2.1 not yet written)
 
 ### Q: "How does network reconfiguration work?"
 
@@ -194,7 +194,7 @@ Switching Sequence:
 - Context 2: Tree Reduction (hierarchical aggregation)
 - Context 3: Custom/Debug (user-programmable)
 
-**📖 See:** `docs/hive_specification.md` section 4 (network reconfiguration; chapter file 2.4 not yet written)
+**See:** `docs/hive_specification.md` section 4 (network reconfiguration; chapter file 2.4 not yet written)
 
 ### Q: "What do SERV monitors track?"
 
@@ -217,7 +217,7 @@ Switching Sequence:
 - Periodic status to HIVE-C (every 1000 cycles, configurable)
 - Immediate alerts on congestion/errors via PKT_STATUS packets
 
-**📖 See:** `docs/hive_specification.md` section 5 (SERV monitor functionality; chapter file 2.2 not yet written)
+**See:** `docs/hive_specification.md` section 5 (SERV monitor functionality; chapter file 2.2 not yet written)
 
 ---
 
@@ -304,7 +304,7 @@ python bin/md_to_docx.py \
 - Pandoc installed and in PATH
 - For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
 
-**📖 See:** `bin/md_to_docx.py` (repo root) for complete implementation details
+**See:** `bin/md_to_docx.py` (repo root) for complete implementation details
 
 ---
 
@@ -327,19 +327,19 @@ The shell script will automatically:
 3. Generate both DOCX and PDF files in the docs/ directory
 4. Create table of contents and title page
 
-**📖 See:** `bin/md_to_docx.py` for complete implementation details
+**See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 
 ## Remember
 
-1. 📖 **Link to detailed spec** - `docs/hive_spec/` has complete architecture
-2. 🎯 **Hierarchical architecture** - HIVE-C (master) + 16 SERV monitors (agents)
-3. 🔌 **Virtual tiles** - RAPIDS=16, HIVE-C=17 in Delta Network topology
-4. 📊 **Four packet types** - PKT_DATA, CDA, PKT_CONFIG, PKT_STATUS
-5. 🔄 **Configuration contexts** - 4 virtual routing modes with atomic switching
-6. 📡 **Control network** - Separate star topology for HIVE-C ↔ SERV communication
-7. 🎛️ **Monitoring** - Per-tile traffic stats, congestion detection, error reporting
+1. **Link to detailed spec** - `docs/hive_spec/` has complete architecture
+2. **Hierarchical architecture** - HIVE-C (master) + 16 SERV monitors (agents)
+3. **Virtual tiles** - RAPIDS=16, HIVE-C=17 in Delta Network topology
+4. **Four packet types** - PKT_DATA, CDA, PKT_CONFIG, PKT_STATUS
+5. **Configuration contexts** - 4 virtual routing modes with atomic switching
+6. **Control network** - Separate star topology for HIVE-C ↔ SERV communication
+7. **Monitoring** - Per-tile traffic stats, congestion detection, error reporting
 
 ---
 

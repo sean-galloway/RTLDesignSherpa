@@ -406,31 +406,31 @@ module <module_name> #(
 ### Priority 1: High-Value, Frequently Used Modules (Add Wavedrom)
 
 **Counters:**
-- counter_bin.sv ✅ **Add Wavedrom**
-- counter_load_clear.sv ✅ **Add Wavedrom**
-- counter_freq_invariant.sv ✅ **Add Wavedrom**
+- counter_bin.sv **Add Wavedrom**
+- counter_load_clear.sv **Add Wavedrom**
+- counter_freq_invariant.sv **Add Wavedrom**
 
 **Arbiters:**
-- arbiter_round_robin.sv ✅ **Add Wavedrom**
-- arbiter_round_robin_weighted.sv ✅ **Add Wavedrom**
-- arbiter_priority_encoder.sv ✅ **Add Wavedrom**
+- arbiter_round_robin.sv **Add Wavedrom**
+- arbiter_round_robin_weighted.sv **Add Wavedrom**
+- arbiter_priority_encoder.sv **Add Wavedrom**
 
 **Data Integrity:**
-- dataint_crc.sv ✅ **Add Wavedrom**
+- dataint_crc.sv **Add Wavedrom**
 - dataint_ecc_hamming_encode_secded.sv
 - dataint_ecc_hamming_decode_secded.sv
 
 **Synchronizers:**
-- glitch_free_n_dff_arn.sv ✅ **Add Wavedrom**
-- reset_sync.sv ✅ **Add Wavedrom**
+- glitch_free_n_dff_arn.sv **Add Wavedrom**
+- reset_sync.sv **Add Wavedrom**
 
 **Clock Utilities:**
-- clock_divider.sv ✅ **Add Wavedrom**
+- clock_divider.sv **Add Wavedrom**
 - clock_gate_ctrl.sv
 
 **FIFOs:**
-- fifo_sync.sv ✅ **Add Wavedrom**
-- fifo_async.sv ✅ **Add Wavedrom**
+- fifo_sync.sv **Add Wavedrom**
+- fifo_async.sv **Add Wavedrom**
 
 ### Priority 2: Important but Simple (No Wavedrom Needed)
 
@@ -464,13 +464,13 @@ module <module_name> #(
 
 ### When to Include Wavedrom
 
-✅ **Include for:**
+**Include for:**
 - Multi-cycle operations (counters, FSMs)
 - Handshake protocols (valid/ready)
 - Complex timing (arbitration, CDC)
 - Non-obvious behavior (pulse vs level, delays)
 
-❌ **Skip for:**
+**Skip for:**
 - Pure combinational logic (adders, encoders)
 - Single-cycle operations
 - Self-explanatory modules

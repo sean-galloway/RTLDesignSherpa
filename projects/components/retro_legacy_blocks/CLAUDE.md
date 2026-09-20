@@ -32,10 +32,10 @@
 ## Quick Context
 
 **What:** Collection of production-quality retro-compatible legacy peripherals
-**Status:** 🟢 Active Development - HPET Production Ready, 12 more blocks planned
+**Status:** Active Development - HPET Production Ready, 12 more blocks planned
 **Your Role:** Help users develop new legacy blocks, integrate existing blocks, understand RLB architecture
 
-**📖 Complete Documentation:**
+**Complete Documentation:**
 - `projects/components/retro_legacy_blocks/PRD.md` ← Master requirements for all blocks
 - `projects/components/retro_legacy_blocks/README.md` ← Component overview and usage guide
 - `docs/hpet_mas/hpet_mas_index.md` ← HPET complete specification
@@ -162,7 +162,7 @@ in the same commit as the module (`vault/handbook/design/filelists.md`).
 
 ### HPET Quick Reference
 
-**Status:** ✅ Production Ready (5/6 configurations 100% passing)
+**Status:** Production Ready (5/6 configurations 100% passing)
 **RTL Location:** `rtl/hpet/`
 **Test Location:** `dv/tests/test_apb4_hpet.py`
 
@@ -170,10 +170,10 @@ in the same commit as the module (`vault/handbook/design/filelists.md`).
 
 #### Rule #1: Timer Cleanup is MANDATORY
 
-**⚠️ ALWAYS Reset Counter Between Tests ⚠️**
+**ALWAYS Reset Counter Between Tests**
 
 ```python
-# ✅ CORRECT: Clean up at end of test
+# CORRECT: Clean up at end of test
 async def test_64bit_counter(self):
     await self.tb.write_register(HPET_COUNTER_LO, 0xFFFFFFFF)
     # ... test logic ...
@@ -234,12 +234,12 @@ Per-Timer Registers (i = 0 to NUM_TIMERS-1), fields at bits [6:2]:
 ### HPET Common Issues
 
 **Issue: Timer Not Firing**
-1. ✅ HPET enabled? (HPET_CONFIG bit 0)
-2. ✅ Timer enabled? (TIMER_CONFIG bit 2)
-3. ✅ Comparator set correctly?
-4. ✅ Counter incrementing?
-5. ✅ Counter will reach comparator?
-6. ✅ Interrupt enable set? (TIMER_CONFIG bit 3)
+1. HPET enabled? (HPET_CONFIG bit 0)
+2. Timer enabled? (TIMER_CONFIG bit 2)
+3. Comparator set correctly?
+4. Counter incrementing?
+5. Counter will reach comparator?
+6. Interrupt enable set? (TIMER_CONFIG bit 3)
 
 **Issue: Tests Failing Inconsistently**
 - Most common cause: Missing test cleanup (counter not reset)
@@ -257,21 +257,21 @@ Per-Timer Registers (i = 0 to NUM_TIMERS-1), fields at bits [6:2]:
 
 | Block | Priority | Status | Address | Documentation |
 |-------|----------|--------|---------|---------------|
-| **HPET** | High | ✅ Production | 0x4000_0000-0x0FFF | ✅ Complete |
-| **8259 PIC** | High | ✅ Implemented | 0x4000_1000-0x1FFF | MAS (docs/pic_8259_mas) |
-| **8254 PIT** | High | ✅ Implemented | 0x4000_2000-0x2FFF | MAS (docs/pit_8254_mas) |
-| **RTC** | Medium | ✅ Implemented | 0x4000_3000-0x3FFF | MAS (docs/rtc_mas) |
-| **SMBus** | Medium | ✅ Implemented | 0x4000_4000-0x4FFF | MAS (docs/smbus_mas) |
-| **PM/ACPI** | Medium | ✅ Implemented | 0x4000_5000-0x5FFF | MAS (docs/pm_acpi_mas) |
-| **IOAPIC** | Medium | ✅ Implemented | 0x4000_6000-0x6FFF | MAS (docs/ioapic_mas) |
-| GPIO | Medium | ✅ Implemented | TBD | MAS (docs/gpio_mas) |
-| UART | Medium | ✅ Implemented | TBD | MAS (docs/uart_16550_mas) |
-| SPI | Low | 📋 Planned | TBD | N/A |
-| I2C | Low | 📋 Planned | TBD | N/A |
-| Watchdog | Low | 📋 Planned | TBD | N/A |
-| **Interconnect** | Low | 📋 Planned | 0x4000_F000-0xFFFF | N/A |
+| **HPET** | High | Production | 0x4000_0000-0x0FFF | Complete |
+| **8259 PIC** | High | Implemented | 0x4000_1000-0x1FFF | MAS (docs/pic_8259_mas) |
+| **8254 PIT** | High | Implemented | 0x4000_2000-0x2FFF | MAS (docs/pit_8254_mas) |
+| **RTC** | Medium | Implemented | 0x4000_3000-0x3FFF | MAS (docs/rtc_mas) |
+| **SMBus** | Medium | Implemented | 0x4000_4000-0x4FFF | MAS (docs/smbus_mas) |
+| **PM/ACPI** | Medium | Implemented | 0x4000_5000-0x5FFF | MAS (docs/pm_acpi_mas) |
+| **IOAPIC** | Medium | Implemented | 0x4000_6000-0x6FFF | MAS (docs/ioapic_mas) |
+| GPIO | Medium | Implemented | TBD | MAS (docs/gpio_mas) |
+| UART | Medium | Implemented | TBD | MAS (docs/uart_16550_mas) |
+| SPI | Low | Planned | TBD | N/A |
+| I2C | Low | Planned | TBD | N/A |
+| Watchdog | Low | Planned | TBD | N/A |
+| **Interconnect** | Low | Planned | 0x4000_F000-0xFFFF | N/A |
 
-**📖 See:** `PRD.md` Section 3 for planned block details and Section 4.2 for complete address map
+**See:** `PRD.md` Section 3 for planned block details and Section 4.2 for complete address map
 
 ### Q: "How do I integrate a block in my design?"
 
@@ -300,7 +300,7 @@ apb4_hpet #(
 );
 ```
 
-**📖 See:** `README.md` for integration examples
+**See:** `README.md` for integration examples
 
 ### Q: "What's the RLB wrapper goal?"
 
@@ -330,7 +330,7 @@ Single APB Slave → APB Decoder/Bridge → Individual Blocks
 - Clean power-of-2 decode (4KB = bits [15:12])
 - 32KB reserved space for expansion
 
-**📖 See:** `PRD.md` Section 4.2 for complete RLB wrapper specification and decoder implementation
+**See:** `PRD.md` Section 4.2 for complete RLB wrapper specification and decoder implementation
 
 ### Q: "Why 'Retro Legacy Blocks'?"
 
