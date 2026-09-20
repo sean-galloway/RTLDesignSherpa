@@ -27,12 +27,11 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
   now. Unrelated maps at the same offsets, so it silently writes wrong fields.
   Fix: retarget the host at obs_regs; the orphaned `slvmon_regs` set then
   deletes.
-- **TASK-058** (High) — Signal contracts + K-maps for the significant STREAM
-  signals (especially the read/write engines) to prove the design correct by
-  construction.
-
 
 ## Closed (done)
+
+- **TASK-058** (High) — Signal contracts + K-maps for the significant
+  STREAM signals. Done 2026-09-20; optional formal SVA not done.
 
 - **TASK-060** (High) — Kick STREAM from its own registers. Done 2026-09-18.
 - **TASK-081** (Medium) — `test_stream_top_basic` omitted `channel_id` when writing
