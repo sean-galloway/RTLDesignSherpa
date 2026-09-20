@@ -1492,11 +1492,11 @@ async def monitor_outputs(self):
 ### Don't Duplicate Standard Protocols
 
 ```python
-# ❌ Wrong
+# Wrong
 class MyAXI4Implementation:
     # 500+ lines reimplementing AXI4
 
-# ✅ Correct
+# Correct
 from CocoTBFramework.components.axi4.axi4_interfaces import AXI4MasterWrite
 master = AXI4MasterWrite(...)
 ```
@@ -1504,13 +1504,13 @@ master = AXI4MasterWrite(...)
 ### Don't Skip TBBase Inheritance
 
 ```python
-# ❌ Wrong
+# Wrong
 class TestBench:
     def __init__(self, dut):
         self.dut = dut
         # No TBBase features
 
-# ✅ Correct
+# Correct
 class TestBench(TBBase):
     def __init__(self, dut):
         super().__init__(dut)
@@ -1519,22 +1519,22 @@ class TestBench(TBBase):
 ### Don't Hardcode Signal Names
 
 ```python
-# ❌ Wrong
+# Wrong
 self.dut.m_axi_awaddr.value = addr
 
-# ✅ Correct (use field config and prefix)
+# Correct (use field config and prefix)
 master.send({'awaddr': addr})
 ```
 
 ### Don't Create God Classes
 
 ```python
-# ❌ Wrong: One class does everything
+# Wrong: One class does everything
 class MegaTestbench:
     # 2000+ lines
     # Driver + Monitor + Scoreboard + Utilities
 
-# ✅ Correct: Separate concerns
+# Correct: Separate concerns
 class Driver: ...
 class Monitor: ...
 class Scoreboard: ...

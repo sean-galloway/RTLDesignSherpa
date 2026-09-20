@@ -23,7 +23,7 @@
 
 # Known Issue: Orphan Error Packet Flood
 
-**Status:** ✅ FIXED (2025-10-03)
+**Status:** FIXED (2025-10-03)
 **Severity:** HIGH - Blocks monitor operation
 **Date Reported:** 2025-10-02
 **Date Fixed:** 2025-10-03
@@ -242,11 +242,11 @@ def filter_orphan_duplicates(packet):
 
 ### Success Criteria
 
-- ✅ Orphan detection generates exactly 1 packet per unique orphan event
-- ✅ No duplicate orphan packets on subsequent cycles
-- ✅ Completion packets generated normally after orphan event
-- ✅ All 11 test configurations pass (currently 7/11)
-- ✅ Zero-delay stress test completes with expected packet count
+- Orphan detection generates exactly 1 packet per unique orphan event
+- No duplicate orphan packets on subsequent cycles
+- Completion packets generated normally after orphan event
+- All 11 test configurations pass (currently 7/11)
+- Zero-delay stress test completes with expected packet count
 
 ---
 
@@ -293,11 +293,11 @@ if (r_trans_table_local[idx].state == TRANS_ERROR ||
 ```
 
 **Verification Results:**
-- ✅ All 11 test configurations now pass (previously 7/11)
-- ✅ Orphan detection generates exactly 1 packet per unique orphan event
-- ✅ No duplicate orphan packets on subsequent cycles
-- ✅ Completion packets generated normally after orphan events
-- ✅ Zero-delay stress test completes successfully with expected packet counts
+- All 11 test configurations now pass (previously 7/11)
+- Orphan detection generates exactly 1 packet per unique orphan event
+- No duplicate orphan packets on subsequent cycles
+- Completion packets generated normally after orphan events
+- Zero-delay stress test completes successfully with expected packet counts
 
 **Test Results:**
 ```
@@ -315,8 +315,8 @@ Config [8-64-16-True-True-combined]: 6/6 tests passed, 313 packets (295 compl, 1
 
 | Date       | Status | Notes |
 |------------|--------|-------|
-| 2025-10-03 | ✅ FIXED | Added TRANS_ORPHANED to w_events_to_mark logic, all 11 tests passing |
-| 2025-10-02 | 🔴 ACTIVE | Initial bug report with detailed reproduction |
+| 2025-10-03 | FIXED | Added TRANS_ORPHANED to w_events_to_mark logic, all 11 tests passing |
+| 2025-10-02 | ACTIVE | Initial bug report with detailed reproduction |
 
 ---
 

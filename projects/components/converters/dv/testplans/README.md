@@ -111,12 +111,12 @@
 
 | Module | Scenarios | Tested | Coverage | Priority |
 |--------|-----------|--------|----------|----------|
-| axi4_dwidth_converter_rd | 15 | 15 | 100% | ✅ Complete |
-| axi4_dwidth_converter_wr | 16 | 16 | 100% | ✅ Complete |
-| axi4_to_axil4 (rd/wr) | 18 | 18 | 100% | ✅ Complete |
-| axil4_to_axi4 (rd/wr) | 18 | 18 | 100% | ✅ Complete |
-| axi4_to_apb4 | 14 | 4 | 17.4% | 🔴 Critical gaps |
-| uart_axil_bridge | 16 | 10 | 35.7% | 🟡 Moderate gaps |
+| axi4_dwidth_converter_rd | 15 | 15 | 100% | Complete |
+| axi4_dwidth_converter_wr | 16 | 16 | 100% | Complete |
+| axi4_to_axil4 (rd/wr) | 18 | 18 | 100% | Complete |
+| axil4_to_axi4 (rd/wr) | 18 | 18 | 100% | Complete |
+| axi4_to_apb4 | 14 | 4 | 17.4% | Critical gaps |
+| uart_axil_bridge | 16 | 10 | 35.7% | Moderate gaps |
 
 **Total:** 97 scenarios, 81 tested (83.5% overall)
 
@@ -125,24 +125,24 @@
 ## Module Coverage vs Testing Gaps
 
 ### Well Tested Modules (12 total)
-1. axi4_dwidth_converter_rd.sv ✅
-2. axi4_dwidth_converter_wr.sv ✅
-3. axi_data_upsize.sv ✅ (via dwidth tests)
-4. axi_data_dnsize.sv ✅ (via dwidth tests)
-5. axi4_to_axil4.sv ✅ (wrapper - via rd/wr)
-6. axi4_to_axil4_rd.sv ✅
-7. axi4_to_axil4_wr.sv ✅
-8. axil4_to_axi4.sv ✅ (wrapper - via rd/wr)
-9. axil4_to_axi4_rd.sv ✅
-10. axil4_to_axi4_wr.sv ✅
-11. peakrdl_to_cmdrsp.sv ✅ (has test)
-12. uart_axil_bridge.sv 🟡 (partial)
+1. axi4_dwidth_converter_rd.sv
+2. axi4_dwidth_converter_wr.sv
+3. axi_data_upsize.sv (via dwidth tests)
+4. axi_data_dnsize.sv (via dwidth tests)
+5. axi4_to_axil4.sv (wrapper - via rd/wr)
+6. axi4_to_axil4_rd.sv
+7. axi4_to_axil4_wr.sv
+8. axil4_to_axi4.sv (wrapper - via rd/wr)
+9. axil4_to_axi4_rd.sv
+10. axil4_to_axi4_wr.sv
+11. peakrdl_to_cmdrsp.sv (has test)
+12. uart_axil_bridge.sv (partial)
 
 ### Modules with Gaps (4 total)
-13. axi4_to_apb4_convert.sv 🔴 NO TEST
-14. axi4_to_apb4_shim.sv 🟡 MINIMAL TEST
-15. uart_rx.sv 🟡 NO STANDALONE TEST
-16. uart_tx.sv 🟡 NO STANDALONE TEST
+13. axi4_to_apb4_convert.sv NO TEST
+14. axi4_to_apb4_shim.sv MINIMAL TEST
+15. uart_rx.sv NO STANDALONE TEST
+16. uart_tx.sv NO STANDALONE TEST
 
 ---
 

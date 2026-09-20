@@ -66,14 +66,14 @@ first, per the rule). Not started.
 
 | Area | Units | State |
 |---|---|---|
-| **common** | `common_part_01..05` + `common_meta` (re-reviewed 2026-07-25 after the CDC move) | ✅ **DONE 2026-07-25** — 21/22 implicated files touched; the 22nd is a rejected false positive |
-| **math** | `math_part_01/02/03` (r2) | ✅ **DONE 2026-07-24** — 16 CONFIRMED fixed, 5 SUSPECTED all bundle-scope false positives; docs live in rtl-math now |
-| shared | `shared_part_01..04` (r2) | ⬜ not started — 13 CONFIRMED in part_02 alone |
-| monitor | `monitor_part_01..06` (r3) | ⬜ not started — 70 CONFIRMED, largest block |
-| apb / apb5 | `apb`, `apb5` (r2) | ⬜ not started — 6 CONFIRMED cite `rtl/*.sv` |
-| axi4 / axi5 / axil4 | (r2) | ⬜ not started |
-| axis4 / axis5 | (r2) | ⬜ not started |
-| **cdc** | `cdc_part_01/02` (r2) | ✅ **DONE 2026-07-23** — all 13 findings |
+| **common** | `common_part_01..05` + `common_meta` (re-reviewed 2026-07-25 after the CDC move) | **DONE 2026-07-25** — 21/22 implicated files touched; the 22nd is a rejected false positive |
+| **math** | `math_part_01/02/03` (r2) | **DONE 2026-07-24** — 16 CONFIRMED fixed, 5 SUSPECTED all bundle-scope false positives; docs live in rtl-math now |
+| shared | `shared_part_01..04` (r2) | not started — 13 CONFIRMED in part_02 alone |
+| monitor | `monitor_part_01..06` (r3) | not started — 70 CONFIRMED, largest block |
+| apb / apb5 | `apb`, `apb5` (r2) | not started — 6 CONFIRMED cite `rtl/*.sv` |
+| axi4 / axi5 / axil4 | (r2) | not started |
+| axis4 / axis5 | (r2) | not started |
+| **cdc** | `cdc_part_01/02` (r2) | **DONE 2026-07-23** — all 13 findings |
 
 **cdc, 2026-07-23.** All 13 findings across both units worked. `cdc_part_01`:
 six `rtl-common` findings (five already covered, the phantom `synchronizer`
@@ -118,7 +118,7 @@ truncates to 0.
 An area is DONE only when its findings have been checked against the tree, not
 when a commit says so. See the common entry below for what that involved.
 
-**Status:** 🟡 active 2026-07-23 — **`common` is DONE and verified across ALL rounds**
+**Status:** active 2026-07-23 — **`common` is DONE and verified across ALL rounds**
 (see "Common: measured complete" below); AMBA/monitor, math, shared, apb/axi*,
 cdc remain. Previously read: all 5 round_2 `common_part_*` units integrated;
 the AMBA/monitor and math units of round_2, plus round_3 (monitor), remain.

@@ -140,7 +140,7 @@ Attempts to import all struct utility functions:
 - list_available_structs
 - get_struct_info
 
-Success indicator: "✓ Successfully imported all struct utilities"
+Success indicator: "Successfully imported all struct utilities"
 
 ### 3. Testing validate_struct_setup()
 
@@ -178,7 +178,7 @@ Extracts detailed metadata for the specified struct:
 
 Example output:
 ```
-✓ Found struct info for 'axi_narrow':
+Found struct info for 'axi_narrow':
   Typedef name: axi_narrow_t
   Bit width: 128
   Fields (8):
@@ -187,7 +187,7 @@ Example output:
     size: 3 bits
     burst: 2 bits
     ...
-  Validation: ✓ Struct definition is valid
+  Validation: Struct definition is valid
 ```
 
 ### 6. Testing extract_struct_for_test() (direct)
@@ -200,7 +200,7 @@ Performs direct extraction with explicit path:
 
 Example output:
 ```
-✓ Direct extraction successful!
+Direct extraction successful!
   Success: True
   Struct name: axi_narrow
   Typedef name: axi_narrow_t
@@ -221,7 +221,7 @@ Generates environment variables from struct metadata:
 
 Example output:
 ```
-✓ Generated 24 environment variables:
+Generated 24 environment variables:
   AXI_NARROW_ADDR_WIDTH = '32'
   AXI_NARROW_ADDR_LSB = '0'
   AXI_NARROW_ADDR_MSB = '31'
@@ -242,7 +242,7 @@ Note: This test may fail if the struct file is not in standard search locations.
 
 Example output:
 ```
-✓ Auto-find extraction successful!
+Auto-find extraction successful!
   Found and extracted: axi_narrow
   Typedef name: axi_narrow_t
   Bit width: 128
@@ -258,13 +258,13 @@ Validates all generated files and attempts to import Python helpers:
 
 Example output:
 ```
-✓ python_helpers: /tmp/tmpXYZ/axi_narrow_helpers.py
-  ✓ Successfully imported generated Python helpers
-  ✓ STRUCT_FIELDS available: ['addr', 'len', 'size', 'burst', ...]
-  ✓ pack_struct function available
-  ✓ unpack_struct function available
-✓ sv_include: /tmp/tmpXYZ/axi_narrow.svh
-✓ json_definition: /tmp/tmpXYZ/axi_narrow.json
+python_helpers: /tmp/tmpXYZ/axi_narrow_helpers.py
+  Successfully imported generated Python helpers
+  STRUCT_FIELDS available: ['addr', 'len', 'size', 'burst', ...]
+  pack_struct function available
+  unpack_struct function available
+sv_include: /tmp/tmpXYZ/axi_narrow.svh
+json_definition: /tmp/tmpXYZ/axi_narrow.json
 ```
 
 ## Output Format
@@ -287,8 +287,8 @@ Subsections use single-line borders:
 
 ### Status Indicators
 
-- `✓` - Success/available/found
-- `✗` - Failure/unavailable/not found
+- `` - Success/available/found
+- `` - Failure/unavailable/not found
 - `Warning:` - Non-critical issue
 
 ### Summary
@@ -378,22 +378,22 @@ Contains 'StructStart': <error>
 
 Reports specific import errors but continues:
 ```
-✗ Failed to import utilities: No module named 'CocoTBFramework'
+Failed to import utilities: No module named 'CocoTBFramework'
 ```
 
 ### Struct Not Found
 
 Reports validation failures:
 ```
-✗ No struct info found for 'bad_struct'
-✗ validate_struct_setup failed: Struct 'bad_struct' not found in file
+No struct info found for 'bad_struct'
+validate_struct_setup failed: Struct 'bad_struct' not found in file
 ```
 
 ### Auto-Find Failures
 
 Acknowledges expected failures:
 ```
-✗ extract_struct_for_test_simple failed: Could not locate struct file
+extract_struct_for_test_simple failed: Could not locate struct file
    This is expected if the file isn't in standard search locations
 ```
 

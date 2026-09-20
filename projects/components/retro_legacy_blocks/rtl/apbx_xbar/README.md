@@ -70,7 +70,7 @@ This crossbar is designed to work with **two separate address regions** for maxi
 
 | Slave | Agent | Address Range | Standard PC Address |
 |-------|-------|---------------|---------------------|
-| **0** | **IOAPIC** | 0xFEC0_0000 - 0xFEC0_0FFF | 0xFEC00000 ✅ **exact match!** |
+| **0** | **IOAPIC** | 0xFEC0_0000 - 0xFEC0_0FFF | 0xFEC00000 **exact match!** |
 | **1** | **HPET** | 0xFEC0_1000 - 0xFEC0_1FFF | See Region 2 below |
 | **2** | **PIT 8254** | 0xFEC0_2000 - 0xFEC0_2FFF | I/O ports 0x40-0x5F |
 | **3** | **RTC** | 0xFEC0_3000 - 0xFEC0_3FFF | I/O ports 0x70-0x7F |

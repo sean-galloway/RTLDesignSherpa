@@ -64,9 +64,9 @@ projects/components/dmas/rapids/reports/lint/
 
 ### Console Output
 The script provides color-coded output:
-- ✓ **Green** = Clean (no issues)
-- ⚠ **Yellow** = Warnings (style issues, non-critical)
-- ✗ **Red** = Errors (critical issues requiring fixes)
+- **Green** = Clean (no issues)
+- **Yellow** = Warnings (style issues, non-critical)
+- **Red** = Errors (critical issues requiring fixes)
 
 ### Summary File
 View the overall summary:
@@ -219,7 +219,7 @@ grep "ERROR:" projects/components/dmas/rapids/reports/lint/yosys/*.txt | grep -v
 
 **Last run:** Check SUMMARY.txt for timestamp
 **Modules:** 12 (9 rapids_fub + 3 rapids_macro)
-**Tools:** Verilator ✓, Verible ✓, Yosys ✓
+**Tools:** Verilator, Verible, Yosys
 
 ---
 

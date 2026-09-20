@@ -599,7 +599,7 @@ python bin/md_to_docx.py \
 - Pandoc installed and in PATH
 - For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
 
-**📖 See:** `bin/md_to_docx.py` for complete implementation details
+**See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 
@@ -622,7 +622,7 @@ The shell script will automatically:
 3. Generate both DOCX and PDF files in the docs/ directory
 4. Create table of contents and title page
 
-**📖 See:** `bin/md_to_docx.py` for complete implementation details
+**See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 

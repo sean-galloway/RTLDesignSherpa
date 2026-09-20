@@ -55,22 +55,22 @@ known_issues/
 
 ## Current Status
 
-### ✅ Resolved Issues (3)
+### Resolved Issues (3)
 
 All three FUBs (Functional Unit Blocks) in the scheduler group are now **production-ready** with all known bugs fixed:
 
 | Issue | Component | Status | Date Fixed | Verification |
 |-------|-----------|--------|------------|--------------|
-| Credit counter initialization | Scheduler | ✅ FIXED | 2025-10-14 | 43/43 tests passing |
-| FSM state transitions (3 bugs) | Program Engine | ✅ FIXED | 2025-10-14 | 8/8 tests passing |
-| APB sequential pattern | Descriptor Engine | ✅ NO BUG FOUND | 2025-10-14 | All scenarios working |
+| Credit counter initialization | Scheduler | FIXED | 2025-10-14 | 43/43 tests passing |
+| FSM state transitions (3 bugs) | Program Engine | FIXED | 2025-10-14 | 8/8 tests passing |
+| APB sequential pattern | Descriptor Engine | NO BUG FOUND | 2025-10-14 | All scenarios working |
 
 **Test Results:**
 - **Scheduler:** 43/43 tests passing (100%) - Credit-based flow control fully functional
 - **Program Engine:** 8/8 tests passing (100%) - All FSM bugs fixed and verified
 - **Descriptor Engine:** 14/14 tests passing (100%) - Sequential patterns work correctly
 
-### ⚠️ Active Issues (2)
+### Active Issues (2)
 
 | Issue | Component | Severity | Priority | Impact |
 |-------|-----------|----------|----------|--------|
@@ -134,13 +134,13 @@ Justification for priority level...
 ### When to Move to Resolved
 
 Move issue file from `active/` → `resolved/` when:
-1. ✅ Bug fixed in RTL
-2. ✅ All tests passing (100% success rate required)
-3. ✅ Fix verified in production testing
-4. ✅ Investigation complete (even if "no bug found")
+1. Bug fixed in RTL
+2. All tests passing (100% success rate required)
+3. Fix verified in production testing
+4. Investigation complete (even if "no bug found")
 
 **Update the file before moving:**
-- Change **Status** to "✅ FIXED" or "✅ NO BUG FOUND" or "✅ RESOLVED"
+- Change **Status** to "FIXED" or "NO BUG FOUND" or "RESOLVED"
 - Add **Fix Date** and **Verification** sections
 - Include test results showing 100% pass rate
 - Mark as production-ready
@@ -186,12 +186,12 @@ grep -r "Severity.*High" projects/components/dmas/rapids/known_issues/active/
 
 ## Production Readiness Status
 
-### ✅ PRODUCTION READY
+### PRODUCTION READY
 
 **Scheduler Group FUBs (All 3 components):**
-- ✅ **Scheduler** - Credit-based flow control fully functional
-- ✅ **Program Engine** - All FSM state machine bugs fixed
-- ✅ **Descriptor Engine** - All descriptor paths working correctly
+- **Scheduler** - Credit-based flow control fully functional
+- **Program Engine** - All FSM state machine bugs fixed
+- **Descriptor Engine** - All descriptor paths working correctly
 
 **Test Coverage:**
 - Scheduler: 43/43 tests (100%)
@@ -200,7 +200,7 @@ grep -r "Severity.*High" projects/components/dmas/rapids/known_issues/active/
 
 **Date:** 2025-10-14
 
-### ⚠️ PENDING ENHANCEMENTS
+### PENDING ENHANCEMENTS
 
 **Sink Data Path:**
 - Missing: AXI timeout detection (medium priority)
@@ -216,14 +216,14 @@ grep -r "Severity.*High" projects/components/dmas/rapids/known_issues/active/
 
 **RAPIDS follows a strict 100% success requirement for all tests:**
 
-- ❌ Partial success (e.g., 70%) is **NOT acceptable** - indicates bugs or timing issues
-- ✅ All tests must achieve **100% success rate** for production readiness
-- ✅ RTL is deterministic - 100% success is always achievable
-- ✅ Lower thresholds mask real problems and allow regressions
+- Partial success (e.g., 70%) is **NOT acceptable** - indicates bugs or timing issues
+- All tests must achieve **100% success rate** for production readiness
+- RTL is deterministic - 100% success is always achievable
+- Lower thresholds mask real problems and allow regressions
 
 **Example Results:**
-- ❌ Before fixes: 5/12 descriptors (42%) - UNACCEPTABLE
-- ✅ After fixes: 14/14 tests (100%) - REQUIRED STANDARD
+- Before fixes: 5/12 descriptors (42%) - UNACCEPTABLE
+- After fixes: 14/14 tests (100%) - REQUIRED STANDARD
 
 ---
 

@@ -864,16 +864,16 @@ end
 
 | Metric | APB Crossbar | Delta (AXIS) | Bridge (AXI4) |
 |--------|--------------|--------------|---------------|
-| **Channels to arbitrate** | 1 | 1 | 5 ★ |
+| **Channels to arbitrate** | 1 | 1 | 5 |
 | **Request generation** | Address ranges | TDEST decode | Address ranges |
-| **Response routing** | Grant-based | Grant-based | ID-based ★ |
-| **Burst support** | No | Packet (TLAST) | Yes (AWLEN/ARLEN) ★ |
+| **Response routing** | Grant-based | Grant-based | ID-based |
+| **Burst support** | No | Packet (TLAST) | Yes (AWLEN/ARLEN) |
 | **Out-of-order** | No | No | No -- in-order `bridge_id` FIFO (`bridge_cam` unused) |
-| **Transaction tracking** | No | No | Yes ★ |
+| **Transaction tracking** | No | No | Yes |
 | **Lines of Python** | ~500 | ~697 | **~900** (est.) |
 | **Lines of generated SV** | ~200 (4×4) | ~250 (4×4) | **~400** (4×4) (est.) |
 
-★ = Additional complexity in Bridge
+= Additional complexity in Bridge
 
 ---
 

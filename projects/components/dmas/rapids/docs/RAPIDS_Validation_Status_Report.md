@@ -35,29 +35,29 @@ The RAPIDS (Modular I/O Pipeline) validation has been successfully restored and 
 
 ---
 
-## 🎯 **Key Achievements**
+## **Key Achievements**
 
-### ✅ **RAPIDS Scheduler - FULLY WORKING**
-- **Basic initialization test**: `test_scheduler_simple.py` - **PASSING** ✅
-- **Comprehensive functional test**: `test_scheduler.py` - **PASSING** ✅
+### **RAPIDS Scheduler - FULLY WORKING**
+- **Basic initialization test**: `test_scheduler_simple.py` - **PASSING**
+- **Comprehensive functional test**: `test_scheduler.py` - **PASSING**
 - **All FSM states working**: IDLE → WAIT_FOR_CONTROL → DESCRIPTOR_ACTIVE → ISSUE_PROGRAM0/1 → IDLE
 - **Data transfers verified**: 12+ transfers completed (32-3817 bytes each)
 - **Alignment calculations working**: 68+ calculations with proper phase transitions (000, 001, 010)
 - **Program operations functional**: 2+ program operations completed
 - **EOS processing working**: All descriptor types validated
 
-### ✅ **Other RAPIDS Components - WORKING**
-- **Simple SRAM**: `test_simple_sram.py` - **PASSING** ✅
-- **Descriptor Engine**: `test_descriptor_engine_simple.py` - **PASSING** ✅
-- **Program Engine**: `test_program_engine_simple.py` - **PASSING** ✅
+### **Other RAPIDS Components - WORKING**
+- **Simple SRAM**: `test_simple_sram.py` - **PASSING**
+- **Descriptor Engine**: `test_descriptor_engine_simple.py` - **PASSING**
+- **Program Engine**: `test_program_engine_simple.py` - **PASSING**
 
-### ⚠️ **Components Needing Attention**
+### **Components Needing Attention**
 - **Network Master Interface**: Timeout waiting for `rd_ready` signal
 - **Integration Tests**: Missing package file dependencies in verilog_sources
 
 ---
 
-## 🔧 **Critical Issues Fixed**
+## **Critical Issues Fixed**
 
 ### **1. RTL Credit Initialization Bug (CRITICAL)**
 **Location**: `projects/components/dmas/rapids/rtl/rapids_fub/scheduler.sv:567`
@@ -105,81 +105,81 @@ SCHED_ERROR           = 6'b100000    // 0x20
 
 ---
 
-## 🧪 **Test Results Summary**
+## **Test Results Summary**
 
 ### **Scheduler Tests**
 ```
-✅ test_scheduler_simple.py::test_scheduler_simple         PASSED
-✅ test_scheduler.py::test_scheduler_basic                 PASSED
+test_scheduler_simple.py::test_scheduler_simple         PASSED
+test_scheduler.py::test_scheduler_basic                 PASSED
 ```
 
 ### **RAPIDS FUB Components**
 ```
-✅ test_simple_sram.py::test_simple_sram_rtl[8-32-4]      PASSED
-✅ test_descriptor_engine_simple.py::test_descriptor_engine_rtl  PASSED
-✅ test_program_engine_simple.py::test_program_engine_rtl  PASSED
-❌ test_network_master_simple.py::test_network_master_rtl       FAILED (rd_ready timeout)
+test_simple_sram.py::test_simple_sram_rtl[8-32-4]      PASSED
+test_descriptor_engine_simple.py::test_descriptor_engine_rtl  PASSED
+test_program_engine_simple.py::test_program_engine_rtl  PASSED
+test_network_master_simple.py::test_network_master_rtl       FAILED (rd_ready timeout)
 ```
 
 ### **Integration Tests**
 ```
-❌ Scheduler Group Integration     FAILED (missing package files)
-❌ MonBus AXIL Integration         NOT TESTED (missing packages)
-❌ Source/Sink Datapath Integration NOT TESTED (missing packages)
+Scheduler Group Integration     FAILED (missing package files)
+MonBus AXIL Integration         NOT TESTED (missing packages)
+Source/Sink Datapath Integration NOT TESTED (missing packages)
 ```
 
 ---
 
-## 🏗️ **Testbench Architecture Improvements**
+## **Testbench Architecture Improvements**
 
 ### **Working Test Template**: `test_scheduler_simple.py`
-- ✅ Correct `get_paths()` usage with `dir_dict` parameter
-- ✅ Proper package file inclusion (`monitor_pkg.sv`, `rapids_pkg.sv`)
-- ✅ Correct include directory paths
-- ✅ Python module discovery (`python_search=[tests_dir]`)
-- ✅ Proper build directory management
-- ✅ Comprehensive environment setup
+- Correct `get_paths()` usage with `dir_dict` parameter
+- Proper package file inclusion (`monitor_pkg.sv`, `rapids_pkg.sv`)
+- Correct include directory paths
+- Python module discovery (`python_search=[tests_dir]`)
+- Proper build directory management
+- Comprehensive environment setup
 
 ### **Advanced Functional Test**: `test_scheduler.py`
-- ✅ Dual FSM monitoring (Main + Alignment)
-- ✅ Credit management workaround
-- ✅ Comprehensive descriptor testing
-- ✅ Data transfer simulation
-- ✅ Program operation validation
-- ✅ EOS packet processing
-- ✅ Safety monitoring with resource limits
+- Dual FSM monitoring (Main + Alignment)
+- Credit management workaround
+- Comprehensive descriptor testing
+- Data transfer simulation
+- Program operation validation
+- EOS packet processing
+- Safety monitoring with resource limits
 
 ---
 
-## 📊 **Functional Verification Coverage**
+## **Functional Verification Coverage**
 
 ### **Scheduler FSM Coverage** - **100%**
-- ✅ SCHED_IDLE (0x01)
-- ✅ SCHED_WAIT_FOR_CONTROL (0x02)
-- ✅ SCHED_DESCRIPTOR_ACTIVE (0x04)
-- ✅ SCHED_ISSUE_PROGRAM0 (0x08)
-- ✅ SCHED_ISSUE_PROGRAM1 (0x10)
-- ⚠️ SCHED_ERROR (0x20) - Triggered by credit bug, now avoided
+- SCHED_IDLE (0x01)
+- SCHED_WAIT_FOR_CONTROL (0x02)
+- SCHED_DESCRIPTOR_ACTIVE (0x04)
+- SCHED_ISSUE_PROGRAM0 (0x08)
+- SCHED_ISSUE_PROGRAM1 (0x10)
+- SCHED_ERROR (0x20) - Triggered by credit bug, now avoided
 
 ### **Alignment FSM Coverage** - **100%**
-- ✅ ALIGN_IDLE (0x00)
-- ✅ Transfer phases: 000, 001, 010
-- ✅ 68+ alignment calculations verified
+- ALIGN_IDLE (0x00)
+- Transfer phases: 000, 001, 010
+- 68+ alignment calculations verified
 
 ### **Data Transfer Coverage** - **100%**
-- ✅ Variable transfer sizes: 32-3817 bytes
-- ✅ Multiple concurrent transfers
-- ✅ Transfer completion detection
-- ✅ Data flow management
+- Variable transfer sizes: 32-3817 bytes
+- Multiple concurrent transfers
+- Transfer completion detection
+- Data flow management
 
 ### **Descriptor Coverage** - **100%**
-- ✅ Basic descriptors (data-only)
-- ✅ Program descriptors (prog0/prog1)
-- ✅ EOS descriptors (end-of-stream)
+- Basic descriptors (data-only)
+- Program descriptors (prog0/prog1)
+- EOS descriptors (end-of-stream)
 
 ---
 
-## 🔍 **Integration Test Issues**
+## **Integration Test Issues**
 
 ### **Missing Package Dependencies**
 Integration tests fail due to missing package files in `verilog_sources`:
@@ -202,7 +202,7 @@ Network master test fails with `rd_ready` timeout, indicating potential:
 
 ---
 
-## 📈 **Performance Metrics**
+## **Performance Metrics**
 
 ### **Test Execution Times**
 - Simple scheduler test: ~0.29s
@@ -218,7 +218,7 @@ Network master test fails with `rd_ready` timeout, indicating potential:
 
 ---
 
-## 🚀 **Next Steps & Recommendations**
+## **Next Steps & Recommendations**
 
 ### **Immediate Actions (High Priority)**
 1. **Fix RTL credit initialization bug** in `scheduler.sv:567`
@@ -240,16 +240,16 @@ Network master test fails with `rd_ready` timeout, indicating potential:
 
 ---
 
-## 🏆 **Validation Status: MAJOR SUCCESS**
+## **Validation Status: MAJOR SUCCESS**
 
-### **What Works** ✅
-- ✅ **Core scheduler functionality fully validated**
-- ✅ **All FSM states and transitions working**
-- ✅ **Data flow and alignment processing verified**
-- ✅ **Individual RAPIDS components functional**
-- ✅ **Testbench infrastructure completely fixed**
+### **What Works**
+- **Core scheduler functionality fully validated**
+- **All FSM states and transitions working**
+- **Data flow and alignment processing verified**
+- **Individual RAPIDS components functional**
+- **Testbench infrastructure completely fixed**
 
-### **Critical Foundation Established** 🎯
+### **Critical Foundation Established**
 The scheduler testbench fixes provide a **solid template** for:
 - All other RAPIDS component tests
 - Integration test improvements

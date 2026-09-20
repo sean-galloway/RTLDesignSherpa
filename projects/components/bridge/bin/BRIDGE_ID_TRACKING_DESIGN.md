@@ -76,7 +76,7 @@ bridge_cam #(
     .allocate(xbar_awvalid && xbar_awready),
     .allocate_tag(xbar_awid),
     .allocate_data(xbar_bridge_id),
-    
+
     // Deallocate on B
     .deallocate(slave_bvalid && slave_bready),
     .deallocate_tag(slave_bid),
@@ -110,18 +110,18 @@ end
 
 **Old (broken):**
 ```systemverilog
-assign cpu_32b_b.id = 
+assign cpu_32b_b.id =
     (cpu_slave_select_aw[0] ? ddr_axi_bid : '0) |
     (cpu_slave_select_aw[1] ? sram_axi_bid : '0);
 ```
 
 **New (correct):**
 ```systemverilog
-assign cpu_32b_b.id = 
+assign cpu_32b_b.id =
     (ddr_bid_bridge_id == CPU_BRIDGE_ID ? ddr_axi_bid : '0) |
     (sram_bid_bridge_id == CPU_BRIDGE_ID ? sram_axi_bid : '0);
-    
-assign cpu_32b_bvalid = 
+
+assign cpu_32b_bvalid =
     (ddr_bid_bridge_id == CPU_BRIDGE_ID ? ddr_axi_bvalid : '0) |
     (sram_bid_bridge_id == CPU_BRIDGE_ID ? sram_axi_bvalid : '0);
 ```
@@ -137,7 +137,7 @@ slaves = [
   {name = "ddr", prefix = "ddr_s_axi", protocol = "axi4",
    data_width = 512, ooo_capable = true,  # ← NEW
    base_addr = 0x00000000, addr_range = 0x80000000},
-   
+
   {name = "sram", prefix = "sram_s_axi", protocol = "axi4",
    data_width = 256, ooo_capable = false, # ← NEW: In-order only
    base_addr = 0x80000000, addr_range = 0x80000000}
@@ -151,40 +151,40 @@ slaves = [
 ## Implementation Steps
 
 ### Step 1: Update Config Loader (config_loader.py)
-- [x] Parse `enable_ooo` field from TOML (default: false) ✅ ALREADY EXISTS
-- [x] Field exists in PortSpec dataclass at line 23 ✅ COMPLETE
+- [x] Parse `enable_ooo` field from TOML (default: false) ALREADY EXISTS
+- [x] Field exists in PortSpec dataclass at line 23 COMPLETE
 
 ### Step 2: Update Master Adapter Generator (adapter_generator.py)
-- [x] Add BRIDGE_ID parameter ✅ COMPLETE
-- [x] Add BRIDGE_ID_WIDTH parameter (calculated as $clog2(NUM_MASTERS)) ✅ COMPLETE
-- [x] Add `bridge_id_aw` and `bridge_id_ar` output ports ✅ COMPLETE
-- [x] Tie to constant BRIDGE_ID value via assign statements ✅ COMPLETE
-- [x] Update bridge_module_generator.py to pass master_index ✅ COMPLETE
+- [x] Add BRIDGE_ID parameter COMPLETE
+- [x] Add BRIDGE_ID_WIDTH parameter (calculated as $clog2(NUM_MASTERS)) COMPLETE
+- [x] Add `bridge_id_aw` and `bridge_id_ar` output ports COMPLETE
+- [x] Tie to constant BRIDGE_ID value via assign statements COMPLETE
+- [x] Update bridge_module_generator.py to pass master_index COMPLETE
 
 ### Step 3: Update Slave Adapter Generator (slave_adapter_generator.py)
-- [x] Add `enable_ooo` field to SlaveInfo dataclass ✅ COMPLETE
-- [x] Add `bridge_id_aw` and `bridge_id_ar` input ports ✅ COMPLETE
-- [x] Add `bid_bridge_id`, `rid_bridge_id`, `bid_valid`, `rid_valid` output ports ✅ COMPLETE
-- [x] Generate internal signals for CAM/FIFO tracking ✅ COMPLETE
-- [x] Instantiate CAM if `enable_ooo=true` ✅ COMPLETE
-- [x] Instantiate FIFO if `enable_ooo=false` ✅ COMPLETE
-- [x] Wire allocate logic (on AW/AR handshake) ✅ COMPLETE
-- [x] Wire deallocate logic (on B/R handshake) ✅ COMPLETE
+- [x] Add `enable_ooo` field to SlaveInfo dataclass COMPLETE
+- [x] Add `bridge_id_aw` and `bridge_id_ar` input ports COMPLETE
+- [x] Add `bid_bridge_id`, `rid_bridge_id`, `bid_valid`, `rid_valid` output ports COMPLETE
+- [x] Generate internal signals for CAM/FIFO tracking COMPLETE
+- [x] Instantiate CAM if `enable_ooo=true` COMPLETE
+- [x] Instantiate FIFO if `enable_ooo=false` COMPLETE
+- [x] Wire allocate logic (on AW/AR handshake) COMPLETE
+- [x] Wire deallocate logic (on B/R handshake) COMPLETE
 
-### Step 4: Update Crossbar Generator (crossbar_generator.py) - ✅ RESPONSE ROUTING COMPLETE
-- [x] Add bridge_id inputs from master adapters (bridge_id_aw, bridge_id_ar) ✅ COMPLETE
-- [x] Add bridge_id outputs to slave adapters (bridge_id_aw, bridge_id_ar) ✅ COMPLETE
-- [x] Add bridge_id inputs from slave adapters (bid_bridge_id, rid_bridge_id, bid_valid, rid_valid) ✅ COMPLETE
-- [x] Add routing logic to pass bridge_id_aw/ar from masters to slaves ✅ COMPLETE
-- [x] Replace slave_select-based B/R response routing with bridge_id-based routing ✅ COMPLETE
-- [x] bready/rready correctly use slave_select (request path) ✅ VERIFIED CORRECT
+### Step 4: Update Crossbar Generator (crossbar_generator.py) - RESPONSE ROUTING COMPLETE
+- [x] Add bridge_id inputs from master adapters (bridge_id_aw, bridge_id_ar) COMPLETE
+- [x] Add bridge_id outputs to slave adapters (bridge_id_aw, bridge_id_ar) COMPLETE
+- [x] Add bridge_id inputs from slave adapters (bid_bridge_id, rid_bridge_id, bid_valid, rid_valid) COMPLETE
+- [x] Add routing logic to pass bridge_id_aw/ar from masters to slaves COMPLETE
+- [x] Replace slave_select-based B/R response routing with bridge_id-based routing COMPLETE
+- [x] bready/rready correctly use slave_select (request path) VERIFIED CORRECT
 
 **Status:** Response routing now uses bridge_id matching. Request path (awready, wready, arready, bready, rready) correctly uses slave_select.
 
-### Step 5: Update Package Generator (package_generator.py) - ✅ COMPLETE
-- [x] Add BRIDGE_ID_WIDTH localparam ✅ COMPLETE
-- [x] Add NUM_MASTERS localparam ✅ COMPLETE
-- [x] Pass num_masters from bridge_module_generator ✅ COMPLETE
+### Step 5: Update Package Generator (package_generator.py) - COMPLETE
+- [x] Add BRIDGE_ID_WIDTH localparam COMPLETE
+- [x] Add NUM_MASTERS localparam COMPLETE
+- [x] Pass num_masters from bridge_module_generator COMPLETE
 
 ### Step 6: Update Test Configurations
 - [ ] Add `ooo_capable` to existing TOML files
@@ -223,7 +223,7 @@ slaves = [
 6. Crossbar:
    Checks: ddr_bid_bridge_id == 0? No
    Checks: sram_bid_bridge_id == 0? Yes → Route to Master 0
-   
+
 7. Master 0:
    Receives B response with bid=7
 ```
@@ -279,7 +279,7 @@ bridge_cam #(
 6. `bin/test_configs/*.toml` - Add ooo_capable field
 
 **RTL (hand-written, already exists):**
-7. `rtl/bridge_cam.sv` - Already exists ✓
+7. `rtl/bridge_cam.sv` - Already exists
 
 ---
 
@@ -307,11 +307,11 @@ If tests fail:
 
 ---
 
-## ✅ COMPLETE Implementation Status (2025-11-10)
+## COMPLETE Implementation Status (2025-11-10)
 
 **ALL STEPS COMPLETE:** Full bridge ID tracking implemented and verified
 
-### ✅ Completed Components
+### Completed Components
 
 **Step 1: Config Loader** - COMPLETE
 - `enable_ooo` field parsed from TOML (defaults to false)
@@ -380,7 +380,7 @@ If tests fail:
 
 ---
 
-**Status:** ✅ **IMPLEMENTATION COMPLETE**
-**Documentation:** ✅ **COMPLETE** (see bridge_spec ch 3.7)
-**Verification:** ✅ All 10 bridge variants generated with bridge_id tracking
+**Status:** **IMPLEMENTATION COMPLETE**
+**Documentation:** **COMPLETE** (see bridge_spec ch 3.7)
+**Verification:** All 10 bridge variants generated with bridge_id tracking
 **Next:** Testing multi-master OOO scenarios (optional validation)

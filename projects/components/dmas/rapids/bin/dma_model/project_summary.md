@@ -181,7 +181,7 @@ Single Channel BW = (2048 bytes × 1 GHz) / 744 cycles = 2.753 GB/s
 ### Performance
 - **Single Channel:** 2.753 GB/s (69% of 4 GB/s drain capacity)
 - **16 Channels:** 44.05 GB/s (76% of 57.6 GB/s AXI peak)
-- **Target:** 50+ GB/s ❌ **NOT MET**
+- **Target:** 50+ GB/s **NOT MET**
 
 ---
 
@@ -205,7 +205,7 @@ Single Channel BW = (2048 × 1 GHz) / 232 = 8.83 GB/s (theoretical)
 16 Channels    BW = 16 × 4.0 = 64 GB/s (limited by AXI peak ~57.6 GB/s)
 ```
 
-**Result:** ~57-64 GB/s with 16 channels ✓
+**Result:** ~57-64 GB/s with 16 channels
 
 ---
 
@@ -263,7 +263,7 @@ Payload    Ping-Pong    Monolithic    Benefit
 **Result:**
 - Single channel: 4.0 GB/s (100% of drain capacity)
 - 16 channels: 57-64 GB/s
-- Target: **50+ GB/s ✓ MET**
+- Target: **50+ GB/s MET**
 
 ---
 
@@ -284,7 +284,7 @@ B_channel = (payload × frequency) / cycles_per_burst
 B_channel = min(B_channel, per_channel_cap)
 
 # Aggregate
-total_bw = min(B_channel × num_channels, 
+total_bw = min(B_channel × num_channels,
                total_custom_capacity,
                axi_peak_bandwidth)
 ```
@@ -312,7 +312,7 @@ class ReadChannel:
             yield env.timeout(latency)           # Wait for memory
             yield env.timeout(burst_length)       # Receive data
             yield env.timeout(drain_cycles)       # Drain to custom side
-            
+
             # Track statistics
             bursts_completed += 1
             bytes_transferred += payload
@@ -336,21 +336,21 @@ The validation framework ensures both models agree:
 
 ### Key Validation Points
 1. **Timing Breakdown**
-   - Latency: 200 cycles ✓
-   - Data return: 32 cycles ✓
-   - Drain: 512 cycles ✓
+   - Latency: 200 cycles
+   - Data return: 32 cycles
+   - Drain: 512 cycles
 
 2. **Single Channel Bandwidth**
-   - Baseline: 2.753 GB/s ✓
-   - Optimized: 4.0 GB/s ✓
+   - Baseline: 2.753 GB/s
+   - Optimized: 4.0 GB/s
 
 3. **Multi-Channel Bandwidth**
-   - Baseline (16ch): ~44 GB/s ✓
-   - Optimized (16ch): ~57-64 GB/s ✓
+   - Baseline (16ch): ~44 GB/s
+   - Optimized (16ch): ~57-64 GB/s
 
 4. **Agreement Tolerance**
    - Target: ±5% difference
-   - Achieved: <3% for all configs ✓
+   - Achieved: <3% for all configs
 
 ---
 
@@ -514,9 +514,9 @@ When running analyses, these files are generated:
 
 ## Recommendations
 
-### Priority 1: Implement Pipelining (Depth=4) ⭐⭐⭐
-**Effort:** Moderate  
-**Impact:** ~70% improvement  
+### Priority 1: Implement Pipelining (Depth=4)
+**Effort:** Moderate
+**Impact:** ~70% improvement
 **Why:** Biggest single gain, essential for meeting target
 
 **Implementation:**
@@ -526,9 +526,9 @@ When running analyses, these files are generated:
 
 ---
 
-### Priority 2: Enable Streaming Drain ⭐⭐
-**Effort:** Low-Moderate  
-**Impact:** ~5% additional improvement  
+### Priority 2: Enable Streaming Drain
+**Effort:** Low-Moderate
+**Impact:** ~5% additional improvement
 **Why:** Complements pipelining, modest gain
 
 **Implementation:**
@@ -538,9 +538,9 @@ When running analyses, these files are generated:
 
 ---
 
-### Priority 3: Consider Monolithic SRAM ⭐
-**Effort:** Moderate  
-**Impact:** Minimal for 2KB, higher for smaller payloads  
+### Priority 3: Consider Monolithic SRAM
+**Effort:** Moderate
+**Impact:** Minimal for 2KB, higher for smaller payloads
 **Why:** Only beneficial if using variable payload sizes
 
 **Implementation:**
@@ -553,10 +553,10 @@ When running analyses, these files are generated:
 ## Expected Results
 
 **After implementing all optimizations:**
-- Single channel: ~4.0 GB/s (100% of drain capacity) ✓
-- 16 channels: ~57-64 GB/s ✓
-- Efficiency: 99%+ of AXI peak ✓
-- **Target: 50+ GB/s ACHIEVED** ✓
+- Single channel: ~4.0 GB/s (100% of drain capacity)
+- 16 channels: ~57-64 GB/s
+- Efficiency: 99%+ of AXI peak
+- **Target: 50+ GB/s ACHIEVED**
 
 **Validated by:**
 - Analytical model calculations
@@ -592,18 +592,18 @@ pip install matplotlib seaborn
 
 This project provides **complete performance modeling tools** for AXI4 interfaces:
 
-✅ **Analytical model** for instant what-if analysis  
-✅ **SimPy simulation** for detailed validation  
-✅ **Incremental optimizations** to quantify each improvement  
-✅ **Validation framework** to ensure accuracy  
-✅ **Easy-to-use scripts** for common tasks  
-✅ **Comprehensive documentation** for all features
+**Analytical model** for instant what-if analysis
+**SimPy simulation** for detailed validation
+**Incremental optimizations** to quantify each improvement
+**Validation framework** to ensure accuracy
+**Easy-to-use scripts** for common tasks
+**Comprehensive documentation** for all features
 
 **Result:** Clear path to achieve 50+ GB/s target through pipelining and streaming drain optimizations, validated by two independent models.
 
 ---
 
-**Project Status:** ✅ Complete and Validated  
-**Target Achievement:** ✅ 50+ GB/s with optimizations  
-**Model Agreement:** ✅ <3% difference  
+**Project Status:** Complete and Validated
+**Target Achievement:** 50+ GB/s with optimizations
+**Model Agreement:** <3% difference
 **Ready for:** Implementation planning and verification

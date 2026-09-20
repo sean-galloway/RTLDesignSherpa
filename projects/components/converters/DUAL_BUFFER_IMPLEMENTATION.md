@@ -245,11 +245,11 @@ All existing test configurations now have dual-buffer variants:
 ### Verification Results
 
 **Tested:**
-- ✅ Basic data splitting (all ratios)
-- ✅ Sideband handling (broadcast and slice modes)
-- ✅ Burst tracking with LAST generation
-- ✅ Backpressure handling
-- ✅ Continuous streaming
+- Basic data splitting (all ratios)
+- Sideband handling (broadcast and slice modes)
+- Burst tracking with LAST generation
+- Backpressure handling
+- Continuous streaming
 
 **Result:** All tests PASS for both single and dual-buffer modes.
 
@@ -259,7 +259,7 @@ All existing test configurations now have dual-buffer variants:
 
 ### When to Use Single-Buffer Mode (DUAL_BUFFER=0)
 
-✅ **Use when:**
+**Use when:**
 - Area is critical
 - Throughput requirements are <100%
 - Source/sink have natural gaps in traffic
@@ -269,7 +269,7 @@ All existing test configurations now have dual-buffer variants:
 
 ### When to Use Dual-Buffer Mode (DUAL_BUFFER=1)
 
-✅ **Use when:**
+**Use when:**
 - Maximum throughput required
 - Continuous streaming data
 - Sufficient area budget
@@ -410,11 +410,11 @@ This prevents unnecessary swaps and maintains correct ordering.
 
 The dual-buffer implementation successfully provides an **optional high-throughput mode** for the `axi_data_dnsize` module:
 
-✅ **Functionality:** Proven correct through comprehensive testing
-✅ **Performance:** 100% throughput vs. 80% for single-buffer
-✅ **Compatibility:** Fully backward compatible
-✅ **Flexibility:** User-selectable via parameter
-✅ **Robustness:** Works with all modes (broadcast, slice, burst tracking)
+**Functionality:** Proven correct through comprehensive testing
+**Performance:** 100% throughput vs. 80% for single-buffer
+**Compatibility:** Fully backward compatible
+**Flexibility:** User-selectable via parameter
+**Robustness:** Works with all modes (broadcast, slice, burst tracking)
 
 **Trade-off:** ~100% area increase for +25% throughput improvement
 

@@ -85,10 +85,10 @@ Organized individual component validation in `fub_tests/`:
 - `test_monbus_axil_integration.py` - Uses `MonbusAxilGroupTB` from framework
 
 **Key Features:**
-- ✅ **Real Component Integration**: Uses actual GAXI/AXI4/Network/MonBus factories
-- ✅ **32-Channel Fixed Configuration**: All tests use 32 channels for scaling
-- ✅ **Compliance Checking**: Built-in framework compliance validation
-- ✅ **Performance Testing**: Timing profiles and stress testing
+- **Real Component Integration**: Uses actual GAXI/AXI4/Network/MonBus factories
+- **32-Channel Fixed Configuration**: All tests use 32 channels for scaling
+- **Compliance Checking**: Built-in framework compliance validation
+- **Performance Testing**: Timing profiles and stress testing
 
 ### Phase 3: System Tests (`system_tests/`)
 
@@ -101,10 +101,10 @@ Organized individual component validation in `fub_tests/`:
   - Demonstrates cross-component coordination
 
 **System Capabilities:**
-- ✅ **Multi-TB Coordination**: All four TB classes working together
-- ✅ **End-to-End Data Flow**: Complete system data path validation
-- ✅ **32x Scaling Simulation**: Tests readiness for 32 scheduler group instantiation
-- ✅ **Cross-Component Handoffs**: Validates component interaction and coordination
+- **Multi-TB Coordination**: All four TB classes working together
+- **End-to-End Data Flow**: Complete system data path validation
+- **32x Scaling Simulation**: Tests readiness for 32 scheduler group instantiation
+- **Cross-Component Handoffs**: Validates component interaction and coordination
 
 ## Key Features Validated
 
@@ -191,7 +191,7 @@ Tests are organized with pytest markers:
 
 ## Current Status
 
-### ✅ Completed
+### Completed
 - Test infrastructure and configuration
 - Scheduler FUB validation (dual FSM architecture)
 - Descriptor engine FUB validation (APB interface)
@@ -199,12 +199,12 @@ Tests are organized with pytest markers:
 - Network master FUB validation (packet transmission)
 - Network slave FUB validation (packet reception)
 
-### 🚧 In Progress
+### In Progress
 - Additional FUB tests for remaining engines
 - Complete macro block integration tests
 - End-to-end system validation
 
-### 📋 Pending
+### Pending
 - Program engine FUB validation
 - AXI engine FUB validations (source read, sink write)
 - SRAM control FUB validations (source, sink)

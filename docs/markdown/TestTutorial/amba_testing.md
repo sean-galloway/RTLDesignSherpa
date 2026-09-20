@@ -1076,12 +1076,12 @@ for error_type, addr in error_scenarios:
 ### Don't Reimplement Standard Protocols
 
 ```python
-# ❌ Wrong: Reimplementing AXI4
+# Wrong: Reimplementing AXI4
 class MyAXI4Implementation:
     async def write_transaction(self, addr, data):
         # 500+ lines of AXI4 protocol...
 
-# ✅ Correct: Use framework components
+# Correct: Use framework components
 from CocoTBFramework.components.axi4.axi4_interfaces import AXI4MasterWrite
 master = AXI4MasterWrite(dut, clock, prefix, ...)
 ```
@@ -1089,11 +1089,11 @@ master = AXI4MasterWrite(dut, clock, prefix, ...)
 ### Don't Skip Compliance Checking
 
 ```python
-# ❌ Wrong: No compliance verification
+# Wrong: No compliance verification
 await tb.axi_read_transaction(addr)
 # Hope protocol is correct...
 
-# ✅ Correct: Enable compliance checking
+# Correct: Enable compliance checking
 compliance = AXI4ComplianceChecker(dut, clock, prefix, log)
 cocotb.start_soon(compliance.monitor())
 await tb.axi_read_transaction(addr)
@@ -1104,21 +1104,21 @@ assert len(violations) == 0
 ### Don't Ignore Backpressure
 
 ```python
-# ❌ Wrong: Assume immediate ready
+# Wrong: Assume immediate ready
 self.dut.tready.value = 1  # Always ready - unrealistic
 
-# ✅ Correct: Test with realistic backpressure
+# Correct: Test with realistic backpressure
 slave.set_backpressure_mode('random', probability=0.7)
 ```
 
 ### Don't Test Only Happy Paths
 
 ```python
-# ❌ Wrong: Only test successful transactions
+# Wrong: Only test successful transactions
 await write(0x1000, 0xDATA)
 await read(0x1000)  # Only success case
 
-# ✅ Correct: Test error cases too
+# Correct: Test error cases too
 await test_slave_error_response()
 await test_decode_error()
 await test_timeout_handling()
@@ -1127,10 +1127,10 @@ await test_timeout_handling()
 ### Don't Hardcode Timing
 
 ```python
-# ❌ Wrong: Hardcoded delays
+# Wrong: Hardcoded delays
 await Timer(100, units='ns')  # Magic number
 
-# ✅ Correct: Use clock cycles
+# Correct: Use clock cycles
 await tb.wait_clocks('aclk', 10)  # Clear intent
 ```
 

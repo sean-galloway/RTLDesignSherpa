@@ -1379,12 +1379,12 @@ regression_config = {
 ### Don't Test in Isolation
 
 ```python
-# ❌ Wrong: Test protocols separately
+# Wrong: Test protocols separately
 test_axi_only()
 test_apb_only()
 test_axis_only()
 
-# ✅ Correct: Test protocols together
+# Correct: Test protocols together
 test_concurrent_protocols()
 test_protocol_interactions()
 ```
@@ -1392,10 +1392,10 @@ test_protocol_interactions()
 ### Don't Ignore Performance
 
 ```python
-# ❌ Wrong: Only check functionality
+# Wrong: Only check functionality
 assert data_correct  # Is it right?
 
-# ✅ Correct: Check performance too
+# Correct: Check performance too
 assert data_correct      # Is it right?
 assert bandwidth > 100   # Is it fast enough?
 assert latency < 1000    # Is it responsive?
@@ -1404,10 +1404,10 @@ assert latency < 1000    # Is it responsive?
 ### Don't Skip Error Cases
 
 ```python
-# ❌ Wrong: Only test happy path
+# Wrong: Only test happy path
 test_normal_operation()
 
-# ✅ Correct: Test error scenarios
+# Correct: Test error scenarios
 test_normal_operation()
 test_error_injection()
 test_error_recovery()
@@ -1417,10 +1417,10 @@ test_corner_cases()
 ### Don't Use Magic Numbers
 
 ```python
-# ❌ Wrong: Unexplained constants
+# Wrong: Unexplained constants
 await Timer(100, units='ns')  # Why 100?
 
-# ✅ Correct: Named constants
+# Correct: Named constants
 RESET_DURATION_NS = 100
 await Timer(RESET_DURATION_NS, units='ns')
 ```

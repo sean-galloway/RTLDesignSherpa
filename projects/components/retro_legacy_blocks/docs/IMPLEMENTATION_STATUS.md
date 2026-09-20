@@ -28,37 +28,37 @@
 > locations (RTL: `rtl/hpet/`, TB classes: `dv/tbclasses/hpet/`, test runner:
 > `dv/tests/test_apb4_hpet.py`).
 
-## Milestone: COMPLETE ✅ (5/6 configs fully passing)
+## Milestone: COMPLETE (5/6 configs fully passing)
 
 ### Test Results Summary
 
-**✅ 2-Timer Intel-like (no CDC):** ALL TESTS PASS
-- Basic: 4/4 ✅ | Medium: 5/5 ✅ | Full: 3/3 ✅
+**2-Timer Intel-like (no CDC):** ALL TESTS PASS
+- Basic: 4/4 | Medium: 5/5 | Full: 3/3
 - **Overall: 12/12 (100%)**
 
-**✅ 3-Timer AMD-like (no CDC):** ALL TESTS PASS
-- Basic: 4/4 ✅ | Medium: 5/5 ✅ | Full: 3/3 ✅
+**3-Timer AMD-like (no CDC):** ALL TESTS PASS
+- Basic: 4/4 | Medium: 5/5 | Full: 3/3
 - **Overall: 12/12 (100%)**
 
-**✅ 2-Timer Intel-like (CDC):** ALL TESTS PASS
-- Basic: 4/4 ✅ | Medium: 5/5 ✅ | Full: 3/3 ✅
+**2-Timer Intel-like (CDC):** ALL TESTS PASS
+- Basic: 4/4 | Medium: 5/5 | Full: 3/3
 - **Overall: 12/12 (100%)**
 
-**✅ 3-Timer AMD-like (CDC):** ALL TESTS PASS
-- Basic: 4/4 ✅ | Medium: 5/5 ✅ | Full: 3/3 ✅
+**3-Timer AMD-like (CDC):** ALL TESTS PASS
+- Basic: 4/4 | Medium: 5/5 | Full: 3/3
 - **Overall: 12/12 (100%)**
 
-**✅ 8-Timer custom (CDC):** ALL TESTS PASS
-- Basic: 4/4 ✅ | Medium: 5/5 ✅ | Full: 3/3 ✅
+**8-Timer custom (CDC):** ALL TESTS PASS
+- Basic: 4/4 | Medium: 5/5 | Full: 3/3
 - **Overall: 12/12 (100%)**
 
-**⚠️ 8-Timer custom (no CDC):** ONE TEST FAILS
-- Basic: 4/4 ✅ | Medium: 5/5 ✅ | Full: 2/3 ❌
+**8-Timer custom (no CDC):** ONE TEST FAILS
+- Basic: 4/4 | Medium: 5/5 | Full: 2/3
 - **Overall: 11/12 (92%)**
 - **Issue:** All Timers Stress test - only 6/8 timers fire (Timer 6 and 7 timeout)
 - **Likely fix:** Increase test timeout (same fix as 3-timer Multiple Timers test)
 
-## Root Cause Found & Fixed ✅
+## Root Cause Found & Fixed
 
 **Problem:** Counter state not reset between tests + insufficient test timeouts
 
@@ -75,9 +75,9 @@
    timeout = 20000  # 20us timeout - Timer 2 needs 7000ns, allow extra margin
    ```
 
-**Result:** All 3-timer tests now PASS ✅
+**Result:** All 3-timer tests now PASS
 
-## Core Functionality Validated ✅
+## Core Functionality Validated
 
 1. **PeakRDL Integration:** Working perfectly
    - Register generation from SystemRDL
@@ -85,12 +85,12 @@
    - peakrdl-to-cmdrsp adapter
 
 2. **HPET Features:** All working
-   - One-shot timers ✅
-   - Periodic timers ✅
-   - Timer mode switching ✅
-   - 64-bit comparators ✅
-   - Multiple timers (up to 8) ✅
-   - Clock domain crossing (CDC) ✅
+   - One-shot timers
+   - Periodic timers
+   - Timer mode switching
+   - 64-bit comparators
+   - Multiple timers (up to 8)
+   - Clock domain crossing (CDC)
 
 3. **Per-Timer Bus Architecture:** Successfully implemented
    - Timer comparator data corruption fixed
@@ -138,17 +138,17 @@ The All Timers Stress test likely has a similar short timeout that prevents Time
 
 ## Milestone Achievement
 
-✅ **PRIMARY GOAL ACHIEVED:** PeakRDL integration complete, all core functionality validated
+**PRIMARY GOAL ACHIEVED:** PeakRDL integration complete, all core functionality validated
 
-✅ **5/6 CONFIGURATIONS:** Production ready (100% tests pass)
+**5/6 CONFIGURATIONS:** Production ready (100% tests pass)
 
-✅ **ROOT CAUSE FIXED:** Counter state management + timeout calculations corrected
+**ROOT CAUSE FIXED:** Counter state management + timeout calculations corrected
 
-⚠️ **1/6 CONFIGURATION:** 8-timer non-CDC has one stress test timing issue (minor)
+**1/6 CONFIGURATION:** 8-timer non-CDC has one stress test timing issue (minor)
 
 ## Recommended Next Steps
 
-1. **Accept milestone as COMPLETE** - 5/6 configs fully working, core functionality validated ✅
+1. **Accept milestone as COMPLETE** - 5/6 configs fully working, core functionality validated
 2. **OPTIONAL:** Fix 8-timer All Timers Stress test timeout (5 minutes)
 3. **OR:** Use CDC-enabled 8-timer configuration (already passes 100%)
 
@@ -157,12 +157,12 @@ The All Timers Stress test likely has a similar short timeout that prevents Time
 ```
 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
-test_hpet[2-32902-1-0-full-2-timer Intel-like]      PASSED ✅
-test_hpet[3-4130-2-0-full-3-timer AMD-like]         PASSED ✅
-test_hpet[8-43981-16-0-full-8-timer custom]         FAILED ❌ (1 stress test timeout)
-test_hpet[2-32902-1-1-full-2-timer Intel-like CDC]  PASSED ✅
-test_hpet[3-4130-2-1-full-3-timer AMD-like CDC]     PASSED ✅
-test_hpet[8-43981-16-1-full-8-timer custom CDC]     PASSED ✅
+test_hpet[2-32902-1-0-full-2-timer Intel-like]      PASSED
+test_hpet[3-4130-2-0-full-3-timer AMD-like]         PASSED
+test_hpet[8-43981-16-0-full-8-timer custom]         FAILED (1 stress test timeout)
+test_hpet[2-32902-1-1-full-2-timer Intel-like CDC]  PASSED
+test_hpet[3-4130-2-1-full-3-timer AMD-like CDC]     PASSED
+test_hpet[8-43981-16-1-full-8-timer custom CDC]     PASSED
 
 Result: 5/6 PASS (83%), 1 minor timeout issue
 ```
@@ -174,4 +174,4 @@ Result: 5/6 PASS (83%), 1 minor timeout issue
 - Tests: hpet_tests_medium.py (counter cleanup + timeout fixes), hpet_tests_full.py
 - Docs: KNOWN_ISSUES.md (can be updated or removed)
 
-**Next:** Create git commit for PeakRDL HPET integration milestone ✅
+**Next:** Create git commit for PeakRDL HPET integration milestone

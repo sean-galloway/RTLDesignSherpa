@@ -23,7 +23,7 @@
 
 # RLB (Retro Legacy Blocks) - FPGA Implementation Guide
 
-**Date:** 2025-11-16  
+**Date:** 2025-11-16
 **Purpose:** Explain RLB blocks and FPGA implementation compatibility
 
 ---
@@ -58,7 +58,7 @@
 
 ## Implemented RLB Modules
 
-### ✅ Complete Modules
+### Complete Modules
 
 #### 1. **HPET** (High Precision Event Timer)
 - **Purpose:** High-resolution timer (sub-microsecond precision)
@@ -106,7 +106,7 @@
 
 ## FPGA Implementation - Nexys A7 / Genesys2
 
-### Can RLB Be Implemented on These Boards? **YES! ✅**
+### Can RLB Be Implemented on These Boards? **YES!**
 
 All RLB modules are **100% compatible** with Nexys A7 and Genesys2 FPGAs.
 
@@ -118,7 +118,7 @@ All RLB modules are **100% compatible** with Nexys A7 and Genesys2 FPGAs.
 - **Block RAM:** 4,860 Kb
 - **Clock:** 100 MHz oscillator
 - **I/O:** Extensive (PMOD, switches, LEDs, UART, etc.)
-- **Verdict:** ✅ **Excellent fit for full RLB system**
+- **Verdict:** **Excellent fit for full RLB system**
 
 #### Genesys 2 (Kintex-7)
 - **FPGA:** XC7K325T-2FFG900C
@@ -126,7 +126,7 @@ All RLB modules are **100% compatible** with Nexys A7 and Genesys2 FPGAs.
 - **Block RAM:** 16,020 Kb
 - **Clock:** 200 MHz oscillator
 - **I/O:** Very extensive
-- **Verdict:** ✅ **More than sufficient, ideal for complex SoC**
+- **Verdict:** **More than sufficient, ideal for complex SoC**
 
 ### Resource Usage Estimates
 
@@ -143,28 +143,28 @@ All RLB modules are **100% compatible** with Nexys A7 and Genesys2 FPGAs.
 | IOAPIC | ~800-1200 | ~600-900 | 0 | 24 IRQs, redirection |
 
 **Total RLB System (~5500 LUTs, ~4300 FFs):**
-- **Nexys A7-100T:** ~5% logic utilization ✅ Plenty of room
-- **Nexys A7-50T:** ~11% logic utilization ✅ Still comfortable
-- **Genesys 2:** ~2% logic utilization ✅ Massive headroom
+- **Nexys A7-100T:** ~5% logic utilization Plenty of room
+- **Nexys A7-50T:** ~11% logic utilization Still comfortable
+- **Genesys 2:** ~2% logic utilization Massive headroom
 
 ### What Can Fit on These Boards?
 
 **Nexys A7-100T Can Support:**
-- ✅ All 7 RLB modules
-- ✅ MicroBlaze or RISC-V soft processor
-- ✅ DDR2 controller
-- ✅ Ethernet MAC
-- ✅ VGA/HDMI display controller
-- ✅ USB interface
-- ✅ Audio codec
+- All 7 RLB modules
+- MicroBlaze or RISC-V soft processor
+- DDR2 controller
+- Ethernet MAC
+- VGA/HDMI display controller
+- USB interface
+- Audio codec
 - **Result:** Complete retro-PC or modern embedded system
 
 **Genesys 2 Can Support:**
-- ✅ Everything above PLUS:
-- ✅ Multiple soft processors
-- ✅ PCIe endpoint
-- ✅ High-speed interfaces
-- ✅ Complex video processing
+- Everything above PLUS:
+- Multiple soft processors
+- PCIe endpoint
+- High-speed interfaces
+- Complex video processing
 - **Result:** Professional-grade SoC development platform
 
 ---
@@ -282,24 +282,24 @@ module nexys_a7_rlb_system (
     // Clock and reset
     input  wire         clk_100mhz,    // 100 MHz oscillator
     input  wire         cpu_resetn,    // Reset button
-    
+
     // GPIO
     input  wire [15:0]  sw,            // Switches → GPIO inputs
     output wire [15:0]  led,           // LEDs ← GPIO outputs
     input  wire [4:0]   btn,           // Buttons → GPIO/interrupts
-    
+
     // UART
     input  wire         uart_rxd,      // USB-UART RX
     output wire         uart_txd,      // USB-UART TX
-    
+
     // I2C/SMBus (via PMOD)
     inout  wire         smbus_sda,
     inout  wire         smbus_scl,
-    
+
     // 7-segment display
     output wire [6:0]   seg,
     output wire [7:0]   an,
-    
+
     // VGA (optional)
     output wire [3:0]   vga_r, vga_g, vga_b,
     output wire         vga_hs, vga_vs
@@ -307,9 +307,9 @@ module nexys_a7_rlb_system (
 
     // Instantiate soft processor (MicroBlaze, RISC-V, etc.)
     // Instantiate APB crossbar
-    // Instantiate all RLB modules  
+    // Instantiate all RLB modules
     // Connect to board resources
-    
+
 endmodule
 ```
 
@@ -321,14 +321,14 @@ endmodule
 
 **Recommended RLB Configuration:**
 ```
-✅ HPET        - System timing
-✅ PIT_8254    - Legacy timer for compatibility
-✅ RTC         - Real-time clock
-✅ PIC_8259    - Simple interrupt controller (OR IOAPIC)
-✅ GPIO        - Board I/O (switches, LEDs, buttons)
-✅ UART_16550  - Serial communication
-✅ SMBus       - I2C peripherals
-⚠️ PM_ACPI     - Optional (if power features needed)
+HPET        - System timing
+PIT_8254    - Legacy timer for compatibility
+RTC         - Real-time clock
+PIC_8259    - Simple interrupt controller (OR IOAPIC)
+GPIO        - Board I/O (switches, LEDs, buttons)
+UART_16550  - Serial communication
+SMBus       - I2C peripherals
+PM_ACPI     - Optional (if power features needed)
 ```
 
 **Resource Budget:**
@@ -336,7 +336,7 @@ endmodule
 - MicroBlaze: ~2,000-3,000 LUTs
 - DDR2 Controller: ~2,000 LUTs
 - VGA/Display: ~1,000 LUTs
-- **Total:** ~11,000-12,000 LUTs (11% of XC7A100T) ✅
+- **Total:** ~11,000-12,000 LUTs (11% of XC7A100T)
 
 **Plenty of room for:**
 - User applications
@@ -428,13 +428,13 @@ endmodule
 ### MicroBlaze (Xilinx)
 - **Pros:** Well-supported, debugger, IP integration
 - **Cons:** Proprietary, Vivado-specific
-- **RLB Compatibility:** ✅ Excellent (APB via AXI interconnect)
+- **RLB Compatibility:** Excellent (APB via AXI interconnect)
 
 ### RISC-V (Open Source)
 - **Options:** VexRiscv, PicoRV32, Rocket, BOOM
 - **Pros:** Open-source, portable, modern ISA
 - **Cons:** Need to build toolchain
-- **RLB Compatibility:** ✅ Excellent (APB native or via AXI)
+- **RLB Compatibility:** Excellent (APB native or via AXI)
 
 ### Custom Soft Core
 - Can design custom CPU specifically for RLB peripherals
@@ -510,19 +510,19 @@ All accessible via APB from soft processor.
 void system_init(void) {
     // Configure GPIO
     gpio_set_direction(0xFFFF0000);  // Upper 16 = outputs
-    
+
     // Initialize UART
     uart_init(115200);
     uart_puts("System starting...\n");
-    
+
     // Configure HPET timer
     hpet_init();
     hpet_start_timer(0, 1000000);  // 1ms periodic
-    
+
     // Setup interrupts via IOAPIC
     ioapic_configure_irq(14, 0x2E, IRQ_EDGE, 0);  // IDE
     ioapic_configure_irq(15, 0x2F, IRQ_EDGE, 0);  // IDE
-    
+
     // Enable power management
     pm_acpi_init();
 }
@@ -575,7 +575,7 @@ void system_init(void) {
 
 ## Conclusion
 
-### Can RLB Be Used on Nexys A7/Genesys2? **ABSOLUTELY! ✅**
+### Can RLB Be Used on Nexys A7/Genesys2? **ABSOLUTELY!**
 
 **Perfect Match Because:**
 - Plenty of logic resources
@@ -595,5 +595,5 @@ void system_init(void) {
 
 ---
 
-**Last Updated:** 2025-11-16  
+**Last Updated:** 2025-11-16
 **Recommendation:** Nexys A7-100T is ideal for complete RLB-based SoC development

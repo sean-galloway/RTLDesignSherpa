@@ -25,7 +25,7 @@
 
 **Version:** 1.2
 **Last Updated:** 2025-11-11
-**Status:** ✅ Active - Four complete utility modules
+**Status:** Active - Four complete utility modules
 
 ---
 
@@ -45,7 +45,7 @@ The `misc/` component area contains utility modules and adapters that don't fit 
 
 ### AXI4 Slave ROM
 
-**Status:** ✅ Complete
+**Status:** Complete
 
 **Description:**
 Read-only memory (ROM) with AXI4 read interface. Combines `axi4_slave_rd` protocol handler with `simple_rom` storage backend.
@@ -70,7 +70,7 @@ Read-only memory (ROM) with AXI4 read interface. Combines `axi4_slave_rd` protoc
 
 ### AXI4 Read Pattern Generator (DMA Test)
 
-**Status:** ✅ Complete
+**Status:** Complete
 
 **Description:**
 AXI4 read slave that generates pseudo-random patterns using 32-bit LFSR and computes CRC-32 for DMA validation. Used with companion write CRC checker to verify data integrity across DMA transfers.
@@ -110,7 +110,7 @@ LFSR (32-bit) → Replicate → AXI R data
 
 ### AXI4 Write CRC Checker (DMA Test)
 
-**Status:** ✅ Complete
+**Status:** Complete
 
 **Description:**
 AXI4 write slave that computes CRC-32 on received data for DMA validation. Companion to read pattern generator - receives DMA writes and computes CRC for comparison.
@@ -159,16 +159,16 @@ write_crc = uart.read("WRITE_CRC_VALUE")
 
 # Validate
 if read_crc == write_crc:
-    print(f"✅ PASS: Data integrity verified (CRC=0x{read_crc:08x})")
+    print(f"PASS: Data integrity verified (CRC=0x{read_crc:08x})")
 else:
-    print(f"❌ FAIL: CRC mismatch - Read=0x{read_crc:08x}, Write=0x{write_crc:08x}")
+    print(f"FAIL: CRC mismatch - Read=0x{read_crc:08x}, Write=0x{write_crc:08x}")
 ```
 
 ---
 
 ### UART to AXI4-Lite Bridge
 
-**Status:** ✅ Complete
+**Status:** Complete
 
 **Description:**
 UART command-line interface to AXI4-Lite memory-mapped peripherals. Parses ASCII commands received via UART and executes corresponding AXI4-Lite transactions.
@@ -244,7 +244,7 @@ crc = uart.readline()  # e.g., "0x12345678"
 
 ### AXI ROM Wrapper (Legacy Planning Doc)
 
-**Status:** 📋 Superseded by axi4_slave_rom.sv
+**Status:** Superseded by axi4_slave_rom.sv
 
 **Description:**
 Read-only memory (ROM) with AXI4 read interface. Useful for boot code, configuration data, lookup tables, or any read-only data storage that needs AXI4 compliance.
@@ -393,11 +393,11 @@ When adding new miscellaneous components, follow these guidelines:
 ### 1. Component Criteria
 
 A component belongs in `misc/` if it:
-- ✅ Solves a common integration problem
-- ✅ Is reusable across multiple projects
-- ✅ Doesn't fit into existing component categories
-- ✅ Is production-quality (tested, documented)
-- ✅ Uses standard interfaces (AXI4, APB, etc.)
+- Solves a common integration problem
+- Is reusable across multiple projects
+- Doesn't fit into existing component categories
+- Is production-quality (tested, documented)
+- Uses standard interfaces (AXI4, APB, etc.)
 
 Examples of appropriate components:
 - Protocol wrappers (ROM/RAM with standard interfaces)
@@ -490,26 +490,26 @@ Potential future additions to `misc/`:
 All components in `misc/` must follow repository standards:
 
 ### RTL Standards
-- ✅ Use reset macros (`ALWAYS_FF_RST`)
-- ✅ Add FPGA synthesis attributes for memories
-- ✅ Use modern array syntax `[DEPTH]` not `[0:DEPTH-1]`
-- ✅ Parameterized and configurable
-- ✅ Lint-clean (Verilator)
+- Use reset macros (`ALWAYS_FF_RST`)
+- Add FPGA synthesis attributes for memories
+- Use modern array syntax `[DEPTH]` not `[0:DEPTH-1]`
+- Parameterized and configurable
+- Lint-clean (Verilator)
 
 ### Testbench Standards
-- ✅ TB classes in `dv/tbclasses/` (NOT in test files)
-- ✅ Implement three mandatory methods (setup/assert/deassert)
-- ✅ Inherit from `TBBase`
-- ✅ 100% test pass rate target
-- ✅ Comprehensive coverage
+- TB classes in `dv/tbclasses/` (NOT in test files)
+- Implement three mandatory methods (setup/assert/deassert)
+- Inherit from `TBBase`
+- 100% test pass rate target
+- Comprehensive coverage
 
 ### Documentation Standards
-- ✅ Component specification in `docs/`
-- ✅ Usage examples in README
-- ✅ Inline RTL comments
-- ✅ Test methodology documented
+- Component specification in `docs/`
+- Usage examples in README
+- Inline RTL comments
+- Test methodology documented
 
-**📖 See:**
+**See:**
 - Root `/CLAUDE.md` - Repository-wide standards
 - `/GLOBAL_REQUIREMENTS.md` - Mandatory requirements
 - `projects/components/CLAUDE.md` - Component-area standards
@@ -570,10 +570,10 @@ When adding components to `misc/`:
 **Maintained By:** RTL Design Sherpa Project
 
 **Status:** Active collection of utility components. Four complete modules:
-- ✅ `axi4_slave_rom.sv` - AXI4 ROM wrapper
-- ✅ `axi4_slave_rd_pattern_gen.sv` - DMA test pattern generator with CRC
-- ✅ `axi4_slave_wr_crc_check.sv` - DMA test CRC checker
-- ✅ `uart_to_axil4/` - UART to AXI4-Lite bridge (debug/control interface)
+- `axi4_slave_rom.sv` - AXI4 ROM wrapper
+- `axi4_slave_rd_pattern_gen.sv` - DMA test pattern generator with CRC
+- `axi4_slave_wr_crc_check.sv` - DMA test CRC checker
+- `uart_to_axil4/` - UART to AXI4-Lite bridge (debug/control interface)
 
 ---
 

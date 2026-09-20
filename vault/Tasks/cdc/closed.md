@@ -80,7 +80,7 @@ that mattered — two did not survive:
   already had `verify_no_loss()`; the phases simply never called it. Added
   `verify_slice_no_loss()` (per-phase slice, because the whole-queue form would
   false-fail after any phase that legitimately drops pulses at the stretch
-  cliff) and wired both phases to it. The check is visibly armed -- `✓ walking:
+  cliff) and wired both phases to it. The check is visibly armed -- `walking:
   32/32 arrived, data verified` -- and **mutation-checked**: inverting the RTL's
   `dst_data <= r_src_data` to `~(r_src_data)` makes it fail with
   `DATA MISMATCH at #0: sent=0xA5A5 recv=0x5A5A`, while the count check alone

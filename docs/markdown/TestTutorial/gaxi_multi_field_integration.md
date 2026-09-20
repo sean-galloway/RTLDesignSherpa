@@ -42,7 +42,7 @@ This tutorial demonstrates how to use GAXI (Generic AXI) buffers and FIFOs with 
 ### Without Multi-Field (Traditional Approach)
 
 ```systemverilog
-// ❌ Hard to read, error-prone
+// Hard to read, error-prone
 wire [31:0] wr_data;  // What does this represent?
 assign wr_data = {addr[7:0], ctrl[3:0], data0[11:0], data1[7:0]};
 
@@ -61,7 +61,7 @@ assign rd_data1 = rd_data[7:0];
 ### With Multi-Field (Structured Approach)
 
 ```systemverilog
-// ✅ Clear, self-documenting
+// Clear, self-documenting
 gaxi_skid_buffer_multi #(
     .ADDR_WIDTH(8),
     .CTRL_WIDTH(4),
@@ -359,7 +359,7 @@ gaxi_skid_buffer_async_multi #(
     .DATA_WIDTH(64),
     .DEPTH(16),           // Async FIFO depth
     .N_FLOP_CROSS(2)
-    
+
 ) u_packet_cdc (
     // Fast clock domain (write)
     .axi_wr_aclk(fast_clk),      // e.g., 500MHz
@@ -487,13 +487,13 @@ network_packet_buffer #(.DEPTH(32)) u_rx_queue (
 ### Strategy 1: Concatenation Order Matters
 
 ```systemverilog
-// ❌ WRONG: Inconsistent packing/unpacking
+// WRONG: Inconsistent packing/unpacking
 .wr_data({wr_addr, wr_ctrl, wr_data1, wr_data0})  // data1 before data0
 .rd_data({rd_addr, rd_ctrl, rd_data0, rd_data1})  // data0 before data1 - MISMATCH!
 ```
 
 ```systemverilog
-// ✅ CORRECT: Consistent ordering
+// CORRECT: Consistent ordering
 .wr_data({wr_addr, wr_ctrl, wr_data1, wr_data0})
 .rd_data({rd_addr, rd_ctrl, rd_data1, rd_data0})
 ```
@@ -570,12 +570,12 @@ async def test_multi_field_buffer(dut):
 ### 1. Field Width Selection
 
 ```systemverilog
-// ✅ GOOD: Power-of-2 or natural widths
+// GOOD: Power-of-2 or natural widths
 parameter ADDR_WIDTH = 16;  // 2^16 addresses
 parameter CTRL_WIDTH = 8;   // Byte-aligned
 parameter DATA_WIDTH = 32;  // Word-aligned
 
-// ️ ACCEPTABLE: Non-power-of-2 when needed
+// ACCEPTABLE: Non-power-of-2 when needed
 parameter TAG_WIDTH  = 12;  // 4096 tags (actual requirement)
 ```
 
@@ -586,19 +586,19 @@ parameter TAG_WIDTH  = 12;  // 4096 tags (actual requirement)
 gaxi_skid_buffer_multi #(.DEPTH(2)) ...
 
 // Sync FIFOs: Power-of-2 recommended but not required
-gaxi_fifo_sync_multi #(.DEPTH(16)) ...   // ✅ Power-of-2
-gaxi_fifo_sync_multi #(.DEPTH(20)) ...   // ️ Works but less efficient
+gaxi_fifo_sync_multi #(.DEPTH(16)) ...   // Power-of-2
+gaxi_fifo_sync_multi #(.DEPTH(20)) ...   // Works but less efficient
 
 // Async FIFOs: MUST be power-of-2 (Gray code requirement)
-gaxi_fifo_async_multi #(.DEPTH(16)) ...  // ✅ Required
-gaxi_fifo_async_multi #(.DEPTH(20)) ...  // ❌ Will not work!
+gaxi_fifo_async_multi #(.DEPTH(16)) ...  // Required
+gaxi_fifo_async_multi #(.DEPTH(20)) ...  // Will not work!
 ```
 
 ### 3. Reset Strategy
 
 ```systemverilog
 // All modules use active-low async reset
-input logic axi_aresetn  // ✅ Standard convention
+input logic axi_aresetn  // Standard convention
 
 // For dual-clock modules
 input logic axi_wr_aresetn,  // Independent resets
@@ -608,12 +608,12 @@ input logic axi_rd_aresetn   // Can reset domains separately
 ### 4. Naming Conventions
 
 ```systemverilog
-// ✅ GOOD: Descriptive field names
+// GOOD: Descriptive field names
 .wr_transaction_id(...)
 .wr_opcode(...)
 .wr_operand_a(...)
 
-// ❌ BAD: Generic names lose information
+// BAD: Generic names lose information
 .wr_data0(...)
 .wr_data1(...)
 .wr_data2(...)
@@ -626,13 +626,13 @@ input logic axi_rd_aresetn   // Can reset domains separately
 ### Pitfall 1: Mismatched Field Widths
 
 ```systemverilog
-// ❌ WRONG
+// WRONG
 gaxi_skid_buffer_multi #(
     .ADDR_WIDTH(16),
     .CTRL_WIDTH(8),
     .DATA_WIDTH(32)
 ) u_buf (
-    .wr_addr(addr[11:0]),   // ❌ Only 12 bits, but parameter says 16!
+    .wr_addr(addr[11:0]),   // Only 12 bits, but parameter says 16!
     ...
 );
 ```
@@ -642,7 +642,7 @@ gaxi_skid_buffer_multi #(
 ### Pitfall 2: Forgetting Valid-Ready Protocol
 
 ```systemverilog
-// ❌ WRONG: Ignoring ready signal
+// WRONG: Ignoring ready signal
 always_ff @(posedge clk) begin
     wr_valid <= 1'b1;
     wr_data  <= new_data;  // Could be lost if wr_ready=0!
@@ -650,7 +650,7 @@ end
 ```
 
 ```systemverilog
-// ✅ CORRECT: Check ready before asserting valid
+// CORRECT: Check ready before asserting valid
 always_ff @(posedge clk) begin
     if (wr_ready || !wr_valid) begin
         wr_valid <= has_data;
@@ -662,7 +662,7 @@ end
 ### Pitfall 3: Async FIFO Non-Power-of-2 Depth
 
 ```systemverilog
-// ❌ WRONG: Async FIFO requires power-of-2
+// WRONG: Async FIFO requires power-of-2
 gaxi_fifo_async_multi #(.DEPTH(20)) ...  // Simulation may pass, synthesis fails!
 ```
 
@@ -699,11 +699,11 @@ gaxi_fifo_async_multi #(.DEPTH(20)) ...  // Simulation may pass, synthesis fails
 ## Summary
 
 **Multi-field GAXI wrappers provide:**
-1. ✅ **Structured data interfaces** - Self-documenting field names
-2. ✅ **Type safety** - Compiler-checked field widths
-3. ✅ **Reusability** - Pattern scales to any protocol
-4. ✅ **Maintainability** - Easy to modify field structure
-5. ✅ **Testability** - Field-level observability
+1. **Structured data interfaces** - Self-documenting field names
+2. **Type safety** - Compiler-checked field widths
+3. **Reusability** - Pattern scales to any protocol
+4. **Maintainability** - Easy to modify field structure
+5. **Testability** - Field-level observability
 
 **When to use each module:**
 - **Skid buffer:** Timing closure, pipeline stages

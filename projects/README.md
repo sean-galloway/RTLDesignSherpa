@@ -51,7 +51,7 @@ Each project includes:
   - Visual heartbeat LEDs
 - **Educational Value:** Production-quality CDC techniques, timing constraints, metastability analysis
 - **Build Time:** ~5-10 minutes
-- **Status:** ✅ Complete and tested
+- **Status:** Complete and tested
 
 **Quick Start:**
 ```bash
@@ -70,7 +70,7 @@ make program  # Program FPGA
 - **Component:** [stream](components/dmas/stream/) — docs: [PRD](components/dmas/stream/PRD.md)
 - **Report:** [findings](NexysA7/stream_characterization/docs/characterization_v1_findings.md) · sub-reports: [perf](NexysA7/stream_characterization/reports/perf/README.md), [area](NexysA7/stream_characterization/reports/area/README.md), [compression](NexysA7/stream_characterization/reports/compression/README.md)
 - **Board:** Nexys A7-100T · UART host + on-chip pattern/CRC memory
-- **Status:** ✅ Characterized (perf + area + compression sweeps)
+- **Status:** Characterized (perf + area + compression sweeps)
 
 ---
 
@@ -81,7 +81,7 @@ make program  # Program FPGA
 - **Component:** [rapids](components/dmas/rapids/) — docs: [PRD](components/dmas/rapids/PRD.md) · [spec](components/dmas/rapids/docs/)
 - **Report:** [characterization findings](Genesys2/rapids_characterization/docs/rapids_characterization_findings.md) (regenerate the PDF with `Genesys2/rapids_characterization/docs/generate_pdf.sh`) · host flow: [flows-rapids-beats](Genesys2/rapids_characterization/flows-rapids-beats/)
 - **Board:** Nexys A7-100T · timing-closed @ 100 MHz; both data paths CRC-validated on silicon (`make smoke` / `make suite`)
-- **Status:** ✅ Characterized (split engines, golden-CRC suite 48/48 on hardware)
+- **Status:** Characterized (split engines, golden-CRC suite 48/48 on hardware)
 
 ---
 
@@ -92,7 +92,7 @@ make program  # Program FPGA
 - **Component:** [memory-controllers](components/memory-controllers/)
 - **Report:** [README + docs](NexysA7/ddr2-characterization/) · [reports](NexysA7/ddr2-characterization/)
 - **Board:** Nexys A7-100T (on-board DDR2)
-- **Status:** 🟡 Active
+- **Status:** Active
 
 ---
 
@@ -102,7 +102,7 @@ make program  # Program FPGA
 
 - **Report / docs:** [README + docs](NexysA7/timing_characterization/)
 - **Board:** Nexys A7-100T
-- **Status:** 🟡 Active
+- **Status:** Active
 
 ---
 

@@ -29,7 +29,7 @@ You're absolutely right that a complete analysis should include **BOTH read AND 
 
 ## New Files Created
 
-### 1. `bin/analytical/write_analysis.py` ✅
+### 1. `bin/analytical/write_analysis.py`
 **Analytical model for write path**
 
 Key functions:
@@ -38,7 +38,7 @@ Key functions:
 - `compare_write_payloads()` - Different write burst sizes
 - `analyze_combined_performance()` - **Read + Write together**
 
-### 2. `bin/simpy_model/write_model.py` (renamed from write_design.py) ✅
+### 2. `bin/simpy_model/write_model.py` (renamed from write_design.py)
 **SimPy simulation for write path**
 
 Key classes:
@@ -47,7 +47,7 @@ Key classes:
 - `run_write_simulation()` - Baseline simulation
 - `run_optimized_write_simulation()` - Optimized simulation
 
-### 3. `example_both_paths.py` ✅
+### 3. `example_both_paths.py`
 **Complete example showing how to analyze both together**
 
 Demonstrates:
@@ -56,7 +56,7 @@ Demonstrates:
 - Comparison table with both paths
 - Key insights about AXI bandwidth sharing
 
-### 4. Integration documentation ✅
+### 4. Integration documentation
 - Complete guide on how to integrate
 - Usage examples
 - Table formats
@@ -155,17 +155,17 @@ Write-heavy (20/80) ~30-35 GB/s
 
 ## What This Means for Your Design
 
-### ✅ Good News
+### Good News
 - **Read target met**: 64 GB/s read (exceeds 50 GB/s target)
 - **Write improved**: 24.5 GB/s write (up from 18 GB/s)
 - **System efficient**: Both configs use AXI at 100%
 
-### ⚠️ Important Considerations
+### Important Considerations
 - **AXI is the bottleneck**: Not individual paths
 - **Workload matters**: Real performance depends on read/write mix
 - **Trade-offs exist**: More read means less write (and vice versa)
 
-### 📊 Design Decisions
+### Design Decisions
 1. **Prioritize read optimizations**: Bigger impact, larger bursts
 2. **Write optimizations are secondary**: But still valuable
 3. **Consider workload**: Design for expected read/write ratio
@@ -173,7 +173,7 @@ Write-heavy (20/80) ~30-35 GB/s
 
 ## Next Steps to Complete Integration
 
-### Phase 1: Quick Integration (Do This First) ✅
+### Phase 1: Quick Integration (Do This First)
 - [x] Create write path analytical model
 - [x] Create write path SimPy model
 - [x] Create combined analysis function
@@ -226,15 +226,15 @@ Optimized          64.00 GB/s     24.50 GB/s     57.6 GB/s
 
 ## Comparison: Before vs After
 
-### Before (Read Only) ❌
+### Before (Read Only)
 ```
 Configuration      Bandwidth      Status
 Baseline           44.05 GB/s     Below target
-Optimized          64.00 GB/s     ✓ Meets target
+Optimized          64.00 GB/s     Meets target
 ```
 **Problem**: Incomplete picture, missing write path
 
-### After (Read + Write) ✅
+### After (Read + Write)
 ```
 Configuration      Read BW        Write BW       Combined       Status
 Baseline           44.05 GB/s     18.23 GB/s     57.6 GB/s      AXI limited
@@ -260,26 +260,26 @@ Optimized          64.00 GB/s     24.50 GB/s     57.6 GB/s      AXI limited
 - Allows better workload flexibility
 
 ### 4. **Design for Your Workload**
-- Read-heavy? Optimize read path (you did ✓)
+- Read-heavy? Optimize read path (you did)
 - Balanced? Both optimizations needed
 - Write-heavy? Focus on outstanding bursts
 
 ## Summary
 
-### ✅ What's Done
+### What's Done
 - Complete write path analytical model
 - Complete write path SimPy simulation
 - Combined read+write analysis function
 - Working example demonstrating both
 - Integration documentation
 
-### 🔄 What's Next
+### What's Next
 - Integrate into main analysis scripts
 - Update all tables to show both paths
 - Update documentation throughout
 - Add write to validation framework
 
-### 💡 Bottom Line
+### Bottom Line
 **You're absolutely right**: A complete analysis MUST include both read and write. I've now created all the tools needed to do this. The example shows how they work together, and the integration guide shows how to update your existing scripts.
 
 **The key insight**: Both baseline and optimized configurations saturate the AXI bandwidth, so the real bottleneck is the shared 57.6 GB/s AXI interface, not the individual read or write paths!

@@ -39,15 +39,15 @@ projects/components/{component}/
 └── dv/tests/Makefile         # DV Test targets with REG_LEVEL support
 ```
 
-**Current Status:** All components have complete Makefile infrastructure ✅
+**Current Status:** All components have complete Makefile infrastructure
 
 | Component | DV Makefile | RTL Makefile | Status |
 |-----------|-------------|--------------|--------|
-| **stream** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
-| **rapids** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
-| **retro_legacy_blocks** (formerly apb4_hpet) | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
-| **apbx_xbar** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
-| **bridge** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
+| **stream** | REG_LEVEL + Parallel | Lint | Complete |
+| **rapids** | REG_LEVEL + Parallel | Lint | Complete |
+| **retro_legacy_blocks** (formerly apb4_hpet) | REG_LEVEL + Parallel | Lint | Complete |
+| **apbx_xbar** | REG_LEVEL + Parallel | Lint | Complete |
+| **bridge** | REG_LEVEL + Parallel | Lint | Complete |
 
 ---
 
@@ -261,7 +261,7 @@ make run-all-gate-parallel || exit 1
 echo "Running $COMPONENT functional tests..."
 make run-all-func-parallel || exit 1
 
-echo "✓ $COMPONENT validation complete"
+echo "$COMPONENT validation complete"
 ```
 
 ---

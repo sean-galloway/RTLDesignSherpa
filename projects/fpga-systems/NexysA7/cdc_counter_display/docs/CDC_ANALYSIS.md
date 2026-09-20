@@ -10,7 +10,7 @@
 
 This design implements **TWO independent clock domains** with **ONE safe CDC crossing** using a pulse-based handshake protocol. All CDC crossings have been analyzed and verified to be metastability-safe using industry-standard techniques.
 
-**Conclusion:** ✅ **All CDC crossings are SAFE**
+**Conclusion:** **All CDC crossings are SAFE**
 
 ---
 
@@ -73,7 +73,7 @@ sync_pulse u_pulse_cdc (
    ```
    - Single-cycle pulse guaranteed by edge detector
    - Held for exactly ONE btn_clk cycle (100ms)
-   - Width >> destination clock period (100ms >> 1ms) ✅
+   - Width >> destination clock period (100ms >> 1ms)
 
 2. **Synchronization Chain:**
    - Pulse extends to level in source domain
@@ -84,9 +84,9 @@ sync_pulse u_pulse_cdc (
 3. **Pulse Width Requirement:**
    - Source pulse width: 100ms (one btn_clk cycle)
    - Destination clock period: 1ms (disp_clk)
-   - Ratio: 100:1 ✅ (well above minimum 2:1)
+   - Ratio: 100:1 (well above minimum 2:1)
 
-**Verdict:** ✅ **SAFE** - Standard pulse synchronizer, proven technique
+**Verdict:** **SAFE** - Standard pulse synchronizer, proven technique
 
 ---
 
@@ -126,7 +126,7 @@ end
    - Counter value changes ONLY when `btn_increment_pulse` asserts
    - After pulse, counter value STABLE for 99.999 btn_clk cycles
    - Display domain samples ONLY on synchronized pulse edge
-   - **Guarantee:** Counter stable during entire sampling window ✅
+   - **Guarantee:** Counter stable during entire sampling window
 
 2. **Timing Relationship:**
    ```
@@ -143,12 +143,12 @@ end
    ```
 
 3. **Multi-Bit Bus Consideration:**
-   - ❌ **UNSAFE** if sampled continuously (metastability on multiple bits)
-   - ✅ **SAFE** when sampled on synchronized event (pulse)
+   - **UNSAFE** if sampled continuously (metastability on multiple bits)
+   - **SAFE** when sampled on synchronized event (pulse)
    - Pulse synchronization provides explicit "data ready" signal
    - No multi-bit synchronizer needed (data quasi-static)
 
-**Verdict:** ✅ **SAFE** - Quasi-static data sampled on synchronized event
+**Verdict:** **SAFE** - Quasi-static data sampled on synchronized event
 
 ---
 
@@ -175,10 +175,10 @@ set_max_delay -datapath_only -from [get_clocks btn_clk] -to [get_clocks disp_clk
 ```
 
 **Analysis:**
-- ✅ Clock domains properly declared as asynchronous
-- ✅ False paths documented for quasi-static crossing
-- ✅ ASYNC_REG prevents optimization of synchronizer chains
-- ✅ Max delay ensures proper synchronizer operation
+- Clock domains properly declared as asynchronous
+- False paths documented for quasi-static crossing
+- ASYNC_REG prevents optimization of synchronizer chains
+- Max delay ensures proper synchronizer operation
 
 ---
 
@@ -223,13 +223,13 @@ Result:
 MTBF ≈ 10^40 years (effectively infinite)
 ```
 
-**Conclusion:** ✅ Metastability probability negligible
+**Conclusion:** Metastability probability negligible
 
 ---
 
 ## Common CDC Pitfalls - NOT Present in This Design
 
-### ❌ Pitfall #1: Unsynchronized Multi-Bit Bus
+### Pitfall #1: Unsynchronized Multi-Bit Bus
 ```systemverilog
 // UNSAFE! Don't do this!
 always_ff @(posedge disp_clk) begin
@@ -237,11 +237,11 @@ always_ff @(posedge disp_clk) begin
 end
 ```
 
-**Our Design:** ✅ Avoided - Sampled on synchronized pulse edge
+**Our Design:** Avoided - Sampled on synchronized pulse edge
 
 ---
 
-### ❌ Pitfall #2: Pulse Too Narrow
+### Pitfall #2: Pulse Too Narrow
 ```systemverilog
 // UNSAFE if source pulse < 2× destination period!
 // Source pulse: 10ns
@@ -249,28 +249,28 @@ end
 // Result: Pulse may be missed!
 ```
 
-**Our Design:** ✅ Avoided - Pulse width 100ms >> dest period 1ms (100:1 ratio)
+**Our Design:** Avoided - Pulse width 100ms >> dest period 1ms (100:1 ratio)
 
 ---
 
-### ❌ Pitfall #3: Combinational Logic in Synchronizer
+### Pitfall #3: Combinational Logic in Synchronizer
 ```systemverilog
 // UNSAFE! Logic between FFs breaks synchronizer!
 always_ff @(posedge clk) r_sync1 <= async_signal;
-assign intermediate = r_sync1 & some_logic;  // ❌ BAD!
+assign intermediate = r_sync1 & some_logic;  // BAD!
 always_ff @(posedge clk) r_sync2 <= intermediate;
 ```
 
-**Our Design:** ✅ Avoided - sync_pulse uses pure FF chain
+**Our Design:** Avoided - sync_pulse uses pure FF chain
 
 ---
 
-### ❌ Pitfall #4: Missing ASYNC_REG Attribute
+### Pitfall #4: Missing ASYNC_REG Attribute
 ```systemverilog
 // Tool may optimize synchronizer chain without ASYNC_REG!
 ```
 
-**Our Design:** ✅ Avoided - All synchronizers marked with ASYNC_REG
+**Our Design:** Avoided - All synchronizers marked with ASYNC_REG
 
 ---
 
@@ -337,6 +337,6 @@ report_clock_interaction -delay_type min_max
 
 ---
 
-**Status:** ✅ **All CDC crossings verified SAFE**
+**Status:** **All CDC crossings verified SAFE**
 **Reviewer:** _Pending_
 **Approved:** _Pending_

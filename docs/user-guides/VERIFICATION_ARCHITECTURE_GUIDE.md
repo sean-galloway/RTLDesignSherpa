@@ -216,10 +216,10 @@ self.w_monitor._recvQ.clear()
 - No state management needed
 
 **Examples:**
-- ✅ Program engine writes (single-master, in-order)
-- ✅ APB configuration registers (simple read/write)
-- ✅ Descriptor interfaces (point-to-point)
-- ✅ Control/status register access
+- Program engine writes (single-master, in-order)
+- APB configuration registers (simple read/write)
+- Descriptor interfaces (point-to-point)
+- Control/status register access
 
 #### Memory Models (Complex Scenarios)
 
@@ -263,11 +263,11 @@ class DataPathScoreboard:
 - Realistic memory behavior
 
 **Examples:**
-- ✅ DMA sink data path (burst writes, streaming)
-- ✅ DMA source data path (burst reads)
-- ✅ Multi-master AXI interconnect
-- ✅ Cache coherency verification
-- ✅ Memory subsystem testing
+- DMA sink data path (burst writes, streaming)
+- DMA source data path (burst reads)
+- Multi-master AXI interconnect
+- Cache coherency verification
+- Memory subsystem testing
 
 ### Decision Tree
 
@@ -343,7 +343,7 @@ Need to verify transactions?
 
 **Don't embed verification in TB:**
 ```python
-# ❌ WRONG: Verification in TB
+# WRONG: Verification in TB
 class MyTB(TBBase):
     async def test_write(self, addr, data):
         await self.send_write(addr, data)
@@ -351,7 +351,7 @@ class MyTB(TBBase):
         aw_pkt = self.aw_monitor._recvQ.popleft()
         assert aw_pkt.addr == addr
 
-# ✅ CORRECT: Verification in scoreboard
+# CORRECT: Verification in scoreboard
 class MyTB(TBBase):
     async def test_write(self, addr, data):
         self.scoreboard.expect_write(addr, data)
@@ -588,7 +588,7 @@ class MyTB(TBBase):
 
 ## Common Mistakes to Avoid
 
-### ❌ Mistake 1: Verification Logic in TB
+### Mistake 1: Verification Logic in TB
 
 ```python
 # WRONG
@@ -601,7 +601,7 @@ class MyTB(TBBase):
 
 **Fix:** Move verification to scoreboard
 
-### ❌ Mistake 2: Using Memory Model for Simple Control
+### Mistake 2: Using Memory Model for Simple Control
 
 ```python
 # WRONG (overkill for simple control)
@@ -612,7 +612,7 @@ class ControlScoreboard:
 
 **Fix:** Use direct queue access for control paths
 
-### ❌ Mistake 3: Using Queue Access for Complex Data
+### Mistake 3: Using Queue Access for Complex Data
 
 ```python
 # WRONG (insufficient for data path)
@@ -624,7 +624,7 @@ class DataPathScoreboard:
 
 **Fix:** Use memory model for data paths
 
-### ❌ Mistake 4: Not Clearing State
+### Mistake 4: Not Clearing State
 
 ```python
 # WRONG

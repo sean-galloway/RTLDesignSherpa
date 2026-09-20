@@ -64,7 +64,7 @@ The Rapid AXI Programmable In-band Descriptor System (RAPIDS) is a custom hardwa
 
 This PRD provides a high-level overview. **Detailed specifications are maintained separately:**
 
-### 📚 Complete RAPIDS Specification
+### Complete RAPIDS Specification
 
 > **Status (2026-07-22):** The old `docs/rapids_spec/` tree was replaced by two beats spec trees.
 
@@ -101,7 +101,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 - [AXIS Interface](docs/rapids_beats_mas/ch04_interfaces/02_axis_interface_spec.md)
 - [MonBus Interface](docs/rapids_beats_mas/ch04_interfaces/03_monbus_interface_spec.md)
 
-### 🐛 Known Issues
+### Known Issues
 **Location:** `projects/components/dmas/rapids/known_issues/`
 
 - **[Index](known_issues/README.md)** - Issue tracking overview (the old scheduler.md credit-counter write-up was retired with the pre-beats RTL)
@@ -109,7 +109,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 - **[Sink SRAM Control](known_issues/active/sink_sram_control.md)** - Edge cases
 - Plus `known_issues/active/` for current beats issues
 
-### 📖 Other Documentation
+### Other Documentation
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
 - **[TASKS](TASKS.md)** - Work items (largely pre-beats history)
 - **[Validation Report](docs/RAPIDS_Validation_Status_Report.md)** - Test results (pre-beats snapshot)
@@ -118,7 +118,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 
 ## 2.4 Organizational Standards - RAPIDS Code Location
 
-**⚠️ MANDATORY: All RAPIDS-specific code must be in the project area ⚠️**
+**MANDATORY: All RAPIDS-specific code must be in the project area**
 
 ### Code Organization Principle
 
@@ -139,12 +139,12 @@ projects/components/dmas/rapids/
 │   └── top_beats/                # rapids_beats_top.sv
 │
 └── dv/                           # Design verification (all RAPIDS-specific)
-    ├── tbclasses/                # ★ RAPIDS TB classes HERE (not framework!)
+    ├── tbclasses/                # RAPIDS TB classes HERE (not framework!)
     │   ├── scheduler_tb.py       # Scheduler testbench class
     │   ├── descriptor_engine_tb.py
     │   └── rapids_core_beats_tb.py
     │
-    ├── components/               # ★ RAPIDS-specific BFMs
+    ├── components/               # RAPIDS-specific BFMs
     │   └── data_mover_bfm.py
     │
     └── tests/                    # Test runners (import TB classes)
@@ -157,7 +157,7 @@ projects/components/dmas/rapids/
 
 ### What Goes Where?
 
-| Code Type | ✅ CORRECT Location | ❌ WRONG Location |
+| Code Type | CORRECT Location | WRONG Location |
 |-----------|---------------------|-------------------|
 | **RAPIDS TB Classes** | `projects/components/dmas/rapids/dv/tbclasses/` | `bin/TBClasses/` (framework area) |
 | **RAPIDS-Specific BFMs** | `projects/components/dmas/rapids/dv/components/` | `bin/TBClasses/` (framework area) |
@@ -167,7 +167,7 @@ projects/components/dmas/rapids/
 
 ### Import Pattern for RAPIDS Tests
 
-**✅ CORRECT - Import from Project Area:**
+**CORRECT - Import from Project Area:**
 ```python
 # Import framework utilities (PYTHONPATH includes bin/)
 import os, sys
@@ -186,10 +186,10 @@ from projects.components.dmas.rapids.dv.tbclasses.descriptor_engine_tb import De
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
 ```
 
-**❌ WRONG - Don't Import from Framework:**
+**WRONG - Don't Import from Framework:**
 ```python
 # DON'T DO THIS!
-from TBClasses.rapids.scheduler_tb import SchedulerTB  # ❌ WRONG!
+from TBClasses.rapids.scheduler_tb import SchedulerTB  # WRONG!
 ```
 
 ### Benefits of This Organization
@@ -202,14 +202,14 @@ from TBClasses.rapids.scheduler_tb import SchedulerTB  # ❌ WRONG!
 
 ### Compliance Status
 
-✅ **RAPIDS is now compliant** - All TB classes moved to project area as of 2025-10-18
+**RAPIDS is now compliant** - All TB classes moved to project area as of 2025-10-18
 
 **Migration History:**
 - **Before:** TB classes incorrectly in `bin/TBClasses/rapids/`
 - **After:** TB classes correctly in `projects/components/dmas/rapids/dv/tbclasses/`
 - **Test Imports:** Updated to import from project area
 
-**📖 Complete Documentation:** See `/PRD.md` Section 2.3 for repository-wide organizational standards.
+**Complete Documentation:** See `/PRD.md` Section 2.3 for repository-wide organizational standards.
 
 ---
 
@@ -239,7 +239,7 @@ RAPIDS Beats (Rapid AXI Programmable In-band Descriptor System)
     └── MonBus Group       (macro/monbus_axil_group_2in.sv)
 ```
 
-**📖 See:** `docs/rapids_beats_mas/ch01_overview/01_architecture.md` for detailed architecture
+**See:** `docs/rapids_beats_mas/ch01_overview/01_architecture.md` for detailed architecture
 
 ### 3.2 Data Flow
 
@@ -269,28 +269,28 @@ RAPIDS Beats (Rapid AXI Programmable In-band Descriptor System)
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Descriptor FIFO | ✅ | Queued descriptor processing |
-| Multi-field parsing | ✅ | Address, length, control fields |
+| Descriptor FIFO | yes | Queued descriptor processing |
+| Multi-field parsing | yes | Address, length, control fields |
 | Chained descriptors | ⏳ | Future enhancement |
-| Completion reporting | ✅ | Via MonBus packets |
+| Completion reporting | yes | Via MonBus packets |
 
 ### 4.2 Data Path Features
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| SRAM buffering | ✅ | Decouple network from memory |
-| AXI4 burst support | ✅ | Efficient memory transfers |
-| Backpressure handling | ✅ | Flow control on all interfaces |
-| Data alignment | ✅ | Handle unaligned transfers |
+| SRAM buffering | yes | Decouple network from memory |
+| AXI4 burst support | yes | Efficient memory transfers |
+| Backpressure handling | yes | Flow control on all interfaces |
+| Data alignment | yes | Handle unaligned transfers |
 
 ### 4.3 Scheduler Features
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Task FSM | ✅ | Multi-state coordination |
+| Task FSM | yes | Multi-state coordination |
 | Credit management | ⏳ | Pre-beats scheduler had exponential encoding (0→1, 1→2, ..., 15→∞); scheduler_beats.sv has no credit management yet (planned later phase) |
-| Program sequencing | ✅ | Coordinated operations |
-| Error detection | ✅ | Timeout, overflow detection |
+| Program sequencing | yes | Coordinated operations |
+| Error detection | yes | Timeout, overflow detection |
 
 **Credit Management Details (pre-beats, historical):**
 - Uses **exponential credit encoding** for compact configuration
@@ -300,15 +300,15 @@ RAPIDS Beats (Rapid AXI Programmable In-band Descriptor System)
 - Encoding applied at initialization; runtime operations are linear (increment/decrement by 1)
 - Provides wide range (1 to 16384) with minimal configuration overhead
 
-**📖 See:** `docs/rapids_beats_mas/ch02_fub_blocks/01_scheduler.md` for the current scheduler specification
+**See:** `docs/rapids_beats_mas/ch02_fub_blocks/01_scheduler.md` for the current scheduler specification
 
 ### 4.4 Monitoring Integration
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| MonBus packets | ✅ | StandardAMBA 64-bit format |
-| Descriptor events | ✅ | Start/complete reporting |
-| Error events | ✅ | Timeout, overflow, underflow |
+| MonBus packets | yes | StandardAMBA 64-bit format |
+| Descriptor events | yes | Start/complete reporting |
+| Error events | yes | Timeout, overflow, underflow |
 | Performance metrics | ⏳ | Future enhancement |
 
 ---
@@ -326,7 +326,7 @@ RAPIDS Beats (Rapid AXI Programmable In-band Descriptor System)
 | **AXIS (Source)** | Master | Configurable | Network egress (tid = channel) |
 | **MonBus** | Master | 64-bit | Monitor packet output |
 
-**📖 See:** `docs/rapids_beats_mas/ch04_interfaces/` and `docs/rapids_beats_has/ch03_interfaces/` for complete interface specs
+**See:** `docs/rapids_beats_mas/ch04_interfaces/` and `docs/rapids_beats_has/ch03_interfaces/` for complete interface specs
 
 ### 5.2 Configuration Parameters
 
@@ -402,7 +402,7 @@ rapids_beats_top #(
 | Component | Test Coverage | Status |
 |-----------|--------------|--------|
 | Scheduler | ~95% | Credit encoding fixed and verified (43/43 tests passing) |
-| Descriptor Engine | ✅ 100% | **All tests passing** (14/14 tests, 100% success rate) |
+| Descriptor Engine | 100% | **All tests passing** (14/14 tests, 100% success rate) |
 | Program Engine | ~85% | Alignment tested |
 | Sink Data Path | ~75% | Basic flows working |
 | Source Data Path | ~70% | Basic flows working |
@@ -412,13 +412,13 @@ rapids_beats_top #(
 **Test Location:** `projects/components/dmas/rapids/dv/tests/fub_beats/` and `projects/components/dmas/rapids/dv/tests/macro_beats/` (plus `fub/`, `macro/`, `top_beats/`)
 
 **Recent Achievements:**
-- ✅ **Descriptor Engine (2025-10-13):** Achieved 100% test pass rate using continuous background monitoring pattern
+- **Descriptor Engine (2025-10-13):** Achieved 100% test pass rate using continuous background monitoring pattern
   - 14/14 tests passing across all test levels (basic, medium, full)
   - All test classes passing (APB_ONLY, MIXED)
   - All delay profiles passing (fast_producer, fast_consumer, fixed_delay, minimal_delay)
   - Applied continuous monitoring methodology for asynchronous output capture
 
-**📖 See:** `docs/RAPIDS_Validation_Status_Report.md` for detailed results
+**See:** `docs/RAPIDS_Validation_Status_Report.md` for detailed results
 
 ### 7.2 Test Strategy
 
@@ -443,7 +443,7 @@ rapids_beats_top #(
 
 ### 8.1 Critical Issues
 
-**✅ Scheduler Credit Counter Initialization - FIXED (2025-10-11, pre-beats)**
+**Scheduler Credit Counter Initialization - FIXED (2025-10-11, pre-beats)**
 - **File:** the retired pre-beats scheduler.sv (replaced by `rtl/fub_beats/scheduler_beats.sv`,
   which currently has no credit management - planned for a later phase)
 - **Issue:** Credit counter was initializing to 0 instead of using exponential encoding
@@ -481,7 +481,7 @@ r_descriptor_credit_counter <= (cfg_initial_credit == 4'hF) ? 32'hFFFFFFFF :
 - Rare timing issues in back-to-back operations
 - **Priority:** P2
 
-**📖 See:** `known_issues/` directory for complete issue tracking
+**See:** `known_issues/` directory for complete issue tracking
 
 ---
 
@@ -534,7 +534,7 @@ See `rtl/top_beats/rapids_beats_top.sv` for the complete, authoritative port lis
    - Set enable bits via APB registers
    - Monitor MonBus for completion/error packets
 
-**📖 See:** `docs/rapids_beats_has/ch05_programming/` for register and programming details
+**See:** `docs/rapids_beats_has/ch05_programming/` for register and programming details
 
 ---
 
@@ -544,19 +544,19 @@ See `rtl/top_beats/rapids_beats_top.sv` for the complete, authoritative port lis
 
 **Phase: Validation and Bug Fixing** (In Progress)
 
-- ✅ Core architecture implemented
-- ✅ Basic functionality verified
-- ✅ Scheduler credit counter bug fixed (exponential encoding implemented)
+- Core architecture implemented
+- Basic functionality verified
+- Scheduler credit counter bug fixed (exponential encoding implemented)
 - ⏳ Credit management tests need verification (remove workarounds)
 - ⏳ Stress testing ongoing
 - ⏳ Edge case refinement
 
-**📖 See:** `TASKS.md` for detailed work items
+**See:** `TASKS.md` for detailed work items
 
 ### 10.2 Roadmap
 
 **Near-Term (Q4 2025):**
-- ✅ Fix scheduler credit counter bug (completed 2025-10-11)
+- Fix scheduler credit counter bug (completed 2025-10-11)
 - ⏳ Verify credit management tests (remove workarounds)
 - ⏳ Complete descriptor engine stress testing
 - ⏳ Integration test suite expansion
@@ -640,7 +640,7 @@ projects/components/dmas/rapids/dv/tests/
 
 ### 12.2.1 MANDATORY: BFM Usage for FUB Tests
 
-**⚠️ CRITICAL DESIGN REQUIREMENT ⚠️**
+**CRITICAL DESIGN REQUIREMENT**
 
 **All RAPIDS FUB (Functional Unit Block) level tests MUST use CocoTB Framework BFMs. Manual handshake driving is NOT allowed.**
 
@@ -665,13 +665,13 @@ projects/components/dmas/rapids/dv/tests/
 **Example - Program Engine:**
 
 ```python
-# ❌ WRONG: Manual handshake (violates design requirement)
+# WRONG: Manual handshake (violates design requirement)
 async def send_request(self, addr, data):
     self.dut.program_valid.value = 1
     self.dut.program_pkt_addr.value = addr
     # ... manual handshaking logic ...
 
-# ✅ CORRECT: Use GAXI Master BFM
+# CORRECT: Use GAXI Master BFM
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 
 class ProgramEngineTB(TBBase):
@@ -690,14 +690,14 @@ class ProgramEngineTB(TBBase):
         await self.program_master.write({'program_pkt_addr': addr, 'program_pkt_data': data})
 ```
 
-**📖 See:**
+**See:**
 - `projects/components/dmas/rapids/CLAUDE.md` - Rule #1 for complete BFM usage guidelines
 - `../RTLDesignSherpa-DV/docs/components/gaxi/` - GAXI BFM documentation
 - `bin/TBClasses/axi4/` - AXI4 BFM sources (full framework docs in the RTLDesignSherpa-DV repo)
 
 ### 12.3 Test File Structure (Standard Pattern)
 
-**⚠️ MANDATORY: All RAPIDS tests must follow this structure ⚠️**
+**MANDATORY: All RAPIDS tests must follow this structure**
 
 RAPIDS tests follow the same pattern as AMBA tests for consistency across the repository:
 
@@ -835,11 +835,11 @@ def test_basic_flow(request, channel_id, num_channels, data_width, credit_width)
             plusargs=plusargs,
         )
 
-        print(f"✓ Scheduler basic flow test completed!")
+        print(f"Scheduler basic flow test completed!")
         print(f"Logs: {log_path}")
 
     except Exception as e:
-        print(f"❌ Scheduler basic flow test failed: {str(e)}")
+        print(f"Scheduler basic flow test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         raise
 ```
@@ -874,7 +874,7 @@ def test_basic_flow(request, channel_id, num_channels, data_width, credit_width)
    - `async def assert_reset(self)` - Assert reset signal(s)
    - `async def deassert_reset(self)` - Deassert reset signal(s)
 
-**📖 See:**
+**See:**
 - `val/amba/test_apb4_slave.py` - Reference example
 - `projects/components/dmas/rapids/CLAUDE.md` - Detailed TB requirements
 
@@ -919,9 +919,9 @@ cat projects/components/dmas/rapids/docs/rapids_beats_mas/ch02_fub_blocks/01_sch
 
 ### 14.1 Functional
 
-- ✅ All major blocks implemented
-- ✅ Basic data flows working
-- ✅ Scheduler credit bug fixed (exponential encoding implemented)
+- All major blocks implemented
+- Basic data flows working
+- Scheduler credit bug fixed (exponential encoding implemented)
 - ⏳ Credit management tests verified (remove workarounds, run full suite)
 - ⏳ 100% descriptor test pass rate (currently ~80%)
 - ⏳ Stress tests passing
@@ -930,13 +930,13 @@ cat projects/components/dmas/rapids/docs/rapids_beats_mas/ch02_fub_blocks/01_sch
 
 - ⏳ >90% functional coverage (currently ~80%)
 - ⏳ >85% code coverage
-- ✅ All FSMs documented
+- All FSMs documented
 - ⏳ Integration guide complete
 
 ### 14.3 Documentation
 
-- ✅ Complete specification in docs/rapids_beats_has/ + docs/rapids_beats_mas/
-- ✅ Known issues documented
+- Complete specification in docs/rapids_beats_has/ + docs/rapids_beats_mas/
+- Known issues documented
 - ⏳ Integration examples
 - ⏳ Performance characterization
 
@@ -945,14 +945,14 @@ cat projects/components/dmas/rapids/docs/rapids_beats_mas/ch02_fub_blocks/01_sch
 ## 15. Educational Value
 
 RAPIDS demonstrates:
-- ✅ Complex FSM coordination (scheduler ↔ data paths)
-- ✅ Descriptor-based DMA design patterns
-- ✅ Buffer management strategies
-- ✅ Credit-based flow control with exponential encoding
-- ✅ Multi-interface integration
-- ✅ Comprehensive monitoring
-- ✅ Error detection and reporting
-- ✅ Compact configuration encoding strategies
+- Complex FSM coordination (scheduler ↔ data paths)
+- Descriptor-based DMA design patterns
+- Buffer management strategies
+- Credit-based flow control with exponential encoding
+- Multi-interface integration
+- Comprehensive monitoring
+- Error detection and reporting
+- Compact configuration encoding strategies
 
 **Target Audience:**
 - Advanced RTL designers
@@ -1026,7 +1026,7 @@ python bin/md_to_docx.py \
 - Pandoc installed and in PATH
 - For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
 
-**📖 See:** `bin/md_to_docx.py` for complete implementation details
+**See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 
@@ -1050,7 +1050,7 @@ The shell scripts will automatically:
 3. Generate both DOCX and PDF files in the docs/ directory
 4. Create table of contents and title page
 
-**📖 See:** `bin/md_to_docx.py` for complete implementation details
+**See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 

@@ -27,13 +27,13 @@
 
 This document summarizes all fixes applied to address the three identified issues:
 
-1. ✅ **Fixed Write BW Calculation**
-2. ✅ **Separated Read and Write Analysis** 
-3. ✅ **Updated PNG Output to `assets/` Directory**
+1. **Fixed Write BW Calculation**
+2. **Separated Read and Write Analysis**
+3. **Updated PNG Output to `assets/` Directory**
 
 ---
 
-## Issue 1: Write BW Calculation Was Wrong ❌ → ✅
+## Issue 1: Write BW Calculation Was Wrong →
 
 ### Problem
 The original write bandwidth calculation only computed single-burst bandwidth (1.255 GB/s) without properly accounting for the pipelining enabled by outstanding bursts. With 32 outstanding bursts system-wide, multiple writes can be in flight simultaneously, dramatically improving throughput.
@@ -49,19 +49,19 @@ Created new `calculate_write_bandwidth()` function in `bin/analytical/write_anal
 ### Correct Calculations
 **Without Pipelining (naive):**
 - Time per burst: 200 (latency) + 4 (data send) = 204 cycles
-- Single channel: (256 bytes × 1 GHz) / 204 cycles = 1.255 GB/s ❌
+- Single channel: (256 bytes × 1 GHz) / 204 cycles = 1.255 GB/s
 
 **With Pipelining (32 outstanding, 16 channels):**
 - Outstanding per channel: 32/16 = 2 bursts
 - Can pipeline! Effective time: 4 cycles (data send only)
 - Single channel: (256 bytes × 1 GHz) / 4 cycles = 64 GB/s (AXI limited to ~57.6 GB/s)
-- Total bandwidth: min(16 × 64 GB/s, 57.6 GB/s) ≈ **~25-30 GB/s** ✅
+- Total bandwidth: min(16 × 64 GB/s, 57.6 GB/s) ≈ **~25-30 GB/s**
 
 **Key Insight:** Outstanding bursts work like pipelining for writes!
 
 ---
 
-## Issue 2: Read and Write Should Be Analyzed Separately ❌ → ✅
+## Issue 2: Read and Write Should Be Analyzed Separately →
 
 ### Problem
 The old `write_analysis.py` had `analyze_combined_performance()` that added read + write bandwidth together, which is incorrect at this analysis level.
@@ -72,7 +72,7 @@ The old `write_analysis.py` had `analyze_combined_performance()` that added read
 ### Why They're Separate
 1. **Different paths**: Read and write use different logic/buffers
 2. **Different burst sizes**: Read=2KB, Write=256B
-3. **Different bottlenecks**: 
+3. **Different bottlenecks**:
    - Read: drain rate (4 GB/s per channel)
    - Write: outstanding burst limit
 4. **Shared AXI**: They compete for 57.6 GB/s peak, but that's a constraint, not a metric
@@ -88,15 +88,15 @@ Combined: min(Read_BW + Write_BW, 57.6 GB/s)
 
 ### New Write Analysis Focus
 The updated `write_analysis.py`:
-- ✅ Analyzes write path performance alone
-- ✅ Shows pipelining effect from outstanding bursts
-- ✅ Compares different payload sizes
-- ✅ Notes AXI limitation separately
-- ❌ Does NOT combine with read bandwidth
+- Analyzes write path performance alone
+- Shows pipelining effect from outstanding bursts
+- Compares different payload sizes
+- Notes AXI limitation separately
+- Does NOT combine with read bandwidth
 
 ---
 
-## Issue 3: PNG Files Now Save to `assets/` Directory ✅
+## Issue 3: PNG Files Now Save to `assets/` Directory
 
 ### Problem
 PNG files were being saved to the project root directory, cluttering the workspace.
@@ -193,16 +193,16 @@ After updating files, verify:
 python bin/analytical/write_analysis.py
 ```
 **Expected output:**
-- Baseline (32 outstanding): ~25-30 GB/s for 16 channels ✅
-- Shows "Can pipeline: YES" ✅
-- Explains pipelining improvement ✅
+- Baseline (32 outstanding): ~25-30 GB/s for 16 channels
+- Shows "Can pipeline: YES"
+- Explains pipelining improvement
 
 ### Separate Analysis
 ```bash
 # Write analysis should NOT show combined read+write
 python bin/analytical/write_analysis.py
 ```
-**Expected:** Only write path results, no combined metrics ✅
+**Expected:** Only write path results, no combined metrics
 
 ### Assets Directory
 ```bash
@@ -237,8 +237,8 @@ Outstanding bursts enable effective pipelining! The latency is hidden once the p
 
 | Configuration | Bandwidth | Status |
 |--------------|-----------|--------|
-| Baseline | 44.05 GB/s | Correct ✅ |
-| Optimized | 57-64 GB/s | Correct ✅ |
+| Baseline | 44.05 GB/s | Correct |
+| Optimized | 57-64 GB/s | Correct |
 
 Read analysis was already correct - no changes needed.
 
@@ -247,9 +247,9 @@ Read analysis was already correct - no changes needed.
 ```
 Before:                      After:
 project/                     project/
-├── comparison_*.png ❌      ├── assets/  ✅
-├── example_*.png ❌         │   ├── comparison_*.png
-├── sram_*.png ❌            │   ├── example_*.png
+├── comparison_*.png      ├── assets/
+├── example_*.png         │   ├── comparison_*.png
+├── sram_*.png            │   ├── example_*.png
 ├── *.csv                    │   └── sram_*.png
 └── ...                      ├── *.csv
                             └── ...
@@ -278,4 +278,4 @@ project/                     project/
 
 If anything is unclear or you need additional fixes, let me know!
 
-**Status:** All fixes complete and ready to apply ✅
+**Status:** All fixes complete and ready to apply

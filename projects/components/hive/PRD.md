@@ -56,7 +56,7 @@ The Hierarchical Intelligent Vector Environment (HIVE) is a distributed control 
 
 This PRD provides a high-level overview. **Detailed specifications are maintained separately:**
 
-### 📚 Complete HIVE Specification
+### Complete HIVE Specification
 **Location:** `projects/components/hive/docs/hive_spec/`
 
 - **[Index](docs/hive_spec/hive_index.md)** - Complete specification structure
@@ -80,7 +80,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
   [hive_specification.md](docs/hive_specification.md) sections 2-3 (interfaces),
   6 (programming), and 7 (performance)
 
-### 📖 Other Documentation
+### Other Documentation
 - **[README](README.md)** - Quick start and integration guide (to be created)
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
 - **[TASKS](TASKS.md)** - Current work items (to be created)
@@ -120,7 +120,7 @@ HIVE System Architecture
     Delta Network (4×4 Mesh) + RAPIDS DMA Engine
 ```
 
-**📖 See:** `docs/hive_spec/ch02_blocks/00_overview.md` for detailed architecture
+**See:** `docs/hive_spec/ch02_blocks/00_overview.md` for detailed architecture
 
 ### 3.2 Resource Budget (NexysA7 100T)
 
@@ -150,38 +150,38 @@ HIVE System Architecture
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| VexRiscv master (HIVE-C) | 📝 | RV32IM, 5-stage pipeline, 32KB I-mem + 32KB D-mem |
-| SERV monitors (16×) | 📝 | RV32I bit-serial, 2KB I-mem + 2KB D-mem each |
-| Control network | 📝 | Star topology, round-robin arbitration |
-| Independent firmware | 📝 | Separate binaries for HIVE-C and SERV |
+| VexRiscv master (HIVE-C) | note | RV32IM, 5-stage pipeline, 32KB I-mem + 32KB D-mem |
+| SERV monitors (16×) | note | RV32I bit-serial, 2KB I-mem + 2KB D-mem each |
+| Control network | note | Star topology, round-robin arbitration |
+| Independent firmware | note | Separate binaries for HIVE-C and SERV |
 
 ### 4.2 Distributed Monitoring
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Per-tile traffic counters | 📝 | Packet counts per direction (N/S/E/W) |
-| Buffer occupancy tracking | 📝 | Real-time FIFO fill levels |
-| Congestion detection | 📝 | Programmable thresholds, immediate alerts |
-| Error detection | 📝 | Parity errors, protocol violations |
-| Periodic reporting | 📝 | Configurable interval (default 1000 cycles) |
+| Per-tile traffic counters | note | Packet counts per direction (N/S/E/W) |
+| Buffer occupancy tracking | note | Real-time FIFO fill levels |
+| Congestion detection | note | Programmable thresholds, immediate alerts |
+| Error detection | note | Parity errors, protocol violations |
+| Periodic reporting | note | Configurable interval (default 1000 cycles) |
 
 ### 4.3 Network Reconfiguration
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Virtual configuration contexts | 📝 | 4 pre-loaded routing modes |
-| Atomic context switching | 📝 | Deterministic latency (<25 cycles) |
-| Quiesce protocol | 📝 | Drain in-flight packets before switch |
-| Broadcast configuration | 📝 | PKT_CONFIG packets to all tiles |
+| Virtual configuration contexts | note | 4 pre-loaded routing modes |
+| Atomic context switching | note | Deterministic latency (<25 cycles) |
+| Quiesce protocol | note | Drain in-flight packets before switch |
+| Broadcast configuration | note | PKT_CONFIG packets to all tiles |
 
 ### 4.4 RAPIDS Integration
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Inband descriptor injection | 📝 | CDA packets via Delta Network to RAPIDS |
-| Low-latency delivery | 📝 | ~10-20 cycles vs. 100+ for memory-mapped |
-| AXIS master interface | 📝 | Direct injection into Delta Network |
-| Completion tracking | 📝 | PKT_STATUS packets from RAPIDS |
+| Inband descriptor injection | note | CDA packets via Delta Network to RAPIDS |
+| Low-latency delivery | note | ~10-20 cycles vs. 100+ for memory-mapped |
+| AXIS master interface | note | Direct injection into Delta Network |
+| Completion tracking | note | PKT_STATUS packets from RAPIDS |
 
 ---
 
@@ -197,7 +197,7 @@ HIVE System Architecture
 | **AXIS (HIVE-C RX)** | Slave | 128-bit | PKT_STATUS from network |
 | **Control Network** | Internal | 32-bit | HIVE-C ↔ SERV communication |
 
-**📖 See:** `docs/hive_specification.md` sections 2-3 for complete interface specs (the `docs/hive_spec/ch03_interfaces/` chapter files are not yet written)
+**See:** `docs/hive_specification.md` sections 2-3 for complete interface specs (the `docs/hive_spec/ch03_interfaces/` chapter files are not yet written)
 
 ### 5.2 Virtual Tile Mapping
 
@@ -257,10 +257,10 @@ HIVE System Architecture
 
 | Component | Spec Status | Implementation Status |
 |-----------|-------------|----------------------|
-| HIVE-C Controller | ✅ Complete | ⏳ Pending |
-| SERV Monitors | ✅ Complete | ⏳ Pending |
-| Control Network | ✅ Complete | ⏳ Pending |
-| Configuration Manager | ✅ Complete | ⏳ Pending |
+| HIVE-C Controller | Complete | ⏳ Pending |
+| SERV Monitors | Complete | ⏳ Pending |
+| Control Network | Complete | ⏳ Pending |
+| Configuration Manager | Complete | ⏳ Pending |
 | Integration | ⏳ In progress | ⏳ Pending |
 
 ---
@@ -335,13 +335,13 @@ endmodule
 
 **Phase: Specification** (In Progress)
 
-- ✅ Chapter 1 (Overview) complete
-- ✅ Chapter 2 (Blocks) in progress
+- Chapter 1 (Overview) complete
+- Chapter 2 (Blocks) in progress
 - ⏳ Chapter 3 (Interfaces) pending
 - ⏳ Chapter 4 (Programming) pending
 - ⏳ Chapter 5 (Performance) pending
 
-**📖 See:** `TASKS.md` for detailed work items (to be created)
+**See:** `TASKS.md` for detailed work items (to be created)
 
 ### 10.2 Roadmap
 
@@ -363,13 +363,13 @@ endmodule
 ## 11. Educational Value
 
 HIVE demonstrates:
-- ✅ Hierarchical processor architecture (master + agents)
-- ✅ Distributed monitoring and control
-- ✅ RISC-V processor integration (VexRiscv, SERV)
-- ✅ Inband control packet injection
-- ✅ Dynamic network reconfiguration
-- ✅ Resource budget management
-- ✅ Control network design patterns
+- Hierarchical processor architecture (master + agents)
+- Distributed monitoring and control
+- RISC-V processor integration (VexRiscv, SERV)
+- Inband control packet injection
+- Dynamic network reconfiguration
+- Resource budget management
+- Control network design patterns
 
 **Target Audience:**
 - Advanced RTL designers
@@ -445,7 +445,7 @@ python bin/md_to_docx.py \
 - Pandoc installed and in PATH
 - For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
 
-**📖 See:** `bin/md_to_docx.py` (repo root) for complete implementation details
+**See:** `bin/md_to_docx.py` (repo root) for complete implementation details
 
 ---
 
@@ -468,7 +468,7 @@ The shell script will automatically:
 3. Generate both DOCX and PDF files in the docs/ directory
 4. Create table of contents and title page
 
-**📖 See:** `bin/md_to_docx.py` for complete implementation details
+**See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 

@@ -611,7 +611,7 @@ Verified: the subtractive adapter's monitor ports go 24 -> 0 and its
 `axi4_master_rd_mon` instance disappears; exactly 13 files change, all of
 them `*_mon/subtractive_adapter.sv`, matching the 13 failing variants
 one-for-one; non-`_mon` variants are byte-identical; and `make verilator`
-in `projects/components/bridge/rtl` reports **"✓ Bridge RTL lint passed"**
+in `projects/components/bridge/rtl` reports **"Bridge RTL lint passed"**
 for the first time, so the gate is an instrument again.
 
 Nothing is lost. An unmapped access is still reported through the

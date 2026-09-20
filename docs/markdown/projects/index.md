@@ -44,7 +44,7 @@ This index provides links to component project documentation within the RTL Desi
 ### DMA and Data Transfer
 
 #### STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory
-**Status:** ✅ Ready (Tutorial DMA engine)
+**Status:** Ready (Tutorial DMA engine)
 **Location:** [`projects/components/dmas/stream/`](../../../projects/components/dmas/stream/)
 
 Beginner-friendly descriptor-based DMA engine for memory-to-memory transfers.
@@ -57,15 +57,15 @@ Beginner-friendly descriptor-based DMA engine for memory-to-memory transfers.
 - Tutorial focus - intentional simplifications
 
 **Documentation:**
-- 📖 [Complete Specification](../../../projects/components/dmas/stream/docs/stream_mas/stream_index.md)
-- 📋 [Product Requirements](../../../projects/components/dmas/stream/PRD.md)
-- 🤖 [AI Guide](../../../projects/components/dmas/stream/CLAUDE.md)
-- 📝 Architectural Notes *(documentation planned)*
+- [Complete Specification](../../../projects/components/dmas/stream/docs/stream_mas/stream_index.md)
+- [Product Requirements](../../../projects/components/dmas/stream/PRD.md)
+- [AI Guide](../../../projects/components/dmas/stream/CLAUDE.md)
+- Architectural Notes *(documentation planned)*
 
 ---
 
 #### RAPIDS - Rapid Application Processing and I/O Data Streams
-**Status:** 🟡 In Progress (Test cleanup in progress)
+**Status:** In Progress (Test cleanup in progress)
 **Location:** [`projects/components/dmas/rapids/`](../../../projects/components/dmas/rapids/)
 
 Advanced descriptor-based DMA with network interfaces and complex features.
@@ -78,16 +78,16 @@ Advanced descriptor-based DMA with network interfaces and complex features.
 - Production-ready complexity
 
 **Documentation:**
-- 📖 [Complete Specification](../../../projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md)
-- 📋 [Product Requirements](../../../projects/components/dmas/rapids/PRD.md)
-- 🤖 [AI Guide](../../../projects/components/dmas/rapids/CLAUDE.md)
+- [Complete Specification](../../../projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md)
+- [Product Requirements](../../../projects/components/dmas/rapids/PRD.md)
+- [AI Guide](../../../projects/components/dmas/rapids/CLAUDE.md)
 
 ---
 
 ### Integration Components
 
 #### APB Crossbar
-**Status:** ✅ Production Ready (All tests passing at 100%)
+**Status:** Production Ready (All tests passing at 100%)
 **Location:** [`projects/components/apbx-xbar/`](../../../projects/components/apbx-xbar/)
 
 Parametric MxN APB interconnect connecting multiple masters to multiple slaves with automatic address-based routing and round-robin arbitration.
@@ -100,25 +100,25 @@ Parametric MxN APB interconnect connecting multiple masters to multiple slaves w
 - RTL generator for custom configurations
 
 **Documentation:**
-- 📖 [Complete Specification](../../../projects/components/apbx-xbar/docs/apbx_xbar_has/apbx_xbar_has_index.md)
-- 📋 [Product Requirements](../../../projects/components/apbx-xbar/PRD.md)
-- 🤖 [AI Guide](../../../projects/components/apbx-xbar/CLAUDE.md)
+- [Complete Specification](../../../projects/components/apbx-xbar/docs/apbx_xbar_has/apbx_xbar_has_index.md)
+- [Product Requirements](../../../projects/components/apbx-xbar/PRD.md)
+- [AI Guide](../../../projects/components/apbx-xbar/CLAUDE.md)
 
 ---
 
 #### Bridge Components
-**Status:** ✅ Ready
+**Status:** Ready
 **Location:** [`projects/components/bridge/`](../../../projects/components/bridge/)
 
 Protocol bridge components for bus conversion.
 
 **Documentation:**
-- 📖 [Specification](../../../projects/components/bridge/docs/)
+- [Specification](../../../projects/components/bridge/docs/)
 
 ---
 
 #### Protocol Converters
-**Status:** ✅ Production Ready (UART to AXI4-Lite)
+**Status:** Production Ready (UART to AXI4-Lite)
 **Location:** [`projects/components/converters/`](../../../projects/components/converters/)
 
 Protocol conversion bridges for interfacing different communication standards.
@@ -131,15 +131,15 @@ Protocol conversion bridges for interfacing different communication standards.
 - Timing isolation via skid buffers
 
 **Documentation:**
-- 📖 [Component Guide](converters.md) - Complete specification and usage
-- 📋 [Implementation README](../../../projects/components/converters/rtl/uart_to_axil4/README.md)
+- [Component Guide](converters.md) - Complete specification and usage
+- [Implementation README](../../../projects/components/converters/rtl/uart_to_axil4/README.md)
 
 ---
 
 ### Retro Legacy Blocks
 
 #### Retro Legacy Peripheral Collection
-**Status:** ✅ Stable (Collection of legacy/retro peripherals)
+**Status:** Stable (Collection of legacy/retro peripherals)
 **Location:** [`projects/components/retro_legacy_blocks/`](../../../projects/components/retro_legacy_blocks/)
 
 Collection of legacy and retro-computing peripherals for historical SoC designs.
@@ -154,11 +154,11 @@ Collection of legacy and retro-computing peripherals for historical SoC designs.
 - **IOAPIC** - I/O Advanced Programmable Interrupt Controller
 
 **Documentation:**
-- 📋 [Collection Overview](../../../projects/components/retro_legacy_blocks/README.md)
-- 📖 [HPET Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)
-- 📋 [Requirements](../../../projects/components/retro_legacy_blocks/PRD.md)
-- 🤖 [AI Guide](../../../projects/components/retro_legacy_blocks/CLAUDE.md)
-- 📊 [Block Status](../../../projects/components/retro_legacy_blocks/BLOCK_STATUS.md)
+- [Collection Overview](../../../projects/components/retro_legacy_blocks/README.md)
+- [HPET Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)
+- [Requirements](../../../projects/components/retro_legacy_blocks/PRD.md)
+- [AI Guide](../../../projects/components/retro_legacy_blocks/CLAUDE.md)
+- [Block Status](../../../projects/components/retro_legacy_blocks/BLOCK_STATUS.md)
 
 ---
 
@@ -168,7 +168,7 @@ Collection of legacy and retro-computing peripherals for historical SoC designs.
 **Location:** [`projects/components/delta/`](../../../projects/components/delta/)
 
 **Documentation:**
-- 📖 [Specification](../../../projects/components/delta/docs/)
+- [Specification](../../../projects/components/delta/docs/)
 
 ---
 
@@ -176,16 +176,16 @@ Collection of legacy and retro-computing peripherals for historical SoC designs.
 **Location:** [`projects/components/hive/`](../../../projects/components/hive/)
 
 **Documentation:**
-- 📖 [Specification](../../../projects/components/hive/docs/)
+- [Specification](../../../projects/components/hive/docs/)
 
 ---
 
 ## Status Legend
 
-- ✅ **Production Ready** - Complete, verified, ready for integration
-- 🟢 **Functional** - Working, test cleanup/refinement ongoing
-- 🟡 **In Development** - Active development, partial functionality
-- 🔴 **Planned** - Design phase, not yet implemented
+- **Production Ready** - Complete, verified, ready for integration
+- **Functional** - Working, test cleanup/refinement ongoing
+- **In Development** - Active development, partial functionality
+- **Planned** - Design phase, not yet implemented
 
 ---
 
@@ -194,16 +194,16 @@ Collection of legacy and retro-computing peripherals for historical SoC designs.
 ### When to Use Components vs. Building Blocks
 
 **Use Components When:**
-- ✅ Need complete, tested peripheral ready for SoC integration
-- ✅ Require comprehensive register interface (APB, AXI)
-- ✅ Need production-ready solution with verification
-- ✅ Want standardized interfaces and protocols
+- Need complete, tested peripheral ready for SoC integration
+- Require comprehensive register interface (APB, AXI)
+- Need production-ready solution with verification
+- Want standardized interfaces and protocols
 
 **Use Building Blocks When:**
-- ✅ Building custom logic from scratch
-- ✅ Need simple, reusable primitives (counters, FIFOs, arbiters)
-- ✅ Creating specialized accelerators
-- ✅ Implementing vendor-specific features
+- Building custom logic from scratch
+- Need simple, reusable primitives (counters, FIFOs, arbiters)
+- Creating specialized accelerators
+- Implementing vendor-specific features
 
 ### Learning Path Recommendations
 

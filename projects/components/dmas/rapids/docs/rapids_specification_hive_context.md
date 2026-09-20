@@ -22,7 +22,7 @@
 <!-- End Header -->
 
 # RAPIDS DMA Specification
-**Reconfigurable Accelerator Protocol for Intelligent Data Streaming**  
+**Reconfigurable Accelerator Protocol for Intelligent Data Streaming**
 Version 0.3 - Early Proof of Concept (Draft)
 
 ---
@@ -124,8 +124,8 @@ RAPIDS enforces strict packet type filtering on all AXIS interfaces:
 
 ### 3.1 Descriptor Packets (PKT_DESC)
 
-**Source:** HIVE-C controller via DELTA network  
-**Destination:** RAPIDS descriptor FIFO  
+**Source:** HIVE-C controller via DELTA network
+**Destination:** RAPIDS descriptor FIFO
 **Format:** 256 bits (2 AXIS beats at 128-bit width)
 
 ```
@@ -143,9 +143,9 @@ TDEST[3:0] = 4'h0 (always RAPIDS)
 
 ### 3.2 Data Packets (PKT_DATA)
 
-**Source (Memory→Network):** RAPIDS Data Out (AXIS Master)  
-**Destination:** DELTA network → Compute Tiles  
-**Source (Network→Memory):** Compute Tiles → RAPIDS Data In (AXIS Slave)  
+**Source (Memory→Network):** RAPIDS Data Out (AXIS Master)
+**Destination:** DELTA network → Compute Tiles
+**Source (Network→Memory):** Compute Tiles → RAPIDS Data In (AXIS Slave)
 **Destination:** DDR memory via AXI4
 
 ```
@@ -184,20 +184,20 @@ When compute tiles send results back to RAPIDS:
 Bits [255:192]: Source Address (64-bit)
   - DDR byte address for read operations
   - Must be aligned to burst boundary (cache line)
-  
+
 Bits [191:128]: Destination Address (64-bit)
   - DDR byte address for write operations (results)
   - Must be aligned to burst boundary
-  
+
 Bits [127:96]: Transfer Length (32-bit bytes)
   - Total data to transfer (not including descriptor overhead)
   - Maximum: 16 MB per descriptor
-  
+
 Bits [95:64]: 2D Stride Configuration (32-bit)
   - [31:16] Y-stride (bytes between rows)
   - [15:0]  X-length (bytes per row)
   - Used when Control Flags[7] = 1
-  
+
 Bits [63:32]: Control Flags (32-bit)
   [31:28] - Burst Size: AXI beats (1-16)
   [27:24] - Burst Type: 0=FIXED, 1=INCR, 2=WRAP
@@ -213,7 +213,7 @@ Bits [63:32]: Control Flags (32-bit)
             0 = MM2S (Memory→Network, read DDR, send to tile)
             1 = S2MM (Network→Memory, receive from tile, write DDR)
             2-15 = Reserved
-  
+
 Bits [31:0]: Next Descriptor Pointer (32-bit)
   - Physical address of next descriptor in chain
   - Valid only if Control Flags[6] = 1
@@ -313,12 +313,12 @@ always_comb begin
     axis_in_tready = 1'b0;  // Reject
     error_invalid_input = 1'b1;
   end
-  
+
   // TID must match channel (source tile)
   if (axis_in_tvalid && axis_in_tid != MY_CHANNEL_ID) begin
     axis_in_tready = 1'b0;  // Not for this channel
   end
-  
+
   // TDEST must be 16 (RAPIDS virtual tile)
   if (axis_in_tvalid && axis_in_tdest != 4'd16) begin
     axis_in_tready = 1'b0;  // Wrong destination
@@ -340,10 +340,10 @@ end
 
 ### 6.1 Interface Configuration
 
-**Address Width:** 32 bits (supports up to 4 GB)  
-**Data Width:** 128 bits (configurable 64/128/256)  
-**Burst Support:** INCR (incrementing), FIXED, WRAP  
-**Max Burst Length:** 256 beats (AXI4 maximum)  
+**Address Width:** 32 bits (supports up to 4 GB)
+**Data Width:** 128 bits (configurable 64/128/256)
+**Burst Support:** INCR (incrementing), FIXED, WRAP
+**Max Burst Length:** 256 beats (AXI4 maximum)
 **Outstanding Transactions:** 16 (configurable)
 
 ### 6.2 Read Channel (Memory → Network)
@@ -480,24 +480,24 @@ HIVE-C firmware interrupt handler:
 ```c
 void rapids_irq_handler(void) {
     uint32_t irq_status = RAPIDS_IRQ_STATUS;
-    
+
     if (irq_status & IRQ_COMPLETION_MASK) {
         // Descriptor(s) completed
         update_completion_count();
         schedule_next_batch();
     }
-    
+
     if (irq_status & IRQ_AXI_ERROR) {
         // Memory access fault
         log_error();
         retry_or_abort();
     }
-    
+
     if (irq_status & IRQ_INVALID_PACKET) {
         // Protocol violation - someone sent wrong packet type
         dump_debug_info();
     }
-    
+
     // Clear handled interrupts
     RAPIDS_IRQ_STATUS = irq_status;
 }
@@ -526,7 +526,7 @@ void rapids_irq_handler(void) {
 3. DELTA routes to RAPIDS (based on TUSER)
 
 4. RAPIDS receives descriptor:
-   - Validates TUSER == PKT_DESC ✓
+   - Validates TUSER == PKT_DESC
    - Queues in descriptor FIFO
    - Scheduler selects based on priority
 
@@ -573,35 +573,35 @@ Scenario: Compute tile accidentally sends PKT_CONFIG to RAPIDS
 Scenario: Three tiles (3, 7, 12) compute in parallel, all send results
 
 1. HIVE-C pre-programs S2MM descriptors:
-   
+
    Channel 3 descriptor:
    - dst_addr = 0x2000_0000
    - source_tile_id = 3
    - length = 0x800
-   
+
    Channel 7 descriptor:
    - dst_addr = 0x2000_1000
    - source_tile_id = 7
    - length = 0x800
-   
+
    Channel 12 descriptor:
    - dst_addr = 0x2000_2000
    - source_tile_id = 12
    - length = 0x800
 
 2. All three tiles send results simultaneously:
-   
+
    Tile 3 → RAPIDS: TID=3, TDEST=16
    Tile 7 → RAPIDS: TID=7, TDEST=16
    Tile 12 → RAPIDS: TID=12, TDEST=16
 
 3. RAPIDS S2MM channel router:
-   
+
    if (axis_in_tuser == PKT_DATA && axis_in_tdest == 16) {
      channel_id = axis_in_tid[3:0];
      route_to_channel(channel_id);
    }
-   
+
    Result:
    - TID=3 packet → Channel 3 → writes to 0x2000_0000
    - TID=7 packet → Channel 7 → writes to 0x2000_1000
@@ -772,14 +772,14 @@ typedef enum logic [2:0] {
 @cocotb.test()
 async def test_descriptor_rejection(dut):
     """Verify RAPIDS rejects non-DESC packets on descriptor input"""
-    
+
     # Send packet with wrong TUSER
     dut.s_axis_desc_tdata.value = 0xDEADBEEF
     dut.s_axis_desc_tuser.value = 0b00  # PKT_DATA (wrong!)
     dut.s_axis_desc_tvalid.value = 1
-    
+
     await RisingEdge(dut.clk)
-    
+
     # Should reject
     assert dut.s_axis_desc_tready.value == 0
     assert dut.error_invalid_type.value == 1
@@ -791,15 +791,15 @@ async def test_descriptor_rejection(dut):
 @cocotb.test()
 async def test_end_to_end_transfer(dut):
     """Full flow: HIVE-C descriptor → RAPIDS → DDR → DELTA"""
-    
+
     # 1. Inject descriptor from HIVE-C
     await inject_descriptor(dut, src=0x1000, len=256, tile=5)
-    
+
     # 2. Verify AXI4 read transactions
     axi_monitor = AxiReadMonitor(dut.m_axi)
     reads = await axi_monitor.wait_for_burst()
     assert reads.addr == 0x1000
-    
+
     # 3. Verify AXIS output with correct packet type
     axis_monitor = AxisMonitor(dut.m_axis_data)
     packets = await axis_monitor.receive_packet()
@@ -823,7 +823,7 @@ async def test_end_to_end_transfer(dut):
 
 ---
 
-**Document Version:** 0.3 (Early Draft - Proof of Concept)  
-**Last Updated:** 2025-10-18  
-**Status:** Preliminary specification, subject to significant change  
+**Document Version:** 0.3 (Early Draft - Proof of Concept)
+**Last Updated:** 2025-10-18
+**Status:** Preliminary specification, subject to significant change
 **Maintained By:** RAPIDS Development Team

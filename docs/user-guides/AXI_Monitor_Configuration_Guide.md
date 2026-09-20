@@ -35,7 +35,7 @@ cfg_error_enable      = 1  // Detect SLVERR, DECERR, orphans
 cfg_compl_enable      = 1  // Track transaction completions
 cfg_timeout_enable    = 1  // Detect stuck transactions
 cfg_threshold_enable  = 1  // Monitor active transaction count
-cfg_perf_enable       = 0  // ⚠️ DISABLE to avoid monbus congestion
+cfg_perf_enable       = 0  // DISABLE to avoid monbus congestion
 cfg_debug_enable      = 0  // Disable unless doing deep debug
 ```
 
@@ -96,8 +96,8 @@ idleness, not per transaction)
 cfg_error_enable      = 1
 cfg_compl_enable      = 1
 cfg_timeout_enable    = 1
-cfg_threshold_enable  = 0  // ⚠️ DISABLE thresholds
-cfg_perf_enable       = 0  // ⚠️ DISABLE performance
+cfg_threshold_enable  = 0  // DISABLE thresholds
+cfg_perf_enable       = 0  // DISABLE performance
 cfg_debug_enable      = 1  // Enable debug packets
 cfg_debug_level       = 2  // Medium verbosity
 cfg_debug_mask        = 0xFF  // All events
@@ -110,7 +110,7 @@ cfg_debug_mask        = 0xFF  // All events
 
 **Expected Packet Rate:** Very high
 
-**⚠️ Warning:** Only use for short test sequences! The monitor bus WILL overflow.
+**Warning:** Only use for short test sequences! The monitor bus WILL overflow.
 
 ---
 
@@ -286,7 +286,7 @@ cfg_perf_enable = 0;
 
 ## Common Mistakes
 
-### ❌ Mistake 1: Enable Everything
+### Mistake 1: Enable Everything
 
 ```systemverilog
 // DON'T DO THIS!
@@ -302,7 +302,7 @@ cfg_debug_enable = 1;
 
 ---
 
-### ❌ Mistake 2: Ignore Packet Priority
+### Mistake 2: Ignore Packet Priority
 
 ```systemverilog
 // Expecting timely perf rollups with completions enabled
@@ -317,7 +317,7 @@ volume presses against the 1-packet-per-2-cycles ceiling.
 
 ---
 
-### ❌ Mistake 3: Undersizing MAX_TRANSACTIONS on a Shared Master
+### Mistake 3: Undersizing MAX_TRANSACTIONS on a Shared Master
 
 ```systemverilog
 // Monitor on a bus shared by 8 channels, sized to ONE channel's limit
@@ -337,9 +337,9 @@ saturation-recovery guarantee, and tables deeper than 64 need Verilator's
 
 | Configuration | Error | Compl | Timeout | Thresh | Perf | Use Case |
 |--------------|-------|-------|---------|--------|------|----------|
-| **Functional** | ✅ | ✅ | ✅ | ✅ | ❌ | Verification, debug |
-| **Performance** | ✅ | ❌ | ❌ | ✅ | ✅ | Optimization |
-| **Production** | ✅ | ❌ | ✅ | ⚠️ | ❌ | Chip operation |
+| **Functional** | yes | yes | yes | yes | no | Verification, debug |
+| **Performance** | yes | no | no | yes | yes | Optimization |
+| **Production** | yes | no | yes | warn | no | Chip operation |
 
 **Key Takeaway:** Avoid enabling completions and performance
 simultaneously under heavy traffic — the bus sustains at most one packet

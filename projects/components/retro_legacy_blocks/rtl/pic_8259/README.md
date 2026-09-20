@@ -223,18 +223,18 @@ Layer 3: pic_8259_core.sv
 ## Files
 
 ### RTL Implementation
-- ✅ `apb4_pic_8259.sv` - Top-level APB wrapper (parameter `SYNC_STAGES`, default 2)
-- ✅ `pic_8259_core.sv` - Core PIC interrupt controller logic
-- ✅ `pic_8259_config_regs.sv` - Register wrapper with edge detection
-- ✅ `pic_8259_regs.sv` - PeakRDL generated register file
-- ✅ `pic_8259_regs_pkg.sv` - PeakRDL generated package
+- `apb4_pic_8259.sv` - Top-level APB wrapper (parameter `SYNC_STAGES`, default 2)
+- `pic_8259_core.sv` - Core PIC interrupt controller logic
+- `pic_8259_config_regs.sv` - Register wrapper with edge detection
+- `pic_8259_regs.sv` - PeakRDL generated register file
+- `pic_8259_regs_pkg.sv` - PeakRDL generated package
 
 ### Register Specification
-- ✅ `../../rdl/pic_8259/pic_8259_regs.rdl` - SystemRDL specification
+- `../../rdl/pic_8259/pic_8259_regs.rdl` - SystemRDL specification
 
 ### Python Support
-- ✅ `pic_8259_regmap.py` - Auto-generated register map
-- ✅ `pic_8259_helper.py` - Human-readable programming helper
+- `pic_8259_regmap.py` - Auto-generated register map
+- `pic_8259_helper.py` - Human-readable programming helper
 
 ## Register Map
 

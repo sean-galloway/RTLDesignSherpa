@@ -69,7 +69,7 @@ When the factory searches for `desc_*valid`, it finds BOTH internal and external
 
 ## Workarounds
 
-### Option 1: Use Credit Encoding Test (✅ Recommended)
+### Option 1: Use Credit Encoding Test (Recommended)
 
 The credit encoding validation test worked correctly and validated the critical scheduler
 functionality (historical - this test was retired with the pre-beats RTL; the current
@@ -82,11 +82,11 @@ timeout 180 python -m pytest \
 ```
 
 **Test Coverage:**
-- ✅ Credit counter exponential encoding (0→1, 1→2, 2→4, ..., 14→16384, 15→0)
-- ✅ Scheduler state machine initialization
-- ✅ Configuration signal handling
+- Credit counter exponential encoding (0→1, 1→2, 2→4, ..., 14→16384, 15→0)
+- Scheduler state machine initialization
+- Configuration signal handling
 
-### Option 2: Explicit Signal Mapping (⚠️ Complex)
+### Option 2: Explicit Signal Mapping (Complex)
 
 Use explicit `signal_map` parameter to bypass pattern matching:
 
@@ -113,7 +113,7 @@ desc_axi_slave = create_axi4_slave_rd(
 
 **Status:** Partially working - requires complete signal map for all AXI channels
 
-### Option 3: Manual AXI Responders (✅ Simple Tests)
+### Option 3: Manual AXI Responders (Simple Tests)
 
 For simple validation, create lightweight manual responders:
 
@@ -134,7 +134,7 @@ async def desc_axi_responder(self):
 
 ## Long-Term Solutions
 
-### Solution 1: Rename Internal Signals (⚠️ RTL Change)
+### Solution 1: Rename Internal Signals (RTL Change)
 
 Rename internal signals to avoid conflicts:
 - `desc_valid` → `desc_to_sched_valid`
@@ -166,18 +166,18 @@ Test `scheduler_group` as part of larger integration (e.g., within `scheduler_gr
 
 ## Current Status
 
-- ✅ **Credit encoding test PASSES** - validates core scheduler functionality
-- ⚠️ **Comprehensive test FAILS** - due to AXI factory signal conflicts
-- 📝 **Workaround:** Use credit encoding test for scheduler_group validation
+- **Credit encoding test PASSES** - validates core scheduler functionality
+- **Comprehensive test FAILS** - due to AXI factory signal conflicts
+- **Workaround:** Use credit encoding test for scheduler_group validation
 
 ### Test Results
 
 ```
-✅ PASS: test_credit_counter_exponential_encoding
+PASS: test_credit_counter_exponential_encoding
    - Validates: Credit initialization with exponential encoding
    - Status: 100% success rate
 
-❌ FAIL: test_basic_scheduler_group_operation_comprehensive
+FAIL: test_basic_scheduler_group_operation_comprehensive
    - Issue: AXI factory signal conflicts
    - Workaround: Use credit encoding test or manual responders
 ```

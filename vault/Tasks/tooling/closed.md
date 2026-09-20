@@ -4,7 +4,7 @@
 
 ## TOOL-008: Redo the Makefiles from scratch
 **Priority:** P1
-**Status:** ✅ Closed 2026-09-20 — Sean signed off. R1-R4 all hold, validated
+**Status:** Closed 2026-09-20 — Sean signed off. R1-R4 all hold, validated
 by real regressions, not by structure.
 
 **Closed with two items carried forward, deliberately not buried:**
@@ -175,7 +175,7 @@ in the first place.
 
 ## TOOL-009: Python version mismatch breaks EVERY Verilator build on this box
 **Priority:** P0 — blocks all simulation, and blocks TOOL-008 validation
-**Status:** ✅ Closed 2026-07-23 — fixed and verified green (see Resolution)
+**Status:** Closed 2026-07-23 — fixed and verified green (see Resolution)
 **Owner:** Sean (decide the fix) / Claude (apply)
 
 **Symptom:** every test fails at link time with

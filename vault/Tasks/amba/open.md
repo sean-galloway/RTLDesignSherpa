@@ -232,7 +232,7 @@ since that is the case that made this visible.
 
 ## TASK-014: Performance Characterization
 **Priority:** P2
-**Status:** 🔴 Not Started
+**Status:** Not Started
 **Owner:** TBD
 
 **Description:**
@@ -254,7 +254,7 @@ Characterize resource utilization and performance impact of monitors.
 
 ## TASK-022: Make APB Crossbar Variants Functional
 **Priority:** P2
-**Status:** 🔴 Not Started
+**Status:** Not Started
 **Owner:** TBD
 **Effort:** Medium (2-3 days)
 **Dependencies:** None
@@ -300,7 +300,7 @@ rather than doing.**
 
 ## TASK-024: Write Monitor System Whitepaper
 **Priority:** P3
-**Status:** 🔴 Not Started (stub created 2026-05-29)
+**Status:** Not Started (stub created 2026-05-29)
 **Owner:** Sean (author) / Claude (assist)
 **Deliverable:** `docs/markdown/rtl-amba/monitor_system_whitepaper.md`
 > Note (2026-07-22): the 2026-05-29 stub is not present in the current tree; recreate it when this task starts.

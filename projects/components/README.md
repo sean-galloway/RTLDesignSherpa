@@ -46,17 +46,17 @@ The `projects/components/` directory contains demonstration components showcasin
 
 | Component | Type | Status | Purpose | Complexity |
 |-----------|------|--------|---------|------------|
-| **[apbx_xbar](#apbx_xbar)** | Generator | ✅ Complete | APB crossbar interconnect | Medium |
-| **[bch](#bch)** | Error Correction | 📋 Planned | BCH encoder/decoder for storage | High |
-| **[bridge](#bridge)** | Generator | 🟢 95% Complete | AXI4 full crossbar generator | High |
-| **[converters](#converters)** | Converters | ✅ Complete | AXI4 data width converters | Medium |
-| **[delta](#delta)** | Generator | 🔧 In Progress | AXI-Stream crossbar generator | Medium |
-| **[hive](#hive)** | Control Plane | 🟡 Early Spec | Distributed control subsystem | Very High |
-| **[misc](#misc)** | Utilities | ✅ Active | Reusable utility components (ROM/RAM wrappers) | Low-Medium |
-| **[rapids](#rapids)** (`dmas/rapids/`) | Accelerator | 🔧 In Progress | DMA with network integration | Very High |
-| **[retro_legacy_blocks](#retro_legacy_blocks)** | Peripherals | 🟢 Active Dev | Intel ILB-compatible legacy peripherals | Medium |
-| **[shims](#shims)** | Adapter | ✅ Merged into converters/ | Protocol conversion adapters | Low-Medium |
-| **[stream](#stream)** (`dmas/stream/`) | DMA Engine | ✅ Complete | Tutorial-focused scatter-gather DMA | Medium-High |
+| **[apbx_xbar](#apbx_xbar)** | Generator | Complete | APB crossbar interconnect | Medium |
+| **[bch](#bch)** | Error Correction | Planned | BCH encoder/decoder for storage | High |
+| **[bridge](#bridge)** | Generator | 95% Complete | AXI4 full crossbar generator | High |
+| **[converters](#converters)** | Converters | Complete | AXI4 data width converters | Medium |
+| **[delta](#delta)** | Generator | In Progress | AXI-Stream crossbar generator | Medium |
+| **[hive](#hive)** | Control Plane | Early Spec | Distributed control subsystem | Very High |
+| **[misc](#misc)** | Utilities | Active | Reusable utility components (ROM/RAM wrappers) | Low-Medium |
+| **[rapids](#rapids)** (`dmas/rapids/`) | Accelerator | In Progress | DMA with network integration | Very High |
+| **[retro_legacy_blocks](#retro_legacy_blocks)** | Peripherals | Active Dev | Intel ILB-compatible legacy peripherals | Medium |
+| **[shims](#shims)** | Adapter | Merged into converters/ | Protocol conversion adapters | Low-Medium |
+| **[stream](#stream)** (`dmas/stream/`) | DMA Engine | Complete | Tutorial-focused scatter-gather DMA | Medium-High |
 
 ---
 
@@ -66,7 +66,7 @@ The `projects/components/` directory contains demonstration components showcasin
 
 **APB Crossbar Generator**
 
-**Status:** ✅ Complete (all configurations passing)
+**Status:** Complete (all configurations passing)
 
 **Description:**
 Python-based code generator producing parameterized APB crossbar RTL for connecting multiple APB masters to multiple slaves. Pre-generated variants available for common configurations (1×1, 2×1, 1×4, 2×4).
@@ -109,7 +109,7 @@ cd apbx_xbar/bin/
 python generate_xbars.py --masters 3 --slaves 6   # writes apbx_xbar_3to6.sv next to the script
 ```
 
-**📖 See:** [`apbx_xbar/PRD.md`](apbx_xbar/PRD.md) for complete specification
+**See:** [`apbx_xbar/PRD.md`](apbx_xbar/PRD.md) for complete specification
 
 ---
 
@@ -117,7 +117,7 @@ python generate_xbars.py --masters 3 --slaves 6   # writes apbx_xbar_3to6.sv nex
 
 **AXI4 Full Crossbar Generator**
 
-**Status:** 🟢 95% Complete - Final Integration Pending
+**Status:** 95% Complete - Final Integration Pending
 
 **Description:**
 Python-based code generator producing parameterized AXI4 full crossbar RTL for connecting multiple masters to multiple slaves. Supports out-of-order transactions, burst optimization, and ID-based routing.
@@ -145,7 +145,7 @@ Python-based code generator producing parameterized AXI4 full crossbar RTL for c
 - Performance Models: `models/`
 - Documentation: `PRD.md`, `docs/bridge_has/`, `docs/bridge_mas/` (built PDFs: `Bridge_HAS_v1.7.pdf`, `Bridge_MAS_v1.7.pdf`)
 
-**📖 See:** [`bridge/PRD.md`](bridge/PRD.md) for complete specification
+**See:** [`bridge/PRD.md`](bridge/PRD.md) for complete specification
 
 ---
 
@@ -153,7 +153,7 @@ Python-based code generator producing parameterized AXI4 full crossbar RTL for c
 
 **AXI4 Data Width Converters**
 
-**Status:** ✅ Complete (all tests passing)
+**Status:** Complete (all tests passing)
 
 **Description:**
 AXI4 data width up/down conversion modules for interfacing components with different data bus widths. Supports read and write path conversion with proper handling of strobes, bursts, and alignment.
@@ -183,7 +183,7 @@ AXI4 data width up/down conversion modules for interfacing components with diffe
 - Tests: `dv/tests/test_axi4_dwidth_converter_rd.py`, `test_axi4_dwidth_converter_wr.py`
 - Documentation: Design comments in RTL
 
-**📖 See:** Component tests for usage examples
+**See:** Component tests for usage examples
 
 ---
 
@@ -191,7 +191,7 @@ AXI4 data width up/down conversion modules for interfacing components with diffe
 
 **AXI-Stream Crossbar Generator**
 
-**Status:** 🔧 In Progress
+**Status:** In Progress
 
 **Description:**
 Python-based AXI-Stream crossbar generator supporting both flat (low-latency) and tree (modular) topologies. Demonstrates code generation techniques and topology trade-off analysis.
@@ -227,7 +227,7 @@ Python-based AXI-Stream crossbar generator supporting both flat (low-latency) an
 - Performance Model: `bin/delta_performance_model.py`
 - Documentation: `PRD.md`, `docs/delta_spec/` (built PDF: `Delta_Specification_v1.0.pdf`)
 
-**📖 See:** [`delta/PRD.md`](delta/PRD.md) for complete specification
+**See:** [`delta/PRD.md`](delta/PRD.md) for complete specification
 
 ---
 
@@ -235,7 +235,7 @@ Python-based AXI-Stream crossbar generator supporting both flat (low-latency) an
 
 **Rapid AXI Programmable In-band Descriptor System**
 
-**Status:** 🔧 In Progress - Validation Phase
+**Status:** In Progress - Validation Phase
 
 **Description:**
 Complex hardware accelerator demonstrating descriptor-based DMA operations with network interface integration. Features sophisticated FSM coordination, credit-based flow control with exponential encoding, and comprehensive monitoring.
@@ -261,7 +261,7 @@ Complex hardware accelerator demonstrating descriptor-based DMA operations with 
 - Tests: `dv/tests/fub_beats/`, `dv/tests/macro_beats/`, `dv/tests/top_beats/`
 - Documentation: `PRD.md`, `CLAUDE.md`, `docs/rapids_beats_has/`, `docs/rapids_beats_mas/` (built PDFs: `RAPIDS_Beats_HAS_v0.8.pdf`, `RAPIDS_Beats_MAS_v0.7.pdf`)
 
-**📖 See:**
+**See:**
 - [`dmas/rapids/PRD.md`](dmas/rapids/PRD.md) - Requirements overview
 - [`dmas/rapids/docs/rapids_beats_has/`](dmas/rapids/docs/rapids_beats_has/) and [`dmas/rapids/docs/rapids_beats_mas/`](dmas/rapids/docs/rapids_beats_mas/) - Complete specification (the old `docs/rapids_spec/` tree was replaced by these HAS/MAS trees)
 
@@ -271,7 +271,7 @@ Complex hardware accelerator demonstrating descriptor-based DMA operations with 
 
 **Protocol Conversion and Glue Logic Adapters**
 
-**Status:** ✅ Complete - absorbed into `converters/` (there is no separate `shims/` directory anymore)
+**Status:** Complete - absorbed into `converters/` (there is no separate `shims/` directory anymore)
 
 **Description:**
 Collection of protocol conversion adapters and glue logic modules for interfacing between different register file standards and custom protocols.
@@ -302,7 +302,7 @@ Collection of protocol conversion adapters and glue logic modules for interfacin
 - Tests: `converters/dv/tests/test_peakrdl_to_cmdrsp.py`
 - Documentation: Inline RTL comments
 
-**📖 See:** Component tests for usage examples
+**See:** Component tests for usage examples
 
 ---
 
@@ -310,7 +310,7 @@ Collection of protocol conversion adapters and glue logic modules for interfacin
 
 **STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory**
 
-**Status:** ✅ Complete - all core blocks + APB config + top-level wrapper passing (on-board FPGA characterization pending)
+**Status:** Complete - all core blocks + APB config + top-level wrapper passing (on-board FPGA characterization pending)
 
 **Description:**
 Simplified DMA engine designed as a beginner-friendly tutorial demonstrating descriptor-based scatter-gather patterns. Intentionally simplified from RAPIDS for educational purposes.
@@ -327,11 +327,11 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 - On-board FPGA characterization suite (NexysA7) with by-name register access and per-mode throughput reporting
 
 **Simplifications from RAPIDS:**
-- ✅ Aligned addresses only (no fixup logic)
-- ✅ Length in beats (simplified math)
-- ✅ No circular buffers (explicit termination)
-- ✅ No credit management (simple limits)
-- ✅ Pure memory-to-memory (no network interfaces)
+- Aligned addresses only (no fixup logic)
+- Length in beats (simplified math)
+- No circular buffers (explicit termination)
+- No credit management (simple limits)
+- Pure memory-to-memory (no network interfaces)
 
 **Architecture:**
 - **APB Config:** 8-channel register interface
@@ -351,7 +351,7 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 - Documentation: `PRD.md`, `CLAUDE.md`, `docs/stream_has/`, `docs/stream_mas/` (built PDFs: `STREAM_HAS_v0.95.pdf`, `STREAM_MAS_v0.96.pdf`)
 - Performance Model: `bin/dma_model/` (comprehensive analytical + SimPy models)
 
-**📖 See:** [`dmas/stream/PRD.md`](dmas/stream/PRD.md) for complete specification
+**See:** [`dmas/stream/PRD.md`](dmas/stream/PRD.md) for complete specification
 
 ---
 
@@ -359,7 +359,7 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 
 **Retro Legacy Blocks - Intel ILB-Compatible Peripherals**
 
-**Status:** 🟢 Active Development (2/13 blocks complete)
+**Status:** Active Development (2/13 blocks complete)
 
 **Description:**
 Collection of Intel Low-power Block (ILB) compatible legacy peripherals. Production-quality implementations of time-tested peripheral designs packaged as a unified subsystem with single APB entry point. Goal is drop-in replacement for legacy Intel ILB with modern RTL practices.
@@ -371,8 +371,8 @@ Unified RLB Wrapper provides single APB slave interface at `0x4000_0000` with 4K
 
 | Block | Status | Address Range | Description |
 |-------|--------|---------------|-------------|
-| **HPET** | ✅ Production | 0x4000_0000-0x0FFF | High Precision Event Timer with 64-bit counter |
-| **8254 PIT** | ✅ Complete | 0x4000_2000-0x2FFF | Programmable Interval Timer (3× 16-bit counters) |
+| **HPET** | Production | 0x4000_0000-0x0FFF | High Precision Event Timer with 64-bit counter |
+| **8254 PIT** | Complete | 0x4000_2000-0x2FFF | Programmable Interval Timer (3× 16-bit counters) |
 
 **HPET Features:**
 - Configurable timer count: 2, 3, or 8 independent timers
@@ -421,7 +421,7 @@ Single APB slave at `0x4000_0000` with internal 4KB window decode routing to all
 - Documentation: `PRD.md`, `CLAUDE.md`, per-block MAS trees in `docs/` (`hpet_mas/`, `pit_8254_mas/`, ... with built PDFs such as `HPET_MAS_v1.0.pdf`)
 - Status Tracking: `BLOCK_STATUS.md` - Master tracking for all 13 blocks
 
-**📖 See:**
+**See:**
 - [`retro_legacy_blocks/PRD.md`](retro_legacy_blocks/PRD.md) - Complete requirements for all blocks
 - [`retro_legacy_blocks/BLOCK_STATUS.md`](retro_legacy_blocks/BLOCK_STATUS.md) - Development status tracking
 - [`retro_legacy_blocks/docs/hpet_mas/`](retro_legacy_blocks/docs/hpet_mas/) - HPET complete specification (the old `docs/hpet_spec/` tree)
@@ -432,7 +432,7 @@ Single APB slave at `0x4000_0000` with internal 4KB window decode routing to all
 
 **BCH Error Correction Codes**
 
-**Status:** 📋 Placeholder - Structure Created
+**Status:** Placeholder - Structure Created
 
 **Description:**
 Configurable BCH (Bose-Chaudhuri-Hocquenghem) encoder and decoder for error correction in storage and communication systems. Production-quality implementation suitable for NAND flash, SSDs, optical storage, and wireless communications.
@@ -455,7 +455,7 @@ Configurable BCH (Bose-Chaudhuri-Hocquenghem) encoder and decoder for error corr
 - Documentation: `README.md`, `PRD.md`, `CLAUDE.md`, `TASKS.md`
 - Future: `rtl/`, `dv/tests/`, `docs/bch_spec/`
 
-**📖 See:** [`bch/PRD.md`](bch/PRD.md) for complete requirements (when ready)
+**See:** [`bch/PRD.md`](bch/PRD.md) for complete requirements (when ready)
 
 ---
 
@@ -463,7 +463,7 @@ Configurable BCH (Bose-Chaudhuri-Hocquenghem) encoder and decoder for error corr
 
 **HIVE - Hierarchical Intelligent Vector Environment**
 
-**Status:** 🟡 Early Specification Phase
+**Status:** Early Specification Phase
 
 **Description:**
 Distributed control and monitoring subsystem for RAPIDS/Delta Network. Demonstrates hierarchical RISC-V processor architecture with 1 master controller (HIVE-C) and 16 lightweight monitors (SERV cores). Enables dynamic network reconfiguration and distributed monitoring.
@@ -493,7 +493,7 @@ Distributed control and monitoring subsystem for RAPIDS/Delta Network. Demonstra
 - Documentation: `PRD.md`, `CLAUDE.md`, `docs/hive_spec/`
 - Future: `rtl/`, `dv/tests/`
 
-**📖 See:** [`hive/PRD.md`](hive/PRD.md) for complete specification
+**See:** [`hive/PRD.md`](hive/PRD.md) for complete specification
 
 ---
 
@@ -501,7 +501,7 @@ Distributed control and monitoring subsystem for RAPIDS/Delta Network. Demonstra
 
 **Miscellaneous Utility Components**
 
-**Status:** ✅ Active - Collection of reusable building blocks
+**Status:** Active - Collection of reusable building blocks
 
 **Description:**
 Collection of utility components and adapters that solve common integration problems. These are production-quality, single-purpose modules with standard interfaces (AXI4, APB) that don't fit into larger subsystems but are useful across multiple projects.
@@ -516,12 +516,12 @@ Collection of utility components and adapters that solve common integration prob
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| `axi_rom_wrapper` | 📋 Planned | AXI4 read-only memory (boot ROM, LUTs, config data) |
-| `axi_ram_wrapper` | 📋 Future | AXI4 read/write memory |
-| `apb_rom_wrapper` | 📋 Future | APB read-only memory |
-| `apb_ram_wrapper` | 📋 Future | APB read/write memory |
-| `axi_pattern_gen` | 📋 Future | AXI4 test pattern generator |
-| `async_fifo_wrapper` | 📋 Future | Clock domain crossing FIFO |
+| `axi_rom_wrapper` | Planned | AXI4 read-only memory (boot ROM, LUTs, config data) |
+| `axi_ram_wrapper` | Future | AXI4 read/write memory |
+| `apb_rom_wrapper` | Future | APB read-only memory |
+| `apb_ram_wrapper` | Future | APB read/write memory |
+| `axi_pattern_gen` | Future | AXI4 test pattern generator |
+| `async_fifo_wrapper` | Future | Clock domain crossing FIFO |
 
 **AXI ROM Wrapper (First Component):**
 - AXI4 read-only slave interface
@@ -544,7 +544,7 @@ Collection of utility components and adapters that solve common integration prob
 - Tests: `dv/tests/fub/` (`test_dma_address_gen.py`, `test_axi4_slave_rd_pattern_gen.py`, `test_axi4_slave_wr_crc_check.py`)
 - Documentation: `README.md`, `CLAUDE.md`
 
-**📖 See:** [`misc/README.md`](misc/README.md) for complete overview and component guidelines
+**See:** [`misc/README.md`](misc/README.md) for complete overview and component guidelines
 
 ---
 
@@ -554,17 +554,17 @@ Collection of utility components and adapters that solve common integration prob
 
 | Component | APB | AXI4 | AXI4-Lite | AXI-Stream | Network | MonBus | Other |
 |-----------|-----|------|-----------|------------|---------|--------|-------|
-| **apbx_xbar** | ✅ Crossbar | - | - | - | - | - | - |
-| **bch** | - | - | - | ✅ M/S | - | - | ✅ Simple HS |
-| **bridge** | - | ✅ Crossbar | - | - | - | - | - |
-| **converters** | - | ✅ Converter | - | - | - | - | - |
-| **delta** | - | - | - | ✅ Crossbar | - | - | - |
-| **hive** | - | - | - | - | ✅ Control | ✅ Master | ✅ RISC-V |
-| **misc** | ✅ Slave | ✅ Slave | - | - | - | - | - |
-| **rapids** | - | ✅ Master | ✅ Slave | - | ✅ M/S | ✅ Master | - |
-| **retro_legacy_blocks** | ✅ Slave | - | - | - | - | - | ✅ Interrupts |
-| **shims** | ✅ Adapter | - | - | - | - | - | ✅ CmdRsp |
-| **stream** | ✅ Slave | ✅ Master | - | - | - | ✅ Master | - |
+| **apbx_xbar** | Crossbar | - | - | - | - | - | - |
+| **bch** | - | - | - | M/S | - | - | Simple HS |
+| **bridge** | - | Crossbar | - | - | - | - | - |
+| **converters** | - | Converter | - | - | - | - | - |
+| **delta** | - | - | - | Crossbar | - | - | - |
+| **hive** | - | - | - | - | Control | Master | RISC-V |
+| **misc** | Slave | Slave | - | - | - | - | - |
+| **rapids** | - | Master | Slave | - | M/S | Master | - |
+| **retro_legacy_blocks** | Slave | - | - | - | - | - | Interrupts |
+| **shims** | Adapter | - | - | - | - | - | CmdRsp |
+| **stream** | Slave | Master | - | - | - | Master | - |
 
 ### Complexity and Scope
 
@@ -681,18 +681,18 @@ projects/components/
 │
 ├── retro_legacy_blocks/         # Intel ILB-Compatible Peripherals
 │   ├── rtl/
-│   │   ├── hpet/                # ✅ High Precision Event Timer (Complete)
-│   │   ├── pit_8254/            # ✅ Programmable Interval Timer (Complete)
-│   │   ├── pic_8259/            # 📋 Programmable Interrupt Controller (Planned)
-│   │   ├── rtc/                 # 📋 Real-Time Clock (Planned)
-│   │   ├── smbus/               # 📋 SMBus Controller (Planned)
-│   │   ├── pm_acpi/             # 📋 Power Management (Planned)
-│   │   └── ioapic/              # 📋 I/O APIC (Planned)
+│   │   ├── hpet/                # High Precision Event Timer (Complete)
+│   │   ├── pit_8254/            # Programmable Interval Timer (Complete)
+│   │   ├── pic_8259/            # Programmable Interrupt Controller (Planned)
+│   │   ├── rtc/                 # Real-Time Clock (Planned)
+│   │   ├── smbus/               # SMBus Controller (Planned)
+│   │   ├── pm_acpi/             # Power Management (Planned)
+│   │   └── ioapic/              # I/O APIC (Planned)
 │   ├── dv/
 │   │   ├── tbclasses/           # Block-specific testbench classes
 │   │   └── tests/               # Flat per-block test files (test_apb4_hpet.py, ...)
 │   ├── docs/
-│   │   ├── hpet_mas/            # ✅ HPET complete specification (+ HPET_MAS_v1.0.pdf)
+│   │   ├── hpet_mas/            # HPET complete specification (+ HPET_MAS_v1.0.pdf)
 │   │   └── {block}_mas/         # Per-block MAS trees (pit_8254_mas, pic_8259_mas, ...)
 │   ├── BLOCK_STATUS.md          # Master status tracking (13 blocks)
 │   ├── PRD.md, CLAUDE.md        # Documentation
@@ -808,37 +808,37 @@ python3 comprehensive_analysis.py --plots
 ### When to Use Each Component
 
 **Retro Legacy Blocks:**
-- ✅ Need Intel ILB-compatible peripherals
-- ✅ Legacy platform compatibility (PC architecture)
-- ✅ FPGA-based system emulation
-- ✅ Educational peripheral design examples
-- ✅ Production-ready timers (HPET, 8254 PIT)
+- Need Intel ILB-compatible peripherals
+- Legacy platform compatibility (PC architecture)
+- FPGA-based system emulation
+- Educational peripheral design examples
+- Production-ready timers (HPET, 8254 PIT)
 
 **Bridge (AXI4 Crossbar):**
-- ✅ Building multi-core processor interconnects
-- ✅ Need memory-mapped crossbar with out-of-order support
-- ✅ Learning AXI4 protocol and ID-based routing
-- ✅ Require burst optimization for cache line fills
+- Building multi-core processor interconnects
+- Need memory-mapped crossbar with out-of-order support
+- Learning AXI4 protocol and ID-based routing
+- Require burst optimization for cache line fills
 
 **Delta (AXI-Stream Crossbar):**
-- ✅ Routing streaming data between processors
-- ✅ Need low-latency crossbar for compute fabric
-- ✅ Comparing topology trade-offs (flat vs tree)
-- ✅ Learning code generation techniques
+- Routing streaming data between processors
+- Need low-latency crossbar for compute fabric
+- Comparing topology trade-offs (flat vs tree)
+- Learning code generation techniques
 
 **RAPIDS:**
-- ✅ Complex DMA with network interface integration
-- ✅ Descriptor-based data movement
-- ✅ Credit-based flow control needed
-- ✅ Advanced FSM coordination examples
-- ✅ Educational reference for complex accelerators
+- Complex DMA with network interface integration
+- Descriptor-based data movement
+- Credit-based flow control needed
+- Advanced FSM coordination examples
+- Educational reference for complex accelerators
 
 **STREAM:**
-- ✅ Learning descriptor-based DMA design
-- ✅ Tutorial-focused scatter-gather engine
-- ✅ Memory-to-memory transfers (no network)
-- ✅ Simplified design for teaching
-- ✅ Foundation before tackling RAPIDS complexity
+- Learning descriptor-based DMA design
+- Tutorial-focused scatter-gather engine
+- Memory-to-memory transfers (no network)
+- Simplified design for teaching
+- Foundation before tackling RAPIDS complexity
 
 ---
 
@@ -1031,9 +1031,9 @@ make help                        # Show all available targets
 
 ### Status Legend
 
-- ✅ **Complete** - Fully tested, ready for use
-- 🔧 **In Progress** - Active development or validation
-- 🔴 **Planned** - Future component
+- **Complete** - Fully tested, ready for use
+- **In Progress** - Active development or validation
+- **Planned** - Future component
 
 ---
 

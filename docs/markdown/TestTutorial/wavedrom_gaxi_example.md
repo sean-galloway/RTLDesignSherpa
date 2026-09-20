@@ -207,10 +207,10 @@ wave_solver.clear_windows()
 _Zero-Latency Bypass — waveform not committed; regenerate with `WAVES=1 pytest val/amba/test_gaxi_skid_buffer.py`, which writes `test_gaxi_skid_buffer_w32_d4_default_wd_zero_latency_bypass_001.png`._
 
 **Key Observations:**
-- ✅ **`rd_valid` asserts immediately** when wr_valid goes high (bypass path)
-- ✅ **Data arrow** shows wr_data → rd_data relationship
-- ✅ **Count changes** with wr_xfer/rd_xfer arrows showing causality
-- ✅ **Labeled groups** separate Write, Read, and Internal signals
+- **`rd_valid` asserts immediately** when wr_valid goes high (bypass path)
+- **Data arrow** shows wr_data → rd_data relationship
+- **Count changes** with wr_xfer/rd_xfer arrows showing causality
+- **Labeled groups** separate Write, Read, and Internal signals
 
 ---
 
@@ -240,9 +240,9 @@ wave_solver.clear_windows()
 _Burst Write Full — waveform not committed; regenerate with `WAVES=1 pytest val/amba/test_gaxi_skid_buffer.py`, which writes `test_gaxi_skid_buffer_w32_d4_default_wd_burst_write_full_001.png`._
 
 **Key Observations:**
-- ✅ **wr_ready deasserts** when FIFO is full (backpressure)
-- ✅ **count increments** with each write
-- ✅ **Single arrow** (wr_xfer → count) shows fill behavior
+- **wr_ready deasserts** when FIFO is full (backpressure)
+- **count increments** with each write
+- **Single arrow** (wr_xfer → count) shows fill behavior
 
 ---
 
@@ -275,9 +275,9 @@ wave_solver.clear_windows()
 _Simultaneous Read/Write — waveform not committed; regenerate with `WAVES=1 pytest val/amba/test_gaxi_skid_buffer.py`, which writes `test_gaxi_skid_buffer_w32_d4_default_wd_simultaneous_rdwr_001.png`._
 
 **Key Observations:**
-- ✅ **count stays constant** (same rate in/out)
-- ✅ **Data flows through** with minimal latency
-- ✅ **Three arrows** show wr→count, rd→count, and data flow
+- **count stays constant** (same rate in/out)
+- **Data flows through** with minimal latency
+- **Three arrows** show wr→count, rd→count, and data flow
 
 ---
 
@@ -306,9 +306,9 @@ wave_solver.clear_windows()
 _Burst Read Empty — waveform not committed; regenerate with `WAVES=1 pytest val/amba/test_gaxi_skid_buffer.py`, which writes `test_gaxi_skid_buffer_w32_d4_default_wd_burst_read_empty_001.png`._
 
 **Key Observations:**
-- ✅ **rd_valid deasserts** when FIFO is empty
-- ✅ **count decrements** with each read
-- ✅ **Drain arrow** (rd_xfer → count) shows empty behavior
+- **rd_valid deasserts** when FIFO is empty
+- **count decrements** with each read
+- **Drain arrow** (rd_xfer → count) shows empty behavior
 
 ---
 
@@ -345,9 +345,9 @@ wave_solver.clear_windows()
 _Fill Then Drain — waveform not committed; regenerate with `WAVES=1 pytest val/amba/test_gaxi_skid_buffer.py`, which writes `test_gaxi_skid_buffer_w32_d4_default_wd_fill_then_drain_001.png`._
 
 **Key Observations:**
-- ✅ **Two distinct phases** visible in waveform
-- ✅ **count rises to max** (fill), then **falls to zero** (drain)
-- ✅ **Buffered arrow** (wr_data → rd_data) shows data stored then retrieved
+- **Two distinct phases** visible in waveform
+- **count rises to max** (fill), then **falls to zero** (drain)
+- **Buffered arrow** (wr_data → rd_data) shows data stored then retrieved
 
 ---
 
@@ -383,9 +383,9 @@ wave_solver.clear_windows()
 _Alternating Read/Write — waveform not committed; regenerate with `WAVES=1 pytest val/amba/test_gaxi_skid_buffer.py`, which writes `test_gaxi_skid_buffer_w32_d4_default_wd_alternating_rdwr_001.png`._
 
 **Key Observations:**
-- ✅ **Regular pattern** of alternating write/read
-- ✅ **count oscillates** between levels
-- ✅ **Flow arrow** (curved ~>) shows continuous data movement
+- **Regular pattern** of alternating write/read
+- **count oscillates** between levels
+- **Flow arrow** (curved ~>) shows continuous data movement
 
 ---
 
@@ -405,9 +405,9 @@ wave_solver.clear_windows()              # Clear for next scenario
 ```
 
 **Benefits:**
-- ✅ No cross-contamination between scenarios
-- ✅ Deterministic pattern matching
-- ✅ Faster CP-SAT solving (smaller windows)
+- No cross-contamination between scenarios
+- Deterministic pattern matching
+- Faster CP-SAT solving (smaller windows)
 
 ### Labeled Groups
 
@@ -540,12 +540,12 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
 
 This tutorial demonstrated:
 
-✅ **Segmented capture** for isolated scenarios
-✅ **Auto-binding** for automatic signal discovery
-✅ **Labeled groups** for organized waveforms
-✅ **Arrow annotations** for showing relationships
-✅ **Field formatting** for readable data values
-✅ **6 comprehensive scenarios** covering skid buffer/FIFO behavior
+**Segmented capture** for isolated scenarios
+**Auto-binding** for automatic signal discovery
+**Labeled groups** for organized waveforms
+**Arrow annotations** for showing relationships
+**Field formatting** for readable data values
+**6 comprehensive scenarios** covering skid buffer/FIFO behavior
 
 **Next Steps:**
 - Adapt this pattern for your protocol

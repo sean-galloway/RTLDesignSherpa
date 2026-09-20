@@ -162,7 +162,7 @@ Counter data lanes follow the control word's RW field:
 
 | Mode | Name                          | Status       |
 |------|-------------------------------|--------------|
-| 0    | Interrupt on terminal count   | ✅ Complete  |
+| 0    | Interrupt on terminal count   | Complete  |
 | 1    | Hardware retriggerable one-shot | ⏳ TODO     |
 | 2    | Rate generator                | ⏳ TODO      |
 | 3    | Square wave generator         | ⏳ TODO      |
@@ -208,13 +208,13 @@ apb4_pit_8254 #(
 
 ## Files
 
-- ✅ `apb4_pit_8254.sv` - Top-level APB wrapper
-- ✅ `pit_config_regs.sv` - Register wrapper with edge detection
-- ✅ `pit_core.sv` - 3-counter array
-- ✅ `pit_counter.sv` - Single counter (mode 0)
-- ✅ `pit_regs.sv` - PeakRDL generated registers
-- ✅ `pit_regs_pkg.sv` - PeakRDL generated package
-- ✅ `../../rdl/pit_8254/pit_regs.rdl` - SystemRDL specification
+- `apb4_pit_8254.sv` - Top-level APB wrapper
+- `pit_config_regs.sv` - Register wrapper with edge detection
+- `pit_core.sv` - 3-counter array
+- `pit_counter.sv` - Single counter (mode 0)
+- `pit_regs.sv` - PeakRDL generated registers
+- `pit_regs_pkg.sv` - PeakRDL generated package
+- `../../rdl/pit_8254/pit_regs.rdl` - SystemRDL specification
 
 ## Development Status
 
@@ -248,10 +248,10 @@ apb4_pit_8254 #(
 
 ## Compliance
 
-- ✅ Reset macros (`ALWAYS_FF_RST`)
-- ✅ HPET architecture pattern
-- ✅ APB4 standard interface
-- ✅ PeakRDL register generation
+- Reset macros (`ALWAYS_FF_RST`)
+- HPET architecture pattern
+- APB4 standard interface
+- PeakRDL register generation
 
 ---
 

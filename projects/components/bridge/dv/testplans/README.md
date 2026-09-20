@@ -72,13 +72,13 @@ Testplans document:
 ### Untested Configurations (3 total - 25% GAP)
 
 6. **bridge_4x4_rw_testplan.yaml** - Quad master, quad slaves, full duplex
-   - Status: ⚠️ NOT TESTED
+   - Status: NOT TESTED
    - Tests: NONE (test file does not exist)
    - Coverage: 0% (0/10 scenarios)
    - Risk: HIGH - Generated RTL completely untested
 
 7. **bridge_5x3_channels_testplan.yaml** - Five masters (mixed channels), three slaves
-   - Status: ⚠️ NOT TESTED
+   - Status: NOT TESTED
    - Tests: NONE (test file does not exist)
    - Coverage: 0% (0/11 scenarios)
    - Risk: HIGH - Complex channel optimization untested
@@ -146,14 +146,14 @@ notes: |
 
 | Configuration | Tests | Scenarios | Coverage | Status |
 |--------------|-------|-----------|----------|--------|
-| bridge_1x2 (rd/wr) | 2 | 8/8 | 100% | ✅ VERIFIED |
-| bridge_1x3 (rd/wr) | 2 | 8/8 | 100% | ✅ VERIFIED |
-| bridge_1x4 (rd/wr) | 2 | 5/8 | 62.5% | ⚠️ PARTIAL |
-| bridge_1x5 (rd/wr) | 2 | 5/9 | 55.6% | ⚠️ PARTIAL |
-| bridge_2x2_rw | 1 | 11/11 | 100% | ✅ VERIFIED |
-| bridge_4x4_rw | 0 | 0/10 | 0% | ❌ NOT TESTED |
-| bridge_5x3_channels | 0 | 0/11 | 0% | ❌ NOT TESTED |
-| bridge_cam | integration | 9/11 | 81.8% | ✅ INTEGRATION |
+| bridge_1x2 (rd/wr) | 2 | 8/8 | 100% | VERIFIED |
+| bridge_1x3 (rd/wr) | 2 | 8/8 | 100% | VERIFIED |
+| bridge_1x4 (rd/wr) | 2 | 5/8 | 62.5% | PARTIAL |
+| bridge_1x5 (rd/wr) | 2 | 5/9 | 55.6% | PARTIAL |
+| bridge_2x2_rw | 1 | 11/11 | 100% | VERIFIED |
+| bridge_4x4_rw | 0 | 0/10 | 0% | NOT TESTED |
+| bridge_5x3_channels | 0 | 0/11 | 0% | NOT TESTED |
+| bridge_cam | integration | 9/11 | 81.8% | INTEGRATION |
 
 **Total**: 9 test files, 12 configurations (including variants)
 

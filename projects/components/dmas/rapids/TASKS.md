@@ -53,11 +53,11 @@
 
 ## Task Status Legend
 
-- 🔴 **Blocked** - Cannot proceed due to dependencies
-- 🟠 **In Progress** - Currently being worked on
-- 🟡 **Planned** - Ready to start, no blockers
-- 🟢 **Complete** - Finished and verified
-- ⏸️ **Deferred** - Low priority, postponed
+- **Blocked** - Cannot proceed due to dependencies
+- **In Progress** - Currently being worked on
+- **Planned** - Ready to start, no blockers
+- **Complete** - Finished and verified
+- ⏸**Deferred** - Low priority, postponed
 
 ## Priority Levels
 
@@ -71,7 +71,7 @@
 ## Critical Issues (P0-P1)
 
 ### TASK-001: Fix Scheduler Credit Counter Initialization Bug
-**Status:** 🟢 Complete
+**Status:** Complete
 **Priority:** P0 (Critical)
 **Effort:** 1-2 hours
 **Assigned:** Completed 2025-10-11
@@ -115,8 +115,8 @@ r_descriptor_credit_counter <= (cfg_initial_credit == 4'hF) ? 32'hFFFFFFFF :
 - Blocked production deployment with credit management
 
 **Verification Steps (To Complete):**
-1. ✅ Applied exponential encoding fix to scheduler.sv:567-570
-2. ✅ Updated all documentation with exponential encoding details
+1. Applied exponential encoding fix to scheduler.sv:567-570
+2. Updated all documentation with exponential encoding details
 3. ⏳ Remove test workarounds in `projects/components/dmas/rapids/dv/tests/fub_tests/scheduler/`
 4. ⏳ Run: `pytest projects/components/dmas/rapids/dv/tests/fub_tests/scheduler/ -v -k credit`
 5. ⏳ Verify credit counter initializes with exponential decoding:
@@ -131,20 +131,20 @@ r_descriptor_credit_counter <= (cfg_initial_credit == 4'hF) ? 32'hFFFFFFFF :
 10. ⏳ Test unlimited credits mode (cfg_initial_credit = 15)
 
 **Related Files:**
-- ✅ `projects/components/dmas/rapids/rtl/rapids_fub/scheduler.sv` (fix applied)
-- ✅ `projects/components/dmas/rapids/docs/rapids_spec/ch02_blocks/01_01_scheduler.md` (updated with encoding table)
-- ✅ `projects/components/dmas/rapids/docs/rapids_spec/ch02_blocks/01_00_scheduler_group.md` (updated)
-- ✅ `projects/components/dmas/rapids/known_issues/scheduler.md` (updated with correct fix)
-- ✅ `projects/components/dmas/rapids/CLAUDE.md` (updated with exponential encoding guidance)
+- `projects/components/dmas/rapids/rtl/rapids_fub/scheduler.sv` (fix applied)
+- `projects/components/dmas/rapids/docs/rapids_spec/ch02_blocks/01_01_scheduler.md` (updated with encoding table)
+- `projects/components/dmas/rapids/docs/rapids_spec/ch02_blocks/01_00_scheduler_group.md` (updated)
+- `projects/components/dmas/rapids/known_issues/scheduler.md` (updated with correct fix)
+- `projects/components/dmas/rapids/CLAUDE.md` (updated with exponential encoding guidance)
 - ⏳ `projects/components/dmas/rapids/PRD.md` (needs update)
 - ⏳ `projects/components/dmas/rapids/dv/tests/fub_tests/scheduler/test_scheduler.py` (tests to update)
 
 **Dependencies:** None
 
 **Completion Criteria:**
-- ✅ Credit counter implements exponential encoding correctly
-- ✅ RTL fix applied
-- ✅ Specification documentation updated
+- Credit counter implements exponential encoding correctly
+- RTL fix applied
+- Specification documentation updated
 - ⏳ Test workarounds removed
 - ⏳ All scheduler credit tests passing
 - ⏳ Known issue documentation updated to "FIXED"
@@ -157,7 +157,7 @@ r_descriptor_credit_counter <= (cfg_initial_credit == 4'hF) ? 32'hFFFFFFFF :
 ---
 
 ### TASK-002: Implement AXI Timeout Detection in Sink Data Path
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P2 (Medium)
 **Effort:** 4-8 hours
 **Assigned:** Unassigned
@@ -242,7 +242,7 @@ assign error_axi_timeout = r_timeout_error;
 ## Test Infrastructure (P1-P2)
 
 ### TASK-003: Create Reusable Testbench Classes in CocoTBFramework
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P1 (High)
 **Effort:** 8-16 hours
 **Assigned:** Unassigned
@@ -295,7 +295,7 @@ bin/TBClasses/rapids/
 **BEFORE (Wrong):**
 ```python
 # projects/components/dmas/rapids/dv/tests/fub_tests/scheduler/test_scheduler.py
-class SchedulerTB(TBBase):  # ❌ TB class in test file!
+class SchedulerTB(TBBase):  # TB class in test file!
     # 200 lines of testbench logic...
 
 @cocotb.test()
@@ -316,7 +316,7 @@ from TBClasses.rapids.scheduler_tb import SchedulerTB
 
 @cocotb.test()
 async def test_scheduler(dut):
-    tb = SchedulerTB(dut)  # ✅ Imported, reusable!
+    tb = SchedulerTB(dut)  # Imported, reusable!
     ...
 ```
 
@@ -344,7 +344,7 @@ async def test_scheduler(dut):
 ---
 
 ### TASK-004: Expand Integration Test Coverage
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P2 (Medium)
 **Effort:** 8-12 hours
 **Assigned:** Unassigned
@@ -416,7 +416,7 @@ projects/components/dmas/rapids/dv/tests/integration_tests/
 ---
 
 ### TASK-005: Create System-Level Tests
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P2 (Medium)
 **Effort:** 8-12 hours
 **Assigned:** Unassigned
@@ -498,7 +498,7 @@ projects/components/dmas/rapids/dv/tests/system_tests/
 ## Documentation (P2-P3)
 
 ### TASK-006: Create README.md for RAPIDS Subsystem
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P2 (Medium)
 **Effort:** 2-3 hours
 **Assigned:** Unassigned
@@ -562,7 +562,7 @@ Create quick-start README.md for RAPIDS subsystem to complement PRD.md and CLAUD
 ---
 
 ### TASK-007: Update RAPIDS Validation Status Report
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P2 (Medium)
 **Effort:** 2-4 hours
 **Assigned:** Unassigned
@@ -619,7 +619,7 @@ Update validation status report with current test coverage, known issues, and te
 ## Enhancement and Optimization (P3)
 
 ### TASK-008: Enhance SRAM Control for Concurrent Reads
-**Status:** ⏸️ Deferred
+**Status:** ⏸Deferred
 **Priority:** P3 (Low)
 **Effort:** 16-24 hours
 **Assigned:** Unassigned
@@ -686,7 +686,7 @@ logic [NUM_READ_PORTS-1:0] r_read_valid;
 ---
 
 ### TASK-009: Add Performance Monitoring Infrastructure
-**Status:** ⏸️ Deferred
+**Status:** ⏸Deferred
 **Priority:** P3 (Low)
 **Effort:** 8-12 hours
 **Assigned:** Unassigned
@@ -866,7 +866,7 @@ cat projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index
 ## New Tasks (2025-10-19)
 
 ### TASK-011: Implement Autonomous Descriptor Chaining
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P1 (High)
 **Effort:** 8-12 hours
 **Assigned:** Unassigned
@@ -966,7 +966,7 @@ assign channel_idle = scheduler_idle && descriptor_engine_idle;
 ---
 
 ### TASK-012: Implement Channel Idle Signal Composition
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P1 (High)
 **Effort:** 2-3 hours
 **Assigned:** Unassigned

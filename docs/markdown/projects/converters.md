@@ -242,16 +242,16 @@ output logic                          m_axil_rready
 ```
 Test Suite: FULL (REG_LEVEL=FULL)
 Configurations tested: 6
-- params0: 32-bit data, gate level        ✅ PASSED
-- params1: 64-bit data, gate level        ✅ PASSED
-- params2: 32-bit data, different baud     ✅ PASSED
-- params3: 32-bit data, func level       ✅ PASSED
-- params4: 32-bit data, full level         ✅ PASSED
-- params5: 64-bit data, full level         ✅ PASSED
+- params0: 32-bit data, gate level        PASSED
+- params1: 64-bit data, gate level        PASSED
+- params2: 32-bit data, different baud     PASSED
+- params3: 32-bit data, func level       PASSED
+- params4: 32-bit data, full level         PASSED
+- params5: 64-bit data, full level         PASSED
 
 Total: 6 passed, 0 failed
 Execution time: 49 minutes 36 seconds
-Status: ✅ ALL TESTS PASSED
+Status: ALL TESTS PASSED
 ```
 
 **Recent Fixes (2025-11-10):**

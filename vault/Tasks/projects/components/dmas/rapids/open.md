@@ -5,7 +5,7 @@
 ## TASK-057: Enforce register-map hygiene in RAPIDS DV (port the STREAM lessons)
 
 **Priority:** P2
-**Status:** 🔴 Not Started
+**Status:** Not Started
 **Owner:** TBD
 
 **Context:** STREAM had three register-map defects that a coverage/board

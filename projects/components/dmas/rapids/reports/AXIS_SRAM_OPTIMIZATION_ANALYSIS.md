@@ -25,7 +25,7 @@
 
 **Date:** 2025-10-18
 **Analysis:** SRAM storage format after AXIS migration
-**Status:** ✅ Already Optimized
+**Status:** Already Optimized
 
 > **Status (2026-07-22):** Historical analysis of the pre-beats SRAM controllers. The files it
 > cites (`rtl/rapids_fub/sink_sram_control.sv`, `source_sram_control.sv`) were retired in the
@@ -40,10 +40,10 @@
 The current SRAM storage formats in sink and source SRAM control modules are **already optimized** for AXIS operation. The intentional asymmetry (sink 530 bits, source 531 bits) is the correct design choice.
 
 **Key Findings:**
-- ✅ Sink SRAM format (530 bits) - Optimal (EOS not stored, saves 1 bit)
-- ✅ Source SRAM format (531 bits) - Optimal (EOS stored for TLAST generation)
-- ✅ TSTRB conversion (64 bytes → 16 x 4-byte chunks) - Optimal granularity
-- ✅ Asymmetric design is intentional and correct
+- Sink SRAM format (530 bits) - Optimal (EOS not stored, saves 1 bit)
+- Source SRAM format (531 bits) - Optimal (EOS stored for TLAST generation)
+- TSTRB conversion (64 bytes → 16 x 4-byte chunks) - Optimal granularity
+- Asymmetric design is intentional and correct
 
 **No changes recommended** - current implementation is optimal.
 
@@ -298,7 +298,7 @@ assign rd_eos = (r_beats_remaining[rd_channel] == 1);
 - Loses self-describing property of data
 - Harder to debug (EOS not visible in SRAM dumps)
 
-**Verdict:** ❌ **Not recommended** - Complexity outweighs 1-bit savings
+**Verdict:** **Not recommended** - Complexity outweighs 1-bit savings
 
 ---
 
@@ -311,7 +311,7 @@ assign rd_eos = (r_beats_remaining[rd_channel] == 1);
 - Current 2-bit TYPE allows 4 packet classifications
 - Premature optimization
 
-**Verdict:** ❌ **Not recommended** - Limits future flexibility
+**Verdict:** **Not recommended** - Limits future flexibility
 
 ---
 
@@ -325,7 +325,7 @@ parameter int NUM_CHUNKS = 16;  // Derived from DATA_WIDTH/32
 localparam int SRAM_WIDTH = DATA_WIDTH + NUM_CHUNKS + 3;
 ```
 
-**Verdict:** ✅ **Already optimal**
+**Verdict:** **Already optimal**
 
 ---
 
@@ -335,19 +335,19 @@ localparam int SRAM_WIDTH = DATA_WIDTH + NUM_CHUNKS + 3;
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| Support AXIS TDATA | DATA[511:0] field | ✅ Complete |
-| Support AXIS TSTRB | CHUNK_VALID[15:0] (32-bit chunks) | ✅ Complete |
-| Support AXIS TLAST (sink) | EOS completion tracking (not stored) | ✅ Optimal |
-| Support AXIS TLAST (source) | EOS stored in SRAM | ✅ Optimal |
-| Minimize storage overhead | 3.5-3.7% overhead | ✅ Efficient |
-| Self-describing data (source) | EOS included with data | ✅ Achieved |
-| Scalable to different widths | Parameterized NUM_CHUNKS | ✅ Flexible |
+| Support AXIS TDATA | DATA[511:0] field | Complete |
+| Support AXIS TSTRB | CHUNK_VALID[15:0] (32-bit chunks) | Complete |
+| Support AXIS TLAST (sink) | EOS completion tracking (not stored) | Optimal |
+| Support AXIS TLAST (source) | EOS stored in SRAM | Optimal |
+| Minimize storage overhead | 3.5-3.7% overhead | Efficient |
+| Self-describing data (source) | EOS included with data | Achieved |
+| Scalable to different widths | Parameterized NUM_CHUNKS | Flexible |
 
 ---
 
 ## Recommendations
 
-### ✅ No Changes Required
+### No Changes Required
 
 **Current design is already optimal for the following reasons:**
 
@@ -400,10 +400,10 @@ localparam int EXTENDED_SRAM_WIDTH = 2 + NUM_CHUNKS + DATA_WIDTH;  // 2 + 16 + 5
 ### Verify TSTRB Conversion
 
 **Test Scenarios:**
-1. ✅ Full TSTRB (all bytes valid): `TSTRB = 64'hFFFF_FFFF_FFFF_FFFF`
-2. ✅ Partial TSTRB (sparse bytes): `TSTRB = 64'h0000_00FF_00FF_0000`
-3. ✅ Single byte: `TSTRB = 64'h0000_0000_0000_0001`
-4. ✅ Chunk boundaries: `TSTRB = 64'hF000_0F00_00F0_000F`
+1. Full TSTRB (all bytes valid): `TSTRB = 64'hFFFF_FFFF_FFFF_FFFF`
+2. Partial TSTRB (sparse bytes): `TSTRB = 64'h0000_00FF_00FF_0000`
+3. Single byte: `TSTRB = 64'h0000_0000_0000_0001`
+4. Chunk boundaries: `TSTRB = 64'hF000_0F00_00F0_000F`
 
 **Validation:**
 - Verify CHUNK_VALID correctly represents TSTRB state
@@ -413,14 +413,14 @@ localparam int EXTENDED_SRAM_WIDTH = 2 + NUM_CHUNKS + DATA_WIDTH;  // 2 + 16 + 5
 ### Verify EOS Handling
 
 **Sink Path:**
-1. ✅ EOS sets `r_eos_pending` register
-2. ✅ EOS completion queued to scheduler
-3. ✅ SRAM does not contain EOS bit
+1. EOS sets `r_eos_pending` register
+2. EOS completion queued to scheduler
+3. SRAM does not contain EOS bit
 
 **Source Path:**
-1. ✅ EOS stored in SRAM with last beat
-2. ✅ EOS extracted and drives `rd_eos` output
-3. ✅ AXIS master asserts TLAST when `rd_eos` active
+1. EOS stored in SRAM with last beat
+2. EOS extracted and drives `rd_eos` output
+3. AXIS master asserts TLAST when `rd_eos` active
 
 ---
 
@@ -429,11 +429,11 @@ localparam int EXTENDED_SRAM_WIDTH = 2 + NUM_CHUNKS + DATA_WIDTH;  // 2 + 16 + 5
 The current SRAM storage format implementation for AXIS is **already optimized** and requires **no changes**. The intentional asymmetry between sink (530 bits) and source (531 bits) reflects the correct functional requirements for each data path.
 
 **Key Achievements:**
-- ✅ Minimal storage overhead (3.5-3.7%)
-- ✅ Efficient TSTRB conversion (32-bit chunks)
-- ✅ Correct EOS handling for AXIS TLAST
-- ✅ Scalable, parameterized design
-- ✅ Clean, maintainable code
+- Minimal storage overhead (3.5-3.7%)
+- Efficient TSTRB conversion (32-bit chunks)
+- Correct EOS handling for AXIS TLAST
+- Scalable, parameterized design
+- Clean, maintainable code
 
 **Only Action Required:**
 - Fix comment on sink_sram_control.sv:93 (528 → 530 bits)
@@ -442,4 +442,4 @@ The current SRAM storage format implementation for AXIS is **already optimized**
 
 **Analysis Completed:** 2025-10-18
 **Analyst:** Claude Code
-**Status:** ✅ SRAM formats verified optimal, no design changes needed
+**Status:** SRAM formats verified optimal, no design changes needed

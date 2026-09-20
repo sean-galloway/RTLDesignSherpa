@@ -23,7 +23,7 @@
 
 # PIT_8254 Testbench Classes
 
-**Status:** 📋 Planned - Structure Created
+**Status:** Planned - Structure Created
 
 ---
 

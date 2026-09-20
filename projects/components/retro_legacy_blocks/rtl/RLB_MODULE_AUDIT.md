@@ -23,7 +23,7 @@
 
 # Retro Legacy Blocks (RLB) - Module Architecture Audit
 
-**Date:** 2025-11-16  
+**Date:** 2025-11-16
 **Purpose:** Ensure consistent use of apb4_slave_cdc and peakrdl_to_cmdrsp across all RLB modules
 
 > Status (2026-09-08): Historical snapshot from 2025-11-16. Claims below
@@ -41,11 +41,11 @@ Audited 5 RLB modules with APB interfaces to verify consistent architecture patt
 
 | Module | APB Interface | PeakRDL Adapter | Generated Regs | Status |
 |--------|--------------|-----------------|----------------|--------|
-| **hpet** | apb4_slave_cdc ✅ | peakrdl_to_cmdrsp ✅ | 3 files ✅ | ✅ **REFERENCE** |
-| **pit_8254** | apb4_slave_cdc ✅ | peakrdl_to_cmdrsp ✅ | 3 files ✅ | ✅ **CORRECT** |
-| **smbus** | apb4_slave ✅ | peakrdl_to_cmdrsp ✅ | 3 files ✅ | ✅ **CORRECT** (no CDC needed) |
-| **rtc** | apb4_slave ✅ | peakrdl_to_cmdrsp ✅ | 5 files ✅ | ✅ **CORRECT** (verified) |
-| **pic_8259** | apb4_slave ✅ | peakrdl_to_cmdrsp ✅ | 3 files ✅ | ✅ **CORRECT** (verified) |
+| **hpet** | apb4_slave_cdc | peakrdl_to_cmdrsp | 3 files | **REFERENCE** |
+| **pit_8254** | apb4_slave_cdc | peakrdl_to_cmdrsp | 3 files | **CORRECT** |
+| **smbus** | apb4_slave | peakrdl_to_cmdrsp | 3 files | **CORRECT** (no CDC needed) |
+| **rtc** | apb4_slave | peakrdl_to_cmdrsp | 5 files | **CORRECT** (verified) |
+| **pic_8259** | apb4_slave | peakrdl_to_cmdrsp | 3 files | **CORRECT** (verified) |
 
 ### Modules Without APB Wrappers
 - **ioapic** - No APB wrapper yet
@@ -57,7 +57,7 @@ Audited 5 RLB modules with APB interfaces to verify consistent architecture patt
 
 ## Detailed Findings
 
-### ✅ HPET (Reference Implementation - CORRECT)
+### HPET (Reference Implementation - CORRECT)
 
 **File:** `hpet/apb4_hpet.sv`
 
@@ -70,11 +70,11 @@ APB → apb4_slave_cdc (with CDC parameter) → CMD/RSP → hpet_config_regs →
 - Has generated `hpet_regs.sv`, `hpet_regs_pkg.sv`
 - Clean hwif_in/hwif_out mapping
 
-**Status:** ✅ **This is the reference implementation - all others should follow this pattern**
+**Status:** **This is the reference implementation - all others should follow this pattern**
 
 ---
 
-### ✅ PIT_8254 (CORRECT)
+### PIT_8254 (CORRECT)
 
 **File:** `pit_8254/apb4_pit_8254.sv`
 
@@ -82,17 +82,17 @@ APB → apb4_slave_cdc (with CDC parameter) → CMD/RSP → hpet_config_regs →
 APB → apb4_slave_cdc → CMD/RSP → pit_config_regs → peakrdl_to_cmdrsp → pit_regs → hwif → pit_core
 
 **Features:**
-- Uses `apb4_slave_cdc`  
+- Uses `apb4_slave_cdc`
 - References `peakrdl_to_cmdrsp` in comments
 - Has generated PeakRDL files
 
-**Status:** ✅ **Follows HPET pattern correctly**
+**Status:** **Follows HPET pattern correctly**
 
 **Action:** None needed
 
 ---
 
-### ✅ SMBUS (NOW CORRECT)
+### SMBUS (NOW CORRECT)
 
 **File:** `smbus/apb4_smbus.sv`
 
@@ -105,16 +105,16 @@ APB → apb4_slave (no CDC) → CMD/RSP → smbus_config_regs → peakrdl_to_cmd
 - Has generated `smbus_regs.sv`, `smbus_regs_pkg.sv`
 - Complete implementation with physical layer
 
-**Status:** ✅ **Corrected during this session - now follows pattern**
+**Status:** **Corrected during this session - now follows pattern**
 
-**Action:** ✅ **COMPLETED**
+**Action:** **COMPLETED**
 - Generated PeakRDL registers
 - Implemented config_regs with existing adapter
 - Updated filelist with correct paths
 
 ---
 
-### ✅ RTC (CORRECT - VERIFIED)
+### RTC (CORRECT - VERIFIED)
 
 **File:** `rtc/apb4_rtc.sv`
 
@@ -123,17 +123,17 @@ APB → apb4_slave → CMD/RSP → rtc_config_regs → peakrdl_to_cmdrsp → rtc
 
 **Observations:**
 - Uses `apb4_slave` (no CDC - appropriate for single clock domain)
-- **VERIFIED:** Instantiates `peakrdl_to_cmdrsp` at line 111 ✅
+- **VERIFIED:** Instantiates `peakrdl_to_cmdrsp` at line 111
 - Has generated PeakRDL files
 - Proper hwif_in/hwif_out mapping
 
-**Status:** ✅ **CORRECT - Pattern verified**
+**Status:** **CORRECT - Pattern verified**
 
 **Note:** Extra file count (5 vs 3) may include additional documentation or variants, but core pattern is correct.
 
 ---
 
-### ✅ PIC_8259 (CORRECT - VERIFIED)
+### PIC_8259 (CORRECT - VERIFIED)
 
 **File:** `pic_8259/apb4_pic_8259.sv`
 
@@ -142,11 +142,11 @@ APB → apb4_slave → CMD/RSP → pic_8259_config_regs → peakrdl_to_cmdrsp �
 
 **Observations:**
 - Uses `apb4_slave` (no CDC - appropriate for interrupt controller)
-- **VERIFIED:** Instantiates `peakrdl_to_cmdrsp` at line 109 ✅
+- **VERIFIED:** Instantiates `peakrdl_to_cmdrsp` at line 109
 - Has 3 generated files (expected)
 - Follows HPET pattern
 
-**Status:** ✅ **CORRECT - Pattern verified**
+**Status:** **CORRECT - Pattern verified**
 
 ---
 
@@ -176,33 +176,33 @@ pic_8259_regs u_pic_8259_regs (...);
 
 | Module | APB Clock | Core Clock | CDC Needed? | Current | Recommendation |
 |--------|-----------|------------|-------------|---------|----------------|
-| HPET | pclk | hpet_clk (can be different) | YES | apb4_slave_cdc ✅ | Correct |
-| PIT | pclk | pit_clk (can be different) | YES | apb4_slave_cdc ✅ | Correct |
+| HPET | pclk | hpet_clk (can be different) | YES | apb4_slave_cdc | Correct |
+| PIT | pclk | pit_clk (can be different) | YES | apb4_slave_cdc | Correct |
 | RTC | pclk | pclk or rtc_clk (selectable) | OPTIONAL | apb4_slave | OK (single clock mode) |
-| PIC | pclk | pclk (same) | NO | apb4_slave ✅ | Correct |
-| SMBus | pclk | pclk (same) | NO | apb4_slave ✅ | Correct |
+| PIC | pclk | pclk (same) | NO | apb4_slave | Correct |
+| SMBus | pclk | pclk (same) | NO | apb4_slave | Correct |
 
 **Conclusion:** CDC usage is appropriate for each module based on their clock domain requirements.
 
 ### Priority 3: Standardization
 
 **All modules should:**
-1. ✅ Use `apb4_slave_cdc` (with CDC parameter) OR `apb4_slave` based on needs
-2. ✅ Use `peakrdl_to_cmdrsp` from `projects/components/converters/rtl/`
-3. ✅ Instantiate generated PeakRDL registers (`<module>_regs.sv`)
-4. ✅ Provide proper hwif_in/hwif_out signal mapping
+1. Use `apb4_slave_cdc` (with CDC parameter) OR `apb4_slave` based on needs
+2. Use `peakrdl_to_cmdrsp` from `projects/components/converters/rtl/`
+3. Instantiate generated PeakRDL registers (`<module>_regs.sv`)
+4. Provide proper hwif_in/hwif_out signal mapping
 
 ---
 
 ## Action Items
 
 ### Completed (This Session)
-- [x] SMBus: Implement config_regs with peakrdl_to_cmdrsp ✅
-- [x] SMBus: Update filelist ✅
-- [x] Remove duplicate peakrdl_to_cmdrsp from rtl/amba/apb4/ ✅
-- [x] RTC: Verified uses peakrdl_to_cmdrsp adapter (line 111) ✅
-- [x] PIC_8259: Verified uses peakrdl_to_cmdrsp adapter (line 109) ✅
-- [x] **ALL RLB MODULES VERIFIED CORRECT** ✅
+- [x] SMBus: Implement config_regs with peakrdl_to_cmdrsp
+- [x] SMBus: Update filelist
+- [x] Remove duplicate peakrdl_to_cmdrsp from rtl/amba/apb4/
+- [x] RTC: Verified uses peakrdl_to_cmdrsp adapter (line 111)
+- [x] PIC_8259: Verified uses peakrdl_to_cmdrsp adapter (line 109)
+- [x] **ALL RLB MODULES VERIFIED CORRECT**
 
 ### Optional Future Work
 - [ ] Clean up any old/duplicate register files in RTC (5 files vs expected 3)
@@ -214,7 +214,7 @@ pic_8259_regs u_pic_8259_regs (...);
 
 ---
 
-## Final Audit Conclusion ✅
+## Final Audit Conclusion
 
 **Result:** **ALL RLB MODULES PASS AUDIT**
 
@@ -225,13 +225,13 @@ pic_8259_regs u_pic_8259_regs (...);
 - **CDC usage appropriate for each module's clock domain needs**
 
 ### What Was Done This Session
-1. ✅ **SMBus Implementation:** Completed config_regs using PeakRDL pattern
-2. ✅ **Generated Registers:** Ran peakrdl_generate.py successfully
-3. ✅ **Corrected Mistakes:** Removed duplicate adapter, used existing from converters/
-4. ✅ **Verified All Modules:** Confirmed RTC (line 111) and PIC_8259 (line 109) use adapter
-5. ✅ **Updated Documentation:** Complete audit report with findings
+1. **SMBus Implementation:** Completed config_regs using PeakRDL pattern
+2. **Generated Registers:** Ran peakrdl_generate.py successfully
+3. **Corrected Mistakes:** Removed duplicate adapter, used existing from converters/
+4. **Verified All Modules:** Confirmed RTC (line 111) and PIC_8259 (line 109) use adapter
+5. **Updated Documentation:** Complete audit report with findings
 
-### Architecture Consistency: 100% ✅
+### Architecture Consistency: 100%
 
 All RLB modules now follow the consistent HPET reference pattern with appropriate CDC and adapter usage.
 

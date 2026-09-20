@@ -33,7 +33,7 @@ This document summarizes RTL code coverage results for the bridge component test
 
 ## Test Configurations Analyzed
 
-### 1. bridge_1x2_rd - COMPLETE ✓
+### 1. bridge_1x2_rd - COMPLETE
 
 **Test File:** `test_bridge_1x2_rd.py`
 **Status:** Coverage data extracted successfully
@@ -62,7 +62,7 @@ This document summarizes RTL code coverage results for the bridge component test
 - Active data paths show higher coverage (gaxi_skid_buffer: 47.1%)
 - Slave modules show lower coverage (15.7%) - expected for simplified test slaves
 
-**Testplan Updated:** ✓ `bridge_1x2_testplan.yaml`
+**Testplan Updated:** `bridge_1x2_testplan.yaml`
 
 ---
 
@@ -76,7 +76,7 @@ This document summarizes RTL code coverage results for the bridge component test
 
 ---
 
-### 3. bridge_2x2_rw - BLOCKED ⚠
+### 3. bridge_2x2_rw - BLOCKED
 
 **Test File:** `test_bridge_2x2_rw.py`
 **Status:** RTL compilation FAILED - Cannot run coverage
@@ -102,11 +102,11 @@ This document summarizes RTL code coverage results for the bridge component test
 
 **Expected Coverage (when fixed):** 25-35% line coverage based on bridge_1x2_rd baseline
 
-**Testplan Updated:** ✓ `bridge_2x2_rw_testplan.yaml` - Documented BLOCKED status with issue details
+**Testplan Updated:** `bridge_2x2_rw_testplan.yaml` - Documented BLOCKED status with issue details
 
 ---
 
-### 4. bridge_cam - INTEGRATION COVERAGE ✓
+### 4. bridge_cam - INTEGRATION COVERAGE
 
 **Module:** `bridge_cam.sv` (hand-written CAM module)
 **Status:** Tested via bridge integration tests
@@ -120,19 +120,19 @@ This document summarizes RTL code coverage results for the bridge component test
 - Full/empty status: No overflow errors (verified)
 
 **CAM Configurations Tested:**
-- `bridge_1x2_rd`: TAG_WIDTH=4, DEPTH=16, ALLOW_DUPLICATES=0 ✓
-- `bridge_1x2_wr`: TAG_WIDTH=4, DEPTH=16, ALLOW_DUPLICATES=0 ✓
-- `bridge_2x2_rw`: TAG_WIDTH=8, DEPTH=32, ALLOW_DUPLICATES=0 ✗ (blocked)
+- `bridge_1x2_rd`: TAG_WIDTH=4, DEPTH=16, ALLOW_DUPLICATES=0
+- `bridge_1x2_wr`: TAG_WIDTH=4, DEPTH=16, ALLOW_DUPLICATES=0
+- `bridge_2x2_rw`: TAG_WIDTH=8, DEPTH=32, ALLOW_DUPLICATES=0 (blocked)
 
 **CAM Modes Verified:**
-- Mode 1 (block duplicates): VERIFIED ✓
-- Mode 2 (FIFO ordering): UNTESTED ⚠
-- PIPELINE_EVICT=0: VERIFIED ✓
-- PIPELINE_EVICT=1: UNTESTED ⚠
+- Mode 1 (block duplicates): VERIFIED
+- Mode 2 (FIFO ordering): UNTESTED
+- PIPELINE_EVICT=0: VERIFIED
+- PIPELINE_EVICT=1: UNTESTED
 
 **Recommendation:** Create standalone `test_bridge_cam.py` for Mode 2 and pipelined eviction testing
 
-**Testplan Updated:** ✓ `bridge_cam_testplan.yaml` - Added integration coverage evidence
+**Testplan Updated:** `bridge_cam_testplan.yaml` - Added integration coverage evidence
 
 ---
 
@@ -140,10 +140,10 @@ This document summarizes RTL code coverage results for the bridge component test
 
 | Configuration | Status | Line Coverage | Hit Count Data | Testplan Updated |
 |--------------|--------|---------------|----------------|------------------|
-| bridge_1x2_rd | ✓ COMPLETE | 27.6% | 133/482 lines | ✓ Yes |
+| bridge_1x2_rd | COMPLETE | 27.6% | 133/482 lines | Yes |
 | bridge_1x2_wr | - SKIPPED | Expected ~27% | N/A | - No changes |
-| bridge_2x2_rw | ⚠ BLOCKED | 0% | RTL broken | ✓ Yes (BLOCKED) |
-| bridge_cam | ✓ INTEGRATION | Integration only | Via bridges | ✓ Yes |
+| bridge_2x2_rw | BLOCKED | 0% | RTL broken | Yes (BLOCKED) |
+| bridge_cam | INTEGRATION | Integration only | Via bridges | Yes |
 
 **Overall Progress:** 3 of 4 testplans updated with coverage data
 
@@ -191,7 +191,7 @@ This document summarizes RTL code coverage results for the bridge component test
 
 ### Immediate Actions
 
-1. **Fix bridge_2x2_rw RTL generation bug** ⚠ PRIORITY
+1. **Fix bridge_2x2_rw RTL generation bug** PRIORITY
    - Cannot proceed with coverage until RTL compiles
    - Likely affects other multi-master configurations
 

@@ -236,10 +236,10 @@ sync_2ff #(.WIDTH(8)) u_sync (
 ```
 
 **Why Pulse Handshake Instead:**
-- ✅ Explicit transfer event (know when data updated)
-- ✅ Better for learning CDC protocols
-- ✅ Demonstrates common industry pattern
-- ✅ Scales to more complex handshakes (req/ack)
+- Explicit transfer event (know when data updated)
+- Better for learning CDC protocols
+- Demonstrates common industry pattern
+- Scales to more complex handshakes (req/ack)
 
 ---
 

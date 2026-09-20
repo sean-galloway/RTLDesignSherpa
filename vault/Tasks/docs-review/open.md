@@ -150,14 +150,14 @@ left (measured 2026-08-11):**
 | `docs/markdown/rtl-common` | 8 | **0** | — |
 | `docs/markdown/rtl-amba/gaxi` | 81 | **0** | swept with the humanize apply |
 | `docs/markdown/rtl-cdc` | — | 1 | `U+FE0F` in `gaxi_fifo_async.md` |
-| `docs/markdown/rtl-math` | 111 | 6 | 5x `U+FE0F`, 1x `✓ U+2713` |
+| `docs/markdown/rtl-math` | 111 | 6 | 5x `U+FE0F`, 1x `U+2713` |
 | `docs/markdown/rtl-amba` (rest) | 613 | 531 | untouched books |
 
 The 7 stragglers in cdc/math are the "one definition of emoji" problem in
 miniature: the `U+FE0F`s are **orphans** -- invisible modifiers left behind when
 the visible glyph in front of them was deleted, so they survive both a visual
-proofread and a grep for the glyph you remember removing -- and `✓ U+2713` is a
-different codepoint from `✅ U+2705` and was never in the hand-kept set. Sweep
+proofread and a grep for the glyph you remember removing -- and `U+2713` is a
+different codepoint from `U+2705` and was never in the hand-kept set. Sweep
 against what `check_emoji.py` reports, never against a remembered glyph list.
 
 Also learned 2026-08-11: **the humanizer never removes emoji and readily adds
@@ -202,14 +202,14 @@ deleting, and that is a per-line judgement.
 `_meta` unit). 65 glyphs across 9 pages. What the per-line judgement bought,
 and why a blanket delete would have been wrong:
 
-- `✅`/`❌` leading a bullet or a heading carried nothing the words did not
+- ``/`` leading a bullet or a heading carried nothing the words did not
   already say ("Appropriate Use Cases", "Anti-Pattern 1") -- deleted.
-- **`⚠️` in the same list did NOT.** `arbiter_round_robin_weighted.md` listed
-  three `✅` fits and one `⚠️` caveat under one mode; deleting all four glyphs
+- **`` in the same list did NOT.** `arbiter_round_robin_weighted.md` listed
+  three `` fits and one `` caveat under one mode; deleting all four glyphs
   turns the caveat into a fourth reason to use it. Those became `Caveat: ...`.
-- `✓`/`✗` in a capability table became `Yes`/`No`, which reads better than the
+- ``/`` in a capability table became `Yes`/`No`, which reads better than the
   glyphs did and survives the PDF path.
-- Trailing `✓` on a worked-example result became `(correct)` or fell away with
+- Trailing `` on a worked-example result became `(correct)` or fell away with
   the sentence rewritten.
 
 **The humanize pass is INCONSISTENT about them -- do not rely on it either
@@ -926,7 +926,7 @@ and a mechanism still passed all three while driving no work. **Exported and
 read is not DRIVES WORK.** The next refinement worth making is a dead-store
 check: a name derived from TEST_LEVEL that is never subsequently referenced.
 
-Third new finding: the weighted walking test logged "✓ successful" for every
+Third new finding: the weighted walking test logged "successful" for every
 client unconditionally, because `ArbiterMaster.manual_request` returns normally
 when no grant arrives. Now asserts the client's grant count moved;
 mutation-checked.

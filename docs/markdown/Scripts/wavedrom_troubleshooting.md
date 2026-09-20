@@ -985,12 +985,12 @@ python3 vcd2wavedrom2.py \
 Use descriptive but concise names:
 
 ```json
-// ✅ GOOD:
+// GOOD:
 {"name": "axi4_awvalid", "wave": "01..0"},
 {"name": "axi4_awready", "wave": "1...."},
 {"name": "rst_n", "wave": "01..."}
 
-// ❌ AVOID:
+// AVOID:
 {"name": "top.dut.u_axi_interconnect.s0_axi4_awvalid", "wave": "01..0"},  // Too long
 {"name": "sig1", "wave": "01..0"},  // Not descriptive
 {"name": "axi4 aw-valid signal", "wave": "01..0"}  // Spaces problematic

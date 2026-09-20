@@ -129,7 +129,7 @@ axi4_to_apb4_shim #(...) u_apb_periph_apb_converter (
 **Signal Flow:**
 ```
 1. Crossbar sends AR → xbar_apb_periph_axi_arvalid=1
-2. FIFO push: Store bridge_id (✓ CORRECT)
+2. FIFO push: Store bridge_id (CORRECT)
 3. Converter receives AR → Converts to APB
 4. APB slave NEVER responds (test doesn't drive PREADY)
 5. Converter waits forever for APB response
@@ -366,7 +366,7 @@ always_ff @(posedge aclk or negedge aresetn) begin
         rid_bridge_id <= '0;
         rid_valid <= 1'b0;
     end else if (converter_rvalid && converter_rready && converter_rlast) begin
-        // ✅ Monitoring converter output signals
+        // Monitoring converter output signals
 ```
 
 **Wire Assignments:**

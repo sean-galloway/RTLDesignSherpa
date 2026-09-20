@@ -4,7 +4,7 @@
 
 ## TOOL-017: `lint-<component>` is advertised but cannot run for two areas
 **Priority:** P3
-**Status:** 🔴 Not Started -- and MOVED BACK TO OPEN 2026-09-16. It was filed on
+**Status:** Not Started -- and MOVED BACK TO OPEN 2026-09-16. It was filed on
 the closed page while its own status said Not Started and no fix was recorded.
 Re-checked against the tree today and it still reproduces exactly as described:
 `retro_legacy_blocks` has an `rtl/Makefile` but NO `lint-all` target, and
@@ -199,7 +199,7 @@ recorded -- but its Makefile was replaced wholesale, so the bug went with it.
 
 ## TOOL-002: Migrate the remaining method docs out of bin/ into the handbook
 **Priority:** P2
-**Status:** 🔴 Not Started
+**Status:** Not Started
 **Owner:** TBD
 
 `CLAUDE.md` now states the handbook is the single source of truth for skills and
@@ -282,7 +282,7 @@ counts. See [[filelists]].
 
 ## TOOL-004: Finish validating the cloud bootstrap on a genuinely clean box
 **Priority:** P2
-**Status:** 🔴 Not Started
+**Status:** Not Started
 **Owner:** TBD
 
 `bin/install_tools.sh` and `bin/cloud_bootstrap.sh` were written and partly
@@ -307,7 +307,7 @@ with oss-cad-suite on PATH. That was the part most likely to be silently wrong.
 
 ## TOOL-005: env_python hardcodes /mnt/data/tools
 **Priority:** P3
-**Status:** 🔴 Not Started
+**Status:** Not Started
 **Owner:** TBD
 
 `env_python` works unmodified in a sandbox *provided* tools install to
@@ -326,7 +326,7 @@ problem. See [[cloud-sandbox]].
 
 ## TOOL-006: Triage the 18 Dependabot vulnerabilities on the default branch
 **Priority:** P2
-**Status:** 🔴 Not Started
+**Status:** Not Started
 **Owner:** TBD
 
 Every push prints: *"GitHub found 18 vulnerabilities on
@@ -348,7 +348,7 @@ whether any are already fixed by the current pins before doing work.
 
 ## TOOL-007: Two real gaps in the RDS-DV arbiter BFM
 **Priority:** P2
-**Status:** 🔴 Not Started
+**Status:** Not Started
 **Owner:** TBD
 
 Found while fixing COMMON-012. Both belong in the RTLDesignSherpa-DV repo, not
@@ -380,7 +380,7 @@ round-robin arbiter that starved half its clients pass its own testbench. See
 
 ## TOOL-010: Project-area cleanup — apply the RTL-area pattern to projects/
 **Priority:** P2
-**Status:** 🔴 Not Started — **DEFERRED until the RTL area is complete** (Sean)
+**Status:** Not Started — **DEFERRED until the RTL area is complete** (Sean)
 **Owner:** Sean (pumice push) / TBD
 
 Once `rtl/` is clean (doc placement, CDC reorg, filelist consistency), apply the
@@ -407,7 +407,7 @@ of work.
 - [ ] **ddr2_char** (NexysA7) — loose `rtl/ddr2_char_macro.f` → `filelists/`;
       the `dv/` harness `.f` get a `filelists/` dir WITH the TB
 - [ ] **pumice** — `dv/tb/*_tb_top.f` → a `filelists/` dir with the TB.
-      **⚠️ PUMICE PUSHES FROM SEAN'S WORKSTATION, not this environment**
+      **PUMICE PUSHES FROM SEAN'S WORKSTATION, not this environment**
       (Sean, 2026-07-24) — make the pumice changes but do NOT push them; Sean
       pushes pumice from the workstation. See Tasks/pumice.
 - [ ] the remaining components (converters, delta, hive, misc, apbx_xbar,
@@ -421,7 +421,7 @@ cdc reorg + amba cleanup land.
 
 ## TOOL-011: Tests resolve filelists through the toml registry, not hardcoded paths
 **Priority:** P2
-**Status:** 🔴 Not Started
+**Status:** Not Started
 **Owner:** TBD
 
 Every test hardcodes its filelist location:
@@ -842,7 +842,7 @@ requested it. And `timing` imported the same helper twice while
 ## TOOL-019: delta's lint runs, passes, and gates nothing
 
 **Priority:** P3
-**Status:** 🔴 Not Started
+**Status:** Not Started
 **Owner:** TBD
 
 The last area still on the old per-file lint template. `make lint-delta`

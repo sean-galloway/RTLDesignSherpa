@@ -41,10 +41,10 @@
 
 ## Task Status Legend
 
-- 🔴 **Blocked** - Cannot proceed due to dependencies or issues
-- 🟠 **In Progress** - Currently being worked on
-- 🟡 **Planned** - Scheduled for upcoming work
-- 🟢 **Complete** - Finished and verified
+- **Blocked** - Cannot proceed due to dependencies or issues
+- **In Progress** - Currently being worked on
+- **Planned** - Scheduled for upcoming work
+- **Complete** - Finished and verified
 
 ## Priority Levels
 
@@ -58,7 +58,7 @@
 ## Active Tasks
 
 ### TASK-001: Complete Specification Chapter 4 (Routing Algorithm)
-**Status:** 🟠 In Progress
+**Status:** In Progress
 **Priority:** P0
 **Effort:** 2 days
 **Owner:** Unassigned
@@ -82,7 +82,7 @@ Complete detailed specification of the X-Y routing algorithm with deadlock avoid
 ---
 
 ### TASK-002: Complete Specification Chapter 5 (Flow Control)
-**Status:** 🟠 In Progress
+**Status:** In Progress
 **Priority:** P0
 **Effort:** 2 days
 **Owner:** Unassigned
@@ -106,7 +106,7 @@ Document credit-based flow control mechanism and backpressure handling.
 ---
 
 ### TASK-003: Router RTL Implementation
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P0
 **Effort:** 1 week
 **Owner:** Unassigned
@@ -137,7 +137,7 @@ Implement the Delta router RTL with input buffers, route computation, virtual ch
 ---
 
 ### TASK-004: Network Interface RTL Implementation
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P0
 **Effort:** 3 days
 **Owner:** Unassigned
@@ -165,7 +165,7 @@ Implement the network interface module that converts AXI transactions to Delta p
 ---
 
 ### TASK-005: Mesh Topology RTL Implementation
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P0
 **Effort:** 2 days
 **Owner:** Unassigned
@@ -190,7 +190,7 @@ Implement the 4×4 mesh topology with router and network interface instantiation
 ---
 
 ### TASK-006: CocoTB Router Testbench
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P1
 **Effort:** 3 days
 **Owner:** Unassigned
@@ -217,7 +217,7 @@ Create comprehensive CocoTB testbench for single router testing.
 ---
 
 ### TASK-007: CocoTB Mesh Integration Testbench
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P1
 **Effort:** 4 days
 **Owner:** Unassigned
@@ -245,7 +245,7 @@ Create end-to-end mesh network testbench with traffic generation.
 ---
 
 ### TASK-008: Wavedrom Timing Diagrams
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P2
 **Effort:** 1 day
 **Owner:** Unassigned
@@ -270,7 +270,7 @@ Create wavedrom JSON files illustrating key Delta NoC operations.
 ---
 
 ### TASK-009: PlantUML FSM Diagrams
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P2
 **Effort:** 1 day
 **Owner:** Unassigned
@@ -296,7 +296,7 @@ Create PlantUML state machine diagrams for router and NI FSMs.
 ---
 
 ### TASK-010: Block Diagrams and Architecture Images
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P2
 **Effort:** 2 days
 **Owner:** Unassigned
@@ -322,7 +322,7 @@ Create block diagrams and architecture illustrations for specification.
 
 ## Recently Completed Tasks
 
-### ✅ TASK-000: Initial Specification Structure (Complete - 2025-10-15)
+### TASK-000: Initial Specification Structure (Complete - 2025-10-15)
 - Created specification chapter outline (Ch1-5)
 - Completed Chapter 1 (Overview)
 - Completed Chapter 2 (Router Architecture)

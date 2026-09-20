@@ -25,7 +25,7 @@
 
 **Component:** Retro Legacy Blocks (RLB) - Production-Quality Legacy Peripherals
 **Version:** 1.0
-**Status:** 🟢 Active Development - HPET Production Ready
+**Status:** Active Development - HPET Production Ready
 **Last Updated:** 2025-10-29
 
 ---
@@ -67,7 +67,7 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 
 ### 2.1 HPET - High Precision Event Timer
 
-**Status:** ✅ Production Ready (5/6 configurations 100% passing)
+**Status:** Production Ready (5/6 configurations 100% passing)
 **RTL Location:** `rtl/hpet/`
 **Documentation:** `docs/hpet_mas/`
 
@@ -127,7 +127,7 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 
 ### 3.1 8259 - Programmable Interrupt Controller (PIC)
 
-**Status:** 📋 Planned
+**Status:** Planned
 **Priority:** High
 **Effort:** 6-8 weeks
 **Address:** `0x4000_1000 - 0x4000_1FFF` (4KB window)
@@ -151,7 +151,7 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 
 ### 3.2 8254 - Programmable Interval Timer (PIT)
 
-**Status:** 📋 Planned
+**Status:** Planned
 **Priority:** High
 **Effort:** 4-5 weeks
 **Address:** `0x4000_2000 - 0x4000_2FFF` (4KB window)
@@ -183,7 +183,7 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 
 ### 3.3 GPIO - General Purpose I/O
 
-**Status:** 📋 Planned
+**Status:** Planned
 **Priority:** Medium
 **Effort:** 4-6 weeks
 **Address:** TBD (not in primary ILB address map)
@@ -230,7 +230,7 @@ time-set path are broken, tracked in issue #56)
 
 ### 3.5 SMBus Controller
 
-**Status:** 📋 Planned
+**Status:** Planned
 **Priority:** Medium
 **Effort:** 6-8 weeks
 **Address:** `0x4000_4000 - 0x4000_4FFF` (4KB window)
@@ -278,7 +278,7 @@ control, and issue #60 tracks its RTL defects)
 
 ### 3.7 SPI Controller
 
-**Status:** 📋 Planned
+**Status:** Planned
 **Priority:** Low
 **Effort:** 5-6 weeks
 **Address:** TBD (not in primary ILB address map)
@@ -300,7 +300,7 @@ control, and issue #60 tracks its RTL defects)
 
 ### 3.8 I2C Controller
 
-**Status:** 📋 Planned
+**Status:** Planned
 **Priority:** Low
 **Effort:** 5-7 weeks
 **Address:** TBD (not in primary ILB address map)
@@ -321,7 +321,7 @@ control, and issue #60 tracks its RTL defects)
 
 ### 3.9 Watchdog Timer
 
-**Status:** 📋 Planned
+**Status:** Planned
 **Priority:** Low
 **Effort:** 2-3 weeks
 **Address:** TBD (not in primary ILB address map)
@@ -342,7 +342,7 @@ control, and issue #60 tracks its RTL defects)
 
 ### 3.10 Power Management / ACPI Controller
 
-**Status:** 📋 Planned
+**Status:** Planned
 **Priority:** Medium
 **Effort:** 8-10 weeks
 **Address:** `0x4000_5000 - 0x4000_5FFF` (4KB window)
@@ -365,7 +365,7 @@ control, and issue #60 tracks its RTL defects)
 
 ### 3.11 IOAPIC - I/O Advanced Programmable Interrupt Controller
 
-**Status:** 📋 Planned
+**Status:** Planned
 **Priority:** Medium
 **Effort:** 6-8 weeks
 **Address:** `0x4000_6000 - 0x4000_6FFF` (4KB window)
@@ -388,7 +388,7 @@ control, and issue #60 tracks its RTL defects)
 
 ### 3.12 Interconnect ID / Version Registers
 
-**Status:** 📋 Planned
+**Status:** Planned
 **Priority:** Low
 **Effort:** 1-2 weeks
 **Address:** `0x4000_F000 - 0x4000_FFFF` (4KB window)
@@ -630,45 +630,45 @@ Each block must have:
 
 A block is considered "Production Ready" when:
 
-- ✅ All gate tests pass 100%
-- ✅ All func tests pass 100%
-- ✅ All full tests pass ≥95%
-- ✅ Complete register map specification
-- ✅ RTL lint clean (Verilator)
-- ✅ Reset macros used throughout
-- ✅ FPGA synthesis attributes applied
-- ✅ Integration guide written
-- ✅ Known issues documented
+- All gate tests pass 100%
+- All func tests pass 100%
+- All full tests pass ≥95%
+- Complete register map specification
+- RTL lint clean (Verilator)
+- Reset macros used throughout
+- FPGA synthesis attributes applied
+- Integration guide written
+- Known issues documented
 
 ### 6.2 Current Status
 
 | Block | Priority | Status | Test Pass Rate | Documentation | Production Ready |
 |-------|----------|--------|----------------|---------------|------------------|
-| HPET | High | ✅ Implemented | see dv/tests | MAS (ch1/2/5) | ❌ RTL defects open (#46) |
-| 8259 PIC | High | ✅ Implemented | see dv/tests | MAS (ch1/5) | ❌ ISR/EOI half inert (#50) |
-| 8254 PIT | High | ✅ Implemented | 6/6 both CDC configs | MAS (full) | Mode 0 only (#52) |
-| GPIO | Medium | ✅ Implemented | see dv/tests | MAS (full) | Functional; quirks tracked (#44) |
-| RTC | Medium | ✅ Implemented | see dv/tests | MAS (ch1/5) | ❌ Binary 24h only; time-set broken in production mode (#56) |
-| SMBus | Medium | ✅ Implemented | see dv/tests | MAS (ch1/5) | ❌ Transfer engine non-functional (#58) |
-| PM/ACPI | Medium | ✅ Implemented | see dv/tests | MAS (ch1/5) | ❌ Status/W1C/wake defects (#54) |
-| IOAPIC | Medium | ✅ Implemented | see dv/tests | MAS (ch1/2/5) | ❌ Double delivery + EOI hazards (#48) |
-| UART | Medium | ✅ Implemented | see dv/tests | MAS (full) | ❌ FE/BI dead, IER unwired (#60) |
-| SPI | Low | 📋 Planned | N/A | N/A | ❌ No |
-| I2C | Low | 📋 Planned | N/A | N/A | ❌ No |
-| Watchdog | Low | 📋 Planned | N/A | N/A | ❌ No |
-| Interconnect | Low | 📋 Planned | N/A | N/A | ❌ No |
+| HPET | High | Implemented | see dv/tests | MAS (ch1/2/5) | RTL defects open (#46) |
+| 8259 PIC | High | Implemented | see dv/tests | MAS (ch1/5) | ISR/EOI half inert (#50) |
+| 8254 PIT | High | Implemented | 6/6 both CDC configs | MAS (full) | Mode 0 only (#52) |
+| GPIO | Medium | Implemented | see dv/tests | MAS (full) | Functional; quirks tracked (#44) |
+| RTC | Medium | Implemented | see dv/tests | MAS (ch1/5) | Binary 24h only; time-set broken in production mode (#56) |
+| SMBus | Medium | Implemented | see dv/tests | MAS (ch1/5) | Transfer engine non-functional (#58) |
+| PM/ACPI | Medium | Implemented | see dv/tests | MAS (ch1/5) | Status/W1C/wake defects (#54) |
+| IOAPIC | Medium | Implemented | see dv/tests | MAS (ch1/2/5) | Double delivery + EOI hazards (#48) |
+| UART | Medium | Implemented | see dv/tests | MAS (full) | FE/BI dead, IER unwired (#60) |
+| SPI | Low | Planned | N/A | N/A | No |
+| I2C | Low | Planned | N/A | N/A | No |
+| Watchdog | Low | Planned | N/A | N/A | No |
+| Interconnect | Low | Planned | N/A | N/A | No |
 
 ---
 
 ## 7. Development Roadmap
 
-### 7.1 Phase 1: Foundation (Complete ✅)
+### 7.1 Phase 1: Foundation (Complete)
 
-- ✅ HPET implementation
-- ✅ Directory structure for multiple blocks
-- ✅ Testbench architecture established
-- ✅ Documentation templates
-- ✅ Build and test infrastructure
+- HPET implementation
+- Directory structure for multiple blocks
+- Testbench architecture established
+- Documentation templates
+- Build and test infrastructure
 
 ### 7.2 Phase 2: Core Peripherals (Next 6-9 Months)
 

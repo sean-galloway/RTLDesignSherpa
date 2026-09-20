@@ -10,21 +10,21 @@ This is a comprehensive, production-quality FPGA project demonstrating safe Cloc
 
 ### Key Achievements
 
-✅ **Complete Design Flow**
+**Complete Design Flow**
 - RTL design using rtldesignsherpa common library
 - Comprehensive timing constraints
 - CocoTB simulation testbench
 - Vivado build automation
 - FPGA programming scripts
 
-✅ **Educational Excellence**
+**Educational Excellence**
 - 600+ lines of inline documentation
 - Detailed CDC safety analysis
 - MTBF calculations
 - Timing diagrams and explanations
 - Best practices demonstration
 
-✅ **Production Quality**
+**Production Quality**
 - Follows industry CDC standards
 - Proper synchronizer chains
 - ASYNC_REG attributes
@@ -152,11 +152,11 @@ the global `make/fpga_flow.mk`). Phase-1 targets take `BUILD=phase1`:
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| CDC Crossings | 2 | ✅ All safe |
-| Synchronizer Stages | 2 FF | ✅ Industry standard |
-| MTBF | 10^40 years | ✅ Negligible failure rate |
-| Pulse Width Ratio | 100:1 | ✅ Well above minimum |
-| ASYNC_REG Attributes | Applied | ✅ Optimization protected |
+| CDC Crossings | 2 | All safe |
+| Synchronizer Stages | 2 FF | Industry standard |
+| MTBF | 10^40 years | Negligible failure rate |
+| Pulse Width Ratio | 100:1 | Well above minimum |
+| ASYNC_REG Attributes | Applied | Optimization protected |
 
 ---
 
@@ -191,14 +191,14 @@ the global `make/fpga_flow.mk`). Phase-1 targets take `BUILD=phase1`:
 
 ### Learning Objectives Achieved
 
-✅ Understand CDC hazards and solutions
-✅ Apply industry-standard CDC techniques
-✅ Write proper timing constraints
-✅ Calculate MTBF for synchronizers
-✅ Use CocoTB for verification
-✅ Automate FPGA builds
-✅ Debug with 7-segment displays
-✅ Implement heartbeat indicators
+Understand CDC hazards and solutions
+Apply industry-standard CDC techniques
+Write proper timing constraints
+Calculate MTBF for synchronizers
+Use CocoTB for verification
+Automate FPGA builds
+Debug with 7-segment displays
+Implement heartbeat indicators
 
 ---
 
@@ -235,9 +235,9 @@ Visual confirmation of independent clock operation:
 ### 2. Pulse-Based CDC
 
 Demonstrates explicit handshake rather than simple multi-bit synchronizer:
-- ✅ Explicit transfer event
-- ✅ Guaranteed single-pulse delivery
-- ✅ Educational value for learning protocols
+- Explicit transfer event
+- Guaranteed single-pulse delivery
+- Educational value for learning protocols
 
 ### 3. Quasi-Static Data Transfer
 
@@ -371,12 +371,12 @@ All criteria met:
 
 This project serves as an **exemplar FPGA demonstration** showing:
 
-✅ Professional design practices
-✅ Safe CDC implementation
-✅ Comprehensive verification
-✅ Educational excellence
-✅ Automation and reproducibility
-✅ Production-quality deliverables
+Professional design practices
+Safe CDC implementation
+Comprehensive verification
+Educational excellence
+Automation and reproducibility
+Production-quality deliverables
 
 **Ready for:**
 - Educational lab exercises
@@ -394,7 +394,7 @@ This project serves as an **exemplar FPGA demonstration** showing:
 
 ---
 
-**Status:** ✅ Complete and Tested
+**Status:** Complete and Tested
 **Quality Level:** Production
 **Educational Rating:** Excellent
 **Maintainer:** RTL Design Sherpa Project

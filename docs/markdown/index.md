@@ -86,7 +86,7 @@ Complete implementation of ARM AMBA protocols:
 
 *66+ modules supporting complete AMBA-based system design*
 
-### 🧪 Verification Framework
+### Verification Framework
 
 #### **CocoTB Framework** (`cocotb-framework` PyPI package)
 Protocol VIP and verification infrastructure (installed via `pip install cocotb-framework`):
@@ -107,7 +107,7 @@ Comprehensive guides for hardware verification:
 - **Automation**: Regression testing, CI/CD integration, automated reporting
 - **Performance**: Bandwidth testing, latency analysis, stress testing
 
-### 🛠️ Development Tools
+### Development Tools
 
 #### **[Python Scripts and Automation](Scripts/index.md)**
 Professional development and automation tools:
@@ -121,25 +121,25 @@ Professional development and automation tools:
 
 ## Key Features
 
-### 🎯 **Production-Ready Quality**
+### **Production-Ready Quality**
 - **Rigorous Testing**: Every module includes comprehensive test suites with multiple configurations
 - **Code Standards**: Consistent coding style with automated lint checking and formatting
 - **Documentation**: Professional-grade documentation with timing diagrams and usage examples
 - **Performance Validated**: Modules tested across frequency ranges from 100MHz to 800MHz+
 
-### ⚡ **Modern SystemVerilog**
+### **Modern SystemVerilog**
 - **Parameterized IP**: Highly configurable modules adaptable to various system requirements
 - **Interface-Based Design**: Clean abstraction layers with SystemVerilog interfaces
 - **Synthesis Optimized**: Code written for optimal synthesis results across different tools
 - **Industry Compliance**: Full adherence to SystemVerilog standards and best practices
 
-### 🔧 **Complete Toolchain Integration**
+### **Complete Toolchain Integration**
 - **Verilator**: Fast simulation with VCD/FST waveform generation
 - **Verible**: Professional-grade linting and code formatting
 - **CocoTB**: Python-based verification with pytest integration
 - **GTKWave**: Waveform viewing with pre-configured signal groups
 
-### 📈 **Scalable Architecture**
+### **Scalable Architecture**
 - **Modular Design**: Individual IP blocks can be used independently or as system components
 - **Hierarchical Organization**: Clear separation between common utilities and protocol-specific modules
 - **Extensible Framework**: Well-defined interfaces for adding new modules and protocols
@@ -176,18 +176,18 @@ The framework is designed for Linux development (Ubuntu recommended) with these 
 
 ## Use Cases
 
-### 🎓 **Learning and Education**
+### **Learning and Education**
 - **Academic Projects**: Complete framework for digital design coursework
 - **Industry Preparation**: Learn professional verification and design methodologies
 - **Skill Development**: Hands-on experience with industry-standard tools and practices
 
-### 🏢 **Professional Development**
+### **Professional Development**
 - **IP Creation**: Foundation for developing reusable intellectual property
 - **Prototyping**: Rapid development of digital designs with proven building blocks
 - **Verification**: Professional-grade testbench development and automation
 - **Tool Evaluation**: Compare open-source flows against commercial alternatives
 
-### 🔬 **Research and Innovation**
+### **Research and Innovation**
 - **Algorithm Implementation**: Hardware implementation of computational algorithms
 - **Protocol Development**: Framework for developing new bus protocols and interfaces
 - **Performance Analysis**: Tools for analyzing timing, area, and power characteristics
@@ -243,21 +243,21 @@ RTL Design Sherpa is built on solid technical foundations inspired by industry-l
 
 ## Navigation
 
-### 📚 **RTL IP Documentation**
+### **RTL IP Documentation**
 - **[RTL Common Modules](rtl-common/index.md)** - Fundamental digital design building blocks
 - **[RTL Math Library](rtl-math/index.md)** - Adders, multipliers, floating-point formats
 - **[RTL Clock Domain Crossing](rtl-cdc/index.md)** - Synchronizers, handshakes, async FIFOs
 - **[RTL AMBA Protocols](rtl-amba/index.md)** - Complete AMBA protocol implementation
 
-### 🧪 **Verification and Testing**
+### **Verification and Testing**
 - **TBClasses** (`bin/TBClasses/`) - Shared testbench classes; no doc book yet, read the source
 - **[Testing Tutorial](TestTutorial/index.md)** - Complete guide to hardware verification
 - **cocotb-framework** (PyPI) - Protocol VIP, scoreboards, and shared components
 
-### 🛠️ **Tools and Automation**
+### **Tools and Automation**
 - **[Python Scripts](Scripts/index.md)** - Development tools and automation scripts
 
-### 📖 **Additional Resources**
+### **Additional Resources**
 - **[Repository README](../../README.md)** - Setup instructions and getting started guide
 - **[Contributing Guidelines](../../CONTRIBUTING.md)** - Development standards and contribution process
 

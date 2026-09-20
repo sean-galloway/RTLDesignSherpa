@@ -38,12 +38,12 @@ Replace rather than delete, because the glyphs are not interchangeable:
 
 | In the source | In your output |
 |---|---|
-| `✅` / `❌` leading a bullet or heading | delete the glyph; the adjacent words already say it |
-| `⚠️` marking a caveat in a list of otherwise-positive items | `Caveat: ...` — deleting it turns a warning into a recommendation |
-| `✓` / `✗` in a capability table | `Yes` / `No` |
-| trailing `✓` on a worked example | `(correct)`, or dissolve into the sentence |
+| `` / `` leading a bullet or heading | delete the glyph; the adjacent words already say it |
+| `` marking a caveat in a list of otherwise-positive items | `Caveat: ...` — deleting it turns a warning into a recommendation |
+| `` / `` in a capability table | `Yes` / `No` |
+| trailing `` on a worked example | `(correct)`, or dissolve into the sentence |
 
-The middle row is the one that bites. A list of three `✅` fits and one `⚠️`
+The middle row is the one that bites. A list of three `` fits and one ``
 caveat becomes four reasons to pick that mode if you delete all four glyphs.
 
 ### 2. Use the canonical section headings

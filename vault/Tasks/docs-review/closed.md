@@ -7,7 +7,7 @@ _None._
 ---
 
 ## DOCREV-006 — Give math its own docs directory
-**Status:** ✅ closed 2026-07-23 — moved, generator repointed, links verified
+**Status:** closed 2026-07-23 — moved, generator repointed, links verified
 
 The RTL split had happened and the docs had not followed:
 

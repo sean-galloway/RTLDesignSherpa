@@ -22,7 +22,7 @@
 <!-- End Header -->
 
 # HIVE System Specification
-**Hierarchical Intelligent Vector Environment**  
+**Hierarchical Intelligent Vector Environment**
 Version 0.3 - Early Proof of Concept (Draft)
 
 ---
@@ -265,14 +265,14 @@ HIVE supports rapid topology switching through pre-loaded routing configurations
 1. HIVE-C issues CONFIG_PREPARE command
    - Target tiles flush in-flight packets
    - Routers enter quiescent state
-   
+
 2. HIVE-C broadcasts SET_ROUTING_MODE
    - All tiles simultaneously update mode register
    - Context switch occurs in single cycle
-   
+
 3. HIVE-C issues CONFIG_ACTIVATE command
    - Tiles resume operation with new routing
-   
+
 Total latency: 10-20 cycles (deterministic)
 ```
 
@@ -354,11 +354,11 @@ void serv_inject_descriptor(
     desc.length = length;
     desc.stride = (stride << 16) | stride; // 2D: same X/Y
     desc.flags = (0xF << 28) |  // Max burst
-                 (tile_id << 16) | 
+                 (tile_id << 16) |
                  (1 << 7) |  // Enable 2D
                  (1 << 5);   // Generate interrupt
     desc.next_ptr = 0; // Single-shot
-    
+
     // Write to AXIS injection FIFO
     AXIS_TX_FIFO[0] = desc.word[0];
     AXIS_TX_FIFO[1] = desc.word[1];
@@ -367,7 +367,7 @@ void serv_inject_descriptor(
     AXIS_TX_TUSER = PKT_DESC;
     AXIS_TX_TLAST = 1;
     AXIS_TX_VALID = 1;
-    
+
     // Wait for handshake
     while (!(AXIS_TX_READY));
 }
@@ -441,7 +441,7 @@ void program_s2mm_descriptor(uint8_t source_tile) {
     desc.length = result_size;
     desc.source_tile_id = source_tile;  // Descriptor[15:12]
     desc.dest_tile_id = 16;  // RAPIDS virtual tile (not really used)
-    
+
     // Inject to RAPIDS - it will queue this on S2MM Channel[source_tile]
     inject_descriptor(&desc);
 }
@@ -470,29 +470,29 @@ HIVE-C implements multi-level queue scheduler:
 void hive_main_loop(void) {
     init_hardware();
     load_network_config(CONTEXT_MESH); // Start in mesh mode
-    
+
     while (1) {
         // Process host commands
         if (host_command_pending()) {
             handle_host_command();
         }
-        
+
         // Aggregate SERV statistics
         if (timer_expired(STATS_INTERVAL)) {
             collect_serv_statistics();
             update_performance_model();
         }
-        
+
         // Check for congestion
         if (congestion_detected()) {
             adaptive_route_balancing();
         }
-        
+
         // Schedule next descriptor batch
         if (rapids_ready() && desc_queue_has_work()) {
             issue_descriptor_batch(MAX_INFLIGHT);
         }
-        
+
         // Handle completion interrupts
         if (irq_pending()) {
             process_interrupts();
@@ -512,10 +512,10 @@ void execute_matmul_layer(uint8_t num_tiles) {
         mm2s_desc.dest_tile_id = tile;  // Send to this tile
         mm2s_desc.source_tile_id = 0;   // Not used for MM2S
         mm2s_desc.priority = 0;  // High priority
-        
+
         inject_descriptor(&mm2s_desc);
     }
-    
+
     // Phase 2: Pre-program S2MM descriptors for result collection
     // CRITICAL: Must know which tile will send results (via TID)
     for (int tile = 0; tile < num_tiles; tile++) {
@@ -527,14 +527,14 @@ void execute_matmul_layer(uint8_t num_tiles) {
         s2mm_desc.source_tile_id = tile;  // CRITICAL: Expect TID=tile
         s2mm_desc.dest_tile_id = 16;  // RAPIDS (not really used)
         s2mm_desc.priority = 1;  // Standard priority
-        
+
         inject_descriptor(&s2mm_desc);
-        
+
         // RAPIDS will queue this on S2MM Channel[tile]
         // When Tile[tile] sends results with TID=tile,
         // it will match this channel and use this descriptor
     }
-    
+
     // Wait for all completions
     wait_for_all_tiles_complete();
 }
@@ -681,25 +681,25 @@ async def test_congestion_detection(dut):
     """Verify SERV triggers alert when buffer exceeds threshold"""
     clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())
-    
+
     # Reset
     dut.rst_n.value = 0
     await RisingEdge(dut.clk)
     dut.rst_n.value = 1
-    
+
     # Configure threshold
     dut.congestion_threshold.value = 120  # 75% of 160 entry FIFO
-    
+
     # Inject packets to fill buffer
     for i in range(125):
         dut.pkt_rx_valid.value = 1
         dut.pkt_rx_ready.value = 0  # Backpressure
         await RisingEdge(dut.clk)
-    
+
     # Check alert triggered
     await RisingEdge(dut.clk)
     assert dut.congestion_alert.value == 1, "Alert should trigger at 125/160"
-    
+
     # Verify status packet injected
     assert dut.axis_tx_valid.value == 1
     assert dut.axis_tx_tuser.value == 0b11  # PKT_STATUS
@@ -1007,28 +1007,28 @@ endproperty
 
 ### 14.1 Functional Requirements
 
-- ✅ VexRiscv successfully controls RAPIDS DMA via inband descriptors
-- ✅ 16 SERV monitors accurately track per-tile traffic
-- ✅ Configuration switching completes within 25 cycles
-- ✅ All packet types correctly routed based on TUSER encoding
-- ✅ Zero packet loss under normal operation
-- ✅ Congestion detection triggers within 10 cycles
+- VexRiscv successfully controls RAPIDS DMA via inband descriptors
+- 16 SERV monitors accurately track per-tile traffic
+- Configuration switching completes within 25 cycles
+- All packet types correctly routed based on TUSER encoding
+- Zero packet loss under normal operation
+- Congestion detection triggers within 10 cycles
 
 ### 14.2 Performance Requirements
 
-- ✅ System frequency ≥ 100 MHz on NexysA7 100T
-- ✅ Descriptor injection latency < 30 cycles (HIVE-C → RAPIDS)
-- ✅ NoC throughput ≥ 80% of theoretical maximum
-- ✅ SERV monitoring overhead < 5% of compute time
-- ✅ Configuration switching overhead < 1% for workloads with 1000+ cycle phases
+- System frequency ≥ 100 MHz on NexysA7 100T
+- Descriptor injection latency < 30 cycles (HIVE-C → RAPIDS)
+- NoC throughput ≥ 80% of theoretical maximum
+- SERV monitoring overhead < 5% of compute time
+- Configuration switching overhead < 1% for workloads with 1000+ cycle phases
 
 ### 14.3 Educational Requirements
 
-- ✅ SimPy models predict hardware performance within ±10%
-- ✅ 100% of RTL modules have passing unit tests
-- ✅ Complete API documentation with examples
-- ✅ 5+ tutorials covering common use cases
-- ✅ Modular design allows component replacement without system redesign
+- SimPy models predict hardware performance within ±10%
+- 100% of RTL modules have passing unit tests
+- Complete API documentation with examples
+- 5+ tutorials covering common use cases
+- Modular design allows component replacement without system redesign
 
 ---
 
@@ -1065,8 +1065,8 @@ endproperty
 
 ---
 
-**Document Version:** 0.3 (Early Draft - Proof of Concept)  
-**Last Updated:** 2025-10-18  
-**Status:** Preliminary specification, subject to significant change  
-**Maintained By:** HIVE Development Team  
+**Document Version:** 0.3 (Early Draft - Proof of Concept)
+**Last Updated:** 2025-10-18
+**Status:** Preliminary specification, subject to significant change
+**Maintained By:** HIVE Development Team
 **License:** Educational use, open-source components per individual licenses

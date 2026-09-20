@@ -39,10 +39,10 @@
 
 ## Task Status Legend
 
-- 🔴 **Blocked** - Cannot proceed due to dependencies or issues
-- 🟠 **In Progress** - Currently being worked on
-- 🟡 **Planned** - Scheduled for upcoming work
-- 🟢 **Complete** - Finished and verified
+- **Blocked** - Cannot proceed due to dependencies or issues
+- **In Progress** - Currently being worked on
+- **Planned** - Scheduled for upcoming work
+- **Complete** - Finished and verified
 
 ## Priority Levels
 
@@ -56,7 +56,7 @@
 ## Active Tasks
 
 ### TASK-001: Complete Specification Chapter 2 (SERV Core)
-**Status:** 🟠 In Progress
+**Status:** In Progress
 **Priority:** P0
 **Effort:** 3 days
 **Owner:** Unassigned
@@ -81,7 +81,7 @@ Complete detailed specification of the SERV bit-serial RISC-V core integration, 
 ---
 
 ### TASK-002: Complete Specification Chapter 2 (VexRiscv Core)
-**Status:** 🟠 In Progress
+**Status:** In Progress
 **Priority:** P0
 **Effort:** 3 days
 **Owner:** Unassigned
@@ -106,7 +106,7 @@ Complete detailed specification of the VexRiscv supervisor core, including pipel
 ---
 
 ### TASK-003: Complete Specification Chapter 3 (Memory Subsystem)
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P0
 **Effort:** 2 days
 **Owner:** Unassigned
@@ -131,7 +131,7 @@ Document the shared memory subsystem including SRAM, ROM, and memory arbitration
 ---
 
 ### TASK-004: Complete Specification Chapter 4 (Interconnect)
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P0
 **Effort:** 2 days
 **Owner:** Unassigned
@@ -155,7 +155,7 @@ Document the interconnect fabric connecting VexRiscv, SERV cores, and peripheral
 ---
 
 ### TASK-005: Complete Specification Chapter 5 (System Integration)
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P0
 **Effort:** 2 days
 **Owner:** Unassigned
@@ -179,7 +179,7 @@ Document top-level system integration, clocking, reset, and boot sequence.
 ---
 
 ### TASK-006: SERV Core Integration
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P0
 **Effort:** 1 week
 **Owner:** Unassigned
@@ -206,7 +206,7 @@ Integrate SERV bit-serial RISC-V core as submodule and create wrapper with AXI4-
 ---
 
 ### TASK-007: VexRiscv Core Integration
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P0
 **Effort:** 1 week
 **Owner:** Unassigned
@@ -233,7 +233,7 @@ Integrate VexRiscv supervisor core and configure for HIVE system requirements.
 ---
 
 ### TASK-008: Shared Memory Subsystem RTL
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P0
 **Effort:** 4 days
 **Owner:** Unassigned
@@ -261,7 +261,7 @@ Implement shared SRAM with multi-port arbiter for 1 VexRiscv + 16 SERV cores.
 ---
 
 ### TASK-009: AXI4-Lite Interconnect RTL
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P0
 **Effort:** 3 days
 **Owner:** Unassigned
@@ -286,7 +286,7 @@ Implement AXI4-Lite crossbar connecting VexRiscv, SERV cores, and peripherals.
 ---
 
 ### TASK-010: HIVE Top-Level Integration
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P0
 **Effort:** 3 days
 **Owner:** Unassigned
@@ -314,7 +314,7 @@ Implement top-level HIVE module integrating all components.
 ---
 
 ### TASK-011: CocoTB SERV Core Testbench
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P1
 **Effort:** 4 days
 **Owner:** Unassigned
@@ -340,7 +340,7 @@ Create comprehensive CocoTB testbench for SERV wrapper testing.
 ---
 
 ### TASK-012: CocoTB VexRiscv Core Testbench
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P1
 **Effort:** 4 days
 **Owner:** Unassigned
@@ -366,7 +366,7 @@ Create comprehensive CocoTB testbench for VexRiscv wrapper testing.
 ---
 
 ### TASK-013: CocoTB Memory Arbiter Testbench
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P1
 **Effort:** 3 days
 **Owner:** Unassigned
@@ -392,7 +392,7 @@ Create testbench for shared memory arbiter with multiple master stimuli.
 ---
 
 ### TASK-014: CocoTB System Integration Testbench
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P1
 **Effort:** 1 week
 **Owner:** Unassigned
@@ -422,7 +422,7 @@ Create end-to-end HIVE system testbench with VexRiscv supervising 16 SERV cores.
 ---
 
 ### TASK-015: Software Toolchain Setup
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P1
 **Effort:** 3 days
 **Owner:** Unassigned
@@ -448,7 +448,7 @@ Set up RISC-V GCC toolchain and example programs for HIVE testing.
 ---
 
 ### TASK-016: Wavedrom Timing Diagrams
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P2
 **Effort:** 2 days
 **Owner:** Unassigned
@@ -474,7 +474,7 @@ Create wavedrom JSON files illustrating key HIVE operations.
 ---
 
 ### TASK-017: PlantUML FSM Diagrams
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P2
 **Effort:** 1 day
 **Owner:** Unassigned
@@ -498,7 +498,7 @@ Create PlantUML state machine diagrams for HIVE FSMs.
 ---
 
 ### TASK-018: Block Diagrams and Architecture Images
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P2
 **Effort:** 2 days
 **Owner:** Unassigned
@@ -524,7 +524,7 @@ Create block diagrams and architecture illustrations for specification.
 
 ## Recently Completed Tasks
 
-### ✅ TASK-000: Initial Specification Structure (Complete - 2025-10-15)
+### TASK-000: Initial Specification Structure (Complete - 2025-10-15)
 - Created specification chapter outline (Ch1-5)
 - Completed Chapter 1 (Overview, Architectural Requirements, Clocks/Reset, Acronyms, References)
 - Created initial PRD.md and CLAUDE.md

@@ -23,7 +23,7 @@
 
 # PIC_8259 Testbench Classes
 
-**Status:** 📋 Planned - Structure Created
+**Status:** Planned - Structure Created
 
 ---
 

@@ -52,7 +52,7 @@ This directory contains testplan YAML files for all 9 subsystems in the retro_le
 - **Test:** `dv/tests/test_apb4_gpio.py`
 - **Missing:** Edge/level interrupts, mixed mode, CDC stress
 
-### 2. `apb4_hpet_testplan.yaml` ✅ 100% COMPLETE
+### 2. `apb4_hpet_testplan.yaml` 100% COMPLETE
 - **Status:** ALL LEVELS IMPLEMENTED
 - **Gate Tests:** 7/7 passing (100%)
 - **Func Tests:** 5/5 passing (100%)
@@ -86,7 +86,7 @@ This directory contains testplan YAML files for all 9 subsystems in the retro_le
 - **Test:** `dv/tests/test_apb4_pit_8254.py`
 - **Missing:** Modes 1/3/4/5, multiple counters, BCD counting
 
-### 6. `apb4_pm_acpi_testplan.yaml` ✅ 100% COMPLETE
+### 6. `apb4_pm_acpi_testplan.yaml` 100% COMPLETE
 - **Status:** ALL LEVELS IMPLEMENTED
 - **Gate Tests:** 8/8 passing (100%)
 - **Func Tests:** 5/5 passing (100%)
@@ -112,7 +112,7 @@ This directory contains testplan YAML files for all 9 subsystems in the retro_le
 - **Test:** `dv/tests/test_apb4_smbus.py`
 - **Missing:** Block transfers, PEC, FIFO, process call, multi-master
 
-### 9. `apb4_uart_16550_testplan.yaml` ✅ 100% COMPLETE
+### 9. `apb4_uart_16550_testplan.yaml` 100% COMPLETE
 - **Status:** ALL LEVELS IMPLEMENTED
 - **Gate Tests:** 7/7 passing (100%)
 - **Func Tests:** 7/7 passing (100%)

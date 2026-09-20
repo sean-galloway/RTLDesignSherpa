@@ -216,20 +216,20 @@ set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 ## Common Pitfalls
 
 ### 1. Mixed Voltage Banks
-❌ **Don't** mix 1.8V and 3.3V signals in same bank
-✅ **Do** use appropriate IOSTANDARD per bank
+**Don't** mix 1.8V and 3.3V signals in same bank
+**Do** use appropriate IOSTANDARD per bank
 
 ### 2. Button Debouncing
-❌ **Don't** use buttons directly in critical logic
-✅ **Do** implement proper debouncing (see rtl/common/debounce.sv)
+**Don't** use buttons directly in critical logic
+**Do** implement proper debouncing (see rtl/common/debounce.sv)
 
 ### 3. 7-Segment Display
-❌ **Don't** drive all anodes simultaneously (static)
-✅ **Do** multiplex anodes (time-division)
+**Don't** drive all anodes simultaneously (static)
+**Do** multiplex anodes (time-division)
 
 ### 4. Clock Constraints
-❌ **Don't** forget to constrain generated clocks
-✅ **Do** use `create_generated_clock` for divided clocks
+**Don't** forget to constrain generated clocks
+**Do** use `create_generated_clock` for divided clocks
 
 ---
 

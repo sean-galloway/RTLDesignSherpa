@@ -135,7 +135,7 @@ This naming reflects that these are production-ready implementations of time-tes
 
 ### HPET (High Precision Event Timer)
 
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 **Test Coverage:** 5/6 configurations at 100%, 1 at 92%
 **Documentation:** Complete specification and test documentation
 

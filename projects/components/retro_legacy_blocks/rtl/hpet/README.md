@@ -27,7 +27,7 @@
 
 The HPET module is a fully parameterized, scalable timer peripheral with APB interface, supporting 2-8 independent timer channels. The implementation features **PeakRDL-generated register blocks** for automated register map generation from SystemRDL specifications, optional **clock domain crossing (CDC)** for dual-clock operation, and comprehensive interrupt handling.
 
-**Status**: ✅ **Production Ready** - All configurations tested and passing (4/4 basic tests across all variants)
+**Status**: **Production Ready** - All configurations tested and passing (4/4 basic tests across all variants)
 
 ## Key Features
 
@@ -627,10 +627,10 @@ pytest -k "CDC" projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.
 ### Test Coverage
 
 All configurations pass **4/4 basic tests**:
-1. ✅ **Register Access**: Read/write all registers
-2. ✅ **Counter Functionality**: Counter increment, SW write, live readback
-3. ✅ **Timer One-Shot**: Configure and trigger timer interrupt
-4. ✅ **Interrupt Clearing**: W1C semantics and edge detection
+1. **Register Access**: Read/write all registers
+2. **Counter Functionality**: Counter increment, SW write, live readback
+3. **Timer One-Shot**: Configure and trigger timer interrupt
+4. **Interrupt Clearing**: W1C semantics and edge detection
 
 ## File Structure
 
@@ -743,4 +743,4 @@ When modifying the HPET module:
 
 **Maintained by**: RTL Design Sherpa Project
 **Last Updated**: 2025-10-16
-**Status**: Production Ready ✅
+**Status**: Production Ready

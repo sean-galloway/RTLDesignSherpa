@@ -39,14 +39,14 @@ This directory contains production-ready and in-development component projects f
 
 | Component | Status | Location | Documentation |
 |-----------|--------|----------|---------------|
-| **Retro Legacy Blocks (HPET, PIT, ...)** | ✅ Production | [retro_legacy_blocks/](retro_legacy_blocks/) | [HPET Specification](retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) |
-| **APB Crossbar** | ✅ Production | [apbx_xbar/](apbx_xbar/) | [Specification](apbx_xbar/docs/apbx_xbar_mas/apbx_xbar_mas_index.md) |
-| **STREAM** | ✅ Production | [stream/](dmas/stream/) | [Specification](dmas/stream/docs/stream_mas/stream_index.md) |
-| **RAPIDS** | 🟢 Functional | [rapids/](dmas/rapids/) | [Specification](dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md) |
-| **Bridge** | 🟡 Development | [bridge/](bridge/) | See [bridge/docs/](bridge/docs/) |
-| **Converters** | 🟡 Development | [converters/](converters/) | See [converters/docs/](converters/docs/) |
-| **Delta** | 🟡 Development | [delta/](delta/) | [Specification](delta/docs/delta_spec/delta_index.md) |
-| **Hive** | 🟡 Development | [hive/](hive/) | [Specification](hive/docs/hive_spec/hive_index.md) |
+| **Retro Legacy Blocks (HPET, PIT, ...)** | Production | [retro_legacy_blocks/](retro_legacy_blocks/) | [HPET Specification](retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) |
+| **APB Crossbar** | Production | [apbx_xbar/](apbx_xbar/) | [Specification](apbx_xbar/docs/apbx_xbar_mas/apbx_xbar_mas_index.md) |
+| **STREAM** | Production | [stream/](dmas/stream/) | [Specification](dmas/stream/docs/stream_mas/stream_index.md) |
+| **RAPIDS** | Functional | [rapids/](dmas/rapids/) | [Specification](dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md) |
+| **Bridge** | Development | [bridge/](bridge/) | See [bridge/docs/](bridge/docs/) |
+| **Converters** | Development | [converters/](converters/) | See [converters/docs/](converters/docs/) |
+| **Delta** | Development | [delta/](delta/) | [Specification](delta/docs/delta_spec/delta_index.md) |
+| **Hive** | Development | [hive/](hive/) | [Specification](hive/docs/hive_spec/hive_index.md) |
 
 ---
 
@@ -103,10 +103,10 @@ Each component follows this standard structure:
 
 ## Status Legend
 
-- ✅ **Production Ready** - Complete, verified, ready for integration
-- 🟢 **Functional** - Working, test cleanup/refinement ongoing
-- 🟡 **In Development** - Active development, partial functionality
-- 🔴 **Planned** - Design phase, not yet implemented
+- **Production Ready** - Complete, verified, ready for integration
+- **Functional** - Working, test cleanup/refinement ongoing
+- **In Development** - Active development, partial functionality
+- **Planned** - Design phase, not yet implemented
 
 ---
 

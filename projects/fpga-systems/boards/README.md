@@ -127,7 +127,7 @@ set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 
 ### 1. Only Uncomment What You Use
 
-❌ **Don't** uncomment entire master.xdc
+**Don't** uncomment entire master.xdc
 ```tcl
 ## This creates unnecessary constraints
 set_property -dict {...} [get_ports {led[0]}]
@@ -135,7 +135,7 @@ set_property -dict {...} [get_ports {led[1]}]
 # ... (14 more LEDs you're not using)
 ```
 
-✅ **Do** uncomment only needed pins
+**Do** uncomment only needed pins
 ```tcl
 ## Just the 2 LEDs we need
 set_property -dict {...} [get_ports {led[0]}]

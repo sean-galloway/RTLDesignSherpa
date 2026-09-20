@@ -4,7 +4,7 @@ This guide walks you through the full installation process to run `md_to_docx.py
 
 ---
 
-## 1. 🐍 Install Python 3.7+
+## 1. Install Python 3.7+
 
 Ensure you have Python 3.7 or higher installed. Check with:
 
@@ -16,7 +16,7 @@ If it's not installed, download it from: https://www.python.org/downloads/
 
 ---
 
-## 2. 📦 Install Required Packages
+## 2. Install Required Packages
 
 Create a virtual environment (optional but recommended):
 
@@ -39,7 +39,7 @@ pip install pyyaml
 
 ---
 
-## 3. ⚙️ Install Pandoc
+## 3. Install Pandoc
 
 This script uses [Pandoc](https://pandoc.org/) to convert Markdown to `.docx` and `.pdf`.
 
@@ -57,7 +57,7 @@ brew install pandoc
 
 ### On Windows:
 
-Download and install from:  
+Download and install from:
 https://github.com/jgm/pandoc/releases
 
 Verify installation:
@@ -90,7 +90,7 @@ Download and install MikTeX: https://miktex.org/download
 
 ---
 
-## ✅ You're Ready!
+## You're Ready!
 
 Now you can run the script:
 

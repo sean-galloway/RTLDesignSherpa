@@ -901,32 +901,32 @@ class PIT8254TB(TBBase):
 **Following HPET's proven metrics:**
 
 1. **Functional Correctness:**
-   - ✅ All 6 counter modes implemented correctly
-   - ✅ BCD and binary counting modes
-   - ✅ Read-back command functional
-   - ✅ GATE input control works
-   - ✅ OUT signal generation accurate
+   - All 6 counter modes implemented correctly
+   - BCD and binary counting modes
+   - Read-back command functional
+   - GATE input control works
+   - OUT signal generation accurate
 
 2. **Test Coverage:**
-   - ✅ Basic tests: 100% pass rate
-   - ✅ Medium tests: 100% pass rate
-   - ✅ Full tests: ≥95% pass rate
-   - ✅ All 6 modes tested
-   - ✅ Multiple configurations (CDC on/off)
+   - Basic tests: 100% pass rate
+   - Medium tests: 100% pass rate
+   - Full tests: ≥95% pass rate
+   - All 6 modes tested
+   - Multiple configurations (CDC on/off)
 
 3. **Documentation Quality:**
-   - ✅ Complete register map
-   - ✅ All interfaces documented
-   - ✅ Programming examples provided
-   - ✅ Timing diagrams present
-   - ✅ Comparison with original 8254
+   - Complete register map
+   - All interfaces documented
+   - Programming examples provided
+   - Timing diagrams present
+   - Comparison with original 8254
 
 4. **Code Quality:**
-   - ✅ Passes Verilator lint
-   - ✅ Reset macros used throughout
-   - ✅ FPGA synthesis attributes present
-   - ✅ Clean module hierarchy
-   - ✅ Reusable counter instances
+   - Passes Verilator lint
+   - Reset macros used throughout
+   - FPGA synthesis attributes present
+   - Clean module hierarchy
+   - Reusable counter instances
 
 ---
 

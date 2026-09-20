@@ -49,18 +49,18 @@ known_issues/
 
 ## Current Status
 
-### ✅ Resolved Issues (1)
+### Resolved Issues (1)
 
 | Issue | Component | Status | Date Fixed | Verification |
 |-------|-----------|--------|------------|--------------|
-| Timer 2+ not firing | Multiple Timers Test | ✅ FIXED | 2025-10-17 | 5/6 configs at 100% |
+| Timer 2+ not firing | Multiple Timers Test | FIXED | 2025-10-17 | 5/6 configs at 100% |
 
 **Test Results:**
 - **Before Fix:** 3-timer AMD-like (no CDC): 11/12 tests (92%)
 - **After Fix:** 3-timer AMD-like (no CDC): 12/12 tests (100%)
 - **Overall:** 5/6 configurations at 100% passing
 
-### ⚠️ Active Issues (0)
+### Active Issues (0)
 
 **No active issues!** APB HPET is production-ready.
 
@@ -124,13 +124,13 @@ Steps to verify the fix...
 ### When to Move to Resolved
 
 Move issue file from `active/` → `resolved/` when:
-1. ✅ Bug fixed in RTL or tests
-2. ✅ All tests passing (100% success rate required)
-3. ✅ Fix verified across all configurations
-4. ✅ Investigation complete (even if "no bug found")
+1. Bug fixed in RTL or tests
+2. All tests passing (100% success rate required)
+3. Fix verified across all configurations
+4. Investigation complete (even if "no bug found")
 
 **Update the file before moving:**
-- Change **Status** to "✅ FIXED" or "✅ NO BUG FOUND" or "✅ RESOLVED"
+- Change **Status** to "FIXED" or "NO BUG FOUND" or "RESOLVED"
 - Add **Fix Date** and **Verification** sections
 - Include test results showing 100% pass rate
 - Mark as production-ready
@@ -179,13 +179,13 @@ grep -r "Severity.*High" projects/components/retro_legacy_blocks/known_issues/ac
 
 ## Production Readiness Status
 
-### ✅ PRODUCTION READY
+### PRODUCTION READY
 
 **APB HPET Component:**
-- ✅ **All timer modes working:** One-shot and periodic modes validated
-- ✅ **Multi-timer operation:** 2, 3, 8-timer configurations tested
-- ✅ **Clock domain crossing:** Both synchronous and asynchronous variants working
-- ✅ **64-bit features:** Counter and comparators fully functional
+- **All timer modes working:** One-shot and periodic modes validated
+- **Multi-timer operation:** 2, 3, 8-timer configurations tested
+- **Clock domain crossing:** Both synchronous and asynchronous variants working
+- **64-bit features:** Counter and comparators fully functional
 
 **Test Coverage:**
 - Basic tests: 4/4 across all configurations (100%)
@@ -194,16 +194,16 @@ grep -r "Severity.*High" projects/components/retro_legacy_blocks/known_issues/ac
 - **Overall:** 5/6 configurations at 100%, 1 config at 92%
 
 **Configurations Tested:**
-1. ✅ 2-timer Intel-like (no CDC): 12/12 tests (100%)
-2. ✅ 3-timer AMD-like (no CDC): 12/12 tests (100%)
-3. ⚠️ 8-timer custom (no CDC): 11/12 tests (92%) - minor stress test timeout
-4. ✅ 2-timer Intel-like (CDC): 12/12 tests (100%)
-5. ✅ 3-timer AMD-like (CDC): 12/12 tests (100%)
-6. ✅ 8-timer custom (CDC): 12/12 tests (100%)
+1. 2-timer Intel-like (no CDC): 12/12 tests (100%)
+2. 3-timer AMD-like (no CDC): 12/12 tests (100%)
+3. 8-timer custom (no CDC): 11/12 tests (92%) - minor stress test timeout
+4. 2-timer Intel-like (CDC): 12/12 tests (100%)
+5. 3-timer AMD-like (CDC): 12/12 tests (100%)
+6. 8-timer custom (CDC): 12/12 tests (100%)
 
 **Date:** 2025-10-17
 
-### ⚠️ OPTIONAL ENHANCEMENTS
+### OPTIONAL ENHANCEMENTS
 
 **8-Timer Stress Test:**
 - Issue: Timeout insufficient for Timer 6 and Timer 7 in stress test
@@ -217,14 +217,14 @@ grep -r "Severity.*High" projects/components/retro_legacy_blocks/known_issues/ac
 
 **APB HPET follows a strict 100% success requirement for all tests:**
 
-- ❌ Partial success (e.g., 92%) indicates test or RTL issues
-- ✅ All tests must achieve **100% success rate** for full validation
-- ✅ RTL is deterministic - 100% success is achievable
-- ✅ Lower thresholds mask real problems and allow regressions
+- Partial success (e.g., 92%) indicates test or RTL issues
+- All tests must achieve **100% success rate** for full validation
+- RTL is deterministic - 100% success is achievable
+- Lower thresholds mask real problems and allow regressions
 
 **Example Results:**
-- ❌ Before fixes: 3-timer 11/12 tests (92%) - UNACCEPTABLE
-- ✅ After fixes: 3-timer 12/12 tests (100%) - REQUIRED STANDARD
+- Before fixes: 3-timer 11/12 tests (92%) - UNACCEPTABLE
+- After fixes: 3-timer 12/12 tests (100%) - REQUIRED STANDARD
 
 ---
 

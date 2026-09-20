@@ -4,10 +4,10 @@ This directory contains timing diagram assets for the `axi4_master_rd_mon` modul
 
 ## Status
 
-**Infrastructure:** ✅ Test framework complete
-**Signal Binding:** ✅ Using `signal_map` for AXI4 protocols
-**Waveforms:** ✅ **WORKING** - 3 waveforms successfully generated
-**Test:** ✅ PASSING
+**Infrastructure:** Test framework complete
+**Signal Binding:** Using `signal_map` for AXI4 protocols
+**Waveforms:** **WORKING** - 3 waveforms successfully generated
+**Test:** PASSING
 
 ## Generated Waveforms
 
@@ -151,11 +151,11 @@ The `single_beat_read_001.json` waveform demonstrates:
 
 ## Implementation Notes
 
-1. ✅ Constraint-based waveform generation (not manual JSON)
-2. ✅ Captures real signal timing from simulation
-3. ✅ Test fails if RTL changes break expected patterns
-4. ✅ Uses `signal_map` to explicitly bind correct signals
-5. ✅ Monitors actual AXI interface (`m_axi_*`), not internal FUB interface
+1. Constraint-based waveform generation (not manual JSON)
+2. Captures real signal timing from simulation
+3. Test fails if RTL changes break expected patterns
+4. Uses `signal_map` to explicitly bind correct signals
+5. Monitors actual AXI interface (`m_axi_*`), not internal FUB interface
 
 ## Fixed: Signal Pattern Conflict
 
@@ -188,17 +188,17 @@ ar_signal_map = {
 wave_solver.auto_bind_signals('axi4_read', signal_map=ar_signal_map, field_config=ar_config)
 ```
 
-**Result:** ✅ All 14 signals successfully bound with no conflicts
+**Result:** All 14 signals successfully bound with no conflicts
 
 ## Remaining Issue: Constraint Matching
 
 With signal binding now working, we're back to the original constraint solver issue.
 
 **Current Status:**
-- ✅ All 14 signals successfully bound
-- ✅ Sampling window configured correctly (380-720ns)
-- ✅ Transactions occurring in RTL (arvalid @ 440ns, arready @ 450ns)
-- ❌ Constraint solver reports 0 pattern matches
+- All 14 signals successfully bound
+- Sampling window configured correctly (380-720ns)
+- Transactions occurring in RTL (arvalid @ 440ns, arready @ 450ns)
+- Constraint solver reports 0 pattern matches
 
 **Constraint Definition:**
 ```python

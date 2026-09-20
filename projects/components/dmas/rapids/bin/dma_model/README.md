@@ -30,7 +30,7 @@ Comprehensive performance analysis of AXI4 memory interfaces using both analytic
 🆕 **SRAM Sizing Analysis** - Determine optimal SRAM configuration for your design:
 - Ping-pong vs Monolithic SRAM comparison
 - SRAM requirements for different pipeline depths
-- Payload impact on SRAM efficiency  
+- Payload impact on SRAM efficiency
 - Cost-benefit analysis and recommendations
 
 ## Project Structure
@@ -175,7 +175,7 @@ python bin/config_explorer.py --channels 16 --payload 2048 --pipeline 4 --stream
 **Performance:**
 - Single channel: ~2.75 GB/s
 - 16 channels: ~44 GB/s
-- Target: 50+ GB/s ❌
+- Target: 50+ GB/s
 
 ## Optimizations
 
@@ -185,7 +185,7 @@ python bin/config_explorer.py --channels 16 --payload 2048 --pipeline 4 --stream
 - Hides 512-cycle drain penalty
 
 ### 2. Streaming Drain
-- **Impact**: ~5% improvement  
+- **Impact**: ~5% improvement
 - Data drains as it arrives (no store-and-forward wait)
 - Saves burst_length cycles (32 for 2KB)
 
@@ -198,7 +198,7 @@ python bin/config_explorer.py --channels 16 --payload 2048 --pipeline 4 --stream
 ### 4. Combined Optimizations
 - **Impact**: ~75% total improvement
 - Pipeline (depth=4) + Streaming + Monolithic (for small payloads)
-- Achieves ~64 GB/s with 16 channels ✓
+- Achieves ~64 GB/s with 16 channels
 - Meets 50+ GB/s target!
 
 ## SRAM Sizing Guide (NEW!)
@@ -210,21 +210,21 @@ Payload Size?
 
 ├─ 2KB (current design)
 │  ├─ Target: Exactly 50 GB/s?
-│  │  └─ Use: Ping-Pong (4KB/ch) + Streaming ✅
+│  │  └─ Use: Ping-Pong (4KB/ch) + Streaming
 │  └─ Target: 50+ GB/s with margin?
-│     └─ Use: Monolithic (8KB/ch) + Streaming + Depth=4 ✅✅
+│     └─ Use: Monolithic (8KB/ch) + Streaming + Depth=4
 │
 ├─ 1KB
-│  └─ Use: Monolithic (4-8KB/ch) + Depth=4-8 ✅✅
+│  └─ Use: Monolithic (4-8KB/ch) + Depth=4-8
 │
 ├─ 512B
-│  └─ Use: Monolithic (3-6KB/ch) + Depth=6-12 ✅✅
+│  └─ Use: Monolithic (3-6KB/ch) + Depth=6-12
 │
 └─ 256B
-   └─ Use: Monolithic (2-4KB/ch) + Depth=8-16 ✅✅
+   └─ Use: Monolithic (2-4KB/ch) + Depth=8-16
 
 Variable payloads?
-└─ ALWAYS use Monolithic with dynamic allocation ✅✅
+└─ ALWAYS use Monolithic with dynamic allocation
 ```
 
 ### SRAM Requirements to Meet 50 GB/s
@@ -233,11 +233,11 @@ For 16 channels with streaming drain:
 
 | Payload | Mode | Pipeline | SRAM/ch | Total SRAM | Achievable? |
 |---------|------|----------|---------|------------|-------------|
-| 256B | Monolithic | 6 | 1.5 KB | 24 KB | ✅ |
-| 512B | Monolithic | 4 | 2.0 KB | 32 KB | ✅ |
-| 1KB | Monolithic | 4 | 4.0 KB | 64 KB | ✅ |
-| 2KB | Monolithic | 4 | 8.0 KB | 128 KB | ✅ |
-| 2KB | Ping-pong | 2 | 4.0 KB | 64 KB | ✅ (barely) |
+| 256B | Monolithic | 6 | 1.5 KB | 24 KB | yes |
+| 512B | Monolithic | 4 | 2.0 KB | 32 KB | yes |
+| 1KB | Monolithic | 4 | 4.0 KB | 64 KB | yes |
+| 2KB | Monolithic | 4 | 8.0 KB | 128 KB | yes |
+| 2KB | Ping-pong | 2 | 4.0 KB | 64 KB | (barely) |
 
 **Key Finding**: For 2KB payload, both modes work:
 - **Ping-pong**: 64 KB total, ~50 GB/s (minimum viable)
@@ -332,7 +332,7 @@ Total = Latency + Data_Return + Drain
 
 Bandwidth = (2048 bytes × 1 GHz) / 744 cycles
           = 2.753 GB/s per channel
-          
+
 16 channels = 16 × 2.753 = 44.05 GB/s
 ```
 
@@ -343,37 +343,37 @@ Effective = Latency + Data_Return (drain overlaps)
 
 Bandwidth = (2048 bytes × 1 GHz) / 232 cycles
           = 8.83 GB/s (theoretical)
-          
+
 Limited by drain rate: 4 GB/s per channel
 16 channels = 16 × 4 = 64 GB/s (but AXI peak is 57.6 GB/s)
 
-Achieved: ~57-64 GB/s ✓
+Achieved: ~57-64 GB/s
 ```
 
 ## Performance Goals
 
 | Metric | Baseline | Target | Optimized | Status |
 |--------|----------|--------|-----------|--------|
-| Single Channel | 2.75 GB/s | 4.0 GB/s | 4.0 GB/s | ✓ |
-| 16 Channels | 44 GB/s | 50+ GB/s | 57-64 GB/s | ✓ |
-| Efficiency | 76% | 85%+ | 99%+ | ✓ |
-| **SRAM Budget** | **64 KB** | **-** | **64-128 KB** | **✓** |
+| Single Channel | 2.75 GB/s | 4.0 GB/s | 4.0 GB/s | yes |
+| 16 Channels | 44 GB/s | 50+ GB/s | 57-64 GB/s | yes |
+| Efficiency | 76% | 85%+ | 99%+ | yes |
+| **SRAM Budget** | **64 KB** | **-** | **64-128 KB** | **** |
 
 ## Design Recommendations
 
-### Priority 1: Implement Pipelining (Depth=4) ⭐⭐⭐
+### Priority 1: Implement Pipelining (Depth=4)
 - **Effort**: Moderate
 - **Impact**: ~70% improvement
 - **SRAM**: +4KB/channel (monolithic) or 0KB (ping-pong limited to depth=2)
 - **Why**: Overlaps drain with next fetch, biggest gain
 
-### Priority 2: Enable Streaming Drain ⭐⭐
-- **Effort**: Low-Moderate  
+### Priority 2: Enable Streaming Drain
+- **Effort**: Low-Moderate
 - **Impact**: ~5% additional
 - **SRAM**: No change
 - **Why**: Saves data return wait time
 
-### Priority 3: Choose SRAM Mode ⭐⭐
+### Priority 3: Choose SRAM Mode
 - **Effort**: Moderate
 - **Impact**: 0-8× depending on payload
 - **SRAM**: 2× cost for 2KB (4KB → 8KB/ch) if depth=4
@@ -434,7 +434,7 @@ baseline = compare_single_config(
     verbose=True
 )
 
-# Optimized  
+# Optimized
 optimized = compare_single_config(
     num_channels=16,
     pipeline_depth=4,
@@ -474,7 +474,7 @@ from simpy_model.validate import validate_timing_breakdown
 
 # Check that SimPy correctly models:
 # - 200 cycle latency
-# - 32 cycle data return  
+# - 32 cycle data return
 # - 512 cycle drain
 timing = validate_timing_breakdown(num_channels=1, verbose=True)
 ```
@@ -508,22 +508,22 @@ pip install numpy pandas simpy matplotlib seaborn
 
 This project provides **complete performance modeling tools** for AXI4 interfaces:
 
-✅ **Analytical model** for instant what-if analysis  
-✅ **SimPy simulation** for detailed validation  
-✅ **Incremental optimizations** to quantify each improvement  
-✅ **Validation framework** to ensure accuracy  
-✅ **SRAM sizing analysis** to optimize memory allocation (NEW!)  
-✅ **Easy-to-use scripts** for common tasks  
-✅ **Comprehensive documentation** for all features
+**Analytical model** for instant what-if analysis
+**SimPy simulation** for detailed validation
+**Incremental optimizations** to quantify each improvement
+**Validation framework** to ensure accuracy
+**SRAM sizing analysis** to optimize memory allocation (NEW!)
+**Easy-to-use scripts** for common tasks
+**Comprehensive documentation** for all features
 
 **Result**: Clear path to achieve 50+ GB/s target through pipelining and streaming drain optimizations, with optimal SRAM configuration validated by three independent models.
 
 ---
 
-**Project Status**: ✅ Complete and Validated  
-**Target Achievement**: ✅ 50+ GB/s with optimizations  
-**Model Agreement**: ✅ <3% difference  
-**SRAM Analysis**: ✅ Comprehensive sizing guide  
+**Project Status**: Complete and Validated
+**Target Achievement**: 50+ GB/s with optimizations
+**Model Agreement**: <3% difference
+**SRAM Analysis**: Comprehensive sizing guide
 **Ready for**: Implementation planning and verification
 
 ## Quick Reference
@@ -539,5 +539,5 @@ This project provides **complete performance modeling tools** for AXI4 interface
 
 ---
 
-**Last Updated**: 2025  
+**Last Updated**: 2025
 **Version**: 1.1 (with SRAM analysis)

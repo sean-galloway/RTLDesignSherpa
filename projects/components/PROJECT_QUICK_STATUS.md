@@ -57,7 +57,7 @@
 
 ### 1. Converters - Data Width and Protocol Conversion
 
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 **Version:** 1.2
 **Location:** `projects/components/converters/`
 
@@ -88,7 +88,7 @@
 
 ### 2. APB Crossbar (apbx_xbar) - APB Interconnect
 
-**Status:** ✅ Production Ready (all tests passing)
+**Status:** Production Ready (all tests passing)
 **Version:** 1.0
 **Location:** `projects/components/apbx-xbar/`
 
@@ -119,7 +119,7 @@
 
 ### 3. STREAM - Scatter-Gather Transfer Rapid Engine for AXI Memory
 
-**Status:** 🟢 Active Development (95% complete)
+**Status:** Active Development (95% complete)
 **Version:** 1.0
 **Location:** `projects/components/dmas/stream/`
 
@@ -137,16 +137,16 @@
 - Transaction completion tracking
 
 **Core Blocks Complete:**
-- ✅ descriptor_engine.sv
-- ✅ scheduler.sv
-- ✅ axi_read_engine.sv (with pipelining)
-- ✅ axi_write_engine.sv (bubble-free pipeline)
-- ✅ sram_controller.sv
-- ✅ stream_alloc_ctrl.sv
-- ✅ stream_drain_ctrl.sv
-- ✅ stream_latency_bridge.sv
-- ✅ perf_profiler.sv
-- ✅ stream_core.sv (complete integration)
+- descriptor_engine.sv
+- scheduler.sv
+- axi_read_engine.sv (with pipelining)
+- axi_write_engine.sv (bubble-free pipeline)
+- sram_controller.sv
+- stream_alloc_ctrl.sv
+- stream_drain_ctrl.sv
+- stream_latency_bridge.sv
+- perf_profiler.sv
+- stream_core.sv (complete integration)
 
 **Remaining (5%):**
 - APB configuration interface (PeakRDL generation)
@@ -169,7 +169,7 @@
 
 ### 4. Bridge - AXI4 Full Crossbar Generator
 
-**Status:** 🟢 Active Development (95% complete)
+**Status:** Active Development (95% complete)
 **Version:** 1.0
 **Location:** `projects/components/bridge/`
 
@@ -187,12 +187,12 @@
 - Automatic RTL and testbench generation
 
 **Current Status:**
-- ✅ Python generator infrastructure complete
-- ✅ RTL generation for all channel types
-- ✅ Adapter modules (APB, AXIL to native AXI4)
-- ✅ Crossbar routing logic
-- ✅ Test infrastructure and auto-generation
-- 🔧 Final integration and validation
+- Python generator infrastructure complete
+- RTL generation for all channel types
+- Adapter modules (APB, AXIL to native AXI4)
+- Crossbar routing logic
+- Test infrastructure and auto-generation
+- Final integration and validation
 
 **Documentation:**
 - `PRD.md` - Complete specification
@@ -208,7 +208,7 @@
 
 ### 5. RAPIDS - Rapid AXI Programmable In-band Descriptor System
 
-**Status:** 🟡 Active Development (~80% test coverage)
+**Status:** Active Development (~80% test coverage)
 **Version:** 1.0
 **Location:** `projects/components/dmas/rapids/`
 
@@ -253,7 +253,7 @@
 
 ### 6. Retro Legacy Blocks - Intel ILB-Compatible Peripherals
 
-**Status:** 🟡 Active Development (2/13 blocks complete)
+**Status:** Active Development (2/13 blocks complete)
 **Version:** 1.0
 **Location:** `projects/components/retro_legacy_blocks/`
 
@@ -263,12 +263,12 @@
 - Modular blocks for embedded systems and FPGA-based platform emulation
 
 **Completed Blocks (2/13):**
-- ✅ **HPET** (High Precision Event Timer) - Production Ready (0x4000_0000-0x0FFF)
+- **HPET** (High Precision Event Timer) - Production Ready (0x4000_0000-0x0FFF)
   * 5/6 configurations passing 100%
   * 64-bit counter, multiple comparators, periodic/one-shot modes
   * Complete documentation and test coverage
 
-- ✅ **8254 PIT** (Programmable Interval Timer) - Complete (0x4000_2000-0x2FFF)
+- **8254 PIT** (Programmable Interval Timer) - Complete (0x4000_2000-0x2FFF)
   * 3 independent 16-bit counters
   * 6 counting modes (terminal count, one-shot, rate generator, square wave, etc.)
   * BCD and binary counting modes
@@ -303,7 +303,7 @@
 
 ### 7. Delta - AXI-Stream Crossbar Generator / Network-on-Chip
 
-**Status:** 🟡 Active Development (v0.3 - Early PoC)
+**Status:** Active Development (v0.3 - Early PoC)
 **Version:** 1.0
 **Location:** `projects/components/delta/`
 
@@ -333,7 +333,7 @@
 
 ### 8. HIVE - Hierarchical Intelligent Vector Environment
 
-**Status:** 🟡 Early Specification Phase
+**Status:** Early Specification Phase
 **Version:** 0.1
 **Location:** `projects/components/hive/`
 
@@ -365,7 +365,7 @@
 
 ### 9. BCH - Error Correction Codes
 
-**Status:** 📋 Placeholder - Structure Created
+**Status:** Placeholder - Structure Created
 **Version:** 0.1
 **Location:** `projects/components/bch/`
 
@@ -443,25 +443,25 @@ Bridge (Memory Interconnect)
 ## Development Priority
 
 **Tier 1 (Production Ready):**
-- ✅ converters - Production infrastructure
-- ✅ apbx_xbar - Production interconnect
+- converters - Production infrastructure
+- apbx_xbar - Production interconnect
 
 **Tier 2 (Active Development - Nearing Completion):**
-- 🟢 stream - Tutorial DMA (95% complete) - APB config + wrapper remaining
-- 🟢 bridge - Crossbar generator (95% complete) - Final integration remaining
+- stream - Tutorial DMA (95% complete) - APB config + wrapper remaining
+- bridge - Crossbar generator (95% complete) - Final integration remaining
 
 **Tier 3 (Active Development):**
-- 🟡 rapids - Production accelerator (80% complete)
-- 🟡 retro_legacy_blocks - ILB peripherals (15% complete - HPET + 8254 done, 11 blocks remaining)
+- rapids - Production accelerator (80% complete)
+- retro_legacy_blocks - ILB peripherals (15% complete - HPET + 8254 done, 11 blocks remaining)
 
 **Tier 4 (Early Implementation):**
-- 🟡 delta - NoC infrastructure (10% complete)
+- delta - NoC infrastructure (10% complete)
 
 **Tier 5 (Early Specification):**
-- 🟡 hive - Control plane (5% complete)
+- hive - Control plane (5% complete)
 
 **Tier 6 (Future Projects):**
-- 📋 bch - Error correction codes (0% - structure created, awaiting development)
+- bch - Error correction codes (0% - structure created, awaiting development)
 
 ---
 

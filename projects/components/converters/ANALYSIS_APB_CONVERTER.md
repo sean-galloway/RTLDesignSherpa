@@ -154,23 +154,23 @@ end
 
 ## Refactoring Analysis
 
-### Option 1: Keep Current Inline Implementation ✅ RECOMMENDED
+### Option 1: Keep Current Inline Implementation RECOMMENDED
 
 **Pros:**
-- ✅ Already working and tested
-- ✅ Tight integration with protocol state machine
-- ✅ No additional latency
-- ✅ Optimal resource usage
-- ✅ Clear code flow for incremental conversion
+- Already working and tested
+- Tight integration with protocol state machine
+- No additional latency
+- Optimal resource usage
+- Clear code flow for incremental conversion
 
 **Cons:**
-- ⚠️ Code duplication of conversion patterns
-- ⚠️ Complex state machine mixing protocol + data concerns
-- ⚠️ Harder to verify conversion logic independently
+- Code duplication of conversion patterns
+- Complex state machine mixing protocol + data concerns
+- Harder to verify conversion logic independently
 
 **Verdict:** Best choice. The tight coupling is actually **necessary** for the protocol conversion requirements.
 
-### Option 2: Refactor to Use Generic Modules ❌ NOT RECOMMENDED
+### Option 2: Refactor to Use Generic Modules NOT RECOMMENDED
 
 **Conceptual Architecture:**
 ```
@@ -219,18 +219,18 @@ AXI4 (DW-bit) → axi_data_dnsize → AXI4 (APBDW-bit) → axi4_to_apb4_convert 
 1. **Slice Extraction (Dnsize):**
    - APB converter line 334: `r_s_axi_wdata[r_axi_wr_data_pointer*APBDW +: APBDW]`
    - Generic dnsize line 210: `r_data_buffer[r_beat_ptr*NARROW_WIDTH +: NARROW_WIDTH]`
-   - **✓ IDENTICAL pattern**
+   - **IDENTICAL pattern**
 
 2. **Accumulation (Upsize):**
    - APB converter line 283: `r_axi_data_shift[r_axi_rsp_data_pointer*APBDW +: APBDW] <= data`
    - Generic upsize line 158: `r_data_accumulator[r_beat_ptr*NARROW_WIDTH +: NARROW_WIDTH] <= data`
-   - **✓ IDENTICAL pattern**
+   - **IDENTICAL pattern**
 
 3. **Pointer Management:**
    - Both use same increment and wrap logic
    - Both use `$clog2(RATIO)` for pointer width
    - Both wrap at `ratio-1`
-   - **✓ IDENTICAL pattern**
+   - **IDENTICAL pattern**
 
 **Significance:** Two independent implementations converging on the same solution provides strong evidence that our generic module algorithms are **correct and optimal**.
 
@@ -323,10 +323,10 @@ The APB converter implements data width conversion using **patterns identical to
 
 ### Value Delivered
 
-1. ✅ **Validation** - Independent implementation confirms algorithm correctness
-2. ✅ **Clarity** - Understand why inline vs. pipeline architectures differ
-3. ✅ **Documentation** - Captured design rationale for future reference
-4. ✅ **Guidance** - When to use generic modules vs. inline conversion
+1. **Validation** - Independent implementation confirms algorithm correctness
+2. **Clarity** - Understand why inline vs. pipeline architectures differ
+3. **Documentation** - Captured design rationale for future reference
+4. **Guidance** - When to use generic modules vs. inline conversion
 
 ---
 

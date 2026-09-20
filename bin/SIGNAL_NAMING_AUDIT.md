@@ -91,7 +91,7 @@ optional arguments:
 ### Console Output
 
 ```
-⚠️  Found 2 potential signal naming conflicts:
+ Found 2 potential signal naming conflicts:
 
 ================================================================================
 
@@ -110,11 +110,11 @@ External Signals (4):
   + desc_r_valid                   [scheduler_group_beats.sv:95] (input)
   + desc_r_ready                   [scheduler_group_beats.sv:96] (output)
 
-📋 Impact:
+Impact:
    When using AXI factory with prefix='desc_', the factory will find
    BOTH internal and external signals, causing initialization to fail.
 
-💡 Solutions:
+Solutions:
    1. Rename internal signals: desc_valid → desc_valid_to_sched
    2. Use explicit signal_map parameter in factory call
    3. Test at higher integration level where internal signals are hidden
@@ -278,10 +278,10 @@ The script returns exit code 1 if conflicts are found.
 
 Before writing testbench code:
 
-1. ✅ Define RTL module with signals
-2. ✅ **Run audit script on new module**
-3. ✅ Fix any conflicts (rename internal signals)
-4. ✅ Write testbench using factory pattern matching
+1. Define RTL module with signals
+2. **Run audit script on new module**
+3. Fix any conflicts (rename internal signals)
+4. Write testbench using factory pattern matching
 
 ### Documentation Generation
 
@@ -305,7 +305,7 @@ $ ./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/mac
 
 Scanned scheduler_group_beats.sv: 115 signals
 
-⚠️  Found 2 potential signal naming conflicts:
+ Found 2 potential signal naming conflicts:
 ...
 ```
 
@@ -321,7 +321,7 @@ Scanning 18 SystemVerilog files in projects/components/dmas/rapids/rtl...
   scheduler_group_beats.sv: 115 signals
   ...
 
-⚠️  Found 2 potential signal naming conflicts:
+ Found 2 potential signal naming conflicts:
 
 Conflict #1: Prefix 'desc' [HIGH]
 ...
@@ -338,10 +338,10 @@ $ ./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ --
 
 Scanning 18 SystemVerilog files in projects/components/dmas/rapids/rtl...
 
-⚠️  Found 2 potential signal naming conflicts:
+ Found 2 potential signal naming conflicts:
 ...
 
-📄 Markdown report written to: projects/components/dmas/rapids/rtl/signal_conflicts_report.md
+Markdown report written to: projects/components/dmas/rapids/rtl/signal_conflicts_report.md
 ```
 
 ### Example 4: No Conflicts Found
@@ -351,7 +351,7 @@ $ ./bin/audit_signal_naming_conflicts.py rtl/common/counter_bin.sv
 
 Scanned counter_bin.sv: 8 signals
 
-✅ No signal naming conflicts detected!
+No signal naming conflicts detected!
 ```
 
 ---

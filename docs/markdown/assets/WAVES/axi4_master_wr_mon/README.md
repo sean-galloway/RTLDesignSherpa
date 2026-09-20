@@ -1,6 +1,6 @@
 # AXI4 Master Write Monitor Waveforms
 
-**Status:** ✅ Working - 2 waveforms generated
+**Status:** Working - 2 waveforms generated
 
 This directory contains WaveDrom timing diagrams for the `axi4_master_wr_mon` module, demonstrating write transactions through the monitor.
 

@@ -23,7 +23,7 @@
 
 # Legacy x86 Components: Best PDFs & Driver Development Guide
 
-## 📚 Complete Specification PDFs - Direct Links
+## Complete Specification PDFs - Direct Links
 
 ### 1. HPET (High Precision Event Timer)
 
@@ -37,10 +37,10 @@
 **Best PDFs:**
 - **Intel 82093AA I/O APIC Datasheet** (Official, 20 pages)
   - MIT hosted: https://pdos.csail.mit.edu/6.828/2018/readings/ia32/ioapic.pdf
-  
+
 - **Intel MultiProcessor Specification v1.4** (Comprehensive, 108 pages)
   - MIT hosted: https://pdos.csail.mit.edu/6.828/2008/readings/ia32/MPspec.pdf
-  
+
 - **Intel 64 and IA-32 Architectures SDM Volume 3A** (Current, authoritative)
   - Download page: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
   - Direct PDF: Available from Intel SDM downloads (Chapter 10 covers APIC/IOAPIC)
@@ -69,7 +69,7 @@
 - **ACPI Specification Version 6.6** (Latest - May 2025, ~1000 pages)
   - PDF: https://uefi.org/sites/default/files/resources/ACPI_Spec_6.6.pdf
   - HTML: https://uefi.org/specifications
-  
+
 - **ACPI Specification Version 6.5a** (December 2024)
   - PDF: https://uefi.org/sites/default/files/resources/ACPI_Spec_6_5_Aug29.pdf
 
@@ -107,7 +107,7 @@
 
 ---
 
-## 🛠️ Driver Development Resources
+## Driver Development Resources
 
 ### General Linux Driver Development
 
@@ -282,7 +282,7 @@
 
 ---
 
-## 🔧 AMBA Bus Integration Considerations
+## AMBA Bus Integration Considerations
 
 ### Key Architectural Differences
 
@@ -331,7 +331,7 @@
 
 ---
 
-## 📖 Additional Study Resources
+## Additional Study Resources
 
 ### Hardware Programming Tutorials
 - **OSDev Wiki**: https://wiki.osdev.org/ (Excellent tutorials for all components)
@@ -349,21 +349,21 @@
 
 ---
 
-## 🎯 Quick Start Checklist
+## Quick Start Checklist
 
 For each component, follow this process:
 
-1. ✅ **Read the official datasheet PDF** (links above)
-2. ✅ **Study the Linux kernel driver** (links above)
-3. ✅ **Examine QEMU implementation** (for accurate hardware behavior)
-4. ✅ **Review OSDev Wiki programming guide** (for clear explanations)
-5. ✅ **Design AMBA interface wrapper** (address mapping, interrupt routing)
-6. ✅ **Port/adapt Linux driver** (for your AMBA platform)
-7. ✅ **Test with known-good software** (Linux kernel, firmware)
+1. **Read the official datasheet PDF** (links above)
+2. **Study the Linux kernel driver** (links above)
+3. **Examine QEMU implementation** (for accurate hardware behavior)
+4. **Review OSDev Wiki programming guide** (for clear explanations)
+5. **Design AMBA interface wrapper** (address mapping, interrupt routing)
+6. **Port/adapt Linux driver** (for your AMBA platform)
+7. **Test with known-good software** (Linux kernel, firmware)
 
 ---
 
-## 📝 Notes on Documentation Quality
+## Notes on Documentation Quality
 
 **Most Authoritative Sources:**
 1. Intel datasheets (official specs)

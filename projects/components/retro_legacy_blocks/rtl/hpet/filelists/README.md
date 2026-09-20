@@ -204,7 +204,7 @@ module apb4_hpet #(
 
 ### Why Single Parameterized Design?
 
-**✅ Advantages:**
+**Advantages:**
 1. **Single source of truth** - One set of files to maintain
 2. **No duplication** - Bug fixes apply to all configurations
 3. **Flexible instantiation** - Choose timer count at synthesis time

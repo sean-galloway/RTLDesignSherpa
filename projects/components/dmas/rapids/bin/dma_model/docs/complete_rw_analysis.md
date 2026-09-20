@@ -32,7 +32,7 @@ This document shows how to integrate the new write path analysis with existing r
 ### 1. `bin/analytical/write_analysis.py`
 Analytical model for write path with functions:
 - `get_write_performance()` - Baseline write (256B bursts, 32 outstanding)
-- `get_optimized_write_performance()` - Optimized write (64 outstanding)  
+- `get_optimized_write_performance()` - Optimized write (64 outstanding)
 - `compare_write_payloads()` - Compare different write burst sizes
 - `analyze_combined_performance()` - Combined read+write analysis
 
@@ -153,36 +153,36 @@ def example_compare_both_paths():
     """Compare baseline vs optimized for BOTH read and write."""
     from analytical import get_baseline_performance, get_optimized_performance
     from analytical.write_analysis import get_write_performance, get_optimized_write_performance
-    
+
     # Get read performance
     read_base = get_baseline_performance(verbose=False)
     read_opt = get_optimized_performance(pipeline_depth=4, streaming=True, verbose=False)
-    
+
     # Get write performance
     write_base = get_write_performance(num_channels=16, verbose=False)
     write_opt = get_optimized_write_performance(num_channels=16, max_outstanding=64, verbose=False)
-    
+
     # Extract bandwidths
     rb_bw = read_base['performance'].calculate_channel_bandwidth(16)['total_bw']
     ro_bw = read_opt['performance'].calculate_channel_bandwidth(16)['total_bw']
     wb_bw = write_base['result']['total_bw']
     wo_bw = write_opt['result']['total_bw']
-    
+
     axi_peak = 57.6
-    
+
     print("\n" + "="*80)
     print("  BASELINE VS OPTIMIZED - READ + WRITE")
     print("="*80 + "\n")
-    
+
     print(f"{'Configuration':<15} {'Read BW':<15} {'Write BW':<15} {'Combined':<15} {'AXI %':<10}")
     print("-" * 75)
-    
+
     comb_base = min(rb_bw + wb_bw, axi_peak)
     comb_opt = min(ro_bw + wo_bw, axi_peak)
-    
+
     print(f"{'Baseline':<15} {rb_bw:>8.2f} GB/s   {wb_bw:>8.2f} GB/s   {comb_base:>8.2f} GB/s   {comb_base/axi_peak*100:>5.1f}%")
     print(f"{'Optimized':<15} {ro_bw:>8.2f} GB/s   {wo_bw:>8.2f} GB/s   {comb_opt:>8.2f} GB/s   {comb_opt/axi_peak*100:>5.1f}%")
-    
+
     print("\nKey Insights:")
     print(f"  • Read improvement:  +{((ro_bw/rb_bw)-1)*100:.1f}%")
     print(f"  • Write improvement: +{((wo_bw/wb_bw)-1)*100:.1f}%")
@@ -214,9 +214,9 @@ Per-Path Details:
   Write: 256B bursts, 32 outstanding → 64 outstanding
 
 Key Findings:
-  ✓ Read path optimized to 64 GB/s (exceeds 50 GB/s target)
-  ✓ Write path improved to 24.5 GB/s
-  ⚠ Combined bandwidth limited by AXI peak
+  Read path optimized to 64 GB/s (exceeds 50 GB/s target)
+  Write path improved to 24.5 GB/s
+  Combined bandwidth limited by AXI peak
   → In practice, workload mix determines actual performance
 ```
 
@@ -227,7 +227,7 @@ Key Findings:
 - Store-and-forward or streaming
 - Ping-pong (4KB) or Monolithic (8KB) per channel
 
-### Write SRAM  
+### Write SRAM
 - Small bursts (256B)
 - Fill buffers before sending
 - Simpler requirements (~1KB per channel)
@@ -277,13 +277,13 @@ print(f"  Write: [Implement similar validation for write path]")
 
 To fully integrate read + write analysis:
 
-### ✅ Completed
+### Completed
 - [x] Created `bin/analytical/write_analysis.py`
 - [x] Created `bin/simpy_model/write_model.py` (renamed from write_design.py)
 - [x] Functions for baseline and optimized write
 - [x] Combined read+write analysis function
 
-### 🔄 To Do
+### To Do
 - [ ] Update `run_complete_analysis.py` to run both paths
 - [ ] Update `quick_start.py` examples to show both
 - [ ] Update all tables to have "Read BW" and "Write BW" columns
@@ -292,7 +292,7 @@ To fully integrate read + write analysis:
 - [ ] Update plots to show both paths
 - [ ] Update README with read+write examples
 
-### 📋 Recommended Updates
+### Recommended Updates
 
 **1. run_complete_analysis.py**
 ```python
@@ -334,10 +334,10 @@ Baseline           44.05 GB/s     18.23 GB/s     57.6 GB/s
 ## Summary
 
 ### What We Built
-✅ Analytical write path model  
-✅ SimPy write path simulation  
-✅ Combined read+write analysis  
-✅ Integration functions  
+Analytical write path model
+SimPy write path simulation
+Combined read+write analysis
+Integration functions
 
 ### How to Use
 ```python

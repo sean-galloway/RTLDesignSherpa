@@ -23,7 +23,7 @@
 
 # Known Issue: active_count Accumulator Underflow
 
-**Status:** ✅ FIXED (2026-07-18) — `active_count` now derived as a registered
+**Status:** FIXED (2026-07-18) — `active_count` now derived as a registered
 CAM-occupancy pop-count (structurally `[0, N]`, cannot underflow).
 **Severity:** MEDIUM–HIGH — corrupted `active_count`, `busy`, and `block_ready`
 **Date Reported:** 2026-07-18 (found by formal proof during TASK-025)

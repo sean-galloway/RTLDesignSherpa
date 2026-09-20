@@ -4,7 +4,7 @@
 
 ## TOOL-001: Migrate the remaining areas into /vault/Tasks/<area>/
 **Priority:** P2
-**Status:** 🟡 In Progress (2026-07-22; checklist reconciled 2026-09-18) —
+**Status:** In Progress (2026-07-22; checklist reconciled 2026-09-18) —
 5 areas migrated, 6 pending, and 3 source files this list had never named.
 The batch is still NOT started: the two decisions below are unanswered.
 **Owner:** Claude (assist) / Sean (review)

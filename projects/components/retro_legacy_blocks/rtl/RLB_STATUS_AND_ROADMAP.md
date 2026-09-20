@@ -95,12 +95,12 @@ The Stream DMA provides:
 - Multi-channel support
 - High-performance streaming
 
-### 🟣 SPECIAL - Integration/Support Modules
+### SPECIAL - Integration/Support Modules
 
 | Module | Purpose | Status |
 |--------|---------|--------|
-| **rlb_top** | Top-level integration | 📋 Planned |
-| **apbx_xbar** | APB crossbar | ✅ Exists |
+| **rlb_top** | Top-level integration | Planned |
+| **apbx_xbar** | APB crossbar | Exists |
 
 ---
 
@@ -109,31 +109,31 @@ The Stream DMA provides:
 ### Test Infrastructure Existing
 
 **HPET:**
-- ✅ `dv/tests/test_apb4_hpet.py` - Cocotb tests exist
+- `dv/tests/test_apb4_hpet.py` - Cocotb tests exist
 - Status: Has comprehensive validation
 
 **PIT_8254:**
-- ✅ `dv/tests/test_apb4_pit_8254.py` - Cocotb tests exist
+- `dv/tests/test_apb4_pit_8254.py` - Cocotb tests exist
 - Status: Has comprehensive validation
 
 **RTC:**
-- ✅ `dv/tests/test_apb4_rtc.py` - Cocotb test runner
-- ✅ `dv/tbclasses/rtc/rtc_tb.py` - Testbench class
-- ✅ `dv/tbclasses/rtc/rtc_tests_basic.py` - Basic tests
+- `dv/tests/test_apb4_rtc.py` - Cocotb test runner
+- `dv/tbclasses/rtc/rtc_tb.py` - Testbench class
+- `dv/tbclasses/rtc/rtc_tests_basic.py` - Basic tests
 - Status: Has comprehensive validation infrastructure
 
 ### Test Infrastructure NEEDED
 
 **PIC_8259:**
-- ❌ No tests in `dv/tests/pic_8259/`
-- ❌ No testbench classes
-- ✅ Has helper: `rtl/pic_8259/pic_8259_helper.py`
+- No tests in `dv/tests/pic_8259/`
+- No testbench classes
+- Has helper: `rtl/pic_8259/pic_8259_helper.py`
 - **TODO:** Create basic Cocotb tests
 
 **SMBus:**
-- ❌ No tests in `dv/tests/smbus/`
-- ❌ No testbench classes
-- ✅ Has helper: `rtl/smbus/smbus_helper.py`
+- No tests in `dv/tests/smbus/`
+- No testbench classes
+- Has helper: `rtl/smbus/smbus_helper.py`
 - **TODO:** Create comprehensive Cocotb test suite
   - Physical layer tests (I2C signaling)
   - Transaction type tests
@@ -142,9 +142,9 @@ The Stream DMA provides:
   - Timeout tests
 
 **PM_ACPI:**
-- ❌ No tests in `dv/tests/pm_acpi/`
-- ❌ No testbench classes
-- ❌ No helper script yet
+- No tests in `dv/tests/pm_acpi/`
+- No testbench classes
+- No helper script yet
 - **TODO (per TODO.md):**
   - Create `pm_acpi_helper.py`
   - Basic register R/W tests
@@ -155,9 +155,9 @@ The Stream DMA provides:
   - Wake event tests
 
 **IOAPIC:**
-- ❌ No tests in `dv/tests/ioapic/`
-- ❌ No testbench classes
-- ❌ No helper script yet
+- No tests in `dv/tests/ioapic/`
+- No testbench classes
+- No helper script yet
 - **TODO (per TODO.md):**
   - Create `ioapic_helper.py`
   - Indirect register access tests (IOREGSEL/IOWIN)
@@ -173,7 +173,7 @@ The Stream DMA provides:
 
 ## Detailed Work Remaining
 
-### Phase 1: Validation Infrastructure (High Priority 🔴)
+### Phase 1: Validation Infrastructure (High Priority)
 
 #### 1. PIC_8259 Validation
 **Estimated Time:** 2-3 days
@@ -372,24 +372,24 @@ The Stream DMA provides:
 
 ## Architectural Compliance Status
 
-### ✅ All Active Modules Compliant
+### All Active Modules Compliant
 
 **Standard Pattern:**
 ```
-APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →  
+APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
   → <module>_regs (PeakRDL) → hwif → <module>_core
 ```
 
 **Verified Modules (7/7):**
-1. ✅ HPET - Reference implementation
-2. ✅ PIT_8254 - Fully compliant
-3. ✅ RTC - Fully compliant
-4. ✅ PIC_8259 - Fully compliant
-5. ✅ SMBus - Fully compliant (completed this session)
-6. ✅ PM_ACPI - Fully compliant (completed this session)
-7. ✅ IOAPIC - Fully compliant (completed this session)
+1. HPET - Reference implementation
+2. PIT_8254 - Fully compliant
+3. RTC - Fully compliant
+4. PIC_8259 - Fully compliant
+5. SMBus - Fully compliant (completed this session)
+6. PM_ACPI - Fully compliant (completed this session)
+7. IOAPIC - Fully compliant (completed this session)
 
-**Architecture Audit Result:** **100% COMPLIANT** ✅
+**Architecture Audit Result:** **100% COMPLIANT**
 
 ---
 
@@ -399,14 +399,14 @@ APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
 |--------|---------------|--------|
 | HPET | N/A | Not typically needed |
 | PIT_8254 | N/A | Simple register access |
-| RTC | ✅ rtc_helper.py | Complete |
-| PIC_8259 | ✅ pic_8259_helper.py | Complete |
-| SMBus | ✅ smbus_helper.py | Complete |
-| PM_ACPI | ❌ | **NEEDED** |
-| IOAPIC | ❌ | **NEEDED** |
-| GPIO | ❌ | Future |
-| UART_16550 | ❌ | Future |
-| DMA | ❌ | Future |
+| RTC | rtc_helper.py | Complete |
+| PIC_8259 | pic_8259_helper.py | Complete |
+| SMBus | smbus_helper.py | Complete |
+| PM_ACPI | no | **NEEDED** |
+| IOAPIC | no | **NEEDED** |
+| GPIO | no | Future |
+| UART_16550 | no | Future |
+| DMA | no | Future |
 
 **Actions Needed:**
 - [ ] Create `pm_acpi_helper.py` - Power state, timer, GPE, clock gate utilities
@@ -418,13 +418,13 @@ APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
 
 | Module | README | TODO.md | IMPL_STATUS.md | PeakRDL Docs |
 |--------|--------|---------|----------------|--------------|
-| HPET | ✅ Good | ❌ | ❌ | ✅ |
-| PIT_8254 | ✅ Good | ❌ | ❌ | ✅ |
-| RTC | ✅ Good | ❌ | ❌ | ✅ |
-| PIC_8259 | ✅ Good | ❌ | ❌ | ✅ |
-| SMBus | ✅ Excellent | ✅ | ✅ | ✅ |
-| PM_ACPI | ⚠️ Basic | ✅ Excellent | ❌ | ✅ |
-| IOAPIC | ⚠️ Basic | ✅ Excellent | ❌ | ✅ |
+| HPET | Good | no | no | yes |
+| PIT_8254 | Good | no | no | yes |
+| RTC | Good | no | no | yes |
+| PIC_8259 | Good | no | no | yes |
+| SMBus | Excellent | yes | yes | yes |
+| PM_ACPI | Basic | Excellent | no | yes |
+| IOAPIC | Basic | Excellent | no | yes |
 
 **Actions Needed:**
 - [ ] Update PM_ACPI README.md with full details
@@ -489,18 +489,18 @@ APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
 ### For MVP System (Minimum Viable Product)
 
 **Must Have:**
-1. ✅ HPET - Timer subsystem
-2. ✅ PIT_8254 - Legacy timer
-3. ✅ RTC - Real-time clock
-4. ✅ PIC_8259 - Legacy interrupts
-5. ❌ GPIO - I/O control
-6. ❌ UART_16550 - Serial communication
+1. HPET - Timer subsystem
+2. PIT_8254 - Legacy timer
+3. RTC - Real-time clock
+4. PIC_8259 - Legacy interrupts
+5. GPIO - I/O control
+6. UART_16550 - Serial communication
 
 **Should Have:**
-7. ✅ SMBus - System management
-8. ❌ DMA - Data transfers
-9. ✅ IOAPIC - Advanced interrupts
-10. ✅ PM_ACPI - Power management
+7. SMBus - System management
+8. DMA - Data transfers
+9. IOAPIC - Advanced interrupts
+10. PM_ACPI - Power management
 
 **Nice to Have:**
 - PS/2 controller
@@ -554,9 +554,9 @@ APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
 ## Session Summary (2025-11-16)
 
 **Completed Today:**
-- ✅ PM_ACPI: Full implementation (registers, core, wrapper, docs)
-- ✅ IOAPIC: Full implementation (registers, core, wrapper, docs)
-- ✅ Both modules pushed to repository
+- PM_ACPI: Full implementation (registers, core, wrapper, docs)
+- IOAPIC: Full implementation (registers, core, wrapper, docs)
+- Both modules pushed to repository
 
 **Delivered:** ~3000+ lines of production RTL, 2 complete RLB modules
 
@@ -564,5 +564,5 @@ APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
 
 ---
 
-**Last Updated:** 2025-11-16  
+**Last Updated:** 2025-11-16
 **Next Priority:** Validation infrastructure for newly completed modules

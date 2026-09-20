@@ -601,7 +601,7 @@ endmodule
 **Combine related fields:**
 
 ```systemverilog
-// ❌ BEFORE: Many small fields
+// BEFORE: Many small fields
 input  logic [3:0] wr_opcode,
 input  logic       wr_error,
 input  logic       wr_last,
@@ -609,7 +609,7 @@ input  logic       wr_first,
 input  logic       wr_valid_data,
 // 8 total control signals
 
-// ✅ AFTER: Single control field
+// AFTER: Single control field
 input  logic [7:0] wr_control,
 // [7:4] = opcode, [3] = error, [2] = last, [1] = first, [0] = valid_data
 ```
@@ -723,7 +723,7 @@ endmodule
 
 ## Best Practices Summary
 
-### ✅ DO
+### DO
 
 1. **Use descriptive field names** - `wr_transaction_id` not `wr_data0`
 2. **Document bit positions** - Add comments showing field layout
@@ -733,7 +733,7 @@ endmodule
 6. **Use structs for complex fields** - Leverage SystemVerilog type system
 7. **Test with walking patterns** - Verify each field independently
 
-### ❌ DON'T
+### DON'T
 
 1. **Mix field orders** - Causes silent data corruption
 2. **Use non-power-of-2 async depths** - Will fail in synthesis

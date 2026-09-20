@@ -39,7 +39,7 @@ The APB HPET is now part of the **Retro Legacy Blocks** collection, which consol
 
 The complete APB HPET documentation is now maintained in the retro_legacy_blocks project directory:
 
-📖 **[HPET Complete Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)**
+**[HPET Complete Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)**
 
 ---
 
@@ -73,13 +73,13 @@ The HPET is now part of a collection that includes:
 - **PM/ACPI** - Power Management / Advanced Configuration and Power Interface
 - **IOAPIC** - I/O Advanced Programmable Interrupt Controller
 
-📋 **[View Complete Collection](../../../projects/components/retro_legacy_blocks/README.md)**
+**[View Complete Collection](../../../projects/components/retro_legacy_blocks/README.md)**
 
 ---
 
 ## Quick Summary
 
-**Status:** ✅ Stable (Part of Retro Legacy Blocks collection)
+**Status:** Stable (Part of Retro Legacy Blocks collection)
 
 Multi-timer peripheral with 64-bit counter, one-shot/periodic modes, and optional clock domain crossing.
 

@@ -373,22 +373,22 @@ make run-all-gate-parallel
 ## When to Use Each Tier
 
 ### Use Tier 1 (Root Makefile) When:
-- ✅ Running complete repository validation (val + projects)
-- ✅ CI/CD pipeline for entire repository
-- ✅ Comprehensive regression before release
-- ✅ Testing validation subsystems (COMMON, AMBA)
+- Running complete repository validation (val + projects)
+- CI/CD pipeline for entire repository
+- Comprehensive regression before release
+- Testing validation subsystems (COMMON, AMBA)
 
 ### Use Tier 2 (Components Makefile) When:
-- ✅ Testing/linting all components together
-- ✅ Component-level CI/CD
-- ✅ Comparing status across components
-- ✅ Quick way to run tests on multiple components
+- Testing/linting all components together
+- Component-level CI/CD
+- Comparing status across components
+- Quick way to run tests on multiple components
 
 ### Use Tier 3 (Component Makefile) When:
-- ✅ Focused development on single component
-- ✅ Iterative test-debug cycle
-- ✅ Detailed component-specific testing (FUB vs macro)
-- ✅ Quick feedback during development
+- Focused development on single component
+- Iterative test-debug cycle
+- Detailed component-specific testing (FUB vs macro)
+- Quick feedback during development
 
 ---
 

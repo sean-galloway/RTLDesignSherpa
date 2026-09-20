@@ -23,7 +23,7 @@
 
 # Known Issue: cluster state-accumulation wedge (long-session DMA hang)
 
-**Status:** ✅ ROOT-CAUSED AND FIXED — commits `cb29e226` (saturation-recovery
+**Status:** ROOT-CAUSED AND FIXED — commits `cb29e226` (saturation-recovery
 contract) and `95c9490a` (runtime-disable auto-retire)
 **Severity:** MEDIUM — only manifested after a long session of many mixed
 runs; a full FPGA reprogram fully cleared it. Hang, not data corruption.
@@ -75,7 +75,7 @@ The original write-up is retained below for history.
 
 ---
 
-## ⚠️ Correction (2026-06-16)
+## Correction (2026-06-16)
 
 An earlier version of this issue claimed a **100% reproducible** DMA hang at
 **4–7 active channels** under the `debug-compl` preset. **That was wrong.**

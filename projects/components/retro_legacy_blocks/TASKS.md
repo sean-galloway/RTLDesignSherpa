@@ -38,11 +38,11 @@
 
 ## Task Status Legend
 
-- 🔴 **Blocked** - Cannot proceed due to dependencies
-- 🟠 **In Progress** - Currently being worked on
-- 🟡 **Planned** - Ready to start, no blockers
-- 🟢 **Complete** - Finished and verified
-- ⏸️ **Deferred** - Low priority, postponed
+- **Blocked** - Cannot proceed due to dependencies
+- **In Progress** - Currently being worked on
+- **Planned** - Ready to start, no blockers
+- **Complete** - Finished and verified
+- ⏸**Deferred** - Low priority, postponed
 
 ## Priority Levels
 
@@ -56,7 +56,7 @@
 ## Critical Issues (P0-P1)
 
 ### TASK-001: Fix Timer 2+ Not Firing in Multi-Timer Tests
-**Status:** 🟢 Complete
+**Status:** Complete
 **Priority:** P0 (Critical)
 **Effort:** 30 minutes
 **Assigned:** Completed 2025-10-17
@@ -88,22 +88,22 @@ timeout = 20000  # 20us timeout - Timer 2 needs 7000ns, allow extra margin
 - Timer 2 missed firing, test failed
 
 **Verification (After Fix):**
-- ✅ 3-timer AMD-like (no CDC): 12/12 tests passing (100%)
-- ✅ All Timer 0, Timer 1, Timer 2 fire correctly
-- ✅ Test passes reliably with 20µs timeout
+- 3-timer AMD-like (no CDC): 12/12 tests passing (100%)
+- All Timer 0, Timer 1, Timer 2 fire correctly
+- Test passes reliably with 20µs timeout
 
 **Related Files:**
-- ✅ Fixed: `dv/tbclasses/hpet/hpet_tests_medium.py`
-- ✅ Updated: `projects/components/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md`
-- ✅ Documented: `projects/components/retro_legacy_blocks/CLAUDE.md` (Rule #1: Timer Cleanup is MANDATORY)
+- Fixed: `dv/tbclasses/hpet/hpet_tests_medium.py`
+- Updated: `projects/components/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md`
+- Documented: `projects/components/retro_legacy_blocks/CLAUDE.md` (Rule #1: Timer Cleanup is MANDATORY)
 
 **Dependencies:** None
 
 **Completion Criteria:**
-- ✅ Counter cleanup added to test_64bit_counter
-- ✅ Timeout increased in test_multiple_timers
-- ✅ 3-timer configuration passing 100%
-- ✅ Documentation updated
+- Counter cleanup added to test_64bit_counter
+- Timeout increased in test_multiple_timers
+- 3-timer configuration passing 100%
+- Documentation updated
 
 **Notes:**
 - The fix was trivial (3 lines changed), but the impact was significant
@@ -114,7 +114,7 @@ timeout = 20000  # 20us timeout - Timer 2 needs 7000ns, allow extra margin
 ---
 
 ### TASK-002: Fix 8-Timer Non-CDC "All Timers Stress" Test Timeout
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P3 (Low)
 **Effort:** 5 minutes
 **Assigned:** Unassigned
@@ -173,7 +173,7 @@ timeout = 100000  # 100us timeout - allow time for all 8 timers
 ## Enhancement and Optimization (P3)
 
 ### TASK-003: Add Comparator Readback Feature
-**Status:** ⏸️ Deferred
+**Status:** ⏸Deferred
 **Priority:** P3 (Low)
 **Effort:** 4-8 hours
 **Assigned:** Unassigned
@@ -233,7 +233,7 @@ field comparator_lo {
 ---
 
 ### TASK-004: Add Legacy Replacement Mode Support
-**Status:** ⏸️ Deferred
+**Status:** ⏸Deferred
 **Priority:** P3 (Low)
 **Effort:** 16-24 hours
 **Assigned:** Unassigned
@@ -296,7 +296,7 @@ assign legacy_irq8 = cfg_legacy_mapping ? timer_irq[1] : 1'b0;
 ---
 
 ### TASK-005: Add 64-bit Atomic Counter Read
-**Status:** ⏸️ Deferred
+**Status:** ⏸Deferred
 **Priority:** P3 (Low)
 **Effort:** 8-12 hours
 **Assigned:** Unassigned
@@ -374,7 +374,7 @@ assign hwif.hpet_counter_hi.value = r_counter_latched ?
 ## Documentation (P2)
 
 ### TASK-006: Create Integration Examples
-**Status:** 🟡 Planned
+**Status:** Planned
 **Priority:** P2 (Medium)
 **Effort:** 4-6 hours
 **Assigned:** Unassigned
@@ -479,7 +479,7 @@ TASK-001 (Fix Timer 2+ Firing) ────────────┐
 ## Task Prioritization
 
 ### Sprint 1: Critical Bugs (Complete)
-1. ✅ **TASK-001:** Fix Timer 2+ not firing (P0) - COMPLETE
+1. **TASK-001:** Fix Timer 2+ not firing (P0) - COMPLETE
 
 ### Sprint 2: Optional Fixes (Optional)
 2. **TASK-002:** Fix 8-timer stress test timeout (P3) - 5 minutes
@@ -510,10 +510,10 @@ TASK-001 (Fix Timer 2+ Firing) ────────────┐
 - **Overall:** 5/6 configurations at 100%, 1 config at 92%
 
 ### Production Readiness
-- ✅ **5 configurations:** Production Ready (100% passing)
-- ⚠️ **1 configuration:** Minor stress test issue (92% passing)
-- ✅ **Core functionality:** Fully validated
-- ✅ **All timer modes:** Working correctly
+- **5 configurations:** Production Ready (100% passing)
+- **1 configuration:** Minor stress test issue (92% passing)
+- **Core functionality:** Fully validated
+- **All timer modes:** Working correctly
 
 ---
 

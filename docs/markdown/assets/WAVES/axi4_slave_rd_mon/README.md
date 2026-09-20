@@ -1,6 +1,6 @@
 # AXI4 Slave Read Monitor Waveforms
 
-**Status:** ✅ Working - 2 waveforms generated
+**Status:** Working - 2 waveforms generated
 
 This directory contains WaveDrom timing diagrams for the `axi4_slave_rd_mon` module, demonstrating read transactions from the slave perspective.
 

@@ -38,15 +38,15 @@ Slot size:     Must hold entire burst (= payload size)
 Total:         2 × payload bytes per channel
 
 Characteristics:
-✓ Simple arbitration (alternate between slots)
-✓ Well-suited for fixed payload sizes
-✗ Limited pipeline depth (max = 2)
-✗ Each slot must be sized for largest burst
+Simple arbitration (alternate between slots)
+Well-suited for fixed payload sizes
+Limited pipeline depth (max = 2)
+Each slot must be sized for largest burst
 ```
 
 **Example (2KB payload):**
 - Slot A: 2KB
-- Slot B: 2KB  
+- Slot B: 2KB
 - Total: 4KB per channel
 - Max pipeline: 2 bursts in flight
 
@@ -57,10 +57,10 @@ Size:          Total capacity / payload = max bursts
 Total:         pipeline_depth × payload bytes per channel
 
 Characteristics:
-✓ Flexible allocation (fits exact pipeline depth needed)
-✓ Higher pipeline depths possible
-✓ Better for variable/small payloads
-✗ More complex buffer management
+Flexible allocation (fits exact pipeline depth needed)
+Higher pipeline depths possible
+Better for variable/small payloads
+More complex buffer management
 ```
 
 **Example (2KB payload, depth=4):**
@@ -318,10 +318,10 @@ Status:        Overkill for 2KB, good for smaller payloads
 
 | Config | SRAM Cost | Performance | Cost/Performance | Recommendation |
 |--------|-----------|-------------|-----------------|----------------|
-| Baseline PP | 64 KB | 44 GB/s | 1.45 KB per GB/s | ❌ Below target |
+| Baseline PP | 64 KB | 44 GB/s | 1.45 KB per GB/s | Below target |
 | PP + Stream | 64 KB | 50 GB/s | 1.28 KB per GB/s | âœ… Minimum viable |
 | Mono + Stream | 128 KB | 64 GB/s | 2.00 KB per GB/s | âœ…âœ… **Recommended** |
-| Mono depth=8 | 256 KB | 64 GB/s | 4.00 KB per GB/s | ❌ Diminishing returns |
+| Mono depth=8 | 256 KB | 64 GB/s | 4.00 KB per GB/s | Diminishing returns |
 
 **Best Value**: Monolithic 128 KB configuration
 - 2× SRAM for 28% performance gain over target

@@ -4,7 +4,7 @@ This script converts a main Markdown file (and all linked `.md` files) into a st
 
 ---
 
-## 📄 Basic Usage
+## Basic Usage
 
 ```bash
 python md_to_docx.py input.md
@@ -14,7 +14,7 @@ This creates `output.docx` using default Pandoc styling.
 
 ---
 
-## 🧩 Common Options
+## Common Options
 
 ### `-t` or `--template`
 
@@ -90,7 +90,7 @@ python md_to_docx.py input.md --verbose
 
 ---
 
-## 🧠 Example Combo
+## Example Combo
 
 ```bash
 python md_to_docx.py input.md -t style.dotx -o report.docx --toc --title-page --pdf --verbose
@@ -98,7 +98,7 @@ python md_to_docx.py input.md -t style.dotx -o report.docx --toc --title-page --
 
 ---
 
-## 📌 Notes
+## Notes
 
 - Use relative Markdown links like `[Section](section1.md)` in your `input.md`
 - Image paths must be correct relative to their source files

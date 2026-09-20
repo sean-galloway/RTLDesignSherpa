@@ -383,23 +383,23 @@ This produces properly formatted SystemVerilog port declarations:
 
 ## Files to Update
 
-### ✅ Completed
+### Completed
 
 1. **bridge_pkg/components/bridge_module_generator.py**
-   - ✅ `_generate_master_ports()` - Now uses SignalNaming for complete master signal generation
-   - ✅ `_generate_slave_ports()` - Now uses SignalNaming for AXI4 and APB slave signals
-   - ⏸️ `_generate_internal_signals()` - Deferred (uses struct-based approach)
+   - `_generate_master_ports()` - Now uses SignalNaming for complete master signal generation
+   - `_generate_slave_ports()` - Now uses SignalNaming for AXI4 and APB slave signals
+   - ⏸`_generate_internal_signals()` - Deferred (uses struct-based approach)
 
-### ✅ Phase 2 Complete
+### Phase 2 Complete
 
 2. **bridge_pkg/generators/adapter_generator.py**
-   - ✅ `_generate_external_ports()` - Now uses SignalNaming for master ports
-   - ⏸️ `_generate_struct_ports()` - Deferred (uses struct-based adapter outputs)
+   - `_generate_external_ports()` - Now uses SignalNaming for master ports
+   - ⏸`_generate_struct_ports()` - Deferred (uses struct-based adapter outputs)
 
 3. **bridge_pkg/generators/crossbar_generator.py**
-   - ✅ `_generate_slave_output_ports()` - Now uses SignalNaming for slave outputs
-   - ⏸️ `_generate_write_channel_routing()` - Deferred (uses struct field access like `_aw.id`)
-   - ⏸️ `_generate_read_channel_routing()` - Deferred (uses struct field access like `_ar.addr`)
+   - `_generate_slave_output_ports()` - Now uses SignalNaming for slave outputs
+   - ⏸`_generate_write_channel_routing()` - Deferred (uses struct field access like `_aw.id`)
+   - ⏸`_generate_read_channel_routing()` - Deferred (uses struct field access like `_ar.addr`)
 
 **Note:** Internal signal generation currently uses struct-based approach (e.g., `axi4_aw_t`, `axi4_w_64b_t`) which is a valid alternative to individual signal declarations. SignalNaming integration for internal signals can be added later if individual signal approach is preferred.
 

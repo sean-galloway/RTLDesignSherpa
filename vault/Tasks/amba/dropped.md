@@ -10,8 +10,8 @@ _None._
 **Status:** dropped 2026-07-24 — removed from the RTL tree as believed-stale (Sean)
 
 The `rtl/amba/PRD/` directory was a task tracker living in the RTL tree — a
-tasks-convention violation. It held 7 `TASK-*.md`; 3 were ✅ COMPLETE (deleted),
-and these 4 were 🔴 Not Started. Removed with the directory. Full text is
+tasks-convention violation. It held 7 `TASK-*.md`; 3 were COMPLETE (deleted),
+and these 4 were Not Started. Removed with the directory. Full text is
 recoverable from git (`git log --all -- rtl/amba/PRD/`); pulled back into
 `open.md` if any turns out to be live work rather than stale:
 

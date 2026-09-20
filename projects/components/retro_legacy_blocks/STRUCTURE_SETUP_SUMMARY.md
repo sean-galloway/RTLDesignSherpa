@@ -100,7 +100,7 @@ All blocks have assigned addresses in the 4KB window structure:
 
 | Block | Module Name | Address Window | Priority |
 |-------|-------------|----------------|----------|
-| HPET | `apb4_hpet` | 0x4000_0000-0x0FFF | High (✅ Complete) |
+| HPET | `apb4_hpet` | 0x4000_0000-0x0FFF | High (Complete) |
 | 8259 PIC | `apb4_pic_8259` | 0x4000_1000-0x1FFF | High |
 | 8254 PIT | `apb4_pit_8254` | 0x4000_2000-0x2FFF | High |
 | RTC | `apb4_rtc` | 0x4000_3000-0x3FFF | Medium |
@@ -150,47 +150,47 @@ All blocks have assigned addresses in the 4KB window structure:
 ```
 retro_legacy_blocks/
 ├── rtl/
-│   ├── hpet/          ✅ Production Ready
-│   ├── pic_8259/      📋 Structure Created
-│   ├── pit_8254/      📋 Structure Created
-│   ├── rtc/           📋 Structure Created
-│   ├── smbus/         📋 Structure Created
-│   ├── pm_acpi/       📋 Structure Created
-│   └── ioapic/        📋 Structure Created
+│   ├── hpet/          Production Ready
+│   ├── pic_8259/      Structure Created
+│   ├── pit_8254/      Structure Created
+│   ├── rtc/           Structure Created
+│   ├── smbus/         Structure Created
+│   ├── pm_acpi/       Structure Created
+│   └── ioapic/        Structure Created
 │
 ├── dv/
 │   ├── tbclasses/
-│   │   ├── hpet/      ✅ Complete
-│   │   ├── pic_8259/  📋 Structure Created
-│   │   ├── pit_8254/  📋 Structure Created
-│   │   ├── rtc/       📋 Structure Created
-│   │   ├── smbus/     📋 Structure Created
-│   │   ├── pm_acpi/   📋 Structure Created
-│   │   └── ioapic/    📋 Structure Created
+│   │   ├── hpet/      Complete
+│   │   ├── pic_8259/  Structure Created
+│   │   ├── pit_8254/  Structure Created
+│   │   ├── rtc/       Structure Created
+│   │   ├── smbus/     Structure Created
+│   │   ├── pm_acpi/   Structure Created
+│   │   └── ioapic/    Structure Created
 │   │
 │   └── tests/
-│       ├── hpet/      ✅ Complete
-│       ├── pic_8259/  📋 Structure Created
-│       ├── pit_8254/  📋 Structure Created
-│       ├── rtc/       📋 Structure Created
-│       ├── smbus/     📋 Structure Created
-│       ├── pm_acpi/   📋 Structure Created
-│       └── ioapic/    📋 Structure Created
+│       ├── hpet/      Complete
+│       ├── pic_8259/  Structure Created
+│       ├── pit_8254/  Structure Created
+│       ├── rtc/       Structure Created
+│       ├── smbus/     Structure Created
+│       ├── pm_acpi/   Structure Created
+│       └── ioapic/    Structure Created
 │
 ├── docs/
-│   ├── hpet_spec/     ✅ Complete
-│   ├── pic_8259_spec/ 📋 Structure Created
-│   ├── pit_8254_spec/ 📋 Structure Created
-│   ├── rtc_spec/      📋 Structure Created
-│   ├── smbus_spec/    📋 Structure Created
-│   ├── pm_acpi_spec/  📋 Structure Created
-│   └── ioapic_spec/   📋 Structure Created
+│   ├── hpet_spec/     Complete
+│   ├── pic_8259_spec/ Structure Created
+│   ├── pit_8254_spec/ Structure Created
+│   ├── rtc_spec/      Structure Created
+│   ├── smbus_spec/    Structure Created
+│   ├── pm_acpi_spec/  Structure Created
+│   └── ioapic_spec/   Structure Created
 │
-├── PRD.md             ✅ Updated with all blocks
-├── CLAUDE.md          ✅ Updated with address map
-├── README.md          ✅ Updated with priorities
-├── BLOCK_STATUS.md    ✅ NEW - Master tracking
-└── STRUCTURE_SETUP_SUMMARY.md  ✅ This file
+├── PRD.md             Updated with all blocks
+├── CLAUDE.md          Updated with address map
+├── README.md          Updated with priorities
+├── BLOCK_STATUS.md    NEW - Master tracking
+└── STRUCTURE_SETUP_SUMMARY.md  This file
 ```
 
 ---
@@ -311,11 +311,11 @@ To verify the structure was created correctly:
 # Check all blocks have required directories
 for block in pic_8259 pit_8254 rtc smbus pm_acpi ioapic; do
   echo "Checking $block..."
-  test -d rtl/$block/peakrdl && echo "  ✅ rtl/$block/peakrdl"
-  test -d rtl/$block/filelists && echo "  ✅ rtl/$block/filelists"
-  test -d dv/tbclasses/$block && echo "  ✅ dv/tbclasses/$block"
-  test -d dv/tests/$block && echo "  ✅ dv/tests/$block"
-  test -d docs/${block}_spec && echo "  ✅ docs/${block}_spec"
+  test -d rtl/$block/peakrdl && echo "  rtl/$block/peakrdl"
+  test -d rtl/$block/filelists && echo "  rtl/$block/filelists"
+  test -d dv/tbclasses/$block && echo "  dv/tbclasses/$block"
+  test -d dv/tests/$block && echo "  dv/tests/$block"
+  test -d docs/${block}_spec && echo "  docs/${block}_spec"
 done
 
 # Count README files
@@ -332,15 +332,15 @@ tree -L 3 -d rtl/ dv/ docs/
 
 The structure setup is complete when:
 
-- ✅ All 6 blocks have directory structures
-- ✅ All directories have placeholder READMEs
-- ✅ Master documentation updated with address map
-- ✅ BLOCK_STATUS.md tracking file created
-- ✅ Development checklists documented
-- ✅ Import patterns documented
-- ✅ Design standards documented
+- All 6 blocks have directory structures
+- All directories have placeholder READMEs
+- Master documentation updated with address map
+- BLOCK_STATUS.md tracking file created
+- Development checklists documented
+- Import patterns documented
+- Design standards documented
 
-**Status: ✅ ALL CRITERIA MET**
+**Status: ALL CRITERIA MET**
 
 ---
 

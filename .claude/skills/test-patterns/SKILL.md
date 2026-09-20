@@ -37,7 +37,7 @@ pytest val/{subsystem}/ --cov=rtl/{subsystem}/
 - `val/amba/test_{module}.py` for rtl/amba/
 - `projects/components/{name}/dv/tests/` for project-specific tests (RAPIDS, STREAM, bridge, ...)
 
-**🚨 CRITICAL: Test Structure Pattern 🚨**
+**CRITICAL: Test Structure Pattern**
 
 The repository uses TWO different test patterns depending on the location:
 
@@ -68,7 +68,7 @@ def test_fifo_buffer(request, data_width, depth):
 
 **Pattern B: CocoTB + Pytest Wrappers (projects/components/ areas)**
 
-**⚠️ HARD REQUIREMENT for projects/components/: MUST use Pattern B ⚠️**
+**HARD REQUIREMENT for projects/components/: MUST use Pattern B**
 
 ```python
 import cocotb
@@ -150,15 +150,15 @@ def test_stress(request, addr_width, data_width):
 
 **When to Use Which Pattern:**
 
-- ✅ Use Pattern A: Simple modules in val/common, val/amba
-- ✅ Use Pattern B: ALL tests in projects/components/
-- ❌ Never mix patterns in the same file
+- Use Pattern A: Simple modules in val/common, val/amba
+- Use Pattern B: ALL tests in projects/components/
+- Never mix patterns in the same file
 
 **Complete Working Example (Pattern B):**
 
 See `projects/components/dmas/stream/dv/tests/fub/test_sram_controller.py` for reference implementation.
 
-**🚨 MANDATORY: Pytest Function Naming Convention 🚨**
+**MANDATORY: Pytest Function Naming Convention**
 
 **All pytest test functions MUST follow this naming pattern to prevent conflicts:**
 
@@ -166,7 +166,7 @@ See `projects/components/dmas/stream/dv/tests/fub/test_sram_controller.py` for r
 # Pattern: test_<module_name>_<params> or test_<module_name>
 # where <module_name> EXACTLY matches the RTL module being tested
 
-✅ CORRECT:
+CORRECT:
 @pytest.mark.parametrize("params", generate_test_params())
 def test_axi4_dwidth_converter_wr(request, params):  # ← Matches module name
     """Test for axi4_dwidth_converter_wr.sv"""
@@ -176,7 +176,7 @@ def test_axi4_write_master(stub, id_width, data_width):  # ← Matches module co
     """Test for axi4 write master functionality"""
     ...
 
-❌ WRONG - Generic names cause conflicts:
+WRONG - Generic names cause conflicts:
 def test_axi4_dwidth_converter(request, params):  # ← Conflicts with read converter!
     ...
 
@@ -197,9 +197,9 @@ def test_converter(request, params):  # ← Too generic!
 
 **Testbench Class Requirements:**
 
-**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.2 for complete three methods requirement
+**See:** `/GLOBAL_REQUIREMENTS.md` Section 2.2 for complete three methods requirement
 
-⚠️ **MANDATORY: Every TB class MUST implement:**
+**MANDATORY: Every TB class MUST implement:**
 1. `async def setup_clocks_and_reset(self)` - Full initialization
 2. `async def assert_reset(self)` - Assert reset signal
 3. `async def deassert_reset(self)` - Release reset signal
@@ -224,7 +224,7 @@ class MyModuleTB(TBBase):
 
 ## Test Naming and Organization
 
-**⚠️ CRITICAL: Single Comprehensive Test Per Module**
+**CRITICAL: Single Comprehensive Test Per Module**
 
 For complex modules (especially integration tests), use **ONE comprehensive test** with incremental levels instead of multiple separate tests.
 
@@ -278,7 +278,7 @@ async def test_scheduler_group_operation(dut):
 
 **Anti-Pattern to Avoid:**
 ```python
-# ❌ DON'T: Multiple separate tests for same functionality
+# DON'T: Multiple separate tests for same functionality
 @cocotb.test()
 async def test_gate_descriptors(dut): ...
 
@@ -288,7 +288,7 @@ async def test_func_descriptors(dut): ...
 @cocotb.test()
 async def test_full_descriptors(dut): ...
 
-# ✅ DO: Single test with levels
+# DO: Single test with levels
 @cocotb.test()
 async def test_descriptor_operation(dut):
     test_level = os.environ.get('TEST_LEVEL', 'gate')
