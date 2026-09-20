@@ -357,21 +357,10 @@ projects/components/bridge/
 
 ### Testbench Class Location (MANDATORY)
 
-**WRONG:** Testbench class in test file
-```python
-# projects/components/bridge/dv/tests/test_bridge_2x2_rw.py
-class Bridge2x2RwTB:  # WRONG LOCATION!
-    """Embedded TB - NOT REUSABLE"""
-```
-
-**CORRECT:** Testbench class in PROJECT AREA dv/tbclasses/
-```python
-# projects/components/bridge/dv/tbclasses/bridge2x2_rw_tb.py
-class Bridge2x2RwTB(TBBase):  # CORRECT LOCATION!
-    """Reusable TB class - imported by the matching test runner"""
-```
-
-**CRITICAL:** TB classes are PROJECT-SPECIFIC and MUST be in the project area (`projects/components/{name}/dv/tbclasses/`), NOT in the framework (`bin/TBClasses/`).
+TB classes live in `dv/tbclasses/`, never inside a test runner. The rule and
+the reasoning are in `vault/handbook/dv/tb-structure.md` and
+`/GLOBAL_REQUIREMENTS.md` 2.1. The bridge layout that satisfies it is the
+tree under Rule #0.1 below.
 
 ### Test File Pattern (MANDATORY)
 
@@ -440,10 +429,6 @@ classes are generated per bridge configuration alongside the RTL).
 
 ### Rule #0.1: Testbench Architecture - MANDATORY SEPARATION
 
-**THIS IS A HARD REQUIREMENT - NO EXCEPTIONS**
-
-**NEVER embed testbench classes inside test runner files!**
-
 The same testbench logic will be reused across multiple test scenarios. Having testbench code only in test files makes it COMPLETELY WORTHLESS for reuse.
 
 **MANDATORY Structure:**
@@ -465,80 +450,33 @@ projects/components/bridge/
 │       └── test_bridge_5x3_channels.py
 ```
 
-**Why This Matters:**
-
-1. **Reusability**: Same TB class used in:
-   - Per-config functional tests
-   - Monitor stress tests (`test_bridge_*_mon_monitor.py`)
-   - User projects (external imports)
-
-2. **Maintainability**: Fix bug once in TB class, all tests benefit
-
-3. **Composition**: TB classes can inherit/compose for complex scenarios
+Why it matters -- reuse across per-config tests, the `*_mon_monitor.py`
+stress tests and external imports -- is in
+`vault/handbook/dv/tb-structure.md`.
 
 ---
 
-### Rule #1: All Testbenches Inherit from TBBase
+### Rule #1: TBBase and the three mandatory methods
 
-**Every testbench class MUST inherit from TBBase:**
+*(Former Rule #2 is folded in here; #3 and #4 keep their numbers so
+existing references to them still resolve.)*
 
-```python
-from TBClasses.shared.tbbase import TBBase
+Every TB inherits `TBBase` and implements `setup_clocks_and_reset` /
+`assert_reset` / `deassert_reset`. The requirement is
+`/GLOBAL_REQUIREMENTS.md` 2.2 and 2.3; what TBBase provides and why the
+three methods are mandatory is `vault/handbook/dv/tb-structure.md`.
 
-class BridgeAXI4FlatTB(TBBase):
-    """Testbench for Bridge crossbar - inherits base functionality"""
-
-    def __init__(self, dut, num_masters=2, num_slaves=2, **kwargs):
-        super().__init__(dut)
-        # Bridge-specific initialization
-```
-
-**TBBase Provides:**
-- Clock management (`start_clock`, `wait_clocks`)
-- Reset utilities (`assert_reset`, `deassert_reset`)
-- Logging (`self.log`)
-- Progress tracking (`mark_progress`)
-- Safety monitoring (timeouts, memory limits)
-
----
-
-### Rule #2: Mandatory Testbench Methods
-
-**Every testbench class MUST implement these three methods:**
-
-```python
-async def setup_clocks_and_reset(self):
-    """Complete initialization - starts clocks and performs reset"""
-    await self.start_clock('aclk', freq=10, units='ns')
-
-    # Set config signals before reset (if needed)
-    # self.dut.cfg_param.value = initial_value
-
-    # Reset sequence
-    await self.assert_reset()
-    await self.wait_clocks('aclk', 10)
-    await self.deassert_reset()
-    await self.wait_clocks('aclk', 5)
-
-async def assert_reset(self):
-    """Assert reset signal (active-low for AXI4)"""
-    self.dut.aresetn.value = 0
-
-async def deassert_reset(self):
-    """Deassert reset signal"""
-    self.dut.aresetn.value = 1
-```
-
-**Why Required:**
-- Consistency across all testbenches
-- Reusability for mid-test resets
-- Clear test structure and intent
+Bridge-specific: the class is `BridgeAXI4FlatTB(TBBase)`, the clock is
+`aclk` and reset is `aresetn` (active-low), so `assert_reset` drives
+`self.dut.aresetn.value = 0`.
 
 ---
 
 ### Rule #3: Use GAXI Components for Protocol Handling
 
-**For Bridge testing, use GAXI Master/Slave components for AXI4 channel handling:**
+Use the framework BFMs; never hand-drive AXI4 valid/ready. The map and trap
+list are in `vault/handbook/dv/bfm-usage.md`. Bridge wires GAXI onto the
+AXI4 channels with the `s0_axi4_` prefix:
 
 ```python
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
@@ -557,8 +495,6 @@ self.aw_master = GAXIMaster(
     log=log
 )
 ```
-
-**Never manually drive AXI4 valid/ready handshakes** - Use GAXI components.
 
 ---
 
@@ -1156,31 +1092,15 @@ make run-bridge_2x2_rw-gate   # bridge is serial by design (~1GB/test)
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Embedded Testbench Classes
+### Anti-Pattern 1: Embedded testbench classes
 
-```python
-WRONG: TB class in test file
-class BridgeTB:
-    """NOT REUSABLE - WRONG LOCATION"""
+TB class defined inside the test runner instead of `dv/tbclasses/`.
+See Rule #0.1 above.
 
-CORRECT: Import from project area
-import sys
-from TBClasses.shared.utilities import get_repo_root
-sys.path.insert(0, get_repo_root())
-from projects.components.bridge.dv.tbclasses.bridge2x2_rw_tb import Bridge2x2RwTB
-```
+### Anti-Pattern 2: Manual AXI4 handshaking
 
-### Anti-Pattern 2: Manual AXI4 Handshaking
-
-```python
-WRONG: Manual signal driving
-self.dut.s0_axi4_awvalid.value = 1
-while self.dut.s0_axi4_awready.value == 0:
-    await RisingEdge(self.clock)
-
-CORRECT: Use GAXI components
-await self.aw_master.send(aw_pkt)
-```
+Driving `s0_axi4_awvalid` and spinning on `awready` by hand instead of
+`await self.aw_master.send(aw_pkt)`. See Rule #3 above.
 
 ### Anti-Pattern 3: Memory Models for Simple Tests
 
