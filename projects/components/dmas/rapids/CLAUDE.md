@@ -155,7 +155,7 @@ never in a production testbench.
 
 ---
 
-### Rule #3: Know the Known Issues
+### Rule #2: Know the Known Issues
 
 Check `projects/components/dmas/rapids/known_issues/` (and `active/`) before
 diagnosing anything.
@@ -168,7 +168,7 @@ it. Do not chase that bug in beats code.
 
 ---
 
-### Rule #4: RAPIDS is Complex - Understand Block Interactions
+### Rule #3: RAPIDS is Complex - Understand Block Interactions
 
 **Key Interaction Patterns:**
 
@@ -194,7 +194,7 @@ it. Do not chase that bug in beats code.
 
 **Never work on one block in isolation without understanding its upstream/downstream dependencies!**
 
-### Rule #5: Test Strategy is Multi-Layered
+### Rule #4: Test Strategy is Multi-Layered
 
 **RAPIDS testing follows this hierarchy:**
 
@@ -460,9 +460,9 @@ make run-scheduler_beats-gate-waves AREAS=fub_beats
 - **Macro tests:** Verify block-to-block interfaces
 - **Top tests:** Validate complete data flows
 
-**Current Status:** ~80% functional coverage, basic scenarios validated
-
-**📖 See:** `docs/RAPIDS_Validation_Status_Report.md` for detailed test results
+**Current status:** regenerate it -- `dv/tests/analyze_beats_coverage.py`
+writes to `dv/tests/coverage_reports/`. The ~80% figure that sat here was a
+pre-beats snapshot.
 
 ---
 
