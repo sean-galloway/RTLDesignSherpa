@@ -56,53 +56,37 @@ This CLAUDE.md provides common RTL library guidance. Also review:
 
 ### Rule #0: Verification Architecture (MANDATORY)
 
-**See:** `/GLOBAL_REQUIREMENTS.md` Sections 2.1, 2.3, 2.4 for complete requirements
+**See:** `/GLOBAL_REQUIREMENTS.md` Sections 2.1, 2.3, 2.4
 
-**Common RTL Three-Layer Pattern:**
-1. **TB:** `bin/TBClasses/common/{module}_tb.py`
-2. **Scoreboard:** `bin/TBClasses/scoreboards/common/{module}_scoreboard.py`
-3. **Test:** `val/common/test_{module}.py`
+Common blocks are **two** layers, not three: a TB class in
+`bin/TBClasses/common/{module}_tb.py` (52 today) and a runner in
+`val/common/test_{module}.py` (48). There is no `bin/TBClasses/scoreboards/common/`
+and no common test imports a scoreboard -- counters, arbiters and CRC blocks
+check against a queue or a computed expectation. Scoreboards in this repo are
+per-protocol: `bin/TBClasses/axi_monitor/`, `apb4_monitor/`, `axi_splitter/`,
+`scoreboards/monbus_group/`.
 
-**Common RTL typically uses queue access** - counters, arbiters, and similar blocks are simple control paths.
-
-**Complete Guide:** `docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md`
+How a TB is composed, and what gate/func/full actually cost in this area:
+`vault/handbook/dv/tb-structure.md`.
 
 ---
 
 ### Rule #1: ALWAYS Search First, Create Last
 
-**Before suggesting ANY new module:**
+Dozens of modules already exist here, plus `rtl/math/` for arithmetic. Search
+by category before proposing anything new:
 
 ```bash
-# REQUIRED: Search existing modules
-ls rtl/common/{category}*.sv
-
-# Example searches:
-ls rtl/common/counter*.sv    # Find counters
-ls rtl/common/arbiter*.sv    # Find arbiters
-ls rtl/common/dataint*.sv    # Find CRC/ECC/parity
+ls rtl/common/counter*.sv     # counters
+ls rtl/common/arbiter*.sv     # arbiters
+ls rtl/common/dataint*.sv     # CRC / ECC / parity
 ```
 
-**Decision Tree:**
-1. **Exact match exists** → Use it, done
-2. **Close match exists** → Adapt with parameters
-3. **No match found** → Document search, propose new
-4. **Didn't search** → STOP, go back and search
+Exact match -> use it. Close match -> adapt with parameters. No match -> say
+what you searched, then propose. The selection matrices below exist so this
+takes one lookup rather than a directory crawl.
 
-**Example Dialog:**
-```
-User: "I need a counter that counts up to 100"
-
-WRONG Response:
-"Let me create a counter module for you..."
-
-RIGHT Response:
-"Let me check existing counters first:
-[searches rtl/common/counter*.sv]
-Found counter_bin.sv - it wraps at MAX, with the MSB as a wrap flag:
-counter_bin #(.WIDTH(8), .MAX(100)) u_cnt (.clk, .rst_n, .enable,
-                                           .counter_bin_curr, .counter_bin_next);
-```
+---
 
 ### Rule #2: Verify Modules in Context
 
@@ -416,84 +400,6 @@ The divisors are runtime inputs (pick-off selects), not a DIV_RATIO parameter."
 
 ---
 
-## Workflow for Claude Code
-
-### Step 1: Understand User Need
-
-**Extract key requirements:**
-- What functionality? (counting, arbitration, CRC, etc.)
-- Any special constraints? (timing, area, power)
-- Integration context? (clock domain, data width, etc.)
-
-### Step 2: Search Existing Modules
-
-**ALWAYS run these commands:**
-```bash
-# Search by category
-ls rtl/common/{category}*.sv
-
-# Search by keyword
-find rtl/common/ -name "*.sv" | xargs grep -i "keyword"
-
-# Check usage examples
-grep -r "module_name" rtl/amba/ projects/components/
-```
-
-**Document your search in response:**
-"I searched rtl/common/ and found counter_bin.sv which matches your requirements..."
-
-### Step 3: Verify Module Fits
-
-**Check module interface:**
-```bash
-# View parameters and ports
-grep "module\|parameter\|input\|output" rtl/common/module_name.sv | head -30
-```
-
-**Check test for usage:**
-```bash
-cat val/common/test_module_name.py
-```
-
-### Step 4: Provide Integration Code
-
-**Include:**
-1. Module instantiation with correct parameters
-2. Signal connections
-3. Any constraints or notes
-4. Test command to verify
-
-**Example:**
-```systemverilog
-// Instantiate counter
-counter_bin #(
-    .WIDTH(9),          // 8 count bits + wrap flag
-    .MAX  (200)
-) u_event_counter (
-    .clk              (clk),
-    .rst_n            (rst_n),
-    .enable           (event_valid),
-    .counter_bin_curr (event_count),
-    .counter_bin_next (event_count_next)
-);
-
-// Test: val/common/test_counter_bin.py  (run: cd val/common && make run-counter_bin-gate)
-```
-
-### Step 5: Lint and Test Guidance
-
-**Always suggest:**
-```bash
-# Lint top-level design
-verilator --lint-only your_top_module.sv
-
-# Run existing module test (Makefile, not bare pytest -- it supplies the
-# level, the derived workers and the reruns; see running-regressions)
-cd val/common && make run-{module}-gate
-```
-
----
-
 ## Common User Questions and Answers
 
 ### Q: "What counters are available?"
@@ -629,54 +535,20 @@ itself is `vault/handbook/dv/tb-structure.md` ([[tb-structure]]).
 
 ## Performance and Optimization
 
-### Area Optimization
+Most of this is ordinary RTL practice; two things here are specific and easy to
+get wrong.
 
-**Suggest when user mentions area constraints:**
-- Use smaller WIDTH parameters
-- Choose simpler variants (e.g., `arbiter_round_robin_simple.sv`)
-- Minimize buffer depths
+- **Arbiters have no `REG_OUTPUT`.** No arbiter in `rtl/common` declares such a
+  parameter (`arbiter_round_robin` takes `CLIENTS`/`WAIT_GNT_ACK`/`N`,
+  `arbiter_round_robin_weighted` adds `MAX_LEVELS`) and their grants are
+  already registered in an `always_ff`. There is nothing to enable -- if you
+  need to break a path, break it outside the arbiter.
+- **Clock gating is `clock_gate_ctrl.sv`**, the one module here that exposes
+  `aresetn` rather than `rst_n`.
 
-### Timing Optimization
-
-**Suggest when user has timing issues:**
-- **Not** `REG_OUTPUT` on the arbiters — no arbiter in `rtl/common` declares
-  such a parameter (`arbiter_round_robin` takes `CLIENTS`/`WAIT_GNT_ACK`/`N`,
-  `arbiter_round_robin_weighted` adds `MAX_LEVELS`), and their grant outputs
-  are already registered in an `always_ff`. There is nothing to enable.
-- Break long combinational paths
-- Check critical paths with static timing analysis
-
-### Power Optimization
-
-**Suggest when user mentions power:**
-- Clock gating: `clock_gate_ctrl.sv`
-- Gate enables when inactive
-- Reduce toggle rates
-
----
-
-## Quick Command Reference
-
-```bash
-# Search for modules
-ls rtl/common/{category}*.sv
-find rtl/common/ -name "*.sv" | xargs grep -i "keyword"
-
-# Check module interface
-grep "module\|parameter\|input\|output" rtl/common/module.sv
-
-# Find usage examples
-grep -r "module_name" rtl/amba/ projects/components/
-
-# View test
-cat val/common/test_module.py
-
-# Run test
-cd val/common && make run-module-gate
-
-# Lint
-verilator --lint-only rtl/common/module.sv
-```
+For area, prefer the simpler variants (`arbiter_round_robin_simple.sv`) and the
+smallest `WIDTH` that holds the range. Note that mux-level depth is not FPGA
+timing: on a full part, area and routing congestion bind first.
 
 ---
 
@@ -687,16 +559,6 @@ verilator --lint-only rtl/common/module.sv
 - **val/common/test_*.py** - Test examples
 - **/CLAUDE.md** - Repository-wide AI guidance
 - **/PRD.md** - Master project requirements
-
----
-
-## Remember
-
-1. **Search first** - dozens of modules already exist (plus `rtl/math/` for arithmetic)
-2. **Verify in tests** - Check val/common/test_*.py for API
-3. **Reuse patterns** - Look at rtl/amba/ and projects/components/ usage
-4. **Document decisions** - Why existing modules don't fit
-5. **Safety critical** - CDC, reset polarity, parameter widths
 
 ---
 
