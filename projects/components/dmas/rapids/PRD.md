@@ -636,7 +636,7 @@ projects/components/dmas/rapids/dv/tests/
 - Traffic patterns
 - Monitor checkers
 
-**📖 See:** `docs/markdown/TBClasses/` for shared framework docs
+**See:** `../RTLDesignSherpa-DV/docs/components/<family>/` for shared framework docs
 
 ### 12.2.1 MANDATORY: BFM Usage for FUB Tests
 
@@ -692,7 +692,7 @@ class ProgramEngineTB(TBBase):
 
 **📖 See:**
 - `projects/components/dmas/rapids/CLAUDE.md` - Rule #1 for complete BFM usage guidelines
-- `docs/markdown/TBClasses/gaxi/` - GAXI BFM documentation
+- `../RTLDesignSherpa-DV/docs/components/gaxi/` - GAXI BFM documentation
 - `bin/TBClasses/axi4/` - AXI4 BFM sources (full framework docs in the RTLDesignSherpa-DV repo)
 
 ### 12.3 Test File Structure (Standard Pattern)

@@ -69,149 +69,47 @@ This CLAUDE.md provides RAPIDS-specific guidance. Also review:
 
 ### Rule #0.1: Testbench Location and Test Structure (MANDATORY)
 
-**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1 for complete requirement
+**See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1. Test structure itself --
+Pattern B, the `cocotb_test_*` prefix, pytest wrapper naming -- is the
+`test-patterns` skill.
 
-**RAPIDS-Specific Directory Structure:**
+RAPIDS keeps all of its verification in the project area:
 
 ```
 projects/components/dmas/rapids/dv/
-├── tbclasses/                    # ★ RAPIDS TB classes (project area!)
-│   ├── scheduler_tb.py           # Scheduler testbench
-│   ├── descriptor_engine_tb.py   # Descriptor engine testbench
-│   └── rapids_core_beats_tb.py   # Core integration testbench
-└── tests/                        # Test runners
-    ├── fub/test_ctrlrd_engine.py             # Control engines
-    ├── fub_beats/test_scheduler_beats.py     # Beats FUB tests
-    ├── fub_beats/test_descriptor_engine_beats.py
-    ├── macro_beats/test_scheduler_group_beats.py  # Beats macro tests
-    └── top_beats/test_rapids_beats_top.py    # Top-level tests
+├── tbclasses/     # 22 TB classes: scheduler_tb, descriptor_engine_tb,
+│                  # rapids_core_beats_tb, rapids_beats_top_tb, ...
+├── components/    # RAPIDS-specific BFMs (data_mover_bfm.py)
+└── tests/         # runners by layer: fub/ fub_beats/ macro/ macro_beats/ top_beats/
 ```
 
-**RAPIDS Import Pattern:**
-```python
-# Import framework utilities (PYTHONPATH includes bin/)
-import os, sys
-from TBClasses.shared.utilities import get_repo_root
-from TBClasses.shared.tbbase import TBBase
-
-# Add repo root to Python path using robust git-based method
-repo_root = get_repo_root()
-sys.path.insert(0, repo_root)
-
-# Import RAPIDS TB from project area
-from projects.components.dmas.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
-```
-
-**RAPIDS Test File Organization:**
-```python
-# 1. CocoTB functions at top (prefix "cocotb_test_*")
-@cocotb.test(timeout_time=100, timeout_unit="ms")
-async def cocotb_test_basic_flow(dut):
-    tb = SchedulerTB(dut)
-    await tb.setup_clocks_and_reset()
-    # ... test logic
-
-# 2. Parameter generation near bottom
-def generate_scheduler_test_params():
-    return [(0, 8, 512, 8)]  # (channel_id, num_channels, data_width, credit_width)
-
-scheduler_params = generate_scheduler_test_params()
-
-# 3. Pytest wrappers at bottom
-@pytest.mark.parametrize("channel_id, ...", scheduler_params)
-def test_basic_flow(request, channel_id, ...):
-    run(..., testcase="cocotb_test_basic_flow", ...)
-```
-
-**Why RAPIDS Tests Use Project Area:**
-1. **Reusability:** Same TB in FUB tests, integration tests, system tests
-2. **Composition:** Scheduler TB + Descriptor TB → Integration TB
-3. **Discovery:** All RAPIDS code under `projects/components/dmas/rapids/`
-
-**📖 Complete Pattern:** `val/amba/test_apb4_slave.py` lines 1251-1346 (reference example)
-
-**📖 Queue-Based Verification Pattern:** See `/GLOBAL_REQUIREMENTS.md` Section 2.4
-
-**RAPIDS-Specific Usage:**
-
-RAPIDS uses queue-based verification for in-order verification of program engine, descriptor engine, and AXI transactions.
-
-**Example - Program Engine Verification:**
-```python
-# Direct queue access for in-order RAPIDS operations
-class ProgramEngineTB(TBBase):
-    async def verify_write_operation(self, expected_addr, expected_data):
-        """RAPIDS program engine: In-order writes, simple queue verification"""
-        # Wait for AXI transaction
-        await self.wait_for_transaction(self.aw_monitor)
-
-        # Get from queue - program engine writes are always in-order
-        aw_pkt = self.aw_monitor._recvQ.popleft()
-        w_pkt = self.w_monitor._recvQ.popleft()
-
-        # Verify
-        assert aw_pkt.addr == expected_addr
-        assert w_pkt.data == expected_data
-```
-
-**When RAPIDS Uses Memory Models:**
-- ❌ Descriptor engine (in-order) - Use queue access
-- ❌ Program engine (in-order) - Use queue access
-- ✅ Integration tests with multiple masters - Memory model tracks state
-
-**📖 Complete Patterns:** `docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md` (repo root docs/)
+**Scoring choice (GR 2.4).** The descriptor and program engines are in-order,
+so they verify by queue access -- `monitor._recvQ.popleft()` compared against
+an expected value. The memory model is for integration tests, where several
+masters are in flight and order is not guaranteed. Reaching for the memory
+model on an in-order engine buys nothing and hides ordering bugs.
 
 ---
 
-### Rule #0.5: Three Mandatory TB Methods (MANDATORY)
+### Rule #0.5: Config Before Reset (RAPIDS-specific)
 
-**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.2 for complete requirement
+The three mandatory TB methods are `/GLOBAL_REQUIREMENTS.md` Section 2.2. What
+is particular to RAPIDS is **when** configuration is applied: several modules
+latch config during reset, so a value written after `deassert_reset()` is
+simply never seen.
 
-**RAPIDS-Specific Context:**
+Set these in `setup_clocks_and_reset()` *before* asserting reset:
 
-Many RAPIDS modules require configuration signals set BEFORE reset is released. This is because some counters/state are initialized during reset based on these config values.
+| Signal | Why it must be early |
+|---|---|
+| `cfg_initial_credit` | the credit counter initialises to `(1 << cfg)` during reset |
+| `cfg_use_credit` | selects the flow-control mode the counter comes up in |
+| `cfg_timeout_threshold` | watchdog loads at reset |
+| `cfg_sram_depth` | must be stable before the memory controllers leave reset |
 
-> **Status (2026-07-22):** The credit-management example below is from the retired pre-beats
-> scheduler.sv. The current `rtl/fub_beats/scheduler_beats.sv` has no credit management yet
-> (planned for a later phase). The config-before-reset principle still applies to beats modules.
-
-**Historical Example - Exponential Credit Encoding (pre-beats scheduler):**
-```python
-async def setup_clocks_and_reset(self):
-    """RAPIDS-specific: Config signals MUST be set before reset"""
-    # Start clock
-    await self.start_clock('clk', freq=10, units='ns')
-
-    # ⚠️ CRITICAL: Set exponential credit config BEFORE reset
-    # Scheduler's credit counter initializes during reset based on this value
-    self.dut.cfg_initial_credit.value = 4  # 4 = 16 credits (2^4)
-    self.dut.cfg_use_credit.value = 1
-
-    # Now perform reset sequence
-    await self.assert_reset()
-    await self.wait_clocks('clk', 10)
-    await self.deassert_reset()
-    await self.wait_clocks('clk', 5)
-
-async def assert_reset(self):
-    """Assert active-low reset"""
-    self.dut.rst_n.value = 0
-
-async def deassert_reset(self):
-    """Release active-low reset"""
-    self.dut.rst_n.value = 1
-```
-
-**Why Config-Before-Reset Matters for RAPIDS:**
-- Scheduler credit counter: Initialized to `(1 << cfg_initial_credit)` during reset
-- Descriptor engine depth: Configuration read during reset sequence
-- SRAM parameters: Must be stable before memory controllers come out of reset
-
-**Common RAPIDS Configs to Set Before Reset:**
-- `cfg_initial_credit` - Exponential credit encoding (0→1, 1→2, 2→4, etc.)
-- `cfg_use_credit` - Enable/disable credit-based flow control
-- `cfg_timeout_threshold` - Watchdog timer configuration
-- `cfg_sram_depth` - SRAM buffer size parameters
+(The credit signals belong to the retired pre-beats `scheduler.sv`;
+`rtl/fub_beats/scheduler_beats.sv` has no credit management yet. The
+config-before-reset rule still holds for the beats modules.)
 
 ---
 
@@ -245,91 +143,30 @@ See `projects/components/dmas/rapids/known_issues/scheduler_group_signal_naming_
 ### Rule #1: MANDATORY BFM Usage for FUB-Level Tests
 
 Never hand-drive a valid/ready handshake and never write a custom protocol
-driver: use the framework BFMs. The interface-to-BFM map, the factory list
-and the trap list are in `vault/handbook/dv/bfm-usage.md`.
+driver. The interface-to-BFM map, the factory list, the trap list and the
+extract-vs-embed criteria are in `vault/handbook/dv/bfm-usage.md`.
 
-RAPIDS-specific: the network interfaces are **AXIS**, so they take the
-`axis4` factories; the custom valid/ready interfaces take GAXI.
+RAPIDS-specific: the network interfaces are **AXIS**, so they take the `axis4`
+factories; the custom valid/ready interfaces (program, descriptor) take GAXI.
+`dv/components/data_mover_bfm.py` is the one extracted RAPIDS BFM.
 
-**Example - Program Engine Interface:**
-
-```python
-# ❌ WRONG: Manual handshake driving
-async def send_program_request(self, addr, data):
-    # Manually driving program_valid/program_ready - DON'T DO THIS!
-    self.dut.program_valid.value = 1
-    self.dut.program_pkt_addr.value = addr
-    self.dut.program_pkt_data.value = data
-    while int(self.dut.program_ready.value) == 0:
-        await self.wait_clocks(self.clk_name, 1)
-    await self.wait_clocks(self.clk_name, 1)
-    self.dut.program_valid.value = 0
-
-# ✅ CORRECT: Use GAXI Master BFM
-from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
-
-class ProgramEngineTB(TBBase):
-    def __init__(self, dut):
-        super().__init__(dut)
-        # Create GAXI master for program interface
-        self.program_master = GAXIMaster(
-            dut=dut,
-            clock=dut.clk,
-            valid_signal='program_valid',
-            ready_signal='program_ready',
-            data_signals=['program_pkt_addr', 'program_pkt_data'],
-            data_widths=[64, 32],
-            name='program_interface'
-        )
-
-    async def send_program_request(self, addr, data):
-        # Use GAXI master for proper handshaking
-        await self.program_master.write({'program_pkt_addr': addr, 'program_pkt_data': data})
-```
-
-**When manual driving is acceptable:** quick debug throwaway, and clock or
-reset init -- never a production testbench.
-
-**📖 See:**
-- `docs/markdown/TBClasses/gaxi/` - GAXI BFM documentation
-- `bin/TBClasses/axi4/` - AXI4 BFM sources (full framework docs in the RTLDesignSherpa-DV repo)
-- `val/amba/test_*.py` - Reference examples using framework BFMs
+Manual driving is acceptable for throwaway debug and for clock/reset init --
+never in a production testbench.
 
 ---
 
-### Rule #2: Always Reference Detailed Specification
-
-**This subsystem has extensive documentation in** `projects/components/dmas/rapids/docs/rapids_beats_has/` (architecture) **and** `projects/components/dmas/rapids/docs/rapids_beats_mas/` (micro-architecture)
-
-**Before answering technical questions:**
-```bash
-# Check complete specification
-ls projects/components/dmas/rapids/docs/rapids_beats_mas/
-cat projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md
-cat projects/components/dmas/rapids/docs/rapids_beats_mas/ch02_fub_blocks/01_scheduler.md
-```
-
-**Your answer should:**
-1. Provide direct answer/code
-2. **Then link to detailed spec:** "See `projects/components/dmas/rapids/docs/rapids_beats_mas/{chapter}/{file}.md` for complete specification"
-
 ### Rule #3: Know the Known Issues
 
-**Fixed Critical Issue (historical, pre-beats):**
-- ✅ **Scheduler Credit Counter - FIXED** in the retired pre-beats scheduler.sv
-  - Was: Credit counter hardcoded to 0
-  - Then: Implemented exponential encoding (0→1, 1→2, 2→4, ..., 15→∞)
-  - Now: That scheduler was replaced by `rtl/fub_beats/scheduler_beats.sv`, which has no
-    credit management yet (planned for a later phase); the `known_issues/scheduler.md`
-    write-up was retired with it
+Check `projects/components/dmas/rapids/known_issues/` (and `active/`) before
+diagnosing anything.
 
-**Always check:** `projects/components/dmas/rapids/known_issues/` before diagnosing bugs
+Historical: the pre-beats `scheduler.sv` credit counter was hardcoded to 0,
+then fixed with exponential encoding (0->1, 1->2, ..., 15->inf). That scheduler
+was replaced by `rtl/fub_beats/scheduler_beats.sv`, which has no credit
+management yet, and its `known_issues/scheduler.md` write-up was retired with
+it. Do not chase that bug in beats code.
 
-```bash
-ls projects/components/dmas/rapids/known_issues/
-cat projects/components/dmas/rapids/known_issues/README.md
-ls projects/components/dmas/rapids/known_issues/active/
-```
+---
 
 ### Rule #4: RAPIDS is Complex - Understand Block Interactions
 
@@ -858,504 +695,84 @@ make run-scheduler_beats-gate-waves AREAS=fub_beats    # WAVES=1, not --vcd
 
 ## Testing Guidance
 
-### Test Organization
-
-```
-projects/components/dmas/rapids/dv/tests/
-├── fub/                        # Control engine tests
-│   ├── test_ctrlrd_engine.py
-│   └── test_ctrlwr_engine.py
-├── fub_beats/                  # Individual beats block tests
-│   ├── test_scheduler_beats.py
-│   ├── test_scheduler_timeout_beats.py
-│   ├── test_descriptor_engine_beats.py
-│   ├── test_alloc_ctrl_beats.py
-│   ├── test_drain_ctrl_beats.py
-│   └── test_latency_bridge_beats.py
-├── macro/                      # MonBus group test
-│   └── test_monbus_axil_group.py
-├── macro_beats/                # Multi-block scenarios
-│   ├── test_scheduler_group_beats.py
-│   ├── test_scheduler_group_array_beats.py
-│   ├── test_snk_data_path_axis_test_beats.py
-│   ├── test_src_data_path_axis_test_beats.py
-│   ├── test_snk_sram_controller_beats.py
-│   └── test_src_sram_controller_beats.py
-└── top_beats/                  # Full RAPIDS operation
-    ├── test_rapids_core_beats.py
-    └── test_rapids_beats_top.py
-```
-
 ### Running Tests
+
+Tests are organised by layer under `dv/tests/`: `fub/` and `fub_beats/` for
+single blocks, `macro/` and `macro_beats/` for multi-block scenarios,
+`top_beats/` for full RAPIDS operation. `make list` enumerates the roots.
+
+This area's Makefile takes an `AREAS` variable (default
+`fub fub_beats macro macro_beats top_beats`) to scope a run to some layers:
 
 ```bash
 cd projects/components/dmas/rapids/dv/tests
 
-# Single block test
+make run-all-gate AREAS=fub_beats          # one layer
 make run-scheduler_beats-gate AREAS=fub_beats
-
-# All beats FUB tests
-make run-all-gate AREAS=fub_beats
-
-# Macro tests
-make run-all-func AREAS=macro_beats
-
-# Top-level tests
-make run-all-func AREAS=top_beats
-
-# All RAPIDS tests -- clean-all FIRST or the result is not trustworthy
-make clean-all && make run-all-full-parallel
-
-# With waveforms (WAVES=1 via the target, not --vcd)
-make run-scheduler_beats-gate-waves AREAS=fub_beats
+make clean-all && make run-all-full-parallel   # everything; clean-all first
 ```
+
+Target grammar, the levels and why `clean-all` is not optional:
+`vault/handbook/dv/running-regressions.md`.
 
 ### Test Coverage Status
 
-> **Status (2026-07-22):** The table below is a pre-beats snapshot (it includes the retired
-> program engine). For current numbers run the beats suites above or see
-> `dv/tests/analyze_beats_coverage.py` output in `dv/tests/coverage_reports/`.
-
-**Pre-beats snapshot:** ~80% functional coverage
-
-| Component | Coverage | Status |
-|-----------|----------|--------|
-| Scheduler | ~90% | Exponential credit encoding implemented |
-| Descriptor Engine | ~80% | Basic tests passing |
-| Program Engine | ~85% | Alignment tested |
-| Sink Data Path | ~75% | Basic flows working |
-| Source Data Path | ~70% | Basic flows working |
-| Integration | ~60% | More stress testing needed |
+Generate it, do not read it from here -- a pasted table is stale the day after
+it is written. `dv/tests/analyze_beats_coverage.py` writes to
+`dv/tests/coverage_reports/`.
 
 ---
 
 ## Key Documentation Links
 
-### Always Reference These
+**Specification** (`projects/components/dmas/rapids/docs/`):
+- `rapids_beats_has/rapids_beats_has_index.md` - architecture spec (HAS)
+- `rapids_beats_mas/rapids_beats_mas_index.md` - micro-architecture spec (MAS)
+- MAS `ch02_fub_blocks/`, `ch03_macro_blocks/`, `ch04_interfaces/` - per-block
+  and interface detail; HAS `ch05_programming/` - the programming model
 
-**Primary Technical Specification:**
-- `projects/components/dmas/rapids/docs/rapids_beats_has/rapids_beats_has_index.md` - Architecture spec (HAS) index
-- `projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md` - Micro-architecture spec (MAS) index
-- `projects/components/dmas/rapids/docs/rapids_beats_mas/ch02_fub_blocks/` - FUB block specifications
-- `projects/components/dmas/rapids/docs/rapids_beats_mas/ch03_macro_blocks/` - Macro block specifications
-- `projects/components/dmas/rapids/docs/rapids_beats_mas/ch04_interfaces/` - Interface specifications
-- `projects/components/dmas/rapids/docs/rapids_beats_has/ch05_programming/` - Programming model and registers
+**This component:** `PRD.md`, `TASKS.md`, `known_issues/`.
 
-**This Subsystem:**
-- `projects/components/dmas/rapids/PRD.md` - Requirements overview
-- `projects/components/dmas/rapids/TASKS.md` - Current work items
-- `projects/components/dmas/rapids/known_issues/` - Bug tracking
-
-**Validation:**
-- `docs/RAPIDS_Validation_Status_Report.md` - Test results and status
-
-**Root:**
-- `/PRD.md` - Master requirements
-- `/CLAUDE.md` - Repository guide
+**Framework BFM docs:** `../RTLDesignSherpa-DV/docs/components/<family>/`
+(published at sean-galloway.github.io/RTLDesignSherpa-DV).
 
 ---
 
-## Quick Commands
+## Verification Patterns
 
-```bash
-# View complete specification
-cat projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md
-cat projects/components/dmas/rapids/docs/rapids_beats_mas/ch02_fub_blocks/01_scheduler.md
+These were ~270 lines of general DV method sitting in a component file. They
+now live in the handbook, where every area can find them:
 
-# Check known issues
-ls projects/components/dmas/rapids/known_issues/
-cat projects/components/dmas/rapids/known_issues/README.md
-
-# Run tests
-cd projects/components/dmas/rapids/dv/tests
-make run-all-gate AREAS=fub_beats
-make run-all-gate AREAS=macro_beats
-
-# Lint
-verilator --lint-only projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv
-
-# Search for modules
-find projects/components/dmas/rapids/rtl/ -name "*.sv" -exec grep -H "^module" {} \;
-```
-
----
-
-## Verification Patterns and Best Practices
-
-### Pattern: Continuous Background Monitoring
-
-**Problem:** When testing components that output data asynchronously (descriptors, packets, etc.), tests that only check outputs at specific points will miss data that arrives during other operations.
-
-**Solution:** Use continuous background monitoring coroutines that run throughout the test.
-
-**Example - Descriptor Engine Testing:**
-
-```python
-class DescriptorEngineTB(TBBase):
-    async def run_apb_only_test(self, num_packets: int, profile: DelayProfile):
-        """Test with continuous descriptor monitoring"""
-        descriptors_collected = []  # Shared list
-        monitor_active = True  # Control flag
-
-        # Background coroutine monitors continuously
-        async def descriptor_monitor():
-            """Continuously monitor for descriptors throughout the test"""
-            while monitor_active:
-                await self.wait_clocks(self.clk_name, 1)
-                if int(self.dut.descriptor_valid.value) == 1:
-                    desc_data = int(self.dut.descriptor_packet.value)
-                    descriptors_collected.append(desc_data)
-                    if len(descriptors_collected) % 5 == 1:
-                        self.log.info(f"📦 Descriptor {len(descriptors_collected)}: 0x{desc_data:X}")
-
-        # Start background monitor
-        monitor_task = cocotb.start_soon(descriptor_monitor())
-
-        # Send all requests (monitor captures outputs during this phase)
-        for i in range(num_packets):
-            # Send APB request
-            self.dut.apb_valid.value = 1
-            self.dut.apb_addr.value = test_addr
-            await self.wait_clocks(self.clk_name, 1)
-            # ... wait for ready ...
-            self.dut.apb_valid.value = 0
-
-        # Wait for final descriptors (monitor still running)
-        for cycle in range(final_window):
-            await self.wait_clocks(self.clk_name, 1)
-            if len(descriptors_collected) >= num_packets:
-                break
-
-        # Stop background monitor
-        monitor_active = False
-        await self.wait_clocks(self.clk_name, 2)  # Let monitor finish
-
-        # Verify results
-        return len(descriptors_collected) == num_packets
-```
-
-**Key Points:**
-1. **Shared State:** Use list/dict accessible from both main test and monitor coroutine
-2. **Control Flag:** `monitor_active` allows clean shutdown
-3. **Background Task:** `cocotb.start_soon()` runs monitor concurrently
-4. **Continuous Capture:** Monitor checks every clock cycle, never missing data
-5. **Clean Shutdown:** Set flag to False, wait for monitor to finish
-
-**When to Use:**
-- ✅ Asynchronous output interfaces (descriptors, packets, responses)
-- ✅ Tests with rapid-fire input operations
-- ✅ Multi-stage pipelines where outputs don't align with inputs
-- ❌ Simple synchronous request-response patterns
-
-**Benefits:**
-- 100% capture rate (no missed transactions)
-- Decouples input stimulus from output monitoring
-- Realistic timing coverage (captures outputs at any point)
-
-**Results:** Descriptor engine tests improved from 42% success (5/12 descriptors) to 100% success (14/14 tests passing) by applying this pattern.
-
-### Pattern: Using Existing CocoTBFramework Components
-
-**Critical Rule:** Always search for existing components before creating new ones.
-
-**Framework Structure:**
-```
-bin/TBClasses/               # Shared framework (flat protocol dirs)
-├── axi4/                    # Complete AXI4 infrastructure
-├── axil4/                   # AXI4-Lite components
-├── apb/                     # APB drivers and monitors
-├── axis4/                   # AXI-Stream components
-├── gaxi/                    # Generic valid/ready BFMs
-├── monbus/                  # MonBus decode/drivers
-├── shared/                  # Common utilities (TBBase, etc.)
-└── scoreboards/             # Transaction checkers
-
-projects/components/dmas/rapids/dv/
-├── components/              # RAPIDS-specific BFMs (data_mover_bfm.py)
-└── tbclasses/               # RAPIDS testbench classes
-```
-
-**Decision Tree: Create New BFM vs Use Existing?**
-
-```
-Need to model protocol behavior?
-├─ Is it a standard protocol (AXI4, APB, AXIS)?
-│  └─ YES → Use bin/TBClasses/axi4/, bin/TBClasses/apb/, etc.
-│           ✅ DO NOT create new implementation
-│
-├─ Is it RAPIDS-specific custom behavior?
-│  ├─ Is it >100 lines?
-│  │  └─ YES → Extract to projects/components/dmas/rapids/dv/components/
-│  └─ Is it <50 lines and test-specific?
-│     └─ YES → Keep embedded in testbench
-│
-└─ Is it generic helper (not protocol-specific)?
-   └─ Add to bin/TBClasses/shared/utilities.py
-```
-
-**Example - Descriptor Engine AXI Responder:**
-
-```python
-# ❌ WRONG: Creating new AXI4 read responder BFM
-# File: dv/components/axi_read_responder_bfm.py
-class AXIReadResponderBFM:
-    """New AXI4 read responder - DON'T DO THIS!"""
-    # ... 200 lines of AXI4 protocol implementation ...
-
-# ✅ CORRECT: Use existing AXI4 components
-# File: projects/components/dmas/rapids/dv/tbclasses/descriptor_engine_tb.py
-async def axi_read_responder(self):
-    """Simple test-specific responder - 50 lines, embedded"""
-    while True:
-        await self.wait_clocks(self.clk_name, 1)
-        if int(self.dut.ar_valid.value) == 1 and int(self.dut.ar_ready.value) == 1:
-            # Generate response data
-            self.dut.r_valid.value = 1
-            self.dut.r_data.value = response_data
-            # ... wait for r_ready ...
-            self.dut.r_valid.value = 0
-```
-
-**Why This Matters:**
-- **Existing AXI4 components:** Comprehensive, tested, feature-complete
-- **Simple embedded responder:** Test-specific, minimal protocol simulation
-- **No duplication:** Framework already has robust AXI4 infrastructure
-
-**BFM Extraction Criteria:**
-
-| Factor | Extract to BFM | Keep Embedded |
-|--------|---------------|---------------|
-| Lines of code | >100 lines | <50 lines |
-| Complexity | Complex protocol logic | Simple stimulus/response |
-| Reusability | Used across multiple tests | Test-specific |
-| Protocol | Custom RAPIDS-specific | Standard protocol (use framework) |
-| Dependencies | Standalone | Tightly coupled to one test |
-
-**Examples:**
-
-**✅ Extracted to BFM:** `DataMoverBFM` (projects/components/dmas/rapids/dv/components/data_mover_bfm.py)
-- 150+ lines
-- Complex RAPIDS data mover protocol
-- Used across scheduler tests
-- Reusable for integration tests
-
-**✅ Kept Embedded:** AXI read responder in descriptor engine
-- 50 lines
-- Simple test-specific behavior
-- Framework already has full AXI4 support
-- No need for extraction
-
-### Test Scalability Patterns
-
-**Principle:** Tests should scale from basic validation to comprehensive stress testing.
-
-**Pattern: Delay Profiles for Timing Coverage**
-
-```python
-class DelayProfile(Enum):
-    """Delay profiles for comprehensive timing coverage"""
-    FAST_PRODUCER = "fast_producer"      # Producer faster than consumer
-    FAST_CONSUMER = "fast_consumer"      # Consumer faster than producer
-    FIXED_DELAY = "fixed_delay"          # Predictable timing
-    MINIMAL_DELAY = "minimal_delay"      # Stress test - minimal delays
-    BACKPRESSURE = "backpressure"        # Heavy backpressure scenarios
-
-# Test method scales with profile
-async def run_apb_only_test(self, num_packets: int, profile: DelayProfile):
-    """Scalable test with configurable timing"""
-    params = self.delay_params[profile]
-
-    for i in range(num_packets):
-        # Apply profile-specific delays
-        producer_delay = self.get_delay_value(params['producer_delay'])
-        await self.wait_clocks(self.clk_name, producer_delay)
-
-        # Send request...
-
-        # Profile-specific backpressure
-        if random.random() < params.get('backpressure_freq', 0.1):
-            backpressure_cycles = random.randint(5, 25)
-            await self.wait_clocks(self.clk_name, backpressure_cycles)
-```
-
-**Pattern: Hierarchical Test Levels**
-
-```python
-# Test runner with multiple levels
-@pytest.mark.parametrize("test_level", ["gate", "func", "full"])
-def test_descriptor_engine(test_level, ...):
-    """Hierarchical test levels for different coverage needs"""
-
-    if test_level == "gate":
-        # Quick validation: 10 packets, simple timing
-        num_packets = 10
-        test_class = TestClass.APB_ONLY
-
-    elif test_level == "func":
-        # Moderate coverage: 3 packets × 4 profiles
-        num_packets = 3
-        test_classes = [TestClass.APB_ONLY, TestClass.MIXED]
-
-    elif test_level == "full":
-        # Comprehensive: 5 packets × all profiles × all test classes
-        num_packets = 5
-        test_classes = [TestClass.APB_ONLY, TestClass.MIXED]
-```
-
-**Benefits:**
-- **gate:** Quick smoke tests (CI/CD)
-- **func:** Developer validation
-- **full:** Comprehensive regression
-
-**Pattern: Parametrized Test Generation**
-
-```python
-def generate_test_params():
-    """Generate comprehensive parameter combinations"""
-    params = []
-
-    # Basic configurations
-    for num_channels in [8, 32, 64]:
-        for data_width in [64, 512]:
-            for addr_width in [32, 64]:
-                params.append((num_channels, data_width, addr_width))
-
-    return params
-
-# Pytest automatically runs all combinations
-@pytest.mark.parametrize("num_channels, data_width, addr_width", generate_test_params())
-def test_scheduler(num_channels, data_width, addr_width):
-    """Test scales across all parameter combinations"""
-    # ...
-```
-
-**Test Success Criteria:**
-
-**⚠️ CRITICAL:** All tests must achieve 100% success rate.
-
-```python
-# ❌ WRONG: Accepting partial success
-success_rate = (descriptors_received / total_sent) * 100
-return success_rate >= 70  # "Mostly good" - NOT ACCEPTABLE
-
-# ✅ CORRECT: Require 100% success
-success_rate = (descriptors_received / total_sent) * 100
-return success_rate >= 100  # Must receive ALL expected outputs
-```
-
-**Why 100% Required:**
-- Partial success indicates bugs, not acceptable tolerance
-- RTL should be deterministic - 100% success is achievable
-- Lower thresholds mask real issues
+- **Asynchronous outputs need a background monitor** --
+  `vault/handbook/dv/async-output-capture.md`. This is RAPIDS' own lesson: the
+  descriptor-engine test found 5 of 12 descriptors and filed it as a 42%
+  engine defect, when the engine was correct and the test was not watching.
+- **Delay profiles** -- `vault/handbook/dv/randomization.md`. RAPIDS'
+  `DelayProfile` enum re-implements `DEFAULT_PROFILES`; name a catalogue
+  profile instead.
+- **Extract a BFM or embed it** -- `vault/handbook/dv/bfm-usage.md`, which uses
+  RAPIDS' own `data_mover_bfm.py` (extracted) and the embedded AXI responder in
+  `descriptor_engine_tb.py` as the worked pair.
+- **100% success is required** -- `/GLOBAL_REQUIREMENTS.md` 3.3, which names
+  this file as its source. A 70% threshold hides a defect rather than
+  tolerating it.
 
 ---
 
 ## Documentation Generation
 
-### Generating PDF/DOCX from Specification
+Both specs build from their index file into DOCX and PDF, written into
+`docs/`. Use the wrapper scripts -- they apply the house style:
 
-**Tool:** `bin/md_to_docx.py` (driven by the wrapper scripts below - preferred)
-
-Use the provided wrapper scripts to convert the linked HAS/MAS spec indexes into single all-inclusive PDF/DOCX files:
-
-**Basic Usage:**
-
-```bash
-# Preferred: use the wrapper scripts (they call md_to_docx.py with the house style)
-cd projects/components/dmas/rapids/docs
-./generate_has_pdf.sh --rev 0.8     # builds RAPIDS_Beats_HAS_v0.8.docx/.pdf
-./generate_mas_pdf.sh --rev 0.7     # builds RAPIDS_Beats_MAS_v0.7.docx/.pdf
-
-# Direct tool invocation (from repo root), if you need custom options
-python bin/md_to_docx.py \
-    projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md \
-    -o projects/components/dmas/rapids/docs/RAPIDS_Beats_MAS_draft.docx \
-    --toc \
-    --title-page \
-    --pdf
-```
-
-**Key Features:**
-- **Recursive Collection:** Follows all markdown links in the index file
-- **Heading Demotion:** Automatically adjusts heading levels for included files
-- **Table of Contents:** `--toc` flag generates automatic ToC
-- **Title Page:** `--title-page` flag creates title page from first heading
-- **PDF Export:** `--pdf` flag generates both DOCX and PDF
-- **Image Support:** Resolves images relative to source directory
-- **Template Support:** Optional custom DOCX/DOTX template via `-t` flag
-
-**Common Workflow:**
-
-```bash
-# 1. Update spec content under rapids_beats_has/ or rapids_beats_mas/
-# 2. Generate documentation with a bumped revision
-cd projects/components/dmas/rapids/docs
-./generate_mas_pdf.sh --rev 0.8
-
-# 3. Output files created in docs/:
-#    - RAPIDS_Beats_MAS_v0.8.docx
-#    - RAPIDS_Beats_MAS_v0.8.pdf
-```
-
-**Debug Mode:**
-
-```bash
-# Generate debug markdown to see combined output
-python bin/md_to_docx.py \
-    projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md \
-    -o output.docx \
-    --debug-md
-
-# This creates debug.md showing the complete merged content
-```
-
-**Tool Requirements:**
-- Python 3.6+
-- Pandoc installed and in PATH
-- For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
-
-**📖 See:** `bin/md_to_docx.py` for complete implementation details
-
----
-
-## PDF Generation Location
-
-**IMPORTANT: PDF files should be generated in the docs directory:**
-```
-projects/components/dmas/rapids/docs/
-```
-
-**Quick Command:** Use the provided shell scripts:
 ```bash
 cd projects/components/dmas/rapids/docs
-./generate_has_pdf.sh    # Architecture spec (HAS)
-./generate_mas_pdf.sh    # Micro-architecture spec (MAS)
+./generate_has_pdf.sh --rev 0.8     # RAPIDS_Beats_HAS_v0.8.docx/.pdf
+./generate_mas_pdf.sh --rev 0.7     # RAPIDS_Beats_MAS_v0.7.docx/.pdf
 ```
 
-The shell scripts will automatically:
-1. Use the md_to_docx.py tool from bin/
-2. Process the rapids_beats_has / rapids_beats_mas index files
-3. Generate both DOCX and PDF files in the docs/ directory
-4. Create table of contents and title page
-
-**📖 See:** `bin/md_to_docx.py` for complete implementation details
-
----
-
-## Remember
-
-1. 🎛️ **MANDATORY: Use BFMs** - GAXI Master/Slave for custom valid/ready, protocol-specific BFMs for AXI4/APB/AXIS
-2. 📖 **Link to detailed spec** - `docs/rapids_beats_has/` + `docs/rapids_beats_mas/` have complete architecture docs
-3. 🔢 **Exponential credit encoding** - Historical (pre-beats scheduler): 0→1, 1→2, 2→4, not linear!
-4. 🐛 **Check known issues** - Before diagnosing bugs
-5. 🔗 **Block interactions** - RAPIDS blocks are tightly coupled
-6. 🧪 **Multi-layered testing** - FUB → Macro → Top tests
-7. 🏗️ **Testbench reuse** - Always create TB classes in `projects/components/dmas/rapids/dv/tbclasses/`
-8. 🎯 **Continuous monitoring** - Use background coroutines for asynchronous output capture
-9. 🔍 **Search first** - Use existing CocoTBFramework components before creating new ones
-10. 📊 **100% success** - All tests must achieve 100% success rate, no exceptions
-11. 🏛️ **Three-layer architecture** - TB (infrastructure) + Test (intelligence) + Scoreboard (verification)
-12. 🎪 **Queue-based verification** - Use `monitor._recvQ.popleft()` for simple tests, not memory models
+They call `bin/md_to_docx.py`, which follows the markdown links out of the
+index, demotes headings and builds the ToC. Pipeline details, the LaTeX/PDF
+engine choice and the caption traps: `vault/handbook/authoring/doc-pipeline.md`.
 
 ---
 
