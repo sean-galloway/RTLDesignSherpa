@@ -48,225 +48,73 @@
 
 ### Rule #0.1: Reset Macro Standards - MANDATORY FOR ALL BLOCKS
 
-**⚠️ ALL BLOCKS MUST USE RESET MACROS - NO EXCEPTIONS ⚠️**
-
-**Status:** HPET has been converted (2025-10-25). All future blocks MUST use reset macros from day one.
-
-**Include in ALL new RTL files:**
-```systemverilog
-`include "reset_defs.svh"
-```
-
-**Standard Pattern:**
-```systemverilog
-`ALWAYS_FF_RST(clk, rst_n,
-    if (`RST_ASSERTED(rst_n)) begin
-        r_state <= IDLE;
-        r_counter <= '0;
-    end else begin
-        r_state <= w_next_state;
-        r_counter <= r_counter + 1'b1;
-    end
-)
-```
-
-**HARD REQUIREMENT:**
-1. **ALL new RTL files** MUST use reset macros from creation
-2. **PRs will be REJECTED** if they contain manual `always_ff @(posedge clk or negedge rst_n)` patterns
-3. **Use the conversion tool** if adapting existing code: `bin/update_resets.py`
-
-**Why This Matters for RLB Peripherals:**
-- FPGA-friendly reset inference (critical for timing closure)
-- Consistent synthesis across Xilinx, Intel, and ASIC flows
-- Single-point reset polarity control for IP reuse
-- Better timing closure in complex systems
-
-**See also:**
-- `rtl/amba/includes/reset_defs.svh` - Complete macro definitions
-- `projects/components/CLAUDE.md` Rule #0 - Repository-wide reset standards
+Use `ALWAYS_FF_RST` / `RST_ASSERTED` from `reset_defs.svh`; a hand-written
+`always_ff @(posedge clk or negedge rst_n)` is rejected. Enforced repo-wide --
+`/GLOBAL_REQUIREMENTS.md` 1.1 is the authority, the rationale and the failures
+behind it are `vault/handbook/design/reset-and-clocking.md`, and
+`bin/update_resets.py` converts existing code.
 
 ---
 
 ### Rule #0.2: FPGA Synthesis Attributes - MANDATORY
 
-**⚠️ ALL memory arrays MUST have FPGA synthesis hints ⚠️**
-
-**Standard Pattern:**
-```systemverilog
-`ifdef XILINX
-    (* ram_style = "auto" *)  // Let Xilinx decide block vs distributed
-`elsif INTEL
-    /* synthesis ramstyle = "AUTO" */  // Let Intel Quartus decide
-`endif
-logic [DATA_WIDTH-1:0] mem [DEPTH];  // Use [DEPTH], not [0:DEPTH-1]
-```
-
-**Why This Matters:**
-- Prevents logic explosion for large memories
-- Enables vendor-specific optimizations
-- Cross-vendor compatibility (Xilinx, Intel/Altera)
-- Proper FPGA resource inference
-
-**See also:** `projects/components/CLAUDE.md` Rule #1 - FPGA synthesis attributes
+Every memory array carries vendor synthesis hints (`ram_style` / `ramstyle`) or
+a large memory synthesises into logic. Enforced repo-wide:
+`/GLOBAL_REQUIREMENTS.md` 1.2; see `vault/handbook/design/sram-and-memories.md`.
 
 ---
 
 ### Rule #0.3: Testbench Architecture - MANDATORY SEPARATION
 
-**⚠️ THIS IS A HARD REQUIREMENT - NO EXCEPTIONS ⚠️**
+A TB class never lives in a test runner; `/GLOBAL_REQUIREMENTS.md` 2.1 is the
+authority. What is specific to this component is the layout and the tier names:
 
-**NEVER embed testbench classes inside test runner files!**
-
-**MANDATORY Structure:**
 ```
 projects/components/retro_legacy_blocks/dv/
-├── tbclasses/{block}/             # ★ Block-specific TB classes HERE
-│   ├── {block}_tb.py              # Main testbench
+├── tbclasses/{block}/             # block-specific TB classes
+│   ├── {block}_tb.py
 │   ├── {block}_tests_basic.py     # runs at TEST_LEVEL=gate
 │   ├── {block}_tests_medium.py    # runs at TEST_LEVEL=func
 │   └── {block}_tests_full.py      # runs at TEST_LEVEL=full
-│
-└── tests/                         # Test runners, FLAT layout (import TB classes)
-    ├── test_apb4_{block}.py       # Test runner (one per block)
-    ├── test_{scenario}.py         # Extra scenario runners, e.g.
-    │                              # test_ioapic_msi_emit.py, test_rlb_top.py
-    └── conftest.py                # Shared pytest configuration
+└── tests/                         # runners, FLAT: test_apb4_{block}.py, conftest.py
 ```
 
 **The tier FILENAMES are historical; the LEVELS are gate/func/full.**
 `{block}_tests_basic.py` defines `{Block}BasicTests` and runs at
-`TEST_LEVEL=gate`; `_medium.py` / `{Block}MediumTests` runs at `func`.
-The files and classes really are named that way on disk -- do not rename
-them to match the level, and do not read the filename as the level.
-
-**Import Pattern (CORRECT):**
-```python
-# Import framework utilities (PYTHONPATH includes bin/)
-import os, sys
-from TBClasses.shared.utilities import get_repo_root, get_paths, create_view_cmd
-from TBClasses.shared.tbbase import TBBase
-
-# Add repo root to Python path using robust git-based method
-repo_root = get_repo_root()
-sys.path.insert(0, repo_root)
-
-# Import from PROJECT AREA (not framework!)
-from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tb import {Block}TB
-from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tests_basic import {Block}BasicTests
-```
-
-**Why This Matters:**
-1. **Reusability**: Same TB class used in gate/func/full tests
-2. **Maintainability**: Fix bug once in TB class, all tests benefit
-3. **Composition**: TB classes can inherit/compose for complex scenarios
-4. **Consistency**: All blocks follow same pattern
-
-**See also:** Root `/CLAUDE.md` Section "Organizational Requirements"
+`TEST_LEVEL=gate`; `_medium.py` / `{Block}MediumTests` runs at `func`. The files
+and classes really are named that way on disk -- do not rename them to match the
+level, and do not read the filename as the level.
 
 ---
 
 ### Rule #0.4: Test Hierarchy - 3 Levels Required
 
-**Every block must have 3 test levels:**
+Every block carries all three levels. The gate/func/full convention is repo-wide
+(`vault/handbook/dv/running-regressions.md`); the per-block targets here are:
 
-1. **Gate Tests (Target: 4-6 tests, 100% pass rate)**
-   - Register access (read/write)
-   - Core functionality enable/disable
-   - Simple operation verification
-   - Interrupt generation
-   - **Duration:** <30 seconds per test
-
-2. **Func Tests (Target: 5-8 tests, 100% pass rate)**
-   - Mode switching (e.g., one-shot vs periodic)
-   - Multi-feature interaction
-   - 64-bit operations (if applicable)
-   - Configuration edge cases
-   - **Duration:** 30-90 seconds per test
-
-3. **Full Tests (Target: 3-5 tests, ≥95% pass rate)**
-   - Stress testing (all resources active)
-   - Clock domain crossing variants (if CDC supported)
-   - Corner cases and timing edge cases
-   - Long-duration operations
-   - **Duration:** 90+ seconds per test
-
-**Test Level Selection:**
-```python
-# Use TEST_LEVEL environment variable
-test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
-
-if test_level == 'gate':
-    num_operations = 10
-elif test_level == 'func':
-    num_operations = 50
-else:  # full
-    num_operations = 200
-```
-
-**Why This Hierarchy:**
-- **Gate:** Quick smoke tests for CI/PR checks
-- **Func:** Standard functional validation
-- **Full:** Comprehensive coverage for releases
+| Level | Tests | Pass rate | Per-test duration |
+|---|---|---|---|
+| gate | 4-6 | 100% | <30 s |
+| func | 5-8 | 100% | 30-90 s |
+| full | 3-5 | >=95% | 90 s+ |
 
 ---
 
 ### Rule #0.5: Register Generation - Use PeakRDL
 
-**Preferred approach for ALL new blocks:**
+Registers come from SystemRDL via `bin/peakrdl_generate.py` only -- never raw
+peakrdl, which skips the docs and regmap the wrapper emits in lockstep
+(`vault/handbook/design/generated-rtl-discipline.md`).
 
-1. Define registers in SystemRDL (`.rdl` file)
-2. Generate RTL using PeakRDL regblock
-3. Create wrapper module connecting registers to core logic
-4. Use edge detection for write strobes (not level)
+Run it from the block's RDL directory and point `--copy-rtl` at the block's RTL
+directory, since the two are no longer parent and child (RLB-007):
 
-**Benefits:**
-- Consistent register interface across all blocks
-- Auto-generated documentation
-- Reduced manual RTL errors
-- Easy register map changes
-
-**Example SystemRDL:**
-```systemverilog
-// gpio_regs.rdl
-regfile gpio_regs {
-    name = "GPIO Register File";
-    desc = "General Purpose I/O control registers";
-
-    reg {
-        name = "GPIO Direction";
-        field {
-            sw = rw;
-            hw = r;
-        } direction[32] = 32'h0;
-    } gpio_dir @ 0x00;
-
-    reg {
-        name = "GPIO Output";
-        field {
-            sw = rw;
-            hw = r;
-        } output[32] = 32'h0;
-    } gpio_out @ 0x04;
-
-    reg {
-        name = "GPIO Input";
-        field {
-            sw = r;
-            hw = w;
-        } input[32] = 32'h0;
-    } gpio_in @ 0x08;
-};
-```
-
-**Generation:** run it from the block's RDL directory and point `--copy-rtl`
-at the block's RTL directory, since the two are no longer parent and child
-(RLB-007):
 ```bash
 cd rdl/{block}
 python $REPO_ROOT/bin/peakrdl_generate.py {block}_regs.rdl --copy-rtl ../../rtl/{block}
 ```
 
-**See:** HPET implementation (`rdl/hpet/`) for complete example
+See `rdl/hpet/` for a complete example.
 
 ---
 
@@ -274,156 +122,39 @@ python $REPO_ROOT/bin/peakrdl_generate.py {block}_regs.rdl --copy-rtl ../../rtl/
 
 ### Adding a New Block
 
-**1. Create Directory Structure:**
+**1. Directory structure:**
 ```bash
 cd projects/components/retro_legacy_blocks
-
-# RTL
-mkdir -p rdl/{block}
-mkdir -p rtl/{block}/filelists
-
-# DV (test runners live flat in dv/tests/, only tbclasses get a subdirectory)
-mkdir -p dv/tbclasses/{block}
-
-# Docs
+mkdir -p rdl/{block}                 # SystemRDL: the source of truth
+mkdir -p rtl/{block}/filelists       # component + integration filelists
+mkdir -p dv/tbclasses/{block}        # TB classes; runners stay flat in dv/tests/
 mkdir -p docs/{block}_mas
 ```
 
-**2. Create RTL Files:**
 ```
-rdl/{block}/
-└── {block}_regs.rdl        # SystemRDL specification: the source of truth
-
 rtl/{block}/
-├── apb_{block}.sv          # Top-level wrapper
-├── {block}_core.sv         # Core logic
-├── {block}_config_regs.sv  # Register wrapper
-├── {block}_regs_pkg.sv     # PeakRDL generated package
-├── {block}_regs.sv         # PeakRDL generated registers
-├── filelists/
-│   ├── component           # Component-level filelist
-│   └── integration         # Integration-level filelist
-├── Makefile                # Build targets
-└── README.md               # RTL documentation
+├── apb_{block}.sv          # top-level wrapper
+├── {block}_core.sv         # core logic
+├── {block}_config_regs.sv  # register wrapper
+├── {block}_regs_pkg.sv     # PeakRDL generated
+├── {block}_regs.sv         # PeakRDL generated
+├── filelists/{component,integration}
+└── Makefile
 ```
 
 The RDL lives outside `rtl/` on purpose: every SystemRDL source in the repo
 belongs in an `rdl` area rather than scattered under the RTL it generates
-(RLB-007, and MISC-001 repo-wide). There is no README beside it -- a file
-next to a tool restating how to run the tool is the copy nobody edits.
+(RLB-007, and MISC-001 repo-wide). There is no README beside it -- a file next
+to a tool restating how to run the tool is the copy nobody edits.
 
-**3. Create Testbench Classes:**
-```python
-# dv/tbclasses/{block}/{block}_tb.py
-from TBClasses.shared.tbbase import TBBase
+**2. RTL, TB classes, test suites and runner** take the standard shapes:
+Pattern B (`cocotb_test_*` functions behind pytest wrappers), the three
+mandatory TB methods, and the tier files named in Rule #0.3. Templates are the
+`test-patterns` skill and `/GLOBAL_REQUIREMENTS.md` 2.2 / 3.2. A filelist lands
+in the same commit as the module (`vault/handbook/design/filelists.md`).
 
-class {Block}TB(TBBase):
-    """Testbench for {Block} peripheral"""
-
-    def __init__(self, dut, **kwargs):
-        super().__init__(dut)
-        self.pclk = dut.pclk
-        self.presetn = dut.presetn
-        # Block-specific initialization
-
-    async def setup_clocks_and_reset(self):
-        """Complete initialization - MANDATORY METHOD"""
-        await self.start_clock('pclk', freq=10, units='ns')
-        await self.assert_reset()
-        await self.wait_clocks('pclk', 10)
-        await self.deassert_reset()
-        await self.wait_clocks('pclk', 5)
-
-    async def assert_reset(self):
-        """Assert reset - MANDATORY METHOD"""
-        self.presetn.value = 0  # Active-low APB reset
-
-    async def deassert_reset(self):
-        """Deassert reset - MANDATORY METHOD"""
-        self.presetn.value = 1
-
-    async def write_register(self, addr, data):
-        """Write to APB register"""
-        # APB write transaction
-
-    async def read_register(self, addr):
-        """Read from APB register"""
-        # APB read transaction
-        return data
-```
-
-**4. Create Test Suites:**
-```python
-# dv/tbclasses/{block}/{block}_tests_basic.py
-class {Block}BasicTests:
-    """Basic test suite for {Block}"""
-
-    def __init__(self, tb):
-        self.tb = tb
-
-    async def test_register_access(self):
-        """Test basic register read/write"""
-        # Test implementation
-        return True
-
-    async def test_enable_disable(self):
-        """Test block enable/disable"""
-        # Test implementation
-        return True
-```
-
-**5. Create Test Runner:**
-```python
-# dv/tests/test_apb4_{block}.py
-import os, sys
-
-# Import framework utilities (PYTHONPATH includes bin/)
-from TBClasses.shared.utilities import get_repo_root
-
-# Add repo root to Python path using robust git-based method
-repo_root = get_repo_root()
-sys.path.insert(0, repo_root)
-
-from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tb import {Block}TB
-from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tests_basic import {Block}BasicTests
-
-@cocotb.test()
-async def cocotb_test_basic(dut):
-    tb = {Block}TB(dut)
-    await tb.setup_clocks_and_reset()
-    tests = {Block}BasicTests(tb)
-    result = await tests.test_register_access()
-    assert result, "Basic test failed"
-
-@pytest.mark.parametrize("params", generate_test_params())
-def test_{block}(request, params):
-    # Pytest wrapper
-    run(verilog_sources=..., module=module, ...)
-```
-
-**6. Extend the shared conftest.py if needed:**
-```python
-# dv/tests/conftest.py (shared across all blocks)
-import os
-import pytest
-import logging
-
-def pytest_configure(config):
-    """Configure pytest for {block} tests"""
-    # Create logs directory
-    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
-    os.makedirs(log_dir, exist_ok=True)
-
-    # Register markers
-    config.addinivalue_line("markers", "gate: Gate functionality tests")
-    config.addinivalue_line("markers", "func: Extended feature tests")
-    config.addinivalue_line("markers", "full: Stress and corner case tests")
-```
-
-**7. Update Documentation:**
-- Add block section to `PRD.md`
-- Create `docs/{block}_mas/{block}_mas_index.md`
-- Update `README.md` status table
+**3. Documentation:** add the block to `PRD.md`, create
+`docs/{block}_mas/{block}_mas_index.md`, update the `README.md` status table.
 
 ---
 
@@ -612,110 +343,19 @@ Not experimental - production-ready implementations of time-tested designs.
 
 ---
 
-## Anti-Patterns to Avoid
-
-### ❌ Anti-Pattern 1: Not Using Reset Macros
-
-```systemverilog
-❌ WRONG: Manual reset handling
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) r_state <= IDLE;
-    else r_state <= w_next_state;
-end
-
-✅ CORRECT: Use reset macros
-`ALWAYS_FF_RST(clk, rst_n,
-    if (`RST_ASSERTED(rst_n)) r_state <= IDLE;
-    else r_state <= w_next_state;
-)
-```
-
-### ❌ Anti-Pattern 2: Missing FPGA Attributes
-
-```systemverilog
-❌ WRONG: No synthesis hints
-logic [31:0] mem [1024];
-
-✅ CORRECT: FPGA attributes
-`ifdef XILINX
-    (* ram_style = "auto" *)
-`endif
-logic [31:0] mem [1024];
-```
-
-### ❌ Anti-Pattern 3: TB Class in Test File
-
-```python
-❌ WRONG: Embedded in test file
-# test_apb4_gpio.py
-class GPIOTB:  # NOT REUSABLE!
-    ...
-
-✅ CORRECT: Separate TB class file
-# dv/tbclasses/gpio/gpio_tb.py
-class GPIOTB(TBBase):  # REUSABLE!
-    ...
-
-# test_apb4_gpio.py
-from projects.components.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tb import GPIOTB
-```
-
-### ❌ Anti-Pattern 4: Inconsistent Test Levels
-
-```python
-❌ WRONG: Only gate tests
-# Missing func and full test suites
-
-✅ CORRECT: All 3 levels
-# {block}_tests_basic.py - 4-6 tests
-# {block}_tests_medium.py - 5-8 tests
-# {block}_tests_full.py - 3-5 tests
-```
-
----
-
 ## Quick Commands
 
 ```bash
-# Run through the area Makefile, never bare pytest: a bare run drops the
-# level, the derived worker count and the reruns, and skips clean-all.
-# See vault/handbook/dv/running-regressions.md
+# Always through the area Makefile -- a bare pytest drops the level, the derived
+# worker count and the reruns, and skips clean-all.
 cd projects/components/retro_legacy_blocks/dv/tests
-
-make clean-all                    # first, for a run you intend to trust
-make run-apb4_hpet-gate           # one block, gate depth
-make run-apb4_{block}-func        # one block, func depth
-make run-all-gate                 # every block here
-make run-all-full-parallel        # full depth, workers derived per host
-make run-apb4_{block}-gate-waves  # same, with waves (not --vcd)
-make list                         # the 14 roots discovered by glob
-
-# Lint block RTL
-verilator --lint-only projects/components/retro_legacy_blocks/rtl/{block}/apb_{block}.sv
-
-# Generate PeakRDL registers
-cd projects/components/retro_legacy_blocks/rdl/{block}
-python $REPO_ROOT/bin/peakrdl_generate.py {block}_regs.rdl --copy-rtl ../../rtl/{block}
-
-# View documentation
-cat projects/components/retro_legacy_blocks/PRD.md
-cat projects/components/retro_legacy_blocks/docs/{block}_mas/{block}_mas_index.md
+make list                          # the roots discovered by glob
+make clean-all && make run-all-full-parallel
+make run-apb4_hpet-gate            # one block, one level
+make run-apb4_hpet-gate-waves      # same with waves (never --vcd)
 ```
 
----
-
-## Remember
-
-1. 🔧 **Reset Macros** - MANDATORY for all RTL (`ALWAYS_FF_RST`)
-2. 🏭 **FPGA Attributes** - MANDATORY for all memory arrays
-3. 🏗️ **TB Separation** - TB classes in `dv/tbclasses/{block}/`, NOT in test files
-4. 📊 **3 Test Levels** - Gate/Func/Full for every block
-5. 📝 **PeakRDL** - Preferred for register generation
-6. 🧹 **Test Cleanup** - Reset state at end of tests (especially counters)
-7. ✅ **100% Pass Rate** - Target for gate and func tests
-8. 📖 **Documentation** - Update PRD.md, README.md for every new block
-9. 🔍 **Lint Clean** - All RTL must pass Verilator --lint-only
-10. 🎯 **RLB Goal** - Working toward integrated RLB wrapper
+Grammar and rationale: `vault/handbook/dv/running-regressions.md`.
 
 ---
 
