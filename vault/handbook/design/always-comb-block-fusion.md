@@ -25,7 +25,7 @@ with alloc-independent signals -
 Either one closes `addr_hit_any -> addr_wants_alloc -> ... -> addr_hit_any`.
 The design is acyclic: an allocation pick never feeds a match result. Fix was
 to split both blocks on the alloc boundary - identical right-hand sides,
-identical single driver per signal, purely a bracketing change ([[TASK-081]],
+identical single driver per signal, purely a bracketing change (`TASK-081` in `vault/Tasks/amba/closed.md`,
 commit 0db59d75).
 
 Rules:

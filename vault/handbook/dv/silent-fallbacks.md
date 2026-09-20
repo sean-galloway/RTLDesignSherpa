@@ -110,7 +110,7 @@ Elaborating the design is necessary and NOT sufficient. Before trusting a green
 gate, ask what its invocation differs from the one that actually consumes the
 RTL -- and close the gap rather than the ticket. `make build-check` in
 `projects/components/bridge/rtl` exists for this. See
-[[always-comb-block-fusion]] for the defect itself and [[TASK-081]].
+[[always-comb-block-fusion]] for the defect itself and `TASK-081` in `vault/Tasks/amba/closed.md`.
 
 ### 10. A gate that fails on everything reports nothing
 The same bridge lint gate failed 36 of 36 variants on PINCONNECTEMPTY from
@@ -154,7 +154,7 @@ tracked copy that has drifted from the canonical file. A component may still
 vendor a shared header to keep its filelist self-contained; what it may not do
 is vendor one that DISAGREES. If a component genuinely needs different
 semantics, give it a different BASENAME so the divergence is declared rather
-than discovered -- see [[NEXYS-007]].
+than discovered -- see `NEXYS-007` in `vault/Tasks/nexysa7/open.md`.
 
 ### 13. A retry that re-rolls the seed is not a retry, it is a second lottery
 Every test wrapper draws `os.environ.get('SEED', str(random.randint(0,100000)))`
@@ -172,7 +172,7 @@ is exactly the policy that discards those finds -- the suite does the search
 and then throws away the hits. `1 rerun` in a green summary is not a flake
 reported; it is a result deleted.
 
-**FIXED 2026-09-07** (commit 071711af, [[TOOL-015]]). One repo-root
+**FIXED 2026-09-07** (commit 071711af, `TOOL-015` in `vault/Tasks/tooling/closed.md`). One repo-root
 `conftest.py` derives the seed from sha256(session base, node id), so a retry
 repeats the run it is retrying; `RDS_SEED_BASE` replays a whole run and prints
 in the pytest header. `--reruns 3` was deliberately left alone -- it also
@@ -357,4 +357,4 @@ If that has not been demonstrated *in this configuration*, the zero is about the
 apparatus, not the design.
 
 Related: [[bfm-usage]] (valid/ready gets a BFM, never a poke),
-[[registers-by-name]], [[stale-sim-build]].
+[[registers-by-name]], [[running-regressions]].

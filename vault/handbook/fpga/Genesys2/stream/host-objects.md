@@ -134,7 +134,7 @@ Ask which layer it belongs to before writing it:
 - Wire-level orchestration of a monbus group? -> it already exists, and it is
   `MonbusGroupHarness`. Drain, trace, fifo counters and IRQ are done; decode is
   delegated to `TBClasses.monbus.parse`. Hand-rolling any of that is the
-  mistake [[feedback_monbus_group_harness]] records.
+  mistake [[bfm-usage]] records.
 
 ## Related
 

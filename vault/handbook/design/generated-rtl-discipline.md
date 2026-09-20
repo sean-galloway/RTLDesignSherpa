@@ -191,8 +191,8 @@ in the same sweep. A regression run costs five minutes and reports these as
 *The rule: after changing a generator, enumerate the topologies it emits and
 assert a structural invariant over ALL generated output before simulating.
 The blast radius of a generator edit is every shape it can produce, not the
-one you were looking at.* See [[feedback_confirm_scope_shared_rtl]] for the
-same failure in hand-written shared RTL.
+one you were looking at.* The same failure shape appears when editing
+hand-written shared RTL.
 
 Related: [[filelists]] (the same one-source rule for compile closures);
 the kimi-review-rounds rule 6 case in `vault/handbook/authoring/` — "fix the
@@ -237,7 +237,7 @@ for a mask register -- SystemRDL restricts `singlepulse` to one-bit fields.
 behind, not of the generator. Before consuming `swmod`, `swacc` or any
 `decoded_reg_strb`-derived signal, read the bridge that drives `s_cpuif_req`
 and count the cycles; if the side effect is not idempotent, edge-detect and
-align.* Related: [[fsm-discipline]] (the converter's WAIT_ACK is the
+align.* Related: [[minimal-fsm]] (the converter's WAIT_ACK is the
 state that makes the level), [[registers-by-name]].
 
 ## A protocol branch with no fixture in the batch is dead code

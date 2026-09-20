@@ -75,7 +75,7 @@ Rules - each guards against a proof that PASSES while checking nothing:
   yosys could not resolve package-typed ports. They were green-by-construction
   about code nobody ships. sv2v resolves those types, so the fork is never
   needed: flatten the real module. Any `*_formal.sv` copy of an RTL file in a
-  formal directory is this smell ([[test-the-justification]]).
+  formal directory is this smell ([[silent-fallbacks]] rule 15).
 - A PASSING PROOF ONLY COVERS THE PROPERTY YOU WROTE. Ask what the property
   does NOT say before trusting it as coverage of a contract.
   *Case: formal_axi_monitor_addr_check proved "addr_pkt_valid is sticky" and

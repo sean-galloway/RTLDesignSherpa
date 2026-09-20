@@ -117,7 +117,7 @@ sufficiency argument below.
 ## The six criteria still apply — they are about EVIDENCE, not layout
 
 The audit below predates the format change and its numbering is still the
-reference used by [[TOOLING-KMAP]]. Criteria 1, 2, 5 and 6 carry over to the
+reference used by `TOOLING-KMAP` (`vault/Tasks/tooling/open.md`). Criteria 1, 2, 5 and 6 carry over to the
 table unchanged in spirit: computed cells, a defined ordering, explicit
 don't-cares, and derived-vs-RTL implicants. Criteria 3 and 4 are now
 STRUCTURAL — the term list and the invariant list are parts of the artifact
@@ -205,10 +205,10 @@ The stream workbook's first pass found six real defects, so the practice already
 pays even half-built. But "we have K-maps" currently reads as stronger evidence
 than it is, and that is the dangerous part -- the same shape as the monitor
 timeout that was believed covered at STREAM because a DIFFERENT timeout was
-tested ([[AMBA-MONTRACK]] and its sibling gap). A map with no sufficiency
+tested (`AMBA-MONTRACK` in `vault/Tasks/amba/closed.md` and its sibling gap). A map with no sufficiency
 argument and no implicants is a picture of the code, not a check on it, and a
 picture agrees with the code by construction.
 
-Open work: [[TOOLING-KMAP]] (the emitter), then per component:
-[[STREAM-KMAP]] (partial workbook, finish it), [[RAPIDS-KMAP]] (no
-workbook at all), [[PUMICE-KMAP]] (partial workbook, finish it).
+Open work: `TOOLING-KMAP` (`vault/Tasks/tooling/open.md`) (the emitter), then per component:
+`STREAM-KMAP` (`vault/Tasks/projects/components/dmas/stream/open.md`) (partial workbook, finish it), `RAPIDS-KMAP` (`vault/Tasks/projects/components/dmas/rapids/open.md`) (no
+workbook at all), `PUMICE-KMAP` (`vault/Tasks/pumice/closed.md`) (partial workbook, finish it).
