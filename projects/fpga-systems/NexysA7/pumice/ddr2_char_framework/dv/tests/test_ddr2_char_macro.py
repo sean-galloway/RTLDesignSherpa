@@ -665,6 +665,96 @@ async def cocotb_test_ddr2_char_macro(dut):
         await _assert_engines_clean(dut, context=ctx)
         tb.log.info("concurrent_gap OK wr_gap=%d rd_gap=%d", wr_gap, rd_gap)
 
+    elif test_type == "hash_probe":
+        # PUMICE-038 diagnostic. In THIS build a reader in data_mode=1
+        # (ADDR_HASH) never reports a mismatch: a deliberately wrong hash seed
+        # passes, and so does a reader pointed at a page nobody wrote. The same
+        # mutations in LFSR mode fail loudly, so the compare path works and the
+        # hash mode is inert. The board runs data_mode=1 and DOES report
+        # mismatches, so this is a sim-build gap, not an RTL defect.
+        #
+        # This is a PROBE, not a pass/fail test: it reads back what actually
+        # landed in the CSRs and dumps the engine's own per-beat
+        # (actual, expected, mismatch) records. Those two facts localise the
+        # break without guessing -- the task's standing instruction is to
+        # measure before believing the dropped-seed theory, because a dropped
+        # seed would not explain the unwritten-page case.
+        PAGE_BYTES = (1 << 10) * DRAM_DEVICE_BYTES
+        # BURST must be a whole multiple of BURST_LEN_MULTIPLE (=8); the TB
+        # guard rejects 4 outright. Not a tuning choice.
+        BURST, N = 8, 16
+        BURST_BYTES = BURST * DRAM_BEAT_BYTES
+        WR_BASE, RD_BASE = 0, 6 * PAGE_BYTES     # reader points at an UNWRITTEN page
+        WRAP = PAGE_BYTES - 1
+        BAD_SEED = 0xDEAD_BEEF
+
+        gen = _chargen(dut)
+        await _program_writer(dut, start_addr=WR_BASE, stride_0=BURST_BYTES,
+                              wrap_mask_0=WRAP, burst_len=BURST, txn_count=N,
+                              gap=0, data_mode=1, hash_seed0=0x5EED_0B01)
+        await _program_reader(dut, start_addr=RD_BASE, stride_0=BURST_BYTES,
+                              wrap_mask_0=WRAP, burst_len=BURST, txn_count=N,
+                              gap=0, data_mode=1, hash_seed0=BAD_SEED)
+
+        # (1) WHAT LANDED. If data_mode or the seeds read back wrong, the
+        #     compare is being fed the wrong inputs and nothing downstream
+        #     matters.
+        landed = {}
+        for reg in ("RD_GEN0_AXI_ATTR", "RD_GEN0_HASH_SEED0",
+                    "RD_GEN0_HASH_SEED1", "RD_GEN0_HASH_SEED2"):
+            landed[reg] = await gen.read(reg)
+            tb.log.info("HASH_PROBE readback %-22s = 0x%08X", reg, landed[reg])
+
+        await _start_writers(dut)
+        await _wait_done(dut, "gen_wr_done", timeout=1_000_000)
+        await _chargen(dut).go(rd_mask=0x01)
+        await _wait_done(dut, "gen_rd_done", timeout=2_000_000)
+
+        # (2) WHAT THE ENGINE SAW. Both mutations are in force at once -- the
+        #     reader has the WRONG hash seed AND points at a page nobody wrote
+        #     -- so every beat must mismatch. This ASSERTS rather than logs so
+        #     the evidence lands in a failure message: a probe that only logs
+        #     is invisible on a pass, and a pass is exactly the bug.
+        st = await gen.reader_status(0)
+        mism = st.get("beats_mismatched")
+        assert mism, (
+            "PUMICE-038 REPRODUCED: reader in data_mode=1 (ADDR_HASH) reports "
+            f"beats_mismatched={mism} despite BOTH mutations being active -- "
+            f"hash_seed0 programmed 0x{BAD_SEED:08X} while the writer used "
+            f"0x5EED0B01, AND the reader points at 0x{RD_BASE:X} which was "
+            "never written. Either alone should make every beat mismatch.\n"
+            f"  CSR readback: {{ {', '.join(f'{k}=0x{v:08X}' for k, v in landed.items())} }}\n"
+            f"  reader_status: {st}\n"
+            "If the CSRs read back correct, the config path is fine and the "
+            "break is downstream -- w_cp_expected/w_byte_addr_for_beat in "
+            "axi4_master_rd_crc_check, or the r_data_mode latch timing. "
+            "This assert FLIPS TO PASSING when PUMICE-038 is fixed.")
+        tb.log.info("HASH_PROBE beats_mismatched=%s -- hash compare IS armed", mism)
+
+        # (3) THE OTHER HALF OF THE PAIR. "Non-zero on a mutation" alone does
+        #     not prove the compare works -- an engine that mismatches on
+        #     EVERYTHING would also pass (2). Reprogram the reader CORRECTLY:
+        #     same seed as the writer, pointed at the page the writer filled.
+        #     It must now report ZERO. Armed and discriminating, not just noisy.
+        await _program_writer(dut, start_addr=WR_BASE, stride_0=BURST_BYTES,
+                              wrap_mask_0=WRAP, burst_len=BURST, txn_count=N,
+                              gap=0, data_mode=1, hash_seed0=0x5EED_0B01)
+        await _program_reader(dut, start_addr=WR_BASE, stride_0=BURST_BYTES,
+                              wrap_mask_0=WRAP, burst_len=BURST, txn_count=N,
+                              gap=0, data_mode=1, hash_seed0=0x5EED_0B01)
+        await _start_writers(dut)
+        await _wait_restart_done(dut, "gen_wr_done")
+        await _chargen(dut).go(rd_mask=0x01)
+        await _wait_done(dut, "gen_rd_done", timeout=2_000_000)
+        st_ok = await gen.reader_status(0)
+        assert not st_ok.get("beats_mismatched"), (
+            "hash compare is NOISY, not armed: a reader with the writer's own "
+            f"seed on the page the writer filled still reports "
+            f"beats_mismatched={st_ok.get('beats_mismatched')}. Phase (2) "
+            "passing therefore proves nothing -- it would mismatch on anything."
+            f"\n  reader_status: {st_ok}")
+        tb.log.info("HASH_PROBE control clean: correct seed+page -> 0 mismatches")
+
     elif test_type == "pacing_sweep_b2b":
         # Engine-PACING sweep — NOT an AXI random-profile sweep.
         # The AXI_RANDOMIZER_CONFIGS BFM cross-product lives at the
@@ -1626,3 +1716,70 @@ def test_ddr2_char_1wr1rd(request):
         extra_env=extra_env, parameters=parameters,
         compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
         waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+def test_ddr2_char_macro_hash_probe(request):
+    """PUMICE-038 diagnostic: is the ADDR_HASH compare armed in this build?
+
+    Not a pass/fail test. Programs a reader in data_mode=1 with BOTH known
+    mutations (a wrong hash seed AND an unwritten page), then logs the CSR
+    readback and the engine's own beats_mismatched. Either mutation alone
+    should make every beat mismatch; if it reports zero, the compare is inert
+    and every sim check written in hash mode is decorative.
+    """
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "ddr2_char_macro_tb_top"
+    test_name = "test_ddr2_char_macro_hash_probe"
+
+    filelist_path = ("projects/fpga-systems/NexysA7/pumice/"
+                     "ddr2_char_framework/dv/filelists/"
+                     "ddr2_char_macro_tb_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "hash_probe",
+        "MEM_TYPE": "DDR2",
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    if "CONCURRENT_TXNS" in os.environ:
+        extra_env["CONCURRENT_TXNS"] = os.environ["CONCURRENT_TXNS"]
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1",
+                  "RD_DBG_FIFO_DEPTH": "32"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-PINMISSING",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args: list = []
+    plus_args: list = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_ddr2_char_macro",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ============================================================================

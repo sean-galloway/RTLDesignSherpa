@@ -692,7 +692,9 @@ failures to triage: `smoke_rate2_faithful`, `smoke_rate2_rdphase1`,
 convention (`regressions` skill) and to the components master Makefile.
 
 ## PUMICE-038 — the reader's ADDR_HASH compare is inert in the char sim build
-**Status:** open 2026-09-14  **Priority:** P1 — it makes any data_mode=1 sim check decorative
+**Status:** open 2026-09-14  **Priority:** P2 — DOWNGRADED 2026-09-20
+**The blanket claim below is NOT reproducible at a legal burst length. Read the
+2026-09-20 measurement before acting on the "do not use data_mode=1" advice.**
 
 Found while implementing [[PUMICE-037]]'s sim repro. In
 `ddr2_char_macro_tb_top`, a read engine programmed with `data_mode=1`
@@ -721,6 +723,41 @@ decorative, and nobody would know: it passes. This is the CONV-002 shape
 (a test that reports green because nothing reads the verdict) in a different
 dress. Until it is fixed, sim data checks must use LFSR mode, which is
 mutation-verified to fail.
+
+### 2026-09-20: does NOT reproduce at BURST=8 -- hash mode is armed
+
+Did the "Do:" below. Added `test_ddr2_char_macro_hash_probe` (TEST_TYPE
+`hash_probe`), which runs BOTH directions in one sim and ASSERTS each, so it
+cannot pass silently:
+
+    wrong seed + unwritten page  -> beats_mismatched != 0   (detects)
+    writer's seed + written page -> beats_mismatched == 0   (no false alarm)
+
+Both hold. sim_time_ns=58,060, so not vacuous. **The ADDR_HASH compare is armed
+AND discriminating** in this build at burst_len=8.
+
+The second half matters as much as the first: "non-zero on a mutation" alone
+would also be produced by an engine that mismatches on EVERYTHING, so a probe
+with only the first check proves nothing. Both mutations from the original
+report were applied together, since a dropped seed would explain the wrong-seed
+case but not the unwritten-page one.
+
+**Most likely explanation for the original observation: burst_len.** The first
+attempt at this probe used burst_len=4 and the TB rejected it outright --
+"burst_len=4 is ILLEGAL -- generator bursts must be whole multiples of
+BURST_LEN_MULTIPLE=8 ... This is an invalid configuration, not a slow one".
+If the original repro ran at a sub-multiple burst, it was an invalid shape that
+the guard now refuses, and the engine's behaviour there says nothing about
+legal use. The original conditions were not recorded precisely enough to
+re-test, which is why this stays OPEN rather than closed.
+
+**Act on this:** the standing instruction "until it is fixed, do not write a
+sim check in data_mode=1" is NOT supported at legal burst shapes, and it has
+been costing coverage on every test written since 2026-09-14 -- including
+`test_ddr2_char_macro_concurrent_gap`, which deliberately uses LFSR mode and
+says so. Hash mode is the mode the board runs. Treat data_mode=1 as usable at
+burst multiples of 8; if anyone reproduces the inert behaviour, record the
+EXACT burst_len, geometry and seeds this time.
 
 **Do:** program a reader in data_mode=1, read back AXI_ATTR and HASH_SEED0/1/2
 over APB and confirm what actually landed; then trace `w_cp_expected` against
