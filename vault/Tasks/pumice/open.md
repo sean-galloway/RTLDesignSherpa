@@ -303,6 +303,24 @@ Related: [[project_pumice_read_ceiling_fixed]],
 ## PUMICE-028 — the pumice sim has never run the board's DRAM geometry
 **Status:** open 2026-09-10  **Priority:** P1 — this is why a 2x read throttle shipped green
 
+### 2026-09-20: root-caused and substantially answered
+
+This task's title was literally true and the cause is now known: the char
+harness built the RTL from a module-level `DRAM_BL` captured at IMPORT while
+pushing the per-test value only to the BFM, so a "BL4" cell ran the controller
+at BL8. One line in `_run` (see [[PUMICE-041]], closed). With it fixed the char
+sim runs the board's exact geometry -- DFI_RATE=2, 32b beat, x16 device, BL4 --
+and `concurrent_gap_board` passes clean at gaps 0/8/13/15.
+
+What REMAINS of this task is the question it really poses: which other cells
+still do not run board geometry, and is anything else pinned by an import-time
+constant the same way? The bug class -- a per-test value that reaches the
+testbench but not the elaborated RTL -- is worth sweeping for, not just this
+instance. Check it by reading ELABORATED parameter values out of the generated
+build (`grep u_ctrl__DOT__<PARAM>` in local_sim_build/*/Vtop*.h), which is how
+this one was caught; comparing the test's arguments against its intent would
+have missed it, because the arguments were right.
+
 `dv/tests/top/test_pumice_core_dfi.py` ran at DRAM_BEAT=64 / BL8 / device==beat,
 so **one DRAM burst is 4 AXI beats**. The board is DRAM_BEAT=32 / BL4 / x16,
 where **one DRAM burst is 1 AXI beat**. Any per-sub-command rate limit is
@@ -1271,92 +1289,6 @@ arbiter's OUTPUT REGISTER when the registered command would violate turnaround -
 which keeps the term out of the pick cone entirely and is safe here precisely
 because the DFI path below is constant-latency and cannot compress what it
 receives. (b) is simpler and should be tried first.
-
-## PUMICE-041 — BL4 read path does not work in the char sim
-**Status:** open 2026-09-15  **Priority:** P1
-
-`test_ddr2_char_char_concurrent_gap_board` (BL4, x16, DFI_RATE=2 -- the
-geometry silicon ships) stalls: only 8 of 64 reads return (the outstanding
-limit), at every gap INCLUDING 0, which the board passes. Reproduces with
-`read_en_gated` on or off, so it is not the gating added in 3e179015e.
-
-The board runs BL4 fine, so this is a char-sim model gap. It matters because it
-is why BL4 went untested for so long: `DRAM_BL` was a literal 8 under a comment
-asserting BL8 was what the board ran, so no test in that suite could reach the
-board's geometry, and "the char sim does not reproduce PUMICE-037" was recorded
-as a property of the DEFECT when it was a property of the TEST.
-
-Marked xfail(strict) so it converts back to a real test the moment BL4 works.
-
-### 2026-09-18: the RECORDED SYMPTOM IS WRONG -- measured signature below
-
-This task has said since it was filed: "only 8 of 64 reads return (the
-outstanding limit, then stall)". That prose was never produced by a run; it is
-the xfail reason, and I repeated it several times today as if it were data.
-Measured with CONCURRENT_DUMP at gap 0 (BL4, rate 2, beat 4B, dev 2B, txn 64):
-
-    gap=0 ok=False mismatched=61 bytes=4096
-    notes=('read engines did not complete',
-           '61 beats mismatched',
-           '1:1 VIOLATION: hist total 8 != 64',
-           'concurrent 1w+1r of 4w+4r built, region 0x1000')
-
-So: **61 of 64 beats are WRONG**, and the 8 is the read-latency HISTOGRAM
-total, not reads returned and not the outstanding limit. "8 of 64 reads return
-then stall" and "nearly every beat comes back wrong while the histogram only
-records 8" are different bugs and point at different code. Chase the measured
-one.
-
-### 2026-09-18: read_bl_anchored is NOT the fix (tested)
-
-The BFM's short-burst phase-anchoring model was the leading candidate:
-`DFITimingProfile.a7ddrphy_bl4` sets `read_bl_anchored=True` and the char TB
-never did (it builds its own `char_gated` profile). Added
-`CHAR_READ_BL_ANCHORED` (default 0, nothing moves) and ran BL4 with it on:
-
-    IDENTICAL failure -- still xfail, same signature.
-
-Hypothesis eliminated. It is consistent with the nphases arithmetic: the preset
-documents BL4 at nphases=4, but this board is nphases=2, where
-words_per_cycle = dfi_rate * words_per_beat = 2*2 = 4 and a BL4 burst is 4
-device words = exactly ONE full DFI cycle. Nothing under-fills, so there is
-nothing to anchor. Do not re-try this.
-
-### 2026-09-20 RESULT: burst length is the SOLE variable
-
-Ran the controlled comparison. Added `test_ddr2_char_char_concurrent_gap_board_bl8`
--- the failing cell's twin, identical except `dram_bl=8`. Same scenario,
-geometry, gaps, txn count, bytes moved; one variable changed:
-
-    BL8:  ok=True   mismatched=0    1 passed
-    BL4:  ok=False  mismatched=61   1 xfailed   '1:1 VIOLATION: hist total 8 != 64'
-
-Until now the evidence was concurrent_gap_board (BL4, fails) vs families_x16
-(BL8, passes), which differ in BOTH burst length and scenario, so neither could
-attribute the failure. **It is BL.**
-
-The BL8 aligner trace is the useful half:
-
-    RD_ALIGNER probe: valids=512 captured=512 blocked_pre=0 blocked_real=0
-
-Every returned beat captured, nothing blocked, under the EXACT concurrent
-traffic that breaks BL4. So the read-return path is sound and the divergence is
-burst-length-specific -- consistent with the BFM's per-RD column queuing, where
-BL8 spans two due_cycles (k//words_per_cycle, k=0..7, words_per_cycle=4) and
-BL4 collapses to exactly one.
-
-The twin is deliberately NOT xfail: its verdict is the measurement, and it is
-now a permanent control -- if BL8 ever starts failing too, the attribution
-above is void and the fault moved to the scenario.
-
-### STILL UNEXPLAINED -- resolve before proposing a fix
-
-The BFM's per-RD column queuing and the aligner's `ceil(BL/DFI_RATE)` enable
-window disagree by 2x at BOTH burst lengths (BL8: 2 cycles queued vs a 4-cycle
-window; BL4: 1 vs 2). **Yet BL8 passes.** Why the same 2x discrepancy is
-harmless at BL8 and fatal at BL4 is the open question. Any BL4 fix proposed
-before that is answered is a story fitted to one data point.
-
 
 ## PUMICE-044 — read eye is 10 taps: IDELAY is the only read knob and it spans 75% of a UI
 **Status:** open 2026-09-17  **Priority:** P3

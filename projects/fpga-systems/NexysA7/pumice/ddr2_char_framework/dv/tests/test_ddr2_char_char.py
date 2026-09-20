@@ -395,7 +395,17 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
                     # Explicit, not inherited: ddr2_char_uart_tb_top still
                     # defaults DRAM_BL=4, and a TB that does not pass an RTL
                     # parameter cannot track it when the RTL changes.
-                    "DRAM_BL": str(DRAM_BL),
+                    # `bl`, NOT the module-level DRAM_BL. DRAM_BL is read from
+                    # the environment at IMPORT time, so it is whatever the shell
+                    # had (default 8) and never the per-test dram_bl -- while
+                    # line ~375 correctly pushes `bl` into extra_env for the
+                    # cocotb/BFM side. The two disagreed, so a "BL4" cell built
+                    # the RTL at BL8 and told the DRAM model BL4: the BFM
+                    # returned one DFI word per read while the aligner waited
+                    # for BL_WORDS=2, no read ever retired, and the cell failed
+                    # with "hist total 8 != 64". That is PUMICE-041, and it was
+                    # a harness bug, not the BL4 read path.
+                    "DRAM_BL": str(bl),
                     # DFI-WIRE command-history scoreboard. Off unless asked,
                     # because it is a $fatal scoreboard and a wrong window turns
                     # every cell red. Arm it with:
@@ -513,16 +523,18 @@ def test_ddr2_char_char_families_x16(request):
          dram_device_width=16)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "BL4 read path does not work in THIS sim: only 8 of 64 reads return (the "
-    "outstanding limit, then stall), with read_en_gated on OR off, at every "
-    "gap including 0 -- which the board passes. The board runs BL4 fine, so "
-    "this is a gap in the char-sim model, not a controller defect, and it is "
-    "why BL4 went untested here for so long (DRAM_BL was a literal 8 under a "
-    "comment asserting BL8 was what the board ran). strict=True so this stops "
-    "being xfail the moment BL4 works -- the test itself is correct and is the "
-    "only cell in this suite that reaches the geometry silicon ships."))
 def test_ddr2_char_char_concurrent_gap_board(request):
+    """The board point exactly: DFI_RATE=2, 32b beat over x16, BL4.
+
+    WAS xfail(strict) as "BL4 read path does not work in THIS sim". It was not
+    the read path: the harness passed the per-test dram_bl to the BFM and MR0
+    but built the RTL from a module-level DRAM_BL captured at import, so a
+    "BL4" cell ran the controller at BL8 against a BL4 DRAM model. The BFM
+    returned one DFI word per read while the aligner waited for BL_WORDS=2, so
+    no read retired -- "hist total 8 != 64", 61/64 beats bad, at every gap
+    including 0. One line (see _run). With the RTL actually built at BL4
+    (DRAM_BL=4, BL_WORDS=1, RD_EN_CYC=1) this passes clean.
+    """
     # The BOARD point exactly: DFI_RATE=2, 32b pumice beat over an x16 device,
     # and BL4 -- the burst length silicon runs. The x16 families test already
     # used the first three; BL was stuck at the module's 8, so no test in this

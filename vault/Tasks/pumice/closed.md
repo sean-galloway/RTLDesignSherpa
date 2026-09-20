@@ -2,6 +2,134 @@
 
 # pumice — Closed (done)
 
+## PUMICE-041 — the char sim never BUILT BL4 (title was wrong; one-line harness bug)
+**Status:** CLOSED 2026-09-20  **Priority:** was P1
+
+`test_ddr2_char_char_concurrent_gap_board` (BL4, x16, DFI_RATE=2 -- the
+geometry silicon ships) stalls: only 8 of 64 reads return (the outstanding
+limit), at every gap INCLUDING 0, which the board passes. Reproduces with
+`read_en_gated` on or off, so it is not the gating added in 3e179015e.
+
+The board runs BL4 fine, so this is a char-sim model gap. It matters because it
+is why BL4 went untested for so long: `DRAM_BL` was a literal 8 under a comment
+asserting BL8 was what the board ran, so no test in that suite could reach the
+board's geometry, and "the char sim does not reproduce PUMICE-037" was recorded
+as a property of the DEFECT when it was a property of the TEST.
+
+Marked xfail(strict) so it converts back to a real test the moment BL4 works.
+
+### 2026-09-18: the RECORDED SYMPTOM IS WRONG -- measured signature below
+
+This task has said since it was filed: "only 8 of 64 reads return (the
+outstanding limit, then stall)". That prose was never produced by a run; it is
+the xfail reason, and I repeated it several times today as if it were data.
+Measured with CONCURRENT_DUMP at gap 0 (BL4, rate 2, beat 4B, dev 2B, txn 64):
+
+    gap=0 ok=False mismatched=61 bytes=4096
+    notes=('read engines did not complete',
+           '61 beats mismatched',
+           '1:1 VIOLATION: hist total 8 != 64',
+           'concurrent 1w+1r of 4w+4r built, region 0x1000')
+
+So: **61 of 64 beats are WRONG**, and the 8 is the read-latency HISTOGRAM
+total, not reads returned and not the outstanding limit. "8 of 64 reads return
+then stall" and "nearly every beat comes back wrong while the histogram only
+records 8" are different bugs and point at different code. Chase the measured
+one.
+
+### 2026-09-18: read_bl_anchored is NOT the fix (tested)
+
+The BFM's short-burst phase-anchoring model was the leading candidate:
+`DFITimingProfile.a7ddrphy_bl4` sets `read_bl_anchored=True` and the char TB
+never did (it builds its own `char_gated` profile). Added
+`CHAR_READ_BL_ANCHORED` (default 0, nothing moves) and ran BL4 with it on:
+
+    IDENTICAL failure -- still xfail, same signature.
+
+Hypothesis eliminated. It is consistent with the nphases arithmetic: the preset
+documents BL4 at nphases=4, but this board is nphases=2, where
+words_per_cycle = dfi_rate * words_per_beat = 2*2 = 4 and a BL4 burst is 4
+device words = exactly ONE full DFI cycle. Nothing under-fills, so there is
+nothing to anchor. Do not re-try this.
+
+### 2026-09-20 RESULT: burst length is the SOLE variable
+
+Ran the controlled comparison. Added `test_ddr2_char_char_concurrent_gap_board_bl8`
+-- the failing cell's twin, identical except `dram_bl=8`. Same scenario,
+geometry, gaps, txn count, bytes moved; one variable changed:
+
+    BL8:  ok=True   mismatched=0    1 passed
+    BL4:  ok=False  mismatched=61   1 xfailed   '1:1 VIOLATION: hist total 8 != 64'
+
+Until now the evidence was concurrent_gap_board (BL4, fails) vs families_x16
+(BL8, passes), which differ in BOTH burst length and scenario, so neither could
+attribute the failure. **It is BL.**
+
+The BL8 aligner trace is the useful half:
+
+    RD_ALIGNER probe: valids=512 captured=512 blocked_pre=0 blocked_real=0
+
+Every returned beat captured, nothing blocked, under the EXACT concurrent
+traffic that breaks BL4. So the read-return path is sound and the divergence is
+burst-length-specific -- consistent with the BFM's per-RD column queuing, where
+BL8 spans two due_cycles (k//words_per_cycle, k=0..7, words_per_cycle=4) and
+BL4 collapses to exactly one.
+
+The twin is deliberately NOT xfail: its verdict is the measurement, and it is
+now a permanent control -- if BL8 ever starts failing too, the attribution
+above is void and the fault moved to the scenario.
+
+### STILL UNEXPLAINED -- resolve before proposing a fix
+
+The BFM's per-RD column queuing and the aligner's `ceil(BL/DFI_RATE)` enable
+window disagree by 2x at BOTH burst lengths (BL8: 2 cycles queued vs a 4-cycle
+window; BL4: 1 vs 2). **Yet BL8 passes.** Why the same 2x discrepancy is
+harmless at BL8 and fatal at BL4 is the open question. Any BL4 fix proposed
+before that is answered is a story fitted to one data point.
+
+### CLOSED 2026-09-20 -- it was never the read path
+
+`_run` pushed the per-test `dram_bl` into extra_env for the cocotb/BFM side but
+built the RTL from the MODULE-LEVEL `DRAM_BL`, which is read from the
+environment at IMPORT time and is therefore always the default 8:
+
+    line  97:  DRAM_BL = int(os.environ.get("TEST_DRAM_BL", "8"))   # at import
+    line 375:  "TEST_DRAM_BL": str(bl)                              # -> BFM, correct
+    line 398:  "DRAM_BL": str(DRAM_BL)                              # -> RTL, WRONG
+
+So a "BL4" cell built the CONTROLLER AT BL8 and told the DRAM model BL4. Proven
+by the elaborated values, which were byte-identical between the BL4 and BL8
+cells before the fix:
+
+    before:  DRAM_BL=8U  BL_WORDS=2U  RD_EN_CYC=2U
+    after:   DRAM_BL=4U  BL_WORDS=1U  RD_EN_CYC=1U
+
+The BFM returns one DFI word per BL4 read; the aligner captures BL_WORDS per
+read and the BL_WORDS-th retires it, so it waited forever for a second word.
+Hence "hist total 8 != 64", 61 of 64 beats bad, at EVERY gap including 0.
+
+**Result with the RTL actually built at BL4** -- all four gaps, the PUMICE-037
+regime included:
+
+    gap=0  ok=True mismatched=0      gap=13 ok=True mismatched=0
+    gap=8  ok=True mismatched=0      gap=15 ok=True mismatched=0
+
+xfail(strict) removed; the cell is a normal passing test.
+
+**Every oddity the task recorded is explained by this and nothing else:**
+  * the board runs BL4 fine -- the board BUILDS the RTL at BL4;
+  * the failure was gap-independent -- the geometry was mismatched from cycle
+    zero, so traffic never mattered;
+  * `BEATS_PER_BURST = DRAM_BL` looked right and BL/K "broke" families_x16 --
+    that cell was also silently running RTL at 8;
+  * `read_bl_anchored` changed nothing -- it was never the model.
+
+**The title was wrong in the same way the symptom was.** Twice this task
+described a measurement nobody had taken: "only 8 of 64 reads return" was xfail
+prose (the 8 is a histogram total), and "BL4 read path does not work" was an
+inference from a cell that never built BL4. See also [[PUMICE-028]], which says
+the same thing from the other direction and is now substantially answered.
+
 ## PUMICE-043 — batching residue at the aggressive watermark
 **Status:** CLOSED 2026-09-17 (508f98200)  **Priority:** P2
 
