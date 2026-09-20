@@ -220,12 +220,12 @@ class ModuleDocAuditor:
         report.append("|--------|-------|------|--------|-------|-------|---------|------|")
 
         for r in sorted_results:
-            desc_mark = "✅" if r.has_module_desc else "❌"
-            param_mark = "✅" if r.has_param_docs else ("N/A" if r.param_count == 0 else "❌")
-            port_mark = "✅" if r.has_port_docs else "❌"
-            notes_mark = "✅" if r.has_usage_notes else "❌"
-            related_mark = "✅" if r.has_related_modules else "❌"
-            test_mark = "✅" if r.has_test_ref else "❌"
+            desc_mark = "yes" if r.has_module_desc else "no"
+            param_mark = "yes" if r.has_param_docs else ("N/A" if r.param_count == 0 else "no")
+            port_mark = "yes" if r.has_port_docs else "no"
+            notes_mark = "yes" if r.has_usage_notes else "no"
+            related_mark = "yes" if r.has_related_modules else "no"
+            test_mark = "yes" if r.has_test_ref else "no"
 
             report.append(f"| {r.module_name} | {r.score:.0f}% | {desc_mark} | {param_mark} | {port_mark} | {notes_mark} | {related_mark} | {test_mark} |")
 
@@ -309,7 +309,7 @@ def main():
     md_path.write_text(markdown_report)
     csv_path.write_text(csv_report)
 
-    print(f"\n✅ Reports generated:")
+    print(f"\nReports generated:")
     print(f"   - {md_path}")
     print(f"   - {csv_path}")
     print(f"\n{markdown_report}")
