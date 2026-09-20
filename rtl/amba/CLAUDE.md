@@ -57,68 +57,21 @@ This CLAUDE.md provides AMBA-specific guidance. Also review:
 
 ## Critical Rules for This Subsystem
 
-### Rule #0: Verification Architecture (MANDATORY)
+### Rule #0: Where the verification code lives
 
-**📖 See:** `/GLOBAL_REQUIREMENTS.md` Sections 2.1, 2.3, 2.4 for complete requirements
+TB classes are in `bin/TBClasses/<protocol>/` (`axi4/`, `axi_monitor/`,
+`apb4_monitor/`, ...); the runners that import them are `val/amba/test_*.py`.
+How a TB is composed -- the three-layer split, and when to score with a queue
+versus a memory model -- is repo-wide practice, not an AMBA rule:
+`vault/handbook/dv/tb-structure.md`. `/GLOBAL_REQUIREMENTS.md` 2.1/2.3/2.4 is
+the enforcement authority and wins on conflict.
 
-**AMBA-Specific Structure:**
-
-```
-bin/TBClasses/
-├── axi4/
-│   └── axi4_master_read_tb.py      # AXI4 master read TB
-├── axi_monitor/
-│   └── axi_monitor_tb.py           # AXI monitor TB
-├── apb4_monitor/
-│   └── apb4_monitor_core_tb.py      # APB monitor TB
-└── [protocol]/[module]_tb.py
-
-val/amba/
-└── test_*.py                        # Test runners (import TBs from framework)
-```
-
-**AMBA Import Pattern:**
-```python
-# val/amba/test_axi4_master_rd.py
-from TBClasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
-
-@cocotb.test()
-async def axi4_test(dut):
-    tb = AXI4MasterReadTB(dut)
-    await tb.setup_clocks_and_reset()
-    # ... test logic
-```
-
-**AMBA Three-Layer Pattern:**
-1. **TB Class:** `bin/TBClasses/{protocol}/` - Infrastructure + BFMs
-2. **Scoreboard:** `bin/TBClasses/scoreboards/` - Verification logic
-3. **Test Runner:** `val/amba/` - Test intelligence
-
-**Verification Method Selection for AMBA:**
-- ✅ **Queue Access:** APB monitors, simple control paths, in-order transactions
-- ✅ **Memory Models:** Multi-master AXI, out-of-order scenarios, data integrity
-
-**📖 Complete Guide:** `docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md` with AMBA examples
+Module specs are under `docs/markdown/rtl-amba/`; link to the specific page
+rather than restating a port list here.
 
 ---
 
-### Rule #1: Always Reference Detailed Documentation
-
-**This subsystem has extensive documentation in** `docs/markdown/rtl-amba/`
-
-**Before answering technical questions:**
-```bash
-# Check detailed docs first
-ls docs/markdown/rtl-amba/
-cat docs/markdown/rtl-amba/overview.md
-cat docs/markdown/rtl-amba/axi4/axi4_master_rd_mon.md
-```
-
-**Your answer should:**
-1. Provide direct answer/code
-2. **Then link to detailed docs:** "See `docs/markdown/rtl-amba/{file}.md` for complete specification"
-
-### Rule #2: Avoid Enabling All Monitor Packet Types
+### Rule #1: Avoid Enabling All Monitor Packet Types
 
 **This is the #1 integration mistake!** The monitor bus sustains at most
 1 packet per 2 cycles (reporter output register), so enabling every
@@ -153,7 +106,7 @@ suppressing emission, use `cfg_axi_pkt_mask` (drop mask, 1 = drop, in
 
 **Always link:** "See `docs/user-guides/AXI_Monitor_Configuration_Guide.md` for configuration strategies"
 
-### Rule #3: Know the Known Issues
+### Rule #2: Know the Known Issues
 
 **Current Status (as of `95c9490a`):**
 - ✅ Event reported feedback bug FIXED (2025-09-30)
@@ -169,7 +122,7 @@ ls rtl/amba/KNOWN_ISSUES/
 cat rtl/amba/KNOWN_ISSUES/README.md
 ```
 
-### Rule #4: Integration = Configuration + Wiring + Downstream
+### Rule #3: Integration = Configuration + Wiring + Downstream
 
 **Complete integration requires:**
 1. ✅ Module instantiation with correct parameters
@@ -688,22 +641,10 @@ cat rtl/amba/KNOWN_ISSUES/README.md
 
 ### Run Tests
 
-```bash
-cd val/amba
-
-# Single test root
-make run-axi4_monitor-gate
-
-# All AMBA tests -- clean-all FIRST or the result is not trustworthy
-make clean-all && make run-all-full-parallel
-
-# Specific protocol
-make run-apb4_monitor-func
-
-# With waveforms -- WAVES=1 via the target, not --vcd
-make run-axi4_monitor-gate-waves
-# create_view_cmd() writes a ready-made gtkwave command beside the log
-```
+`val/amba/Makefile` is four lines over `make/tests.mk`; targets are
+`run-<all|testroot>-<gate|func|full>[-serial|-parallel][-waves]`, bare is
+parallel, and `clean-all` first is not optional. Full grammar and the reasons:
+`vault/handbook/dv/running-regressions.md`.
 
 ### Test Status (Current)
 
@@ -721,62 +662,11 @@ make run-axi4_monitor-gate-waves
 
 ### Always Reference These
 
-**Primary Technical Docs:**
-- `docs/markdown/rtl-amba/index.md` - Module index
-- `docs/markdown/rtl-amba/overview.md` - Architecture
-- `docs/markdown/rtl-amba/axi4/` + `docs/markdown/rtl-amba/monitor/` - AXI module and monitor specs
-- `docs/markdown/rtl-amba/apb4/` - APB module specs
-- `docs/markdown/rtl-amba/axis4/` - AXIS module specs
-- `docs/markdown/rtl-amba/includes/monitor_package_spec.md` - Packet format
-
-**Configuration:**
-- `docs/user-guides/AXI_Monitor_Configuration_Guide.md` ← **Essential for correct setup**
-
-**This Subsystem:**
-- `docs/markdown/rtl-amba/index.md` - Requirements overview
-- `docs/markdown/rtl-amba/index.md` - Quick start guide
-- `/vault/Tasks/amba/` - Current work
-- `rtl/amba/KNOWN_ISSUES/` - Bug tracking
-
-**Root:**
-- `/PRD.md` - Master requirements
-- `/CLAUDE.md` - Repository guide
-
----
-
-## Quick Commands
-
-```bash
-# View detailed docs
-cat docs/markdown/rtl-amba/overview.md
-cat docs/markdown/rtl-amba/axi4/axi4_master_rd_mon.md
-
-# Check configuration guide
-cat docs/user-guides/AXI_Monitor_Configuration_Guide.md
-
-# Run tests
-cd val/amba && make run-axi4_monitor-gate
-
-# Check known issues
-ls rtl/amba/KNOWN_ISSUES/
-cat rtl/amba/KNOWN_ISSUES/README.md
-
-# Lint
-verilator --lint-only rtl/amba/monitor/axi_monitor_base.sv
-```
-
----
-
-## Remember
-
-1. 📖 **Link to detailed docs** - `docs/markdown/rtl-amba/` has complete specs
-2. ⚠️ **Configuration critical** - Never all packet types together
-3. 🐛 **Check known issues** - Before diagnosing bugs
-4. 🔗 **Complete integration** - Monitor + config + downstream handling
-5. ✅ **Test awareness** - val/amba fully green as of `95c9490a`; only open item is framework (axil4 TB drain race)
-
----
-
-**Version:** 1.0
-**Last Updated:** 2025-09-30
-**Maintained By:** RTL Design Sherpa Project
+- `docs/markdown/rtl-amba/` -- module specs, one page per module
+  (`index.md`, `overview.md`, then `axi4/`, `apb4/`, `axis4/`, `monitor/`)
+- `docs/markdown/rtl-amba/includes/monitor_package_spec.md` -- packet format
+- `docs/user-guides/AXI_Monitor_Configuration_Guide.md` -- **read before
+  configuring a monitor**; the packet-class rule above is why
+- `rtl/amba/KNOWN_ISSUES/` -- open bugs, check before diagnosing
+- `/vault/Tasks/amba/` -- current work
+- `/GLOBAL_REQUIREMENTS.md` -- enforcement authority
