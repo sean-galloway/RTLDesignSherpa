@@ -217,29 +217,10 @@ async def deassert_reset(self):
 
 ###  Rule #0.75: Audit Signal Naming BEFORE Writing Testbenches
 
-**⚠️ CRITICAL: Check for Signal Naming Conflicts BEFORE Factory Usage ⚠️**
-
-Before writing testbench code that uses AXI factory functions, audit your RTL for signal naming conflicts.
-
-**The Problem:**
-AXI factory pattern matching searches for signals using prefix + channel patterns (e.g., `{prefix}ar_valid`, `{prefix}r_ready`). If you have:
-- Internal signals: `desc_valid`, `desc_ready` (simple handshake)
-- External AXI ports: `desc_ar_valid`, `desc_ar_ready` (AXI AR channel)
-
-Both match `desc_*valid` → Factory finds BOTH signals → Initialization FAILS!
-
-**Solution - Signal Naming Audit Tool:**
-
-```bash
-# Audit single file before writing testbench
-../../bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_beats.sv
-
-# Audit entire RAPIDS subsystem
-../../bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/
-
-# Generate markdown report
-../../bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ --markdown signal_conflicts.md
-```
+Why factory prefix collisions break BFM discovery, and the audit tool that
+catches them, are in `vault/handbook/design/naming-and-style.md`. Run
+`bin/audit_signal_naming_conflicts.py` over `rtl/` before writing a TB.
+What is RAPIDS-specific is below.
 
 **Known RAPIDS Conflicts:**
 See `projects/components/dmas/rapids/known_issues/scheduler_group_signal_naming_conflicts.md` for conflicts documented against the pre-beats scheduler_group.sv (the patterns still apply to `scheduler_group_beats.sv`):
@@ -263,26 +244,12 @@ See `projects/components/dmas/rapids/known_issues/scheduler_group_signal_naming_
 
 ### Rule #1: MANDATORY BFM Usage for FUB-Level Tests
 
-**⚠️ CRITICAL DESIGN INTENTION - USE FRAMEWORK BFMs ⚠️**
+Never hand-drive a valid/ready handshake and never write a custom protocol
+driver: use the framework BFMs. The interface-to-BFM map, the factory list
+and the trap list are in `vault/handbook/dv/bfm-usage.md`.
 
-**For all RAPIDS FUB (Functional Unit Block) level tests, you MUST use appropriate BFMs from the CocoTB Framework:**
-
-**Interface Type → Required BFM Component:**
-
-| Interface Type | Framework Component Location | Usage |
-|----------------|----------------------------|-------|
-| **Custom valid/ready** | `bin/TBClasses/gaxi/` | **GAXI Master/Slave BFMs** |
-| **AXI4** | `bin/TBClasses/axi4/` | AXI4 Master/Slave drivers |
-| **AXI4-Lite (AXIL)** | `bin/TBClasses/axil4/` | AXIL Master/Slave drivers |
-| **APB** | `bin/TBClasses/apb/` | APB Master/Slave drivers |
-| **AXI-Stream (AXIS)** | `bin/TBClasses/axis4/` | AXIS Master/Slave drivers (RAPIDS network interfaces are AXIS) |
-| **MonBus** | `bin/TBClasses/monbus/` | MonBus drivers |
-
-**Critical Rules:**
-
-1. **NEVER manually drive valid/ready handshakes** - Use GAXI BFM components
-2. **NEVER create custom protocol drivers** - Framework components already exist
-3. **NEVER embed simple handshake logic** - Extract to GAXI Master/Slave
+RAPIDS-specific: the network interfaces are **AXIS**, so they take the
+`axis4` factories; the custom valid/ready interfaces take GAXI.
 
 **Example - Program Engine Interface:**
 
@@ -320,44 +287,8 @@ class ProgramEngineTB(TBBase):
         await self.program_master.write({'program_pkt_addr': addr, 'program_pkt_data': data})
 ```
 
-**Why This Rule Exists:**
-
-1. **Consistency**: All tests use same handshake protocol
-2. **Correctness**: GAXI BFMs handle complex timing scenarios correctly
-3. **Reusability**: Same BFM used across all RAPIDS tests
-4. **Maintainability**: Fix once in BFM, all tests benefit
-5. **Coverage**: GAXI BFMs include timing randomization and backpressure
-
-**When Manual Driving is Acceptable:**
-
-- ✅ **Quick debug/prototype** - Temporary, will be replaced with BFM
-- ✅ **Clock/reset initialization** - Not part of protocol handshaking
-- ❌ **Production testbenches** - MUST use BFMs
-
-**Search Before Creating:**
-
-```bash
-# Find existing GAXI components
-find bin/TBClasses/gaxi/ -name "*.py"
-
-# Find example usage
-grep -r "GAXIMaster\|GAXISlave" projects/components/dmas/rapids/dv/
-grep -r "from.*gaxi" bin/TBClasses/
-```
-
-**BFM Selection Guide:**
-
-```
-Need to drive interface with valid/ready?
-├─ Standard protocol (AXI4, APB, AXIS)?
-│  └─ Use protocol-specific BFM (axi4/, apb/, axis4/)
-│
-├─ Custom RAPIDS interface with valid/ready signals?
-│  └─ Use GAXI Master/Slave BFM (gaxi/)
-│
-└─ MonBus monitor packet interface?
-   └─ Use MonBus BFM (monbus/)
-```
+**When manual driving is acceptable:** quick debug throwaway, and clock or
+reset init -- never a production testbench.
 
 **📖 See:**
 - `docs/markdown/TBClasses/gaxi/` - GAXI BFM documentation
