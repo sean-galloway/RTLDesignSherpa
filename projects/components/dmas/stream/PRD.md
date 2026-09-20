@@ -837,26 +837,6 @@ projects/components/dmas/stream/dv/tests/
 
 ---
 
-## 16. Attribution and Contribution Guidelines
-
-### 16.1 Git Commit Attribution
-
-When creating git commits for STREAM documentation or implementation:
-
-**Use:**
-```
-Documentation and implementation support by Claude.
-```
-
-**Do NOT use:**
-```
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Rationale:** STREAM documentation and organization receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
-
----
-
 ## 16.2 PDF Generation Location
 
 **IMPORTANT: PDF files should be generated in the docs directory:**
