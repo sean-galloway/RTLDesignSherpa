@@ -8,18 +8,13 @@ Repo tooling, scripts, and process work.
 
 | Page | Count | What |
 |---|---|---|
-| [active.md](active.md) | 2 | in progress right now |
+| [active.md](active.md) | 1 | in progress right now |
 | [open.md](open.md) | 14 | accepted, not started |
-| [closed.md](closed.md) | 5 | done (kept for history) |
+| [closed.md](closed.md) | 6 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 ## Active
 
-- **TOOL-008** (P1) — redo the Makefiles from scratch. Live in `val/amba`
-  (`make/tests.mk` + four-line `val/amba/Makefile`): worker count derived
-  from cores and RAM (was a hardcoded 48 on an 8-core box — this killed a
-  machine), glob-discovered tests, 2160 targets from ~180 lines. **Blocked on
-  Sean's full validation run** — nothing swapped in or pushed until then.
 - **TOOL-001** — Migrate the remaining areas into /vault/Tasks/<area>/ (amba pilot,
   pumice, common and docs-review done; awaiting Sean's sign-off on lifecycle
   split + area granularity for the batch).
@@ -58,3 +53,11 @@ This area's historical backlog (/TOOLING_TODO.md) was folded in and the file
 deleted 2026-08-09: item 1 (kmap promote to bin/) was already subsumed by
 TOOLING-KMAP step 5, item 2 (skills strategy) closed as TOOL-013, item 3
 (Scripts link rot) opened as TOOL-014.
+
+## Closed
+
+- **TOOL-008** (P1) — Makefiles redone: one `make/tests.mk`, four-line leaves,
+  host-derived worker count, glob-discovered targets. Closed 2026-09-20 after an
+  861-cell FULL regression through the new path. Two items carried forward in
+  the entry: the stream-bridges and pumice Makefiles, and a coverage-tuning
+  decision (`GB_PER_WORKER=4` vs the retired `coverage_workers`).
