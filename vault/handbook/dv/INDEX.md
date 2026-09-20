@@ -15,6 +15,8 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
   defects that made a correct arbiter look broken; never quiet it by name
 - [[measure-over-the-window]] - phase assertions read that phase's deltas; a
   cumulative metric scores whatever ran before it
+- [[async-output-capture]] - run a monitor coroutine while you drive; polling
+  between stimulus steps found 5 of 12 descriptors and looked like an RTL bug
 - [[registers-by-name]] - PeakRDL regmaps; offsets are forbidden
 - [[seeds-and-determinism]] - random seed per run, recorded and overridable;
   there is no such thing as a failing seed

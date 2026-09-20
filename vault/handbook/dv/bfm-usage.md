@@ -149,3 +149,26 @@ stalls the destination past `TIMEOUT_CYCLES`, then must lift the stall and see
 the transfer complete and the flag clear. Built on a parked `ready_delay` the
 second half is unreachable, and the test would have quietly checked only that
 the timeout fires -- never that it clears.
+
+## Extract a BFM, or keep it embedded (2026-09-20)
+
+Two questions get conflated. **Is it a standard protocol?** decides whether you
+write anything at all: AXI4, AXIL, APB, AXIS or a plain valid/ready handshake
+are already in the framework, and the answer is to use it -- at any size. Only
+genuinely custom behaviour gets written, and then size decides where it lives:
+
+| | Extract to a BFM | Keep it in the testbench |
+|---|---|---|
+| Size | >100 lines | <50 lines |
+| Reuse | several tests | one test |
+| Logic | real protocol state | simple stimulus/response |
+
+RAPIDS has one of each. `dv/components/data_mover_bfm.py` (150+ lines, custom
+data-mover protocol, shared across scheduler tests) was extracted; the ~50-line
+AXI read responder inside `descriptor_engine_tb.py` stays embedded, because the
+framework covers AXI4 properly and the responder is only a test-local stub.
+
+What this prevents is the 200-line hand-written "AXI4 read responder BFM" -- a
+reimplementation of something the framework ships, which diverges from the
+protocol at the first corner case.
+

@@ -78,6 +78,20 @@ So for any shared-resource arbiter, scheduler or picker:
   evidence. `check_starvation()` in the same class IS real (it reports clients
   with zero grants) - use that.
 
+## A per-test delay enum duplicates the catalogue
+
+A testbench that defines its own profile enum -- `FAST_PRODUCER`,
+`FAST_CONSUMER`, `MINIMAL_DELAY`, `BACKPRESSURE`, `FIXED_DELAY` -- has
+re-implemented `DEFAULT_PROFILES` by hand. The catalogue already covers each of
+those shapes: `backtoback` for minimal delay, `slow` / `throttled` /
+`heavy_pause` for backpressure, `constrained` for the predictable middle.
+RAPIDS' `DelayProfile` is the instance in this repo.
+
+The cost is drift. A local enum stops tracking the catalogue, and a reader
+cannot tell whether `MINIMAL_DELAY` means `backtoback` or something subtly
+different that happens to pass today. Name a profile from `DEFAULT_PROFILES`;
+if a shape genuinely is missing, add it there rather than locally.
+
 This is one of three orthogonal axes - see [[rds-dv-axes]].
 
 Related: [[bfm-usage]], [[seeds-and-determinism]] (a rerun that changes seeds is
