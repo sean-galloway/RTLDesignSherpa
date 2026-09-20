@@ -65,7 +65,12 @@ NEXT_ID = re.compile(r"Next ID\**\s*:\s*\**\s*([A-Z][A-Z0-9]*-(\d+))")
 # Removing the emojis un-blinded it and it immediately found 23 real
 # mismatches. Skip any leading non-word characters so a future glyph cannot
 # disable the gate again. Note it still captures only the FIRST word.
-STATUS = re.compile(r"^\*\*Status:\*\*[^\w\n]*(\w+)", re.M)
+# ...and a leading markdown checkbox, the second form found the same way:
+# "**Status:** [x] Done" also failed the original \s*(\w+) match, so five
+# more entries were silently unchecked. Skip an optional [x]/[ ] marker,
+# then any non-word run, then capture. "[ ] Open" still reads "Open" and
+# still warns, so this does not blind the rule it exists for.
+STATUS = re.compile(r"^\*\*Status:\*\*\s*(?:\[\s*\w?\s*\]\s*)?[^\w\n]*(\w+)", re.M)
 
 # Pre-existing duplicates, recorded 2026-08-28. Grandfathered so the check
 # can enforce immediately; do NOT add to this list to silence a new clash --
