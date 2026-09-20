@@ -120,8 +120,8 @@ suppressing emission, use `cfg_axi_pkt_mask` (drop mask, 1 = drop, in
 **Always check:** `rtl/amba/KNOWN_ISSUES/` before diagnosing bugs
 
 ```bash
-ls rtl/amba/KNOWN_ISSUES/
-cat rtl/amba/KNOWN_ISSUES/README.md
+ls rtl/amba/KNOWN_ISSUES/   # 3 pages: active_count underflow,
+                            # block_ready hang, orphan error flood
 ```
 
 ### Rule #3: Integration = Configuration + Wiring + Downstream
@@ -419,7 +419,7 @@ cd val/amba && make run-axi4_monitor-gate
 2. Run test with `-v -s` for verbose output
 3. Check if it's a known test configuration issue
 
-**📖 See:** `rtl/amba/KNOWN_ISSUES/README.md`
+**See:** `rtl/amba/KNOWN_ISSUES/` -- three issue pages, no index README
 
 ---
 
@@ -616,8 +616,8 @@ make run-axi4_monitor-gate-waves     # WAVES=1; --vcd is not the mechanism
 
 **Check known issues:**
 ```bash
-ls rtl/amba/KNOWN_ISSUES/
-cat rtl/amba/KNOWN_ISSUES/README.md
+ls rtl/amba/KNOWN_ISSUES/   # 3 pages: active_count underflow,
+                            # block_ready hang, orphan error flood
 ```
 
 **Current status:**

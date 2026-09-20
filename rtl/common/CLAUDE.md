@@ -64,7 +64,7 @@ Common blocks are **two** layers, not three: a TB class in
 and no common test imports a scoreboard -- counters, arbiters and CRC blocks
 check against a queue or a computed expectation. Scoreboards in this repo are
 per-protocol: `bin/TBClasses/axi_monitor/`, `apb4_monitor/`, `axi_splitter/`,
-`scoreboards/monbus_group/`.
+`bin/TBClasses/scoreboards/monbus_group/`.
 
 How a TB is composed, and what gate/func/full actually cost in this area:
 `vault/handbook/dv/tb-structure.md`.

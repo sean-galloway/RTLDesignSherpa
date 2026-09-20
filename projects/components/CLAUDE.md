@@ -191,7 +191,7 @@ opened a four-state FSM one section after Pattern 1 said "NO FSM!".
 
 | Shape | Read the real thing | The rule it follows |
 |---|---|---|
-| Streaming datapath, AXI read/write engine | `dmas/stream/rtl/fub/axi_read_engine.sv`, `axi_write_engine.sv` | no FSM in a streaming path -- `vault/handbook/design/streaming-no-fsm.md`, `valid-ready-contracts.md` |
+| Streaming datapath, AXI read/write engine | `dmas/stream/rtl/fub/axi_read_engine.sv`, `axi_write_engine.sv` | no FSM in a streaming path -- `vault/handbook/design/streaming-no-fsm.md`, `vault/handbook/design/valid-ready-contracts.md` |
 | Descriptor-driven engine, scheduler | `dmas/stream/rtl/fub/descriptor_engine.sv`, `dmas/rapids/rtl/fub_beats/descriptor_engine_beats.sv` | keep the state count minimal -- `vault/handbook/design/minimal-fsm.md` |
 | Buffer over SRAM | `dmas/stream/rtl/fub/sram_controller.sv`, `sram_controller_unit.sv` | the SRAM primitive is shared and takes no reset -- `vault/handbook/design/sram-and-memories.md` |
 

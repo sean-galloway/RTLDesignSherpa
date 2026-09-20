@@ -163,7 +163,8 @@ genuinely custom behaviour gets written, and then size decides where it lives:
 | Reuse | several tests | one test |
 | Logic | real protocol state | simple stimulus/response |
 
-RAPIDS has one of each. `dv/components/data_mover_bfm.py` (150+ lines, custom
+RAPIDS has one of each.
+`projects/components/dmas/rapids/dv/components/data_mover_bfm.py` (150+ lines, custom
 data-mover protocol, shared across scheduler tests) was extracted; the ~50-line
 AXI read responder inside `descriptor_engine_tb.py` stays embedded, because the
 framework covers AXI4 properly and the responder is only a test-local stub.
