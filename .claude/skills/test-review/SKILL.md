@@ -5,7 +5,7 @@ description: Auditing test collateral with the review pipeline - what to grab fr
 
 # test-review
 
-READ FIRST: [vault/handbook/dv/test-review.md](../../vault/handbook/dv/test-review.md)
+READ FIRST: [vault/handbook/dv/test-review.md](../../../vault/handbook/dv/test-review.md)
 (the canonical note - grab algorithm, bundle layout, audit checklist, review flow).
 
 All validation collateral descends from one cocotb-based source:
