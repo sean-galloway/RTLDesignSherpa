@@ -94,7 +94,7 @@ before anything else runs:
 | STREAM | `dmas/stream/rtl/stream_regmap.py` (139 regs, 86 of them monitor) |
 | RAPIDS-beats | `dmas/rapids/rtl/*_regmap.py` |
 | pumice (DDR2/LPDDR2) | `memory-controllers/pumice-ddr2-lpddr2/regs/generated/` |
-| observer + slave monitors | `misc/rtl/regs/generated/` (`obs_regs`, `slvmon_regs`) |
+| observer (master + slave roles) | `misc/rtl/regs/generated/` (`obs_regs`) |
 | retro legacy blocks | `retro_legacy_blocks/rtl/{hpet,pic_8259,pit_8254,rtc}/` |
 | board harnesses | e.g. `Genesys2/stream/rtl/harness_csr_regmap.py` |
 

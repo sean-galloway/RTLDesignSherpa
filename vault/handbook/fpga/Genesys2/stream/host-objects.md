@@ -16,7 +16,6 @@ are [[flow-layout]]; this is the object model those rules arrange.
 |---|---|---|---|
 | `stream_env` | `bin/stream_env.py` | nothing -- locates layers | module (import for side effect) |
 | `Stream(Device)` | `bin/stream_device.py` | `stream_top_ch8` via `stream_regs` | device |
-| `SlaveMon(Device)` | `bin/slvmon_device.py` | `dma_slave_monitors` via `slvmon_regs` | device |
 | `CharacterizationRunner` | `bin/characterization.py` | the harness CSRs + a DMA campaign | runner/library |
 | `DescriptorBuilder` | `bin/descriptor_builder.py` | descriptor RAM contents | pure builder |
 | `harness_addrs` / `stream_addrs` | `bin/` | by-name addresses + `compose()` | library |
@@ -68,17 +67,21 @@ A `Device` is `(base address, regmap)`. That is the whole idea, and it is why
 the same class serves sim and silicon -- only the injected bridge differs.
 
 ```python
-slv = SlaveMon(bridge)                      # base 0x0018_0000, slvmon regmap
-slv.arm_threshold("rd", cycles=20)          # by name, never by offset
-slv.classes("rd", compl=False)              # rmw=True underneath
+dma = Stream(bridge, "ch0",                 # base + regmap IS the Device
+             regs_base=0x0000_0000,
+             desc_ram_base=0x0002_0000)
+dma.enable_channel(0)                       # by name, never by offset
+dma.kick(channel=0, desc_addr=0x0002_0000)
 ```
 
 Two rules that keep devices thin:
 
 - **Never hand-roll read-modify-write.** `UartRegisterMap` takes `rmw=True` and
   preserves the unnamed fields. A device that reads every field back and
-  rewrites them is reimplementing the layer below it -- `SlaveMon` did exactly
-  that before review, in three separate methods.
+  rewrites them is reimplementing the layer below it -- the retired
+  slave-monitor device did exactly that before review, in three separate
+  methods. (That device is gone: its window is the slave-role observer on
+  `obs_regs` now, STREAM TASK-073.)
 - **Never name an offset.** The address map is the generated regmap's job. A
   literal offset in a device class is the bug [[registers-by-name]] exists to
   prevent, and it survives every register-map move undetected.

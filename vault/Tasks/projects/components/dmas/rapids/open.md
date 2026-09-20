@@ -57,9 +57,14 @@ on 2026-08-05 that make that cheaper than it was:
   APB slave plus one instantiation, and registers go by name through the
   generated regmap ([[registers-by-name]]).
 
-`dma_slave_monitors` moved the same way and on the same terms (own APB
-regblock, `slvmon_regs`), since rapids-beats uses the monitored-slave wrapper
-too:
+`dma_slave_monitors` is RETIRED (module and filelist both deleted), and its
+`slvmon_regs` regblock was deleted with it on 2026-09-20 as part of STREAM
+TASK-073 -- it was superseded, not merely orphaned: BOTH observer roles now
+instantiate the shared `obs_regs_top`
+(`axi4_intf_master_observer.sv:550`, `axi4_intf_slave_observer.sv:547`).
+So the slave-side half of this adoption is `axi4_intf_slave_observer` +
+`obs_regs`, not the pair named below. The filelist line quoted here no longer
+resolves:
 
     -f $MISC_ROOT/rtl/filelists/axi4_intf_master_observer.f
     -f $MISC_ROOT/rtl/filelists/dma_slave_monitors.f

@@ -22,13 +22,12 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
 - **TASK-080** (Medium) — STREAM formal proofs read a hand-copied
   `gaxi_fifo_sync` (and an orphan package stub), not the RTL; convert
   them to flatten the real module with sv2v, as done for repo-root formal.
-- **TASK-073** (Medium) — build-mon host walks the `slvmon_apb` window with
-  `slvmon_device`'s map, but that window is `u_slave_observer/obs_regs_top`
-  now. Unrelated maps at the same offsets, so it silently writes wrong fields.
-  Fix: retarget the host at obs_regs; the orphaned `slvmon_regs` set then
-  deletes.
 
 ## Closed (done)
+
+- **TASK-073** (Medium) — build-mon host walked `slvmon_apb` with the wrong
+  regmap. Host half was already fixed; the superseded `slvmon_regs` set is
+  now deleted. Done 2026-09-20.
 
 - **TASK-058** (High) — Signal contracts + K-maps for the significant
   STREAM signals. Done 2026-09-20; optional formal SVA not done.

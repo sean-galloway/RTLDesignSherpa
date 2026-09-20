@@ -785,7 +785,11 @@ module stream_harness #(
         .obs_apb_PPROT  (obs_apb_PPROT),   .obs_apb_PRDATA (obs_apb_PRDATA),
         .obs_apb_PREADY (obs_apb_PREADY),  .obs_apb_PSLVERR(obs_apb_PSLVERR),
 
-        // Slave 10: slvmon_apb — dma_slave_monitors' own config regblock.
+        // Slave 10: slvmon_apb — the SLAVE-ROLE observer's config regblock.
+        // Routes to u_slave_observer, which instantiates obs_regs_top (the
+        // same regblock the master observer uses). dma_slave_monitors and its
+        // slvmon_regs are retired; the window name is kept because the bridge
+        // config and host address map both reference it by that name.
         .slvmon_apb_PSEL   (slvmon_apb_PSEL),    .slvmon_apb_PADDR  (slvmon_apb_PADDR),
         .slvmon_apb_PENABLE(slvmon_apb_PENABLE), .slvmon_apb_PWRITE (slvmon_apb_PWRITE),
         .slvmon_apb_PWDATA (slvmon_apb_PWDATA),  .slvmon_apb_PSTRB  (slvmon_apb_PSTRB),

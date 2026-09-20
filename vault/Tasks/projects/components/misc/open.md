@@ -11,7 +11,7 @@ directory.**
 
 **The violation, exactly.** `projects/components/misc/` already has an `rdl/`
 directory holding `dma_address_gen.rdl`, so the convention is established
-here. Three more sit in `rtl/`:
+here. Two more sit in `rtl/`:
 
 **Layout: PER BLOCK** (Sean, 2026-09-04, same call as [[RLB-007]]) --
 `rdl/<block>/<name>.rdl`, not a flat directory:
@@ -19,7 +19,6 @@ here. Three more sit in `rtl/`:
 | File | Current | Belongs |
 |---|---|---|
 | `obs_regs.rdl` | `misc/rtl/` | `misc/rdl/obs/` |
-| `slvmon_regs.rdl` | `misc/rtl/` | `misc/rdl/slvmon/` |
 | `tally_regs.rdl` | `misc/rtl/` | `misc/rdl/tally/` |
 
 Note this also moves the file already in place: `misc/rdl/dma_address_gen.rdl`
@@ -36,8 +35,6 @@ two FPGA builds:
   `misc/dv/tests/fub/test_axi4_intf_observer.py`,
   `misc/dv/tbclasses/axi4_intf_observer_tb.py`,
   `Genesys2/stream/dv/tbclasses/stream_harness_tb.py`
-- `slvmon_regs.rdl` — `misc/rtl/regs/generated/slvmon_regs_top_regmap.py`,
-  `misc/rtl/filelists/slvmon_regs_top.f`
 - `tally_regs.rdl` — `misc/rtl/regs/generated/tally_regs_top_regmap.py`,
   `misc/rtl/filelists/monbus_tally_axil.f`,
   `Genesys2/stream/rtl/filelists/monbus_tally_axil.f`,

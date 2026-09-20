@@ -21,6 +21,5 @@
 -f $REPO_ROOT/projects/components/misc/rtl/filelists/monbus_pkt_tally.f
 -f $REPO_ROOT/projects/components/misc/rtl/filelists/monbus_tally_axil.f
 -f $REPO_ROOT/projects/components/misc/rtl/filelists/simple_rom.f
--f $REPO_ROOT/projects/components/misc/rtl/filelists/slvmon_regs_top.f
 -f $REPO_ROOT/projects/components/misc/rtl/filelists/stream_run_addr_gen.f
 -f $REPO_ROOT/projects/components/misc/rtl/filelists/verilator_xilinx_stubs.f
