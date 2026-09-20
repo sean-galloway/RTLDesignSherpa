@@ -69,8 +69,9 @@ This applies to every generator in the repo, not one component:
   `bin/peakrdl_generate.py` (never raw peakrdl, which skips the docs and
   regmap). Output lands in `<component>/regs/generated/` or
   `<component>/rdl/<block>/generated/`.
-- **Generated bridges** - `projects/components/bridge/bin/bridge_generator.py`,
-  everything under `bin/bridge_pkg/`, and its Jinja templates.
+- **Generated bridges** - `projects/components/bridge/bin/bridge_generator.py`
+  and everything it imports or renders from the same directory (enumerated
+  under "What Counts as Generator Code" below).
 - **Anything else that writes .sv or .py** - including the testbenches and test
   runners a generator emits.
 
@@ -115,9 +116,10 @@ make clean-all && make run-all-func   # ALL tests, not just the one you changed
 Any file whose change alters generated output: the entry point, every module it
 imports, and every template it renders. For bridge that is
 `projects/components/bridge/bin/bridge_generator.py`, every Python file under
-that directory's `bridge_pkg/`, and every Jinja template in its
-`bridge_pkg/jinja_templates/`. For registers it is the
-`.rdl` plus `bin/peakrdl_generate.py`.
+`projects/components/bridge/bin/bridge_pkg/`, and every Jinja template in
+`projects/components/bridge/bin/bridge_pkg/jinja_templates/`. For registers it
+is the `.rdl` plus `bin/peakrdl_generate.py` -- that one IS repo-root `bin/`,
+which is the distinction this file kept getting wrong.
 
 **When in doubt:** delete and regenerate everything.
 
