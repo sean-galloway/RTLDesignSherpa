@@ -27,7 +27,7 @@ the failure that taught it.
   that is where future sessions will look. If no note fits, create one and
   index it; do not park the lesson in a CLAUDE.md or a skill.
 
-## 📖 Global Requirements Reference
+## Global Requirements Reference
 
 **IMPORTANT: All mandatory requirements are consolidated in `/GLOBAL_REQUIREMENTS.md`**
 
@@ -55,9 +55,9 @@ Subsystem files:
 
 ---
 
-## 🚨 CRITICAL RULE #0: Generated File Regeneration Requirements 🚨
+## CRITICAL RULE #0: Generated File Regeneration Requirements
 
-**⚠️ READ THIS FIRST - FAILURE TO FOLLOW CAUSES SILENT TEST FAILURES ⚠️**
+**READ THIS FIRST - FAILURE TO FOLLOW CAUSES SILENT TEST FAILURES**
 
 ### The Absolute Rule for Generated Code
 
@@ -134,12 +134,12 @@ in `vault/handbook/design/generated-rtl-discipline.md`.
 ### Symptoms of Partial Regeneration
 
 If you see these, you probably did partial regeneration:
-- ❌ Tests that previously passed now fail
-- ❌ "Signal not found" errors in simulation
-- ❌ Port width mismatches
-- ❌ Unexpected routing behavior
-- ❌ Missing debug signals
-- ❌ Tests marked as xfail still failing after fix implemented
+- Tests that previously passed now fail
+- "Signal not found" errors in simulation
+- Port width mismatches
+- Unexpected routing behavior
+- Missing debug signals
+- Tests marked as xfail still failing after fix implemented
 
 ### Think Like a Compiler Developer
 
@@ -151,20 +151,20 @@ When you update a generator, you **delete all generated outputs and regenerate a
 
 ---
 
-## 🚨 CRITICAL RULE #0.1: Generated File Directory Organization 🚨
+## CRITICAL RULE #0.1: Generated File Directory Organization
 
-**⚠️ ALL GENERATED FILES MUST BE IN NAMED SUBDIRECTORIES ⚠️**
+**ALL GENERATED FILES MUST BE IN NAMED SUBDIRECTORIES**
 
 ### The Absolute Rule
 
 **Generated code MUST ALWAYS be in its associated named directory. NEVER at the top level.**
 
 ```bash
-# ✅ CORRECT - Generated files in subdirectories
+# CORRECT - Generated files in subdirectories
 projects/components/bridge/rtl/generated/bridge_4x4_rw/bridge_4x4_rw.sv
 projects/components/bridge/rtl/generated/bridge_4x4_rw/bridge_4x4_rw_xbar.sv
 
-# ❌ WRONG - Generated files at top level
+# WRONG - Generated files at top level
 projects/components/bridge/rtl/bridge_4x4_rw.sv       # WRONG!
 projects/components/bridge/rtl/bridge_4x4_rw_xbar.sv  # WRONG!
 ```
@@ -202,17 +202,17 @@ If you find generated files at the top level:
 
 ---
 
-## 📖 Organizational Requirements - See Global Requirements
+## Organizational Requirements - See Global Requirements
 
-**⚠️ READ THIS BEFORE WRITING ANY TESTBENCH CODE ⚠️**
+**READ THIS BEFORE WRITING ANY TESTBENCH CODE**
 
-**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1 for complete TB location requirements
+**See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1 for complete TB location requirements
 
 **Quick Summary - Project-Specific TB Classes:**
-- **RAPIDS:** `projects/components/dmas/rapids/dv/tbclasses/` ✅
-- **STREAM:** `projects/components/dmas/stream/dv/tbclasses/` ✅
-- **Bridge:** `projects/components/bridge/dv/tbclasses/` ✅
-- **Framework (shared only):** `bin/TBClasses/` ✅
+- **RAPIDS:** `projects/components/dmas/rapids/dv/tbclasses/`
+- **STREAM:** `projects/components/dmas/stream/dv/tbclasses/`
+- **Bridge:** `projects/components/bridge/dv/tbclasses/`
+- **Framework (shared only):** `bin/TBClasses/`
 
 **Import Pattern:**
 ```python
@@ -269,10 +269,10 @@ grep -r "module_name" val/
 ```
 
 **Decision Tree:**
-- ✅ Existing module found → Reuse with parameters
-- ✅ Existing module close → Adapt/extend it
-- ⚠️ Existing module insufficient → Document why, then create new
-- ❌ No search performed → STOP, search first!
+- Existing module found → Reuse with parameters
+- Existing module close → Adapt/extend it
+- Existing module insufficient → Document why, then create new
+- No search performed → STOP, search first!
 
 ### Before Writing Testbenches - Check Signal Naming
 
@@ -302,12 +302,12 @@ AXI factory pattern matching searches for signals like `{prefix}ar_valid`, `{pre
 Both match the pattern `desc_*valid` → Factory finds BOTH signals → Initialization fails!
 
 **Workflow:**
-1. ✅ Write RTL module
-2. ✅ **Run audit script to detect conflicts**
-3. ✅ Fix any naming conflicts (rename internal signals)
-4. ✅ Write testbench using factory pattern matching
+1. Write RTL module
+2. **Run audit script to detect conflicts**
+3. Fix any naming conflicts (rename internal signals)
+4. Write testbench using factory pattern matching
 
-**📖 Complete Guide:** `bin/SIGNAL_NAMING_AUDIT.md`
+**Complete Guide:** `bin/SIGNAL_NAMING_AUDIT.md`
 
 ### Writing RTL
 
@@ -388,12 +388,12 @@ demand rather than every session; invoke it before writing or changing a test.
 
 ### AMBA Subsystem
 
-⚠️ **AXI Monitor Packet Congestion**
+**AXI Monitor Packet Congestion**
 - **Issue:** Enabling all packet types simultaneously overwhelms monitor bus
 - **Solution:** Use separate test configurations (see `docs/user-guides/AXI_Monitor_Configuration_Guide.md`)
 - **Rule:** Never enable `cfg_compl_enable` and `cfg_perf_enable` together
 
-⚠️ **Event Reported Feedback**
+**Event Reported Feedback**
 - **Status:** Fixed (historical)
 - **History:** Transaction table exhaustion due to missing feedback
 - **Verification:** Current monitor issues are tracked in `rtl/amba/KNOWN_ISSUES/`
@@ -402,7 +402,7 @@ demand rather than every session; invoke it before writing or changing a test.
 
 ### RAPIDS Subsystem
 
-⚠️ **Scheduler Credit Counter Bug (historical, pre-beats scheduler)**
+**Scheduler Credit Counter Bug (historical, pre-beats scheduler)**
 - **Issue:** Credit counter initialized to 0 instead of `cfg_initial_credit`
 - **Status:** Obsolete - the rearchitected beats scheduler
   (`projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv`) has no credit
@@ -410,7 +410,7 @@ demand rather than every session; invoke it before writing or changing a test.
 
 ### General RTL
 
-⚠️ **Reset Convention**
+**Reset Convention**
 - Active-low asynchronous reset everywhere; never a positive-polarity `rst`
   or `reset`.
 - The NAME is per area: `aresetn` in `rtl/amba` and the projects, `rst_n` in
@@ -418,12 +418,12 @@ demand rather than every session; invoke it before writing or changing a test.
   `vault/handbook/design/reset-and-clocking.md`.
 - Synchronize resets internally if needed
 
-⚠️ **Parameter Overrides**
+**Parameter Overrides**
 - Check instantiation parameters match module definition
 - Document parameter dependencies (e.g., `DATA_WIDTH` must be power of 2)
 - Use `localparam` for derived parameters
 
-⚠️ **FIFO Depth**
+**FIFO Depth**
 - Always make FIFO depths power of 2 for efficient addressing
 - Document minimum depth requirements
 - Consider backpressure scenarios
