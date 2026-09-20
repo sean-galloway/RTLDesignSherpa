@@ -1,7 +1,7 @@
 # Claude Code Guide for RTL Design Sherpa
 
-**Version:** 1.1
-**Last Updated:** 2026-07-22
+**Version:** 1.3
+**Last Updated:** 2026-09-20
 **Purpose:** Help Claude Code work efficiently with this repository
 
 ---
@@ -67,8 +67,8 @@ This applies to every generator in the repo, not one component:
 
 - **PeakRDL regblocks** - any `.rdl` change, regenerated through
   `bin/peakrdl_generate.py` (never raw peakrdl, which skips the docs and
-  regmap). Output lands in a component's `regs/generated/` or
-  `rdl/<block>/generated/`.
+  regmap). Output lands in `<component>/regs/generated/` or
+  `<component>/rdl/<block>/generated/`.
 - **Generated bridges** - `projects/components/bridge/bin/bridge_generator.py`,
   everything under `bin/bridge_pkg/`, and its Jinja templates.
 - **Anything else that writes .sv or .py** - including the testbenches and test
@@ -114,8 +114,9 @@ make clean-all && make run-all-func   # ALL tests, not just the one you changed
 
 Any file whose change alters generated output: the entry point, every module it
 imports, and every template it renders. For bridge that is
-`bin/bridge_generator.py`, every Python file under `bin/bridge_pkg/`, and every
-Jinja template in `bin/bridge_pkg/jinja_templates/`. For registers it is the
+`projects/components/bridge/bin/bridge_generator.py`, every Python file under
+that directory's `bridge_pkg/`, and every Jinja template in its
+`bridge_pkg/jinja_templates/`. For registers it is the
 `.rdl` plus `bin/peakrdl_generate.py`.
 
 **When in doubt:** delete and regenerate everything.
@@ -228,17 +229,19 @@ from TBClasses.shared.tbbase import TBBase
 
 ### Starting a New Session
 
-1. **Read the PRD** for the subsystem you're working on:
-   - Root `/PRD.md` - Overall project goals
-   - `rtl/{subsystem}/PRD.md` - Subsystem-specific requirements
+1. **Read the PRD.** Root `/PRD.md` for project goals. Component areas carry
+   their own at `projects/components/<name>/PRD.md`. The `rtl/` subsystems do
+   NOT -- there is no `rtl/amba/PRD.md`, `rtl/common/PRD.md` or
+   `rtl/math/PRD.md`, and there never has been.
 
-2. **Check TASKS.md** for current priorities:
-   - `rtl/{subsystem}/TASKS.md` - Active work items
-   - Understand dependencies and status
+2. **Check the task tracker.** Work items live in `vault/Tasks/<area>/`, split
+   into `open.md` / `active.md` / `closed.md` / `dropped.md` with an
+   `INDEX.md` carrying the counts. Some components also keep a local
+   `TASKS.md`; the `rtl/` subsystems do not.
 
-3. **Review KNOWN_ISSUES/** before modifying RTL:
-   - `rtl/{subsystem}/KNOWN_ISSUES/` - Documented bugs and workarounds
-   - Avoid wasting time on known limitations
+3. **Review known issues** before modifying RTL. `rtl/amba/KNOWN_ISSUES/` and
+   `projects/components/<name>/known_issues/` exist; `rtl/common` and
+   `rtl/math` have none.
 
 4. **Read subsystem CLAUDE.md** for area facts:
    - `rtl/{subsystem}/CLAUDE.md` - module inventory, interfaces, traps
@@ -316,8 +319,14 @@ Both match the pattern `desc_*valid` → Factory finds BOTH signals → Initiali
 - **Internal signals:** `snake_case` with prefix
   - Registers: `r_*` (e.g., `r_counter`, `r_state`)
   - Wires: `w_*` (e.g., `w_sum`, `w_match`)
-- **Reset:** Always `aresetn` (active-low asynchronous reset)
-- **Clock:** `aclk` for AXI/AMBA, `i_clk` for common modules
+- **Clock and reset names are PER AREA, and the tree is the authority.**
+  Measured across module ports: `rtl/amba` is `aclk`/`aresetn` (109/122), plus
+  `pclk`/`presetn` on APB (16 each); `rtl/common` is **`clk`/`rst_n`** (30/25)
+  and has no `i_clk` and no `i_rst_n` anywhere. An `.i_rst_n(...)` connection
+  against an `rtl/common` module will not elaborate. The `i_*`/`o_*` prefixes
+  above are for data ports; clock and reset are not prefixed.
+  Detail and the failures behind it:
+  `vault/handbook/design/reset-and-clocking.md`.
 
 ### Writing Tests
 
@@ -400,8 +409,11 @@ demand rather than every session; invoke it before writing or changing a test.
 ### General RTL
 
 ⚠️ **Reset Convention**
-- Always use `aresetn` (active-low asynchronous reset)
-- Never use `rst` or `reset` (positive reset)
+- Active-low asynchronous reset everywhere; never a positive-polarity `rst`
+  or `reset`.
+- The NAME is per area: `aresetn` in `rtl/amba` and the projects, `rst_n` in
+  `rtl/common`. See "Writing RTL" above and
+  `vault/handbook/design/reset-and-clocking.md`.
 - Synchronize resets internally if needed
 
 ⚠️ **Parameter Overrides**
@@ -428,6 +440,13 @@ demand rather than every session; invoke it before writing or changing a test.
   loads when a test is in scope rather than every session. 1032 -> 400 lines. What stayed
   is what the codebase cannot tell you: the regeneration rules, TB placement, naming and
   reset conventions, and the gotchas.
+- v1.3 (2026-09-20): Rule #0's workflow named five generators of which four no
+  longer existed, and told you to `rm bridge_*.sv` at a path Rule #0.1 forbids;
+  replaced with `make regen`, `--generate-tests` and `peakrdl_generate.py -o`,
+  and widened from bridge-only to the two live generated families. Session
+  startup pointed at `rtl/<subsystem>/PRD.md` and `TASKS.md`, which exist for
+  no subsystem; it points at `vault/Tasks/<area>/` now. The naming section
+  claimed "always `aresetn`" and "`i_clk` for common modules" -- measured, it
+  is `clk`/`rst_n` in `rtl/common`, with zero of either.
 
 **Maintained By:** RTL Design Sherpa Project
-**Last Review:** 2026-07-22
