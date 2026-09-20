@@ -191,8 +191,8 @@ in the same sweep. A regression run costs five minutes and reports these as
 *The rule: after changing a generator, enumerate the topologies it emits and
 assert a structural invariant over ALL generated output before simulating.
 The blast radius of a generator edit is every shape it can produce, not the
-one you were looking at.* The same failure shape appears when editing
-hand-written shared RTL.
+one you were looking at.* See [[feedback_confirm_scope_shared_rtl]] for the
+same failure in hand-written shared RTL.
 
 Related: [[filelists]] (the same one-source rule for compile closures);
 the kimi-review-rounds rule 6 case in `vault/handbook/authoring/` — "fix the
