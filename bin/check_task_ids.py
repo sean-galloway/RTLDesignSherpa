@@ -59,7 +59,13 @@ FENCE = re.compile(r"^\s*(`{3,}|~{3,})\s*(\S*)")
 # Tolerant on purpose: the line is written by humans, so accept bold either
 # side of the colon and any trailing prose after the ID.
 NEXT_ID = re.compile(r"Next ID\**\s*:\s*\**\s*([A-Z][A-Z0-9]*-(\d+))")
-STATUS = re.compile(r"^\*\*Status:\*\*\s*(\w+)", re.M)
+# [^\w\n]* not \s*: a Status line led by an emoji ("**Status:** <glyph> CLOSED")
+# made this regex fail to match at all, so `status` came back empty and the
+# terminal-page check below was skipped entirely -- silently, on 37 entries.
+# Removing the emojis un-blinded it and it immediately found 23 real
+# mismatches. Skip any leading non-word characters so a future glyph cannot
+# disable the gate again. Note it still captures only the FIRST word.
+STATUS = re.compile(r"^\*\*Status:\*\*[^\w\n]*(\w+)", re.M)
 
 # Pre-existing duplicates, recorded 2026-08-28. Grandfathered so the check
 # can enforce immediately; do NOT add to this list to silence a new clash --
@@ -71,7 +77,7 @@ KNOWN_COLLISIONS = {
 }
 
 # closed.md / dropped.md bodies should not claim to be live.
-TERMINAL_PAGES = {"closed.md": ("closed", "done", "resolved", "fixed"),
+TERMINAL_PAGES = {"closed.md": ("closed", "complete", "done", "resolved", "fixed"),
                   "dropped.md": ("dropped", "superseded", "wontfix")}
 
 

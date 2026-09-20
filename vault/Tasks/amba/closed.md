@@ -482,7 +482,7 @@ are invisible to the filename convention.
 
 ## TASK-065: SPLIT axi4_intf_observer into master + slave versions; retire the original and dma_slave_monitors
 **Priority:** P1
-**Status:** BOTH HALVES DONE (re-measured 2026-08-31). The retirement
+**Status:** DONE -- both halves (re-measured 2026-08-31). The retirement
 completed itself while the page went stale -- again. One NEW defect fell out of
 the re-measurement; see the end of this entry.
 **Owner:** TBD
