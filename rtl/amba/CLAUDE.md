@@ -50,7 +50,9 @@ All mandatory requirements are consolidated in the global requirements document:
 
 This CLAUDE.md provides AMBA-specific guidance. Also review:
 - Root `/CLAUDE.md` - Repository-wide patterns
-- `docs/markdown/TBClasses/tbclasses_index.md` - Framework usage patterns (full framework lives in the RTLDesignSherpa-DV repo)
+- RDS-DV framework docs: `../RTLDesignSherpa-DV/docs/components/<family>/`
+  (published at sean-galloway.github.io/RTLDesignSherpa-DV) - per-protocol BFM
+  and monitor usage. `docs/markdown/TBClasses/` does not exist.
 - `docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns
 
 ---
