@@ -36,10 +36,21 @@ Before working in this repository, review the global requirements document:
 - **Contents:** All MANDATORY requirements extracted from all CLAUDE.md files
 - **Organization:** Categorized by RTL standards, testbench architecture, test standards, framework usage, and documentation
 
-This CLAUDE.md provides repository-wide guidance and examples. For subsystem-specific details, see:
-- `projects/components/CLAUDE.md` - Project area standards
-- `projects/components/{name}/CLAUDE.md` - Component-specific guidance
-- `rtl/{subsystem}/CLAUDE.md` - Subsystem-specific guidance
+This CLAUDE.md provides repository-wide guidance and examples.
+
+**A subsystem CLAUDE.md holds AREA FACTS and REFERENCES THE VAULT for
+method.** What belongs beside the code: block inventories, module/interface
+quick reference, address maps, known issues, and the traps particular to
+that directory. What does NOT: how to write a TB, how to run a regression,
+naming conventions, doc standards, regeneration discipline -- those live in
+`vault/handbook/` and a subsystem file links to the note rather than
+restating it. A restated rule is a copy nobody reconciles, and the copy
+nobody edits is the one the next session reads.
+
+Subsystem files:
+- `projects/components/CLAUDE.md` - project area facts
+- `projects/components/{name}/CLAUDE.md` - component area facts
+- `rtl/{subsystem}/CLAUDE.md` - subsystem area facts
 - DV framework patterns: shared TB classes live in `bin/TBClasses/`; the full CocoTB framework (BFMs, monitors) is the separate RTLDesignSherpa-DV repo (editable-installed into the venv)
 
 ---
@@ -219,9 +230,10 @@ from TBClasses.shared.tbbase import TBBase
    - `rtl/{subsystem}/KNOWN_ISSUES/` - Documented bugs and workarounds
    - Avoid wasting time on known limitations
 
-4. **Read subsystem CLAUDE.md** for specific guidance:
-   - `rtl/{subsystem}/CLAUDE.md` - Module-specific tips
-   - Common patterns and anti-patterns
+4. **Read subsystem CLAUDE.md** for area facts:
+   - `rtl/{subsystem}/CLAUDE.md` - module inventory, interfaces, traps
+   - For METHOD it will point you at `vault/handbook/` - follow the link;
+     the note is canonical and the CLAUDE.md is not a second copy of it
 
 ### Before Creating New RTL
 
