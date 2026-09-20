@@ -315,6 +315,39 @@ resolved fine; the real cause was a mis-ordered `ReadOnly`/`RisingEdge`), and
 believing it cost a debugging round. Instrument and print the actual values
 before adopting an explanation for why a watcher saw nothing.
 
+### 18. A parser that cannot read a line reports nothing, not a problem
+
+`bin/check_task_ids.py` flags a task filed into `closed.md` whose body still
+says it is open. It read the status with
+
+    STATUS = re.compile(r"^\*\*Status:\*\*\s*(\w+)", re.M)
+
+and the caller guarded on truthiness: `if want and status and not
+status.startswith(want)`. A line the regex could not match yielded an empty
+status, so the check was **skipped** -- no output, no warning, exit 0.
+
+Two prefixes in live use defeated it, neither of them exotic:
+
+- `**Status:** <emoji> CLOSED 2026-09-15` -- 37 lines in `vault/Tasks/amba/closed.md`
+- `**Status:** [x] Done (2026-09-20)` -- 13 lines using a markdown checkbox
+
+So roughly **50 of the tracker's 277 status lines were never checked**, and the
+gate printed zero warnings throughout. Removing the emojis for an unrelated
+reason (2026-09-20) made the first group parseable and 23 real mismatches
+appeared at once; skipping the checkbox exposed the rest. Note the shape of the
+mistake in between: the first fix matched the checkbox lines but captured the
+box letter, so the gate then reported that a body "says `**Status:** x`" --
+true of the regex, meaningless to a reader.
+
+The number that mattered was never the warning count. It was coverage: 277 of
+277 lines readable now, against about 227 before.
+
+**A checker must report what it could not read.** An unparsed input is a third
+outcome, distinct from pass and fail, and a truthiness guard collapses it into
+pass. Count the inputs you matched and compare with the inputs you found; if
+they differ, say so. `0 warnings` from a gate that parsed 82% of its input is
+not evidence that the data is clean.
+
 ## The single question
 
 Before believing any zero, ask: **if the thing I am looking for were happening,
