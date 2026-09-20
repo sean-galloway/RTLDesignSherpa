@@ -1851,8 +1851,8 @@ alongside).
 
 ## Waveforms
 
-![APB Write](../../../assets/WAVES/apb4_slave/apb_write_sequence_001.png)
-**WaveJSON:** [apb_write_sequence_001.json](../../../assets/WAVES/apb4_slave/apb_write_sequence_001.json)
+![APB Write](../../../docs/markdown/assets/WAVES/apb4_slave/apb_write_sequence_001.png)
+**WaveJSON:** [apb_write_sequence_001.json](../../../docs/markdown/assets/WAVES/apb4_slave/apb_write_sequence_001.json)
 
 **Implementation Phases:**
 

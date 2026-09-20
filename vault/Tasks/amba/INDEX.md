@@ -91,7 +91,6 @@ start in `open.md` (or `active.md` if you're starting immediately).
 
 - Enforcement authority: [/GLOBAL_REQUIREMENTS.md](../../../GLOBAL_REQUIREMENTS.md)
 - Subsystem: [rtl/amba/CLAUDE.md](../../../rtl/amba/CLAUDE.md),
-  [rtl/amba/PRD/PRD-AMBA.md](../../../rtl/amba/PRD/PRD-AMBA.md),
   [rtl/amba/KNOWN_ISSUES/](../../../rtl/amba/KNOWN_ISSUES/)
 - Standing plans kept as their own docs: `rtl/amba/PRD/TASK-008-*`,
   `TASK-016-*` (implementation notes, not lifecycle items)

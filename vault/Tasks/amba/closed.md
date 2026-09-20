@@ -4462,9 +4462,9 @@ from an unseeded `FlexRandomizer` -- was fixed in c25a2b4c and is unchanged.
 
 ---
 
-## OBS-PORTS — OPEN on the board-code residue (the monitor side is done, measured 2026-08-30)
+## OBS-PORTS — monitor side done (measured 2026-08-30); board-code residue noted
 
-**Status:** the telemetry ports are GONE and the regblock owns them. Landed
+**Status:** CLOSED 2026-09-15 — the telemetry ports are GONE and the regblock owns them. Landed
 in f1847268, "feat(observers): both roles in the harness, telemetry behind the
 regblock". Was: open 2026-08-16.
 
