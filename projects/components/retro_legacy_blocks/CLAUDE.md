@@ -46,24 +46,6 @@
 
 ## Critical Rules for All Blocks
 
-### Rule #0: Attribution Format for Git Commits
-
-**IMPORTANT:** When creating git commit messages for retro_legacy_blocks documentation or code:
-
-**Use:**
-```
-Documentation and implementation support by Claude.
-```
-
-**Do NOT use:**
-```
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Rationale:** Retro Legacy Blocks receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
-
----
-
 ### Rule #0.1: Reset Macro Standards - MANDATORY FOR ALL BLOCKS
 
 **⚠️ ALL BLOCKS MUST USE RESET MACROS - NO EXCEPTIONS ⚠️**

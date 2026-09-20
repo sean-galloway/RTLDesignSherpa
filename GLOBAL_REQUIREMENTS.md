@@ -537,45 +537,29 @@ find bin/TBClasses/ -name "*_tb.py"
 
 ## Category 6: Project-Specific Requirements
 
-### 6.1 RAPIDS Attribution Format
+### 6.1 Commit Messages Carry No Attribution Trailer
 
-**Requirement:** Use specific attribution format for RAPIDS
+**Requirement:** A commit message is the change and nothing else. No
+`Co-Authored-By:`, no `Claude-Session:`, no "generated with" line, and no
+"Documentation and implementation support by Claude."
 
-**Use:**
-```
-Documentation and implementation support by Claude.
-```
+**Applies to:** every commit in this repo, every area, no exceptions.
+**Decided:** 2026-08-31 (owner). Supersedes the former per-component
+attribution formats that lived here as 6.1/6.2 and in six CLAUDE.md files;
+those required a trailer and contradicted this. Practice already matched
+this rule -- the twenty commits before it was written carried zero trailers
+-- but the rule itself was recorded nowhere in the repo, so every session
+rediscovered the conflict. It is written down here to stop that.
 
-**Do NOT use:**
-```
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
+**Not enforced by tooling.** No commit-msg hook exists; `bin/hooks/pre-commit`
+checks task IDs, declaration order, protocol families, scenario verdicts, doc
+examples and .sv parse. This one is on the author.
 
-**Applies to:** RAPIDS git commits only
-**Source:** `rapids/CLAUDE.md` Rule #0
-
----
-
-### 6.2 STREAM Attribution Format
-
-**Requirement:** Use specific attribution format for STREAM
-
-**Use:**
-```
-Documentation and implementation support by Claude.
-```
-
-**Do NOT use:**
-```
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Applies to:** STREAM git commits only
-**Source:** `stream/CLAUDE.md` Rule #0
+Rationale and the history: `vault/handbook/authoring/commit-messages.md`.
 
 ---
 
-### 6.3 STREAM Tutorial Focus
+### 6.2 STREAM Tutorial Focus
 
 **Requirement:** STREAM has intentional simplifications - DO NOT "fix" them
 
@@ -624,9 +608,8 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ### P3 - Project-Specific
 
-17. ✅ RAPIDS attribution format
-18. ✅ STREAM attribution format
-19. ✅ STREAM tutorial focus
+17. ✅ No attribution trailer on commit messages
+18. ✅ STREAM tutorial focus
 
 ---
 
@@ -659,7 +642,7 @@ Use this checklist when creating new RTL or testbenches:
 
 **Documentation:**
 - [ ] No emojis in technical specs
-- [ ] Correct attribution format (if RAPIDS/STREAM)
+- [ ] Commit message carries no attribution trailer
 
 ---
 

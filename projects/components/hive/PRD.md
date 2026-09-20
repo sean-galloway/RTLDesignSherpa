@@ -379,26 +379,6 @@ HIVE demonstrates:
 
 ---
 
-## 12. Attribution and Contribution Guidelines
-
-### 12.1 Git Commit Attribution
-
-When creating git commits for HIVE documentation or implementation:
-
-**Use:**
-```
-Documentation and implementation support by Claude.
-```
-
-**Do NOT use:**
-```
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Rationale:** HIVE documentation and organization receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
-
----
-
 ## 13. Documentation Generation
 
 ### 13.1 Generating PDF/DOCX from Specification

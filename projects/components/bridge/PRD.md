@@ -1069,26 +1069,6 @@ Configuration:
 
 ---
 
-## 12. Attribution and Contribution Guidelines
-
-### 12.1 Git Commit Attribution
-
-When creating git commits for Bridge documentation or implementation:
-
-**Use:**
-```
-Documentation and implementation support by Claude.
-```
-
-**Do NOT use:**
-```
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Rationale:** Bridge documentation and organization receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
-
----
-
 ## 12.2 PDF Generation Location
 
 **IMPORTANT: PDF files should be generated in the docs directory:**

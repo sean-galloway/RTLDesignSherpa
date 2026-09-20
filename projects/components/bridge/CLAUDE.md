@@ -438,22 +438,6 @@ classes are generated per bridge configuration alongside the RTL).
 
 ## Critical Rules for This Subsystem
 
-### Rule #0: Attribution Format for Git Commits
-
-**IMPORTANT:** When creating git commit messages for Bridge documentation or code:
-
-**Use:**
-```
-Documentation and implementation support by Claude.
-```
-
-**Do NOT use:**
-```
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Rationale:** Bridge receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
-
 ### Rule #0.1: Testbench Architecture - MANDATORY SEPARATION
 
 **THIS IS A HARD REQUIREMENT - NO EXCEPTIONS**

@@ -533,26 +533,6 @@ Tree depth: log2(N) stages
 
 ---
 
-## 15. Attribution and Contribution Guidelines
-
-### 15.1 Git Commit Attribution
-
-When creating git commits for Delta documentation or implementation:
-
-**Use:**
-```
-Documentation and implementation support by Claude.
-```
-
-**Do NOT use:**
-```
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Rationale:** Delta documentation and organization receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
-
----
-
 ## 16. Documentation Generation
 
 ### 16.1 Generating PDF/DOCX from Specification

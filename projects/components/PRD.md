@@ -790,11 +790,12 @@ Brief description (50 chars or less)
 More detailed explanation if needed. Wrap at 72 characters.
 - Bullet points for multiple changes
 - Link to issues or PRs
-
-Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
 ```
+
+**No attribution trailer.** No `Generated with`, no `Co-Authored-By:`, no
+`Claude-Session:`. The message is the change and nothing else --
+`/GLOBAL_REQUIREMENTS.md` 6.1, and `vault/handbook/authoring/commit-messages.md`
+for why this template used to say the opposite.
 
 ### 7.2 Branch Strategy
 

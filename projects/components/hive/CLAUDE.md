@@ -41,22 +41,6 @@
 
 ## Critical Rules for This Component
 
-### Rule #1: Attribution Format for Git Commits
-
-**IMPORTANT:** When creating git commit messages for HIVE documentation or code:
-
-**Use:**
-```
-Documentation and implementation support by Claude.
-```
-
-**Do NOT use:**
-```
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Rationale:** HIVE is a distributed control system specification where Claude provides documentation organization and implementation assistance, not co-authorship of the underlying design concepts.
-
 ### Rule #2: Always Reference Complete Specification
 
 **This subsystem has extensive documentation in** `projects/components/hive/docs/hive_spec/`
@@ -350,13 +334,12 @@ The shell script will automatically:
 ## Remember
 
 1. 📖 **Link to detailed spec** - `docs/hive_spec/` has complete architecture
-2. 🏷️ **Use correct attribution** - "Documentation and implementation support by Claude"
-3. 🎯 **Hierarchical architecture** - HIVE-C (master) + 16 SERV monitors (agents)
-4. 🔌 **Virtual tiles** - RAPIDS=16, HIVE-C=17 in Delta Network topology
-5. 📊 **Four packet types** - PKT_DATA, CDA, PKT_CONFIG, PKT_STATUS
-6. 🔄 **Configuration contexts** - 4 virtual routing modes with atomic switching
-7. 📡 **Control network** - Separate star topology for HIVE-C ↔ SERV communication
-8. 🎛️ **Monitoring** - Per-tile traffic stats, congestion detection, error reporting
+2. 🎯 **Hierarchical architecture** - HIVE-C (master) + 16 SERV monitors (agents)
+3. 🔌 **Virtual tiles** - RAPIDS=16, HIVE-C=17 in Delta Network topology
+4. 📊 **Four packet types** - PKT_DATA, CDA, PKT_CONFIG, PKT_STATUS
+5. 🔄 **Configuration contexts** - 4 virtual routing modes with atomic switching
+6. 📡 **Control network** - Separate star topology for HIVE-C ↔ SERV communication
+7. 🎛️ **Monitoring** - Per-tile traffic stats, congestion detection, error reporting
 
 ---
 

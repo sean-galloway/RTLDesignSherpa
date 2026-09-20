@@ -67,22 +67,6 @@ This CLAUDE.md provides RAPIDS-specific guidance. Also review:
 
 ## Critical Rules for This Subsystem
 
-### Rule #0: Attribution Format for Git Commits
-
-**IMPORTANT:** When creating git commit messages for RAPIDS documentation or code:
-
-**Use:**
-```
-Documentation and implementation support by Claude.
-```
-
-**Do NOT use:**
-```
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Rationale:** RAPIDS receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
-
 ### Rule #0.1: Testbench Location and Test Structure (MANDATORY)
 
 **📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1 for complete requirement

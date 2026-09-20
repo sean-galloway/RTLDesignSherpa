@@ -41,22 +41,6 @@
 
 ## Critical Rules for This Component
 
-### Rule #1: Attribution Format for Git Commits
-
-**IMPORTANT:** When creating git commit messages for Delta documentation or code:
-
-**Use:**
-```
-Documentation and implementation support by Claude.
-```
-
-**Do NOT use:**
-```
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Rationale:** Delta is a network-on-chip specification project where Claude provides documentation organization and implementation assistance, not co-authorship of the underlying design concepts.
-
 ### Rule #2: Always Reference Complete Specification
 
 **This subsystem has extensive documentation in** `projects/components/delta/docs/delta_spec/`
@@ -295,12 +279,11 @@ The shell script will automatically:
 ## Remember
 
 1. 📖 **Link to detailed spec** - `docs/delta_spec/` has complete architecture
-2. 🏷️ **Use correct attribution** - "Documentation and implementation support by Claude"
-3. 🔀 **Clarify which Delta** - Network-on-Chip (NEW) vs AXIS Crossbar (older)
-4. 🎯 **Four packet types** - DATA, DESC, CONFIG, STATUS with different routing rules
-5. 🗺️ **XY routing** - Deadlock-free dimension-ordered routing
-6. 🔌 **Virtual tiles** - RAPIDS=16, HIVE-C=17 for external entities
-7. 📊 **Chapter organization** - Follows RAPIDS/STREAM convention
+2. 🔀 **Clarify which Delta** - Network-on-Chip (NEW) vs AXIS Crossbar (older)
+3. 🎯 **Four packet types** - DATA, DESC, CONFIG, STATUS with different routing rules
+4. 🗺️ **XY routing** - Deadlock-free dimension-ordered routing
+5. 🔌 **Virtual tiles** - RAPIDS=16, HIVE-C=17 for external entities
+6. 📊 **Chapter organization** - Follows RAPIDS/STREAM convention
 
 ---
 

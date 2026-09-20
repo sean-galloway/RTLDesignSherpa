@@ -962,26 +962,6 @@ RAPIDS demonstrates:
 
 ---
 
-## 15. Attribution and Contribution Guidelines
-
-### 15.1 Git Commit Attribution
-
-When creating git commits for RAPIDS documentation or implementation:
-
-**Use:**
-```
-Documentation and implementation support by Claude.
-```
-
-**Do NOT use:**
-```
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Rationale:** RAPIDS documentation and organization receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
-
----
-
 ## 16. Documentation Generation
 
 ### 16.1 Generating PDF/DOCX from Specification
