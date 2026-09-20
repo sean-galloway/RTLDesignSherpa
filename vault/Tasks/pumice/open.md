@@ -350,6 +350,55 @@ board numbers are the only place these limits are visible.
 sim"; this is the case that proves the cost of not doing it. A suite that
 cannot express the shipping geometry cannot gate it.
 
+### 2026-09-20 (later): the sweep half is DONE -- 041 was the only instance
+
+`bin/check_pinned_rtl_params.py` (new) decides, for every value in a
+`parameters=` dict, whether it is reachable from the enclosing function's
+arguments or locals. Unreachable means the elaborated RTL cannot vary per test,
+which is the PUMICE-041 shape. It carries a `--self-test` that reconstructs
+that defect in six lines and requires the checker to fail on it -- run on every
+invocation, because a checker that cannot fail reports "0 violations" over a
+suite it is not inspecting.
+
+Repo-wide, 582 test files: **2012 RTL parameters examined, 888 pinned, 0 pinned
+with a parametrized twin.** Three candidates surfaced before the twin rule was
+tightened (`MECID_WIDTH`/`NSAID_WIDTH` vs `id_width`, `APB_DATA_WIDTH` vs
+`data_width`) and all three were substring collisions between genuinely
+independent quantities; the rule now suppresses a twin that already supplies
+some other parameter in the same dict. **PUMICE-041 was the only instance of
+the bug class.**
+
+### What the sweep found instead: pinned values that are not the board's
+
+The bug class is closed; the geometry gap is not, and it is wider than this
+task recorded. Board truth is `build-perf/rtl/ddr2_char_top.sv` (ROW_WIDTH 13
+at line 37, the rest at 216-233):
+
+| parameter | board | what the unit suite elaborates |
+|---|---|---|
+| ROW_WIDTH | **13** | 14 (every test) |
+| DRAM_BEAT_WIDTH | **32** | 64 |
+| DRAM_DEVICE_WIDTH | **16** | 64 (defaults to beat width) |
+| DRAM_BL | **4** | 8 |
+| DFI_DATA_WIDTH | **64** | 128 (`dfi_rd_aligner`, `dfi_wr_serializer`) |
+| DFI_RATE | 2 | 2, except `dfi_cmd_path` at 4 |
+| COL_WIDTH / NUM_BANKS / NUM_RANKS / AXI_ID_WIDTH / AXI_DATA_WIDTH | 10 / 8 / 1 / 8 / 64 | match |
+
+**ROW_WIDTH=13 is new** -- this task only ever named beat/BL/device width. The
+harness overrides it deliberately ("so it never issues an out-of-range row"),
+so 13 is the shipping width of the address mapper and no sim has elaborated it.
+`test_addr_mapper` now takes `TEST_ROW_WIDTH` (default 14, unchanged) and is
+**clean at 13**: 5 passed at each, with the elaborated value confirmed
+different out of the build (`ROW_WIDTH = 0x0000000e` vs `0x0000000d`) so the
+override is load-bearing rather than a no-op.
+
+**Still to do** is the original "Do" item, unchanged: the core suite at
+`TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16`, still blocked on the
+two failures above (`read_ceiling` trips the rd-return checker, `write_ceiling`
+stalls W for 1409 cycles against a board that sustains ~95%) -- both in the
+testbench or its DFI model, not the DUT. `DFI_DATA_WIDTH` 128 vs 64 and
+`dfi_cmd_path`'s DFI_RATE=4 are newly-named and not yet investigated.
+
 ---
 
 ## PUMICE-006 — QoS + advanced scheduling (post-cleanup)

@@ -167,6 +167,13 @@ def test_addr_mapper(request, test_type):
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 
+    # Board geometry is ROW_WIDTH=13 (MT47H64M16, A0-A12); the suite has always
+    # elaborated 14. Overridable so the shipping row width is reachable without
+    # changing the default -- same convention as TEST_DRAM_BEAT / TEST_DRAM_BL
+    # (PUMICE-028). Both the env (testbench) and the parameters (RTL) read this
+    # ONE value: splitting them is exactly how PUMICE-041 built the wrong DUT.
+    row_width = os.environ.get("TEST_ROW_WIDTH", "14")
+
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -177,7 +184,7 @@ def test_addr_mapper(request, test_type):
         "AXI_ADDR_WIDTH":    "32",
         "NUM_RANKS":         "1",
         "NUM_BANKS":         "8",
-        "ROW_WIDTH":         "14",
+        "ROW_WIDTH":         row_width,
         "COL_WIDTH":         "10",
         "BYTE_OFFSET_WIDTH": "3",
         "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
@@ -190,7 +197,7 @@ def test_addr_mapper(request, test_type):
         "AXI_ADDR_WIDTH":    "32",
         "NUM_RANKS":         "1",
         "NUM_BANKS":         "8",
-        "ROW_WIDTH":         "14",
+        "ROW_WIDTH":         row_width,
         "COL_WIDTH":         "10",
         "BYTE_OFFSET_WIDTH": "3",
     }
