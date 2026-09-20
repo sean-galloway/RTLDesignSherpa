@@ -25,10 +25,10 @@ export STREAM_ROOT=$REPO_ROOT/projects/components/dmas/stream
 # depends on which flow is driving (stream_char_framework vs ddr2_char_framework).
 # That name is deliberately NOT defined here: one global value would be silently
 # wrong for the other flow. Filelists should use the unambiguous names below.
-export STREAM_CHAR_ROOT=$REPO_ROOT/projects/NexysA7/stream_characterization/flows-stream-bridge
-export STREAM_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework
+export STREAM_CHAR_ROOT=$REPO_ROOT/projects/fpga-systems/Genesys2/stream
+export STREAM_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/fpga-systems/Genesys2/stream
 export DDR2_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework
-export TIMING_CHAR_ROOT=$REPO_ROOT/projects/NexysA7/timing_characterization
+export TIMING_CHAR_ROOT=$REPO_ROOT/projects/asic-trials/timing_characterization
 
 # Activate venv (use absolute path from REPO_ROOT)
 source $REPO_ROOT/venv/bin/activate
@@ -84,14 +84,31 @@ if [ -f "/mnt/data/tools/sv2v" ]; then
 fi
 fi
 
-# Use Verilator 5.020 for simulation (newer versions have bugs with
-# cocotb VCD/FST generation). The oss-cad-suite bundles 5.045 but we
-# override it here so only verilator is affected — yosys, symbiyosys,
-# gtkwave etc. still come from oss-cad-suite.
+# Verilator: use the oss-cad-suite build (5.045), already on PATH above.
+#
+# This USED to pin 5.020 with the note "newer versions have bugs with cocotb
+# VCD/FST generation". That no longer reproduces, and the pin had started
+# costing more than it bought:
+#   - 5.020 cannot build the Genesys 2 stream harness at all once
+#     projects/components/misc/rtl/obs_regs.rdl grew. It emits invalid C++ for
+#     the PeakRDL hwif struct port copy:
+#       error: cannot convert 'V..._in_t__struct__0' to 'CData'
+#     The same observers + the same regblock build fine STANDALONE on 5.020,
+#     so it is not the register block; it is something about the harness that
+#     was never root-caused.
+#   - 5.045 builds and runs that harness (perf suite pass, monitor run clean).
+#   - The FST claim was tested directly on 5.045 with WAVES=1: valid dump,
+#     8842 signals, 2985 timesteps, fst2vcd exit 0, no corruption.
+#
+# To go back for one shell (e.g. to reproduce something against the old tool):
+#   VERILATOR_PIN=5.020 source env_python
+#
 # NOTE: Do NOT set VERILATOR_ROOT — the perl wrapper auto-detects it
 # relative to its own location. Setting it wrong breaks verilator_bin lookup.
 unset VERILATOR_ROOT 2>/dev/null
-export PATH="/mnt/data/tools/verilator-5.020/bin:$PATH"
+if [ "${VERILATOR_PIN:-}" = "5.020" ]; then
+    export PATH="/mnt/data/tools/verilator-5.020/bin:$PATH"
+fi
 
 # Do NOT let ccache cache Verilator's precompiled header.
 #
@@ -135,11 +152,12 @@ alias ptwp='WAVES=1 REG_LEVEL=GATE python3 -m pytest -v -s -n logical'
 alias ptg='REG_LEVEL=GATE python3 -m pytest -v'
 
 # ptf - Pytest Func level (default functional tests)
-# Usage: ptf test_*.py -n 48
+# Usage: ptf test_*.py            (add -n <N> only to override; the area
+#        Makefiles derive workers per host -- see make/tests.mk, TOOL-008 R1)
 alias ptf='REG_LEVEL=FUNC python3 -m pytest -v'
 
 # ptfull - Pytest Full regression
-# Usage: ptfull test_*.py -n 48
+# Usage: ptfull test_*.py         (add -n <N> only to override)
 alias ptfull='REG_LEVEL=FULL python3 -m pytest -v'
 
 # ptwg - Pytest With Waves, Gate level (quick waveform debug)
