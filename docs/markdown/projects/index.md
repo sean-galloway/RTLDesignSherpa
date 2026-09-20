@@ -158,7 +158,6 @@ Collection of legacy and retro-computing peripherals for historical SoC designs.
 - [HPET Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)
 - [Requirements](../../../projects/components/retro_legacy_blocks/PRD.md)
 - [AI Guide](../../../projects/components/retro_legacy_blocks/CLAUDE.md)
-- [Block Status](../../../projects/components/retro_legacy_blocks/BLOCK_STATUS.md)
 
 ---
 
