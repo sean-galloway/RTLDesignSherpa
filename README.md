@@ -69,7 +69,7 @@ Guided progression from primitives to systems. Each level links to the correspon
 - **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/monitor/) · [Shared observation](rtl/amba/shared/)
 - **Level 3 — [Integration Examples](rtl/integ_amba/)** · APB crossbar, bridges, multi-protocol stitching
 - **Level 4 — [Production Components](projects/components/)** · [STREAM](projects/components/dmas/stream/) · [RAPIDS](projects/components/dmas/rapids/) · [Bridge](projects/components/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/apbx-xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/memory-controllers/)
-- **Level 5 — [FPGA Projects on Nexys A7](projects/NexysA7/)** · [stream_characterization](projects/NexysA7/stream_characterization/) · [timing_characterization](projects/NexysA7/timing_characterization/) · [cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/) · [ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) · [rapids_characterization](projects/fpga-systems/Genesys2/rapids_characterization/)
+- **Level 5 — [FPGA Projects on Nexys A7](projects/fpga-systems/NexysA7/)** · [timing_characterization](projects/asic-trials/timing_characterization/) · [cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/) · [ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) · [rapids_characterization](projects/fpga-systems/Genesys2/rapids_characterization/)
 
 <details>
 <summary>Visual diagram (Mermaid — desktop browsers only)</summary>
@@ -184,14 +184,13 @@ Production-shaped reusable IP. Each has its own README + dv/ + dv/tbclasses/.
 | HIVE | Planned | Distributed RISC-V control | [`projects/components/hive/`](projects/components/hive/) |
 | Misc | — | Mixed building blocks | [`projects/components/misc/`](projects/components/misc/) |
 
-### 5. FPGA Projects — [`projects/NexysA7/`](projects/NexysA7/) (Digilent Nexys A7-100T)
+### 5. FPGA Projects — [`projects/fpga-systems/NexysA7/`](projects/fpga-systems/NexysA7/) (Digilent Nexys A7-100T)
 
 Things that actually run on hardware. Each project ships its own README and Vivado flow.
 
 | Project | Goal | Where |
 |---|---|---|
-| stream_characterization | DMA performance characterization on FPGA + host-side analysis (UART control, on-chip PMU) | [`projects/NexysA7/stream_characterization/`](projects/NexysA7/stream_characterization/) |
-| timing_characterization | FUB delay characterization. STA-only `bitstream-sweep` is the headline path; on-board MMCM sweep is an optional gut-check (see [`README_FPGA.md`](projects/NexysA7/timing_characterization/README_FPGA.md) §5) | [`projects/NexysA7/timing_characterization/`](projects/NexysA7/timing_characterization/) |
+| timing_characterization | FUB delay characterization. STA-only `bitstream-sweep` is the headline path; on-board MMCM sweep is an optional gut-check (see [`README_FPGA.md`](projects/asic-trials/timing_characterization/README_FPGA.md) §5) | [`projects/asic-trials/timing_characterization/`](projects/asic-trials/timing_characterization/) |
 | cdc_counter_display | Live demo of multi-clock counter CDC on the board | [`projects/fpga-systems/NexysA7/cdc_counter_display/`](projects/fpga-systems/NexysA7/cdc_counter_display/) |
 | ddr2-characterization | DDR2 / LPDDR2 memory controller (pumice) bring-up and characterization on Nexys A7 | [`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/`](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) (RTL: [`projects/components/memory-controllers/pumice-ddr2-lpddr2/`](projects/components/memory-controllers/pumice-ddr2-lpddr2/)) |
 | boards | Board files / pinouts / constraints | [`projects/fpga-systems/boards/`](projects/fpga-systems/boards/) |
@@ -397,7 +396,7 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 | **PM/ACPI** | Power Management / ACPI support |
 | **IOAPIC** | I/O Advanced PIC |
 
-**Documentation:** [Block Status](projects/components/retro_legacy_blocks/BLOCK_STATUS.md) | [PRD](projects/components/retro_legacy_blocks/PRD.md)
+**Documentation:** [PRD](projects/components/retro_legacy_blocks/PRD.md)
 
 #### Future Components
 
