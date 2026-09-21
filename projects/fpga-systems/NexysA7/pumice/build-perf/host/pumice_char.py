@@ -132,10 +132,57 @@ def measure_mc_clk_hz(drv, seconds: float = 2.0) -> float:
     """
     import time
     drv.clear_stats()
-    t0 = time.time(); m0 = _read_meter(drv, "rd").total
+    # Timestamp AFTER each read, not before the first and after the second.
+    # The meter latches partway through a UART read, so a t0 taken before its
+    # read and a t1 taken after its own put ~one extra read of latency into the
+    # elapsed time that never appears in the cycle delta -- a FIXED offset that
+    # biases the frequency LOW. Measured on 210292BFA3EE at a true 75 MHz:
+    # -5.66% over a 2 s window, -3.01% over 4 s, -1.55% over 8 s, -0.79% over
+    # 16 s, i.e. error halving with the window, which is the signature of a
+    # constant ~0.12 s offset rather than a wrong clock. Sampling both
+    # timestamps at the same point relative to their own read cancels it.
+    m0 = _read_meter(drv, "rd").total; t0 = time.time()
     time.sleep(seconds)
     m1 = _read_meter(drv, "rd").total; t1 = time.time()
     return (m1 - m0) / (t1 - t0)
+
+
+def resolve_clk_mhz(drv, claimed=None, tol: float = 0.02) -> float:
+    """The clock every bandwidth number is divided by. READ IT FROM THE BOARD.
+
+    `claimed is None` (the normal path) measures it and returns it, so the host
+    cannot be told the wrong frequency: there is no constant to get stale when
+    a bitstream switches profile, and no second source to disagree with the one
+    used for the JEDEC derivation. A caller with no board -- the cocotb model,
+    where the meter cannot be timed against a wall clock -- passes the value
+    explicitly and gets it back, cross-checked when a board is present.
+
+    Worth the two seconds. A constant 100.0 (the raw board INPUT clock, not the
+    75 MHz sys domain the meters count in) put every board bandwidth 4/3 high
+    and reported open_page reads at 123% of what the port can physically carry,
+    with the run still passing.
+    """
+    # 1. The bitstream says so. BUILD_CLK_HZ is driven from the harness's own
+    #    FPGA_CLK_HZ, the same constant its UART divisor is built from, so it
+    #    cannot drift from the hardware. This is the method STREAM already uses
+    #    (harness_csr BUILD_CLK_HZ); pumice simply never exposed the register.
+    try:
+        hz = drv.build_info()["clk_hz"]
+        if hz:
+            return hz / 1e6
+    except Exception:                                          # noqa: BLE001
+        pass   # older bitstream without the register -- fall through
+    # 2. Otherwise time the free-running meter. Accurate to ~0.01% since the
+    #    timestamp asymmetry was fixed, but it needs a board and two seconds.
+    got = measure_mc_clk_hz(drv) / 1e6
+    if claimed is None:
+        return got
+    if abs(got - claimed) / claimed > tol:
+        print(f"[mc_clk] WARNING: told {claimed:.2f} MHz, board measures "
+              f"{got:.2f} MHz -- using the value given, but every bandwidth "
+              f"number is scaled by {claimed/got:.3f}x against reality.",
+              file=sys.stderr, flush=True)
+    return claimed
 
 
 def check_mc_clk_hz(drv, claimed: int, tol: float = 0.10) -> float:

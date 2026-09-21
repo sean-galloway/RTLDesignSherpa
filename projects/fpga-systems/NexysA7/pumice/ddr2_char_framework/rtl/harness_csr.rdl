@@ -230,4 +230,19 @@ addrmap harness_csr {
         field { sw = r; hw = w; } dram_beat_width[23:16]   = 64;
         field { sw = r; hw = w; } dram_device_width[31:24] = 64;
     } BUILD_DATA_CFG @ 0x1F4;
+
+    // The sys/AXI clock this bitstream was compiled for, in Hz -- the same
+    // FPGA_CLK_HZ the harness already uses for its UART divisor, so it cannot
+    // disagree with the hardware.
+    //
+    // Same argument as the geometry registers above, for the one build
+    // constant they left out. Every bandwidth number is bytes / (cycles /
+    // clk), so a host told the wrong frequency reports wrong MB/s and nothing
+    // else complains: the default was 100 MHz (the raw board INPUT), the sys
+    // domain the meters count in is 75 MHz under PUMICE_SYS_75, and on
+    // 2026-09-21 that put open_page reads at 739 MB/s -- 123% of what a 64-bit
+    // port at 75 MHz can physically carry -- with the run still reporting PASS.
+    // STREAM already exposes exactly this as BUILD_CLK_HZ; pumice did not.
+    reg { desc = "Sys/AXI clock this build was compiled for, Hz";
+        field { sw = r; hw = w; } value[31:0] = 100000000; } BUILD_CLK_HZ @ 0x1F8;
 };

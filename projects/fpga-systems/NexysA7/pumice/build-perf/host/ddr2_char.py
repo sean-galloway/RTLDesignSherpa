@@ -307,6 +307,7 @@ class DDR2CharDriver:
             "axi_data_width":    self.regs.field("BUILD_DATA_CFG", "axi_data_width"),
             "dram_beat_width":   self.regs.field("BUILD_DATA_CFG", "dram_beat_width"),
             "dram_device_width": self.regs.field("BUILD_DATA_CFG", "dram_device_width"),
+            "clk_hz":            self.regs.read("BUILD_CLK_HZ"),
         }
 
     def describe_build(self) -> str:
@@ -317,7 +318,8 @@ class DDR2CharDriver:
                 f"dfi_rate={b['dfi_rate']} gear={b['gear_ratio']} "
                 f"bl={b['dram_bl']} row={b['row_width']} bank={b['bank_width']} "
                 f"axi={b['axi_data_width']}b beat={b['dram_beat_width']}b "
-                f"dev={b['dram_device_width']}b")
+                f"dev={b['dram_device_width']}b "
+                f"clk={b['clk_hz']/1e6:.2f}MHz")
 
     def scratch(self, val: Optional[int] = None) -> int:
         """Ping test — write then read back if `val` supplied."""

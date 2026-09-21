@@ -35,21 +35,15 @@ class Char(Sequence):
         # A sim caller (ctx.bus = cocotb model) would pass txn_scale=1.
         txn_scale = ctx.param("txn_scale", 1000)
 
-        # VERIFY THE CLOCK AGAINST THE BOARD. Bandwidth is
-        # bytes / (cycles / clk_mhz), so a wrong clk_mhz scales every number
-        # and nothing else complains: measured 2026-09-21, the 100 MHz default
-        # (the raw board input, not the 75 MHz sys domain the meters count in)
-        # reported open_page reads at 739 MB/s -- 123% of what a 64-bit port at
-        # 75 MHz can carry -- and the run still said PASS.
-        #
-        # pumice_char.check_mc_clk_hz measures the clock off the board's
-        # free-running meter and warns when the constant disagrees; its own
-        # docstring names "100 vs 75" as the case it exists for. It was simply
-        # never wired into the bandwidth path. Note a beats-per-cycle sanity
-        # check does NOT work here: it is clock-independent, so it reads the
-        # same whether clk_mhz is right or wrong (verified by mutation).
-        clk = ctx.param("clk_mhz", 75.0)
-        pc.check_mc_clk_hz(drv, int(clk * 1e6))
+        # READ the clock off the board rather than carrying a constant.
+        # Bandwidth is bytes / (cycles / clk_mhz), so a wrong clk_mhz scales
+        # every number and nothing else complains: the old 100.0 default (the
+        # raw board INPUT, not the 75 MHz sys domain the meters count in) put
+        # open_page reads at 739 MB/s -- 123% of what a 64-bit port at 75 MHz
+        # can carry -- and the run still said PASS. An explicit --clk-mhz is
+        # still honoured (the cocotb caller has no board to time against) and
+        # is cross-checked when a board is present.
+        clk = pc.resolve_clk_mhz(drv, ctx.param("clk_mhz"))
         ctx.say(f"[char] profile={profile} txn_scale={txn_scale} clk={clk} MHz")
         recs = pc.run_profile(
             drv, profile,

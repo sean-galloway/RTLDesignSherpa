@@ -113,6 +113,7 @@
 //                                [21:16] row_width
 //                                [25:22] bank_width (DFI bank bus width)
 //   0x1F4  BUILD_DATA_CFG    R   [15:0]  axi_data_width, bits
+//   0x1F8  BUILD_CLK_HZ      R   sys/AXI clock this build was compiled for, Hz
 //                                [23:16] dram_beat_width, bits
 //                                [31:24] dram_device_width, bits
 //
@@ -152,6 +153,9 @@ module harness_csr
     parameter int CFG_AXI_DATA_W     = 64,
     parameter int CFG_DRAM_BEAT_W    = 64,  // pumice DRAM beat, bits
     parameter int CFG_DRAM_DEVICE_W  = 64,  // physical device width, bits
+    // Sys/AXI clock in Hz, driven from the harness's FPGA_CLK_HZ so the
+    // reported value is the one the UART divisor was built from.
+    parameter int CFG_CLK_HZ         = 100_000_000,
 
     parameter int SKID_DEPTH_AW = 2,
     parameter int SKID_DEPTH_W  = 2,
@@ -657,6 +661,10 @@ module harness_csr
                                                   8'(CFG_DRAM_BEAT_W),      // [23:16]
                                                   16'(CFG_AXI_DATA_W)       // [15:0]
                                                };
+                            // Sys/AXI clock, Hz. Every board bandwidth number
+                            // is divided by this; reading it from the bitstream
+                            // is what stops a host being told the wrong one.
+                            9'h1F8: r_rdata <= 32'(CFG_CLK_HZ);
 
                             default: r_rdata <= 32'h0;
                         endcase

@@ -479,6 +479,7 @@ module ddr2_char_harness
         // module's parameters so what the host reads is what was compiled --
         // the value cannot drift from the hardware describing it.
         .BUILD_VERSION     (BUILD_VERSION),
+        .CFG_CLK_HZ        (FPGA_CLK_HZ),
         .CFG_DFI_RATE      (DFI_RATE),
         .CFG_DRAM_BL       (DRAM_BL),
         .CFG_ROW_WIDTH     (ROW_WIDTH),

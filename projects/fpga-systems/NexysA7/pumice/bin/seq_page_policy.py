@@ -52,11 +52,8 @@ class PagePolicy(Sequence):
         bl = ctx.param("burst_len", 16)
         txn = ctx.param("pp_txn", 2000)
         base = ctx.param("base_addr", 0x0)
-        # 75.0, not 100.0: the meters count sys/mc_clk, which PUMICE_SYS_75
-        # makes 75 MHz. The 100 MHz default was the raw board input and
-        # inflated every bandwidth number by 4/3. See seq_char.py.
-        clk = ctx.param("clk_mhz", 75.0)
-        pc.check_mc_clk_hz(drv, int(clk * 1e6))
+        # Measured off the board, not a constant -- see seq_char.py.
+        clk = pc.resolve_clk_mhz(drv, ctx.param("clk_mhz"))
         policies = [("CLOSE", dc.PAGE_POLICY_CLOSE), ("OPEN", dc.PAGE_POLICY_OPEN)]
 
         results = {}
