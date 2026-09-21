@@ -5,7 +5,9 @@
 ---
 
 ## DOCREV-011 — fix ALL broken links, whenever they were introduced
-**Status:** open 2026-07-26 (Sean); mechanical classes swept 2026-07-27
+**Status:** open 2026-07-26 (Sean); mechanical classes swept 2026-07-27;
+gate landed 2026-09-21 (ec5bd1602) -- the backlog is now ratcheted, so it
+can shrink but cannot regrow
 **Priority:** P2
 
 Not a rename cleanup. **Every** broken link in the repo, no matter which move,
@@ -14,7 +16,15 @@ broken links across 160 files.**
 
 ### Where it stands
 
-**374 remain, across 146 files** (re-measured 2026-07-27 at `057f75df`+). The
+**RE-MEASURED 2026-09-21 with the checker: 117 broken in 56 files** (was 374
+in 146). 114 of the 117 are under `projects/`, still deferred; only 3 are
+outside it. Two caveats on comparing the figures: the old counts came from
+the snippet below, which counts links inside ``` fences and inline `code`
+examples, and the checker excludes both -- 68 fenced and 8 inline-code today.
+So part of the drop is a truer measurement, not repair.
+
+The 2026-07-27 figures, for history: **374 remain, across 146 files** (at
+`057f75df`+). The
 two mechanical classes were swept outside `projects/`, which is what closed the
 121:
 
@@ -93,9 +103,14 @@ both generated families is ZERO. The two `rtl/cdc` headers that pointed at
 - Do the two mechanical classes (221 of 495) first and re-measure. That leaves
   the 274 judgement calls, which is where the real work is -- and some of those
   will be "the page should exist", which turns into writing, not linking.
-- **Wire the checker into a gate afterwards, or this returns.** Nothing runs it
-  today, which is exactly how 495 accumulated. Same gap as
-  `filelist_registry.py --check` (see [[filelists]]).
+- **DONE 2026-09-21 -- the checker is a gate.** `bin/check_broken_links.py`,
+  ratcheted against `bin/broken_links_baseline.json`, wired into BOTH
+  `bin/hooks/pre-commit` and `.github/workflows/filelist-checks.yml` (one
+  without the other is how the filelist checks silently stopped running for
+  five days). It reports coverage beside the count and fails if it matches no
+  links at all, because two checkers here have reported success off an empty
+  set. It excludes fenced blocks, inline `code` examples, `docs/review/` and
+  wikilinks -- "fixing" any of those corrupts the page.
 
 ---
 
