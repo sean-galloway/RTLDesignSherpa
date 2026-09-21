@@ -380,6 +380,21 @@ module pumice_cmd_arbiter
     //    drops (measured 6 cyc RDA-fire->drop, > the pipeline depth) -- bridges
     //    the stale-row window the pipeline span alone cannot. Together: continuous
     //    coverage selection..close, so no same-bank AP read hits the closed row.
+    // PUMICE-046: classify-time ACT gate, retained ONLY under row_first.
+    // Letting ACT candidates flow through the 3-stage pick pipeline while
+    // tFAW/tRRD are shut is what stops the pipeline draining (and costing 3
+    // cycles to refill) every time the gate closes. Under COLUMN_FIRST that is
+    // free -- columns still win the class, they just no longer get 3 slots by
+    // default purely because no ACT could be in flight. Under ROW_FIRST it is
+    // NOT free: ACT beats COL by definition, so candidates arriving earlier
+    // take column slots that the drained pipeline used to leave to them, and
+    // pref_row_first drops from ~80% to 72.45% under the close-biased paging
+    // modes. That mode's arbitration is a characterized result (PUMICE-013),
+    // so it keeps the old gate and the old numbers.
+    logic w_act_classify_gate;
+    assign w_act_classify_gate = (sched_access_pref_i == 2'd2)
+                               ? (tfaw_ok_i[RK0] && trrd_ok_i[RK0]) : 1'b1;
+
     logic [NUM_BANKS-1:0] w_col_inflight_bank;
     assign w_col_inflight_bank = w_col_inflight_guard
                                | (w_inflight_col ? (NUM_BANKS'(1) << r_bank) : '0);
@@ -591,8 +606,11 @@ module pumice_cmd_arbiter
                               && !w_ref_col_block[rb]
                               && !w_rd_turn_block && !w_ap_col_guard[rb]
                               && !w_pre_col_guard[rb] && !w_preact_bank_guard[rb];
+                // tFAW/tRRD are deliberately NOT gated here -- see the WRITE
+                // twin below for the reasoning. They are re-checked live at the
+                // fire stage (w_act_gate_live), which is authoritative.
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
-                              && r_bank_act_ready[RK0][rb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
+                              && r_bank_act_ready[RK0][rb] && w_act_classify_gate
                               && !w_rfc_busy;
                 rd_pre_m[e] = r_bank_row_active[RK0][rb] && !w_guarded[rb] && !rhit
                               && r_bank_pre_ready[RK0][rb];
@@ -607,8 +625,19 @@ module pumice_cmd_arbiter
                               && !w_ref_col_block[wb]
                               && !w_wr_turn_block && !w_ap_col_guard[wb]
                               && !w_pre_col_guard[wb] && !w_preact_bank_guard[wb];
+                // PUMICE-046: tFAW/tRRD gate the FIRE, not the classify. Both
+                // are global (not per-bank), so gating the MASK zeroed every
+                // ACT candidate the moment tRRD closed; the 3-stage pick
+                // pipeline then drained completely and cost 3 more cycles to
+                // refill once it reopened. Under CLOSE page that is an ACT per
+                // access, so the stream ran 6 commands then stalled 5 cycles --
+                // 30.77% against a 49% command-bus ceiling. Letting candidates
+                // flow costs nothing: the classes are separate pipeline
+                // registers picked by priority at the output, so an ACT waiting
+                // on tRRD does not block a column, and w_act_gate_live re-checks
+                // both live at the fire stage (4a/4b) where it is authoritative.
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
-                              && r_bank_act_ready[RK0][wb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
+                              && r_bank_act_ready[RK0][wb] && w_act_classify_gate
                               && !w_rfc_busy;
                 wr_pre_m[e] = r_bank_row_active[RK0][wb] && !w_guarded[wb] && !whit
                               && r_bank_pre_ready[RK0][wb];
@@ -1064,7 +1093,16 @@ module pumice_cmd_arbiter
     pick_class_e w_pick_class;
     always_comb begin
         w_c_col = rd_col_f || wr_col_f;
-        w_c_act = rd_act_f || wr_act_f;
+        // Qualified by the LIVE ACT gate (tRFC/tFAW/tRRD). The fire stage
+        // (4a/4b) re-checks it and simply falls through when it is low, so an
+        // ACT class chosen while the gate is shut spends the output slot and
+        // issues nothing. That was invisible while the classify mask also
+        // gated on tFAW/tRRD -- no ACT candidate could exist with the gate
+        // shut. Now that candidates flow through the pipeline during the
+        // window (PUMICE-046), the class must not be selected unless it can
+        // actually fire, or row_first loses a column slot to every blocked
+        // ACT: static_close measured 72.45% against its 75% floor.
+        w_c_act = (rd_act_f || wr_act_f) && w_act_gate_live;
         w_c_pre = rd_pre_f || wr_pre_f;
         unique case (sched_access_pref_i)
             2'd2:    w_pick_class = w_c_act ? CL_ACT

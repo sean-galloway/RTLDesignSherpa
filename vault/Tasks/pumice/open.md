@@ -52,6 +52,62 @@ is not a shipping regression -- it bounds what close-page paging could ever be
 worth, and [[PUMICE-013]] (characterize + tune the advanced modes) should not
 quote close-page numbers until it is resolved or accepted.
 
+### 2026-09-21: root-caused; partially fixed; residual is ACT->column latency
+
+**Cause of the drain.** The classify-time ACT mask gated on `tfaw_ok_i` and
+`trrd_ok_i`. Both are GLOBAL (not per-bank), so the instant tRRD closed every
+ACT candidate vanished, the 3-stage pick pipeline drained completely, and it
+cost 3 more cycles to refill once the gate reopened. Under CLOSE page that is
+an ACT per access: the stream ran 6 commands then stalled 5 cycles, an
+11-cycle period for 3 accesses. Probed directly -- `actm` collapses to 0 on
+`rrd0` while the CAM is full (`v8`) and banks are act-ready, then the masks
+repopulate two cycles before the first pick returns, which is the refill.
+
+The gate is REDUNDANT for correctness: `w_act_gate_live` re-checks tRFC/tFAW/
+tRRD live at the fire stage (4a/4b) and that check is authoritative. Removed
+it there, keeping the fire-stage check. The pick classes are separate pipeline
+registers chosen by priority at the output, so an ACT waiting on tRRD does not
+block a column.
+
+| mode | before | after |
+|---|---|---|
+| rbl_dyn | 32.32% | **41.56%** (+29%) |
+| build_default / fixed_open | 98.97% | 99.48% |
+| adapt_access | 92.75% | 93.66% |
+| static_open / adapt_time | 95.05% | 95.52% |
+| static_close / rbl_static | 30.77% | **30.77% (unchanged)** |
+
+**One regression, found and contained.** With candidates now flowing during
+the tRRD window, ACTs win slots that the drained pipeline used to leave to
+columns -- and `pref_row_first` is ACT-beats-COL by definition, so it fell
+from ~80% to 72.45% at the DEFAULT geometry, under its 75% floor. Qualifying
+the ACT class with the live gate did NOT fix it, which rules out a wasted
+output slot: the ACTs genuinely arrive earlier now. Since the board runs
+column-first and row_first's arbitration is a characterized PUMICE-013 result,
+the classify gate is RETAINED under row_first only (`w_act_classify_gate`)
+rather than re-tuning that floor. Default geometry is 18/18 again.
+
+**Why static_close did not move, and what is left.** From the DFI command
+trace: `ACT@130 ACT@136 ACT@140 ... WR@170` -- the first column lands **8 aclk
+after its ACT** while tRCD is 3. The ~5-cycle excess is the pick pipeline plus
+bank-timer registration on the ACT->column path, and under CLOSE page every
+access pays it. During that window BOTH classes are empty (`actm0/colm0`), so
+there is nothing for the pipeline to carry and the fix above cannot help --
+which is exactly why rbl_dyn (more row hits, columns available) gained and
+static_close did not.
+
+Ruled out by measurement, so do not re-try these: tRRD (30.77% at 1, 2 AND 4),
+tRCD/tRP/tRC (37.5% with all three at minimum), tFAW, CAM depth (NUM_ENTRIES
+8 -> 16 gives 30.77 -> 32.43), the bank guards (a dead cycle measured `grd0`),
+and bank recovery (`w_ap_fire` gives a ~9-cycle bank cycle, non-binding
+against the 0.5 access/cycle command-bus cap).
+
+**Remaining lever:** shorten the ACT->column path, i.e. the pick pipeline
+depth or the bank-timer registration stage. That is the block with two
+recorded silicon double-issue bugs, and pumice ships at roughly +16 ps WNS
+([[feedback_pumice_aggressive_timing]]), so it needs board timing closure and
+a silicon run -- not a sim-only change.
+
 ---
 
 ## PUMICE-033 — one extra AXI ID bit doubles the arbiter's pick cone
