@@ -253,8 +253,4 @@ Setting `IOAPICARBCFG.rr_enable` starts the scan just above the pin that was las
 
 ## Navigation
 
-**See Also:**
-- [ioapic_core Block](01_ioapic_core.md) - Detailed delivery-stage implementation
-- [Programming: Level Interrupts](../ch04_programming/04_level_triggered_irq.md) - The stage from the software perspective
-
-**Back to:** [Index](../ioapic_index.md) | [Block Overview](00_overview.md)
+**Back to:** [Block Overview](00_overview.md)

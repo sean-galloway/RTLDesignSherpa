@@ -290,7 +290,3 @@ elaboration, because the guards are `initial` blocks and synthesis ignores
 them.
 
 ---
-
-## Navigation
-
-**Back to:** [UART 16550 Specification Index](../uart_16550_index.md)

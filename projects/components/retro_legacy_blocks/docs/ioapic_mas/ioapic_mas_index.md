@@ -171,7 +171,7 @@ business. RLB-008 closed 2026-09-14 with every feature built.
 **RLB Module Documentation:**
 - [README.md](../../rtl/ioapic/README.md) - Block summary and verification entry point
 - `vault/Tasks/RLB/closed.md` (RLB-008) - The IOAPIC feature arc, closed
-- [PeakRDL README](../../rdl/ioapic/README.md) - Register generation guide
+- [PeakRDL README](../../rtl/ioapic/README.md) - Register generation guide
 
 **RLB System Documentation:**
 - [RLB_STATUS_AND_ROADMAP.md](../../rtl/RLB_STATUS_AND_ROADMAP.md) - System-wide status and planning

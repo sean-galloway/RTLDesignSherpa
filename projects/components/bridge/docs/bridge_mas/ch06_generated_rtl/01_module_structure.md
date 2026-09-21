@@ -353,4 +353,3 @@ bridge_{name}/
 ## Related Modules
 
 - [Signal Naming](02_signal_naming.md) - Detailed naming conventions
-- [Generator Usage](../../CLAUDE.md) - How to run the generator

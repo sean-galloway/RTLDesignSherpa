@@ -314,7 +314,5 @@ If using PM_ACPI power management:
 
 **See Also:**
 - [Architecture](02_architecture.md) - Clock domain architecture diagrams
-- [Top Level Interface](../ch03_interfaces/01_top_level.md) - Clock signal definitions
-- [APB Interface](../ch03_interfaces/02_apb_interface_spec.md) - APB timing
 
 **Next:** [Chapter 1.4 - Acronyms](04_acronyms.md)

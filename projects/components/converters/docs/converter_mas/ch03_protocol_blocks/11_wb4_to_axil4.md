@@ -123,7 +123,7 @@ converter drops them rather than inventing a mapping.
 B4 has one error termination and no way to say which kind, so SLVERR and
 DECERR both become `ERR`. `RTY` never appears because an AXI slave has no
 way to ask for a retry; a Wishbone master that wants retries needs
-[`wb4_retry`](../../../../../docs/markdown/rtl-amba/wb4/wb4_retry.md) on the
+`wb4_retry` on the
 other side of the bus, not here.
 
 ## 3.11.6 Formal

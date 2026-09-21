@@ -53,7 +53,7 @@ Everything this spec leans on: the standards, the sibling RLB documents, the too
 
 **Module-Specific:**
 - `../../rtl/ioapic/README.md` - Block summary; the feature arc is RLB-008 in `vault/Tasks/RLB/closed.md`
-- `../../rdl/ioapic/README.md` - PeakRDL register generation guide
+- `../../rtl/ioapic/README.md` - PeakRDL register generation guide
 - `../../rdl/ioapic/ioapic_regs.rdl` - SystemRDL source specification
 
 **RLB System:**
@@ -163,7 +163,6 @@ Modern implementation of 82093AA specification using RLB methodology, suitable f
 ## Navigation
 
 **Document Navigation:**
-- [Back to Index](../ioapic_index.md)
 - [Overview](01_overview.md)
 - [Architecture](02_architecture.md)
 - [Acronyms](04_acronyms.md)

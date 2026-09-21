@@ -350,11 +350,10 @@ parameter int MASTER_WEIGHTS [NUM_MASTERS] = '{1, 2, 1, 4};
 ## Related Documentation
 
 **See Also:**
-- [1.1 - Introduction](../ch01_overview/01_introduction.md) - Bridge overview
-- [3.1 - Module Structure](01_module_structure.md) - Generated RTL organization
-- [3.3 - Crossbar Core](03_crossbar_core.md) - Internal crossbar instantiation
+- [3.1 - Module Structure](../ch06_generated_rtl/01_module_structure.md) - Generated RTL organization
+- [3.3 - Crossbar Core](../ch02_blocks/03_crossbar_core.md) - Internal crossbar instantiation
 
 **Reference:**
 - ARM AMBA AXI4 Specification (IHI 0022E) - Section A7 (Arbitration)
 
-**Next:** [3.3 - Crossbar Core](03_crossbar_core.md)
+**Next:** [3.3 - Crossbar Core](../ch02_blocks/03_crossbar_core.md)

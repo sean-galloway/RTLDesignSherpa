@@ -271,7 +271,6 @@ STREAM AXI engines support three performance modes via compile-time parameters, 
 ## Related Documentation
 
 - **[PRD.md](../../PRD.md)** - Product requirements and overview
-- **[ARCHITECTURAL_NOTES.md](../ARCHITECTURAL_NOTES.md)** - Critical design decisions
 - **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
 - **[Register Generation](../../regs/README.md)** - PeakRDL workflow
 

@@ -61,7 +61,6 @@ apb4_ioapic (Top Level)
 - CDC_ENABLE=1: presents the whole LAPIC-facing interface in pclk and
   crosses it into ioapic_clk (four-phase delivery request, 3-stage accept
   synchronizer, 3-stage EOI pulse synchronizer with the vector registered)
-- See: [apb4_ioapic_top.md](04_apb4_ioapic_top.md)
 
 **2. ioapic_config_regs (Register Wrapper)**
 - Instantiates peakrdl_to_cmdrsp adapter
@@ -72,7 +71,6 @@ apb4_ioapic (Top Level)
   acknowledging both locally
 - Maps hwif signals to/from ioapic_core
 - Handles array mapping for 24 redirection entries
-- See: [ioapic_config_regs.md](02_ioapic_config_regs.md)
 
 **3. ioapic_regs (PeakRDL Generated)**
 - Generated from ioapic_regs.rdl SystemRDL specification
@@ -83,7 +81,6 @@ apb4_ioapic (Top Level)
   translated away, and its hardware input is tied to zero so the field is
   defined rather than X)
 - Handles register read/write/reset
-- See: [ioapic_regs.md](03_ioapic_regs.md)
 
 **4. ioapic_core (Core Logic)**
 - 24 IRQ input synchronization (3-stage)
@@ -92,7 +89,6 @@ apb4_ioapic (Top Level)
 - Priority arbitration (static)
 - One-entry valid/ready delivery stage (no state machine)
 - Remote IRR management, per pin, EOI matched against the delivered vector
-- See: [ioapic_core.md](01_ioapic_core.md)
 
 ## Functional Description
 
@@ -182,10 +178,4 @@ All dependencies are within the RLB project or generated from specifications.
 ## Navigation
 
 **Chapter 2 Contents:**
-- [01_ioapic_core.md](01_ioapic_core.md) - Core interrupt logic
-- [02_ioapic_config_regs.md](02_ioapic_config_regs.md) - Register wrapper
-- [03_ioapic_regs.md](03_ioapic_regs.md) - PeakRDL generated
-- [04_apb4_ioapic_top.md](04_apb4_ioapic_top.md) - Top-level integration
 - [05_fsm_summary.md](05_fsm_summary.md) - State machine summary
-
-**Back to:** [Index](../ioapic_index.md) | **Next:** [ioapic_core Block](01_ioapic_core.md)

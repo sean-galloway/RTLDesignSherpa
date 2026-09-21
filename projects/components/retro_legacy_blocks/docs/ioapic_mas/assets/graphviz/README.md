@@ -103,6 +103,5 @@ Both are text-based and can be edited with any text editor.
 ## Navigation
 
 **Related:**
-- [Specification Index](../../ioapic_index.md)
 - [Architecture Chapter](../../ch01_overview/02_architecture.md)
 - [FSM Summary](../../ch02_blocks/05_fsm_summary.md)

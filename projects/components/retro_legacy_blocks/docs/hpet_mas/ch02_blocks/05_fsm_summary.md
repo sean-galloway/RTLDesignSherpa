@@ -487,7 +487,3 @@ end
 - [ ] Mode switch (one-shot ↔ periodic) mid-operation
 
 ---
-
-## Navigation
-
-**Next:** [Chapter 3 - Interfaces](../ch03_interfaces/01_top_level.md)

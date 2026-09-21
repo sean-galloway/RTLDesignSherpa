@@ -618,10 +618,3 @@ printf("Number of IRQs: %d\n", num_irqs);
   - Destination = 0x00
 
 **Software must unmask IRQs to enable interrupts.**
-
-## Navigation
-
-**See Also:**
-- [Chapter 4: Programming Model](../ch04_programming/01_initialization.md) - Detailed init sequences
-- [Indirect Access Guide](02_indirect_access.md) - IOREGSEL/IOWIN usage details
-- [Redirection Table Guide](03_redirection_table.md) - Field descriptions and examples

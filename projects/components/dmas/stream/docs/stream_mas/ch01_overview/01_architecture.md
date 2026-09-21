@@ -523,17 +523,14 @@ If extending STREAM for production use, consider:
 ## Related Documentation
 
 **Chapter 2 - Block Specifications:**
-- [Scheduler](../ch02_blocks/02_scheduler.md) - Core FSM controller
-- [Descriptor Engine](../ch02_blocks/03_descriptor_engine.md) - Descriptor fetch/parse
-- [AXI Read Engine](../ch02_blocks/08_axi_read_engine.md) - Source data read
-- [AXI Write Engine](../ch02_blocks/10_axi_write_engine.md) - Destination data write
-- [SRAM Controller](../ch02_blocks/05_sram_controller.md) - Buffering and flow control
-- [Scheduler Group](../ch02_blocks/11_scheduler_group.md) - Per-channel wrapper
-- [Scheduler Group Array](../ch02_blocks/12_scheduler_group_array.md) - 8-channel array
+- [Scheduler](../ch02_blocks/04_scheduler.md) - Core FSM controller
+- [Descriptor Engine](../ch02_blocks/05_descriptor_engine.md) - Descriptor fetch/parse
+- [AXI Read Engine](../ch02_blocks/06_axi_read_engine.md) - Source data read
+- [AXI Write Engine](../ch02_blocks/12_axi_write_engine.md) - Destination data write
+- [SRAM Controller](../ch02_blocks/08_sram_controller.md) - Buffering and flow control
+- [Scheduler Group](../ch02_blocks/03_scheduler_group.md) - Per-channel wrapper
+- [Scheduler Group Array](../ch02_blocks/02_scheduler_group_array.md) - 8-channel array
 
-**Other Resources:**
-- [STREAM PRD](../../PRD.md) - Product requirements
-- [Test Plan](../ch03_testing/test_plan.md) - Verification strategy
 
 ---
 
