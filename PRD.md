@@ -82,7 +82,7 @@ Each major subsystem has its own detailed PRD:
 
 ### 2.3 Organizational Standards - MANDATORY PROJECT STRUCTURE
 
-**⚠️ CRITICAL: Framework vs Project Area Separation ⚠️**
+**CRITICAL: Framework vs Project Area Separation**
 
 This repository enforces a strict organizational pattern to ensure easy discovery of all project-specific code and maintain clear separation between shared infrastructure and project implementations.
 
@@ -104,14 +104,14 @@ projects/components/{name}/
 │   └── {name}_macro/           # Top-level integration
 │
 └── dv/                         # Design verification (all project-specific)
-    ├── tbclasses/              # ★ Testbench classes HERE (not framework!)
+    ├── tbclasses/              # Testbench classes HERE (not framework!)
     │   ├── {module}_tb.py      # Reusable TB infrastructure
     │   └── {component}_tb.py   # Component testbenches
     │
-    ├── components/             # ★ Project-specific BFMs/drivers
+    ├── components/             # Project-specific BFMs/drivers
     │   └── {custom}_driver.py  # Project-specific components
     │
-    ├── scoreboards/            # ★ Project-specific scoreboards
+    ├── scoreboards/            # Project-specific scoreboards
     │   └── {module}_scoreboard.py
     │
     └── tests/                  # Test runners (import TB classes)
@@ -124,7 +124,7 @@ projects/components/{name}/
 
 #### 2.3.3 Location Rules - Where Does Code Belong?
 
-| Code Type | ✅ CORRECT Location | ❌ WRONG Location |
+| Code Type | CORRECT Location | WRONG Location |
 |-----------|---------------------|-------------------|
 | **Project TB Classes** | `projects/components/{name}/dv/tbclasses/` | `bin/TBClasses/{name}/` |
 | **Project BFMs** | `projects/components/{name}/dv/components/` | `bin/TBClasses/components/{name}/` |
@@ -137,7 +137,7 @@ projects/components/{name}/
 
 Test files must import from the project area, not the framework:
 
-**✅ CORRECT:**
+**CORRECT:**
 ```python
 # Add repo root to Python path
 import os, sys
@@ -153,10 +153,10 @@ from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
 ```
 
-**❌ WRONG:**
+**WRONG:**
 ```python
 # DON'T import project-specific TB classes from framework!
-from TBClasses.rapids.scheduler_tb import SchedulerTB  # ❌ WRONG!
+from TBClasses.rapids.scheduler_tb import SchedulerTB  # WRONG!
 ```
 
 #### 2.3.5 Framework vs Project Decision Tree
@@ -187,9 +187,9 @@ Is this code specific to a single project component (RAPIDS, STREAM, Bridge)?
 
 | Project | Location | Status | TB Classes Location |
 |---------|----------|--------|---------------------|
-| **RAPIDS** | `projects/components/dmas/rapids/` | 🟡 Active | `rapids/dv/tbclasses/` ✅ |
-| **STREAM** | `projects/components/dmas/stream/` | 🟡 Initial | `stream/dv/tbclasses/` ✅ |
-| **Bridge** | `projects/components/bridge/` | 🟡 Planning | `bridge/dv/tbclasses/` ✅ |
+| **RAPIDS** | `projects/components/dmas/rapids/` | Active | `rapids/dv/tbclasses/` |
+| **STREAM** | `projects/components/dmas/stream/` | Initial | `stream/dv/tbclasses/` |
+| **Bridge** | `projects/components/bridge/` | Planning | `bridge/dv/tbclasses/` |
 
 #### 2.3.7 Benefits of This Organization
 
@@ -221,7 +221,7 @@ If project-specific code is found in the framework area, it MUST be moved:
 
 **Purpose:** Technology-agnostic reusable primitives
 **Modules:** 86 SystemVerilog files
-**Status:** ✅ Mature, stable baseline
+**Status:** Mature, stable baseline
 **Documentation:** `docs/markdown/rtl-common/index.md`, `rtl/common/CLAUDE.md`
 
 **Module Categories:**
@@ -245,17 +245,17 @@ If project-specific code is found in the framework area, it MUST be moved:
 
 **Purpose:** AMBA protocol monitoring and interface components
 **Modules:** ~160 SystemVerilog files
-**Status:** 🟡 Active development, production-ready monitors
+**Status:** Active development, production-ready monitors
 **Documentation:** `docs/markdown/rtl-amba/index.md`, `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 
 **Protocols Supported:**
 
 | Protocol | Features | Modules | Status |
 |----------|----------|---------|--------|
-| **AXI4** | Burst, out-of-order, outstanding | `monitor/axi4_{master,slave}_{rd,wr}_mon.sv` | ✅ Complete |
-| **AXI4-Lite** | Single-beat simplified | Same base with params | ✅ Complete |
-| **APB** | Peripheral bus | `apb4_monitor.sv` | ✅ Complete |
-| **AXI-Stream** | Streaming data | `axis4_master.sv`, `axis4_slave.sv` | ✅ Complete |
+| **AXI4** | Burst, out-of-order, outstanding | `monitor/axi4_{master,slave}_{rd,wr}_mon.sv` | Complete |
+| **AXI4-Lite** | Single-beat simplified | Same base with params | Complete |
+| **APB** | Peripheral bus | `apb4_monitor.sv` | Complete |
+| **AXI-Stream** | Streaming data | `axis4_master.sv`, `axis4_slave.sv` | Complete |
 
 **Key Features:**
 - Transaction tracking with error detection (SLVERR, DECERR, timeouts, orphans)
@@ -268,8 +268,8 @@ If project-specific code is found in the framework area, it MUST be moved:
 **Verification:** `val/amba/` (pytest + CocoTB)
 
 **Known Issues:**
-- ✅ Transaction table exhaustion (FIXED 2025-09-30)
-- ⚠️ Test configuration issues for error/orphan scenarios (non-RTL)
+- Transaction table exhaustion (FIXED 2025-09-30)
+- Test configuration issues for error/orphan scenarios (non-RTL)
 - See `rtl/amba/KNOWN_ISSUES/` for details
 
 ---
@@ -277,7 +277,7 @@ If project-specific code is found in the framework area, it MUST be moved:
 ### 3.3 Rapid AXI Programmable In-band Descriptor System (`projects/components/dmas/rapids/`)
 
 **Purpose:** Custom accelerator for memory-to-memory operations
-**Status:** 🟡 Active development ("beats" rearchitecture), validation in progress
+**Status:** Active development ("beats" rearchitecture), validation in progress
 **Documentation:** `projects/components/dmas/rapids/PRD.md`, `.../docs/rapids_beats_has/`, `.../docs/rapids_beats_mas/`
 
 **Architecture Blocks:**
@@ -322,7 +322,7 @@ RAPIDS Architecture
 **Purpose:** Shared CocoTB testbench classes (protocol BFMs come from the separate
 RTLDesignSherpa-DV framework repo, editable-installed into the venv)
 **Files:** ~156 Python files
-**Status:** ✅ Mature, actively maintained
+**Status:** Mature, actively maintained
 **Documentation:** RTLDesignSherpa-DV repo (framework); this repo's shared classes are self-documenting
 
 **Component Categories:**
@@ -429,14 +429,14 @@ endmodule
 - Leverage `bin/TBClasses/` infrastructure
 - Generate waveforms for debug
 
-**🚨 MANDATORY: Pytest Function Naming Convention 🚨**
+**MANDATORY: Pytest Function Naming Convention**
 
 **All pytest test functions MUST follow this naming pattern to prevent conflicts:**
 
 ```python
 # Pattern: test_<module_name> where <module_name> EXACTLY matches the RTL module
 
-✅ CORRECT:
+CORRECT:
 # File: projects/components/converters/dv/tests/test_axi4_dwidth_converter_wr.py
 def test_axi4_dwidth_converter_wr(request, params):  # ← Matches axi4_dwidth_converter_wr.sv
     """Test for write data width converter"""
@@ -447,7 +447,7 @@ def test_apb4_slave(request, params):  # ← Matches module
     """Test for APB slave"""
     ...
 
-❌ WRONG - Generic names cause pytest collection conflicts:
+WRONG - Generic names cause pytest collection conflicts:
 # File: projects/components/converters/dv/tests/test_axi4_dwidth_converter_wr.py
 def test_axi4_dwidth_converter(request, params):  # ← Conflicts with _rd test!
     ...
@@ -471,7 +471,7 @@ def test_converter(request, params):  # ← Too generic!
 
 ### 4.4 Testbench Architecture Pattern
 
-**⚠️ CRITICAL: Mandatory Separation of Concerns**
+**CRITICAL: Mandatory Separation of Concerns**
 
 All verification follows a strict three-layer architecture for reusability and maintainability:
 
@@ -638,40 +638,40 @@ class ProgramEngineScoreboard:
    ```
 
    **Examples:**
-   - ✅ **Queue Access**: Program engine (single write, in-order)
-   - ✅ **Memory Model**: DMA sink data path (burst writes, streaming data)
-   - ✅ **Queue Access**: APB configuration registers (simple read/write)
-   - ✅ **Memory Model**: Multi-master AXI interconnect (address overlap)
+   - **Queue Access**: Program engine (single write, in-order)
+   - **Memory Model**: DMA sink data path (burst writes, streaming data)
+   - **Queue Access**: APB configuration registers (simple read/write)
+   - **Memory Model**: Multi-master AXI interconnect (address overlap)
 
    **Key Principle:** Use the simplest verification method that correctly validates the behavior. Don't add memory model complexity where queue access suffices.
 
 #### Anti-Patterns to Avoid:
 
-❌ **Wrong:** Testbench class defined inside test file
+**Wrong:** Testbench class defined inside test file
 ```python
 # projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py - WRONG!
-class SchedulerTB:  # ❌ Should be in dv/tbclasses/
+class SchedulerTB:  # Should be in dv/tbclasses/
     """This makes TB completely unreusable!"""
 ```
 
-❌ **Wrong:** BFM code in test file
+**Wrong:** BFM code in test file
 ```python
 # projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py - WRONG!
-async def send_apb_transaction():  # ❌ Should be in TB class
+async def send_apb_transaction():  # Should be in TB class
     """BFM logic embedded in test - not reusable!"""
 ```
 
-❌ **Wrong:** Using memory models for simple verification
+**Wrong:** Using memory models for simple verification
 ```python
 # WRONG!
 memory_model = MemoryModel()
-written_data = memory_model.read(addr, 4)  # ❌ Unnecessary complexity
+written_data = memory_model.read(addr, 4)  # Unnecessary complexity
 ```
 
-✅ **Correct:** Direct queue access
+**Correct:** Direct queue access
 ```python
 # CORRECT!
-aw_pkt = self.aw_monitor._recvQ.popleft()  # ✅ Simple and direct
+aw_pkt = self.aw_monitor._recvQ.popleft()  # Simple and direct
 w_pkt = self.w_monitor._recvQ.popleft()
 ```
 
@@ -683,7 +683,7 @@ w_pkt = self.w_monitor._recvQ.popleft()
 - **Clarity:** Clear separation of infrastructure vs intelligence
 - **Simplicity:** Queue-based verification without memory model overhead
 
-**📖 See:**
+**See:**
 - **`docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md`** - Complete guide with examples for all subsystems
 - RTLDesignSherpa-DV repo CLAUDE.md - Framework-specific patterns
 - `projects/components/dmas/rapids/CLAUDE.md` - Detailed testbench architecture
@@ -853,10 +853,10 @@ pytest val/amba/ --cov=rtl/amba/ --cov-report=html
 
 | Subsystem | Status | Tests Passing | Known Issues |
 |-----------|--------|---------------|--------------|
-| rtl/common/ | ✅ Stable | ~90% | None blocking |
-| rtl/amba/ | 🟡 Active | 6/8 (75%) | 1 test config issue |
-| RAPIDS (projects/components/dmas/rapids/) | 🟡 Active | ~80% | see known_issues/ |
-| CocoTBFramework | ✅ Stable | N/A (library) | None |
+| rtl/common/ | Stable | ~90% | None blocking |
+| rtl/amba/ | Active | 6/8 (75%) | 1 test config issue |
+| RAPIDS (projects/components/dmas/rapids/) | Active | ~80% | see known_issues/ |
+| CocoTBFramework | Stable | N/A (library) | None |
 
 ### 8.2 Quality Metrics
 
@@ -878,10 +878,10 @@ pytest val/amba/ --cov=rtl/amba/ --cov-report=html
 
 ### 9.1 Current Status (Q4 2025)
 
-- ✅ Common Library: Stable, mature baseline
-- 🟡 AMBA Infrastructure: Active development, monitor bug fixes
-- 🟡 RAPIDS: Validation in progress, known issues being addressed
-- ✅ CocoTBFramework: Mature, production-ready
+- Common Library: Stable, mature baseline
+- AMBA Infrastructure: Active development, monitor bug fixes
+- RAPIDS: Validation in progress, known issues being addressed
+- CocoTBFramework: Mature, production-ready
 
 ### 9.2 Near-Term (Q1 2026)
 
