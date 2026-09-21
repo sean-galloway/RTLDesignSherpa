@@ -23,42 +23,42 @@
 
 *A progressive learning framework for RTL development using open-source tools*
 
-**📚 [Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete guide to all documentation, organized by type
+**[Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete guide to all documentation, organized by type
 
 ---
 
 ## Project Mission
 
-**RTL Design Sherpa guides you through digital hardware design with 
+**RTL Design Sherpa guides you through digital hardware design with
 hands-on learning from first principles.**
 
-We start with fundamental building blocks (adders, multipliers, FIFOs), 
-progress to protocol-specific modules (AXI, DMA engines), and culminate 
-in complete FPGA-ready systems. Every module is both educational and 
+We start with fundamental building blocks (adders, multipliers, FIFOs),
+progress to protocol-specific modules (AXI, DMA engines), and culminate
+in complete FPGA-ready systems. Every module is both educational and
 production-quality - meeting real timing and resource constraints.
 
 **What makes RTL Design Sherpa different:**
 
-- **From scratch**: Python generators → SystemVerilog → synthesis. 
+- **From scratch**: Python generators → SystemVerilog → synthesis.
   No black boxes, every design decision explained.
 
-- **Safety net for exploration**: Comprehensive test suites at every 
-  level (unit, integration, formal) let you experiment with confidence. 
+- **Safety net for exploration**: Comprehensive test suites at every
+  level (unit, integration, formal) let you experiment with confidence.
   Try different optimizations - the tests catch regressions.
 
-- **Performance-driven**: Multiple implementations of key modules, 
-  with measured area/speed tradeoffs. SimPy models predict behavior 
+- **Performance-driven**: Multiple implementations of key modules,
+  with measured area/speed tradeoffs. SimPy models predict behavior
   before writing RTL.
 
-- **Industry practices**: Open-source tools (cocotb, Verilator, Yosys) 
+- **Industry practices**: Open-source tools (cocotb, Verilator, Yosys)
   demonstrating verification methodologies used in production.
 
-- **Complete transparency**: Build systems, Makefiles, debugging 
+- **Complete transparency**: Build systems, Makefiles, debugging
   sessions - all the "hidden knowledge" made visible.
 
-Whether you're learning your first Verilog module or optimizing a 
-high-speed interconnect, RTL Design Sherpa provides the detailed 
-explanations, working examples, and verification infrastructure to 
+Whether you're learning your first Verilog module or optimizing a
+high-speed interconnect, RTL Design Sherpa provides the detailed
+explanations, working examples, and verification infrastructure to
 build understanding from the ground up.
 
 ### Learning Path
@@ -144,7 +144,7 @@ Production-ready AXI/APB/AXIS infrastructure with built-in monitor + observation
 
 ### 3. **Clock Domain Crossing (CDC)** — Cross-cutting
 
-📖 [**Read the CDC class overview →**](docs/markdown/rtl-cdc/overview.md) (picking
+[**Read the CDC class overview →**](docs/markdown/rtl-cdc/overview.md) (picking
 guide, what NOT to do, on-board demo)
 
 Everything that crosses a clock domain now lives in one place, [`rtl/cdc/`](rtl/cdc/).
@@ -173,15 +173,15 @@ Production-shaped reusable IP. Each has its own README + dv/ + dv/tbclasses/.
 
 | Project | Status | Domain | Where |
 |---|---|---|---|
-| STREAM | ✅ Ready | Tutorial DMA + scatter-gather; kick-burst multi-channel start + optional 2-D/transpose addressing | [`projects/components/dmas/stream/`](projects/components/dmas/stream/) |
-| RAPIDS | 🟡 In progress | Advanced DMA with network interfaces (RAPID AXI Programmable In-band Descriptor System) | [`projects/components/dmas/rapids/`](projects/components/dmas/rapids/) |
-| Bridge | ✅ Ready | AXI protocol bridges + RDL-generated cfg | [`projects/components/bridge/`](projects/components/bridge/) |
-| Converters | ✅ Ready | UART↔AXIL, protocol conversion | [`projects/components/converters/`](projects/components/converters/) |
-| APB Crossbar | ✅ Ready | M×N APB interconnect | [`projects/components/apbx-xbar/`](projects/components/apbx-xbar/) |
-| Memory controllers | 🟡 In progress | DDR2 / LPDDR2 controller | [`projects/components/memory-controllers/`](projects/components/memory-controllers/) |
-| Retro legacy blocks | ✅ Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/) |
-| Delta | 📋 Planned | Network-on-Chip mesh | [`projects/components/delta/`](projects/components/delta/) |
-| HIVE | 📋 Planned | Distributed RISC-V control | [`projects/components/hive/`](projects/components/hive/) |
+| STREAM | Ready | Tutorial DMA + scatter-gather; kick-burst multi-channel start + optional 2-D/transpose addressing | [`projects/components/dmas/stream/`](projects/components/dmas/stream/) |
+| RAPIDS | In progress | Advanced DMA with network interfaces (RAPID AXI Programmable In-band Descriptor System) | [`projects/components/dmas/rapids/`](projects/components/dmas/rapids/) |
+| Bridge | Ready | AXI protocol bridges + RDL-generated cfg | [`projects/components/bridge/`](projects/components/bridge/) |
+| Converters | Ready | UART↔AXIL, protocol conversion | [`projects/components/converters/`](projects/components/converters/) |
+| APB Crossbar | Ready | M×N APB interconnect | [`projects/components/apbx-xbar/`](projects/components/apbx-xbar/) |
+| Memory controllers | In progress | DDR2 / LPDDR2 controller | [`projects/components/memory-controllers/`](projects/components/memory-controllers/) |
+| Retro legacy blocks | Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/) |
+| Delta | Planned | Network-on-Chip mesh | [`projects/components/delta/`](projects/components/delta/) |
+| HIVE | Planned | Distributed RISC-V control | [`projects/components/hive/`](projects/components/hive/) |
 | Misc | — | Mixed building blocks | [`projects/components/misc/`](projects/components/misc/) |
 
 ### 5. FPGA Projects — [`projects/NexysA7/`](projects/NexysA7/) (Digilent Nexys A7-100T)
@@ -368,20 +368,20 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[STREAM](projects/components/dmas/stream/)** | ✅ Ready | Tutorial DMA with 8 channels, scatter-gather, APB config |
-| **[RAPIDS](projects/components/dmas/rapids/)** | 🟡 In Progress | Advanced DMA with alignment fixup, network TX/RX, credit flow |
+| **[STREAM](projects/components/dmas/stream/)** | Ready | Tutorial DMA with 8 channels, scatter-gather, APB config |
+| **[RAPIDS](projects/components/dmas/rapids/)** | In Progress | Advanced DMA with alignment fixup, network TX/RX, credit flow |
 
 #### Interconnect and Bridges
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[APB Crossbar](projects/components/apbx-xbar/)** | ✅ Ready | Parametric M×N APB interconnect with round-robin arbitration |
-| **[Bridge](projects/components/bridge/)** | ✅ Ready | AXI4 protocol bridges, width converters, CDC |
-| **[Converters](projects/components/converters/)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion bridges |
+| **[APB Crossbar](projects/components/apbx-xbar/)** | Ready | Parametric M×N APB interconnect with round-robin arbitration |
+| **[Bridge](projects/components/bridge/)** | Ready | AXI4 protocol bridges, width converters, CDC |
+| **[Converters](projects/components/converters/)** | Ready | UART-to-AXI4-Lite, protocol conversion bridges |
 
 #### Retro Legacy Blocks
 
-**Status:** ✅ Production Ready | **Location:** [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/)
+**Status:** Production Ready | **Location:** [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/)
 
 Collection of 9 legacy/retro peripherals with full APB interfaces:
 
@@ -403,8 +403,8 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[Delta](projects/components/delta/)** | 📋 Planned | 4×4 Network-on-Chip mesh with virtual channels |
-| **[HIVE](projects/components/hive/)** | 📋 Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
+| **[Delta](projects/components/delta/)** | Planned | 4×4 Network-on-Chip mesh with virtual channels |
+| **[HIVE](projects/components/hive/)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
 
 ---
 
@@ -836,11 +836,11 @@ We welcome contributions at all levels:
 ## Roadmap
 
 ### Current Focus
-- ✅ **STREAM DMA** - Tutorial DMA engine complete
-- ✅ **Bridge components** - AXI4 width converters, CDC bridges complete
-- ✅ **Retro Legacy Blocks** - 9 peripherals with MAS documentation
-- 🟡 **RAPIDS DMA** - Advanced DMA in progress
-- 🟡 **Floating-Point** - FP32 FMA, additional converters
+- **STREAM DMA** - Tutorial DMA engine complete
+- **Bridge components** - AXI4 width converters, CDC bridges complete
+- **Retro Legacy Blocks** - 9 peripherals with MAS documentation
+- **RAPIDS DMA** - Advanced DMA in progress
+- **Floating-Point** - FP32 FMA, additional converters
 
 ### Near-Term
 - Delta Network-on-Chip mesh implementation
