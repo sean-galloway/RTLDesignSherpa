@@ -104,8 +104,16 @@ def _cfg(dut, page_policy=0):
     dut.bank_lsb_i.value  = 10   # ROW_MAJOR
     dut.hash_en_i.value   = 0
     dut.hash_seed_i.value = 0
-    for t, v in [("t_rcd_i", 3), ("t_rp_i", 3), ("t_ras_i", 4), ("t_rc_i", 6),
-                 ("t_wr_i", 3), ("t_rtp_i", 2), ("t_faw_i", 6), ("t_rrd_i", 2),
+    # Row timings are env-overridable (defaults unchanged) so a throughput
+    # shortfall can be attributed instead of guessed at. That is how the
+    # close-page gap was pinned: static_close measures 30.77% at tRRD 1, 2 AND
+    # 4 alike, which rules out inter-bank ACT spacing, and only tRCD moves it
+    # (to 37.5% with every row timing at minimum) -- so the limit is command
+    # scheduling, not DRAM timing.
+    for t, v in [("t_rcd_i", int(os.environ.get("TEST_T_RCD", "3"))),
+                 ("t_rp_i", int(os.environ.get("TEST_T_RP", "3"))),
+                 ("t_ras_i", 4), ("t_rc_i", int(os.environ.get("TEST_T_RC", "6"))),
+                 ("t_wr_i", 3), ("t_rtp_i", 2), ("t_faw_i", int(os.environ.get("TEST_T_FAW", "6"))), ("t_rrd_i", int(os.environ.get("TEST_T_RRD", "2"))),
                  ("t_wtr_i", 2), ("t_rtw_i", 2),
                  # tCCD = the column's DQ occupancy in MC cycles, which is
                  # one DFI word per cycle for the length of the burst:
@@ -1174,7 +1182,26 @@ async def cocotb_test_pumice_core_perf_read_inflight(dut):
     # phase in cycles. Measured 2026-09-08: RD_RET_DEPTH=32 -> 1024/1126 =
     # 0.91; RD_RET_DEPTH=8 (the old bound) -> 1024/3265 = 0.31.
     thr = m['beats'] / m['elapsed'] if m['elapsed'] else 0.0
-    floor = float(os.environ.get("READ_INFLIGHT_THR_FLOOR", "0.85"))
+    # Little's law, scaled by the burst width. Beats in flight = ring depth x
+    # BL_WORDS over a round trip of lat/2.5 aclk, so:
+    #   BL_WORDS=4 -> 32*4/80 = 1.6, clamps to 1.0. The 0.85 floor is
+    #                 unchanged and the clamp itself carries ~60% of slack.
+    #   BL_WORDS=1 -> 32*1/80 = 0.4. Thirty-two reads of ONE beat cannot
+    #                 cover an 80-cycle round trip however well the ring
+    #                 works, so a flat 0.85 is unreachable by construction.
+    # NOMINAL depth on purpose -- NOT the built RD_RET_DEPTH. Deriving the
+    # floor from the parameter under test would move it with the mutation and
+    # PUMICE_RD_RET_DEPTH=8 would start passing.
+    # Measured (board geometry, depth 32 vs 8): 0.30 vs 0.08, a 3.75x split,
+    # and 0.90 at the default geometry. The fraction is 0.85 where the ideal
+    # clamps and 0.60 where it does not, because in the clamped case the clamp
+    # supplies the margin and in the unclamped case nothing does: that puts
+    # the board floor at 0.24, which the ring clears by 25% and the mutation
+    # misses by 3x.
+    RD_RET_NOMINAL = 32
+    ideal = min(1.0, RD_RET_NOMINAL * BL_WORDS / (lat / 2.5))
+    frac = 0.85 if ideal >= 1.0 else 0.60
+    floor = float(os.environ.get("READ_INFLIGHT_THR_FLOOR", f"{frac * ideal:.3f}"))
     assert thr >= floor, (
         f"read window throughput {thr:.2f} beats/cycle < {floor:.2f} floor under "
         f"{lat}-cycle read latency (window {m['elapsed']:.0f} cyc, idle={m['idle']}) "
@@ -1331,9 +1358,28 @@ async def cocotb_test_pumice_core_perf_refresh_bubbles(dut):
     # 3. the stalls look like refresh, not like scattered noise: each bubble
     #    should be a contiguous run, and there should not be wildly more
     #    bubbles than refreshes.
-    assert m['stall_runs'] <= m['refs'] * 3, (
-        f"{m['stall_runs']} separate stall runs for only {m['refs']} "
-        f"refreshes -- the bubbles are not attributable to refresh")
+    #    Attribute on the refresh-SIZED runs, not on the raw run count. A
+    #    refresh bubble is a long contiguous stall -- 29 cycles at the default
+    #    geometry, 31 at board. At BL_WORDS=1 supply and drain are exactly
+    #    rate-matched, so the stream ALSO throws short resync runs that have
+    #    nothing to do with refresh: measured hist={1:8, 2:9, 3:8, 4:8, 31:8},
+    #    i.e. eight refresh bubbles and 33 pieces of 1-4 cycle noise. Counting
+    #    runs made that read as "41 runs for 10 refreshes" and failed, while
+    #    the eight long runs carry 248 of the 330 stalled cycles. The default
+    #    geometry sees hist={11:1, 29:25} and is unaffected either way.
+    long_runs = [(c, k) for c, k in m['stall_hist'].items() if c >= T_RFC]
+    n_long = sum(k for _, k in long_runs)
+    cyc_long = sum(c * k for c, k in long_runs)
+    assert n_long <= m['refs'] * 3, (
+        f"{n_long} refresh-sized stall runs (>= tRFC={T_RFC}) for only "
+        f"{m['refs']} refreshes -- the bubbles are not attributable to "
+        f"refresh. Full run histogram: {m['stall_hist']}")
+    #    and they must be where the stalled time actually went, or "attributed
+    #    to refresh" is a label on a minority of the cost.
+    assert cyc_long >= 0.5 * m['bp'], (
+        f"refresh-sized runs carry only {cyc_long} of {m['bp']} stalled "
+        f"cycles -- most of the stall is NOT refresh. Histogram: "
+        f"{m['stall_hist']}")
 
     dut._log.info("PASS: %d refreshes cost %d W-stall cycles in %d stall runs "
                   "(max %d) -- utilization %.2f%% vs 100%% parked",
@@ -1374,6 +1420,7 @@ async def _util_window(dut, slave, *, tag, n=192, banks=None):
     task = cocotb.start_soon(trk.run())
     base = (trk.prod, trk.bp)
     ref0 = slave.cmd_counts.get(_DC.REF, 0)
+    cmd0 = {c: slave.cmd_counts.get(c, 0) for c in (_DC.ACT, _DC.PRE, _DC.WR)}
 
     #  = how many banks the stream spreads over. Bank parallelism is
     # what hides ACT/PRE latency, so the 1-bank case is where paging modes
@@ -1390,9 +1437,17 @@ async def _util_window(dut, slave, *, tag, n=192, banks=None):
     prod, bp = trk.prod - base[0], trk.bp - base[1]
     valid_cyc = prod + bp
     max_run = max(trk.max_run, trk._run)
+    # Commands per ACCESS on the DFI command bus. The arbiter issues at most
+    # ONE command per cycle, so this is the hard ceiling on beats/cycle:
+    #     ceiling = BL_WORDS / commands_per_access
+    # At BL_WORDS=4 a 3-command close-page access still clears 1.0 and every
+    # mode can read 100%. At BL_WORDS=1 it cannot -- which is why the flat
+    # "every mode is 100%" held at the default geometry and not on the board.
+    cmds = {c: slave.cmd_counts.get(c, 0) - cmd0[c] for c in cmd0}
+    per_access = sum(cmds.values()) / n if n else 0.0
     return ((prod / valid_cyc) if valid_cyc else 0.0, bp,
             slave.cmd_counts.get(_DC.REF, 0) - ref0,
-            max_run, n * BL_WORDS)
+            max_run, n * BL_WORDS, cmds, per_access)
 
 
 @cocotb.test(timeout_time=120, timeout_unit="ms")
@@ -1433,17 +1488,22 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     # single-bank column is what discriminates (measured 2026-08-29:
     # static_close and rbl_static collapse to 27.68% there, both because they
     # precharge per access).
-    rows = []
+    rows, cpa_rows = [], []
     for tag, (mode, name) in enumerate(_PAGE_MODES):
         dut.page_mode_i.value = mode
         await ClockCycles(dut.aclk, 64)       # settle + drain before measuring
-        u8, bp8, r8, run8, beats8 = await _util_window(dut, slave, tag=tag)
+        u8, bp8, r8, run8, beats8, cmds8, cpa8 = await _util_window(
+            dut, slave, tag=tag)
         await ClockCycles(dut.aclk, 64)
-        u1, bp1, r1, run1, _ = await _util_window(dut, slave, tag=tag + 64, banks=1)
+        u1, bp1, r1, run1, _, _, cpa1 = await _util_window(
+            dut, slave, tag=tag + 64, banks=1)
         rows.append((mode, name, u8, bp8, u1, bp1, r8 + r1, run8, beats8))
+        cpa_rows.append((name, cpa8, cpa1, dict(cmds8)))
         dut._log.info("paging mode %d (%-13s): 8bank=%6.2f%% (stall %d)  "
-                      "1bank=%6.2f%% (stall %d)  REF=%d",
-                      mode, name, 100.0 * u8, bp8, 100.0 * u1, bp1, r8 + r1)
+                      "1bank=%6.2f%% (stall %d)  REF=%d  cmds/access=%.2f "
+                      "(ceiling %.1f%%)",
+                      mode, name, 100.0 * u8, bp8, 100.0 * u1, bp1, r8 + r1,
+                      cpa8, 100.0 * min(1.0, BL_WORDS / max(cpa8, 1e-9)))
 
     try:
         with open("paging_util_sweep.out", "w") as f:
@@ -1473,11 +1533,39 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     leaked = [(n, r) for _, n, _, _, _, _, r, _, _ in rows if r]
     assert not leaked, f"refresh fired during paging windows: {leaked}"
 
-    short8 = [(n, round(100.0 * u, 2)) for _, n, u, _, _, _, _, _, _ in rows if u < 1.0]
+    # The arbiter issues at most ONE DFI command per cycle, so no mode can
+    # exceed BL_WORDS / commands_per_access beats per cycle. At BL_WORDS=4 even
+    # a 2-command close-page access clears 1.0, so "every mode reads 100%" is
+    # reachable and is still required exactly. At BL_WORDS=1 (the board) an
+    # access that costs more than one command CANNOT reach 100% -- measured
+    # cmds/access 1.04 for the open modes and 2.04 for close -- so there the
+    # claim is made against the ceiling instead. The strict default-geometry
+    # gate is unchanged; this only adds a check where none was possible.
+    cpa_by_name = {nm: c8 for nm, c8, _, _ in cpa_rows}
+    short8, below_ceiling = [], []
+    for _, nm, u, _, _, _, _, _, _ in rows:
+        cpa = cpa_by_name.get(nm, 1.0)
+        ceil = min(1.0, BL_WORDS / cpa) if cpa > 0 else 1.0
+        if ceil >= 1.0:
+            if u < 1.0:
+                short8.append((nm, round(100.0 * u, 2)))
+        # 0.85 of the ceiling: cmds/access is counted over a slightly wider
+        # window than utilization (it includes the tail drain), so it
+        # over-counts a few percent -- the open modes measure 98.97% against a
+        # computed 96.0% ceiling. The margin covers that, not a shortfall.
+        elif u < 0.85 * ceil:
+            below_ceiling.append((nm, round(100.0 * u, 2),
+                                  round(100.0 * ceil, 1), round(cpa, 2)))
     assert not short8, (
         f"paging modes below 100% write utilization WITH bank parallelism: "
         f"{short8}. With 8-way rotation and refresh parked nothing should "
         f"stall the write channel.")
+    assert not below_ceiling, (
+        f"paging modes below their own COMMAND-BUS ceiling (mode, util%, "
+        f"ceiling%, cmds/access): {below_ceiling}. The ceiling already allows "
+        f"for one command per cycle at this burst width, so the shortfall is "
+        f"scheduling: ACT and WR are not being overlapped across the 8 banks "
+        f"as tightly as the command bus permits.")
 
     # The 1-bank column is REPORTED, and only its floor is asserted: modes
     # that precharge per access are EXPECTED to cost throughput there. The
@@ -1569,9 +1657,9 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
                 getattr(dut, k).value = v
             await ClockCycles(dut.aclk, 64)
             tag += 1
-            util, bp, refs, run, beats = await _util_window(
+            util, bp, refs, run, beats, _cmds, cpa = await _util_window(
                 dut, slave, tag=tag, n=96)
-            rows.append((pname, sname, util, bp, refs, run, beats))
+            rows.append((pname, sname, util, bp, refs, run, beats, cpa))
             if util < 1.0 or refs:
                 dut._log.warning("%-13s x %-14s: util=%6.2f%% stall=%d REF=%d",
                                  pname, sname, 100.0 * util, bp, refs)
@@ -1585,13 +1673,13 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
                 "paging", "scheduling", "util%", "stall", "REF"))
             f.write("|{}|{}|{}|{}|{}|\n".format(
                 "-" * 15, "-" * 16, "-" * 9, "-" * 8, "-" * 5))
-            for pn, sn, u, bp, r, _, _ in rows:
+            for pn, sn, u, bp, r, _, _, _ in rows:
                 f.write("| {:<13} | {:<14} | {:>7.2f} | {:>6} | {:>3} |\n".format(
                     pn, sn, 100.0 * u, bp, r))
     except Exception as e:                                    # noqa: BLE001
         dut._log.warning("paging_sched_cross.out dump failed: %s", e)
 
-    leaked = [(p_, s_, r) for p_, s_, _, _, r, _, _ in rows if r]
+    leaked = [(p_, s_, r) for p_, s_, _, _, r, _, _, _ in rows if r]
     assert not leaked, "refresh fired during cross windows: {}".format(leaked[:5])
 
     # order_in_order is EXPECTED to cost throughput and is excluded from the
@@ -1614,14 +1702,32 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
     # slot); the physical tCCD exposed the cost (2026-09-09, PUMICE-021).
     ROW_FIRST = "pref_row_first"
     ROW_FIRST_FLOOR = 0.75
-    short = [(p_, s_, round(100.0 * u, 2))
-             for p_, s_, u, _, _, _, _ in rows
-             if u < 1.0 and s_ not in (ORDERED, ROW_FIRST)]
+    # Same command-bus ceiling as the paging sweep: one DFI command per cycle
+    # caps beats/cycle at BL_WORDS / commands_per_access. At BL_WORDS=4 that
+    # is >= 1.0 for every combination here, so the exact-100% claim stands
+    # unchanged. At BL_WORDS=1 a combination whose paging mode precharges per
+    # access cannot reach it, and demanding 100% there measures the geometry.
+    short, short_ceil = [], []
+    for p_, s_, u, _, _, _, _, cpa in rows:
+        if s_ in (ORDERED, ROW_FIRST):
+            continue
+        ceil = min(1.0, BL_WORDS / cpa) if cpa > 0 else 1.0
+        if ceil >= 1.0:
+            if u < 1.0:
+                short.append((p_, s_, round(100.0 * u, 2)))
+        elif u < 0.85 * ceil:
+            short_ceil.append((p_, s_, round(100.0 * u, 2),
+                               round(100.0 * ceil, 1)))
     assert not short, (
         "{} of {} paging x scheduling combinations below 100% write "
         "utilization: {}. With bank parallelism and refresh parked, no "
         "scheduling policy except {} should stall the write channel.".format(
             len(short), len(rows), short[:10], ORDERED))
+    assert not short_ceil, (
+        "{} of {} combinations below their COMMAND-BUS ceiling (paging, "
+        "sched, util%, ceiling%): {}. The ceiling already allows one command "
+        "per cycle at this burst width.".format(
+            len(short_ceil), len(rows), short_ceil[:10]))
 
     # ...but in_order must still be REPORTED and floored, so a regression that
     # tanks it further is caught rather than excused by the exemption.
@@ -1643,7 +1749,7 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
     # and is a performance item, not a correctness one.
     AP_PAGING = {"static_close", "rbl_static", "rbl_dyn"}
     FLOOR_AP, FLOOR_NOAP = 0.30, 0.75
-    io = [(p_, round(100.0 * u, 2)) for p_, s_, u, _, _, _, _ in rows if s_ == ORDERED]
+    io = [(p_, round(100.0 * u, 2)) for p_, s_, u, _, _, _, _, _ in rows if s_ == ORDERED]
     assert io, "in_order rows missing -- the exemption would hide everything"
     assert AP_PAGING.issubset({p_ for p_, _ in io}), (
         "the AP-driving paging modes are missing from the in_order rows: "
@@ -1654,7 +1760,7 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
         "in_order below its floor (mode, measured%, floor): {}. Ordering costs "
         "bandwidth by design -- two dependent commands per access under the "
         "auto-precharge modes, one under the rest -- but not this much.".format(low))
-    rf = [(p_, round(100.0 * u, 2)) for p_, s_, u, _, _, _, _ in rows if s_ == ROW_FIRST]
+    rf = [(p_, round(100.0 * u, 2)) for p_, s_, u, _, _, _, _, _ in rows if s_ == ROW_FIRST]
     assert rf, "pref_row_first rows missing -- the exemption would hide everything"
     low = [x for x in rf if x[1] / 100.0 < ROW_FIRST_FLOOR]
     assert not low, (

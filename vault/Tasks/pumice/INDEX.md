@@ -1,13 +1,13 @@
 # pumice — task rollup
 
-**Next ID: PUMICE-046** — never recycle a number, even when its task closed.
+**Next ID: PUMICE-047** — never recycle a number, even when its task closed.
 
 DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-ddr2-lpddr2/`).
 
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 15 |
+| [open](open.md) | 16 |
 | [closed](closed.md) | 30 |
 | [dropped](dropped.md) | 1 |
 

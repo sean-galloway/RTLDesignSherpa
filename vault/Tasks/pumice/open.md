@@ -4,6 +4,56 @@
 
 ---
 
+## PUMICE-046 — close-page modes reach only ~63% of their own command-bus ceiling
+**Status:** open 2026-09-20  **Priority:** P2 — invisible at the sim geometry,
+dominant at the board's, and it caps close-page paging on silicon
+
+Found while making the paging assertions geometry-aware for [[PUMICE-028]].
+The arbiter issues at most ONE DFI command per cycle, so no mode can exceed
+`BL_WORDS / commands_per_access` beats per cycle. Measured at board geometry
+(`TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16`), 8-bank rotation,
+refresh parked:
+
+| mode | cmds/access | ceiling | measured | of ceiling |
+|---|---|---|---|---|
+| build_default / fixed_open | 1.04 | 96.0% | 98.97% | at it |
+| static_open / adapt_time | 1.08 | 92.3% | 95.05% | at it |
+| adapt_access | 1.09 | 91.9% | 92.75% | at it |
+| **static_close / rbl_static** | **2.04** | **49.0%** | **30.77%** | **63%** |
+| **rbl_dyn** | **1.64** | **61.0%** | **32.32%** | **53%** |
+
+Every open-page mode sits at its ceiling. The close-page family does not, and
+the shortfall is **command scheduling, not DRAM timing**:
+
+- `static_close` measures **30.77% at tRRD 1, 2 AND 4 alike** -- inter-bank ACT
+  spacing is not the limiter, which was the obvious first theory and is wrong.
+- Only tRCD moves it, and only partway: 37.35% at tRCD=1, 37.5% with tRCD=1,
+  tRP=1 and tRC=2 together. Even with every row timing at minimum it is 2.67
+  cycles/access against a 2.04-command access.
+- So ACT and WR are not being overlapped across the 8 banks as tightly as the
+  command bus permits -- roughly 1.2 cycles/access of scheduling slack.
+
+**Why it was never seen:** at the sim geometry BL_WORDS=4, so a 2-command
+close-page access has a ceiling of 4/2 = 2.0, clamped to 1.0. The AXI side
+saturates first and the inefficiency is entirely hidden behind 2x of headroom
+-- `paging_sweep` reads 100% for every mode and passes. At BL_WORDS=1 (the
+board) there is no headroom and it is the dominant term. This is the same
+lesson as [[PUMICE-028]]: a suite that cannot express the shipping geometry
+cannot see what the shipping geometry exposes.
+
+**Reproduce:** `TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16 pytest
+top/test_pumice_core_dfi.py -k 'perf_paging_sweep'` -- the test now asserts
+against the measured per-mode ceiling and reports cmds/access, so the gap is
+the failure message rather than something to re-derive. `perf_paging_sched_cross`
+shows the same thing on 24 of 80 combinations, all `static_close` / `rbl_static`.
+
+**Worth knowing before fixing:** the board runs open-page by default, so this
+is not a shipping regression -- it bounds what close-page paging could ever be
+worth, and [[PUMICE-013]] (characterize + tune the advanced modes) should not
+quote close-page numbers until it is resolved or accepted.
+
+---
+
 ## PUMICE-033 — one extra AXI ID bit doubles the arbiter's pick cone
 **Status:** open 2026-09-14  **Priority:** P1 — it is a hard constraint on where pumice can be used
 
