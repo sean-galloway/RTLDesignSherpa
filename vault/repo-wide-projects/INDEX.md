@@ -25,7 +25,6 @@ note — it belongs to that block and nowhere else.
 - [rtl/amba](rtl/amba/INDEX.md) — AXI4/AXI5, APB, AXIS, monitors, monbus
 - [rtl/common](rtl/common/INDEX.md) — counters, arbiters, FIFOs, CDC, data integrity
 - [rtl/math](rtl/math/INDEX.md) — adders, multipliers, dividers
-- [rtl/integ_amba](rtl/integ_amba/INDEX.md) — integration examples
 
 ## projects/components/
 
@@ -48,7 +47,6 @@ note — it belongs to that block and nowhere else.
 - [cdc_counter_display](projects/NexysA7/cdc_counter_display/INDEX.md)
 - [ddr2-characterization](projects/NexysA7/ddr2-characterization/INDEX.md)
 - [rapids_characterization](projects/NexysA7/rapids_characterization/INDEX.md)
-- [stream_characterization](projects/NexysA7/stream_characterization/INDEX.md)
 - [timing_characterization](projects/NexysA7/timing_characterization/INDEX.md)
 
 ## Adding an area
