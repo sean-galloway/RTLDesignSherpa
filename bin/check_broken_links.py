@@ -35,6 +35,12 @@ was inert on 37 of 56 status lines while reporting zero warnings, and
 filelist_registry.py --check printed PASS off an empty set. "0 broken" must not
 be able to mean "parsed nothing".
 
+The baseline MUST describe committed state. Generated from a working tree it
+records a level the repo has never been at: on 2026-09-21 it was written from a
+tree carrying another session's uncommitted doc fixes, recorded 117, and CI --
+which only ever sees committed blobs -- measured 137 and failed every job. That
+is why --update-baseline reads from HEAD rather than from disk.
+
 Usage:
     bin/check_broken_links.py                  # report, exit 0 unless --ratchet
     bin/check_broken_links.py --list           # every broken link, with source
@@ -66,18 +72,43 @@ def tracked_markdown() -> list[str]:
     return [f for f in out if f and (REPO / f).is_file()]
 
 
-def scan() -> tuple[dict[str, list[tuple[int, str]]], dict[str, int]]:
-    """-> ({file: [(line, target)]}, coverage counters)"""
+def _head_tree() -> set[str]:
+    out = subprocess.check_output(["git", "ls-tree", "-r", "--name-only", "HEAD"],
+                                  text=True).split("\n")
+    paths = {p for p in out if p}
+    # a link may target a directory; synthesise them from the file list
+    for p in list(paths):
+        parts = p.split("/")
+        for i in range(1, len(parts)):
+            paths.add("/".join(parts[:i]))
+    return paths
+
+
+def scan(from_head: bool = False
+         ) -> tuple[dict[str, list[tuple[int, str]]], dict[str, int]]:
+    """-> ({file: [(line, target)]}, coverage counters)
+
+    from_head reads committed blobs instead of the working tree, so a baseline
+    is reproducible on any clone regardless of what is uncommitted locally.
+    """
+    head_paths = _head_tree() if from_head else set()
     broken: dict[str, list[tuple[int, str]]] = {}
     cov = {"files": 0, "links": 0, "external": 0, "fenced": 0,
            "inline": 0, "review": 0, "resolved": 0, "broken": 0}
     for rel in tracked_markdown():
         cov["files"] += 1
         root = os.path.dirname(rel) or "."
-        try:
-            text = (REPO / rel).read_text(encoding="utf-8", errors="ignore")
-        except OSError:
-            continue
+        if from_head:
+            r = subprocess.run(["git", "show", f"HEAD:{rel}"],
+                               capture_output=True, text=True)
+            if r.returncode != 0:
+                continue
+            text = r.stdout
+        else:
+            try:
+                text = (REPO / rel).read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
         # File-level exclusion, decided before any line-level test so a
         # review link cannot be miscounted as fenced or inline instead.
         is_review = rel.startswith("docs/review/")
@@ -105,7 +136,8 @@ def scan() -> tuple[dict[str, list[tuple[int, str]]], dict[str, int]]:
                 if masked[m.start():m.end()].strip() == "":
                     cov["inline"] += 1
                     continue
-                if (REPO / os.path.normpath(os.path.join(root, target))).exists():
+                resolved = os.path.normpath(os.path.join(root, target))
+                if (resolved in head_paths) if from_head else (REPO / resolved).exists():
                     cov["resolved"] += 1
                     continue
                 cov["broken"] += 1
@@ -121,7 +153,10 @@ def main() -> int:
     ap.add_argument("--update-baseline", action="store_true")
     args = ap.parse_args()
 
-    broken, cov = scan()
+    # The baseline describes COMMITTED state -- see the note at the top.
+    broken, cov = scan(from_head=args.update_baseline)
+    if args.update_baseline:
+        print("[links] reading committed blobs (HEAD), not the working tree")
     counts = {f: len(v) for f, v in sorted(broken.items())}
     total = sum(counts.values())
 
