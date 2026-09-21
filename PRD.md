@@ -255,7 +255,7 @@ If project-specific code is found in the framework area, it MUST be moved:
 | **AXI4** | Burst, out-of-order, outstanding | `monitor/axi4_{master,slave}_{rd,wr}_mon.sv` | ✅ Complete |
 | **AXI4-Lite** | Single-beat simplified | Same base with params | ✅ Complete |
 | **APB** | Peripheral bus | `apb4_monitor.sv` | ✅ Complete |
-| **AXI-Stream** | Streaming data | `axis_master.sv`, `axis_slave.sv` | ✅ Complete |
+| **AXI-Stream** | Streaming data | `axis4_master.sv`, `axis4_slave.sv` | ✅ Complete |
 
 **Key Features:**
 - Transaction tracking with error detection (SLVERR, DECERR, timeouts, orphans)
