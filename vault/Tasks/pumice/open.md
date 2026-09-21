@@ -392,12 +392,69 @@ so 13 is the shipping width of the address mapper and no sim has elaborated it.
 different out of the build (`ROW_WIDTH = 0x0000000e` vs `0x0000000d`) so the
 override is load-bearing rather than a no-op.
 
-**Still to do** is the original "Do" item, unchanged: the core suite at
-`TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16`, still blocked on the
-two failures above (`read_ceiling` trips the rd-return checker, `write_ceiling`
-stalls W for 1409 cycles against a board that sustains ~95%) -- both in the
-testbench or its DFI model, not the DUT. `DFI_DATA_WIDTH` 128 vs 64 and
-`dfi_cmd_path`'s DFI_RATE=4 are newly-named and not yet investigated.
+### 2026-09-20 (later still): both blockers were TB bugs; board geometry 14/18
+
+The two blocking failures were exactly what this task predicted -- testbench,
+not DUT -- and both came from the same root: a value hardcoded for the case
+where the DRAM beat equals the device word. Fixed in `115e0d824`:
+
+* `_mkaddr` shifted by a hardcoded 3 while `pumice_core` decodes at device-word
+  granularity (`$clog2(DRAM_DEVICE_WIDTH/8)` = 1 on the board). 256 bursts
+  meant for 8 banks landed on **2**; the write stream lost the bank
+  parallelism it measures and stalled on row conflicts -- that was the 1409
+  cycles with 18-19 cycle runs.
+* `t_ccd_i` was 4 ("BL8 at DFI_RATE 2"). A BL4 x16 burst is ONE DFI word, so
+  every column command sat four cycles apart. Write utilization **27.56% ->
+  99.22%**.
+* `DFISlavePHY(beats_per_burst=BL)` is the framework's documented K=1
+  override; the board needs BL/K with K = beat/device = 2. The model waited
+  for phases the DUT never drives, so every read timed out -- that is the
+  "32 reads outstanding, no return" the checker blamed on refresh drain.
+* R-beat accounting lost a burst to the tracker's deliberate late arming
+  (hidden by a `beats - BL_WORDS` tolerance while a burst was 4 beats), and
+  fixing it exposed a same-edge race that dropped the last beat at BOTH
+  geometries.
+
+Two assertions were mis-normalized rather than wrong: starvation was bounded
+as a share of the active window, which grades the geometry (identical driver
+reads 2.9% at BL_WORDS=4 and 9.8% at BL_WORDS=1) and loosens as the DUT slows,
+since refresh inflates the window; it is per-burst plus per-refresh now,
+calibrated at 0.117 cyc/burst and 2.75 cyc/refresh. Write backpressure
+required exactly 0, but at BL_WORDS=1 supply and drain are exactly
+rate-matched (one AXI beat IS one DRAM burst, tCCD=1), so the opening ACTs
+leave the write CAM one entry behind and it resyncs once: 2 cycles at burst
+44, the same burst at n=256 and n=1024, with AW held and the DFI write side
+ready. Fixed cost, bounded by a constant.
+
+**Default geometry 18/18** (unchanged, and still the only configuration the
+suite gates). **Board geometry 14/18**, from "cannot run the ceilings at all".
+
+### The four that remain, all board geometry only
+
+Same class again -- thresholds that assume the default geometry -- so none is
+a DUT defect, but each needs its own measurement rather than a blanket
+loosening:
+
+1. `perf_read_inflight`: 0.30 beats/cycle against a **0.85 floor** under
+   200-cycle read latency. At BL_WORDS=1 a read burst is ONE beat, so covering
+   a 200-cycle round trip needs ~200 beats in flight and the ring holds 32.
+   The floor is only reachable when a burst is 4 beats wide; it needs to be
+   expressed against `outstanding x BL_WORDS / latency`.
+2. `perf_refresh_bubbles`: "41 separate stall runs for only 10 refreshes".
+   At tCCD=1 any perturbation opens its own stall run, so run COUNT stops
+   tracking refresh count; the attribution test needs to be on stalled cycles
+   or on run length, not on how many runs there are.
+3. `perf_paging_sweep` and 4. `perf_paging_sched_cross`: both require **100%**
+   write utilization. Board geometry tops out at 98.97% for the rate-match
+   resync characterized above, so an exact-100% requirement cannot hold there.
+   (`static_close` at 30.77% is a separate question and may be real.)
+
+**Do:** fix those four, then wire `TEST_DRAM_BEAT=32 TEST_DRAM_BL=4
+TEST_DRAM_DEVICE_W=16` into the regression so board geometry is covered by
+default. `DFI_DATA_WIDTH` 128 vs 64 and `dfi_cmd_path`'s DFI_RATE=4 remain
+un-investigated.
+
+
 
 ---
 
