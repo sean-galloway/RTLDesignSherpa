@@ -151,6 +151,21 @@ if echo "$STAGED" | grep -qE '\.svh$'; then
     fi
 fi
 
+# --- a markdown link must point at something that exists ---------------------
+# 495 broken links accumulated across 160 files before anyone counted
+# (DOCREV-011). They arrived one move at a time because nothing ever looked;
+# that task's own note asks for this gate, "or this returns". Ratcheted for the
+# reason CONV-002 gives above: the backlog blocks nobody, a file that GROWS one
+# blocks. Fenced blocks, inline `code` examples and docs/review/ are excluded --
+# "fixing" a link inside a template or a quoted record corrupts it.
+if echo "$STAGED" | grep -q '\.md$'; then
+    echo "[pre-commit] Checking markdown links..."
+    if ! out=$("$PY" "$REPO_ROOT/bin/check_broken_links.py" --ratchet 2>&1); then
+        echo "$out" >&2
+        fail=1
+    fi
+fi
+
 # --- filelist contract -------------------------------------------------------
 # The fast local mirror of .github/workflows/filelist-checks.yml. CI is the
 # authority; this saves the round trip.
