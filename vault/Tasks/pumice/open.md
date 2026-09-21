@@ -479,7 +479,27 @@ ready. Fixed cost, bounded by a constant.
 **Default geometry 18/18** (unchanged, and still the only configuration the
 suite gates). **Board geometry 14/18**, from "cannot run the ceilings at all".
 
-### The four that remain, all board geometry only
+### 2026-09-20 (final): 16/18 at board geometry; the residue is PUMICE-046
+
+Three of the four below were thresholds and are fixed in `4a729f568`:
+`read_inflight`'s floor is derived from Little's law scaled by BL_WORDS (and
+from the NOMINAL ring depth, not the built one, so the
+`PUMICE_RD_RET_DEPTH=8` mutation still fails at BOTH geometries -- verified);
+`refresh_bubbles` attributes on refresh-SIZED runs plus a majority-of-cycles
+check instead of raw run count; and both paging tests assert against the
+measured command-bus ceiling (`BL_WORDS / cmds_per_access`) where a flat 100%
+is unreachable, leaving the default-geometry gate untouched.
+
+The fourth was NOT a threshold. The close-page family reaches only ~63% of its
+own command-bus ceiling and that is now **[[PUMICE-046]]**, with the tRRD /
+tRCD evidence that rules out DRAM timing. The two paging tests fail at board
+geometry reporting it by name -- deliberately, rather than being tuned green.
+
+**Default 18/18. Board 16/18.** Remaining for THIS task: resolve or accept
+PUMICE-046, then wire board geometry into the regression. `DFI_DATA_WIDTH` 128
+vs 64 and `dfi_cmd_path`'s DFI_RATE=4 are still un-investigated.
+
+### The four that were left (superseded by the entry above)
 
 Same class again -- thresholds that assume the default geometry -- so none is
 a DUT defect, but each needs its own measurement rather than a blanket
