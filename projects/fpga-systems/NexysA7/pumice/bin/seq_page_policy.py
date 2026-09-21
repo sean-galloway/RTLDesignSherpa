@@ -21,11 +21,22 @@ from sequence import Sequence
 import ddr2_char as dc
 import pumice_char as pc
 
-# Board-specific DFI knobs (see project_pumice_board_perf_char): t_phy_wrlat=0 is
-# mandatory on this board (the default misaligns the write and leveling finds no
-# passing tap); t_rddata_en=6.
-_WRLAT = 0
-_T_RDDATA_EN = 6
+# NO DFI PHY OVERRIDE HERE. This used to pin t_phy_wrlat=0 / t_rddata_en=6 as
+# "mandatory on this board" (2026-09-08, f34c121ef). That is stale: `init` now
+# levels the read path and programs the PHY itself, and the leveled point has
+# since moved (bitslip 0 / tap 4 / eye width 10, against the tap 8 / eye 17 the
+# note was written against).
+#
+# Measured 2026-09-21 on 210292BFA3EE: with the override, ALL FOUR cells failed
+# their integrity check (mismatches) while still reporting healthy bandwidth --
+# OPEN read 552.3 MB/s and "FAIL" on the same line. Without it, the same four
+# cells pass and the bandwidth is unchanged (553.4 MB/s). So the override
+# corrupted DATA and left the PERFORMANCE number intact, which is the worst
+# shape a measurement bug can take: the number a reader would quote survives,
+# and only the correctness flag says it came from a run whose data was wrong.
+#
+# `char` never overrode these, which is why it passed on the same board in the
+# same session while this sequence failed 4/4.
 
 _FAM = {"incremental": pc.FAM_INCREMENTAL, "row_major": pc.FAM_ROW_MAJOR}
 
@@ -41,7 +52,11 @@ class PagePolicy(Sequence):
         bl = ctx.param("burst_len", 16)
         txn = ctx.param("pp_txn", 2000)
         base = ctx.param("base_addr", 0x0)
-        clk = ctx.param("clk_mhz", 100.0)
+        # 75.0, not 100.0: the meters count sys/mc_clk, which PUMICE_SYS_75
+        # makes 75 MHz. The 100 MHz default was the raw board input and
+        # inflated every bandwidth number by 4/3. See seq_char.py.
+        clk = ctx.param("clk_mhz", 75.0)
+        pc.check_mc_clk_hz(drv, int(clk * 1e6))
         policies = [("CLOSE", dc.PAGE_POLICY_CLOSE), ("OPEN", dc.PAGE_POLICY_OPEN)]
 
         results = {}
@@ -57,7 +72,7 @@ class PagePolicy(Sequence):
                     # died with TypeError before touching the board -- a 0.00s
                     # "FAIL" that looked like a board failure and was not.
                     page_policy=pol,
-                    rd_in_order=True, t_phy_wrlat=_WRLAT, t_rddata_en=_T_RDDATA_EN)
+                    rd_in_order=True)
                 rec = pc.measure(drv, sc, cfg=cfg, base_addr=base, clk_mhz=clk)
                 results[(fam, pname)] = rec
                 ctx.say(f"[page_policy] {fam:<12} {pname:<6} "

@@ -85,7 +85,11 @@ def main(argv=None) -> int:
                     help="wr_batch: generator pair counts to sweep")
     ap.add_argument("--wb-txn", type=int, default=2000,
                     help="wr_batch: transactions per point")
-    ap.add_argument("--clk-mhz", type=float, default=100.0,
+    # 75.0: the sys/mc_clk domain the bus meters count in under PUMICE_SYS_75
+    # (MMCM 100 x 6 / 8). 100.0 was the raw board INPUT clock and inflated every
+    # bandwidth number by 4/3 -- open_page read 739 MB/s, 123% of what a 64-bit
+    # port at 75 MHz can carry. The 66.67 MHz profile needs --clk-mhz 66.67.
+    ap.add_argument("--clk-mhz", type=float, default=75.0,
                     help="board clock (MHz) for bandwidth math")
     args = ap.parse_args(argv)
 
