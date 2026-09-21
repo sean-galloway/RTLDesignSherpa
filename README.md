@@ -67,9 +67,8 @@ Guided progression from primitives to systems. Each level links to the correspon
 
 - **Level 1 — [Common Building Blocks](rtl/common/)** + **[Math Library](rtl/math/)** · ~230 modules · counters, FIFOs, arbiters, data integrity, clock utilities (common) + integer and floating-point math (math)
 - **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/monitor/) · [Shared observation](rtl/amba/shared/)
-- **Level 3 — [Integration Examples](rtl/integ_amba/)** · APB crossbar, bridges, multi-protocol stitching
-- **Level 4 — [Production Components](projects/components/)** · [STREAM](projects/components/dmas/stream/) · [RAPIDS](projects/components/dmas/rapids/) · [Bridge](projects/components/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/apbx-xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/memory-controllers/)
-- **Level 5 — [FPGA Projects on Nexys A7](projects/fpga-systems/NexysA7/)** · [timing_characterization](projects/asic-trials/timing_characterization/) · [cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/) · [ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) · [rapids_characterization](projects/fpga-systems/Genesys2/rapids_characterization/)
+- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dmas/stream/) · [RAPIDS](projects/components/dmas/rapids/) · [Bridge](projects/components/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/apbx-xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/memory-controllers/)
+- **Level 4 — [FPGA Projects on Nexys A7](projects/fpga-systems/NexysA7/)** · [timing_characterization](projects/asic-trials/timing_characterization/) · [cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/) · [ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) · [rapids_characterization](projects/fpga-systems/Genesys2/rapids_characterization/)
 
 <details>
 <summary>Visual diagram (Mermaid — desktop browsers only)</summary>
@@ -77,21 +76,18 @@ Guided progression from primitives to systems. Each level links to the correspon
 ```mermaid
 graph TD
     L1[Level 1: Common Building Blocks<br/>~224 modules] --> L2[Level 2: AMBA Protocol Infrastructure<br/>155 modules]
-    L2 --> L3[Level 3: Integration Examples]
-    L3 --> L4[Level 4: Production Components<br/>10+ components]
-    L4 --> L5[Level 5: Complete FPGA Projects]
+    L2 --> L4[Level 3: Production Components<br/>10+ components]
+    L4 --> L5[Level 4: Complete FPGA Projects]
 
     L1 -.- L1D[Counters, FIFOs, Arbiters<br/>Math, Floating-Point, Data Integrity]
     L2 -.- L2D[AXI4, AXI5, AXI4-Lite, APB, APB5<br/>AXIS4, AXIS5, Shared monitor/observation]
-    L3 -.- L3D[APB Crossbar, Bridges, multi-protocol stitching]
     L4 -.- L4D[STREAM, RAPIDS, Bridge, Converters<br/>Retro Legacy Blocks, Memory controllers]
-    L5 -.- L5D[stream_characterization, timing_characterization<br/>cdc_counter_display, ddr2-characterization]
+    L5 -.- L5D[timing_characterization, cdc_counter_display<br/>ddr2-characterization]
 
     click L1 "rtl/common/" "Common Building Blocks"
     click L2 "rtl/amba/" "AMBA Protocol Infrastructure"
-    click L3 "rtl/integ_amba/" "Integration Examples"
     click L4 "projects/components/" "Production Components"
-    click L5 "projects/NexysA7/" "FPGA Projects"
+    click L5 "projects/fpga-systems/NexysA7/" "FPGA Projects"
 ```
 
 </details>
@@ -195,6 +191,15 @@ Things that actually run on hardware. Each project ships its own README and Viva
 | ddr2-characterization | DDR2 / LPDDR2 memory controller (pumice) bring-up and characterization on Nexys A7 | [`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/`](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) (RTL: [`projects/components/memory-controllers/pumice-ddr2-lpddr2/`](projects/components/memory-controllers/pumice-ddr2-lpddr2/)) |
 | boards | Board files / pinouts / constraints | [`projects/fpga-systems/boards/`](projects/fpga-systems/boards/) |
 
+**CDC Counter Display** — a counter in a fast clock domain driving a display
+in a slow one, demonstrating the crossing the `rtl/amba/cdc/` modules implement:
+
+```
+Clock Domain A (Fast)    Clock Domain B (Slow)
+    Counter      →  CDC  →    Display
+   @ 100MHz         Sync      @ 10MHz
+```
+
 ### 6. Verification
 
 | What | Where |
@@ -290,7 +295,6 @@ Apply common building blocks to implement industry-standard protocols (**124 mod
 #### APB (Advanced Peripheral Bus)
 - **[APB Masters](rtl/amba/apb4/)** - Command/response interfaces with FIFO buffering
 - **[APB Slaves](rtl/amba/apb4/)** - Register interfaces with address decoding
-- **[APB Interconnect](rtl/integ_amba/)** - Multi-master/multi-slave crossbar
 - **[APB Bridges](rtl/amba/apb4/)** - Protocol conversion, CDC
 
 **Example:** APB register slave demonstrates parameter-driven design
@@ -329,35 +333,9 @@ apb4_slave #(
 
 ---
 
-### Level 3: Integration Examples
-
-**Locations:** [`rtl/integ_amba/`](rtl/integ_amba/) (tests: [`val/integ_common/`](val/integ_common/) | [`val/integ_amba/`](val/integ_amba/))
-
-Practice integrating multiple modules into working systems:
-
-#### Simple Integrations (`integ_common`)
-- **CDC Counter Display** - Cross clock domain counter with display logic
-- **Multi-Clock Systems** - Demonstrate CDC techniques
-
-**Example:** CDC Counter Display
-```
-Clock Domain A (Fast)    Clock Domain B (Slow)
-    Counter      →  CDC  →    Display
-   @ 100MHz         Sync      @ 10MHz
-```
-
-#### Protocol Integrations (`integ_amba`)
-- **APB Crossbar** - Multi-master to multi-slave interconnect
-  - 1-to-1, 1-to-4, 2-to-1, 2-to-4 configurations
-  - Address decoding, weighted arbitration
-- **APB Bridges** - Protocol conversion examples
-- **AXI Systems** - Multi-component integration
-
-**Tests:** [`val/integ_common/`](val/integ_common/) | [`val/integ_amba/`](val/integ_amba/)
-
 ---
 
-### Level 4: Production Components
+### Level 3: Production Components
 
 **Location:** [`projects/components/`](projects/components/) | **Documentation:** [Component Index](docs/markdown/projects/index.md)
 
@@ -407,7 +385,7 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 
 ---
 
-### Level 5: Complete FPGA Projects (Future)
+### Level 4: Complete FPGA Projects (Future)
 
 **Planned:** Full SoC designs combining all levels:
 
@@ -547,7 +525,6 @@ rtldesignsherpa/
 │   │   ├── cdc/                 # Clock domain crossing
 │   │   ├── monitor/             # Transaction monitors + MonBus groups
 │   │   └── shared/              # Shared observation utilities
-│   └── integ_amba/              # AMBA integration examples
 │
 ├── projects/                     # Component projects (10+)
 │   ├── components/
@@ -666,11 +643,7 @@ pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 - [AMBA CLAUDE Guide](rtl/amba/CLAUDE.md) - Implementation patterns
 - [AMBA Tests](val/amba/) - Protocol compliance tests
 
-**Level 3 - Integration:**
-- [Integration Examples](rtl/integ_amba/) - Working multi-module designs
-- [Integration Tests](val/integ_amba/) - System-level verification
-
-**Level 4 - Components:**
+**Level 3 - Components:**
 - [Component Index](docs/markdown/projects/index.md) - All components
 - [Component Overview](docs/markdown/projects/overview.md) - Design patterns
 - [Retro Legacy Blocks](projects/components/retro_legacy_blocks/README.md) - Legacy peripheral collection
@@ -800,9 +773,8 @@ Modules have been characterized across FPGA technologies:
 We welcome contributions at all levels:
 
 **Level 1-2:** New building blocks or protocol modules
-**Level 3:** Integration examples and use cases
-**Level 4:** Production components
-**Level 5:** Complete FPGA projects
+**Level 3:** Production components
+**Level 4:** Complete FPGA projects
 
 **Guidelines:**
 - Follow existing module structure and naming
