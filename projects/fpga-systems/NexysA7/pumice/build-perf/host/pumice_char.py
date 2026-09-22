@@ -606,6 +606,17 @@ class CharRecord:
     # does not, and reusing one count there overstates the smaller side.
     wr_bytes:    Optional[int] = None
 
+    # Per-DIRECTION windows for a concurrent run. wr_cycles/rd_cycles both
+    # carry the SHARED window (first kick to last completion), which is the
+    # right denominator for bus throughput but hides the case this exists to
+    # catch: one direction starved while the other ran. bank_gap_sweep had its
+    # own private _point() measuring exactly this, which is why the same 1+1
+    # workload could read clean through measure_concurrent and dead through the
+    # sweep -- two implementations of one measurement. Folded in here so there
+    # is one. None for sequential phases, where the directions never overlap.
+    wr_window_cyc: Optional[int] = None
+    rd_window_cyc: Optional[int] = None
+
     # ---- derived bandwidth / latency ------------------------------------
     @staticmethod
     def _bw_mb_s(bytes_moved: int, cycles: int, clk_mhz: float) -> float:
@@ -793,7 +804,8 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
 def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
                       cfg: ControllerConfig = BASELINE, geom: Geometry = DEFAULT_GEOM,
                       base_addr: int = 0x0, clk_mhz: float = 100.0,
-                      timeout_s: float = 40.0, n_wr: int = 1, n_rd: int = 1
+                      timeout_s: float = 40.0, n_wr: int = 1, n_rd: int = 1,
+                      placement: str = "regions"
                       ) -> CharRecord:
     """Run writers and readers in ONE window instead of back to back.
 
@@ -854,8 +866,39 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
     per_gen_bytes = sc.txn_count * sc.burst_len * beat_bytes
     notes: List[str] = []
 
+    # PLACEMENT is a parameter, not a fork. "regions" is the default above.
+    # "banks" gives every engine its own bank, writers on even slots and
+    # readers on odd, so the two directions interleave and contend the way a
+    # real mix does instead of sitting at opposite ends of the part. That is
+    # what the bank-gap sweep needs, and it used to get it by reimplementing
+    # this whole function -- which is how the same 1+1 workload came to read
+    # clean through here and dead through there.
+    if placement == "banks":
+        nb = 1 << geom.bank_width
+        step = max(nb // (2 * max(n_wr, n_rd)), 1)
+        def _slot(idx: int) -> int:
+            # idx < n_wr are writers (even slots), the rest readers (odd).
+            g = idx if idx < n_wr else idx - n_wr
+            return ((2 * g) if idx < n_wr else (2 * g + 1)) * step
+        _addr = lambda idx: base_addr + _slot(idx) * geom.bank_stride
+        # CONFINE THE WALK TO THE ENGINE'S OWN BANK. The start address alone is
+        # not placement: `wrap` above was derived for REGION placement, and at
+        # a low generator count a region is many banks wide (n_wr=n_rd=1 gives
+        # device/2), so an engine started on its bank would walk straight over
+        # the other direction's and the readers return ZERO transactions. It
+        # only looks right at the top generator count, where a region happens
+        # to be one bank. Intersect with the family wrap so the access PATTERN
+        # is preserved and only the walk is shortened -- same rule the region
+        # branch uses.
+        bank_wrap = geom.bank_stride - 1
+        wrap = (fam_wrap & bank_wrap) if fam_wrap else bank_wrap
+    elif placement == "regions":
+        _addr = lambda idx: base_addr + idx * region
+    else:
+        raise ValueError(f"placement must be 'regions' or 'banks', got {placement!r}")
+
     def _prog(idx: int) -> dict:
-        return dict(start_addr=base_addr + idx * region, burst_len=sc.burst_len,
+        return dict(start_addr=_addr(idx), burst_len=sc.burst_len,
                     txn_count=sc.txn_count, stride_0=stride, wrap_mask_0=wrap,
                     gap=sc.gap, id_mode=sc.id_mode, axi_size=sc.axi_size,
                     data_mode=True, lfsr_seed=seed, hash_seed0=seed,
@@ -892,6 +935,12 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
     first = min(t.w_first, t.r_first)
     last = max(t.w_last, t.r_last)
     window = max(last - first, 0)
+    # Each direction on its OWN window as well. If these differ materially from
+    # each other, one direction was starved while the other ran -- a result,
+    # not a rounding artifact, and the reason bank_gap_sweep used to measure
+    # this itself.
+    wr_window = max(t.w_last - t.w_first, 0)
+    rd_window = max(t.r_last - t.r_first, 0)
     wr_meter = _read_meter(drv, "wr")
     rd_meter = _read_meter(drv, "rd")
     rd_hist, rd_total = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
@@ -918,6 +967,7 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
         rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
         bytes_moved=per_gen_bytes * max(n_rd, 1),
         wr_bytes=per_gen_bytes * max(n_wr, 1), clk_mhz=clk_mhz,
+        wr_window_cyc=wr_window, rd_window_cyc=rd_window,
         notes=tuple(notes))
 
 

@@ -138,181 +138,81 @@ def _seed_kw(seed):
                 hash_seed1=seed ^ 0x9E37_79B9, hash_seed2=seed ^ 0x85EB_CA6B)
 
 
-def _prefill(drv, geom, n_gen, timeout_s=120.0, quiet=False):
-    """Write the whole device once, with n_gen writers side by side.
+def _buckets(m, window):
+    """Counts as measured, fractions against the HARDWARE window.
 
-    Split into passes when one writer's share needs more bursts than the
-    16-bit txn_count holds -- 64 MiB at 1 KiB/burst is 65536, one over. The
-    passes cover the share EXACTLY: rounding up would walk a writer past the
-    top of the device, where the DRAM wraps physically but the address hash
-    does not, and every later read of that region would report a mismatch that
-    is this arithmetic rather than the DRAM.
+    The meter free-runs from clear_stats() until it is read, so m.total
+    spans the host's UART chatter as well as the transfer -- 7.2M cycles
+    against a 16.7k-cycle window on a 1+1 point, 430x. Dividing by m.total
+    made a point moving 95% of peak report "0.2% productive, 99.8%
+    starvation" (2026-09-14). The counts are right -- productive lands on
+    exactly the beats moved -- so only the denominator needed fixing.
+
+    m.starv is NOT re-exported as a fraction: it absorbs all the host idle
+    and carries no information about the run. What is left after
+    productive, backpressure and idle is reported as `other_frac`.
     """
-    span = geom.device_bytes
-    per = span // n_gen
-    total = per // FILL_BYTES
-    tail = span - total * FILL_BYTES * n_gen
-    if tail:
-        print(f"[prefill] WARNING: {n_gen} writers leave {tail} B at the top of "
-              f"the device unwritten; a col_major read that wraps into it will "
-              f"report a mismatch that is this, not the DRAM.")
-    passes = -(-total // pc.TXN_MAX)
-    base_txn, extra = divmod(total, passes)
-    if not quiet:
-        print(f"[prefill] {span/(1<<20):.0f} MiB, {n_gen} writers, {passes} "
-              f"pass(es), seed 0x{SEED:08X}")
-
-    ok, cycles, done = True, 0, 0
-    for p in range(passes):
-        txn = base_txn + (1 if p < extra else 0)
-        drv.freeze_trace(True)
-        for g in range(n_gen):
-            drv.program_wr_engine(
-                gen=g, start_addr=g * per + done * FILL_BYTES,
-                burst_len=FILL_BEATS, txn_count=txn,
-                stride_0=FILL_BYTES, wrap_mask_0=0, gap=0,
-                id_mode=dc.ID_MODE_FIXED, axi_size=dc.AXI_SIZE_8, **_seed_kw(SEED))
-        drv.clear_stats()
-        drv.timer_clear()
-        drv.freeze_trace(False)
-        drv.go(wr_mask=(1 << n_gen) - 1)
-        if not pc.wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True):
-            ok = False
-        drv.freeze_trace(True)
-        t = drv.timer()
-        cycles += max(t.w_last - t.w_first, 0)
-        done += txn
-
-    bw = (span / (cycles / (CLK_MHZ * 1e6))) / 1e6 if cycles else 0.0
-    if not quiet:
-        print(f"[prefill] {'done' if ok else 'DID NOT COMPLETE'} in {cycles} "
-              f"cycles ({bw:.1f} MB/s)\n")
-    return ok
-
-
-def _banks(geom, n_gen):
-    """Disjoint bank for every engine: writers even slots, readers odd.
-
-    Interleaved rather than clustered, so the two directions contend the way
-    they would in a real mix instead of sitting at opposite ends of the part.
-    """
-    nb = 1 << geom.bank_width
-    step = max(nb // (2 * n_gen), 1)
-    wr = [(2 * g) * step for g in range(n_gen)]
-    rd = [(2 * g + 1) * step for g in range(n_gen)]
-    return wr, rd
+    w = window or m.total
+    f = (lambda v: (v / w) if w else 0.0)
+    prod, bp, idle = f(m.prod), f(m.bp), f(m.idle)
+    return dict(productive=m.prod, backpressure=m.bp, starvation=m.starv,
+                idle=m.idle, total=m.total, window=w,
+                productive_frac=prod, backpressure_frac=bp,
+                idle_frac=idle,
+                other_frac=max(0.0, 1.0 - prod - bp - idle))
 
 
 def _point(drv, geom, n_gen, family, gap, timeout_s=60.0):
-    """N writers and N readers, concurrent, one window."""
+    """N writers and N readers, concurrent, one window.
+
+    Measurement is pumice_char.measure_concurrent -- the SAME call the char
+    suite and the wr_batch sequence use, with placement="banks" for the
+    disjoint even/odd bank layout this sweep needs. It used to program the
+    engines, start them, read the timer and classify the meters itself, a
+    second implementation of that function; the two then disagreed on
+    identical workloads (1+1 concurrent read clean through measure_concurrent
+    and "prefill did not complete" through here, 2026-09-21). One measurement,
+    one prefill, one set of counters. What stays local is this script's own
+    reporting: the bucket fractions, the knee finder and the plot.
+    """
     sc = pc.Scenario(name=f"{family}_g{n_gen}_gap{gap}", family=family,
-                     burst_len=BEATS, txn_count=TXN, gap=gap)
-    stride, wrap = pc.strides_for(sc, geom)
-    wr_banks, rd_banks = _banks(geom, n_gen)
-    common = dict(burst_len=BEATS, txn_count=TXN, stride_0=stride,
-                  wrap_mask_0=wrap, gap=gap, id_mode=dc.ID_MODE_FIXED,
-                  axi_size=dc.AXI_SIZE_8, **_seed_kw(SEED))
+                     burst_len=BEATS, txn_count=TXN, gap=gap,
+                     id_mode=dc.ID_MODE_FIXED, axi_size=dc.AXI_SIZE_8)
+    r = pc.measure_concurrent(drv, sc, cfg=CFG, geom=geom, n_wr=n_gen,
+                              n_rd=n_gen, clk_mhz=CLK_MHZ,
+                              timeout_s=timeout_s, placement="banks")
 
-    drv.freeze_trace(True)
-    for g in range(n_gen):
-        drv.program_wr_engine(gen=g, start_addr=wr_banks[g] * geom.bank_stride,
-                              **common)
-        drv.program_rd_engine(gen=g, start_addr=rd_banks[g] * geom.bank_stride,
-                              **common)
-    drv.clear_stats()
-    drv.timer_clear()
-    drv.freeze_trace(False)
-    mask = (1 << n_gen) - 1
-    drv.start_both(wr_mask=mask, rd_mask=mask)
-    wr_ok = pc.wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True)
-    rd_ok = pc.wait_engine(drv, "rd", timeout_s=timeout_s, ignore_error=True)
-    drv.freeze_trace(True)
-
-    t = drv.timer()
-    # Each direction on its OWN window, and the bus on the shared one.
-    #
-    # In theory both directions move the same bytes and finish together, so
-    # wr and rd should print the same number -- but that is the theory this
-    # test exists to check, so both are measured and both are printed. If they
-    # differ, one direction was starved while the other ran, and that is a
-    # result rather than a rounding artifact.
-    wr_cyc = max(t.w_last - t.w_first, 0)
-    rd_cyc = max(t.r_last - t.r_first, 0)
-    window = max(max(t.w_last, t.r_last) - min(t.w_first, t.r_first), 0)
-    byts = TXN * BEATS * 8 * n_gen          # per direction
+    wr_cyc = r.wr_window_cyc or r.wr_cycles
+    rd_cyc = r.rd_window_cyc or r.rd_cycles
+    window = r.rd_cycles                      # shared window, both directions
+    byts   = r.bytes_moved
 
     def _mbs(nbytes, cycles):
         return (nbytes / (cycles / (CLK_MHZ * 1e6))) / 1e6 if cycles else 0.0
 
-    wr_bw  = _mbs(byts, wr_cyc)
-    rd_bw  = _mbs(byts, rd_cyc)
-    bus_bw = _mbs(2 * byts, window)
-
-    # The read histogram counts transactions the bus actually returned. If it
-    # disagrees with what was programmed, the MB/s above are computed from
-    # bytes that did not move and the number is fiction, not a measurement.
-    _, rd_txn = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
-    want_txn = TXN * n_gen
-    # Summed across the ACTIVE readers, not just reader 0 -- at n_gen > 1 a
-    # single-reader read silently ignores the other three.
-    mism  = sum(drv.beats_mismatched(g) for g in range(n_gen))
-    # Stray R beats: beats the bus delivered with NO outstanding AR to own
-    # them. This is the discriminator for PUMICE-037. The read engine drains a
-    # stray with rready high and its unconditional per-beat compare then counts
-    # it as a mismatch, so a point with stray > 0 is over-DELIVERY by the
-    # controller, while mismatches with stray == 0 are wrong data for beats
-    # that were genuinely asked for. Recording it costs one register read and
-    # is the difference between those two diagnoses.
-    stray = sum(drv.stray_beats(g) for g in range(n_gen))
-
-    # Four-bucket cycle classification per direction. This is what turns a
-    # bandwidth shortfall into a named cause instead of a number: rising
-    # STARVATION means the generators stopped asking (the gap did it), rising
-    # BACKPRESSURE means the controller stopped accepting (the DRAM did it).
-    # Raw counts sit beside the fractions so nothing downstream has to
-    # re-derive a ratio, or trust one it cannot rebuild.
-    meters = {d: pc._read_meter(drv, d) for d in ("wr", "rd")}
-    drv.freeze_trace(False)
-
-    def _buckets(m, window):
-        """Counts as measured, fractions against the HARDWARE window.
-
-        The meter free-runs from clear_stats() until it is read, so m.total
-        spans the host's UART chatter as well as the transfer -- 7.2M cycles
-        against a 16.7k-cycle window on a 1+1 point, 430x. Dividing by m.total
-        made a point moving 95% of peak report "0.2% productive, 99.8%
-        starvation" (2026-09-14). The counts are right -- productive lands on
-        exactly the beats moved -- so only the denominator needed fixing.
-
-        m.starv is NOT re-exported as a fraction: it absorbs all the host idle
-        and carries no information about the run. What is left after
-        productive, backpressure and idle is reported as `other_frac`.
-        """
-        w = window or m.total
-        f = (lambda v: (v / w) if w else 0.0)
-        prod, bp, idle = f(m.prod), f(m.bp), f(m.idle)
-        return dict(productive=m.prod, backpressure=m.bp, starvation=m.starv,
-                    idle=m.idle, total=m.total, window=w,
-                    productive_frac=prod, backpressure_frac=bp,
-                    idle_frac=idle,
-                    other_frac=max(0.0, 1.0 - prod - bp - idle))
-
+    try:
+        stray = sum(drv.stray_beats(g) for g in range(n_gen))
+    except Exception:                                          # noqa: BLE001
+        stray = 0
+    meters = {"wr": r.wr_meter, "rd": r.rd_meter}
     return dict(
         order=family, n_gen=n_gen, gap=gap, txn=TXN, beats=BEATS,
-        wr=wr_bw, rd=rd_bw, bus=bus_bw,
-        # Both windows, so a disagreement between the counters and the
-        # hardware stamps is visible rather than averaged away.
+        wr=_mbs(r.wr_bytes or byts, wr_cyc), rd=_mbs(byts, rd_cyc),
+        bus=_mbs((r.wr_bytes or byts) + byts, window),
         wr_cycles=wr_cyc, rd_cycles=rd_cyc, window_cycles=window,
         bytes_per_direction=byts,
-        # Ceiling stored per record, so a plot never re-derives it and it
-        # cannot drift from the clock this run actually used.
         peak_mb_s=PEAK_MBS,
-        mism=mism, stray=stray, ok=(wr_ok and rd_ok), rd_txn=rd_txn,
-        want_txn=want_txn,
+        mism=r.mismatched, stray=stray, ok=r.ok,
+        rd_txn=r.rd_hist_total, want_txn=TXN * n_gen,
+        notes=r.notes,
         buckets={d: _buckets(m, wr_cyc if d == "wr" else rd_cyc)
                  for d, m in meters.items()},
     )
 
+
+# The controller config for the whole sweep; _point passes it to
+# measure_concurrent so the library applies it exactly once.
+CFG = pc.CONFIGS['open_page']
 
 SPARK = " .:-=+*#@"
 
@@ -366,7 +266,7 @@ def main() -> int:
     drv = DDR2CharDriver(port=dc.autodetect_port(115200, 'auto'))
     st = pm.SimpleTest(drv, base_addr=0, level_cache='host/level_cache.json')
     st.init(do_leveling=True)
-    pc.CONFIGS['open_page'].apply(drv)
+    CFG.apply(drv)
     geom = pc.DEFAULT_GEOM
     built = drv.sync_gen_config()
     n_built = min(built["num_wr_gen"], built["num_rd_gen"])
@@ -384,29 +284,26 @@ def main() -> int:
             f"{max(gens)} writers + {max(gens)} readers need {2*max(gens)} "
             f"disjoint banks but the device has {nb}; lower GENS.")
 
-    if not _prefill(drv, geom, n_built):
-        print("prefill did not complete -- reads below would be measured "
-              "against an incomplete image; stopping.")
-        return 1
-    print(f"prefill mode: {PREFILL_MODE}"
-          + (" (device re-filled before every point)" if PREFILL_MODE == "point"
-             else " (ONCE for the whole run -- points are NOT independent)"))
+    # NO separate prefill pass. measure_concurrent pre-fills each reader's own
+    # region as an untimed step inside the point, against the same address-hash
+    # data mode the reader validates with -- so every point is independent by
+    # construction and there is nothing to keep in sync. The script's private
+    # _prefill() filled the WHOLE device up front against its own bank layout;
+    # it is what reported "prefill did not complete" for every 1+1 and 2+2
+    # point on 2026-09-21 while the identical workload ran clean through the
+    # library path in wr_batch.
 
     bad, records = [], []
     for n_gen in gens:
-        wr_banks, rd_banks = _banks(geom, n_gen)
-        print(f"=== {n_gen}+{n_gen} concurrent -- writers on banks {wr_banks}, "
-              f"readers on {rd_banks} ===")
+        # Placement is measure_concurrent's now (placement="banks"): writers on
+        # even bank slots, readers on odd, one bank each.
+        print(f"=== {n_gen}+{n_gen} concurrent -- disjoint banks, "
+              f"writers even slots / readers odd ===")
         curves = {}
         for name, fam in ORDERS:
             for gap in GAPS:
-                if PREFILL_MODE == "point" and not _prefill(
-                        drv, geom, n_built, quiet=True):
-                    bad.append(f"{fam} g{n_gen} gap{gap}: prefill did not "
-                               f"complete; this point measures an incomplete "
-                               f"image")
                 r = _point(drv, geom, n_gen, fam, gap)
-                r["prefill_mode"] = PREFILL_MODE
+                r["prefill_mode"] = "per-point (measure_concurrent)"
                 records.append(r)
                 for series in ("wr", "rd", "bus"):
                     curves.setdefault((name, series), {})[gap] = r[series]
