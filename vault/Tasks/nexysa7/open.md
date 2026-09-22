@@ -204,13 +204,18 @@ of the move; fold NEXYS-001 in with it.
 (`uart_link.py`, `board.py`, `boards/`, `sequence.py`, one `program_fpga.tcl`).
 The pumice DDR2 flow was migrated as the proof. Bring the other flows across.
 
-**Port scan: 2 of 3 done. The paths below were all pre-reorg and no longer
-resolved, and the count was wrong.**
+**DONE (2026-09-22) -- the port scan is consolidated.** All four
+`autodetect_port` implementations are now thin `uart_link.find_port` wrappers
+and no hand-rolled `/dev/ttyUSB*` glob remains anywhere in the repo. The
+original list was wrong on every count: the paths were all pre-reorg, and one of
+the three had already been migrated.
 
-- `Genesys2/stream/bin/harness_addrs.py` — `autodetect_port()` (SCRATCH
-  round-trip probe). STILL HAND-ROLLED, and the only one left: a repo-wide
-  grep for `glob.glob("/dev/ttyUSB*")` returns this file alone. Left alone
-  deliberately — another session owns the stream areas.
+- `Genesys2/stream/bin/harness_addrs.py` — DONE. Now
+  `find_port(probe=scratch_probe(H("SCRATCH")))`, which is the helper
+  `uart_link` had been carrying FOR this function all along (same 0xC0FFEE5A
+  magic) and that nothing had ever called. It also gained a `board=` argument
+  (honouring `$FPGA_BOARD`) that narrows candidates by USB serial before
+  probing -- see the hazard note below.
 - `Genesys2/rapids_characterization/flows-rapids-beats/host/rapids_char_io.py`
   — DONE 2026-09-22. Now `find_port(probe=harness_probe())`; the probe reads
   CTRL by name and compares the 'RAP1' magic taken from rapids_char_top.sv
@@ -221,9 +226,18 @@ resolved, and the count was wrong.**
   migrated before this pass; the entry here was simply stale. It has carried a
   `harness_probe()` and a `find_port` wrapper for some time.
 
-Each becomes a thin wrapper over `uart_link.find_port(probe=...)`, exactly as
-`ddr2_char.autodetect_port` now is. New callers should prefer
-`Board.find_uart_port(probe=...)`, which also filters by USB serial.
+**The hazard this closed.** The stream probe WRITES (a SCRATCH round-trip)
+rather than reading an ID constant, and every harness in this lab speaks the
+same ASCII W/R protocol -- so an unfiltered scan does not bounce off a
+neighbouring board, it writes to it. `H("SCRATCH")` is `0x0001_0020`, which on
+the rapids board is inside its DESC-LOAD window. Two changes: naming a board
+narrows the candidates by USB serial first, and `uart_link.scratch_probe` now
+reads the original value and restores it on a MISMATCH instead of abandoning
+the magic in a foreign register. Both probe builders were completely untested
+until now, which is why that went unnoticed; `test_uart_link.py` covers them.
+
+New callers should still prefer `Board.find_uart_port(probe=...)` over the bare
+`find_port`, for the same USB-serial filtering reason.
 
 **DONE (2026-09-22) -- no per-flow `program_fpga.tcl` remains.**
 `projects/fpga-systems/bin/program_fpga.tcl` is the only copy in the tree. The
@@ -236,12 +250,18 @@ all (`get_hw_targets */xilinx_tcf/*` takes whatever Vivado lists first).
 `capture_ila.tcl` was fixed the same way -- it had defaulted to a Genesys 2
 serial inside a flow that defaults to the Nexys.
 
-This item stays OPEN for the port-scan half above, which is untouched.
+Both halves of NEXYS-003 are done as of 2026-09-22; what still holds the item
+open is the deferred build-target move noted below.
 
 **Then:** consider moving the Vivado build targets (`project`/`synth`/
 `bitstream`/`utilization`/`timing`) into `make/fpga_flow.mk` too — they are
 near-identical across all seven flows. Deliberately left out of the first pass
 so adopting the file could not break a working build. Overlaps NEXYS-001.
+
+**That deferred move is now the ONLY thing holding NEXYS-003 open.** Both
+concrete deliverables are done as of 2026-09-22: the port scan (all four
+`autodetect_port` copies) and the per-flow `program_fpga.tcl` (both survivors).
+Fold the build-target move into NEXYS-001 and this can close.
 
 **Sequences:** consider `projects/fpga-systems/<board>/<component>/bin/` sequence areas
 for rapids/stream, mirroring `projects/fpga-systems/NexysA7/pumice/bin/`.

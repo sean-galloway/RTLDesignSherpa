@@ -337,3 +337,71 @@ def test_override_does_not_hijack_a_board_with_its_own_uart_serial(monkeypatch):
 
     devs = [p.device for p in get_board("genesys2").find_uart_ports()]
     assert devs == ["/dev/ttyUSB1"]
+
+
+# ---------------------------------------------------------------------------
+# Probe builders -- untested until 2026-09-22, which is why nobody noticed that
+# the scratch probe left its magic behind on every board it did not match.
+# ---------------------------------------------------------------------------
+
+class _FakeBridge:
+    """One 32-bit cell standing in for UARTAxiBridge."""
+
+    def __init__(self, value=0x1234_5678, writable=True):
+        self.value = value
+        self.writable = writable
+        self.writes = []
+
+    def read(self, addr):
+        return self.value
+
+    def write(self, addr, data):
+        self.writes.append((addr, data))
+        if self.writable:
+            self.value = data
+        return True
+
+
+class _FakeLink:
+    def __init__(self, bridge):
+        self._b = bridge
+
+    def bridge(self):
+        return self._b
+
+
+def _patch_bridge(monkeypatch, bridge):
+    monkeypatch.setattr(uart_link, "open_bridge", lambda channel=None: bridge)
+
+
+def test_register_probe_matches_only_its_own_magic(monkeypatch):
+    b = _FakeBridge(value=0x5241_5031)
+    _patch_bridge(monkeypatch, b)
+    assert uart_link.register_probe(0x100, 0x5241_5031)(_FakeLink(b)) is True
+    assert uart_link.register_probe(0x100, 0x4344_4331)(_FakeLink(b)) is False
+
+
+def test_register_probe_never_writes(monkeypatch):
+    # The property its docstring claims: safe to point at a board running
+    # someone else's bitstream.
+    b = _FakeBridge(value=0xDEAD_BEEF)
+    _patch_bridge(monkeypatch, b)
+    uart_link.register_probe(0x100, 0x5241_5031)(_FakeLink(b))
+    assert b.writes == []
+
+
+def test_scratch_probe_zeroes_the_scratch_on_a_match(monkeypatch):
+    b = _FakeBridge(value=0, writable=True)
+    _patch_bridge(monkeypatch, b)
+    assert uart_link.scratch_probe(0x1_0020)(_FakeLink(b)) is True
+    assert b.value == 0          # the documented resting state
+
+
+def test_scratch_probe_restores_the_original_on_a_mismatch(monkeypatch):
+    # A foreign or read-only register: the magic does not stick, so the probe
+    # must put back what it found rather than leave 0xC0FFEE5A in someone
+    # else's register map.
+    b = _FakeBridge(value=0xABCD_1234, writable=False)
+    _patch_bridge(monkeypatch, b)
+    assert uart_link.scratch_probe(0x1_0020)(_FakeLink(b)) is False
+    assert b.writes[-1] == (0x1_0020, 0xABCD_1234)

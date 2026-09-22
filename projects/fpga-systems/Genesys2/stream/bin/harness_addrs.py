@@ -103,42 +103,36 @@ def compose(name: str, **fields: int) -> int:
     return word & 0xFFFF_FFFF
 
 
-def autodetect_port(baud: int = 115200, want: Optional[str] = None) -> str:
+def autodetect_port(baud: int = 115200, want: Optional[str] = None,
+                    board: Optional[str] = None) -> str:
     """Find the ttyUSB the stream char harness is on.
 
     The USB-UART re-enumerates across reboots/replugs, so never hardcode the
-    port. Probe each candidate by round-tripping the harness SCRATCH CSR (RW, no
-    side effects); the board that echoes the magic back is ours. `want`: if the
-    caller passed --port explicitly (not 'auto'), try that first. Requires
-    `uart_axi_bridge` on sys.path (host entrypoints set this up before calling).
+    port. Thin wrapper over the shared `uart_link.find_port` probe loop; the
+    stream-specific part is only the SCRATCH round-trip, which
+    `uart_link.scratch_probe` implements. That helper was written FROM this
+    function -- same 0xC0FFEE5A magic -- and this was the last copy in the repo
+    still carrying its own /dev/ttyUSB* glob (NEXYS-003).
+
+    `board` (or $FPGA_BOARD) narrows the scan to ONE board's ports by USB serial
+    BEFORE probing, and that matters more here than for a read-only probe: the
+    SCRATCH probe WRITES. Every harness in this lab speaks the same ASCII W/R
+    protocol, so an unfiltered scan pokes the magic into whatever happens to sit
+    at this address on a neighbouring board -- H("SCRATCH") is 0x0001_0020,
+    which on the rapids board lands inside its DESC-LOAD window. Name a board
+    and that cannot happen. With none named the candidate set is as before.
     """
-    import glob
-    from uart_axi_bridge import UARTAxiBridge
+    import stream_env  # noqa: F401 - import side effect: sys.path setup
+    from uart_link import find_port, scratch_probe
 
-    scratch = H("SCRATCH")            # by-name; RW identity register
-    magic = 0xC0FFEE5A
-    cands = []
-    if want and want != "auto":
-        cands.append(want)
-    cands += sorted(p for p in glob.glob("/dev/ttyUSB*") if p not in cands)
-
-    for port in cands:
-        try:
-            with UARTAxiBridge(port, baud, timeout=0.4) as b:
-                b.write(scratch, magic)
-                if b.read(scratch) == magic:
-                    try:
-                        b.write(scratch, 0)   # leave no footprint
-                    except Exception:
-                        pass
-                    print(f"[autodetect] stream harness found on {port}")
-                    return port
-        except Exception:
-            continue
-    raise SystemExit(
-        f"[autodetect] no stream harness responded on any of: "
-        f"{cands or '(no /dev/ttyUSB* present)'}. "
-        f"Is the board powered and programmed with stream_char.bit?")
+    probe = scratch_probe(H("SCRATCH"))
+    name = board or os.environ.get("FPGA_BOARD")
+    if name:
+        from boards import get_board
+        return get_board(name).find_uart_port(
+            probe=probe, want=want, baudrate=baud, label="stream harness")
+    return find_port(probe=probe, want=want, baudrate=baud,
+                     label="stream harness")
 
 
 def harness_regs(bridge, base: int = HARNESS_CSR_BASE):

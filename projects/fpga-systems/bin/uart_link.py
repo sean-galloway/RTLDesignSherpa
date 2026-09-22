@@ -247,16 +247,32 @@ def register_probe(addr: int, magic: int) -> Probe:
 
 
 def scratch_probe(addr: int, magic: int = 0xC0FFEE5A) -> Probe:
-    """Probe that round-trips a RW scratch register and then restores it.
+    """Probe that round-trips a RW scratch register, then puts it back.
 
     The shape used by the stream char harness, for harnesses whose identity
-    register is a plain scratchpad rather than a build-ID constant. Leaves no
-    footprint: the scratch is zeroed again on a match.
+    register is a plain scratchpad rather than a build-ID constant.
+
+    Unlike `register_probe` this one WRITES, so it is NOT safe to aim at an
+    arbitrary board. Every harness in this lab speaks the same ASCII W/R
+    protocol, so the write lands wherever `addr` points in THAT board's map --
+    it does not bounce off. Narrow the candidates first
+    (`Board.find_uart_port(probe=scratch_probe(...))` filters by USB serial)
+    rather than scanning every ttyUSB.
+
+    The original value is read first and restored on a MISMATCH, so a probe that
+    hits someone else's board does not abandon the magic in one of its
+    registers. On a match the scratch is zeroed, which is its resting state.
     """
     def probe(link: UartLink) -> bool:
         bridge = open_bridge(channel=link)
+        original = bridge.read(addr)   # None when the board does not answer
         bridge.write(addr, magic)
         if bridge.read(addr) != magic:
+            if original is not None:
+                try:
+                    bridge.write(addr, original)
+                except Exception:  # noqa: BLE001 - restoring is best-effort
+                    pass
             return False
         try:
             bridge.write(addr, 0)
