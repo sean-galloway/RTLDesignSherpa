@@ -47,11 +47,68 @@ green since the harness moved.
 closes timing — the defect is in the sink self-check path, the harness slave,
 or the self-check's configuration.
 
+## MEASURED 2026-09-22 -- the stimulus DOES arrive (supersedes the theory below)
+
+Instrumented the self-check to read `o_gen_beat_count_total` / `gen_busy` /
+`gen_done`, which the harness exports and no test read (commit `832973a50`).
+At 1 channel x 4 beats:
+
+    SINK gen: beats_emitted=4 busy=0 done=0 (expected 4)
+
+The AXIS generator emitted every beat and returned to IDLE, so `s_axis`
+handshook four times and the DUT accepted all the data. **The `sin` meter's
+`productive=0` is an artifact, not evidence of missing stimulus**: the meter
+window is gated on `obs_dut_busy = ~snk_system_idle` (harness line 1156) and
+frozen by `obs_meter_freeze = ~obs_win_active`, so with the sink never leaving
+idle the window never opens and BOTH meters stay at zero by construction.
+
+`wr_beat_count_total=0` is real, though -- that counter is gated by
+`r_wr_active` (set on an AW handshake) and is NOT windowed. So: data went into
+the sink SRAM, and the DMA never issued a single AW to drain it.
+
+Bisected -- the RAPIDS sink RTL is NOT at fault:
+- `test_rapids_beats_top_sink` PASSES at HEAD (301s, "sink verified (4 beats)")
+  through the same `rapids_beats_top` this harness wraps.
+- `test_rapids_core_beats_sink` verifies 4 beats.
+- The sink datapath suite passes 54/54, including 32/32 multi-channel stress.
+- The harness fails identically at 4ch x 8 beats and at 1ch x 4 beats, so it is
+  not multi-channel-specific.
+
+Eliminated by inspection, with evidence: `cfg_alloc_size` (TB programs 16),
+`fill_space_free` (resets to full depth), `w_wr_need_base` (gated on
+`r_is_ext`; the descriptor is DATA), `EN_WRITE` (sink passes `1'b1`, forwarded
+correctly), channel-id routing (`tid` matches both sides), SRAM depth (test
+overrides to 512, same as the passing component test), descriptor-RAM wiring
+(both halves symmetric, `snk_m_axi_desc_*` fully connected), and the AXIS
+generator FSM (holds `tvalid` in RUN; cannot terminate early).
+
 ## Next step
 
-Compare against the SOURCE self-check, which passes on the same harness: the
-source path shares the descriptor/scheduler front end, so the divergence is in
-the AXIS ingress -> sink SRAM -> `axi4_slave_wr_crc_check` chain. Check first
-whether `s_axis` stimulus is reaching the DUT at all (the `sin` meter reading
-zero suggests it is not), which would put the fault ahead of the DMA rather
-than inside it.
+The question is now narrow: **why does the sink scheduler never leave idle
+after the APB kick?** `snk_system_idle = &scheduler_idle`, the descriptors load
+and the by-name kick writes land (visible in the log), yet no AW is issued.
+Check whether `snk_desc_arvalid` ever asserts -- i.e. whether the sink
+descriptor FETCH starts at all. A `WAVES=1` run reproduces in ~9 minutes at
+`TEST_NUM_ACTIVE=1 TEST_NUM_BEATS=4`.
+
+## Second, independent defect: the AXIS generator disagrees with the golden
+
+With 4 beats confirmed emitted, the generator's expected CRC still does not
+match the model: `gen=0xC8854A27` vs `golden_crc(0,4)=0x20F5B1C9` (and
+`0x89346A28` vs `0x8C023372` at 8 beats). It is not an off-by-one in count or
+start -- no `golden_crc(0,n)` for n=1..12 matches, nor a window advanced by one
+or two.
+
+Why nothing caught it: the golden's `_KNOWN_GOOD` values are exactly the ones
+the SOURCE path verifies, so the model is pinned to `axi4_slave_rd_pattern_gen`
+and `axis4_slave_pattern_check`. The only test covering the AXIS *master*
+generator, `val/amba/test_axis4_pattern_pair` (3 passed), asserts
+`gen_crc == chk_crc` -- but the checker CRCs exactly what the generator sent,
+derived from the same LFSR, so that comparison is near-tautological and cannot
+detect a sequence that differs from the reference. This self-check is the first
+place the two are ever compared.
+
+Expected values for ch0, seed 0xDEADBEEF: beats 0..3 are 0xDEADBEEF,
+0x6F56DF77, 0x37AB6FBB, 0x9BD5B7DD. Read `s_axis_tdata` from a waveform
+(`tdata = {REP{lfsr_out}}`): if it shows those, the LFSR is right and the CRC
+accumulation is the defect; if not, the LFSR is.
