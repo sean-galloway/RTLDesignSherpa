@@ -195,17 +195,30 @@ DUT and `verify-sim` is structurally incapable of exercising the board's launch
 mechanism. The gate can be fully green while the board never kicks.
 
 **Do:**
-- [ ] Add the `KICK_ENABLE` write to the sequencer: after the LOW/HIGH pair,
-      issue one write to `base + 0x040` with the channel-mask bits (one write
-      launches every staged channel on the same cycle, which is the point of
-      the refactor -- prefer that over per-channel pulses).
-- [ ] Delete the dead `kick_channel()` in `run_characterization.py`; it has no
-      callers and its docstring advertises the broken protocol as correct.
+- [x] Add the `KICK_ENABLE` write to the sequencer. Done 2026-09-22: new
+      `KST_KICK` state after the scan completes, issuing ONE write to
+      `w_kick_base + 0x040` carrying the whole staged mask, so every channel
+      launches on the same cycle. `KST_SCAN` routes to it only when the mask is
+      non-zero, so `GO` with mask=0 stays a no-op. The enum widened `[1:0]` ->
+      `[2:0]` to hold the fifth state.
+- [x] Delete the dead `kick_channel()` in `run_characterization.py`. Done
+      2026-09-22 (no callers repo-wide; the `kick_channels` hits are STREAM's
+      unrelated plural helper).
 - [ ] Close the coverage gap so this class of defect is reachable from sim --
       either a testbench whose toplevel is `rapids_char_top`, or move the
       sequencer below the harness boundary.
 - [ ] Re-run a board campaign and confirm non-zero beats before trusting any
       previously recorded rapids board numbers.
+
+**Validated as far as it can be without hardware.** `verilator --lint-only` on
+`flists/rapids_char_top.f`: RC=0, 268 diagnostics, IDENTICAL to the pre-patch
+baseline, and zero of them cite `rapids_char_top.sv`. All 268 are pre-existing
+MULTIDRIVEN warnings out of the PeakRDL-generated `rapids_regs.sv`.
+
+**This proves the sequencer elaborates, NOT that it launches.** No sim can
+execute this path -- see the coverage-gap item above, which is exactly why the
+defect survived this long. Treat the fix as unproven until a board campaign
+moves beats.
 
 **Evidence:** `rapids_char_top.sv:777-860` (sequencer FSM and `w_kick_paddr`),
 `run_characterization.py:189,203,288-298` (dead `kick_channel`, `_stage_kicks`,
