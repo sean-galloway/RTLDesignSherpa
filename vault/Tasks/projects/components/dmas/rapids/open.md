@@ -169,3 +169,46 @@ early.
 
 **Related:** [[TASK-078]], [[COMMON-025]], [[MATH-010]], [[CDC-001]] are the
 same task in the rtl/ areas.
+
+## TASK-081: the board kick sequencer never writes KICK_ENABLE, and no sim can catch it
+
+**Priority:** High — the rapids board characterization campaign cannot launch a
+channel. **Status:** open 2026-09-22.
+
+`rapids_beats_top` replaced write-to-kick with staged `CHx_DESC_ADDR_{LOW,HIGH}`
+plus a rising-edge-detected `KICK_ENABLE` (SRC 0x0040 / SNK 0x1040). The on-chip
+kick sequencer in `rapids_char_top.sv` still implements the OLD protocol: it
+walks `KST_SCAN -> KST_LOW -> KST_HIGH` emitting APB writes at
+`base + ch*8` and `+0x4` only, and its own comment states the stale assumption
+outright -- `KST_HIGH: // HIGH write triggers the kick` (line 823). There is no
+write to `KICK_ENABLE` anywhere in the kick path (0 matches).
+
+So `_stage_kicks()` + `go()` -- the path the campaign actually uses in
+`run_characterization.py` -- stages descriptor addresses and never pulls the
+trigger. Same root cause as the sink self-check failure fixed in the cocotb TB,
+but in a second, independent implementation.
+
+**Why no test catches it.** The sim toplevel is `rapids_char_harness`; the
+bitstream top is `rapids_char_top`. `flists/rapids_char_harness.f` references
+`rapids_char_top.sv` **zero** times, so the sequencer sits ABOVE the simulated
+DUT and `verify-sim` is structurally incapable of exercising the board's launch
+mechanism. The gate can be fully green while the board never kicks.
+
+**Do:**
+- [ ] Add the `KICK_ENABLE` write to the sequencer: after the LOW/HIGH pair,
+      issue one write to `base + 0x040` with the channel-mask bits (one write
+      launches every staged channel on the same cycle, which is the point of
+      the refactor -- prefer that over per-channel pulses).
+- [ ] Delete the dead `kick_channel()` in `run_characterization.py`; it has no
+      callers and its docstring advertises the broken protocol as correct.
+- [ ] Close the coverage gap so this class of defect is reachable from sim --
+      either a testbench whose toplevel is `rapids_char_top`, or move the
+      sequencer below the harness boundary.
+- [ ] Re-run a board campaign and confirm non-zero beats before trusting any
+      previously recorded rapids board numbers.
+
+**Evidence:** `rapids_char_top.sv:777-860` (sequencer FSM and `w_kick_paddr`),
+`run_characterization.py:189,203,288-298` (dead `kick_channel`, `_stage_kicks`,
+`go`), `flists/rapids_char_harness.f` (no `rapids_char_top.sv`). The cocotb-side
+twin of this defect and its measurements are in
+`projects/components/dmas/rapids/known_issues/active/char_harness_sink_selfcheck_no_beats.md`.

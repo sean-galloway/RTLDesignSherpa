@@ -5,7 +5,7 @@ summary: Task rollup for the RAPIDS DMA component (projects/components/dmas/rapi
 
 # RAPIDS tasks
 
-**Next ID: TASK-081** — never recycle a number, even when its task closed.
+**Next ID: TASK-082** — never recycle a number, even when its task closed.
 
 Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "RAPIDS TASK-080" when writing outside this file.
 

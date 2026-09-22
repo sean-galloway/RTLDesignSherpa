@@ -82,9 +82,55 @@ overrides to 512, same as the passing component test), descriptor-RAM wiring
 (both halves symmetric, `snk_m_axi_desc_*` fully connected), and the AXIS
 generator FSM (holds `tvalid` in RUN; cannot terminate early).
 
-## Next step
+## ROOT CAUSE FOUND AND FIXED 2026-09-22
 
-The question is now narrow: **why does the sink scheduler never leave idle
+`kick_off_channel()` staged the descriptor address and never launched it.
+`rapids_beats_top` replaced write-to-kick with staged
+`CHx_DESC_ADDR_{LOW,HIGH}` plus a rising-edge-detected `KICK_ENABLE`
+(SRC 0x0040 / SNK 0x1040); the TB only wrote the address pair. Confirmed on the
+waveform: `snk_desc_arready` came up at t=160000 and `snk_desc_arvalid` NEVER
+asserted -- the descriptor fetch was never requested, so the scheduler never
+left idle and no AW was ever issued.
+
+The staged addresses were landing on the right registers (`CH0_DESC_ADDR_LOW`
+is 0x000 and `HIGH` 0x004, which is what the old hand-computed
+`base + ch*8 (+4)` produced) -- the sole defect was the missing trigger.
+
+After adding the `KICK_ENABLE` write, at 1 channel x 4 beats:
+
+    ch0: SINK CRC match 0xC8854A27 (gen==wr==golden, valid)
+    SINK gen: beats_emitted=4 busy=0 done=0 (expected 4)
+    SINK wr meter: prod=4 bp=0 starv=6 idle=0 util=40.0%
+
+Data flows end to end and the CRC agrees with the corrected golden model.
+
+**Two defects, not one.** The CRC half was independent: the golden model
+encoded the pre-`f81454d9a` LFSR taps. Fixed separately; the SOURCE self-check
+isolates it cleanly, since that path kicks correctly, moves all its beats
+(`rd`/`sout` meters prod=4) and failed on CRC alone.
+
+## Remaining: the `sin` bus meter reads zero
+
+The one error left is `sin bus-meter productive=0`. This is a windowing
+artifact, not a data-path fault: the same clear/freeze window counted `wr`
+prod=4, and the data provably moved (CRC matched). The AXIS ingress completes
+before the window opens -- the failure mode the TB's own comment anticipates
+("the front-loaded ingress would fly by while the window was still closed").
+Kicking before starting the generator was supposed to prevent it and does not
+at this transfer size. Needs a window that opens on arm rather than on
+`~snk_system_idle`, or an ingress-side trigger.
+
+## Next step (board side)
+
+The board has the SAME missing-KICK_ENABLE defect in a second implementation --
+the on-chip sequencer in `rapids_char_top.sv`. Filed as RAPIDS TASK-081. Note
+`verify-sim` cannot catch it: the sim toplevel is `rapids_char_harness`, the
+bitstream top is `rapids_char_top`, and the harness filelist does not include
+that file.
+
+## Superseded: the question that was narrow before the fix
+
+The question was: **why does the sink scheduler never leave idle
 after the APB kick?** `snk_system_idle = &scheduler_idle`, the descriptors load
 and the by-name kick writes land (visible in the log), yet no AW is issued.
 Check whether `snk_desc_arvalid` ever asserts -- i.e. whether the sink
