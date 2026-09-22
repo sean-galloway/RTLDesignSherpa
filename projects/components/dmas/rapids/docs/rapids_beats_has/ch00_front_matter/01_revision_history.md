@@ -29,6 +29,7 @@
 | 0.6 | 2026-07-02 | RTL Design Sherpa | Resynced to RTL top-level integration |
 | 0.7 | 2026-07-13 | RTL Design Sherpa | Added the control-descriptor feature (CTRL_READ consumer gate / CTRL_WRITE producer doorbell) |
 | 0.8 | 2026-07-13 | RTL Design Sherpa | Added Chapter 6: Performance (throughput targets, latency characteristics, measured resource estimates) |
+| 0.9 | 2026-09-21 | RTL Design Sherpa | Removed a vestigial diagram-asset layer: 19 image references and 35 `**Source:**` links pointed at `assets/mermaid/` and `assets/wavedrom/` files that were never created, while a live fenced mermaid or wavedrom block sat immediately below each one carrying the same diagram. No diagram content changed -- all 31 mermaid and 39 wavedrom fences render as before. |
 
 : Document Revision History
 

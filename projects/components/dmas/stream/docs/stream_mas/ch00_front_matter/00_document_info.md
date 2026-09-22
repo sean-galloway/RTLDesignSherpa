@@ -130,9 +130,10 @@ Revisions follow the convention x.y, where x is the major version and y is the m
 | 0.94 | 2026-07-07 | seang | Documented the kick-burst fast-path programming model (`ch05_programming/02_single_transfer.md` + `04_multi_channel.md`): program per-channel address registers, then one "go"-bit write fires N channel kicks back-to-back on a single clock cycle via the top-level `i_kick_burst_*` ports, versus the serial APB `CHn_CTRL` kick. Reference implementation = the NexysA7 char harness `CH_KICK_ADDR` shadow registers + `KICK_GO` bitmask CSR (host `harness_kick.py::batch_kick`). |
 | 0.96 | 2026-07-17 | seang | Documented always-on datapath performance meters: `USE_AXI_MONITORS` now gates only the heavy `axi4_master_*_mon` CAM/reporter cones + latency histograms; the in-core `axi_bus_meter` buckets (RDMON/WRMON_PERF prod/bp/starv/idle) and the beat/byte/burst/window counters are always-on and the perf-window `RUN` bits pass through, so a monitors-off production build still measures datapath utilisation. Updated the `USE_AXI_MONITORS = 0` note (`ch02_blocks/01_stream_core.md`) and the MON-block gating clause (`ch04_registers/register_map.md`). Also relocated stream + rapids under `projects/components/dmas/` (path references throughout). |
 | 0.95 | 2026-07-09 | seang | Documented read-ahead descriptor prefetch in `ch02_blocks/04_scheduler.md`: the `r_rd_ahead` flag (read flops load the descriptor-FIFO head WITHOUT draining it; write flops load it and drain the FIFO to catch up), the in-place CH_XFER_DATA advance that collapses the per-descriptor bubble to zero, and the registered launch/advance commit-accumulator addend that keeps the descriptor-FIFO output off the accumulator critical path for 100 MHz closure. New runtime field `SCHED_CONFIG.RD_PREFETCH_EN` @ 0x204[5] (default on) added to `ch04_registers/register_map.md` + `ch06_configuration/config_reference.md`. |
+| 0.97 | 2026-09-21 | seang | No specification change. All 34 committed figures were re-encoded to a 64-colour palette (11.6 MB -> 3.6 MB) with every pixel dimension unchanged; the `regenerate_all_*.sh` scripts in `assets/mermaid/` and `assets/wavedrom/` now render through to `.png` and palette-encode, replacing versions that stopped at `.svg`. |
 
 : STREAM MAS Document Revision History
 
 ---
 
-**Last Updated:** 2026-07-02
+**Last Updated:** 2026-09-21

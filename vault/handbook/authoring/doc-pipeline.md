@@ -192,3 +192,33 @@ CSS pixel scale and the PDF path assumes 96 px/in, so a diagram rendered at 1x
 is already soft once fitted to a page; the committed set is 2x the renderer's
 natural width for that reason. Palette encoding buys the same saving with no
 resolution cost at all.
+
+## A heading directly above a fence becomes that figure's caption
+
+`md_to_docx.py` compiles the mermaid and wavedrom block patterns with an
+OPTIONAL leading heading group:
+
+```python
+r'(#{2,4}\s+(?:Figure\s+\d+[:\s]+)?[^\n]+\n+)?```mermaid\s*\n(.*?)\n```'
+```
+
+So `## Sink Path Data Flow` followed by blank lines and then a fence is
+consumed: the text renders as the diagram's caption and the section stops
+existing as a heading. Anything non-blank in between -- even an HTML comment --
+prevents the match and keeps the heading.
+
+This is the repo-wide norm, not a defect: measured 2026-09-21 there are 116
+such adjacencies in `stream_mas` and 113 in `rapids_beats_mas`. Do not "fix"
+one book with guard lines; that makes it the odd one out, and the title text
+is preserved either way.
+
+It does mean that **deleting a line between a heading and a fence silently
+demotes that heading**. Clearing the dead image/`**Source:**` lines out of
+`rapids_beats_has` created 30 new heading/fence adjacencies, which dropped 25
+distinct titles out of the section set (several, like "Timing Diagram",
+repeat) and took the book from 203 to 199 pages. No text was lost -- each
+title still renders once, as the caption. Expect a page-count drop after that
+kind of cleanup, and verify it by diffing the heading set rather than assuming
+content vanished. Note the measurement trap: `pdftotext` output puts TOC lines
+and body headings in the same shape, so a naive `^[0-9]+\.[0-9]+ Title` grep
+counts both and will not answer this question cleanly.

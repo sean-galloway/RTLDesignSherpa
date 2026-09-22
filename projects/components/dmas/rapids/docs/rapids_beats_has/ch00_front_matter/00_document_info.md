@@ -25,8 +25,8 @@
 
 **Document Title:** RAPIDS Beats Hardware Architecture Specification (HAS)
 **Document Number:** RAPIDS-HAS-001
-**Version:** 0.8
-**Date:** 2026-07-13
+**Version:** 0.9
+**Date:** 2026-09-21
 **Status:** Released
 
 ---
