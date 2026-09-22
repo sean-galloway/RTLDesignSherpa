@@ -129,10 +129,6 @@ least 13 bits wide.
 
 ## Register Access Timing
 
-![Register Read](../assets/wavedrom/register_read.svg)
-
-**Source:** [register_read.json](../assets/wavedrom/register_read.json)
-
 ```wavedrom
 {
   "signal": [
@@ -151,10 +147,6 @@ least 13 bits wide.
   "head": {"text": "APB Register Read (CH0 Status)"}
 }
 ```
-
-![Register Write](../assets/wavedrom/register_write.svg)
-
-**Source:** [register_write.json](../assets/wavedrom/register_write.json)
 
 ```wavedrom
 {
@@ -221,4 +213,3 @@ staged addresses at 0x000-0x03F (`CH*_DESC_ADDR_{LOW,HIGH}`, stride 0x8) and the
 0x100 - 0x3FF: Base configuration / status registers
 0x1000+      : Monitor configuration / performance registers
 ```
-

@@ -75,8 +75,6 @@ The Sink Data Path AXIS wrapper adds an AXI-Stream slave interface to the sink d
                       AXI Write Master
 ```
 
-**Source:** [03_sink_data_path_axis_block.mmd](../assets/mermaid/03_sink_data_path_axis_block.mmd)
-
 ---
 
 ## Parameters
@@ -187,8 +185,6 @@ parameter int TUSER_WIDTH = 1;
     | s_axis_tkeep   |----------->| snk_fill_strb  |
     +----------------+            +----------------+
 ```
-
-**Source:** [03_sink_axis_mapping.mmd](../assets/mermaid/03_sink_axis_mapping.mmd)
 
 ---
 

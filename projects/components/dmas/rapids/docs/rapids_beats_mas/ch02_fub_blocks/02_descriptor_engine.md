@@ -65,8 +65,6 @@ The Descriptor Engine fetches and manages 256-bit descriptors from memory via AX
                         +---------------------------+
 ```
 
-**Source:** [02_descriptor_engine_block.mmd](../assets/mermaid/02_descriptor_engine_block.mmd)
-
 ---
 
 ## Parameters
@@ -189,8 +187,6 @@ parameter logic [3:0] MON_UNIT_ID = 4'h1;        // Unit identifier
     |
     +---> back to FETCH
 ```
-
-**Source:** [02_descriptor_engine_fsm.mmd](../assets/mermaid/02_descriptor_engine_fsm.mmd)
 
 ---
 

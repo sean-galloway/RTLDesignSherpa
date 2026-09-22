@@ -87,8 +87,6 @@ The RAPIDS "Beats" architecture is a Phase 1 implementation providing network-to
         (to System Memory)                         (from System Memory)
 ```
 
-**Source:** [01_architecture_block.mmd](../assets/mermaid/01_architecture_block.mmd)
-
 ---
 
 ## Data Flow Overview
@@ -118,8 +116,6 @@ The sink path receives data from an external source (via Fill interface) and wri
 6. System Memory
 ```
 
-**Source:** [01_sink_path_flow.mmd](../assets/mermaid/01_sink_path_flow.mmd)
-
 ### Source Path (Memory to Network)
 
 The source path reads data from system memory and sends it to an external destination (via Drain interface):
@@ -144,8 +140,6 @@ The source path reads data from system memory and sends it to an external destin
         v
 6. External Drain Ready
 ```
-
-**Source:** [01_source_path_flow.mmd](../assets/mermaid/01_source_path_flow.mmd)
 
 ---
 

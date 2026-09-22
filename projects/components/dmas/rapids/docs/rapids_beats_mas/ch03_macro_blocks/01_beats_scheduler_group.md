@@ -68,8 +68,6 @@ The Beats Scheduler Group wraps a single channel's scheduler and descriptor engi
                        monbus_pkt_valid/data
 ```
 
-**Source:** [03_beats_scheduler_group_block.mmd](../assets/mermaid/03_beats_scheduler_group_block.mmd)
-
 ---
 
 ## Parameters

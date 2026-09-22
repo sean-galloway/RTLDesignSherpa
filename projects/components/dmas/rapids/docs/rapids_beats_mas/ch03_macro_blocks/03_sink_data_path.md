@@ -142,8 +142,6 @@ parameter int B_PHASE_FIFO_DEPTH = 16;
    - sched_wr_done_strobe = 1
 ```
 
-**Source:** [03_sink_data_flow.mmd](../assets/mermaid/03_sink_data_flow.mmd)
-
 ---
 
 ## Timing Diagram

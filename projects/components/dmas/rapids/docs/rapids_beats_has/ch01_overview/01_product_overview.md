@@ -31,10 +31,6 @@ The "Beats" architecture represents Phase 1 of the RAPIDS family, optimized for 
 
 ## System Context
 
-![System Context Diagram](../assets/mermaid/01_system_context.png)
-
-**Source:** [01_system_context.mmd](../assets/mermaid/01_system_context.mmd)
-
 ```mermaid
 graph TB
     subgraph External["External System"]

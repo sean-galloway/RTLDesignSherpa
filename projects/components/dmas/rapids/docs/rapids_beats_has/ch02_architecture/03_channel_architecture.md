@@ -29,10 +29,6 @@ RAPIDS Beats supports 8 independent DMA channels, each with dedicated resources 
 
 ## Channel Resource Allocation
 
-![Channel Architecture](../assets/mermaid/07_channel_arch.png)
-
-**Source:** [07_channel_arch.mmd](../assets/mermaid/07_channel_arch.mmd)
-
 ```mermaid
 graph TB
     subgraph CH["Per-Channel Resources (x8)"]
@@ -118,10 +114,6 @@ graph LR
 
 **Arbitration Timing:**
 
-![Channel Arbitration](../assets/wavedrom/channel_arbitration.svg)
-
-**Source:** [channel_arbitration.json](../assets/wavedrom/channel_arbitration.json)
-
 ```wavedrom
 {
   "signal": [
@@ -142,10 +134,6 @@ graph LR
 ## Channel State Machine
 
 Each channel scheduler follows this state machine:
-
-![Channel FSM](../assets/mermaid/08_channel_fsm.png)
-
-**Source:** [08_channel_fsm.mmd](../assets/mermaid/08_channel_fsm.mmd)
 
 ```mermaid
 stateDiagram-v2
@@ -171,10 +159,6 @@ stateDiagram-v2
 ```
 
 ### Channel State Timing
-
-![Channel State Timing](../assets/wavedrom/channel_state_timing.svg)
-
-**Source:** [channel_state_timing.json](../assets/wavedrom/channel_state_timing.json)
 
 ```wavedrom
 {

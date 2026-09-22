@@ -58,8 +58,6 @@ The Beats Alloc Control is a "virtual FIFO" that tracks space allocation without
                 +---------------------------+
 ```
 
-**Source:** [02_beats_alloc_ctrl_block.mmd](../assets/mermaid/02_beats_alloc_ctrl_block.mmd)
-
 ---
 
 ## Concept: Virtual FIFO

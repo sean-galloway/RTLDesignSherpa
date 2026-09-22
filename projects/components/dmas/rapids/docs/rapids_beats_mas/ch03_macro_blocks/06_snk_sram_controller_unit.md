@@ -78,8 +78,6 @@ The Sink SRAM Controller Unit manages a single channel's SRAM buffer with beat-l
           Drain Interface (to AXI Write Engine)
 ```
 
-**Source:** [03_snk_sram_controller_unit_block.mmd](../assets/mermaid/03_snk_sram_controller_unit_block.mmd)
-
 ---
 
 ## Parameters
@@ -157,7 +155,6 @@ Fill Path:
    fill_valid/data ---------> | -----> SRAM write
                               |
    fill_ready <-------------- | <----- space_free > 0
-
 
 Drain Path:
 

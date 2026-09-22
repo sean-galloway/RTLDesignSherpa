@@ -1,88 +1,39 @@
 #!/bin/bash
 #==============================================================================
-# Regenerate All STREAM Mermaid Diagrams
+# Regenerate all Mermaid diagrams in this directory (.mmd -> .png)
 #==============================================================================
-# Purpose: Convert .mmd files to .svg using local mmdc (mermaid-cli)
-# Method: Use --no-sandbox flag to bypass Ubuntu 23.10+ AppArmor restrictions
-# Requirements: mermaid-cli installed (npm install -g @mermaid-js/mermaid-cli)
-# Output: SVG format for crisp vector graphics in PDF generation
+# Requires: mermaid-cli (npm install -g @mermaid-js/mermaid-cli).
+#
+# PNG, not SVG: markdown must reference .png -- see
+# vault/handbook/authoring/doc-pipeline.md. SVG out of headless Chrome also
+# renders text badly when the fonts are not installed in the headless
+# environment, which is why md_to_docx.py renders mermaid to PNG too.
+#
+# --no-sandbox: the Chromium sandbox fails on Ubuntu 23.10+ ("No usable
+# sandbox!"), so the puppeteer config below is required, not optional.
 #==============================================================================
-
 set -u
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PUPPETEER_CFG="/tmp/puppeteer-config-stream.json"
-
-# Create puppeteer config with no-sandbox flags
-cat > "$PUPPETEER_CFG" << 'EOF'
-{
-  "args": [
-    "--no-sandbox",
-    "--disable-setuid-sandbox"
-  ]
-}
-EOF
-
 cd "$SCRIPT_DIR"
+command -v mmdc >/dev/null || { echo "ERROR: mmdc not found (npm install -g @mermaid-js/mermaid-cli)"; exit 1; }
 
-echo "=========================================="
-echo " STREAM Mermaid Diagram Regeneration"
-echo "=========================================="
-echo "Using: mmdc (mermaid-cli) v$(mmdc --version)"
-echo "Config: No-sandbox mode (Ubuntu 23.10+ compatibility)"
-echo "Directory: $SCRIPT_DIR"
-echo ""
+PUPPETEER_CFG="$(mktemp -t puppeteer-XXXXXX.json)"
+trap 'rm -f "$PUPPETEER_CFG"' EXIT
+printf '{"args":["--no-sandbox","--disable-setuid-sandbox"]}\n' > "$PUPPETEER_CFG"
 
-SUCCESS=0
-FAIL=0
-SKIP=0
+SCALE="${SCALE:-2}"
 
+fail=0
 for mmd in *.mmd; do
-    # Skip if no .mmd files exist
-    if [[ ! -f "$mmd" ]]; then
-        continue
-    fi
-
-    svg="${mmd%.mmd}.svg"
-
-    echo -n "Generating $svg ... "
-
-    # Generate SVG using mmdc with no-sandbox config
-    if mmdc -i "$mmd" -o "$svg" -b transparent --puppeteerConfigFile "$PUPPETEER_CFG" 2>/tmp/mmdc_error.log; then
-        if [[ -f "$svg" ]]; then
-            file_size=$(stat --format=%s "$svg" 2>/dev/null)
-            echo "OK (${file_size} bytes)"
-            ((SUCCESS++))
-        else
-            echo "FAILED (no output file)"
-            ((FAIL++))
-        fi
+    [[ -f "$mmd" ]] || continue
+    png="${mmd%.mmd}.png"
+    echo -n "Generating $png ... "
+    if mmdc -i "$mmd" -o "$png" -s "$SCALE" -b white \
+            --puppeteerConfigFile "$PUPPETEER_CFG" 2>/tmp/mmdc_err.log && [[ -f "$png" ]]; then
+        command -v convert >/dev/null && convert "$png" -colors 64 PNG8:"$png"
+        echo "OK ($(stat -c%s "$png") bytes, $(identify -format '%wx%h' "$png" 2>/dev/null))"
     else
-        echo "FAILED (mmdc error)"
-        cat /tmp/mmdc_error.log | head -5
-        ((FAIL++))
+        echo "FAILED"; head -5 /tmp/mmdc_err.log; fail=1
     fi
 done
-
-echo ""
-echo "=========================================="
-echo " Generation Complete"
-echo "=========================================="
-echo "Success: $SUCCESS"
-echo "Failed:  $FAIL"
-echo "Skipped: $SKIP"
-echo ""
-echo "SVG files in directory:"
-ls -1 *.svg 2>/dev/null | wc -l
-echo ""
-
-# Cleanup
-rm -f "$PUPPETEER_CFG"
-
-if [[ $FAIL -gt 0 ]]; then
-    echo "WARNING: Some diagrams failed to generate!"
-    exit 1
-else
-    echo "All diagrams generated successfully!"
-    exit 0
-fi
+exit $fail

@@ -72,8 +72,6 @@ The Scheduler coordinates descriptor-based data transfers for a single RAPIDS ch
                         +---------------------------+--> monbus_pkt_data
 ```
 
-**Source:** [02_scheduler_block.mmd](../assets/mermaid/02_scheduler_block.mmd)
-
 ---
 
 ## Parameters

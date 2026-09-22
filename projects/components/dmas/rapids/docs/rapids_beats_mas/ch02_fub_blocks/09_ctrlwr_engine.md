@@ -69,8 +69,6 @@ The write target address must be 4-byte aligned because the transfer is a 32-bit
                         +---------------------------+
 ```
 
-**Source:** [09_ctrlwr_engine_block.mmd](../assets/mermaid/09_ctrlwr_engine_block.mmd)
-
 ---
 
 ## Parameters
@@ -209,8 +207,6 @@ it from the Control-Read Engine's `16'h0020`.
               |         +---------------+                |
               +--------------------------------------->--+
 ```
-
-**Source:** [09_ctrlwr_engine_fsm.mmd](../assets/mermaid/09_ctrlwr_engine_fsm.mmd)
 
 State summary:
 

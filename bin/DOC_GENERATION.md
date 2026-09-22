@@ -45,7 +45,7 @@ docs/
     └── assets/
         ├── images/logo.png        per-doc logo
         ├── mermaid/  NN_*.mmd + NN_*.png   source + rendered block/flow diagrams
-        └── wavedrom/ NN_*.json + NN_*.svg  source + rendered timing diagrams
+        └── wavedrom/ NN_*.json + NN_*.png  source + rendered timing diagrams
 ```
 
 The generate script and the styles `title_page` are the ONLY per-doc-specific
@@ -183,11 +183,33 @@ images (source + rendered live together in the same asset dir), then references
 them — stable, versioned, faster builds, no build-time renderer needed.
 
 **Convention (as in `stream_mas`):**
-- Diagram files: `assets/mermaid/NN_descriptive_name.{mmd,png,svg}` and
-  `assets/wavedrom/name.{json,svg}`. (Naming is `NN_name`, not the older
+- Diagram files: `assets/mermaid/NN_descriptive_name.{mmd,png}` and
+  `assets/wavedrom/name.{json,png}`. (Naming is `NN_name`, not the older
   `_L<line>` scheme; the `assets/mermaid/README.md` describing `_L###` is stale.)
-- Chapters reference **mermaid as `.png`**, **wavedrom as `.svg`**, each followed
-  by a source link:
+- **Markdown references PNG. Never SVG.** Both mermaid and wavedrom render to
+  `.png`; an `.svg` may exist as an intermediate but must never appear in an
+  `![...]()`. Convert first:
+
+  Do not hand-run this -- `assets/wavedrom/regenerate_all_waveforms.sh` does
+  the whole chain. What it does, and why:
+
+  ```bash
+  wavedrom-cli -i name.json -s name.svg              # intermediate only
+  nat=$(grep -o 'width="[0-9]*"' name.svg | head -1 | tr -dc 0-9)
+  rsvg-convert -w $((nat * 2)) -o name.png name.svg  # 2x the SVG's own width
+  convert name.png -colors 64 PNG8:name.png          # flat line art: ~1/3 size
+  ```
+
+  **Scale up, then palette-encode -- do not downscale.** Wavedrom and mermaid
+  emit at CSS pixel scale and this pipeline assumes 96 px/in, so 1x is already
+  soft once a figure is fitted to a page. The byte problem is solved by PNG8,
+  not by fewer pixels: measured on `stream_mas`, 34 diagrams went 11.6 MB ->
+  3.6 MB with every dimension unchanged and only antialias pixels moving.
+
+  Use `rsvg-convert`, not `inkscape` -- the snap build resolves paths against
+  $HOME, fails on a repo under /mnt/data, and still exits 0 having written
+  nothing, so neither `set -e` nor `check=True` catches it.
+- Chapters reference the `.png`, each followed by a source link:
 
 ```markdown
 ### Figure 2.13.1: STREAM Core Block Diagram
@@ -201,8 +223,8 @@ them — stable, versioned, faster builds, no build-time renderer needed.
 handle the headless traps — do not hand-run `mmdc` ad hoc:
 
 ```bash
-assets/mermaid/regenerate_all_diagrams.sh     # mmdc + puppeteer --no-sandbox -> .svg
-assets/wavedrom/regenerate_all_waveforms.sh   # wavedrom-cli -i x.json -s x.svg
+assets/mermaid/regenerate_all_diagrams.sh     # mmdc + puppeteer --no-sandbox -> .png
+assets/wavedrom/regenerate_all_waveforms.sh   # wavedrom-cli -> .svg -> rsvg-convert -> .png
 ```
 
 **Headless `mmdc` trap** (baked into `regenerate_all_diagrams.sh`): the Chromium

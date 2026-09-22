@@ -67,8 +67,6 @@ The AXI Write Engine reads data from SRAM and performs burst writes to system me
                         +---------------------------+
 ```
 
-**Source:** [02_axi_write_engine_block.mmd](../assets/mermaid/02_axi_write_engine_block.mmd)
-
 ---
 
 ## Parameters

@@ -71,8 +71,6 @@ The Source SRAM Controller manages 8 SRAM controller units for the source data p
     +------------------------------------------------------------------+
 ```
 
-**Source:** [03_src_sram_controller_block.mmd](../assets/mermaid/03_src_sram_controller_block.mmd)
-
 ---
 
 ## Parameters

@@ -25,10 +25,6 @@
 
 ## Top-Level Architecture
 
-![RAPIDS Beats Block Diagram](../assets/mermaid/04_block_diagram.png)
-
-**Source:** [04_block_diagram.mmd](../assets/mermaid/04_block_diagram.mmd)
-
 ```mermaid
 graph TB
     subgraph RAPIDS_CORE["rapids_core_beats"]

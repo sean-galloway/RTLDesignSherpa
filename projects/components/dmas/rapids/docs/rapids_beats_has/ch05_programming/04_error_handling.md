@@ -29,10 +29,6 @@ RAPIDS Beats implements comprehensive error detection and reporting. This sectio
 
 ## Error Categories
 
-![Error Hierarchy](../assets/mermaid/15_error_hierarchy.png)
-
-**Source:** [15_error_hierarchy.mmd](../assets/mermaid/15_error_hierarchy.mmd)
-
 ```mermaid
 graph TB
     subgraph Errors["RAPIDS Error Categories"]
@@ -88,10 +84,6 @@ RAPIDS monitors all AXI transactions for error responses:
 | DECERR | 2'b11 | Decode error | Address not mapped |
 
 : AXI Response Codes
-
-![AXI Error Detection](../assets/wavedrom/axi_error.svg)
-
-**Source:** [axi_error.json](../assets/wavedrom/axi_error.json)
 
 ```wavedrom
 {
@@ -256,10 +248,6 @@ graph LR
 
 ### Recovery Flow
 
-![Error Recovery](../assets/mermaid/16_error_recovery.png)
-
-**Source:** [16_error_recovery.mmd](../assets/mermaid/16_error_recovery.mmd)
-
 ```mermaid
 flowchart TD
     IRQ([Error Interrupt]) --> READ_IRQ["Read IRQ_STATUS"]
@@ -415,4 +403,3 @@ int validate_descriptor(rapids_descriptor_t *desc) {
     return 0;  // Valid
 }
 ```
-

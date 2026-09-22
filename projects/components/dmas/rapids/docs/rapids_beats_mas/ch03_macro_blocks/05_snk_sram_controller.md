@@ -71,8 +71,6 @@ The Sink SRAM Controller manages 8 SRAM controller units, providing per-channel 
     +------------------------------------------------------------------+
 ```
 
-**Source:** [03_snk_sram_controller_block.mmd](../assets/mermaid/03_snk_sram_controller_block.mmd)
-
 ---
 
 ## Parameters

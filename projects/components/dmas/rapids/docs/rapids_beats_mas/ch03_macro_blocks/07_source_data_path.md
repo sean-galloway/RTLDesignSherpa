@@ -75,8 +75,6 @@ The Source Data Path integrates the AXI read engine and SRAM controller for memo
                  (to Network Master)
 ```
 
-**Source:** [03_source_data_path_block.mmd](../assets/mermaid/03_source_data_path_block.mmd)
-
 ---
 
 ## Parameters
@@ -137,8 +135,6 @@ parameter int R_PHASE_FIFO_DEPTH = 64;
    - sched_rd_done_strobe = 1
    - Scheduler notified of completion
 ```
-
-**Source:** [03_source_data_flow.mmd](../assets/mermaid/03_source_data_flow.mmd)
 
 ---
 

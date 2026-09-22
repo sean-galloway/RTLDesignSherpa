@@ -27,10 +27,6 @@
 
 RAPIDS Beats exposes the following external interfaces:
 
-![Interface Overview](../assets/mermaid/09_interface_overview.png)
-
-**Source:** [09_interface_overview.mmd](../assets/mermaid/09_interface_overview.mmd)
-
 ```mermaid
 graph LR
     subgraph RAPIDS["RAPIDS Beats"]

@@ -65,10 +65,6 @@ Receives streaming data from external network interface and writes to SRAM buffe
 
 ### Timing Diagram
 
-![Sink AXIS Timing](../assets/wavedrom/sink_axis_timing.svg)
-
-**Source:** [sink_axis_timing.json](../assets/wavedrom/sink_axis_timing.json)
-
 ```wavedrom
 {
   "signal": [
@@ -143,10 +139,6 @@ Sends streaming data from SRAM buffer to external network interface.
 : Source AXIS Signals
 
 ### Timing Diagram
-
-![Source AXIS Timing](../assets/wavedrom/source_axis_timing.svg)
-
-**Source:** [source_axis_timing.json](../assets/wavedrom/source_axis_timing.json)
 
 ```wavedrom
 {

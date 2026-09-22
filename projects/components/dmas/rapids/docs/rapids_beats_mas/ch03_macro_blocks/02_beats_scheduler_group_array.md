@@ -76,8 +76,6 @@ The Beats Scheduler Group Array instantiates 8 scheduler groups with a shared de
                           monbus_pkt_valid/data
 ```
 
-**Source:** [03_beats_scheduler_group_array_block.mmd](../assets/mermaid/03_beats_scheduler_group_array_block.mmd)
-
 ---
 
 ## Parameters
@@ -224,8 +222,6 @@ parameter int MON_UNIT_ID = 1;                   // Unit ID for MonBus
             |             |<-----------|               |
             |             |            |               |
 ```
-
-**Source:** [03_scheduler_group_array_arbitration.mmd](../assets/mermaid/03_scheduler_group_array_arbitration.mmd)
 
 ---
 

@@ -29,10 +29,6 @@ This section describes the required steps to initialize RAPIDS Beats and start D
 
 ## Boot Sequence
 
-![Initialization Flow](../assets/mermaid/14_init_flow.png)
-
-**Source:** [14_init_flow.mmd](../assets/mermaid/14_init_flow.mmd)
-
 ```mermaid
 flowchart TD
     START([Reset Released]) --> READ_VER["Read VERSION<br/>Verify IP present"]
@@ -164,10 +160,6 @@ write_reg(ch0_base + CH_CTRL, CH_CTRL_ENABLE);
 
 ## Initialization Timing
 
-![Initialization Timing](../assets/wavedrom/init_timing.svg)
-
-**Source:** [init_timing.json](../assets/wavedrom/init_timing.json)
-
 ```wavedrom
 {
   "signal": [
@@ -205,8 +197,6 @@ After initialization, kick the channel to start processing:
 // Kick channel 0 to start descriptor processing
 write_reg(ch0_base + CH_CTRL, CH_CTRL_ENABLE | CH_CTRL_KICK);
 ```
-
-![Kick Timing](../assets/wavedrom/kick_timing.svg)
 
 ```wavedrom
 {
@@ -310,4 +300,3 @@ void reset_rapids(void) {
     rapids_init();
 }
 ```
-

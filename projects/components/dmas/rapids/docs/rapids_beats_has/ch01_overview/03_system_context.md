@@ -29,10 +29,6 @@ RAPIDS Beats integrates into a system as a DMA engine bridging network interface
 
 ## System Block Diagram
 
-![System Integration](../assets/mermaid/03_system_integration.png)
-
-**Source:** [03_system_integration.mmd](../assets/mermaid/03_system_integration.mmd)
-
 ```mermaid
 graph LR
     subgraph Host["Host Domain"]

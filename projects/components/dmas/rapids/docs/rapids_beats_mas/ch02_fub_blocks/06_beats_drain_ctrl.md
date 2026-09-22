@@ -58,8 +58,6 @@ The Beats Drain Control is a "virtual FIFO" that tracks data availability withou
                 +---------------------------+
 ```
 
-**Source:** [02_beats_drain_ctrl_block.mmd](../assets/mermaid/02_beats_drain_ctrl_block.mmd)
-
 ---
 
 ## Concept: Data Availability Tracking

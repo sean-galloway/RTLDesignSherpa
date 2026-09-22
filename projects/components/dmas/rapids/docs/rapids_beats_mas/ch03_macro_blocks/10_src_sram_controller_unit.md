@@ -78,8 +78,6 @@ The Source SRAM Controller Unit manages a single channel's SRAM buffer for the s
           Drain Interface (to Network)
 ```
 
-**Source:** [03_src_sram_controller_unit_block.mmd](../assets/mermaid/03_src_sram_controller_unit_block.mmd)
-
 ---
 
 ## Parameters
@@ -158,7 +156,6 @@ Fill Path (from AXI Read Engine):
    fill_valid/data ---------> | -----> SRAM write
                               |
    fill_ready <-------------- | <----- space_free > 0
-
 
 Drain Path (to Network):
 

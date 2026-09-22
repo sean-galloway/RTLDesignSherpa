@@ -16,6 +16,32 @@ environment** (an lmroman10 font-metric failure). Every generation script must
 pass `--style`. The STREAM/RAPIDS/pumice generator scripts are deliberately
 skeleton-identical so this cannot drift between them.
 
+## Markdown references PNG, never SVG
+
+Every image in a `![...]()` must be a `.png`. Mermaid and wavedrom both render
+to PNG; an `.svg` may exist as an intermediate, but referencing it from Markdown
+is not allowed. Convert first:
+
+```bash
+wavedrom-cli -i assets/wavedrom/name.json -s /tmp/name.svg
+rsvg-convert -w 1600 -o assets/wavedrom/name.png /tmp/name.svg
+```
+
+**Cap the width.** Uncapped wavedrom output reaches 9920x4692 and costs
+megabytes per figure -- three such assets alone took the STREAM MAS from 5.5 MB
+to 11.3 MB of embedded media. 1600px is page width at print DPI.
+
+**Use `rsvg-convert`, not `inkscape`.** The snap-confined inkscape on this
+machine resolves a relative path against `$HOME`, cannot see a repo under
+`/mnt/data`, and **exits 0 having written nothing** -- so `check=True` does not
+catch it and a missing file is embedded silently.
+
+*Why this note exists: `bin/DOC_GENERATION.md` said the opposite until
+2026-09-21 -- it prescribed `wavedrom/ NN_*.json + NN_*.svg` and "chapters
+reference wavedrom as `.svg`". Authors followed it, and rapids_beats_has
+accumulated 24 image references to SVGs that were never rendered. All PNGs also
+belong in an `assets/` folder ([[doc-placement]]).*
+
 ## Lists of figures/tables/waveforms come from captions
 
 LoF, LoT and LoW are built from caption encoding in the Markdown, not from a
@@ -130,3 +156,39 @@ Before assuming regeneration is safe, model it: list what the generator would
 emit against what the index currently links, and diff both directions. Losing
 a page is a real regression; losing curated link TEXT is cosmetic and the
 generator wins anyway.
+
+## Two book conventions: fenced blocks vs committed PNGs
+
+Both render. Do not "fix" one into the other, and do not mix them in one book.
+
+- **PNG-ref books** (`stream_mas`, `stream_char_guide`, `rapids_char_guide`):
+  the chapter carries `![Alt](../assets/<kind>/name.png)` plus a `**Source:**`
+  link, and the asset dir holds the `.mmd`/`.json` source next to the `.png`.
+  Regenerate with the committed `regenerate_all_*.sh` in that asset dir.
+- **Fence books** (`rapids_beats_has`): the chapter carries a live
+  ```` ```mermaid ```` / ```` ```wavedrom ```` block and `md_to_docx.py`
+  renders it at build time. There is no asset to commit and no regen script.
+
+Measured 2026-09-21: `rapids_beats_has` had picked up 19 image refs and 35
+`**Source:**` links pointing at an asset layer that was never built -- 31 of
+those targets never existed in git history -- while a live fence sat
+immediately below each one carrying the real diagram. The three assets that
+did exist had drifted from the fences above them (text similarity 0.11-0.41),
+so they were stale, not sources. The fix was deleting the vestigial refs, not
+rendering 70 PNGs to satisfy them. **Check which convention a book uses before
+concluding a diagram is missing** -- a dead image ref above a live fence is
+duplication, not a gap.
+
+## Palette-encode committed diagram PNGs
+
+`convert x.png -colors 64 PNG8:x.png` after rendering. Diagrams are flat line
+art, so 64 colours is visually indistinguishable -- the only pixels that move
+are antialias edges -- while the file drops by about two thirds. Measured on
+`stream_mas`: 34 PNGs, 11.6 MB -> 3.6 MB, every dimension unchanged. Baked
+into the canonical `regenerate_all_*.sh`.
+
+Do NOT shrink the pixel dimensions to save bytes. Wavedrom and mermaid emit at
+CSS pixel scale and the PDF path assumes 96 px/in, so a diagram rendered at 1x
+is already soft once fitted to a page; the committed set is 2x the renderer's
+natural width for that reason. Palette encoding buys the same saving with no
+resolution cost at all.

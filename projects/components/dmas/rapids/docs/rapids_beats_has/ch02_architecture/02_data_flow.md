@@ -32,10 +32,6 @@ RAPIDS Beats implements two independent data paths that can operate concurrently
 
 ## Sink Path Data Flow
 
-![Sink Data Flow](../assets/mermaid/05_sink_flow.png)
-
-**Source:** [05_sink_flow.mmd](../assets/mermaid/05_sink_flow.mmd)
-
 ```mermaid
 sequenceDiagram
     participant NET as Network (AXIS)
@@ -64,10 +60,6 @@ sequenceDiagram
 ```
 
 ### Sink Path Timing
-
-![Sink Path Timing](../assets/wavedrom/sink_path_timing.svg)
-
-**Source:** [sink_path_timing.json](../assets/wavedrom/sink_path_timing.json)
 
 ```wavedrom
 {
@@ -104,10 +96,6 @@ sequenceDiagram
 
 ## Source Path Data Flow
 
-![Source Data Flow](../assets/mermaid/06_source_flow.png)
-
-**Source:** [06_source_flow.mmd](../assets/mermaid/06_source_flow.mmd)
-
 ```mermaid
 sequenceDiagram
     participant MEM as Memory
@@ -137,10 +125,6 @@ sequenceDiagram
 ```
 
 ### Source Path Timing
-
-![Source Path Timing](../assets/wavedrom/source_path_timing.svg)
-
-**Source:** [source_path_timing.json](../assets/wavedrom/source_path_timing.json)
 
 ```wavedrom
 {

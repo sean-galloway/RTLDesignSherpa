@@ -54,8 +54,6 @@ The Beats Latency Bridge provides buffering to compensate for pipeline latency b
                 +---------------------------+
 ```
 
-**Source:** [02_beats_latency_bridge_block.mmd](../assets/mermaid/02_beats_latency_bridge_block.mmd)
-
 ---
 
 ## Concept: Why Latency Compensation?

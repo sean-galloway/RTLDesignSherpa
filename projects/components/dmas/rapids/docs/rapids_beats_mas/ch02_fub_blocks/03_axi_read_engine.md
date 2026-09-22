@@ -66,8 +66,6 @@ The AXI Read Engine performs burst reads from system memory and writes data to t
                         +---------------------------+
 ```
 
-**Source:** [02_axi_read_engine_block.mmd](../assets/mermaid/02_axi_read_engine_block.mmd)
-
 ---
 
 ## Parameters

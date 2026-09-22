@@ -76,8 +76,6 @@ The Source Data Path AXIS wrapper adds an AXI-Stream master interface to the sou
     +-------------------------------------------------------+
 ```
 
-**Source:** [03_source_data_path_axis_block.mmd](../assets/mermaid/03_source_data_path_axis_block.mmd)
-
 ---
 
 ## Parameters
@@ -174,8 +172,6 @@ parameter int TUSER_WIDTH = 1;
     | src_drain_strb |----------->| m_axis_tkeep   |
     +----------------+            +----------------+
 ```
-
-**Source:** [03_source_axis_mapping.mmd](../assets/mermaid/03_source_axis_mapping.mmd)
 
 ---
 

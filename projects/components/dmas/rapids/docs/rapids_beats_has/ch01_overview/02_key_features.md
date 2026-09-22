@@ -62,10 +62,6 @@
 
 ### Descriptor Processing
 
-![Descriptor Flow](../assets/mermaid/02_descriptor_flow.png)
-
-**Source:** [02_descriptor_flow.mmd](../assets/mermaid/02_descriptor_flow.mmd)
-
 ```mermaid
 stateDiagram-v2
     [*] --> IDLE

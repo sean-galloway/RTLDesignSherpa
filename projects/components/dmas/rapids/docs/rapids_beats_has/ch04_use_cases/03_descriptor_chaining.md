@@ -29,10 +29,6 @@ Descriptor chaining enables multiple transfers to execute sequentially without s
 
 ## Chain Structure
 
-![Descriptor Chain](../assets/mermaid/11_descriptor_chain.png)
-
-**Source:** [11_descriptor_chain.mmd](../assets/mermaid/11_descriptor_chain.mmd)
-
 ```mermaid
 graph LR
     subgraph Memory["System Memory"]
@@ -108,10 +104,6 @@ sequenceDiagram
 ```
 
 ## Timing Diagram
-
-![Chain Execution](../assets/wavedrom/chain_execution.svg)
-
-**Source:** [chain_execution.json](../assets/wavedrom/chain_execution.json)
 
 ```wavedrom
 {
@@ -287,4 +279,3 @@ Software must:
 1. Read error status to identify failing descriptor
 2. Fix the issue (descriptor content, memory mapping, etc.)
 3. Restart chain from failing descriptor or beginning
-

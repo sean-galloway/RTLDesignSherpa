@@ -73,10 +73,6 @@ Fetches descriptor structures from system memory for all 8 channels.
 
 ### Timing Diagram
 
-![Descriptor Fetch Timing](../assets/wavedrom/desc_axi_timing.svg)
-
-**Source:** [desc_axi_timing.json](../assets/wavedrom/desc_axi_timing.json)
-
 ```wavedrom
 {
   "signal": [
@@ -146,10 +142,6 @@ Writes data from SRAM buffer to system memory.
 : Sink AXI Signals
 
 ### Timing Diagram
-
-![Sink AXI Write Timing](../assets/wavedrom/sink_axi_timing.svg)
-
-**Source:** [sink_axi_timing.json](../assets/wavedrom/sink_axi_timing.json)
 
 ```wavedrom
 {
@@ -222,10 +214,6 @@ Reads data from system memory to SRAM buffer.
 : Source AXI Signals
 
 ### Timing Diagram
-
-![Source AXI Read Timing](../assets/wavedrom/source_axi_timing.svg)
-
-**Source:** [source_axi_timing.json](../assets/wavedrom/source_axi_timing.json)
 
 ```wavedrom
 {

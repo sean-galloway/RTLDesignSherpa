@@ -68,8 +68,6 @@ One Control-Read Engine is instantiated per channel in `scheduler_group_beats.sv
                         +---------------------------+
 ```
 
-**Source:** [08_ctrlrd_engine_block.mmd](../assets/mermaid/08_ctrlrd_engine_block.mmd)
-
 ---
 
 ## Parameters
@@ -215,8 +213,6 @@ instance in `scheduler_group_beats.sv` overrides `AXI_DATA_WIDTH` to 32.
               |                                  |
               +----------------------------------+
 ```
-
-**Source:** [08_ctrlrd_engine_fsm.mmd](../assets/mermaid/08_ctrlrd_engine_fsm.mmd)
 
 State summary:
 

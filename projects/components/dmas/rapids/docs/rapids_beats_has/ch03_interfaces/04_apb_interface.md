@@ -80,10 +80,6 @@ To start descriptor processing on a channel:
 
 ### Timing Diagram
 
-![APB Kick-Off Timing](../assets/wavedrom/apb_kickoff_timing.svg)
-
-**Source:** [apb_kickoff_timing.json](../assets/wavedrom/apb_kickoff_timing.json)
-
 ```wavedrom
 {
   "signal": [

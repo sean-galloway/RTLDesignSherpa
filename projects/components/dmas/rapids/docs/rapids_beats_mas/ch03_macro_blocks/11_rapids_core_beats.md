@@ -79,8 +79,6 @@ The RAPIDS Core Beats module is the top-level integration of the "beats" archite
                           Unified MonBus Output
 ```
 
-**Source:** [03_rapids_core_beats_block.mmd](../assets/mermaid/03_rapids_core_beats_block.mmd)
-
 ---
 
 ## Parameters

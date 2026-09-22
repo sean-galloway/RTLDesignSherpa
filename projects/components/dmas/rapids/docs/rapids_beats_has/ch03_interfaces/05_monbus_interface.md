@@ -111,10 +111,6 @@ RAPIDS modules use the following Agent IDs:
 
 ## Timing Diagram
 
-![MonBus Timing](../assets/wavedrom/monbus_timing.svg)
-
-**Source:** [monbus_timing.json](../assets/wavedrom/monbus_timing.json)
-
 ```wavedrom
 {
   "signal": [

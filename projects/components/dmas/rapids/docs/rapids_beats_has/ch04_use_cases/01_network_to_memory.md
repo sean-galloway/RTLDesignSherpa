@@ -29,10 +29,6 @@ The Sink Path transfers data from a network interface (AXI-Stream slave) to syst
 
 ## Operation Flow
 
-![Sink Flow](../assets/mermaid/09_sink_flow.png)
-
-**Source:** [09_sink_flow.mmd](../assets/mermaid/09_sink_flow.mmd)
-
 ```mermaid
 sequenceDiagram
     participant SW as Software
@@ -69,10 +65,6 @@ sequenceDiagram
 ```
 
 ## Timing Diagram
-
-![Sink Transfer Timing](../assets/wavedrom/sink_transfer.svg)
-
-**Source:** [sink_transfer.json](../assets/wavedrom/sink_transfer.json)
 
 ```wavedrom
 {
@@ -231,4 +223,3 @@ stateDiagram-v2
 
     IDLE --> [*]
 ```
-

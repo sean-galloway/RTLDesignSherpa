@@ -29,10 +29,6 @@ The Source Path transfers data from system memory (AXI4 read master) to a networ
 
 ## Operation Flow
 
-![Source Flow](../assets/mermaid/10_source_flow.png)
-
-**Source:** [10_source_flow.mmd](../assets/mermaid/10_source_flow.mmd)
-
 ```mermaid
 sequenceDiagram
     participant SW as Software
@@ -69,10 +65,6 @@ sequenceDiagram
 ```
 
 ## Timing Diagram
-
-![Source Transfer Timing](../assets/wavedrom/source_transfer.svg)
-
-**Source:** [source_transfer.json](../assets/wavedrom/source_transfer.json)
 
 ```wavedrom
 {
@@ -269,4 +261,3 @@ When the network deasserts TREADY:
 2. SRAM continues filling until threshold
 3. AXI reads pause when SRAM approaches full
 4. Resume automatically when TREADY returns
-

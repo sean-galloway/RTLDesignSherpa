@@ -29,10 +29,6 @@ RAPIDS Beats supports 8 independent DMA channels that can operate concurrently. 
 
 ## Channel Independence
 
-![Multi-Channel Architecture](../assets/mermaid/12_multi_channel.png)
-
-**Source:** [12_multi_channel.mmd](../assets/mermaid/12_multi_channel.mmd)
-
 ```mermaid
 graph TB
     subgraph Channels["Independent Channels"]
@@ -74,10 +70,6 @@ graph TB
 ```
 
 ## Concurrent Operation Timing
-
-![Multi-Channel Timing](../assets/wavedrom/multi_channel_timing.svg)
-
-**Source:** [multi_channel_timing.json](../assets/wavedrom/multi_channel_timing.json)
 
 ```wavedrom
 {
@@ -338,4 +330,3 @@ Each channel generates independent MonBus events:
 ```
 
 Events are arbitrated and serialized on the shared MonBus output.
-
