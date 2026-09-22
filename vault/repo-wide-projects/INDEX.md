@@ -41,15 +41,13 @@ note — it belongs to that block and nowhere else.
 - [misc](projects/components/misc/INDEX.md)
 - [retro_legacy_blocks](projects/components/retro_legacy_blocks/INDEX.md) — PIC, PIT, HPET, IOAPIC, SMBus, UART, RTC, GPIO, PM/ACPI
 
-## projects/NexysA7/
+## projects/fpga-systems/
 
-- [boards](projects/NexysA7/boards/INDEX.md)
-- [cdc_counter_display](projects/NexysA7/cdc_counter_display/INDEX.md)
-- [ddr2-characterization](projects/NexysA7/ddr2-characterization/INDEX.md)
-
-## projects/Genesys2/
-
-- [rapids_characterization](projects/Genesys2/rapids_characterization/INDEX.md)
+- [boards](projects/fpga-systems/boards/INDEX.md) — board definitions (nexys_a7_100t)
+- [Genesys2/rapids_characterization](projects/fpga-systems/Genesys2/rapids_characterization/INDEX.md) — RAPIDS board characterization
+- `Genesys2/stream` — area exists in the repo, no context note written yet
+- [NexysA7/cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/INDEX.md) — CDC demo on Nexys A7
+- [NexysA7/pumice/ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/INDEX.md) — DDR2 board characterization campaign
 
 ## projects/asic-trials/
 
@@ -59,3 +57,13 @@ note — it belongs to that block and nowhere else.
 
 Mirror the repo path and add an `INDEX.md`. Do not invent a structure that the
 code does not have — the whole value is that the two paths match.
+
+**When the repo moves, move the note with it.** `projects/` was reorganised
+under `fpga-systems/` and `asic-trials/`, and four notes stayed at their old
+locations while their own `title:`, `repo:` and `Code:` links had already been
+updated to the new paths — so every one of them described a path it did not sit
+at. Nothing flagged it: the links still resolved, and the broken-link gate has
+no opinion about a page filed in the wrong place. A mirror that quietly stops
+mirroring is the exact failure this layout exists to prevent. Moving a note also
+changes its depth, so re-count the `../` prefixes on the `Code:`, handbook and
+Tasks links when you move one.

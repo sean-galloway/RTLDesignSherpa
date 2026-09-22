@@ -6,7 +6,7 @@ repo: projects/fpga-systems/NexysA7/cdc_counter_display
 
 # projects/fpga-systems/NexysA7/cdc_counter_display
 
-**Code:** [`projects/fpga-systems/NexysA7/cdc_counter_display/`](../../../../../projects/fpga-systems/NexysA7/cdc_counter_display)
+**Code:** [`projects/fpga-systems/NexysA7/cdc_counter_display/`](../../../../../../projects/fpga-systems/NexysA7/cdc_counter_display)
 
 CDC demo on Nexys A7
 
@@ -15,8 +15,8 @@ CDC demo on Nexys A7
 Knowledge notes about `projects/fpga-systems/NexysA7/cdc_counter_display` - design intent, gotchas, decisions and
 their rationale. Not a duplicate of the code and not a substitute for it.
 
-Method and practice belong in [the handbook](../../../../../vault/handbook/INDEX.md); work items belong in
-[vault/Tasks/](../../../../../vault/Tasks/INDEX.md). This page is for *this area's* durable context: why it is
+Method and practice belong in [the handbook](../../../../../../vault/handbook/INDEX.md); work items belong in
+[vault/Tasks/](../../../../../../vault/Tasks/INDEX.md). This page is for *this area's* durable context: why it is
 shaped the way it is, and what bit someone once.
 
 ## Notes
