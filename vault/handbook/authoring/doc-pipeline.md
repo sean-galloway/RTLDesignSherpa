@@ -222,3 +222,39 @@ kind of cleanup, and verify it by diffing the heading set rather than assuming
 content vanished. Note the measurement trap: `pdftotext` output puts TOC lines
 and body headings in the same shape, so a naive `^[0-9]+\.[0-9]+ Title` grep
 counts both and will not answer this question cleanly.
+
+## A regeneration script must be a no-op on unchanged sources
+
+ImageMagick stamps wall-clock time into a `tIME` chunk, so re-running a
+regeneration dirtied all ten `stream_mas` waveforms with byte-identical
+pixels: same size, same palette, same IDAT, seven differing bytes at offset
+243. Pass `-define png:exclude-chunk=tIME` (it is in the canonical scripts)
+and an unchanged source re-renders byte-identical. Verify it the honest way --
+run the script twice and diff the checksums -- because a script that churns
+every binary on every run trains people to skip regenerating.
+
+Two measurement traps bit me establishing this, both worth avoiding:
+
+- I checked `b'tIME' in data[:200]` and concluded there was no timestamp. The
+  chunk sits at offset 243. Read the chunk table, do not sample a prefix.
+- I claimed "no regeneration script stops at .svg" after globbing
+  `regenerate_all_*.sh`. Five more were named `regenerate_waveforms.sh` and
+  were missed. Glob on what the files DO (`grep -L rsvg-convert`), not on what
+  you assume they are called.
+
+## SVG-only output is the standing trap
+
+`md_to_docx.py` embeds PNG. A script that renders `.json`/`.mmd` to `.svg` and
+stops leaves the committed `.png` stale, so a diagram edit silently never
+reaches the DOCX or PDF. Audited 2026-09-22: every wavedrom book is on the
+canonical chain except `hpet_mas`, whose two scripts write into `../svg` where
+nothing references the result -- dead output either way, so converting them
+would only change which files are unused.
+
+The same failure hits logos, and it had. `stream_has/assets/images/logo.png`
+was a symlink to a `stream_spec/` directory that does not exist, and
+`pumice_mas` had no `assets/images/` at all while its styles file asked for
+one. Both books had been building without a title-page logo --
+`STREAM_HAS_v0.95.pdf` contains no 400x400 image where every sibling book has
+one. **Check that a book's configured logo resolves**; it is referenced from
+YAML, not markdown, so no markdown link checker will ever catch it.
