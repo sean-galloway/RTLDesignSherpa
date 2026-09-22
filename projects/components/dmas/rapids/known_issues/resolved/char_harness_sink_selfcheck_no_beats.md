@@ -1,6 +1,6 @@
 # rapids_char_harness SINK self-check moves zero beats
 
-**Status:** Active / Investigation
+**Status:** RESOLVED 2026-09-22 (board twin tracked as RAPIDS TASK-081)
 **Severity:** High — blocks `verify-sim`, and therefore `make synth` and
 `make bitstream`, on every build of `flows-rapids-beats`.
 
@@ -109,16 +109,21 @@ encoded the pre-`f81454d9a` LFSR taps. Fixed separately; the SOURCE self-check
 isolates it cleanly, since that path kicks correctly, moves all its beats
 (`rd`/`sout` meters prod=4) and failed on CRC alone.
 
-## Remaining: the `sin` bus meter reads zero
+## RESOLVED: the `sin` bus meter reading zero (second-order effect of the same change)
 
 The one error left is `sin bus-meter productive=0`. This is a windowing
 artifact, not a data-path fault: the same clear/freeze window counted `wr`
 prod=4, and the data provably moved (CRC matched). The AXIS ingress completes
 before the window opens -- the failure mode the TB's own comment anticipates
 ("the front-loaded ingress would fly by while the window was still closed").
-Kicking before starting the generator was supposed to prevent it and does not
-at this transfer size. Needs a window that opens on arm rather than on
-`~snk_system_idle`, or an ingress-side trigger.
+Kicking first was supposed to prevent it and did under the OLD protocol, where
+the HIGH write stalled until the engine accepted. With the asynchronous
+KICK_ENABLE the harness kept a timing assumption that no longer held. Fixed by
+waiting for `snk_system_idle` to deassert before releasing ingress.
+
+    SOURCE: 1 passed        SINK: 1 passed   (1 channel x 4 beats)
+
+`make bitstream` no longer needs `BITSTREAM_SKIP_VERIFY=1`.
 
 ## Next step (board side)
 
