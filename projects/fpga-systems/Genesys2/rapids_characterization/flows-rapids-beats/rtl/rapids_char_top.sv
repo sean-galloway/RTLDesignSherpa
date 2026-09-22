@@ -266,6 +266,11 @@ module rapids_char_top #(
     localparam logic [11:0] CSR_KICK_BASE_LO= 12'h06C;  // descriptor base addr [31:0]
     localparam logic [11:0] CSR_KICK_BASE_HI= 12'h070;  // descriptor base addr [63:32]
     localparam logic [11:0] CSR_KICK_STRIDE = 12'h074;  // per-channel byte stride (base+ch*stride)
+    // The DUT's per-half KICK_ENABLE, inside the APB kick window -- NOT a
+    // char_top CSR. The numeric clash with CSR_MEM_CTRL (12'h040) above is
+    // coincidental: that one is a char_top CSR, this is an offset into the
+    // rapids_beats_top register map (SRC 0x0040 / SNK 0x1040).
+    localparam logic [11:0] DUT_KICK_ENABLE = 12'h040;
     localparam logic [11:0] CSR_GO          = 12'h078;  // [0]=GO (arm+gen+kick, 1-cyc)
     localparam logic [11:0] CSR_OBS_TARGET  = 12'h07C;  // freeze window at N productive beats
     localparam logic [11:0] CSR_OBS_CTRL    = 12'h0C0;  // [0] ARM (1-cyc pulse)
@@ -774,21 +779,29 @@ module rapids_char_top #(
     // cycles what the host used to do over UART in milliseconds, so the meter
     // window brackets only the transfer.
     // =========================================================================
-    typedef enum logic [1:0] { KST_IDLE, KST_SCAN, KST_LOW, KST_HIGH } kstate_t;
+    typedef enum logic [2:0] { KST_IDLE, KST_SCAN, KST_LOW, KST_HIGH,
+                               KST_KICK } kstate_t;
     kstate_t     r_kstate;
     logic [7:0]  r_kick_ch;      // current channel (NUM_CHANNELS <= 8)
     logic [63:0] r_kick_addr;    // running descriptor address (base + ch*stride)
     logic        r_kick_acc;     // cmd accepted, awaiting rsp
 
     wire w_kick_active = (r_kstate != KST_IDLE);
-    wire w_kick_cmd    = (r_kstate == KST_LOW) || (r_kstate == KST_HIGH);
+    wire w_kick_cmd    = (r_kstate == KST_LOW) || (r_kstate == KST_HIGH)
+                      || (r_kstate == KST_KICK);
     wire [APB_ADDR_WIDTH-1:0] w_kick_base  = r_kick_half ? {1'b1, 12'h000} : '0; // bit[12]=half
     wire [APB_ADDR_WIDTH-1:0] w_kick_paddr =
-              w_kick_base
-            + (APB_ADDR_WIDTH'(r_kick_ch) << 3)
-            + ((r_kstate == KST_HIGH) ? APB_ADDR_WIDTH'('h4) : '0);
-    wire [31:0] w_kick_pwdata = (r_kstate == KST_HIGH) ? r_kick_addr[63:32]
-                                                       : r_kick_addr[31:0];
+              (r_kstate == KST_KICK)
+            ? (w_kick_base + APB_ADDR_WIDTH'(DUT_KICK_ENABLE))
+            : ( w_kick_base
+              + (APB_ADDR_WIDTH'(r_kick_ch) << 3)
+              + ((r_kstate == KST_HIGH) ? APB_ADDR_WIDTH'('h4) : '0));
+    // KST_KICK carries the whole staged mask: one write launches every channel
+    // on the same cycle, which is the point of the staged-addr refactor.
+    wire [31:0] w_kick_pwdata =
+              (r_kstate == KST_KICK) ? 32'(r_kick_mask)
+            : (r_kstate == KST_HIGH) ? r_kick_addr[63:32]
+                                     : r_kick_addr[31:0];
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -808,7 +821,10 @@ module rapids_char_top #(
                 end
                 KST_SCAN: begin
                     if (r_kick_ch >= 8'(NUM_CHANNELS)) begin
-                        r_kstate <= KST_IDLE;
+                        // Every masked channel is staged; now LAUNCH. Skip the
+                        // write when nothing was staged so GO with mask=0 stays
+                        // a no-op rather than pulsing KICK_ENABLE with 0.
+                        r_kstate <= (r_kick_mask != '0) ? KST_KICK : KST_IDLE;
                     end else if (r_kick_mask[r_kick_ch[CIW-1:0]]) begin
                         r_kstate <= KST_LOW;
                     end else begin
@@ -820,7 +836,7 @@ module rapids_char_top #(
                     if (apb_cmd_valid && apb_cmd_ready) r_kick_acc <= 1'b1;
                     if (apb_rsp_valid && apb_rsp_ready) begin
                         r_kick_acc <= 1'b0;
-                        r_kstate   <= KST_HIGH;   // HIGH write triggers the kick
+                        r_kstate   <= KST_HIGH;   // stages addr[63:32]; does NOT kick
                     end
                 end
                 KST_HIGH: begin
@@ -830,6 +846,20 @@ module rapids_char_top #(
                         r_kick_addr <= r_kick_addr + {32'b0, r_kick_stride};
                         r_kick_ch   <= r_kick_ch + 8'd1;
                         r_kstate    <= KST_SCAN;
+                    end
+                end
+                // Staging the address pair does NOT kick: rapids_beats_top
+                // replaced write-to-kick with staged CHx_DESC_ADDR_{LOW,HIGH}
+                // plus a rising-edge-detected KICK_ENABLE. Without this write
+                // every channel stays parked -- no descriptor fetch is issued,
+                // the scheduler never leaves idle, and the campaign measures
+                // nothing. KICK_ENABLE.KICKn is a singlepulse, so it
+                // self-clears and needs no follow-up write.
+                KST_KICK: begin
+                    if (apb_cmd_valid && apb_cmd_ready) r_kick_acc <= 1'b1;
+                    if (apb_rsp_valid && apb_rsp_ready) begin
+                        r_kick_acc <= 1'b0;
+                        r_kstate   <= KST_IDLE;
                     end
                 end
                 default: r_kstate <= KST_IDLE;

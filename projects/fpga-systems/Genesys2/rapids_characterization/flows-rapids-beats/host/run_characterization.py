@@ -184,20 +184,6 @@ class RapidsCharCampaign:
         self.configure_half('src')
         self.configure_half('snk')
 
-    # ---- descriptor kick over the APB kick window --------------------------
-
-    def kick_channel(self, half: str, channel: int, descriptor_addr: int) -> None:
-        """Write the 64-bit descriptor address to the channel's LOW/HIGH kick
-        register pair (per-half kick window). base + ch*8 = LOW,
-        +4 = HIGH — identical to the cocotb TB's kick_off_channel()."""
-        base = APB_SRC_BASE if half == 'src' else APB_SNK_BASE
-        low = descriptor_addr & 0xFFFF_FFFF
-        high = (descriptor_addr >> 32) & 0xFFFF_FFFF
-        self.io.dut_reg_write(base + channel * 0x008, low)
-        self.io.dut_reg_write(base + channel * 0x008 + 0x004, high)
-        if self.verbose:
-            self.log.info(f"kicked {half} ch{channel} desc @ 0x{descriptor_addr:016X}")
-
     # ---- atomic launch: stage kicks as config, then a single on-chip GO -----
 
     def _stage_kicks(self, half: str, mask: int, *, start_gen: bool) -> None:
