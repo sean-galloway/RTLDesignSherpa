@@ -112,6 +112,8 @@ help:
 	@echo "  make run-all-gate              quick smoke over fub/macro/top"
 	@echo "  make run-all-func              the usual regression"
 	@echo "  make run-all-full              sign-off (the 210-test suite)"
+	@echo "  make run-all-func-both         BOTH geometries (default + board BL4/x16)"
+	@echo "  make run-board-geom            board geometry only (PUMICE-028)"
 	@echo ""
 	@echo "Per area, from make/tests.mk:"
 	@echo "  run-all-<gate|func|full>[-serial|-parallel][-waves]"
@@ -127,6 +129,35 @@ help:
 	@echo ""
 	@echo "AREAS = $(AREAS)"
 	@echo "================================================================================"
+
+# ------------------------------------------------------------------------------
+# BOARD GEOMETRY (PUMICE-028)
+# ------------------------------------------------------------------------------
+# The suite's defaults are DRAM_BEAT=64 / BL8 / device==beat. The shipping board
+# is DRAM_BEAT=32 / BL4 / x16, where one DRAM burst is ONE AXI beat instead of
+# four. That difference is not cosmetic: every per-sub-command rate limit is
+# divided by four before a bandwidth assertion can see it, which is how a 2x
+# read throttle once shipped green (PUMICE-025), and it is why PUMICE-041's
+# pinned burst length went unnoticed -- the suite could not express the
+# geometry it ships.
+#
+# It has to be a SECOND INVOCATION, not a pytest parametrization: the geometry
+# is read at import time into module constants that size the elaborated RTL, so
+# one process holds exactly one geometry. That is the same property that made
+# PUMICE-041 invisible, used deliberately here.
+BOARD_GEOM := TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16
+
+.PHONY: run-board-geom
+run-board-geom:     ## the top suite at the SHIPPING geometry (BL4 / x16 / 32b beat)
+	@echo "---- board geometry: $(BOARD_GEOM) ----"
+	@$(BOARD_GEOM) $(MAKE) --no-print-directory -C top run-all-func
+
+# Both geometries, in series, both reported. This is the target a regression
+# sweep should use for pumice: default alone cannot see a board-geometry
+# regression, and board alone cannot see a default one.
+.PHONY: run-all-func-both
+run-all-func-both:  ## default geometry AND board geometry, both reported
+	@rc=0; 	echo "==== 1/2 default geometry ===="; 	$(MAKE) --no-print-directory run-all-func || rc=1; 	echo "==== 2/2 board geometry ===="; 	$(MAKE) --no-print-directory run-board-geom || rc=1; 	if [ $$rc -ne 0 ]; then 	    echo -e "$(RED)FAILED: at least one geometry$(RESET)"; exit 1; fi; 	echo -e "$(GREEN)OK: both geometries passed$(RESET)"
 
 .PHONY: areas
 areas:

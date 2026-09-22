@@ -102,11 +102,32 @@ tRCD/tRP/tRC (37.5% with all three at minimum), tFAW, CAM depth (NUM_ENTRIES
 and bank recovery (`w_ap_fire` gives a ~9-cycle bank cycle, non-binding
 against the 0.5 access/cycle command-bus cap).
 
-**Remaining lever:** shorten the ACT->column path, i.e. the pick pipeline
-depth or the bank-timer registration stage. That is the block with two
-recorded silicon double-issue bugs, and pumice ships at roughly +16 ps WNS
-([[feedback_pumice_aggressive_timing]]), so it needs board timing closure and
-a silicon run -- not a sim-only change.
+### 2026-09-22: residual ACCEPTED -- same by-design root as PUMICE-030
+
+The remaining lever was always "shorten the ACT->column path, i.e. the pick
+pipeline depth or the bank-timer registration stage". **Sean 2026-09-22 ruled
+exactly that out of scope for [[PUMICE-030]]: "this is by design, many features
+need flop stages."** The close-page residual is those same flop stages seen
+from the column side, so it is accepted on the same grounds and is NOT a defect.
+
+The outstanding dial -- the lever that IS endorsed for 030 -- was tested and
+does not reach it. Board, row_major BL8, 4000 txn:
+
+| config | OS=8 | OS=16 | OS=32 |
+|---|---|---|---|
+| static_close | 33.9 | 33.9 | 33.9 MB/s |
+| open_page | 568.2 | 568.2 | 568.2 MB/s |
+
+Flat to the cycle across a 4x change in transactions in flight, where open_page
+is equally flat because it is already saturated. Close page is not
+latency-bound and not outstanding-bound: every access pays ACT + column on a
+one-command-per-cycle bus, and the ACT->column path is 8 aclk against a tRCD
+of 3. More in flight cannot hide a per-access cost.
+
+**So: do not re-open this to chase the 63%.** What remains legitimately open is
+only that the paging tests should report the accepted number instead of failing
+on it -- a floor that still catches a REGRESSION below the measured point,
+which is the next entry.
 
 ---
 
@@ -220,7 +241,23 @@ the report complete, not the debugging possible.
 ---
 
 ## PUMICE-030 — read latency is ~2x LiteDRAM's, and it caps small-burst reads
-**Status:** open 2026-09-10  **Priority:** P1 — the largest identified defect left
+**Status:** DEFERRED FAR 2026-09-22  **Priority:** P3 — BY DESIGN, not a defect
+
+**Sean 2026-09-22: "030 is this way by design, many features need flop stages,
+so defer 030 far into the future."** The latency is the price of the pipeline
+those features live in, and it is accepted. Do NOT re-raise it as "the largest
+identified defect left", do NOT re-measure it to make the case again, and do
+NOT trade pipeline depth for it without being asked. The measurements below
+stay because they are correct and because they size what the choice costs --
+they are documentation of a trade, not an open bug.
+
+The consequence worth REMEMBERING rather than fixing: small-burst read
+bandwidth is `outstanding / latency` and nothing else, so the lever that is
+still legitimately available is the OUTSTANDING dial (ceiling 32, and the
+board proves it -- AxLEN 2 and 4 both reach ~94.5% at 32 outstanding where
+they sit at 35%/68% at 8). Reach for that, not for the pipeline.
+
+(Historical framing below, from when this was believed to be a defect.)
 
 **The bug: ~49 MC cycles of read latency against LiteDRAM's 24.7** on the same
 board, the same PHY and the same harness. Roughly 24 cycles of extra pipeline
@@ -575,10 +612,55 @@ loosening:
    resync characterized above, so an exact-100% requirement cannot hold there.
    (`static_close` at 30.77% is a separate question and may be real.)
 
-**Do:** fix those four, then wire `TEST_DRAM_BEAT=32 TEST_DRAM_BL=4
-TEST_DRAM_DEVICE_W=16` into the regression so board geometry is covered by
-default. `DFI_DATA_WIDTH` 128 vs 64 and `dfi_cmd_path`'s DFI_RATE=4 remain
-un-investigated.
+### 2026-09-22: core_dfi is 18/18 at BOTH geometries; the target is wired
+
+`test_pumice_core_dfi.py` passes 18/18 at the default geometry AND at
+`TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16`. Board geometry is now
+a first-class regression target rather than something a session has to know to
+set:
+
+    make run-board-geom        # the top suite at the shipping geometry
+    make run-all-func-both     # default AND board, both reported
+
+It has to be a SECOND INVOCATION, not a pytest parametrization: the geometry is
+read at import time into module constants that size the elaborated RTL, so one
+process holds exactly one geometry. That is the property that made
+[[PUMICE-041]] invisible, used deliberately.
+
+Five more thresholds were tuned at BL_WORDS=4 and had to be derived instead.
+Four are beats-per-access numbers and scale by `BL_WORDS/4` (`GEOM_UTIL_SCALE`):
+the command-bus ceiling, the single-bank floor (0.20), the in_order floors
+(0.30/0.75) and the W run-length claim. The fifth, `pref_row_first`, is capped
+near 50% by construction at one column per access -- ACT-over-COL wins at most
+every other slot -- so it floors at 0.40 rather than 0.75. Default values are
+unchanged in every case.
+
+### What is STILL open, and it is this task's original claim
+
+`make run-board-geom` runs the WHOLE top area, and `test_pumice_top.py` fails
+**16 `concurrent_rw[bl4x16]` cells** (read latencies 2 and 7, both refresh
+settings):
+
+    TimeoutError: engine-style RD R-wait: {12: 1} beats short after 1000000 cycles
+
+One read beat lost under concurrent read+write at the board geometry.
+Deterministic -- same beat index, same runtime to the second across runs, so it
+is not a flake.
+
+**NOT caused by [[PUMICE-046]]'s arbiter change.** Verified by running the
+identical cell in a worktree at `d11a0aee8`, the commit immediately before
+`8b06686af`: byte-identical failure, `{12: 1}` and 347s both sides. The
+char-framework board gate does not cover these cells, so "gate green" was never
+evidence for this path.
+
+This is the same thing [[PUMICE-037]]'s closure recorded on 2026-09-14 -- "the
+board point does not yet run clean in sim", written when the suite could only
+build DRAM_BL=8. It still holds. The suite can now EXPRESS the geometry, which
+is what made the failure visible; it does not yet PASS it.
+
+**Do:** bisect the 16 `concurrent_rw[bl4x16]` cells to a first-bad commit (the
+test is deterministic, so bisect is cheap), then fix. `DFI_DATA_WIDTH` 128 vs
+64 and `dfi_cmd_path`'s DFI_RATE=4 remain un-investigated.
 
 
 
