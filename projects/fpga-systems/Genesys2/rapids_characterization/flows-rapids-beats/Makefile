@@ -46,6 +46,13 @@ BITSTREAM := $(SELF_DIR)/bitstream/rapids_char.bit
 REPORTS   := $(SELF_DIR)/reports
 
 HARNESS_TEST := projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/dv/test_rapids_char_harness.py
+# `sim` runs the WHOLE dv directory, not one pinned file. TASK-081 shipped a
+# broken board kick sequencer partly because the only test this flow ran was
+# the harness self-check: a new test could be added and never execute. Point
+# the target at the directory so anything dropped in dv/ runs by default.
+# verify-sim stays pinned to the sink self-check -- it is a fast pre-bitstream
+# gate, not the full suite.
+DV_TESTS := projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/dv
 
 # ---- Board target ----------------------------------------------------------
 # BOARD selects the FPGA target: nexys (Artix-7 100T, default) or genesys2
@@ -95,7 +102,7 @@ help:
 # source pass (m_axi_rd -> source -> m_axis, per-channel CRC == chk actual).
 sim:
 	cd $(REPO_ROOT) && . ./env_python && \
-	    pytest $(HARNESS_TEST) -v
+	    pytest $(DV_TESTS) -v
 
 # ---- Pre-bitstream sim gate -----------------------------------------------
 # Cheap insurance: the sink self-check must pass before a 10-30 min build.
