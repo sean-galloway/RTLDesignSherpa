@@ -339,25 +339,32 @@ class RapidsCharHarnessTB(TBBase):
     # DESCRIPTOR KICK-OFF VIA APB (per-half kick window, LOW/HIGH pair)
     # =========================================================================
 
-    def _kick_low_addr(self, half: str, channel: int) -> int:
-        base = SRC_BASE_ADDR if half == 'src' else SNK_BASE_ADDR
-        return base + channel * 0x008
-
-    def _kick_high_addr(self, half: str, channel: int) -> int:
-        base = SRC_BASE_ADDR if half == 'src' else SNK_BASE_ADDR
-        return base + channel * 0x008 + 0x004
-
     async def kick_off_channel(self, half: str, channel: int, descriptor_addr: int):
-        """Kick a channel by writing the 64-bit descriptor address to its LOW/HIGH
-        kickoff register pair (HIGH write blocks until the descriptor engine
-        accepts the kick)."""
-        desc_low = descriptor_addr & 0xFFFF_FFFF
-        desc_high = (descriptor_addr >> 32) & 0xFFFF_FFFF
-        await self.write_apb(self._kick_low_addr(half, channel), desc_low,
-                             reg_name=f"{half.upper()}_CH{channel}_KICK_LOW")
-        await self.write_apb(self._kick_high_addr(half, channel), desc_high,
-                             reg_name=f"{half.upper()}_CH{channel}_KICK_HIGH")
-        self.log.info(f"Kicked {half} ch{channel} via APB, desc @ 0x{descriptor_addr:016X}")
+        """Stage the 64-bit descriptor address, then LAUNCH it via KICK_ENABLE.
+
+        The address pair is ordinary stored state -- writing it does NOT kick.
+        `rapids_beats_top` replaced the old write-to-kick scheme with staged
+        `CHx_DESC_ADDR_{LOW,HIGH}` plus a RISING-EDGE-detected `KICK_ENABLE`
+        (SRC 0x0040 / SNK 0x1040). This harness only ever staged the address,
+        so every channel sat parked: no descriptor fetch was ever issued
+        (`snk_desc_arvalid` never asserted), the scheduler never left idle, and
+        the self-check timed out with zero beats written. Measured 2026-09-22.
+
+        Resolved BY NAME through rapids_regmap rather than the old hand-computed
+        `base + channel * 0x008`, so a renamed or moved register fails here
+        instead of silently writing a valid-looking wrong offset.
+        """
+        await self.write_reg(half, f"CH{channel}_DESC_ADDR_LOW",
+                             descriptor_addr & 0xFFFF_FFFF)
+        await self.write_reg(half, f"CH{channel}_DESC_ADDR_HIGH",
+                             (descriptor_addr >> 32) & 0xFFFF_FFFF)
+        # KICK_ENABLE.KICKn is a singlepulse: the write emits a one-cycle
+        # request to the descriptor engine and self-clears, so there is nothing
+        # to clear afterwards and a read-back cannot look like a pending launch.
+        await self.write_reg(half, "KICK_ENABLE", 1 << channel)
+        self.log.info(f"Kicked {half} ch{channel} via APB "
+                      f"(staged + KICK_ENABLE bit{channel}), "
+                      f"desc @ 0x{descriptor_addr:016X}")
 
     # =========================================================================
     # DESCRIPTOR PACK + LOAD (into on-chip descriptor RAM via host write port)
