@@ -22,11 +22,11 @@
 # ============================================================================
 #
 # LFSR (shifter_lfsr_fibonacci.sv, WIDTH=32, TAP_INDEX_WIDTH=12, TAP_COUNT=4,
-#       taps = {12'd32, 12'd22, 12'd2, 12'd1}, seed = LFSR_SEED ^ channel):
+#       taps = {12'd23, 12'd3, 12'd2, 12'd1}, seed = LFSR_SEED ^ channel):
 #   - Right-shift Fibonacci LFSR. Feedback XORs the *tapped* bits and shifts
 #     the result INTO the MSB:  r_lfsr <= {feedback, r_lfsr[WIDTH-1:1]}.
-#   - Taps are 1-indexed (tap value T taps bit T-1). Taps {32,22,2,1} therefore
-#     tap bits {31, 21, 1, 0}:  feedback = lfsr[31]^lfsr[21]^lfsr[1]^lfsr[0].
+#   - Taps are 1-indexed (tap value T taps bit T-1). Taps {23,3,2,1} therefore
+#     tap bits {22, 2, 1, 0}:  feedback = lfsr[22]^lfsr[2]^lfsr[1]^lfsr[0].
 #   - On the reset pulse the seed is LOADED into the register. lfsr_out is the
 #     *current* register value (combinational), so the SEED VALUE ITSELF is the
 #     first value consumed (beat 0); each subsequent beat is one shift later.
@@ -58,8 +58,13 @@ from typing import List
 # --- LFSR parameters (fixed, from the RTL instantiation) -------------------
 LFSR_SEED_DEFAULT = 0xDEADBEEF
 _MASK32 = 0xFFFFFFFF
-# Tapped bit positions (taps {32,22,2,1} -> bits {31,21,1,0}).
-_TAP_BITS = (31, 21, 1, 0)
+# Tapped bit positions. LFSR_TAPS={12'd23,12'd3,12'd2,12'd1} and
+# shifter_lfsr_fibonacci sets w_taps[tap-1], so taps {23,3,2,1} -> bits
+# {22,2,1,0}. This model previously encoded {32,22,2,1} -> {31,21,1,0},
+# the PRE-f81454d9a defaults ('LFSR tap defaults were not maximal',
+# 2026-08-12). Verified 2026-09-22 against a waveform capture of
+# s_axis_tdata: DEADBEEF EF56DF77 77AB6FBB 3BD5B7DD 9DEADBEE.
+_TAP_BITS = (22, 2, 1, 0)
 
 # --- CRC parameters (fixed, from the RTL instantiation) --------------------
 _CRC_POLY = 0x04C11DB7
@@ -123,13 +128,16 @@ def golden_crc(channel: int, num_beats: int, base_seed: int = LFSR_SEED_DEFAULT)
     return crc32_over(lfsr_seq(seed, num_beats))
 
 
-# Known-good hardware AND simulation values: num_beats=8, cfg_lfsr_seed=0
+# Recomputed 2026-09-22 from the corrected taps. The previous values were
+# captured BEFORE f81454d9a changed LFSR_TAPS, so they no longer describe
+# any RTL in the tree.
+# Known-good values: num_beats=8, cfg_lfsr_seed=0
 # (=> LFSR_SEED = 0xDEADBEEF), channels 0..3.
 _KNOWN_GOOD = {
-    0: 0x8C023372,
-    1: 0x3FB81189,
-    2: 0xD64B4EEC,
-    3: 0x65F16C17,
+    0: 0x89346A28,
+    1: 0x1BD7E214,
+    2: 0x942B69BD,
+    3: 0x06C8E181,
 }
 
 
