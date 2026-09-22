@@ -554,6 +554,28 @@ class RapidsCharHarnessTB(TBBase):
         if se not in (0, -1):
             errors.append(f"snk_sched_error=0x{se:X}")
 
+        # Generator-side observability. The harness exports these but nothing
+        # read them, so a failing run could not tell "the AXIS generator never
+        # emitted a beat" from "it emitted beats that never reached the write
+        # side" -- different root causes, identical scoreboard output.
+        try:
+            gen_beats = self._read_u32(d.o_gen_beat_count_total)
+        except Exception:
+            gen_beats = -1
+        try:
+            gen_busy = int(d.gen_busy.value)
+            gen_done = int(d.gen_done.value)
+        except ValueError:
+            gen_busy = gen_done = -1
+        self.log.info(f"  SINK gen: beats_emitted={gen_beats} busy={gen_busy} "
+                      f"done={gen_done} (expected {expected_total})")
+        if gen_beats == 0:
+            errors.append("AXIS generator emitted 0 beats -- s_axis never "
+                          "handshook, so the fault is upstream of the DMA")
+        elif 0 < gen_beats < expected_total:
+            errors.append(f"AXIS generator stalled: emitted {gen_beats} of "
+                          f"{expected_total} beats (busy={gen_busy} done={gen_done})")
+
         # Bus meters on the SINK path interfaces: AXIS ingress (sin) -> AXI4
         # write (wr). Both must have counted productive beats in the frozen
         # window (proves the beat-driven window brackets the transfer).
