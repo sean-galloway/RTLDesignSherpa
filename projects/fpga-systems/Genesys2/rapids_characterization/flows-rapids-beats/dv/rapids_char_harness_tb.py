@@ -497,9 +497,27 @@ class RapidsCharHarnessTB(TBBase):
         #    started first, the front-loaded ingress would fly by while the
         #    window was still closed and the sin bus-meter would read prod=0 --
         #    a windowing artifact, not a wiring fault.)
+        #
+        #    NOTE: kicking first is NECESSARY but no longer SUFFICIENT. Under the
+        #    old protocol the HIGH write stalled the APB until the descriptor
+        #    engine accepted, so the scheduler was already busy on return. With
+        #    staged-addr + KICK_ENABLE the acceptance is asynchronous -- "a
+        #    completed write no longer means accepted" (rapids_beats_top) -- so
+        #    we must explicitly wait for busy below.
         for ch in active_channels:
             desc_addr = self.DESC_BASE + ch * 0x1000
             await self.kick_off_channel('snk', ch, desc_addr)
+
+        # 3b. Wait for the sink to actually GO BUSY. The observation window opens
+        #     on obs_dut_busy (= ~snk_system_idle); releasing ingress before that
+        #     lets all `beats` beats land while the window is shut, which reads
+        #     back as `sin bus-meter productive=0` even though the data moved and
+        #     CRC'd correctly. The scheduler cannot finish before the beats
+        #     arrive, so waiting for busy here cannot race past the window.
+        if not await self._wait_for(lambda: int(d.snk_system_idle.value) == 0,
+                                    timeout_cycles=2000):
+            self.log.warning("snk_system_idle never deasserted after the kick -- "
+                             "the sin window will not have opened")
 
         # 4. Program + start the AXIS pattern generator; ingress now flows into
         #    the open window. cfg_start reseeds/clears the per-channel LFSR +
