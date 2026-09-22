@@ -204,9 +204,20 @@ mechanism. The gate can be fully green while the board never kicks.
 - [x] Delete the dead `kick_channel()` in `run_characterization.py`. Done
       2026-09-22 (no callers repo-wide; the `kick_channels` hits are STREAM's
       unrelated plural helper).
-- [ ] Close the coverage gap so this class of defect is reachable from sim --
-      either a testbench whose toplevel is `rapids_char_top`, or move the
-      sequencer below the harness boundary.
+- [x] Close the coverage gap. Done 2026-09-22:
+      `dv/test_rapids_char_top_kick.py`, toplevel `rapids_char_top`, driving the
+      board top over a simulated UART (`UART_BAUD = FPGA_CLK_HZ / CLKS_PER_BIT`
+      passed as a generic so the RTL divisor cannot drift from the TB) through
+      the REAL host transport -- `RapidsCharIO` over `UARTAxiBridge(channel=)`.
+      Host code and RTL run together, because the defect lived exactly in that
+      seam: the host staged and the RTL never pulled the trigger. Asserts
+      KICK_ENABLE is written exactly once, carries the staged mask, and is the
+      FINAL write after all staging; a second case proves `GO` with mask=0
+      pulses nothing.
+      ALSO: `make sim` ran only the pinned harness file, so a new test in `dv/`
+      would never have executed. It now runs the whole `dv/` directory
+      (`DV_TESTS`), so anything dropped there runs by default. `verify-sim`
+      stays pinned to the sink self-check -- it is a fast pre-bitstream gate.
 - [ ] Re-run a board campaign and confirm non-zero beats before trusting any
       previously recorded rapids board numbers.
 
@@ -215,10 +226,15 @@ mechanism. The gate can be fully green while the board never kicks.
 baseline, and zero of them cite `rapids_char_top.sv`. All 268 are pre-existing
 MULTIDRIVEN warnings out of the PeakRDL-generated `rapids_regs.sv`.
 
-**This proves the sequencer elaborates, NOT that it launches.** No sim can
-execute this path -- see the coverage-gap item above, which is exactly why the
-defect survived this long. Treat the fix as unproven until a board campaign
-moves beats.
+**Now proven in simulation, and the test is non-vacuous.** Against the FIXED
+sequencer: 2 passed. Against the PRE-FIX sequencer (swapped back in, KST_KICK
+count 0) the same test FAILS with `KICK_ENABLE (0x1040) was never written --
+the sequencer staged the descriptor addresses and never launched`. A test that
+passed on both would have proven nothing, which is the trap that let this ship.
+
+Still NOT proven on hardware: the remaining item below. Sim exercises the
+sequencer's APB writes, not the board's UART front end at real baud, the
+bitstream, or the DUT's response.
 
 **Evidence:** `rapids_char_top.sv:777-860` (sequencer FSM and `w_kick_paddr`),
 `run_characterization.py:189,203,288-298` (dead `kick_channel`, `_stage_kicks`,
