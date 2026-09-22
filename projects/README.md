@@ -140,8 +140,7 @@ project_name/
 │   └── board.xdc       # Constraints file
 ├── tcl/                 # Vivado TCL scripts
 │   ├── create_project.tcl
-│   ├── build_all.tcl
-│   └── program_fpga.tcl
+│   └── build_all.tcl
 ├── sim/                 # CocoTB simulation
 │   └── test_*.py       # Testbench
 ├── docs/                # Documentation

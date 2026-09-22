@@ -144,9 +144,13 @@ bitstream-sweep:
 	@echo "Done. Feed reports/sweep_wns.csv into the spreadsheet builder."
 
 # ---- Program board ---------------------------------------------------------
-program:
-	@[ -f $(BITSTREAM) ] || (echo "No bitstream found - run 'make bitstream' first." && false)
-	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/program_fpga.tcl
+# program / ports / board-info / boards come from the shared board layer. The
+# per-flow tcl this replaces pinned NO serial at all --
+# `current_hw_target [get_hw_targets */xilinx_tcf/*]` takes whatever Vivado
+# lists first, which with two boards on the chain is a coin flip.
+# Handbook: vault/handbook/fpga/cmn-infra/boards.md
+FLOW ?= timing-char
+include $(REPO_ROOT)/make/fpga_board.mk
 
 # ---- Report shortcuts ------------------------------------------------------
 utilization:

@@ -136,7 +136,6 @@ fpga/
     ├── create_project.tcl        project gen from rtl/filelists/char_top.f
     ├── synth_only.tcl            synth + utilization_synth.txt
     ├── build_all.tcl             synth + impl + bitgen + reports
-    ├── program_fpga.tcl          JTAG flash via Vivado hw_server
     └── filelist_utils.tcl        env-var + +incdir + nested -f support
 ```
 

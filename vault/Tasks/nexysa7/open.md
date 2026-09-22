@@ -216,14 +216,18 @@ Each becomes a thin wrapper over `uart_link.find_port(probe=...)`, exactly as
 `ddr2_char.autodetect_port` now is. New callers should prefer
 `Board.find_uart_port(probe=...)`, which also filters by USB serial.
 
-**Still duplicated (6 remaining copies of program_fpga.tcl):**
-`flows-litedram-uart`, `flows-rapids-beats`, `flows-stream-bridge`,
-`flows-stream-monitor`, `flows-vivado-mcdma`, `timing_characterization/fpga`.
-Each flow Makefile drops its inline `program:` recipe and instead sets
-`BITSTREAM` + `RDS_ROOT` and includes the global `make/fpga_flow.mk` (the
-[[test-runner]] `make/tests.mk` pattern, applied to board handling); the
-per-flow tcl is then deleted. Note `flows-stream-bridge` also switches bitstream
-name on `BOARD=genesys2` — fold that into the Makefile, not the tcl.
+**DONE (2026-09-22) -- no per-flow `program_fpga.tcl` remains.**
+`projects/fpga-systems/bin/program_fpga.tcl` is the only copy in the tree. The
+count here was itself stale: of the six listed, four had already gone with their
+flows, and only `flows-rapids-beats` and `timing_characterization/fpga` survived.
+Both now set `BITSTREAM` and include `make/fpga_board.mk` instead of carrying an
+inline `program:` recipe. The rapids copy pinned a JTAG serial for a unit that
+left the bench in August 2026; the timing_characterization copy pinned nothing at
+all (`get_hw_targets */xilinx_tcf/*` takes whatever Vivado lists first).
+`capture_ila.tcl` was fixed the same way -- it had defaulted to a Genesys 2
+serial inside a flow that defaults to the Nexys.
+
+This item stays OPEN for the port-scan half above, which is untouched.
 
 **Then:** consider moving the Vivado build targets (`project`/`synth`/
 `bitstream`/`utilization`/`timing`) into `make/fpga_flow.mk` too — they are

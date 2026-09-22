@@ -130,9 +130,13 @@ bitstream: verify-sim
 	@echo "Reports:   $(REPORTS)"
 
 # ---- Program board ---------------------------------------------------------
-program:
-	@[ -f $(BITSTREAM) ] || (echo "No bitstream found — run 'make bitstream' first." && false)
-	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/program_fpga.tcl
+# program / ports / board-info / boards come from the shared board layer. The
+# per-flow tcl this replaces hardcoded a JTAG serial (a unit that left the bench
+# in Aug 2026) and picked the FIRST matching hw_target -- which on a two-channel
+# FT2232 is the one with no scan chain, reported as 'board missing'.
+# Handbook: vault/handbook/fpga/cmn-infra/boards.md
+FLOW ?= rapids-beats
+include $(REPO_ROOT)/make/fpga_board.mk
 
 # ---- UART characterization -------------------------------------------------
 # Drives the programmed board over UART: config SRC+SNK by name, load

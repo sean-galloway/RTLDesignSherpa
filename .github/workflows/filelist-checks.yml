@@ -53,3 +53,25 @@ jobs:
       - name: Show the outstanding broken links
         if: always()
         run: python3 bin/check_broken_links.py --list || true
+
+  # Separate job so the filelist job above stays pip-free and fast. These tests
+  # cover the logic whose failure is SILENT on hardware -- a wrong port or a
+  # skipped init reads as a timing bug, not a lookup bug. Three of them were red
+  # for weeks (a board swap changed the registry serial) and nobody saw it,
+  # because nothing ran them. That is what this job exists to prevent.
+  board-layer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # pytest only; the tests are deliberately board-less and import pyserial
+      # lazily, so no hardware and no serial stack is needed.
+      - name: Install pytest
+        run: python3 -m pip install --quiet pytest
+
+      - name: Board selection and sequence ordering (board-less)
+        run: python3 -m pytest projects/fpga-systems/bin/ -q

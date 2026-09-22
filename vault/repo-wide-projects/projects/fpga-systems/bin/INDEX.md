@@ -70,22 +70,35 @@ which supplies `program`, `ports`, `board-info` and `boards`, switchable with
 
 ## Notes
 
-**The registry and the handbook disagree about the Nexys A7 serial.** The
-registry says `210292BFA3EE`; `boards.md` still lists `210292B7D46F`. Dated
-evidence favours the registry - `B7D46F` appears only in June 2026 and earlier
-artifacts, while every measurement from 2026-08-25 on (pumice re-validation,
-`seq_page_policy` 2026-09-21, the cdc board validation) names `BFA3EE`. The lab
-has had two A7-100T units on the desk and the registry's own comment says so.
-The handbook note looks stale rather than wrong-in-principle. Unverified against
-the hardware.
+**The three findings this page opened with are fixed (2026-09-22).** They turned
+out to share one root cause, which is the part worth remembering.
 
-**A per-flow `program_fpga.tcl` survived the consolidation.**
-`Genesys2/rapids_characterization/flows-rapids-beats/tcl/program_fpga.tcl:23`
-still hardcodes `set want_serial "210292B7D46F"` - a copy of the pattern this
-directory exists to replace, pinning the unit that is probably no longer on the
-bench.
+The lab's A7-100T was swapped and the registry was updated to `210292BFA3EE`.
+Nothing else was. `boards.md` went on quoting the old `210292B7D46F` for weeks,
+and three assertions in `test_uart_link.py` -- which pinned that serial as their
+EXPECTED value -- went red and stayed red, because no Makefile or workflow ran
+them. One bench change produced a stale doc and a broken test, and neither was
+visible from anywhere.
 
-**Nothing runs the board-less tests.** `test_uart_link.py` and
-`test_sequence.py` are not referenced by any Makefile or CI workflow. They cover
-exactly the logic whose failures are silent on hardware - a wrong port or a
-skipped init reads as a timing bug - so they are worth wiring in.
+What changed:
+
+- `boards.md` names `210292BFA3EE`, and records where the old serial still
+  legitimately appears (pre-August reports, and as a fixture string) so the next
+  reader does not "correct" it back.
+- The tests derive both serials from the registry instead of pinning literals.
+  They now assert the PLUMBING - that a board's registry facts reach port
+  discovery and the programming env - rather than which unit is on the desk. The
+  prefix-tolerance tests keep their literals on purpose: those exercise string
+  matching, not the lab inventory.
+- A separate `board-layer` CI job runs them. Separate because the filelist job is
+  deliberately pip-free and these need pytest.
+- Both surviving per-flow `program_fpga.tcl` copies are gone; the rapids and
+  asic-trials flows include `make/fpga_board.mk`. The rapids copy pinned the
+  departed unit; the asic-trials copy pinned nothing at all
+  (`get_hw_targets */xilinx_tcf/*` takes whatever Vivado lists first), which is
+  the "grab the first target" exposure boards.md warns about.
+- `capture_ila.tcl` no longer defaults to a Genesys 2 serial inside a flow that
+  defaults to the Nexys, and picks its JTAG target by device presence instead of
+  first match.
+
+`projects/fpga-systems/bin/program_fpga.tcl` is now the only copy in the tree.

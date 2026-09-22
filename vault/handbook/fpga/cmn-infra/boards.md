@@ -30,8 +30,15 @@ logic.
 Shared JTAG chain - select by serial (`FPGA_JTAG_SERIAL`; the older per-flow
 `RAPIDS_CHAR_JTAG_SERIAL` / `STREAM_CHAR_JTAG_SERIAL` are still honoured, but do
 not add more):
-- Nexys A7:  210292B7D46F  (xc7a100t)
+- Nexys A7:  210292BFA3EE  (xc7a100t)
 - Genesys 2: 200300B818A0  (xc7k325t)
+
+`210292B7D46F` is a DIFFERENT A7-100T, off this desk since ~2026-08. It still
+appears in pre-August reports and as a fixture string in `test_uart_link.py`,
+and this note carried it for weeks after the registry had moved on -- the
+tests that would have caught the drift were failing the whole time, unrun.
+Read a serial from the registry (`make board-info`), never from a report or a
+test fixture.
 
 ## Finding the right port
 

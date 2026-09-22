@@ -60,8 +60,18 @@ def test_matches_serial_false_when_unknown():
 # Board -> its own ports
 # ---------------------------------------------------------------------------
 
-NEXYS = "210292B7D46F"
-GENESYS = "200300B818A0"
+# Derived from the registry, never pinned. These assertions used to carry the
+# literal bench serial and broke silently the moment the lab's A7-100T was
+# swapped (210292B7D46F -> 210292BFA3EE) -- nothing reported it because nothing
+# runs this file in CI. What is under test is the PLUMBING: that a board's
+# registry facts reach port discovery and the programming env. Which unit is on
+# the desk today is not this file's business.
+#
+# The prefix-tolerance tests above keep literal strings ON PURPOSE -- they
+# exercise string matching, not the lab inventory.
+NEXYS = get_board("nexys_a7_100t").jtag_serial
+GENESYS = get_board("genesys2").jtag_serial
+GENESYS_UART = get_board("genesys2").SPEC.uart_serial
 
 
 @pytest.fixture
@@ -72,7 +82,7 @@ def two_boards(monkeypatch):
         UartPort("/dev/ttyUSB0", usb_serial=NEXYS + "A", description="JTAG"),
         UartPort("/dev/ttyUSB1", usb_serial=NEXYS + "B", description="UART"),
         UartPort("/dev/ttyUSB2", usb_serial=GENESYS + "A", description="JTAG"),
-        UartPort("/dev/ttyUSB3", usb_serial="AU05X8RM", description="FT232R"),
+        UartPort("/dev/ttyUSB3", usb_serial=GENESYS_UART, description="FT232R"),
     ]
     monkeypatch.setattr(uart_link, "list_uart_ports", lambda *a, **k: list(ports))
     import board as board_mod

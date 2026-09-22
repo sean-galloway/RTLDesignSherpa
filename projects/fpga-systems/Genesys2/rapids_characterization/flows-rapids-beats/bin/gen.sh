@@ -29,10 +29,18 @@ VIVADO="${VIVADO:-vivado}"
 VIVADO_BATCH=("${VIVADO}" -mode batch -nojournal -notrace)
 
 target="${1:-bitstream}"
+
+# `program` has no per-flow tcl any more: the JTAG serial and part come from
+# the board registry via the shared CLI, so a bench swap needs no edit here.
+if [[ "${target}" == "program" ]]; then
+    exec python3 "${REPO_ROOT}/projects/fpga-systems/bin/fpga_board.py" \
+        --board "${BOARD:-nexys}" program \
+        --bitstream "${FLOW_ROOT}/bitstream/rapids_char.bit"
+fi
+
 case "${target}" in
     project)   tcl="${TCL_DIR}/create_project.tcl" ;;
     bitstream) tcl="${TCL_DIR}/build_all.tcl" ;;
-    program)   tcl="${TCL_DIR}/program_fpga.tcl" ;;
     *)
         echo "Unknown target '${target}' (expected: project | bitstream | program)" >&2
         exit 2
