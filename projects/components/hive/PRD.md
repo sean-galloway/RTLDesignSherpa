@@ -81,7 +81,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
   6 (programming), and 7 (performance)
 
 ### Other Documentation
-- **[README](README.md)** - Quick start and integration guide (to be created)
+- **README** - Quick start and integration guide (to be created)
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
 - **[TASKS](TASKS.md)** - Current work items (to be created)
 

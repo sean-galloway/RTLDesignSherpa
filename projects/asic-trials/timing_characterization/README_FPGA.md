@@ -125,7 +125,7 @@ delete anything -- the FPGA equivalent of the ASIC scaffold.
 
 The flow lives under
 [`fpga/`](fpga/), shaped like
-[`stream_characterization/flows-stream-bridge`](../stream_characterization/flows-stream-bridge):
+`stream_characterization/flows-stream-bridge` (retired):
 
 ```
 fpga/

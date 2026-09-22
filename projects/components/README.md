@@ -109,7 +109,7 @@ cd apbx_xbar/bin/
 python generate_xbars.py --masters 3 --slaves 6   # writes apbx_xbar_3to6.sv next to the script
 ```
 
-**See:** [`apbx_xbar/PRD.md`](apbx_xbar/PRD.md) for complete specification
+**See:** [`apbx-xbar/PRD.md`](apbx-xbar/PRD.md) for complete specification
 
 ---
 
@@ -423,7 +423,6 @@ Single APB slave at `0x4000_0000` with internal 4KB window decode routing to all
 
 **See:**
 - [`retro_legacy_blocks/PRD.md`](retro_legacy_blocks/PRD.md) - Complete requirements for all blocks
-- [`retro_legacy_blocks/BLOCK_STATUS.md`](retro_legacy_blocks/BLOCK_STATUS.md) - Development status tracking
 - [`retro_legacy_blocks/docs/hpet_mas/`](retro_legacy_blocks/docs/hpet_mas/) - HPET complete specification (the old `docs/hpet_spec/` tree)
 
 ---
@@ -455,7 +454,7 @@ Configurable BCH (Bose-Chaudhuri-Hocquenghem) encoder and decoder for error corr
 - Documentation: `README.md`, `PRD.md`, `CLAUDE.md`, `TASKS.md`
 - Future: `rtl/`, `dv/tests/`, `docs/bch_spec/`
 
-**See:** [`bch/PRD.md`](bch/PRD.md) for complete requirements (when ready)
+**See:** `bch/PRD.md` for complete requirements (not yet written)
 
 ---
 

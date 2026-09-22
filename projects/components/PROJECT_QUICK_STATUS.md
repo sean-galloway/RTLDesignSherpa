@@ -158,7 +158,7 @@
 - `CLAUDE.md` - Implementation guidance
 - `README.md` - Quick start guide
 - `docs/stream_has/`, `docs/stream_mas/` - Complete HAS/MAS specification
-- Characterization report: [stream_characterization findings](../NexysA7/stream_characterization/docs/characterization_v1_findings.md) - on-silicon perf/area/compression
+- Characterization report: [stream characterization findings](../fpga-systems/Genesys2/stream/docs/characterization_v1_findings.md) - on-silicon perf/area/compression
 
 **Use Cases:**
 - Memory-to-memory DMA transfers
@@ -229,7 +229,7 @@
 - `PRD.md` - Complete product requirements
 - `CLAUDE.md` - Implementation guidance and known issues
 - `docs/rapids_beats_has/`, `docs/rapids_beats_mas/` - Detailed specification
-- Characterization report: [rapids_characterization findings](../Genesys2/rapids_characterization/docs/rapids_characterization_findings.md) - on-silicon (Nexys A7-100T) results
+- Characterization report: [rapids_characterization findings](../fpga-systems/Genesys2/rapids_characterization/docs/rapids_characterization_findings.md) - on-silicon (Nexys A7-100T) results
 
 **Use Cases:**
 - Network-attached accelerators

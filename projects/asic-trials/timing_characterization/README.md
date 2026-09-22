@@ -643,5 +643,5 @@ the workflow is a spreadsheet.
 - Merged ASAP7 RVT Liberty builder: [`work/merge_lib_corner.py`](work/merge_lib_corner.py)
 - Primitive characterization data: [`work/timing_char_data.csv`](work/timing_char_data.csv)
 - STREAM library sweep results: [`work/timings.csv`](work/timings.csv)
-- Components area: [`../README.md`](../README.md)
+- Components area: [`projects/components/README.md`](../../components/README.md)
 - Repository guide: [`/CLAUDE.md`](../../../CLAUDE.md)

@@ -119,7 +119,7 @@ VexRiscv RISC-V processor serving as global coordinator for the HIVE system.
 - **Command Response Time:** < 1 µs @ 100 MHz
 - **Monitoring Aggregation:** < 100 cycles for all 16 SERV status reads
 
-**See:** [Chapter 2.1: HIVE-C Controller](01_hive_c_controller.md) for detailed specification
+**See:** Chapter 2.1: HIVE-C Controller (not yet written) for detailed specification
 
 ---
 
@@ -169,7 +169,7 @@ Lightweight per-tile traffic monitors using SERV bit-serial RISC-V cores.
 - **Congestion Detection Latency:** < 10 cycles
 - **Periodic Reporting Interval:** 1000 cycles (configurable)
 
-**See:** [Chapter 2.2: SERV Monitor](02_serv_monitor.md) for detailed specification
+**See:** Chapter 2.2: SERV Monitor (not yet written) for detailed specification
 
 ---
 
@@ -207,7 +207,7 @@ Dedicated communication infrastructure for HIVE-C ↔ SERV monitor control and s
 - **Status Aggregation Time:** < 20 cycles for all 16 SERVs
 - **Arbitration Fairness:** Round-robin ensures no SERV starvation
 
-**See:** [Chapter 2.3: Control Network](03_control_network.md) for detailed specification
+**See:** Chapter 2.3: Control Network (not yet written) for detailed specification
 
 ---
 
@@ -250,7 +250,7 @@ Manages virtual configuration contexts and network topology switching.
 - **Packet Drain Time:** < 10 cycles (worst-case)
 - **Switch Overhead:** < 1% for workloads with 1000+ cycle phases
 
-**See:** [Chapter 2.4: Configuration Manager](04_config_manager.md) for detailed specification
+**See:** Chapter 2.4: Configuration Manager (not yet written) for detailed specification
 
 ---
 
@@ -345,6 +345,6 @@ hive_top.sv                          # Top-level integration
 
 ---
 
-**Next:** [HIVE-C Controller](01_hive_c_controller.md)
+**Next:** HIVE-C Controller (not yet written)
 
 **Back to:** [Index](../hive_index.md)

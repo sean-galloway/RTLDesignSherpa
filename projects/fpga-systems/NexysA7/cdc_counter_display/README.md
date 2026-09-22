@@ -432,7 +432,7 @@ module cdc_counter_display_top #(
 - [Vivado Constraints Guide](https://www.xilinx.com/support/documentation/sw_manuals/xilinx2020_2/ug903-vivado-using-constraints.pdf)
 - [CDC Methodology White Paper](https://www.xilinx.com/support/documentation/white_papers/wp272.pdf)
 - [Nexys A7 Reference Manual](https://reference.digilentinc.com/reference/programmable-logic/nexys-a7/reference-manual)
-- [rtldesignsherpa Documentation](../../README.md)
+- [rtldesignsherpa Documentation](../../../README.md)
 
 ### Related rtldesignsherpa Examples
 

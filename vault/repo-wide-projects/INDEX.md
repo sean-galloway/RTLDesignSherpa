@@ -28,7 +28,7 @@ note — it belongs to that block and nowhere else.
 
 ## projects/components/
 
-- [apbx_xbar](projects/components/apbx-xbar/INDEX.md)
+- [apbx-xbar](projects/components/apbx-xbar/INDEX.md)
 - [bridge](projects/components/bridge/INDEX.md) — generated crossbar
 - [converters](projects/components/converters/INDEX.md)
 - [delta](projects/components/delta/INDEX.md)
@@ -46,8 +46,14 @@ note — it belongs to that block and nowhere else.
 - [boards](projects/NexysA7/boards/INDEX.md)
 - [cdc_counter_display](projects/NexysA7/cdc_counter_display/INDEX.md)
 - [ddr2-characterization](projects/NexysA7/ddr2-characterization/INDEX.md)
-- [rapids_characterization](projects/NexysA7/rapids_characterization/INDEX.md)
-- [timing_characterization](projects/NexysA7/timing_characterization/INDEX.md)
+
+## projects/Genesys2/
+
+- [rapids_characterization](projects/Genesys2/rapids_characterization/INDEX.md)
+
+## projects/asic-trials/
+
+- [timing_characterization](projects/asic-trials/timing_characterization/INDEX.md)
 
 ## Adding an area
 

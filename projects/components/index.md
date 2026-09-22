@@ -40,7 +40,7 @@ This directory contains production-ready and in-development component projects f
 | Component | Status | Location | Documentation |
 |-----------|--------|----------|---------------|
 | **Retro Legacy Blocks (HPET, PIT, ...)** | Production | [retro_legacy_blocks/](retro_legacy_blocks/) | [HPET Specification](retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) |
-| **APB Crossbar** | Production | [apbx_xbar/](apbx_xbar/) | [Specification](apbx_xbar/docs/apbx_xbar_mas/apbx_xbar_mas_index.md) |
+| **APB Crossbar** | Production | [apbx-xbar/](apbx-xbar/) | [Specification](apbx-xbar/docs/apbx_xbar_mas/apbx_xbar_mas_index.md) |
 | **STREAM** | Production | [stream/](dmas/stream/) | [Specification](dmas/stream/docs/stream_mas/stream_index.md) |
 | **RAPIDS** | Functional | [rapids/](dmas/rapids/) | [Specification](dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md) |
 | **Bridge** | Development | [bridge/](bridge/) | See [bridge/docs/](bridge/docs/) |
@@ -58,7 +58,7 @@ This directory contains production-ready and in-development component projects f
 - [Retro Legacy Blocks](retro_legacy_blocks/) - HPET, 8254 PIT, and other legacy timers/peripherals (absorbed the old apb4_hpet)
 
 **Interconnect:**
-- [APB Crossbar](apbx_xbar/) - MxN APB interconnect
+- [APB Crossbar](apbx-xbar/) - MxN APB interconnect
 
 **DMA and Data Transfer:**
 - [STREAM](dmas/stream/) - Tutorial DMA engine
@@ -115,7 +115,7 @@ Each component follows this standard structure:
 ### Documentation
 - **[Project README](README.md)** - Overview and getting started
 - **[Project PRD](PRD.md)** - Requirements and goals
-- **[Project Status](PROJECT_STATUS.md)** - Current status
+- **[Project Status](PROJECT_QUICK_STATUS.md)** - Current status
 - **[Project CLAUDE Guide](CLAUDE.md)** - AI assistance
 - **[Makefile Guide](MAKEFILE_GUIDE.md)** - Build system
 - **[Makefile Hierarchy](MAKEFILE_HIERARCHY.md)** - Build organization

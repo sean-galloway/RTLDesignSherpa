@@ -60,7 +60,11 @@ from pathlib import Path
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+?)(?:#[^)\s]*)?\)")
 FENCE = re.compile(r"^\s*```")
 INLINE = re.compile(r"`[^`]*`")
-SCHEMES = ("http://", "https://", "mailto:", "ftp://", "data:")
+# file:// is a URI scheme, not a relative path. README_MAKEFILE.md links 6
+# sibling files that ALL exist; without file:// here the checker called them
+# broken, and "fixing" that would have meant damaging a correct page to
+# satisfy a defect in this script.
+SCHEMES = ("http://", "https://", "mailto:", "ftp://", "data:", "file://")
 
 REPO = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"],
                                     text=True).strip())
