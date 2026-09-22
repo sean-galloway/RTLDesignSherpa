@@ -4,7 +4,13 @@
 **Format-lock commit:** `65c6ef8b feat(monbus): lock compressor format at cam=32, idx=5b + drop pollution at parse`
 **Capture-path-fix commit:** `65b243b3 feat(stream_char): WR_PTR-bounded captures + drop too-strict validity default`
 **Source:** Nexys A7, stream_char bitstream + harness, descriptor-bus monitor
-**Audience:** Engineer/agent implementing the RTL compressor described in `MONBUS_COMPRESSION_HANDOFF.md` Step 4.
+**Audience:** Engineer/agent implementing the RTL compressor. The handoff note this was written against
+has since been deleted (`48b21061b`); this page is the single source.
+
+**Companion:** `../compression/README.md` carries the characterization
+results for this same 682-record capture -- reduction headline, per-record
+classification, live on-board confirmation. This page is the format lock
+the RTL must mirror.
 
 This is the single page that should let you size, lay out, and verify
 the compressor without re-deriving anything. Every other doc this
@@ -15,9 +21,9 @@ references is reachable through its absolute repo path.
 ## 1. The dataset
 
 ```
-projects/NexysA7/stream_characterization/reports/compression_dataset/
-  desc_axi_16desc_8ch_1MB.json       ← THIS dataset
-  README_COMPRESSION_DATASET.md      ← THIS file
+projects/fpga-systems/Genesys2/stream/reports/
+  compression/json/desc_axi_16desc_8ch_1MB.json      ← THIS dataset (682 records)
+  compression_dataset/README_COMPRESSION_DATASET.md  ← THIS file
 ```
 
 **Workload:** `python3 run_characterization.py --configs 16desc_8ch_1MB`
@@ -61,8 +67,7 @@ Each record is one 128-bit `MonitorPacket` + 64-bit local timestamp.
 `packet` hex is bit-exact what the RTL emitted on the monbus master
 side; `timestamp` is the 60-bit `source_ts` field captured by
 `monbus_axil_group` (top 4 bits zero today — that's the encoding tag
-reserved for the future Tier-1 compressor; see Step 4 of the
-[main handoff doc](../../MONBUS_COMPRESSION_HANDOFF.md)).
+reserved for the future Tier-1 compressor).
 
 ---
 
@@ -212,8 +217,8 @@ from TBClasses.monbus.sniffer import load_capture
 from TBClasses.monbus.monbus_compressor import Encoder, Decoder
 
 records = load_capture(
-    "projects/NexysA7/stream_characterization/reports/"
-    "compression_dataset/desc_axi_16desc_8ch_1MB.json"
+    "projects/fpga-systems/Genesys2/stream/reports/"
+    "compression/json/desc_axi_16desc_8ch_1MB.json"
 )
 
 # 1. Generate the golden 64-bit slot stream
@@ -255,9 +260,20 @@ pytest bin/TBClasses/monbus/tests/test_monbus_compressor.py -v
 
 ---
 
-## 6. Quick rebuild / re-capture
+## 6. How this capture was taken (retired Nexys A7 flow)
+
+Captured on the Nexys A7 `stream_characterization` tree, deleted in
+`9461b6aac` when stream characterization consolidated onto the Genesys 2.
+Kept as provenance, not as a runnable recipe: `dump_status.py` and
+`run_characterization.py` no longer exist in the stream area (they survive
+only under `rapids_characterization/`). The current area builds with
+`make bitstream BUILD=<mon|obs|perf>` from
+`projects/fpga-systems/Genesys2/stream/`, and its host programs live per
+build under `build-*/host/`. `per_source_capture.py` and
+`dump_monbus_sram.py` did carry over, to `Genesys2/stream/bin/`.
 
 ```bash
+# HISTORICAL -- the paths below refer to the deleted Nexys A7 tree
 # 1. Rebuild bitstream (if needed)
 cd projects/NexysA7/stream_characterization/flows-stream-bridge
 make bitstream            # ~15-30 min, includes verify-sim per task #92
@@ -274,7 +290,7 @@ source $REPO_ROOT/env_python
 python3 dump_status.py --port /dev/ttyUSB2   # adjust port
 # Expect BUILD_ID = 0x53545243 ("STRC")
 
-# 5. Capture (full handoff Run 1-6 mapping in PER_SOURCE_CAPTURE.md)
+# 5. Capture (Run 1-6 mapping)
 python3 per_source_capture.py \
   --port /dev/ttyUSB2 \
   --output-dir /tmp/compression_dataset_run_$(date +%Y%m%d) \
@@ -287,14 +303,12 @@ python3 per_source_capture.py \
 
 | Path | Purpose |
 |---|---|
-| `MONBUS_COMPRESSION_HANDOFF.md` (project root) | Original handoff doc — context for steps 2, 3, 4 |
 | `bin/TBClasses/monbus/monbus_compressor.py` | The locked format spec + Python encoder/decoder/reporter |
 | `bin/TBClasses/monbus/sniffer.py` | Live cocotb sniffer + `load_capture()` for these JSON files |
 | `bin/TBClasses/monbus/tests/test_monbus_compressor.py` | 24 model tests — extend for RTL bit-exact harness |
 | `rtl/amba/monitor/monbus_axil4_axil4_group.sv` | The tag/ts scaffolding (commit `4e00aafb`; module since renamed from `shared/monbus_axil_group.sv`) — wire-side beat-order swap; the compressor (`rtl/amba/monitor/monbus_halfbeat_packer.sv`) has since replaced the `tag=0x0` hardwire |
-| `projects/NexysA7/stream_characterization/flows-stream-bridge/host/per_source_capture.py` | The orchestrator that produced this dataset |
-| `projects/NexysA7/stream_characterization/flows-stream-bridge/host/dump_monbus_sram.py` | UART-side SRAM drain + JSON serializer |
-| `projects/NexysA7/stream_characterization/flows-stream-bridge/host/PER_SOURCE_CAPTURE.md` | Local capture procedure quickstart |
+| `projects/fpga-systems/Genesys2/stream/bin/per_source_capture.py` | The orchestrator that produced this dataset |
+| `projects/fpga-systems/Genesys2/stream/bin/dump_monbus_sram.py` | UART-side SRAM drain + JSON serializer |
 
 ---
 
