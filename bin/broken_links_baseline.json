@@ -1,21 +1,7 @@
 {
-  "projects/asic-trials/timing_characterization/README.md": 1,
-  "projects/asic-trials/timing_characterization/README_FPGA.md": 1,
-  "projects/components/PROJECT_QUICK_STATUS.md": 2,
-  "projects/components/README.md": 3,
   "projects/components/dmas/stream/README.md": 1,
-  "projects/components/hive/PRD.md": 1,
-  "projects/components/hive/docs/hive_spec/ch02_blocks/00_overview.md": 5,
-  "projects/components/index.md": 4,
-  "projects/components/memory-controllers/README.md": 1,
-  "projects/components/memory-controllers/ddr3-lpddr3/README.md": 1,
   "projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/pumice_mas/ch02_blocks/01_top_integration.md": 1,
   "projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/pumice_mas/ch02_blocks/03_addr_mapper.md": 1,
-  "projects/components/retro_legacy_blocks/docs/hpet_mas/ch05_registers/01_register_map.md": 3,
-  "projects/components/retro_legacy_blocks/dv/tests/README_MAKEFILE.md": 6,
-  "projects/fpga-systems/Genesys2/rapids_characterization/README.md": 4,
   "projects/fpga-systems/Genesys2/stream/reports/compression_dataset/README_COMPRESSION_DATASET.md": 1,
-  "projects/fpga-systems/NexysA7/cdc_counter_display/README.md": 1,
-  "projects/fpga-systems/NexysA7/pumice/ddr2-characterization/README.md": 1,
-  "vault/repo-wide-projects/INDEX.md": 3
+  "projects/fpga-systems/NexysA7/pumice/ddr2-characterization/README.md": 1
 }
