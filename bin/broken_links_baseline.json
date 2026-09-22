@@ -1,7 +1,5 @@
 {
-  "projects/components/dmas/stream/README.md": 1,
   "projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/pumice_mas/ch02_blocks/01_top_integration.md": 1,
   "projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/pumice_mas/ch02_blocks/03_addr_mapper.md": 1,
-  "projects/fpga-systems/Genesys2/stream/reports/compression_dataset/README_COMPRESSION_DATASET.md": 1,
   "projects/fpga-systems/NexysA7/pumice/ddr2-characterization/README.md": 1
 }
