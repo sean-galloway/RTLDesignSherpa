@@ -38,8 +38,10 @@ for json in *.json; do
         echo "FAILED (rsvg-convert)"; head -5 /tmp/rsvg_err.log; fail=1; continue
     fi
     # Palette-encode: these are flat line art, so 64 colours is visually
-    # identical and roughly a third of the bytes.
-    command -v convert >/dev/null && convert "$png" -colors 64 PNG8:"$png"
+    # identical and roughly a third of the bytes. exclude-chunk=tIME drops
+    # the wall-clock stamp, so re-running this script on unchanged sources
+    # produces byte-identical files instead of dirtying every PNG in git.
+    command -v convert >/dev/null && convert "$png" -colors 64 -define png:exclude-chunk=tIME PNG8:"$png"
     echo "OK ($(stat -c%s "$png") bytes, $(identify -format '%wx%h' "$png" 2>/dev/null))"
 done
 exit $fail

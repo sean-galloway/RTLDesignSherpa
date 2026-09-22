@@ -30,7 +30,9 @@ for mmd in *.mmd; do
     echo -n "Generating $png ... "
     if mmdc -i "$mmd" -o "$png" -s "$SCALE" -b white \
             --puppeteerConfigFile "$PUPPETEER_CFG" 2>/tmp/mmdc_err.log && [[ -f "$png" ]]; then
-        command -v convert >/dev/null && convert "$png" -colors 64 PNG8:"$png"
+        # exclude-chunk=tIME: no wall-clock stamp, so an unchanged source
+        # re-renders byte-identical rather than dirtying git.
+        command -v convert >/dev/null && convert "$png" -colors 64 -define png:exclude-chunk=tIME PNG8:"$png"
         echo "OK ($(stat -c%s "$png") bytes, $(identify -format '%wx%h' "$png" 2>/dev/null))"
     else
         echo "FAILED"; head -5 /tmp/mmdc_err.log; fail=1

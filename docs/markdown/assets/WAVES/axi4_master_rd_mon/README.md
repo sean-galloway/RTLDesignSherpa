@@ -237,4 +237,6 @@ env ENABLE_WAVEDROM=1 pytest "val/amba/test_axi4_master_rd_mon.py::test_axi4_mas
 
 - APB wavedrom tests (working reference): `val/amba/test_apb4_slave.py`
 - Constraint solver: `CocoTBFramework/components/wavedrom/constraint_solver.py`
-- WaveDrom requirements: `bin/TBClasses/wavedrom_user/WAVEDROM_REQUIREMENTS.md`
+- WaveDrom requirements: `docs/components/wavedrom/wavedrom_requirements.md`
+  in the RTLDesignSherpa-DV repo (it moved there with the CocoTB framework;
+  the old symlink at `bin/TBClasses/wavedrom_user/` dangled for months)
