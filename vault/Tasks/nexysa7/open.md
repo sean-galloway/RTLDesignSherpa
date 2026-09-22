@@ -204,13 +204,22 @@ of the move; fold NEXYS-001 in with it.
 (`uart_link.py`, `board.py`, `boards/`, `sequence.py`, one `program_fpga.tcl`).
 The pumice DDR2 flow was migrated as the proof. Bring the other flows across.
 
-**Still duplicated (3 copies of the port scan):**
-- `stream_characterization/flows-stream-bridge/host/harness_addrs.py`
-  — `autodetect_port()` (SCRATCH round-trip probe)
-- `rapids_characterization/flows-rapids-beats/host/rapids_char_io.py`
-  — `autodetect_port()` (CSR_ID 'RAP1' probe)
-- `cdc_counter_display/host/cdc_demo.py`
-  — `autodetect_port()` (BUILD_ID 'CDC1' probe)
+**Port scan: 2 of 3 done. The paths below were all pre-reorg and no longer
+resolved, and the count was wrong.**
+
+- `Genesys2/stream/bin/harness_addrs.py` — `autodetect_port()` (SCRATCH
+  round-trip probe). STILL HAND-ROLLED, and the only one left: a repo-wide
+  grep for `glob.glob("/dev/ttyUSB*")` returns this file alone. Left alone
+  deliberately — another session owns the stream areas.
+- `Genesys2/rapids_characterization/flows-rapids-beats/host/rapids_char_io.py`
+  — DONE 2026-09-22. Now `find_port(probe=harness_probe())`; the probe reads
+  CTRL by name and compares the 'RAP1' magic taken from rapids_char_top.sv
+  rather than a docstring. The same pass stopped this file reaching
+  `UARTAxiBridge` through the `projects/components/converters/bin` re-export
+  shim, which that shim's own docstring forbids new code from using.
+- `NexysA7/cdc_counter_display/build-demo/host/cdc_demo.py` — was ALREADY
+  migrated before this pass; the entry here was simply stale. It has carried a
+  `harness_probe()` and a `find_port` wrapper for some time.
 
 Each becomes a thin wrapper over `uart_link.find_port(probe=...)`, exactly as
 `ddr2_char.autodetect_port` now is. New callers should prefer

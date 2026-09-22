@@ -10,7 +10,7 @@
 # Wire protocol (uart_axil_bridge.sv, ASCII, verified by its README/TB):
 #   write:  "W <addr_hex8> <data_hex8>\n"  -> "OK\n"
 #   read:   "R <addr_hex8>\n"              -> "0x<data_hex>\n"
-# UARTAxiBridge (projects/components/converters/bin/uart_axi_bridge.py) already
+# UARTAxiBridge (projects/fpga-systems/bin/uart_axi_bridge.py) already
 # implements this exactly, so we do NOT re-implement byte framing here.
 #
 # Host word-address map (region = addr[19:16]), from rapids_char_top.sv header:
@@ -27,13 +27,18 @@ import os
 import sys
 import time
 
-# The UART/AXIL wire driver lives with the converter RTL it talks to. Reuse it
-# rather than re-rolling serial framing (single source of truth for the protocol).
-_CONVERTERS_BIN = os.path.join(
-    os.environ.get('REPO_ROOT', ''),
-    'projects/components/converters/bin')
-if _CONVERTERS_BIN and _CONVERTERS_BIN not in sys.path:
-    sys.path.insert(0, _CONVERTERS_BIN)
+# The shared board + UART layer: uart_axi_bridge (the W/R wire protocol), plus
+# uart_link for port discovery. This used to reach the bridge through
+# projects/components/converters/bin, which is a re-export SHIM kept alive for
+# un-migrated flows and whose own docstring says new code must not import
+# through it. See vault/handbook/fpga/cmn-infra/host-stack.md.
+_FPGA_BIN = os.path.join(
+    os.environ.get('REPO_ROOT')
+    or os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    *[os.pardir] * 6)),
+    'projects/fpga-systems/bin')
+if _FPGA_BIN not in sys.path:
+    sys.path.insert(0, _FPGA_BIN)
 
 try:
     from uart_axi_bridge import UARTAxiBridge
@@ -81,33 +86,41 @@ APB_SNK_BASE = 0x1000
 CSR_ID_EXPECTED = 0x5241_5031  # "RAP1"
 
 
+def harness_probe():
+    """Predicate answering "is this link the rapids_char harness?".
+
+    Reads CTRL by name -- its read alias is CSR_ID -- and compares it to the
+    'RAP1' magic from rapids_char_top.sv. Read-only, so it is safe to point at a
+    board running someone else's bitstream. Exposed separately so board-aware
+    callers can combine it with a USB-serial filter:
+    `Board.find_uart_port(probe=harness_probe())`, which the bare port scan
+    below cannot do.
+    """
+    def probe(link) -> bool:
+        return RapidsCharIO(bridge=link.bridge()).ping()
+    return probe
+
+
 def autodetect_port(baud: int = 115200, want: str = None) -> str:
     """Find the ttyUSB the rapids_char harness is on.
 
     The USB-UART re-enumerates across reboots/replugs, so never hardcode the
-    port. Probe each candidate by reading the CSR_ID register (region 2 @ 0x000);
-    the board that answers with the 'RAP1' magic is ours. `want`: if the caller
-    passed --port explicitly (not 'auto'), try it first. Mirrors the STREAM char
-    harness autodetect (SCRATCH round-trip) with the rapids identity register.
-    """
-    import glob
-    cands = []
-    if want and want != "auto":
-        cands.append(want)
-    cands += sorted(p for p in glob.glob("/dev/ttyUSB*") if p not in cands)
+    port. Thin wrapper over the shared `uart_link.find_port` probe loop; the
+    rapids-specific part is only `harness_probe()`. This was the last of the
+    four hand-rolled copies of that scan (NEXYS-003) -- each had drifted its own
+    way, and none could narrow to one board by USB serial.
 
-    for port in cands:
-        try:
-            with RapidsCharIO(port=port, baudrate=baud, timeout=0.4) as io:
-                if io.ping():
-                    print(f"[autodetect] rapids_char harness found on {port}")
-                    return port
-        except Exception:
-            continue
-    raise SystemExit(
-        f"[autodetect] no rapids_char harness responded on any of: "
-        f"{cands or '(no /dev/ttyUSB* present)'}. "
-        f"Is the board powered and programmed with rapids_char.bit?")
+    Prefer `Board.find_uart_port(probe=harness_probe())` in new code: it also
+    filters by USB serial, which matters when the Nexys A7 and the Genesys 2 are
+    both on the chain.
+
+    Kept as a module-level function because run_characterization.py and
+    dump_status.py both import it by this name.
+    """
+    from uart_link import find_port  # noqa: E402 - _FPGA_BIN is on sys.path
+
+    return find_port(probe=harness_probe(), want=want, baudrate=baud,
+                     label="rapids_char harness")
 
 
 def _harness_regmap(basename: str):
@@ -161,7 +174,7 @@ class RapidsCharIO:
             if UARTAxiBridge is None:
                 raise RuntimeError(
                     "UARTAxiBridge unavailable: set REPO_ROOT and `pip install "
-                    "pyserial` (it lives in projects/components/converters/bin).")
+                    "pyserial` (it lives in projects/fpga-systems/bin).")
             self.bridge = UARTAxiBridge(port=port, baudrate=baudrate,
                                         timeout=timeout)
             self._owns_bridge = True
