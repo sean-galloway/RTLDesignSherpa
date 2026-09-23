@@ -1058,16 +1058,62 @@ module pumice_cmd_arbiter
     // declaration is here, where the pick logic reads it.
     logic r_dir_rr;
 
-    logic r_wr_drain;
+    // BOUNDED DRAIN. r_wr_drain latches on occ >= high_wm and clears only on
+    // occ <= low_wm, so a CONTINUOUS writer holds occupancy above low_wm
+    // forever, the drain never releases, and reads NEVER ISSUE. Measured at
+    // bl4x16 concurrent R/W as "engine-style RD R-wait: {12:1} beats short" --
+    // one read outstanding until the 1,000,000-cycle timeout. Bisect confirmed
+    // it by double toggle: enable (16119318a) BAD, revert (bc36f2d28) GOOD,
+    // re-enable (1f6a3bfdf) BAD.
+    //
+    // The age boost cannot rescue it. The drain overrides prio_sub entirely
+    // (see w_col_wrf below), and SCHED_POLICY.age_thresh is 0 by default,
+    // which makes sch_age_exceed_o inert -- so there was no anti-starvation
+    // path at all on the batching branch.
+    //
+    // Bound the batch rather than disable it. tRTW is amortised ACROSS the
+    // batch, so the benefit saturates: 20 cycles over 16 writes is 1.25 cycles
+    // each, and an unbounded drain buys no further amortisation while costing
+    // forward progress. After WR_BATCH_MAX write columns the drain yields and
+    // will not re-arm until a read column has actually fired, so the read side
+    // is guaranteed a slot -- hysteresis, not a one-cycle gap that the next
+    // occupancy check immediately closes.
+    localparam int WR_BATCH_MAX = 16;
+    logic                              r_wr_drain;
+    logic [$clog2(WR_BATCH_MAX+1)-1:0] r_wr_batch_cnt;
+    logic                              r_rd_owed;
+    logic w_wr_col_fire, w_rd_col_fire, w_batch_done;
+    assign w_wr_col_fire = w_fire_out && r_do_wr;
+    assign w_rd_col_fire = w_fire_out && r_do_rd;
+    assign w_batch_done  = r_wr_drain && w_wr_col_fire
+                         && (r_wr_batch_cnt >= WR_BATCH_MAX[$clog2(WR_BATCH_MAX+1)-1:0] - 1);
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_wr_drain <= 1'b0;
-        end else if (sched_wr_high_wm_i == 8'd0) begin
-            r_wr_drain <= 1'b0;                       // batching disabled
-        end else if (8'(w_wr_occ) <= sched_wr_low_wm_i) begin
-            r_wr_drain <= 1'b0;                       // drained down: stop
-        end else if (8'(w_wr_occ) >= sched_wr_high_wm_i) begin
-            r_wr_drain <= 1'b1;                       // backlog: start drain
+            r_wr_drain     <= 1'b0;
+            r_wr_batch_cnt <= '0;
+            r_rd_owed      <= 1'b0;
+        end else begin
+            // a read fired: the debt is paid, batching may re-arm
+            if (w_rd_col_fire) r_rd_owed <= 1'b0;
+
+            if (sched_wr_high_wm_i == 8'd0) begin
+                r_wr_drain     <= 1'b0;               // batching disabled
+                r_wr_batch_cnt <= '0;
+                r_rd_owed      <= 1'b0;
+            end else if (w_batch_done) begin
+                r_wr_drain     <= 1'b0;               // batch cap: yield
+                r_wr_batch_cnt <= '0;
+                r_rd_owed      <= 1'b1;               // ...and stay yielded
+            end else if (8'(w_wr_occ) <= sched_wr_low_wm_i) begin
+                r_wr_drain     <= 1'b0;               // drained down: stop
+                r_wr_batch_cnt <= '0;
+            end else if (8'(w_wr_occ) >= sched_wr_high_wm_i && !r_rd_owed) begin
+                r_wr_drain     <= 1'b1;               // backlog: start drain
+                if (w_wr_col_fire) r_wr_batch_cnt <= r_wr_batch_cnt + 1'b1;
+            end else if (r_wr_drain && w_wr_col_fire) begin
+                r_wr_batch_cnt <= r_wr_batch_cnt + 1'b1;
+            end
         end
     )
 
