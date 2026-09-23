@@ -239,7 +239,7 @@ lockstep. See MAS Section 2.4 (Scheduler) and HAS Section 5.1.
 **Type:** Descriptor engine global enable
 **Width:** 1 bit
 **Default:** 1'b1 (enabled)
-**Register:** DESCENG_CTRL @ 0x220[0]
+**Register:** DESCENG_CONFIG.DESCENG_EN @ 0x220[0]
 
 **Description:**
 Global enable for all descriptor engines. When disabled, descriptor fetch stops.
@@ -251,7 +251,7 @@ Global enable for all descriptor engines. When disabled, descriptor fetch stops.
 **Type:** Prefetch enable
 **Width:** 1 bit
 **Default:** 1'b0 (disabled)
-**Register:** DESCENG_CTRL @ 0x220[1]
+**Register:** DESCENG_CONFIG.PREFETCH_EN @ 0x220[1]
 
 **Description:**
 Enables descriptor prefetching to hide fetch latency.
@@ -271,7 +271,7 @@ Enables descriptor prefetching to hide fetch latency.
 **Type:** FIFO threshold
 **Width:** 4 bits
 **Default:** 4'h8 (8 entries)
-**Register:** DESCENG_CTRL @ 0x220[7:4]
+**Register:** DESCENG_CONFIG.FIFO_THRESH @ 0x220[5:2]
 
 **Description:**
 Number of entries in descriptor FIFO before asserting backpressure.
@@ -348,14 +348,14 @@ Each monitor has 15 configuration signals with the same structure.
 
 ### 4.1 Descriptor AXI Monitor (cfg_desc_mon_*)
 
-**Register Base:** 0x240-0x25F
+**Register Base:** 0x10C0-0x10DF (stream_mon_regs regfile)
 
 #### cfg_desc_mon_enable
 
 **Type:** Monitor master enable
 **Width:** 1 bit
 **Default:** 1'b1 (enabled)
-**Register:** DAXMON_ENABLE @ 0x240[0]
+**Register:** DAXMON_ENABLE.MON_EN @ 0x10C0[0]
 
 **Description:**
 Master enable for descriptor AXI monitor. All monitor packets disabled when this is 0.
@@ -367,7 +367,7 @@ Master enable for descriptor AXI monitor. All monitor packets disabled when this
 **Type:** Error packet enable
 **Width:** 1 bit
 **Default:** 1'b1 (enabled)
-**Register:** DAXMON_ENABLE @ 0x240[1]
+**Register:** DAXMON_ENABLE.ERR_EN @ 0x10C0[1]
 
 **Description:**
 Enables error packet generation (SLVERR, DECERR, protocol violations).
@@ -379,7 +379,7 @@ Enables error packet generation (SLVERR, DECERR, protocol violations).
 **Type:** Performance packet enable
 **Width:** 1 bit
 **Default:** 1'b0 (disabled)
-**Register:** DAXMON_ENABLE @ 0x240[2]
+**Register:** DAXMON_ENABLE.COMPL_EN @ 0x10C0[2]
 
 **Description:**
 Enables performance monitoring packets (latency, bandwidth).
@@ -393,7 +393,7 @@ Enables performance monitoring packets (latency, bandwidth).
 **Type:** Timeout detection enable
 **Width:** 1 bit
 **Default:** 1'b1 (enabled)
-**Register:** DAXMON_ENABLE @ 0x240[3]
+**Register:** DAXMON_ENABLE.TIMEOUT_EN @ 0x10C0[3]
 
 **Description:**
 Enables timeout packet generation when transactions exceed threshold.
@@ -405,7 +405,7 @@ Enables timeout packet generation when transactions exceed threshold.
 **Type:** Timeout threshold
 **Width:** 32 bits
 **Default:** 32'd10000
-**Register:** DAXMON_TIMEOUT @ 0x244
+**Register:** DAXMON_TIMEOUT.TIMEOUT_CYCLES @ 0x10C4[31:0]
 
 **Description:**
 Number of cycles before transaction times out.
@@ -417,7 +417,7 @@ Number of cycles before transaction times out.
 **Type:** Latency threshold
 **Width:** 32 bits
 **Default:** 32'd1000
-**Register:** DAXMON_LATENCY @ 0x248
+**Register:** DAXMON_LATENCY_THRESH.LATENCY_THRESH @ 0x10C8[31:0]
 
 **Description:**
 Latency threshold for performance warnings.
@@ -429,7 +429,7 @@ Latency threshold for performance warnings.
 **Type:** Packet type filter
 **Width:** 16 bits (1 bit per packet type)
 **Default:** 16'h00FF (errors + completions)
-**Register:** DAXMON_PKT_MASK @ 0x24C[15:0]
+**Register:** DAXMON_PKT_MASK.PKT_MASK @ 0x10CC[15:0]
 
 **Description:**
 Bit mask to filter packet types. Only packet types with corresponding bit set are generated.
@@ -468,7 +468,7 @@ cfg_desc_mon_pkt_mask = 16'hFFFF;
 **Type:** Error type selector
 **Width:** 4 bits
 **Default:** 4'hF (all errors)
-**Register:** DAXMON_ERR_SELECT @ 0x24C[19:16]
+**Register:** DAXMON_ERR_CFG.ERR_SELECT @ 0x10D0[15:0]
 
 **Description:**
 Selects which error types to monitor.
@@ -490,7 +490,7 @@ Bit | Error Type
 **Type:** Error event filter
 **Width:** 8 bits
 **Default:** 8'hFF (all errors)
-**Register:** DAXMON_MASK1 @ 0x250[7:0]
+**Register:** DAXMON_ERR_CFG.ERR_MASK @ 0x10D0[31:16]
 
 **Description:**
 Bit mask for error packet generation (channel-specific filtering).
@@ -502,7 +502,7 @@ Bit mask for error packet generation (channel-specific filtering).
 **Type:** Timeout channel filter
 **Width:** 8 bits
 **Default:** 8'hFF (all channels)
-**Register:** DAXMON_MASK1 @ 0x250[15:8]
+**Register:** DAXMON_MASK1.TIMEOUT_MASK @ 0x10D4[15:0]
 
 **Description:**
 Channel mask for timeout packets. Set bit enables timeout detection for corresponding channel.
@@ -514,7 +514,7 @@ Channel mask for timeout packets. Set bit enables timeout detection for correspo
 **Type:** Completion channel filter
 **Width:** 8 bits
 **Default:** 8'h00 (no channels)
-**Register:** DAXMON_MASK1 @ 0x250[23:16]
+**Register:** DAXMON_MASK1.COMPL_MASK @ 0x10D4[31:16]
 
 **Description:**
 Channel mask for completion packets.
@@ -528,7 +528,7 @@ Channel mask for completion packets.
 **Type:** Threshold event filter
 **Width:** 8 bits
 **Default:** 8'hFF (all channels)
-**Register:** DAXMON_MASK2 @ 0x254[7:0]
+**Register:** DAXMON_MASK2.THRESH_MASK @ 0x10D8[15:0]
 
 **Description:**
 Channel mask for latency threshold exceedance packets.
@@ -540,7 +540,7 @@ Channel mask for latency threshold exceedance packets.
 **Type:** Performance packet filter
 **Width:** 8 bits
 **Default:** 8'h00 (no channels)
-**Register:** DAXMON_MASK2 @ 0x254[15:8]
+**Register:** DAXMON_MASK2.PERF_MASK @ 0x10D8[31:16]
 
 **Description:**
 Channel mask for performance monitoring packets.
@@ -552,7 +552,7 @@ Channel mask for performance monitoring packets.
 **Type:** Address-based filter
 **Width:** 8 bits
 **Default:** 8'hFF (all addresses)
-**Register:** DAXMON_MASK2 @ 0x254[23:16]
+**Register:** DAXMON_MASK3.ADDR_MASK @ 0x10DC[15:0]
 
 **Description:**
 Channel mask for address-range-based packet filtering.
@@ -564,7 +564,7 @@ Channel mask for address-range-based packet filtering.
 **Type:** Debug event filter
 **Width:** 8 bits
 **Default:** 8'h00 (no debug packets)
-**Register:** DAXMON_MASK2 @ 0x254[31:24]
+**Register:** DAXMON_MASK3.DEBUG_MASK @ 0x10DC[31:16]
 
 **Description:**
 Channel mask for debug-level packets (verbose trace).
@@ -573,7 +573,7 @@ Channel mask for debug-level packets (verbose trace).
 
 ### 4.2 Read Engine Monitor (cfg_rdeng_mon_*)
 
-**Register Base:** 0x260-0x27F
+**Register Base:** 0x10E0-0x10FF (stream_mon_regs regfile)
 
 All signals identical to Descriptor Monitor (Section 4.1), but applied to data read AXI master.
 
@@ -586,7 +586,7 @@ All signals identical to Descriptor Monitor (Section 4.1), but applied to data r
 
 ### 4.3 Write Engine Monitor (cfg_wreng_mon_*)
 
-**Register Base:** 0x280-0x29F
+**Register Base:** 0x1100-0x111F (stream_mon_regs regfile)
 
 All signals identical to Descriptor Monitor (Section 4.1), but applied to data write AXI master.
 
@@ -604,7 +604,7 @@ All signals identical to Descriptor Monitor (Section 4.1), but applied to data w
 **Type:** Read transfer size
 **Width:** 8 bits
 **Default:** 8'd16 (16 beats)
-**Register:** AXI_RD_XFER @ 0x2A0[7:0]
+**Register:** AXI_XFER_CONFIG.RD_XFER_BEATS @ 0x2A0[7:0]
 
 **Description:**
 Default number of beats per AXI read burst. Actual burst size may be less to respect 4KB boundaries.
@@ -632,7 +632,7 @@ Example for DATA_WIDTH = 512 bits:
 **Type:** Write transfer size
 **Width:** 8 bits
 **Default:** 8'd16 (16 beats)
-**Register:** AXI_WR_XFER @ 0x2A0[15:8]
+**Register:** AXI_XFER_CONFIG.WR_XFER_BEATS @ 0x2A0[15:8]
 
 **Description:**
 Default number of beats per AXI write burst.
@@ -648,7 +648,7 @@ Default number of beats per AXI write burst.
 **Type:** Profiler enable
 **Width:** 1 bit
 **Default:** 1'b0 (disabled)
-**Register:** PERF_CTRL @ 0x2B0[0]
+**Register:** PERF_CONFIG.PERF_EN @ 0x2B0[0]
 
 **Description:**
 Enables performance profiling for all channels. When enabled, profiler captures:
@@ -664,7 +664,7 @@ Enables performance profiling for all channels. When enabled, profiler captures:
 **Type:** Profiling mode
 **Width:** 1 bit
 **Default:** 1'b0 (timestamp mode)
-**Register:** PERF_CTRL @ 0x2B0[1]
+**Register:** PERF_CONFIG.PERF_MODE @ 0x2B0[1]
 
 **Description:**
 Selects profiling mode:
@@ -682,7 +682,7 @@ Selects profiling mode:
 **Type:** Clear profiler state
 **Width:** 1 bit (write-only)
 **Default:** 1'b0
-**Register:** PERF_CTRL @ 0x2B0[2]
+**Register:** PERF_CONFIG.PERF_CLEAR @ 0x2B0[2]
 
 **Description:**
 Write `1'b1` to clear profiler FIFOs and counters. Self-clearing (automatically returns to 0).
@@ -970,16 +970,16 @@ Example for DDR4 (8KB page), FIFO depth 512 entries:
 | 0x124 | CHANNEL_RESET | ch_rst[7:0] | 1 |
 | 0x200 | SCHED_TIMEOUT_CYCLES | timeout_cycles[15:0] | 2 |
 | 0x204 | SCHED_CONFIG | enable, timeout_en, err_en, compl_en, perf_en | 2 |
-| 0x220 | DESCENG_CONFIG | enable, prefetch, fifo_thresh | 3 |
+| 0x220 | DESCENG_CONFIG | DESCENG_EN, PREFETCH_EN, FIFO_THRESH | 3 |
 | 0x224 | DESCENG_ADDR0_BASE | addr0_base[31:0] | 3 |
 | 0x228 | DESCENG_ADDR0_LIMIT | addr0_limit[31:0] | 3 |
 | 0x22C | DESCENG_ADDR1_BASE | addr1_base[31:0] | 3 |
 | 0x230 | DESCENG_ADDR1_LIMIT | addr1_limit[31:0] | 3 |
-| 0x240-0x25F | DAXMON_* | Descriptor monitor (15 signals) | 4.1 |
-| 0x260-0x27F | RDMON_* | Read engine monitor (15 signals) | 4.2 |
-| 0x280-0x29F | WRMON_* | Write engine monitor (15 signals) | 4.3 |
-| 0x2A0 | AXI_XFER_CFG | rd_xfer_beats, wr_xfer_beats | 5 |
-| 0x2B0 | PERF_CTRL | perf_enable, perf_mode, perf_clear | 6 |
+| 0x10C0-0x10DF | DAXMON_* | Descriptor monitor (15 signals) | 4.1 |
+| 0x10E0-0x10FF | RDMON_* | Read engine monitor (15 signals) | 4.2 |
+| 0x1100-0x111F | WRMON_* | Write engine monitor (15 signals) | 4.3 |
+| 0x2A0 | AXI_XFER_CONFIG | RD_XFER_BEATS, WR_XFER_BEATS | 5 |
+| 0x2B0 | PERF_CONFIG | PERF_EN, PERF_MODE, PERF_CLEAR | 6 |
 
 : 9. Configuration Register Map Summary
 
@@ -1008,9 +1008,9 @@ void stream_init_minimal(volatile uint32_t *base_addr) {
     base_addr[0x220/4] = 0x00000041;  // enable | fifo_thresh=4
 
     // Disable all monitors (minimal)
-    base_addr[0x240/4] = 0x00000000;  // DAXMON_ENABLE
-    base_addr[0x260/4] = 0x00000000;  // RDMON_ENABLE
-    base_addr[0x280/4] = 0x00000000;  // WRMON_ENABLE
+    base_addr[0x10C0/4] = 0x00000000;  // DAXMON_ENABLE
+    base_addr[0x10E0/4] = 0x00000000;  // RDMON_ENABLE
+    base_addr[0x1100/4] = 0x00000000;  // WRMON_ENABLE
 
     // AXI transfer config
     base_addr[0x2A0/4] = 0x00000808;  // 8 beats read + write
@@ -1038,13 +1038,13 @@ void stream_init_balanced(volatile uint32_t *base_addr) {
     base_addr[0x220/4] = 0x00000083;  // enable | prefetch | fifo_thresh=8
 
     // Descriptor AXI monitor (errors only)
-    base_addr[0x240/4] = 0x0000000B;  // enable | err_en | timeout_en
-    base_addr[0x244/4] = 10000;       // timeout_cycles
-    base_addr[0x24C/4] = 0x00000060;  // pkt_mask: errors + timeouts
+    base_addr[0x10C0/4] = 0x0000000B;  // enable | err_en | timeout_en
+    base_addr[0x10C4/4] = 10000;       // timeout_cycles
+    base_addr[0x10CC/4] = 0x00000060;  // pkt_mask: errors + timeouts
 
     // Read/write monitors (errors only)
-    base_addr[0x260/4] = 0x0000000B;  // RDMON: enable | err_en | timeout_en
-    base_addr[0x280/4] = 0x0000000B;  // WRMON: enable | err_en | timeout_en
+    base_addr[0x10E0/4] = 0x0000000B;  // RDMON: enable | err_en | timeout_en
+    base_addr[0x1100/4] = 0x0000000B;  // WRMON: enable | err_en | timeout_en
 
     // AXI transfer config
     base_addr[0x2A0/4] = 0x00002020;  // 32 beats read + write

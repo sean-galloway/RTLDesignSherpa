@@ -361,14 +361,14 @@ void process_error_fifo(void) {
 ```c
 void enable_debug_monitoring(void) {
     // Enable all packet types on monitors
-    write32(STREAM_BASE + 0x24C, 0xFFFF);  // DAXMON_PKT_MASK
-    write32(STREAM_BASE + 0x26C, 0xFFFF);  // RDMON_PKT_MASK
-    write32(STREAM_BASE + 0x28C, 0xFFFF);  // WRMON_PKT_MASK
+    write32(STREAM_BASE + 0x10CC, 0xFFFF);  // DAXMON_PKT_MASK
+    write32(STREAM_BASE + 0x10EC, 0xFFFF);  // RDMON_PKT_MASK
+    write32(STREAM_BASE + 0x110C, 0xFFFF);  // WRMON_PKT_MASK
 
     // Enable debug masks
-    write32(STREAM_BASE + 0x25C, 0xFF00FF);  // DAXMON debug + addr masks
-    write32(STREAM_BASE + 0x27C, 0xFF00FF);  // RDMON debug + addr masks
-    write32(STREAM_BASE + 0x29C, 0xFF00FF);  // WRMON debug + addr masks
+    write32(STREAM_BASE + 0x10DC, 0xFF00FF);  // DAXMON debug + addr masks
+    write32(STREAM_BASE + 0x10FC, 0xFF00FF);  // RDMON debug + addr masks
+    write32(STREAM_BASE + 0x111C, 0xFF00FF);  // WRMON debug + addr masks
 
     printf("Debug monitoring enabled\n");
 }

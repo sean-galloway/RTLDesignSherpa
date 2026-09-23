@@ -120,9 +120,9 @@ write32(STREAM_BASE + REG_AXI_XFER_CONFIG, 0x00000F0F);  // 16 beats each
 ### Step 8: Monitor Configuration (Optional)
 
 ```c
-#define REG_DAXMON_ENABLE   0x240
-#define REG_RDMON_ENABLE    0x260
-#define REG_WRMON_ENABLE    0x280
+#define REG_DAXMON_ENABLE   0x10C0
+#define REG_RDMON_ENABLE    0x10E0
+#define REG_WRMON_ENABLE    0x1100
 
 // Enable monitors with error detection only (minimal overhead)
 // Bits: [0]=mon_en, [1]=err_en, [3]=timeout_en
@@ -167,9 +167,9 @@ int stream_init(uintptr_t base_addr) {
     regs[0x2A0/4] = 0x00001010;  // 16 beats read/write
 
     // 7. Enable monitors (errors only)
-    regs[0x240/4] = 0x0000000B;  // DAXMON
-    regs[0x260/4] = 0x0000000B;  // RDMON
-    regs[0x280/4] = 0x0000000B;  // WRMON
+    regs[0x10C0/4] = 0x0000000B;  // DAXMON
+    regs[0x10E0/4] = 0x0000000B;  // RDMON
+    regs[0x1100/4] = 0x0000000B;  // WRMON
 
     return 0;
 }

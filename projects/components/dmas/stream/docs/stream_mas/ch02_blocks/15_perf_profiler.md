@@ -266,7 +266,7 @@ write_reg(CH0_CTRL_LOW, desc_addr_low);
 write_reg(CH0_CTRL_HIGH, desc_addr_high);
 
 // Wait for completion
-while (!read_reg(CH0_STATUS) & COMPLETE);
+while (!(read_reg(AXI_WR_COMPLETE) & (1u << 0)));  // ch0 write complete
 
 // Read performance data
 while (!(read_reg(PERF_STATUS) & FIFO_EMPTY)) {

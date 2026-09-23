@@ -379,7 +379,8 @@ graph TB
 - 0x180: Monitor FIFO Status
 - 0x200: Scheduler Configuration
 - 0x220: Descriptor Engine Configuration
-- 0x240-0x29F: AXI Monitor Configuration (DAXMON, RDMON, WRMON)
+- 0x10C0-0x111F: AXI Monitor Configuration (DAXMON, RDMON, WRMON) -- in the
+  separate `stream_mon_regs` regfile at 0x1000+, not the base regfile
 - 0x2A0: AXI Transfer Configuration
 - 0x2B0: Performance Profiler Configuration
 - 0x2D0-0x2D8: Performance Profiler Data and Status (capture FIFO readback)

@@ -54,28 +54,29 @@ STREAM provides an APB slave interface for software configuration and control. T
 
 | Offset | Register | Access | Description |
 |--------|----------|--------|-------------|
-| 0x000 | `CTRL` | RW | Global control register |
-| 0x004 | `STATUS` | RO | Global status register |
-| 0x008 | `IRQ_EN` | RW | Interrupt enable mask |
-| 0x00C | `IRQ_STATUS` | RW1C | Interrupt status |
-| 0x010 | `ERR_STATUS` | RO | Error status |
-| 0x014 | `ERR_ADDR` | RO | Error address capture |
-| 0x020-0x03C | Reserved | - | Reserved |
-| 0x040 | `CH0_CTRL` | RW | Channel 0 control |
-| 0x044 | `CH0_STATUS` | RO | Channel 0 status |
-| 0x048 | `CH0_DESC_PTR` | RO | Channel 0 current descriptor |
-| 0x04C | Reserved | - | Reserved |
-| 0x050 | `CH1_CTRL` | RW | Channel 1 control |
-| ... | ... | ... | ... |
-| 0x0B0 | `CH7_CTRL` | RW | Channel 7 control |
-| 0x0B4 | `CH7_STATUS` | RO | Channel 7 status |
-| 0x0B8 | `CH7_DESC_PTR` | RO | Channel 7 current descriptor |
-| 0x0BC | Reserved | - | Reserved |
-| 0x0C0 | `OBS_CTRL` | RW | Channel observation mux select |
-| 0x0C4 | `OBS_FLAGS` | RO | Observation flags for selected channel |
-| 0x0C8 | `OBS_DATA0` | RO | Observation data 0 (low) |
-| 0x0CC | `OBS_DATA1` | RO | Observation data 1 (high) |
-| 0x1000+ | Monitor / performance registers | RW/RO | AXI monitor + per-monitor performance registers (separate `stream_mon_regs` regfile at 0x1000, same APB slave) |
+| 0x000 | `CH0_CTRL_LOW` | RW | Channel 0 descriptor address [31:0] (staged) |
+| 0x004 | `CH0_CTRL_HIGH` | RW | Channel 0 descriptor address [63:32] (staged) |
+| 0x100 | `GLOBAL_CTRL` | RW | Global enable / reset |
+| 0x104 | `GLOBAL_STATUS` | RO | SYSTEM_IDLE |
+| 0x120 | `CHANNEL_ENABLE` | RW | Per-channel enable [7:0] |
+| 0x124 | `CHANNEL_RESET` | RW | Per-channel reset [7:0] |
+| 0x128 | `KICK_ENABLE` | RW | Launch staged addresses, one bit per channel |
+| 0x140 | `CHANNEL_IDLE` | RO | Per-channel idle [7:0] |
+| 0x148 | `SCHEDULER_IDLE` | RO | Scheduler idle |
+| 0x150 | `CH_STATE0_STATE` | RO | Channel 0 scheduler state [6:0], one-hot |
+| 0x170 | `SCHED_ERROR` | RO | Scheduler error status |
+| 0x174 | `AXI_RD_COMPLETE` | RO | Read completion, one bit per channel |
+| 0x178 | `AXI_WR_COMPLETE` | RO | Write completion, one bit per channel |
+| 0x200 | `SCHED_TIMEOUT_CYCLES` | RW | Scheduler timeout cycles |
+| 0x204 | `SCHED_CONFIG` | RW | Scheduler enable and packet enables |
+| 0x220 | `DESCENG_CONFIG` | RW | Descriptor engine enable / prefetch / FIFO threshold |
+| 0x2A0 | `AXI_XFER_CONFIG` | RW | RD_XFER_BEATS, WR_XFER_BEATS |
+| 0x2B0 | `PERF_CONFIG` | RW | Perf profiler enable / mode / clear |
+| 0x2C0 | `OBS_CTRL` | RW | Channel observation mux select |
+| 0x2D0 | `PERF_DATA_LOW` | RO | Perf capture low word; the read POPS the FIFO |
+| 0x2D4 | `PERF_DATA_HIGH` | RO | Perf capture high word, same latched entry |
+| 0x2D8 | `PERF_STATUS` | RO | EMPTY / FULL / COUNT |
+| 0x1000+ | Monitor / performance registers | RW/RO | AXI monitor config (0x10C0-0x111F) and per-monitor perf counters (0x1150-0x11F4), in the separate `stream_mon_regs` regfile |
 
 **Note:** The AXI monitor and performance registers live in a separate `stream_mon_regs` regfile instantiated at offset **0x1000** on the same APB slave. The APB address decode is therefore **13 bits (8 KB)** so those registers are addressable. Detailed monitor register layout is in the MAS (`stream_mas/ch04_registers/register_map.md`).
 

@@ -24,7 +24,11 @@
 # register_map.md Documentation Audit
 
 **Date:** 2025-11-22
-**Status:** 🔴 **CRITICAL ERRORS FOUND - Corrections in progress**
+**Status:** RESOLVED -- all four findings closed (last verified 2026-09-23)
+
+> The "WRONG" annotations below are PRESERVED DELIBERATELY: they are the
+> evidence of what each error was. Do not "correct" them -- they describe
+> the state this audit found, not the state of the RTL today.
 
 ---
 
@@ -35,7 +39,10 @@ Comprehensive audit of [register_map.md](register_map.md) against the RDL source
 **Errors Found:**
 1. ✅ **FIXED:** Scheduler state encoding (4-bit binary vs 7-bit one-hot)
 2. ✅ **FIXED:** VERSION register values (MAJOR/MINOR)
-3. ❌ **TODO:** Monitor register addresses (21 registers missing)
+3. **FIXED:** Monitor register addresses. register_map.md now documents the
+   `stream_mon_regs` regfile at 0x1000+: config at 0x10C0-0x111F and the
+   per-monitor perf counters at 0x1150-0x11F4. Verified 2026-09-23 against
+   the generated regmap.
 4. ✅ **FIXED:** Code examples using wrong state encodings
 
 ---

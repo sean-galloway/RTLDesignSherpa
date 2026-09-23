@@ -292,15 +292,15 @@ Per-channel scheduler FSM state (8 registers, stride 0x4).
 
 | Offset | Register   | Bits  | Field    | Type | Description                    |
 |--------|------------|-------|----------|------|--------------------------------|
-| 0x150  | CH0_STATE  | 31:7  | Reserved | RO   | Reserved                       |
+| 0x150  | CH_STATE0_STATE  | 31:7  | Reserved | RO   | Reserved                       |
 |        |            | 6:0   | STATE    | RO   | Channel 0 scheduler state (one-hot) |
-| 0x154  | CH1_STATE  | 6:0   | STATE    | RO   | Channel 1 scheduler state (one-hot) |
-| 0x158  | CH2_STATE  | 6:0   | STATE    | RO   | Channel 2 scheduler state (one-hot) |
-| 0x15C  | CH3_STATE  | 6:0   | STATE    | RO   | Channel 3 scheduler state (one-hot) |
-| 0x160  | CH4_STATE  | 6:0   | STATE    | RO   | Channel 4 scheduler state (one-hot) |
-| 0x164  | CH5_STATE  | 6:0   | STATE    | RO   | Channel 5 scheduler state (one-hot) |
-| 0x168  | CH6_STATE  | 6:0   | STATE    | RO   | Channel 6 scheduler state (one-hot) |
-| 0x16C  | CH7_STATE  | 6:0   | STATE    | RO   | Channel 7 scheduler state (one-hot) |
+| 0x154  | CH_STATE1_STATE  | 6:0   | STATE    | RO   | Channel 1 scheduler state (one-hot) |
+| 0x158  | CH_STATE2_STATE  | 6:0   | STATE    | RO   | Channel 2 scheduler state (one-hot) |
+| 0x15C  | CH_STATE3_STATE  | 6:0   | STATE    | RO   | Channel 3 scheduler state (one-hot) |
+| 0x160  | CH_STATE4_STATE  | 6:0   | STATE    | RO   | Channel 4 scheduler state (one-hot) |
+| 0x164  | CH_STATE5_STATE  | 6:0   | STATE    | RO   | Channel 5 scheduler state (one-hot) |
+| 0x168  | CH_STATE6_STATE  | 6:0   | STATE    | RO   | Channel 6 scheduler state (one-hot) |
+| 0x16C  | CH_STATE7_STATE  | 6:0   | STATE    | RO   | Channel 7 scheduler state (one-hot) |
 
 : CH_STATE[0..7]
 
@@ -876,9 +876,9 @@ write32(BASE + DESCENG_ADDR0_BASE, 0x8000_0000);
 write32(BASE + DESCENG_ADDR0_LIMIT, 0x8FFF_FFFF);
 
 // 4. Configure monitors (minimal reporting)
-write32(BASE + DAXMON_CONFIG, 0x05);  // Error + timeout only
-write32(BASE + RDMON_CONFIG, 0x05);
-write32(BASE + WRMON_CONFIG, 0x05);
+write32(BASE + DAXMON_ENABLE, 0x05);  // Error + timeout only
+write32(BASE + RDMON_ENABLE, 0x05);
+write32(BASE + WRMON_ENABLE, 0x05);
 
 // 5. Enable desired channels
 write32(BASE + CHANNEL_ENABLE, 0xFF);  // All 8 channels
@@ -903,7 +903,7 @@ while (!(read32(BASE + CHANNEL_IDLE) & 0x01)) {
 }
 
 // Or check scheduler state (one-hot encoding)
-while ((read32(BASE + CH0_STATE) & 0x7F) != 0x01) {
+while ((read32(BASE + CH_STATE0_STATE) & 0x7F) != 0x01) {
     // Wait for CH_IDLE state (bit 0 = 0x01)
 }
 ```
@@ -913,7 +913,7 @@ while ((read32(BASE + CH0_STATE) & 0x7F) != 0x01) {
 ```c
 // Check all channel states for errors (one-hot encoding)
 for (int ch = 0; ch < 8; ch++) {
-    uint32_t state = read32(BASE + CH0_STATE + (ch * 4)) & 0x7F;
+    uint32_t state = read32(BASE + CH_STATE0_STATE + (ch * 4)) & 0x7F;
     if (state & 0x20) {  // CH_ERROR (bit 5)
         // Reset channel
         write32(BASE + CHANNEL_RESET, 1 << ch);
