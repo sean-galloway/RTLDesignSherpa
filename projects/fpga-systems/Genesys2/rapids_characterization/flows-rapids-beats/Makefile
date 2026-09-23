@@ -73,7 +73,11 @@ CHANNELS ?= 4
 endif
 ACTIVE   ?= $(CHANNELS)
 BEATS    ?= 8
-PORT     ?= /dev/ttyUSB1
+# 'auto' lets run_characterization.py probe every /dev/ttyUSB* for the harness,
+# which is the only default that is right on more than one machine. A pinned
+# node was wrong here: the Genesys 2's UART is a SEPARATE FT232R from its JTAG
+# (see 'make board-info'), so its tty number depends on enumeration order.
+PORT     ?= auto
 export RAPIDS_NUM_CHANNELS := $(CHANNELS)
 
 .PHONY: help sim verify-sim project synth bitstream program characterize \

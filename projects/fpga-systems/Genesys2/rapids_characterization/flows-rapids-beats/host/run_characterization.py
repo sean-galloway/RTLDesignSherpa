@@ -705,6 +705,43 @@ def _write_results(rows, path: str) -> None:
     print(f"Results written to {path}")
 
 
+def _single_row(name, active, beats, bp, seed, sink, source):
+    """One result row for a non-suite run, in the SAME schema run_suite emits.
+
+    Deliberately identical to the suite row: a smoke/single run is one config,
+    and giving it its own shape would mean every tool that reads these files
+    needs two readers. `sink`/`source` are the (ok, detail) pairs, or None when
+    that half was skipped (--sink-only / --source-only).
+    """
+    sink_ok, sink_d = sink if sink else (None, None)
+    src_ok, src_d = source if source else (None, None)
+    verdicts = [v for v in (sink_ok, src_ok) if v is not None]
+    return {
+        'name': name,
+        'active_channels': len(active),
+        'channels': list(active),
+        'beats': beats,
+        'source_backpressure': bp,
+        'base_seed': seed,
+        'base_seed_label': ('default' if seed == LFSR_SEED_DEFAULT
+                            else f"0x{seed:08X}"),
+        'sink_pass': sink_ok,
+        'source_pass': src_ok,
+        'pass': all(verdicts) if verdicts else False,
+        'sink': _jsonable(sink_d) if sink_d else None,
+        'source': _jsonable(src_d) if src_d else None,
+    }
+
+
+def _results_path(args, kind: str) -> str:
+    """Timestamped path under reports/. Never reuses a name: these are measured
+    records and clobbering one loses evidence."""
+    from datetime import datetime as _dt
+    return args.results or os.path.abspath(os.path.join(
+        _RESULTS_DIR, f"rapids_char_{kind}_"
+                      f"{_dt.now().strftime('%Y%m%d_%H%M%S')}.json"))
+
+
 def _parse_int_list(text: str):
     return [int(x, 0) for x in text.split(',') if x.strip()]
 
@@ -825,15 +862,19 @@ def main() -> int:
             beats = 4
             print(f"\n=== SMOKE: {n_active} channels x {beats} beats, "
                   f"sink + source, golden-validated ===")
-            sink_ok, _ = campaign.run_sink_selfcheck(active, beats,
+            sink_ok, sink_d = campaign.run_sink_selfcheck(active, beats,
                                                      args.timeout)
-            src_ok, _ = campaign.run_source_selfcheck(active, beats,
+            src_ok, src_d = campaign.run_source_selfcheck(active, beats,
                                                       args.timeout)
             all_pass = sink_ok and src_ok
             print("=" * 60)
             print(f"SMOKE: SINK {'PASS' if sink_ok else 'FAIL'}, "
                   f"SOURCE {'PASS' if src_ok else 'FAIL'} -> "
                   f"{'PASS' if all_pass else 'FAIL'}")
+            _write_results([_single_row(
+                f"smoke_ch{n_active}_b{beats}", active, beats, False,
+                args.base_seed, (sink_ok, sink_d), (src_ok, src_d))],
+                _results_path(args, 'smoke'))
             return 0 if all_pass else 1
 
         # ---- SUITE mode --------------------------------------------------
@@ -862,19 +903,28 @@ def main() -> int:
         n_active = min(args.active, args.channels)
         active_channels = list(range(n_active))
         all_pass = True
+        sink_res = source_res = None
         if not args.source_only:
-            ok, _ = campaign.run_sink_selfcheck(active_channels, args.beats,
+            ok, sink_d = campaign.run_sink_selfcheck(active_channels, args.beats,
                                                 args.timeout,
                                                 base_seed=args.base_seed)
             all_pass = all_pass and ok
+            sink_res = (ok, sink_d)
         if not args.sink_only:
-            ok, _ = campaign.run_source_selfcheck(active_channels, args.beats,
+            ok, src_d = campaign.run_source_selfcheck(active_channels, args.beats,
                                                   args.timeout,
                                                   backpressure=args.backpressure)
             all_pass = all_pass and ok
+            source_res = (ok, src_d)
 
         print("=" * 60)
         print(f"OVERALL: {'PASS' if all_pass else 'FAIL'}")
+        _write_results([_single_row(
+            f"run_ch{n_active}_b{args.beats}_"
+            f"bp{'on' if args.backpressure else 'off'}",
+            active_channels, args.beats, bool(args.backpressure),
+            args.base_seed, sink_res, source_res)],
+            _results_path(args, 'run'))
         return 0 if all_pass else 1
 
 
