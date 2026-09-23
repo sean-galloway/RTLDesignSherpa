@@ -29,9 +29,9 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
 - **TASK-084** (Low) — TB address->name lookup ignores `MON @ 0x1000`, so 108
   resolvable monitor registers log as `UNKNOWN_0x11xx`.
 
-- **TASK-085** (Medium) — the perf FIFO read moved from a hand decode to a
-  `swacc` edge; the strobe is equivalent in kind, but which cycle the data
-  is sampled on is unproven and no test reads the FIFO non-empty.
+- **TASK-085** (Medium) — the perf FIFO's "atomic" 36-bit read is not atomic:
+  LOW returns the pre-pop latch and HIGH the post-pop one, so the two halves
+  come from different entries. Pre-existing; the RDL move changed nothing.
 
 ## Closed (done)
 

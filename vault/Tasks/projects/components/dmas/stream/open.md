@@ -233,38 +233,59 @@ debug a monitor failure, which is when the name matters most.
 Fix is in the lookup builder: walk child blocks with their instance offset
 applied rather than flattening on raw child addresses.
 
-## TASK-085 — prove the perf FIFO read returns the same entry it used to
+## TASK-085 — perf FIFO's "atomic" 36-bit read is not atomic
 **Status:** open 2026-09-23  **Priority:** Medium
 
-Residue of the RDL consolidation (4dd4f19f1). The pop strobe was moved out of
-`cmdrsp_router`'s hand decode into a `swacc` edge detect on `PERF_DATA_LOW`.
-Both are one-cycle and read-qualified, so they are equivalent IN KIND:
+Filed as "did the RDL relocation change the read timing?". Static analysis
+says NO -- and answered a better question on the way.
+
+**The relocation is behaviour-preserving.** Cycle-accurate path, all of it
+combinational on the read side:
 
 ```
-old  perf_fifo_rd = s_cmd_valid && s_cmd_ready && addr_hit_perf
-                    && !s_cmd_pwrite && (paddr[7:0] == PERF_DATA_LOW_ADDR)
-new  perf_fifo_rd = (swacc && !req_is_wr) && !d(swacc && !req_is_wr)
+cyc0  CMD_IDLE + cmd_valid -> regblk_req=1            (peakrdl_to_cmdrsp:205)
+      decoded_req = cpuif_req_masked                  (stream_regs.sv:358)
+      swacc = decoded_reg_strb.PERF_DATA_LOW          (stream_regs.sv:2831)
+      perf_fifo_rd = 1                (rising edge; stream_top_ch8.sv:985)
+      readback_array[50] <- hwif_in...next  = PRE-POP latch   (:4906)
+      cpuif_rd_ack = readback_done, combinational              (:5073)
+      adapter captures r_rsp_prdata <= regblk_rd_data          (:261)
+      ...clock edge: r_fifo_data_latched <= w_fifo_rd_data
+cyc1  CMD_WAIT_ACK, regblk_req STILL HELD -> swacc still 1
+      r_perf_rd_acc_d=1 -> perf_fifo_rd=0   (no double pop)
+      rsp_state left RSP_IDLE -> captured data not overwritten
 ```
 
-What is NOT proven is WHICH cycle the read data is sampled on relative to the
-pop. `perf_profiler` drives both data outputs from `r_fifo_data_latched`,
-which updates on the clock edge after the strobe. The old router muxed
-`perf_rsp_data` at command-accept, i.e. the PRE-pop latch. The new path reads
-back combinationally from `hwif_in` (`stream_regs.sv:4906` -- no
-`field_storage`, no extra stage) across a strobe that `peakrdl_to_cmdrsp`
-holds through `CMD_WAIT_ACK`, so the sampled value may be the POST-pop latch.
-If so, the first read returns entry 0 instead of the reset value and every
-read is shifted by one entry.
+The old router muxed `perf_fifo_data_low` at `s_cmd_valid && s_cmd_ready` --
+the same accept cycle, the same pre-pop latch. Identical. The edge detect is
+also REQUIRED, not defensive: `peakrdl_to_cmdrsp:189-206` documents that
+`regblk_req` is held through `WAIT_ACK`, and that reducing it to one cycle
+(2026-08-17) broke every register read through this bridge.
 
-Note the OLD behaviour looks wrong on its face -- returning the reset value on
-the first read -- so the new path may be the more correct of the two. That is
-the point: nobody has established which is intended.
+**The real defect.** `perf_profiler.sv:386` claims the latch "ensures atomic
+access to 36-bit FIFO entries across two 32-bit reads". It does not. The LOW
+read returns the latch as it stands BEFORE its own pop, and the pop only
+reaches the latch on the next clock edge:
 
-**Nothing covers this.** The register walk reads the perf registers with the
-FIFO EMPTY, so both designs return zeros and both pass. Per
-[[escape-analysis]] the absence of a failure here is not evidence.
+```
+FIFO [A,B,C], latch = X (reset value or the previous entry)
+  read PERF_DATA_LOW  -> returns X[31:0],  pops A, latch <= A
+  read PERF_DATA_HIGH -> returns A[35:32]
+```
 
-Acceptance: a test that pushes N known entries into the perf FIFO, reads
-LOW/HIGH pairs back through APB by name, and asserts the exact entries and
-their order -- run against this build, with the intended first-read semantics
-stated in the RDL description so the answer is recorded, not rediscovered.
+So the two halves of one "atomic" entry come from DIFFERENT entries, and the
+first read after reset returns the reset value. Every read is skewed: low
+word from entry N-1, high word from entry N.
+
+PRE-EXISTING -- present identically in the hand-rolled decode this replaced,
+so nothing regressed. But nothing covers it either: the register walk reads
+these with the FIFO EMPTY, so both designs return zeros and pass. Per
+[[escape-analysis]], no failure here is not evidence.
+
+**Open question for the owner:** which is intended -- LOW returns the entry it
+pops (then the latch must update combinationally, or the readback must come
+from the latch's next value), or LOW is a "pop and the NEXT pair reads it"
+protocol (then the doc and the MAS software sequence are what is wrong)?
+
+Acceptance: push N known entries, read LOW/HIGH pairs by name, and assert the
+exact entries AND their pairing -- a test that would fail today.
