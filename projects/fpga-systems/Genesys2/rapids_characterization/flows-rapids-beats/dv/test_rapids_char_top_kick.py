@@ -73,17 +73,24 @@ def _apb_recorder(dut, sink):
     """Record every ACCEPTED APB write the DUT emits.
 
     Only the kick sequencer can produce these here: the test writes the CSR
-    region (region 2) exclusively, which terminates in char_top's own register
+    region (region 2) exclusively, which terminates in the HARNESS register
     block and never reaches the APB.
+
+    The whole host path (UART -> AXIL -> CSR + kick sequencer + apb4_master)
+    moved into rapids_char_harness on 2026-09-23, so these signals are one
+    level down at dut.u_harness.*. What this test still uniquely covers is the
+    BOARD TOP: pins -> reset sync -> harness. The KICK_ENABLE assertion itself
+    is now also covered natively by the harness sim, which is the point of the
+    move -- verify-sim can finally reach the launch path.
     """
     async def _run():
         while True:
             await RisingEdge(dut.CLK100MHZ)
             try:
-                if (int(dut.apb_cmd_valid.value) and int(dut.apb_cmd_ready.value)
-                        and int(dut.apb_cmd_pwrite.value)):
-                    sink.append((int(dut.apb_cmd_paddr.value),
-                                 int(dut.apb_cmd_pwdata.value)))
+                if (int(dut.u_harness.apb_cmd_valid.value) and int(dut.u_harness.apb_cmd_ready.value)
+                        and int(dut.u_harness.apb_cmd_pwrite.value)):
+                    sink.append((int(dut.u_harness.apb_cmd_paddr.value),
+                                 int(dut.u_harness.apb_cmd_pwdata.value)))
             except ValueError:
                 pass          # X during reset
     return _run
@@ -202,6 +209,13 @@ def _run(request, testcase: str):
         '-Wno-TIMESCALEMOD', '-Wno-WIDTH', '-Wno-UNOPTFLAT', '-Wno-CASEINCOMPLETE',
         '-Wno-MULTIDRIVEN', '-Wno-SELRANGE', '-Wno-UNUSEDSIGNAL', '-Wno-DECLFILENAME',
         '-Wno-PINMISSING', '-Wno-UNUSED', '-Wno-UNDRIVEN', '-Wno-VARHIDDEN',
+        # The APB cmd/rsp bus this test observes is INTERNAL to u_harness since
+        # the 2026-09-23 host-path move. Verilator inlines plain internal wires
+        # unless told not to, and an inlined signal is not "false" at runtime --
+        # it is ABSENT, so the recorder would silently observe nothing and the
+        # test would fail with "the sequencer emitted no APB writes at all"
+        # while the sequencer worked fine. Keep the hierarchy addressable.
+        '--public-flat-rw',
     ]
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name)
     try:

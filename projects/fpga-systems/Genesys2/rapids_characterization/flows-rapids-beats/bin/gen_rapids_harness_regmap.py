@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 """Generate the RAPIDS characterization HARNESS register maps (top_block dicts)
-from a compact table mirroring rapids_char_top.sv's documented address map.
+from a compact table mirroring rapids_char_harness.sv's documented address map.
 
 The rapids char harness has two HAND-ROLLED register regions (no PeakRDL RDL --
-they are decoded directly in rapids_char_top.sv), so -- exactly like the STREAM
+they are decoded directly in rapids_char_harness.sv), so -- exactly like the STREAM
 char harness (stream_char_framework/bin/gen_harness_regmap.py) -- their regmaps
 are hand-maintained here to mirror the RTL:
 
@@ -47,7 +47,7 @@ def _build(regs):
 
 
 # ---------------------------------------------------------------------------
-# DESC-LOAD region (host region 1). rapids_char_top.sv DESC_* offsets.
+# DESC-LOAD region (host region 1). rapids_char_harness.sv DESC_* offsets.
 # ---------------------------------------------------------------------------
 DESC = []
 for i in range(8):                       # DESC_WORD[0..7] @ 0x000..0x01C
@@ -59,7 +59,7 @@ DESC += [
 ]
 
 # ---------------------------------------------------------------------------
-# HARNESS CSR region (host region 2). rapids_char_top.sv CSR_* localparams.
+# HARNESS CSR region (host region 2). rapids_char_harness.sv CSR_* localparams.
 # Field bits verified against the RTL write-decode (r_wdata[..] assignments).
 # ---------------------------------------------------------------------------
 CSR = [
@@ -133,7 +133,7 @@ _HDR = '''# SPDX-License-Identifier: MIT
 #
 # Register map for the RAPIDS characterization HARNESS {region} region.
 # SEPARATE from rapids_regmap.py (the RAPIDS DUT registers) -- this is the char
-# harness's OWN hand-rolled register block, decoded directly in rapids_char_top.sv
+# harness's OWN hand-rolled register block, decoded directly in rapids_char_harness.sv
 # (not PeakRDL). Hand-maintained to mirror that RTL; regenerate with
 # bin/gen_rapids_harness_regmap.py. Offsets are relative to the region base
 # (host region {region_num}); the Device/RegisterMap is given start_address.

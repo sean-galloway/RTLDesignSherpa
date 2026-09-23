@@ -4,735 +4,222 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: RapidsCharHarnessTB
-# Purpose: cocotb testbench for the RAPIDS beats characterization harness
-#          (rapids_char_harness). Drives the harness exactly the way the host
-#          will and verifies the on-chip self-check end-to-end (per-channel CRC).
+# Module: rapids_char_harness_tb
+# Purpose: Drive rapids_char_harness over a simulated UART using the BOARD's own
+#          host program, so sim and board are the same code, not two copies.
 #
-# Documentation: projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/
+# Rewritten 2026-09-23. rapids_char_harness now owns the whole host path (UART ->
+# AXIL -> region decode -> harness CSRs -> kick sequencer -> DUT), mirroring
+# stream_genesys2_top -> stream_harness. Before that move the kick sequencer sat
+# in rapids_char_top, ABOVE the sim toplevel, so verify-sim was structurally
+# incapable of exercising the board's launch mechanism -- green gate, dead board.
+# That was RAPIDS TASK-081.
+#
+# Consequences for this TB, and why it shrank from 738 lines to ~200:
+#   * The 55 cfg_*/obs_*/gen_*/s_apb_* ports it used to poke are INTERNAL now.
+#     There is nothing to poke; everything goes through CSRs over the UART.
+#   * Which means the board's RapidsCharCampaign already does all of it --
+#     configure, descriptor load, kick, golden-CRC scoreboard, bus meters. So
+#     this TB reuses that class verbatim instead of maintaining a second
+#     implementation that has to be kept in agreement with it. The old TB and
+#     the host program had already drifted apart once; that is what TASK-081 was.
+#
+# Transport: RapidsCharIO's methods are SYNCHRONOUS (they block on byte I/O), so
+# they must never be called bare from a coroutine -- they run on a worker thread
+# via cocotb.external, which lets them block while the simulator advances. Whole
+# sequences are wrapped per call, not individual registers: each external is a
+# thread handoff, and the ddr2_char framework established the coarse-grained
+# pattern.
+#
 # Subsystem: rapids_char_harness
-#
 # Author: sean galloway
 # Created: 2026-07-03
-
-"""
-rapids_char_harness testbench.
-
-The harness wraps rapids_beats_top (split SOURCE + SINK beats DMA) and provides
-the on-chip stimulus / checkers / memories:
-
-  - axis4_master_pattern_gen  -> DUT s_axis  (SINK ingress stimulus, per channel)
-  - axis4_slave_pattern_check <- DUT m_axis  (SOURCE egress check, per channel)
-  - axi4_slave_rd_pattern_gen  backs m_axi_rd (512b SOURCE data, per-arid LFSR)
-  - axi4_slave_wr_crc_check    backs m_axi_wr (512b SINK data CRC, per-awid)
-  - sdpram_slave_axi4_axi4 x2  descriptor RAM per half (DUT reads port A;
-                               host writes descriptors on the port-B boundary)
-  - sdpram_slave_axi4_axi4 x2  control semaphore RAM per half (unused here)
-
-There are therefore NO AXIS / data-AXI BFMs in this TB -- those paths are all
-on-chip. The TB drives ONLY the control surface:
-
-  (a) CONFIG is programmed BY NAME over the 13-bit APB register chain using TWO
-      RegisterMap instances (SRC @ 0x0000, SNK @ 0x1000), exactly like
-      rapids_beats_top_tb.py.
-  (b) DESCRIPTORS are loaded into the per-half descriptor RAM through the exposed
-      host write port (desc_src_* / desc_snk_*, 256-bit AXI4 write master BFM);
-      the DUT fetches them from the same byte address when kicked.
-  (c) KICK-OFF goes through the per-half kick windows (SRC 0x000, SNK
-      0x1000); channel = paddr[5:3]; LOW/HIGH = paddr[2]; addr written LOW-HIGH.
-  (d) AXIS gen / chk and the data-memory CRC engines are driven / read over their
-      dedicated harness control/status ports.
-
-Consistency invariant being verified (the point of the harness): all four on-chip
-blocks share identical LFSR (0xDEADBEEF, taps {32,22,2,1}) + CRC-32 params, so
-per channel:
-  SINK  : o_gen_expected_crc[ch] (what the AXIS gen sent) == wr_crc_value[ch]
-          (what the sink wrote to m_axi_wr, CRC'd)   -- s_axis -> sink -> m_axi_wr
-  SOURCE: rd_crc_value[ch] (what m_axi_rd served)     == o_chk_actual_crc[ch]
-          (what the AXIS checker received on m_axis), with o_data_error == 0
-          -- m_axi_rd -> source -> m_axis
-
-Per-channel demux is off the AXI ID / tid: the read pattern gen demuxes off
-s_axi_arid[CIW-1:0], the write CRC check off s_axi_awid[CIW-1:0], and the AXIS
-gen/chk off tid. This only lines up per channel if the DUT tags m_axi_rd arid /
-m_axi_wr awid / m_axis tid with the channel index -- which the passing
-multi-channel result below demonstrates it does.
-"""
+# Rewritten: 2026-09-23 (UART transport; host-program reuse)
 
 import os
 import sys
+import time
 
 import cocotb
-from cocotb.triggers import RisingEdge
 
 from TBClasses.shared.utilities import get_repo_root
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.apb.register_map import RegisterMap
-
-from CocoTBFramework.components.axi4.axi4_factories import create_axi4_master_wr
+from TBClasses.harness.harness import UartSimHarness
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-# Independent, bit-exact software reference model of the on-chip LFSR->CRC-32
-# pattern (host/rapids_char_golden.py). Used to validate the CRC in sim against
-# a reference that shares NO logic with the RTL, on both sink and source paths.
-_HOST_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), '..', 'host')
+_HOST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'host')
 sys.path.insert(0, os.path.abspath(_HOST_DIR))
-from rapids_char_golden import golden_crc  # noqa: E402
 
-# By-name register description generated from the RAPIDS half regmap (split-proof).
-RAPIDS_REGMAP_PATH = os.path.join(
-    repo_root, 'projects/components/dmas/rapids/rtl/rapids_regmap.py')
+from rapids_char_io import RapidsCharIO, CSR_ID_EXPECTED  # noqa: E402
+from run_characterization import RapidsCharCampaign       # noqa: E402
 
-# APB address bit[12] selects the half: SRC config/kick at 0x0000, SNK at 0x1000.
-SRC_BASE_ADDR = 0x0000
-SNK_BASE_ADDR = 0x1000
+# Host-side timeout for the campaign's poll loops. This is WALL seconds, not sim
+# time: each predicate() is a UART read that advances sim, so the loop is paced
+# by the simulator rather than by the clock on the wall.
+SIM_POLL_TIMEOUT_S = float(os.environ.get('TEST_POLL_TIMEOUT_S', '120'))
+
+
+def _sim_poll(predicate, timeout_s: float, period_s: float = 0.0) -> bool:
+    """Replacement for RapidsCharCampaign._poll under simulation.
+
+    The board version sleeps 20 ms between polls. On a cocotb worker thread a
+    bare sleep burns wall-clock and advances NO simulation time -- only the UART
+    read inside predicate() advances sim -- so the sleep is pure waste and would
+    make the sim take minutes to observe a transfer that completes in
+    microseconds of sim time. Dropping the period leaves the read itself as the
+    pacing mechanism.
+    """
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        if predicate():
+            return True
+    return predicate()
 
 
 class RapidsCharHarnessTB(TBBase):
-    """Control-surface testbench for the RAPIDS beats characterization harness."""
+    """Thin shim: UART bringup + the board's campaign, nothing of its own."""
 
     def __init__(self, dut):
         super().__init__(dut)
 
         self.NUM_CHANNELS = self.convert_to_int(os.environ.get('TEST_NUM_CHANNELS', '8'))
-        self.NUM_ACTIVE = self.convert_to_int(os.environ.get('TEST_NUM_ACTIVE', '4'))
-        self.NUM_BEATS = self.convert_to_int(os.environ.get('TEST_NUM_BEATS', '8'))
-        self.ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '64'))
-        self.DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '512'))
-        self.AXI_ID_WIDTH = self.convert_to_int(os.environ.get('TEST_AXI_ID_WIDTH', '8'))
-        self.CLK_PERIOD = self.convert_to_int(os.environ.get('TEST_CLK_PERIOD', '10'))
-        self.apb_addr_width = self.convert_to_int(os.environ.get('TEST_APB_ADDR_WIDTH', '13'))
-        self.apb_data_width = self.convert_to_int(os.environ.get('TEST_APB_DATA_WIDTH', '32'))
+        self.NUM_ACTIVE   = self.convert_to_int(os.environ.get('TEST_NUM_ACTIVE', '4'))
+        self.NUM_BEATS    = self.convert_to_int(os.environ.get('TEST_NUM_BEATS', '8'))
+        self.CLK_PERIOD   = self.convert_to_int(os.environ.get('TEST_CLK_PERIOD', '10'))
+        # MEASURED floor is 4 (ddr2_char: 3 and 2 fail -- uart_rx samples at
+        # (CLKS_PER_BIT-1)/2). Passed to the RTL as UART_BAUD = FPGA_CLK_HZ /
+        # CLKS_PER_BIT so the RTL divisor and this constant cannot drift apart.
+        self.CLKS_PER_BIT = self.convert_to_int(os.environ.get('TEST_CLKS_PER_BIT', '4'))
 
-        self.DESC_WIDTH = 256
-
-        # Clock / reset (harness uses aclk / aresetn).
+        # The harness ports are stream-shaped, which is exactly what
+        # UartSimHarness defaults to (aclk/aresetn/i_uart_rx/o_uart_tx).
         self.clk = dut.aclk
         self.clk_name = 'aclk'
         self.rst_n = dut.aresetn
 
-        # Address regions. Descriptor storage lands in the on-chip descriptor RAM
-        # (sdpram_core: line = addr[15:5], no base offset), so the host-write
-        # address MUST equal the DUT fetch address -- we use the same value for
-        # both. Non-zero base: 0 is a null descriptor pointer.
-        self.DESC_BASE = 0x3000_0000
-        self.SRC_BASE = 0x1000_0000       # source data (m_axi_rd) - addr agnostic
-        self.DST_BASE = 0x2000_0000       # sink data dest (m_axi_wr) - addr agnostic
-        self.CHANNEL_OFFSET = 0x0010_0000
-
-        # BFMs (created after reset).
-        self.apb4_master = None
-        self.desc_src_master = None
-        self.desc_snk_master = None
-
-        # Two by-name register maps: SRC half @ 0x0000, SNK half @ 0x1000.
-        self.src_regs = RegisterMap(RAPIDS_REGMAP_PATH, apb_data_width=self.apb_data_width,
-                                    apb_addr_width=self.apb_addr_width,
-                                    start_address=SRC_BASE_ADDR, log=self.log)
-        self.snk_regs = RegisterMap(RAPIDS_REGMAP_PATH, apb_data_width=self.apb_data_width,
-                                    apb_addr_width=self.apb_addr_width,
-                                    start_address=SNK_BASE_ADDR, log=self.log)
-        self._src_off = self.src_regs.get_register_offset_map()
-        self._snk_off = self.snk_regs.get_register_offset_map()
+        self.h = None
+        self.io = None
+        self.campaign = None
 
     # =========================================================================
     # MANDATORY THREE METHODS
     # =========================================================================
 
     async def setup_clocks_and_reset(self):
-        await self.start_clock(self.clk_name, freq=self.CLK_PERIOD, units='ns')
-        await self.assert_reset()
-        await self.wait_clocks(self.clk_name, 15)
-        await self.deassert_reset()
-        await self.wait_clocks(self.clk_name, 15)
-        self._create_bfms()
-        await self.init_apb4_master()
-        await self._configure_via_apb('src')
-        await self._configure_via_apb('snk')
+        self.h = UartSimHarness(self.dut, clk=self.clk_name,
+                                clk_period_ns=self.CLK_PERIOD,
+                                resetn='aresetn',
+                                clks_per_bit=self.CLKS_PER_BIT)
+        await self.h.start()          # clock + reset + traced byte channel
+
+        self.io = RapidsCharIO(bridge=self.h.make_bridge())
+        self.campaign = RapidsCharCampaign(self.io, self.NUM_CHANNELS)
+        self.campaign._poll = _sim_poll
+
+        # Prove the link before trusting anything downstream. A wrong baud or a
+        # dead UART otherwise shows up much later as "the DMA moved no beats",
+        # which is a far more expensive thing to debug than a bad ID read.
+        ident = await cocotb.external(lambda: self.io.csr_read(0x000))()
+        assert ident == CSR_ID_EXPECTED, (
+            f"harness CSR ID read 0x{ident if ident is not None else 0:08X}, "
+            f"expected 0x{CSR_ID_EXPECTED:08X} -- UART link is not up "
+            f"(CLKS_PER_BIT={self.CLKS_PER_BIT})")
+        self.log.info(f"UART link OK: rapids_char_harness ID = 0x{ident:08X}")
+
+        await cocotb.external(self.campaign.configure)()
 
     async def assert_reset(self):
         self.rst_n.value = 0
-        d = self.dut
-
-        # Monitor CAM sync-clear.
-        d.cam_clear.value = 0
-        d.obs_arm.value = 0
-        d.obs_target.value = 0          # 0 => system_idle-settle close (default)
-        d.obs_active_half.value = 0     # 0=SRC(sout) 1=SNK(wr) completion meter
-
-        # APB idle until the APB master takes over (post-reset).
-        d.s_apb_psel.value = 0
-        d.s_apb_penable.value = 0
-        d.s_apb_pwrite.value = 0
-        d.s_apb_paddr.value = 0
-        d.s_apb_pwdata.value = 0
-        d.s_apb_pstrb.value = 0
-
-        # Descriptor-RAM host write ports idle until the master BFMs take over.
-        for pfx in ('desc_src', 'desc_snk'):
-            getattr(d, f'{pfx}_awvalid').value = 0
-            getattr(d, f'{pfx}_awid').value = 0
-            getattr(d, f'{pfx}_awaddr').value = 0
-            getattr(d, f'{pfx}_awlen').value = 0
-            getattr(d, f'{pfx}_awsize').value = 0
-            getattr(d, f'{pfx}_awburst').value = 0
-            getattr(d, f'{pfx}_wvalid').value = 0
-            getattr(d, f'{pfx}_wdata').value = 0
-            getattr(d, f'{pfx}_wstrb').value = 0
-            getattr(d, f'{pfx}_wlast').value = 0
-            getattr(d, f'{pfx}_bready').value = 1
-
-        # AXIS pattern generator (sink stimulus) idle.
-        d.cfg_gen_start.value = 0
-        d.cfg_gen_lfsr_seed.value = 0
-        d.cfg_gen_num_beats.value = 0
-        d.cfg_gen_beats_per_pkt.value = 0
-        d.cfg_gen_channel_mask.value = 0
-        d.cfg_gen_tdest.value = 0
-
-        # AXIS pattern checker (source egress) idle.
-        d.chk_cfg_start.value = 0
-        d.chk_cfg_lfsr_seed.value = 0
-        d.chk_ready_en.value = 0
-
-        # Data-memory CRC engines idle.
-        d.rd_crc_lfsr_reset.value = 0
-        d.wr_crc_reset.value = 0
-
-        # Monitor egress window: sane constants (never 0/0, which stalls the path).
-        d.cfg_mon_base_addr.value = 0x0000_1000
-        d.cfg_mon_limit_addr.value = 0x0000_5000 - 1
-        d.cfg_mon_flush_watermark.value = 3
 
     async def deassert_reset(self):
         self.rst_n.value = 1
 
     # =========================================================================
-    # BFM SETUP
+    # SELF-CHECKS -- the board's own campaign, run on a worker thread
     # =========================================================================
 
-    def _create_bfms(self):
-        d = self.dut
-        # 256-bit AXI4 write masters onto the exposed descriptor-RAM host ports.
-        self.desc_src_master = create_axi4_master_wr(
-            dut=d, clock=self.clk, prefix="desc_src_", log=self.log,
-            data_width=self.DESC_WIDTH, id_width=self.AXI_ID_WIDTH,
-            addr_width=self.ADDR_WIDTH, user_width=1, multi_sig=True)
-        self.desc_snk_master = create_axi4_master_wr(
-            dut=d, clock=self.clk, prefix="desc_snk_", log=self.log,
-            data_width=self.DESC_WIDTH, id_width=self.AXI_ID_WIDTH,
-            addr_width=self.ADDR_WIDTH, user_width=1, multi_sig=True)
-
-    async def init_apb4_master(self):
-        """Bring up the framework APB master on s_apb_* (single clock = aclk)."""
-        from CocoTBFramework.components.apb.apb_components import APBMaster
-        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
-        from TBClasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
-
-        if not hasattr(self.dut, 's_apb_paddr'):
-            raise RuntimeError("DUT has no APB interface (s_apb_paddr missing)")
-
-        self.apb4_master = APBMaster(
-            entity=self.dut,
-            title='RAPIDS APB Master',
-            prefix='s_apb',
-            clock=self.clk,
-            bus_width=self.apb_data_width,
-            addr_width=self.apb_addr_width,
-            randomizer=FlexRandomizer(APB_MASTER_RANDOMIZER_CONFIGS['fixed']),
-            log=self.log,
-        )
-        await self.apb4_master.reset_bus()
-        self.log.info("APB master initialized for rapids_char_harness configuration")
-
     # =========================================================================
-    # BY-NAME REGISTER ACCESS (two half maps, base added manually)
+    # EVIDENCE
     # =========================================================================
 
-    def reg_abs(self, half: str, reg_name: str) -> int:
-        regs = self.src_regs if half == 'src' else self.snk_regs
-        offs = self._src_off if half == 'src' else self._snk_off
-        try:
-            return regs.start_address + offs[reg_name]
-        except KeyError:
-            raise KeyError(
-                f"register '{reg_name}' not in rapids_regmap.py "
-                f"(offset map has {len(offs)} regs)") from None
+    def _log_detail(self, label: str, ok: bool, detail: dict) -> None:
+        """Mirror the campaign's findings into the COCOTB log.
 
-    async def write_reg(self, half: str, reg_name: str, value: int):
-        addr = self.reg_abs(half, reg_name)
-        await self.write_apb(addr, value, reg_name=f"{half.upper()}.{reg_name}")
-
-    async def write_fields(self, half: str, reg_name: str, **fields: int):
-        """Program a DUT register by setting its FIELDS by name (composed at their
-        rapids_regmap offsets/widths) rather than a hand-assembled bitmask.
-        Mirrors the board host's RapidsCharCampaign.write_fields so sim and board
-        program identically. Unspecified fields default to 0."""
-        regs = self.src_regs if half == 'src' else self.snk_regs
-        info = regs.registers[reg_name]
-        word = 0
-        for fname, val in fields.items():
-            fld = info.get(fname)
-            if not isinstance(fld, dict) or 'offset' not in fld:
-                raise KeyError(f"unknown field {reg_name}.{fname}")
-            off = fld['offset']
-            hi, lo = (int(x) for x in off.split(':')) if ':' in off \
-                else (int(off), int(off))
-            mask = ((1 << (hi - lo + 1)) - 1) << lo
-            word = (word & ~mask) | ((int(val) << lo) & mask)
-        await self.write_reg(half, reg_name, word)
-
-    async def write_apb(self, addr: int, data: int, reg_name=None):
-        from CocoTBFramework.components.apb.apb_packet import APBPacket
-        packet = APBPacket(
-            pwrite=1, paddr=addr, pwdata=data, pstrb=0xF, pprot=0,
-            data_width=self.apb_data_width, addr_width=self.apb_addr_width,
-            strb_width=self.apb_data_width // 8,
-        )
-        await self.apb4_master.busy_send(packet)
-        await RisingEdge(self.clk)
-        name = reg_name or f"0x{addr:04X}"
-        self.log.info(f"APB WRITE: {name} (0x{addr:04X}) = 0x{data:08X}")
-
-    # =========================================================================
-    # CONFIG VIA APB (BY NAME, per half) -- mirrors rapids_beats_top_tb
-    # =========================================================================
-
-    async def _configure_via_apb(self, half: str):
-        """Program one half's config over APB by NAME (values mirror the split-top
-        basic-datapath config: sched EN, timeout OFF, descriptor engine EN,
-        RD/WR=8 beats, ALLOC=16, wide-open address windows, all channels EN)."""
-        all_ch = (1 << self.NUM_CHANNELS) - 1
-
-        await self.write_fields(half, 'SCHED_TIMEOUT_CYCLES', TIMEOUT_CYCLES=1_000_000)
-        await self.write_fields(half, 'SCHED_TIMEOUT_LIMIT', LIMIT=0xFF)
-        await self.write_fields(half, 'SCHED_CONFIG', SCHED_EN=1, ERR_EN=1)  # TIMEOUT/COMPL/PERF off
-
-        await self.write_fields(half, 'DESCENG_CONFIG',
-                                DESCENG_EN=1, PREFETCH_EN=1, FIFO_THRESH=4)
-        await self.write_fields(half, 'DESCENG_ADDR0_BASE',  ADDR0_BASE=0x0000_0000)
-        await self.write_fields(half, 'DESCENG_ADDR0_LIMIT', ADDR0_LIMIT=0xFFFF_FFFF)
-        await self.write_fields(half, 'DESCENG_ADDR1_BASE',  ADDR1_BASE=0x0000_0000)
-        await self.write_fields(half, 'DESCENG_ADDR1_LIMIT', ADDR1_LIMIT=0xFFFF_FFFF)
-
-        # 512-byte AXI bursts (8 beats x 64 B) on read and write; ALLOC=16, and
-        # DRAIN_SIZE=1 to MATCH the board campaign (run_characterization). NOTE:
-        # DRAIN_SIZE>1 was tried here and DROPPED SOURCE BEATS (o_chk_beat_count
-        # short, CRC mismatch) -- a real bug in the drain path at DRAIN_SIZE>1 --
-        # and did not improve utilization, so it is kept at 1. See known_issues.
-        await self.write_fields(half, 'AXI_XFER_CONFIG',
-                                RD_XFER_BEATS=8, WR_XFER_BEATS=8,
-                                ALLOC_SIZE=16, DRAIN_SIZE=1)
-
-        await self.write_fields(half, 'CTRL_CONFIG', CTRLRD_MAX_TRY=1)
-
-        await self.write_fields(half, 'CHANNEL_ENABLE', CH_EN=all_ch)
-        await self.write_fields(half, 'GLOBAL_CTRL', GLOBAL_EN=1)   # avoid RST bit
-
-        await self.wait_clocks(self.clk_name, 10)
-        self.log.info(f"rapids_char_harness {half.upper()} half configured via APB")
-
-    # =========================================================================
-    # DESCRIPTOR KICK-OFF VIA APB (per-half kick window, LOW/HIGH pair)
-    # =========================================================================
-
-    async def kick_off_channel(self, half: str, channel: int, descriptor_addr: int):
-        """Stage the 64-bit descriptor address, then LAUNCH it via KICK_ENABLE.
-
-        The address pair is ordinary stored state -- writing it does NOT kick.
-        `rapids_beats_top` replaced the old write-to-kick scheme with staged
-        `CHx_DESC_ADDR_{LOW,HIGH}` plus a RISING-EDGE-detected `KICK_ENABLE`
-        (SRC 0x0040 / SNK 0x1040). This harness only ever staged the address,
-        so every channel sat parked: no descriptor fetch was ever issued
-        (`snk_desc_arvalid` never asserted), the scheduler never left idle, and
-        the self-check timed out with zero beats written. Measured 2026-09-22.
-
-        Resolved BY NAME through rapids_regmap rather than the old hand-computed
-        `base + channel * 0x008`, so a renamed or moved register fails here
-        instead of silently writing a valid-looking wrong offset.
+        RapidsCharCampaign reports through logging.getLogger('rapids_char') and
+        print(), both of which pytest captures and then DISCARDS on a pass. So
+        after this TB moved onto the campaign, a green run stopped leaving any
+        record of what it actually moved -- no CRCs, no beat counts, no meters.
+        A pass you cannot inspect is trusted, not checked, which is the failure
+        this repo keeps relearning. Re-emit the essentials where they survive.
         """
-        await self.write_reg(half, f"CH{channel}_DESC_ADDR_LOW",
-                             descriptor_addr & 0xFFFF_FFFF)
-        await self.write_reg(half, f"CH{channel}_DESC_ADDR_HIGH",
-                             (descriptor_addr >> 32) & 0xFFFF_FFFF)
-        # KICK_ENABLE.KICKn is a singlepulse: the write emits a one-cycle
-        # request to the descriptor engine and self-clears, so there is nothing
-        # to clear afterwards and a read-back cannot look like a pending launch.
-        await self.write_reg(half, "KICK_ENABLE", 1 << channel)
-        self.log.info(f"Kicked {half} ch{channel} via APB "
-                      f"(staged + KICK_ENABLE bit{channel}), "
-                      f"desc @ 0x{descriptor_addr:016X}")
-
-    # =========================================================================
-    # DESCRIPTOR PACK + LOAD (into on-chip descriptor RAM via host write port)
-    # =========================================================================
-
-    def create_descriptor(self, src_addr, dst_addr, length, gen_irq=False,
-                          last=True, channel_id=0, opcode=0) -> int:
-        """Pack a 256-bit descriptor (opcode 0=DATA at [209:208])."""
-        desc = 0
-        desc |= (src_addr & ((1 << 64) - 1))
-        desc |= (dst_addr & ((1 << 64) - 1)) << 64
-        desc |= (length & 0xFFFFFFFF) << 128
-        desc |= (0 << 160)                        # next_descriptor_ptr
-        desc |= (1 << 192)                        # valid
-        desc |= ((1 if gen_irq else 0) << 193)
-        desc |= ((1 if last else 0) << 194)
-        desc |= (0 << 195)                        # error
-        desc |= ((channel_id & 0xF) << 196)
-        desc |= ((opcode & 0x3) << 208)
-        return desc
-
-    async def load_descriptor(self, half: str, descriptor_addr: int, desc_data: int):
-        """Write a single 256-bit descriptor beat into the half's descriptor RAM
-        through the exposed host write port. The sdpram maps line = addr[15:5], so
-        writing at descriptor_addr lands where the DUT will fetch it when kicked."""
-        master = self.desc_src_master if half == 'src' else self.desc_snk_master
-        # size=5 => 32 bytes (256-bit) per beat; single-beat burst (awlen=0).
-        await master['interface'].write_transaction(
-            address=descriptor_addr, data=desc_data, burst_len=1, size=5, burst_type=1, id=0)
-        self.log.info(f"Loaded {half} descriptor @ 0x{descriptor_addr:016X} = 0x{desc_data:064X}")
-
-    # =========================================================================
-    # PER-CHANNEL PACKED-ARRAY STATUS READERS
-    # =========================================================================
-
-    def _read_ch_word(self, sig, ch) -> int:
-        """Read element ch (32-bit) from a packed [NC-1:0][31:0] output."""
-        try:
-            val = int(sig.value)
-        except Exception:
-            return -1
-        return (val >> (ch * 32)) & 0xFFFF_FFFF
-
-    def _read_ch_bit(self, sig, ch) -> int:
-        """Read bit ch from a packed [NC-1:0] output."""
-        try:
-            val = int(sig.value)
-        except Exception:
-            return -1
-        return (val >> ch) & 0x1
-
-    def _read_u32(self, sig) -> int:
-        try:
-            return int(sig.value)
-        except Exception:
-            return -1
-
-    def _read_bus_meter(self, d, direction: str) -> dict:
-        """Read a frozen axi_bus_meter's four aggregate buckets.
-
-        direction: 'rd' (source-read R) or 'wr' (sink-write W). Returns the
-        raw PROD/BP/STARV/IDLE cycle counts plus derived window total and
-        utilization = prod / (prod+bp+starv+idle).
-        """
-        prod = self._read_u32(getattr(d, f'obs_{direction}_prod'))
-        bp = self._read_u32(getattr(d, f'obs_{direction}_bp'))
-        starv = self._read_u32(getattr(d, f'obs_{direction}_starv'))
-        idle = self._read_u32(getattr(d, f'obs_{direction}_idle'))
-        engaged = prod + bp + starv          # in-flight cycles (idle excluded)
-        total = engaged + idle
-        return {'prod': prod, 'bp': bp, 'starv': starv, 'idle': idle,
-                'engaged': engaged, 'total': total,
-                'util': (prod / engaged) if engaged else 0.0}
-
-    async def meter_arm(self):
-        """Pulse obs_arm to clear + re-arm the bus meters (1 cycle)."""
-        self.dut.obs_arm.value = 1
-        await self.wait_clocks(self.clk_name, 1)
-        self.dut.obs_arm.value = 0
-
-    async def _pulse(self, sig, cycles=1):
-        sig.value = 1
-        await self.wait_clocks(self.clk_name, cycles)
-        sig.value = 0
-        await self.wait_clocks(self.clk_name, 1)
-
-    async def _wait_for(self, cond, timeout_cycles) -> bool:
-        for _ in range(timeout_cycles):
-            await self.wait_clocks(self.clk_name, 1)
-            try:
-                if cond():
-                    return True
-            except Exception:
-                pass
-        return False
-
-    # =========================================================================
-    # TEST: SINK self-check  (AXIS gen -> sink -> m_axi_wr CRC)
-    # =========================================================================
+        self.log.info(f"{label}: {'PASS' if ok else 'FAIL'} "
+                      f"beats={detail.get('beat_total')} "
+                      f"golden_mismatch={detail.get('golden_mismatch')}")
+        for ch, vals in (detail.get('results') or {}).items():
+            # CRCs in hex: every other CRC in this flow (golden table, board
+            # campaign output, RTL comments) is hex, and a lone decimal one is
+            # a quiet trap when comparing a failing run against them.
+            # The campaign emits a DICT here ({'golden','rd','chk'} on SOURCE,
+            # {'golden','wr','gen'} on SINK) -- the old TB's (exp, act) tuple
+            # shape does not occur, so handle the mapping first.
+            if isinstance(vals, dict):
+                shown = ' '.join(f"{k}=0x{v:08X}" if isinstance(v, int) else f"{k}={v}"
+                                 for k, v in vals.items())
+            elif isinstance(vals, (tuple, list)):
+                shown = ' '.join(f"0x{v:08X}" if isinstance(v, int) else str(v)
+                                 for v in vals)
+            else:
+                shown = vals
+            self.log.info(f"  {label} ch{ch}: {shown}")
+        # perf is {'ifaces': {key: rec}} or None (None when no interface was
+        # engaged). The raw cycle buckets live in rec['buckets'], NOT in rec --
+        # iterating perf directly yields one ('ifaces', {...}) pair and logs
+        # prod=None for everything, which reads as "the meters counted nothing"
+        # and is worse than logging nothing at all.
+        for iface, rec in ((detail.get('perf') or {}).get('ifaces') or {}).items():
+            b = rec.get('buckets') or {}
+            extra = ''
+            if 'bytes' in rec:      # AXIS interfaces carry exact byte/packet counts
+                extra = (f" bytes={rec['bytes']} pkts={rec['packets']}"
+                         f" byte_bw={rec.get('byte_bw_gb_s'):.2f}GB/s")
+            util = rec.get('util'); eff = rec.get('eff_bw_gb_s')
+            self.log.info(f"  {label} {iface} meter: prod={b.get('prod')} "
+                          f"bp={b.get('bp')} starv={b.get('starv')} "
+                          f"idle={b.get('idle')} "
+                          f"util={util:.1%}" if isinstance(util, float) else
+                          f"  {label} {iface} meter: prod={b.get('prod')} util={util}")
+            self.log.info(f"  {label} {iface} eff={eff:.2f}GB/s{extra}"
+                          if isinstance(eff, float) else
+                          f"  {label} {iface} eff={eff}{extra}")
+        for w in (detail.get('warnings') or []):
+            self.log.warning(f"  {label}: {w}")
+        for e in (detail.get('errors') or []):
+            self.log.error(f"  {label} SCOREBOARD: {e}")
 
     async def run_sink_selfcheck(self, active_channels, beats):
-        self.log.info(f"=== SINK self-check: channels={active_channels}, "
-                      f"{beats} beats/channel ===")
-        d = self.dut
-        n_active = len(active_channels)
-        mask = 0
-        for ch in active_channels:
-            mask |= (1 << ch)
+        active = list(active_channels)
 
-        # SNK path: wr is the completion meter; freeze after all writes done.
-        self.dut.obs_active_half.value = 1
-        self.dut.obs_target.value = beats * n_active
-        await self.meter_arm()   # fresh bus-meter window for this run
+        def prog():
+            # Stale scheduler/descriptor state wedges a second run (board-
+            # confirmed: baseline 1/4, with reset 5/5), so reset first.
+            self.campaign.reset_channels()
+            return self.campaign.run_sink_selfcheck(active, beats,
+                                                    SIM_POLL_TIMEOUT_S)
+        ok, detail = await cocotb.external(prog)()
+        self._log_detail('SINK', ok, detail)
+        return ok, detail
 
-        # 1. Load a SINK DATA descriptor per active channel into the SNK desc RAM.
-        for ch in active_channels:
-            desc_addr = self.DESC_BASE + ch * 0x1000
-            dst_addr = self.DST_BASE + ch * self.CHANNEL_OFFSET
-            desc = self.create_descriptor(0, dst_addr, beats, channel_id=ch)
-            await self.load_descriptor('snk', desc_addr, desc)
+    async def run_source_selfcheck(self, active_channels, beats,
+                                   backpressure: bool = False):
+        active = list(active_channels)
 
-        # 2. Reset the sink-write CRC checker.
-        await self._pulse(d.wr_crc_reset)
-
-        # 3. Kick each channel's SINK descriptor FIRST. This makes the scheduler
-        #    go busy -> snk_system_idle deasserts -> the system_idle observation
-        #    window OPENS before any AXIS ingress. The sink still waits for
-        #    `beats` beats before it can finish, so it stays busy and the SRAM
-        #    still buffers as ingress outruns the drain. (If the generator were
-        #    started first, the front-loaded ingress would fly by while the
-        #    window was still closed and the sin bus-meter would read prod=0 --
-        #    a windowing artifact, not a wiring fault.)
-        #
-        #    NOTE: kicking first is NECESSARY but no longer SUFFICIENT. Under the
-        #    old protocol the HIGH write stalled the APB until the descriptor
-        #    engine accepted, so the scheduler was already busy on return. With
-        #    staged-addr + KICK_ENABLE the acceptance is asynchronous -- "a
-        #    completed write no longer means accepted" (rapids_beats_top) -- so
-        #    we must explicitly wait for busy below.
-        for ch in active_channels:
-            desc_addr = self.DESC_BASE + ch * 0x1000
-            await self.kick_off_channel('snk', ch, desc_addr)
-
-        # 3b. Wait for the sink to actually GO BUSY. The observation window opens
-        #     on obs_dut_busy (= ~snk_system_idle); releasing ingress before that
-        #     lets all `beats` beats land while the window is shut, which reads
-        #     back as `sin bus-meter productive=0` even though the data moved and
-        #     CRC'd correctly. The scheduler cannot finish before the beats
-        #     arrive, so waiting for busy here cannot race past the window.
-        if not await self._wait_for(lambda: int(d.snk_system_idle.value) == 0,
-                                    timeout_cycles=2000):
-            self.log.warning("snk_system_idle never deasserted after the kick -- "
-                             "the sin window will not have opened")
-
-        # 4. Program + start the AXIS pattern generator; ingress now flows into
-        #    the open window. cfg_start reseeds/clears the per-channel LFSR +
-        #    expected CRC.
-        d.cfg_gen_lfsr_seed.value = 0            # 0 => DEADBEEF param
-        d.cfg_gen_num_beats.value = beats        # beats PER CHANNEL
-        d.cfg_gen_beats_per_pkt.value = 0        # 0 => one packet per channel
-        d.cfg_gen_channel_mask.value = mask
-        d.cfg_gen_tdest.value = 0
-        await self._pulse(d.cfg_gen_start)
-
-        # 5. Wait for the sink to go idle AND for all beats to be CRC'd.
-        expected_total = beats * n_active
-        ok_idle = await self._wait_for(
-            lambda: (int(d.snk_system_idle.value) == 1 and
-                     self._read_u32(d.wr_beat_count_total) == expected_total),
-            timeout_cycles=60000)
-
-        await self.wait_clocks(self.clk_name, 50)
-
-        # 6. Per-channel scoreboard: wr_crc_value[ch] == o_gen_expected_crc[ch].
-        errors = []
-        results = {}
-        wr_total = self._read_u32(d.wr_beat_count_total)
-        if not ok_idle:
-            errors.append(f"timeout: snk_system_idle={int(d.snk_system_idle.value)} "
-                          f"wr_beat_count_total={wr_total} (expected {expected_total})")
-        if wr_total != expected_total:
-            errors.append(f"wr_beat_count_total={wr_total} != expected {expected_total}")
-
-        for ch in active_channels:
-            exp_crc = self._read_ch_word(d.o_gen_expected_crc, ch)
-            act_crc = self._read_ch_word(d.wr_crc_value, ch)
-            gold_crc = golden_crc(ch, beats)
-            exp_valid = self._read_ch_bit(d.o_gen_expected_crc_valid, ch)
-            act_valid = self._read_ch_bit(d.wr_crc_value_valid if hasattr(d, 'wr_crc_value_valid')
-                                          else d.wr_crc_valid, ch)
-            results[ch] = (exp_crc, act_crc)
-            if not exp_valid:
-                errors.append(f"ch{ch}: gen expected_crc_valid=0")
-            if not act_valid:
-                errors.append(f"ch{ch}: wr_crc_valid=0")
-            if exp_crc != act_crc:
-                errors.append(f"ch{ch}: SINK CRC mismatch gen=0x{exp_crc:08X} "
-                              f"wr=0x{act_crc:08X}")
-            # Validate BOTH the gen's expected CRC and the sink-written data's CRC
-            # against the independent golden reference (not just gen==wr).
-            if exp_crc != gold_crc:
-                errors.append(f"ch{ch}: SINK gen CRC 0x{exp_crc:08X} != "
-                              f"golden 0x{gold_crc:08X}")
-            if act_crc != gold_crc:
-                errors.append(f"ch{ch}: SINK wr CRC 0x{act_crc:08X} != "
-                              f"golden 0x{gold_crc:08X}")
-            if exp_crc == act_crc == gold_crc:
-                self.log.info(f"  ch{ch}: SINK CRC match 0x{act_crc:08X} "
-                              f"(gen==wr==golden, valid)")
-
-        se = self._read_u32(d.snk_sched_error)
-        if se not in (0, -1):
-            errors.append(f"snk_sched_error=0x{se:X}")
-
-        # Generator-side observability. The harness exports these but nothing
-        # read them, so a failing run could not tell "the AXIS generator never
-        # emitted a beat" from "it emitted beats that never reached the write
-        # side" -- different root causes, identical scoreboard output.
-        try:
-            gen_beats = self._read_u32(d.o_gen_beat_count_total)
-        except Exception:
-            gen_beats = -1
-        try:
-            gen_busy = int(d.gen_busy.value)
-            gen_done = int(d.gen_done.value)
-        except ValueError:
-            gen_busy = gen_done = -1
-        self.log.info(f"  SINK gen: beats_emitted={gen_beats} busy={gen_busy} "
-                      f"done={gen_done} (expected {expected_total})")
-        if gen_beats == 0:
-            errors.append("AXIS generator emitted 0 beats -- s_axis never "
-                          "handshook, so the fault is upstream of the DMA")
-        elif 0 < gen_beats < expected_total:
-            errors.append(f"AXIS generator stalled: emitted {gen_beats} of "
-                          f"{expected_total} beats (busy={gen_busy} done={gen_done})")
-
-        # Bus meters on the SINK path interfaces: AXIS ingress (sin) -> AXI4
-        # write (wr). Both must have counted productive beats in the frozen
-        # window (proves the beat-driven window brackets the transfer).
-        meters = {i: self._read_bus_meter(d, i) for i in ('sin', 'wr')}
-        for name, m in meters.items():
-            if m['prod'] == 0:
-                errors.append(f"{name} bus-meter productive=0 (meter not counting)")
-            elif m['engaged'] == 0:
-                errors.append(f"{name} bus-meter window empty (bad windowing)")
-            else:
-                self.log.info(f"  SINK {name} meter: prod={m['prod']} "
-                              f"bp={m['bp']} starv={m['starv']} idle={m['idle']} "
-                              f"util={m['util']:.1%}")
-
-        if errors:
-            for e in errors:
-                self.log.error(f"  SCOREBOARD: {e}")
-        else:
-            self.log.info(f"  SCOREBOARD: SINK self-check PASSED for "
-                          f"{n_active} channels ({beats} beats each)")
-        return (len(errors) == 0), {'errors': errors, 'results': results,
-                                    'wr_beat_count_total': wr_total,
-                                    'bus_meters': meters}
-
-    # =========================================================================
-    # TEST: SOURCE self-check  (m_axi_rd LFSR -> source -> m_axis chk)
-    # =========================================================================
-
-    async def run_source_selfcheck(self, active_channels, beats):
-        self.log.info(f"=== SOURCE self-check: channels={active_channels}, "
-                      f"{beats} beats/channel ===")
-        d = self.dut
-        n_active = len(active_channels)
-
-        # SRC path: sout is the completion meter; freeze after all beats egress.
-        d.obs_active_half.value = 0
-        d.obs_target.value = beats * n_active
-        await self.meter_arm()   # fresh bus-meter window for this run
-
-        # 1. Reset the source-read LFSR/CRC pattern generator.
-        await self._pulse(d.rd_crc_lfsr_reset)
-
-        # 2. Arm the AXIS pattern checker (seed 0 => DEADBEEF, matches rd gen).
-        d.chk_cfg_lfsr_seed.value = 0
-        d.chk_ready_en.value = 1
-        await self._pulse(d.chk_cfg_start)
-
-        # 3. Load a SOURCE DATA descriptor per active channel into the SRC desc RAM.
-        for ch in active_channels:
-            desc_addr = self.DESC_BASE + ch * 0x1000
-            src_addr = self.SRC_BASE + ch * self.CHANNEL_OFFSET
-            desc = self.create_descriptor(src_addr, 0, beats, channel_id=ch)
-            await self.load_descriptor('src', desc_addr, desc)
-
-        # 4. Kick each channel's SOURCE descriptor over APB.
-        for ch in active_channels:
-            desc_addr = self.DESC_BASE + ch * 0x1000
-            await self.kick_off_channel('src', ch, desc_addr)
-
-        # 5. Wait for the source to go idle AND for all beats to be checked.
-        expected_total = beats * n_active
-        ok_idle = await self._wait_for(
-            lambda: (int(d.src_system_idle.value) == 1 and
-                     self._read_u32(d.o_chk_beat_count_total) == expected_total),
-            timeout_cycles=60000)
-
-        await self.wait_clocks(self.clk_name, 50)
-
-        # 6. Per-channel scoreboard: o_chk_actual_crc[ch] == rd_crc_value[ch].
-        errors = []
-        results = {}
-        chk_total = self._read_u32(d.o_chk_beat_count_total)
-        data_error = self._read_u32(d.o_data_error)
-        if not ok_idle:
-            errors.append(f"timeout: src_system_idle={int(d.src_system_idle.value)} "
-                          f"o_chk_beat_count_total={chk_total} (expected {expected_total})")
-        if chk_total != expected_total:
-            errors.append(f"o_chk_beat_count_total={chk_total} != expected {expected_total}")
-        if data_error not in (0,):
-            errors.append(f"o_data_error asserted (0x{data_error:X})")
-
-        for ch in active_channels:
-            exp_crc = self._read_ch_word(d.rd_crc_value, ch)
-            act_crc = self._read_ch_word(d.o_chk_actual_crc, ch)
-            gold_crc = golden_crc(ch, beats)
-            src_valid = self._read_ch_bit(d.rd_crc_valid, ch)
-            chk_valid = self._read_ch_bit(d.o_chk_actual_crc_valid, ch)
-            results[ch] = (exp_crc, act_crc)
-            if not src_valid:
-                errors.append(f"ch{ch}: rd_crc_valid=0")
-            if not chk_valid:
-                errors.append(f"ch{ch}: o_chk_actual_crc_valid=0")
-            if exp_crc != act_crc:
-                errors.append(f"ch{ch}: SOURCE CRC mismatch rd=0x{exp_crc:08X} "
-                              f"chk=0x{act_crc:08X}")
-            # Validate BOTH the read-served CRC and the AXIS checker's actual CRC
-            # against the independent golden reference.
-            if exp_crc != gold_crc:
-                errors.append(f"ch{ch}: SOURCE rd CRC 0x{exp_crc:08X} != "
-                              f"golden 0x{gold_crc:08X}")
-            if act_crc != gold_crc:
-                errors.append(f"ch{ch}: SOURCE chk CRC 0x{act_crc:08X} != "
-                              f"golden 0x{gold_crc:08X}")
-            if exp_crc == act_crc == gold_crc:
-                self.log.info(f"  ch{ch}: SOURCE CRC match 0x{act_crc:08X} "
-                              f"(rd==chk==golden, valid)")
-
-        se = self._read_u32(d.src_sched_error)
-        if se not in (0, -1):
-            errors.append(f"src_sched_error=0x{se:X}")
-
-        # Bus meters on the SOURCE path interfaces: AXI4 read (rd) -> AXIS
-        # egress (sout). Both must have counted productive beats -- this is what
-        # exposed the old windowing bug where the read meter read prod=0.
-        meters = {i: self._read_bus_meter(d, i) for i in ('rd', 'sout')}
-        for name, m in meters.items():
-            if m['prod'] == 0:
-                errors.append(f"{name} bus-meter productive=0 (meter not counting)")
-            elif m['engaged'] == 0:
-                errors.append(f"{name} bus-meter window empty (bad windowing)")
-            else:
-                self.log.info(f"  SOURCE {name} meter: prod={m['prod']} "
-                              f"bp={m['bp']} starv={m['starv']} idle={m['idle']} "
-                              f"util={m['util']:.1%}")
-
-        if errors:
-            for e in errors:
-                self.log.error(f"  SCOREBOARD: {e}")
-        else:
-            self.log.info(f"  SCOREBOARD: SOURCE self-check PASSED for "
-                          f"{n_active} channels ({beats} beats each)")
-        return (len(errors) == 0), {'errors': errors, 'results': results,
-                                    'o_chk_beat_count_total': chk_total,
-                                    'o_data_error': data_error,
-                                    'bus_meters': meters}
+        def prog():
+            self.campaign.reset_channels()
+            return self.campaign.run_source_selfcheck(active, beats,
+                                                      SIM_POLL_TIMEOUT_S,
+                                                      backpressure=backpressure)
+        ok, detail = await cocotb.external(prog)()
+        self._log_detail('SOURCE', ok, detail)
+        return ok, detail

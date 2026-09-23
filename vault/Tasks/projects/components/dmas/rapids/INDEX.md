@@ -5,7 +5,7 @@ summary: Task rollup for the RAPIDS DMA component (projects/components/dmas/rapi
 
 # RAPIDS tasks
 
-**Next ID: TASK-084** — never recycle a number, even when its task closed.
+**Next ID: TASK-085** — never recycle a number, even when its task closed.
 
 Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "RAPIDS TASK-080" when writing outside this file.
 
@@ -27,6 +27,10 @@ Convention: [Tasks](../../../../INDEX.md).
 - **TASK-081** — the board kick sequencer never wrote KICK_ENABLE. Fixed and
   board-confirmed 2026-09-22: 8 ch x 8 beats OVERALL PASS, AXI4-wr prod=64, all
   16 CRCs matching golden. See [closed](closed.md).
+- **TASK-084** — one RTL harness: moved the host path (UART/CSRs/kick sequencer)
+  down into `rapids_char_harness` so `verify-sim` reaches the launch path, per
+  the STREAM shape. 104 ports -> 7; TB 738 -> 211 lines by reusing the board's
+  own campaign. Re-validated sim + board, behaviour byte-identical.
 
 The component's old `TASKS.md` / `rapids_beats_mas/TODO` next to the code are
 still to be folded into this area per the one rule (no task files beside code).

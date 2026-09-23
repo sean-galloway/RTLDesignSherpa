@@ -115,8 +115,16 @@ def _run_harness(testcase, test_name):
     num_active = int(os.environ.get('TEST_NUM_ACTIVE', '4'))
     num_beats = int(os.environ.get('TEST_NUM_BEATS', '8'))
 
+    # UART bit rate in system clocks. MEASURED floor is 4 (ddr2_char: 3 and 2
+    # fail; uart_rx samples at (CLKS_PER_BIT-1)/2). UART_BAUD is DERIVED from it
+    # so the RTL divisor and the TB constant cannot drift apart.
+    clks_per_bit = int(os.environ.get('TEST_CLKS_PER_BIT', '4'))
+    fpga_clk_hz = 100_000_000
+
     rtl_parameters = {
         'NUM_CHANNELS': num_channels,
+        'FPGA_CLK_HZ': fpga_clk_hz,
+        'UART_BAUD': fpga_clk_hz // clks_per_bit,
         'DATA_WIDTH': 512,
         'ADDR_WIDTH': 64,
         'AXI_ID_WIDTH': 8,
@@ -131,6 +139,7 @@ def _run_harness(testcase, test_name):
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(12345),
+        'TEST_CLKS_PER_BIT': str(clks_per_bit),
         'TEST_NUM_CHANNELS': str(num_channels),
         'TEST_NUM_ACTIVE': str(num_active),
         'TEST_NUM_BEATS': str(num_beats),

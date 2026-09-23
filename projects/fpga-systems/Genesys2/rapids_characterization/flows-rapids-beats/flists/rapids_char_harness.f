@@ -42,4 +42,8 @@
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f
 
 # ---- Harness top ----
+# ---- Host path (relocated from rapids_char_top: the harness owns UART->AXIL->APB)
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/uart_axil_bridge.f
+-f $REPO_ROOT/rtl/amba/filelists/apb4_master.f
+
 $REPO_ROOT/projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/rtl/rapids_char_harness.sv

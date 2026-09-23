@@ -11,10 +11,8 @@
 
 # ---- Host front-end: UART <-> AXIL master (uart_rx/tx, axil4_master_wr/rd,
 #      gaxi_skid_buffer) ----
--f $REPO_ROOT/projects/components/converters/rtl/filelists/uart_axil_bridge.f
 
 # ---- AXIL-slave cmd/rsp -> APB (reuses gaxi_skid_buffer from the bridge f) ----
--f $REPO_ROOT/rtl/amba/filelists/apb4_master.f
 
 # ---- Board status helpers: LED bank + 7-seg (+ their deps) ----
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f

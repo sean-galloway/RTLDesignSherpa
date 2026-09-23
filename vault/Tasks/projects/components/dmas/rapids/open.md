@@ -174,7 +174,7 @@ same task in the rtl/ areas.
 
 **Priority:** Medium -- it does not corrupt data, but it puts a 0.0% utilisation
 and "0 B, 0 pkts" into recorded board numbers for an interface that demonstrably
-carried traffic. **Status:** open 2026-09-22.
+carried traffic. **Status:** open 2026-09-22; reproduced in sim 2026-09-23 (TASK-084).
 
 Measured on the Genesys 2, 2026-09-22, on the freshly fixed bitstream:
 
@@ -182,8 +182,23 @@ Measured on the Genesys 2, 2026-09-22, on the freshly fixed bitstream:
  8ch x 8 beats:  SINK AXIS-in: util=0.0%  (prod=0  bp=0 starv=70 idle=0)  0 B, 0 pkts
                  SINK AXI4-wr: util=91.4% (prod=64 bp=0 starv=6  idle=0)  5.85 GB/s
  2ch x 4 beats:  SINK AXIS-in: prod=0 starv=14        SINK AXI4-wr: prod=8
- sim (harness):  sin meter: prod=32 bp=0 starv=12 idle=100 util=72.7%
+ sim (OLD tb):   sin meter: prod=32 bp=0 starv=12 idle=100 util=72.7%
+ sim (NEW tb):   sin meter: prod=0  bp=0 starv=38            util=0.0%   <-- reproduces
+ board 2026-09-23 (post-TASK-084, 8ch x 8): AXIS-in prod=0 starv=70, AXI4-wr prod=64
 ```
+
+**IT REPRODUCES IN SIMULATION NOW (2026-09-23).** That is the useful part of
+this update. Before TASK-084 the cocotb TB hand-sequenced the launch: it kicked
+the channels, explicitly waited for `snk_system_idle` to deassert, and only THEN
+started the AXIS generator -- with a long comment explaining that this was what
+kept the sin window open. The board never does that; it stages everything and
+fires one atomic GO. So the old TB was driving the DUT in a way the hardware
+never does, and that masked the defect. The TB now reuses the board's own
+campaign, drives the same GO path, and reads the same prod=0.
+
+This moves TASK-082 from a board-only mystery (needs the Genesys 2, an ILA, and
+a reprogram per experiment) to a waveform-debuggable one (`WAVES=1` on the
+harness sim). Worth doing before theorising further.
 
 All sink CRCs match golden in every one of those runs, so the data flowed. The
 sink IS AXIS-fed (`axis4_master_pattern_gen` drives `s_axis_*`), so this is not a
@@ -239,5 +254,9 @@ suspect. July predates it by two months.
 **Do:**
 - [ ] `make suite BOARD=genesys2 PORT=/dev/ttyUSB0` with
       `--suite-channels 8 --suite-beats 1,4,16,64,256` and compare against the
-      July table. (`--suite` writes a durable JSON; plain `characterize` persists
-      nothing, which is why the 2026-09-22 numbers live only in TASK-081's text.)
+      July table. (Both `--suite` AND plain `characterize`/`--smoke` write a
+      timestamped JSON in the suite schema now -- fixed 2026-09-23, 77dc4de0e --
+      so a run no longer evaporates into scrollback the way the 2026-09-22
+      numbers did. Note `flows-rapids-beats/reports/` is gitignored: those files
+      are durable on disk, NOT in the repo. The tracked, curated records live in
+      `rapids_characterization/reports/perf/json/`.)
