@@ -284,7 +284,6 @@ stream_top_ch8 (Top-Level Wrapper)
 │   ├── apb4_slave_cdc        (CDC_ENABLE=1: APB clock domain crossing)
 │   └── cmdrsp_router        (Address-based routing)
 │       ├── (kick-off is now register state: 0x000-0x03F staged addrs + 0x128 KICK_ENABLE)
-│       ├── perf_profiler    (0x040-0x0FF: Performance profiling)
 │       └── peakrdl_to_cmdrsp (0x100-0x3FF: APB → CMD/RSP conversion)
 │           └── stream_regs  (PeakRDL-generated register file)
 ├── stream_config_block      (Register → config signal mapping)
@@ -369,7 +368,7 @@ graph TB
 **APB Address Map:**
 ```
 0x000-0x03F: Channel descriptor addresses (staged); 0x128: KICK_ENABLE (launch)
-0x040-0x0FF: Performance profiler interface
+0x040-0x0FF: Reserved
 0x100-0x3FF: PeakRDL configuration registers
 ```
 
@@ -383,6 +382,7 @@ graph TB
 - 0x240-0x29F: AXI Monitor Configuration (DAXMON, RDMON, WRMON)
 - 0x2A0: AXI Transfer Configuration
 - 0x2B0: Performance Profiler Configuration
+- 0x2D0-0x2D8: Performance Profiler Data and Status (capture FIFO readback)
 
 **See:** [Register Map](../ch04_registers/register_map.md) for complete documentation.
 

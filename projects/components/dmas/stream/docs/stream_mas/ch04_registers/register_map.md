@@ -84,7 +84,8 @@ Base Address (configurable parameter)
 │  ├─ 0x220 - 0x23F: Descriptor Engine Configuration
 │  ├─ 0x2A0 - 0x2AF: AXI Transfer Configuration
 │  ├─ 0x2B0 - 0x2BF: Performance Profiler Configuration
-│  └─ 0x2C0 - 0x2CF: Channel Observation (OBS_CTRL/OBS_FLAGS/OBS_DATA0/1)
+│  ├─ 0x2C0 - 0x2CF: Channel Observation (OBS_CTRL/OBS_FLAGS/OBS_DATA0/1)
+│  └─ 0x2D0 - 0x2DF: Performance Profiler Data and Status
 │
 └─ 0x1000+: Monitor / Performance Registers (stream_mon_regs regfile, same APB slave)
    ├─ 0x1000 - 0x1007: Monitor FIFO Status / Count
@@ -936,6 +937,7 @@ for (int ch = 0; ch < 8; ch++) {
 | 0x2A0-0x2AF  | AXI transfer configuration            | 1     | RW            |
 | 0x2B0-0x2BF  | Performance profiler configuration    | 1     | RW            |
 | 0x2C0-0x2CF  | Channel observation                   | 4     | RW/RO         |
+| 0x2D0-0x2DF  | Performance profiler data and status  | 3     | RO            |
 | 0x1000-0x1007| Monitor FIFO status (mon regfile)     | 2     | RO            |
 | 0x10C0-0x10DF| Descriptor AXI monitor configuration  | 8     | RW            |
 | 0x10E0-0x10FF| Read engine AXI monitor configuration | 8     | RW            |

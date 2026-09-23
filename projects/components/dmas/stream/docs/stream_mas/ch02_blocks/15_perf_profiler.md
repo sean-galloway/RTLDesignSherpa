@@ -210,11 +210,11 @@ endgenerate
 ```
 Software reads FIFO via APB:
 1. Check perf_fifo_empty == 0
-2. Read PERF_FIFO_DATA_LOW:
+2. Read PERF_DATA_LOW (0x2D0):
    - Triggers perf_fifo_rd strobe
    - Pops FIFO, latches 36-bit entry
    - Returns timestamp/elapsed [31:0]
-3. Read PERF_FIFO_DATA_HIGH:
+3. Read PERF_DATA_HIGH (0x2D4):
    - Returns {28'b0, event_type, channel_id}
    - No FIFO pop
 4. Parse data and repeat
@@ -270,8 +270,8 @@ while (!read_reg(CH0_STATUS) & COMPLETE);
 
 // Read performance data
 while (!(read_reg(PERF_STATUS) & FIFO_EMPTY)) {
-    uint32_t low  = read_reg(PERF_FIFO_DATA_LOW);   // Pops FIFO
-    uint32_t high = read_reg(PERF_FIFO_DATA_HIGH);  // Reads latched
+    uint32_t low  = read_reg(PERF_DATA_LOW);   // Pops FIFO and latches the entry
+    uint32_t high = read_reg(PERF_DATA_HIGH);  // Same entry, from the latch
 
     uint32_t timestamp = low;
     uint8_t  channel   = high & 0x7;
