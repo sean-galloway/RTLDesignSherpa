@@ -137,7 +137,7 @@ for exactly the 35 connections whose actual differed from the formal.
 `s_apb_*` ports collapsed inward, which is why the port count fell so far: they
 were the CSR interface, and the CSRs are inside now.
 
-**The TB went 738 -> 211 lines** because it reuses `RapidsCharCampaign` -- the
+**The TB went 738 -> 225 lines** because it reuses `RapidsCharCampaign` -- the
 BOARD's own host program -- over `UartSimHarness` + `RapidsCharIO` inside
 `cocotb.external`. Sim and board now run the same code rather than two
 implementations that must be kept in agreement. They had already drifted apart

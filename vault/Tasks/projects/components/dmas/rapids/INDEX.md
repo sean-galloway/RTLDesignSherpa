@@ -29,7 +29,7 @@ Convention: [Tasks](../../../../INDEX.md).
   16 CRCs matching golden. See [closed](closed.md).
 - **TASK-084** — one RTL harness: moved the host path (UART/CSRs/kick sequencer)
   down into `rapids_char_harness` so `verify-sim` reaches the launch path, per
-  the STREAM shape. 104 ports -> 7; TB 738 -> 211 lines by reusing the board's
+  the STREAM shape. 104 ports -> 7; TB 738 -> 225 lines by reusing the board's
   own campaign. Re-validated sim + board, behaviour byte-identical.
 
 The component's old `TASKS.md` / `rapids_beats_mas/TODO` next to the code are
