@@ -1,2 +1,2 @@
-build_board/
-build_sim/
+# Generated LiteDRAM cores (regen.sh). One named dir, per RULE #0.1.
+gen/

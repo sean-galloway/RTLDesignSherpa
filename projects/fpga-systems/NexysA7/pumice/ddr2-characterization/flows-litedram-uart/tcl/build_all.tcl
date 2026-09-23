@@ -53,7 +53,7 @@ read_xdc "$self/constraints/litedram_char.xdc"
 # reset strobe -> 100 MHz CRG reset-sync FDCE is timed as a real 3.3 ns
 # cross-domain path and fails by ~2 ns (2026-09-10, WNS -1.966 on exactly that
 # endpoint). Read it AFTER ours so it only adds the false paths.
-read_xdc "$self/build_board/gateware/litedram_core.xdc"
+read_xdc "$self/gen/board/gateware/litedram_core.xdc"
 
 synth_design -top litedram_char_top -part $part -include_dirs $incdirs
 opt_design

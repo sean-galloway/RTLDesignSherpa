@@ -9,9 +9,9 @@ $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-lite
 
 # LiteDRAM generated core (real a7ddrphy). Regenerate WITH a functional BIOS
 # first:  ./regen.sh --bios   (litedram_hp.yml: 75 MHz sys / 1:2 / DDR2-300)
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart/build_board/gateware/litedram_core.v
+$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart/gen/board/gateware/litedram_core.v
 
 # The core's BIOS CPU. litedram_gen emits litedram_core.tcl pointing at
 # VexRiscv.v INSIDE the LiteX venv, an absolute path that dies with the venv,
 # so regen.sh copies it next to the core and this list uses that copy.
-$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart/build_board/gateware/VexRiscv.v
+$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart/gen/board/gateware/VexRiscv.v

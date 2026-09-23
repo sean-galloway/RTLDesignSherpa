@@ -12,6 +12,9 @@ set -euo pipefail
 VENV="${LITEX_VENV:-/tmp/litex-venv310}"
 GEN="$VENV/bin/litedram_gen"
 CFG=litedram_hp.yml
+# Generated cores land under gen/ (gen/board, gen/sim), one named subdirectory
+# per CRITICAL RULE #0.1 -- they used to be written as build_board/ + build_sim/
+# at the flow root, where they sat beside hand-written sources.
 
 [ -x "$GEN" ] || { echo "no litedram_gen in $VENV -- set LITEX_VENV (see 2026-09-10_tooling_notes.md)"; exit 1; }
 "$VENV/bin/python" -c 'import litescope' 2>/dev/null || \
@@ -21,17 +24,17 @@ SW_FLAG="--no-compile-software"        # default: skip BIOS (no riscv-gcc needed
 [ "${1:-}" = "--bios" ] && SW_FLAG=""  # functional: compile BIOS into ROM (needs riscv-gcc)
 
 echo "[regen] board core (real A7DDRPHY) ..."
-"$GEN" "$CFG" --name litedram_core     --output-dir build_board --no-compile-gateware $SW_FLAG
+"$GEN" "$CFG" --name litedram_core     --output-dir gen/board --no-compile-gateware $SW_FLAG
 echo "[regen] sim core (SDRAMPHYModel) ..."
-"$GEN" "$CFG" --sim --name litedram_core_sim --output-dir build_sim --no-compile-gateware $SW_FLAG || true
+"$GEN" "$CFG" --sim --name litedram_core_sim --output-dir gen/sim --no-compile-gateware $SW_FLAG || true
 # Vendor the BIOS CPU beside the core: the generated litedram_core.tcl refers
 # to VexRiscv.v by an absolute path inside the LiteX venv, which does not
 # survive the venv being rebuilt (and /tmp being cleared).
-VEX=$(grep -o '/[^ }]*VexRiscv\.v' build_board/gateware/litedram_core.tcl 2>/dev/null | head -1 || true)
+VEX=$(grep -o '/[^ }]*VexRiscv\.v' gen/board/gateware/litedram_core.tcl 2>/dev/null | head -1 || true)
 if [ -n "${VEX:-}" ] && [ -f "$VEX" ]; then
-  cp "$VEX" build_board/gateware/VexRiscv.v
+  cp "$VEX" gen/board/gateware/VexRiscv.v
   echo "[regen] vendored $(basename "$VEX") beside the core"
 fi
 
 echo "[regen] done. cores:"
-find build_board build_sim -name '*.v' | xargs ls -l | awk '{print "   "$5"B  "$NF}'
+find gen/board gen/sim -name '*.v' | xargs ls -l | awk '{print "   "$5"B  "$NF}'

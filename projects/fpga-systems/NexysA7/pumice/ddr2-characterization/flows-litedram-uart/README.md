@@ -14,7 +14,7 @@ litedram_hp.yml            LiteDRAM core config: MT47H64M16 x16, A7DDRPHY,
                            75 MHz sys / 1:2 / DDR2-300 (== pumice PUMICE_SYS_75),
                            cmd_buffer_depth 16, one 64b/id8 AXI user port
 regen.sh                   regenerate the core; --bios bakes the self-init BIOS in
-build_board/gateware/      litedram_core.v (+ vendored VexRiscv.v) -- Vivado only
+gen/board/gateware/      litedram_core.v (+ vendored VexRiscv.v) -- Vivado only
 rtl/char_engine_harness.sv build-perf's ddr2_char_harness minus pumice:
                              uart_axil_bridge -> bridge_ddr2_char_axil ->
                              {harness_csr, debug_sram, dfi_mon_ram, chargen_apb ->

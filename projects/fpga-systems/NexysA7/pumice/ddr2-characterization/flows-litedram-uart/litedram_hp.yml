@@ -39,7 +39,7 @@
     # convention does): the extra bit is not free at the controller, and on
     # pumice it took the arbiter's pick cone from 13 logic levels to 26.
     #
-    # This was 9. The core in build_board/gateware/ must be REGENERATED from
+    # This was 9. The core in gen/board/gateware/ must be REGENERATED from
     # this file before the next board build; until then Vivado stops on the
     # 9-vs-8-bit port mismatch rather than aliasing, which is the safe failure.
     # The crossbar inserts any width conversion internally -> no external adapter.

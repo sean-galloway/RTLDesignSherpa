@@ -20,7 +20,7 @@ Built (commit adds):
   (Nexys A7 pins), `tcl/build_all.tcl` + `tcl/program_fpga.tcl`, `Makefile`
   (`make regen|bitstream|program|characterize`).
 
-## litedram_core interface (build_board/gateware/litedram_core.v)
+## litedram_core interface (gen/board/gateware/litedram_core.v)
 
 ```
 input  clk, rst                         # 100 MHz ref + reset (core has its own PLL)
@@ -104,7 +104,7 @@ make -C flows-litedram-uart characterize UART=/dev/ttyUSBx   # perf sweep
 ## Lint strategy (before board)
 Lint the extracted `char_engine_harness` standalone with verilator (catches the
 engine/csr/perf wiring). The board top can't be verilated (real a7ddrphy
-primitives in `litedram_core.v`); the `build_sim/gateware/litedram_core_sim.v`
+primitives in `litedram_core.v`); the `gen/sim/gateware/litedram_core_sim.v`
 (SDRAMPHYModel) has no `ddram_*` pads, so a small sim-only top variant can
 cocotb-drive the AXI user port if a pre-board smoke is wanted.
 
@@ -124,7 +124,7 @@ Worked through the TODO below on real hardware. What changed:
   so the core runs **75 MHz / 1:2 / 300 MT/s — the same point pumice is
   measured at**. The stock 100 MHz / 1:4 would have made the A/B meaningless.
 - **Item 2 (XDC reconcile): NOT NEEDED.** The regenerated
-  `build_board/gateware/litedram_core.xdc` contains **no** ddram pins, so the
+  `gen/board/gateware/litedram_core.xdc` contains **no** ddram pins, so the
   harness `constraints/litedram_char.xdc` keeps the full pin map and the
   `read_xdc` line in `build_all.tcl` stays commented. Nothing to reconcile.
 
