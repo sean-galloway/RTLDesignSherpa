@@ -232,3 +232,39 @@ debug a monitor failure, which is when the name matters most.
 
 Fix is in the lookup builder: walk child blocks with their instance offset
 applied rather than flattening on raw child addresses.
+
+## TASK-085 — prove the perf FIFO read returns the same entry it used to
+**Status:** open 2026-09-23  **Priority:** Medium
+
+Residue of the RDL consolidation (4dd4f19f1). The pop strobe was moved out of
+`cmdrsp_router`'s hand decode into a `swacc` edge detect on `PERF_DATA_LOW`.
+Both are one-cycle and read-qualified, so they are equivalent IN KIND:
+
+```
+old  perf_fifo_rd = s_cmd_valid && s_cmd_ready && addr_hit_perf
+                    && !s_cmd_pwrite && (paddr[7:0] == PERF_DATA_LOW_ADDR)
+new  perf_fifo_rd = (swacc && !req_is_wr) && !d(swacc && !req_is_wr)
+```
+
+What is NOT proven is WHICH cycle the read data is sampled on relative to the
+pop. `perf_profiler` drives both data outputs from `r_fifo_data_latched`,
+which updates on the clock edge after the strobe. The old router muxed
+`perf_rsp_data` at command-accept, i.e. the PRE-pop latch. The new path reads
+back combinationally from `hwif_in` (`stream_regs.sv:4906` -- no
+`field_storage`, no extra stage) across a strobe that `peakrdl_to_cmdrsp`
+holds through `CMD_WAIT_ACK`, so the sampled value may be the POST-pop latch.
+If so, the first read returns entry 0 instead of the reset value and every
+read is shifted by one entry.
+
+Note the OLD behaviour looks wrong on its face -- returning the reset value on
+the first read -- so the new path may be the more correct of the two. That is
+the point: nobody has established which is intended.
+
+**Nothing covers this.** The register walk reads the perf registers with the
+FIFO EMPTY, so both designs return zeros and both pass. Per
+[[escape-analysis]] the absence of a failure here is not evidence.
+
+Acceptance: a test that pushes N known entries into the perf FIFO, reads
+LOW/HIGH pairs back through APB by name, and asserts the exact entries and
+their order -- run against this build, with the intended first-read semantics
+stated in the RDL description so the answer is recorded, not rediscovered.

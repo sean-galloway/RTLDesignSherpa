@@ -5,7 +5,7 @@ summary: Task rollup for the STREAM DMA component (projects/components/dmas/stre
 
 # STREAM tasks
 
-**Next ID: TASK-085** — never recycle a number, even when its task closed.
+**Next ID: TASK-086** — never recycle a number, even when its task closed.
 
 Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "STREAM TASK-080" when writing outside this file.
 
@@ -28,6 +28,10 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
   every test reads the stale generated copies.
 - **TASK-084** (Low) — TB address->name lookup ignores `MON @ 0x1000`, so 108
   resolvable monitor registers log as `UNKNOWN_0x11xx`.
+
+- **TASK-085** (Medium) — the perf FIFO read moved from a hand decode to a
+  `swacc` edge; the strobe is equivalent in kind, but which cycle the data
+  is sampled on is unproven and no test reads the FIFO non-empty.
 
 ## Closed (done)
 
