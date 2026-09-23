@@ -13,11 +13,11 @@
 // (including future additions like 0x220-0x230 descriptor engine config)
 // without requiring router updates.
 //
-// Performance Profiler Registers (0x040-0x0FF):
-//   0x040: PERF_CONFIG      - R/W: {30'b0, cfg_clear, cfg_mode, cfg_enable}
-//   0x044: PERF_DATA_LOW    - RO:  Timestamp/elapsed [31:0] (read pops FIFO)
-//   0x048: PERF_DATA_HIGH   - RO:  {28'b0, event_type, channel_id[2:0]}
-//   0x04C: PERF_STATUS      - RO:  {15'b0, count[15:0], 14'b0, full, empty}
+// The perf-profiler registers are NOT decoded here. They were hand-decoded
+// in this module over 0x040-0x0FF; they are RDL registers now (PERF_CONFIG
+// @ 0x2B0, PERF_DATA_LOW/HIGH and PERF_STATUS @ 0x2D0-0x2D8) and reach the
+// config space by the default route like any other register. This module
+// has no perf port.
 //
 // Protocol: CMD/RSP handshake protocol
 //   - Command phase: valid/ready handshake with address, write flag, data

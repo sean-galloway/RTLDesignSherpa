@@ -7,8 +7,10 @@
 // Address Space Layout:
 //   0x000 - 0x03F: Per-channel descriptor address, 8 x 64-bit (LOW/HIGH pairs)
 //   0x128        : KICK_ENABLE -- one bit per channel, launches the staged addr
-//                  (0x040-0x0FF is the perf profiler's window, so the kick
-//                   register lives with the other per-channel controls)
+//                  (0x040-0x0FF was the perf profiler's hand-decoded window
+//                   when KICK_ENABLE was placed, so the kick register lives
+//                   with the other per-channel controls. That window is
+//                   Reserved now; the perf registers are at 0x2B0/0x2D0-0x2D8.)
 //   0x100 - 0x3FF: Control and status registers (this file)
 //
 // Notes:

@@ -2090,8 +2090,10 @@ module stream_top_ch8 #(
     // The perf registers are RDL-declared and live in the PeakRDL block, NOT
     // in cmdrsp_router (which no longer carries any perf connection):
     //   0x2D0: PERF_DATA_LOW   - RO, capture low word; reading POPS the FIFO
-    //   0x2D4: PERF_DATA_HIGH  - RO, capture high word (read BEFORE the low
-    //                            word, since the low-word read is the pop)
+    //                            and latches the 36-bit entry inside
+    //                            perf_profiler (r_fifo_data_latched)
+    //   0x2D4: PERF_DATA_HIGH  - RO, high word of that SAME latched entry.
+    //                            Read order is LOW then HIGH.
     //   0x2D8: PERF_STATUS     - RO, EMPTY[0] FULL[1] COUNT[31:16]
     //   0x2B0: PERF_CONFIG     - R/W configuration
     // The pop strobe is a rising-edge detect on the PERF_DATA_LOW swacc
