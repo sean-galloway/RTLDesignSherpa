@@ -4,6 +4,50 @@
 
 ---
 
+## PUMICE-047 — SCHED_WR_WM.wr_batch_max may clobber the whole register on write
+**Status:** open 2026-09-23  **Priority:** P2 — an untrusted knob on a fix that
+is otherwise verified
+
+`wr_batch_max[23:16]` was added to SCHED_WR_WM (`16eda8ed7`) and the default
+path works: the bounded drain is live at reset 16 and the concurrent_rw repro
+passes through it. What is NOT proven is the knob.
+
+Writing the field via `tb.csr_write_field("SCHED_WR_WM","wr_batch_max",0)`
+behaved as if it wrote the WHOLE register: `wr_batch_max=0` should leave
+batching enabled but unbounded (reproducing the starvation), and instead the
+cell PASSED in 43s — the signature of batching being disabled outright, i.e.
+`wr_high_wm` going to 0 as collateral. The same edit broke 4 `gen_replica`
+cells, consistent with one cause.
+
+The readback assert did not catch it because it reads the same field it wrote.
+
+**Do:** check `csr_write_field`'s read-modify-write against a multi-field
+register, then re-run the mutation — `wr_batch_max=0` MUST fail the repro
+(~347s timeout) or the knob is decorative. Until then do not tune this field on
+silicon.
+
+---
+
+## PUMICE-048 — the +25-30% batching gain was measured with the broken drain
+**Status:** open 2026-09-23  **Priority:** P2 — a published number that is
+currently unsafe
+
+[[PUMICE-039]] records write batching recovering **+30.3% at gap 12 (240.7 ->
+313.7 MB/s)** and +25.7% at gap 15. Both were measured on silicon with the
+UNBOUNDED drain — the configuration since shown to starve reads
+([[PUMICE-039]], fixed `fc83c1b3c`). The gain is therefore not attributable: it
+was taken from a controller that was not servicing reads correctly.
+
+The bounded drain should keep nearly all of it — tRTW amortises across the
+batch, so 20 cycles over 16 writes is 1.25 each against 20 for a single
+direction switch — but that is an argument, not a measurement.
+
+**Do:** rebuild the bitstream with `fc83c1b3c`+, reprogram, re-run
+`run_smoke.py --sequences init wr_batch`, and restate or retract the figure in
+PUMICE-039. Needs the board.
+
+---
+
 ## PUMICE-046 — close-page modes reach only ~63% of their own command-bus ceiling
 **Status:** open 2026-09-20  **Priority:** P2 — invisible at the sim geometry,
 dominant at the board's, and it caps close-page paging on silicon
