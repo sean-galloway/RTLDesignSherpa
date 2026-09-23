@@ -5,7 +5,7 @@ summary: Task rollup for the RAPIDS DMA component (projects/components/dmas/rapi
 
 # RAPIDS tasks
 
-**Next ID: TASK-085** — never recycle a number, even when its task closed.
+**Next ID: TASK-086** — never recycle a number, even when its task closed.
 
 Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "RAPIDS TASK-080" when writing outside this file.
 
@@ -20,8 +20,8 @@ Convention: [Tasks](../../../../INDEX.md).
   registers.
 - **TASK-082** — the sink-ingress AXIS meter reads zero on hardware while the
   write side counts every beat. Observability, not datapath (CRCs match).
-- **TASK-083** — re-measure the beat-count knee; the table on file is from
-  2026-07-15 and has not been re-run since the kick refactor.
+- **TASK-085** — backpressure runs record throughput numbers that cannot mean
+  anything (the window shuts before the host can raise ready). Labelling, not RTL.
 
 ## Closed
 - **TASK-081** — the board kick sequencer never wrote KICK_ENABLE. Fixed and
@@ -31,6 +31,8 @@ Convention: [Tasks](../../../../INDEX.md).
   down into `rapids_char_harness` so `verify-sim` reaches the launch path, per
   the STREAM shape. 104 ports -> 7; TB 738 -> 225 lines by reusing the board's
   own campaign. Re-validated sim + board, behaviour byte-identical.
+- **TASK-083** — re-measured the beat-count knee: GONE. 28/28 board configs pass
+  1..4096 beats at 8ch, including every point July 2026-07-15 failed.
 
 The component's old `TASKS.md` / `rapids_beats_mas/TODO` next to the code are
 still to be folded into this area per the one rule (no task files beside code).
