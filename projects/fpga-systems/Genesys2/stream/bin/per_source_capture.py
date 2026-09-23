@@ -41,7 +41,8 @@
 # Sources today:
 #   desc_axi   - The axi4_master_rd_mon inside scheduler_group_array
 #                that monitors the descriptor-fetch bus. Cones drive
-#                via STREAM_APB's DAXMON registers (offset 0x240..).
+#                via STREAM_APB's DAXMON registers, resolved by name
+#                through stream_addrs.A() (they live in the mon regfile).
 #
 # Sources reserved (not yet wired through the harness):
 #   host_bridge_<port> - per-adapter monitors on bridge_stream_char_axil
@@ -93,12 +94,12 @@ DEBUG_SRAM_BYTES = 0x40000     # full 256 KB
 CSR_CTRL        = H("CTRL")
 CSR_DBG_WR_PTR  = H("DBG_WR_PTR")
 
-# STREAM APB register offsets — desc-bus monitor (DAXMON_*).
-# See projects/components/dmas/stream/regs/generated/rtl/stream_regs.sv:
-#   0x240 DAXMON_ENABLE    [MON_EN, ERR_EN, COMPL_EN, TIMEOUT_EN, PERF_EN]
-#   0x244 DAXMON_TIMEOUT   cycles
-#   0x248 DAXMON_LATENCY_THRESH
-#   0x24c DAXMON_PKT_MASK
+# STREAM APB register offsets - desc-bus monitor (DAXMON_*), resolved BY
+# NAME below. The literal table that used to sit here said 0x240-0x24c;
+# that block moved into the stream_mon_regs regfile (0x10C0+) and the
+# literals silently survived the move. Names track a relocation.
+#   DAXMON_ENABLE  [MON_EN, ERR_EN, COMPL_EN, TIMEOUT_EN, PERF_EN]
+#   DAXMON_TIMEOUT / DAXMON_LATENCY_THRESH / DAXMON_PKT_MASK
 import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 from stream_addrs import A as _A   # addresses by name; never hardcode
