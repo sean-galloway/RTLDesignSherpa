@@ -170,74 +170,74 @@ early.
 **Related:** [[TASK-078]], [[COMMON-025]], [[MATH-010]], [[CDC-001]] are the
 same task in the rtl/ areas.
 
-## TASK-081: the board kick sequencer never writes KICK_ENABLE, and no sim can catch it
+## TASK-082: the sink-ingress AXIS meter reads zero on hardware
 
-**Priority:** High — the rapids board characterization campaign cannot launch a
-channel. **Status:** open 2026-09-22.
+**Priority:** Medium -- it does not corrupt data, but it puts a 0.0% utilisation
+and "0 B, 0 pkts" into recorded board numbers for an interface that demonstrably
+carried traffic. **Status:** open 2026-09-22.
 
-`rapids_beats_top` replaced write-to-kick with staged `CHx_DESC_ADDR_{LOW,HIGH}`
-plus a rising-edge-detected `KICK_ENABLE` (SRC 0x0040 / SNK 0x1040). The on-chip
-kick sequencer in `rapids_char_top.sv` still implements the OLD protocol: it
-walks `KST_SCAN -> KST_LOW -> KST_HIGH` emitting APB writes at
-`base + ch*8` and `+0x4` only, and its own comment states the stale assumption
-outright -- `KST_HIGH: // HIGH write triggers the kick` (line 823). There is no
-write to `KICK_ENABLE` anywhere in the kick path (0 matches).
+Measured on the Genesys 2, 2026-09-22, on the freshly fixed bitstream:
 
-So `_stage_kicks()` + `go()` -- the path the campaign actually uses in
-`run_characterization.py` -- stages descriptor addresses and never pulls the
-trigger. Same root cause as the sink self-check failure fixed in the cocotb TB,
-but in a second, independent implementation.
+```
+ 8ch x 8 beats:  SINK AXIS-in: util=0.0%  (prod=0  bp=0 starv=70 idle=0)  0 B, 0 pkts
+                 SINK AXI4-wr: util=91.4% (prod=64 bp=0 starv=6  idle=0)  5.85 GB/s
+ 2ch x 4 beats:  SINK AXIS-in: prod=0 starv=14        SINK AXI4-wr: prod=8
+ sim (harness):  sin meter: prod=32 bp=0 starv=12 idle=100 util=72.7%
+```
 
-**Why no test catches it.** The sim toplevel is `rapids_char_harness`; the
-bitstream top is `rapids_char_top`. `flists/rapids_char_harness.f` references
-`rapids_char_top.sv` **zero** times, so the sequencer sits ABOVE the simulated
-DUT and `verify-sim` is structurally incapable of exercising the board's launch
-mechanism. The gate can be fully green while the board never kicks.
+All sink CRCs match golden in every one of those runs, so the data flowed. The
+sink IS AXIS-fed (`axis4_master_pattern_gen` drives `s_axis_*`), so this is not a
+different stimulus path -- the meter is blind, not the wire idle.
+
+**Leading explanation, NOT yet waveform-proven.** In `rapids_char_harness.sv` the
+observation window is anchored to the *write* side for the sink half:
+
+- it opens on the first `obs_dut_busy` (`~snk_system_idle`),
+- `obs_meter_clear` fires AT window open, wiping anything counted before it,
+- and it closes the cycle after `w_obs_trigger = obs_wr_prod >= obs_target`.
+
+`s_axis` is the DUT's *ingress*. If the generator delivers its beats before
+`snk_system_idle` deasserts, the clear-at-open erases them and the window then
+shuts on the write-side target. `starv=70` fits exactly: the meter was armed and
+watching for ~70 cycles and saw no `s_axis_tvalid` because the feed was already
+done. Sim timing differs enough that 32 beats landed inside the window, which is
+why this is board-only and why no sim catches it.
 
 **Do:**
-- [x] Add the `KICK_ENABLE` write to the sequencer. Done 2026-09-22: new
-      `KST_KICK` state after the scan completes, issuing ONE write to
-      `w_kick_base + 0x040` carrying the whole staged mask, so every channel
-      launches on the same cycle. `KST_SCAN` routes to it only when the mask is
-      non-zero, so `GO` with mask=0 stays a no-op. The enum widened `[1:0]` ->
-      `[2:0]` to hold the fifth state.
-- [x] Delete the dead `kick_channel()` in `run_characterization.py`. Done
-      2026-09-22 (no callers repo-wide; the `kick_channels` hits are STREAM's
-      unrelated plural helper).
-- [x] Close the coverage gap. Done 2026-09-22:
-      `dv/test_rapids_char_top_kick.py`, toplevel `rapids_char_top`, driving the
-      board top over a simulated UART (`UART_BAUD = FPGA_CLK_HZ / CLKS_PER_BIT`
-      passed as a generic so the RTL divisor cannot drift from the TB) through
-      the REAL host transport -- `RapidsCharIO` over `UARTAxiBridge(channel=)`.
-      Host code and RTL run together, because the defect lived exactly in that
-      seam: the host staged and the RTL never pulled the trigger. Asserts
-      KICK_ENABLE is written exactly once, carries the staged mask, and is the
-      FINAL write after all staging; a second case proves `GO` with mask=0
-      pulses nothing.
-      ALSO: `make sim` ran only the pinned harness file, so a new test in `dv/`
-      would never have executed. It now runs the whole `dv/` directory
-      (`DV_TESTS`), so anything dropped there runs by default. `verify-sim`
-      stays pinned to the sink self-check -- it is a fast pre-bitstream gate.
-- [ ] Re-run a board campaign and confirm non-zero beats before trusting any
-      previously recorded rapids board numbers.
+- [ ] Disambiguate before changing anything: add a free-running (unwindowed)
+      `s_axis` beat counter, or capture the window with an ILA, and confirm the
+      beats really do land outside the window rather than the tap being wrong.
+- [ ] Then decide whether sink-ingress deserves its own window anchor rather than
+      sharing the write side's. A meter whose answer depends on which end of the
+      path you anchor to is a measurement bug regardless of this instance.
 
-**Validated as far as it can be without hardware.** `verilator --lint-only` on
-`flists/rapids_char_top.f`: RC=0, 268 diagnostics, IDENTICAL to the pre-patch
-baseline, and zero of them cite `rapids_char_top.sv`. All 268 are pre-existing
-MULTIDRIVEN warnings out of the PeakRDL-generated `rapids_regs.sv`.
+## TASK-083: re-measure the beat-count knee on rapids (July data is stale)
 
-**Now proven in simulation, and the test is non-vacuous.** Against the FIXED
-sequencer: 2 passed. Against the PRE-FIX sequencer (swapped back in, KST_KICK
-count 0) the same test FAILS with `KICK_ENABLE (0x1040) was never written --
-the sequencer staged the descriptor addresses and never launched`. A test that
-passed on both would have proven nothing, which is the trap that let this ship.
+**Priority:** Medium. **Status:** open 2026-09-22.
 
-Still NOT proven on hardware: the remaining item below. Sim exercises the
-sequencer's APB writes, not the board's UART front end at real baud, the
-bitstream, or the DUT's response.
+`reports/perf/json/genesys_8ch_2026-07-15.json` (8 channels, recorded
+2026-07-15T21:35:42) shows a clean knee:
 
-**Evidence:** `rapids_char_top.sv:777-860` (sequencer FSM and `w_kick_paddr`),
-`run_characterization.py:189,203,288-298` (dead `kick_channel`, `_stage_kicks`,
-`go`), `flists/rapids_char_harness.f` (no `rapids_char_top.sv`). The cocotb-side
-twin of this defect and its measurements are in
-`projects/components/dmas/rapids/known_issues/active/char_harness_sink_selfcheck_no_beats.md`.
+```
+  beats 1, 4, 16  -> PASS in both backpressure modes
+  beats 64        -> PASS bpoff, FAIL bpon
+  beats 256+      -> FAIL in both        (sink_pass and source_pass fail together)
+```
+
+**This has NOT been re-measured.** The 2026-09-22 campaign ran beats=8 only --
+deliberately below the knee, so that a failure would be attributable to the kick
+rather than confounded by this limit. So the knee is a July-era observation, and
+whether it survives the staged-address/KICK_ENABLE refactor and the TASK-081 fix
+is simply unknown. It is recorded here because it is real measured data that is
+currently documented nowhere, not because it is known to be current.
+
+Note the July numbers are NOT tainted by the TASK-081 kick defect: that defect
+was introduced by `4ef2dcef0` (2026-09-13 11:34) and fixed by `8fa5af471`
+(2026-09-22 15:02), so only board results recorded inside that window are
+suspect. July predates it by two months.
+
+**Do:**
+- [ ] `make suite BOARD=genesys2 PORT=/dev/ttyUSB0` with
+      `--suite-channels 8 --suite-beats 1,4,16,64,256` and compare against the
+      July table. (`--suite` writes a durable JSON; plain `characterize` persists
+      nothing, which is why the 2026-09-22 numbers live only in TASK-081's text.)
