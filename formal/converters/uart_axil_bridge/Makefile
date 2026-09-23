@@ -4,7 +4,7 @@
 # Dependencies: uart_rx, uart_tx, axil4_master_rd, axil4_master_wr, gaxi_skid_buffer
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := /mnt/data/tools/sv2v
+SV2V      ?= sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes

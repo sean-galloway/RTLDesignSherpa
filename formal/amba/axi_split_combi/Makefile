@@ -8,7 +8,7 @@
 # Regenerate the flat file whenever the RTL changes. (2026-09-11)
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := /mnt/data/tools/sv2v
+SV2V      ?= sv2v
 INC  := -I$(REPO_ROOT)/rtl/amba/includes
 PKGS := 
 SRCS := $(REPO_ROOT)/rtl/amba/shared/axi_split_combi.sv

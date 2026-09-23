@@ -4,7 +4,7 @@
 # so sv2v converts to plain Verilog for yosys compatibility.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := sv2v
+SV2V      ?= sv2v
 
 # No include paths needed (no `include directives)
 INC :=

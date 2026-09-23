@@ -22,7 +22,7 @@
 # projects/-hosted DUTs, and this follows that shape.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := sv2v
+SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 

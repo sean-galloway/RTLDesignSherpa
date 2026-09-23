@@ -4,7 +4,7 @@
 # so we run sv2v to strip the include and produce plain Verilog.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := sv2v
+SV2V      ?= sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes

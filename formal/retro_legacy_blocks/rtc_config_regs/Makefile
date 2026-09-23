@@ -8,7 +8,7 @@
 # so modelling it instead of including it would prove the model, not the design.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := sv2v
+SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 

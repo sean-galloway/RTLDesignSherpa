@@ -8,7 +8,7 @@
 # references with the individual sub-package imports/qualifiers.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := sv2v
+SV2V      ?= sv2v
 TMPDIR    := .sv2v_prep
 
 # Include paths for sv2v preprocessing

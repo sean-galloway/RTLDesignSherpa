@@ -8,7 +8,7 @@
 # ioapic_msi_emit, which are likewise dependency-free.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := sv2v
+SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 DUT := $(REPO_ROOT)/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_boot_intx.sv

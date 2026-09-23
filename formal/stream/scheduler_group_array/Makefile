@@ -14,7 +14,7 @@
 #                         -> monbus_arbiter (9 sources)
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := sv2v
+SV2V      ?= sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \

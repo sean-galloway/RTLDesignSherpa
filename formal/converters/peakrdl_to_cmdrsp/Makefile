@@ -3,7 +3,7 @@
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := /mnt/data/tools/sv2v
+SV2V      ?= sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes

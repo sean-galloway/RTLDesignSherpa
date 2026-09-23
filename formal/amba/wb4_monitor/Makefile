@@ -5,7 +5,7 @@
 # wb4_monitor, leaves first, and the sv2v file list is derived from it).
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := /mnt/data/tools/sv2v
+SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 

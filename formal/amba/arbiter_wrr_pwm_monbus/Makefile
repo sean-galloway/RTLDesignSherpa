@@ -15,7 +15,7 @@
 # ... end` in the output, which yosys cannot parse.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := /mnt/data/tools/sv2v
+SV2V      ?= sv2v
 
 INC  := -I$(REPO_ROOT)/rtl/amba/includes
 

@@ -10,7 +10,7 @@
 # element i is bits [W*(7-i) +: W] (measured 2026-09-11).
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := /mnt/data/tools/sv2v
+SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 
