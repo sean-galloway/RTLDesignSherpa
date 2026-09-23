@@ -101,6 +101,40 @@ package stream_regs_pkg;
 
     typedef struct {
         logic [31:0] next;
+    } stream_regs__PERF_DATA_LOW__DATA__in_t;
+
+    typedef struct {
+        stream_regs__PERF_DATA_LOW__DATA__in_t DATA;
+    } stream_regs__PERF_DATA_LOW__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__PERF_DATA_HIGH__DATA__in_t;
+
+    typedef struct {
+        stream_regs__PERF_DATA_HIGH__DATA__in_t DATA;
+    } stream_regs__PERF_DATA_HIGH__in_t;
+
+    typedef struct {
+        logic next;
+    } stream_regs__PERF_STATUS__EMPTY__in_t;
+
+    typedef struct {
+        logic next;
+    } stream_regs__PERF_STATUS__FULL__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } stream_regs__PERF_STATUS__COUNT__in_t;
+
+    typedef struct {
+        stream_regs__PERF_STATUS__EMPTY__in_t EMPTY;
+        stream_regs__PERF_STATUS__FULL__in_t FULL;
+        stream_regs__PERF_STATUS__COUNT__in_t COUNT;
+    } stream_regs__PERF_STATUS__in_t;
+
+    typedef struct {
+        logic [31:0] next;
     } stream_regs__HIST_DATA__VAL__in_t;
 
     typedef struct {
@@ -487,6 +521,9 @@ package stream_regs_pkg;
         stream_regs__OBS_FLAGS__in_t OBS_FLAGS;
         stream_regs__OBS_DATA0__in_t OBS_DATA0;
         stream_regs__OBS_DATA1__in_t OBS_DATA1;
+        stream_regs__PERF_DATA_LOW__in_t PERF_DATA_LOW;
+        stream_regs__PERF_DATA_HIGH__in_t PERF_DATA_HIGH;
+        stream_regs__PERF_STATUS__in_t PERF_STATUS;
         stream_regs__HIST_DATA__in_t HIST_DATA;
         stream_regs__HIST_TOTAL__in_t HIST_TOTAL;
         stream_mon_regs__in_t MON;
@@ -837,6 +874,14 @@ package stream_regs_pkg;
         stream_regs__OBS_CTRL__CH_SEL__out_t CH_SEL;
         stream_regs__OBS_CTRL__CAT_SEL__out_t CAT_SEL;
     } stream_regs__OBS_CTRL__out_t;
+
+    typedef struct {
+        logic swacc;
+    } stream_regs__PERF_DATA_LOW__DATA__out_t;
+
+    typedef struct {
+        stream_regs__PERF_DATA_LOW__DATA__out_t DATA;
+    } stream_regs__PERF_DATA_LOW__out_t;
 
     typedef struct {
         logic [2:0] value;
@@ -1501,6 +1546,7 @@ package stream_regs_pkg;
         stream_regs__AXI_XFER_CONFIG__out_t AXI_XFER_CONFIG;
         stream_regs__PERF_CONFIG__out_t PERF_CONFIG;
         stream_regs__OBS_CTRL__out_t OBS_CTRL;
+        stream_regs__PERF_DATA_LOW__out_t PERF_DATA_LOW;
         stream_regs__PERF_CH_SEL__out_t PERF_CH_SEL;
         stream_regs__HIST_SEL__out_t HIST_SEL;
         stream_mon_regs__out_t MON;

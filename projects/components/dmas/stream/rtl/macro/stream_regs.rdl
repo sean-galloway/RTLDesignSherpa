@@ -606,6 +606,68 @@ addrmap stream_regs {
 
     } PERF_CONFIG @ 0x2B0;
 
+    //=========================================================================
+    // Performance profiler FIFO readback (0x2D0 - 0x2D8)
+    //=========================================================================
+    // These three were implemented BY HAND in cmdrsp_router.sv at 0x040-0x04C
+    // and declared in no RDL, so DV and host could not resolve them by name and
+    // a regmap regen could never have caught a drift. They move here; the
+    // router's hand decode (and its whole 0x040-0x0FF perf window) is deleted.
+    //
+    // PERF_CONFIG above was ALSO hand-duplicated at 0x040, but that copy drove
+    // dangling nets -- the live config path has always been this register via
+    // stream_config_block. That duplicate is simply removed, not relocated.
+    //
+    // Read order matters and is enforced by hardware, not by this file:
+    // reading DATA_LOW pops the FIFO and latches all 36 bits; DATA_HIGH then
+    // returns the latched upper bits WITHOUT a second pop. swacc on DATA_LOW is
+    // the pop strobe -- it is generated as the BARE register strobe (asserts on
+    // writes too) and is a multi-cycle level behind peakrdl_to_cmdrsp, so the
+    // consumer must qualify it with !req_is_wr and rising-edge detect it.
+    // perf_profiler takes perf_fifo_rd as a ONE-CYCLE pop; a level double-pops
+    // and silently drops every other entry.
+    //=========================================================================
+    reg {
+        name = "Perf FIFO Data Low";
+        desc = "Timestamp or elapsed time [31:0]. READING THIS POPS THE FIFO and
+                latches the full 36-bit entry; read DATA_HIGH afterwards for the
+                upper bits.";
+
+        field {
+            desc = "Timestamp or elapsed cycles";
+            sw = r;
+            hw = w;
+            swacc;      // FIFO pop strobe -- see the note above
+        } DATA[31:0] = 0;
+
+    } PERF_DATA_LOW @ 0x2D0;
+
+    reg {
+        name = "Perf FIFO Data High";
+        desc = "Latched upper bits of the entry popped by the last DATA_LOW
+                read: {28'b0, event_type, channel_id[2:0]}. No FIFO pop.";
+
+        field {
+            desc = "Channel id [2:0], event_type [3]";
+            sw = r;
+            hw = w;
+        } DATA[31:0] = 0;
+
+    } PERF_DATA_HIGH @ 0x2D4;
+
+    reg {
+        name = "Perf FIFO Status";
+        desc = "FIFO occupancy and flags. Layout matches the retired hand-rolled
+                register at 0x04C exactly, so host code porting over needs no
+                field changes.";
+
+        field { desc = "FIFO empty"; sw = r; hw = w; } EMPTY[0:0] = 0;
+        field { desc = "FIFO full";  sw = r; hw = w; } FULL[1:1]  = 0;
+        field { desc = "Reserved";   sw = r; hw = na; } RSVD[15:2] = 14'h0;
+        field { desc = "Entries in FIFO"; sw = r; hw = w; } COUNT[31:16] = 0;
+
+    } PERF_STATUS @ 0x2D8;
+
 
     //=========================================================================
     // Channel-Observation Mux (0x2C0 - 0x2CF)

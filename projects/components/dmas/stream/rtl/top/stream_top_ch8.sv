@@ -26,7 +26,7 @@
 //     - Configurable AXI transaction monitors (USE_AXI_MONITORS parameter)
 //     - Monitor bus to AXI-Lite conversion (error FIFO + master write)
 //     - Single interrupt output (stream_irq from monbus_axil_group)
-//     - Performance profiler interface (integrated in cmdrsp_router @ 0x040-0x0FF)
+//     - Performance profiler registers (RDL block, PERF_* @ 0x2B0-0x2D8)
 //
 // Parameters:
 //   NUM_CHANNELS: Number of DMA channels (fixed at 8)
@@ -536,10 +536,11 @@ module stream_top_ch8 #(
     //-------------------------------------------------------------------------
     // Performance Profiler Interface
     //-------------------------------------------------------------------------
-    // Performance profiler configuration signals
-    logic                                   perf_cfg_enable;
-    logic                                   perf_cfg_mode;
-    logic                                   perf_cfg_clear;
+    // NOTE: perf_cfg_{enable,mode,clear} used to be declared here and driven by
+    // cmdrsp_router's hand-rolled PERF_CONFIG @ 0x040. They were consumed by
+    // NOTHING -- the profiler has always been configured from the RDL register
+    // PERF_CONFIG @ 0x2B0 via stream_config_block (cfg_perf_*). Removed with the
+    // router's perf branch.
 
     // Performance profiler FIFO interface signals
     logic                                   perf_fifo_empty;
@@ -873,18 +874,7 @@ module stream_top_ch8 #(
         .m1_rsp_valid               (peakrdl_rsp_valid),
         .m1_rsp_ready               (peakrdl_rsp_ready),
         .m1_rsp_prdata              (peakrdl_rsp_prdata),
-        .m1_rsp_pslverr             (peakrdl_rsp_pslverr),
-
-        // Performance Profiler Interface (0x040-0x0FF, integrated registers)
-        .perf_cfg_enable            (perf_cfg_enable),
-        .perf_cfg_mode              (perf_cfg_mode),
-        .perf_cfg_clear             (perf_cfg_clear),
-        .perf_fifo_data_low         (perf_fifo_data_low),
-        .perf_fifo_data_high        (perf_fifo_data_high),
-        .perf_fifo_empty            (perf_fifo_empty),
-        .perf_fifo_full             (perf_fifo_full),
-        .perf_fifo_count            (perf_fifo_count),
-        .perf_fifo_rd               (perf_fifo_rd)
+        .m1_rsp_pslverr             (peakrdl_rsp_pslverr)
     );
 
     // (kick block removed: the kick is now CHx_CTRL_{LOW,HIGH} + KICK_ENABLE
@@ -974,6 +964,26 @@ module stream_top_ch8 #(
         end
     endgenerate
 
+    // -------------------------------------------------------------------------
+    // Perf FIFO pop strobe (replaces cmdrsp_router's hand-rolled decode)
+    // -------------------------------------------------------------------------
+    // perf_profiler takes perf_fifo_rd as a ONE-CYCLE pop (.rd_ready on the FIFO,
+    // and it latches the 36-bit entry on the same condition). swacc is NOT that:
+    // PeakRDL emits it as the bare register strobe -- it asserts on writes too --
+    // and peakrdl_to_cmdrsp holds regblk_req across CMD_IDLE -> CMD_WAIT_ACK until
+    // ack, so it arrives as a multi-cycle LEVEL. Driving perf_fifo_rd from it
+    // directly pops twice per read and silently drops every other entry. Qualify
+    // to reads and rising-edge detect, as pic_8259_config_regs does for PIC_INTA.
+    logic w_perf_rd_acc, r_perf_rd_acc_d;
+    assign w_perf_rd_acc = hwif_out.PERF_DATA_LOW.DATA.swacc && !regblk_req_is_wr;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_perf_rd_acc_d <= 1'b0;
+        else                        r_perf_rd_acc_d <= w_perf_rd_acc;
+    )
+
+    assign perf_fifo_rd = w_perf_rd_acc && !r_perf_rd_acc_d;
+
     // Use combinational assignment for hwif_in struct
     // Note: registered struct member assignments through ports may have simulation issues
     always_comb begin
@@ -984,6 +994,17 @@ module stream_top_ch8 #(
         for (int i = 0; i < NUM_CHANNELS; i++) begin
             hwif_in.CH_STATE[i].STATE.STATE.next = hwif_ch_state[i];
         end
+
+        // Perf profiler FIFO readback (PERF_DATA_LOW/HIGH/STATUS @ 0x2D0-0x2D8).
+        // These registers moved out of cmdrsp_router's hand decode at
+        // 0x040-0x04C into the RDL. Driving hwif_in is NOT optional: the block
+        // decodes them either way, so an unconnected .next reads 0 forever --
+        // the exact defect SCHED_ERROR carried below.
+        hwif_in.PERF_DATA_LOW.DATA.next  = perf_fifo_data_low;
+        hwif_in.PERF_DATA_HIGH.DATA.next = perf_fifo_data_high;
+        hwif_in.PERF_STATUS.EMPTY.next   = perf_fifo_empty;
+        hwif_in.PERF_STATUS.FULL.next    = perf_fifo_full;
+        hwif_in.PERF_STATUS.COUNT.next   = perf_fifo_count;
 
         // Channel-Observation Mux readback (driven by stream_core via
         // stream_config_block; see OBS_CTRL @ 0x2C0 for the selector).
@@ -2064,16 +2085,17 @@ module stream_top_ch8 #(
     endgenerate
 
     //=========================================================================
-    // Performance Profiler Interface Router
+    // Performance Profiler Registers
     //=========================================================================
-    // Performance profiler interface is connected through cmdrsp_router
-    // (see router instantiation above for perf_cfg_* and perf_fifo_* connections)
-    //
-    // Address map (via cmdrsp_router):
-    //   0x040: PERF_CONFIG      - R/W configuration register
-    //   0x044: PERF_DATA_LOW    - RO FIFO data (timestamp/elapsed)
-    //   0x048: PERF_DATA_HIGH   - RO FIFO metadata (event_type, channel_id)
-    //   0x04C: PERF_STATUS      - RO FIFO status (count, full, empty)
+    // The perf registers are RDL-declared and live in the PeakRDL block, NOT
+    // in cmdrsp_router (which no longer carries any perf connection):
+    //   0x2D0: PERF_DATA_LOW   - RO, capture low word; reading POPS the FIFO
+    //   0x2D4: PERF_DATA_HIGH  - RO, capture high word (read BEFORE the low
+    //                            word, since the low-word read is the pop)
+    //   0x2D8: PERF_STATUS     - RO, EMPTY[0] FULL[1] COUNT[31:16]
+    //   0x2B0: PERF_CONFIG     - R/W configuration
+    // The pop strobe is a rising-edge detect on the PERF_DATA_LOW swacc
+    // qualified by !req_is_wr; see the perf_fifo_rd assignment above.
 
     //=========================================================================
     // MonBus AXI-Lite Group (Monitor Bus to AXI-Lite Converter)

@@ -64,6 +64,9 @@ Don't override. Generated from: $root
 |0x02C4|      OBS_FLAGS     |           Observation Flags          |
 |0x02C8|      OBS_DATA0     |          Observation Data 0          |
 |0x02CC|      OBS_DATA1     |          Observation Data 1          |
+|0x02D0|    PERF_DATA_LOW   |          Perf FIFO Data Low          |
+|0x02D4|   PERF_DATA_HIGH   |          Perf FIFO Data High         |
+|0x02D8|     PERF_STATUS    |           Perf FIFO Status           |
 |0x035C|     PERF_CH_SEL    |Per-Channel Perf Bucket Readout Select|
 |0x0378|      HIST_SEL      |   Latency Histogram Readout Select   |
 |0x037C|      HIST_DATA     |      Latency Histogram Bin Count     |
@@ -1133,6 +1136,74 @@ datapath streams continuously across descriptor boundaries.</p>
 #### DATA field
 
 <p>Observation data 1</p>
+
+### PERF_DATA_LOW register
+
+- Absolute Address: 0x2D0
+- Base Offset: 0x2D0
+- Size: 0x4
+
+<p>Timestamp or elapsed time [31:0]. READING THIS POPS THE FIFO and
+latches the full 36-bit entry; read DATA_HIGH afterwards for the
+upper bits.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   DATA   |   r  | 0x0 |  — |
+
+#### DATA field
+
+<p>Timestamp or elapsed cycles</p>
+
+### PERF_DATA_HIGH register
+
+- Absolute Address: 0x2D4
+- Base Offset: 0x2D4
+- Size: 0x4
+
+<p>Latched upper bits of the entry popped by the last DATA_LOW
+read: {28'b0, event_type, channel_id[2:0]}. No FIFO pop.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   DATA   |   r  | 0x0 |  — |
+
+#### DATA field
+
+<p>Channel id [2:0], event_type [3]</p>
+
+### PERF_STATUS register
+
+- Absolute Address: 0x2D8
+- Base Offset: 0x2D8
+- Size: 0x4
+
+<p>FIFO occupancy and flags. Layout matches the retired hand-rolled
+register at 0x04C exactly, so host code porting over needs no
+field changes.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+|  0  |   EMPTY  |   r  | 0x0 |  — |
+|  1  |   FULL   |   r  | 0x0 |  — |
+| 15:2|   RSVD   |   r  | 0x0 |  — |
+|31:16|   COUNT  |   r  | 0x0 |  — |
+
+#### EMPTY field
+
+<p>FIFO empty</p>
+
+#### FULL field
+
+<p>FIFO full</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+#### COUNT field
+
+<p>Entries in FIFO</p>
 
 ### PERF_CH_SEL register
 

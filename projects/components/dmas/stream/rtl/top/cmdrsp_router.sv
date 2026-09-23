@@ -7,7 +7,6 @@
 //
 // Routing Architecture:
 //   - m0: retired (0x000-0x03F now takes the default route; m0 tied inactive)
-//   - Explicit decode: 0x040-0x0FF → Performance profiler (integrated)
 //   - Default route:   Everything else → Configuration registers (peakrdl_to_cmdrsp)
 //
 // This ensures PeakRDL config space can handle any register address
@@ -53,7 +52,7 @@ module cmdrsp_router #(
     input  logic [DATA_WIDTH-1:0]   m0_rsp_prdata,
     input  logic                    m0_rsp_pslverr,
 
-    // CMD/RSP Master 1: Configuration registers (default route for all non-m0/perf addresses)
+    // CMD/RSP Master 1: Configuration registers (default route for everything not m0)
     output logic                    m1_cmd_valid,
     input  logic                    m1_cmd_ready,
     output logic                    m1_cmd_pwrite,
@@ -62,30 +61,13 @@ module cmdrsp_router #(
     input  logic                    m1_rsp_valid,
     output logic                    m1_rsp_ready,
     input  logic [DATA_WIDTH-1:0]   m1_rsp_prdata,
-    input  logic                    m1_rsp_pslverr,
-
-    //-------------------------------------------------------------------------
-    // Performance Profiler Interface (0x040-0x0FF, integrated registers)
-    //-------------------------------------------------------------------------
-    // Configuration outputs
-    output logic                    perf_cfg_enable,
-    output logic                    perf_cfg_mode,
-    output logic                    perf_cfg_clear,
-
-    // FIFO read interface
-    input  logic [31:0]             perf_fifo_data_low,
-    input  logic [31:0]             perf_fifo_data_high,
-    input  logic                    perf_fifo_empty,
-    input  logic                    perf_fifo_full,
-    input  logic [15:0]             perf_fifo_count,
-    output logic                    perf_fifo_rd
+    input  logic                    m1_rsp_pslverr
 );
 
     //=========================================================================
     // Address Decode
     //=========================================================================
     logic addr_hit_m0;   // 0x000-0x03F - Descriptor kick-off (explicit)
-    logic addr_hit_perf; // 0x040-0x0FF - Performance profiler (explicit, integrated)
     logic addr_hit_m1;   // Everything else - Configuration registers (default route)
 
     always_comb begin
@@ -96,120 +78,34 @@ module cmdrsp_router #(
         // the default m1 route with everything else. m0 is retained, tied
         // inactive, so the router's port map is unchanged for other users.
         addr_hit_m0   = 1'b0;
-        addr_hit_perf = (s_cmd_paddr[ADDR_WIDTH-1:8] == '0) && (s_cmd_paddr[7:6] != 2'b00);  // 0x040-0x0FF
-        // m1 is default route: anything that doesn't match m0 or perf
-        addr_hit_m1   = !addr_hit_m0 && !addr_hit_perf;
+        // The 0x040-0x0FF perf-profiler window used to be carved out here and
+        // decoded by hand below. Those four registers are RDL registers now
+        // (PERF_DATA_LOW/HIGH/STATUS @ 0x2D0-0x2D8; PERF_CONFIG was already
+        // @ 0x2B0 and the copy here drove dangling nets), so the range falls
+        // through to m1 like everything else.
+        addr_hit_m1   = !addr_hit_m0;
     end
 
     //=========================================================================
     // Selection Tracking (for response routing)
     //=========================================================================
     logic r_sel_m0;
-    logic r_sel_perf;
     logic r_sel_m1;
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_sel_m0   <= 1'b0;
-            r_sel_perf <= 1'b0;
             r_sel_m1   <= 1'b0;
         end else begin
             // Capture selection when command accepted
             if (s_cmd_valid && s_cmd_ready) begin
                 r_sel_m0   <= addr_hit_m0;
-                r_sel_perf <= addr_hit_perf;
                 r_sel_m1   <= addr_hit_m1;
             end
             // Clear selection when response accepted
             if (s_rsp_valid && s_rsp_ready) begin
                 r_sel_m0   <= 1'b0;
-                r_sel_perf <= 1'b0;
                 r_sel_m1   <= 1'b0;
-            end
-        end
-    )
-
-    //=========================================================================
-    // Performance Profiler Register Logic (Integrated)
-    //=========================================================================
-    // Register addresses (offset from 0x040):
-    localparam logic [7:0] PERF_CONFIG_ADDR    = 8'h40;  // 0x040: Config register
-    localparam logic [7:0] PERF_DATA_LOW_ADDR  = 8'h44;  // 0x044: FIFO data low
-    localparam logic [7:0] PERF_DATA_HIGH_ADDR = 8'h48;  // 0x048: FIFO data high
-    localparam logic [7:0] PERF_STATUS_ADDR    = 8'h4C;  // 0x04C: FIFO status
-
-    // Configuration register (writable)
-    logic [2:0] r_perf_config;  // {cfg_clear, cfg_mode, cfg_enable}
-
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_perf_config <= 3'b000;  // All disabled on reset
-        end else begin
-            // Write to PERF_CONFIG register
-            if (s_cmd_valid && s_cmd_ready && addr_hit_perf &&
-                s_cmd_pwrite && (s_cmd_paddr[7:0] == PERF_CONFIG_ADDR)) begin
-                r_perf_config <= s_cmd_pwdata[2:0];
-            end
-            // Auto-clear cfg_clear after one cycle
-            else if (r_perf_config[2]) begin
-                r_perf_config[2] <= 1'b0;
-            end
-        end
-    )
-
-    // Configuration outputs
-    assign perf_cfg_enable = r_perf_config[0];
-    assign perf_cfg_mode   = r_perf_config[1];
-    assign perf_cfg_clear  = r_perf_config[2];
-
-    // FIFO read strobe (asserted when PERF_DATA_LOW is read)
-    assign perf_fifo_rd = s_cmd_valid && s_cmd_ready && addr_hit_perf &&
-                         !s_cmd_pwrite && (s_cmd_paddr[7:0] == PERF_DATA_LOW_ADDR);
-
-    // Register read data
-    logic [DATA_WIDTH-1:0] perf_rsp_data;
-    logic                  perf_rsp_valid;
-    logic                  perf_rsp_ready_internal;
-
-    always_comb begin
-        perf_rsp_data = 32'h0;
-        case (s_cmd_paddr[7:0])
-            PERF_CONFIG_ADDR: begin
-                perf_rsp_data = {29'h0, r_perf_config};
-            end
-            PERF_DATA_LOW_ADDR: begin
-                perf_rsp_data = perf_fifo_data_low;
-            end
-            PERF_DATA_HIGH_ADDR: begin
-                perf_rsp_data = perf_fifo_data_high;
-            end
-            PERF_STATUS_ADDR: begin
-                // perf_rsp_data is 32 bits wide
-                // layout: [31:16] perf_fifo_count (16b)
-                //         [15:2]  reserved (14b)
-                //         [1]     perf_fifo_full
-                //         [0]     perf_fifo_empty
-                // (previously had an extra leading 15'h0 that made the RHS 47 bits)
-                perf_rsp_data = {perf_fifo_count, 14'h0, perf_fifo_full, perf_fifo_empty};
-            end
-            default: begin
-                perf_rsp_data = 32'hDEADBEEF;  // Invalid address within perf range
-            end
-        endcase
-    end
-
-    // Perf profiler always ready (single-cycle response)
-    assign perf_rsp_ready_internal = 1'b1;
-
-    // Response valid (single cycle after command accepted)
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            perf_rsp_valid <= 1'b0;
-        end else begin
-            if (s_cmd_valid && s_cmd_ready && addr_hit_perf) begin
-                perf_rsp_valid <= 1'b1;
-            end else if (perf_rsp_valid && s_rsp_ready) begin
-                perf_rsp_valid <= 1'b0;
             end
         end
     )
@@ -222,35 +118,30 @@ module cmdrsp_router #(
     assign m0_cmd_paddr  = s_cmd_paddr;
     assign m0_cmd_pwdata = s_cmd_pwdata;
 
-    // m1 gets everything that doesn't go to m0 or perf (default route)
+    // m1 gets everything that doesn't go to m0 (default route)
     assign m1_cmd_valid  = s_cmd_valid && addr_hit_m1;
     assign m1_cmd_pwrite = s_cmd_pwrite;
     assign m1_cmd_paddr  = s_cmd_paddr;
     assign m1_cmd_pwdata = s_cmd_pwdata;
 
     // Command ready (mux based on address, default to m1)
-    assign s_cmd_ready = addr_hit_m0   ? m0_cmd_ready :
-                        addr_hit_perf ? perf_rsp_ready_internal :  // Perf always ready
-                        m1_cmd_ready;  // Default route to m1 for everything else
+    assign s_cmd_ready = addr_hit_m0 ? m0_cmd_ready :
+                         m1_cmd_ready;  // Default route to m1 for everything else
 
     //=========================================================================
     // Response Routing
     //=========================================================================
-    // Default to m1 response if neither m0 nor perf selected
-    assign s_rsp_valid   = r_sel_m0   ? m0_rsp_valid :
-                          r_sel_perf ? perf_rsp_valid :
-                          m1_rsp_valid;  // Default route
+    // Default to m1 response if m0 was not selected
+    assign s_rsp_valid   = r_sel_m0 ? m0_rsp_valid :
+                           m1_rsp_valid;  // Default route
 
-    assign s_rsp_prdata  = r_sel_m0   ? m0_rsp_prdata :
-                          r_sel_perf ? perf_rsp_data :
-                          m1_rsp_prdata;  // Default route
+    assign s_rsp_prdata  = r_sel_m0 ? m0_rsp_prdata :
+                           m1_rsp_prdata;  // Default route
 
-    assign s_rsp_pslverr = r_sel_m0   ? m0_rsp_pslverr :
-                          r_sel_perf ? 1'b0 :  // Perf never errors
-                          m1_rsp_pslverr;  // Default route (m1 handles errors)
+    assign s_rsp_pslverr = r_sel_m0 ? m0_rsp_pslverr :
+                           m1_rsp_pslverr;  // Default route (m1 handles errors)
 
     assign m0_rsp_ready = r_sel_m0 && s_rsp_ready;
     assign m1_rsp_ready = r_sel_m1 && s_rsp_ready;
-    // Note: perf uses perf_rsp_ready_internal (always 1)
 
 endmodule : cmdrsp_router
