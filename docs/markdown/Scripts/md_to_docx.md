@@ -53,7 +53,7 @@ This script bridges the gap between markdown documentation and professional docu
 
 - **Mermaid Diagrams**: `\`\`\`mermaid` blocks rendered to PNG via mmdc CLI
 - **Wavedrom Diagrams**: `\`\`\`wavedrom` JSON blocks rendered to SVG
-- **Wavedrom Images**: `![title](diagram.json)` references rendered to SVG
+- **Wavedrom Images**: `![title](diagram.json)`-style references rendered to SVG
 - **Degraded Fallback**: If rendering tools unavailable, keeps diagrams as code blocks
 
 ### PDF-Specific Features
@@ -404,7 +404,7 @@ This ensures the PDF matches the DOCX styling exactly.
 
 Scans index markdown for links to .md files:
 1. Finds inline comment directives: `<!-- include: path/file.md -->`
-2. Finds markdown links: `[Title](path/file.md)`
+2. Finds markdown links of the form `[Title](path/file.md)`
 3. Resolves paths relative to index directory
 4. Returns ordered list of paths to concatenate
 

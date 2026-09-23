@@ -376,8 +376,42 @@ def cmd_list(reg: dict) -> int:
     return 0
 
 
-def cmd_check(reg: dict) -> int:
+EXEMPT_BASELINE = REPO_ROOT / "bin" / "filelist_exempt_baseline.json"
+
+
+def _exempt_ratchet(seen: dict) -> int:
+    """Fail when the [exempt] ledger GROWS.
+
+    --check subtracts exempt modules before deciding PASS, so adding an
+    exemption makes a gap disappear and every gate stays green. --blindspots
+    --ratchet does not cover this: it ratchets unregistered .f, hand-listed
+    tests and dead .sby paths, a different class. Validating TASK-026 on
+    2026-09-16 meant reading the ledger by hand for exactly this reason.
+
+    Ratcheted rather than hard-gated, like the repo's other baselines: an
+    area may carry the exemptions it has, it may not add one unnoticed.
+    """
+    import json
+    if not EXEMPT_BASELINE.exists():
+        return 0
+    base = json.loads(EXEMPT_BASELINE.read_text())
+    grew = [(a, base.get(a, 0), n) for a, n in sorted(seen.items())
+            if n > base.get(a, 0)]
+    if not grew:
+        print(f"[exempt] ratchet OK: {sum(seen.values())} exempt across "
+              f"{len([n for n in seen.values() if n])} area(s), none grew")
+        return 0
+    print()
+    for a, was, now in grew:
+        print(f"[exempt] FAIL {a}: {was} -> {now}. A new exemption hides a "
+              f"module from --check. Justify it in bin/filelists.toml and "
+              f"re-baseline with --update-exempt-baseline, or write the .f.")
+    return 1
+
+
+def cmd_check(reg: dict, update_exempt_baseline: bool = False) -> int:
     exempt = reg.get("exempt", {})
+    exempt_seen: dict[str, int] = {}
     failures = 0
 
     for area in reg.get("area", []):
@@ -433,21 +467,43 @@ def cmd_check(reg: dict) -> int:
                     continue
                 declared |= modules_in(sv)
 
+        # An exempt module is subtracted here and therefore CANNOT fail this
+        # gate -- which is exactly why a new exemption must be visible. The
+        # count is reported unconditionally below and ratcheted against
+        # bin/filelist_exempt_baseline.json, because "PASS" computed over a
+        # ledger nobody reads is the silence this gate exists to break.
+        area_exempt = sorted(m for m in declared - covered if m in exempt)
         missing = sorted(m for m in declared - covered if m not in exempt)
         status = "OK  " if not missing and not problems else "FAIL"
         if missing or problems:
             failures += 1
         print(f"[{status}] {area['name']:<28} {len(declared):>4} modules, "
               f"{len(declared & covered):>4} covered, {len(missing):>3} uncovered, "
+              f"{len(area_exempt):>3} exempt, "
               f"{len(problems):>3} broken refs")
+        exempt_seen[area["name"]] = len(area_exempt)
         for m in missing:
-            print(f"         uncovered module: {m}")
+            # Name the directory the .f belongs in, not just the module. The
+            # fix is "write a filelist HERE"; without the destination the
+            # reader has to go find where this area keeps them (TOOL-003).
+            dests = area.get("filelist_dirs") or [f"{r}/filelists" for r in roots]
+            print(f"         uncovered module: {m}  -> add a .f under {dests[0]}")
         for p in dict.fromkeys(problems):
             print(f"         {p}")
 
     print()
-    print("PASS" if not failures else f"FAIL ({failures} area(s) with gaps)")
-    return 1 if failures else 0
+    if update_exempt_baseline:
+        import json
+        EXEMPT_BASELINE.write_text(
+            json.dumps(exempt_seen, indent=2, sort_keys=True) + "\n")
+        print(f"[exempt] baseline written: {sum(exempt_seen.values())} exempt "
+              f"across {len(exempt_seen)} area(s)")
+        return 0
+    ratchet = _exempt_ratchet(exempt_seen)
+    print("PASS" if not failures and not ratchet
+          else f"FAIL ({failures} area(s) with gaps)"
+          if failures else "FAIL (exempt ledger grew)")
+    return 1 if (failures or ratchet) else 0
 
 
 def cmd_find(reg: dict, module: str) -> int:
@@ -933,6 +989,10 @@ def main() -> int:
                     help="with --blindspots: fail only if a class GREW vs the baseline")
     ap.add_argument("--update-baseline", action="store_true",
                     help="with --blindspots: rewrite the baseline from the current counts")
+    ap.add_argument("--update-exempt-baseline", action="store_true",
+                    dest="update_exempt_baseline",
+                    help="with --check: rewrite bin/filelist_exempt_baseline.json "
+                         "from the current per-area [exempt] counts")
     args = ap.parse_args()
 
     if args.resolve:
@@ -942,7 +1002,7 @@ def main() -> int:
     if args.list:
         return cmd_list(reg)
     if args.check:
-        return cmd_check(reg)
+        return cmd_check(reg, args.update_exempt_baseline)
     if args.audit:
         return cmd_audit(reg)
     if args.unrolled:

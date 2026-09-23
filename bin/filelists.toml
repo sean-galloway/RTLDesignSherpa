@@ -106,6 +106,18 @@ rtl_roots = ["projects/components/converters/rtl"]
 filelist_dirs = ["projects/components/converters/rtl/filelists"]
 
 [[area]]
+name = "delta"
+kind = "component"
+# Registered 2026-09-23 (TOOL-019). delta had ONE module, zero filelists and no
+# entry here, so its lint target linted a bare .sv with `|| true` and gated
+# nothing -- and an unregistered area owns nothing, so --audit could not see it
+# either. rtl_test/ holds other shapes from the same generator and is
+# deliberately outside rtl_roots: they are generator output, not this area's
+# compile closure.
+rtl_roots = ["projects/components/delta/rtl"]
+filelist_dirs = ["projects/components/delta/rtl/filelists"]
+
+[[area]]
 name = "stream"
 kind = "component"
 rtl_roots = ["projects/components/dmas/stream/rtl"]

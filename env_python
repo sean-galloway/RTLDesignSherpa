@@ -71,17 +71,25 @@ export PYTHONPATH="$REPO_ROOT/projects/components/dmas/rapids/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/retro_legacy_blocks/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/dmas/stream/dv:$PYTHONPATH"
 
+# Where install_tools.sh put the toolchain. Override with RTLDS_TOOLS_PREFIX
+# when tools live elsewhere -- install_tools.sh --prefix used to print three
+# export lines to paste by hand, and the ORDER mattered (the pinned Verilator
+# must be prepended last so it beats oss-cad-suite's). Setting one variable
+# removes that footgun; the ordering below is the script's problem, not yours.
+export RTLDS_TOOLS_PREFIX="${RTLDS_TOOLS_PREFIX:-/mnt/data/tools}"
+
 # OSS CAD Suite (yosys 0.62+, SymbiYosys, solvers) — formal verification
-if [ -d "/mnt/data/tools/oss-cad-suite/bin" ]; then
-# sv2v (SystemVerilog to Verilog transpiler) — formal verification preprocessing
-if [ -f "/mnt/data/tools/sv2v" ]; then
-    export PATH="/mnt/data/tools:$PATH"
+#
+# These two blocks used to be nested inside each other, with the sv2v test
+# duplicated verbatim and the oss-cad-suite export sitting AFTER an inner fi --
+# so the suite only reached PATH on a machine that also had sv2v. Flat now.
+if [ -d "$RTLDS_TOOLS_PREFIX/oss-cad-suite/bin" ]; then
+    export PATH="$RTLDS_TOOLS_PREFIX/oss-cad-suite/bin:$PATH"
 fi
-    export PATH="/mnt/data/tools/oss-cad-suite/bin:$PATH"
+
 # sv2v (SystemVerilog to Verilog transpiler) — formal verification preprocessing
-if [ -f "/mnt/data/tools/sv2v" ]; then
-    export PATH="/mnt/data/tools:$PATH"
-fi
+if [ -f "$RTLDS_TOOLS_PREFIX/sv2v" ]; then
+    export PATH="$RTLDS_TOOLS_PREFIX:$PATH"
 fi
 
 # Verilator: use the oss-cad-suite build (5.045), already on PATH above.
@@ -107,7 +115,7 @@ fi
 # relative to its own location. Setting it wrong breaks verilator_bin lookup.
 unset VERILATOR_ROOT 2>/dev/null
 if [ "${VERILATOR_PIN:-}" = "5.020" ]; then
-    export PATH="/mnt/data/tools/verilator-5.020/bin:$PATH"
+    export PATH="$RTLDS_TOOLS_PREFIX/verilator-5.020/bin:$PATH"
 fi
 
 # Do NOT let ccache cache Verilator's precompiled header.

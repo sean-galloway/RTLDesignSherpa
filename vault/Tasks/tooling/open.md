@@ -2,201 +2,34 @@
 
 # Tooling tasks — open (not started)
 
-## TOOL-017: `lint-<component>` is advertised but cannot run for two areas
+## TOOL-020: `formal/` has two competing conventions for where sv2v lives
 **Priority:** P3
-**Status:** Not Started -- and MOVED BACK TO OPEN 2026-09-16. It was filed on
-the closed page while its own status said Not Started and no fix was recorded.
-Re-checked against the tree today and it still reproduces exactly as described:
-`retro_legacy_blocks` has an `rtl/Makefile` but NO `lint-all` target, and
-`apbx_xbar` has no `rtl/` directory at all, while the template at
-`projects/components/Makefile` delegates unconditionally to
-`$(MAKE) -C $(1)/rtl lint-all`.
+**Status:** Not Started
 **Owner:** TBD
 
-`projects/components/Makefile` generates a lint target per component and
-advertises them in `make help`:
+Found 2026-09-23 while closing TOOL-005, and deliberately NOT folded into it:
+TOOL-005 is about `env_python`, and this is 117 formal harness Makefiles.
 
-    make lint-retro_legacy_blocks  Lint Retro Legacy Blocks RTL
+Three spellings across `formal/`:
 
-Both of these fail immediately, measured 2026-09-14:
+    SV2V      := /mnt/data/tools/sv2v     85 files
+    SV2V      := sv2v                     31 files
+    SV2V := sv2v                           1 file
 
-    $ make lint-retro_legacy_blocks
-    make[1]: *** No rule to make target 'lint-all'.  Stop.
-    make: *** [Makefile:463: lint-retro_legacy_blocks] Error 2
+So a machine whose tools are not at `/mnt/data/tools` runs 31 harnesses and
+fails 85, and nothing says which is intended. Nothing in the repo exports
+`SV2V`, so the bare-`sv2v` form depends entirely on PATH -- which
+`env_python` now sets from `RTLDS_TOOLS_PREFIX` (TOOL-005).
 
-    $ make lint-apbx_xbar
-    make[1]: *** apbx_xbar/rtl: No such file or directory.  Stop.
-    make: *** [Makefile:463: lint-apbx_xbar] Error 2
+**Fix:** one form, `SV2V ?= sv2v`, letting PATH resolve it and an environment
+override win. `?=` rather than `:=` so a caller can pin a specific binary
+without editing 117 files. Do it as one mechanical sweep with a lint/formal
+smoke run behind it, not file by file.
 
-The template at `Makefile:456` delegates to `$(MAKE) -C $(1)/rtl lint-all`.
-stream, rapids, bridge and converters each have an `rtl/Makefile` providing
-`lint-all`; **retro_legacy_blocks and apbx_xbar do not**, and apbx_xbar has no
-`rtl/` directory under that name at all.
-
-**Why it matters rather than being cosmetic.** A gate that cannot run is not a
-gate, and this one is advertised in `help`, so the natural assumption is that
-the area is linted. It is not: [[RLB-015]] sat unverified for days partly
-because the reporter concluded "retro_legacy_blocks has no lint target, so
-nothing is measured" -- the right conclusion from the wrong premise. The area
-IS lintable; every block has a working top filelist and
-`verilator --lint-only -Wall --timing -f <filelist>` runs clean today.
-
-**Fix options, in order of preference:** give the two areas an `rtl/Makefile`
-with a `lint-all` that loops their top filelists (the sweep in RLB-015's
-closure is a working prototype); or have the template discover filelists
-directly and drop the per-area Makefile requirement; or, at minimum, stop
-advertising targets that cannot run.
-
-**SAME ROOT CAUSE, WORSE SYMPTOM, found 2026-09-14: the whole component
-regression cannot run either.** `projects/components/Makefile` line 31 lists
-the component as `apbx_xbar`, but the directory was renamed to the hyphenated
-house style and is `apbx-xbar` on disk. It is the FIRST entry in `COMPONENTS`,
-and the loop at `Makefile:259` ends each iteration with `|| exit 1`, so:
-
-    $ make clean-all && make run-all-full-parallel
-    ==> Testing apbx_xbar (FULL, 48 workers)
-    make[1]: *** apbx_xbar/dv/tests: No such file or directory.  Stop.
-    make: *** [Makefile:259: test-all-full-parallel] Error 1
-
-That aborts before a single test of ANY component executes. So the documented
-whole-repo command -- `make clean-all && make run-all-full-parallel`, which is
-the standing instruction for every area -- has been exiting 2 without testing
-anything, and the failure is 3 lines into a long log where it reads like
-progress. It affects all six `test-all-*` targets, which share the loop.
-
-**FIXED 2026-09-14** (Sean: "I fixed the apbx-xbar a couple of weeks ago.
-That is the correct reference" -- the hyphenated directory is canonical, so
-the Makefile was simply the stale side).
-
-The history is a two-step rename that half-landed. `f28581b3d`
-("refactor(apbx_xbar): rename apb4_xbar -> apbx_xbar", 2026-08-12) touched the
-Makefile; `95f7006fc` ("...+ hyphenated dir", the SAME DAY) renamed the
-directory to `apbx-xbar`. The Makefile kept step 1's name and was never
-advanced to step 2b's, so `COMPONENTS` has pointed at a path that stopped
-existing hours later. An earlier note here blamed f28581b3d for the rename;
-that was wrong -- f28581b3d is the commit that was left BEHIND by it.
-
-Fix applied: `apbx_xbar` -> `apbx-xbar` in `COMPONENTS`, plus the matching
-`make lint-apbx_xbar` help line (the `lint-$(1)` template derives its target
-name from COMPONENTS, so the advertised name moves with it). Only PATH
-references changed -- the SystemVerilog modules stay `apbx_xbar_*`.
-
-**The lint half of this entry stays OPEN.** `lint-apbx-xbar` now resolves the
-path but still fails, for the separate reason above: apbx-xbar has no
-`rtl/Makefile` providing `lint-all`. Same for retro_legacy_blocks.
-
-Same lesson as the lint half: a gate that cannot run is not a gate. This one
-additionally reported a non-zero exit that is easy to read as "the suite ran
-and something failed" rather than "nothing ran at all".
-
-**CLOSED 2026-09-15 — and the scope was SIX areas, not two.**
-
-The entry named retro_legacy_blocks and apbx_xbar. Measuring every component
-found four more, each broken differently, which is why a survey beat reasoning
-from the template:
-
-| area | what was actually wrong | now |
-|---|---|---|
-| retro_legacy_blocks | no `rtl/Makefile` at all | PASS, 84 modules |
-| apbx-xbar | had a Makefile; `verible` target died on a shell syntax error | PASS, 21 modules |
-| misc | no `rtl/Makefile` | PASS, 57 modules |
-| pumice | no `rtl/Makefile` | PASS, 52 modules |
-| stream | Makefile referenced `filelists/stream_all.f`, which never existed | PASS, 76 modules |
-| rapids | same, `filelists/rapids_all.f` | PASS, 69 modules |
-| converters | ran, but `|| true` per file and no `--top-module` — gated nothing | PASS, 65 modules |
-| bridge | already a real gate (filelist-driven, `--top-module`, waivers) | left alone |
-
-**The fix was not new lint logic.** `rtl/make/area.mk` already did exactly what
-this entry asked for, and the four `rtl/` areas use it through a four-line
-Makefile. Each component got the same four-line Makefile plus the
-`filelists/<area>_all.f` master that `area.mk` (and stream's and rapids' own
-Makefiles) had always expected. The 180-to-295-line per-area Makefiles are gone.
-
-Verified per area with `make -C projects/components lint-<component>`; the
-counts above are modules linted each as its own top.
-
-**`area.mk` needed one change**, because it looked for a module's own filelist
-only at a flat `filelists/<mod>.f`, which never matches an area that nests them
-(`gpio/filelists/`, `filelists/core/`, `filelists/top/`). It now falls back to a
-recursive search, flat-first so existing areas are unchanged. Proven against a
-baseline captured BEFORE the edit: common 218, cdc 20, math 174, amba 402,
-exit 0 — identical after, with per-module resolution now also working
-(46/14/172/149 via own filelist).
-
-**Three defects fell out of having a gate that actually runs:**
-
-1. **An RTL bug in `axi4_slave_rom`** (misc). It had no ROM size parameter and
-   derived one from the whole address space -- `ROM_ADDR_WIDTH = AXI_ADDR_WIDTH
-   - $clog2(BYTES_PER_WORD)` = 29, so `2**29` entries, ~34 Gbit at 64-bit data.
-   Verilator refuses to elaborate it ("vector of over 1 billion bits") and no
-   flag suppresses it -- `--max-num-width` caps number width, not array depth.
-   Nothing in the repo instantiates the module or overrides that width, which is
-   why nobody noticed: the old per-file gate never elaborated anything. Fixed by
-   giving the ROM a real `ROM_ADDR_WIDTH` parameter (default 12) and indexing it
-   from the low address bits.
-
-2. **`filelist_registry.py` audited its own generated output.** `area.mk` writes
-   a flattened filelist to `<area>/rtl/lint_reports/` on every run, and
-   `area_filelists()` did a bare `rglob("*.f")` with no tracked-file filter.
-   retro_legacy_blocks declares the whole `rtl/` tree as `filelist_dirs`, so the
-   auditor picked that artifact up; a flattened list hand-lists every source by
-   definition, so `--audit` reported 29 cross-area sources and the pre-commit
-   hook blocked EVERY commit until the untracked file was deleted -- a red gate
-   no commit could fix. Now filtered through the existing `_git_ignored()`, the
-   same rule `--blindspots` already used ("if git does not track it, it is not
-   ours to register"). Verified with the artifact PRESENT, not merely deleted.
-
-3. **`flatten_filelist.py` had no cycle guard.** A filelist that `-f` includes
-   itself recursed until `RecursionError`, naming neither the file nor the
-   cycle. That is easy to write by accident -- generate a master by globbing its
-   own directory and it includes itself, which is exactly what I did to misc.
-   It now exits 2 naming the chain.
-
-**The top-level `Makefile` carried a third, worse copy of this defect** and was
-fixed too: all ten project lint targets ended `|| true` so none could fail, each
-was wrapped in a `[ -f .../Makefile ]` guard that printed "not found" and then
-exited 0, `lint-apbx_xbar` still pointed at the pre-rename `apbx_xbar/` path,
-and `lint-shims`/`lint-hive` named areas that do not exist. A target that
-reports success for a missing area is worse than one that errors.
-
-**Bridge was NOT converted, and should not be.** Its Makefile is a genuine
-gate -- it loops its filelists, lints each with `--top-module`, counts failures
-and carries real lint waivers -- so converting it would have thrown away the
-waivers to make it resemble the others. It is slow (53 filelists, each flattened
-then linted, ~7 min) and buffers into its own log, so it looks hung from the
-outside. It is not; I killed it twice on that mistaken reading before probing at
-the right level, which is the lesson: a make with no visible children is not
-evidence of a hang until you have walked down to the level that would show them.
-
-**But bridge WAS broken, in a fourth way, and it was hiding behind the same
-`|| true` this task removed.** `make -C projects/components lint-all` still
-exited 2 after every area passed, because `lint-all = verilator verible` and
-bridge's `verible` recipe died with `/bin/sh: Syntax error: ";" unexpected`.
-
-Cause: these Makefiles `-include $(REPO_ROOT)/makefiles/common.mk` and **that
-file does not exist** -- there is no `makefiles/` directory in the repo, and
-`print_success`/`print_warning` are defined nowhere. `-include` is silent by
-design, so every `$(call print_success,...)` expanded to EMPTY. On its own
-recipe line that is harmless, which is why nobody noticed; inside a continued
-shell block it leaves a bare `;` between `cat ...;` and `else`, and the shell
-refuses to parse it. So bridge's verilator half passed, printed its tick, and
-the area still returned 2.
-
-The same defect sat in **delta**, and only became visible once the top-level
-`|| true` came off -- removing the mask is what turned a latent break into a
-failing target. Fixed in both by replacing the four in-shell `$(call print_*)`
-calls per file with plain `echo`s; the calls left on their own recipe lines are
-harmless and were not touched. Verified: bridge `verible` exit 0, delta
-`lint-all` exit 0, and no in-shell `$(call print_*)` remains anywhere.
-
-apbx-xbar had this too -- it is why `lint-apbx-xbar` failed at
-`Makefile:49: verible` rather than for the reason this entry originally
-recorded -- but its Makefile was replaced wholesale, so the bug went with it.
+Not urgent: both forms work on THIS workstation today (the absolute path
+exists and `sv2v` is on PATH), which is exactly why it has gone unnoticed.
 
 ---
-
-
-
 ## TOOL-002: Migrate the remaining method docs out of bin/ into the handbook
 **Priority:** P2
 **Status:** Not Started
@@ -231,55 +64,6 @@ before moving anything.
 
 ---
 
-## TOOL-003: One gate that runs filelist_registry --check and --audit
-**Priority:** P2 -> P3 (re-scoped)
-**Status:** MOSTLY DONE, re-scoped 2026-09-16. Three of the four items landed
-without this entry being updated, so it still read as untouched work.
-**Owner:** TBD
-
-Shared deliverable for COMMON-010 and AMBA TASK-026 — build it once here rather
-than twice in the areas.
-
-**The premise below was true when filed and is FALSE now** -- kept because the
-re-scope only makes sense against it. It read: "`--check` is currently run by
-nothing: not the pre-commit hook, not CI (`track-clones.yml` is the only
-workflow), not a Makefile target."
-
-Measured 2026-09-16, all three clauses are wrong:
-
-- `.github/workflows/filelist-checks.yml` runs `--check`, `--audit` and
-  `--blindspots --ratchet` as hard gates on push, PR and dispatch, plus
-  `check_doc_examples.py` and `check_test_dut_family.py`.
-- `.git/hooks/pre-commit` runs the same three locally, gated on staged
-  `.f/.sv/.svh/.sby/.toml` or `test_*.py` -- a deliberate superset of the
-  ".sv or .f" this entry asked for, because `.sby` and `test_*.py` are the
-  blindspot carriers.
-
-- [x] Add `--check` to the pre-commit hook, scoped. **Done**, and scoped wider
-      than asked (see above).
-- [x] Add `--audit`. **Done** -- the hook loops `for check in --check --audit`,
-      and CI runs it as its own step.
-- [x] Decide whether a CI workflow is also wanted. **Done, decided yes.**
-- [ ] PARTIAL -- make the failure message name the offending module **and the
-      area's `filelists/` dir**. `cmd_check` prints `uncovered module: {m}` and
-      the area name, but never the directory the `.f` belongs in, so the fix
-      still is not obvious without reading the tool. One f-string.
-- [ ] NOT DONE, and this is the substantive half -- fail (or delta-report) when
-      the `[exempt]` ledger GROWS. `cmd_check` line ~436 is
-      `missing = sorted(m for m in declared - covered if m not in exempt)`, so
-      an exempt module is silently subtracted and a new exemption passes every
-      gate. `--blindspots --ratchet` does NOT cover this: it ratchets
-      unregistered `.f`, hand-listed tests and dead `.sby` paths, a different
-      class. Validating [[TASK-026]] on 2026-09-16 required reading the ledger
-      by hand for exactly this reason.
-
-**Gotcha to preserve:** `--check` exits PASS when `declared - covered - exempt`
-is empty, so a gate that only inspects the exit code will not notice the
-`[exempt]` ledger growing. Either fail on new exempt entries or report the
-counts. See [[filelists]].
-
----
-
 ## TOOL-004: Finish validating the cloud bootstrap on a genuinely clean box
 **Priority:** P2
 **Status:** Not Started
@@ -302,25 +86,6 @@ verified on 2026-07-23, but two paths have never executed:
 
 Verified and not in doubt: the pinned-Verilator shim resolves to 5.020 even
 with oss-cad-suite on PATH. That was the part most likely to be silently wrong.
-
----
-
-## TOOL-005: env_python hardcodes /mnt/data/tools
-**Priority:** P3
-**Status:** Not Started
-**Owner:** TBD
-
-`env_python` works unmodified in a sandbox *provided* tools install to
-`/mnt/data/tools`. If they land anywhere else, `install_tools.sh --prefix`
-prints three `export PATH` lines the user must paste, and the ordering matters
-(the pinned Verilator must be prepended LAST so it beats oss-cad-suite's 5.045).
-
-That is a footgun: paste them in the wrong order and you silently simulate on
-5.045, which is exactly what the pin exists to prevent.
-
-Make `env_python` honour a `RTLDS_TOOLS_PREFIX` (defaulting to
-`/mnt/data/tools`) so the prefix is set once and the ordering is not the user's
-problem. See [[cloud-sandbox]].
 
 ---
 
@@ -509,31 +274,6 @@ Work, in the order that pays:
 Acceptance: a workbook where every map states its axis equations, its
 sufficiency argument, its don't-cares with citations, and a derived-vs-RTL
 verdict.
-
-## TOOL-014 — Scripts book link rot + DOCUMENTATION_INDEX refresh
-**Status:** open 2026-08-09 (migrated from /TOOLING_TODO.md item 3, found
-2026-07-22 during the assets move; re-verified still broken at migration)
-**Priority:** P3
-
-`docs/markdown/Scripts` has pre-existing broken image/file links, untouched
-by the images_scripts_uml -> Scripts/assets move (all moved links verified
-at the time):
-- `wavedrom_troubleshooting.md` -> `assets/wavedrom/*.svg` — dir never
-  existed here (18 references, still broken 2026-08-09)
-- `cheat_sheet.md` -> `../rtl/_wavedrom_svg/*.svg` — dir gone
-- `generate_uml.md` -> `../../puml_img/CocoTBFramework*.png` — UML renders
-  gone; the tool lives in RDS-DV now, so the page may belong there entirely
-- `md_to_docx.md` -> diagram.json examples — illustrative snippets; possibly
-  fine as-is, mark as examples
-
-Triage each: repoint, regenerate, or prune when the Scripts book gets its
-pass (the docs-review area has "Scripts overview: write it" pending — do
-these together). Related: `docs/DOCUMENTATION_INDEX.md` still catalogs the
-pre-cleanup docs/ layout — refresh or retire it now that the handbook exists
-(owner flagged 2026-07-22; its TESTING.md entry was repointed to the
-handbook when /TESTING.md was retired 2026-08-09).
-
----
 
 ## TOOL-016 — Twelve component conftests stamp TEST_LEVEL into os.environ, which kills every per-cell depth export
 **Status:** open 2026-09-09 (found while leveling the bridge suite, BRIDGE-007).
@@ -839,39 +579,6 @@ requested it. And `timing` imported the same helper twice while
 `2to2_mixed` never imported pytest at all.
 
 
-## TOOL-019: delta's lint runs, passes, and gates nothing
-
-**Priority:** P3
-**Status:** Not Started
-**Owner:** TBD
-
-The last area still on the old per-file lint template. `make lint-delta`
-exits 0 always, because the recipe lints each `.sv` individually and ends
-every invocation with `|| true`:
-
-    verilator --lint-only ... $file > lint_reports/... 2>&1 || true; \
-    verible-verilog-lint ... $file > lint_reports/... 2>&1 || true; \
-
-Three `|| true` remain in `projects/components/delta/rtl/Makefile`; every
-other area has zero. It also never elaborates -- no `--top-module`, no
-filelist -- so it would not catch what the same defect hid in misc
-(axi4_slave_rom could not elaborate at its own defaults; see [[TOOL-017]]).
-
-**Why it was left out of TOOL-017.** The fix applied everywhere else was a
-four-line `rtl/make/area.mk` include plus `filelists/<area>_all.f`. delta has
-**one** `.sv` (`delta_axis_flat_4x16.sv`), **zero** filelists, and no entry in
-`bin/filelists.toml`, so converting it means inventing both a filelist and a
-registry area for a single-module stub. That is a judgement call about an area
-that may not warrant one, not a mechanical conversion, so it was filed rather
-than guessed at.
-
-delta is not in `COMPONENTS`, so `make -C projects/components lint-all` does
-not cover it; only the top-level `lint-delta` / `lint-projects` do. Its shell
-syntax error (empty `$(call print_*)`) WAS fixed under TOOL-017 -- it surfaced
-the moment the masking `|| true` came off the top-level target -- so the target
-runs today. It just does not gate.
-
-<!-- Moved from vault/Tasks/amba/ 2026-09-14: the root cause is the pytest-xdist runner deleting local_sim_build concurrently, which hits every area, not amba RTL -->
 ## VAL-XDIST-INTERMITTENT — OPEN on the durable fix (root cause proven 2026-08-28: concurrent deletion of local_sim_build)
 **Status:** root cause PROVEN; remaining item is the durable fix below
 **Related:** AMBA-WAVEDROM-FLAKY (closed same day) -- same *family*

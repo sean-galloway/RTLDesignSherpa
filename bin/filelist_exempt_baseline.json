@@ -1,0 +1,14 @@
+{
+  "amba": 0,
+  "apbx_xbar": 0,
+  "bridge": 0,
+  "cdc": 0,
+  "common": 0,
+  "converters": 0,
+  "math": 0,
+  "misc": 0,
+  "pumice": 2,
+  "rapids": 0,
+  "retro_legacy_blocks": 0,
+  "stream": 0
+}
