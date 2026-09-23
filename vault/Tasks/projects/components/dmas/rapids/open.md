@@ -170,41 +170,47 @@ early.
 **Related:** [[TASK-078]], [[COMMON-025]], [[MATH-010]], [[CDC-001]] are the
 same task in the rtl/ areas.
 
-## TASK-085: backpressure runs record meter numbers that cannot mean anything
+## TASK-086: after TASK-082, snkGB/s reports ingress latency, not datapath rate
 
-**Priority:** Medium -- nothing is broken, but the suite JSON stores
-`AXIS-out util=0.0% eff=0.00 GB/s` for every backpressure run and nothing marks
-those as non-measurements. **Status:** open 2026-09-23.
+**Priority:** Medium -- the number is not wrong, it answers a different question
+than its column heading implies. **Status:** open 2026-09-23.
 
-Found while diagnosing TASK-082. Under `--suite` with backpressure ON the source
-egress meter reports, on all 10 bp-on configs:
+`_min_util` takes the MINIMUM utilisation across a direction's interfaces, on the
+principle that a direction is limited by its slowest interface. Since TASK-082
+gave `s_axis` its own window opening at ARM, `sin` is that minimum on 7 of 8
+board rows -- so the reported sink throughput is now set by ingress utilisation,
+which includes the arm-to-busy dead zone.
+
+Measured on the board (8 channels, bpoff, seed default):
 
 ```
-  prod=0   bp=<the whole window>   starv=0   idle=9
+  beats/ch  total   sin prod  sin starv  sin util  wr util   snkGB/s from sin
+         1      8          8        204     0.038    0.381       0.24
+         4     32         32        197     0.140    0.842       0.89
+        16    128        128        197     0.394    0.955       2.52
+        64    512        512        205     0.714    0.973       4.57
+       256   2048       2048        197     0.912    0.997       5.84
 ```
 
-That is not a meter fault -- it is arithmetically forced by how the knob works:
+`sin util == prod/(prod+starv)` holds to four decimals on every row, and
+`starv` is a CONSTANT ~197-205 cycles regardless of transfer size. So the column
+is dilution-limited: pessimistic for short transfers, asymptotically correct for
+long ones. `wr` -- the actual sink datapath -- reads 0.381..0.997 over the same
+sweep.
 
-- `run_source_selfcheck` arms the checker with `CHK_READY_EN=0` (tready LOW),
-- then `go()` arms the meter window AND kicks in the same on-chip pulse,
-- then `_poll_backpressure` raises/lowers ready FROM THE HOST over UART.
-
-One CSR write is ~24 bytes at 115200 baud = **2.08 ms = 208,333 aclk cycles**.
-The bp-on windows measured 276..2300 cycles (2.8..23 us). So **at most 0.011 of a
-single host write fits inside the window** -- it closes 90x to 750x before the
-host can raise ready even once. The meter therefore measures a deliberately
-stalled egress and freezes; the real transfer happens afterwards. `axis_bus_meter`
-is correct (`w_prod = tvalid && tready` etc., mutually exclusive), and the tap is
-on the real `m_axis_*` nets.
-
-Backpressure mode is a DATA-INTEGRITY test -- the golden CRC passes and that is
-its point (`_poll_backpressure`: "always makes forward progress"). The hazard is
-only that its throughput numbers are recorded as if they were measurements.
+Consequence: short-transfer sink numbers are NOT comparable with anything
+recorded before TASK-082. Long transfers converge, which is why the 4096-beat
+peak (12.75 GB/s full-duplex) is unaffected.
 
 **Do:**
-- [ ] Mark bp-on rows in the JSON and the printed table as integrity-only, or
-      omit their `perf` block. A future reader comparing suite files will
-      otherwise conclude the egress collapsed under backpressure.
-- [ ] If host-paced backpressure is ever supposed to be measurable, it needs an
-      on-chip stall generator; over UART it cannot be, by three orders of
-      magnitude.
+- [ ] Decide what `snkGB/s` should mean and make the heading match. Options:
+      report per-interface instead of a single bottleneck figure; keep the
+      minimum but exclude arm latency from `sin` (subtract the dead zone);
+      or label the column as end-to-end-including-launch.
+- [ ] Unexplained outlier, do not paper over it: `ch8_b4_bpoff_seed0xA5A5A5A5`
+      reports `sin starv=0, util=1.000` while all 19 other configs in the same
+      sweep report ~197-205. It reproduces EXACTLY across two independent sweeps
+      (so it is deterministic, not jitter) and sits at position #7 of 20 (so it
+      does not correlate with first-arm-after-reset). Cause not established; the
+      sink re-arm quirk documented in `run_characterization.py` was the obvious
+      suspect and the ordering does not support it.

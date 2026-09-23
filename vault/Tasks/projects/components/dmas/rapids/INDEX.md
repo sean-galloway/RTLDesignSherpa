@@ -5,7 +5,7 @@ summary: Task rollup for the RAPIDS DMA component (projects/components/dmas/rapi
 
 # RAPIDS tasks
 
-**Next ID: TASK-086** — never recycle a number, even when its task closed.
+**Next ID: TASK-087** — never recycle a number, even when its task closed.
 
 Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "RAPIDS TASK-080" when writing outside this file.
 
@@ -18,8 +18,9 @@ Convention: [Tasks](../../../../INDEX.md).
 - **TASK-057** — enforce register-map hygiene (port the STREAM lessons): use the
   by-name regmap, kick writes must prove descriptor fetches, no hand-added
   registers.
-- **TASK-085** — backpressure runs record throughput numbers that cannot mean
-  anything (the window shuts before the host can raise ready). Labelling, not RTL.
+- **TASK-086** — after TASK-082, snkGB/s is set by ingress utilisation (which
+  includes the arm dead zone), not the sink datapath rate. Decide what the
+  column should mean.
 
 ## Closed
 - **TASK-081** — the board kick sequencer never wrote KICK_ENABLE. Fixed and
@@ -34,6 +35,8 @@ Convention: [Tasks](../../../../INDEX.md).
 - **TASK-082** — sink-ingress meter under-counted by min(dead_zone, total); gave
   `s_axis` its own window opened at ARM. Board-confirmed: shortfall 190 -> 0 at
   every size, other meters byte-identical.
+- **TASK-085** — bp-on runs now flagged `perf_valid=false` and printed as `n/m`
+  instead of a bogus 0.00 GB/s. Board-validated; backward compatible.
 
 The component's old `TASKS.md` / `rapids_beats_mas/TODO` next to the code are
 still to be folded into this area per the one rule (no task files beside code).

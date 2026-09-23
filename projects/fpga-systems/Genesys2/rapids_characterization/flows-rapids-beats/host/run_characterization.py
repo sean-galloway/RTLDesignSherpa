@@ -591,6 +591,16 @@ class RapidsCharCampaign:
                             'sink_pass': sink_ok,
                             'source_pass': src_ok,
                             'pass': sink_ok and src_ok,
+                            # Backpressure is applied by toggling chk_ready_en
+                            # FROM THE HOST over UART (~2.08 ms per write) while
+                            # the measurement window is only hundreds of cycles
+                            # wide -- it shuts before ready can be raised even
+                            # once. So a bp-on SOURCE perf block measures a
+                            # deliberately stalled egress, not throughput. The
+                            # buckets are kept (they are true) and flagged, so a
+                            # later reader does not mistake them for a
+                            # measurement. RAPIDS TASK-085.
+                            'perf_valid': {'sink': True, 'source': not bp},
                             'sink': _jsonable(sink_d),
                             'source': _jsonable(src_d),
                         })
@@ -625,9 +635,19 @@ def _print_suite_summary(rows) -> None:
         ifs = ((detail or {}).get('perf') or {}).get('ifaces') or {}
         return min((v['util'] for v in ifs.values()), default=None)
 
-    def _bw(detail):
+    def _bw(detail, valid=True):
+        # valid=False => the window did not measure the transfer (see TASK-085).
+        # Printing 0.00 there reads as "the link carried nothing", which is the
+        # opposite of what happened: the CRC passed, the data all moved.
+        if not valid:
+            return "   n/m"
         u = _min_util(detail)
         return f"{PEAK_BW_PER_DIR * u / 1e9:.2f}" if u is not None else "  -"
+
+    # Older result files have no perf_valid key; absent => treat as valid, so
+    # every previously recorded JSON still reads exactly as it did before.
+    def _pv(row, half):
+        return (row.get('perf_valid') or {}).get(half, True)
 
     print(f"{'#':<4}{'config':<28}{'snk':>5}{'src':>5}{'ovr':>4}"
           f"{'snkGB/s':>9}{'srcGB/s':>9}")
@@ -637,10 +657,20 @@ def _print_suite_summary(rows) -> None:
               f"{'P' if r['sink_pass'] else 'F':>5}"
               f"{'P' if r['source_pass'] else 'F':>5}"
               f"{'P' if r['pass'] else 'F':>4}"
-              f"{_bw(r.get('sink')):>9}{_bw(r.get('source')):>9}")
+              f"{_bw(r.get('sink'), _pv(r, 'sink')):>9}"
+              f"{_bw(r.get('source'), _pv(r, 'source')):>9}")
+    if any(not _pv(r, 'source') for r in rows):
+        print("  n/m = not measured: host-paced backpressure stalls the egress for"
+              " the whole window (TASK-085).")
+        print("        Those rows are DATA-INTEGRITY tests -- their golden CRCs"
+              " passed; only the throughput is meaningless.")
     # Peak measured throughput across the suite (best bottleneck-limited window).
     def _peak(key):
-        vals = [_min_util(r.get(key)) for r in rows]
+        # Only rows whose window actually measured the transfer. Verified
+        # 2026-09-23 to be a no-op today (max() already ignores the 0.0 that a
+        # bp-on row contributes: sink 5.838 and source 6.247 either way) -- it
+        # is here so the intent survives anyone changing max() to a mean.
+        vals = [_min_util(r.get(key)) for r in rows if _pv(r, key)]
         vals = [PEAK_BW_PER_DIR * u / 1e9 for u in vals if u is not None]
         return max(vals) if vals else None
     snk_peak, src_peak = _peak('sink'), _peak('source')
@@ -656,14 +686,19 @@ def _print_suite_summary(rows) -> None:
         print("-" * 78)
         print(f"FIRST FAILURE: {first['name']}")
         for path in ('sink', 'source'):
-            errs = first[path]['errors']
+            errs = (first.get(path) or {}).get('errors') or []
             if errs:
                 print(f"  {path.upper()} errors:")
                 for e in errs:
                     print(f"    - {e}")
     # Surface any genuine golden (DUT data) mismatches distinctly.
-    sink_bugs = [r['name'] for r in rows if r['sink']['golden_mismatch']]
-    src_bugs = [r['name'] for r in rows if r['source']['golden_mismatch']]
+    # A half is None when a run skipped it (--sink-only / --source-only).
+    # _single_row emits that shape and claims schema parity with run_suite,
+    # so the printer must honour it rather than assume a dict.
+    def _gm(row, half):
+        return bool((row.get(half) or {}).get('golden_mismatch'))
+    sink_bugs = [r['name'] for r in rows if _gm(r, 'sink')]
+    src_bugs = [r['name'] for r in rows if _gm(r, 'source')]
     if sink_bugs or src_bugs:
         print("-" * 78)
         if src_bugs:
@@ -728,6 +763,8 @@ def _single_row(name, active, beats, bp, seed, sink, source):
         'sink_pass': sink_ok,
         'source_pass': src_ok,
         'pass': all(verdicts) if verdicts else False,
+        # See run_suite: a bp-on source perf block is not a measurement.
+        'perf_valid': {'sink': True, 'source': not bp},
         'sink': _jsonable(sink_d) if sink_d else None,
         'source': _jsonable(src_d) if src_d else None,
     }
