@@ -461,9 +461,21 @@ class ControllerConfig:
 #   order_mode   SCHED_POLICY.order_mode  0 FR-FCFS | 1 in_order | 3 age_threshold
 #   t_refi       TIMINGS_RFC_REFI.tREFI   refresh-bandwidth stress
 #   refresh      REF_CTRL                 mode / postpone / pullin credits
-# `baseline` = row-major, close-page, FR-FCFS; every other preset changes one
+# `baseline` = row-major, CLOSE-page, FR-FCFS; every other preset changes one
 # lever from it, except the predictor set, which sits on open_page (a
 # predictor's job is deciding when to close an open row).
+#
+# READ THAT NAME CAREFULLY. "baseline" is the experiment's REFERENCE CORNER,
+# deliberately the pessimal one so each axis shows a clean single-lever delta.
+# It is NOT the shipping default and never was: the hardware comes up OPEN page
+# (`PAGE_POLICY_OPEN = 2'h0`, and PAGE_POLICY_CFG.page_policy_or resets to
+# 2'h0), which measures 554-568 MB/s -- 92-95% of the 600 MB/s ceiling.
+#
+# Close page at the board geometry costs one ACT per BEAT (one AXI beat is one
+# DRAM burst at BL4 x16, and auto-precharge throws the row away after every
+# column), so `baseline` reads ~34 MB/s. That number is a property of the
+# reference corner, not of pumice's default, and it has been misread as the
+# latter. Every printed table now says so.
 CONFIGS: Dict[str, ControllerConfig] = {
     "baseline": ControllerConfig(
         "baseline", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_CLOSE,
@@ -1188,15 +1200,35 @@ def _summarize_one_config(recs: List[CharRecord]) -> List[str]:
         cil = idx.get((FAM_COL_INTERLEAVE, bl))
         if not (inc and cmj):
             continue
+        # BOTH DIRECTIONS. Every per-cell record carries wr and rd, but this
+        # summary reported only reads, so the addressing-mode conclusions --
+        # page penalty, bank recovery, and which config mitigates a pattern --
+        # were being drawn from half the data. Writes are not a copy of reads:
+        # they have their own recovery path (tWR before the precharge, where a
+        # read has the shorter tRTP), and the board shows them consistently on
+        # the worse side except where bank parallelism equalises them --
+        # open_page col/inc is 28.4% for writes against 29.6% for reads.
+        for tag, bw in (("rd", lambda r: r.rd_bw_mb_s), ("wr", lambda r: r.wr_bw_mb_s)):
+            base = bw(inc) or 1e-9
+            lines.append(f"  bl={bl:<3} {tag} BW  inc={bw(inc):8.1f}"
+                         f"  row={bw(rmj) if rmj else 0:8.1f}"
+                         f"  col={bw(cmj):8.1f}"
+                         f"  col_ilv={bw(cil) if cil else 0:8.1f} MB/s"
+                         f"  | page-penalty(col/inc)={bw(cmj) / base:5.1%}"
+                         + (f"  bank-recovery(ilv/col)="
+                            f"{bw(cil) / (bw(cmj) or 1e-9):.2f}x" if cil else ""))
+        # A direction-ASYMMETRY is itself a result: same addresses, same
+        # controller, so a gap means one direction's recovery path is binding.
+        for nm, r in (("inc", inc), ("col", cmj)):
+            hi, lo = max(r.rd_bw_mb_s, r.wr_bw_mb_s), min(r.rd_bw_mb_s, r.wr_bw_mb_s)
+            if hi and (hi - lo) / hi > 0.10:
+                slow = "wr" if r.wr_bw_mb_s < r.rd_bw_mb_s else "rd"
+                lines.append(f"    [FLAG] bl{bl} {nm}: {slow} is "
+                             f"{(hi - lo) / hi:.0%} below the other direction "
+                             f"(rd={r.rd_bw_mb_s:.1f} wr={r.wr_bw_mb_s:.1f}) -- "
+                             f"same addresses, so this is a recovery-path "
+                             f"asymmetry, not the access pattern")
         inc_bw = inc.rd_bw_mb_s or 1e-9
-        lines.append(f"  bl={bl:<3} rd BW  inc={inc.rd_bw_mb_s:8.1f}"
-                     f"  row={rmj.rd_bw_mb_s if rmj else 0:8.1f}"
-                     f"  col={cmj.rd_bw_mb_s:8.1f}"
-                     f"  col_ilv={cil.rd_bw_mb_s if cil else 0:8.1f} MB/s"
-                     f"  | page-penalty(col/inc)={cmj.rd_bw_mb_s / inc_bw:5.1%}"
-                     + (f"  bank-recovery(ilv/col)="
-                        f"{cil.rd_bw_mb_s / (cmj.rd_bw_mb_s or 1e-9):.2f}x"
-                        if cil else ""))
         if cil and cil.rd_bw_mb_s <= cmj.rd_bw_mb_s * 1.10:
             lines.append(f"    [FLAG] bl{bl}: bank interleave gives no gain over "
                          "same-bank thrash -- activates not pipelined across banks")
@@ -1222,26 +1254,39 @@ def _summarize_cross_config(recs: List[CharRecord]) -> List[str]:
     bls = sorted({sc.burst_len for r in recs for sc in [r.scenario]})
     bl = 8 if 8 in bls else (bls[len(bls) // 2] if bls else 0)
 
-    lines = [f"cross-config read BW @ bl={bl} (MB/s; ratio vs baseline):"]
+    lines = [f"cross-config BW @ bl={bl}, BOTH directions (MB/s; ratio vs baseline):"]
     base = "baseline" if "baseline" in configs else configs[0]
     for fam in FAMILIES:
         b = idx.get((base, fam, bl))
         if not b:
             continue
-        b_bw = b.rd_bw_mb_s or 1e-9
-        cells = []
-        best_cfg, best_bw = base, b_bw
-        for cfg in configs:
-            r = idx.get((cfg, fam, bl))
-            if not r:
-                continue
-            cells.append(f"{cfg}={r.rd_bw_mb_s:.0f}({r.rd_bw_mb_s / b_bw:.2f}x)")
-            if r.rd_bw_mb_s > best_bw:
-                best_cfg, best_bw = cfg, r.rd_bw_mb_s
-        lines.append(f"  {fam:<22} " + "  ".join(cells))
-        if best_cfg != base and best_bw > b_bw * 1.10:
-            lines.append(f"      -> best: {best_cfg} ({best_bw / b_bw:.2f}x "
-                         f"baseline) mitigates this pattern")
+        # BOTH directions -- "which config mitigates this pattern" was decided
+        # on reads alone, and the answer is not guaranteed to agree: the two
+        # directions have different recovery paths off the same addresses.
+        # Report each, and say so explicitly when they disagree.
+        best = {}
+        for tag, get in (("rd", lambda r: r.rd_bw_mb_s), ("wr", lambda r: r.wr_bw_mb_s)):
+            b_bw = get(b) or 1e-9
+            cells, best_cfg, best_bw = [], base, b_bw
+            for cfg in configs:
+                r = idx.get((cfg, fam, bl))
+                if not r:
+                    continue
+                cells.append(f"{cfg}={get(r):.0f}({get(r) / b_bw:.2f}x)")
+                if get(r) > best_bw:
+                    best_cfg, best_bw = cfg, get(r)
+            lines.append(f"  {fam:<22} {tag}  " + "  ".join(cells))
+            best[tag] = (best_cfg, best_bw, b_bw)
+        for tag in ("rd", "wr"):
+            bc, bb, bbase = best[tag]
+            if bc != base and bb > bbase * 1.10:
+                lines.append(f"      -> best {tag}: {bc} ({bb / bbase:.2f}x "
+                             f"baseline) mitigates this pattern")
+        if best["rd"][0] != best["wr"][0]:
+            lines.append(f"      [FLAG] reads and writes prefer DIFFERENT "
+                         f"configs here (rd->{best['rd'][0]}, "
+                         f"wr->{best['wr'][0]}); a single recommendation drawn "
+                         f"from one direction would be wrong for the other")
     return lines
 
 
@@ -1251,7 +1296,13 @@ def summarize(recs: List[CharRecord]) -> List[str]:
     configs = sorted({r.config for r in recs})
     for cfg in configs:
         sub = [r for r in recs if r.config == cfg]
-        lines.append(f"[config: {cfg}]")
+        note = ""
+        if cfg == "baseline":
+            note = ("   <- experiment REFERENCE CORNER (close-page), NOT the "
+                    "shipping default; hardware defaults to OPEN page")
+        elif cfg == "open_page":
+            note = "   <- the SHIPPING default (PAGE_POLICY_OPEN = 2'h0)"
+        lines.append(f"[config: {cfg}]{note}")
         lines.extend(_summarize_one_config(sub))
     lines.extend(_summarize_cross_config(recs))
     if recs and not any(r.util_reliable for r in recs):
