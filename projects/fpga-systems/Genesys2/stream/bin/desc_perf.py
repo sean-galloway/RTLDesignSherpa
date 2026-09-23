@@ -24,17 +24,18 @@
 # window counter wraps after ~42.9 s -- plenty for a single run.
 #
 # Register map (STREAM regblock, base = 0x0; see stream_regmap.py):
-#   0x2D0 DAXMON_PERF_CTRL    RUN[0]
-#   0x2D4 DAXMON_PERF_STATUS  WIN_ACTIVE[0]
-#   0x2D8 WINDOW_CYCLES
-#   0x2DC PROD_CYCLES
-#   0x2E0 BP_CYCLES
-#   0x2E4 STARV_CYCLES
-#   0x2E8 IDLE_CYCLES
-#   0x2EC BEAT_COUNT
-#   0x2F0 BYTE_COUNT_LO
-#   0x2F4 BYTE_COUNT_HI
-#   0x2F8 BURST_COUNT
+# Every address below is resolved BY NAME through stream_addrs.A(); none is
+# written here. The block moved from 0x2D0-0x2F8 into the MON regfile at
+# 0x1150-0x1178, and the old literals silently survived that move -- 0x2D4
+# and 0x2D8 are PERF_DATA_HIGH / PERF_STATUS now, so the stale reads returned
+# live data that looked plausible. Names track a relocation; literals do not.
+#
+#   DAXMON_PERF_CTRL    RUN[0]          DAXMON_PERF_IDLE_CYCLES
+#   DAXMON_PERF_STATUS  WIN_ACTIVE[0]   DAXMON_PERF_BEAT_COUNT
+#   DAXMON_PERF_WINDOW_CYCLES           DAXMON_PERF_BYTE_COUNT_LO / _HI
+#   DAXMON_PERF_PROD_CYCLES             DAXMON_PERF_BURST_COUNT
+#   DAXMON_PERF_BP_CYCLES
+#   DAXMON_PERF_STARV_CYCLES
 
 import argparse
 import os
@@ -51,22 +52,21 @@ sys.path.insert(0, HERE)
 # docstring says new code must not import through it.
 import stream_env  # noqa: F401,E402  (import side effect: sys.path setup)
 
-# STREAM regblock lives at bridge slave 0 (base 0x0). Offsets mirror
-# projects/components/dmas/stream/rtl/stream_regmap.py (RFC Stage E block).
+# STREAM regblock lives at bridge slave 0 (base 0x0). Addresses come from
+# stream_addrs.A(), which reads the generated regmap -- never literals.
 STREAM_APB_BASE        = 0x0000_0000
 from stream_addrs import A as _A   # noqa: E402 (addresses by name; never hardcode)
 OFF_PERF_CTRL          = _A("DAXMON_PERF_CTRL")   # perf-window base = CTRL reg
-OFF_PERF_STATUS        = 0x2D4
-OFF_PERF_WINDOW_CYCLES = 0x2D8
-OFF_PERF_PROD_CYCLES   = 0x2DC
-OFF_PERF_BP_CYCLES     = 0x2E0
-OFF_PERF_STARV_CYCLES  = 0x2E4
-OFF_PERF_IDLE_CYCLES   = 0x2E8
-OFF_PERF_BEAT_COUNT    = 0x2EC
-OFF_PERF_BYTE_COUNT_LO = 0x2F0
-OFF_PERF_BYTE_COUNT_HI = 0x2F4
-OFF_PERF_BURST_COUNT   = 0x2F8
-
+OFF_PERF_STATUS        = _A("DAXMON_PERF_STATUS")
+OFF_PERF_WINDOW_CYCLES = _A("DAXMON_PERF_WINDOW_CYCLES")
+OFF_PERF_PROD_CYCLES   = _A("DAXMON_PERF_PROD_CYCLES")
+OFF_PERF_BP_CYCLES     = _A("DAXMON_PERF_BP_CYCLES")
+OFF_PERF_STARV_CYCLES  = _A("DAXMON_PERF_STARV_CYCLES")
+OFF_PERF_IDLE_CYCLES   = _A("DAXMON_PERF_IDLE_CYCLES")
+OFF_PERF_BEAT_COUNT    = _A("DAXMON_PERF_BEAT_COUNT")
+OFF_PERF_BYTE_COUNT_LO = _A("DAXMON_PERF_BYTE_COUNT_LO")
+OFF_PERF_BYTE_COUNT_HI = _A("DAXMON_PERF_BYTE_COUNT_HI")
+OFF_PERF_BURST_COUNT   = _A("DAXMON_PERF_BURST_COUNT")
 PERF_CTRL  = STREAM_APB_BASE + OFF_PERF_CTRL
 PERF_RUN_BIT = 1 << 0
 
