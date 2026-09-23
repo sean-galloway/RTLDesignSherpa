@@ -5,7 +5,7 @@ summary: Task rollup for the STREAM DMA component (projects/components/dmas/stre
 
 # STREAM tasks
 
-**Next ID: TASK-083** — never recycle a number, even when its task closed.
+**Next ID: TASK-085** — never recycle a number, even when its task closed.
 
 Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "STREAM TASK-080" when writing outside this file.
 
@@ -22,6 +22,12 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
 - **TASK-080** (Medium) — STREAM formal proofs read a hand-copied
   `gaxi_fifo_sync` (and an orphan package stub), not the RTL; convert
   them to flatten the real module with sv2v, as done for repo-root formal.
+
+- **TASK-083** (Medium) — nothing gates `stream_regs.rdl` against its
+  generated artifacts; a `.rdl` edit without a regen goes unnoticed because
+  every test reads the stale generated copies.
+- **TASK-084** (Low) — TB address->name lookup ignores `MON @ 0x1000`, so 108
+  resolvable monitor registers log as `UNKNOWN_0x11xx`.
 
 ## Closed (done)
 

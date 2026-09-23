@@ -177,3 +177,58 @@ TASK-094).
 **Done when:** no `formal/stream` task reads a `*_formal.sv` copy of an rtl/
 module, each converted task proves against the real RTL, and the two fork
 files are deleted.
+
+## TASK-083 — nothing gates RDL against its generated artifacts
+**Status:** open 2026-09-23  **Priority:** Medium
+
+Found while moving the perf registers into the RDL ([[TASK-084]] is the other
+half of that session's residue). Editing `stream_regs.rdl` without running
+`bin/peakrdl_generate.py` leaves the tree regen-dirty and NOTHING catches it:
+the regblock RTL, both regmaps and the docs simply disagree with the `.rdl`,
+and every test still passes because they all read the stale generated copies.
+
+I did exactly this during the change and carried a 317-line divergence for
+some time before an explicit regen-and-diff surfaced it. The pre-commit hook
+runs 11 checks; none of them mention `regmap`, `peakrdl` or `rdl`:
+
+```
+declaration order · doc instantiation examples · staged .sv parse ·
+port consumers · markdown links · filelist contract   (+ 6 more)
+```
+
+The check is cheap and already written as a one-off: regenerate to a TEMP
+directory with an explicit `-o`, diff against the committed artifacts, fail on
+any difference. That is the same regen-and-diff audit
+[[generated-rtl-discipline]] prescribes, just wired to the hook.
+
+Acceptance: a staged `.rdl` change with un-regenerated artifacts is REJECTED,
+and the check proves it ran rather than proving it was quiet (a generator that
+writes nothing also produces no diff -- the failure mode CRITICAL RULE #0 and
+the `regen_bridges.sh` scar both warn about).
+
+## TASK-084 — TB address->name lookup ignores the MON block offset
+**Status:** open 2026-09-23  **Priority:** Low
+
+`stream_regs.rdl:758` places the monitor regfile at an offset:
+
+```
+stream_mon_regs MON @ 0x1000;
+```
+
+so the mon block's raw `0x000-0x268` land at `0x1000+`. The TB's reverse
+address-to-name lookup does not apply that offset, so every monitor register
+prints as `UNKNOWN_0x11xx` in the APB read log even though the name is fully
+resolvable from the regmap. From the baseline regression log:
+
+```
+APB READ:  UNKNOWN_0x11E8 (0x11E8) = 0x00000000
+APB READ:  UNKNOWN_0x110C (0x110C) = 0x0000FFFF
+```
+
+108 registers are affected. This is cosmetic -- the reads themselves are
+correct and the walk's pass/fail is unaffected -- but it defeats
+[[registers-by-name]] exactly where a human is reading the log to
+debug a monitor failure, which is when the name matters most.
+
+Fix is in the lookup builder: walk child blocks with their instance offset
+applied rather than flattening on raw child addresses.
