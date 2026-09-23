@@ -1885,6 +1885,34 @@ module rapids_char_harness #(
     assign obs_meter_clear  = obs_arm || (obs_dut_busy && !obs_win_active && !obs_started);
     assign obs_meter_freeze = ~obs_win_active;
 
+    // ---- Sink-ingress window (TASK-082) -------------------------------------
+    // The shared window above opens on obs_dut_busy (~snk_system_idle), which
+    // CANNOT assert until the DUT has already accepted traffic. So every ingress
+    // beat that lands in the gap between ARM and that first busy cycle was never
+    // counted: measured missed == min(dead_zone, total) -- 190 beats on the
+    // 8-channel board, and 100% of the transfer whenever it is shorter than the
+    // gap (which is why small runs read a flat prod=0 and looked like a dead
+    // meter). Confirmed on a waveform: 32 handshakes complete 78 clocks BEFORE
+    // the counted window opens.
+    //
+    // So s_axis gets its own window that opens at ARM -- the same cycle CSR_GO
+    // pulses cfg_gen_start, i.e. before the generator can emit anything -- and
+    // closes WITH the shared window so sin and wr still describe the same span.
+    //
+    // The original busy-gating existed to stop the generator holding tvalid after
+    // it finishes from inflating the backpressure bucket "without bound". That
+    // stays bounded here: the shared window closes deterministically on
+    // wr_prod >= obs_target, so any trailing bp is bounded by the transfer.
+    logic obs_sin_win_active;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))                obs_sin_win_active <= 1'b0;
+        else if (obs_arm)                          obs_sin_win_active <= 1'b1;
+        else if (obs_started && !obs_win_active)   obs_sin_win_active <= 1'b0;
+    )
+    logic obs_sin_clear, obs_sin_freeze;
+    assign obs_sin_clear  = obs_arm;
+    assign obs_sin_freeze = ~obs_sin_win_active;
+
     // ---- AXI4 meters: rd (source read) + wr (sink write) --------------------
     logic [15:0] rd_ch_p[1], rd_ch_b[1], rd_ch_s[1], rd_ch_i[1]; logic [3:0] rd_ch_o;
     logic [15:0] wr_ch_p[1], wr_ch_b[1], wr_ch_s[1], wr_ch_i[1]; logic [3:0] wr_ch_o;
@@ -1908,7 +1936,7 @@ module rapids_char_harness #(
     logic [15:0] sin_ch_p[1], sin_ch_b[1], sin_ch_s[1], sin_ch_i[1]; logic [3:0] sin_ch_o;
     logic [15:0] sot_ch_p[1], sot_ch_b[1], sot_ch_s[1], sot_ch_i[1]; logic [3:0] sot_ch_o;
     axis_bus_meter #(.DATA_WIDTH(DATA_WIDTH), .NUM_CHANNELS(1)) u_meter_sin (
-        .aclk(aclk), .aresetn(aresetn), .i_clear(obs_meter_clear), .i_freeze(obs_meter_freeze),
+        .aclk(aclk), .aresetn(aresetn), .i_clear(obs_sin_clear), .i_freeze(obs_sin_freeze),
         .i_tvalid(s_axis_tvalid), .i_tready(s_axis_tready), .i_tlast(s_axis_tlast),
         .i_tstrb(s_axis_tstrb), .i_tid(1'b0),
         .o_agg_productive(obs_sin_prod), .o_agg_backpressure(obs_sin_bp),

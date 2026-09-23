@@ -18,8 +18,6 @@ Convention: [Tasks](../../../../INDEX.md).
 - **TASK-057** — enforce register-map hygiene (port the STREAM lessons): use the
   by-name regmap, kick writes must prove descriptor fetches, no hand-added
   registers.
-- **TASK-082** — the sink-ingress AXIS meter reads zero on hardware while the
-  write side counts every beat. Observability, not datapath (CRCs match).
 - **TASK-085** — backpressure runs record throughput numbers that cannot mean
   anything (the window shuts before the host can raise ready). Labelling, not RTL.
 
@@ -33,6 +31,9 @@ Convention: [Tasks](../../../../INDEX.md).
   own campaign. Re-validated sim + board, behaviour byte-identical.
 - **TASK-083** — re-measured the beat-count knee: GONE. 28/28 board configs pass
   1..4096 beats at 8ch, including every point July 2026-07-15 failed.
+- **TASK-082** — sink-ingress meter under-counted by min(dead_zone, total); gave
+  `s_axis` its own window opened at ARM. Board-confirmed: shortfall 190 -> 0 at
+  every size, other meters byte-identical.
 
 The component's old `TASKS.md` / `rapids_beats_mas/TODO` next to the code are
 still to be folded into this area per the one rule (no task files beside code).
