@@ -195,130 +195,56 @@ of the move; fold NEXYS-001 in with it.
 
 ---
 
-## NEXYS-003: Migrate the remaining char flows onto the shared projects/fpga-systems/bin layer
+## NEXYS-008: Move ddr2_char_framework into pumice/ (the NEXYS-003 residue)
 
-**Priority:** Medium
-**Status:** [ ] Open (2026-07-30)
+**Priority:** Low
+**Status:** [ ] Open (2026-09-23)
 
-**Goal:** `projects/fpga-systems/bin/` now holds the common UART/board/sequence layer
-(`uart_link.py`, `board.py`, `boards/`, `sequence.py`, one `program_fpga.tcl`).
-The pumice DDR2 flow was migrated as the proof. Bring the other flows across.
+Split out of [[NEXYS-003]] when that closed. This is the ONLY functional work
+that was left in it, and it is TIDINESS, not breakage -- `build-perf/rtl/
+filelists/` `-f` includes the framework in place today and that is legal, the
+tests run, the flow builds.
 
-**DONE (2026-09-22) -- the port scan is consolidated.** All four
-`autodetect_port` implementations are now thin `uart_link.find_port` wrappers
-and no hand-rolled `/dev/ttyUSB*` glob remains anywhere in the repo. The
-original list was wrong on every count: the paths were all pre-reorg, and one of
-the three had already been migrated.
-
-- `Genesys2/stream/bin/harness_addrs.py` — DONE. Now
-  `find_port(probe=scratch_probe(H("SCRATCH")))`, which is the helper
-  `uart_link` had been carrying FOR this function all along (same 0xC0FFEE5A
-  magic) and that nothing had ever called. It also gained a `board=` argument
-  (honouring `$FPGA_BOARD`) that narrows candidates by USB serial before
-  probing -- see the hazard note below.
-- `Genesys2/rapids_characterization/flows-rapids-beats/host/rapids_char_io.py`
-  — DONE 2026-09-22. Now `find_port(probe=harness_probe())`; the probe reads
-  CTRL by name and compares the 'RAP1' magic taken from rapids_char_top.sv
-  rather than a docstring. The same pass stopped this file reaching
-  `UARTAxiBridge` through the `projects/components/converters/bin` re-export
-  shim, which that shim's own docstring forbids new code from using.
-- `NexysA7/cdc_counter_display/build-demo/host/cdc_demo.py` — was ALREADY
-  migrated before this pass; the entry here was simply stale. It has carried a
-  `harness_probe()` and a `find_port` wrapper for some time.
-
-**The hazard this closed.** The stream probe WRITES (a SCRATCH round-trip)
-rather than reading an ID constant, and every harness in this lab speaks the
-same ASCII W/R protocol -- so an unfiltered scan does not bounce off a
-neighbouring board, it writes to it. `H("SCRATCH")` is `0x0001_0020`, which on
-the rapids board is inside its DESC-LOAD window. Two changes: naming a board
-narrows the candidates by USB serial first, and `uart_link.scratch_probe` now
-reads the original value and restores it on a MISMATCH instead of abandoning
-the magic in a foreign register. Both probe builders were completely untested
-until now, which is why that went unnoticed; `test_uart_link.py` covers them.
-
-New callers should still prefer `Board.find_uart_port(probe=...)` over the bare
-`find_port`, for the same USB-serial filtering reason.
-
-**DONE (2026-09-22) -- no per-flow `program_fpga.tcl` remains.**
-`projects/fpga-systems/bin/program_fpga.tcl` is the only copy in the tree. The
-count here was itself stale: of the six listed, four had already gone with their
-flows, and only `flows-rapids-beats` and `timing_characterization/fpga` survived.
-Both now set `BITSTREAM` and include `make/fpga_board.mk` instead of carrying an
-inline `program:` recipe. The rapids copy pinned a JTAG serial for a unit that
-left the bench in August 2026; the timing_characterization copy pinned nothing at
-all (`get_hw_targets */xilinx_tcf/*` takes whatever Vivado lists first).
-`capture_ila.tcl` was fixed the same way -- it had defaulted to a Genesys 2
-serial inside a flow that defaults to the Nexys.
-
-Both halves of NEXYS-003 are done as of 2026-09-22; what still holds the item
-open is the deferred build-target move noted below.
-
-**Then:** consider moving the Vivado build targets (`project`/`synth`/
-`bitstream`/`utilization`/`timing`) into `make/fpga_flow.mk` too — they are
-near-identical across all seven flows. Deliberately left out of the first pass
-so adopting the file could not break a working build. Overlaps NEXYS-001.
-
-**That deferred move is now the ONLY thing holding NEXYS-003 open.** Both
-concrete deliverables are done as of 2026-09-22: the port scan (all four
-`autodetect_port` copies) and the per-flow `program_fpga.tcl` (both survivors).
-Fold the build-target move into NEXYS-001 and this can close.
-
-**Sequences:** consider `projects/fpga-systems/<board>/<component>/bin/` sequence areas
-for rapids/stream, mirroring `projects/fpga-systems/NexysA7/pumice/bin/`.
-
-**Pumice area (build-perf migrated 2026-07-31):** the component lives at
-`projects/fpga-systems/NexysA7/pumice/`. `bin/` (sequences) and `build-perf/`
-(the whole pumice-on-DDR2 harness) are POPULATED; the former
-`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-ours-uart/` no longer exists.
-Verified at the new location: `make lint` clean (matches the pre-move baseline),
-`bin/filelist_registry.py --check` PASS, 27 sim tests still collect, host unit
-tests pass. NOT verified: anything needing Vivado or a board.
-
-Remaining moves:
-- `ddr2_char_framework/rtl/*` -> `pumice/rtl/` (flat; keep `bridges/` as-is).
-  Shared blocks; `build-perf/rtl/filelists/` currently `-f` includes them in
-  place, which is legal, so this is tidiness rather than breakage.
+- `ddr2_char_framework/rtl/*` -> `pumice/rtl/` (flat; keep `bridges/` as-is)
 - `ddr2_char_framework/dv/{tb,tbclasses,tests}` -> `pumice/dv/`, then repoint
-  `SIM_TESTS` in `build-perf/Makefile` from the framework path to
-  `$(SELF_DIR)/dv/tests`.
-- ~~`flows-litedram-uart/{rtl,constraints,tcl}` -> `pumice/build-litedram/`~~
-  **DROPPED 2026-09-10 (Sean).** `build-litedram/` was scaffolded as the
-  destination but the move was never executed, so the repo carried an EMPTY
-  duplicate alongside the real, WIRED flow. That cost a session: the empty
-  scaffold was found first, taken for the whole job, and the LiteX tooling was
-  rebuilt from scratch before `flows-litedram-uart/` surfaced. The empty
-  scaffold is deleted and the flow stays where it is; every reference now
-  points at `ddr2-characterization/flows-litedram-uart/`. If it is ever moved,
-  move it in ONE commit -- do not leave a scaffold standing at the
-  destination.
+  `SIM_TESTS` in `build-perf/Makefile` at `$(SELF_DIR)/dv/tests`
 
-**While moving litedram, two things to fix rather than carry over:**
-- `regen.sh` writes to `build_board/` + `build_sim/` at the flow root. Point it
-  at `gen/board/` + `gen/sim/` (`--output-dir`) so generated cores sit in one
-  named subdirectory per CRITICAL RULE #0.1, and update the `.gitignore`
-  (already scaffolded as `gen/`).
-- `rtl/char_engine_harness.sv` is described as DUT-agnostic and is what makes
-  the pumice-vs-LiteDRAM comparison apples-to-apples, yet it lives in the
-  litedram flow. It belongs in `pumice/rtl/` (shared by both builds); check
-  whether build-perf has diverged its own copy of the same wiring before
-  promoting it.
+Scope decided 2026-09-23: take the FULL move (retire `ddr2_char_framework`,
+rename the `filelists.toml` area and `DDR2_CHAR_FRAMEWORK_ROOT`), not the two
+literal bullets. The bullets alone leave `dv/filelists` behind -- `filelists.toml`
+registers it and the tests reference it by path -- so DV collateral ends up
+split across two directories, and it orphans `regen_bridges.sh` from the bridges
+it generates. A half-move needing a second move later is worse than either end.
 
-Reference-fixing checklist, from doing the build-perf half (all five were real,
-the rest were comments): `bin/filelists.toml` filelist dir, the build's own `.f`
-flow-RTL lines, `ddr2_char_framework/dv/filelists/ddr2_char_uart_tb_top.f`,
-`_HOST` in `dv/tests/test_ddr2_char_{uart,char}.py`, and `pumice_env.py`.
-Also: the moved build needs `CONVERTERS_ROOT` exported by its Makefile (its
-filelist closure resolves `$CONVERTERS_ROOT`), and the tcl scripts now take
-`FPGA_PROJECT_ROOT` from the environment instead of guessing `script_dir/..`.
+Survey (verified 2026-09-22, repo-cleanup): 76 tracked files; 51 literal
+`ddr2_char_framework` paths across 9 filelists; 4 `bin/filelists.toml` lines;
+20 embedded Python path strings, three of them OUTSIDE the pumice tree
+(`bin/filelist_registry.py:90`, `bin/TBClasses/shared/filelist_utils.py:117`,
+`bin/TBClasses/harness/test_device_bus.py:26`). `DDR2_CHAR_FRAMEWORK_ROOT` is
+DEAD CONFIG -- defined in two tables, used by zero `.f` files -- so this is ~70
+literal edits, not a one-line variable change. Destinations are empty
+(`.gitkeep` only); no name collisions.
 
-**Parent directory: SETTLED (Sean, 2026-07-30).** New FPGA board areas live
-under `projects/fpga-systems/<board>/<component>/`, agreeing with NEXYS-002's
-plan. The pumice area was created there. NEXYS-002's move of the existing
-`projects/NexysA7/` tree lands alongside it.
+**Two hazards.**
+1. `regen_bridges.sh` is a GENERATOR and breaks on this move: it derives
+   `FRAMEWORK_ROOT="$SCRIPT_DIR/.."` then `BRIDGES_DIR="$FRAMEWORK_ROOT/rtl/
+   bridges"`. Invoked by BOTH `build-perf/Makefile:41` and
+   `flows-litedram-uart/Makefile:37`, and registered as `regen=` in
+   `filelists.toml:158`. CRITICAL RULE #0 applies: regenerate the three bridges
+   into a SCRATCH tree and diff the ~30 generated files INDIVIDUALLY before
+   committing -- a generator that writes nothing also produces no diff, so the
+   regen step must prove it ran, not prove it was quiet. (Scar:
+   `regen_bridges.sh` once reverted three rounds of work by writing DV.)
+2. `char_engine_harness.sv`'s stated rationale describes a different file.
+   build-perf has NO `char_engine` reference, so there is no divergent copy to
+   reconcile; the genuinely shared piece is `char_engine_block.sv`, which is in
+   `ddr2_char_framework/rtl` and moves anyway.
 
-**Unverified:** the migrated `make program` path and the pumice `run_smoke.py`
-board path have NOT been run against hardware (no board attached, and pyserial
-is not installed in the venv — `pip install pyserial` before board work).
+**Acceptance.** Collection counts are not a gate ([[stale-sim-build-false-green]]).
+Record the exact invocation AND geometry on both sides -- the pumice suite runs
+the same files at two shapes now (`make run-all-func-both`), so a bare test
+total is not like-for-like. Pre-move baseline: `fc83c1b3c`, `top/` 188 passed at
+BOTH geometries, char board gate 216 passed / 2 xfailed.
 
 ## NEXYS-005: One name per quantity — BYTES_PER_AXI_BEAT / BYTES_PER_DFI_BEAT / DRAM_BL
 
