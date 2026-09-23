@@ -65,6 +65,7 @@ module pumice_mem_cmd_scheduler
     input  logic [1:0]                sched_col_sel_i,    // SCHED_POLICY.col_sel
     input  logic [1:0]                sched_access_pref_i,// SCHED_POLICY.access_pref
     input  logic [7:0]                sched_wr_high_wm_i, // SCHED_WR_WM.wr_high_wm
+    input  logic [7:0]                sched_wr_batch_max_i, // SCHED_WR_WM.wr_batch_max
     input  logic [7:0]                sched_wr_low_wm_i,  // SCHED_WR_WM.wr_low_wm
     input  logic [1:0]                sched_prio_sub_i,   // SCHED_POLICY.prio_sub
     input  logic                      sched_qos_en_i,     // SCHED_POLICY.qos_en
@@ -478,6 +479,7 @@ module pumice_mem_cmd_scheduler
         .sched_col_sel_i    (sched_col_sel_i),
         .sched_access_pref_i(sched_access_pref_i),
         .sched_wr_high_wm_i (sched_wr_high_wm_i),
+        .sched_wr_batch_max_i (sched_wr_batch_max_i),
         .sched_wr_low_wm_i  (sched_wr_low_wm_i),
         .sched_prio_sub_i   (sched_prio_sub_i),
         .sched_qos_en_i     (sched_qos_en_i),

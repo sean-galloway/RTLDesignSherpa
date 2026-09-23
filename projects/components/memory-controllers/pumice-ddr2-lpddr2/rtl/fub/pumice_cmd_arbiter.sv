@@ -81,6 +81,9 @@ module pumice_cmd_arbiter
     // ping-ponging RD/WR. high_wm == 0 disables (build default,
     // bit-identical read-priority).
     input  logic [7:0]                sched_wr_high_wm_i,
+    // Max consecutive write columns per drain before reads get a slot.
+    // 0 = unbounded, which is the starvation behaviour this bounds.
+    input  logic [7:0]                sched_wr_batch_max_i,
     input  logic [7:0]                sched_wr_low_wm_i,
     // Priority sub-policy (SCHED_POLICY.prio_sub): 0/2 = load_over_store
     // (reads first -- the build default), 1 = none (fair: the direction
@@ -1078,15 +1081,18 @@ module pumice_cmd_arbiter
     // will not re-arm until a read column has actually fired, so the read side
     // is guaranteed a slot -- hysteresis, not a one-cycle gap that the next
     // occupancy check immediately closes.
-    localparam int WR_BATCH_MAX = 16;
-    logic                              r_wr_drain;
-    logic [$clog2(WR_BATCH_MAX+1)-1:0] r_wr_batch_cnt;
+    // Cap is a CSR (SCHED_WR_WM.wr_batch_max) so silicon can tune it beside
+    // the watermarks it governs. 0 = unbounded = the original starvation.
+    localparam int WR_BATCH_W = 8;
+    logic                    r_wr_drain;
+    logic [WR_BATCH_W-1:0]   r_wr_batch_cnt;
     logic                              r_rd_owed;
     logic w_wr_col_fire, w_rd_col_fire, w_batch_done;
     assign w_wr_col_fire = w_fire_out && r_do_wr;
     assign w_rd_col_fire = w_fire_out && r_do_rd;
     assign w_batch_done  = r_wr_drain && w_wr_col_fire
-                         && (r_wr_batch_cnt >= WR_BATCH_MAX[$clog2(WR_BATCH_MAX+1)-1:0] - 1);
+                         && (sched_wr_batch_max_i != 8'd0)
+                         && (r_wr_batch_cnt >= (sched_wr_batch_max_i - 8'd1));
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin

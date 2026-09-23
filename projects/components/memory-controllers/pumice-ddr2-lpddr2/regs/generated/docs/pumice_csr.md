@@ -862,11 +862,12 @@ batching defect. 2/1 over 8/4 because it wins at gaps 12 and 15,
 ties at 4, and a shallower drain parks reads behind a shorter
 write run. Still a runtime CSR: this is only the reset value.</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 7:0 |wr_high_wm|  rw  | 0x2 |  — |
-| 15:8| wr_low_wm|  rw  | 0x1 |  — |
-|31:16|   RSVD   |   r  | 0x0 |  — |
+| Bits| Identifier |Access|Reset|Name|
+|-----|------------|------|-----|----|
+| 7:0 | wr_high_wm |  rw  | 0x2 |  — |
+| 15:8|  wr_low_wm |  rw  | 0x1 |  — |
+|23:16|wr_batch_max|  rw  | 0x10|  — |
+|31:24|    RSVD    |   r  | 0x0 |  — |
 
 #### wr_high_wm field
 
@@ -875,6 +876,18 @@ write run. Still a runtime CSR: this is only the reset value.</p>
 #### wr_low_wm field
 
 <p>Stop the drain when occupancy falls to this</p>
+
+#### wr_batch_max field
+
+<p>Maximum consecutive write columns in one batch drain before
+the arbiter yields a slot to reads. 0 = unbounded (the
+pre-2026-09-23 behaviour, which STARVES reads under a
+continuous writer -- the drain latches at wr_high_wm and
+clears only at wr_low_wm, and a writer that refills as fast
+as it drains holds it high forever). tRTW amortises ACROSS
+the batch, so the benefit saturates: 20 cycles over 16
+writes is 1.25 cycles each, and going longer buys no
+further amortisation while costing read forward progress.</p>
 
 #### RSVD field
 

@@ -601,8 +601,13 @@ package pumice_csr_pkg;
     } pumice_csr__SCHED_WR_WM__wr_low_wm__out_t;
 
     typedef struct {
+        logic [7:0] value;
+    } pumice_csr__SCHED_WR_WM__wr_batch_max__out_t;
+
+    typedef struct {
         pumice_csr__SCHED_WR_WM__wr_high_wm__out_t wr_high_wm;
         pumice_csr__SCHED_WR_WM__wr_low_wm__out_t wr_low_wm;
+        pumice_csr__SCHED_WR_WM__wr_batch_max__out_t wr_batch_max;
     } pumice_csr__SCHED_WR_WM__out_t;
 
     typedef struct {

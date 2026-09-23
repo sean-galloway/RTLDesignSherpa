@@ -471,6 +471,10 @@ module pumice_csr (
                 logic [7:0] next;
                 logic load_next;
             } wr_low_wm;
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } wr_batch_max;
         } SCHED_WR_WM;
         struct {
             struct {
@@ -792,6 +796,9 @@ module pumice_csr (
             struct {
                 logic [7:0] value;
             } wr_low_wm;
+            struct {
+                logic [7:0] value;
+            } wr_batch_max;
         } SCHED_WR_WM;
         struct {
             struct {
@@ -2192,6 +2199,29 @@ module pumice_csr (
         end
     end
     assign hwif_out.SCHED_WR_WM.wr_low_wm.value = field_storage.SCHED_WR_WM.wr_low_wm.value;
+    // Field: pumice_csr.SCHED_WR_WM.wr_batch_max
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_WR_WM.wr_batch_max.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_WR_WM && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_WR_WM.wr_batch_max.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_WR_WM.wr_batch_max.next = next_c;
+        field_combo.SCHED_WR_WM.wr_batch_max.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_WR_WM.wr_batch_max.value <= 8'h10;
+        end else begin
+            if(field_combo.SCHED_WR_WM.wr_batch_max.load_next) begin
+                field_storage.SCHED_WR_WM.wr_batch_max.value <= field_combo.SCHED_WR_WM.wr_batch_max.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_WR_WM.wr_batch_max.value = field_storage.SCHED_WR_WM.wr_batch_max.value;
     // Field: pumice_csr.PAGE_POLICY_CFG.policy_mode
     always_comb begin
         automatic logic [2:0] next_c;
@@ -2814,7 +2844,8 @@ module pumice_csr (
     assign readback_array[23][31:24] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 8'h0 : '0;
     assign readback_array[24][7:0] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_high_wm.value : '0;
     assign readback_array[24][15:8] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_low_wm.value : '0;
-    assign readback_array[24][31:16] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[24][23:16] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_batch_max.value : '0;
+    assign readback_array[24][31:24] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 8'h0 : '0;
     assign readback_array[25][2:0] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_mode.value : '0;
     assign readback_array[25][3:3] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_scope.value : '0;
     assign readback_array[25][5:4] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 2'h0 : '0;

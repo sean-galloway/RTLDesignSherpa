@@ -7,8 +7,8 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 13 |
-| [closed](closed.md) | 30 |
+| [open](open.md) | 12 |
+| [closed](closed.md) | 31 |
 | [dropped](dropped.md) | 4 |
 
 ## Active

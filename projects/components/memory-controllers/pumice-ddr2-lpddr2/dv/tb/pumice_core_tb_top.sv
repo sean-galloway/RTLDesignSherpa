@@ -73,6 +73,10 @@ module pumice_core_tb_top
     input  logic [1:0]       sched_access_pref_i,
     input  logic [7:0]       sched_wr_high_wm_i,
     input  logic [7:0]       sched_wr_low_wm_i,
+    // Max write columns per batch drain; 0 = unbounded (starves reads).
+    // Defaulted to the CSR reset so a test that does not set it gets the
+    // shipping behaviour rather than the unbounded one.
+    input  logic [7:0]       sched_wr_batch_max_i = 8'd16,
     input  logic [1:0]       sched_prio_sub_i,
     input  logic             sched_qos_en_i,
     input  logic [7:0]       sched_age_thresh_i,
@@ -184,6 +188,7 @@ module pumice_core_tb_top
         .sched_row_sel_i(sched_row_sel_i), .sched_col_sel_i(sched_col_sel_i),
         .sched_access_pref_i(sched_access_pref_i),
         .sched_wr_high_wm_i(sched_wr_high_wm_i), .sched_wr_low_wm_i(sched_wr_low_wm_i),
+        .sched_wr_batch_max_i(sched_wr_batch_max_i),
         .sched_prio_sub_i(sched_prio_sub_i), .sched_qos_en_i(sched_qos_en_i),
         .sched_age_thresh_i(sched_age_thresh_i),
         .page_ctr_thresh_i(page_ctr_thresh_i), .page_ctr_init_i(page_ctr_init_i),

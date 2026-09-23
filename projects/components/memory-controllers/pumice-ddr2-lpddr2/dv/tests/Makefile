@@ -172,5 +172,30 @@ areas:
 
 # Forward any goal not defined above. Must stay LAST: a match-anything rule
 # shadows anything defined after it.
+# ------------------------------------------------------------------------------
+# BOARD GEOMETRY IS PART OF THE DEFAULT REGRESSION (PUMICE-028)
+# ------------------------------------------------------------------------------
+# These three names are what projects/components/Makefile invokes, so they are
+# the only place "covered by default" can mean anything. Each runs the normal
+# pass and then re-runs the TOP area at the shipping geometry.
+#
+# Why top only: the geometry constants live in dv/tests/top and size the
+# elaborated RTL there. fub/ and macro/ do not read them, so a second pass over
+# those areas would rebuild identical designs and double the runtime for no
+# coverage.
+#
+# Why a second invocation: the geometry is read at IMPORT time into module
+# constants, so one process holds exactly one geometry. That is the property
+# that made PUMICE-041 invisible -- a per-test value that reached the testbench
+# but not the elaborated RTL -- used deliberately here.
+#
+# The cost is real (top/ is ~20 min per geometry) and it is the point: the
+# default suite could not express the shape that ships, so a 2x read throttle
+# shipped green (PUMICE-025) and a pinned burst length went unnoticed
+# (PUMICE-041). Use run-all-gate for the quick loop.
+.PHONY: run-all-gate run-all-func run-all-full
+run-all-gate run-all-func run-all-full:
+	@rc=0; 	echo "==== 1/2 default geometry ($@) ===="; 	$(MAKE) --no-print-directory _dispatch TARGET=$@ || rc=1; 	echo "==== 2/2 board geometry ($@, top only): $(BOARD_GEOM) ===="; 	$(BOARD_GEOM) $(MAKE) --no-print-directory -C top $@ || rc=1; 	if [ $$rc -ne 0 ]; then 	    echo -e "$(RED)FAILED: at least one geometry$(RESET)"; exit 1; fi; 	echo -e "$(GREEN)OK: $@ passed at BOTH geometries$(RESET)"
+
 %:
 	@$(MAKE) --no-print-directory _dispatch TARGET=$@

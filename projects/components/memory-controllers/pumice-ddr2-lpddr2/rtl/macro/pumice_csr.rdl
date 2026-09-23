@@ -635,7 +635,20 @@ addrmap pumice_csr {
             desc = "Stop the drain when occupancy falls to this";
         } wr_low_wm[15:8] = 8'h1;
 
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:16] = 16'h0;
+        field {
+            sw = rw; hw = r;
+            desc = "Maximum consecutive write columns in one batch drain before
+                    the arbiter yields a slot to reads. 0 = unbounded (the
+                    pre-2026-09-23 behaviour, which STARVES reads under a
+                    continuous writer -- the drain latches at wr_high_wm and
+                    clears only at wr_low_wm, and a writer that refills as fast
+                    as it drains holds it high forever). tRTW amortises ACROSS
+                    the batch, so the benefit saturates: 20 cycles over 16
+                    writes is 1.25 cycles each, and going longer buys no
+                    further amortisation while costing read forward progress.";
+        } wr_batch_max[23:16] = 8'h10;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:24] = 8'h0;
 
     } SCHED_WR_WM @ 0x06C;
 

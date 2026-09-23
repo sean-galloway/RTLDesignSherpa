@@ -254,6 +254,7 @@ module pumice_top
         .sched_col_sel_i    (hwif_out.SCHED_POLICY.col_sel.value),
         .sched_access_pref_i(hwif_out.SCHED_POLICY.access_pref.value),
         .sched_wr_high_wm_i (hwif_out.SCHED_WR_WM.wr_high_wm.value),
+        .sched_wr_batch_max_i (hwif_out.SCHED_WR_WM.wr_batch_max.value),
         .sched_wr_low_wm_i  (hwif_out.SCHED_WR_WM.wr_low_wm.value),
         .sched_prio_sub_i   (hwif_out.SCHED_POLICY.prio_sub.value),
         .sched_qos_en_i     (hwif_out.SCHED_POLICY.qos_en.value),
