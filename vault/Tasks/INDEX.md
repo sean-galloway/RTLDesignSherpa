@@ -5,7 +5,12 @@ has its own directory with an `INDEX.md` and its lifecycle pages:
 
 ```
 vault/Tasks/<area>/
-  INDEX.md    rollup: counts + the active/open shortlist
+  INDEX.md    rollup: counts + the lane pointers
+  task/       planned work          INDEX.md + open/active/closed/dropped
+  bug/        defects               INDEX.md + open/active/closed/dropped
+  issue/      undiagnosed problems  INDEX.md + open/active/closed/dropped
+
+  # LEGACY task lane -- frozen, close out in place, do not add to:
   active.md   in progress right now
   open.md     accepted, ready to start
   deferred.md accepted, deliberately PARKED - waiting on a named external
@@ -13,6 +18,49 @@ vault/Tasks/<area>/
   closed.md   done (completed; kept for history, not deleted)
   dropped.md  ended without completing (abandoned / superseded / won't do)
 ```
+
+## Three lanes: task, bug, issue (Sean, 2026-09-24)
+
+Everything used to be a "task", which made the page useless for the question
+people actually ask -- *is this broken, or is this work we chose?* The lanes
+split that:
+
+| Lane | What it is | Test for "does it belong here?" |
+|---|---|---|
+| **task** | planned work we decided to do: a feature, a refactor, a migration, a cleanup | It starts from INTENT. Nothing is wrong; we want something different. |
+| **bug** | a defect with a reproduction | You can state the expected behaviour AND the observed one. If you cannot say what correct looks like, it is not a bug. |
+| **issue** | an anomaly, risk, or open question not yet diagnosed | It RESOLVES INTO a bug, a task, or a recorded no-action. It is not a place to park things forever -- that is `deferred`. |
+
+An issue that turns out to be a defect is closed as an issue and re-filed as a
+bug, with each naming the other. Keeping the trail is the point: "we looked at
+this and it was X" is worth more than a silently retyped entry.
+
+**`known_issues/` beside the code is NOT this.** Those directories
+(`rtl/amba/KNOWN_ISSUES/`, `projects/components/<name>/known_issues/`) are a
+WON'T-FIX ledger -- defects we have accepted and are living with, recorded so
+the next person does not re-diagnose them. A vault `issue` is something we
+intend to resolve. If a vault issue ends in "we accept this", it closes here
+and gets written up there.
+
+### IDs
+
+Each lane has its own sequence, and **the area is still the namespace** -- so
+`BUG-001` in pumice and `BUG-001` in amba are different bugs, exactly as
+`TASK-080` already names two different tasks in two areas. Do not invent
+compound prefixes: `PUMICE-BUG-001` does not parse (the checker reads the
+second hyphen as a separator and every bug collapses to one ID).
+
+**`-000` is a reserved dummy in every lane of every area.** It is the template
+entry and is never a real item. It exists so a lane page carries a recognised
+ID from the day it is created: an empty page and a page the checker cannot
+parse look identical in a passing run, and this repo has shipped that failure
+more than once. Real items start at `-001`.
+
+    bin/check_task_ids.py --next pumice/bug     # -> BUG-001
+    bin/check_task_ids.py --area tooling/issue  # check one lane
+
+The checker reports an area by its path under `vault/Tasks/` (`pumice/bug`,
+not `bug`), because 18 directories now share each lane name.
 
 `closed` and `dropped` are both terminal but they are not the same thing:
 `closed` means the work got done, `dropped` means we decided not to do it (or

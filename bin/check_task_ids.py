@@ -116,7 +116,7 @@ def scan_area(area: pathlib.Path):
             lm = ENTRY_LEVEL.match(line)
             if lm and len(lm.group(1)) != 2:
                 level_errs.append(
-                    f"{area.name}: {f.name}:{i} {lm.group(2)} is a task entry at "
+                    f"{area_label(area)}: {f.name}:{i} {lm.group(2)} is a task entry at "
                     f"'{lm.group(1)}' -- every task entry must be '##' "
                     f"(subtasks are '## {lm.group(2)}.01', not a deeper heading)")
             m = HEADING.match(line)
@@ -146,6 +146,20 @@ def highest(ids, prefix: str | None = None) -> int:
     return max(nums) if nums else 0
 
 
+def area_label(area: pathlib.Path) -> str:
+    """Report an area by its path under vault/Tasks, not its bare name.
+
+    Lanes made `.name` ambiguous: 18 directories are called `bug`, 18 `issue`
+    and 18 `task`, so "bug: DUPLICATE ID BUG-004" named nothing. The label is
+    display-only -- KNOWN_COLLISIONS stays keyed on the bare name so the six
+    grandfathered historical collisions are not silently un-grandfathered.
+    """
+    try:
+        return str(area.relative_to(repo_root() / "vault" / "Tasks"))
+    except ValueError:
+        return area.name
+
+
 def check_area(area: pathlib.Path) -> tuple[list[str], list[str]]:
     """-> (errors, warnings). Errors block; warnings are reported only.
 
@@ -170,16 +184,16 @@ def check_area(area: pathlib.Path) -> tuple[list[str], list[str]]:
 
     for tid, locs in sorted(ids.items()):
         if len(locs) > 1 and (area.name, tid) not in KNOWN_COLLISIONS:
-            errs.append(f"{area.name}: DUPLICATE ID {tid} at {', '.join(locs)} "
+            errs.append(f"{area_label(area)}: DUPLICATE ID {tid} at {', '.join(locs)} "
                         f"-- renumber the newer one (see the Next ID line)")
 
     index = area / "INDEX.md"
     if not index.exists():
-        errs.append(f"{area.name}: no INDEX.md")
+        errs.append(f"{area_label(area)}: no INDEX.md")
     else:
         m = NEXT_ID.search(index.read_text())
         if not m:
-            errs.append(f"{area.name}: INDEX.md has no 'Next ID:' line "
+            errs.append(f"{area_label(area)}: INDEX.md has no 'Next ID:' line "
                         f"(highest in use is {highest(ids)}); add one")
         else:
             # NEXT_ID group 1 is the WHOLE id ("MATH-005"), not the prefix.
@@ -191,14 +205,14 @@ def check_area(area: pathlib.Path) -> tuple[list[str], list[str]]:
             prefix = m.group(1).rsplit("-", 1)[0]
             hi = highest(ids, prefix)
             if int(m.group(2)) <= hi:
-                errs.append(f"{area.name}: Next ID is {m.group(1)} but "
+                errs.append(f"{area_label(area)}: Next ID is {m.group(1)} but "
                             f"{prefix}-{hi} is already in use -- bump it "
                             f"past {hi}")
 
     for tid, page, status in blocks:
         want = TERMINAL_PAGES.get(page)
         if want and status and not status.startswith(want):
-            warns.append(f"{area.name}: {tid} lives in {page} but its body says "
+            warns.append(f"{area_label(area)}: {tid} lives in {page} but its body says "
                          f"'**Status:** {status}' -- re-status it or move it")
     return errs, warns
 
