@@ -72,6 +72,24 @@
 #
 # Generated outputs land in ddr2_char_framework/rtl/bridges/generated/
 # bridge_ddr2_char_axil/.
+#
+# THIS IS THE ONLY BRIDGE IN THIS DESIGN, and deliberately so. Two data-path
+# bridges (bridge_ddr2_char_wr / bridge_ddr2_char_rd, 2x1 AXI4) used to sit
+# between the generators and pumice's s_axi; char_gen_unit replaced them and
+# the generators now drive s_axi DIRECTLY. Their configs, filelists and
+# generated output were removed 2026-09-24 -- they had been dead since the
+# replacement and were actively misleading: they described a 2-master-per-
+# direction array with a long rationale for why 2 was the right rung, while the
+# built array reports 4 wr + 4 rd.
+#
+# The rule that leaves: generator AXI goes straight to the controller; only the
+# APB config ports come through a bridge. A bridge is the right tool for a real
+# address decode across unrelated slaves, which is what this file describes. It
+# is the wrong tool for N identical masters merging onto one slave at one
+# address range -- there it is a measuring instrument that caps what it
+# measures (each generated adapter gated the address channel on a bridge_cam
+# with DEPTH(16), so the engine could never exceed 16 outstanding whatever the
+# generators were programmed for).
 #==============================================================================
 
 [bridge]
