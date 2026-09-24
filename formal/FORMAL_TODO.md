@@ -438,7 +438,7 @@ These have prove PASS but no cover task defined, or cover not yet run:
 | datapath_rd_test | stream | **2026-09-24:** same three errors as datapath_wr_test. Could not even elaborate (missing `stream_run_addr_gen`/`dma_address_gen`). Fixed + property corrected (TASK-092): prove depth-8 PASS, cover PASS (4 covers), **full depth-20 PASS** (sby status `PASS 0 9426`, 20/20 steps, 2:37:06 process time). |
 | datapath_wr_test | stream | **2026-09-24: row was wrong 3 ways.** Flat was stale since 2026-07-17; `prove_boundary`/`prove_low8` are not tasks in this unit's .sby (only `prove`/`cover`); cover EXISTS and PASSES (5 covers). Rebuilt + property fixed (TASK-092): prove depth-8 PASS, cover PASS, **full depth-20 PASS** (sby status `PASS 0 13818`, 20/20 steps, 3:50:18 process time). |
 | descriptor_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
-| scheduler | stream | **2026-09-24:** same three errors. `DEPS :=` was empty; `cfg_rd_prefetch_enable` was UNCONNECTED (undriven -> proof meaning undefined). Fixed + property corrected (TASK-092): prove depth-8 PASS, cover PASS (5 covers), full depth-35 running. |
+| scheduler | stream | **2026-09-24:** same three errors. `DEPS :=` was empty; `cfg_rd_prefetch_enable` was UNCONNECTED (undriven -> proof meaning undefined). Fixed + property corrected (TASK-092): prove depth-8 PASS, cover PASS (5 covers), full depth-35 **INCONCLUSIVE** -- 30/35 steps (reached 29), timed out after 6h with no counterexample and no sby status file. Not a pass; not re-run, since 6h bought 29 steps and the last steps cost most. |
 | scheduler_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
 | scheduler_group_array | stream | prove_boundary+prove_low8 PASS, no cover |
 
