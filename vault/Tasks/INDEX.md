@@ -6,9 +6,10 @@ has its own directory with an `INDEX.md` and its lifecycle pages:
 ```
 vault/Tasks/<area>/
   INDEX.md    rollup: counts + the lane pointers
-  task/       planned work          INDEX.md + open/active/closed/dropped
-  bug/        defects               INDEX.md + open/active/closed/dropped
-  issue/      undiagnosed problems  INDEX.md + open/active/closed/dropped
+  task/       planned work          INDEX.md + open/ active/ closed/ dropped/
+  bug/        defects               INDEX.md + open/ active/ closed/ dropped/
+  issue/      undiagnosed problems  INDEX.md + open/ active/ closed/ dropped/
+              ^ each state is a DIRECTORY holding one file per item, <ID>.md
 
   # LEGACY task lane -- frozen, close out in place, do not add to:
   active.md   in progress right now
@@ -41,6 +42,42 @@ WON'T-FIX ledger -- defects we have accepted and are living with, recorded so
 the next person does not re-diagnose them. A vault `issue` is something we
 intend to resolve. If a vault issue ends in "we accept this", it closes here
 and gets written up there.
+
+### One file per item (Sean, 2026-09-24)
+
+A lane does not keep a page listing its items; it keeps a **directory per
+state, and one file per item**:
+
+```
+vault/Tasks/pumice/bug/
+  INDEX.md
+  open/     BUG-001.md  BUG-004.md
+  active/   BUG-002.md
+  closed/   BUG-003.md
+  dropped/
+```
+
+**The filename is the ID, and the H1 must agree with it.** Two names for one
+item is how a half-finished rename starts lying, so the checker fails on a
+mismatch rather than picking one.
+
+**State is the directory, so a transition is a move:**
+
+    git mv open/BUG-001.md active/BUG-001.md
+
+That is what makes "an item is in exactly one state" true by construction
+instead of by discipline -- the old cut-and-paste-the-block rule depended on
+nobody ever copying instead of cutting. The same ID appearing under two states
+is a duplicate and fails.
+
+Keep the `**Status:**` line in step with the directory; a file in `closed/`
+that still says it is open is warned about, not auto-corrected, for the reason
+given above -- flipping it silently would launder open work into the closed
+pile.
+
+**The lane INDEX must list exactly the items on disk.** The checker compares
+them both ways and fails on either a missing entry or a ghost. An index nobody
+reconciles is the copy the next session trusts.
 
 ### IDs
 

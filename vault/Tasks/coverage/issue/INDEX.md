@@ -2,17 +2,21 @@
 
 # coverage — issues
 
-**Next ID: ISSUE-001** — never recycle a number, even when its entry closed.
+**Next ID: ISSUE-001** — never recycle a number, even when its item closed.
 
-An observed problem that is not yet a diagnosed defect or a decided piece of work: an anomaly, a risk, an open question, an investigation. It RESOLVES INTO a bug, a task, or a recorded no-action -- it is not a place to park things forever.
+An observed problem that is not yet a diagnosed defect or a decided piece of work: an anomaly, a risk, an open question. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
-| Page | Count | What |
+Each item is **its own file**, `<ID>.md`, inside the directory for its state.
+Moving an item between states is `git mv`, so an item is in exactly one state
+by construction rather than by discipline.
+
+| State | Count | What |
 |---|---|---|
-| [open.md](open.md) | 1 | accepted, not started |
-| [active.md](active.md) | 0 | in progress right now |
-| [closed.md](closed.md) | 0 | done (kept for history) |
-| [dropped.md](dropped.md) | 0 | ended without completing |
+| [open/](open/) | 1 | accepted, not started |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 0 | done (kept for history) |
+| [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
 
-- **ISSUE-000** — reserved template; copy its shape, do not file against it.
+- **ISSUE-000** — reserved template; copy the file, do not file against it.

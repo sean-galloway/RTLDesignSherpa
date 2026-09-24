@@ -91,8 +91,55 @@ def repo_root() -> pathlib.Path:
     return pathlib.Path(out.decode().strip())
 
 
+STATES = ("open", "active", "closed", "deferred", "dropped")
+ITEM_ID = re.compile(r"^([A-Z][A-Z0-9]*-\d+(?:\.\d+)?)$")
+H1 = re.compile(r"^#\s+([A-Z][A-Z0-9]*-[A-Z0-9]+(?:\.\d+)?)\s*[—\-–:]")
+INDEX_ITEM = re.compile(r"^\s*-\s+\*\*([A-Z][A-Z0-9]*-\d+(?:\.\d+)?)\*\*", re.M)
+
+
+def is_item_layout(area: pathlib.Path) -> bool:
+    """A lane keeps one file per item under state DIRECTORIES."""
+    return any((area / s).is_dir() for s in STATES)
+
+
+def scan_items(area: pathlib.Path):
+    """Per-item layout: <state>/<ID>.md. The ID is the FILENAME.
+
+    Reported as `<state>.md` so the terminal-page rules below apply unchanged.
+    The filename is authoritative and the H1 must agree with it: two names for
+    one item is how a rename half-lands and the tracker starts lying.
+    """
+    ids = collections.defaultdict(list)
+    blocks, errs = [], []
+    for state in STATES:
+        d = area / state
+        if not d.is_dir():
+            continue
+        for f in sorted(d.glob("*.md")):
+            fid = f.stem
+            if not ITEM_ID.match(fid):
+                errs.append(f"{area_label(area)}: {state}/{f.name} is not named "
+                            f"<ID>.md (e.g. BUG-001.md)")
+                continue
+            ids[fid].append(f"{state}/{f.name}")
+            text = f.read_text()
+            head = next((ln for ln in text.split("\n") if ln.startswith("# ")), "")
+            hm = H1.match(head)
+            if not hm:
+                errs.append(f"{area_label(area)}: {state}/{f.name} has no "
+                            f"'# {fid}: <title>' heading")
+            elif hm.group(1) != fid:
+                errs.append(f"{area_label(area)}: {state}/{f.name} is titled "
+                            f"{hm.group(1)} -- filename and heading must match")
+            sm = STATUS.search(text)
+            blocks.append((fid, f"{state}.md", sm.group(1).lower() if sm else None))
+    return ids, blocks, errs
+
+
 def scan_area(area: pathlib.Path):
     """-> (ids{id: [loc]}, blocks[(id, page, status)])"""
+    if is_item_layout(area):
+        return scan_items(area)
     ids = collections.defaultdict(list)
     blocks = []
     level_errs: list[str] = []
@@ -209,6 +256,19 @@ def check_area(area: pathlib.Path) -> tuple[list[str], list[str]]:
                             f"{prefix}-{hi} is already in use -- bump it "
                             f"past {hi}")
 
+    # A lane INDEX that does not list what is on disk is the drift this whole
+    # directory exists to prevent -- and an index nobody reconciles is the copy
+    # the next session trusts. Cheap to check, so check it.
+    if is_item_layout(area) and index.exists():
+        listed = set(INDEX_ITEM.findall(index.read_text()))
+        present = set(ids)
+        for missing in sorted(present - listed):
+            errs.append(f"{area_label(area)}: {missing} exists on disk but "
+                        f"INDEX.md does not list it")
+        for ghost in sorted(listed - present):
+            errs.append(f"{area_label(area)}: INDEX.md lists {ghost} but no "
+                        f"such file exists")
+
     for tid, page, status in blocks:
         want = TERMINAL_PAGES.get(page)
         if want and status and not status.startswith(want):
@@ -232,7 +292,16 @@ def main() -> int:
     # those areas went unchecked (2026-09-14). A checker that quietly covers
     # less than it claims is the failure mode this file already warns about.
     PAGES = {"open.md", "active.md", "closed.md", "deferred.md", "dropped.md"}
-    areas = sorted({f.parent for f in tasks.rglob("*.md") if f.name in PAGES})
+    # TWO layouts, and missing either one makes the checker pass vacuously.
+    # Legacy areas keep flat pages at the area root (frozen, closed out in
+    # place). Lanes keep one file per item under state DIRECTORIES -- for those
+    # no *.md is named open.md, so a PAGES-only scan finds nothing and reports
+    # success over 54 unchecked lanes. That is the exact blindness this file
+    # warns about at the top, so both are discovered explicitly.
+    flat = {f.parent for f in tasks.rglob("*.md") if f.name in PAGES}
+    laned = {d.parent for d in tasks.rglob("*")
+             if d.is_dir() and d.name in STATES and (d.parent / "INDEX.md").exists()}
+    areas = sorted(flat | laned)
     if args.area:
         areas = [a for a in areas
                  if a.name == args.area or str(a.relative_to(tasks)) == args.area]

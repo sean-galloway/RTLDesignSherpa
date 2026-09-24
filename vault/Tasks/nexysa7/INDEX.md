@@ -9,8 +9,10 @@ summary: Task rollup for the NexysA7 characterization flows (stream-char/perf, m
 
 ## Lanes
 
-This area tracks three kinds of work, each with its own lifecycle pages and its
-own ID sequence. Pick the lane before filing:
+This area tracks three kinds of work, each a directory with its own INDEX and
+its own ID sequence. **Every item is its own file**, `<ID>.md`, filed under
+the directory for its state (`open/`, `active/`, `closed/`, `dropped/`).
+Pick the lane before filing:
 
 | Lane | For | Next ID |
 |---|---|---|
