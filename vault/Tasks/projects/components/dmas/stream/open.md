@@ -233,59 +233,16 @@ debug a monitor failure, which is when the name matters most.
 Fix is in the lookup builder: walk child blocks with their instance offset
 applied rather than flattening on raw child addresses.
 
-## TASK-085 — perf FIFO's "atomic" 36-bit read is not atomic
+## TASK-086 — no DV test reads the perf FIFO non-empty
 **Status:** open 2026-09-23  **Priority:** Medium
 
-Filed as "did the RDL relocation change the read timing?". Static analysis
-says NO -- and answered a better question on the way.
+The register walk reads PERF_DATA_LOW/HIGH/STATUS with the FIFO EMPTY, so it
+returns zeros regardless of what the hardware does. That is why [[TASK-085]]'s
+non-atomic read survived: the defect and the fix are indistinguishable to the
+suite as it stands.
 
-**The relocation is behaviour-preserving.** Cycle-accurate path, all of it
-combinational on the read side:
-
-```
-cyc0  CMD_IDLE + cmd_valid -> regblk_req=1            (peakrdl_to_cmdrsp:205)
-      decoded_req = cpuif_req_masked                  (stream_regs.sv:358)
-      swacc = decoded_reg_strb.PERF_DATA_LOW          (stream_regs.sv:2831)
-      perf_fifo_rd = 1                (rising edge; stream_top_ch8.sv:985)
-      readback_array[50] <- hwif_in...next  = PRE-POP flop value (:4906)
-      cpuif_rd_ack = readback_done, combinational              (:5073)
-      adapter captures r_rsp_prdata <= regblk_rd_data          (:261)
-      ...clock edge: r_fifo_data_latched <= w_fifo_rd_data
-cyc1  CMD_WAIT_ACK, regblk_req STILL HELD -> swacc still 1
-      r_perf_rd_acc_d=1 -> perf_fifo_rd=0   (no double pop)
-      rsp_state left RSP_IDLE -> captured data not overwritten
-```
-
-The old router muxed `perf_fifo_data_low` at `s_cmd_valid && s_cmd_ready` --
-the same accept cycle, the same pre-pop flop value. Identical. The edge detect is
-also REQUIRED, not defensive: `peakrdl_to_cmdrsp:189-206` documents that
-`regblk_req` is held through `WAIT_ACK`, and that reducing it to one cycle
-(2026-08-17) broke every register read through this bridge.
-
-**The real defect.** `perf_profiler.sv:386` claims the flop "ensures atomic
-access to 36-bit FIFO entries across two 32-bit reads". It does not. The LOW
-read returns the flop's contents as they stand BEFORE its own pop, and the
-pop only reaches that flop on the next clock edge:
-
-```
-FIFO [A,B,C], flop = X (reset value or the previous entry)
-  read PERF_DATA_LOW  -> returns X[31:0],  pops A, flop <= A
-  read PERF_DATA_HIGH -> returns A[35:32]
-```
-
-So the two halves of one "atomic" entry come from DIFFERENT entries, and the
-first read after reset returns the reset value. Every read is skewed: low
-word from entry N-1, high word from entry N.
-
-PRE-EXISTING -- present identically in the hand-rolled decode this replaced,
-so nothing regressed. But nothing covers it either: the register walk reads
-these with the FIFO EMPTY, so both designs return zeros and pass. Per
+Acceptance: push N known entries into the perf capture FIFO, read LOW/HIGH
+pairs back BY NAME, and assert both the exact entries and their pairing --
+including that the order of the two reads does not change the result, which
+is the property the new both-read pop is supposed to guarantee. Per
 [[escape-analysis]], no failure here is not evidence.
-
-**Open question for the owner:** which is intended -- LOW returns the entry it
-pops (then the readback must come from the FIFO head rather than the flop's
-current contents), or LOW is a "pop and the NEXT pair reads it"
-protocol (then the doc and the MAS software sequence are what is wrong)?
-
-Acceptance: push N known entries, read LOW/HIGH pairs by name, and assert the
-exact entries AND their pairing -- a test that would fail today.

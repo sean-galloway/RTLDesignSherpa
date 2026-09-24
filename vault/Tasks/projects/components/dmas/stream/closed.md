@@ -2,6 +2,44 @@
 
 # STREAM tasks — closed (done)
 
+## TASK-085 — perf FIFO read made atomic: pop once BOTH halves are read
+**Status:** CLOSED 2026-09-23  **Priority:** Medium
+
+Filed as "did the RDL relocation change the read timing?" (it did not), which
+uncovered that the perf FIFO's documented 36-bit atomic read was not atomic.
+PERF_DATA_LOW returned the capture flop's contents BEFORE its own pop reached
+that flop at the clock edge, so the low word came from entry N-1 while the
+following PERF_DATA_HIGH read returned entry N -- and the first read after
+reset returned the reset value. Present identically in the hand-rolled decode
+that preceded the RDL move, so nothing regressed; invisible to the register
+walk, which reads the FIFO empty.
+
+Sean chose the semantics: pop once both halves have been read. Implemented in
+45fa4972e:
+
+- `perf_profiler`: both outputs read the FIFO head combinationally, gated on
+  `perf_fifo_empty`. The capture flop is deleted outright.
+- `stream_regs.rdl`: PERF_DATA_HIGH gains `swacc`, so the pop is formed from
+  the pair rather than from the LOW access alone.
+- `stream_top_ch8`: each access is qualified `!req_is_wr` and rising-edge
+  detected (swacc is a held LEVEL behind CMD_WAIT_ACK), and the pop fires on
+  the SECOND of the two reads, one cycle wide, gated on `!empty`.
+
+Read order no longer matters. Docs updated to match across the MAS read
+sequence, the HAS register table and the RDL descriptions.
+
+Verified: verilator 0 errors on stream_top_ch8 (95 diagnostics, unchanged)
+and on perf_profiler standalone; stream_regs.rdl regenerates byte-identically;
+STREAM DV at REG_LEVEL=FULL is 52 passed / 3 xfailed / 0 failed, matching the
+pre-change run exactly.
+
+Still open as a SEPARATE gap: nothing drives the perf FIFO non-empty in DV,
+so no test would have caught the original defect and none covers the new
+behaviour either. A test that pushes N known entries and asserts the
+LOW/HIGH pairing belongs with [[escape-analysis]]; filed as TASK-086.
+
+---
+
 ## TASK-073: build-mon host walks slvmon_apb with the wrong regmap
 
 **Priority:** Medium — silent wrong-field writes, but build-mon is not going

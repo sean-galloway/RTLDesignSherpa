@@ -5,7 +5,7 @@ summary: Task rollup for the STREAM DMA component (projects/components/dmas/stre
 
 # STREAM tasks
 
-**Next ID: TASK-086** — never recycle a number, even when its task closed.
+**Next ID: TASK-087** — never recycle a number, even when its task closed.
 
 Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "STREAM TASK-080" when writing outside this file.
 
@@ -29,11 +29,13 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
 - **TASK-084** (Low) — TB address->name lookup ignores `MON @ 0x1000`, so 108
   resolvable monitor registers log as `UNKNOWN_0x11xx`.
 
-- **TASK-085** (Medium) — the perf FIFO's "atomic" 36-bit read is not atomic:
-  LOW returns the pre-pop latch and HIGH the post-pop one, so the two halves
-  come from different entries. Pre-existing; the RDL move changed nothing.
+- **TASK-086** (Medium) — no DV test reads the perf FIFO non-empty, so the
+  register walk cannot distinguish a correct capture read from a broken one.
 
 ## Closed (done)
+
+- **TASK-085** (Medium) — perf FIFO read made atomic: pop once BOTH halves
+  are read; capture flop deleted. Done 2026-09-23.
 
 - **TASK-073** (Medium) — build-mon host walked `slvmon_apb` with the wrong
   regmap. Host half was already fixed; the superseded `slvmon_regs` set is
