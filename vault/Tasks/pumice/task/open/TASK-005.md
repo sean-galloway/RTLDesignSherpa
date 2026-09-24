@@ -29,3 +29,50 @@ with **87.1% slice occupancy**. There is not much room left for anything else to
 grow, and this is the largest single block that is optional.
 
 ---
+
+
+## 2026-09-24 — re-measured, and TASK-002 supplied the missing half
+
+**The block is BIGGER than filed.** Re-measured by OOC synth on
+xc7a100tcsg324-1 (NUM_BANKS=8, ROW_WIDTH=13):
+
+| | filed 2026-09-14 | measured 2026-09-24 | change |
+|---|---|---|---|
+| `pumice_page_policy` | 4,546 LUT / 3,341 FF | **5,578 LUT / 3,342 FF** | **+1,032 LUT** |
+
+8.8% of the device in one optional block, on a part whose four-generator build
+closes at +0.016 ns and 87.1% occupancy.
+
+**And now we know what it buys, which the filing could not say.** The TASK-002
+board campaign measured every predictor against plain open page (75 MHz,
+8000 txn, read MB/s):
+
+| mode | incremental | col_major | vs plain open page |
+|---|---|---|---|
+| plain `open_page` | 554.1 | 163.8 | -- |
+| 4 `adapt_time` | 554.1 | 163.8 | **identical** |
+| 5 `adapt_access` | 554.1 | 163.8 | **identical** |
+| 7 `rbl_dyn` | 549.7 | 163.8 | -0.8%, +33 ACT |
+| 6 `rbl_static` | 554.1 | 163.8 | identical *(after the epoch fix; 34.9 before)* |
+
+**Not one of modes 4/5/6/7 beats plain open page on any workload measured.**
+Two are bit-identical, one is marginally worse, and the fourth was a 15.8x
+regression until [[TASK-001]]'s P1 was fixed. So the block currently costs
+5,578 LUT and returns nothing measurable.
+
+**That is not yet a decision, and here is the honest counterweight.** The
+campaign swept ONE AXIS AT A TIME against a fixed baseline. The predictors are
+exactly the kind of mechanism that earns its keep on a workload that ALTERNATES
+locality -- which is what the axis PAIRS and a genuinely random family would
+probe, and neither has been run (see TASK-002, "What is NOT yet characterized").
+Gating the block now would make that experiment require a different bitstream,
+which is the property the modes were restored to avoid
+([[project_pumice_advanced_sched_modes]]).
+
+**Recommendation, for Sean's call:** option 1 (a `PAGE_PRED_MODES` parameter
+defaulting ON, board build OFF) but NOT YET -- finish TASK-002's pair sweep
+first, because it is the only experiment that could still justify the area, and
+it is cheap now that the telemetry reads. If the pairs also show no benefit,
+the block has no measured defence and option 1 becomes straightforward. If a
+build stops closing before then, take option 1 immediately; the numbers above
+are the justification.

@@ -194,6 +194,11 @@ module pumice_core_tb_top
         .page_ctr_thresh_i(page_ctr_thresh_i), .page_ctr_init_i(page_ctr_init_i),
         .page_rbl_thresh_i(page_rbl_thresh_i), .page_rbl_ways_i(page_rbl_ways_i),
         .page_rbl_sets_i(page_rbl_sets_i), .page_rbl_ivl_i(page_rbl_ivl_i),
+        // TASK-006 stall attribution: left open, the core TB scores the
+        // datapath, not the counters (those are read over the CSR bus).
+        .stall_bp_o(), .stall_refresh_o(), .stall_turnaround_o(),
+        .stall_tccd_o(), .stall_actlimit_o(), .stall_banktimer_o(),
+        .stall_noreq_o(),
         .stat_page_hit_o(), .stat_page_miss_o(), .stat_page_empty_o(),
         .stat_act_o(), .stat_pre_o(), .stat_ref_o(),
         // CSR-backed MR values at their RDL resets (MR0 0x0433 = BL8/CL3/tWR3);

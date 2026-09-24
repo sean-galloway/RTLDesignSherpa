@@ -218,6 +218,62 @@ package pumice_csr_pkg;
 
     typedef struct {
         logic [31:0] next;
+    } pumice_csr__STALL_BP__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__STALL_BP__VAL__in_t VAL;
+    } pumice_csr__STALL_BP__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__STALL_REFRESH__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__STALL_REFRESH__VAL__in_t VAL;
+    } pumice_csr__STALL_REFRESH__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__STALL_TURNAROUND__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__STALL_TURNAROUND__VAL__in_t VAL;
+    } pumice_csr__STALL_TURNAROUND__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__STALL_TCCD__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__STALL_TCCD__VAL__in_t VAL;
+    } pumice_csr__STALL_TCCD__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__STALL_ACTLIMIT__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__STALL_ACTLIMIT__VAL__in_t VAL;
+    } pumice_csr__STALL_ACTLIMIT__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__STALL_BANKTIMER__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__STALL_BANKTIMER__VAL__in_t VAL;
+    } pumice_csr__STALL_BANKTIMER__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__STALL_NOREQ__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__STALL_NOREQ__VAL__in_t VAL;
+    } pumice_csr__STALL_NOREQ__in_t;
+
+    typedef struct {
+        logic [31:0] next;
     } pumice_csr__OBS_WORDS__WORD__VAL__in_t;
 
     typedef struct {
@@ -251,6 +307,13 @@ package pumice_csr_pkg;
         pumice_csr__SCHED_STATS_ACT__in_t SCHED_STATS_ACT;
         pumice_csr__SCHED_STATS_PRE__in_t SCHED_STATS_PRE;
         pumice_csr__REF_STATS_REF__in_t REF_STATS_REF;
+        pumice_csr__STALL_BP__in_t STALL_BP;
+        pumice_csr__STALL_REFRESH__in_t STALL_REFRESH;
+        pumice_csr__STALL_TURNAROUND__in_t STALL_TURNAROUND;
+        pumice_csr__STALL_TCCD__in_t STALL_TCCD;
+        pumice_csr__STALL_ACTLIMIT__in_t STALL_ACTLIMIT;
+        pumice_csr__STALL_BANKTIMER__in_t STALL_BANKTIMER;
+        pumice_csr__STALL_NOREQ__in_t STALL_NOREQ;
         pumice_csr__OBS_WORDS__in_t OBS_WORDS[9];
     } pumice_csr__in_t;
 

@@ -85,6 +85,14 @@ module pumice_mem_cmd_scheduler
     input  logic [1:0]                page_rbl_ways_i,
     input  logic [3:0]                page_rbl_sets_i,
     input  logic [15:0]               page_rbl_ivl_i,
+    // stall-cause attribution from the arbiter (TASK-006)
+    output logic [31:0]               stall_bp_o,
+    output logic [31:0]               stall_refresh_o,
+    output logic [31:0]               stall_turnaround_o,
+    output logic [31:0]               stall_tccd_o,
+    output logic [31:0]               stall_actlimit_o,
+    output logic [31:0]               stall_banktimer_o,
+    output logic [31:0]               stall_noreq_o,
     output logic [31:0]               stat_page_hit_o,
     output logic [31:0]               stat_page_miss_o,
     output logic [31:0]               stat_page_empty_o,
@@ -515,7 +523,14 @@ module pumice_mem_cmd_scheduler
         .cmd_bank_o         (a_cmd_bank),
         .cmd_row_o          (a_cmd_row),
         .cmd_col_o          (a_cmd_col),
-        .cmd_ap_o           (a_cmd_ap)
+        .cmd_ap_o           (a_cmd_ap),
+        .stall_bp_o        (stall_bp_o),
+        .stall_refresh_o        (stall_refresh_o),
+        .stall_turnaround_o        (stall_turnaround_o),
+        .stall_tccd_o        (stall_tccd_o),
+        .stall_actlimit_o        (stall_actlimit_o),
+        .stall_banktimer_o        (stall_banktimer_o),
+        .stall_noreq_o        (stall_noreq_o)
     );
 
     // ======================================================================

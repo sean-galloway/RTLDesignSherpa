@@ -116,10 +116,18 @@ module pumice_top
     // hwif_in: everything defaults to 0 (unwired status/obs readback), the
     // live telemetry members are assigned below. always_comb so members can
     // be overridden without a second driver on the struct.
+    logic [31:0] w_stall_bp, w_stall_refresh, w_stall_turnaround, w_stall_tccd, w_stall_actlimit, w_stall_banktimer, w_stall_noreq;
     logic [31:0] w_stat_page_hit, w_stat_page_miss, w_stat_page_empty;
     logic [31:0] w_stat_act, w_stat_pre, w_stat_ref;
     always_comb begin
         hwif_in = '{default: '0};
+        hwif_in.STALL_BP.VAL.next  = w_stall_bp;
+        hwif_in.STALL_REFRESH.VAL.next = w_stall_refresh;
+        hwif_in.STALL_TURNAROUND.VAL.next = w_stall_turnaround;
+        hwif_in.STALL_TCCD.VAL.next = w_stall_tccd;
+        hwif_in.STALL_ACTLIMIT.VAL.next = w_stall_actlimit;
+        hwif_in.STALL_BANKTIMER.VAL.next = w_stall_banktimer;
+        hwif_in.STALL_NOREQ.VAL.next = w_stall_noreq;
         hwif_in.PAGE_STATS_HIT.VAL.next    = w_stat_page_hit;
         hwif_in.PAGE_STATS_MISS.VAL.next   = w_stat_page_miss;
         hwif_in.PAGE_STATS_EMPTY.VAL.next  = w_stat_page_empty;
@@ -265,6 +273,13 @@ module pumice_top
         .page_rbl_ways_i    (hwif_out.PAGE_RBL_CFG.ways.value),
         .page_rbl_sets_i    (hwif_out.PAGE_RBL_CFG.sets.value),
         .page_rbl_ivl_i     (hwif_out.PAGE_RBL_CFG.reset_interval.value),
+        .stall_bp_o        (w_stall_bp),
+        .stall_refresh_o        (w_stall_refresh),
+        .stall_turnaround_o        (w_stall_turnaround),
+        .stall_tccd_o        (w_stall_tccd),
+        .stall_actlimit_o        (w_stall_actlimit),
+        .stall_banktimer_o        (w_stall_banktimer),
+        .stall_noreq_o        (w_stall_noreq),
         .stat_page_hit_o    (w_stat_page_hit),
         .stat_page_miss_o   (w_stat_page_miss),
         .stat_page_empty_o  (w_stat_page_empty),

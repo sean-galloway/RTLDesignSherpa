@@ -191,7 +191,23 @@ module pumice_cmd_arbiter
     output logic [BKW-1:0]            cmd_bank_o,
     output logic [ROW_WIDTH-1:0]      cmd_row_o,
     output logic [COL_WIDTH-1:0]      cmd_col_o,
-    output logic                      cmd_ap_o
+    output logic                      cmd_ap_o,
+
+    // ---- stall-cause attribution (TASK-006) --------------------------------
+    // The bus meters say a cycle was not productive; these say WHY, so a
+    // characterization report can split the missing percent instead of leaving
+    // the table out. Free-running, cleared only by aresetn -- read as a
+    // before/after delta around a window, exactly like the PAGE/SCHED stats.
+    // Every stalled cycle lands in EXACTLY ONE bucket (priority order below),
+    // so the buckets sum to the stalled-cycle count and a missing cause shows
+    // up as an inflated neighbour rather than as silence.
+    output logic [31:0]               stall_bp_o,        // DFI refused a ready command
+    output logic [31:0]               stall_refresh_o,   // refresh owns the bus
+    output logic [31:0]               stall_turnaround_o,// tWTR / tRTW
+    output logic [31:0]               stall_tccd_o,      // column-to-column spacing
+    output logic [31:0]               stall_actlimit_o,  // tFAW / tRRD
+    output logic [31:0]               stall_banktimer_o, // tRCD / tRP / tRAS, per bank
+    output logic [31:0]               stall_noreq_o      // nothing pending: requester-bound
 );
 
     localparam int RK0 = 0;   // v1 single-rank pick
@@ -1120,6 +1136,44 @@ module pumice_cmd_arbiter
             end else if (r_wr_drain && w_wr_col_fire) begin
                 r_wr_batch_cnt <= r_wr_batch_cnt + 1'b1;
             end
+        end
+    )
+
+    // ---- stall-cause attribution (TASK-006) --------------------------------
+    // One bucket per cycle, first match wins. The order is the causal one: a
+    // command we could not hand over (bp) is not a scheduling stall; refresh
+    // outranks the timers it is about to reset; a GLOBAL timer outranks the
+    // per-bank ones because it blocks every bank at once; "nothing pending"
+    // is only claimed when the CAMs really are empty, so a requester-bound
+    // verdict can never absorb a timer stall.
+    logic w_any_pending, w_stalled;
+    assign w_any_pending = (|rd_sch_valid_i) || (|wr_sch_valid_i);
+    assign w_stalled     = !w_fire_out;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            stall_bp_o         <= 32'h0;
+            stall_refresh_o    <= 32'h0;
+            stall_turnaround_o <= 32'h0;
+            stall_tccd_o       <= 32'h0;
+            stall_actlimit_o   <= 32'h0;
+            stall_banktimer_o  <= 32'h0;
+            stall_noreq_o      <= 32'h0;
+        end else if (w_stalled) begin
+            if (r_pick_valid)                       // picked, DFI said no
+                stall_bp_o         <= stall_bp_o + 32'h1;
+            else if (refresh_req_i || refresh_drain_i)
+                stall_refresh_o    <= stall_refresh_o + 32'h1;
+            else if (!w_any_pending)                // genuinely nothing to do
+                stall_noreq_o      <= stall_noreq_o + 32'h1;
+            else if (!twtr_ok_i || !trtw_ok_i)
+                stall_turnaround_o <= stall_turnaround_o + 32'h1;
+            else if (!tccd_ok_i)
+                stall_tccd_o       <= stall_tccd_o + 32'h1;
+            else if (!tfaw_ok_i[RK0] || !trrd_ok_i[RK0])
+                stall_actlimit_o   <= stall_actlimit_o + 32'h1;
+            else                                    // per-bank tRCD/tRP/tRAS
+                stall_banktimer_o  <= stall_banktimer_o + 32'h1;
         end
     )
 

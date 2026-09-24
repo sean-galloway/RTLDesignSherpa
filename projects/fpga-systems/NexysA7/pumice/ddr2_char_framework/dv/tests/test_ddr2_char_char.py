@@ -286,6 +286,18 @@ async def cocotb_test_char_families(dut):
                 # these say why it scored that. Printed as "no telemetry"
                 # rather than zeros when absent -- a 0% hit rate and a failed
                 # read must not look alike.
+                # Stall-cause attribution (TASK-006). Printed with the TOTAL
+                # so the exclusivity property is checkable by eye: the seven
+                # buckets must sum to it, and a cause the RTL failed to
+                # classify shows up as an inflated neighbour.
+                sl = r.rd_stalls
+                if sl is None:
+                    fh.write("  RD stalls: no telemetry\n")
+                else:
+                    fh.write(f"  RD stalls: total={sl.total} "
+                             + " ".join(f"{k}={v:.1%}" for k, v in
+                                        sorted(sl.split().items(), key=lambda kv: -kv[1]))
+                             + f"  dram_bound={sl.dram_bound:.1%}\n")
                 for lbl, st in (("WR", r.wr_stats), ("RD", r.rd_stats)):
                     if st is None:
                         fh.write(f"  {lbl} page: no telemetry\n")

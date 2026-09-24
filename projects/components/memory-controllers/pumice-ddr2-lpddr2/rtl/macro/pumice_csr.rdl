@@ -825,6 +825,60 @@ addrmap pumice_csr {
         field { sw = r; hw = w; desc = "REFab + REFpb commands issued"; } VAL[31:0];
     } REF_STATS_REF @ 0x15C;
 
+    //-------------------------------------------------------------------------
+    // Stall-cause attribution (TASK-006). The bus meters say a cycle was not
+    // productive; these say WHY, so the missing percent in a bandwidth report
+    // can be split instead of the table being left out.
+    //
+    // Every stalled cycle lands in EXACTLY ONE bucket, so the seven sum to the
+    // stalled-cycle count. That is what makes a missing cause visible: it
+    // inflates a neighbour rather than vanishing. Priority is causal -- a
+    // command the DFI refused is not a scheduling stall; refresh outranks the
+    // timers it is about to reset; a GLOBAL timer outranks the per-bank ones
+    // because it blocks every bank at once; and "nothing pending" is only
+    // claimed when both CAMs are empty, so a requester-bound verdict can never
+    // absorb a timer stall.
+    //
+    // Free-running like the PAGE/SCHED/REF counters: no clear bit, cleared
+    // only by aresetn, so a host reads them as a BEFORE/AFTER DELTA around a
+    // measurement window.
+    //-------------------------------------------------------------------------
+
+    reg {
+        name = "Stall: DFI backpressure";
+        field { sw = r; hw = w; desc = "A command was picked and the DFI would not take it"; } VAL[31:0];
+    } STALL_BP @ 0x160;
+
+    reg {
+        name = "Stall: refresh";
+        field { sw = r; hw = w; desc = "Refresh pending or draining owns the bus"; } VAL[31:0];
+    } STALL_REFRESH @ 0x164;
+
+    reg {
+        name = "Stall: bus turnaround";
+        field { sw = r; hw = w; desc = "tWTR or tRTW blocked the opposite direction"; } VAL[31:0];
+    } STALL_TURNAROUND @ 0x168;
+
+    reg {
+        name = "Stall: column spacing";
+        field { sw = r; hw = w; desc = "tCCD blocked the next column op"; } VAL[31:0];
+    } STALL_TCCD @ 0x16C;
+
+    reg {
+        name = "Stall: activate rate limit";
+        field { sw = r; hw = w; desc = "tFAW or tRRD blocked an activate"; } VAL[31:0];
+    } STALL_ACTLIMIT @ 0x170;
+
+    reg {
+        name = "Stall: per-bank timer";
+        field { sw = r; hw = w; desc = "tRCD / tRP / tRAS on the target bank"; } VAL[31:0];
+    } STALL_BANKTIMER @ 0x174;
+
+    reg {
+        name = "Stall: nothing pending";
+        field { sw = r; hw = w; desc = "Both CAMs empty -- requester-bound, not DRAM-bound"; } VAL[31:0];
+    } STALL_NOREQ @ 0x178;
+
     //=========================================================================
     // Module Identification (0xFF0 – 0xFFC)
     //=========================================================================

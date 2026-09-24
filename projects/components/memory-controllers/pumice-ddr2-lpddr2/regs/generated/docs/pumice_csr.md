@@ -77,6 +77,13 @@ Don't override. Generated from: $root
 | 0x154|     SCHED_STATS_ACT    |         Sched Stats: Activates         |
 | 0x158|     SCHED_STATS_PRE    |         Sched Stats: Precharges        |
 | 0x15C|      REF_STATS_REF     |        Refresh Stats: Refreshes        |
+| 0x160|        STALL_BP        |         Stall: DFI backpressure        |
+| 0x164|      STALL_REFRESH     |             Stall: refresh             |
+| 0x168|    STALL_TURNAROUND    |          Stall: bus turnaround         |
+| 0x16C|       STALL_TCCD       |          Stall: column spacing         |
+| 0x170|     STALL_ACTLIMIT     |       Stall: activate rate limit       |
+| 0x174|     STALL_BANKTIMER    |          Stall: per-bank timer         |
+| 0x178|       STALL_NOREQ      |         Stall: nothing pending         |
 | 0x1C0|      OBS_WORDS[0]      |        Observation Word Harvest        |
 | 0x1C4|      OBS_WORDS[1]      |        Observation Word Harvest        |
 | 0x1C8|      OBS_WORDS[2]      |        Observation Word Harvest        |
@@ -1811,6 +1818,104 @@ further amortisation while costing read forward progress.</p>
 #### VAL field
 
 <p>REFab + REFpb commands issued</p>
+
+### STALL_BP register
+
+- Absolute Address: 0x160
+- Base Offset: 0x160
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>A command was picked and the DFI would not take it</p>
+
+### STALL_REFRESH register
+
+- Absolute Address: 0x164
+- Base Offset: 0x164
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Refresh pending or draining owns the bus</p>
+
+### STALL_TURNAROUND register
+
+- Absolute Address: 0x168
+- Base Offset: 0x168
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>tWTR or tRTW blocked the opposite direction</p>
+
+### STALL_TCCD register
+
+- Absolute Address: 0x16C
+- Base Offset: 0x16C
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>tCCD blocked the next column op</p>
+
+### STALL_ACTLIMIT register
+
+- Absolute Address: 0x170
+- Base Offset: 0x170
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>tFAW or tRRD blocked an activate</p>
+
+### STALL_BANKTIMER register
+
+- Absolute Address: 0x174
+- Base Offset: 0x174
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>tRCD / tRP / tRAS on the target bank</p>
+
+### STALL_NOREQ register
+
+- Absolute Address: 0x178
+- Base Offset: 0x178
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>Both CAMs empty -- requester-bound, not DRAM-bound</p>
 
 ## OBS_WORDS register file
 

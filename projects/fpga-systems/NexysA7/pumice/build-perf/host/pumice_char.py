@@ -722,6 +722,75 @@ class PageStats:
         return self.col_ops > 0 or self.acts > 0 or self.refs > 0
 
 
+@dataclass(frozen=True)
+class StallStats:
+    """Stall-cause attribution (TASK-006), as a DELTA over one phase.
+
+    The bus meters classify a cycle as productive/backpressure/starvation/idle,
+    which says the controller did not accept a beat but not WHY. These seven
+    counters split every stalled cycle by the constraint that caused it, so a
+    bandwidth report can say where the missing percent went instead of leaving
+    the table out (docs/DDR2_BANDWIDTH_MEASUREMENT.md section 5).
+
+    Every stalled cycle lands in exactly ONE bucket, so the seven sum to the
+    stalled-cycle count. That is the property worth checking: a cause the RTL
+    forgot to classify inflates a neighbour rather than disappearing, so the
+    total is a cross-check on the attribution itself, not just a convenience.
+
+    Free-running like PageStats -- diff a before/after pair, never read absolute.
+    """
+    bp:         int   # a command was picked and the DFI would not take it
+    refresh:    int   # refresh pending/draining owns the bus
+    turnaround: int   # tWTR / tRTW
+    tccd:       int   # column-to-column spacing
+    actlimit:   int   # tFAW / tRRD
+    banktimer:  int   # tRCD / tRP / tRAS on the target bank
+    noreq:      int   # both CAMs empty: requester-bound, not DRAM-bound
+
+    _F = ("bp", "refresh", "turnaround", "tccd", "actlimit", "banktimer", "noreq")
+
+    def __sub__(self, other: "StallStats") -> "StallStats":
+        m = lambda a, b: (a - b) & 0xFFFF_FFFF
+        return StallStats(*[m(getattr(self, f), getattr(other, f)) for f in self._F])
+
+    @property
+    def total(self) -> int:
+        return sum(getattr(self, f) for f in self._F)
+
+    @property
+    def counted(self) -> bool:
+        return self.total > 0
+
+    @property
+    def dram_bound(self) -> Optional[float]:
+        """Fraction of stalled cycles the DRAM caused, as opposed to the
+        requester having nothing to offer. This is the number the report wants:
+        a low value means the workload, not the controller, is the limit."""
+        if self.total <= 0:
+            return None
+        return (self.total - self.noreq) / self.total
+
+    def split(self) -> Dict[str, float]:
+        """Cause -> fraction of stalled cycles. Empty when nothing stalled."""
+        if self.total <= 0:
+            return {}
+        return {f: getattr(self, f) / self.total for f in self._F}
+
+
+def read_stall_stats(drv: DDR2CharDriver) -> StallStats:
+    """Snapshot the stall-cause counters. By name via the generated regmap."""
+    f = drv.pumice.regs.field
+    return StallStats(
+        bp=        int(f("STALL_BP",         "VAL")),
+        refresh=   int(f("STALL_REFRESH",    "VAL")),
+        turnaround=int(f("STALL_TURNAROUND", "VAL")),
+        tccd=      int(f("STALL_TCCD",       "VAL")),
+        actlimit=  int(f("STALL_ACTLIMIT",   "VAL")),
+        banktimer= int(f("STALL_BANKTIMER",  "VAL")),
+        noreq=     int(f("STALL_NOREQ",      "VAL")),
+    )
+
+
 def read_page_stats(drv: DDR2CharDriver) -> PageStats:
     """Snapshot the controller-side telemetry. Registers BY NAME via the
     generated regmap ([[feedback_registers_by_name]]) -- these offsets sit in
@@ -781,6 +850,8 @@ class CharRecord:
     # the controller CSRs were not readable, or nothing was counted.
     wr_stats: Optional["PageStats"] = None
     rd_stats: Optional["PageStats"] = None
+    # Stall-cause attribution over the same window (TASK-006).
+    rd_stalls: Optional["StallStats"] = None
 
     # ---- derived paging ---------------------------------------------------
     @property
@@ -908,6 +979,21 @@ def _delta_page_stats(before: Optional[PageStats],
     return d if d.counted else None
 
 
+def _try_stalls(drv: DDR2CharDriver) -> Optional[StallStats]:
+    try:
+        return read_stall_stats(drv)
+    except Exception:
+        return None
+
+
+def _delta_stalls(before: Optional[StallStats],
+                  after: Optional[StallStats]) -> Optional[StallStats]:
+    if before is None or after is None:
+        return None
+    d = after - before
+    return d if d.counted else None
+
+
 def _read_meter(drv: DDR2CharDriver, which: str) -> Meter:
     m = drv.perf_meters()[which]
     return Meter(prod=m.prod, bp=m.bp, starv=m.starv, idle=m.idle)
@@ -977,6 +1063,7 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     drv.program_rd_engine(**prog)           # (still frozen from above)
     drv.clear_stats()
     _ps_rd0 = _try_page_stats(drv)
+    _st_rd0 = _try_stalls(drv)
     drv.timer_clear()
     drv.freeze_trace(False)
     drv.start_rd()
@@ -986,6 +1073,7 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     rd_cycles = max(_tr.r_last - _tr.r_first, 0)
     rd_meter = _read_meter(drv, "rd")
     rd_stats = _delta_page_stats(_ps_rd0, _try_page_stats(drv))
+    rd_stalls = _delta_stalls(_st_rd0, _try_stalls(drv))
     rd_hist, rd_total = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     drv.freeze_trace(False)                 # leave running for the next scenario
 
@@ -1010,7 +1098,8 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
         rd_cycles=rd_cycles, rd_meter=rd_meter,
         rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
         bytes_moved=bytes_moved, clk_mhz=clk_mhz,
-        wr_stats=wr_stats, rd_stats=rd_stats, notes=tuple(notes))
+        wr_stats=wr_stats, rd_stats=rd_stats, rd_stalls=rd_stalls,
+        notes=tuple(notes))
 
 
 def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
@@ -1536,6 +1625,27 @@ def summarize(recs: List[CharRecord]) -> List[str]:
                      "this run size (meter window >> timer run) -- treat rd/wr "
                      "util as unreliable; bandwidth (timer-based) is fine. Raise "
                      "--char-scale (~1000 on the board) for meaningful util.")
+    # THE OVERHEAD BREAKDOWN (TASK-006). This is the line
+    # docs/DDR2_BANDWIDTH_MEASUREMENT.md section 5 leaves out, because until the
+    # stall counters landed there was nothing to build it from and a plausible
+    # invented split is worse than an absent one.
+    _st = [r for r in recs if r.rd_stalls is not None]
+    if _st:
+        agg = {}
+        for r in _st:
+            for k, v in r.rd_stalls.split().items():
+                agg[k] = agg.get(k, 0.0) + v * r.rd_stalls.total
+        tot = sum(r.rd_stalls.total for r in _st)
+        if tot:
+            parts = " ".join(f"{k}={agg[k]/tot:.1%}"
+                             for k in sorted(agg, key=lambda k: -agg[k]))
+            db = sum(r.rd_stalls.total - r.rd_stalls.noreq for r in _st) / tot
+            lines.append(f"[stalls] {tot} stalled cycles over {len(_st)} points, "
+                         f"{db:.1%} DRAM-bound -- {parts}")
+            lines.append("[stalls] buckets are exclusive and sum to the stalled "
+                         "count, so an unclassified cause inflates a neighbour "
+                         "rather than vanishing.")
+
     # REF is the one counter that free-runs on a timer rather than on DRAM
     # commands, so its raw delta measures the HOST's round trips between the
     # two reads, not the workload. The table prints the window ESTIMATE
