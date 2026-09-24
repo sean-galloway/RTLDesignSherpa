@@ -1574,10 +1574,18 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     # static_close flat at 33.9 MB/s across OS 8/16/32. So a mode sitting at
     # its measured point is NOT a failure; a mode sitting BELOW it is.
     #
-    # 0.55 x ceiling: the measured ratios are 0.63 (static_close, rbl_static)
-    # and 0.53 (rbl_dyn), so this floor sits just under the worst of them and
-    # still catches a real regression, which would be a step change rather
-    # than a few percent. The ratios are REPORTED either way.
+    # 0.55 x ceiling. Measured ratios, board geometry, 2026-09-24:
+    #     static_close  30.77 / 49.0 = 0.628   <- the worst, and the binding one
+    #     rbl_static    30.77 / 49.0 = 0.628
+    #     rbl_dyn       41.56 / 61.0 = 0.681
+    # so 0.55 sits ~12% under the worst and still catches a step change rather
+    # than a few percent of drift. The ratios are REPORTED either way.
+    #
+    # This comment used to quote 0.53 for rbl_dyn, which was its PRE-fix ratio
+    # (32.32/61.0): the classify-gate fix moved it to 41.56 and nobody updated
+    # the rationale. Left as it was, the next person tuning this floor would
+    # think rbl_dyn was the worst case and set it against a mode that has since
+    # improved by 29%.
     ACCEPTED_CEILING_FRAC = 0.55
     regressed = [r for r in below_ceiling if r[1] < ACCEPTED_CEILING_FRAC * r[2]]
     if below_ceiling:

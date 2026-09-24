@@ -1,8 +1,10 @@
 # ISSUE-002: close-page modes reach only ~63% of their own command-bus ceiling
 > **Was `PUMICE-046` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** open 2026-09-20  **Priority:** P2 — invisible at the sim geometry,
-dominant at the board's, and it caps close-page paging on silicon
+**Status:** CLOSED 2026-09-24 — root-caused, partially fixed (+29% on
+rbl_dyn), residual ACCEPTED by Sean's ISSUE-001 ruling, and the tests now
+report the accepted number behind a regression floor that is mutation-proven
+to fire. Nothing is left to chase. (was: open 2026-09-20, P2)
 
 Found while making the paging assertions geometry-aware for [[PUMICE-028]].
 The arbiter issues at most ONE DFI command per cycle, so no mode can exceed
@@ -126,3 +128,47 @@ on it -- a floor that still catches a REGRESSION below the measured point,
 which is the next entry.
 
 ---
+
+
+## 2026-09-24 — CLOSED: the reporting half verified, one stale number fixed
+
+The entry above ended with the only thing still legitimately open: *"the paging
+tests should report the accepted number instead of failing on it -- a floor
+that still catches a REGRESSION below the measured point"*. That is in place
+and now VERIFIED rather than assumed.
+
+**Verified by mutation, not by a green.** `perf_paging_sweep` passes at board
+geometry in 27.4 s. Tightening `ACCEPTED_CEILING_FRAC` 0.55 -> 0.95 makes it
+fail with exactly the message the entry asked for -- the gap reported, not
+re-derived:
+
+```
+paging modes below the ACCEPTED close-page floor (95% of their command-bus
+ceiling): [('static_close', 30.77, 49.0, 2.04), ('rbl_static', 30.77, 49.0,
+2.04), ('rbl_dyn', 41.56, 61.0, 1.64)]
+```
+
+(mode, measured %, ceiling %, cmds/access). Restored; both paging tests green.
+
+**One real defect found in the floor's own rationale.** The comment justified
+0.55 as sitting under "0.63 (static_close, rbl_static) and 0.53 (rbl_dyn)" --
+but 0.53 is rbl_dyn's PRE-fix ratio (32.32/61.0). The classify-gate fix moved
+it to 41.56/61.0 = **0.68**, and the rationale was never updated. Measured now:
+
+| mode | measured / ceiling | ratio |
+|---|---|---|
+| static_close | 30.77 / 49.0 | **0.628** (the worst, and the binding one) |
+| rbl_static | 30.77 / 49.0 | 0.628 |
+| rbl_dyn | 41.56 / 61.0 | 0.681 |
+
+Left alone, the next person tuning this floor would have taken rbl_dyn for the
+worst case and set the threshold against a mode that has since improved 29%.
+Corrected in place, with the reason recorded so it does not silently revert.
+
+**Residual stays accepted.** static_close is 62.8% of its command-bus ceiling
+because every access pays ACT + column and the ACT->column path is 8 aclk
+against tRCD 3 -- pick-pipeline and bank-timer flop stages, which Sean ruled by
+design for [[ISSUE-001]] ("many features need flop stages"). The outstanding
+dial does not reach it (board: static_close flat at 33.9 MB/s across OS
+8/16/32). Do not re-open to chase the 63%; the floor exists to catch a step
+change below it.

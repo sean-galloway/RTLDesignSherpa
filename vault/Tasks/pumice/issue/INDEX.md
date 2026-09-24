@@ -12,18 +12,18 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
 
 - **ISSUE-000** — TEMPLATE — copy this file, never file against it
 - **ISSUE-001** — read latency is ~2x LiteDRAM's, and it caps small-burst reads
-- **ISSUE-002** — close-page modes reach only ~63% of their own command-bus ceiling
 
 ## Closed
 
+- **ISSUE-002** — close-page modes reach only ~63% of their own command-bus ceiling
 - **ISSUE-003** — SCHED_WR_WM.wr_batch_max may clobber the whole register on write
 - **ISSUE-004** — the +25-30% batching gain was measured with the broken drain

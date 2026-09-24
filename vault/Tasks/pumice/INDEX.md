@@ -20,7 +20,7 @@ state (`open/`, `active/`, `closed/`, `dropped/`). Pick the lane before filing:
 |---|---|---|
 | [task/](task/INDEX.md) | planned work we decided to do | 8 |
 | [bug/](bug/INDEX.md) | a defect with a reproduction | 1 |
-| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 3 |
+| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 2 |
 
 **IDs are per-lane sequences** (`TASK-001`, `BUG-001`, `ISSUE-001`), per the
 convention. The open items were renamed on 2026-09-24 when they moved into the
@@ -31,7 +31,7 @@ commit message before that date, use the old `PUMICE-NNN` names.
 |---|---|---|---|---|
 | PUMICE-006 | [TASK-001](task/open/TASK-001.md) | | PUMICE-045 | [BUG-001](bug/open/BUG-001.md) |
 | PUMICE-013 | [TASK-002](task/open/TASK-002.md) | | PUMICE-030 | [ISSUE-001](issue/open/ISSUE-001.md) |
-| PUMICE-023 | [TASK-003](task/open/TASK-003.md) | | PUMICE-046 | [ISSUE-002](issue/open/ISSUE-002.md) |
+| PUMICE-023 | [TASK-003](task/open/TASK-003.md) | | PUMICE-046 | [ISSUE-002](issue/closed/ISSUE-002.md) |
 | PUMICE-029 | [TASK-004](task/open/TASK-004.md) | | PUMICE-047 | [ISSUE-003](issue/closed/ISSUE-003.md) |
 | PUMICE-034 | [TASK-005](task/open/TASK-005.md) | | PUMICE-048 | [ISSUE-004](issue/closed/ISSUE-004.md) |
 | PUMICE-035 | [TASK-006](task/closed/TASK-006.md) | | | |
