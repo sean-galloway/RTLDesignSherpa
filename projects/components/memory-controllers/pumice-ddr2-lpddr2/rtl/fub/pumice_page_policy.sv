@@ -3,7 +3,7 @@
 //
 // pumice_page_policy — runtime page-policy engine + page/command telemetry.
 //
-// PUMICE-006 Axis 2. Watches the arbiter's ISSUED command stream (the same
+// TASK-001 Axis 2. Watches the arbiter's ISSUED command stream (the same
 // valid&&ready stream the cmd-history checker audits) plus the registered
 // per-bank row state, and produces two things:
 //

@@ -184,7 +184,7 @@ python3 bin/peakrdl_generate.py $P/rtl/macro/pumice_csr.rdl \
 kept a month-old layout in which the field did not exist and `RSVD` spanned
 `31:16`, straight across its bits. Every component test then read-modify-wrote
 zeros over `[23:16]` — which presented as "`csr_write_field` clobbers the whole
-register" (PUMICE-047) and cost a session chasing a TB-framework bug that was
+register" (ISSUE-003) and cost a session chasing a TB-framework bug that was
 never there. Nothing was stale-looking: the file is stamped "Auto-generated …
 DO NOT EDIT MANUALLY", so it reads as current.
 

@@ -1,4 +1,5 @@
-# PUMICE-034: the paging predictors are built unconditionally and the board never uses them
+# TASK-005: the paging predictors are built unconditionally and the board never uses them
+> **Was `PUMICE-034` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 **Status:** open 2026-09-14  **Priority:** P2 — pure headroom, no correctness impact
 

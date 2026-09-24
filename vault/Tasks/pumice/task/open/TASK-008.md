@@ -1,9 +1,10 @@
-# PUMICE-049: no test bounds the write drain, and the cap is unreachable at the shipped watermarks
+# TASK-008: no test bounds the write drain, and the cap is unreachable at the shipped watermarks
+> **Was `PUMICE-049` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 **Status:** open 2026-09-24  **Priority:** P3 — coverage gap plus a usability
 finding; nothing is broken, the knob just cannot act where it ships
 
-Residue of [[PUMICE-047]], which disproved the clobber. Two parts.
+Residue of [[ISSUE-003]], which disproved the clobber. Two parts.
 
 **A. `wr_batch_max` has no test that bounds the drain.** The arbiter fub TB
 pins `sched_wr_high_wm_i = 0` (batching off), so the whole batching path --
@@ -28,4 +29,4 @@ they separate (11.5 s vs 17.6 s).
 
 So either the default cap should be below the default watermark gap, or the
 field should be documented as a narrow-window knob. Worth settling alongside
-[[PUMICE-048]], which re-measures the batching gain.
+[[ISSUE-004]], which re-measures the batching gain.

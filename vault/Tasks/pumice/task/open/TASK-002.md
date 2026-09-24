@@ -1,15 +1,16 @@
-# PUMICE-013: characterize + tune the advanced modes (all three axes)
+# TASK-002: characterize + tune the advanced modes (all three axes)
+> **Was `PUMICE-013` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 **Status:** open 2026-08-27, FIRST CAMPAIGN LANDED 2026-09-23 — all three axes
 swept one-at-a-time on the board, results and recommended defaults in
-"PUMICE-013 RESULTS" below. Four mechanism gaps reported to [[PUMICE-006]],
+"TASK-002 RESULTS" below. Four mechanism gaps reported to [[TASK-001]],
 one of them a shipped RTL default that costs 15.8x on streaming. Still open
 for the axis PAIRS, the axis-3 re-run under open page, and the scheduler
 sub-knobs that were not reached (listed under "What is NOT yet characterized").
-(split out of PUMICE-006 at Sean's direction —
+(split out of TASK-001 at Sean's direction —
 "move characterization to its own task as that is a big one")
 
-PUMICE-006 delivered the MECHANISMS: every mode of all three axes is
+TASK-001 delivered the MECHANISMS: every mode of all three axes is
 implemented, OFF by default (encoding 0 = build default, bit-identical),
 and mutation-proven at the fub level. What it deliberately did NOT do is
 answer *which settings are actually good* on real traffic. That is this
@@ -61,7 +62,7 @@ of it.
 **Deliverables:** a per-axis sweep report (BW, latency histogram, page
 hit rate, ACT/PRE/REF counts per setting), recommended defaults per
 workload family (streaming / random / mixed / page-hostile), and any
-mechanism gaps found reported back to PUMICE-006 before it closes.
+mechanism gaps found reported back to TASK-001 before it closes.
 
 **Stimulus + measurement that already exists (audited 2026-08-27):**
 - `pumice_char.py` families ARE the paging grade: `row_major` is
@@ -111,7 +112,7 @@ template for what a good characterization finding looks like).
 
 ---
 
-### PUMICE-013 RESULTS -- board campaign 2026-09-23
+### TASK-002 RESULTS -- board campaign 2026-09-23
 
 Run on the Nexys A7 at 75 MHz, existing 2026-09-21 bitstream (no rebuild: the
 telemetry counters predate it by a month). `run_smoke.py --sequences init char`
@@ -195,7 +196,7 @@ per column op -- for a 0.0% hit rate on every family.
 | mixed / latency-sensitive | open page + age_thr (free starvation bound) | 554.1 MB/s |
 | any | **never** rbl_static at the default epoch; in_order only if ordering is required | -- |
 
-### Mechanism gaps -> [[PUMICE-006]]
+### Mechanism gaps -> [[TASK-001]]
 
 1. **`PAGE_RBL_CFG.reset_interval` defaults to 0 = "never" and that default is
    unusable on streaming.** RTL reset default is `16'h0` (pumice_csr.rdl:716).
@@ -220,7 +221,7 @@ per column op -- for a 0.0% hit rate on every family.
 
 The sweeps above are one-axis-at-a-time against a fixed baseline, which is what
 the task prescribes. Not done: the promising PAIRS (order x paging, paging x
-refresh), the `SCHED_WR_WM` write-batching interaction (PUMICE-048 has its own
+refresh), the `SCHED_WR_WM` write-batching interaction (ISSUE-004 has its own
 board number to re-measure), `prio_sub` / `qos_en` / `row_sel` / `col_sel`,
 and the axis-3 re-run under open page. There is also no genuinely RANDOM family
 -- `col_major` is the page-hostile proxy -- so "random" in the workload table

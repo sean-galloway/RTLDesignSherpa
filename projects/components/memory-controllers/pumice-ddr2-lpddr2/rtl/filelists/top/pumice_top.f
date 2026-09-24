@@ -45,7 +45,7 @@ $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/p
 # this top at all: Verilator stopped with MODMISSING. A parameter the design
 # supports but the filelist cannot satisfy is a parameter nobody can use, and
 # this one arms the command-spacing scoreboard (check 7 is the GLOBAL tRTW
-# assertion), which is the instrument for PUMICE-039. Compiled always; with
+# assertion), which is the instrument for TASK-007. Compiled always; with
 # CMD_HISTORY_EN=0 it is simply not instantiated.
 -f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/fub/pumice_cmd_history_checker.f
 $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_mem_cmd_scheduler.sv

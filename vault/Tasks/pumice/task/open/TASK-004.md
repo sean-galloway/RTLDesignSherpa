@@ -1,4 +1,5 @@
-# PUMICE-029: pumice is AT REST: what a future session needs to know
+# TASK-004: pumice is AT REST: what a future session needs to know
+> **Was `PUMICE-029` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 **Status:** open 2026-09-10 (informational; do not close, it is the handover)
 **Priority:** read before touching pumice
@@ -6,7 +7,7 @@
 pumice met its targets on 2026-09-10 and was deliberately put down. This block
 is the handover, not a work item.
 
-**NEXT ACTION when work resumes: [[PUMICE-030]]** — the ~49-cycle read latency,
+**NEXT ACTION when work resumes: [[ISSUE-001]]** — the ~49-cycle read latency,
 about 2x LiteDRAM's on the same board and PHY. It is the largest identified
 defect left and it also closes the small-burst read shortfall, so it is one
 fix for two symptoms. Everything else on this page is either informational or
@@ -41,12 +42,12 @@ endpoints, 219 controller tests plus the 31-test char gate green. Board build:
    every claim, or re-run it.
 
 **Known-open performance items, none blocking:**
-* Read latency ~49 cycles vs LiteDRAM's 24.7 -- now filed as [[PUMICE-030]],
+* Read latency ~49 cycles vs LiteDRAM's 24.7 -- now filed as [[ISSUE-001]],
   the largest identified defect left. It also explains the small-burst read
   shortfall (AxLEN 1/2/4 at 16/31/60% of peak): Little's law against the read
   generator's 8-burst budget, five points predicted within 2%.
 * The three runtime axes are characterized but NOT tuned -- nobody has picked
-  defaults per workload class from the sweep ([[PUMICE-013]]).
+  defaults per workload class from the sweep ([[TASK-002]]).
 * Area: pumice_top is 12 224 LUT / 7 878 FF, ~5x LiteDRAM's controller+PHY for
   equal streaming bandwidth. That is the deliberate research-controller trade
   and is now stated at the top of AT-A-GLANCE.md; it is the obvious target if
@@ -60,7 +61,7 @@ endpoints, 219 controller tests plus the 31-test char gate green. Board build:
 * `ddr2_char.num_gen` defaulted to 1 while the board carries 2 per direction.
   Call `sync_gen_config()`; never trust a hardcoded count.
 * The char-framework sim is the board gate before any pumice RTL commit
-  ([[PUMICE-023]]).
+  ([[TASK-003]]).
 
 Related: [[project_pumice_read_ceiling_fixed]],
 [[project_litedram_same_harness_ab]], [[project_pumice_char_suite]].

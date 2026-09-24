@@ -46,7 +46,7 @@ CROSS-BANK ACT pipelining: one ACT per tRRD=2, capped at 4 per tFAW window. Thei
 
 ![Refresh insertion](../assets/waves/06_refresh_insertion.png)
 
-REFRESH: precharge-all -> REFab -> wait tRFC -> resume (re-ACT). The only maintenance bubble; postpone/pullin credits (PUMICE-006) move it out of demand windows.
+REFRESH: precharge-all -> REFab -> wait tRFC -> resume (re-ACT). The only maintenance bubble; postpone/pullin credits (TASK-001) move it out of demand windows.
 
 ## Pipelining and reordering
 

@@ -403,7 +403,7 @@ async def cocotb_test_pumice_core_refresh_collide(dut):
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_pumice_core_fixed_open(dut):
-    """PUMICE-006 Axis 2: fixed_open + adapt_time idle-timeout page close.
+    """TASK-001 Axis 2: fixed_open + adapt_time idle-timeout page close.
 
     Self-checking in BOTH directions so the feature cannot pass vacuously:
 
@@ -481,7 +481,7 @@ async def cocotb_test_pumice_core_fixed_open(dut):
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_pumice_core_sched_order(dut):
-    """PUMICE-006 Axis 1: SCHED_POLICY.order_mode integrity sweep + the
+    """TASK-001 Axis 1: SCHED_POLICY.order_mode integrity sweep + the
     parked-victim WEDGE sentinel.
 
     The pick-level semantics of in_order / age_threshold are verified in the
@@ -548,7 +548,7 @@ async def cocotb_test_pumice_core_sched_order(dut):
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_pumice_core_refresh_credit(dut):
-    """PUMICE-006 Axis 3: REF_CTRL postpone/pullin JEDEC +-8 credits.
+    """TASK-001 Axis 3: REF_CTRL postpone/pullin JEDEC +-8 credits.
 
     tREFI is poked small (96 cyc) so a demand stretch of ~40 back-to-back
     writes spans ~5 ticks. REF counts at the DFI slave are the observable.
@@ -758,7 +758,7 @@ async def cocotb_test_pumice_core_b2b(dut):
 
 
 # ---------------------------------------------------------------------------
-# Write-stream perf measurement (PUMICE-013)
+# Write-stream perf measurement (TASK-002)
 #
 # Two tests share ONE experiment and change ONE knob: the refresh interval.
 # That is the whole point -- a ceiling with nothing to compare it against
@@ -1458,14 +1458,14 @@ async def _util_window(dut, slave, *, tag, n=192, banks=None):
 
 @cocotb.test(timeout_time=120, timeout_unit="ms")
 async def cocotb_test_pumice_core_perf_paging_sweep(dut):
-    """PUMICE-013: 100% write utilization under EVERY Axis-2 paging mode.
+    """TASK-002: 100% write utilization under EVERY Axis-2 paging mode.
 
     The goal (Sean, 2026-08-28): "ensure 100% utilization for all paging
     programming." So this sweeps all 8 modes over an identical page-hit
     stream with refresh parked, and reports utilization per mode.
 
     One bring-up, then the mode is re-programmed between windows -- the
-    modes are runtime CSRs by design (that is what PUMICE-006 delivered),
+    modes are runtime CSRs by design (that is what TASK-001 delivered),
     and re-running bring-up per mode would restart the clocks.
 
     A mode below 100% is not automatically a bug: static_close forces an
@@ -1513,7 +1513,7 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
 
     try:
         with open("paging_util_sweep.out", "w") as f:
-            f.write("# PUMICE-013: write utilization per Axis-2 paging mode\n")
+            f.write("# TASK-002: write utilization per Axis-2 paging mode\n")
             f.write("# refresh parked, page-hit stream, writes only, AW+W b2b\n")
             f.write("# util = beats / cycles WVALID high (100% = DUT never stalled)\n\n")
             f.write("# TWO bank spreads: 8-way rotation hides ACT/PRE, so that\n")
@@ -1570,7 +1570,7 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     # command-bus ceiling because every access pays ACT + column and the
     # ACT->column path is 8 aclk against tRCD 3 -- pick-pipeline and
     # bank-timer flop stages. Sean 2026-09-22 ruled those by design
-    # (PUMICE-030), and the outstanding dial does not reach it: board measures
+    # (ISSUE-001), and the outstanding dial does not reach it: board measures
     # static_close flat at 33.9 MB/s across OS 8/16/32. So a mode sitting at
     # its measured point is NOT a failure; a mode sitting BELOW it is.
     #
@@ -1581,13 +1581,13 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     ACCEPTED_CEILING_FRAC = 0.55
     regressed = [r for r in below_ceiling if r[1] < ACCEPTED_CEILING_FRAC * r[2]]
     if below_ceiling:
-        print(f"[paging] below command-bus ceiling (accepted, PUMICE-046): "
+        print(f"[paging] below command-bus ceiling (accepted, ISSUE-002): "
               f"{below_ceiling}")
     assert not regressed, (
         f"paging modes below the ACCEPTED close-page floor "
         f"({ACCEPTED_CEILING_FRAC:.0%} of their command-bus ceiling): "
-        f"{regressed}. The ~63% shortfall itself is accepted (PUMICE-046, "
-        f"pipeline flop stages, by design per PUMICE-030) -- this floor exists "
+        f"{regressed}. The ~63% shortfall itself is accepted (ISSUE-002, "
+        f"pipeline flop stages, by design per ISSUE-001) -- this floor exists "
         f"to catch a step change below it, so a hit here is a real regression.")
 
     # The 1-bank column is REPORTED, and only its floor is asserted: modes
@@ -1658,7 +1658,7 @@ _SCHED_KNOBS = ('sched_order_mode_i', 'sched_row_sel_i', 'sched_col_sel_i',
 
 @cocotb.test(timeout_time=300, timeout_unit="ms")
 async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
-    """PUMICE-013: 100% write utilization across ALL paging x ALL scheduling.
+    """TASK-002: 100% write utilization across ALL paging x ALL scheduling.
 
     The second half of the goal (Sean, 2026-08-28): "ensure 100% utilization
     for all paging programming. Then all paging and all scheduling."
@@ -1672,7 +1672,7 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
     Cartesian product: 8 x 3 x 3 x 3 x 3 would be 648 windows for little
     extra information, since these compose by narrowing WHO is a candidate
     rather than interacting. A full product belongs in the characterization
-    sweep (PUMICE-013 proper), not in a pass/fail gate.
+    sweep (TASK-002 proper), not in a pass/fail gate.
 
     NOTE this is the 8-bank spread, which is the "should be 100%" gate. The
     paging sweep's 1-bank column is what exposes cost differences between
@@ -1708,7 +1708,7 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
 
     try:
         with open("paging_sched_cross.out", "w") as f:
-            f.write("# PUMICE-013: write utilization, ALL paging x ALL scheduling\n")
+            f.write("# TASK-002: write utilization, ALL paging x ALL scheduling\n")
             f.write("# refresh parked, page-hit stream, writes only, AW+W b2b,\n")
             f.write("# 8-way bank rotation. util = beats / cycles WVALID high.\n\n")
             f.write("| {:<13} | {:<14} | {:>7} | {:>6} | {:>3} |\n".format(
@@ -1771,12 +1771,12 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
         "utilization: {}. With bank parallelism and refresh parked, no "
         "scheduling policy except {} should stall the write channel.".format(
             len(short), len(rows), short[:10], ORDERED))
-    # Same accepted floor as the paging sweep -- see PUMICE-046 there.
+    # Same accepted floor as the paging sweep -- see ISSUE-002 there.
     ACCEPTED_CEILING_FRAC = 0.55
     sc_regressed = [r for r in short_ceil if r[2] < ACCEPTED_CEILING_FRAC * r[3]]
     if short_ceil:
         print(f"[sched_cross] below command-bus ceiling (accepted, "
-              f"PUMICE-046): {len(short_ceil)} of {len(rows)}")
+              f"ISSUE-002): {len(short_ceil)} of {len(rows)}")
     assert not sc_regressed, (
         "{} of {} combinations below the ACCEPTED close-page floor ({:.0%} of "
         "their command-bus ceiling): {}. The shortfall itself is accepted; "
@@ -1939,7 +1939,7 @@ def test_pumice_core_perf_paging_sched_cross(request):
 # ---------------------------------------------------------------------------
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_pumice_core_rbl(dut):
-    """PUMICE-006 Axis 2: rbl_static / rbl_dyn -- RBLA miss-counter table.
+    """TASK-001 Axis 2: rbl_static / rbl_dyn -- RBLA miss-counter table.
 
     A thrashing pattern (alternating rows A/B in ONE bank) makes every access
     a row-buffer miss. Under OPEN (mode 0) each turn needs a conflict PRE +
@@ -2017,7 +2017,7 @@ async def cocotb_test_pumice_core_rbl(dut):
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_pumice_core_acc(dut):
-    """PUMICE-006 Axis 2: adapt_access (mode 5) -- per-row 2-bit predictor.
+    """TASK-001 Axis 2: adapt_access (mode 5) -- per-row 2-bit predictor.
 
     Happy's Hybrid counts ACCESSES PER ACTIVATION, so the thrash arm must be
     single-access: one write burst per activation, alternating two rows in one

@@ -7,7 +7,7 @@
 #          followed and grepped out of a unified tracker log.
 
 """
-Passive tracker for the `pumice_page_policy` FUB (PUMICE-006 Axis 2).
+Passive tracker for the `pumice_page_policy` FUB (TASK-001 Axis 2).
 
 Replaces the retired `page_predictor` tracker (that FUB was deleted with
 the HAPPY_HYBRID retirement, 2026-08-25). The engine this watches owns

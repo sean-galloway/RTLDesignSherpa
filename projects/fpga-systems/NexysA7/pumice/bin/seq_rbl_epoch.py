@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""RBL epoch sweep -- isolates the rbl_static streaming collapse (PUMICE-013).
+"""RBL epoch sweep -- isolates the rbl_static streaming collapse (TASK-002).
 
 The axis-2 board sweep measured `rbl_static` at 34.9 MB/s on incremental
 traffic against plain open page's 554.1 -- a 15.9x regression, with a 0.0% row
@@ -36,7 +36,7 @@ import pumice_char as pc
 
 class RblEpoch(Sequence):
     name = "rbl_epoch"
-    description = "PAGE_RBL_CFG.reset_interval sweep (PUMICE-013 axis 2)"
+    description = "PAGE_RBL_CFG.reset_interval sweep (TASK-002 axis 2)"
     requires = ("init",)
 
     def run(self, ctx):

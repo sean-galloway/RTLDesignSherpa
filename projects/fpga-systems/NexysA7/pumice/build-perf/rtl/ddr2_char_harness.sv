@@ -28,7 +28,7 @@ module ddr2_char_harness
     // DV-only command-history scoreboards (off by default). CMD_HISTORY_EN arms
     // both the scheduler-side instance and the DFI-WIRE one; HIST_T_*_CORE are
     // the wire instance's windows. Threaded from the TB so the board gate can
-    // watch spacing at the pins -- where PUMICE-039's defects lived, and where
+    // watch spacing at the pins -- where TASK-007's defects lived, and where
     // the scheduler-side checker is structurally blind.
     parameter int CMD_HISTORY_EN  = 0,
     parameter int HIST_T_RFC_CORE = 0,

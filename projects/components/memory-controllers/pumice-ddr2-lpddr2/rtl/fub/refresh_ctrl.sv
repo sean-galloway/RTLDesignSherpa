@@ -28,7 +28,7 @@
 //     scheduler / dfi_cmd_formatter.
 //   * obs_* outputs harvest internal state for future CSR readout.
 //
-// v3 (PUMICE-006 Axis 3): JEDEC +-8 credits (REF_CTRL.postpone/pullin).
+// v3 (TASK-001 Axis 3): JEDEC +-8 credits (REF_CTRL.postpone/pullin).
 //   * postpone_limit_i: while demand_i is high, the request is WITHHELD until
 //     the pending backlog exceeds the limit (clamped to 7 so the JEDEC
 //     8-postponed ceiling can always force). 0 = strict = the old behaviour

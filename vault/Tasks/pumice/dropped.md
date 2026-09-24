@@ -94,10 +94,10 @@ baseline/col_major_bl8_multiid  ok=True mism=0  blen=8 txn=64
 33/64 in sim before the fixes. Both fixes predate the current bitstream
 (2026-09-21), so the board-side check needs no rebuild to confirm the same.
 
-**Consequence:** this task was recorded as GATING [[PUMICE-013]] on the grounds
+**Consequence:** this task was recorded as GATING [[TASK-002]] on the grounds
 that until it landed "the perf numbers carry the AMBA-HISTCH1 accounting error".
 That gate is lifted — the accounting error is fixed at source and measured clean
-above. PUMICE-013 is unblocked.
+above. TASK-002 is unblocked.
 
 **If the observer is ever wanted here anyway** (uniformity with STREAM, or the
 monbus packet path becomes useful), nothing in the tree blocks it: the
@@ -464,7 +464,7 @@ leaving it called MMCM_PS implies read-capture control it does not provide --
 and the static 90 deg must be re-established, either by pre-walking the shifter
 at reset or by keeping a second non-fine-PS output for DQS.
 
-**Priority note:** the 10-tap eye has NOT caused a failure. PUMICE-039's
+**Priority note:** the 10-tap eye has NOT caused a failure. TASK-007's
 corruption was DQ collisions (bad beats 36/64 bits wrong = random data); a
 marginal eye yields few-bit errors. 039 measured 210 clean runs with this exact
 eye. This is margin-hardening, not a defect -- drop to P3.

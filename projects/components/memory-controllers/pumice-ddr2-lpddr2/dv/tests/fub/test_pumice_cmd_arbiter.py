@@ -188,7 +188,7 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     assert acts == [3, 2], \
         f"bank-parallel: ACT both idle banks, oldest(3) first: got {acts}"
 
-    # ===== 11. ORDER_MODE overlay (PUMICE-006 Axis 1) =====
+    # ===== 11. ORDER_MODE overlay (TASK-001 Axis 1) =====
     # Bank 3 open @ row 5. Entry 0 = OLD conflict (row 7, needs PRE), entry 1
     # = YOUNG row-hit (row 5). FR-FCFS serves the young hit; in_order narrows
     # to the old head (PRE); age_threshold with entry 0 boosted narrows every

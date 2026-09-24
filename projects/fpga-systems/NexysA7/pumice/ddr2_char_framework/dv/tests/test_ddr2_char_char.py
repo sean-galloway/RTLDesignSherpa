@@ -282,7 +282,7 @@ async def cocotb_test_char_families(dut):
                 fh.write(f"  RD hist(total={r.rd_hist_total}) = "
                          f"{list(r.rd_hist)}\n")
                 # Controller-side telemetry (PageStats delta over the phase).
-                # This is the PUMICE-013 signal: bandwidth scores a config,
+                # This is the TASK-002 signal: bandwidth scores a config,
                 # these say why it scored that. Printed as "no telemetry"
                 # rather than zeros when absent -- a 0% hit rate and a failed
                 # read must not look alike.
@@ -427,7 +427,7 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
                     # every cell red. Arm it with:
                     #   CMD_HISTORY_EN=1 HIST_T_RTW_CORE=20 ...
                     #
-                    # This is the gate that PUMICE-039 needed and did not have:
+                    # This is the gate that TASK-007 needed and did not have:
                     # the scheduler-side checker binds upstream of CMD_DELAY,
                     # the CDC FIFO and the DFI path, so it reported ZERO tRTW
                     # violations while the board ILA showed four per capture.

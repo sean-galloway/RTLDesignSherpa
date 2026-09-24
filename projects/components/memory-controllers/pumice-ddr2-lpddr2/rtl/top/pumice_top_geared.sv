@@ -63,7 +63,7 @@ module pumice_top_geared
     // DV-only command-history scoreboards (off by default). CMD_HISTORY_EN arms
     // both the scheduler-side instance and the DFI-WIRE one; the HIST_T_*_CORE
     // windows are the wire instance's. Threaded all the way from the TB so the
-    // board gate can watch spacing at the pins, which is where PUMICE-039's
+    // board gate can watch spacing at the pins, which is where TASK-007's
     // defects lived and where the scheduler-side checker cannot see.
     parameter int CMD_HISTORY_EN  = 0,
     parameter int HIST_T_RFC_CORE = 0,

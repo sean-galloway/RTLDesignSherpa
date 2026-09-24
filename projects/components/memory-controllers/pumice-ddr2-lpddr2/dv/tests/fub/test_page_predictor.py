@@ -3,7 +3,7 @@
 
 """
 Directed unit test for the Axis-2 paging PREDICTORS behind pumice_page_policy
-(PUMICE-006 modes 5/6/7). It proves each predictor mode produces a DISTINCT
+(TASK-001 modes 5/6/7). It proves each predictor mode produces a DISTINCT
 per-bank auto-precharge verdict versus the default policy:
 
   * mode 0 (build_default): ap_mode_en_o stays 0 -- no auto-precharge, whatever

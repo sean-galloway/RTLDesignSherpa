@@ -536,12 +536,12 @@ addrmap pumice_csr {
     } OBS_WORDS[9] @ 0x1C0 += 0x4;
 
     //=========================================================================
-    // Advanced-mode select CSRs (0x068 – 0x07C, 0x140 – 0x15C) — PUMICE-006
+    // Advanced-mode select CSRs (0x068 – 0x07C, 0x140 – 0x15C) — TASK-001
     //
     // The characterization surface from design-requirements.md "Advanced
     // modes": every mechanism is a config-bit-selectable MODE, added serially
     // behind its own enable, reset = the build default (bit-identical to the
-    // pre-PUMICE-006 controller). These registers land FIRST, before any
+    // pre-TASK-001 controller). These registers land FIRST, before any
     // consuming logic, so the software surface is stable while the modes
     // arrive one red->green step at a time. Encodings with value 0 always
     // mean "build default / current behavior".
@@ -612,7 +612,7 @@ addrmap pumice_csr {
                 a no-op there, not a cost.
 
                 Shipped disabled until 2026-09-18 because it corrupted. Three
-                defects, all fixed (PUMICE-039): tRFC compression from DFI-side
+                defects, all fixed (TASK-007): tRFC compression from DFI-side
                 pacing, tRTW classify-time staleness, and a one-cycle turnaround
                 seam. Evidence for this default:
 
@@ -620,7 +620,7 @@ addrmap pumice_csr {
                     4 x full 14-config matrix (1008 cells) 1 mismatched beat
 
                 That one beat was seen once and never reproduced in the 756
-                cells after it; it is unattributed (PUMICE-045), NOT a known
+                cells after it; it is unattributed (BUG-001), NOT a known
                 batching defect. 2/1 over 8/4 because it wins at gaps 12 and 15,
                 ties at 4, and a shallower drain parks reads behind a shorter
                 write run. Still a runtime CSR: this is only the reset value.";
@@ -722,7 +722,7 @@ addrmap pumice_csr {
         // HIT so the counter climbs further, and the row can never reopen. A
         // single refresh-driven close is enough to seed it and streaming
         // traffic then catches every row in turn. Measured on the board
-        // (PUMICE-013, bin/seq_rbl_epoch.py): rbl_static on incremental read
+        // (TASK-002, bin/seq_rbl_epoch.py): rbl_static on incremental read
         // 34.9 MB/s at epoch 0 -- 0.0% row-hit rate and 8.17 ACT per AXI
         // transaction, i.e. byte-for-byte close-page behaviour -- against
         // 553.8 MB/s for any nonzero epoch. 15.8x, and it was the SHIPPED

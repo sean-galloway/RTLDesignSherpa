@@ -1,12 +1,13 @@
-# PUMICE-006: QoS + advanced scheduling (post-cleanup)
+# TASK-001: QoS + advanced scheduling (post-cleanup)
+> **Was `PUMICE-006` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 **Status:** MECHANISMS COMPLETE 2026-08-27 — all three axes implemented
 (Axis 1 scheduling, Axis 2 paging, Axis 3 refresh), every mode OFF by
 default and mutation-proven. Characterization/tuning split to
-[[PUMICE-013]]. Holds open only for mechanism gaps 013 reports back.
+[[TASK-002]]. Holds open only for mechanism gaps 013 reports back.
 
-**GAPS REPORTED BACK BY [[PUMICE-013]] 2026-09-23** (first board campaign;
-full tables under "PUMICE-013 RESULTS"):
+**GAPS REPORTED BACK BY [[TASK-002]] 2026-09-23** (first board campaign;
+full tables under "TASK-002 RESULTS"):
 
 1. **P1 -- FIXED 2026-09-23. `PAGE_RBL_CFG.reset_interval` shipped as
    0 = "never", which made modes 6/7 unusable on streaming traffic.**
@@ -236,11 +237,11 @@ full tables under "PUMICE-013 RESULTS"):
   qos_en=1 picks the OLDEST OF THE MAX-QOS SET (slot 6, not the younger
   slot 7) — proving both the outer key and the surviving age tie-break.
   Mutation-proven (narrowing dead -> picks slot 5, RED).
-  ALL of PUMICE-006's three axes are now implemented: Axis 1
+  ALL of TASK-001's three axes are now implemented: Axis 1
   (scheduling), Axis 2 (paging), Axis 3 (refresh).
   **MECHANISM WORK COMPLETE 2026-08-27.** Characterization and tuning of
   the landed modes is a large body of work in its own right and moved to
-  [[PUMICE-013]] (Sean, 2026-08-27). 006 now covers only the RTL
+  [[TASK-002]] (Sean, 2026-08-27). 006 now covers only the RTL
   mechanisms + their directed/mutation-proven mode tests; it closes when
   013 has no mechanism gaps to report back.
 - Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —

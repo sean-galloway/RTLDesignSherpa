@@ -1,10 +1,14 @@
 # pumice — task rollup
 
-**Next ID: PUMICE-051** — never recycle a number, even when its item
-closed. **The sequence is SHARED by all three lanes**, so take the next
-number from the highest `PUMICE-NNN` anywhere in this area.
-`check_task_ids` validates within a lane, so a per-lane maximum passes
-the checker and still hands out a number another lane already owns.
+**Next ID: PUMICE-051** — for the HISTORICAL flat pages only, and nothing
+should need it: they take no new items. The highest still living here is 044,
+but 045-050 were renamed into the lanes on 2026-09-24 and those numbers are
+RETIRED, not free -- every commit message before that date still refers to
+them.
+
+**Each lane carries its own Next ID** — see the lane INDEXes
+([task](task/INDEX.md), [bug](bug/INDEX.md), [issue](issue/INDEX.md)).
+The flat pages below are historical and take no new items.
 
 ## Lanes
 
@@ -18,13 +22,26 @@ state (`open/`, `active/`, `closed/`, `dropped/`). Pick the lane before filing:
 | [bug/](bug/INDEX.md) | a defect with a reproduction | 1 |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 3 |
 
-**IDs keep the area's original `PUMICE-NNN` sequence**, rather than restarting
-per lane as `TASK-001`/`BUG-001`. These items predate the lanes and are
-referenced from 136 files across the repo -- handbook notes, other areas'
-trackers, commit messages. Renaming them would break every reference to gain
-nothing: `check_task_ids.ITEM_ID` is `^[A-Z][A-Z0-9]*-\d+$`, so `PUMICE-047.md`
-is a valid item filename in any lane. **The directory carries the lane; the ID
-stays the stable handle.**
+**IDs are per-lane sequences** (`TASK-001`, `BUG-001`, `ISSUE-001`), per the
+convention. The open items were renamed on 2026-09-24 when they moved into the
+lanes; the map below is kept because 176 references across 60 files, plus every
+commit message before that date, use the old `PUMICE-NNN` names.
+
+| Was | Is | | Was | Is |
+|---|---|---|---|---|
+| PUMICE-006 | [TASK-001](task/open/TASK-001.md) | | PUMICE-045 | [BUG-001](bug/open/BUG-001.md) |
+| PUMICE-013 | [TASK-002](task/open/TASK-002.md) | | PUMICE-030 | [ISSUE-001](issue/open/ISSUE-001.md) |
+| PUMICE-023 | [TASK-003](task/open/TASK-003.md) | | PUMICE-046 | [ISSUE-002](issue/open/ISSUE-002.md) |
+| PUMICE-029 | [TASK-004](task/open/TASK-004.md) | | PUMICE-047 | [ISSUE-003](issue/closed/ISSUE-003.md) |
+| PUMICE-034 | [TASK-005](task/open/TASK-005.md) | | PUMICE-048 | [ISSUE-004](issue/open/ISSUE-004.md) |
+| PUMICE-035 | [TASK-006](task/open/TASK-006.md) | | | |
+| PUMICE-039 | [TASK-007](task/open/TASK-007.md) | | | |
+| PUMICE-049 | [TASK-008](task/open/TASK-008.md) | | | |
+| PUMICE-CLEANUP | [TASK-009](task/open/TASK-009.md) | | | |
+
+`PUMICE-NNN` numbers that are NOT in this table were already closed or dropped
+and stay where they are, in the flat `closed.md` / `dropped.md` -- so an old
+number still resolves to exactly one thing.
 
 **The OPEN items moved into the lanes 2026-09-24.** `closed.md` and
 `dropped.md` at this level still hold the flat historical entries -- that move
@@ -61,24 +78,24 @@ investigated and DROPPED 2026-09-23.)
   synthesis, so it is the netlist, not placement. Constrains pumice to a
   single master or to a fabric that keeps the index inside the master's own id
   width; the char harness works around it in the consumer.
-- **PUMICE-034** — the paging predictors are 4,546 LUT / 3,341 FF built
+- **TASK-005** — the paging predictors are 4,546 LUT / 3,341 FF built
   unconditionally for modes the board never selects, and they own most of the
   failing endpoints whenever a build stops closing. Gating them trades away
   "one bitstream characterizes every policy" — Sean's call.
-- **PUMICE-035** — the bus meters say a cycle was not productive, not why, so a
+- **TASK-006** — the bus meters say a cycle was not productive, not why, so a
   bandwidth report cannot attribute the missing percent to refresh, activate,
   turnaround or first-transaction latency. Needs a few scheduler counters.
 
-- **PUMICE-013** — characterize + tune the modes (the big one: sweeps in sim
+- **TASK-002** — characterize + tune the modes (the big one: sweeps in sim
   and on the board, recommended defaults per workload family). Wants 008
   first for the reason above. NO LONGER gated on observer adoption:
   PUMICE-016 was dropped 2026-09-23 and the AMBA-HISTCH1 accounting error it
   was supposed to dodge is fixed at source, measured clean (multiid 64/64).
 
-- **PUMICE-006** — mechanisms COMPLETE 2026-08-27, all three axes, every
+- **TASK-001** — mechanisms COMPLETE 2026-08-27, all three axes, every
   mode off by default and mutation-proven. Parked; reopens only if 013
   reports a gap.
-- **PUMICE-050** — doc placement + filelist consistency. P2 hygiene.
+- **TASK-009** — doc placement + filelist consistency. P2 hygiene.
 - **PUMICE-KMAP** — blocked on [[TOOLING-KMAP]], whose SCOPE CHANGED
   2026-08-28: the deliverable is now a three-part CONTRACT TABLE (term list
   -> invariants -> decision table), not a Gray grid. See
@@ -110,7 +127,7 @@ cleanup or a gated feature. The July task cluster is fully resolved:
 PUMICE-002 (stale hand-packed CSR write), PUMICE-003 (bank_lsb=0 striping,
 fixed fcafc435), and PUMICE-004 (refresh collision, fixed 38c8ae63 with the
 detector armed + mutation-proven 2026-08-24) all closed — the ledger had gone
-stale against landed fixes FOUR times (002/003/004/007), so measure before debugging. PUMICE-006's
+stale against landed fixes FOUR times (002/003/004/007), so measure before debugging. TASK-001's
 entry gate is now the PUMICE-001 board trip + a tiny-tREFI re-soak on the
 08-16 bitstream.
 

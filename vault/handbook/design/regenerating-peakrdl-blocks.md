@@ -74,7 +74,7 @@ pit_8254 and rtc all carry a second DV-facing regmap.
 The TB copy kept a month-old layout in which the field did not exist and
 `RSVD` still spanned `31:16`, straight across its bits, so every component
 test read-modify-wrote zeros over `[23:16]`. It presented as "`csr_write_field`
-clobbers the whole register" (PUMICE-047) and sent a session after a
+clobbers the whole register" (ISSUE-003) and sent a session after a
 testbench-framework bug that was never there. Nothing looked wrong: the file is
 stamped *"Auto-generated … DO NOT EDIT MANUALLY"*, so it reads as current.
 
@@ -116,4 +116,4 @@ cd <component>/dv/tests && make clean-all && make run-all-gate
 ```
 
 For pumice specifically the char-framework sim is also the board gate before
-any RTL commit (PUMICE-023).
+any RTL commit (TASK-003).

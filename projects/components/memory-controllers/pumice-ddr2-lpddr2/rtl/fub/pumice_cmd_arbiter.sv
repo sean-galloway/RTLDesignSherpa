@@ -59,7 +59,7 @@ module pumice_cmd_arbiter
     input  logic                      aresetn,
     input  page_policy_e              page_policy_i,
 
-    // ---- SCHED_POLICY order mode (PUMICE-006 Axis 1) ----
+    // ---- SCHED_POLICY order mode (TASK-001 Axis 1) ----
     // 0/2 = FR-FCFS (build default), 1 = in_order, 3 = age_threshold.
     input  logic [1:0]                sched_order_mode_i,
     // Row/column arbiter selects (SCHED_POLICY.row_sel / col_sel):
@@ -105,7 +105,7 @@ module pumice_cmd_arbiter
     input  logic [AGE_WIDTH-1:0]      rd_sch_head_rel_i,   // oldest entry's rel age
     input  logic [AGE_WIDTH-1:0]      wr_sch_head_rel_i,
 
-    // ---- runtime page-policy engine (pumice_page_policy, PUMICE-006) ----
+    // ---- runtime page-policy engine (pumice_page_policy, TASK-001) ----
     // ap_mode_en overrides the legacy flat w_ap with the per-bank ap_close
     // mask; timeout_pre_req names an idle-expired open bank to close as the
     // LOWEST-priority pick (JEDEC gating identical to the conflict-PRE path).
@@ -383,7 +383,7 @@ module pumice_cmd_arbiter
     //    drops (measured 6 cyc RDA-fire->drop, > the pipeline depth) -- bridges
     //    the stale-row window the pipeline span alone cannot. Together: continuous
     //    coverage selection..close, so no same-bank AP read hits the closed row.
-    // PUMICE-046: classify-time ACT gate, retained ONLY under row_first.
+    // ISSUE-002: classify-time ACT gate, retained ONLY under row_first.
     // Letting ACT candidates flow through the 3-stage pick pipeline while
     // tFAW/tRRD are shut is what stops the pipeline draining (and costing 3
     // cycles to refill) every time the gate closes. Under COLUMN_FIRST that is
@@ -392,7 +392,7 @@ module pumice_cmd_arbiter
     // NOT free: ACT beats COL by definition, so candidates arriving earlier
     // take column slots that the drained pipeline used to leave to them, and
     // pref_row_first drops from ~80% to 72.45% under the close-biased paging
-    // modes. That mode's arbitration is a characterized result (PUMICE-013),
+    // modes. That mode's arbitration is a characterized result (TASK-002),
     // so it keeps the old gate and the old numbers.
     logic w_act_classify_gate;
     assign w_act_classify_gate = (sched_access_pref_i == 2'd2)
@@ -412,7 +412,7 @@ module pumice_cmd_arbiter
     // stall -- any stall downstream of these timers compresses the spacing of
     // everything queued behind it (with CMD_DELAY holding a rolling window of
     // commands, that is a tRFC/tRP fatal in the BL8 core sims, and it is the
-    // PUMICE-039 silicon failure: REF -> ACT squeezed from 15 cycles to 3). So reload a forward counter the cycle a column is
+    // TASK-007 silicon failure: REF -> ACT squeezed from 15 cycles to 3). So reload a forward counter the cycle a column is
     // SELECTED (STAGE-1b), and, for tCCD > 1, also refuse a column classify in
     // the very cycle another column is being selected (the register gap).
     // This REPLACES the flopped global tccd_ok_i on the column masks: that
@@ -628,7 +628,7 @@ module pumice_cmd_arbiter
                               && !w_ref_col_block[wb]
                               && !w_wr_turn_block && !w_ap_col_guard[wb]
                               && !w_pre_col_guard[wb] && !w_preact_bank_guard[wb];
-                // PUMICE-046: tFAW/tRRD gate the FIRE, not the classify. Both
+                // ISSUE-002: tFAW/tRRD gate the FIRE, not the classify. Both
                 // are global (not per-bank), so gating the MASK zeroed every
                 // ACT candidate the moment tRRD closed; the 3-stage pick
                 // pipeline then drained completely and cost 3 more cycles to
@@ -674,7 +674,7 @@ module pumice_cmd_arbiter
         return {found, slot};
     endfunction
 
-    // ---- ORDER_MODE overlay (SCHED_POLICY.order_mode, PUMICE-006 Axis 1) ---
+    // ---- ORDER_MODE overlay (SCHED_POLICY.order_mode, TASK-001 Axis 1) ---
     // The class masks above are FR-FCFS (modes 0/2, the build default). The
     // overlay only NARROWS them — the branch chain below is untouched, so the
     // column > activate > precharge preference and read-over-write priority
@@ -957,7 +957,7 @@ module pumice_cmd_arbiter
     logic w_act_gate_live;
     assign w_act_gate_live = !w_rfc_busy && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
 
-    // LIVE TURNAROUND RE-VALIDATION (PUMICE-039 board, 2026-09-17). Exactly the
+    // LIVE TURNAROUND RE-VALIDATION (TASK-007 board, 2026-09-17). Exactly the
     // same class of bug as the ACT gate above, fixed the same way. The column
     // MASKS apply trtw_ok_i/twtr_ok_i and the fire-history guards at CLASSIFY
     // time, ~3 pick-pipeline cycles before the command actually issues. A WRITE
@@ -1151,7 +1151,7 @@ module pumice_cmd_arbiter
         // issues nothing. That was invisible while the classify mask also
         // gated on tFAW/tRRD -- no ACT candidate could exist with the gate
         // shut. Now that candidates flow through the pipeline during the
-        // window (PUMICE-046), the class must not be selected unless it can
+        // window (ISSUE-002), the class must not be selected unless it can
         // actually fire, or row_first loses a column slot to every blocked
         // ACT: static_close measured 72.45% against its 75% floor.
         w_c_act = (rd_act_f || wr_act_f) && w_act_gate_live;

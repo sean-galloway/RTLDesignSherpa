@@ -1,8 +1,9 @@
-# PUMICE-047: SCHED_WR_WM.wr_batch_max may clobber the whole register on write
+# ISSUE-003: SCHED_WR_WM.wr_batch_max may clobber the whole register on write
+> **Was `PUMICE-047` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 **Status:** RESOLVED 2026-09-24 — the clobber premise is DISPROVEN and the real
 cause is different: the knob is wired and writable, it is simply UNREACHABLE at
-the shipped watermarks. Residue re-filed as [[PUMICE-049]]. (was: open
+the shipped watermarks. Residue re-filed as [[TASK-008]]. (was: open
 2026-09-23, P2)
 
 **1. There is no clobber.** `csr_write_field` is biten-masked and correct. The
@@ -41,7 +42,7 @@ visible (11.5 s at 0 vs 17.6 s at 1).
 
 **Do (unchanged, and now correctly scoped):** the mutation the task asked for is
 still worth having, but it has to run where the cap can bind -- `batch_max <
-(hi - lo)` -- or it proves nothing. Tracked as [[PUMICE-049]] with what a
+(hi - lo)` -- or it proves nothing. Tracked as [[TASK-008]] with what a
 first attempt got wrong.
 
 <details><summary>Original entry</summary>
@@ -70,7 +71,7 @@ field on silicon.
 </details>
 
 **2026-09-23 — STRONG CANDIDATE ROOT CAUSE FOUND, and it is not
-`csr_write_field`.** Found while regenerating registers for [[PUMICE-013]]:
+`csr_write_field`.** Found while regenerating registers for [[TASK-002]]:
 `dv/tbclasses/pumice_regmap.py` is a SECOND generated copy of the pumice
 regmap, and it had never been regenerated after `16eda8ed7` added the field.
 It is the map the component TBs load (`pumice_top_csr_tb.py:132`,

@@ -11,7 +11,7 @@ RETARGETED 2026-08-27: the pre-rearchitecture `scheduler` FUB is gone; the
 pick core is now `pumice_cmd_arbiter` inside `pumice_mem_cmd_scheduler`
 (scope `u_sched.u_arbiter`). The command/event/grant taps carried over
 unchanged; the powerdown / MR / issued-strobe taps did not survive the
-rearchitecture and were dropped. Added: the PUMICE-006 Axis-1 policy
+rearchitecture and were dropped. Added: the TASK-001 Axis-1 policy
 state, so a pick can be explained and not just observed.
 
 ## Signals → events table
@@ -157,7 +157,7 @@ class SchedulerTracker:
         return
 
     def _sample_policy(self) -> None:
-        """PUMICE-006 Axis-1 policy state. Emitted on CHANGE only, so a
+        """TASK-001 Axis-1 policy state. Emitted on CHANGE only, so a
         run's policy timeline is a handful of rows you can grep beside
         the picks they explain."""
         for sig, tag, names in (

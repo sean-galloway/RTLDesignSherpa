@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Write-batching validation (PUMICE-039 / 042 / 043), as ONE board run.
+"""Write-batching validation (TASK-007 / 042 / 043), as ONE board run.
 
 Everything this checks was previously a pile of standalone scripts that each
 opened their own port and re-ran leveling. That is why board work had to be
@@ -37,7 +37,7 @@ import pumice_char as pc
 
 class WrBatch(Sequence):
     name = "wr_batch"
-    description = "SCHED_WR_WM write-batching A/B + repeats (PUMICE-039/042/043)"
+    description = "SCHED_WR_WM write-batching A/B + repeats (TASK-007/042/043)"
     requires = ("init",)
 
     def _point(self, drv, geom, gap, txn, cfg, n_gen=1):

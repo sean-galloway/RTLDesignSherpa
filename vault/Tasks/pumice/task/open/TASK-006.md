@@ -1,4 +1,5 @@
-# PUMICE-035: no stall-cause attribution, so the overhead breakdown cannot be published
+# TASK-006: no stall-cause attribution, so the overhead breakdown cannot be published
+> **Was `PUMICE-035` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 **Status:** open 2026-09-14  **Priority:** P2 — blocks a documented reporting gap
 

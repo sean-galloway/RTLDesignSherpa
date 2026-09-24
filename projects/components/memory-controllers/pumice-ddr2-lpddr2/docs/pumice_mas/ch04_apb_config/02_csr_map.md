@@ -272,7 +272,7 @@ Sliced to `clog2(DFI_RATE)` bits downstream; upper bits ignored when `DFI_RATE` 
 ### Advanced-mode registers (0x068-0x07C, 0x140-0x144)
 
 > **Added to this chapter 2026-09-09.** These registers have existed in
-> `pumice_csr.rdl` since the PUMICE-006 mode work and are cited by
+> `pumice_csr.rdl` since the TASK-001 mode work and are cited by
 > [ch02/07 Command Arbiter](../ch02_blocks/07_scheduler.md) and
 > [ch02/08 Page Policy](../ch02_blocks/08_page_policy.md), but the register map
 > never listed them. They are the three mode axes: scheduling (`SCHED_POLICY`,

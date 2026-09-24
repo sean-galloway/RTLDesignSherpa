@@ -51,7 +51,7 @@ module pumice_core_tb_top
     // config
     input  memtype_e         memtype_i,
     input  page_policy_e     page_policy_i,
-    // Runtime page-policy pins (PUMICE-006); unconnected => 0 => legacy.
+    // Runtime page-policy pins (TASK-001); unconnected => 0 => legacy.
     input  logic [2:0]       page_mode_i,
     input  logic             page_scope_i,
     input  logic [7:0]       page_tr_init_i,

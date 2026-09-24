@@ -284,7 +284,7 @@ class ControllerConfig:
     page_tr_init:  Optional[int] = None     # PAGE_TIMEOUT_CFG.tr_init
     page_access:   Optional[Dict[str, int]] = None  # mode 5 table (set_page_access_cfg kw)
     page_rbl:      Optional[Dict[str, int]] = None  # modes 6/7 table (set_page_rbl_cfg kw)
-    # WRITE BATCHING (SCHED_WR_WM) -- PUMICE-039. Once the write CAM's
+    # WRITE BATCHING (SCHED_WR_WM) -- TASK-007. Once the write CAM's
     # schedulable occupancy crosses wr_high_wm, writes outrank reads until it
     # falls to wr_low_wm, so a run of writes drains back-to-back and the
     # tWTR/tRTW turnaround is paid ONCE per batch instead of on every direction
@@ -317,7 +317,7 @@ class ControllerConfig:
     # this register, so leaving it at 0/0 would silently defeat the hardware
     # default on every char run. Evidence: 210 concurrent runs at open_page with
     # 0 failures, plus 4 full 14-config matrices (1008 cells) with a single
-    # unattributed mismatched beat that never reproduced (PUMICE-045).
+    # unattributed mismatched beat that never reproduced (BUG-001).
     # Disable per run with TEST_WR_HIGH_WM=0.
     wr_high_wm:    int = int(os.environ.get("TEST_WR_HIGH_WM", "2"))
     wr_low_wm:     int = int(os.environ.get("TEST_WR_LOW_WM", "1"))
@@ -361,7 +361,7 @@ class ControllerConfig:
     # MEASURED: single-beat reads 366.8 -> 406.6 MB/s (+10.9%, no overlap
     # across 3 reps each). blen>=2 unchanged (+0.7%, within noise) because
     # those are bandwidth-bound, not latency-bound -- which is exactly the
-    # regime PUMICE-030 describes.
+    # regime ISSUE-001 describes.
     #
     # Does NOT reduce tRTW: occupancy is set by the DRAM driving DQ at CL after
     # the READ command, not by when pumice samples. Proven on the board -- at
@@ -440,7 +440,7 @@ class ControllerConfig:
                                       "sets_log2": 0, "reset_interval": 0}))
         drv.set_page_mode(self.page_mode if self.page_mode is not None else 0,
                           tr_init=self.page_tr_init)
-        # Write batching (PUMICE-039). Programmed on EVERY config for the same
+        # Write batching (TASK-007). Programmed on EVERY config for the same
         # reason the other mode axes are: leaving it to inherit whatever the
         # previous config set makes the matrix order-dependent.
         drv.set_sched_wr_wm(self.wr_high_wm, self.wr_low_wm)
@@ -520,7 +520,7 @@ CONFIGS: Dict[str, ControllerConfig] = {
     # only decay path for the saturating miss counters, so reset_interval=0
     # latches the predictor permanently closed. This config used to pin 0 and
     # measured 34.9 MB/s against 553.8 on streaming, a 15.8x cliff
-    # (PUMICE-013; bin/seq_rbl_epoch.py sweeps it). 256 is the longest epoch
+    # (TASK-002; bin/seq_rbl_epoch.py sweeps it). 256 is the longest epoch
     # measured at full bandwidth -- 1024 already degrades -- so it gives the
     # predictor the widest evidence window that is still safe.
     "adapt_access": ControllerConfig(
@@ -609,7 +609,7 @@ class PageStats:
 
     These are the counters Sean directed stay inside pumice ("keep tracking
     things like paging results and anything else that is easy but interesting"),
-    and they are the PRIMARY signal for [[PUMICE-013]]: bandwidth says which
+    and they are the PRIMARY signal for [[TASK-002]]: bandwidth says which
     setting won, these say why.
 
     TWO TRAPS, both of which produce a plausible-looking wrong number:
@@ -1339,7 +1339,7 @@ RUN_PROFILES: Dict[str, dict] = {
     # Axis-2 page-policy predictors (modes 4..7) on the reorder config, over
     # the pattern pair that separates them (streaming vs page-thrash). This
     # is the sim gate for the restored modes' CSR path.
-    # PAGING GRADE (PUMICE-013 axis 2, the telemetry check). open vs close
+    # PAGING GRADE (TASK-002 axis 2, the telemetry check). open vs close
     # page over ALL THREE families, which are the paging grade by construction:
     # row_major wraps inside one page (every burst a HIT), col_major walks rows
     # in one bank (every burst a MISS), incremental marches (hits until each

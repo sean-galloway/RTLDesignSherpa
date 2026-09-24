@@ -790,7 +790,7 @@ async def cocotb_test_pumice_top(dut):
         # what separates "concurrent hazard" from "the reader/checker is wrong":
         # reader-alone is clean at every gap there. If it is dirty HERE, the
         # fault is in this test's addressing or preload, not in the DUT.
-        # PUMICE-039 write batching. SCHED_WR_WM is the arbiter's existing
+        # TASK-007 write batching. SCHED_WR_WM is the arbiter's existing
         # drain: once write-CAM occupancy crosses high_wm, writes outrank reads
         # until it falls to low_wm, so the tWTR/tRTW turnaround is amortised
         # over a batch instead of paid per direction switch. It ships DISABLED
@@ -826,7 +826,7 @@ async def cocotb_test_pumice_top(dut):
                                          int(wr_bmax))
 
             # READ THE WHOLE REGISTER, not just the fields we wrote.
-            # PUMICE-047 was filed because a per-field readback cannot see a
+            # ISSUE-003 was filed because a per-field readback cannot see a
             # CLOBBER: it re-reads the one field it just set, which is exactly
             # the bit a whole-register write would have got right. Decode all
             # three fields from one word so collateral damage to a NEIGHBOUR
@@ -843,7 +843,7 @@ async def cocotb_test_pumice_top(dut):
             assert rb_bm == want_bm, (
                 f"SCHED_WR_WM.wr_batch_max reads {rb_bm}, expected {want_bm} "
                 f"(whole word {word:#010x}) -- a write to a NEIGHBOURING field "
-                f"clobbered it, which is PUMICE-047")
+                f"clobbered it, which is ISSUE-003")
             tb.log.info(f"gen_replica: write batching ON hi={rb_hi} lo={rb_lo} "
                         f"batch_max={rb_bm} (whole-word readback {word:#010x})")
 
@@ -1040,7 +1040,7 @@ async def cocotb_test_patho(dut):
 
 @cocotb.test(timeout_time=180, timeout_unit="ms")
 async def cocotb_test_refpb(dut):
-    """PUMICE-006 Axis 3: refpb_rr (REF_CTRL.mode=2, LPDDR2 per-bank refresh).
+    """TASK-001 Axis 3: refpb_rr (REF_CTRL.mode=2, LPDDR2 per-bank refresh).
 
     The DFI slave's DRAM model decodes REFpb off the CA bus (Table 60
     CA3r=0) and enforces the JESD209-2 semantics: the DEVICE'S internal
@@ -1356,7 +1356,7 @@ def test_pumice_top_nr2(request):
 
 
 def test_pumice_top_refpb(request):
-    """PUMICE-006 Axis 3: LPDDR2 per-bank refresh round-robin."""
+    """TASK-001 Axis 3: LPDDR2 per-bank refresh round-robin."""
     _run(request, "cocotb_test_refpb", extra_env={"MEM_TYPE": "LPDDR2"})
 
 
@@ -1383,7 +1383,7 @@ def test_pumice_top_gen_replica(request, gap):
                     "GEN_WR_HIGH_WM": os.environ.get("GEN_WR_HIGH_WM", "0"),
                     "GEN_WR_LOW_WM": os.environ.get("GEN_WR_LOW_WM", "0"),
                     # Unset -> the CSR default (16) stands. Set to 0 to make
-                    # the drain UNBOUNDED, which is the PUMICE-047 mutation.
+                    # the drain UNBOUNDED, which is the ISSUE-003 mutation.
                     **({"GEN_WR_BATCH_MAX": os.environ["GEN_WR_BATCH_MAX"]}
                        if "GEN_WR_BATCH_MAX" in os.environ else {}),
                     **env},
@@ -1403,7 +1403,7 @@ def test_pumice_top_gen_replica(request, gap):
                       # correct where it looks and wrong at the pins. That is not
                       # hypothetical: with it armed it reported ZERO tRTW
                       # violations while the board ILA showed FOUR per capture
-                      # (PUMICE-039). These arm the twin instance that watches
+                      # (TASK-007). These arm the twin instance that watches
                       # the command stream where it leaves the FIFO.
                       **({"HIST_T_RTW_CORE": int(os.environ["HIST_T_RTW_CORE"])}
                          if int(os.environ.get("HIST_T_RTW_CORE", "0")) else {}),

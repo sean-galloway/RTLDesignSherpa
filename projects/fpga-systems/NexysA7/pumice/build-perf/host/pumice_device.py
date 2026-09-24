@@ -459,7 +459,7 @@ class Pumice(Device):
         return applied
 
     def set_sched_wr_wm(self, high_wm: int, low_wm: int) -> None:
-        """Write-batching watermarks (SCHED_WR_WM) -- PUMICE-039.
+        """Write-batching watermarks (SCHED_WR_WM) -- TASK-007.
 
         Once the write CAM's schedulable occupancy crosses `high_wm`, WRITES
         outrank reads in every demand class until it falls to `low_wm`, so a

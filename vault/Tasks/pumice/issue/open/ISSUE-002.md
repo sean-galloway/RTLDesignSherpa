@@ -1,4 +1,5 @@
-# PUMICE-046: close-page modes reach only ~63% of their own command-bus ceiling
+# ISSUE-002: close-page modes reach only ~63% of their own command-bus ceiling
+> **Was `PUMICE-046` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 **Status:** open 2026-09-20  **Priority:** P2 — invisible at the sim geometry,
 dominant at the board's, and it caps close-page paging on silicon
@@ -44,7 +45,7 @@ shows the same thing on 24 of 80 combinations, all `static_close` / `rbl_static`
 
 **Worth knowing before fixing:** the board runs open-page by default, so this
 is not a shipping regression -- it bounds what close-page paging could ever be
-worth, and [[PUMICE-013]] (characterize + tune the advanced modes) should not
+worth, and [[TASK-002]] (characterize + tune the advanced modes) should not
 quote close-page numbers until it is resolved or accepted.
 
 ### 2026-09-21: root-caused; partially fixed; residual is ACT->column latency
@@ -78,7 +79,7 @@ columns -- and `pref_row_first` is ACT-beats-COL by definition, so it fell
 from ~80% to 72.45% at the DEFAULT geometry, under its 75% floor. Qualifying
 the ACT class with the live gate did NOT fix it, which rules out a wasted
 output slot: the ACTs genuinely arrive earlier now. Since the board runs
-column-first and row_first's arbitration is a characterized PUMICE-013 result,
+column-first and row_first's arbitration is a characterized TASK-002 result,
 the classify gate is RETAINED under row_first only (`w_act_classify_gate`)
 rather than re-tuning that floor. Default geometry is 18/18 again.
 
@@ -97,11 +98,11 @@ tRCD/tRP/tRC (37.5% with all three at minimum), tFAW, CAM depth (NUM_ENTRIES
 and bank recovery (`w_ap_fire` gives a ~9-cycle bank cycle, non-binding
 against the 0.5 access/cycle command-bus cap).
 
-### 2026-09-22: residual ACCEPTED -- same by-design root as PUMICE-030
+### 2026-09-22: residual ACCEPTED -- same by-design root as ISSUE-001
 
 The remaining lever was always "shorten the ACT->column path, i.e. the pick
 pipeline depth or the bank-timer registration stage". **Sean 2026-09-22 ruled
-exactly that out of scope for [[PUMICE-030]]: "this is by design, many features
+exactly that out of scope for [[ISSUE-001]]: "this is by design, many features
 need flop stages."** The close-page residual is those same flop stages seen
 from the column side, so it is accepted on the same grounds and is NOT a defect.
 

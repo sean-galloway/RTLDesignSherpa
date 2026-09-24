@@ -119,7 +119,7 @@ MANIFEST = [
         # produce both this and the regs/generated copy above. This is the file
         # the component TBs load (pumice_top_csr_tb.py, pumice_top_tb.py), and
         # it is what went a month stale after 16eda8ed7 added
-        # SCHED_WR_WM.wr_batch_max -- see PUMICE-047.
+        # SCHED_WR_WM.wr_batch_max -- see ISSUE-003.
         "regmap_output": "pumice_regmap.py",
         "compare": [
             (f"{PUMICE}/dv/tbclasses/pumice_regmap.py", "pumice_regmap.py"),

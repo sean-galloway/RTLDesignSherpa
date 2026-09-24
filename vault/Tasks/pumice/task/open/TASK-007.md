@@ -1,4 +1,5 @@
-# PUMICE-039: batch same-direction columns to amortise the R/W turnaround
+# TASK-007: batch same-direction columns to amortise the R/W turnaround
+> **Was `PUMICE-039` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 ### 2026-09-23: batching had a READ-STARVATION defect; fixed, and the old validation was geometry-bound
 
@@ -31,7 +32,7 @@ clean cells outweighed that. The reverter was right with less evidence. This is
 [[PUMICE-028]]'s thesis in one incident: a conclusion valid in the geometry the
 suite could express, with a hole exactly where it could not.
 
-[[PUMICE-045]] ("one unattributed mismatched beat in 1008 cells") was the
+[[BUG-001]] ("one unattributed mismatched beat in 1008 cells") was the
 evidence used to justify that re-enable. It should be re-examined now that
 batching is known to have starved reads -- the beat may not be unattributed.
 
@@ -321,7 +322,7 @@ pass. Lint elaborates with no new warnings. Net -64 lines; the DFI command path
 loses 98 lines of logic.
 
 **STILL OPEN -- do not close this task.** The sim gate only proves the existing
-path is not broken. It does NOT prove PUMICE-039 is fixed, because the failure
+path is not broken. It does NOT prove TASK-007 is fixed, because the failure
 is a silicon-only intermittent. Board validation required:
   - bitstream + `seq_wr_batch` with batching enabled at 1+1 gap 4,
   - REF -> ACT must hold at 15 (it was 3), no 180-beat idle-bus runs,
@@ -428,7 +429,7 @@ combinational pick, so it cannot form a loop. Verilator confirms: no UNOPTFLAT.)
     hi=2/lo=1    0/30 failing   449.3 MB/s   +12.2%
     hi=8/lo=4    0/30 failing   449.3 MB/s   +12.2%
 
-Zero mismatched beats anywhere. **PUMICE-039's corruption is FIXED**, and write
+Zero mismatched beats anywhere. **TASK-007's corruption is FIXED**, and write
 batching -- the feature that could never be enabled -- now runs clean and pays
 +12.2% bus bandwidth.
 
@@ -515,7 +516,7 @@ the scheduler's throughput behaviour.
     same-direction work queued, so there is no turnaround left to amortise.
   * gap 0 shows no gain, the expected control: no read gap, nothing to batch.
 
-**PUMICE-039's data corruption is CLOSED on evidence.** What keeps the task open
+**TASK-007's data corruption is CLOSED on evidence.** What keeps the task open
 is the +16 ps timing margin (item 1 above), not correctness.
 
 **Refactor note (for item 1).** The obvious approach -- mirror `r_tccd_fwd` and

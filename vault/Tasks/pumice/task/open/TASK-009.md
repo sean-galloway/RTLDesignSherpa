@@ -1,6 +1,6 @@
-# PUMICE-050: doc + filelist cleanup (push from workstation)
+# TASK-009: doc + filelist cleanup (push from workstation)
+> **Was `PUMICE-CLEANUP (via PUMICE-050)` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-> **Renamed from `PUMICE-CLEANUP` 2026-09-24.** The per-item layout requires a numeric ID (`check_task_ids.ITEM_ID`), so the old name could not be a filename.
 
 **Status:** open 2026-07-24 — deferred (project cleanup; see TOOL-010)
 **Priority:** P2

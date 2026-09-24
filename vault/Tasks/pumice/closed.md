@@ -46,7 +46,7 @@ Nine thresholds and one RTL defect, all invisible at the sim geometry:
   single-bank, in_order AP/non-AP, W run-length, pref_row_first. Four are
   beats-per-access numbers and scale by BL_WORDS/4; pref_row_first is capped
   near 50% by construction at one column per access.
-- And the real one: **write batching starved reads** ([[PUMICE-039]], fixed in
+- And the real one: **write batching starved reads** ([[TASK-007]], fixed in
   `fc83c1b3c`). Sixteen `concurrent_rw[bl4x16]` cells failed with one read beat
   never returning. That defect was in SHIPPING DEFAULT configuration
   (`wr_high_wm` resets to 2) and no BL8 test could see it.
@@ -192,7 +192,7 @@ ready. Fixed cost, bounded by a constant.
 **Default geometry 18/18** (unchanged, and still the only configuration the
 suite gates). **Board geometry 14/18**, from "cannot run the ceilings at all".
 
-### 2026-09-20 (final): 16/18 at board geometry; the residue is PUMICE-046
+### 2026-09-20 (final): 16/18 at board geometry; the residue is ISSUE-002
 
 Three of the four below were thresholds and are fixed in `4a729f568`:
 `read_inflight`'s floor is derived from Little's law scaled by BL_WORDS (and
@@ -204,12 +204,12 @@ measured command-bus ceiling (`BL_WORDS / cmds_per_access`) where a flat 100%
 is unreachable, leaving the default-geometry gate untouched.
 
 The fourth was NOT a threshold. The close-page family reaches only ~63% of its
-own command-bus ceiling and that is now **[[PUMICE-046]]**, with the tRRD /
+own command-bus ceiling and that is now **[[ISSUE-002]]**, with the tRRD /
 tRCD evidence that rules out DRAM timing. The two paging tests fail at board
 geometry reporting it by name -- deliberately, rather than being tuned green.
 
 **Default 18/18. Board 16/18.** Remaining for THIS task: resolve or accept
-PUMICE-046, then wire board geometry into the regression. `DFI_DATA_WIDTH` 128
+ISSUE-002, then wire board geometry into the regression. `DFI_DATA_WIDTH` 128
 vs 64 and `dfi_cmd_path`'s DFI_RATE=4 are still un-investigated.
 
 ### The four that were left (superseded by the entry above)
@@ -267,7 +267,7 @@ One read beat lost under concurrent read+write at the board geometry.
 Deterministic -- same beat index, same runtime to the second across runs, so it
 is not a flake.
 
-**NOT caused by [[PUMICE-046]]'s arbiter change.** Verified by running the
+**NOT caused by [[ISSUE-002]]'s arbiter change.** Verified by running the
 identical cell in a worktree at `d11a0aee8`, the commit immediately before
 `8b06686af`: byte-identical failure, `{12: 1}` and 347s both sides. The
 char-framework board gate does not cover these cells, so "gate green" was never
@@ -451,7 +451,7 @@ rule -- "repeat every point: a single pass cannot distinguish 0% from 12%" --
 cuts both ways, and is why 4 reps (59% chance of a false clean) would not have
 settled it.
 
-**Cause: the one-cycle seam in the arbiter's turnaround guard** (PUMICE-039,
+**Cause: the one-cycle seam in the arbiter's turnaround guard** (TASK-007,
 fixed 508f98200). `r_rdfire0` records a fire the cycle AFTER it happens while
 the pick runs the cycle BEFORE its own fire, so a WRITE picked in the very cycle
 a READ fired out issued one cycle behind it -- a gap-1 RD->WR against tRTW=20.
@@ -1086,7 +1086,7 @@ target:
     Failing endpoints      0 / 72896
     ENHANCED tier       +0.005 ns, 0 failing
 
-The task's secondary claim -- "PUMICE-006 was never synthesized" -- is also
+The task's secondary claim -- "TASK-001 was never synthesized" -- is also
 stale: all three mode axes are in the board build, and the paging predictors
 were restored to it on 2026-09-09.
 
@@ -1421,7 +1421,7 @@ read ceiling is a property of this operating point rather than a pumice defect
 
 ## PUMICE-025 — read bandwidth was pinned at 48.7% of peak (FIXED: now 95%, write parity)
 **Status:** CLOSED 2026-09-10  **Priority:** was P1. Target was 450 MB/s read; delivered 571.3.
-Residual latency work carried forward as [[PUMICE-030]].
+Residual latency work carried forward as [[ISSUE-001]].
 **Found by:** PUMICE-022 board characterization (see closed.md for the full table)
 
 Read bandwidth on silicon is **291.7-292.2 MB/s against a 600 MB/s peak** and
@@ -1757,7 +1757,7 @@ catch a regression here.
    Little's-law fit still hold at the new harness.
 3. `python3 bin/outstanding_sweep.py` -- never run on hardware. The outstanding
    dial and the 32-deep ceiling exist precisely so this curve can be taken, and
-   it is the direct evidence for [[PUMICE-030]]'s latency argument.
+   it is the direct evidence for [[ISSUE-001]]'s latency argument.
 4. `python3 bin/bank_gap_sweep.py` then `python3 bin/plot_bank_gap.py
    reports/bank_gap_sweep.json` -- also never run on hardware. Four generators
    on four banks, concurrent read+write, gap 0..15 across three address orders.
@@ -1765,7 +1765,7 @@ catch a regression here.
    cacheline to row-major to col-major, and falling as generators are added. If
    they do not, either the sweep or the controller is not doing what it claims.
 
-**Update when done:** AT-A-GLANCE, the char guide, and [[PUMICE-030]]'s table.
+**Update when done:** AT-A-GLANCE, the char guide, and [[ISSUE-001]]'s table.
 
 ---
 
@@ -1822,7 +1822,7 @@ points carry mismatches and must not be quoted as clean operating points; the
 plotter now rings them. The bandwidth numbers themselves stand.
 
 **Still to do (carried, not blocking):** update AT-A-GLANCE, the char guide and
-[[PUMICE-030]]'s table with the figures above.
+[[ISSUE-001]]'s table with the figures above.
 
 ---
 
@@ -2484,7 +2484,7 @@ from default alignment args while programming different ones.
 
 Known cost, NOT fixed here: -17.4% bus bandwidth at gap 15, from paying the
 fixed ~18-cycle turnaround on every direction switch. Realignment provably
-cannot recover it (tRTW is alignment-independent). See PUMICE-039.
+cannot recover it (tRTW is alignment-independent). See TASK-007.
 
 ## PUMICE-042 — mc_clk timing is not preserved across the CDC to the DFI
 **Status:** CLOSED 2026-09-16 (91db52b47)  **Priority:** P1
@@ -2508,7 +2508,7 @@ the FIFO stays near-empty and the arbiter's spacing propagates unchanged --
 tRTW appears honoured, coincidentally. Any condition that lets the FIFO BACK UP
 converts a correct schedule into an incorrect command stream.
 
-**First workload to expose it:** write batching (PUMICE-039). The drain bursts
+**First workload to expose it:** write batching (TASK-007). The drain bursts
 commands in, the FIFO fills, and the cmd path drains them back-to-back --
 compressing a 20-cycle RD->WR gap to 1. Every observation fits: the scheduler
 scoreboard is silent (the arbiter DID space them), the ILA shows RD->WR

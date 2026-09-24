@@ -3,7 +3,7 @@
 //
 // pumice_rbl_table — RBLA row-locality miss-counter table (Yoon 2012 class).
 //
-// PUMICE-006 Axis 2, modes 6 (rbl_static) / 7 (rbl_dyn). The scheme counts
+// TASK-001 Axis 2, modes 6 (rbl_static) / 7 (rbl_dyn). The scheme counts
 // row-buffer MISSES only, not accesses: a row that keeps getting re-activated
 // (every ACT is by definition a row-buffer miss for that row) is either
 // hot-and-thrashing (close it eagerly -> auto-precharge) or was simply cold.
@@ -34,7 +34,7 @@
 // counter passes the threshold latches closed, the next access re-ACTs that
 // same resident row, that ACT is now a tag HIT so the counter climbs higher
 // still, and the row never reopens. Measured cost of the old 0 default on
-// the board: 34.9 vs 553.8 MB/s on streaming, 15.8x (PUMICE-013,
+// the board: 34.9 vs 553.8 MB/s on streaming, 15.8x (TASK-002,
 // bin/seq_rbl_epoch.py). The CSR default is now 256.
 
 `timescale 1ns / 1ps

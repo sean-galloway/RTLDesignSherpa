@@ -214,7 +214,7 @@ class PumiceCmdArbiterTB(TBBase):
         # stride aliases against the pick's cycle period (the pipeline throttles
         # columns to every 2-3 cycles), so a poll that advances by settle() can
         # phase-lock onto the idle cycle and never see the pick -- the exact
-        # trap the PUMICE-006 order-mode scenarios already switched to per-edge
+        # trap the TASK-001 order-mode scenarios already switched to per-edge
         # polling to avoid. Poll with this, not settle().
         await RisingEdge(self.dut.aclk)
         await Timer(1, units='ns')

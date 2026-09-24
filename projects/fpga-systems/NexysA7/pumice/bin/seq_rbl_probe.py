@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Read back PAGE_RBL_CFG after applying each rbl config (PUMICE-013/006/047).
+"""Read back PAGE_RBL_CFG after applying each rbl config (TASK-002/006/047).
 
 The rbl_static collapse was attributed to reset_interval=0 on the strength of a
 sweep. But the RTL says mode 6's epoch only CLEARS counters, and the counter is
 already reset to 1 on every tag miss (pumice_rbl_table.sv:172), so on streaming
 the epoch should be nearly inert. Either the RTL reading is wrong or the CSR is
-not landing what the host thinks -- which is exactly PUMICE-047's suspicion.
+not landing what the host thinks -- which is exactly ISSUE-003's suspicion.
 Read the register back and find out before changing any default.
 """
 from __future__ import annotations

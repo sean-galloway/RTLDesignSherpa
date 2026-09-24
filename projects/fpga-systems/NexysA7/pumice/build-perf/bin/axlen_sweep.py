@@ -17,7 +17,7 @@ at 8 only to keep comparing against the historical curve. Sweep the other axis
 with outstanding_sweep.py.
 
 Run it before theorising about the read scheduler. Five points inside 2% is
-what turned "per-transaction overhead nobody has identified" into PUMICE-030,
+what turned "per-transaction overhead nobody has identified" into ISSUE-001,
 which is a LATENCY defect: at LiteDRAM's 24.7 cycles the same budget covers
 AxLEN 4 and the shortfall disappears.
 
@@ -39,7 +39,7 @@ st.init(do_leveling=True)
 cfg = pc.CONFIGS['open_page']
 geom = pc.DEFAULT_GEOM
 OS = 8          # pinned, so this curve stays comparable with the pre-2026-09-11 runs
-# Durable record. This table is quoted in AT-A-GLANCE and PUMICE-030, and until
+# Durable record. This table is quoted in AT-A-GLANCE and ISSUE-001, and until
 # 2026-09-14 it could only be cited from scrollback. JSON_OUT="" disables.
 JSON_OUT = os.environ.get("JSON_OUT", "reports/axlen_sweep.json")
 records = []

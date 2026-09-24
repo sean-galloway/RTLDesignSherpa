@@ -1,4 +1,5 @@
-# PUMICE-030: read latency is ~2x LiteDRAM's, and it caps small-burst reads
+# ISSUE-001: read latency is ~2x LiteDRAM's, and it caps small-burst reads
+> **Was `PUMICE-030` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 **Status:** DEFERRED FAR 2026-09-22  **Priority:** P3 — BY DESIGN, not a defect
 

@@ -50,7 +50,7 @@ module pumice_dfi_cmd_path
     // The scheduler has an identical checker on ITS output. That one cannot see
     // this defect class: it binds at `cmd_valid_o && cmd_ready_i` inside
     // pumice_mem_cmd_scheduler, which is UPSTREAM of the CMD_DELAY shift
-    // register, the CDC FIFO and this module. Every PUMICE-039 defect lived
+    // register, the CDC FIFO and this module. Every TASK-007 defect lived
     // downstream of it -- with the scheduler checker armed it reported ZERO
     // tRTW violations while the board ILA showed FOUR per capture. It was
     // correct about what it could see and blind to where the bugs were.
@@ -157,7 +157,7 @@ module pumice_dfi_cmd_path
     // command FIFO preserves ORDER but not SPACING -- so any stall here silently
     // rewrites the interval between every command queued behind it.
     //
-    // That is not a theoretical risk, it is the PUMICE-039 failure. The previous
+    // That is not a theoretical risk, it is the TASK-007 failure. The previous
     // revision paced columns here (DQ occupancy + a direction-aware tRTW/tWTR
     // hold, added for PUMICE-042). Holding a column for tRTW=20 at the head of an
     // 8-deep in-order FIFO backed the queue up, and the ACT/PRE/REF behind it --

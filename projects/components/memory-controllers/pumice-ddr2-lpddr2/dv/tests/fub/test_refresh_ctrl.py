@@ -307,7 +307,7 @@ async def cocotb_test_refresh_ctrl(dut):
         assert grants_done >= n_grants // 3
 
     elif test_type == "postpone_headroom":
-        # REGRESSION GUARD (PUMICE-045, board 2026-09-18).
+        # REGRESSION GUARD (BUG-001, board 2026-09-18).
         #
         # The busy-side request is `r_pending > w_post_eff`. The clamp used to
         # be 7, so with postpone programmed to its maximum the request first
@@ -360,7 +360,7 @@ _GATE = [("smoke",), ("grant_decrements",)]
 _FUNC = _GATE + [("multiple_pending",), ("saturating",), ("drain",),
                  ("drain_burst",), ("refpb_rotor",), ("refab_no_rotation",),
                  ("grant_no_reissue",),  # strict-flop strobe race guard
-                 ("postpone_headroom",), # PUMICE-045 retention-hazard guard
+                 ("postpone_headroom",), # BUG-001 retention-hazard guard
                  ("random_soak",)]
 _FULL = _FUNC
 

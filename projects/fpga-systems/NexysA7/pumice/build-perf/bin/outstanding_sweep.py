@@ -45,7 +45,7 @@ CLK_MHZ  = float(os.environ.get("PUMICE_MC_CLK_HZ", "75000000")) / 1e6
 PEAK_MBS = 8 * CLK_MHZ          # 8 bytes/beat at one beat/cycle
 
 # A sweep that only prints is a sweep whose numbers die with the terminal.
-# This one's results were quoted into AT-A-GLANCE and PUMICE-030 from
+# This one's results were quoted into AT-A-GLANCE and ISSUE-001 from
 # scrollback because there was no file to cite -- so nobody could re-derive
 # the published table. JSON_OUT="" disables.
 JSON_OUT = os.environ.get("JSON_OUT", "reports/outstanding_sweep.json")
@@ -93,7 +93,7 @@ def main() -> int:
             # which reports one sweep STEP LATE -- the first N that stopped
             # improving is the one after the one that saturated. That single
             # off-by-one is what made the measured knees look 1.3-2x above the
-            # model and got written into PUMICE-030 and the guide as an open
+            # model and got written into ISSUE-001 and the guide as an open
             # anomaly (2026-09-14). There was no anomaly: scored properly the
             # knees land at 0.99x, 0.95x and 1.16x of the model, and the last
             # is only the sweep grid (the model wants 6.9 and the steps go

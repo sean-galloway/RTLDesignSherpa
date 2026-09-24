@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Board-less proof of the PageStats derivation (PUMICE-013 telemetry).
+"""Board-less proof of the PageStats derivation (TASK-002 telemetry).
 
 The arithmetic here is the whole characterization campaign's explanation
 layer, and every one of these cases is a way to get a plausible-looking wrong

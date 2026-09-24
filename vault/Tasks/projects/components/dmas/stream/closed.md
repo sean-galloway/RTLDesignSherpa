@@ -272,7 +272,7 @@ than against the manifest's own list. Three things the "1 block to 9" and
    independently within the hour -- same RDL, same flags, same compare
    targets, two copies. The gate ran those two invocations twice on every
    commit. De-duplicated (kept the version using a named path constant and
-   carrying the PUMICE-047 rationale); 27 -> 25 entries, full gate 7.05s ->
+   carrying the ISSUE-003 rationale); 27 -> 25 entries, full gate 7.05s ->
    6.54s. A structural check now backs the name check: 0 duplicate
    (rdl, flags, regmap_output) triples and 0 files compared by two entries.
 

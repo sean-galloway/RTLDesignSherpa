@@ -3,7 +3,7 @@
 //
 // pumice_row_pred_table — per-row open/close predictor (Happy "Hybrid" class).
 //
-// PUMICE-006 Axis 2, mode 5 (adapt_access). A tagless direct-mapped table of
+// TASK-001 Axis 2, mode 5 (adapt_access). A tagless direct-mapped table of
 // 2-bit saturating counters indexed by {bank, folded row}. Each counter votes
 // on what to do the next time its row is ACTIVATED: counter >= 2 means "this
 // row historically saw a single access per activation — close it eagerly"

@@ -850,14 +850,14 @@ direction switch. Worth +11.9%..+30.5% bus on the Nexys A7 at
 2+2 generators there is no turnaround left to amortise, so it is
 a no-op there, not a cost.</p>
 <p>Shipped disabled until 2026-09-18 because it corrupted. Three
-defects, all fixed (PUMICE-039): tRFC compression from DFI-side
+defects, all fixed (TASK-007): tRFC compression from DFI-side
 pacing, tRTW classify-time staleness, and a one-cycle turnaround
 seam. Evidence for this default:</p>
 <pre><code>210 concurrent runs at open_page      0 failures
 4 x full 14-config matrix (1008 cells) 1 mismatched beat
 </code></pre>
 <p>That one beat was seen once and never reproduced in the 756
-cells after it; it is unattributed (PUMICE-045), NOT a known
+cells after it; it is unattributed (BUG-001), NOT a known
 batching defect. 2/1 over 8/4 because it wins at gaps 12 and 15,
 ties at 4, and a shallower drain parks reads behind a shorter
 write run. Still a runtime CSR: this is only the reset value.</p>

@@ -70,7 +70,7 @@ apart from a controller that will not.
 (`bridge_ddr2_char_axil`, 1x5 after the obs_apb slot was added 2026-08-28) —
 see `ddr2_char_framework/rtl/bridges/configs/`. Splitting it in two is a
 config + regen job under CRITICAL RULE #0 (delete ALL generated output, then
-regenerate), plus the harness rewire. Pairs with [[PUMICE-013]]
+regenerate), plus the harness rewire. Pairs with [[TASK-002]]
 characterization. (It used to pair with [[PUMICE-016]] observer adoption —
 "decide whether each bridge gets its own observer instance before wiring".
 016 was dropped 2026-09-23, so there is no observer instance to place and
@@ -355,7 +355,7 @@ porting, each chosen for a different controller behaviour:
 - **GUPS / HPC-Challenge RandomAccess** — random single-word updates across
   the whole 128 MiB. Maximum row/bank thrash and the worst case for page
   policy; this is the benchmark that should separate the Axis-2 paging modes
-  ([[PUMICE-013]]) if anything does.
+  ([[TASK-002]]) if anything does.
 - **Pointer chase** (lmbench `lat_mem_rd` style) — dependent-load latency as a
   function of working-set size. Walks the cache hierarchy and then exposes
   tRCD/CL and the read-return path directly; a latency curve is the natural

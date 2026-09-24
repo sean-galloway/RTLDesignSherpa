@@ -71,7 +71,7 @@ def main(argv=None) -> int:
                     help="scenario families for the page_policy A/B (comma list)")
     ap.add_argument("--pp-txn", type=int, default=2000,
                     help="txn_count for the page_policy A/B (seq: page_policy)")
-    # wr_batch (PUMICE-039/042/043) knobs, same pattern as --pp-txn.
+    # wr_batch (TASK-007/042/043) knobs, same pattern as --pp-txn.
     ap.add_argument("--wb-reps", type=int, default=8,
                     help="wr_batch: repeats per (watermark, gap) point. "
                          "A single pass cannot tell 0%% from a low-rate "

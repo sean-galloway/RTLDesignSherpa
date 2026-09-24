@@ -120,7 +120,7 @@ module pumice_core
     input  memtype_e                   memtype_i,
     input  page_policy_e               page_policy_i,
 
-    // ---- runtime page-policy (PUMICE-006 Axis 2); all-zero = legacy ----
+    // ---- runtime page-policy (TASK-001 Axis 2); all-zero = legacy ----
     input  logic [2:0]                 page_mode_i,
     input  logic                       page_scope_i,
     input  logic [7:0]                 page_tr_init_i,

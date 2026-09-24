@@ -1,4 +1,5 @@
-# PUMICE-023: the char-framework sim is the board gate and must run before any pumice RTL commit
+# TASK-003: the char-framework sim is the board gate and must run before any pumice RTL commit
+> **Was `PUMICE-023` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 **Status:** open 2026-09-08  **Priority:** P1
 

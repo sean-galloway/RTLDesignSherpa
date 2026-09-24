@@ -59,7 +59,7 @@ module pumice_mem_cmd_scheduler
     // ---- config ----
     input  page_policy_e              page_policy_i,
 
-    // ---- runtime page-policy CSR fields + telemetry (PUMICE-006 Axis 2) ----
+    // ---- runtime page-policy CSR fields + telemetry (TASK-001 Axis 2) ----
     input  logic [1:0]                sched_order_mode_i, // SCHED_POLICY.order_mode
     input  logic [1:0]                sched_row_sel_i,    // SCHED_POLICY.row_sel
     input  logic [1:0]                sched_col_sel_i,    // SCHED_POLICY.col_sel
