@@ -4544,7 +4544,12 @@ observer is functional in STREAM only. In pumice it is NOT instantiated --
 at 0x00090000 for `obs_regs` and marks the slot "EXPANSION SLOT, currently
 UNUSED", terminated so the bridge answers zero instead of wedging the board on
 an access. That is groundwork so adoption is "an instantiation, not a bridge
-regen on the DDR2 critical path". Adoption is [[PUMICE-016]], still open.
+regen on the DDR2 critical path". Adoption was [[PUMICE-016]], DROPPED
+2026-09-23: the slot stays reserved and usable, but pumice measured the
+observer at +4223 LUTs (+208%) over the two shared primitives it already
+instantiates directly, for no additional measurement. The groundwork is not
+wasted -- it makes adoption a decision rather than a project -- it simply was
+not taken up.
 
 **What is left, and why it is not an amba task:**
 `Genesys2/stream/rtl/harness_csr.sv` still mirrors the observer's perf outputs

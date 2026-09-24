@@ -668,10 +668,12 @@ of it.
 1. The cross is combinatorially large — sweep one axis at a time against
    a fixed baseline first, then the promising pairs; do NOT brute-force
    the full product.
-2. The measurement path is changing underneath it: the bespoke harness
-   meters/hists are being retired for the external observer
-   ([[PUMICE-016]]), and the 1:1 accounting check moves with them. Land
-   016 first or the numbers carry the AMBA-HISTCH1 accounting error.
+2. NO LONGER A GATE (2026-09-23). This read "land [[PUMICE-016]] first or
+   the numbers carry the AMBA-HISTCH1 accounting error". 016 is DROPPED:
+   the harness meters are the shared primitives, not bespoke, and the
+   AMBA-HISTCH1 accounting error was fixed at source (44ba2eea3) rather
+   than by retiring them. The 1:1 check is measured clean at board
+   geometry -- multiid hist total 64/64. Nothing blocks this work.
 3. The interesting telemetry already exists in-controller and should be
    the primary signal per Sean's direction (cheap counters stay in
    pumice): PAGE_STATS hit/miss/empty, SCHED_STATS act/pre,
@@ -733,51 +735,6 @@ with `--char-configs` / `--char-level` / `--char-scale`, and the board
 recipe in [[project_pumice_board_perf_char]] (the runtime page-policy
 result — OPEN giving 8.8x on streaming, 12.7 -> 112 MB/s — is the
 template for what a good characterization finding looks like).
-
-## PUMICE-016 — adopt axi4_intf_master_observer (APB-configured) for perf observation
-**Status:** ACTIVE 2026-08-26 — now the DIRECTED path, not a nicety.
-Sean's direction: "don't have any monitor logic or perf logic inside
-pumice — I have an external block that does just this. However, keep
-tracking things like paging results and anything else that is easy but
-interesting." So: the char harness's hand-rolled bus meters + latency
-hists are to be RETIRED in favor of this observer (which also sidesteps
-the AMBA-HISTCH1 shared-primitive bug the bespoke path sits on — the
-observer instantiates the hist at NUM_CHANNELS=8); pumice keeps only the
-cheap counters (PAGE/SCHED/REF *_STATS, OBS_ROW_HIT, refresh-defer
-histograms). PUMICE-020 closed onto this task; the 1:1 accounting check
-moves to the observer path when it lands.
-
-pumice rolls its own perf observation: `perf_rd_prod/bp/starv/idle`,
-`perf_rd_hist_count/total`, `perf_clear`, `perf_freeze` wired out of the harness
-and read back through harness CSRs. The stream flows use
-`axi4_intf_master_observer`, an inline pass-through meter over the same primitives
-(`axi_bus_meter`, `axi_perf_latency_hist`) that also emits monbus packets.
-
-**What changed that makes this worth doing (2026-08-04):** the observer now
-carries its OWN APB config regblock (`obs_regs`) instead of exporting 29 `cfg_*`
-ports for the instantiating harness to tie off, and it moved to
-`projects/components/misc/rtl/` so it is reachable from any board flow:
-
-    -f $MISC_ROOT/rtl/filelists/axi4_intf_master_observer.f
-
-So adopting it costs one bridge APB slave and one instantiation, not 29 tie-offs
-and a harness that has to know the block's internals. Registers are by name via
-the generated regmap (see [[registers-by-name]]).
-
-**Why bother:** pumice and stream currently measure throughput with different
-code, so their numbers are not strictly comparable — which matters because the
-pumice-vs-LiteDRAM A/B and the stream characterization both report MB/s. One
-meter means one definition of a stalled cycle, and pumice would inherit the
-latency histogram and the monbus packet path for free.
-
-**Scope note:** the observer is an AXI4 pass-through meter (it was called
-`axi4_dma_observer` until 2026-08-04; the DMA in the name was always wrong). pumice's interesting
-traffic is on the DFI side, so this covers the AXI front-end (host -> pumice_top)
-rather than DRAM-side behaviour; the DFI meters stay as they are.
-
-**Not urgent.** Do it when the pumice harness is next opened for other reasons,
-not as a standalone change — it touches the bridge map and the harness CSR
-readback, and pumice bitstreams are on the critical path for the DDR2 work.
 
 ## PUMICE-023 — the char-framework sim is the board gate and must run before any pumice RTL commit
 **Status:** open 2026-09-08  **Priority:** P1

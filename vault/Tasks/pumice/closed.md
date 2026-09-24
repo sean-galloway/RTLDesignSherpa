@@ -1214,7 +1214,7 @@ fails. Shortening the col->ACT head advance would lift the AP numbers and is
 tracked as a performance item under PUMICE-024, not a correctness one.
 
 ## PUMICE-020 — multiid read-return accounting: hist total != txn_count (data clean)
-**Status:** closed 2026-08-26 — root cause found (AMBA-HISTCH1); 1:1 check moves to the observer path (PUMICE-016) (was: open 2026-08-25, deterministic, observability-only)
+**Status:** closed 2026-08-26 — root cause found (AMBA-HISTCH1). The 1:1 check was to move to the observer path (PUMICE-016), but 016 was DROPPED 2026-09-23; both root causes were fixed at source instead and the multiid arm is GREEN, 64/64 — see RESIDUE DISCHARGED below. (was: open 2026-08-25, deterministic, observability-only)
 
 `col_major_bl8_multiid` (id_mode=LFSR) at medium@1000 reports a 1:1 violation:
 latency-hist total 168409 vs txn_count 64000 (EXTRA returns) — while the DATA
@@ -1253,6 +1253,24 @@ moves there. The cheap "interesting" counters STAY in pumice per the same
 direction: PAGE/SCHED/REF *_STATS, OBS_ROW_HIT, refresh-defer histograms.
 The sim repro profile (`multiid_min`) stays in pumice_char.py; its multiid
 arm remains red until the observer adoption replaces the bespoke hist.
+
+**RESIDUE DISCHARGED 2026-09-23 — and NOT by the observer.** Both root
+causes were fixed at source instead: MAX_OUTSTANDING 8 -> 32 (72a0a951e,
+2026-09-10) and the HISTCH1 channel decode (44ba2eea3, 2026-08-27). The
+multiid arm is GREEN. Re-run at board geometry, clean build,
+`TEST_CHAR_PROFILE=multiid_min` on `test_ddr2_char_char_families_x16`,
+350.59 s wall clock, against the UNGUARDED 1:1 assert at
+`test_ddr2_char_char.py:300`:
+
+```
+baseline/col_major_bl8_multiid  ok=True mism=0  blen=8 txn=64
+  RD hist(total=64) = [0,0,0,0,0,1,1,2,60,0,0,0,0,0,0,0]
+```
+
+64 of 64, bins summing to exactly 64 -- against 168409 vs 64000 on the board
+and 33/64 in sim before. Both fixes predate the 2026-09-21 bitstream, so the
+board-side check needs no rebuild. [[PUMICE-016]] was DROPPED the same day;
+the "vehicle" sentence above is superseded.
 
 ---
 

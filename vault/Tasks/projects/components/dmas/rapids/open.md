@@ -75,7 +75,13 @@ per-direction split, where STREAM's shared master is aggregate-only. And one
 instrument across RAPIDS/STREAM/pumice means one definition of a stalled cycle,
 so the GB/s numbers in three different reports become comparable.
 
-Related: [[PUMICE-016]] is the same adoption for the memory controller.
+Related: [[PUMICE-016]] was the same adoption for the memory controller, and
+was DROPPED 2026-09-23 — pumice already instantiates the same shared
+primitives (`axi_bus_meter`, `axi_perf_latency_hist`) directly, so the
+"one definition of a stalled cycle" argument was already satisfied there and
+the observer wrapper cost +208% area for nothing. Check whether the same is
+true here before adopting: the argument holds only where the meters are NOT
+already the shared blocks.
 
 ## RAPIDS-KMAP — RAPIDS-beats has NO contracts workbook at all
 **Status:** open 2026-08-06  **Blocked on:** [[TOOLING-KMAP]] items 1-4

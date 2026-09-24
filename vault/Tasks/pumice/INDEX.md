@@ -7,17 +7,16 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 14 |
+| [open](open.md) | 13 |
 | [closed](closed.md) | 31 |
-| [dropped](dropped.md) | 4 |
+| [dropped](dropped.md) | 5 |
 
 ## Active
 
 (none running. The correctness backlog is NO LONGER empty: PUMICE-037 (P0) is
-an open correctness defect found on the board 2026-09-14. PUMICE-016 is marked
-ACTIVE in its
-body but its own scope note says do NOT run it standalone, so it is counted
-as open, not active. See the caveat under the shortlist.)
+an open correctness defect found on the board 2026-09-14. The PUMICE-016
+ACTIVE/"not urgent" contradiction that used to be noted here is gone: 016 was
+investigated and DROPPED 2026-09-23.)
 
 ## Open shortlist
 
@@ -40,18 +39,11 @@ as open, not active. See the caveat under the shortlist.)
   bandwidth report cannot attribute the missing percent to refresh, activate,
   turnaround or first-transaction latency. Needs a few scheduler counters.
 
-- **PUMICE-016** — adopt the external `axi4_intf_master_observer` and retire
-  the harness's hand-rolled meters/hists (Sean 2026-08-26: no monitor/perf
-  logic inside pumice; cheap interesting counters stay). GATES PUMICE-013 —
-  until it lands the perf numbers carry the AMBA-HISTCH1 accounting error.
-  **Conflicting guidance inside the task:** headed ACTIVE/"the DIRECTED
-  path", but its scope note says "Not urgent. Do it when the pumice harness
-  is next opened for other reasons, not as a standalone change — it touches
-  the bridge map and the harness CSR readback, and pumice bitstreams are on
-  the critical path." Resolve that before starting.
 - **PUMICE-013** — characterize + tune the modes (the big one: sweeps in sim
   and on the board, recommended defaults per workload family). Wants 008
-  first for the reason above.
+  first for the reason above. NO LONGER gated on observer adoption:
+  PUMICE-016 was dropped 2026-09-23 and the AMBA-HISTCH1 accounting error it
+  was supposed to dodge is fixed at source, measured clean (multiid 64/64).
 
 - **PUMICE-006** — mechanisms COMPLETE 2026-08-27, all three axes, every
   mode off by default and mutation-proven. Parked; reopens only if 013

@@ -71,8 +71,10 @@ apart from a controller that will not.
 see `ddr2_char_framework/rtl/bridges/configs/`. Splitting it in two is a
 config + regen job under CRITICAL RULE #0 (delete ALL generated output, then
 regenerate), plus the harness rewire. Pairs with [[PUMICE-013]]
-characterization and [[PUMICE-016]] (observer adoption) — decide whether
-each bridge gets its own observer instance before wiring.
+characterization. (It used to pair with [[PUMICE-016]] observer adoption —
+"decide whether each bridge gets its own observer instance before wiring".
+016 was dropped 2026-09-23, so there is no observer instance to place and
+that decision is moot.)
 
 **Once enabled — read/write mix sweep.** With the two bridges independent,
 sweep the direction mix from 100% write / 0% read to 0% write / 100% read in
