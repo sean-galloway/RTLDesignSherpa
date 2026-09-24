@@ -247,7 +247,7 @@ cyc0  CMD_IDLE + cmd_valid -> regblk_req=1            (peakrdl_to_cmdrsp:205)
       decoded_req = cpuif_req_masked                  (stream_regs.sv:358)
       swacc = decoded_reg_strb.PERF_DATA_LOW          (stream_regs.sv:2831)
       perf_fifo_rd = 1                (rising edge; stream_top_ch8.sv:985)
-      readback_array[50] <- hwif_in...next  = PRE-POP latch   (:4906)
+      readback_array[50] <- hwif_in...next  = PRE-POP flop value (:4906)
       cpuif_rd_ack = readback_done, combinational              (:5073)
       adapter captures r_rsp_prdata <= regblk_rd_data          (:261)
       ...clock edge: r_fifo_data_latched <= w_fifo_rd_data
@@ -257,19 +257,19 @@ cyc1  CMD_WAIT_ACK, regblk_req STILL HELD -> swacc still 1
 ```
 
 The old router muxed `perf_fifo_data_low` at `s_cmd_valid && s_cmd_ready` --
-the same accept cycle, the same pre-pop latch. Identical. The edge detect is
+the same accept cycle, the same pre-pop flop value. Identical. The edge detect is
 also REQUIRED, not defensive: `peakrdl_to_cmdrsp:189-206` documents that
 `regblk_req` is held through `WAIT_ACK`, and that reducing it to one cycle
 (2026-08-17) broke every register read through this bridge.
 
-**The real defect.** `perf_profiler.sv:386` claims the latch "ensures atomic
+**The real defect.** `perf_profiler.sv:386` claims the flop "ensures atomic
 access to 36-bit FIFO entries across two 32-bit reads". It does not. The LOW
-read returns the latch as it stands BEFORE its own pop, and the pop only
-reaches the latch on the next clock edge:
+read returns the flop's contents as they stand BEFORE its own pop, and the
+pop only reaches that flop on the next clock edge:
 
 ```
-FIFO [A,B,C], latch = X (reset value or the previous entry)
-  read PERF_DATA_LOW  -> returns X[31:0],  pops A, latch <= A
+FIFO [A,B,C], flop = X (reset value or the previous entry)
+  read PERF_DATA_LOW  -> returns X[31:0],  pops A, flop <= A
   read PERF_DATA_HIGH -> returns A[35:32]
 ```
 
@@ -283,8 +283,8 @@ these with the FIFO EMPTY, so both designs return zeros and pass. Per
 [[escape-analysis]], no failure here is not evidence.
 
 **Open question for the owner:** which is intended -- LOW returns the entry it
-pops (then the latch must update combinationally, or the readback must come
-from the latch's next value), or LOW is a "pop and the NEXT pair reads it"
+pops (then the readback must come from the FIFO head rather than the flop's
+current contents), or LOW is a "pop and the NEXT pair reads it"
 protocol (then the doc and the MAS software sequence are what is wrong)?
 
 Acceptance: push N known entries, read LOW/HIGH pairs by name, and assert the

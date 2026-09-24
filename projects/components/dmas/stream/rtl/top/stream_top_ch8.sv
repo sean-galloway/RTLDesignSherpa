@@ -968,7 +968,7 @@ module stream_top_ch8 #(
     // Perf FIFO pop strobe (replaces cmdrsp_router's hand-rolled decode)
     // -------------------------------------------------------------------------
     // perf_profiler takes perf_fifo_rd as a ONE-CYCLE pop (.rd_ready on the FIFO,
-    // and it latches the 36-bit entry on the same condition). swacc is NOT that:
+    // and it FLOPS the 36-bit entry on the same condition). swacc is NOT that:
     // PeakRDL emits it as the bare register strobe -- it asserts on writes too --
     // and peakrdl_to_cmdrsp holds regblk_req across CMD_IDLE -> CMD_WAIT_ACK until
     // ack, so it arrives as a multi-cycle LEVEL. Driving perf_fifo_rd from it
@@ -2090,9 +2090,10 @@ module stream_top_ch8 #(
     // The perf registers are RDL-declared and live in the PeakRDL block, NOT
     // in cmdrsp_router (which no longer carries any perf connection):
     //   0x2D0: PERF_DATA_LOW   - RO, capture low word; reading POPS the FIFO
-    //                            and latches the 36-bit entry inside
-    //                            perf_profiler (r_fifo_data_latched)
-    //   0x2D4: PERF_DATA_HIGH  - RO, high word of that SAME latched entry.
+    //                            and flops the 36-bit entry inside
+    //                            perf_profiler (r_fifo_data_latched --
+    //                            misnamed; ALWAYS_FF_RST, so it is a flop)
+    //   0x2D4: PERF_DATA_HIGH  - RO, high word of that SAME flopped entry.
     //                            Read order is LOW then HIGH.
     //   0x2D8: PERF_STATUS     - RO, EMPTY[0] FULL[1] COUNT[31:16]
     //   0x2B0: PERF_CONFIG     - R/W configuration
