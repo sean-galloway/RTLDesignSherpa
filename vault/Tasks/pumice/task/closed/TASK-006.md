@@ -1,7 +1,13 @@
 # TASK-006: no stall-cause attribution, so the overhead breakdown cannot be published
 > **Was `PUMICE-035` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** open 2026-09-14  **Priority:** P2 — blocks a documented reporting gap
+**Status:** CLOSED 2026-09-24 — implemented and validated in sim; the
+breakdown exists and prints. RESIDUE, deliberately not held open for: the
+counters are new RTL, so a BOARD breakdown needs a bitstream rebuild, and
+`banktimer` lumps tRCD/tRP/tRAS (three more counters, no new plumbing, worth
+doing only if a board run shows that bucket is large). Both are noted at the
+end and neither blocks the reporting gap this task was about.
+(was: open 2026-09-14, P2 — blocks a documented reporting gap)
 
 The bus meters classify every cycle into productive / backpressure / starvation
 / idle. That says the controller did not accept a beat; it does not say **why**.

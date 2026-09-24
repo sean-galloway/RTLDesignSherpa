@@ -12,9 +12,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 10 | accepted, not started |
+| [open/](open/) | 9 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
@@ -25,7 +25,10 @@ exactly one state by construction rather than by discipline.
 - **TASK-003** — the char-framework sim is the board gate and must run before any pumice RTL commit
 - **TASK-004** — pumice is AT REST: what a future session needs to know
 - **TASK-005** — the paging predictors are built unconditionally and the board never uses them
-- **TASK-006** — no stall-cause attribution, so the overhead breakdown cannot be published
 - **TASK-007** — batch same-direction columns to amortise the R/W turnaround
 - **TASK-008** — no test bounds the write drain, and the cap is unreachable at the shipped watermarks
 - **TASK-009** — doc + filelist cleanup (push from workstation)
+
+## Closed
+
+- **TASK-006** — no stall-cause attribution, so the overhead breakdown cannot be published
