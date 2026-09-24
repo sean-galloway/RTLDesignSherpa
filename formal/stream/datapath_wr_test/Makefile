@@ -4,6 +4,7 @@
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
+TMPDIR    := .sv2v_prep
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
@@ -31,8 +32,10 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/stream_latency_bridge.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/sram_controller_unit.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/sram_controller.sv \
+        $(REPO_ROOT)/projects/components/misc/rtl/dma_address_gen.sv \
+        $(REPO_ROOT)/projects/components/misc/rtl/stream_run_addr_gen.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/scheduler.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/axi_write_engine.sv
+        $(TMPDIR)/axi_write_engine.sv
 
 # Device under test
 DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/datapath_wr_test.sv
@@ -45,8 +48,20 @@ prove: datapath_wr_test_flat.v
 cover: datapath_wr_test_flat.v
 	sby -f datapath_wr_test.sby cover
 
+# sv2v does not honour `// synopsys translate_off` -- it is a comment to sv2v,
+# so the hang-diagnostic $display survives into the flat and yosys cannot size
+# its $time argument ("Don't know how to detect sign and width for AST_AUTOWIRE").
+# Strip those blocks for FORMAL ONLY: simulation reads the original source and
+# still gets the prints. The `ifdef ENHANCED_DEBUG` prints need no handling --
+# sv2v honours preprocessor directives, so they are already excluded.
+$(TMPDIR):
+	mkdir -p $(TMPDIR)
+
+$(TMPDIR)/axi_write_engine.sv: $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/axi_write_engine.sv | $(TMPDIR)
+	sed '/synopsys translate_off/,/synopsys translate_on/d' $< > $@
+
 datapath_wr_test_flat.v: $(DUT) $(PKGS) $(DEPS)
 	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
 
 clean:
-	rm -rf *_flat.v *_prove *_cover
+	rm -rf *_flat.v *_prove *_cover $(TMPDIR)

@@ -1575,6 +1575,173 @@ module monbus_arbiter (
 		end
 	initial _sv2v_0 = 0;
 endmodule
+module monitor_trans_cam (
+	clk,
+	rst_n,
+	clear,
+	lookup_addr_id,
+	lookup_data_id,
+	lookup_resp_id,
+	addr_match_oh,
+	data_match_oh,
+	resp_match_oh,
+	data_match_first_oh,
+	free_oh,
+	addr_wants_alloc,
+	data_wants_alloc,
+	resp_wants_alloc,
+	addr_alloc_mask,
+	data_alloc_mask,
+	resp_alloc_mask,
+	addr_alloc_oh,
+	data_alloc_oh,
+	resp_alloc_oh,
+	entry_we,
+	entry_valid_next,
+	entry_id_next,
+	entry_payload_next,
+	entry_valid,
+	entry_id,
+	entry_payload
+);
+	reg _sv2v_0;
+	parameter signed [31:0] DEPTH = 16;
+	parameter signed [31:0] ID_WIDTH = 8;
+	parameter signed [31:0] PAYLOAD_WIDTH = 128;
+	input wire clk;
+	input wire rst_n;
+	input wire clear;
+	input wire [ID_WIDTH - 1:0] lookup_addr_id;
+	input wire [ID_WIDTH - 1:0] lookup_data_id;
+	input wire [ID_WIDTH - 1:0] lookup_resp_id;
+	output wire [DEPTH - 1:0] addr_match_oh;
+	output wire [DEPTH - 1:0] data_match_oh;
+	output wire [DEPTH - 1:0] resp_match_oh;
+	output reg [DEPTH - 1:0] data_match_first_oh;
+	output wire [DEPTH - 1:0] free_oh;
+	input wire addr_wants_alloc;
+	input wire data_wants_alloc;
+	input wire resp_wants_alloc;
+	input wire [DEPTH - 1:0] addr_alloc_mask;
+	input wire [DEPTH - 1:0] data_alloc_mask;
+	input wire [DEPTH - 1:0] resp_alloc_mask;
+	output reg [DEPTH - 1:0] addr_alloc_oh;
+	output reg [DEPTH - 1:0] data_alloc_oh;
+	output reg [DEPTH - 1:0] resp_alloc_oh;
+	input wire [DEPTH - 1:0] entry_we;
+	input wire [DEPTH - 1:0] entry_valid_next;
+	input wire [(DEPTH * ID_WIDTH) - 1:0] entry_id_next;
+	input wire [(DEPTH * PAYLOAD_WIDTH) - 1:0] entry_payload_next;
+	output wire [DEPTH - 1:0] entry_valid;
+	output wire [(DEPTH * ID_WIDTH) - 1:0] entry_id;
+	output wire [(DEPTH * PAYLOAD_WIDTH) - 1:0] entry_payload;
+	reg r_valid [0:DEPTH - 1];
+	reg [ID_WIDTH - 1:0] r_id [0:DEPTH - 1];
+	reg [PAYLOAD_WIDTH - 1:0] r_payload [0:DEPTH - 1];
+	(* keep = "true" *) reg [DEPTH - 1:0] w_addr_match_oh;
+	(* keep = "true" *) reg [DEPTH - 1:0] w_data_match_oh;
+	(* keep = "true" *) reg [DEPTH - 1:0] w_resp_match_oh;
+	(* keep = "true" *) reg [DEPTH - 1:0] w_free_oh;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] i;
+			for (i = 0; i < DEPTH; i = i + 1)
+				begin
+					w_addr_match_oh[i] = r_valid[i] && (r_id[i] == lookup_addr_id);
+					w_data_match_oh[i] = r_valid[i] && (r_id[i] == lookup_data_id);
+					w_resp_match_oh[i] = r_valid[i] && (r_id[i] == lookup_resp_id);
+					w_free_oh[i] = !r_valid[i];
+				end
+		end
+	end
+	assign addr_match_oh = w_addr_match_oh;
+	assign data_match_oh = w_data_match_oh;
+	assign resp_match_oh = w_resp_match_oh;
+	assign free_oh = w_free_oh;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		data_match_first_oh = 1'sb0;
+		begin : sv2v_autoblock_2
+			reg signed [31:0] i;
+			for (i = 0; i < DEPTH; i = i + 1)
+				if (w_data_match_oh[i] && (data_match_first_oh == {DEPTH {1'sb0}}))
+					data_match_first_oh[i] = 1'b1;
+		end
+	end
+	always @(*) begin : sv2v_autoblock_3
+		reg [DEPTH - 1:0] remaining;
+		reg taken;
+		if (_sv2v_0)
+			;
+		addr_alloc_oh = 1'sb0;
+		data_alloc_oh = 1'sb0;
+		resp_alloc_oh = 1'sb0;
+		taken = 1'b0;
+		remaining = w_free_oh;
+		if (addr_wants_alloc) begin
+			taken = 1'b0;
+			begin : sv2v_autoblock_4
+				reg signed [31:0] i;
+				for (i = 0; i < DEPTH; i = i + 1)
+					if ((!taken && remaining[i]) && addr_alloc_mask[i]) begin
+						addr_alloc_oh[i] = 1'b1;
+						remaining[i] = 1'b0;
+						taken = 1'b1;
+					end
+			end
+		end
+		if (data_wants_alloc) begin
+			taken = 1'b0;
+			begin : sv2v_autoblock_5
+				reg signed [31:0] i;
+				for (i = 0; i < DEPTH; i = i + 1)
+					if ((!taken && remaining[i]) && data_alloc_mask[i]) begin
+						data_alloc_oh[i] = 1'b1;
+						remaining[i] = 1'b0;
+						taken = 1'b1;
+					end
+			end
+		end
+		if (resp_wants_alloc) begin
+			taken = 1'b0;
+			begin : sv2v_autoblock_6
+				reg signed [31:0] i;
+				for (i = 0; i < DEPTH; i = i + 1)
+					if ((!taken && remaining[i]) && resp_alloc_mask[i]) begin
+						resp_alloc_oh[i] = 1'b1;
+						remaining[i] = 1'b0;
+						taken = 1'b1;
+					end
+			end
+		end
+	end
+	genvar _gv_gi_3;
+	generate
+		for (_gv_gi_3 = 0; _gv_gi_3 < DEPTH; _gv_gi_3 = _gv_gi_3 + 1) begin : g_slot
+			localparam gi = _gv_gi_3;
+			always @(posedge clk or negedge rst_n)
+				if (!rst_n) begin
+					r_valid[gi] <= 1'b0;
+					r_id[gi] <= 1'sb0;
+					r_payload[gi] <= 1'sb0;
+				end
+				else if (clear)
+					r_valid[gi] <= 1'b0;
+				else if (entry_we[gi]) begin
+					r_valid[gi] <= entry_valid_next[gi];
+					r_id[gi] <= entry_id_next[((DEPTH - 1) - gi) * ID_WIDTH+:ID_WIDTH];
+					r_payload[gi] <= entry_payload_next[((DEPTH - 1) - gi) * PAYLOAD_WIDTH+:PAYLOAD_WIDTH];
+				end
+			assign entry_valid[gi] = r_valid[gi];
+			assign entry_id[((DEPTH - 1) - gi) * ID_WIDTH+:ID_WIDTH] = r_id[gi];
+			assign entry_payload[((DEPTH - 1) - gi) * PAYLOAD_WIDTH+:PAYLOAD_WIDTH] = r_payload[gi];
+		end
+	endgenerate
+	initial _sv2v_0 = 0;
+endmodule
 module axi_monitor_timer (
 	aclk,
 	aresetn,
@@ -2241,7 +2408,7 @@ module axi_monitor_trans_mgr (
 					r_age[ga] <= w_age_next[ga];
 		end
 	endgenerate
-	genvar _gv_gi_3;
+	genvar _gv_gi_4;
 	localparam [7:0] monitor_amba4_pkg_EVT_CMD_TIMEOUT = 8'h00;
 	localparam [7:0] monitor_amba4_pkg_EVT_DATA_ORPHAN = 8'h02;
 	localparam [7:0] monitor_amba4_pkg_EVT_DATA_TIMEOUT = 8'h01;
@@ -2255,8 +2422,8 @@ module axi_monitor_trans_mgr (
 		sv2v_cast_6 = inp;
 	endfunction
 	generate
-		for (_gv_gi_3 = 0; _gv_gi_3 < N; _gv_gi_3 = _gv_gi_3 + 1) begin : g_entry_next
-			localparam gi = _gv_gi_3;
+		for (_gv_gi_4 = 0; _gv_gi_4 < N; _gv_gi_4 = _gv_gi_4 + 1) begin : g_entry_next
+			localparam gi = _gv_gi_4;
 			reg [284:0] next;
 			reg next_we;
 			reg [IW - 1:0] next_id;
@@ -5002,6 +5169,288 @@ module descriptor_engine (
 	assign mon_timestamp = (GEN_MON ? r_mon_timestamp : {64 {1'sb0}});
 	initial _sv2v_0 = 0;
 endmodule
+module dma_address_gen (
+	i_clk,
+	i_rst_n,
+	i_cfg_base_addr,
+	i_cfg_stride_0,
+	i_cfg_stride_1,
+	i_cfg_wrap_mask_0,
+	i_cfg_wrap_mask_1,
+	i_req_valid,
+	o_req_ready,
+	i_req_index_0,
+	i_req_index_1,
+	i_req_tag,
+	o_result_valid,
+	i_result_ready,
+	o_result_addr,
+	o_result_tag
+);
+	reg _sv2v_0;
+	parameter signed [31:0] ADDR_WIDTH = 40;
+	parameter signed [31:0] INDEX_WIDTH = 16;
+	parameter signed [31:0] STRIDE_WIDTH = 24;
+	parameter signed [31:0] TAG_WIDTH = 8;
+	input wire i_clk;
+	input wire i_rst_n;
+	input wire [ADDR_WIDTH - 1:0] i_cfg_base_addr;
+	input wire signed [STRIDE_WIDTH - 1:0] i_cfg_stride_0;
+	input wire signed [STRIDE_WIDTH - 1:0] i_cfg_stride_1;
+	input wire [ADDR_WIDTH - 1:0] i_cfg_wrap_mask_0;
+	input wire [ADDR_WIDTH - 1:0] i_cfg_wrap_mask_1;
+	input wire i_req_valid;
+	output wire o_req_ready;
+	input wire [INDEX_WIDTH - 1:0] i_req_index_0;
+	input wire [INDEX_WIDTH - 1:0] i_req_index_1;
+	input wire [TAG_WIDTH - 1:0] i_req_tag;
+	output wire o_result_valid;
+	input wire i_result_ready;
+	output wire [ADDR_WIDTH - 1:0] o_result_addr;
+	output wire [TAG_WIDTH - 1:0] o_result_tag;
+	localparam signed [31:0] PRODUCT_WIDTH = INDEX_WIDTH + STRIDE_WIDTH;
+	wire signed [PRODUCT_WIDTH:0] w_s1_raw_offset_0;
+	wire signed [PRODUCT_WIDTH:0] w_s1_raw_offset_1;
+	assign w_s1_raw_offset_0 = $signed({1'b0, i_req_index_0}) * i_cfg_stride_0;
+	assign w_s1_raw_offset_1 = $signed({1'b0, i_req_index_1}) * i_cfg_stride_1;
+	reg [ADDR_WIDTH - 1:0] w_s1_offset_0;
+	reg [ADDR_WIDTH - 1:0] w_s1_offset_1;
+	function automatic signed [ADDR_WIDTH - 1:0] sv2v_cast_A5DC5_signed;
+		input reg signed [ADDR_WIDTH - 1:0] inp;
+		sv2v_cast_A5DC5_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (i_cfg_wrap_mask_0 != {ADDR_WIDTH {1'sb0}})
+			w_s1_offset_0 = sv2v_cast_A5DC5_signed(w_s1_raw_offset_0) & i_cfg_wrap_mask_0;
+		else
+			w_s1_offset_0 = sv2v_cast_A5DC5_signed(w_s1_raw_offset_0);
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (i_cfg_wrap_mask_1 != {ADDR_WIDTH {1'sb0}})
+			w_s1_offset_1 = sv2v_cast_A5DC5_signed(w_s1_raw_offset_1) & i_cfg_wrap_mask_1;
+		else
+			w_s1_offset_1 = sv2v_cast_A5DC5_signed(w_s1_raw_offset_1);
+	end
+	reg r_s1_valid;
+	reg [ADDR_WIDTH - 1:0] r_s1_offset_0;
+	reg [ADDR_WIDTH - 1:0] r_s1_offset_1;
+	reg [ADDR_WIDTH - 1:0] r_s1_base_addr;
+	reg [TAG_WIDTH - 1:0] r_s1_tag;
+	wire w_s1_ready;
+	wire w_s2_ready;
+	assign w_s1_ready = !r_s1_valid || w_s2_ready;
+	assign o_req_ready = w_s1_ready;
+	always @(posedge i_clk or negedge i_rst_n)
+		if (!i_rst_n) begin
+			r_s1_valid <= 1'b0;
+			r_s1_offset_0 <= 1'sb0;
+			r_s1_offset_1 <= 1'sb0;
+			r_s1_base_addr <= 1'sb0;
+			r_s1_tag <= 1'sb0;
+		end
+		else if (i_req_valid && w_s1_ready) begin
+			r_s1_valid <= 1'b1;
+			r_s1_offset_0 <= w_s1_offset_0;
+			r_s1_offset_1 <= w_s1_offset_1;
+			r_s1_base_addr <= i_cfg_base_addr;
+			r_s1_tag <= i_req_tag;
+		end
+		else if (w_s2_ready)
+			r_s1_valid <= 1'b0;
+	wire [ADDR_WIDTH - 1:0] w_s2_addr;
+	assign w_s2_addr = (r_s1_base_addr + r_s1_offset_0) + r_s1_offset_1;
+	reg r_s2_valid;
+	reg [ADDR_WIDTH - 1:0] r_s2_addr;
+	reg [TAG_WIDTH - 1:0] r_s2_tag;
+	assign w_s2_ready = !r_s2_valid || i_result_ready;
+	always @(posedge i_clk or negedge i_rst_n)
+		if (!i_rst_n) begin
+			r_s2_valid <= 1'b0;
+			r_s2_addr <= 1'sb0;
+			r_s2_tag <= 1'sb0;
+		end
+		else if (r_s1_valid && w_s2_ready) begin
+			r_s2_valid <= 1'b1;
+			r_s2_addr <= w_s2_addr;
+			r_s2_tag <= r_s1_tag;
+		end
+		else if (i_result_ready)
+			r_s2_valid <= 1'b0;
+	assign o_result_valid = r_s2_valid;
+	assign o_result_addr = r_s2_addr;
+	assign o_result_tag = r_s2_tag;
+	initial _sv2v_0 = 0;
+endmodule
+module stream_run_addr_gen (
+	clk,
+	rst_n,
+	start,
+	cfg_per_beat,
+	cfg_base_addr,
+	cfg_stride_0,
+	cfg_stride_1,
+	cfg_wrap_mask_0,
+	cfg_wrap_mask_1,
+	cfg_inner_count,
+	cfg_total_beats,
+	o_base_valid,
+	i_base_ready,
+	o_base_addr
+);
+	parameter signed [31:0] ADDR_WIDTH = 64;
+	parameter signed [31:0] STRIDE_WIDTH = 32;
+	parameter signed [31:0] INDEX_WIDTH = 16;
+	parameter signed [31:0] FIFO_DEPTH = 4;
+	parameter signed [31:0] BEATS_WIDTH = 32;
+	input wire clk;
+	input wire rst_n;
+	input wire start;
+	input wire cfg_per_beat;
+	input wire [ADDR_WIDTH - 1:0] cfg_base_addr;
+	input wire signed [STRIDE_WIDTH - 1:0] cfg_stride_0;
+	input wire signed [STRIDE_WIDTH - 1:0] cfg_stride_1;
+	input wire [ADDR_WIDTH - 1:0] cfg_wrap_mask_0;
+	input wire [ADDR_WIDTH - 1:0] cfg_wrap_mask_1;
+	input wire [INDEX_WIDTH - 1:0] cfg_inner_count;
+	input wire [BEATS_WIDTH - 1:0] cfg_total_beats;
+	output wire o_base_valid;
+	input wire i_base_ready;
+	output wire [ADDR_WIDTH - 1:0] o_base_addr;
+	reg r_per_beat;
+	reg [ADDR_WIDTH - 1:0] r_base_addr;
+	reg signed [STRIDE_WIDTH - 1:0] r_stride_0;
+	reg signed [STRIDE_WIDTH - 1:0] r_stride_1;
+	reg [ADDR_WIDTH - 1:0] r_wrap_mask_0;
+	reg [ADDR_WIDTH - 1:0] r_wrap_mask_1;
+	reg [BEATS_WIDTH - 1:0] r_total_beats;
+	reg [INDEX_WIDTH - 1:0] r_inner_count;
+	reg [INDEX_WIDTH - 1:0] r_i0;
+	reg [INDEX_WIDTH - 1:0] r_i1;
+	reg [BEATS_WIDTH - 1:0] r_gen_beats;
+	reg r_gen_active;
+	wire [INDEX_WIDTH - 1:0] w_start_inner;
+	function automatic signed [INDEX_WIDTH - 1:0] sv2v_cast_5F989_signed;
+		input reg signed [INDEX_WIDTH - 1:0] inp;
+		sv2v_cast_5F989_signed = inp;
+	endfunction
+	assign w_start_inner = (cfg_inner_count == {INDEX_WIDTH {1'sb0}} ? sv2v_cast_5F989_signed(1) : cfg_inner_count);
+	wire [BEATS_WIDTH - 1:0] w_step;
+	function automatic signed [BEATS_WIDTH - 1:0] sv2v_cast_DF906_signed;
+		input reg signed [BEATS_WIDTH - 1:0] inp;
+		sv2v_cast_DF906_signed = inp;
+	endfunction
+	function automatic [BEATS_WIDTH - 1:0] sv2v_cast_DF906;
+		input reg [BEATS_WIDTH - 1:0] inp;
+		sv2v_cast_DF906 = inp;
+	endfunction
+	assign w_step = (r_per_beat ? sv2v_cast_DF906_signed(1) : sv2v_cast_DF906(r_inner_count));
+	wire w_more;
+	assign w_more = r_gen_active && (r_gen_beats < r_total_beats);
+	wire w_req_valid;
+	wire w_req_ready;
+	wire w_res_valid;
+	wire w_res_ready;
+	wire [ADDR_WIDTH - 1:0] w_res_addr;
+	assign w_req_valid = w_more;
+	dma_address_gen #(
+		.ADDR_WIDTH(ADDR_WIDTH),
+		.INDEX_WIDTH(INDEX_WIDTH),
+		.STRIDE_WIDTH(STRIDE_WIDTH),
+		.TAG_WIDTH(1)
+	) u_addr_gen(
+		.i_clk(clk),
+		.i_rst_n(rst_n),
+		.i_cfg_base_addr(r_base_addr),
+		.i_cfg_stride_0(r_stride_0),
+		.i_cfg_stride_1(r_stride_1),
+		.i_cfg_wrap_mask_0(r_wrap_mask_0),
+		.i_cfg_wrap_mask_1(r_wrap_mask_1),
+		.i_req_valid(w_req_valid),
+		.o_req_ready(w_req_ready),
+		.i_req_index_0(r_i0),
+		.i_req_index_1(r_i1),
+		.i_req_tag(1'b0),
+		.o_result_valid(w_res_valid),
+		.i_result_ready(w_res_ready),
+		.o_result_addr(w_res_addr),
+		.o_result_tag()
+	);
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_per_beat <= 1'b0;
+			r_base_addr <= 1'sb0;
+			r_stride_0 <= 1'sb0;
+			r_stride_1 <= 1'sb0;
+			r_wrap_mask_0 <= 1'sb0;
+			r_wrap_mask_1 <= 1'sb0;
+			r_total_beats <= 1'sb0;
+			r_inner_count <= sv2v_cast_5F989_signed(1);
+			r_i0 <= 1'sb0;
+			r_i1 <= 1'sb0;
+			r_gen_beats <= 1'sb0;
+			r_gen_active <= 1'b0;
+		end
+		else if (start) begin
+			r_per_beat <= cfg_per_beat;
+			r_base_addr <= cfg_base_addr;
+			r_stride_0 <= cfg_stride_0;
+			r_stride_1 <= cfg_stride_1;
+			r_wrap_mask_0 <= cfg_wrap_mask_0;
+			r_wrap_mask_1 <= cfg_wrap_mask_1;
+			r_total_beats <= cfg_total_beats;
+			r_inner_count <= w_start_inner;
+			r_gen_active <= 1'b1;
+			if (cfg_per_beat) begin
+				r_gen_beats <= sv2v_cast_DF906_signed(1);
+				if (w_start_inner > sv2v_cast_5F989_signed(1)) begin
+					r_i0 <= sv2v_cast_5F989_signed(1);
+					r_i1 <= 1'sb0;
+				end
+				else begin
+					r_i0 <= 1'sb0;
+					r_i1 <= sv2v_cast_5F989_signed(1);
+				end
+			end
+			else begin
+				r_gen_beats <= sv2v_cast_DF906(w_start_inner);
+				r_i0 <= 1'sb0;
+				r_i1 <= sv2v_cast_5F989_signed(1);
+			end
+		end
+		else if (w_req_valid && w_req_ready) begin
+			r_gen_beats <= r_gen_beats + w_step;
+			if (r_per_beat) begin
+				if (r_i0 == (r_inner_count - sv2v_cast_5F989_signed(1))) begin
+					r_i0 <= 1'sb0;
+					r_i1 <= r_i1 + sv2v_cast_5F989_signed(1);
+				end
+				else
+					r_i0 <= r_i0 + sv2v_cast_5F989_signed(1);
+			end
+			else
+				r_i1 <= r_i1 + sv2v_cast_5F989_signed(1);
+		end
+	wire w_fifo_wr_ready;
+	assign w_res_ready = w_fifo_wr_ready;
+	gaxi_fifo_sync #(
+		.DATA_WIDTH(ADDR_WIDTH),
+		.DEPTH(FIFO_DEPTH)
+	) i_addr_fifo(
+		.axi_aclk(clk),
+		.axi_aresetn(rst_n),
+		.wr_valid(w_res_valid),
+		.wr_ready(w_fifo_wr_ready),
+		.wr_data(w_res_addr),
+		.rd_valid(o_base_valid),
+		.rd_ready(i_base_ready),
+		.rd_data(o_base_addr),
+		.count()
+	);
+endmodule
 module scheduler (
 	clk,
 	rst_n,
@@ -6992,29 +7441,12 @@ module axi_write_engine (
 		end
 	assign sched_wr_commit_strobe = r_commit_strobe;
 	assign sched_wr_commit_beats = r_commit_beats;
-	reg [15:0] r_stuck_counter [0:NC - 1];
-	initial begin : sv2v_autoblock_11
-		reg signed [31:0] i;
-		for (i = 0; i < NC; i = i + 1)
-			r_stuck_counter[i] = 0;
-	end
-	always @(posedge clk) begin : sv2v_autoblock_12
-		reg signed [31:0] i;
-		for (i = 0; i < NC; i = i + 1)
-			if ((sched_wr_valid[i] && !w_arb_request[i]) && !(m_axi_bvalid && m_axi_bready)) begin
-				r_stuck_counter[i] <= r_stuck_counter[i] + 1;
-				if (r_stuck_counter[i] == 1024)
-					$display("[%0t] WR ENGINE STUCK ch%0d: sched_wr_beats=%0d transfer_size=%0d has_data=%b final=%b data_ok=%b no_out=%b arb_req=%b drain_avail=%0d", $time, i, sched_wr_beats[i * 32+:32], w_transfer_size[i * 8+:8], w_has_data[i], w_final_burst[i], w_data_ok[i], w_no_outstanding[i], w_arb_request[i], axi_wr_drain_data_avail[i * SCW+:SCW]);
-			end
-			else
-				r_stuck_counter[i] <= 1'sb0;
-	end
 	assign m_axi_bready = 1'b1;
 	reg [NC - 1:0] r_wr_error;
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_wr_error <= 1'sb0;
-		else if ((m_axi_bvalid && m_axi_bready) && (m_axi_bresp != 2'b00)) begin : sv2v_autoblock_13
+		else if ((m_axi_bvalid && m_axi_bready) && (m_axi_bresp != 2'b00)) begin : sv2v_autoblock_11
 			reg [CIW - 1:0] ch_id;
 			ch_id = m_axi_bid[CIW - 1:0];
 			r_wr_error[ch_id] <= 1'b1;

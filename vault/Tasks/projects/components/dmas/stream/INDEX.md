@@ -5,7 +5,7 @@ summary: Task rollup for the STREAM DMA component (projects/components/dmas/stre
 
 # STREAM tasks
 
-**Next ID: TASK-090** — never recycle a number, even when its task closed.
+**Next ID: TASK-093** — never recycle a number, even when its task closed.
 
 Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "STREAM TASK-080" when writing outside this file.
 
@@ -19,15 +19,24 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
   `axi_bus_meter`): RTL + cosim complete; board bring-up pending.
 
 ## Open (not started)
+- **TASK-091** (Medium) — stream_core's formal DEPS rotted behind the monitor
+  rework; 3 missing modules added, a 4th is where the chain was stopped.
+
+- **TASK-092** (Medium) — datapath_wr_test proof FAILS (`ap_desc1_ready_state`)
+  now that it elaborates; FORMAL_TODO's PASS was against a 2-month-stale flat.
+
+- **TASK-090** (Medium) — `.sv2v_prep` holds 7 TRACKED generated files that
+  `make clean` deletes; the mechanism behind the 376-insertion prep drift.
+
 - **TASK-080** (Medium) — STREAM formal proofs read a hand-copied
   `gaxi_fifo_sync` (and an orphan package stub), not the RTL; convert
   them to flatten the real module with sv2v, as done for repo-root formal.
 
-- **TASK-087** (Medium) — sv2v regen fails on `$display`/`$time` inside a
-  loop (`axi_write_engine`, and `stream_core` by inclusion); 2 of the 5
-  known Regen-FAILED entries explained, the other two still undiagnosed.
-
 ## Closed (done)
+
+- **TASK-087** (Medium) — sv2v regen fixed: a missing `monitor_arbiter_pkg` in PKGS,
+  then the `$display`/`$time` AST_AUTOWIRE. 4 units, not 2; Makefile-only.
+  Done 2026-09-24.
 
 - **TASK-084** (Low) — TB address->name lookup now inverts the generated
   regmap; 143/143 resolve, 0 UNKNOWN. The entry's original MON-offset

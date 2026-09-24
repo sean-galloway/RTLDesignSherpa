@@ -36,7 +36,8 @@ AMBA := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd.sv \
         $(REPO_ROOT)/rtl/amba/axi4/axi4_master_wr.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/monbus_arbiter.sv
+        $(REPO_ROOT)/rtl/amba/monitor/monbus_arbiter.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/monitor_trans_cam.sv
 
 # Monitor files that need preprocessing (import monitor_pkg::*)
 MON_ORIG := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timer.sv \
@@ -51,6 +52,8 @@ MON_PREP := $(patsubst %,$(TMPDIR)/%, $(notdir $(MON_ORIG)))
 
 # Stream FUBs
 FUBS := $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/descriptor_engine.sv \
+        $(REPO_ROOT)/projects/components/misc/rtl/dma_address_gen.sv \
+        $(REPO_ROOT)/projects/components/misc/rtl/stream_run_addr_gen.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/scheduler.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/stream_alloc_ctrl.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/stream_drain_ctrl.sv \
@@ -58,7 +61,7 @@ FUBS := $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/descriptor_engine.s
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/sram_controller_unit.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/sram_controller.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/axi_read_engine.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/axi_write_engine.sv \
+        $(TMPDIR)/axi_write_engine.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/perf_profiler.sv
 
 # Stream macros
@@ -87,6 +90,15 @@ $(TMPDIR)/%.sv: $(REPO_ROOT)/rtl/amba/monitor/%.sv | $(TMPDIR)
 $(TMPDIR)/axi4_master_rd_mon.sv: $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd_mon.sv | $(TMPDIR)
 	sed -e 's/import monitor_pkg::\*;/import monitor_common_pkg::*; import monitor_amba4_pkg::*; import monitor_amba5_pkg::*; import monitor_arbiter_pkg::*;/g' \
 	    -e 's/monitor_pkg::/monitor_common_pkg::/g' $< > $@
+
+# sv2v does not honour `// synopsys translate_off` -- it is a comment to sv2v,
+# so the hang-diagnostic $display survives into the flat and yosys cannot size
+# its $time argument ("Don't know how to detect sign and width for AST_AUTOWIRE").
+# Strip those blocks for FORMAL ONLY: simulation reads the original source and
+# still gets the prints. The `ifdef ENHANCED_DEBUG` prints need no handling --
+# sv2v honours preprocessor directives, so they are already excluded.
+$(TMPDIR)/axi_write_engine.sv: $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/axi_write_engine.sv | $(TMPDIR)
+	sed '/synopsys translate_off/,/synopsys translate_on/d' $< > $@
 
 stream_core_flat.v: $(DUT) $(PKGS) $(COMMON) $(AMBA) $(MON_PREP) $(FUBS) $(MACROS)
 	$(SV2V) $(INC) $(PKGS) $(COMMON) $(AMBA) $(MON_PREP) $(FUBS) $(MACROS) $(DUT) > $@

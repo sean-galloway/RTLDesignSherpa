@@ -4,6 +4,7 @@
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
+TMPDIR    := .sv2v_prep
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
@@ -35,8 +36,22 @@ prove: axi_write_engine_beats_flat.v
 cover: axi_write_engine_beats_flat.v
 	sby -f axi_write_engine_beats.sby cover
 
-axi_write_engine_beats_flat.v: $(DUT) $(PKGS) $(DEPS)
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
+# sv2v does not honour `// synopsys translate_off` -- it is a comment to sv2v,
+# so the hang-diagnostic $display survives into the flat and yosys cannot size
+# its $time argument ("Don't know how to detect sign and width for AST_AUTOWIRE").
+# Strip those blocks for FORMAL ONLY: simulation reads the original source and
+# still gets the prints. The `ifdef ENHANCED_DEBUG` prints need no handling --
+# sv2v honours preprocessor directives, so they are already excluded.
+DUT_PREP := $(TMPDIR)/axi_write_engine_beats.sv
+
+$(TMPDIR):
+	mkdir -p $(TMPDIR)
+
+$(DUT_PREP): $(DUT) | $(TMPDIR)
+	sed '/synopsys translate_off/,/synopsys translate_on/d' $< > $@
+
+axi_write_engine_beats_flat.v: $(DUT_PREP) $(PKGS) $(DEPS)
+	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT_PREP) > $@
 
 clean:
-	rm -rf *_flat.v *_prove *_cover
+	rm -rf *_flat.v *_prove *_cover $(TMPDIR)

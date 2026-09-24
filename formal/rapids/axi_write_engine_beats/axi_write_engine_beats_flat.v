@@ -95,7 +95,7 @@ module arbiter_round_robin (
 		end
 	end
 	assign w_next_grant_valid = w_should_grant;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			grant <= 1'sb0;
 			grant_id <= 1'sb0;
@@ -516,7 +516,7 @@ module counter_bin (
 		else
 			counter_bin_next = counter_bin_curr;
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			counter_bin_curr <= 'b0;
 		else
@@ -539,7 +539,7 @@ module fifo_control (
 	rd_almost_empty
 );
 	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 16;
+	parameter signed [31:0] DEPTH = 8;
 	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
 	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
 	parameter signed [31:0] REGISTERED = 0;
@@ -593,7 +593,7 @@ module fifo_control (
 	generate
 		if (REGISTERED == 1) begin : gen_flop_mode
 			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk)
+			always @(posedge rd_clk or negedge rd_rst_n)
 				if (!rd_rst_n)
 					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
@@ -635,7 +635,6 @@ module gaxi_fifo_sync (
 	rd_valid,
 	rd_data
 );
-	reg _sv2v_0;
 	parameter signed [31:0] MEM_STYLE = 32'sd0;
 	parameter signed [31:0] REGISTERED = 0;
 	parameter signed [31:0] DATA_WIDTH = 4;
@@ -664,7 +663,6 @@ module gaxi_fifo_sync (
 	wire r_wr_almost_full;
 	wire r_rd_empty;
 	wire r_rd_almost_empty;
-	reg [DW - 1:0] w_rd_data;
 	wire w_write;
 	wire w_read;
 	assign w_write = wr_valid && wr_ready;
@@ -721,18 +719,16 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 		else if (MEM_STYLE == 32'sd2) begin : gen_bram
@@ -740,11 +736,13 @@ module gaxi_fifo_sync (
 			always @(posedge axi_aclk)
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
-			always @(posedge axi_aclk)
+			reg [DATA_WIDTH - 1:0] r_rd_data;
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
-					w_rd_data <= 1'sb0;
+					r_rd_data <= 1'sb0;
 				else
-					w_rd_data <= mem[r_rd_addr];
+					r_rd_data <= mem[r_rd_addr];
+			assign rd_data = r_rd_data;
 		end
 		else begin : gen_auto
 			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
@@ -752,29 +750,25 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 	endgenerate
-	assign rd_data = w_rd_data;
 	always @(posedge axi_aclk) begin
 		if (w_write && r_wr_full)
 			;
 		if (w_read && r_rd_empty)
 			;
 	end
-	initial _sv2v_0 = 0;
 endmodule
 module axi_write_engine_beats (
 	clk,
@@ -911,7 +905,7 @@ module axi_write_engine_beats (
 	endfunction
 	generate
 		if (PIPELINE == 0) begin : gen_no_pipeline_tracking
-			always @(posedge clk)
+			always @(posedge clk or negedge rst_n)
 				if (!rst_n)
 					r_outstanding_limit <= 1'sb0;
 				else begin : sv2v_autoblock_1
@@ -943,7 +937,7 @@ module axi_write_engine_beats (
 						end
 				end
 			end
-			always @(posedge clk)
+			always @(posedge clk or negedge rst_n)
 				if (!rst_n)
 					r_outstanding_count <= 1'sb0;
 				else begin : sv2v_autoblock_3
@@ -967,7 +961,7 @@ module axi_write_engine_beats (
 		end
 	endgenerate
 	reg [NC - 1:0] r_all_complete;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_all_complete <= 1'sb1;
 		else begin : sv2v_autoblock_5
@@ -981,7 +975,7 @@ module axi_write_engine_beats (
 				end
 		end
 	assign dbg_wr_all_complete = r_all_complete;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_beats_written <= {NC {32'd0}};
 		else begin : sv2v_autoblock_6
@@ -1017,7 +1011,7 @@ module axi_write_engine_beats (
 		if (m_axi_awvalid && m_axi_awready)
 			w_drain_t[r_aw_channel_id * SCW+:SCW] = sv2v_cast_14961(m_axi_awlen) + sv2v_cast_14961_signed(1);
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_drain_tminus1 <= {NC {sv2v_cast_14961(0)}};
 		else
@@ -1067,7 +1061,7 @@ module axi_write_engine_beats (
 		end
 	end
 	reg [NC - 1:0] r_arb_request;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_arb_request <= 1'sb0;
 		else
@@ -1109,7 +1103,7 @@ module axi_write_engine_beats (
 	wire [NC - 1:0] w_stale_grant;
 	assign w_stale_grant = w_arb_grant & ~sched_wr_valid;
 	assign w_arb_grant_ack = (w_arb_grant & {NC {m_axi_awvalid && m_axi_awready}}) | w_stale_grant;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_aw_valid <= 1'b0;
 			r_aw_len <= 1'sb0;
@@ -1149,7 +1143,7 @@ module axi_write_engine_beats (
 	assign axi_wr_drain_req = w_drain_req;
 	assign axi_wr_drain_size = w_drain_size;
 	reg [NC - 1:0] r_sched_ready;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_sched_ready <= 1'sb0;
 		else begin
@@ -1165,7 +1159,7 @@ module axi_write_engine_beats (
 	reg [7:0] r_w_beats_remaining;
 	reg [CIW - 1:0] r_w_channel_id;
 	reg r_w_active;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_w_beats_remaining <= 1'sb0;
 			r_w_channel_id <= 1'sb0;
@@ -1282,7 +1276,7 @@ module axi_write_engine_beats (
 	end
 	reg [NC - 1:0] r_done_strobe;
 	reg [(NC * 32) - 1:0] r_beats_done;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_done_strobe <= {NC {1'd0}};
 			r_beats_done <= {NC {32'd0}};
@@ -1298,7 +1292,7 @@ module axi_write_engine_beats (
 	assign sched_wr_beats_done = r_beats_done;
 	reg [NC - 1:0] r_commit_strobe;
 	reg [(NC * 32) - 1:0] r_commit_beats;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_commit_strobe <= {NC {1'd0}};
 			r_commit_beats <= {NC {32'd0}};
@@ -1316,29 +1310,12 @@ module axi_write_engine_beats (
 		end
 	assign sched_wr_commit_strobe = r_commit_strobe;
 	assign sched_wr_commit_beats = r_commit_beats;
-	reg [15:0] r_stuck_counter [0:NC - 1];
-	initial begin : sv2v_autoblock_11
-		reg signed [31:0] i;
-		for (i = 0; i < NC; i = i + 1)
-			r_stuck_counter[i] = 0;
-	end
-	always @(posedge clk) begin : sv2v_autoblock_12
-		reg signed [31:0] i;
-		for (i = 0; i < NC; i = i + 1)
-			if ((sched_wr_valid[i] && !w_arb_request[i]) && !(m_axi_bvalid && m_axi_bready)) begin
-				r_stuck_counter[i] <= r_stuck_counter[i] + 1;
-				if (r_stuck_counter[i] == 1024)
-					$display("[%0t] WR ENGINE STUCK ch%0d: sched_wr_beats=%0d transfer_size=%0d has_data=%b final=%b data_ok=%b no_out=%b arb_req=%b drain_avail=%0d", $time, i, sched_wr_beats[i * 32+:32], w_transfer_size[i * 8+:8], w_has_data[i], w_final_burst[i], w_data_ok[i], w_no_outstanding[i], w_arb_request[i], axi_wr_drain_data_avail[i * SCW+:SCW]);
-			end
-			else
-				r_stuck_counter[i] <= 1'sb0;
-	end
 	assign m_axi_bready = 1'b1;
 	reg [NC - 1:0] r_wr_error;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_wr_error <= 1'sb0;
-		else if ((m_axi_bvalid && m_axi_bready) && (m_axi_bresp != 2'b00)) begin : sv2v_autoblock_13
+		else if ((m_axi_bvalid && m_axi_bready) && (m_axi_bresp != 2'b00)) begin : sv2v_autoblock_11
 			reg [CIW - 1:0] ch_id;
 			ch_id = m_axi_bid[CIW - 1:0];
 			r_wr_error[ch_id] <= 1'b1;
@@ -1346,7 +1323,7 @@ module axi_write_engine_beats (
 	assign sched_wr_error = r_wr_error;
 	reg [31:0] r_aw_transactions;
 	reg [31:0] r_w_beats;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_aw_transactions <= 1'sb0;
 			r_w_beats <= 1'sb0;
