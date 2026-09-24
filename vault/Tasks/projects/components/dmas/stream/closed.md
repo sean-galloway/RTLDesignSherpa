@@ -2,6 +2,65 @@
 
 # STREAM tasks — closed (done)
 
+## TASK-084 — TB address->name lookup is a hardcoded chain, not a regmap lookup
+**Status:** CLOSED 2026-09-24  **Priority:** Low
+
+**The original diagnosis in this entry was wrong.** It read:
+
+> `stream_regs.rdl:758` places the monitor regfile at `MON @ 0x1000`, so the
+> mon block's raw `0x000-0x268` land at `0x1000+`. The TB's reverse lookup does
+> not apply that offset. Fix is in the lookup builder: walk child blocks with
+> their instance offset applied.
+
+There is no offset to apply. `stream_regmap.py` already stores **absolute**
+addresses for the MON block -- `DAXMON_ENABLE` is recorded at `0x10C0`, not at
+`0x0C0` -- and both addresses quoted below invert directly out of the generated
+regmap (`0x11E8` -> `WRMON_PERF_CH_PROD_BP`, `0x110C` -> `WRMON_PKT_MASK`).
+
+The real cause is that `StreamRegisterMap.get_register_name()`
+(`stream_core_tb.py`) never consulted the regmap at all. It was a hand-written
+`if/elif` chain over a dozen class constants plus channel ranges; anything it
+did not name fell through to `UNKNOWN_0x{addr:03X}`.
+
+Measured against the generated regmap: **143 registers total, the chain
+resolved 32, leaving 111 UNKNOWN.** Of those 111, 86 are in MON (`>=0x1000`)
+and **25 are below `0x1000`** -- `KICK_ENABLE`, `CH_STATE0..3_STATE`,
+`SCHED_*`, `DESCENG_*`, `PERF_*`. Those 25 are outside the MON block entirely,
+so the offset fix this entry originally proposed could not have resolved any of
+them. That is what makes the original diagnosis wrong rather than merely
+imprecise. (The entry also said 108 affected; the measured number is 111.)
+
+From the baseline regression log:
+
+```
+APB READ:  UNKNOWN_0x11E8 (0x11E8) = 0x00000000
+APB READ:  UNKNOWN_0x110C (0x110C) = 0x0000FFFF
+```
+
+Cosmetic -- the reads are correct and the walk's pass/fail is unaffected -- but
+it defeats [[registers-by-name]] exactly where a human is reading the
+log to debug a monitor failure, which is when the name matters most.
+
+**Fix:** invert the generated regmap once into an addr->name dict and consult it
+first, keeping the chain as a fallback for when the regmap cannot be loaded.
+Verified: 143/143 resolve, 0 UNKNOWN. The fallback was tested by pointing the
+loader at a nonexistent path -- it returns `{}` without raising and degrades to
+the chain, so a logging helper can never take a test down.
+
+**Same pattern elsewhere:** `hpet_tb.py:113` (under
+`retro_legacy_blocks/dv/tbclasses/hpet/`) has an identical 10-branch chain.
+`projects/components/dmas/stream/rtl/stream_helper.py:518-556` has the same
+hardcoded-dict flaw but **zero consumers** -- it is dead code, do not "fix" it.
+
+**Verified** on `test_stream_top_regs_monitors_present[func]` (5:54 wall, a
+real build): 942 monitor-register reads now log by name, **0 UNKNOWN** in the
+whole log, walk clean at 400 write/readback checks / 63 read-only / 0
+failures. The 25 below-`0x1000` registers resolve too (`CH_STATE0..7_STATE`,
+`DESCENG_*`), which is the group the original offset diagnosis could not have
+reached.
+
+---
+
 ## TASK-089 — RLB blocks brought under the .rdl regen gate
 **Status:** CLOSED 2026-09-24  **Priority:** Medium
 

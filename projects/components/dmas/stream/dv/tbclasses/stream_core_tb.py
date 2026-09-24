@@ -36,6 +36,48 @@ STREAM_REGMAP_PATH = os.path.join(
     repo_root, 'projects/components/dmas/stream/rtl/stream_regmap.py')
 
 
+# Reverse address -> name, built from the GENERATED regmap (TASK-084).
+#
+# get_register_name() used to be a hand-written if/elif chain. Measured
+# against the generated regmap: of 143 registers the chain resolved 32,
+# leaving 111 logging as UNKNOWN_0x… -- 86 in the MON block plus 25 below
+# 0x1000 (KICK_ENABLE, CH_STATE0..3_STATE, SCHED_*, DESCENG_*, PERF_*).
+# That defeats registers-by-name exactly where someone is reading an APB log
+# to debug a monitor failure. stream_regmap.py already carries
+# ABSOLUTE addresses for the MON block (DAXMON_ENABLE @ 0x10C0), so no
+# instance-offset arithmetic is needed: a straight inversion resolves all 143.
+_ADDR_TO_NAME = None
+
+
+def _addr_to_name():
+    """addr -> register name from stream_regmap.py, built once.
+
+    Returns {} if the regmap cannot be loaded, so a logging helper can never
+    take a test down; callers fall back to the hardcoded chain.
+    """
+    global _ADDR_TO_NAME
+    if _ADDR_TO_NAME is None:
+        _ADDR_TO_NAME = {}
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                'stream_regmap_revlookup', STREAM_REGMAP_PATH)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            for cand in vars(mod).values():
+                if (isinstance(cand, dict) and cand and
+                        all(isinstance(v, dict) for v in list(cand.values())[:3])):
+                    for name, info in cand.items():
+                        addr = info.get('address') if isinstance(info, dict) else None
+                        if addr is None:
+                            continue
+                        _ADDR_TO_NAME.setdefault(int(str(addr), 16), name)
+                    break
+        except Exception:
+            _ADDR_TO_NAME = {}
+    return _ADDR_TO_NAME
+
+
 class StreamRegisterMap:
     """STREAM Register address definitions - PeakRDL generated registers."""
 
@@ -94,7 +136,14 @@ class StreamRegisterMap:
 
     @classmethod
     def get_register_name(cls, addr: int) -> str:
-        """Get human-readable register name."""
+        """Human-readable register name, resolved from the GENERATED regmap.
+
+        The hardcoded chain below is kept only as a fallback for when the
+        regmap cannot be loaded -- it covers 32 of the 143 addresses.
+        """
+        name = _addr_to_name().get(addr)
+        if name:
+            return name
         if addr == cls.GLOBAL_CTRL:
             return "GLOBAL_CTRL"
         elif addr == cls.GLOBAL_STATUS:

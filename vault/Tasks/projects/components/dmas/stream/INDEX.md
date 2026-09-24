@@ -23,15 +23,15 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
   `gaxi_fifo_sync` (and an orphan package stub), not the RTL; convert
   them to flatten the real module with sv2v, as done for repo-root formal.
 
-- **TASK-084** (Low) — TB address->name lookup ignores `MON @ 0x1000`, so 108
-  resolvable monitor registers log as `UNKNOWN_0x11xx`.
-
-
 - **TASK-087** (Medium) — sv2v regen fails on `$display`/`$time` inside a
   loop (`axi_write_engine`, and `stream_core` by inclusion); 2 of the 5
   known Regen-FAILED entries explained, the other two still undiagnosed.
 
 ## Closed (done)
+
+- **TASK-084** (Low) — TB address->name lookup now inverts the generated
+  regmap; 143/143 resolve, 0 UNKNOWN. The entry's original MON-offset
+  diagnosis was wrong and is corrected in the closed entry. Done 2026-09-24.
 
 - **TASK-089** (Medium) — RLB blocks gated; 26 entries / 18 RDLs total.
   pit_8254's regmap excluded as a finding. Done 2026-09-24.

@@ -178,33 +178,6 @@ TASK-094).
 module, each converted task proves against the real RTL, and the two fork
 files are deleted.
 
-## TASK-084 — TB address->name lookup ignores the MON block offset
-**Status:** open 2026-09-23  **Priority:** Low
-
-`stream_regs.rdl:758` places the monitor regfile at an offset:
-
-```
-stream_mon_regs MON @ 0x1000;
-```
-
-so the mon block's raw `0x000-0x268` land at `0x1000+`. The TB's reverse
-address-to-name lookup does not apply that offset, so every monitor register
-prints as `UNKNOWN_0x11xx` in the APB read log even though the name is fully
-resolvable from the regmap. From the baseline regression log:
-
-```
-APB READ:  UNKNOWN_0x11E8 (0x11E8) = 0x00000000
-APB READ:  UNKNOWN_0x110C (0x110C) = 0x0000FFFF
-```
-
-108 registers are affected. This is cosmetic -- the reads themselves are
-correct and the walk's pass/fail is unaffected -- but it defeats
-[[registers-by-name]] exactly where a human is reading the log to
-debug a monitor failure, which is when the name matters most.
-
-Fix is in the lookup builder: walk child blocks with their instance offset
-applied rather than flattening on raw child addresses.
-
 ## TASK-087 — sv2v regen fails on $display/$time inside a loop (2 of the 5 known cases)
 **Status:** open 2026-09-23  **Priority:** Medium
 
