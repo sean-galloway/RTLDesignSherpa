@@ -76,3 +76,30 @@ it is cheap now that the telemetry reads. If the pairs also show no benefit,
 the block has no measured defence and option 1 becomes straightforward. If a
 build stops closing before then, take option 1 immediately; the numbers above
 are the justification.
+
+
+## 2026-09-24 — the pair sweep ran; it removes the last defence
+
+The recommendation above was "option 1, but not yet -- finish the pair sweep
+first, because it is the only experiment that could still justify the area".
+It ran ([[TASK-002]], `pairs_paging_mix`, concurrent 1w+1r, three reps).
+
+**It did not justify the area. It argued against it.** Under alternating
+locality the predictors are identical to plain open page on 3 of 4 scenarios,
+and `rbl_static` is a **-43% regression** on the fourth (98.3 -> 55.8 MB/s,
+hit 81.3% -> 44.0%, ACT/txn 3.00 -> 8.96), reproducible to +-0.3 MB/s across
+three independent runs. The predictor auto-precharges rows the other direction
+was about to reuse -- wrong in precisely the situation it exists for.
+
+So the position is now: **5,578 LUT (8.8% of the device) that is inert at best
+and a 43% regression at worst, on a build closing at +0.016 ns.** There is no
+measured workload on which any of modes 4/5/6/7 beats plain open page.
+
+**Recommendation is unchanged in shape and now unblocked: option 1.** A
+`PAGE_PRED_MODES` parameter defaulting ON, board build OFF. The one-bitstream
+property it trades away was worth protecting while the predictors might have
+earned their keep; they did not.
+
+Still Sean's call -- the counter-argument is that a future workload class might
+differ, and gating makes testing that need a rebuild. But that is now a bet
+against three measured families plus the mix, rather than an open question.

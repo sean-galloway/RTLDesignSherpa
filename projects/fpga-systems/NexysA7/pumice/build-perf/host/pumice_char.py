@@ -549,6 +549,24 @@ CONFIGS: Dict[str, ControllerConfig] = {
         rd_in_order=True),
     # JEDEC refresh credits: postpone up to 8 under demand, pull in up to 8
     # on idle (REF_CTRL) -- the refresh-elasticity lever vs strict tREFI.
+    # AXIS-3 UNDER OPEN PAGE. The three configs above all pin CLOSE page, so
+    # every axis-3 number to date was taken in the ~34 MB/s regime where
+    # refresh matters least: the same absolute stall is a far smaller fraction
+    # of a 34 MB/s run than of a 554 MB/s one. These are the same three levers
+    # on the page policy the board actually ships, which is where a refresh
+    # cost is worth knowing. (TASK-002 "what is NOT yet characterized".)
+    "refresh_credit_open": ControllerConfig(
+        "refresh_credit_open", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, order_mode=0,
+        refresh={"postpone": 8, "pullin": 8}, rd_in_order=True),
+    "fast_refresh_open": ControllerConfig(
+        "fast_refresh_open", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, order_mode=0, t_refi=0x0100,
+        rd_in_order=True),
+    "slow_refresh_open": ControllerConfig(
+        "slow_refresh_open", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, order_mode=0, t_refi=0x7FFF,
+        rd_in_order=True),
     "refresh_credit": ControllerConfig(
         "refresh_credit", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_CLOSE, order_mode=0,
@@ -1457,6 +1475,23 @@ RUN_PROFILES: Dict[str, dict] = {
     # This is the first workload that makes the controller interleave
     # directions, which is where a global reorder scheduler should beat a
     # per-bank round-robin one.
+    # PAIR SWEEP 1 -- paging x DIRECTION MIX. The single-axis campaign found
+    # every predictor inert against plain open page, but it swept one family at
+    # a time: incremental and row_major are steady locality, col_major is
+    # steady thrash, and a predictor has nothing to predict in either. A
+    # concurrent read/write stream is the closest this harness gets to
+    # ALTERNATING locality -- the two directions interleave at the controller
+    # and the row a reader wants is not the row the writer just opened. If the
+    # predictors are ever worth their 5,578 LUT ([[TASK-005]]), it is here.
+    "pairs_paging_mix": dict(configs=["open_page", "adapt_time", "adapt_access",
+                                      "rbl_static", "rbl_dyn"],
+                             level="basic", families=None, concurrent=(1, 1)),
+    # PAIR SWEEP 2 -- refresh x paging. Axis 3 has only ever been measured on
+    # CLOSE page, at ~34 MB/s, where refresh is a small fraction of a slow run.
+    # These are the same levers on the page policy the board ships.
+    "pairs_refresh_open": dict(configs=["open_page", "refresh_credit_open",
+                                        "fast_refresh_open", "slow_refresh_open"],
+                               level="basic", families=None),
     "concurrent": dict(configs=["open_page"], level="basic", families=None,
                        concurrent=(1, 1)),
     # Multi-master: two readers against one writer, all on disjoint regions.

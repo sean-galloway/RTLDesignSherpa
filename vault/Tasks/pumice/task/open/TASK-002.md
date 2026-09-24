@@ -226,3 +226,56 @@ board number to re-measure), `prio_sub` / `qos_en` / `row_sel` / `col_sel`,
 and the axis-3 re-run under open page. There is also no genuinely RANDOM family
 -- `col_major` is the page-hostile proxy -- so "random" in the workload table
 above is not directly measured.
+
+
+### PAIR SWEEPS 2026-09-24 — the two the campaign was missing
+
+Two new profiles, both on the board at txn_scale=1000, every point ok.
+
+**Pair 1: paging x DIRECTION MIX** (`pairs_paging_mix`, concurrent 1w+1r). The
+single-axis campaign swept steady-locality families one at a time, where a
+predictor has nothing to predict. A concurrent read/write stream is the closest
+this harness gets to ALTERNATING locality: the two directions interleave and the
+row a reader wants is not the row the writer just opened.
+
+Result: **every predictor is identical to plain open page on 3 of 4 scenarios**
+(incremental 274.3 vs 274.7, row_major 284.0, col_major 79.8 — all within
+noise). And one is a large REGRESSION:
+
+| rep | open_page / col_major_interleaved | rbl_static / same |
+|---|---|---|
+| 1 | 98.3 MB/s, 81.3% hit, 3.00 ACT/txn | **55.8 MB/s, 44.0% hit, 8.96 ACT/txn** |
+| 2 | 98.3, 81.5%, 2.96 | 56.0, 44.2%, 8.93 |
+| 3 | 98.3, 81.3%, 3.00 | 55.7, 43.9%, 8.97 |
+
+**-43%, reproducible to +-0.3 MB/s across three independent runs.** The hit rate
+halves and ACT/txn triples: the RBL predictor decides the interleaved rows are
+low-locality and auto-precharges rows that the OTHER direction was about to
+reuse. It is wrong in exactly the situation it exists for. Repeated three times
+on purpose -- [[BUG-001]]'s lesson is that this area has twice decided a default
+at n=1.
+
+**Pair 2: refresh x OPEN page** (`pairs_refresh_open`). Axis 3 had only ever been
+measured under CLOSE page at ~34 MB/s, where refresh is a small slice of a slow
+run. On the page policy the board ships:
+
+| config | incremental | row_major | col_major |
+|---|---|---|---|
+| open_page (tREFI default) | 553.9 | 568.9 | 163.8 |
+| refresh_credit_open | 556.2 (+0.4%) | 572.4 (+0.6%) | 164.1 |
+| fast_refresh_open (tREFI 256) | 516.2 (**-6.8%**) | 529.6 (**-6.9%**) | 156.4 |
+| slow_refresh_open (tREFI 0x7FFF) | 569.3 (+2.8%) | **599.0 (+5.3%)** | 171.3 |
+
+Two things worth keeping:
+
+1. **Refresh costs 2.8-5.3% of streaming bandwidth at the default tREFI**, and
+   the fast-to-slow span is ~16% (516 -> 599). Under close page the same span
+   read ~8% of a 34 MB/s number; this is the version that matters.
+2. **`slow_refresh_open` / row_major reaches 599.0 MB/s at a 100.0% hit rate,
+   ACT=3 for the whole run.** Theoretical peak is 600 MB/s (8 B x 75 MHz), so
+   pumice is at **99.8% of peak** with refresh effectively disabled. Refresh is
+   the only remaining gap between this controller and its ceiling on streaming
+   reads -- not the scheduler, not the page policy, not the front end.
+
+`refresh_credit` is +0.4-0.6%, which is within run-to-run noise: still no
+measured effect, now established on the policy where one was plausible.
