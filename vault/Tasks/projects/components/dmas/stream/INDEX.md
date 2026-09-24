@@ -29,14 +29,15 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
 - **TASK-084** (Low) — TB address->name lookup ignores `MON @ 0x1000`, so 108
   resolvable monitor registers log as `UNKNOWN_0x11xx`.
 
-- **TASK-086** (Medium) — no DV test reads the perf FIFO non-empty, so the
-  register walk cannot distinguish a correct capture read from a broken one.
 
 - **TASK-087** (Medium) — sv2v regen fails on `$display`/`$time` inside a
   loop (`axi_write_engine`, and `stream_core` by inclusion); 2 of the 5
   known Regen-FAILED entries explained, the other two still undiagnosed.
 
 ## Closed (done)
+
+- **TASK-086** (Medium) — perf FIFO now read non-empty; pop protocol AND
+  data coherence asserted, proven to fail on the old datapath. Done 2026-09-23.
 
 - **TASK-085** (Medium) — perf FIFO read made atomic: pop once BOTH halves
   are read; capture flop deleted. Done 2026-09-23.

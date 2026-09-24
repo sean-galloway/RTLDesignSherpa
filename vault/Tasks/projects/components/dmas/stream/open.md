@@ -233,20 +233,6 @@ debug a monitor failure, which is when the name matters most.
 Fix is in the lookup builder: walk child blocks with their instance offset
 applied rather than flattening on raw child addresses.
 
-## TASK-086 — no DV test reads the perf FIFO non-empty
-**Status:** open 2026-09-23  **Priority:** Medium
-
-The register walk reads PERF_DATA_LOW/HIGH/STATUS with the FIFO EMPTY, so it
-returns zeros regardless of what the hardware does. That is why [[TASK-085]]'s
-non-atomic read survived: the defect and the fix are indistinguishable to the
-suite as it stands.
-
-Acceptance: push N known entries into the perf capture FIFO, read LOW/HIGH
-pairs back BY NAME, and assert both the exact entries and their pairing --
-including that the order of the two reads does not change the result, which
-is the property the new both-read pop is supposed to guarantee. Per
-[[escape-analysis]], no failure here is not evidence.
-
 ## TASK-087 — sv2v regen fails on $display/$time inside a loop (2 of the 5 known cases)
 **Status:** open 2026-09-23  **Priority:** Medium
 
