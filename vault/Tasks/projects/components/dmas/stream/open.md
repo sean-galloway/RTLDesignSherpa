@@ -246,3 +246,58 @@ pairs back BY NAME, and assert both the exact entries and their pairing --
 including that the order of the two reads does not change the result, which
 is the property the new both-read pop is supposed to guarantee. Per
 [[escape-analysis]], no failure here is not evidence.
+
+## TASK-087 — sv2v regen fails on $display/$time inside a loop (2 of the 5 known cases)
+**Status:** open 2026-09-23  **Priority:** Medium
+
+`formal/FORMAL_TODO.md` lists five "Regen FAILED" entries and attributes them to an
+"sv2v internal error in Convert/Package.hs -- package conversion bug or an RTL
+construct sv2v v0.0.13 cannot handle". For two of them the construct is now
+identified:
+
+```
+stream_core_flat.v:7007: ERROR: Don't know how to detect sign and width
+                                for AST_AUTOWIRE node!
+  preceded by: Identifier `\sv2v_autoblock_12.$for_loop$64[0].$time'
+               is implicitly declared
+```
+
+The site is a debug print inside a `for` loop in `axi_write_engine.sv:914-930`:
+
+```systemverilog
+for (int i = 0; i < NC; i++)
+    if (...) begin
+        r_stuck_counter[i] <= r_stuck_counter[i] + 1;
+        if (r_stuck_counter[i] == 1024)
+            $display("[%0t] WR ENGINE STUCK ch%0d: ...", $time, i, ...);
+    end
+```
+
+sv2v lowers the loop into `sv2v_autoblock_12` and leaves `$time` as an
+implicitly-declared node yosys cannot size. The prints are UNGUARDED -- no
+`ifdef`, no `translate_off`.
+
+**Scope, measured -- this explains 2 of the 5, not all:**
+
+| entry | $display | verdict |
+|---|---|---|
+| `stream/axi_write_engine` | 6 | CAUSE CONFIRMED |
+| `stream/stream_core` | 0 own | explained: its flat includes axi_write_engine |
+| `stream/axi_read_engine` | 0 | NOT explained -- separate diagnosis |
+| `stream/monbus_axil_group` | 0 | NOT explained -- separate diagnosis |
+| `converters/axi4_to_apb4_shim` | 0 | different cause (DEPS drift, per `formal/FORMAL_TODO.md`) |
+
+Fix options: guard the debug prints behind an ifdef, or strip them in the
+sv2v prep step the way the stream_core Makefile already seds `monitor_pkg`.
+The second keeps the prints available in simulation.
+
+Acceptance: `stream/axi_write_engine` and `stream/stream_core` flats
+regenerate AND parse in yosys. The other two entries stay open under their
+own diagnosis.
+
+**Related staleness found the same day, worth folding in:** the flats are not
+the only stale layer -- `formal/stream/stream_core/.sv2v_prep/*.sv` (tracked
+sed output) was 376 insertions behind its sources, including the whole
+TASK-073 monitor fix. Neither layer has a content check, which is what
+[[generated-rtl-discipline]] prescribes. See also the `check-flat` target
+`formal/FORMAL_TODO.md` already proposes.

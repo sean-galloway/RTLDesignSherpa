@@ -5,7 +5,7 @@ summary: Task rollup for the STREAM DMA component (projects/components/dmas/stre
 
 # STREAM tasks
 
-**Next ID: TASK-087** — never recycle a number, even when its task closed.
+**Next ID: TASK-088** — never recycle a number, even when its task closed.
 
 Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "STREAM TASK-080" when writing outside this file.
 
@@ -31,6 +31,10 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
 
 - **TASK-086** (Medium) — no DV test reads the perf FIFO non-empty, so the
   register walk cannot distinguish a correct capture read from a broken one.
+
+- **TASK-087** (Medium) — sv2v regen fails on `$display`/`$time` inside a
+  loop (`axi_write_engine`, and `stream_core` by inclusion); 2 of the 5
+  known Regen-FAILED entries explained, the other two still undiagnosed.
 
 ## Closed (done)
 
