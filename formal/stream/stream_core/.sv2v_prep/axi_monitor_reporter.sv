@@ -75,7 +75,7 @@ module axi_monitor_reporter
     input  logic                     cfg_threshold_enable,
     input  logic                     cfg_timeout_enable,
     input  logic                     cfg_perf_enable,
-    input  logic                     cfg_debug_enable,    // reserved — debug emitter is future work
+    input  logic                     cfg_debug_enable,    // runtime mask for the debug emitter (live when ENABLE_DEBUG_LOGIC=1)
 
     input  logic                              monbus_ready,
     output logic                              monbus_valid,
@@ -102,7 +102,17 @@ module axi_monitor_reporter
     assign event_reported_flags = r_event_reported;
     assign event_count          = r_event_count;
 
-    // Reserved-for-future debug input.
+    // cfg_debug_enable is CONSUMED -- g_debug passes it to
+    // axi_monitor_reporter_debug as that block's runtime mask. It is unused
+    // only in the ENABLE_DEBUG_LOGIC=0 build, where g_debug is not
+    // elaborated, and this sink exists for exactly that build.
+    //
+    // The comment here used to read "reserved for future debug input", which
+    // was left over from before the debug emitter existed. Read together with
+    // the sink it said the port was dead, and it is not -- a reviewer flagged
+    // the pair as a dead port with a redundant sink. Deleting the sink on that
+    // reading would break lint at ENABLE_DEBUG_LOGIC=0: the sink is right, the
+    // comment was wrong.
     /* verilator lint_off UNUSED */
     logic unused_cfg_debug_enable;
     assign unused_cfg_debug_enable = cfg_debug_enable;
@@ -127,7 +137,13 @@ module axi_monitor_reporter
     logic [$clog2(INTR_FIFO_DEPTH):0] w_fifo_count;
 
     gaxi_fifo_sync #(
-        .REGISTERED      (1),
+        // Mux read: rd_data is valid IN the clock of the rd_valid/rd_ready
+        // handshake, and that is the clock in which the output register loads w_fifo_rd_data.
+        // Flop mode (REGISTERED=1) presents rd_data one clock AFTER the
+        // handshake, so a back-to-back read re-emits the popped entry and
+        // loses the next one. gaxi FIFOs in rtl/ are mux-read by default
+        // (TASK-086; vault/handbook/design/valid-ready-contracts.md).
+        .REGISTERED      (0),
         .DATA_WIDTH      ($bits(monbus_entry_t)),
         .DEPTH           (INTR_FIFO_DEPTH),
         .ALMOST_WR_MARGIN(1),
@@ -236,33 +252,112 @@ module axi_monitor_reporter
     end
 
     // -------------------------------------------------------------------------
-    // FIFO write mux: priority error > timeout > compl (matches legacy).
+    // FIFO write arbitration across the three reporting classes.
+    //
+    // TASK-083: this used to be a STRICT priority chain, error > timeout >
+    // compl. Strict priority starves the lower classes outright whenever a
+    // higher one is CONTINUOUSLY pending, and the starvation is permanent
+    // rather than merely unfair: trans_mgr frees a terminal slot only once
+    // event_reported is set, and the sole producer of that flag is an accepted
+    // FIFO write below. A class that never wins never marks, so its slots are
+    // never freed -- the table fills and block_ready wedges the monitored bus.
+    //
+    // Measured on a 16-slot table before the fix: a sustained 3000-cycle error
+    // stream gave error=2999, timeout=0, compl=0 with timeout_detected=0xff --
+    // eight slots detected as timed out, not one of them ever reported. The
+    // same RTL with a FINITE error burst granted timeout all 8, which is why
+    // this never showed up in the finite-burst tests.
+    //
+    // NOTE the starvation is by ERROR traffic, not completion traffic: compl
+    // sits BELOW timeout in the old chain, so a completion stream cannot
+    // starve timeouts and instrumenting completions finds nothing.
+    //
+    // Fix is a rotating-priority pointer over the three classes, and it is
+    // deliberately NOT a change to the retire policy -- w_auto_retire below is
+    // keyed off state and cfg_*_enable only and is untouched by arbitration.
+    //
+    // The grant is computed ONCE here and consumed by BOTH the write mux and
+    // the marking block further down. Those two used to re-derive the same
+    // priority chain independently; any fairness term applied to one alone
+    // would write one class's packet while crediting another class's slot.
+    //
+    // The three classes are DISJOINT by construction, so rotation can never
+    // double-claim a slot: reporter_error takes (ERROR && !timeout_detected)
+    // plus ORPHANED, reporter_timeout takes (ERROR && timeout_detected), and
+    // reporter_compl takes COMPLETE.
     // -------------------------------------------------------------------------
     assign err_valid_f   = err_valid   && !filtered_mask[err_idx];
     assign to_valid_f    = to_valid    && !filtered_mask[to_idx];
     assign compl_valid_f = compl_valid && !filtered_mask[compl_idx];
 
+    // Class encoding: 0 = error, 1 = timeout, 2 = compl.
+    localparam logic [1:0] CLS_ERR   = 2'd0;
+    localparam logic [1:0] CLS_TO    = 2'd1;
+    localparam logic [1:0] CLS_COMPL = 2'd2;
+
+    logic [2:0]       w_cls_valid;
+    logic [1:0]       r_grant_ptr;
+    logic [1:0]       w_grant_sel;
+    logic             w_grant_valid;
+
+    assign w_cls_valid = {compl_valid_f, to_valid_f, err_valid_f};
+
+    // Rotate a class index by an offset, modulo 3. Both operands are <= 2, so
+    // a single conditional subtract covers the wrap.
+    function automatic logic [1:0] rot3(input logic [1:0] base,
+                                        input logic [1:0] off);
+        logic [2:0] sum;
+        sum = {1'b0, base} + {1'b0, off};
+        if (sum >= 3'd3) begin
+            sum = sum - 3'd3;
+        end
+        rot3 = sum[1:0];
+    endfunction
+
+    // Rotating priority: scan the three classes starting at r_grant_ptr and
+    // take the first that is asserted. With any class continuously pending,
+    // every other pending class wins at worst every third accepted write.
     always_comb begin
-        w_fifo_wr_valid       = 1'b0;
-        w_fifo_wr_data        = '{default: '0};
-        if (err_valid_f) begin
-            w_fifo_wr_valid       = 1'b1;
-            w_fifo_wr_data.packet_type = err_type;
-            w_fifo_wr_data.event_code  = err_code;
-            w_fifo_wr_data.channel     = err_chan;
-            w_fifo_wr_data.data        = err_data;
-        end else if (to_valid_f) begin
-            w_fifo_wr_valid       = 1'b1;
-            w_fifo_wr_data.packet_type = to_type;
-            w_fifo_wr_data.event_code  = to_code;
-            w_fifo_wr_data.channel     = to_chan;
-            w_fifo_wr_data.data        = to_data;
-        end else if (compl_valid_f) begin
-            w_fifo_wr_valid       = 1'b1;
-            w_fifo_wr_data.packet_type = compl_type;
-            w_fifo_wr_data.event_code  = compl_code;
-            w_fifo_wr_data.channel     = compl_chan;
-            w_fifo_wr_data.data        = compl_data;
+        w_grant_sel   = CLS_ERR;
+        w_grant_valid = 1'b0;
+        for (int k = 0; k < 3; k++) begin
+            logic [1:0] cls;
+            cls = rot3(r_grant_ptr, k[1:0]);
+            if (!w_grant_valid && w_cls_valid[cls]) begin
+                w_grant_sel   = cls;
+                w_grant_valid = 1'b1;
+            end
+        end
+    end
+
+    always_comb begin
+        w_fifo_wr_valid = 1'b0;
+        w_fifo_wr_data  = '{default: '0};
+        if (w_grant_valid) begin
+            unique case (w_grant_sel)
+                CLS_ERR: begin
+                    w_fifo_wr_valid            = 1'b1;
+                    w_fifo_wr_data.packet_type = err_type;
+                    w_fifo_wr_data.event_code  = err_code;
+                    w_fifo_wr_data.channel     = err_chan;
+                    w_fifo_wr_data.data        = err_data;
+                end
+                CLS_TO: begin
+                    w_fifo_wr_valid            = 1'b1;
+                    w_fifo_wr_data.packet_type = to_type;
+                    w_fifo_wr_data.event_code  = to_code;
+                    w_fifo_wr_data.channel     = to_chan;
+                    w_fifo_wr_data.data        = to_data;
+                end
+                CLS_COMPL: begin
+                    w_fifo_wr_valid            = 1'b1;
+                    w_fifo_wr_data.packet_type = compl_type;
+                    w_fifo_wr_data.event_code  = compl_code;
+                    w_fifo_wr_data.channel     = compl_chan;
+                    w_fifo_wr_data.data        = compl_data;
+                end
+                default: ;
+            endcase
         end
     end
 
@@ -276,9 +371,9 @@ module axi_monitor_reporter
     // -------------------------------------------------------------------------
     // Event marking + counter feedback masks.
     //   - Exactly ONE slot is marked reported per accepted FIFO write: the slot
-    //     whose packet was actually written. The winner is re-derived here with
-    //     the same error > timeout > compl priority the write mux above uses,
-    //     using the sel_idx each sub-block's priority encoder produced.
+    //     whose packet was actually written. The winner is the SHARED grant
+    //     (w_grant_sel) the write mux above used, indexed through the sel_idx
+    //     each sub-block's priority encoder produced.
     //   - Each sub-block already gates its pkt_valid on its own cfg_*_enable,
     //     so keying off {err,to,compl}_valid makes the marking config-correct
     //     by construction: a disabled packet class can never be marked
@@ -296,6 +391,17 @@ module axi_monitor_reporter
 
     assign w_fifo_wr_accept = w_fifo_wr_valid && w_fifo_wr_ready;
 
+    // Advance the rotation only on an ACCEPTED write. Advancing on a grant
+    // that the FIFO refused would rotate past a class that never got to
+    // report, reintroducing the starvation this pointer exists to remove.
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_grant_ptr <= CLS_ERR;
+        end else if (w_fifo_wr_accept) begin
+            r_grant_ptr <= rot3(w_grant_sel, 2'd1);
+        end
+    )
+
     always_comb begin
         w_events_to_mark    = '0;
         w_error_events      = '0;
@@ -304,18 +410,26 @@ module axi_monitor_reporter
         w_mark_is_error     = 1'b0;
         w_mark_is_compl     = 1'b0;
 
-        // Same priority as the FIFO write mux: error > timeout > compl.
-        // Timeout slots sit in TRANS_ERROR, so they roll up as error events
-        // for the perf counters (matches the legacy state-based split).
-        if (err_valid_f) begin
-            w_mark_idx      = err_idx;
-            w_mark_is_error = 1'b1;
-        end else if (to_valid_f) begin
-            w_mark_idx      = to_idx;
-            w_mark_is_error = 1'b1;
-        end else if (compl_valid_f) begin
-            w_mark_idx      = compl_idx;
-            w_mark_is_compl = 1'b1;
+        // Consumes the SAME grant the FIFO write mux used -- not a second,
+        // independent derivation. Timeout slots sit in TRANS_ERROR, so they
+        // roll up as error events for the perf counters (matches the legacy
+        // state-based split).
+        if (w_grant_valid) begin
+            unique case (w_grant_sel)
+                CLS_ERR: begin
+                    w_mark_idx      = err_idx;
+                    w_mark_is_error = 1'b1;
+                end
+                CLS_TO: begin
+                    w_mark_idx      = to_idx;
+                    w_mark_is_error = 1'b1;
+                end
+                CLS_COMPL: begin
+                    w_mark_idx      = compl_idx;
+                    w_mark_is_compl = 1'b1;
+                end
+                default: ;
+            endcase
         end
 
         if (w_fifo_wr_accept) begin

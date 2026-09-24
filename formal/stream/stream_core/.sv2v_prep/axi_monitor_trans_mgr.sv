@@ -455,6 +455,22 @@ module axi_monitor_trans_mgr
     /* verilator lint_on PINCONNECTEMPTY */
 
     // Per-bank -> flat (read side). Single driver per flat vector.
+    //
+    // SPLIT INTO TWO BLOCKS ON PURPOSE, and it must stay split. Verilator
+    // schedules an always_comb as ONE node, so every signal written in a block
+    // inherits the dependencies of every signal read in it. Flattening the
+    // ALLOC vectors in the same block as the MATCH/FREE vectors therefore made
+    // addr_match_oh look like a function of addr_alloc_oh -- and hence of
+    // addr_wants_alloc, which is computed FROM addr_hit_any, which is computed
+    // from addr_match_oh. Verilator reported that false cycle as UNOPTFLAT and
+    // it failed every monitor build that cannot optimise across it (cocotb
+    // passes --public-flat-rw, so nothing is flattened and the cycle stands).
+    //
+    // The true dependency is acyclic: an allocation pick never feeds a match
+    // result. Keeping the two in separate blocks is what lets the scheduler
+    // see that. This is the same fusion the CAM's own alloc block causes --
+    // see the addr-alloc mirror further down, which cuts the data-side path
+    // for the identical reason.
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
             for (int i = 0; i < BANK_SLOTS; i++) begin
@@ -463,11 +479,19 @@ module axi_monitor_trans_mgr
                 resp_match_oh          [b*BANK_SLOTS + i] = wb_resp_match   [b][i];
                 cam_data_match_first_oh[b*BANK_SLOTS + i] = wb_data_first   [b][i];
                 free_oh                [b*BANK_SLOTS + i] = wb_free         [b][i];
+                cam_entry_valid        [b*BANK_SLOTS + i] = wb_entry_valid  [b][i];
+                cam_entry_payload      [b*BANK_SLOTS + i] = wb_entry_payload[b][i];
+            end
+        end
+    end
+
+    // Alloc picks, flattened separately -- see the note above.
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            for (int i = 0; i < BANK_SLOTS; i++) begin
                 addr_alloc_oh          [b*BANK_SLOTS + i] = wb_addr_alloc   [b][i];
                 data_alloc_oh          [b*BANK_SLOTS + i] = wb_data_alloc   [b][i];
                 resp_alloc_oh          [b*BANK_SLOTS + i] = wb_resp_alloc   [b][i];
-                cam_entry_valid        [b*BANK_SLOTS + i] = wb_entry_valid  [b][i];
-                cam_entry_payload      [b*BANK_SLOTS + i] = wb_entry_payload[b][i];
             end
         end
     end
@@ -649,8 +673,15 @@ module axi_monitor_trans_mgr
         if (!IS_READ && USE_WDATA_ORDER_Q &&
             ((r_widq_count != '0) || w_widq_bypass)) begin
             for (int i = 0; i < N; i++) begin
+                // Compare the low IW bits explicitly. The payload `id` field
+                // is a fixed 8 bits while w_widq_head is IW wide, and the
+                // write side zeroes the field before setting [IW-1:0] (see
+                // next.id below), so the upper bits are always 0 and the
+                // implicit zero-extend was correct -- just implicit. Same
+                // part-select the read at `next_id` already uses. ID_WIDTH > 8
+                // is a hard elaboration error, so [IW-1:0] is always in range.
                 w_widq_cand_oh[i] = w_data_state_pred_oh[i] &&
-                                    (cam_entry_payload[i].id == w_widq_head) &&
+                                    (cam_entry_payload[i].id[IW-1:0] == w_widq_head) &&
                                     !w_freeing_oh[i];
             end
         end
@@ -671,8 +702,8 @@ module axi_monitor_trans_mgr
     // Shift-out queue: N is small (table depth) and one entry moves per cycle,
     // so a shift register costs less than pointer wrap logic and keeps head at
     // index 0 for a flat mux.
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_widq_count <= '0;
             for (int i = 0; i < N; i++) r_widq[i] <= '0;
         end else if (clear) begin
@@ -693,7 +724,7 @@ module axi_monitor_trans_mgr
             end
             r_widq_count <= v_cnt;
         end
-    end
+    )
 
     // ------------------------------------------------------------------------
     // Cleanup eligibility (same policy as the production module).
@@ -844,13 +875,75 @@ module axi_monitor_trans_mgr
 
     logic addr_hit_any, data_hit_any, resp_hit_any;
 
-    assign addr_hit_any = |w_addr_pend_oh;
-    assign resp_hit_any = |resp_match_oh;
+    // ------------------------------------------------------------------------
+    // BANK-LOCAL PRE-REDUCTION.
+    //
+    // These were flat `|vector` reductions over all N slots. Logically that is
+    // fine, but N slots live in NUM_BANKS separate monitor_trans_cam
+    // instances, so one flat OR is a single gate reaching across every bank --
+    // and the placer then has to route all N valid/match bits to one point.
+    // On the Genesys2 8-channel build (N=72, 8 banks) that showed up as the
+    // worst setup path in the design: g_cam_bank[1] -> g_cam_bank[2], 12.3 ns
+    // against an 11.1 ns requirement, 67.5% of it ROUTE with under 4 ns of
+    // logic. Route-dominated with shallow logic is the signature of a cone
+    // that is spread out, not one that is deep.
+    //
+    // Reducing per bank first and then combining the NUM_BANKS results is
+    // BIT-IDENTICAL -- OR is associative, this is purely a bracketing change --
+    // but it lets each bank's reduction place next to its own CAM and sends
+    // only NUM_BANKS wires across the fabric instead of N.
+    //
+    // Note what this deliberately does NOT do. An earlier plan was to AND in
+    // w_addr_bank_mask so only the incoming ID's bank contributes. That does
+    // not help: the mask is a per-slot comparator against bank_of(id), so it
+    // ADDS a gate per slot without shrinking the N-input OR. And selecting
+    // `wb_addr_pend_any[bank_of(cmd_id)]` instead would be narrower still, but
+    // it would make correctness depend on the same-ID-stays-in-one-bank
+    // invariant holding at runtime rather than just structurally. This change
+    // is free of that: it cannot alter behaviour for any input.
+    // ------------------------------------------------------------------------
+    logic [NUM_BANKS-1:0] wb_addr_pend_any;
+    logic [NUM_BANKS-1:0] wb_data_match_any;
+    logic [NUM_BANKS-1:0] wb_resp_match_any;
+    logic [NUM_BANKS-1:0] wb_data_pred_any;
+    logic [NUM_BANKS-1:0] wb_data_bypass_any;
+
+    // SPLIT ON THE ALLOC BOUNDARY, and it must stay split -- same scheduling
+    // rule as the per-bank flattening above. Verilator schedules an
+    // always_comb as one node, so reducing wb_addr_pend_any in the same block
+    // as wb_data_bypass_any gave the addr reduction the bypass's dependencies.
+    // The bypass is computed from w_addr_alloc_mirror_oh, which is computed
+    // from addr_wants_alloc, which is computed from addr_hit_any = the addr
+    // reduction: a false cycle, reported as UNOPTFLAT, failing every write
+    // monitor build that cannot optimise across it.
+    //
+    // Acyclic in truth: addr_hit_any reads ONLY the addr-pend term, and the
+    // bypass terms feed data_hit_any alone. The split is what lets the
+    // scheduler see it. Bit-identical to the single block -- same expressions,
+    // same single driver per signal.
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            wb_addr_pend_any  [b] = |(w_addr_pend_oh      [b*BANK_SLOTS +: BANK_SLOTS]);
+            wb_data_match_any [b] = |(data_match_oh       [b*BANK_SLOTS +: BANK_SLOTS]);
+            wb_resp_match_any [b] = |(resp_match_oh       [b*BANK_SLOTS +: BANK_SLOTS]);
+        end
+    end
+
+    // Alloc-dependent reductions -- feed data_hit_any only. See the note above.
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            wb_data_pred_any  [b] = |(w_data_state_pred_oh[b*BANK_SLOTS +: BANK_SLOTS]);
+            wb_data_bypass_any[b] = |(w_data_cmd_bypass_oh[b*BANK_SLOTS +: BANK_SLOTS]);
+        end
+    end
+
+    assign addr_hit_any = |wb_addr_pend_any;
+    assign resp_hit_any = |wb_resp_match_any;
     // The bypass counts as a hit so the beat cannot ALSO allocate an orphan
     // in the same cycle (live path for IS_AXI=0 write monitors).
-    assign data_hit_any = IS_READ ? (|data_match_oh)
-                                  : ((|w_data_state_pred_oh) ||
-                                     (|w_data_cmd_bypass_oh));
+    assign data_hit_any = IS_READ ? (|wb_data_match_any)
+                                  : ((|wb_data_pred_any) ||
+                                     (|wb_data_bypass_any));
 
     // ------------------------------------------------------------------------
     // COMMAND-ENTRY CAP (saturation-recovery fix).
@@ -1307,7 +1400,11 @@ module axi_monitor_trans_mgr
                         if (IS_AXI) begin
                             next.id[IW-1:0]        = data_id;
                             /* verilator lint_off WIDTHTRUNC */
-                            next.channel           = ({24'h0, data_id} % 64);
+                            // `% 64` into a 6-bit field is exactly "the low 6
+                            // bits", and IW <= 8 is enforced at elaboration, so
+                            // a width cast says it without a modulo whose
+                            // operand width depends on IW.
+                            next.channel           = 6'(data_id);
                             /* verilator lint_on WIDTHTRUNC */
                             next.expected_beats    = IS_READ ? 8'h0 : 8'h1;
                         end else begin
@@ -1368,9 +1465,8 @@ module axi_monitor_trans_mgr
                         next.id                    = '0;
                         if (IS_AXI) begin
                             next.id[IW-1:0]        = resp_id;
-                            /* verilator lint_off WIDTHTRUNC */
-                            next.channel           = (resp_id % 64);
-                            /* verilator lint_on WIDTHTRUNC */
+                            // Same as the data-orphan path above.
+                            next.channel           = 6'(resp_id);
                         end else begin
                             next.channel           = 6'h0;
                         end
