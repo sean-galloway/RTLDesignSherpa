@@ -5,8 +5,54 @@
 ---
 
 ## PUMICE-047 — SCHED_WR_WM.wr_batch_max may clobber the whole register on write
-**Status:** open 2026-09-23  **Priority:** P2 — an untrusted knob on a fix that
-is otherwise verified
+**Status:** RESOLVED 2026-09-24 — the clobber premise is DISPROVEN and the real
+cause is different: the knob is wired and writable, it is simply UNREACHABLE at
+the shipped watermarks. Residue re-filed as [[PUMICE-049]]. (was: open
+2026-09-23, P2)
+
+**1. There is no clobber.** `csr_write_field` is biten-masked and correct. The
+gen_replica test now reads the WHOLE SCHED_WR_WM word back and decodes all
+three fields, instead of re-reading the one field it just wrote -- which is the
+check the task correctly said was missing, since a per-field readback re-reads
+exactly the bit a whole-register write would have got right. With
+`wr_batch_max` programmed, `wr_high_wm`/`wr_low_wm` read back intact and all
+FOUR gen_replica cells pass (91 s). The 4 cells that broke during the original
+investigation were the stale DV regmap, fixed in aea7238c5: it predated
+`16eda8ed7`, so `wr_batch_max` did not exist in it and `RSVD` still spanned
+`31:16`.
+
+**2. Why the original mutation "passed in 43s" — it could not have failed.**
+The drain has THREE exits and the cap is only one of them
+(`pumice_cmd_arbiter.sv:1094-1120`):
+
+    w_batch_done                   -> yield, and set r_rd_owed (hysteresis)
+    w_wr_occ <= sched_wr_low_wm_i  -> drained down, stop
+    sched_wr_high_wm_i == 0        -> batching disabled
+
+The occupancy exit is independent of the cap, so at the watermarks the repro
+uses (hi=8 / lo=4) a drain ends after about FOUR writes -- and a cap of 16 is
+never reached. `wr_batch_max` can only bind when it is smaller than
+`(wr_high_wm - wr_low_wm)`. Setting it to 0 at hi=8/lo=4 therefore changes
+nothing observable, which is exactly the reported "PASSED in 43 s". That is an
+unreachable knob, not a decorative one and not a clobber.
+
+Measured at the top level (gen_replica gap=15, batching on): hi=8/lo=4 gives
+the same result at batch_max 16 and 0; widening to hi=8/lo=0 makes the setting
+visible (11.5 s at 0 vs 17.6 s at 1).
+
+**3. The knob is wired**, verified port by port: CSR ->
+`pumice_top.sv:257` -> `pumice_core.sv:518` -> `pumice_mem_cmd_scheduler.sv:482`
+-> `pumice_cmd_arbiter.sv:1094`.
+
+**Do (unchanged, and now correctly scoped):** the mutation the task asked for is
+still worth having, but it has to run where the cap can bind -- `batch_max <
+(hi - lo)` -- or it proves nothing. Tracked as [[PUMICE-049]] with what a
+first attempt got wrong.
+
+<details><summary>Original entry</summary>
+
+**[archived] Status:** open 2026-09-23  **Priority:** P2 — an untrusted knob on
+a fix that is otherwise verified
 
 `wr_batch_max[23:16]` was added to SCHED_WR_WM (`16eda8ed7`) and the default
 path works: the bounded drain is live at reset 16 and the concurrent_rw repro
@@ -21,10 +67,12 @@ cells, consistent with one cause.
 
 The readback assert did not catch it because it reads the same field it wrote.
 
-**Do:** check `csr_write_field`'s read-modify-write against a multi-field
-register, then re-run the mutation — `wr_batch_max=0` MUST fail the repro
-(~347s timeout) or the knob is decorative. Until then do not tune this field on
-silicon.
+**[archived] Do:** check `csr_write_field`'s read-modify-write against a
+multi-field register, then re-run the mutation — `wr_batch_max=0` MUST fail the
+repro (~347s timeout) or the knob is decorative. Until then do not tune this
+field on silicon.
+
+</details>
 
 **2026-09-23 — STRONG CANDIDATE ROOT CAUSE FOUND, and it is not
 `csr_write_field`.** Found while regenerating registers for [[PUMICE-013]]:
@@ -74,6 +122,37 @@ python3 bin/peakrdl_generate.py $P/rtl/macro/pumice_csr.rdl \
 command produces -- the content was right, the method was a hand-copy.)
 
 ---
+
+## PUMICE-049 — no test bounds the write drain, and the cap is unreachable at the shipped watermarks
+**Status:** open 2026-09-24  **Priority:** P3 — coverage gap plus a usability
+finding; nothing is broken, the knob just cannot act where it ships
+
+Residue of [[PUMICE-047]], which disproved the clobber. Two parts.
+
+**A. `wr_batch_max` has no test that bounds the drain.** The arbiter fub TB
+pins `sched_wr_high_wm_i = 0` (batching off), so the whole batching path --
+drain, cap, `r_rd_owed` hysteresis -- is uncovered at fub level. The top-level
+gen_replica cells exercise it but cannot ASSERT the bound, only the outcome.
+
+A first attempt at a fub test is instructive and is why this is filed rather
+than fixed: holding all 8 write slots schedulable with `low_wm=0` (so the
+occupancy exit can never fire) produced 40 consecutive write columns at
+`batch_max=1` -- which looks like the cap failing, but instrumenting
+`r_wr_drain` showed it armed on only 1 of 40 cycles. Writes were winning for
+an unrelated reason and the cap was never engaged, so the assertion was firing
+on a premise the stimulus had not established. A valid test must PROVE the
+drain is armed before it can claim anything about the bound.
+
+**B. The cap is unreachable at the shipped watermarks.** `w_batch_done` is one
+of three drain exits, and `w_wr_occ <= sched_wr_low_wm_i` is independent of it.
+At hi=8/lo=4 the drain ends after ~4 writes, so the default cap of 16 never
+binds: `wr_batch_max` only acts when it is below `(wr_high_wm - wr_low_wm)`.
+Measured: at hi=8/lo=4, batch_max 16 and 0 are indistinguishable; at hi=8/lo=0
+they separate (11.5 s vs 17.6 s).
+
+So either the default cap should be below the default watermark gap, or the
+field should be documented as a narrow-window knob. Worth settling alongside
+[[PUMICE-048]], which re-measures the batching gain.
 
 ## PUMICE-048 — the +25-30% batching gain was measured with the broken drain
 **Status:** open 2026-09-23  **Priority:** P2 — a published number that is

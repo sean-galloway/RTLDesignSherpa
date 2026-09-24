@@ -815,14 +815,37 @@ async def cocotb_test_pumice_top(dut):
             # cost this investigation repeatedly (SCHED_WR_WM had no host
             # accessor at all; CMD_HISTORY_EN was unbuildable; the char suite
             # could not reach the board's BL). Verify, do not trust.
-            rb_hi = await tb.csr_read_field("SCHED_WR_WM", "wr_high_wm")
-            rb_lo = await tb.csr_read_field("SCHED_WR_WM", "wr_low_wm")
+            # wr_batch_max BOUNDS the drain (PUMICE-043/047). The RTL gates
+            # batch-done on `sched_wr_batch_max_i != 0`, so 0 means UNBOUNDED:
+            # once writes win they never yield and reads starve. That makes 0
+            # the mutation that proves the knob is wired -- see the
+            # GEN_WR_BATCH_MAX cell pair below.
+            wr_bmax = os.environ.get("GEN_WR_BATCH_MAX")
+            if wr_bmax is not None:
+                await tb.csr_write_field("SCHED_WR_WM", "wr_batch_max",
+                                         int(wr_bmax))
+
+            # READ THE WHOLE REGISTER, not just the fields we wrote.
+            # PUMICE-047 was filed because a per-field readback cannot see a
+            # CLOBBER: it re-reads the one field it just set, which is exactly
+            # the bit a whole-register write would have got right. Decode all
+            # three fields from one word so collateral damage to a NEIGHBOUR
+            # is visible.
+            word = await tb.csr_read_register("SCHED_WR_WM")
+            rb_hi = word & 0xFF
+            rb_lo = (word >> 8) & 0xFF
+            rb_bm = (word >> 16) & 0xFF
+            want_bm = int(wr_bmax) if wr_bmax is not None else 0x10
             assert (rb_hi, rb_lo) == (wr_hi, wr_lo), (
                 f"SCHED_WR_WM readback {rb_hi}/{rb_lo} != written "
                 f"{wr_hi}/{wr_lo} -- batching did NOT take, so any verdict "
                 f"from this run is about the DISABLED path")
+            assert rb_bm == want_bm, (
+                f"SCHED_WR_WM.wr_batch_max reads {rb_bm}, expected {want_bm} "
+                f"(whole word {word:#010x}) -- a write to a NEIGHBOURING field "
+                f"clobbered it, which is PUMICE-047")
             tb.log.info(f"gen_replica: write batching ON hi={rb_hi} lo={rb_lo} "
-                        f"(readback verified)")
+                        f"batch_max={rb_bm} (whole-word readback {word:#010x})")
 
         dq_stop, dq_hits = [False], []
         dq_mon = cocotb.start_soon(_dq_collision_monitor(dut, dq_stop, dq_hits))
@@ -1359,6 +1382,10 @@ def test_pumice_top_gen_replica(request, gap):
                     "DFI_PROFILE": os.environ.get("DFI_PROFILE", "ideal"),
                     "GEN_WR_HIGH_WM": os.environ.get("GEN_WR_HIGH_WM", "0"),
                     "GEN_WR_LOW_WM": os.environ.get("GEN_WR_LOW_WM", "0"),
+                    # Unset -> the CSR default (16) stands. Set to 0 to make
+                    # the drain UNBOUNDED, which is the PUMICE-047 mutation.
+                    **({"GEN_WR_BATCH_MAX": os.environ["GEN_WR_BATCH_MAX"]}
+                       if "GEN_WR_BATCH_MAX" in os.environ else {}),
                     **env},
          params_over={**params,
                       # Arm the command-history scoreboard when asked: its

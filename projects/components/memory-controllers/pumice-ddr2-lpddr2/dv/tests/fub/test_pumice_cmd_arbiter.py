@@ -472,9 +472,12 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
 
 
 def test_pumice_cmd_arbiter(request):
+    _run_arbiter(request, "cocotb_test_pumice_cmd_arbiter")
+
+
+def _run_arbiter(request, test_name):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_cmd_arbiter"
-    test_name = "cocotb_test_pumice_cmd_arbiter"
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST
@@ -502,7 +505,7 @@ def test_pumice_cmd_arbiter(request):
 
     run(
         python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
-        toplevel=dut_name, module=module, testcase="cocotb_test_pumice_cmd_arbiter",
+        toplevel=dut_name, module=module, testcase=test_name,
         sim_build=sim_build, simulator="verilator", extra_env=extra_env,
         parameters=params, compile_args=compile_args,
         waves=bool(int(os.environ.get("WAVES", "0"))), keep_files=True, timescale="1ns/1ps",
