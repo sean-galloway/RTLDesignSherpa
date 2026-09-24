@@ -178,34 +178,6 @@ TASK-094).
 module, each converted task proves against the real RTL, and the two fork
 files are deleted.
 
-## TASK-083 — nothing gates RDL against its generated artifacts
-**Status:** open 2026-09-23  **Priority:** Medium
-
-Found while moving the perf registers into the RDL ([[TASK-084]] is the other
-half of that session's residue). Editing `stream_regs.rdl` without running
-`bin/peakrdl_generate.py` leaves the tree regen-dirty and NOTHING catches it:
-the regblock RTL, both regmaps and the docs simply disagree with the `.rdl`,
-and every test still passes because they all read the stale generated copies.
-
-I did exactly this during the change and carried a 317-line divergence for
-some time before an explicit regen-and-diff surfaced it. The pre-commit hook
-runs 11 checks; none of them mention `regmap`, `peakrdl` or `rdl`:
-
-```
-declaration order · doc instantiation examples · staged .sv parse ·
-port consumers · markdown links · filelist contract   (+ 6 more)
-```
-
-The check is cheap and already written as a one-off: regenerate to a TEMP
-directory with an explicit `-o`, diff against the committed artifacts, fail on
-any difference. That is the same regen-and-diff audit
-[[generated-rtl-discipline]] prescribes, just wired to the hook.
-
-Acceptance: a staged `.rdl` change with un-regenerated artifacts is REJECTED,
-and the check proves it ran rather than proving it was quiet (a generator that
-writes nothing also produces no diff -- the failure mode CRITICAL RULE #0 and
-the `regen_bridges.sh` scar both warn about).
-
 ## TASK-084 — TB address->name lookup ignores the MON block offset
 **Status:** open 2026-09-23  **Priority:** Low
 
@@ -287,3 +259,33 @@ sed output) was 376 insertions behind its sources, including the whole
 TASK-073 monitor fix. Neither layer has a content check, which is what
 [[generated-rtl-discipline]] prescribes. See also the `check-flat` target
 `formal/FORMAL_TODO.md` already proposes.
+
+## TASK-088 — extend the .rdl regen gate to the other 6 blocks
+**Status:** open 2026-09-23  **Priority:** Medium
+
+[[TASK-083]] built `bin/check_rdl_regen.py` and proved it, but its manifest
+covers only stream. The other PeakRDL blocks, confirmed by generated-file
+banner:
+
+| block | top component | artifacts |
+|---|---|---|
+| rapids_regs | `rapids_regs` | `rapids/regs/generated/` + `rapids/rtl/rapids_regmap.py` |
+| pumice_csr | `pumice_csr` | `pumice-ddr2-lpddr2/regs/generated/` + `dv/tbclasses/pumice_regmap.py` |
+| obs_regs | `obs_regs_top` | `misc/rtl/regs/generated/` |
+| tally_regs | `tally_regs_top` | `misc/rtl/regs/generated/` |
+| harness_csr_regs | `harness_csr_regs_top` | `Genesys2/stream/rtl/regs/generated/` |
+| chargen_regs | `chargen_regs` | `ddr2_char_framework/rtl/generated/chargen_regs/` |
+
+Note the `_top` suffix: artifacts are named after the RDL's `addrmap`, not the
+filename, so the names are parseable from the source.
+
+**Do not guess an invocation.** Several blocks use `--copy-rtl` (which
+flat-copies the generated `.sv` into the RTL tree, so artifacts exist in two
+places) and several have a `_regmap.py` with no `generated/` counterpart at
+all. For each block: run the real invocation into a scratch dir, confirm it
+reproduces what is committed byte-for-byte, and only then add the entry. A
+wrong entry reports permanent staleness and blocks everyone's commits, which
+is worse than no gate.
+
+RLB blocks are the `--copy-rtl` case and will need the copied RTL in the
+compare set as well, not just the `generated/` tree.
