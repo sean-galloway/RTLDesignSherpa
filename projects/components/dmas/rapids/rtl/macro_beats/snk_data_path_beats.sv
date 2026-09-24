@@ -129,7 +129,13 @@ module snk_data_path_beats #(
     // Debug Interface
     //=========================================================================
     output logic [NC-1:0]               dbg_sram_bridge_pending,
-    output logic [NC-1:0]               dbg_sram_bridge_out_valid
+    output logic [NC-1:0]               dbg_sram_bridge_out_valid,
+
+    // Active-channel sideband for per-channel bus instrumentation
+    // (axi_bus_meter). The W bus carries no wid, so the write engine's
+    // channel index must travel out of band to reach the meter at the top.
+    output logic [CIW-1:0]              o_active_channel_id,
+    output logic                        o_active_channel_valid
 );
 
     //=========================================================================
@@ -265,11 +271,10 @@ module snk_data_path_beats #(
         .dbg_aw_transactions(),
         .dbg_w_beats        (),
 
-        // Active-channel sideband (FPGA characterization; unused here)
-        /* verilator lint_off PINCONNECTEMPTY */
-        .o_active_channel_id    (),
-        .o_active_channel_valid ()
-        /* verilator lint_on PINCONNECTEMPTY */
+        // Active-channel sideband -- exported so the top's u_wr_bus_meter can
+        // attribute W beats per channel (RAPIDS TASK-001).
+        .o_active_channel_id    (o_active_channel_id),
+        .o_active_channel_valid (o_active_channel_valid)
     );
 
 endmodule : snk_data_path_beats

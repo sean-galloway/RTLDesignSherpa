@@ -870,6 +870,88 @@ class RapidsBeatsTopTB(TBBase):
                           f"ch{CH_B}={readings[CH_B]['prod']}, overflow=0x{overflow:X})")
         return (len(errors) == 0), stats
 
+    async def test_perf_ch_readout_wr(self) -> Tuple[bool, Dict[str, Any]]:
+        """WRITE-side per-channel perf readout: SNK.PERF_CH_SEL must select.
+
+        The mirror of test_perf_ch_readout for the sink half. It exists because
+        the W bus carries no wid: the write meter can only attribute a beat via
+        the engine's o_active_channel_id sideband, which was tied off in
+        snk_data_path_beats until RAPIDS TASK-001 plumbed it out. Before that
+        fix u_wr_bus_meter saw i_channel_id='0, so EVERY beat landed in
+        channel 0 -- which is exactly what assertion 2 below catches.
+
+        Traffic is deliberately UNEQUAL on the two channels: equal traffic would
+        read back identically whichever channel the mux picked, and could not
+        tell a working selector from one pinned to 0.
+        """
+        errors = []
+        CH_A, BEATS_A = 0, 4
+        CH_B, BEATS_B = 1, 16          # deliberately unequal
+
+        # Open the write window BEFORE the traffic: i_clear is a pulse on RUN's
+        # rising edge, so opening it afterwards would wipe what it measured.
+        await self.write_fields('snk', 'WRMON_PERF_CTRL', RUN=1)
+        await self.wait_clocks(self.clk_name, 20)
+
+        for ch, n in ((CH_A, BEATS_A), (CH_B, BEATS_B)):
+            ok, st = await self.test_sink_path(channel=ch, beats=n)
+            if not ok:
+                errors.append(f"sink traffic ch{ch} failed: {st.get('errors')}")
+
+        readings = {}
+        for ch in (CH_A, CH_B):
+            await self.write_fields('snk', 'PERF_CH_SEL', CH_SEL=ch)
+            await self.wait_clocks(self.clk_name, 5)
+            prod_bp = await self.read_reg('snk', 'WRMON_PERF_CH_PROD_BP')
+            starv_idle = await self.read_reg('snk', 'WRMON_PERF_CH_STARV_IDLE')
+            readings[ch] = {
+                'prod':  prod_bp & 0xFFFF,
+                'bp':   (prod_bp >> 16) & 0xFFFF,
+                'starv': starv_idle & 0xFFFF,
+                'idle': (starv_idle >> 16) & 0xFFFF,
+            }
+            self.log.info(f"  SNK.PERF_CH_SEL={ch} -> {readings[ch]}")
+
+        overflow = await self.read_reg('snk', 'WRMON_PERF_CH_OVERFLOW')
+        await self.write_fields('snk', 'WRMON_PERF_CTRL', RUN=0)
+
+        # 1. Both channels must have counted: a register reading 0 is
+        #    indistinguishable from one nothing drives -- which is precisely
+        #    the state this register was in before the sideband was plumbed.
+        for ch in (CH_A, CH_B):
+            if readings[ch]['prod'] == 0:
+                errors.append(f"ch{ch} productive=0 -- write per-channel bucket "
+                              f"not counting (o_active_channel_id not reaching "
+                              f"u_wr_bus_meter?)")
+
+        # 2. The selector must SELECT. Identical readings mean the mux is pinned
+        #    or i_channel_id is stuck -- the exact pre-fix failure mode.
+        if readings[CH_A]['prod'] == readings[CH_B]['prod']:
+            errors.append(
+                f"ch{CH_A} and ch{CH_B} report identical productive="
+                f"{readings[CH_A]['prod']} despite {BEATS_A} vs {BEATS_B} beats "
+                f"-- SNK.PERF_CH_SEL is not selecting, or every beat is being "
+                f"attributed to one channel")
+
+        # 3. Direction, not ratio: burst shaping is not measured here, so a
+        #    ratio would assert precision this test has not earned.
+        if readings[CH_B]['prod'] <= readings[CH_A]['prod']:
+            errors.append(
+                f"ch{CH_B} ({BEATS_B} beats) productive={readings[CH_B]['prod']} "
+                f"not greater than ch{CH_A} ({BEATS_A} beats) "
+                f"productive={readings[CH_A]['prod']}")
+
+        stats = {'readings': readings, 'overflow': overflow, 'errors': errors}
+        if errors:
+            for e in errors:
+                self.log.error(f"  SCOREBOARD: {e}")
+        else:
+            self.log.info(f"  SCOREBOARD: WRITE per-channel readout verified "
+                          f"(ch{CH_A}={readings[CH_A]['prod']}, "
+                          f"ch{CH_B}={readings[CH_B]['prod']}, "
+                          f"overflow=0x{overflow:X})")
+        return (len(errors) == 0), stats
+
     async def test_sink_path(self, channel=0, beats=4) -> Tuple[bool, Dict[str, Any]]:
         """SINK: AXIS -> memory. APB-kick SNK, stream s_axis, verify wr_mem."""
         self.log.info(f"=== SINK path: ch{channel}, {beats} beats ===")

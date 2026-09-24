@@ -132,7 +132,13 @@ module snk_data_path_axis_beats #(
     output logic [NC-1:0]               dbg_sram_bridge_pending,
     output logic [NC-1:0]               dbg_sram_bridge_out_valid,
     output logic [31:0]                 dbg_axis_beats_received,
-    output logic [31:0]                 dbg_axis_packets_received
+    output logic [31:0]                 dbg_axis_packets_received,
+
+    // Active-channel sideband for per-channel bus instrumentation
+    // (axi_bus_meter). The W bus carries no wid, so the write engine's
+    // channel index must travel out of band to reach the meter at the top.
+    output logic [CIW-1:0]              o_active_channel_id,
+    output logic                        o_active_channel_valid
 );
 
     //=========================================================================
@@ -309,7 +315,11 @@ module snk_data_path_axis_beats #(
 
         // Debug Interface
         .dbg_sram_bridge_pending    (dbg_sram_bridge_pending),
-        .dbg_sram_bridge_out_valid  (dbg_sram_bridge_out_valid)
+        .dbg_sram_bridge_out_valid  (dbg_sram_bridge_out_valid),
+
+        // Active-channel sideband (RAPIDS TASK-001)
+        .o_active_channel_id        (o_active_channel_id),
+        .o_active_channel_valid     (o_active_channel_valid)
     );
 
 endmodule : snk_data_path_axis_beats

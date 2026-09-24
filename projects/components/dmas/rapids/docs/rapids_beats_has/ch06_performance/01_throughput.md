@@ -149,14 +149,23 @@ validates **data integrity** end to end via golden-CRC self-checks on both paths
 sink `wr_crc == golden`, source `rd_crc == chk_crc == golden`. The current
 harness measures correctness and beat counts.
 
-Per-direction bus utilization uses the same instrument the STREAM char does: the
-shared `axi4_intf_master_observer` (`projects/components/misc/rtl/`) dropped inline on
-the harness AXI masters, auto-windowed in hardware, with aggregate PROD/BP/STARV/
-IDLE buckets + beat/byte/burst counts surfaced at harness CSR `0x100-0x11C` and
-read verbatim by `read_bus_meters.py`. RAPIDS maps to it cleanly -- a read tap on
-the source master and a write tap on the sink master give a true per-direction
-split (STREAM's shared master is aggregate-only). Wiring the observer into
-`rapids_char_harness` is the remaining step to report measured GB/s here.
+Per-direction bus utilization is measured IN THE DESIGN, not by an external
+observer. `rapids_beats_top` instantiates the shared `axi_bus_meter`
+(`rtl/amba/shared/`) twice -- `u_rd_bus_meter` on the read master and
+`u_wr_bus_meter` on the write master -- giving the true per-direction split
+(STREAM's shared master is aggregate-only). Aggregate PROD/BP/STARV/IDLE plus
+beat/byte/burst counts surface through the `RDMON_PERF_*` / `WRMON_PERF_*` CSRs,
+and per-channel buckets through `SRC.PERF_CH_SEL` / `SNK.PERF_CH_SEL` with
+`RDMON_PERF_CH_*` / `WRMON_PERF_CH_*`.
+
+**Adopting `axi4_intf_master_observer` here was considered and rejected**
+(RAPIDS TASK-001, 2026-09-24). The observer is a packaging of that same
+`axi_bus_meter` plus a latency histogram and monbus taps; since the meters are
+already the shared primitive, it buys no measurement RAPIDS lacks while costing
++208% LUTs at its smallest legal config -- the same measured ground on which
+pumice rejected it (PUMICE-016). The one thing it would add is
+`axi_perf_latency_hist`, which RAPIDS does not instantiate; that is a separate
+question from this one.
 
 As of 2026-08-05 the observer carries its OWN APB config regblock (`obs_regs`)
 instead of exporting 29 `cfg_*` ports for the instantiating harness to tie off,
@@ -166,8 +175,9 @@ and it moved to `projects/components/misc/rtl/` so any board flow can reach it:
 
 It was renamed from `axi4_dma_observer` at the same time -- the header always
 said "DMA-agnostic", and the DMA in the name read wrong for a block a memory
-controller or a beats DMA would share. `dma_slave_monitors` (the monitored
-slave wrapper, also used here) sits alongside it on the same terms.
+controller or a beats DMA would share. `dma_slave_monitors` is **retired**:
+module, filelist and its `slvmon_regs` regblock were deleted 2026-09-20 (STREAM
+TASK-073). The slave-side equivalent is `axi4_intf_slave_observer` + `obs_regs`.
 
 Latest on-silicon result (full characterization suite): **48 / 48 configurations
 pass** across channels {1, 2, 4} x beats {1, 4, 8, 16} x backpressure {off, on} x

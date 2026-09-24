@@ -477,7 +477,13 @@ module rapids_core_beats #(
     output logic [NC-1:0]               snk_dbg_snk_sram_bridge_pending,
     output logic [NC-1:0]               snk_dbg_snk_sram_bridge_out_valid,
     output logic [31:0]                 snk_dbg_axis_beats_received,
-    output logic [31:0]                 snk_dbg_axis_packets_received
+    output logic [31:0]                 snk_dbg_axis_packets_received,
+
+    // Active-channel sideband for per-channel bus instrumentation
+    // (axi_bus_meter). The W bus carries no wid, so the write engine's
+    // channel index must travel out of band to reach the meter at the top.
+    output logic [CIW-1:0]              snk_active_channel_id,
+    output logic                        snk_active_channel_valid
 );
 
     //=========================================================================
@@ -898,7 +904,11 @@ module rapids_core_beats #(
         .dbg_snk_sram_bridge_pending   (snk_dbg_snk_sram_bridge_pending),
         .dbg_snk_sram_bridge_out_valid (snk_dbg_snk_sram_bridge_out_valid),
         .dbg_axis_beats_received       (snk_dbg_axis_beats_received),
-        .dbg_axis_packets_received     (snk_dbg_axis_packets_received)
+        .dbg_axis_packets_received     (snk_dbg_axis_packets_received),
+
+        // Active-channel sideband (RAPIDS TASK-001)
+        .o_active_channel_id           (snk_active_channel_id),
+        .o_active_channel_valid        (snk_active_channel_valid)
     );
 
     //=========================================================================

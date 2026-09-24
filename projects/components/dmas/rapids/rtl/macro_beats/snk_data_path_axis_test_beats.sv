@@ -463,7 +463,13 @@ module snk_data_path_axis_test_beats #(
         .dbg_sram_bridge_pending    (dbg_sram_bridge_pending),
         .dbg_sram_bridge_out_valid  (dbg_sram_bridge_out_valid),
         .dbg_axis_beats_received    (dbg_axis_beats_received),
-        .dbg_axis_packets_received  (dbg_axis_packets_received)
+        .dbg_axis_packets_received  (dbg_axis_packets_received),
+
+        // Active-channel sideband: no bus meter in this test wrapper.
+        /* verilator lint_off PINCONNECTEMPTY */
+        .o_active_channel_id        (),
+        .o_active_channel_valid     ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
 endmodule : snk_data_path_axis_test_beats

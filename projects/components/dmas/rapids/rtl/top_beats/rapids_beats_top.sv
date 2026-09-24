@@ -618,13 +618,19 @@ module rapids_beats_top #(
     logic [31:0] w_rd_prod, w_rd_bp, w_rd_starv, w_rd_idle;
     logic [31:0] w_wr_prod, w_wr_bp, w_wr_starv, w_wr_idle;
 
-    // Per-channel buckets from the READ meter, presented one channel at a time
-    // through SRC.PERF_CH_SEL.CH_SEL (indexed readout, mirroring STREAM's
-    // stream_core -> stream_top_ch8 pattern). The WRITE side is deliberately
-    // NOT wired: snk_data_path_beats ties off the write engine's
-    // o_active_channel_id, so u_wr_bus_meter sees i_channel_id='0 and would
-    // attribute every beat to channel 0. Populating WRMON_PERF_CH_* from that
-    // would report a fiction; zeros are honestly "not implemented".
+    // Per-channel buckets, presented one channel at a time through
+    // <half>.PERF_CH_SEL.CH_SEL (indexed readout, mirroring STREAM's
+    // stream_core -> stream_top_ch8 pattern).
+    //
+    // The WRITE side used to be deliberately unwired: snk_data_path_beats tied
+    // off the write engine's o_active_channel_id, so u_wr_bus_meter saw
+    // i_channel_id='0 and would have attributed every beat to channel 0 --
+    // a fiction, so zeros were reported instead. RAPIDS TASK-001 plumbs that
+    // sideband out (engine -> snk_data_path_beats -> ..._axis_beats ->
+    // rapids_snk_beats -> rapids_core_beats), so the write buckets are now
+    // attributable and WRMON_PERF_CH_* carries real per-channel numbers.
+    // The W bus has no wid; axi_bus_meter.sv:71-73 documents exactly this
+    // sideband as the intended source.
     logic [15:0] w_rd_ch_prod  [NC];
     logic [15:0] w_rd_ch_bp    [NC];
     logic [15:0] w_rd_ch_starv [NC];
@@ -632,6 +638,18 @@ module rapids_beats_top #(
     logic [NC*4-1:0] w_rd_ch_overflow;
     logic [MCW-1:0]  w_rd_ch_sel;
     logic [15:0] w_rd_sel_prod, w_rd_sel_bp, w_rd_sel_starv, w_rd_sel_idle;
+
+    logic [15:0] w_wr_ch_prod  [NC];
+    logic [15:0] w_wr_ch_bp    [NC];
+    logic [15:0] w_wr_ch_starv [NC];
+    logic [15:0] w_wr_ch_idle  [NC];
+    logic [NC*4-1:0] w_wr_ch_overflow;
+    logic [MCW-1:0]  w_wr_ch_sel;
+    logic [15:0] w_wr_sel_prod, w_wr_sel_bp, w_wr_sel_starv, w_wr_sel_idle;
+
+    // Active-channel sideband from the sink write engine (RAPIDS TASK-001).
+    logic [CIW-1:0] w_snk_active_ch_id;
+    logic           w_snk_active_ch_valid;
 
     // Slice the 3-bit CSR field to the meter's index width explicitly rather
     // than relying on them happening to match (both are 3 at NC=8).
@@ -641,6 +659,15 @@ module rapids_beats_top #(
         w_rd_sel_bp    = w_rd_ch_bp   [w_rd_ch_sel];
         w_rd_sel_starv = w_rd_ch_starv[w_rd_ch_sel];
         w_rd_sel_idle  = w_rd_ch_idle [w_rd_ch_sel];
+    end
+
+    // Write half uses its OWN selector (SNK.PERF_CH_SEL), symmetric with SRC.
+    assign w_wr_ch_sel = hwif_out.SNK.PERF_CH_SEL.CH_SEL.value[MCW-1:0];
+    always_comb begin
+        w_wr_sel_prod  = w_wr_ch_prod [w_wr_ch_sel];
+        w_wr_sel_bp    = w_wr_ch_bp   [w_wr_ch_sel];
+        w_wr_sel_starv = w_wr_ch_starv[w_wr_ch_sel];
+        w_wr_sel_idle  = w_wr_ch_idle [w_wr_ch_sel];
     end
     /* verilator lint_off PINCONNECTEMPTY */
     axi_bus_meter #(.NUM_CHANNELS(NC)) u_rd_bus_meter (
@@ -681,22 +708,20 @@ module rapids_beats_top #(
         .i_freeze           (~w_wr_run),
         .i_valid            (m_axi_wr_wvalid),
         .i_ready            (m_axi_wr_wready),
-        // No channel-id sideband reaches the top on the write path (the write
-        // engine exports o_active_channel_id, but snk_data_path_beats ties it
-        // off). The aggregate buckets come from i_valid/i_ready alone, so they
-        // are unaffected; only per-channel attribution would be meaningless,
-        // and that readout is not wired for the reason above.
-        .i_channel_id       ('0),
-        .i_channel_valid    (1'b0),
+        // Channel-id sideband from the sink write engine (RAPIDS TASK-001).
+        // o_active_channel_valid is high only while a W burst is in flight, so
+        // unattributable cycles increment the aggregate buckets only.
+        .i_channel_id       (w_snk_active_ch_id[MCW-1:0]),
+        .i_channel_valid    (w_snk_active_ch_valid),
         .o_agg_productive   (w_wr_prod),
         .o_agg_backpressure (w_wr_bp),
         .o_agg_starvation   (w_wr_starv),
         .o_agg_idle         (w_wr_idle),
-        .o_ch_productive    (),
-        .o_ch_backpressure  (),
-        .o_ch_starvation    (),
-        .o_ch_idle          (),
-        .o_ch_overflow      ()
+        .o_ch_productive    (w_wr_ch_prod),
+        .o_ch_backpressure  (w_wr_ch_bp),
+        .o_ch_starvation    (w_wr_ch_starv),
+        .o_ch_idle          (w_wr_ch_idle),
+        .o_ch_overflow      (w_wr_ch_overflow)
     );
     /* verilator lint_on PINCONNECTEMPTY */
 
@@ -762,6 +787,12 @@ module rapids_beats_top #(
         hwif_in.SNK.MON.WRMON_PERF_BYTE_COUNT_LO.VAL.next  = r_wr_bytes[31:0];
         hwif_in.SNK.MON.WRMON_PERF_BYTE_COUNT_HI.VAL.next  = r_wr_bytes[63:32];
         hwif_in.SNK.MON.WRMON_PERF_BURST_COUNT.VAL.next    = r_wr_bursts;
+
+        // Per-channel readout for the channel SNK.PERF_CH_SEL selects, packed
+        // identically to the read half and to STREAM.
+        hwif_in.SNK.MON.WRMON_PERF_CH_PROD_BP.VAL.next    = {w_wr_sel_bp,   w_wr_sel_prod};
+        hwif_in.SNK.MON.WRMON_PERF_CH_STARV_IDLE.VAL.next = {w_wr_sel_idle, w_wr_sel_starv};
+        hwif_in.SNK.MON.WRMON_PERF_CH_OVERFLOW.VAL.next   = 32'(w_wr_ch_overflow);
 
         // Descriptor-AXI monitor perf window. The monitor computed these all
         // along; nothing collected them, and its window was tied shut
@@ -1741,7 +1772,11 @@ module rapids_beats_top #(
         .snk_dbg_snk_sram_bridge_pending  (),
         .snk_dbg_snk_sram_bridge_out_valid(),
         .snk_dbg_axis_beats_received      (),
-        .snk_dbg_axis_packets_received    ()
+        .snk_dbg_axis_packets_received    (),
+
+        // Active-channel sideband for u_wr_bus_meter (RAPIDS TASK-001)
+        .snk_active_channel_id            (w_snk_active_ch_id),
+        .snk_active_channel_valid         (w_snk_active_ch_valid)
     );
 
     //=========================================================================

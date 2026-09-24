@@ -167,6 +167,17 @@ async def cocotb_test_perf_ch_readout(dut):
     assert ok, f"per-channel perf readout failed: {stats.get('errors')}"
 
 
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_perf_ch_readout_wr(dut):
+    """SNK.PERF_CH_SEL must select: the WRITE half's per-channel buckets."""
+    tb = RapidsBeatsTopTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    ok, stats = await tb.test_perf_ch_readout_wr()
+    tb.finalize_test()
+    assert ok, f"write per-channel perf readout failed: {stats.get('errors')}"
+
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_sink_path(dut):
     """SINK datapath (AXIS -> memory), configured + kicked over APB by name."""
@@ -474,6 +485,13 @@ def test_rapids_beats_top_status(request):
 def test_rapids_beats_top_perf_ch_readout(request):
     """Per-channel perf bucket readout through PERF_CH_SEL."""
     _run_top("cocotb_test_perf_ch_readout", "test_rapids_beats_top_perf_ch")
+
+
+@pytest.mark.top_beats
+@pytest.mark.rapids_beats_top
+def test_rapids_beats_top_perf_ch_readout_wr(request):
+    """WRITE-side per-channel perf bucket readout through SNK.PERF_CH_SEL."""
+    _run_top("cocotb_test_perf_ch_readout_wr", "test_rapids_beats_top_perf_ch_wr")
 
 
 @pytest.mark.top_beats
