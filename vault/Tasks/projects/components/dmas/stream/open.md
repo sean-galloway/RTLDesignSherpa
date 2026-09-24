@@ -260,32 +260,30 @@ TASK-073 monitor fix. Neither layer has a content check, which is what
 [[generated-rtl-discipline]] prescribes. See also the `check-flat` target
 `formal/FORMAL_TODO.md` already proposes.
 
-## TASK-088 — extend the .rdl regen gate to the other 6 blocks
-**Status:** open 2026-09-23  **Priority:** Medium
+## TASK-089 — bring the RLB blocks under the .rdl regen gate
+**Status:** open 2026-09-24  **Priority:** Medium
 
-[[TASK-083]] built `bin/check_rdl_regen.py` and proved it, but its manifest
-covers only stream. The other PeakRDL blocks, confirmed by generated-file
-banner:
+[[TASK-088]] covered 9 RDLs but not retro_legacy_blocks, which has a
+different shape: those blocks use `--copy-rtl`, which flat-copies the
+generated `.sv`/`.svh` out of the generated tree into `rtl/<block>/`. So the
+artifacts live in the RTL tree, not a `generated/` root, and the compare set
+must include the COPIES -- comparing only a generated root would check
+nothing.
 
-| block | top component | artifacts |
-|---|---|---|
-| rapids_regs | `rapids_regs` | `rapids/regs/generated/` + `rapids/rtl/rapids_regmap.py` |
-| pumice_csr | `pumice_csr` | `pumice-ddr2-lpddr2/regs/generated/` + `dv/tbclasses/pumice_regmap.py` |
-| obs_regs | `obs_regs_top` | `misc/rtl/regs/generated/` |
-| tally_regs | `tally_regs_top` | `misc/rtl/regs/generated/` |
-| harness_csr_regs | `harness_csr_regs_top` | `Genesys2/stream/rtl/regs/generated/` |
-| chargen_regs | `chargen_regs` | `ddr2_char_framework/rtl/generated/chargen_regs/` |
+Per `projects/components/retro_legacy_blocks/CLAUDE.md`, the documented
+invocation is:
 
-Note the `_top` suffix: artifacts are named after the RDL's `addrmap`, not the
-filename, so the names are parseable from the source.
+```
+python $REPO_ROOT/bin/peakrdl_generate.py {block}_regs.rdl --copy-rtl ../../rtl/{block}
+```
 
-**Do not guess an invocation.** Several blocks use `--copy-rtl` (which
-flat-copies the generated `.sv` into the RTL tree, so artifacts exist in two
-places) and several have a `_regmap.py` with no `generated/` counterpart at
-all. For each block: run the real invocation into a scratch dir, confirm it
-reproduces what is committed byte-for-byte, and only then add the entry. A
-wrong entry reports permanent staleness and blocks everyone's commits, which
-is worse than no gate.
+Blocks (RDL under `rdl/<block>/`, copies under `rtl/<block>/`): gpio, hpet,
+ioapic, pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550. Several also
+have a `<block>_regmap.py` in the RTL tree with no `generated/` counterpart,
+which needs its own `--regmap-output` entry.
 
-RLB blocks are the `--copy-rtl` case and will need the copied RTL in the
-compare set as well, not just the `generated/` tree.
+**Do not guess the invocation.** Verify each block the same way TASK-088 did:
+regenerate into a scratch dir, require byte-for-byte reproduction of what is
+committed, and only then add the entry. Any block whose committed `.sv` turns
+out to be hand-edited needs the semantic path or exclusion -- ddr2_char's
+`harness_csr.sv` was exactly that case and is deliberately regmap-only.

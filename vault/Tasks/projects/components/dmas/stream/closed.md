@@ -2,6 +2,39 @@
 
 # STREAM tasks — closed (done)
 
+## TASK-088 — .rdl regen gate extended from 1 block to 9
+**Status:** CLOSED 2026-09-24  **Priority:** Medium
+
+`bin/check_rdl_regen.py` now carries 14 entries across 9 distinct RDLs:
+stream_regs, rapids_regs, rapids_regmap, pumice_csr, obs_regs, tally_regs,
+harness_csr_regs (Genesys2), chargen_regs, harness_csr (ddr2_char).
+
+Every invocation determined EMPIRICALLY, never guessed. Two blocks this
+task's own table missed: rapids has TWO RDLs describing DIFFERENT addrmaps
+(`rapids_regs` vs `rapids`), and ddr2_char's `harness_csr.rdl` was unlisted.
+
+**Semantic compare added** (opt-in 3-tuple; 2-tuples stay byte-exact).
+`rapids_regmap.py` has a deliberately hand-written header, so byte comparison
+would call it stale forever. Validated both ways: passes rapids (21 header
+lines differ) and catches an injected register.
+
+**One entry is regmap-only on purpose.** ddr2_char's `rtl/harness_csr.sv` is
+HAND-WRITTEN (no PeakRDL banner, a fresh regen differs by 1787 lines, no
+`_pkg.sv` tracked). Comparing it would declare hand-written RTL permanently
+stale -- the false failure this gate must never cause.
+
+**It caught a real defect on its first run:** rapids'
+`regs/generated/docs/rapids_regs.md` was ~2900 lines stale (2416 -> 5316),
+still describing a single register file when the RDL has described two halves
+(SRC @ 0x0000 / SNK @ 0x1000) since the beats restructuring. Regenerated.
+
+Validated: all 10 new entries dirtied one at a time, every one CAUGHT, all
+restored. Full gate 4.0s (vs check_doc_examples.py 19.4s); hook no-op 0.03s.
+
+NOT covered, carried forward as [[TASK-089]]: the RLB `--copy-rtl` family.
+
+---
+
 ## TASK-083 — .rdl edits are gated against their generated artifacts
 **Status:** CLOSED 2026-09-23  **Priority:** Medium
 

@@ -5,7 +5,7 @@ summary: Task rollup for the STREAM DMA component (projects/components/dmas/stre
 
 # STREAM tasks
 
-**Next ID: TASK-089** — never recycle a number, even when its task closed.
+**Next ID: TASK-090** — never recycle a number, even when its task closed.
 
 Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "STREAM TASK-080" when writing outside this file.
 
@@ -23,8 +23,8 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
   `gaxi_fifo_sync` (and an orphan package stub), not the RTL; convert
   them to flatten the real module with sv2v, as done for repo-root formal.
 
-- **TASK-088** (Medium) — extend the `.rdl` regen gate beyond stream; 6 blocks
-  remain, each needing its invocation determined empirically.
+- **TASK-089** (Medium) — bring the RLB `--copy-rtl` blocks under the `.rdl`
+  regen gate; their artifacts live in the RTL tree, not a `generated/` root.
 - **TASK-084** (Low) — TB address->name lookup ignores `MON @ 0x1000`, so 108
   resolvable monitor registers log as `UNKNOWN_0x11xx`.
 
@@ -34,6 +34,9 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
   known Regen-FAILED entries explained, the other two still undiagnosed.
 
 ## Closed (done)
+
+- **TASK-088** (Medium) — regen gate extended 1 -> 9 RDL blocks (14 entries),
+  semantic compare added; caught a ~2900-line stale doc. Done 2026-09-24.
 
 - **TASK-083** (Medium) — `.rdl` edits now gated against their generated
   artifacts (hook + CI); proven to block a real commit. Done 2026-09-23.
