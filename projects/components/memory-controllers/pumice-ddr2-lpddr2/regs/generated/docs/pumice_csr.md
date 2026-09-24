@@ -1015,7 +1015,7 @@ further amortisation while costing read forward progress.</p>
 | 9:8 |     ways     |  rw  | 0x0 |  — |
 |13:10|     sets     |  rw  | 0x0 |  — |
 |15:14|     RSVD     |   r  | 0x0 |  — |
-|31:16|reset_interval|  rw  | 0x0 |  — |
+|31:16|reset_interval|  rw  |0x100|  — |
 
 #### miss_thresh field
 
@@ -1035,7 +1035,7 @@ further amortisation while costing read forward progress.</p>
 
 #### reset_interval field
 
-<p>Epoch length: counters reset every N cycles (0=never)</p>
+<p>Epoch length: counters reset every N cycles. 0 = never, which DISABLES the only decay path and latches modes 6/7 permanently closed -- do not use (see the note above).</p>
 
 ## OBS_ROW_HIT register file
 

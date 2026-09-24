@@ -2582,7 +2582,7 @@ module pumice_csr (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.PAGE_RBL_CFG.reset_interval.value <= 16'h0;
+            field_storage.PAGE_RBL_CFG.reset_interval.value <= 16'h100;
         end else begin
             if(field_combo.PAGE_RBL_CFG.reset_interval.load_next) begin
                 field_storage.PAGE_RBL_CFG.reset_interval.value <= field_combo.PAGE_RBL_CFG.reset_interval.next;

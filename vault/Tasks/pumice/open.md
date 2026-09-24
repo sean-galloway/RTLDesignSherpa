@@ -26,6 +26,33 @@ register, then re-run the mutation — `wr_batch_max=0` MUST fail the repro
 (~347s timeout) or the knob is decorative. Until then do not tune this field on
 silicon.
 
+**2026-09-23 — STRONG CANDIDATE ROOT CAUSE FOUND, and it is not
+`csr_write_field`.** Found while regenerating registers for [[PUMICE-013]]:
+`dv/tbclasses/pumice_regmap.py` is a SECOND generated copy of the pumice
+regmap, and it had never been regenerated after `16eda8ed7` added the field.
+It is the map the component TBs load (`pumice_top_csr_tb.py:132`,
+`pumice_top_tb.py:57`), and in the stale copy:
+
+- `wr_batch_max` **did not exist at all**;
+- `RSVD` spanned **31:16**, i.e. straight across the new field's bits;
+- the register default read `0x00000102` instead of `0x00100102`.
+
+Any read-modify-write seeded from that map therefore writes ZEROS over
+`[23:16]`, which is exactly the "wrote the whole register" signature the task
+describes — no defect in `csr_write_field` required. The stale copy is
+regenerated and both in-tree maps now agree (`wr_batch_max` present,
+`RSVD` 31:24, default `0x00100102`).
+
+This is a CANDIDATE, not a closure: the task's own mutation is still the test.
+Re-run it against the corrected map — `wr_batch_max=0` must fail the repro at
+~347 s. If it now does, this was the cause and 047 closes; if it still passes,
+the clobber is real and lives elsewhere.
+
+The wider lesson is the duplicate: two generated copies of one regmap, only one
+of which the `-o` in the regen command targets, is precisely the orphan-drift
+trap in [[feedback_peakrdl_generate_bin]]. The second copy silently served a
+month-old register layout to every component test.
+
 ---
 
 ## PUMICE-048 — the +25-30% batching gain was measured with the broken drain
@@ -445,8 +472,38 @@ default and mutation-proven. Characterization/tuning split to
 **GAPS REPORTED BACK BY [[PUMICE-013]] 2026-09-23** (first board campaign;
 full tables under "PUMICE-013 RESULTS"):
 
-1. **P1 -- `PAGE_RBL_CFG.reset_interval` ships as 0 = "never", and that
-   default makes mode 6 unusable on streaming traffic.** RTL reset default is
+1. **P1 -- FIXED 2026-09-23. `PAGE_RBL_CFG.reset_interval` shipped as
+   0 = "never", which made modes 6/7 unusable on streaming traffic.**
+
+   **Mechanism (read from the RTL, not inferred from the sweep).** The epoch
+   tick is the ONLY writer of `r_cnt <= '0` in `pumice_rbl_table.sv`, and the
+   miss counters saturate UPWARD on every tag hit. Tags deliberately survive
+   an epoch so a row stays resident. With no epoch there is therefore no decay
+   path at all, and the predictor becomes a ONE-WAY RATCHET: once a row's
+   counter passes `miss_thresh` the row latches closed, the next access re-ACTs
+   that same resident row, that ACT is now a tag HIT so the counter climbs
+   further, and the row can never reopen. A single refresh-driven close is
+   enough to seed it; streaming then catches every row in turn. This is why a
+   sweep of the epoch looked like "0 is bad" -- the epoch was not tuning the
+   predictor, it was supplying the only escape from a self-reinforcing loop.
+
+   **Fix:** RDL reset default `16'h0` -> `16'd256` (generated RTL reset
+   `16'h0` -> `16'h100`), the RTL header comment corrected to say a nonzero
+   epoch is required by BOTH modes rather than just mode 7, and the host's
+   `CONFIGS["rbl_static"]` no longer pins 0 -- "static" there means mode 6's
+   static THRESHOLD, not the absence of epochs. 256 is the longest epoch
+   measured at full streaming bandwidth (16/64/256 clean, 1024 already
+   degrades to 207 MB/s as decay stops outpacing saturation).
+
+   **Verified on silicon after the fix:** `rbl_static` on incremental now
+   measures **554.1 MB/s** against 34.9 before -- identical to plain open page
+   -- with col_major unchanged at 163.8. Gates: pumice component 188 passed at
+   BOTH geometries; char-framework board gate green.
+
+   Original finding below.
+
+   **P1 (as filed) -- `PAGE_RBL_CFG.reset_interval` ships as 0 = "never", and
+   that default makes mode 6 unusable on streaming traffic.** RTL reset default is
    `16'h0` (pumice_csr.rdl:716). With the miss counters never decaying, the RBL
    predictor latches closed on streaming and cannot relearn: 34.9 MB/s vs
    553.8 for any nonzero epoch, a **15.8x regression**, with a 0.0% row-hit
@@ -826,6 +883,7 @@ per column op -- for a 0.0% hit rate on every family.
 | adapt_access (mode 5) | 554.1 | 163.8 | identical |
 | rbl_dyn (mode 7, epoch 256) | 549.7 | 163.8 | -0.8%, +33 ACT |
 | rbl_static (mode 6, epoch 0) | **34.9** | 163.8 | **-15.9x** |
+| rbl_static AFTER the fix (epoch 256) | 554.1 | 163.8 | identical |
 
 - **No predictor beats plain open page on these workloads.** adapt_time and
   adapt_access are free but inert here; rbl_dyn is marginally worse.

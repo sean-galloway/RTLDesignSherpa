@@ -512,7 +512,17 @@ CONFIGS: Dict[str, ControllerConfig] = {
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=24,
         order_mode=0, rd_in_order=True),
     # Sim-validated shapes: acc ctr_open_max=2/ctr_init=0 (test_pumice_core_acc),
-    # rbl miss_thresh=2 no epochs (test_pumice_core_rbl); rbl_dyn wants epochs.
+    # rbl miss_thresh=2 (test_pumice_core_rbl).
+    #
+    # BOTH rbl configs carry a NONZERO epoch. "static" here means mode 6's
+    # STATIC THRESHOLD (no hill-climb) -- it does not mean "no epochs", and
+    # running it without one is not a valid operating point: the epoch is the
+    # only decay path for the saturating miss counters, so reset_interval=0
+    # latches the predictor permanently closed. This config used to pin 0 and
+    # measured 34.9 MB/s against 553.8 on streaming, a 15.8x cliff
+    # (PUMICE-013; bin/seq_rbl_epoch.py sweeps it). 256 is the longest epoch
+    # measured at full bandwidth -- 1024 already degrades -- so it gives the
+    # predictor the widest evidence window that is still safe.
     "adapt_access": ControllerConfig(
         "adapt_access", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=5,
@@ -521,7 +531,7 @@ CONFIGS: Dict[str, ControllerConfig] = {
     "rbl_static": ControllerConfig(
         "rbl_static", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=6,
-        page_rbl={"miss_thresh": 2, "ways_log2": 0, "sets_log2": 0, "reset_interval": 0},
+        page_rbl={"miss_thresh": 2, "ways_log2": 0, "sets_log2": 0, "reset_interval": 256},
         order_mode=0, rd_in_order=True),
     "rbl_dyn": ControllerConfig(
         "rbl_dyn", scheme=dc.SCHEME_ROW_MAJOR,

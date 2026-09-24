@@ -26,9 +26,16 @@
 //
 // rbl_dyn (dyn_en_i): hill-climb the threshold once per epoch on the measured
 // page-hit fraction. Direction memory: keep stepping the way quality improved,
-// reverse when it worsened; threshold clamped to [1, 255]. With
-// reset_interval == 0 there are no epochs, so no adaptation (and no counter
-// clears) — program a nonzero epoch for mode 7.
+// reverse when it worsened; threshold clamped to [1, 255].
+//
+// A NONZERO EPOCH IS REQUIRED BY BOTH MODES, not just mode 7. The epoch tick
+// is the only writer of `r_cnt <= '0`, and the counters saturate upward on
+// every tag hit, so reset_interval == 0 leaves no decay path: a row whose
+// counter passes the threshold latches closed, the next access re-ACTs that
+// same resident row, that ACT is now a tag HIT so the counter climbs higher
+// still, and the row never reopens. Measured cost of the old 0 default on
+// the board: 34.9 vs 553.8 MB/s on streaming, 15.8x (PUMICE-013,
+// bin/seq_rbl_epoch.py). The CSR default is now 256.
 
 `timescale 1ns / 1ps
 
