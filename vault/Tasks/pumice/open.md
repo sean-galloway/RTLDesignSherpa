@@ -778,7 +778,7 @@ template for what a good characterization finding looks like).
 
 ---
 
-## PUMICE-013 RESULTS -- board campaign 2026-09-23
+### PUMICE-013 RESULTS -- board campaign 2026-09-23
 
 Run on the Nexys A7 at 75 MHz, existing 2026-09-21 bitstream (no rebuild: the
 telemetry counters predate it by a month). `run_smoke.py --sequences init char`
