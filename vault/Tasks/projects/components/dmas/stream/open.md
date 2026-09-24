@@ -260,30 +260,3 @@ TASK-073 monitor fix. Neither layer has a content check, which is what
 [[generated-rtl-discipline]] prescribes. See also the `check-flat` target
 `formal/FORMAL_TODO.md` already proposes.
 
-## TASK-089 — bring the RLB blocks under the .rdl regen gate
-**Status:** open 2026-09-24  **Priority:** Medium
-
-[[TASK-088]] covered 9 RDLs but not retro_legacy_blocks, which has a
-different shape: those blocks use `--copy-rtl`, which flat-copies the
-generated `.sv`/`.svh` out of the generated tree into `rtl/<block>/`. So the
-artifacts live in the RTL tree, not a `generated/` root, and the compare set
-must include the COPIES -- comparing only a generated root would check
-nothing.
-
-Per `projects/components/retro_legacy_blocks/CLAUDE.md`, the documented
-invocation is:
-
-```
-python $REPO_ROOT/bin/peakrdl_generate.py {block}_regs.rdl --copy-rtl ../../rtl/{block}
-```
-
-Blocks (RDL under `rdl/<block>/`, copies under `rtl/<block>/`): gpio, hpet,
-ioapic, pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550. Several also
-have a `<block>_regmap.py` in the RTL tree with no `generated/` counterpart,
-which needs its own `--regmap-output` entry.
-
-**Do not guess the invocation.** Verify each block the same way TASK-088 did:
-regenerate into a scratch dir, require byte-for-byte reproduction of what is
-committed, and only then add the entry. Any block whose committed `.sv` turns
-out to be hand-edited needs the semantic path or exclusion -- ddr2_char's
-`harness_csr.sv` was exactly that case and is deliberately regmap-only.
