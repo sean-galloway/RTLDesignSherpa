@@ -3,58 +3,45 @@ title: RAPIDS tasks
 summary: Task rollup for the RAPIDS DMA component (projects/components/dmas/rapids).
 ---
 
-# RAPIDS tasks
+# projects/components/dmas/rapids — task rollup
 
-**Next ID: TASK-087** — never recycle a number, even when its task closed.
+**Every item is its own file**, `<ID>.md`, filed under the directory for its
+state (`open/`, `active/`, `closed/`, `dropped/`). Moving an item between states
+is `git mv`, so an item is in exactly one state by construction.
 
 ## Lanes
 
-This area tracks three kinds of work, each a directory with its own INDEX and
-its own ID sequence. **Every item is its own file**, `<ID>.md`, filed under
-the directory for its state (`open/`, `active/`, `closed/`, `dropped/`).
-Pick the lane before filing:
+| Lane | For | Open | Active | Closed | Dropped |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | planned work we decided to do | 4 | 0 | 3 | 0 |
+| [bug/](bug/INDEX.md) | a defect with a reproduction | 1 | 0 | 2 | 0 |
+| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 2 | 0 | 1 | 0 |
 
-| Lane | For | Next ID |
-|---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | `TASK-001` |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | `BUG-001` |
-| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | `ISSUE-001` |
+Open counts include the reserved `-000` template in each lane, which is never a
+real item. **Each lane carries its own `Next ID`** — see the lane INDEXes.
 
-**The pages at this level are the LEGACY task lane.** They are frozen: close
-them out where they stand, and do not add to them. New work of any kind goes in
-a lane above. See [the convention](../../../../INDEX.md) for the full definitions.
+IDs are scoped to THIS area AND its lane: RAPIDS `BUG-001` and STREAM `BUG-001`
+are different bugs. Cite one from outside as "RAPIDS BUG-001".
 
+## Renamed 2026-09-24
 
-Task numbers are scoped to THIS area. The same number exists in other areas and that is expected, not a collision -- amba's TASK-080 and this one are different tasks, and the area is what tells them apart. Cite one as "RAPIDS TASK-080" when writing outside this file.
+Everything moved into the lanes and was renumbered into per-lane sequences.
+`open.md` and `closed.md` are now pointers and take no new items. Old numbers
+appear in commit messages and handbook notes, so the map is kept:
 
-Task tracking for the RAPIDS (beats) DMA component, nested under
-`projects/components/dmas/` to mirror the repo path. Lifecycle pages:
-[open](open.md) · active · [closed](closed.md) · dropped (created when first needed).
-Convention: [Tasks](../../../../INDEX.md).
+| Was | Is |
+|---|---|
+| `RAPIDS-OBS` | [TASK-001](task/open/TASK-001.md) |
+| `RAPIDS-KMAP` | [TASK-002](task/open/TASK-002.md) |
+| `TASK-080` | [TASK-003](task/open/TASK-003.md) |
+| `TASK-086` | [ISSUE-001](issue/open/ISSUE-001.md) |
+| `TASK-057` | [TASK-004](task/closed/TASK-004.md) |
+| `TASK-084` | [TASK-005](task/closed/TASK-005.md) |
+| `TASK-083` | [TASK-006](task/closed/TASK-006.md) |
+| `TASK-081` | [BUG-001](bug/closed/BUG-001.md) |
+| `TASK-082` | [BUG-002](bug/closed/BUG-002.md) |
+| `TASK-085` | [ISSUE-002](issue/closed/ISSUE-002.md) |
 
-## Open (not started)
-- **TASK-086** — after TASK-082, snkGB/s is set by ingress utilisation (which
-  includes the arm dead zone), not the sink datapath rate. Decide what the
-  column should mean.
-
-## Closed
-
-- **TASK-057** — register-map hygiene enforced: harness kick CSRs by name,
-  kick-proves-fetch in the top tests, regmap verified regen-clean. Done 2026-09-23.
-- **TASK-081** — the board kick sequencer never wrote KICK_ENABLE. Fixed and
-  board-confirmed 2026-09-22: 8 ch x 8 beats OVERALL PASS, AXI4-wr prod=64, all
-  16 CRCs matching golden. See [closed](closed.md).
-- **TASK-084** — one RTL harness: moved the host path (UART/CSRs/kick sequencer)
-  down into `rapids_char_harness` so `verify-sim` reaches the launch path, per
-  the STREAM shape. 104 ports -> 7; TB 738 -> 225 lines by reusing the board's
-  own campaign. Re-validated sim + board, behaviour byte-identical.
-- **TASK-083** — re-measured the beat-count knee: GONE. 28/28 board configs pass
-  1..4096 beats at 8ch, including every point July 2026-07-15 failed.
-- **TASK-082** — sink-ingress meter under-counted by min(dead_zone, total); gave
-  `s_axis` its own window opened at ARM. Board-confirmed: shortfall 190 -> 0 at
-  every size, other meters byte-identical.
-- **TASK-085** — bp-on runs now flagged `perf_valid=false` and printed as `n/m`
-  instead of a bogus 0.00 GB/s. Board-validated; backward compatible.
-
-The component's old `TASKS.md` / `rapids_beats_mas/TODO` next to the code are
-still to be folded into this area per the one rule (no task files beside code).
+`RAPIDS-KMAP` is blocked on [[TOOLING-KMAP]] and `TASK-003` on the qc/humanize
+pass; both stay in `open/` with the blocker stated in the body, since the lanes
+carry no `deferred/` state.
