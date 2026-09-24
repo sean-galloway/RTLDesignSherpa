@@ -340,12 +340,18 @@ MANIFEST = [
             ("projects/components/retro_legacy_blocks/rtl/uart_16550/uart_16550_regs_pkg.sv", "rtl/uart_16550_regs_pkg.sv"),
         ],
     },
-    # pit_8254 has a tracked pit_regmap.py, but it is NOT listed here: it was
-    # produced by the SUPERSEDED bin/peakrdl_to_regmap.py and disagrees with
-    # the RDL on 14 fields (reserved bits marked sw='rw' where the RDL says
-    # 'r'; four PIT_CONTROL fields 'rw' where PeakRDL emits 'wo'). Fixing it
-    # changes what DV believes about those fields, so it needs its own
-    # before/after evidence rather than riding along in a tooling change.
+    # pit_8254's regmap was produced by the SUPERSEDED bin/peakrdl_to_regmap.py
+    # and disagreed with its RDL on 14 fields (reserved bits sw='rw' where the
+    # RDL says 'r'; four PIT_CONTROL fields 'rw' where PeakRDL emits 'wo').
+    # Regenerated and gated -- see RLB-017.
+    {
+        "name": "pit_8254 regmap (RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/pit_8254/pit_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/pit_8254/pit_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": "pit_regmap.py",
+        "compare": [("projects/components/retro_legacy_blocks/rtl/pit_8254/pit_regmap.py", "pit_regmap.py")],
+    },
     {
         "name": "hpet regmap (RLB)",
         "rdl": "projects/components/retro_legacy_blocks/rdl/hpet/hpet_regs.rdl",
