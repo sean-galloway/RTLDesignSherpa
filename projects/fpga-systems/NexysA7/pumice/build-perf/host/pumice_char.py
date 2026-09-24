@@ -871,6 +871,27 @@ class CharRecord:
     # Stall-cause attribution over the same window (TASK-006).
     rd_stalls: Optional["StallStats"] = None
 
+    @property
+    def peak_mb_s(self) -> float:
+        """Theoretical bus ceiling: one AXI beat per controller clock.
+
+        Reported BESIDE every bandwidth number, never on its own. A bare MB/s
+        is unreadable without it -- 98.3 looks like a broken controller and
+        568.9 looks fine, when the first is one direction of a concurrent run
+        on the deliberately page-hostile family and the second is 95% of what
+        the bus can physically carry. Sean, 2026-09-24: "list the MB/s then the
+        theoretical max MB/s so I can see the context."
+        """
+        return (1 << self.scenario.axi_size) * self.clk_mhz
+
+    @property
+    def rd_frac_peak(self) -> float:
+        return self.rd_bw_mb_s / self.peak_mb_s if self.peak_mb_s else 0.0
+
+    @property
+    def wr_frac_peak(self) -> float:
+        return self.wr_bw_mb_s / self.peak_mb_s if self.peak_mb_s else 0.0
+
     # ---- derived paging ---------------------------------------------------
     @property
     def rd_acts_per_txn(self) -> Optional[float]:
@@ -1722,8 +1743,8 @@ def format_table(recs: List[CharRecord]) -> str:
     # bus meters, and are the columns that say WHY a config won. '-' means the
     # telemetry was not readable or counted nothing -- never silently 0.
     hdr = (f"{'config':<16} {'scenario':<24} {'ok':>3} {'blen':>4} {'gap':>3} "
-           f"{'id':>4} {'wr_MB/s':>9} {'wr_util':>7} {'rd_MB/s':>9} "
-           f"{'rd_util':>7} {'rd_lat':>7} {'hit%':>6} {'ACT/txn':>8} "
+           f"{'id':>4} {'wr_MB/s':>9} {'rd_MB/s':>9} {'peak':>7} {'rd%pk':>6} "
+           f"{'wr_util':>7} {'rd_util':>7} {'rd_lat':>7} {'hit%':>6} {'ACT/txn':>8} "
            f"{'ACT':>7} {'PRE':>7} {'REF~win':>8} {'thrash':>7}")
     print(hdr, file=buf)
     print("-" * len(hdr), file=buf)
@@ -1736,8 +1757,9 @@ def format_table(recs: List[CharRecord]) -> str:
         num = lambda v, w: f"{v:>{w}}" if st is not None else f"{'-':>{w}}"
         print(f"{r.config:<16} {sc.name:<24} {'Y' if r.ok else 'N':>3} "
               f"{sc.burst_len:>4} {sc.gap:>3} {id_name.get(sc.id_mode, '?'):>4} "
-              f"{r.wr_bw_mb_s:>9.1f} {r.wr_meter.util:>7.1%} "
-              f"{r.rd_bw_mb_s:>9.1f} {r.rd_meter.util:>7.1%} "
+              f"{r.wr_bw_mb_s:>9.1f} {r.rd_bw_mb_s:>9.1f} "
+              f"{r.peak_mb_s:>7.0f} {r.rd_frac_peak:>6.1%} "
+              f"{r.wr_meter.util:>7.1%} {r.rd_meter.util:>7.1%} "
               f"{r.rd_avg_latency_cyc:>7.1f} "
               f"{pct(st.row_hit_rate if st else None)} "
               f"{(f'{r.rd_acts_per_txn:>8.2f}' if r.rd_acts_per_txn is not None else f'{chr(45):>8}')} "
