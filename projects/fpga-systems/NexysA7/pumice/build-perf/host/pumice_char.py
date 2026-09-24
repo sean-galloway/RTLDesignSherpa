@@ -615,15 +615,23 @@ class PageStats:
 
     2. THE SCALE IS PER COLUMN OP, NOT PER AXI BURST, and that sets a FLOOR on
        the hit rate that is easy to mistake for a good result. One AXI burst
-       spans several column ops (measured on the board build: AxLEN=8 -> 64 B
-       at 16 B per BL8 x16 column op = 4 col ops), and every column op after
-       the first in a burst lands on the row its predecessor just opened. So a
-       workload that misses on EVERY burst still reports 1 - 1/4 = 75% hit.
-       Under open page at AxLEN=8 the meaningful range is 75%..100%, not
-       0%..100%; only close page reaches 0%, because it auto-precharges after
-       each column op. When comparing paging MODES, read `acts` (or ACT per
-       transaction) rather than the rate -- the rate compresses exactly the
-       differences the sweep is trying to resolve.
+       spans several column ops, and every column op after the first lands on
+       the row its predecessor just opened, so a workload that misses on EVERY
+       burst still reports a high rate.
+
+       THE FLOOR MOVES WITH THE DRAM BURST LENGTH, so it is not a constant to
+       memorise:
+         board, BL4 x16 (8 B/col op): AxLEN=8 -> 64 B -> 8 col ops, floor 87.5%
+         sim default, BL8 (16 B/col op):        -> 4 col ops, floor 75.0%
+       Both measured. The board run confirms it exactly -- col_major_interleaved
+       reads 87.5% with ACT/txn 1.00 ("every burst missed"), and close page
+       reads 0.0% with ACT/txn 8.17, i.e. one activate per column op.
+
+       Only close page reaches 0%, because it auto-precharges after each column
+       op. So when comparing paging MODES, read ACT PER TRANSACTION
+       (`CharRecord.rd_acts_per_txn`), not the rate: ACT/txn is invariant to
+       burst length, while the rate's floor is not, and the rate compresses
+       exactly the differences the sweep exists to resolve.
 
     3. The counters are FREE-RUNNING and clear only on `aresetn`. `clear_stats()`
        is the HARNESS clear (meters, trace pointer) and does not touch them, and
@@ -637,7 +645,10 @@ class PageStats:
     empty:   int        # PAGE_STATS_EMPTY -- ACT to an idle bank (cold open)
     acts:    int        # SCHED_STATS_ACT  -- == miss + empty
     pres:    int        # SCHED_STATS_PRE  -- PRE + PREA
-    refs:    int        # REF_STATS_REF    -- REFab + REFpb
+    refs:    int        # REF_STATS_REF    -- REFab + REFpb (SEE THE WARNING)
+    # tREFI in MC cycles, as programmed. Carried so `refs` can be judged
+    # against the window it is quoted beside -- see refs_are_wall_clock.
+    t_refi:  int = 0
 
     def __sub__(self, other: "PageStats") -> "PageStats":
         """Delta across a phase. 32-bit counters, so wrap is masked rather than
@@ -646,7 +657,8 @@ class PageStats:
         m = lambda a, b: (a - b) & 0xFFFF_FFFF
         return PageStats(m(self.col_ops, other.col_ops), m(self.miss, other.miss),
                          m(self.empty, other.empty), m(self.acts, other.acts),
-                         m(self.pres, other.pres), m(self.refs, other.refs))
+                         m(self.pres, other.pres), m(self.refs, other.refs),
+                         t_refi=self.t_refi or other.t_refi)
 
     @property
     def row_hit_rate(self) -> Optional[float]:
@@ -673,6 +685,28 @@ class PageStats:
             return None
         return self.miss / self.acts
 
+    def refs_in_window(self, window_cycles: int) -> Optional[float]:
+        """Refreshes ATTRIBUTABLE to a measured window of `window_cycles`.
+
+        `refs` itself cannot be: refresh runs off a free-running tREFI timer,
+        so the raw delta counts every microsecond between the two host reads
+        -- including the UART round trips, which dominate. Measured on the
+        board: a 186 us workload window carried a raw delta of 61446, implying
+        479 ms, a 2584x overstatement, and the number was near-identical across
+        every config precisely because it was timing the HOST, not the DRAM.
+        The command counters (col_ops/acts/pres) do not have this problem --
+        nothing issues DRAM commands while the host is idle.
+        """
+        if self.t_refi <= 0 or window_cycles <= 0:
+            return None
+        return window_cycles / self.t_refi
+
+    def refs_are_wall_clock(self, window_cycles: int) -> bool:
+        """True when the raw refresh delta is dominated by host idle time and
+        must NOT be quoted as the workload's refresh cost."""
+        est = self.refs_in_window(window_cycles)
+        return est is not None and self.refs > 2 * max(est, 1.0)
+
     @property
     def counted(self) -> bool:
         return self.col_ops > 0 or self.acts > 0 or self.refs > 0
@@ -690,6 +724,7 @@ def read_page_stats(drv: DDR2CharDriver) -> PageStats:
         acts=   int(f("SCHED_STATS_ACT",  "VAL")),
         pres=   int(f("SCHED_STATS_PRE",  "VAL")),
         refs=   int(f("REF_STATS_REF",    "VAL")),
+        t_refi= int(f("TIMINGS_RFC_REFI",  "tREFI")),
     )
 
 
@@ -1491,6 +1526,25 @@ def summarize(recs: List[CharRecord]) -> List[str]:
                      "this run size (meter window >> timer run) -- treat rd/wr "
                      "util as unreliable; bandwidth (timer-based) is fine. Raise "
                      "--char-scale (~1000 on the board) for meaningful util.")
+    # REF is the one counter that free-runs on a timer rather than on DRAM
+    # commands, so its raw delta measures the HOST's round trips between the
+    # two reads, not the workload. The table prints the window ESTIMATE
+    # (window_cycles / tREFI); say so, and say when the raw delta confirms the
+    # contamination, so nobody quotes the raw number later.
+    _wc = [r for r in recs
+           if r.rd_stats is not None and r.rd_stats.refs_are_wall_clock(r.rd_cycles)]
+    if _wc:
+        worst = max(_wc, key=lambda r: r.rd_stats.refs)
+        est = worst.rd_stats.refs_in_window(worst.rd_cycles) or 1.0
+        lines.append(
+            f"[NOTE] REF~win is refreshes ATTRIBUTABLE to the measured window "
+            f"(window_cycles/tREFI), not the raw counter delta. The raw delta "
+            f"free-runs on tREFI and so times the HOST: {len(_wc)}/{len(recs)} "
+            f"points are host-dominated (worst {worst.config}/"
+            f"{worst.scenario.name}: raw {worst.rd_stats.refs} vs {est:.0f} in "
+            f"window, {worst.rd_stats.refs/est:.0f}x). Grade refresh MODES on "
+            f"bandwidth and ACT/PRE, never on the raw refresh count.")
+
     # Anti-vacuity on the telemetry itself: a sweep whose whole point is the
     # ACT/PRE/hit-rate comparison must say so loudly when it collected none,
     # rather than printing a table of '-' that skims as "all the same".
@@ -1515,7 +1569,7 @@ def format_table(recs: List[CharRecord]) -> str:
     hdr = (f"{'config':<16} {'scenario':<24} {'ok':>3} {'blen':>4} {'gap':>3} "
            f"{'id':>4} {'wr_MB/s':>9} {'wr_util':>7} {'rd_MB/s':>9} "
            f"{'rd_util':>7} {'rd_lat':>7} {'hit%':>6} {'ACT/txn':>8} "
-           f"{'ACT':>7} {'PRE':>7} {'REF':>5} {'thrash':>7}")
+           f"{'ACT':>7} {'PRE':>7} {'REF~win':>8} {'thrash':>7}")
     print(hdr, file=buf)
     print("-" * len(hdr), file=buf)
     id_name = {dc.ID_MODE_FIXED: "fix", dc.ID_MODE_COUNTER: "cnt",
@@ -1533,7 +1587,7 @@ def format_table(recs: List[CharRecord]) -> str:
               f"{pct(st.row_hit_rate if st else None)} "
               f"{(f'{r.rd_acts_per_txn:>8.2f}' if r.rd_acts_per_txn is not None else f'{chr(45):>8}')} "
               f"{num(st.acts if st else 0, 7)} {num(st.pres if st else 0, 7)} "
-              f"{num(st.refs if st else 0, 5)} "
+              f"{(f'{st.refs_in_window(r.rd_cycles):>8.1f}' if st is not None and st.refs_in_window(r.rd_cycles) is not None else f'{chr(45):>8}')} "
               f"{pct(st.miss_frac if st else None)}", file=buf)
     return buf.getvalue()
 
