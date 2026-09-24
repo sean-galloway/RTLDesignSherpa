@@ -442,6 +442,34 @@ Related: [[project_pumice_read_ceiling_fixed]],
 default and mutation-proven. Characterization/tuning split to
 [[PUMICE-013]]. Holds open only for mechanism gaps 013 reports back.
 
+**GAPS REPORTED BACK BY [[PUMICE-013]] 2026-09-23** (first board campaign;
+full tables under "PUMICE-013 RESULTS"):
+
+1. **P1 -- `PAGE_RBL_CFG.reset_interval` ships as 0 = "never", and that
+   default makes mode 6 unusable on streaming traffic.** RTL reset default is
+   `16'h0` (pumice_csr.rdl:716). With the miss counters never decaying, the RBL
+   predictor latches closed on streaming and cannot relearn: 34.9 MB/s vs
+   553.8 for any nonzero epoch, a **15.8x regression**, with a 0.0% row-hit
+   rate and 8.17 ACT/txn -- byte-for-byte close-page behaviour. Isolated by
+   sweeping ONLY that field (`bin/seq_rbl_epoch.py`, reproduced twice):
+   epoch 0 -> 34.9; epoch 1/16/64/256 -> 553.4-553.8; epoch 1024 -> 207.2.
+   col_major measures 163.8 MB/s at EVERY epoch -- it genuinely misses, so the
+   predictor is right to close there, which is why this is invisible to a
+   page-hostile-only sweep. **Recommend a nonzero reset default in [16, 256].**
+2. **P2 -- a windowed or clearable refresh counter.** `REF_STATS_REF`
+   free-runs on tREFI, so a host-bracketed delta times the host's UART round
+   trips rather than the workload: a 186 us window measured a raw delta of
+   61446 (479 ms implied, **2584x**). Worked around host-side in 71c4fb030
+   (report window_cycles/tREFI and flag contamination), but axis 3 is
+   estimated rather than measured until the counter can be scoped to a window.
+   The command counters do not have this problem -- nothing issues DRAM
+   commands while the host is idle.
+3. **P3 -- config-table confounds, host-side but they distort the axes.**
+   `CONFIGS["inorder"]` pairs order_mode=1 with CLOSE page, so the order axis
+   reads as a 16x deficit when in-order actually costs 3.9x at equal page
+   policy; and all four axis-3 refresh configs pin CLOSE page, measuring
+   refresh in the ~34 MB/s regime where it matters least.
+
 **Progress:**
 - Step 1 (e64c824b): full mode-select CSR surface + *_STATS telemetry
   registers, defaults bit-identical.
@@ -639,7 +667,13 @@ default and every mechanism mutation-proven at the fub level.
 ---
 
 ## PUMICE-013 — characterize + tune the advanced modes (all three axes)
-**Status:** open 2026-08-27 (split out of PUMICE-006 at Sean's direction —
+**Status:** open 2026-08-27, FIRST CAMPAIGN LANDED 2026-09-23 — all three axes
+swept one-at-a-time on the board, results and recommended defaults in
+"PUMICE-013 RESULTS" below. Four mechanism gaps reported to [[PUMICE-006]],
+one of them a shipped RTL default that costs 15.8x on streaming. Still open
+for the axis PAIRS, the axis-3 re-run under open page, and the scheduler
+sub-knobs that were not reached (listed under "What is NOT yet characterized").
+(split out of PUMICE-006 at Sean's direction —
 "move characterization to its own task as that is a big one")
 
 PUMICE-006 delivered the MECHANISMS: every mode of all three axes is
@@ -674,10 +708,16 @@ of it.
    AMBA-HISTCH1 accounting error was fixed at source (44ba2eea3) rather
    than by retiring them. The 1:1 check is measured clean at board
    geometry -- multiid hist total 64/64. Nothing blocks this work.
-3. The interesting telemetry already exists in-controller and should be
-   the primary signal per Sean's direction (cheap counters stay in
-   pumice): PAGE_STATS hit/miss/empty, SCHED_STATS act/pre,
-   REF_STATS_REF, OBS_ROW_HIT per bank, refresh-defer histograms.
+3. DONE 2026-09-23 (226d8cf68). The in-controller telemetry is now READ
+   by the host -- it never was; `grep hit_rate` across all three tiers was
+   empty, so two of the four deliverables were unreportable. PAGE_STATS /
+   SCHED_STATS / REF_STATS now land in every CharRecord as a per-phase
+   delta and print in the table. Three traps documented in the PageStats
+   docstring: PAGE_STATS_HIT counts EVERY column op (not hits), the
+   counters free-run so they must be diffed, and the hit-rate scale is
+   floored by burst length (87.5% on the board's BL4) -- compare
+   `rd_acts_per_txn`, not the rate. OBS_ROW_HIT per bank and the
+   refresh-defer histograms are still unread.
    [[PUMICE-015]] (greppable structure trackers) is the sim-side
    companion for understanding *why* a setting wins.
 4. Board and sim disagree by construction — the DFI loopback models no
@@ -735,6 +775,123 @@ with `--char-configs` / `--char-level` / `--char-scale`, and the board
 recipe in [[project_pumice_board_perf_char]] (the runtime page-policy
 result — OPEN giving 8.8x on streaming, 12.7 -> 112 MB/s — is the
 template for what a good characterization finding looks like).
+
+---
+
+## PUMICE-013 RESULTS -- board campaign 2026-09-23
+
+Run on the Nexys A7 at 75 MHz, existing 2026-09-21 bitstream (no rebuild: the
+telemetry counters predate it by a month). `run_smoke.py --sequences init char`
+over the `paging_grade` / `paging` / `order` / `refresh` profiles at
+`--txn-scale 1000` (txn_count 8000, 512 KB moved per scenario), plus a focused
+`rbl_epoch` sweep. Every point `ok=True`, 0 beats mismatched.
+
+The in-controller telemetry that makes this a characterization rather than a
+scoreboard landed first (226d8cf68): nothing on the host had ever read
+PAGE_STATS / SCHED_STATS / REF_STATS. Read the PageStats docstring before
+quoting any number from these tables -- the hit-rate scale has a floor that
+moves with burst length, which is why ACT/txn is the column to compare modes on.
+
+### Axis 1 -- scheduling order
+
+| config | order_mode | page | incremental | col_major | ACT/txn (inc) |
+|---|---|---|---|---|---|
+| open_page | fr_fcfs (0) | OPEN | **554.1** | **163.8** | 0.05 |
+| age_thr | age_threshold (3) | OPEN | **554.1** | **163.8** | 0.05 |
+| inorder_open | in_order (1) | OPEN | 142.1 | 94.2 | 0.09 |
+| inorder | in_order (1) | CLOSE | 34.0 | 33.9 | 8.17 |
+
+- **age_threshold is FREE.** Bit-identical to fr_fcfs on both families -- same
+  bandwidth, same ACT (368 / 8399). At `age_thresh=8` the starvation bound
+  never fires on this traffic, so it costs nothing and buys a bound.
+  **Recommended default.**
+- **In-order costs 3.9x on streaming** (554.1 -> 142.1) and 1.7x on
+  page-hostile (163.8 -> 94.2). That is the price of giving up reordering,
+  measured at equal page policy.
+- **`inorder` is a confounded datapoint** -- the CONFIGS entry pairs
+  order_mode=1 with CLOSE page, so its apparent 16x deficit is mostly the page
+  policy. Compare `inorder_open` vs `open_page`; the raw `inorder` row will
+  mislead anyone reading the order axis.
+
+### Axis 2 -- paging
+
+Open vs close, the headline: **16.3x on streaming** (554.1 vs 34.0), **4.8x on
+page-hostile** (163.8 vs 33.9). Close page pays 8.17 ACT/txn -- one activate
+per column op -- for a 0.0% hit rate on every family.
+
+| predictor (all on OPEN page) | incremental | col_major | vs plain open |
+|---|---|---|---|
+| plain open_page | 554.1 | 163.8 | -- |
+| adapt_time (mode 4) | 554.1 | 163.8 | identical |
+| adapt_access (mode 5) | 554.1 | 163.8 | identical |
+| rbl_dyn (mode 7, epoch 256) | 549.7 | 163.8 | -0.8%, +33 ACT |
+| rbl_static (mode 6, epoch 0) | **34.9** | 163.8 | **-15.9x** |
+
+- **No predictor beats plain open page on these workloads.** adapt_time and
+  adapt_access are free but inert here; rbl_dyn is marginally worse.
+- **rbl_static collapses streaming to close-page behaviour.** 34.9 MB/s, 0.0%
+  hit, 8.17 ACT/txn -- byte-for-byte the close-page numbers. See the mechanism
+  finding below.
+
+### Axis 3 -- refresh
+
+| config | incremental | col_major | ACT/txn | PRE |
+|---|---|---|---|---|
+| slow_refresh (tREFI 0x7FFF) | **36.3** | **35.3** | 8.00 | 0 |
+| baseline (tREFI 585) | 34.9 | 33.9 | 8.16 | 1312 |
+| refresh_credit (postpone/pullin 8) | 34.9 | 33.9 | 8.16 | 1314 |
+| fast_refresh (tREFI 256) | 33.7 | 32.7 | 8.27 | 2134 |
+
+- Refresh interval spans **~8% fast-to-slow**. slow_refresh reaches exactly
+  8.00 ACT/txn with **PRE=0** -- no refresh-induced precharges at all.
+- **`refresh_credit` has no measurable effect** on this traffic (34.9/33.9,
+  within noise of baseline, ACT within 2).
+- **CAVEAT, and it limits the axis:** all four refresh configs pin CLOSE page,
+  so refresh is measured in the ~34 MB/s regime where it matters least. Refresh
+  interference should be re-measured under OPEN page at ~554 MB/s, where the
+  same absolute stall is a far larger fraction. The config table needs
+  open-page refresh variants before axis 3 can be called characterized.
+
+### Recommended defaults per workload family
+
+| family | recommendation | measured |
+|---|---|---|
+| streaming (incremental, row_major) | open page + fr_fcfs **or** age_thr | 554-569 MB/s |
+| page-hostile (col_major) | open page + fr_fcfs; bank-interleave the map | 163.8 -> 229.3 MB/s |
+| mixed / latency-sensitive | open page + age_thr (free starvation bound) | 554.1 MB/s |
+| any | **never** rbl_static at the default epoch; in_order only if ordering is required | -- |
+
+### Mechanism gaps -> [[PUMICE-006]]
+
+1. **`PAGE_RBL_CFG.reset_interval` defaults to 0 = "never" and that default is
+   unusable on streaming.** RTL reset default is `16'h0` (pumice_csr.rdl:716).
+   With counters that never decay, the RBL predictor latches closed on
+   streaming traffic and cannot relearn. Isolated by sweeping only that field
+   (`seq_rbl_epoch`, reproduced twice):
+   `epoch 0 -> 34.9 MB/s / 0.0% hit`; `epoch 1, 16, 64, 256 -> 553.4-553.8 /
+   99.4%`; `epoch 1024 -> 207.2 / 88.2%`. **15.8x, and ANY nonzero epoch
+   repairs it.** col_major is 163.8 at every epoch -- it genuinely misses, so
+   the predictor is correct there, which is exactly why a col_major-only sweep
+   could not have found this. Recommend a nonzero reset default in [16, 256].
+2. **`CONFIGS["inorder"]` confounds order_mode with page policy** (see axis 1).
+3. **Axis-3 configs all pin CLOSE page** (see axis 3).
+4. **REF_STATS_REF is not window-attributable from the host.** It free-runs on
+   tREFI, so a host-bracketed delta times the UART round trips: a 186 us window
+   measured a raw delta of 61446 (479 ms implied, 2584x). Fixed host-side in
+   71c4fb030 -- the table reports window_cycles/tREFI and flags contamination --
+   but a windowed/clearable refresh counter in RTL would make axis 3 directly
+   measurable instead of estimated.
+
+### What is NOT yet characterized
+
+The sweeps above are one-axis-at-a-time against a fixed baseline, which is what
+the task prescribes. Not done: the promising PAIRS (order x paging, paging x
+refresh), the `SCHED_WR_WM` write-batching interaction (PUMICE-048 has its own
+board number to re-measure), `prio_sub` / `qos_en` / `row_sel` / `col_sel`,
+and the axis-3 re-run under open page. There is also no genuinely RANDOM family
+-- `col_major` is the page-hostile proxy -- so "random" in the workload table
+above is not directly measured.
+
 
 ## PUMICE-023 — the char-framework sim is the board gate and must run before any pumice RTL commit
 **Status:** open 2026-09-08  **Priority:** P1
