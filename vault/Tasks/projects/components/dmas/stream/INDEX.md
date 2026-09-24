@@ -40,8 +40,6 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
 - **TASK-091** (Medium) — stream_core's formal DEPS rotted behind the monitor
   rework; 3 missing modules added, a 4th is where the chain was stopped.
 
-- **TASK-092** (Medium) — datapath_wr_test proof FAILS (`ap_desc1_ready_state`)
-  now that it elaborates; FORMAL_TODO's PASS was against a 2-month-stale flat.
 
 - **TASK-090** (Medium) — `.sv2v_prep` holds 7 TRACKED generated files that
   `make clean` deletes; the mechanism behind the 376-insertion prep drift.
@@ -51,6 +49,10 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
   them to flatten the real module with sv2v, as done for repo-root formal.
 
 ## Closed (done)
+
+- **TASK-092** (Medium) — desc-ready property was stale, not an RTL bug: it
+  predated USE_RD_PREFETCH. Tightened on 3 harnesses; rapids/scheduler_beats
+  measured CORRECT and left alone. Done 2026-09-24.
 
 - **TASK-087** (Medium) — sv2v regen fixed: a missing `monitor_arbiter_pkg` in PKGS,
   then the `$display`/`$time` AST_AUTOWIRE. 4 units, not 2; Makefile-only.

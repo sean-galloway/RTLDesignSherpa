@@ -246,34 +246,11 @@ yosys (0 AST_AUTOWIRE). `make prove` fails at elaboration with
       See [[filelists]].
 - [ ] Then re-prove and record a REAL verdict.
 
-## TASK-092 — datapath_wr_test proof FAILS once it can finally elaborate
-**Status:** open 2026-09-24  **Priority:** Medium
-
-Uncovered by [[TASK-087]] + the dependency fixes in [[TASK-091]]. This unit
-could not build at all (missing `stream_run_addr_gen` -> `dma_address_gen`);
-with those added it elaborates, and the proof returns a genuine counterexample:
-
-```
-failed assertion formal_datapath_wr_test.ap_desc1_ready_state
-  at formal_datapath_wr_test.sv:255.13-259.14   step 4
-counterexample trace: datapath_wr_test_prove/engine_0/trace.vcd
-DONE (FAIL, rc=2)
-```
-
-**This is a REAL result, not a build artifact.** `formal/FORMAL_TODO.md` says so
-itself for this exact case: "If the proof fails after regeneration, that is a
-REAL result about the current design."
-
-**Why it went unnoticed:** the committed `datapath_wr_test_flat.v` was last
-written by a1760aaf6 (2026-07-17) -- the SAME commit that added the
-`stream_run_addr_gen` instantiation to `scheduler.sv`. So the flat has been
-stale since the moment the dependency appeared, and `formal/FORMAL_TODO.md`
-still lists this unit as `prove_boundary+prove_low8 PASS`. That PASS is a green
-recorded against a two-month-old artifact -- [[running-regressions]] in
-practice. The same caveat applies to `axi_write_engine_beats`, whose flat was
-also stale (Aug 9) though it re-proves PASS.
-
-**Do:**
-- [ ] Read the counterexample and decide: RTL defect, or a harness assumption
-      that went stale with the descriptor interface.
-- [ ] Do NOT weaken the property to make it pass without that decision.
+**Update 2026-09-24.** Two more Makefiles needed the same relocated modules
+while working [[TASK-092]]: `datapath_rd_test` (DEPS) and `scheduler` (whose
+`DEPS :=` was EMPTY, with the comment "scheduler is pure logic + FSM, no
+submodule instantiations" -- false since it gained `stream_run_addr_gen`).
+`scheduler` then needed the `gaxi_fifo_sync` closure (counter_bin,
+fifo_control) as well. Both now build and prove. stream_core remains the
+open case, and `formal/FORMAL_TODO.md` records a SECOND blocker behind the
+module rot: a "Yosys flatten name collision (2x axi4_master_rd)".

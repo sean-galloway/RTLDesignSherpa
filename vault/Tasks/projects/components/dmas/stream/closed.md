@@ -2,6 +2,90 @@
 
 # STREAM tasks — closed (done)
 
+## TASK-092 — datapath_wr_test proof FAILS once it can finally elaborate
+**Status:** CLOSED 2026-09-24  **Priority:** Medium
+
+**Verdict: stale HARNESS assumption, not an RTL defect.** The entry asked to
+decide between those two; the counterexample settles it.
+
+At step 4 the trace shows `descriptor_1_ready=1` while `sched_state_ch1 ==
+7'b0000100` = **CH_XFER_DATA** (`stream_pkg.sv:135`) -- neither CH_IDLE nor
+CH_NEXT_DESC. The RTL is right. `scheduler.sv:1080` pops the FIFO on THREE
+terms, not the two the property allowed:
+
+```systemverilog
+assign descriptor_ready = (r_current_state == CH_IDLE) ||
+                          (r_current_state == CH_NEXT_DESC) ||
+                          w_wr_advance;              // USE_RD_PREFETCH
+assign w_wr_advance = w_rd_prefetch_en && w_state_xfer_data && w_write_issued &&
+                      w_desc_chained && descriptor_valid;
+```
+
+`datapath_wr_test.sv` hardwires `.cfg_rd_prefetch_enable(1'b1)`, so the advance
+path is always reachable. The property was written 2026-04-12 (fb4870a4f),
+before prefetch landed -- stale, not wrong about the normal path.
+
+**Fix -- tightened, NOT weakened.** `w_wr_advance` implies BOTH CH_XFER_DATA and
+`descriptor_valid`, so CH_XFER_DATA is admitted ONLY with a descriptor present:
+
+```systemverilog
+!descriptor_N_ready || CH_IDLE || CH_NEXT_DESC ||
+(CH_XFER_DATA && descriptor_N_valid)
+```
+
+CH_FETCH_DESC / CH_COMPLETE / CH_ERROR stay forbidden, as does ready in
+CH_XFER_DATA with no descriptor. A hierarchical reference to `w_wr_advance`
+would be tighter still, but **0 of 352** harnesses in this repo use hier-refs,
+and sv2v renames the genvar (`_gv_i_3`), so the port-only form is the tightest
+thing expressible at this boundary. Assertion counts are unchanged (9/9, 7/7,
+12/12) -- no property was dropped to make a proof pass.
+
+**Scope was 3 harnesses, not 1** -- found by sweeping every harness containing
+the CH_NEXT_DESC constant:
+
+| harness | state | action |
+|---|---|---|
+| `stream/datapath_wr_test` | FAILED (the filed bug) | fixed, both channels |
+| `stream/datapath_rd_test` | FAILED (measured) | fixed, both channels |
+| `stream/scheduler` | FAILED (measured) | fixed + prefetch input CONNECTED |
+| `rapids/scheduler_beats` | **correct as written** | **left alone** |
+
+`rapids/scheduler_beats` matters: I predicted it was affected because RAPIDS was
+resynced from STREAM, and measuring proved me wrong. `scheduler_beats.sv:886`
+has only the two terms -- the beats scheduler never got prefetch. "Fixing" it
+would have WEAKENED a correct property. Inheritance was partial:
+`axi_write_engine_beats` took the `$display` block verbatim, the scheduler did
+not take prefetch.
+
+**A second defect in `formal_scheduler.sv`:** `cfg_rd_prefetch_enable` was left
+entirely UNCONNECTED on the DUT instantiation, so the port was undriven and the
+proof's meaning depended on how yosys treats an undriven input. Measured: it is
+FREE, so the solver drove it and P4 failed. It is now an explicit
+`(* anyseq *)` input. Same class as commit 8f1fc3e4c ("axi_monitor_filtered's
+proof was VACUOUS -- 16 unconnected inputs"). `cfg_sched_timeout_limit` is still
+unconnected there -- noted, does not affect this property.
+
+**Verification.**
+
+| unit | cover (non-vacuity) | prove depth 8 | prove full depth |
+|---|---|---|---|
+| `datapath_wr_test` | PASS, 5 covers (`cp_desc0_handshake` @ step 2) | **PASS** | depth 20, running |
+| `datapath_rd_test` | PASS, 4 covers | **PASS** | depth 20, running |
+| `scheduler` | PASS, 5 covers | **PASS** | depth 35, running |
+
+Depth 8 is twice the depth of the original step-4 counterexample and the runs
+COMPLETED, so the filed failure is definitively gone and not vacuous. The
+full-depth runs are still in flight and are the stronger bar -- **they had not
+returned when this was closed.** If one fails deeper it means a fourth ready
+term I did not find, and this reopens.
+
+**Dependency prerequisites** (see [[TASK-091]]): rd_test and scheduler could not
+elaborate at all until their Makefiles gained `dma_address_gen` /
+`stream_run_addr_gen` (relocated to `misc/rtl` by 4aeaf3e63) plus, for
+scheduler, the `gaxi_fifo_sync` closure.
+
+---
+
 ## TASK-087 — sv2v regen: TWO stacked bugs, and `$display` was only the second
 **Status:** CLOSED 2026-09-24  **Priority:** Medium
 

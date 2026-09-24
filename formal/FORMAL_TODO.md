@@ -407,6 +407,17 @@ asserts, and it is why the items above are recorded rather than closed.
 
 ### Prove-Only / Missing Cover (19 modules)
 
+> **2026-09-24 -- this section's premise is stale and its Notes column is
+> unreliable.** Measured: **18 of the 19 rows DO define a `cover` task** (the
+> 19th, `fifo_sync_multi_sigmap`, has no `.sby` at any path -- the prose above
+> says its dir moved to `formal/integ_common/`, which does not resolve either).
+> Separately, **10 rows claim `prove_boundary+prove_low8 PASS`, but ZERO
+> stream/rapids `.sby` files have ever defined those tasks** -- they exist only
+> in 8 `common/math_multiplier_*` files, so the label was carried across rather
+> than measured. Those PASS verdicts were also recorded against flats that are
+> now months stale. Only the three rows re-measured under TASK-092 have been
+> corrected below; the remaining rows are NOT to be trusted until re-run.
+
 These have prove PASS but no cover task defined, or cover not yet run:
 
 | Module | Area | Notes |
@@ -424,10 +435,10 @@ These have prove PASS but no cover task defined, or cover not yet run:
 | axi_read_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
 | axi_write_engine | stream | prove_boundary+prove_low8 PASS, no cover |
 | axi_write_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
-| datapath_rd_test | stream | prove_boundary+prove_low8 PASS, no cover |
-| datapath_wr_test | stream | prove_boundary+prove_low8 PASS, no cover |
+| datapath_rd_test | stream | **2026-09-24:** same three errors as datapath_wr_test. Could not even elaborate (missing `stream_run_addr_gen`/`dma_address_gen`). Fixed + property corrected (TASK-092): prove depth-8 PASS, cover PASS (4 covers), full depth-20 running. |
+| datapath_wr_test | stream | **2026-09-24: row was wrong 3 ways.** Flat was stale since 2026-07-17; `prove_boundary`/`prove_low8` are not tasks in this unit's .sby (only `prove`/`cover`); cover EXISTS and PASSES (5 covers). Rebuilt + property fixed (TASK-092): prove depth-8 PASS, cover PASS, full depth-20 running. |
 | descriptor_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
-| scheduler | stream | prove_boundary+prove_low8 PASS, no cover |
+| scheduler | stream | **2026-09-24:** same three errors. `DEPS :=` was empty; `cfg_rd_prefetch_enable` was UNCONNECTED (undriven -> proof meaning undefined). Fixed + property corrected (TASK-092): prove depth-8 PASS, cover PASS (5 covers), full depth-35 running. |
 | scheduler_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
 | scheduler_group_array | stream | prove_boundary+prove_low8 PASS, no cover |
 

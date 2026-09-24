@@ -236,6 +236,20 @@ module formal_datapath_wr_test (
 
     // =========================================================================
     // P2: Descriptor acceptance -- ready only when scheduler is in appropriate state
+    //
+    // scheduler.sv:1080 pops the descriptor FIFO on THREE terms, not two:
+    //     descriptor_ready = (state == CH_IDLE) || (state == CH_NEXT_DESC)
+    //                        || w_wr_advance;
+    // The third is the USE_RD_PREFETCH in-place advance, and datapath_wr_test
+    // hardwires .cfg_rd_prefetch_enable(1'b1), so it is always reachable here.
+    //     w_wr_advance = w_rd_prefetch_en && w_state_xfer_data && w_write_issued
+    //                    && w_desc_chained && descriptor_valid;
+    // It therefore implies BOTH CH_XFER_DATA and descriptor_valid, which is the
+    // tightest form expressible at the port boundary -- CH_XFER_DATA is admitted
+    // ONLY with a descriptor present, and CH_FETCH_DESC / CH_COMPLETE / CH_ERROR
+    // stay forbidden. This property was written 2026-04-12 (fb4870a4f), before
+    // prefetch landed; it was stale, not wrong about the normal path. See
+    // vault TASK-092.
     // =========================================================================
 
     wire [6:0] sched_state_ch0 = sched_state[6:0];
@@ -246,7 +260,8 @@ module formal_datapath_wr_test (
             ap_desc0_ready_state: assert (
                 !descriptor_0_ready ||
                 sched_state_ch0 == 7'b0000001 ||  // CH_IDLE
-                sched_state_ch0 == 7'b0010000      // CH_NEXT_DESC
+                sched_state_ch0 == 7'b0010000 ||  // CH_NEXT_DESC
+                (sched_state_ch0 == 7'b0000100 && descriptor_0_valid)  // CH_XFER_DATA: prefetch advance
             );
     end
 
@@ -255,7 +270,8 @@ module formal_datapath_wr_test (
             ap_desc1_ready_state: assert (
                 !descriptor_1_ready ||
                 sched_state_ch1 == 7'b0000001 ||  // CH_IDLE
-                sched_state_ch1 == 7'b0010000      // CH_NEXT_DESC
+                sched_state_ch1 == 7'b0010000 ||  // CH_NEXT_DESC
+                (sched_state_ch1 == 7'b0000100 && descriptor_1_valid)  // CH_XFER_DATA: prefetch advance
             );
     end
 

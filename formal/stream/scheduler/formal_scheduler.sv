@@ -26,6 +26,7 @@ module formal_scheduler (
     (* anyseq *) reg                        cfg_channel_reset;
     (* anyseq *) reg  [15:0]                cfg_sched_timeout_cycles;
     (* anyseq *) reg                        cfg_sched_timeout_enable;
+    (* anyseq *) reg                        cfg_rd_prefetch_enable;
 
     (* anyseq *) reg                        descriptor_valid;
     (* anyseq *) reg  [DESC_WIDTH-1:0]      descriptor_packet;
@@ -81,6 +82,7 @@ module formal_scheduler (
         .cfg_channel_reset        (cfg_channel_reset),
         .cfg_sched_timeout_cycles (cfg_sched_timeout_cycles),
         .cfg_sched_timeout_enable (cfg_sched_timeout_enable),
+        .cfg_rd_prefetch_enable   (cfg_rd_prefetch_enable),
 
         // Status
         .scheduler_idle           (scheduler_idle_o),
@@ -210,14 +212,33 @@ module formal_scheduler (
     end
 
     // =========================================================================
-    // P4: descriptor_ready asserted only in CH_IDLE or CH_NEXT_DESC states
+    // P4: descriptor_ready asserted only where accepting a descriptor is legal
+    //
+    // scheduler.sv:1080 pops the descriptor FIFO on THREE terms:
+    //     descriptor_ready = (state == CH_IDLE) || (state == CH_NEXT_DESC)
+    //                        || w_wr_advance;
+    // The third is the USE_RD_PREFETCH in-place advance:
+    //     w_wr_advance = w_rd_prefetch_en && w_state_xfer_data && w_write_issued
+    //                    && w_desc_chained && descriptor_valid;
+    // so it implies BOTH CH_XFER_DATA and descriptor_valid. CH_XFER_DATA is
+    // admitted ONLY with a descriptor present; CH_FETCH_DESC / CH_COMPLETE /
+    // CH_ERROR stay forbidden.
+    //
+    // NOTE: cfg_rd_prefetch_enable was previously left UNCONNECTED on the DUT
+    // instantiation, so the port was undriven and the proof's behaviour depended
+    // on how yosys happens to treat an undriven input -- measured, it is FREE,
+    // and P4 failed. It is now an explicit (* anyseq *) input so the solver's
+    // freedom is deliberate and greppable. (cfg_sched_timeout_limit is still
+    // unconnected here -- same class of gap, does not affect this property.)
+    // See vault TASK-092.
     // =========================================================================
     always @(posedge clk) begin
         if (rst_n)
             ap_desc_ready_states: assert (
                 !descriptor_ready_o ||
                 scheduler_state_o == 7'b0000001 ||  // CH_IDLE
-                scheduler_state_o == 7'b0010000      // CH_NEXT_DESC
+                scheduler_state_o == 7'b0010000 ||  // CH_NEXT_DESC
+                (scheduler_state_o == 7'b0000100 && descriptor_valid)  // CH_XFER_DATA: prefetch advance
             );
     end
 
