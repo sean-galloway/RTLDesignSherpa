@@ -1,7 +1,9 @@
 # TASK-005: the paging predictors are built unconditionally and the board never uses them
 > **Was `PUMICE-034` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** open 2026-09-14  **Priority:** P2 — pure headroom, no correctness impact
+**Status:** CLOSED 2026-09-24 — **option 3: leave them.** Sean's call, and it
+corrects the recommendation this task had been carrying. (was: open 2026-09-14,
+P2 — pure headroom, no correctness impact)
 
 `u_page_policy` (the mode 5 row predictor plus the mode 6/7 RBL table) is
 **4,546 LUT / 3,341 FF**, a third of pumice's LUTs, instantiated with no build
@@ -103,3 +105,32 @@ earned their keep; they did not.
 Still Sean's call -- the counter-argument is that a future workload class might
 differ, and gating makes testing that need a rebuild. But that is now a bet
 against three measured families plus the mix, rather than an open question.
+
+
+## 2026-09-24 — CLOSED as option 3 (leave them), and why the recommendation was wrong
+
+Sean: *"We have all of the modes to use them to see the effects."*
+
+That is the answer, and it exposes a mistake in the reasoning above. I had
+escalated from "option 1 but not yet" to "option 1, now unblocked" on the
+strength of the pair sweep showing rbl_static at -43%. But **that result IS the
+modes doing their job.** "rbl_static is harmful under concurrent traffic" is a
+characterization finding, produced by having every mode reachable in one
+bitstream. Gating them to save area would trade away the instrument that
+produced the finding, in order to bank LUTs on a build that currently closes.
+
+I was weighting 5,578 LUT above the thing the block exists for. The area is
+only worth spending when a build actually stops closing -- which is exactly what
+option 3 says, and what this task said from the day it was filed ("Both
+positions are defensible and it is Sean's call").
+
+**Standing: leave `u_page_policy` ungated. Revisit only if a build fails to
+close**, at which point the measurements here (5,578 LUT / 3,342 FF, 8.8% of
+the device, no mode beating plain open page on any measured workload) are the
+justification and option 1 is the move.
+
+What the measurements are still good for, and why they were not wasted: they
+say the predictors cost area and return nothing *on the workloads measured so
+far*, which is the input to [[TASK-002]]'s continuing characterization -- not a
+reason to remove the modes. Follow-up on whether any generator can show
+rbl_static a WIN is [[TASK-010]].
