@@ -112,6 +112,129 @@ MANIFEST = [
             (f"{PUMICE}/dv/tbclasses/pumice_regmap.py", "pumice_regmap.py"),
         ],
     },
+    {
+        "name": "obs_regs (misc)",
+        "rdl": "projects/components/misc/rtl/obs_regs.rdl",
+        "sources": ["projects/components/misc/rtl/obs_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/misc/rtl/regs/generated/rtl/obs_regs_top.sv", "rtl/obs_regs_top.sv"),
+            ("projects/components/misc/rtl/regs/generated/rtl/obs_regs_top_pkg.sv", "rtl/obs_regs_top_pkg.sv"),
+            ("projects/components/misc/rtl/regs/generated/obs_regs_top_regmap.py", "obs_regs_top_regmap.py"),
+            ("projects/components/misc/rtl/regs/generated/docs/obs_regs_top.md", "docs/obs_regs_top.md"),
+        ],
+    },
+    {
+        # Shares a generated root with obs_regs; verified to emit a DISJOINT
+        # file set, so the two entries cannot overwrite each other.
+        "name": "tally_regs (misc)",
+        "rdl": "projects/components/misc/rtl/tally_regs.rdl",
+        "sources": ["projects/components/misc/rtl/tally_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/misc/rtl/regs/generated/rtl/tally_regs_top.sv", "rtl/tally_regs_top.sv"),
+            ("projects/components/misc/rtl/regs/generated/rtl/tally_regs_top_pkg.sv", "rtl/tally_regs_top_pkg.sv"),
+            ("projects/components/misc/rtl/regs/generated/tally_regs_top_regmap.py", "tally_regs_top_regmap.py"),
+            ("projects/components/misc/rtl/regs/generated/docs/tally_regs_top.md", "docs/tally_regs_top.md"),
+        ],
+    },
+    {
+        "name": "pumice_csr (regblock + docs + regmap)",
+        "rdl": "projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl",
+        "sources": ["projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr.sv", "rtl/pumice_csr.sv"),
+            ("projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr_pkg.sv", "rtl/pumice_csr_pkg.sv"),
+            ("projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/pumice_csr_regmap.py", "pumice_csr_regmap.py"),
+            ("projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/docs/pumice_csr.md", "docs/pumice_csr.md"),
+        ],
+    },
+    {
+        "name": "pumice_csr (DV-facing regmap copy)",
+        "rdl": "projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl",
+        "sources": ["projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": "pumice_regmap.py",
+        "compare": [("projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py", "pumice_regmap.py")],
+    },
+    {
+        "name": "harness_csr_regs (Genesys2 stream)",
+        "rdl": "projects/fpga-systems/Genesys2/stream/regs/harness_csr_regs.rdl",
+        "sources": ["projects/fpga-systems/Genesys2/stream/regs/harness_csr_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/fpga-systems/Genesys2/stream/rtl/regs/generated/rtl/harness_csr_regs_top.sv", "rtl/harness_csr_regs_top.sv"),
+            ("projects/fpga-systems/Genesys2/stream/rtl/regs/generated/rtl/harness_csr_regs_top_pkg.sv", "rtl/harness_csr_regs_top_pkg.sv"),
+            ("projects/fpga-systems/Genesys2/stream/rtl/regs/generated/harness_csr_regs_top_regmap.py", "harness_csr_regs_top_regmap.py"),
+            ("projects/fpga-systems/Genesys2/stream/rtl/regs/generated/docs/harness_csr_regs_top.md", "docs/harness_csr_regs_top.md"),
+        ],
+    },
+    {
+        "name": "chargen_regs (ddr2 char)",
+        "rdl": "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/chargen_regs.rdl",
+        "sources": ["projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/chargen_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/generated/chargen_regs/rtl/chargen_regs.sv", "rtl/chargen_regs.sv"),
+            ("projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/generated/chargen_regs/rtl/chargen_regs_pkg.sv", "rtl/chargen_regs_pkg.sv"),
+            ("projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/generated/chargen_regs/docs/chargen_regs.md", "docs/chargen_regs.md"),
+        ],
+    },
+    {
+        "name": "chargen_regs (DV-facing regmap copy)",
+        "rdl": "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/chargen_regs.rdl",
+        "sources": ["projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/chargen_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": "chargen_regs_regmap.py",
+        "compare": [("projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/dv/tbclasses/chargen_regs_regmap.py", "chargen_regs_regmap.py")],
+    },
+    {
+        # REGMAP ONLY. ddr2_char's rtl/harness_csr.sv is HAND-WRITTEN (no
+        # PeakRDL banner; a fresh regen differs by 1787 lines) and no
+        # harness_csr_pkg.sv is tracked. Putting the .sv in the compare set
+        # would declare hand-written RTL permanently stale and block every
+        # commit -- the false-failure this gate must never cause.
+        "name": "ddr2_char harness_csr (regmap only)",
+        "rdl": "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/harness_csr.rdl",
+        "sources": ["projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/harness_csr.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": "harness_csr_regmap.py",
+        "compare": [("projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py", "harness_csr_regmap.py")],
+    },
+    {
+        # rapids has TWO RDLs describing DIFFERENT addrmaps: rapids_regs
+        # (the per-engine file) and rapids_regmap (the two-half `rapids` map).
+        # rapids_regs_regmap.py is not committed, so it is not compared.
+        "name": "rapids_regs (regblock + docs)",
+        "rdl": "projects/components/dmas/rapids/rtl/macro_beats/rapids_regs.rdl",
+        "sources": ["projects/components/dmas/rapids/rtl/macro_beats/rapids_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/dmas/rapids/regs/generated/rtl/rapids_regs.sv", "rtl/rapids_regs.sv"),
+            ("projects/components/dmas/rapids/regs/generated/rtl/rapids_regs_pkg.sv", "rtl/rapids_regs_pkg.sv"),
+            ("projects/components/dmas/rapids/regs/generated/docs/rapids_regs.md", "docs/rapids_regs.md"),
+        ],
+    },
+    {
+        # SEMANTIC compare: this file carries a deliberately hand-written
+        # header explaining that the two engine instances share the layout and
+        # are loaded at start_address 0x0000 (SRC) / 0x1000 (SNK) -- something
+        # a generated docstring cannot say. The registers are what must match.
+        "name": "rapids_regmap (DV-facing regmap, semantic)",
+        "rdl": "projects/components/dmas/rapids/rtl/macro_beats/rapids_regmap.rdl",
+        "sources": ["projects/components/dmas/rapids/rtl/macro_beats/rapids_regmap.rdl",
+                    "projects/components/dmas/rapids/rtl/macro_beats/rapids_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": "rapids_regmap.py",
+        "compare": [("projects/components/dmas/rapids/rtl/rapids_regmap.py", "rapids_regmap.py", "semantic")],
+    },
 ]
 
 
@@ -212,7 +335,7 @@ def main():
             print(f"{e['name']}")
             print(f"  rdl     : {e['rdl']}")
             print(f"  sources : {', '.join(e['sources'])}")
-            print(f"  emits   : {', '.join(t for t, _ in e['compare'])}")
+            print(f"  emits   : {', '.join(spec[0] for spec in e['compare'])}")
         return 0
 
     entries = MANIFEST
