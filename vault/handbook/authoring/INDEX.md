@@ -20,3 +20,6 @@ summary: Documentation practice - external review rounds, voice, and the generat
 - [[checkable-claims]] - every number and duration must be measurable or must
   not be written; the area-estimate and "long-standing" sweeps, and why the
   review rounds could not catch either
+- [[task-premises-rot]] - a parked task's justification is a timestamped claim;
+  re-verify its premises before executing it, and re-check what it gates.
+  PUMICE-016 sat ACTIVE four weeks on five premises that had all become false
