@@ -8,7 +8,7 @@
 //   Integration hierarchy:
 //     APB Interface
 //       → apb4_slave_cdc (or apb4_slave if CDC_ENABLE=0)
-//       → cmdrsp_router (address-based routing)
+//       → peakrdl_to_cmdrsp (all accesses; no router)
 //         → peakrdl_to_cmdrsp (APB → CMD/RSP conversion)
 //           → stream_regs (PeakRDL registers, 0x100-0x3FF)
 //       → stream_config_block (register mapping)
@@ -372,27 +372,6 @@ module stream_top_ch8 #(
 
     //-------------------------------------------------------------------------
     // Routed CMD/RSP - after address demux
-    //-------------------------------------------------------------------------
-    // To CMD/RSP master 0 (kick-off; retired, tied inactive)
-    logic                       kickoff_cmd_valid;
-    logic                       kickoff_cmd_ready;
-    logic [APB_ADDR_WIDTH-1:0]  kickoff_cmd_paddr;
-    logic [APB_DATA_WIDTH-1:0]  kickoff_cmd_pwdata;
-    logic                       kickoff_cmd_pwrite;
-    logic [(APB_DATA_WIDTH/8)-1:0] kickoff_cmd_pstrb;
-
-    logic                       kickoff_rsp_valid;
-    logic                       kickoff_rsp_ready;
-    logic [APB_DATA_WIDTH-1:0]  kickoff_rsp_prdata;
-    logic                       kickoff_rsp_pslverr;
-
-    // Router master 0 is retired (addr_hit_m0 is hard 0), so its response path
-    // is driven to safe constants rather than left floating: an unconnected
-    // rsp_valid on a never-selected port is still an X the router could sample.
-    assign kickoff_cmd_ready  = 1'b1;
-    assign kickoff_rsp_valid  = 1'b0;
-    assign kickoff_rsp_prdata = '0;
-    assign kickoff_rsp_pslverr= 1'b0;
 
     // To stream_regs (PeakRDL)
     logic                       regs_cmd_valid;
@@ -767,7 +746,7 @@ module stream_top_ch8 #(
                 .s_apb_PRDATA           (s_apb_prdata),
                 .s_apb_PSLVERR          (s_apb_pslverr),
 
-                // CMD/RSP Master (to cmdrsp_router, aclk domain)
+                // CMD/RSP Master (to peakrdl_to_cmdrsp, aclk domain)
                 .cmd_valid              (apb_cmd_valid),
                 .cmd_ready              (apb_cmd_ready),
                 .cmd_pwrite             (apb_cmd_pwrite),
@@ -801,7 +780,7 @@ module stream_top_ch8 #(
                 .s_apb_PRDATA           (s_apb_prdata),
                 .s_apb_PSLVERR          (s_apb_pslverr),
 
-                // CMD/RSP Master (to cmdrsp_router, same clock domain)
+                // CMD/RSP Master (to peakrdl_to_cmdrsp, same clock domain)
                 .cmd_valid              (apb_cmd_valid),
                 .cmd_ready              (apb_cmd_ready),
                 .cmd_pwrite             (apb_cmd_pwrite),
@@ -835,50 +814,24 @@ module stream_top_ch8 #(
     logic [APB_DATA_WIDTH-1:0]  peakrdl_rsp_prdata;
     logic                       peakrdl_rsp_pslverr;
 
-    cmdrsp_router #(
-        .ADDR_WIDTH(APB_ADDR_WIDTH),
-        .DATA_WIDTH(APB_DATA_WIDTH)
-    ) u_cmdrsp_router (
-        .clk                        (aclk),
-        .rst_n                      (aresetn),
+    // The 2-target address router that used to sit here is gone. It existed to
+    // carve out two windows the PeakRDL block could not express: 0x000-0x03F to
+    // a kick block (a WRITE that launched a DMA) and 0x040-0x0FF to a hand
+    // decode for the perf FIFO (READS with side effects). The kick became
+    // CHx_CTRL_{LOW,HIGH} + KICK_ENABLE, and the perf registers are RDL
+    // registers with swacc, so both windows were retired and the router had
+    // decayed to addr_hit_m0 = 1'b0 -- every access already took the default
+    // route. The CDC now drives the PeakRDL adapter directly.
+    assign peakrdl_cmd_valid  = apb_cmd_valid;
+    assign apb_cmd_ready      = peakrdl_cmd_ready;
+    assign peakrdl_cmd_pwrite = apb_cmd_pwrite;
+    assign peakrdl_cmd_paddr  = apb_cmd_paddr;
+    assign peakrdl_cmd_pwdata = apb_cmd_pwdata;
 
-        // CMD/RSP Slave (from apb4_slave_cdc)
-        .s_cmd_valid                (apb_cmd_valid),
-        .s_cmd_ready                (apb_cmd_ready),
-        .s_cmd_pwrite               (apb_cmd_pwrite),
-        .s_cmd_paddr                (apb_cmd_paddr),
-        .s_cmd_pwdata               (apb_cmd_pwdata),
-        .s_rsp_valid                (apb_rsp_valid),
-        .s_rsp_ready                (apb_rsp_ready),
-        .s_rsp_prdata               (apb_rsp_prdata),
-        .s_rsp_pslverr              (apb_rsp_pslverr),
-
-        // CMD/RSP Master 0: retired. addr_hit_m0 is hard 0 in the
-        // router, so this port set never activates; driven to safe constants.
-        .m0_cmd_valid               (kickoff_cmd_valid),
-        .m0_cmd_ready               (kickoff_cmd_ready),
-        .m0_cmd_pwrite              (kickoff_cmd_pwrite),
-        .m0_cmd_paddr               (kickoff_cmd_paddr),
-        .m0_cmd_pwdata              (kickoff_cmd_pwdata),
-        .m0_rsp_valid               (kickoff_rsp_valid),
-        .m0_rsp_ready               (kickoff_rsp_ready),
-        .m0_rsp_prdata              (kickoff_rsp_prdata),
-        .m0_rsp_pslverr             (kickoff_rsp_pslverr),
-
-        // CMD/RSP Master 1: peakrdl_to_cmdrsp (0x100-0x3FF)
-        .m1_cmd_valid               (peakrdl_cmd_valid),
-        .m1_cmd_ready               (peakrdl_cmd_ready),
-        .m1_cmd_pwrite              (peakrdl_cmd_pwrite),
-        .m1_cmd_paddr               (peakrdl_cmd_paddr),
-        .m1_cmd_pwdata              (peakrdl_cmd_pwdata),
-        .m1_rsp_valid               (peakrdl_rsp_valid),
-        .m1_rsp_ready               (peakrdl_rsp_ready),
-        .m1_rsp_prdata              (peakrdl_rsp_prdata),
-        .m1_rsp_pslverr             (peakrdl_rsp_pslverr)
-    );
-
-    // (kick block removed: the kick is now CHx_CTRL_{LOW,HIGH} + KICK_ENABLE
-    //  in the PeakRDL block, handled above. m0 of the router is tied inactive.)
+    assign apb_rsp_valid      = peakrdl_rsp_valid;
+    assign peakrdl_rsp_ready  = apb_rsp_ready;
+    assign apb_rsp_prdata     = peakrdl_rsp_prdata;
+    assign apb_rsp_pslverr    = peakrdl_rsp_pslverr;
 
     //=========================================================================
     // CMD/RSP to Passthrough Adapter (peakrdl_to_cmdrsp)
@@ -906,7 +859,7 @@ module stream_top_ch8 #(
         .aclk                   (aclk),
         .aresetn                (aresetn),
 
-        // CMD/RSP input (from cmdrsp_router m1)
+        // CMD/RSP input (from apb4_slave_cdc, direct)
         .cmd_valid              (peakrdl_cmd_valid),
         .cmd_ready              (peakrdl_cmd_ready),
         .cmd_pwrite             (peakrdl_cmd_pwrite),
@@ -974,15 +927,46 @@ module stream_top_ch8 #(
     // ack, so it arrives as a multi-cycle LEVEL. Driving perf_fifo_rd from it
     // directly pops twice per read and silently drops every other entry. Qualify
     // to reads and rising-edge detect, as pic_8259_config_regs does for PIC_INTA.
-    logic w_perf_rd_acc, r_perf_rd_acc_d;
-    assign w_perf_rd_acc = hwif_out.PERF_DATA_LOW.DATA.swacc && !regblk_req_is_wr;
+    // The entry is retired once software has read BOTH halves, in either
+    // order, so the two 32-bit reads always return one and the same entry.
+    // swacc is a held LEVEL (peakrdl_to_cmdrsp keeps regblk_req asserted
+    // through CMD_WAIT_ACK), so each access is rising-edge detected and
+    // qualified to reads.
+    logic w_perf_lo_acc, w_perf_hi_acc;
+    logic r_perf_lo_acc_d, r_perf_hi_acc_d;
+    logic r_perf_lo_seen, r_perf_hi_seen;
+    logic w_perf_lo_edge, w_perf_hi_edge;
+
+    assign w_perf_lo_acc  = hwif_out.PERF_DATA_LOW.DATA.swacc  && !regblk_req_is_wr;
+    assign w_perf_hi_acc  = hwif_out.PERF_DATA_HIGH.DATA.swacc && !regblk_req_is_wr;
+    assign w_perf_lo_edge = w_perf_lo_acc && !r_perf_lo_acc_d;
+    assign w_perf_hi_edge = w_perf_hi_acc && !r_perf_hi_acc_d;
+
+    // Pop on the SECOND of the two reads: both halves accounted for, and an
+    // edge this cycle so the strobe is exactly one clock wide.
+    assign perf_fifo_rd = (r_perf_lo_seen || w_perf_lo_edge) &&
+                          (r_perf_hi_seen || w_perf_hi_edge) &&
+                          (w_perf_lo_edge || w_perf_hi_edge) &&
+                          !perf_fifo_empty;
 
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_perf_rd_acc_d <= 1'b0;
-        else                        r_perf_rd_acc_d <= w_perf_rd_acc;
+        if (`RST_ASSERTED(aresetn)) begin
+            r_perf_lo_acc_d <= 1'b0;
+            r_perf_hi_acc_d <= 1'b0;
+            r_perf_lo_seen  <= 1'b0;
+            r_perf_hi_seen  <= 1'b0;
+        end else begin
+            r_perf_lo_acc_d <= w_perf_lo_acc;
+            r_perf_hi_acc_d <= w_perf_hi_acc;
+            if (perf_fifo_rd) begin
+                r_perf_lo_seen <= 1'b0;
+                r_perf_hi_seen <= 1'b0;
+            end else begin
+                if (w_perf_lo_edge) r_perf_lo_seen <= 1'b1;
+                if (w_perf_hi_edge) r_perf_hi_seen <= 1'b1;
+            end
+        end
     )
-
-    assign perf_fifo_rd = w_perf_rd_acc && !r_perf_rd_acc_d;
 
     // Use combinational assignment for hwif_in struct
     // Note: registered struct member assignments through ports may have simulation issues

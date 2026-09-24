@@ -1143,9 +1143,10 @@ datapath streams continuously across descriptor boundaries.</p>
 - Base Offset: 0x2D0
 - Size: 0x4
 
-<p>Timestamp or elapsed time [31:0]. READING THIS POPS THE FIFO and
-latches the full 36-bit entry; read DATA_HIGH afterwards for the
-upper bits.</p>
+<p>Timestamp or elapsed time [31:0] of the entry at the head of
+the capture FIFO. The FIFO is popped once BOTH this register
+and DATA_HIGH have been read, so the two halves always belong
+to the same entry and the read order does not matter.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
@@ -1161,8 +1162,9 @@ upper bits.</p>
 - Base Offset: 0x2D4
 - Size: 0x4
 
-<p>Latched upper bits of the entry popped by the last DATA_LOW
-read: {28'b0, event_type, channel_id[2:0]}. No FIFO pop.</p>
+<p>Upper bits of the entry at the head of the capture FIFO:
+{28'b0, event_type, channel_id[2:0]}. The FIFO is popped once
+BOTH this register and DATA_LOW have been read.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|

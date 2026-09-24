@@ -282,10 +282,10 @@ sequenceDiagram
 stream_top_ch8 (Top-Level Wrapper)
 ├── APB Interface Path
 │   ├── apb4_slave_cdc        (CDC_ENABLE=1: APB clock domain crossing)
-│   └── cmdrsp_router        (Address-based routing)
-│       ├── (kick-off is now register state: 0x000-0x03F staged addrs + 0x128 KICK_ENABLE)
-│       └── peakrdl_to_cmdrsp (0x100-0x3FF: APB → CMD/RSP conversion)
-│           └── stream_regs  (PeakRDL-generated register file)
+│   └── peakrdl_to_cmdrsp     (CMD/RSP → PeakRDL passthrough; ALL accesses.
+│       │                     No router: the kick is register state at
+│       │                     0x000-0x03F plus 0x128 KICK_ENABLE)
+│       └── stream_regs       (PeakRDL-generated register file)
 ├── stream_config_block      (Register → config signal mapping)
 ├── stream_core              (Main DMA engine - see below)
 └── monbus_axil_group        (USE_AXI_MONITORS=1: MonBus → AXI-Lite)

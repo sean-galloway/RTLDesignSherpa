@@ -31,7 +31,7 @@ module counter_bin (
 		else
 			counter_bin_next = counter_bin_curr;
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			counter_bin_curr <= 'b0;
 		else
@@ -54,7 +54,7 @@ module fifo_control (
 	rd_almost_empty
 );
 	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 16;
+	parameter signed [31:0] DEPTH = 8;
 	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
 	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
 	parameter signed [31:0] REGISTERED = 0;
@@ -108,7 +108,7 @@ module fifo_control (
 	generate
 		if (REGISTERED == 1) begin : gen_flop_mode
 			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk)
+			always @(posedge rd_clk or negedge rd_rst_n)
 				if (!rd_rst_n)
 					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
@@ -150,7 +150,6 @@ module gaxi_fifo_sync (
 	rd_valid,
 	rd_data
 );
-	reg _sv2v_0;
 	parameter signed [31:0] MEM_STYLE = 32'sd0;
 	parameter signed [31:0] REGISTERED = 0;
 	parameter signed [31:0] DATA_WIDTH = 4;
@@ -179,7 +178,6 @@ module gaxi_fifo_sync (
 	wire r_wr_almost_full;
 	wire r_rd_empty;
 	wire r_rd_almost_empty;
-	reg [DW - 1:0] w_rd_data;
 	wire w_write;
 	wire w_read;
 	assign w_write = wr_valid && wr_ready;
@@ -236,18 +234,16 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 		else if (MEM_STYLE == 32'sd2) begin : gen_bram
@@ -255,11 +251,13 @@ module gaxi_fifo_sync (
 			always @(posedge axi_aclk)
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
-			always @(posedge axi_aclk)
+			reg [DATA_WIDTH - 1:0] r_rd_data;
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
-					w_rd_data <= 1'sb0;
+					r_rd_data <= 1'sb0;
 				else
-					w_rd_data <= mem[r_rd_addr];
+					r_rd_data <= mem[r_rd_addr];
+			assign rd_data = r_rd_data;
 		end
 		else begin : gen_auto
 			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
@@ -267,29 +265,25 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 	endgenerate
-	assign rd_data = w_rd_data;
 	always @(posedge axi_aclk) begin
 		if (w_write && r_wr_full)
 			;
 		if (w_read && r_rd_empty)
 			;
 	end
-	initial _sv2v_0 = 0;
 endmodule
 module perf_profiler (
 	clk,
@@ -307,7 +301,7 @@ module perf_profiler (
 );
 	reg _sv2v_0;
 	parameter signed [31:0] NUM_CHANNELS = 8;
-	parameter signed [31:0] CHANNEL_WIDTH = $clog2(NUM_CHANNELS);
+	parameter signed [31:0] CHANNEL_WIDTH = (NUM_CHANNELS > 1 ? $clog2(NUM_CHANNELS) : 1);
 	parameter signed [31:0] TIMESTAMP_WIDTH = 32;
 	parameter signed [31:0] FIFO_DEPTH = 256;
 	parameter signed [31:0] FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH);
@@ -339,19 +333,18 @@ module perf_profiler (
 	wire w_fifo_full_internal;
 	wire w_fifo_rd_valid_internal;
 	wire [35:0] w_fifo_rd_data;
-	reg [35:0] r_fifo_data_latched;
 	wire [FIFO_ADDR_WIDTH:0] w_fifo_count_internal;
 	reg [CHANNEL_WIDTH - 1:0] w_active_channel;
 	reg w_channel_event;
 	wire [TIMESTAMP_WIDTH - 1:0] w_elapsed_time;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_timestamp_counter <= 1'sb0;
 		else if (cfg_clear)
 			r_timestamp_counter <= 1'sb0;
 		else if (cfg_enable)
 			r_timestamp_counter <= r_timestamp_counter + 1'b1;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_idle_prev <= 1'sb1;
 		else if (cfg_enable)
@@ -362,7 +355,7 @@ module perf_profiler (
 	generate
 		for (_gv_ch_1 = 0; _gv_ch_1 < NUM_CHANNELS; _gv_ch_1 = _gv_ch_1 + 1) begin : gen_channel_tracking
 			localparam ch = _gv_ch_1;
-			always @(posedge clk)
+			always @(posedge clk or negedge rst_n)
 				if (!rst_n) begin
 					r_start_time[ch] <= 1'sb0;
 					r_channel_active[ch] <= 1'b0;
@@ -430,6 +423,10 @@ module perf_profiler (
 		end
 	end
 	assign w_elapsed_time = r_timestamp_counter - r_start_time[w_active_channel];
+	function automatic [2:0] sv2v_cast_3;
+		input reg [2:0] inp;
+		sv2v_cast_3 = inp;
+	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -438,9 +435,9 @@ module perf_profiler (
 		if ((cfg_enable && w_channel_event) && !w_fifo_full_internal) begin
 			w_fifo_wr = 1'b1;
 			if (cfg_mode == MODE_TIMESTAMP)
-				w_fifo_wr_data = {(w_idle_rising[w_active_channel] ? EVENT_END : EVENT_START), w_active_channel[2:0], r_timestamp_counter};
+				w_fifo_wr_data = {(w_idle_rising[w_active_channel] ? EVENT_END : EVENT_START), sv2v_cast_3(w_active_channel), r_timestamp_counter};
 			else
-				w_fifo_wr_data = {EVENT_END, w_active_channel[2:0], w_elapsed_time};
+				w_fifo_wr_data = {EVENT_END, sv2v_cast_3(w_active_channel), w_elapsed_time};
 		end
 	end
 	gaxi_fifo_sync #(
@@ -461,14 +458,7 @@ module perf_profiler (
 	assign perf_fifo_empty = !w_fifo_rd_valid_internal;
 	assign perf_fifo_full = w_fifo_full_internal;
 	assign perf_fifo_count = {{(16 - FIFO_ADDR_WIDTH) - 1 {1'b0}}, w_fifo_count_internal};
-	always @(posedge clk)
-		if (!rst_n)
-			r_fifo_data_latched <= 1'sb0;
-		else if (cfg_clear)
-			r_fifo_data_latched <= 1'sb0;
-		else if (perf_fifo_rd && !perf_fifo_empty)
-			r_fifo_data_latched <= w_fifo_rd_data;
-	assign perf_fifo_data_low = r_fifo_data_latched[31:0];
-	assign perf_fifo_data_high = {28'b0000000000000000000000000000, r_fifo_data_latched[35:32]};
+	assign perf_fifo_data_low = (perf_fifo_empty ? 32'h00000000 : w_fifo_rd_data[31:0]);
+	assign perf_fifo_data_high = (perf_fifo_empty ? 32'h00000000 : {28'b0000000000000000000000000000, w_fifo_rd_data[35:32]});
 	initial _sv2v_0 = 0;
 endmodule

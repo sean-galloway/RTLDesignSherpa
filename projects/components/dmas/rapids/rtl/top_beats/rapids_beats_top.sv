@@ -21,10 +21,8 @@
 //   Integration hierarchy:
 //     APB4 slave (s_apb_*)
 //       -> apb4_slave  (APB -> CMD/RSP, single clock domain: pclk = aclk)
-//       -> cmd demux (hand-written, 3-way):
-//            all accesses -> peakrdl_to_cmdrsp -> rapids_regs; the kick
-//            windows are now ordinary registers in that map
-//            all others   -> peakrdl_to_cmdrsp -> rapids_regs
+//       -> peakrdl_to_cmdrsp -> rapids_regs  (no demux: every access takes
+//            the same path; the kick windows are ordinary registers now)
 //       -> rapids_config_block x2 (u_cfg_src <- hwif_out.SRC.*,
 //                                  u_cfg_snk <- hwif_out.SNK.*)
 //       -> rapids_core_beats (two independent halves)

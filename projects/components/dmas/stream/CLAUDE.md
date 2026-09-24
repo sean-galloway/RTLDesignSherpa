@@ -204,8 +204,7 @@ STREAM Architecture (as implemented)
 │
 └── rtl/top/                        # Top level
     ├── stream_top_ch8.sv           # 8-channel top-level wrapper
-    ├── stream_config_block.sv      # Configuration block
-    └── cmdrsp_router.sv            # Command/response routing
+    └── stream_config_block.sv      # Configuration block
 ```
 
 Monitoring uses the shared monbus group modules from `rtl/amba/monitor/` (e.g. `monbus_axil4_axil4_group.sv`) rather than a STREAM-local reporter.

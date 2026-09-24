@@ -73,8 +73,8 @@ STREAM provides an APB slave interface for software configuration and control. T
 | 0x2A0 | `AXI_XFER_CONFIG` | RW | RD_XFER_BEATS, WR_XFER_BEATS |
 | 0x2B0 | `PERF_CONFIG` | RW | Perf profiler enable / mode / clear |
 | 0x2C0 | `OBS_CTRL` | RW | Channel observation mux select |
-| 0x2D0 | `PERF_DATA_LOW` | RO | Perf capture low word; the read POPS the FIFO |
-| 0x2D4 | `PERF_DATA_HIGH` | RO | Perf capture high word, same latched entry |
+| 0x2D0 | `PERF_DATA_LOW` | RO | Perf capture low word (FIFO head) |
+| 0x2D4 | `PERF_DATA_HIGH` | RO | Perf capture high word, same entry; the FIFO pops once BOTH halves are read |
 | 0x2D8 | `PERF_STATUS` | RO | EMPTY / FULL / COUNT |
 | 0x1000+ | Monitor / performance registers | RW/RO | AXI monitor config (0x10C0-0x111F) and per-monitor perf counters (0x1150-0x11F4), in the separate `stream_mon_regs` regfile |
 

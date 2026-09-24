@@ -34,13 +34,11 @@
 //   1. Enable profiling: cfg_enable = 1, cfg_mode = 0 (timestamp) or 1 (elapsed)
 //   2. Connect channel_idle signals from schedulers
 //   3. Monitor transitions and FIFO fills
-//   4. Read FIFO via two-register sequence:
-//      a. Read PERF_FIFO_DATA_LOW (asserts perf_fifo_rd):
-//         - Returns timestamp or elapsed time [31:0]
-//         - Pops FIFO and latches both registers
-//      b. Read PERF_FIFO_DATA_HIGH:
-//         - Returns {28'b0, event_type, channel_id[2:0]}
-//         - No FIFO pop, reads latched data
+//   4. Read FIFO via two-register sequence, in EITHER order:
+//      a. Read PERF_DATA_LOW  -> timestamp or elapsed time [31:0]
+//      b. Read PERF_DATA_HIGH -> {28'b0, event_type, channel_id[2:0]}
+//      Both return the head entry. The FIFO is popped once BOTH have
+//      been read, so the halves always belong to the same entry.
 //   5. Parse data:
 //      - timestamp/elapsed = perf_fifo_data_low[31:0]
 //      - channel_id = perf_fifo_data_high[2:0]
@@ -50,8 +48,8 @@
 //
 // Integration:
 //   - Add to stream_top alongside schedulers
-//   - Map to two APB registers (PERF_FIFO_DATA_LOW, PERF_FIFO_DATA_HIGH)
-//   - Reading LOW register triggers perf_fifo_rd strobe
+//   - Map to two APB registers (PERF_DATA_LOW, PERF_DATA_HIGH)
+//   - perf_fifo_rd is driven once BOTH registers have been read
 //   - Add cfg registers for enable/mode/clear control
 //
 // Documentation: projects/components/dmas/stream/PRD.md
@@ -137,7 +135,6 @@ module perf_profiler #(
     // FIFO read interface
     logic                       w_fifo_rd_valid_internal;  // FIFO has data available
     logic [35:0]                w_fifo_rd_data;            // Direct FIFO output
-    logic [35:0]                r_fifo_data_latched;       // Latched on perf_fifo_rd
     logic [FIFO_ADDR_WIDTH:0]   w_fifo_count_internal;    // FIFO count (9 bits for 256-entry)
 
     // Priority encoder for handling multiple channels changing simultaneously
@@ -376,7 +373,7 @@ module perf_profiler #(
     // 1. Software reads PERF_FIFO_DATA_LOW (APB address 0xXXX):
     //    - APB slave asserts perf_fifo_rd for one cycle
     //    - FIFO pops and provides 36-bit data on w_fifo_rd_data
-    //    - Data is latched into r_fifo_data_latched
+    //    - Both halves read the FIFO head; no capture register
     //    - APB returns lower 32 bits (timestamp/elapsed)
     //
     // 2. Software reads PERF_FIFO_DATA_HIGH (APB address 0xXXX+4):
@@ -385,21 +382,19 @@ module perf_profiler #(
     //
     // This ensures atomic access to 36-bit FIFO entries across two 32-bit reads.
 
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_fifo_data_latched <= '0;
-        end else if (cfg_clear) begin
-            r_fifo_data_latched <= '0;
-        end else if (perf_fifo_rd && !perf_fifo_empty) begin
-            // Latch FIFO data when read strobe asserted
-            r_fifo_data_latched <= w_fifo_rd_data;
-        end
-    )
-
-
-    // Split 36-bit latched data into two 32-bit outputs
-    assign perf_fifo_data_low  = r_fifo_data_latched[31:0];   // Timestamp or elapsed time
-    assign perf_fifo_data_high = {28'b0, r_fifo_data_latched[35:32]}; // {28'b0, event_type, channel_id[2:0]}
+    // Both halves read the FIFO HEAD combinationally; there is no capture
+    // register. The entry is retired only once software has read BOTH halves
+    // (the pop strobe is formed from the two register accesses upstream), so
+    // the two 32-bit reads always see one and the same entry and the read
+    // order does not matter.
+    //
+    // This replaces a capture flop that loaded one cycle AFTER the read that
+    // was meant to fill it, so the low word came from entry N-1 while the
+    // high word came from entry N.
+    //
+    // Gated on empty so the outputs read 0 when there is nothing to return.
+    assign perf_fifo_data_low  = perf_fifo_empty ? 32'h0 : w_fifo_rd_data[31:0];
+    assign perf_fifo_data_high = perf_fifo_empty ? 32'h0 : {28'b0, w_fifo_rd_data[35:32]};
 
     //=========================================================================
     // Assertions for Verification

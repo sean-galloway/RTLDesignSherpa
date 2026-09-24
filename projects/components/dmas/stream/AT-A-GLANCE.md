@@ -72,11 +72,10 @@ data path:
 ## Top level (`rtl/top/`)
 
 * **`stream_top_ch8`** — the deliverable: `stream_core` + `stream_regs`
-  (PeakRDL) + `apb4_slave` (+ CDC) + `peakrdl_to_cmdrsp` + `cmdrsp_router`
+  (PeakRDL) + `apb4_slave` (+ CDC) + `peakrdl_to_cmdrsp`
   + `monbus_axil4_axil4_group`.
 * **`stream_config_block`** — maps PeakRDL register outputs onto the core's
   configuration inputs, so the CSR layout and the core stay decoupled.
-* **`cmdrsp_router`** — address-based routing of CMD/RSP transactions.
 
 ---
 

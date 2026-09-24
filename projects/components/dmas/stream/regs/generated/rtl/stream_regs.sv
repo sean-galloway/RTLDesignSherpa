@@ -2829,6 +2829,7 @@ module stream_regs (
     end
     assign hwif_out.OBS_CTRL.CAT_SEL.value = field_storage.OBS_CTRL.CAT_SEL.value;
     assign hwif_out.PERF_DATA_LOW.DATA.swacc = decoded_reg_strb.PERF_DATA_LOW;
+    assign hwif_out.PERF_DATA_HIGH.DATA.swacc = decoded_reg_strb.PERF_DATA_HIGH;
     // Field: stream_regs.PERF_CH_SEL.CH_SEL
     always_comb begin
         automatic logic [2:0] next_c;

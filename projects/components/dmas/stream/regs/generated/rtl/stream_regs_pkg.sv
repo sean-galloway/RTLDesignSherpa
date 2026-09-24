@@ -884,6 +884,14 @@ package stream_regs_pkg;
     } stream_regs__PERF_DATA_LOW__out_t;
 
     typedef struct {
+        logic swacc;
+    } stream_regs__PERF_DATA_HIGH__DATA__out_t;
+
+    typedef struct {
+        stream_regs__PERF_DATA_HIGH__DATA__out_t DATA;
+    } stream_regs__PERF_DATA_HIGH__out_t;
+
+    typedef struct {
         logic [2:0] value;
     } stream_regs__PERF_CH_SEL__CH_SEL__out_t;
 
@@ -1547,6 +1555,7 @@ package stream_regs_pkg;
         stream_regs__PERF_CONFIG__out_t PERF_CONFIG;
         stream_regs__OBS_CTRL__out_t OBS_CTRL;
         stream_regs__PERF_DATA_LOW__out_t PERF_DATA_LOW;
+        stream_regs__PERF_DATA_HIGH__out_t PERF_DATA_HIGH;
         stream_regs__PERF_CH_SEL__out_t PERF_CH_SEL;
         stream_regs__HIST_SEL__out_t HIST_SEL;
         stream_mon_regs__out_t MON;

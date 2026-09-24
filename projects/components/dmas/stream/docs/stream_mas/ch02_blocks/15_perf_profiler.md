@@ -205,18 +205,17 @@ generate
 endgenerate
 ```
 
-### Two-Register Read Sequence
+### Two-Register Read Sequence (order-independent)
 
 ```
 Software reads FIFO via APB:
 1. Check perf_fifo_empty == 0
-2. Read PERF_DATA_LOW (0x2D0):
-   - Triggers perf_fifo_rd strobe
-   - Pops FIFO, flops the 36-bit entry
-   - Returns timestamp/elapsed [31:0]
-3. Read PERF_DATA_HIGH (0x2D4):
-   - Returns {28'b0, event_type, channel_id}
-   - No FIFO pop
+2. Read PERF_DATA_LOW (0x2D0) and PERF_DATA_HIGH (0x2D4), in EITHER order:
+   - Both return the entry at the HEAD of the FIFO
+   - LOW  = timestamp/elapsed [31:0]
+   - HIGH = {28'b0, event_type, channel_id[2:0]}
+3. The FIFO pops once BOTH have been read, so the two halves always
+   belong to the same entry and the read order does not matter
 4. Parse data and repeat
 ```
 
@@ -270,8 +269,8 @@ while (!(read_reg(AXI_WR_COMPLETE) & (1u << 0)));  // ch0 write complete
 
 // Read performance data
 while (!(read_reg(PERF_STATUS) & FIFO_EMPTY)) {
-    uint32_t low  = read_reg(PERF_DATA_LOW);   // Pops FIFO and flops the entry
-    uint32_t high = read_reg(PERF_DATA_HIGH);  // Same entry, from the flop
+    uint32_t low  = read_reg(PERF_DATA_LOW);   // head entry, low word
+    uint32_t high = read_reg(PERF_DATA_HIGH);  // same entry; second read pops it
 
     uint32_t timestamp = low;
     uint8_t  channel   = high & 0x7;

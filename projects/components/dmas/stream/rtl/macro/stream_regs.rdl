@@ -620,39 +620,46 @@ addrmap stream_regs {
     // dangling nets -- the live config path has always been this register via
     // stream_config_block. That duplicate is simply removed, not relocated.
     //
-    // Read order matters and is enforced by hardware, not by this file:
-    // reading DATA_LOW pops the FIFO and latches all 36 bits; DATA_HIGH then
-    // returns the latched upper bits WITHOUT a second pop. swacc on DATA_LOW is
-    // the pop strobe -- it is generated as the BARE register strobe (asserts on
-    // writes too) and is a multi-cycle level behind peakrdl_to_cmdrsp, so the
-    // consumer must qualify it with !req_is_wr and rising-edge detect it.
-    // perf_profiler takes perf_fifo_rd as a ONE-CYCLE pop; a level double-pops
-    // and silently drops every other entry.
+    // Read order does NOT matter. Both DATA_LOW and DATA_HIGH read the FIFO
+    // head combinationally, and the entry is popped only once BOTH have been
+    // read, so the two 32-bit reads always return one and the same 36-bit
+    // entry. There is no capture register.
+    //
+    // Each register therefore carries swacc, and the consumer forms the pop
+    // from the pair. swacc is the BARE register strobe (it asserts on writes
+    // too) and arrives as a multi-cycle LEVEL behind peakrdl_to_cmdrsp, which
+    // holds regblk_req through CMD_WAIT_ACK -- so each access must be
+    // qualified with !req_is_wr and rising-edge detected. perf_profiler takes
+    // perf_fifo_rd as a ONE-CYCLE pop; a level double-pops and silently drops
+    // every other entry.
     //=========================================================================
     reg {
         name = "Perf FIFO Data Low";
-        desc = "Timestamp or elapsed time [31:0]. READING THIS POPS THE FIFO and
-                latches the full 36-bit entry; read DATA_HIGH afterwards for the
-                upper bits.";
+        desc = "Timestamp or elapsed time [31:0] of the entry at the head of
+                the capture FIFO. The FIFO is popped once BOTH this register
+                and DATA_HIGH have been read, so the two halves always belong
+                to the same entry and the read order does not matter.";
 
         field {
             desc = "Timestamp or elapsed cycles";
             sw = r;
             hw = w;
-            swacc;      // FIFO pop strobe -- see the note above
+            swacc;      // half of the both-read pop condition
         } DATA[31:0] = 0;
 
     } PERF_DATA_LOW @ 0x2D0;
 
     reg {
         name = "Perf FIFO Data High";
-        desc = "Latched upper bits of the entry popped by the last DATA_LOW
-                read: {28'b0, event_type, channel_id[2:0]}. No FIFO pop.";
+        desc = "Upper bits of the entry at the head of the capture FIFO:
+                {28'b0, event_type, channel_id[2:0]}. The FIFO is popped once
+                BOTH this register and DATA_LOW have been read.";
 
         field {
             desc = "Channel id [2:0], event_type [3]";
             sw = r;
             hw = w;
+            swacc;      // half of the both-read pop condition
         } DATA[31:0] = 0;
 
     } PERF_DATA_HIGH @ 0x2D4;

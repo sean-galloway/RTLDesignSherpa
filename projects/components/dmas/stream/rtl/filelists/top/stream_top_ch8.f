@@ -42,7 +42,6 @@ $STREAM_ROOT/regs/generated/rtl/stream_regs.sv
 
 # APB kick-off router
 
-$STREAM_ROOT/rtl/top/cmdrsp_router.sv
 
 # PeakRDL adapter (from converters component)
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
