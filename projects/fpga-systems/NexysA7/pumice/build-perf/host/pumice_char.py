@@ -594,6 +594,106 @@ class Meter:
 
 
 @dataclass(frozen=True)
+class PageStats:
+    """In-controller mode telemetry (pumice CSRs), as a DELTA over one phase.
+
+    These are the counters Sean directed stay inside pumice ("keep tracking
+    things like paging results and anything else that is easy but interesting"),
+    and they are the PRIMARY signal for [[PUMICE-013]]: bandwidth says which
+    setting won, these say why.
+
+    TWO TRAPS, both of which produce a plausible-looking wrong number:
+
+    1. `PAGE_STATS_HIT` IS NOT HITS. The RTL increments it on `w_is_col` --
+       EVERY column op (`pumice_page_policy.sv:348`), hit or not. Its RDL
+       description ("Column ops issued to an already-open row") is wrong. So
+       `hit / (hit + miss + empty)`, the obvious reading, is meaningless: it
+       mixes a per-ACCESS count with two per-ACT counts. What the hardware
+       actually gives is accesses (col_ops) and the ACTs those accesses cost,
+       so the real row-hit rate is the fraction of accesses that needed NO
+       activate:  (col_ops - acts) / col_ops.
+
+    2. THE SCALE IS PER COLUMN OP, NOT PER AXI BURST, and that sets a FLOOR on
+       the hit rate that is easy to mistake for a good result. One AXI burst
+       spans several column ops (measured on the board build: AxLEN=8 -> 64 B
+       at 16 B per BL8 x16 column op = 4 col ops), and every column op after
+       the first in a burst lands on the row its predecessor just opened. So a
+       workload that misses on EVERY burst still reports 1 - 1/4 = 75% hit.
+       Under open page at AxLEN=8 the meaningful range is 75%..100%, not
+       0%..100%; only close page reaches 0%, because it auto-precharges after
+       each column op. When comparing paging MODES, read `acts` (or ACT per
+       transaction) rather than the rate -- the rate compresses exactly the
+       differences the sweep is trying to resolve.
+
+    3. The counters are FREE-RUNNING and clear only on `aresetn`. `clear_stats()`
+       is the HARNESS clear (meters, trace pointer) and does not touch them, and
+       a soft_reset between points would wipe the config under test. So an
+       absolute read accumulates across every scenario in the session and each
+       point looks progressively worse than the last. Always take a before/after
+       delta -- that is what `__sub__` is for.
+    """
+    col_ops: int        # PAGE_STATS_HIT   -- every column op (NOT hits)
+    miss:    int        # PAGE_STATS_MISS  -- ACT after a conflict PRE (thrash)
+    empty:   int        # PAGE_STATS_EMPTY -- ACT to an idle bank (cold open)
+    acts:    int        # SCHED_STATS_ACT  -- == miss + empty
+    pres:    int        # SCHED_STATS_PRE  -- PRE + PREA
+    refs:    int        # REF_STATS_REF    -- REFab + REFpb
+
+    def __sub__(self, other: "PageStats") -> "PageStats":
+        """Delta across a phase. 32-bit counters, so wrap is masked rather than
+        allowed to go negative -- a negative 'count' would sail through every
+        downstream ratio as a small positive-looking anomaly."""
+        m = lambda a, b: (a - b) & 0xFFFF_FFFF
+        return PageStats(m(self.col_ops, other.col_ops), m(self.miss, other.miss),
+                         m(self.empty, other.empty), m(self.acts, other.acts),
+                         m(self.pres, other.pres), m(self.refs, other.refs))
+
+    @property
+    def row_hit_rate(self) -> Optional[float]:
+        """Fraction of column accesses that found their row already open.
+        None when nothing was counted -- a vacuous 0.0 here reads as
+        'every access missed', which is the opposite of 'we measured nothing'
+        (see [[feedback_checker_verdict_needs_a_count]])."""
+        if self.col_ops <= 0:
+            return None
+        return max(0.0, (self.col_ops - self.acts) / self.col_ops)
+
+    @property
+    def acts_per_access(self) -> Optional[float]:
+        if self.col_ops <= 0:
+            return None
+        return self.acts / self.col_ops
+
+    @property
+    def miss_frac(self) -> Optional[float]:
+        """Of the ACTs paid, how many were row THRASH (a conflict close) rather
+        than a cold open. Separates 'the mapping conflicts' from 'the page was
+        simply shut', which is the distinction a paging mode is trying to move."""
+        if self.acts <= 0:
+            return None
+        return self.miss / self.acts
+
+    @property
+    def counted(self) -> bool:
+        return self.col_ops > 0 or self.acts > 0 or self.refs > 0
+
+
+def read_page_stats(drv: DDR2CharDriver) -> PageStats:
+    """Snapshot the controller-side telemetry. Registers BY NAME via the
+    generated regmap ([[feedback_registers_by_name]]) -- these offsets sit in
+    the 0x148..0x15C block that has already moved once."""
+    f = drv.pumice.regs.field
+    return PageStats(
+        col_ops=int(f("PAGE_STATS_HIT",   "VAL")),
+        miss=   int(f("PAGE_STATS_MISS",  "VAL")),
+        empty=  int(f("PAGE_STATS_EMPTY", "VAL")),
+        acts=   int(f("SCHED_STATS_ACT",  "VAL")),
+        pres=   int(f("SCHED_STATS_PRE",  "VAL")),
+        refs=   int(f("REF_STATS_REF",    "VAL")),
+    )
+
+
+@dataclass(frozen=True)
 class CharRecord:
     """Full result for one (config, Scenario) point -- W+R phases + metrics."""
     scenario:   Scenario
@@ -628,6 +728,32 @@ class CharRecord:
     # is one. None for sequential phases, where the directions never overlap.
     wr_window_cyc: Optional[int] = None
     rd_window_cyc: Optional[int] = None
+
+    # In-controller mode telemetry, as a per-phase DELTA (see PageStats).
+    # This is the signal that explains a result rather than just scoring it:
+    # two page policies can post the same MB/s for completely different
+    # reasons, and only the ACT/PRE/hit-rate split tells them apart. None when
+    # the controller CSRs were not readable, or nothing was counted.
+    wr_stats: Optional["PageStats"] = None
+    rd_stats: Optional["PageStats"] = None
+
+    # ---- derived paging ---------------------------------------------------
+    @property
+    def rd_acts_per_txn(self) -> Optional[float]:
+        """ACTs per AXI transaction on the read phase.
+
+        The figure to compare paging MODES on. `row_hit_rate` is per column op
+        and therefore floored by the burst geometry (see PageStats note 2), so
+        at AxLEN=8 every open-page mode sits in a narrow 75-100% band and the
+        differences between them are squeezed almost flat. ACT/txn is not
+        floored: 1.0 means "every burst paid one activate", 0.0 means "the row
+        stayed open across bursts", and a good predictor drives it DOWN.
+        """
+        st = self.rd_stats
+        n = self.scenario.txn_count
+        if st is None or n <= 0:
+            return None
+        return st.acts / n
 
     # ---- derived bandwidth / latency ------------------------------------
     @staticmethod
@@ -715,6 +841,28 @@ def strides_for(sc: Scenario, geom: Geometry) -> Tuple[int, int]:
 # =============================================================================
 # Measurement
 # =============================================================================
+def _try_page_stats(drv: DDR2CharDriver) -> Optional[PageStats]:
+    """Snapshot controller telemetry, or None if the window is not readable.
+
+    Never fatal: the counters EXPLAIN a measurement, they are not the
+    measurement, so a build or bus that cannot serve them degrades to "no
+    telemetry" rather than killing a bandwidth run that is otherwise fine.
+    The None propagates -- summarize() then prints nothing rather than zeros,
+    so a failed read can never be mistaken for a measured 0% hit rate."""
+    try:
+        return read_page_stats(drv)
+    except Exception:
+        return None
+
+
+def _delta_page_stats(before: Optional[PageStats],
+                      after: Optional[PageStats]) -> Optional[PageStats]:
+    if before is None or after is None:
+        return None
+    d = after - before
+    return d if d.counted else None
+
+
 def _read_meter(drv: DDR2CharDriver, which: str) -> Meter:
     m = drv.perf_meters()[which]
     return Meter(prod=m.prod, bp=m.bp, starv=m.starv, idle=m.idle)
@@ -760,6 +908,9 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     drv.freeze_trace(True)                  # no counting during programming
     drv.program_wr_engine(**prog)
     drv.clear_stats()                       # zero buckets + errors AFTER program
+    # Controller counters are free-running: clear_stats does NOT reach them and
+    # a soft_reset here would wipe the cfg under test. Bracket and diff.
+    _ps_wr0 = _try_page_stats(drv)
     drv.timer_clear()
     drv.freeze_trace(False)                 # start counting
     drv.start_wr()
@@ -775,10 +926,12 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     _tw = drv.timer()
     wr_cycles = max(_tw.w_last - _tw.w_first, 0)
     wr_meter = _read_meter(drv, "wr")
+    wr_stats = _delta_page_stats(_ps_wr0, _try_page_stats(drv))
 
     # ---- read phase ----
     drv.program_rd_engine(**prog)           # (still frozen from above)
     drv.clear_stats()
+    _ps_rd0 = _try_page_stats(drv)
     drv.timer_clear()
     drv.freeze_trace(False)
     drv.start_rd()
@@ -787,6 +940,7 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     _tr = drv.timer()                       # read window from r_last-r_first stamps
     rd_cycles = max(_tr.r_last - _tr.r_first, 0)
     rd_meter = _read_meter(drv, "rd")
+    rd_stats = _delta_page_stats(_ps_rd0, _try_page_stats(drv))
     rd_hist, rd_total = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     drv.freeze_trace(False)                 # leave running for the next scenario
 
@@ -810,7 +964,8 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
         wr_cycles=wr_cycles, wr_meter=wr_meter,
         rd_cycles=rd_cycles, rd_meter=rd_meter,
         rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
-        bytes_moved=bytes_moved, clk_mhz=clk_mhz, notes=tuple(notes))
+        bytes_moved=bytes_moved, clk_mhz=clk_mhz,
+        wr_stats=wr_stats, rd_stats=rd_stats, notes=tuple(notes))
 
 
 def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
@@ -935,6 +1090,9 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
     for r in range(n_rd):
         drv.program_rd_engine(gen=r, **_prog(n_wr + r))
     drv.clear_stats()
+    # Bracket the whole concurrent window -- see the rd_stats note below for
+    # why this cannot be attributed per direction.
+    _ps_cc0 = _try_page_stats(drv)
     drv.timer_clear()
     drv.freeze_trace(False)
     drv.start_both(wr_mask=(1 << n_wr) - 1, rd_mask=(1 << n_rd) - 1)
@@ -955,6 +1113,13 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
     rd_window = max(t.r_last - t.r_first, 0)
     wr_meter = _read_meter(drv, "wr")
     rd_meter = _read_meter(drv, "rd")
+    # ONE window here, both directions in it, so the controller telemetry
+    # cannot be split per direction -- the counters are global to the
+    # controller and a concurrent run interleaves both. Recorded on rd_stats
+    # with wr_stats left None rather than copied to both: two identical
+    # numbers under different labels would read as an independent
+    # confirmation, and it would be the same measurement twice.
+    rd_stats = _delta_page_stats(_ps_cc0, _try_page_stats(drv))
     rd_hist, rd_total = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     drv.freeze_trace(False)
 
@@ -980,6 +1145,7 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
         bytes_moved=per_gen_bytes * max(n_rd, 1),
         wr_bytes=per_gen_bytes * max(n_wr, 1), clk_mhz=clk_mhz,
         wr_window_cyc=wr_window, rd_window_cyc=rd_window,
+        rd_stats=rd_stats,
         notes=tuple(notes))
 
 
@@ -1128,6 +1294,21 @@ RUN_PROFILES: Dict[str, dict] = {
     # Axis-2 page-policy predictors (modes 4..7) on the reorder config, over
     # the pattern pair that separates them (streaming vs page-thrash). This
     # is the sim gate for the restored modes' CSR path.
+    # PAGING GRADE (PUMICE-013 axis 2, the telemetry check). open vs close
+    # page over ALL THREE families, which are the paging grade by construction:
+    # row_major wraps inside one page (every burst a HIT), col_major walks rows
+    # in one bank (every burst a MISS), incremental marches (hits until each
+    # row crossing). Under open_page those must land at opposite ends of the
+    # hit-rate column; under baseline (close page) everything pays an ACT.
+    # That is a FALSIFIABLE prediction about the controller telemetry, which is
+    # why this is the profile to run first after touching the counters -- if
+    # the three families report the same hit rate, the plumbing is wrong.
+    #
+    # Valid in SIM even though paging BANDWIDTH is not: the counters count
+    # commands the scheduler issued, which is page-policy logic, not DFI
+    # timing. Sim proves the mechanism; the board supplies the MB/s.
+    "paging_grade": dict(configs=["open_page", "baseline"], level="basic",
+                         families=None),
     "paging": dict(configs=["adapt_time", "adapt_access", "rbl_static", "rbl_dyn"],
                    level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
     # Axis-1 order modes on the base build: per-channel in_order vs
@@ -1310,6 +1491,14 @@ def summarize(recs: List[CharRecord]) -> List[str]:
                      "this run size (meter window >> timer run) -- treat rd/wr "
                      "util as unreliable; bandwidth (timer-based) is fine. Raise "
                      "--char-scale (~1000 on the board) for meaningful util.")
+    # Anti-vacuity on the telemetry itself: a sweep whose whole point is the
+    # ACT/PRE/hit-rate comparison must say so loudly when it collected none,
+    # rather than printing a table of '-' that skims as "all the same".
+    if recs and not any(r.rd_stats is not None for r in recs):
+        lines.append("[FLAG] NO controller telemetry on any point -- hit%/ACT/"
+                     "PRE/REF are all unreadable. The paging/scheduling "
+                     "comparison this table exists for CANNOT be made from "
+                     "this run; bandwidth numbers are still valid.")
     for r in recs:                                   # integrity/completion
         if not r.ok:
             lines.append(f"[FLAG] {r.config}/{r.scenario.name}: NOT OK -- "
@@ -1320,20 +1509,32 @@ def summarize(recs: List[CharRecord]) -> List[str]:
 def format_table(recs: List[CharRecord]) -> str:
     """Render the per-(config, scenario) metrics table."""
     buf = io.StringIO()
+    # hit%/ACT/PRE/REF come from the CONTROLLER counters (PageStats), not the
+    # bus meters, and are the columns that say WHY a config won. '-' means the
+    # telemetry was not readable or counted nothing -- never silently 0.
     hdr = (f"{'config':<16} {'scenario':<24} {'ok':>3} {'blen':>4} {'gap':>3} "
            f"{'id':>4} {'wr_MB/s':>9} {'wr_util':>7} {'rd_MB/s':>9} "
-           f"{'rd_util':>7} {'rd_lat':>7}")
+           f"{'rd_util':>7} {'rd_lat':>7} {'hit%':>6} {'ACT/txn':>8} "
+           f"{'ACT':>7} {'PRE':>7} {'REF':>5} {'thrash':>7}")
     print(hdr, file=buf)
     print("-" * len(hdr), file=buf)
     id_name = {dc.ID_MODE_FIXED: "fix", dc.ID_MODE_COUNTER: "cnt",
                dc.ID_MODE_LFSR: "lfsr"}
     for r in recs:
         sc = r.scenario
+        st = r.rd_stats
+        pct = lambda v: f"{v:>6.1%}" if v is not None else f"{'-':>6}"
+        num = lambda v, w: f"{v:>{w}}" if st is not None else f"{'-':>{w}}"
         print(f"{r.config:<16} {sc.name:<24} {'Y' if r.ok else 'N':>3} "
               f"{sc.burst_len:>4} {sc.gap:>3} {id_name.get(sc.id_mode, '?'):>4} "
               f"{r.wr_bw_mb_s:>9.1f} {r.wr_meter.util:>7.1%} "
               f"{r.rd_bw_mb_s:>9.1f} {r.rd_meter.util:>7.1%} "
-              f"{r.rd_avg_latency_cyc:>7.1f}", file=buf)
+              f"{r.rd_avg_latency_cyc:>7.1f} "
+              f"{pct(st.row_hit_rate if st else None)} "
+              f"{(f'{r.rd_acts_per_txn:>8.2f}' if r.rd_acts_per_txn is not None else f'{chr(45):>8}')} "
+              f"{num(st.acts if st else 0, 7)} {num(st.pres if st else 0, 7)} "
+              f"{num(st.refs if st else 0, 5)} "
+              f"{pct(st.miss_frac if st else None)}", file=buf)
     return buf.getvalue()
 
 

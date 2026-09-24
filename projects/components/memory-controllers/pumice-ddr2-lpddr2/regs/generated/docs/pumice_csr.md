@@ -12,82 +12,82 @@ Don't override. Generated from: $root
 
 <p>Configuration and observation registers for the DDR2/LPDDR2 controller</p>
 
-|Offset|       Identifier       |                  Name                 |
-|------|------------------------|---------------------------------------|
-| 0x000|          CTRL          |            Control Register           |
-| 0x004|         STATUS         |            Status Register            |
-| 0x008|     STATUS_HISTORY     |             Status History            |
-| 0x010|  TIMINGS_RC_RCD_RP_RAS |    Timings: tRC / tRCD / tRP / tRAS   |
-| 0x014|    TIMINGS_RFC_REFI    |         Timings: tRFC / tREFI         |
-| 0x018| TIMINGS_RRD_FAW_WTR_CCD|   Timings: tRRD / tFAW / tWTR / tCCD  |
-| 0x01C|    TIMINGS_CL_CWL_WR   |    Timings: CL / CWL / tWR / tRFCpb   |
-| 0x020|           MR0          |            Mode Register 0            |
-| 0x024|           MR1          |            Mode Register 1            |
-| 0x028|           MR2          |            Mode Register 2            |
-| 0x02C|           MR3          |            Mode Register 3            |
-| 0x030|  PASR_BANK_MASK_RANK0  |         PASR Bank Mask Rank 0         |
-| 0x034|   PASR_SEG_MASK_RANK0  |        PASR Segment Mask Rank 0       |
-| 0x038|    TEMP_DERATE_RANK0   |       Temperature Derate Rank 0       |
-| 0x040|      SCHED_TUNING      |            Scheduler Tuning           |
-| 0x048|     REFRESH_TUNING     |             Refresh Tuning            |
-| 0x04C|        ADDR_MAP        |              Address Map              |
-| 0x050|       INIT_TUNING      |              Init Tuning              |
-| 0x054|     TIMINGS_RTP_RTW    |          Timings: tRTP / tRTW         |
-| 0x058|      INIT_TIMING0      |      Init Timing 0: tINIT / tDLLK     |
-| 0x05C|      INIT_TIMING1      |Init Timing 1: tMRD / tRP / tRFC (init)|
-| 0x060|        DFI_PHASE       |      DFI Command Phase Placement      |
-| 0x064|       PHY_TIMING       | PHY / DFI data timing + memory config |
-| 0x068|      SCHED_POLICY      |            Scheduler Policy           |
-| 0x06C|       SCHED_WR_WM      |       Scheduler Write Watermarks      |
-| 0x070|     PAGE_POLICY_CFG    |           Page Policy Config          |
-| 0x074|    PAGE_TIMEOUT_CFG    |          Page Timeout Config          |
-| 0x078|     PAGE_ADAPT_CFG     |          Page Adaptive Config         |
-| 0x07C|      PAGE_RBL_CFG      |            Page RBL Config            |
-| 0x080|     OBS_ROW_HIT[0]     |      Per-Bank Row Hit Observation     |
-| 0x084|     OBS_ROW_HIT[1]     |      Per-Bank Row Hit Observation     |
-| 0x088|     OBS_ROW_HIT[2]     |      Per-Bank Row Hit Observation     |
-| 0x08C|     OBS_ROW_HIT[3]     |      Per-Bank Row Hit Observation     |
-| 0x090|     OBS_ROW_HIT[4]     |      Per-Bank Row Hit Observation     |
-| 0x094|     OBS_ROW_HIT[5]     |      Per-Bank Row Hit Observation     |
-| 0x098|     OBS_ROW_HIT[6]     |      Per-Bank Row Hit Observation     |
-| 0x09C|     OBS_ROW_HIT[7]     |      Per-Bank Row Hit Observation     |
-| 0x0C0|   OBS_REF_LATENCY[0]   |  Per-Bank Refresh Latency Observation |
-| 0x0C4|   OBS_REF_LATENCY[1]   |  Per-Bank Refresh Latency Observation |
-| 0x0C8|   OBS_REF_LATENCY[2]   |  Per-Bank Refresh Latency Observation |
-| 0x0CC|   OBS_REF_LATENCY[3]   |  Per-Bank Refresh Latency Observation |
-| 0x0D0|   OBS_REF_LATENCY[4]   |  Per-Bank Refresh Latency Observation |
-| 0x0D4|   OBS_REF_LATENCY[5]   |  Per-Bank Refresh Latency Observation |
-| 0x0D8|   OBS_REF_LATENCY[6]   |  Per-Bank Refresh Latency Observation |
-| 0x0DC|   OBS_REF_LATENCY[7]   |  Per-Bank Refresh Latency Observation |
-| 0x100| OBS_TXN_QUEUE_DEPTH_MAX|                   —                   |
-| 0x104| OBS_TXN_QUEUE_DEPTH_AVG|                   —                   |
-| 0x108| OBS_REFRESH_PENDING_MAX|                   —                   |
-| 0x10C|OBS_REFRESH_DEFER_HIST_0|                   —                   |
-| 0x110|OBS_REFRESH_DEFER_HIST_1|                   —                   |
-| 0x114|OBS_REFRESH_DEFER_HIST_2|                   —                   |
-| 0x118|OBS_REFRESH_DEFER_HIST_3|                   —                   |
-| 0x130|  OBS_AXI_R_LATENCY_AVG |                   —                   |
-| 0x134|  OBS_AXI_R_LATENCY_P99 |                   —                   |
-| 0x138|  OBS_AXI_W_LATENCY_AVG |                   —                   |
-| 0x140|        REF_CTRL        |          Refresh Mode Control         |
-| 0x144|      REF_TIMING_PB     |        Per-Bank Refresh Timing        |
-| 0x148|     PAGE_STATS_HIT     |            Page Stats: Hits           |
-| 0x14C|     PAGE_STATS_MISS    |           Page Stats: Misses          |
-| 0x150|    PAGE_STATS_EMPTY    |          Page Stats: Empties          |
-| 0x154|     SCHED_STATS_ACT    |         Sched Stats: Activates        |
-| 0x158|     SCHED_STATS_PRE    |        Sched Stats: Precharges        |
-| 0x15C|      REF_STATS_REF     |        Refresh Stats: Refreshes       |
-| 0x1C0|      OBS_WORDS[0]      |        Observation Word Harvest       |
-| 0x1C4|      OBS_WORDS[1]      |        Observation Word Harvest       |
-| 0x1C8|      OBS_WORDS[2]      |        Observation Word Harvest       |
-| 0x1CC|      OBS_WORDS[3]      |        Observation Word Harvest       |
-| 0x1D0|      OBS_WORDS[4]      |        Observation Word Harvest       |
-| 0x1D4|      OBS_WORDS[5]      |        Observation Word Harvest       |
-| 0x1D8|      OBS_WORDS[6]      |        Observation Word Harvest       |
-| 0x1DC|      OBS_WORDS[7]      |        Observation Word Harvest       |
-| 0x1E0|      OBS_WORDS[8]      |        Observation Word Harvest       |
-| 0xFF0|           ID           |               Module ID               |
-| 0xFF4|          BUILD         |               Build Hash              |
+|Offset|       Identifier       |                  Name                  |
+|------|------------------------|----------------------------------------|
+| 0x000|          CTRL          |            Control Register            |
+| 0x004|         STATUS         |             Status Register            |
+| 0x008|     STATUS_HISTORY     |             Status History             |
+| 0x010|  TIMINGS_RC_RCD_RP_RAS |    Timings: tRC / tRCD / tRP / tRAS    |
+| 0x014|    TIMINGS_RFC_REFI    |          Timings: tRFC / tREFI         |
+| 0x018| TIMINGS_RRD_FAW_WTR_CCD|   Timings: tRRD / tFAW / tWTR / tCCD   |
+| 0x01C|    TIMINGS_CL_CWL_WR   |    Timings: CL / CWL / tWR / tRFCpb    |
+| 0x020|           MR0          |             Mode Register 0            |
+| 0x024|           MR1          |             Mode Register 1            |
+| 0x028|           MR2          |             Mode Register 2            |
+| 0x02C|           MR3          |             Mode Register 3            |
+| 0x030|  PASR_BANK_MASK_RANK0  |          PASR Bank Mask Rank 0         |
+| 0x034|   PASR_SEG_MASK_RANK0  |        PASR Segment Mask Rank 0        |
+| 0x038|    TEMP_DERATE_RANK0   |        Temperature Derate Rank 0       |
+| 0x040|      SCHED_TUNING      |            Scheduler Tuning            |
+| 0x048|     REFRESH_TUNING     |             Refresh Tuning             |
+| 0x04C|        ADDR_MAP        |               Address Map              |
+| 0x050|       INIT_TUNING      |               Init Tuning              |
+| 0x054|     TIMINGS_RTP_RTW    |          Timings: tRTP / tRTW          |
+| 0x058|      INIT_TIMING0      |      Init Timing 0: tINIT / tDLLK      |
+| 0x05C|      INIT_TIMING1      | Init Timing 1: tMRD / tRP / tRFC (init)|
+| 0x060|        DFI_PHASE       |       DFI Command Phase Placement      |
+| 0x064|       PHY_TIMING       |  PHY / DFI data timing + memory config |
+| 0x068|      SCHED_POLICY      |            Scheduler Policy            |
+| 0x06C|       SCHED_WR_WM      |       Scheduler Write Watermarks       |
+| 0x070|     PAGE_POLICY_CFG    |           Page Policy Config           |
+| 0x074|    PAGE_TIMEOUT_CFG    |           Page Timeout Config          |
+| 0x078|     PAGE_ADAPT_CFG     |          Page Adaptive Config          |
+| 0x07C|      PAGE_RBL_CFG      |             Page RBL Config            |
+| 0x080|     OBS_ROW_HIT[0]     |      Per-Bank Row Hit Observation      |
+| 0x084|     OBS_ROW_HIT[1]     |      Per-Bank Row Hit Observation      |
+| 0x088|     OBS_ROW_HIT[2]     |      Per-Bank Row Hit Observation      |
+| 0x08C|     OBS_ROW_HIT[3]     |      Per-Bank Row Hit Observation      |
+| 0x090|     OBS_ROW_HIT[4]     |      Per-Bank Row Hit Observation      |
+| 0x094|     OBS_ROW_HIT[5]     |      Per-Bank Row Hit Observation      |
+| 0x098|     OBS_ROW_HIT[6]     |      Per-Bank Row Hit Observation      |
+| 0x09C|     OBS_ROW_HIT[7]     |      Per-Bank Row Hit Observation      |
+| 0x0C0|   OBS_REF_LATENCY[0]   |  Per-Bank Refresh Latency Observation  |
+| 0x0C4|   OBS_REF_LATENCY[1]   |  Per-Bank Refresh Latency Observation  |
+| 0x0C8|   OBS_REF_LATENCY[2]   |  Per-Bank Refresh Latency Observation  |
+| 0x0CC|   OBS_REF_LATENCY[3]   |  Per-Bank Refresh Latency Observation  |
+| 0x0D0|   OBS_REF_LATENCY[4]   |  Per-Bank Refresh Latency Observation  |
+| 0x0D4|   OBS_REF_LATENCY[5]   |  Per-Bank Refresh Latency Observation  |
+| 0x0D8|   OBS_REF_LATENCY[6]   |  Per-Bank Refresh Latency Observation  |
+| 0x0DC|   OBS_REF_LATENCY[7]   |  Per-Bank Refresh Latency Observation  |
+| 0x100| OBS_TXN_QUEUE_DEPTH_MAX|                    —                   |
+| 0x104| OBS_TXN_QUEUE_DEPTH_AVG|                    —                   |
+| 0x108| OBS_REFRESH_PENDING_MAX|                    —                   |
+| 0x10C|OBS_REFRESH_DEFER_HIST_0|                    —                   |
+| 0x110|OBS_REFRESH_DEFER_HIST_1|                    —                   |
+| 0x114|OBS_REFRESH_DEFER_HIST_2|                    —                   |
+| 0x118|OBS_REFRESH_DEFER_HIST_3|                    —                   |
+| 0x130|  OBS_AXI_R_LATENCY_AVG |                    —                   |
+| 0x134|  OBS_AXI_R_LATENCY_P99 |                    —                   |
+| 0x138|  OBS_AXI_W_LATENCY_AVG |                    —                   |
+| 0x140|        REF_CTRL        |          Refresh Mode Control          |
+| 0x144|      REF_TIMING_PB     |         Per-Bank Refresh Timing        |
+| 0x148|     PAGE_STATS_HIT     |Page Stats: Column Ops (misnamed 'Hits')|
+| 0x14C|     PAGE_STATS_MISS    |           Page Stats: Misses           |
+| 0x150|    PAGE_STATS_EMPTY    |           Page Stats: Empties          |
+| 0x154|     SCHED_STATS_ACT    |         Sched Stats: Activates         |
+| 0x158|     SCHED_STATS_PRE    |         Sched Stats: Precharges        |
+| 0x15C|      REF_STATS_REF     |        Refresh Stats: Refreshes        |
+| 0x1C0|      OBS_WORDS[0]      |        Observation Word Harvest        |
+| 0x1C4|      OBS_WORDS[1]      |        Observation Word Harvest        |
+| 0x1C8|      OBS_WORDS[2]      |        Observation Word Harvest        |
+| 0x1CC|      OBS_WORDS[3]      |        Observation Word Harvest        |
+| 0x1D0|      OBS_WORDS[4]      |        Observation Word Harvest        |
+| 0x1D4|      OBS_WORDS[5]      |        Observation Word Harvest        |
+| 0x1D8|      OBS_WORDS[6]      |        Observation Word Harvest        |
+| 0x1DC|      OBS_WORDS[7]      |        Observation Word Harvest        |
+| 0x1E0|      OBS_WORDS[8]      |        Observation Word Harvest        |
+| 0xFF0|           ID           |                Module ID               |
+| 0xFF4|          BUILD         |               Build Hash               |
 
 ### CTRL register
 
@@ -1740,7 +1740,7 @@ further amortisation while costing read forward progress.</p>
 
 #### VAL field
 
-<p>Column ops issued to an already-open row</p>
+<p>EVERY column op issued (READ/WRITE, with or without AP). NOT a hit count despite the register name -- the RTL increments it on every column command. Row hits are DERIVED: hits = PAGE_STATS_HIT - SCHED_STATS_ACT.</p>
 
 ### PAGE_STATS_MISS register
 

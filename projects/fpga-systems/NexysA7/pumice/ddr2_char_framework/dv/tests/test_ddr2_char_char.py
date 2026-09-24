@@ -281,6 +281,22 @@ async def cocotb_test_char_families(dut):
                          f"lat={r.rd_avg_latency_cyc:.1f}\n")
                 fh.write(f"  RD hist(total={r.rd_hist_total}) = "
                          f"{list(r.rd_hist)}\n")
+                # Controller-side telemetry (PageStats delta over the phase).
+                # This is the PUMICE-013 signal: bandwidth scores a config,
+                # these say why it scored that. Printed as "no telemetry"
+                # rather than zeros when absent -- a 0% hit rate and a failed
+                # read must not look alike.
+                for lbl, st in (("WR", r.wr_stats), ("RD", r.rd_stats)):
+                    if st is None:
+                        fh.write(f"  {lbl} page: no telemetry\n")
+                        continue
+                    hr = st.row_hit_rate
+                    mf = st.miss_frac
+                    fh.write(f"  {lbl} page: col_ops={st.col_ops} "
+                             f"hit={'-' if hr is None else f'{hr:.1%}'} "
+                             f"ACT={st.acts} (miss={st.miss} empty={st.empty} "
+                             f"thrash={'-' if mf is None else f'{mf:.1%}'}) "
+                             f"PRE={st.pres} REF={st.refs}\n")
         dut._log.info("wrote raw perf dump to %s", _dump)
 
     seen_cfgs = set()

@@ -762,12 +762,25 @@ addrmap pumice_csr {
     // OBS_ROW_HIT[8] (per-bank hits) and OBS_REFRESH_DEFER_HIST_0..3 already
     // exist; these add the GLOBAL page-outcome and command-class counters the
     // in-system sweeps compare across modes. Per-bank TR readback lands with
-    // adapt_time. All are tied to 0 until the counting logic lands.
+    // adapt_time.
+    //
+    // IMPLEMENTED since 2026-08-25 (caf9d55fa) -- this block previously said
+    // "All are tied to 0 until the counting logic lands", which was true for
+    // one commit and then wrong for a month. They are real free-running
+    // counters in pumice_page_policy.sv, cleared only by aresetn (so a host
+    // reads them as a BEFORE/AFTER DELTA around a measurement window; there
+    // is no clear-on-read and no clear bit).
+    //
+    // SCALE: these count DRAM-level commands, not AXI transactions. One AXI
+    // burst spans several column ops, so hit-vs-total is floored by the burst
+    // geometry -- compare ACT counts, not a ratio, when grading page modes.
     //-------------------------------------------------------------------------
 
     reg {
-        name = "Page Stats: Hits";
-        field { sw = r; hw = w; desc = "Column ops issued to an already-open row"; } VAL[31:0];
+        // NAME IS A MISNOMER, kept only because renaming it would break every
+        // existing consumer of the generated regmap. It counts column ops.
+        name = "Page Stats: Column Ops (misnamed 'Hits')";
+        field { sw = r; hw = w; desc = "EVERY column op issued (READ/WRITE, with or without AP). NOT a hit count despite the register name -- the RTL increments it on every column command. Row hits are DERIVED: hits = PAGE_STATS_HIT - SCHED_STATS_ACT."; } VAL[31:0];
     } PAGE_STATS_HIT @ 0x148;
 
     reg {
