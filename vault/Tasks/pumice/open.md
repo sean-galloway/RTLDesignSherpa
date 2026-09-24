@@ -48,10 +48,22 @@ Re-run it against the corrected map — `wr_batch_max=0` must fail the repro at
 ~347 s. If it now does, this was the cause and 047 closes; if it still passes,
 the clobber is real and lives elsewhere.
 
-The wider lesson is the duplicate: two generated copies of one regmap, only one
-of which the `-o` in the regen command targets, is precisely the orphan-drift
-trap in [[feedback_peakrdl_generate_bin]]. The second copy silently served a
-month-old register layout to every component test.
+**Correction (same day):** this is NOT an orphan the tooling cannot reach, and
+the first write-up here called it one. `bin/peakrdl_generate.py` regenerates
+the regmap, and `--regmap-output` targets a non-default path, so the DV copy is
+fully generable -- the failure was simply that nobody passed it after
+`16eda8ed7`. pumice's RDL has TWO generated destinations and the regen command
+has to name both:
+
+```
+python3 bin/peakrdl_generate.py \
+    projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl \
+    -o projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated --no-html \
+    --regmap-output projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py
+```
+
+(Verified: the file committed in aea7238c5 is byte-identical to what that
+command produces -- the content was right, the method was a hand-copy.)
 
 ---
 

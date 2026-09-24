@@ -156,6 +156,34 @@ that owns it, and consumers reference it from a filelist (or at most take a
 copy) — they never generate their own. `obs_regs` is consumed by both Genesys 2
 stream and NexysA7 pumice this way.*
 
+### A second DESTINATION is not an orphan — name it in the regen command
+
+Distinguish the case above from a legitimate second output. A regmap the DV
+testbenches load under a different filename is still generated; it just needs
+`--regmap-output`, which takes a non-default path. pumice has exactly this
+shape — RTL/docs/regmap under `regs/generated/`, plus the TB-facing
+`dv/tbclasses/pumice_regmap.py` — so its regen names both:
+
+```
+python3 bin/peakrdl_generate.py \
+    projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl \
+    -o projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated --no-html \
+    --regmap-output projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py
+```
+
+**The failure mode is a regen that names only the first.** `16eda8ed7` added
+`SCHED_WR_WM.wr_batch_max` and regenerated `regs/generated/` only; the TB copy
+kept a month-old layout in which the field did not exist and `RSVD` spanned
+`31:16`, straight across its bits. Every component test then read-modify-wrote
+zeros over `[23:16]` — which presented as "`csr_write_field` clobbers the whole
+register" (PUMICE-047) and cost a session chasing a TB-framework bug that was
+never there. Nothing was stale-looking: the file is stamped "Auto-generated …
+DO NOT EDIT MANUALLY", so it reads as current.
+
+So: before assuming a generated file is unreachable, check the generator's
+flags. Deleting a second destination is right when nothing regenerates it, and
+wrong when something does — the fix there is the missing argument.
+
 ## A generator edit must be checked against every TOPOLOGY it emits, not every file
 
 Fixing BRIDGE-011 (gate `awready` on the tracking FIFO being not-full) took
