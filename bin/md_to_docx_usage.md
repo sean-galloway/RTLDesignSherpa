@@ -1,105 +1,13 @@
-# Usage Guide for `md_to_docx.py`
+# md_to_docx.py -- usage
 
-This script converts a main Markdown file (and all linked `.md` files) into a styled Word `.docx` or PDF.
+Current flags: `python3 bin/md_to_docx.py --help`. That is the only source that
+cannot drift, and it is why this file is a pointer.
+Pipeline mechanics (document unit, index, styles, generate script):
+**`bin/DOC_GENERATION.md`**.
+Decisions and traps (`--style` picks the engine, PNG never SVG, captions drive
+LoF/LoT/LoW): **`vault/handbook/authoring/doc-pipeline.md`**.
 
----
-
-## Basic Usage
-
-```bash
-python md_to_docx.py input.md
-```
-
-This creates `output.docx` using default Pandoc styling.
-
----
-
-## Common Options
-
-### `-t` or `--template`
-
-Specify a Word template (`.dotx` or `.docx`) for styling:
-
-```bash
-python md_to_docx.py input.md -t my_template.dotx
-```
-
-If you use `.dotx`, it will be auto-converted to `.docx`.
-
----
-
-### `-o` or `--output`
-
-Set output file name:
-
-```bash
-python md_to_docx.py input.md -o final_output.docx
-```
-
----
-
-### `--toc`
-
-Include a **Table of Contents**:
-
-```bash
-python md_to_docx.py input.md --toc
-```
-
----
-
-### `--title-page`
-
-Add a title page using default metadata (or YAML frontmatter if present):
-
-```bash
-python md_to_docx.py input.md --title-page
-```
-
----
-
-### `--pdf`
-
-Also create a `.pdf` alongside `.docx`:
-
-```bash
-python md_to_docx.py input.md --pdf
-```
-
-Requires Pandoc **and** LaTeX installed.
-
----
-
-### `--debug-md`
-
-Write merged markdown to `debug.md` for inspection:
-
-```bash
-python md_to_docx.py input.md --debug-md
-```
-
----
-
-### `--verbose`
-
-Enable detailed logging output:
-
-```bash
-python md_to_docx.py input.md --verbose
-```
-
----
-
-## Example Combo
-
-```bash
-python md_to_docx.py input.md -t style.dotx -o report.docx --toc --title-page --pdf --verbose
-```
-
----
-
-## Notes
-
-- Use relative Markdown links like `[Section](section1.md)` in your `input.md`
-- Image paths must be correct relative to their source files
-- YAML metadata (title, author, date) is supported in `input.md`
+What was here documented `-t/--template`, `-o/--output` and `--verbose`, none of
+which the tool has, and `md_to_docx.py input.md` with one positional when it
+takes two (`input output`). Following it produced an argparse error, so this was
+worse than redundant.

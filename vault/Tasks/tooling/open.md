@@ -2,68 +2,6 @@
 
 # Tooling tasks — open (not started)
 
-## TOOL-020: `formal/` has two competing conventions for where sv2v lives
-**Priority:** P3
-**Status:** Not Started
-**Owner:** TBD
-
-Found 2026-09-23 while closing TOOL-005, and deliberately NOT folded into it:
-TOOL-005 is about `env_python`, and this is 117 formal harness Makefiles.
-
-Three spellings across `formal/`:
-
-    SV2V      := /mnt/data/tools/sv2v     85 files
-    SV2V      := sv2v                     31 files
-    SV2V := sv2v                           1 file
-
-So a machine whose tools are not at `/mnt/data/tools` runs 31 harnesses and
-fails 85, and nothing says which is intended. Nothing in the repo exports
-`SV2V`, so the bare-`sv2v` form depends entirely on PATH -- which
-`env_python` now sets from `RTLDS_TOOLS_PREFIX` (TOOL-005).
-
-**Fix:** one form, `SV2V ?= sv2v`, letting PATH resolve it and an environment
-override win. `?=` rather than `:=` so a caller can pin a specific binary
-without editing 117 files. Do it as one mechanical sweep with a lint/formal
-smoke run behind it, not file by file.
-
-Not urgent: both forms work on THIS workstation today (the absolute path
-exists and `sv2v` is on PATH), which is exactly why it has gone unnoticed.
-
----
-## TOOL-002: Migrate the remaining method docs out of bin/ into the handbook
-**Priority:** P2
-**Status:** Not Started
-**Owner:** TBD
-
-`CLAUDE.md` now states the handbook is the single source of truth for skills and
-methods, and that methodology does not live next to the code. Seven files in
-`bin/` still do. They were deliberately left when the Kimi migration was scoped
-to Kimi only — this is the follow-through, not new work.
-
-- [ ] `bin/DOC_GENERATION.md` — the doc pipeline how-to
-- [ ] `bin/HEADER_TOOL_USAGE.md`
-- [ ] `bin/markdown_to_word_instructions.md`
-- [ ] `bin/md_to_docx_install.md`
-- [ ] `bin/md_to_docx_usage.md`
-- [ ] `bin/SIGNAL_CONTRACTS_KMAPS.md`
-- [ ] `bin/SIGNAL_NAMING_AUDIT.md`
-
-Method content moves into the relevant handbook note (mostly
-[[doc-pipeline]] and [[signal-contracts-and-kmaps]]); each file is reduced to a
-short pointer, as `bin/review/README.md` already is. Do not delete outright —
-someone landing in `bin/` should still be redirected.
-
-**Known inconsistency to resolve as part of this:** `doc-pipeline.md` currently
-calls `bin/DOC_GENERATION.md` the "canonical how-to", which contradicts the rule
-one note away. Whichever way it resolves, the two must agree.
-
-**Distinguish artifacts from documentation.** Files the code *reads* are not
-documentation and stay put — `bin/review/REVIEWER_BRIEF.md` and
-`docs/kimi_humanization_style_guide.md` are loaded verbatim as prompts. Check
-before moving anything.
-
----
-
 ## TOOL-004: Finish validating the cloud bootstrap on a genuinely clean box
 **Priority:** P2
 **Status:** Not Started
@@ -86,28 +24,6 @@ verified on 2026-07-23, but two paths have never executed:
 
 Verified and not in doubt: the pinned-Verilator shim resolves to 5.020 even
 with oss-cad-suite on PATH. That was the part most likely to be silently wrong.
-
----
-
-## TOOL-006: Triage the 18 Dependabot vulnerabilities on the default branch
-**Priority:** P2
-**Status:** Not Started
-**Owner:** TBD
-
-Every push prints: *"GitHub found 18 vulnerabilities on
-sean-galloway/RTLDesignSherpa's default branch (14 high, 4 moderate)."* It has
-been printing that all session and is tracked nowhere, which is how a warning
-becomes wallpaper.
-
-- [ ] Read the Dependabot alerts and classify: real exposure vs transitive dev
-      dependency that never runs on untrusted input.
-- [ ] Bump what is safe to bump; `requirements.txt` is pinned, so each bump is
-      a deliberate edit and needs a regression run behind it.
-- [ ] Record anything deliberately not fixed, with the reason. An accepted risk
-      that is written down is fine; an unread alert is not.
-
-Note the alerts are against `main`, and the working branch has moved on — check
-whether any are already fixed by the current pins before doing work.
 
 ---
 

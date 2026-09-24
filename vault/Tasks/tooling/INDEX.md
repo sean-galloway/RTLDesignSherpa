@@ -9,8 +9,8 @@ Repo tooling, scripts, and process work.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 1 | in progress right now |
-| [open.md](open.md) | 10 | accepted, not started |
-| [closed.md](closed.md) | 11 | done (kept for history) |
+| [open.md](open.md) | 7 | accepted, not started |
+| [closed.md](closed.md) | 14 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 ## Active
@@ -25,13 +25,8 @@ Repo tooling, scripts, and process work.
   `os.environ`; cocotb_test lets the environment override `extra_env`, so
   every cell of a leveled run executes at REG_LEVEL's depth. Bridge fixed;
   misc, rlb, apbx-xbar, converters, rapids, pumice remain.
-- **TOOL-002** — migrate the 7 remaining method docs out of `bin/` into the
-  handbook, per the single-source-of-truth rule in CLAUDE.md.
 - **TOOL-004** — finish validating the cloud bootstrap: the oss-cad-suite
   download path and a clean-box run have never executed.
-- **TOOL-006** — triage the 18 Dependabot vulnerabilities on `main`.
-- **TOOL-020** (P3) — `formal/` spells the sv2v path three ways across 117
-  Makefiles; 85 hardcode `/mnt/data/tools/sv2v`. Standardise on `SV2V ?= sv2v`.
 - **TOOL-007** — two RDS-DV arbiter-BFM gaps: a stubbed round-robin compliance
   check and no saturating profile. Together they let a starving arbiter pass.
 - **TOOL-010** — project-area cleanup: apply the RTL-area pattern to

@@ -40,7 +40,7 @@ that was never written:
 
 | n | file |
 |---|---|
-| 24 | `bin/markdown_to_word_instructions.md` |
+| 24 | `bin/markdown_to_word_instructions.md` -- RETIRED 2026-09-23, see below |
 | 10 | `bin/TBClasses/wavedrom_user/GAXI_WAVEDROM_GUIDE.md` |
 | 10 | `docs/markdown/TestTutorial/wavedrom_gaxi_example.md` |
 | 7 | `bin/DOC_GENERATION.md` |
@@ -48,6 +48,21 @@ that was never written:
 | 5 | `docs/DOCUMENTATION_STANDARDS.md` |
 
 `README.md` and `docs/markdown/rtl-cdc/cdc.md` are now at zero.
+
+**The top row is gone as of 2026-09-23 (TOOL-002).**
+`bin/markdown_to_word_instructions.md` documented `markdown_to_word.py`, a
+tool that has never existed in this repo -- not on disk, not tracked, not in
+history, and referenced by no code. Its 24 broken links were links into a
+toolchain that was never here, which is why they were never fixable by
+repointing. The file is retired; the checker went 1399 -> 1398 tracked .md
+with the broken count unchanged at 3, and 22 fenced + 1 inline-code example
+left the denominator with it.
+
+The figures ABOVE are deliberately left as measured. They are the 2026-07-27
+snapshot at `057f75df` and are superseded by the 2026-09-21 re-measurement at
+the top of this entry; editing a historical count to match today would
+falsify the record, for the same reason `docs/review/` is excluded from the
+sweep.
 
 ### What the sweep deliberately would not touch
 
