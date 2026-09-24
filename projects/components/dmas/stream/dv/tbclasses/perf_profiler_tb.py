@@ -171,15 +171,18 @@ class PerfProfilerTB(TBBase):
         if int(self.dut.perf_fifo_empty.value):
             return None
 
-        # Read LOW register (pops FIFO, latches data)
+        # SAMPLE FIRST. Both outputs show the FIFO head combinationally -- there
+        # is no capture register -- so popping before sampling returns the NEXT
+        # entry. At top level the pop is formed from reading BOTH PERF_DATA_LOW
+        # and PERF_DATA_HIGH; perf_profiler itself just takes a one-cycle strobe.
+        data_low = int(self.dut.perf_fifo_data_low.value)
+        data_high = int(self.dut.perf_fifo_data_high.value)
+
+        # Then retire the entry
         self.dut.perf_fifo_rd.value = 1
         await RisingEdge(self.clk)
         self.dut.perf_fifo_rd.value = 0
-
-        # Sample both registers on next cycle
         await RisingEdge(self.clk)
-        data_low = int(self.dut.perf_fifo_data_low.value)
-        data_high = int(self.dut.perf_fifo_data_high.value)
 
         # Parse metadata
         channel_id = data_high & 0x7

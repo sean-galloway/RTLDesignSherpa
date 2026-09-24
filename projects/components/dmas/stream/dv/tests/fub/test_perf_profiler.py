@@ -268,17 +268,17 @@ async def run_two_register_read_interface(tb):
     # Read first event manually to test interface
     assert not tb.is_fifo_empty(), "FIFO should not be empty"
 
-    # Trigger read strobe (simulates reading LOW register)
+    # Sample the head FIRST -- both outputs are combinational off the FIFO
+    # head, so there is nothing held over a pop.
+    data_low = int(tb.dut.perf_fifo_data_low.value)
+    data_high = int(tb.dut.perf_fifo_data_high.value)
+
+    # Then retire the entry. At top level this strobe is formed from reading
+    # BOTH PERF_DATA_LOW and PERF_DATA_HIGH; here it is driven directly.
     tb.dut.perf_fifo_rd.value = 1
     await RisingEdge(tb.clk)
     tb.dut.perf_fifo_rd.value = 0
-
-    # Wait one cycle for latch
     await RisingEdge(tb.clk)
-
-    # Read both output registers
-    data_low = int(tb.dut.perf_fifo_data_low.value)
-    data_high = int(tb.dut.perf_fifo_data_high.value)
 
     # Parse
     channel_id = data_high & 0x7
