@@ -178,6 +178,48 @@ restored. Full gate 4.0s (vs check_doc_examples.py 19.4s); hook no-op 0.03s.
 
 NOT covered, carried forward as [[TASK-089]]: the RLB `--copy-rtl` family.
 
+### Follow-up 2026-09-24 — coverage completed, three gaps closed
+
+Audited after [[TASK-089]] landed, against every `.rdl` in the tree rather
+than against the manifest's own list. Three things the "1 block to 9" and
+"26 entries / 18 RDLs" claims did not cover:
+
+1. **pumice_csr was entered TWICE.** This task and `4f8394ce3` added it
+   independently within the hour -- same RDL, same flags, same compare
+   targets, two copies. The gate ran those two invocations twice on every
+   commit. De-duplicated (kept the version using a named path constant and
+   carrying the PUMICE-047 rationale); 27 -> 25 entries, full gate 7.05s ->
+   6.54s. A structural check now backs the name check: 0 duplicate
+   (rdl, flags, regmap_output) triples and 0 files compared by two entries.
+
+2. **The rapids entries did not list their transitive includes, so editing
+   one was invisible to the gate.** `rapids_regs.rdl` and
+   `rapids_regmap.rdl` both `include` `rapids_engine_regs.rdl`, which
+   `include`s `rapids_mon_regs.rdl`; neither appeared in any `sources`, and
+   `--staged` filters on `sources`. Proven by A/B rather than asserted:
+   changing a real field default in `rapids_mon_regs.rdl` (TIMEOUT_CYCLES
+   10000 -> 12345) and staging only that file exits **0** with the old
+   sources and **1** with them added, flagging both rapids entries. This is
+   the same class the `stream_mon_regs.rdl` source entry exists to prevent.
+   (A first probe appended a trailing COMMENT and "passed" -- it changes no
+   generated output, so exit 0 could not distinguish "ignored the file" from
+   "checked and found nothing". The probe has to move an artifact.)
+
+3. **cdc_demo_csr was unlisted.** Regmap-only, like ddr2_char's harness_csr:
+   the demo tracks no generated RTL or docs. Invocation established
+   empirically, regmap reproduces byte-for-byte, mutation-proven (a dirtied
+   default exits 1 naming the entry).
+
+**Every `.rdl` in the tree is now accounted for: 24 = 19 gated as entries + 3
+reached as `sources` includes + 2 documented exclusions**, the exclusions
+recorded in the manifest header so nobody re-derives them --
+`misc/rdl/dma_address_gen.rdl` (a register DEFINITION; the `.sv` is
+hand-written and only mentions PeakRDL in a comment) and
+`bridge_pkg/peakrdl/bridge_cfg_proto.rdl` (a generator template, nothing
+committed). 26 entries, full gate 6.99s.
+
+Process note written up as [[regenerating-peakrdl-blocks]].
+
 ---
 
 ## TASK-083 — .rdl edits are gated against their generated artifacts

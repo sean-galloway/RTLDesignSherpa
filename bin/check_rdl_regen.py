@@ -56,6 +56,19 @@ STREAM_SOURCES = [
 PUMICE = "projects/components/memory-controllers/pumice-ddr2-lpddr2"
 PUMICE_SOURCES = [f"{PUMICE}/rtl/macro/pumice_csr.rdl"]
 
+# DELIBERATELY NOT GATED (checked 2026-09-24) -- these .rdl files exist but
+# produce NO tracked artifact, so there is nothing to compare against:
+#   misc/rdl/dma_address_gen.rdl      a register DEFINITION for descriptor
+#                                     fields. dma_address_gen.sv is
+#                                     hand-written; its only PeakRDL mention is
+#                                     a comment noting a regblock COULD drive
+#                                     its inputs.
+#   bridge/bin/bridge_pkg/peakrdl/bridge_cfg_proto.rdl
+#                                     a generator-side template, rendered per
+#                                     bridge config; nothing committed.
+# Every other .rdl in the tree is either an entry below or a `sources` include
+# of one.
+
 MANIFEST = [
     {
         "name": "stream_regs (regblock + docs + regmap)",
@@ -141,27 +154,6 @@ MANIFEST = [
         ],
     },
     {
-        "name": "pumice_csr (regblock + docs + regmap)",
-        "rdl": "projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl",
-        "sources": ["projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl"],
-        "flags": ["--no-html"],
-        "regmap_output": None,
-        "compare": [
-            ("projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr.sv", "rtl/pumice_csr.sv"),
-            ("projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/rtl/pumice_csr_pkg.sv", "rtl/pumice_csr_pkg.sv"),
-            ("projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/pumice_csr_regmap.py", "pumice_csr_regmap.py"),
-            ("projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated/docs/pumice_csr.md", "docs/pumice_csr.md"),
-        ],
-    },
-    {
-        "name": "pumice_csr (DV-facing regmap copy)",
-        "rdl": "projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl",
-        "sources": ["projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl"],
-        "flags": ["--no-html"],
-        "regmap_output": "pumice_regmap.py",
-        "compare": [("projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py", "pumice_regmap.py")],
-    },
-    {
         "name": "harness_csr_regs (Genesys2 stream)",
         "rdl": "projects/fpga-systems/Genesys2/stream/regs/harness_csr_regs.rdl",
         "sources": ["projects/fpga-systems/Genesys2/stream/regs/harness_csr_regs.rdl"],
@@ -213,7 +205,9 @@ MANIFEST = [
         # rapids_regs_regmap.py is not committed, so it is not compared.
         "name": "rapids_regs (regblock + docs)",
         "rdl": "projects/components/dmas/rapids/rtl/macro_beats/rapids_regs.rdl",
-        "sources": ["projects/components/dmas/rapids/rtl/macro_beats/rapids_regs.rdl"],
+        "sources": ["projects/components/dmas/rapids/rtl/macro_beats/rapids_regs.rdl",
+                    "projects/components/dmas/rapids/rtl/macro_beats/rapids_engine_regs.rdl",
+                    "projects/components/dmas/rapids/rtl/macro_beats/rapids_mon_regs.rdl"],
         "flags": ["--no-html"],
         "regmap_output": None,
         "compare": [
@@ -230,10 +224,23 @@ MANIFEST = [
         "name": "rapids_regmap (DV-facing regmap, semantic)",
         "rdl": "projects/components/dmas/rapids/rtl/macro_beats/rapids_regmap.rdl",
         "sources": ["projects/components/dmas/rapids/rtl/macro_beats/rapids_regmap.rdl",
-                    "projects/components/dmas/rapids/rtl/macro_beats/rapids_regs.rdl"],
+                    "projects/components/dmas/rapids/rtl/macro_beats/rapids_regs.rdl",
+                    "projects/components/dmas/rapids/rtl/macro_beats/rapids_engine_regs.rdl",
+                    "projects/components/dmas/rapids/rtl/macro_beats/rapids_mon_regs.rdl"],
         "flags": ["--no-html"],
         "regmap_output": "rapids_regmap.py",
         "compare": [("projects/components/dmas/rapids/rtl/rapids_regmap.py", "rapids_regmap.py", "semantic")],
+    },
+    {
+        # REGMAP ONLY: the demo tracks no generated RTL or docs for this block,
+        # only the TB-facing regmap. Comparing artifacts the tree does not
+        # carry would report permanent staleness.
+        "name": "cdc_demo_csr (NexysA7 cdc demo, regmap only)",
+        "rdl": "projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/rtl/cdc_demo_csr.rdl",
+        "sources": ["projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/rtl/cdc_demo_csr.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": "cdc_demo_csr_regmap.py",
+        "compare": [("projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/dv/tbclasses/cdc_demo_csr_regmap.py", "cdc_demo_csr_regmap.py")],
     },
     # --- retro_legacy_blocks -------------------------------------------------
     # These use --copy-rtl, which flat-copies the generated rtl/*.sv into
