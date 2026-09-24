@@ -1,23 +1,35 @@
 # pumice — task rollup
 
-**Next ID: PUMICE-050** — never recycle a number, even when its task closed.
+**Next ID: PUMICE-051** — never recycle a number, even when its item
+closed. **The sequence is SHARED by all three lanes**, so take the next
+number from the highest `PUMICE-NNN` anywhere in this area.
+`check_task_ids` validates within a lane, so a per-lane maximum passes
+the checker and still hands out a number another lane already owns.
 
 ## Lanes
 
-This area tracks three kinds of work, each a directory with its own INDEX and
-its own ID sequence. **Every item is its own file**, `<ID>.md`, filed under
-the directory for its state (`open/`, `active/`, `closed/`, `dropped/`).
-Pick the lane before filing:
+This area tracks three kinds of work, each a directory with its own INDEX.
+**Every item is its own file**, `<ID>.md`, filed under the directory for its
+state (`open/`, `active/`, `closed/`, `dropped/`). Pick the lane before filing:
 
-| Lane | For | Next ID |
+| Lane | For | Open |
 |---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | `TASK-001` |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | `BUG-001` |
-| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | `ISSUE-001` |
+| [task/](task/INDEX.md) | planned work we decided to do | 9 |
+| [bug/](bug/INDEX.md) | a defect with a reproduction | 1 |
+| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 3 |
 
-**The pages at this level are the LEGACY task lane.** They are frozen: close
-them out where they stand, and do not add to them. New work of any kind goes in
-a lane above. See [the convention](../INDEX.md) for the full definitions.
+**IDs keep the area's original `PUMICE-NNN` sequence**, rather than restarting
+per lane as `TASK-001`/`BUG-001`. These items predate the lanes and are
+referenced from 136 files across the repo -- handbook notes, other areas'
+trackers, commit messages. Renaming them would break every reference to gain
+nothing: `check_task_ids.ITEM_ID` is `^[A-Z][A-Z0-9]*-\d+$`, so `PUMICE-047.md`
+is a valid item filename in any lane. **The directory carries the lane; the ID
+stays the stable handle.**
+
+**The OPEN items moved into the lanes 2026-09-24.** `closed.md` and
+`dropped.md` at this level still hold the flat historical entries -- that move
+touched only open work, so history stayed where every existing link points.
+See [the convention](../INDEX.md) for the full definitions.
 
 
 DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-ddr2-lpddr2/`).
@@ -25,7 +37,7 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 14 |
+| [open](open.md) | 0 | *(moved to the lanes)* |
 | [closed](closed.md) | 31 |
 | [dropped](dropped.md) | 5 |
 
@@ -66,7 +78,7 @@ investigated and DROPPED 2026-09-23.)
 - **PUMICE-006** — mechanisms COMPLETE 2026-08-27, all three axes, every
   mode off by default and mutation-proven. Parked; reopens only if 013
   reports a gap.
-- **PUMICE-CLEANUP** — doc placement + filelist consistency. P2 hygiene.
+- **PUMICE-050** — doc placement + filelist consistency. P2 hygiene.
 - **PUMICE-KMAP** — blocked on [[TOOLING-KMAP]], whose SCOPE CHANGED
   2026-08-28: the deliverable is now a three-part CONTRACT TABLE (term list
   -> invariants -> decision table), not a Gray grid. See

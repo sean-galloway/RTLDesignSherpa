@@ -223,8 +223,11 @@ them real defects, which is exactly how a "what is open?" answer came back
 with about half the truth. 102 headings were promoted to `##` that day; the
 count is now 235 at `##` and zero at `###`.
 
-Note the 24 slug-style IDs that predate this (`AMBA-CDC-REORG`,
-`BRIDGE-NEXYSA7-REGEN`, `PUMICE-CLEANUP`, ...). They are uniform in SHAPE now
+Note the slug-style IDs that predate this (`AMBA-CDC-REORG`,
+`BRIDGE-NEXYSA7-REGEN`, ...). One of them, `PUMICE-CLEANUP`, was renamed to
+`PUMICE-050` on 2026-09-24 because the per-item layout's `ITEM_ID` requires a
+numeric tail -- a slug cannot be a filename. That is the cost the rest of them
+will pay when their areas migrate. They are uniform in SHAPE now
 — `## <ID>` like everything else — but they are not numeric, so they cannot
 take a `.01` subtask suffix meaningfully. Renaming them would break 134
 `[[ID]]` wikilinks plus commit history, so they stay until someone decides

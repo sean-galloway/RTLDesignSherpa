@@ -1,0 +1,260 @@
+# PUMICE-006: QoS + advanced scheduling (post-cleanup)
+
+**Status:** MECHANISMS COMPLETE 2026-08-27 — all three axes implemented
+(Axis 1 scheduling, Axis 2 paging, Axis 3 refresh), every mode OFF by
+default and mutation-proven. Characterization/tuning split to
+[[PUMICE-013]]. Holds open only for mechanism gaps 013 reports back.
+
+**GAPS REPORTED BACK BY [[PUMICE-013]] 2026-09-23** (first board campaign;
+full tables under "PUMICE-013 RESULTS"):
+
+1. **P1 -- FIXED 2026-09-23. `PAGE_RBL_CFG.reset_interval` shipped as
+   0 = "never", which made modes 6/7 unusable on streaming traffic.**
+
+   **Mechanism (read from the RTL, not inferred from the sweep).** The epoch
+   tick is the ONLY writer of `r_cnt <= '0` in `pumice_rbl_table.sv`, and the
+   miss counters saturate UPWARD on every tag hit. Tags deliberately survive
+   an epoch so a row stays resident. With no epoch there is therefore no decay
+   path at all, and the predictor becomes a ONE-WAY RATCHET: once a row's
+   counter passes `miss_thresh` the row latches closed, the next access re-ACTs
+   that same resident row, that ACT is now a tag HIT so the counter climbs
+   further, and the row can never reopen. A single refresh-driven close is
+   enough to seed it; streaming then catches every row in turn. This is why a
+   sweep of the epoch looked like "0 is bad" -- the epoch was not tuning the
+   predictor, it was supplying the only escape from a self-reinforcing loop.
+
+   **Fix:** RDL reset default `16'h0` -> `16'd256` (generated RTL reset
+   `16'h0` -> `16'h100`), the RTL header comment corrected to say a nonzero
+   epoch is required by BOTH modes rather than just mode 7, and the host's
+   `CONFIGS["rbl_static"]` no longer pins 0 -- "static" there means mode 6's
+   static THRESHOLD, not the absence of epochs. 256 is the longest epoch
+   measured at full streaming bandwidth (16/64/256 clean, 1024 already
+   degrades to 207 MB/s as decay stops outpacing saturation).
+
+   **Verified on silicon after the fix:** `rbl_static` on incremental now
+   measures **554.1 MB/s** against 34.9 before -- identical to plain open page
+   -- with col_major unchanged at 163.8. Gates: pumice component 188 passed at
+   BOTH geometries; char-framework board gate green.
+
+   Original finding below.
+
+   **P1 (as filed) -- `PAGE_RBL_CFG.reset_interval` ships as 0 = "never", and
+   that default makes mode 6 unusable on streaming traffic.** RTL reset default is
+   `16'h0` (pumice_csr.rdl:716). With the miss counters never decaying, the RBL
+   predictor latches closed on streaming and cannot relearn: 34.9 MB/s vs
+   553.8 for any nonzero epoch, a **15.8x regression**, with a 0.0% row-hit
+   rate and 8.17 ACT/txn -- byte-for-byte close-page behaviour. Isolated by
+   sweeping ONLY that field (`bin/seq_rbl_epoch.py`, reproduced twice):
+   epoch 0 -> 34.9; epoch 1/16/64/256 -> 553.4-553.8; epoch 1024 -> 207.2.
+   col_major measures 163.8 MB/s at EVERY epoch -- it genuinely misses, so the
+   predictor is right to close there, which is why this is invisible to a
+   page-hostile-only sweep. **Recommend a nonzero reset default in [16, 256].**
+2. **P2 -- a windowed or clearable refresh counter.** `REF_STATS_REF`
+   free-runs on tREFI, so a host-bracketed delta times the host's UART round
+   trips rather than the workload: a 186 us window measured a raw delta of
+   61446 (479 ms implied, **2584x**). Worked around host-side in 71c4fb030
+   (report window_cycles/tREFI and flag contamination), but axis 3 is
+   estimated rather than measured until the counter can be scoped to a window.
+   The command counters do not have this problem -- nothing issues DRAM
+   commands while the host is idle.
+3. **P3 -- config-table confounds, host-side but they distort the axes.**
+   `CONFIGS["inorder"]` pairs order_mode=1 with CLOSE page, so the order axis
+   reads as a 16x deficit when in-order actually costs 3.9x at equal page
+   policy; and all four axis-3 refresh configs pin CLOSE page, measuring
+   refresh in the ~34 MB/s regime where it matters least.
+
+**Progress:**
+- Step 1 (e64c824b): full mode-select CSR surface + *_STATS telemetry
+  registers, defaults bit-identical.
+- Axis 2 partial: `pumice_page_policy` fub — modes 1/2 (static ap override),
+  3 `fixed_open` (per-bank idle-timeout close via a new lowest-priority
+  arbiter PRE branch, JEDEC-gated like the conflict-PRE path) and
+  4 `adapt_time` (Happy adaptive-timeout TR/MC walk) + the always-on page
+  hit/miss/empty + ACT/PRE/REF counters feeding the *_STATS CSRs.
+  Directed test `test_pumice_core_fixed_open` is self-checking both ways
+  (mode-0 inertness arms) and mutation-proven (w_timeout_on=0 → RED).
+- Axis 2, modes 6/7 `rbl_static`/`rbl_dyn` landed: new `pumice_rbl_table` fub
+  (per-set-associative row miss-counter table, tag=row, true-LRU, runtime
+  ways/sets shape from PAGE_RBL_CFG, epoch counter clears, mode-7 divider-free
+  hill-climb on hit fraction with direction memory). Verdict latched per bank
+  at ACT time → page_policy turns the mask into per-bank auto-precharge.
+  Directed `test_pumice_core_rbl`: arm A mode-0 thrash baseline, arm B
+  thresh=2 static (conflict-PRE suppression < half of baseline + friendly-row
+  zero-reACT check), arm C dyn smoke + disarm. Mutation-proven (verdict
+  forced 0 → arm B RED: 13 vs 11 PREs, no suppression). Gate tier after:
+  fub 40 / macro 3 / top 57.
+- Axis 2, mode 5 `adapt_access` landed — AXIS 2 COMPLETE. New
+  `pumice_row_pred_table` fub (Happy "Hybrid"): tagless direct-mapped 2-bit
+  saturating counters, {bank, XOR-folded row} index; explicit-PRE closes teach
+  from accesses-per-activation (<=1 -> close-friendly, >=2 -> open-friendly),
+  auto-precharge closes are judged by same-row premature reopen (decrement).
+  PAGE_POLICY_CFG.ctr_open_max/ctr_init wired (0 = defaults 2 / weak-open 1;
+  init applies while the mode is disabled). LESSON captured in the RTL
+  comment: the scheduler's exported row-active bit clears at PICK time, a
+  cycle before the PRE issues — the first cut guarded PRE-learning on
+  row-active and learned NOTHING (found via $display trace, "PRE bank=4
+  act=0"); the open-row IMAGE stays valid, the active bit does not.
+  Directed `test_pumice_core_acc` (single-access thrash — a write+read pair
+  is 2 accesses and correctly teaches OPEN, so the rbl thrash pattern does
+  not transfer): mode-0 baseline, mode-5 suppression < half, golden readback,
+  friendly-row zero-reACT, ctr_init=3 cold-table <=1 PRE, disarm. Mutation-
+  proven (verdict forced 0 → arm B RED: 12 vs 11 PREs).
+  MAS 08_page_policy / design-requirements / HAS open-issue 5 updated to the
+  as-built modes 5/6/7.
+- Axis 3 step 1: REF_CTRL postpone/pullin JEDEC +-8 credits landed
+  (refresh_ctrl v3). Backlog + pull-in credit as one next-state evaluation;
+  postpone clamped to 7 so the saturating-8 backlog always forces under
+  demand; pull-in runs ahead only on CONFIRMED idle (16-cycle hysteresis
+  over scheduler CAM occupancy — micro-gaps must not release postponed
+  refreshes). TWO integration traps found and fixed in the same change:
+  (1) drain_active gated on refresh_req_o, else the arbiter's drain
+  preemption defeats postponement entirely; (2) the tREFI counter reloads
+  only on expiry, so a runtime t_refi poke takes effect after the STALE
+  period elapses once (test waits it out — this also bit the first test
+  run as a false "refresh gated" red).
+  Directed test_pumice_core_refresh_credit (timed demand windows, not
+  write counts — 40 b2b writes span <2 ticks): strict red-guard, postpone
+  zero-leak + forced ceiling + drain conservation, pull-in run-ahead +
+  refresh-free demand window + golden readback, disarm. DOUBLE
+  mutation-proven: postpone gutted -> arm B RED (6 leaked); pull-in
+  gutted -> arm C RED (tick-rate only).
+- Axis 3 step 2: refpb_rr landed (REF_CTRL.mode=2, LPDDR2-only with DDR2
+  degrade + perbank_supported strap). RDS-DV model first (041ddc3):
+  dram_state.on_refresh_bank with device-internal rotor, per-bank tRFCpb
+  recovery, bank-aware cmd_during_refresh (other banks accessible), 6 unit
+  tests; slave routes decoded all_banks=False to it. RTL: arbiter 2b branch
+  (PRE rotor bank only -> OP_REFPB; rank-wide-ACT-block-during-tRFCpb
+  conservative v1), refresh_ctrl tREFIpb mux + rotor mirror.
+  TWO REAL BUGS found by the directed test's zero-data reads:
+  (1) LATENT DOUBLE-ISSUE: every refresh fired TWICE (grant->req-drop is
+  2 cycles; the 2nd command registers before rfc_busy loads). Benign-
+  looking for REFab (a silent tRFC-between-REFs violation, present in
+  every prior build INCLUDING board bitstreams) but fatal for REFpb —
+  each command advances the device rotor -> mirror desync -> wrong-bank
+  precharges -> rows silently closed -> no_act_before_rd zero reads.
+  Fix: !r_grant in w_ref_safe/w_refpb_safe.
+  (2) rotor-mirror sampling: grant fires at the arbiter's FIFO-PUSH, so
+  grant_was_pb must sample the ARBITER-side a_cmd_op, not cmd_op_o (the
+  FIFO HEAD = an older command; sampling it stalled the mirror).
+  LESSON: the fub arbiter test's refresh poll (2-edge settle stride) had
+  been passing BECAUSE of the double-issue — the bug kept REF visible for
+  two cycles and the sampler always caught the second one. Single-issue
+  made the 1-cycle REF invisible to the stride; the poll now samples
+  every edge. A test that samples slower than the event it checks can be
+  green only in the presence of the bug it should catch. (The SAME
+  stride bit AGAIN in the Axis-1 fub arm: with static vectors the picks
+  alternate RD/ACT at period 2 and settle()'s 2-edge stride phase-locked
+  onto the non-RD cycle — hours chasing phantom "livelocks" before the
+  mask probe showed the RD firing all along. Order-mode polls are now
+  per-edge too.)
+  Directed test_pumice_top_refpb (LPDDR2 top TB): strap check, REFab
+  red-guard (refpb_total==0), full rotation >=8, BFM traffic golden
+  THROUGH the refpb stream, zero refresh-class model violations, disarm.
+  Mutation-proven: mode gate gutted -> arm B RED (0 REFpb).
+  AXIS 3 REMAINING: none in the commodity plan (per-bank ref_credit
+  steering + ACT-during-tRFCpb overlap are cataloged optimizations).
+  ALSO NOTE: the editable RDS-DV install was silently replaced by the
+  0.6.5 wheel at the release pin-bump — [[reference_dv_framework_repos]]
+  has the recovery (rm the site-packages copy, pip install -e, verify
+  __file__).
+- Axis 1 step 1: ORDER_MODE landed (SCHED_POLICY.order_mode 1=in_order /
+  3=age_threshold + age_thresh; 0/2 = FR-FCFS default). CAMs export a
+  per-entry 1-bit aged flag + head relative age (numeric ages never leave
+  the CAM); the arbiter overlay only NARROWS the FR-FCFS class masks.
+  A REAL PRE-EXISTING BUG found by the directed test's parked-victim
+  pattern (same-bank conflict read held while row-hits stream): a
+  conflict-PRE fires in a column-readiness gap, then a COLUMN picks
+  against the 2-cycle-stale row-open image and lands on the closed row —
+  its data never returns and the rd reorder CAM's AR-order drain WEDGES
+  forever (rd-return checker DROP). Reproduced on pristine HEAD RTL
+  (bisect harness), latent since the bank-parallel refactor. Fix =
+  PRE-only THREE-cycle column guard (w_pre_col_guard; PRE-only because
+  the general w_guarded also covers RD/WR fires and would throttle
+  same-bank column streaming — the first broad fix broke the fub
+  CLOSE->WRA arm; three deep because the bank image is up to 3 cycles
+  stale end-to-end and the 2-deep version still wedged).
+  A SECOND pre-existing bug behind the residual deterministic wedge: the
+  DFI READ-RETURN PATH SILENTLY DROPPED BEATS — dfi_rddata_valid is
+  fire-and-forget (no PHY backpressure) and the rd aligner forwarded
+  beats into the return CDC FIFO with ready gating only its capture
+  counter; a beat arriving while the 16-deep FIFO was full was simply
+  gone (probe: 4 beats lost), the burst went short, and the AR-order
+  drain wedged behind it. Fix = RD_FIFO_DEPTH 16 -> 32 (sizing contract:
+  the return FIFO must cover the whole admission domain = rd-CAM depth x
+  BL_WORDS = 32 beats) + a HARD ASSERTION in the aligner so any future
+  valid-with-full cycle is an $error, never silent data loss.
+  TWO design lessons: (a) the rd reorder CAM releases AXI reads in AR
+  order BY DESIGN, so completion order at the core level can NEVER show
+  scheduling differences — order-mode semantics are verified at the FUB
+  arbiter level (hand-driven vectors, scenario 11), the core test is the
+  wedge/integrity sentinel across modes; (b) age_threshold's boost must
+  trigger on the aged entry's EXISTENCE, not its candidacy — a
+  guard-blocked PRE never becomes a candidate while the competing column
+  keeps firing and re-arming that same guard (self-sustaining starvation
+  of the anti-starvation mechanism). Mutation-proven (overlay gutted ->
+  in_order arm RED).
+- Axis 1 step 2: ROW_SEL/COL_SEL most/fewest_pending landed
+  (SCHED_POLICY.row_sel/col_sel). Per-entry pending population = 8x8
+  same-{bank,row} match triangle per CAM (the paper's "expensive
+  counters" are trivial at CAM depth 8); arg_sel picks population-first
+  with OLDEST tie-break, composing under the ORDER_MODE narrowing;
+  row_sel steers ACT, col_sel steers COLUMN, PREs stay oldest. Fub
+  scenario 12 (hot-row-vs-lone-old vectors, per-edge polls) proves all
+  three encodings both directions; mutation (selector forced to oldest)
+  -> RED by drain-loop timeout. Core sentinel sweep extended with
+  most/most + fewest/fewest arms.
+- Axis 1 step 3: ACCESS_PREF landed (SCHED_POLICY.access_pref: 0/1
+  column_first = legacy order bit-identical, 2 row_first, 3
+  precharge_first). Class chosen first from the (ORDER_MODE-narrowed)
+  per-class picks, read-over-write within. TESTING LESSON: the first fub
+  scenario (poll-for-op over static self-refilling vectors) PASSED ITS
+  OWN MUTATION -- fired picks arm guards, the preferred class blanks a
+  cycle, and every class appears in the alternation, so any op is
+  findable under any preference. Rewritten as ONE-SHOT candidates with
+  FIRE-ORDER asserts (deterministic total order per preference) + a
+  4-cycle inter-arm pipeline flush (registered picks straddle arm
+  boundaries and get booked to the wrong arm). Mutation now properly
+  RED (pref dead -> column-first order under the row_first arm).
+- Axis 1 step 4: write batching landed (SCHED_WR_WM.wr_high_wm/wr_low_wm
+  hysteresis on wr-CAM schedulable occupancy; while draining, writes
+  outrank reads in every class; 0 = disabled bit-identical). Fub
+  scenario 14 (fire-order: wm off -> RD first; 3/1 -> two WRs front-run
+  the read), mutation-proven (drain forced off -> RD-first RED).
+- Axis 1 step 5: prio_sub landed (SCHED_POLICY.prio_sub: 0/2
+  load_over_store default bit-identical, 1 none = per-fire direction
+  toggle, 3 age_boost = an aged write winner pierces read priority via
+  the age_thresh flags). Per-class write-first decision with precedence
+  drain > prio_sub. Fub scenario 15 (fire order: default RD-first,
+  none = both fire, age_boost aged-WR-first + unaged RD-first),
+  mutation-proven (decode dead -> age_boost arm RED).
+- Axis 1 step 6: QoS landed (SCHED_POLICY.qos_en) — AXIS 1 COMPLETE.
+  AxQOS now carried AR/AW -> intake -> CAM entry -> per-entry sch_qos
+  vector (it previously died at the burst chopper); with qos_en each
+  class narrows to its max-QoS candidates BEFORE the population/oldest
+  select, making QoS the outer key with the existing selects as the
+  inner tie-break. Fub scenario 16: qos_en=0 picks the oldest (slot 5),
+  qos_en=1 picks the OLDEST OF THE MAX-QOS SET (slot 6, not the younger
+  slot 7) — proving both the outer key and the surviving age tie-break.
+  Mutation-proven (narrowing dead -> picks slot 5, RED).
+  ALL of PUMICE-006's three axes are now implemented: Axis 1
+  (scheduling), Axis 2 (paging), Axis 3 (refresh).
+  **MECHANISM WORK COMPLETE 2026-08-27.** Characterization and tuning of
+  the landed modes is a large body of work in its own right and moved to
+  [[PUMICE-013]] (Sean, 2026-08-27). 006 now covers only the RTL
+  mechanisms + their directed/mutation-proven mode tests; it closes when
+  013 has no mechanism gaps to report back.
+- Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
+  the new Happy-derived modes are its successors; docs to describe the
+  actual implementation.
+
+The original framing ("once pumice is CLEAN, layer in the sophisticated
+features") is satisfied: the advanced-mode catalog in
+`projects/components/memory-controllers/ADVANCED_MODES_ROADMAP.md` and the
+design-requirements doc (FR-FCFS variants, paging/refresh policy modes, QoS)
+is implemented end-to-end, each mode OFF by default with encoding 0 = build
+default and every mechanism mutation-proven at the fub level.
+
+**Entry gate (met):** tiny-tREFI soak 0-dirty on the rebuilt bitstream
+(PUMICE-004).
+
+---
