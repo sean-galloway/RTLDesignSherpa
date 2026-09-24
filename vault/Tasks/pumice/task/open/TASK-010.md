@@ -31,6 +31,19 @@ a 0x40 stride. Nothing in the RTL or the driver prevents generator 0 streaming
 one row while generator 1 walks rows. Only `_prog()` collapsing to a single
 Scenario does.
 
+**The generator RTL does NOT need changing, and one generator can never do it.**
+`dma_address_gen` is a 2D affine engine:
+
+    addr = base + (index_0 * stride_0 & wrap_0) + (index_1 * stride_1 & wrap_1)
+
+That is the right primitive. But affine is UNIFORM ACROSS ROWS by construction:
+if `wrap_0` confines the inner index inside a row, every row receives exactly
+the same number of accesses. No setting of the four knobs makes some rows hot
+and others one-shot, so the discriminating workload cannot come from a cleverer
+single program -- it has to come from TWO generators programmed differently
+(one confined inside a row, one striding across rows). The hardware already
+allows that; only the host collapses it.
+
 **What to do:** let `measure_concurrent` take a per-generator Scenario override
 (a list, defaulting to the single scenario it has now), then build the
 discriminating workload: one generator with high row locality against one
