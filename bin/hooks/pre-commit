@@ -85,6 +85,24 @@ if echo "$STAGED" | grep -qE '(^|/)test_[^/]*\.py$|/tbclasses/.*\.py$'; then
     fi
 fi
 
+# --- a .rdl edit must not leave its generated artifacts stale ----------------
+# Editing a .rdl without regenerating leaves the regblock, the regmaps and the
+# docs disagreeing with the source, and every test still passes because they
+# all read the stale generated copies. A 317-line divergence rode along that
+# way during the TASK-085 work. Gated on .rdl because the check regenerates
+# into a temp dir, which costs a few seconds.
+#
+# Note this reacts to INCLUDES too: stream_mon_regs.rdl is `include`d by
+# stream_regs.rdl, so editing it changes stream's output while the parent is
+# never staged. The manifest declares every source that feeds an entry.
+if echo "$STAGED" | grep -qE '\.rdl$'; then
+    echo "[pre-commit] Checking .rdl vs its generated artifacts..."
+    if ! out=$("$PY" "$REPO_ROOT/bin/check_rdl_regen.py" --staged 2>&1); then
+        echo "$out" >&2
+        fail=1
+    fi
+fi
+
 # --- a doc example must name ports the module actually has -------------------
 # Twenty-eight pages carried instantiations with invented ports. Every qc round
 # had the RTL and the example in the SAME bundle unit and missed them; two were

@@ -54,6 +54,34 @@ jobs:
         if: always()
         run: python3 bin/check_broken_links.py --list || true
 
+  # Its own job because it is the only check that needs the PeakRDL toolchain
+  # installed -- the filelist job above is deliberately pip-free, and adding
+  # this there would break it on a missing import (peakrdl_html is imported
+  # unconditionally by the generator even when --no-html is passed).
+  #
+  # Versions come from requirements.txt so CI cannot silently regenerate with a
+  # different PeakRDL than the tree was generated with -- that would report
+  # every artifact stale and block everyone.
+  rdl-regen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install the pinned PeakRDL toolchain
+        run: |
+          python3 -m pip install --quiet \
+            peakrdl==1.5.0 \
+            peakrdl-regblock==1.1.1 \
+            peakrdl-html==2.11.0 \
+            peakrdl_markdown==1.0.3
+
+      - name: A .rdl edit has not left its generated artifacts stale
+        run: python3 bin/check_rdl_regen.py
+
   # Separate job so the filelist job above stays pip-free and fast. These tests
   # cover the logic whose failure is SILENT on hardware -- a wrong port or a
   # skipped init reads as a timing bug, not a lookup bug. Three of them were red
