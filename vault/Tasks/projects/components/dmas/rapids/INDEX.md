@@ -15,14 +15,14 @@ Task tracking for the RAPIDS (beats) DMA component, nested under
 Convention: [Tasks](../../../../INDEX.md).
 
 ## Open (not started)
-- **TASK-057** — enforce register-map hygiene (port the STREAM lessons): use the
-  by-name regmap, kick writes must prove descriptor fetches, no hand-added
-  registers.
 - **TASK-086** — after TASK-082, snkGB/s is set by ingress utilisation (which
   includes the arm dead zone), not the sink datapath rate. Decide what the
   column should mean.
 
 ## Closed
+
+- **TASK-057** — register-map hygiene enforced: harness kick CSRs by name,
+  kick-proves-fetch in the top tests, regmap verified regen-clean. Done 2026-09-23.
 - **TASK-081** — the board kick sequencer never wrote KICK_ENABLE. Fixed and
   board-confirmed 2026-09-22: 8 ch x 8 beats OVERALL PASS, AXI4-wr prod=64, all
   16 CRCs matching golden. See [closed](closed.md).
