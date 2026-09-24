@@ -20,6 +20,9 @@ summary: RTL rules with the failures that taught them.
 - [[signal-prefixes]] - r_ = flopped, w_ = combinational; what it promises and where it lies
 - [[filelists]] - every module MUST have a .f and be registered; the two silent failures
 - [[generated-rtl-discipline]] - fix the generator, not the generated .sv; regen-and-diff is the audit
+- [[regenerating-peakrdl-blocks]] - the .rdl regen mechanics: one invocation
+  emits ONE regmap, so a DV-facing copy needs a second run; establish the
+  invocation empirically, then add it to the check_rdl_regen manifest
 - [[minimal-fsm]] - when an FSM is right, keep it minimal
 - [[signal-contracts-and-kmaps]] - contracts workbooks; computed K-maps
 - [[no-assertions-in-rtl]] - SVA belongs in formal/ bindings, never in a module; the guarded blocks the RLB arc reintroduced

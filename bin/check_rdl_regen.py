@@ -32,6 +32,7 @@ Usage:
 """
 import argparse
 import filecmp
+import importlib.util
 import subprocess
 import sys
 import tempfile
@@ -51,6 +52,9 @@ STREAM_SOURCES = [
     f"{STREAM}/rtl/macro/stream_regs.rdl",
     f"{STREAM}/rtl/macro/stream_mon_regs.rdl",   # `include`d by stream_regs.rdl
 ]
+
+PUMICE = "projects/components/memory-controllers/pumice-ddr2-lpddr2"
+PUMICE_SOURCES = [f"{PUMICE}/rtl/macro/pumice_csr.rdl"]
 
 MANIFEST = [
     {
@@ -79,6 +83,35 @@ MANIFEST = [
             (f"{STREAM}/rtl/stream_regmap.py", "stream_regmap.py"),
         ],
     },
+    {
+        "name": "pumice_csr (regblock + docs + regmap)",
+        "rdl": f"{PUMICE}/rtl/macro/pumice_csr.rdl",
+        "sources": PUMICE_SOURCES,
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            (f"{PUMICE}/regs/generated/rtl/pumice_csr.sv", "rtl/pumice_csr.sv"),
+            (f"{PUMICE}/regs/generated/rtl/pumice_csr_pkg.sv", "rtl/pumice_csr_pkg.sv"),
+            (f"{PUMICE}/regs/generated/pumice_csr_regmap.py", "pumice_csr_regmap.py"),
+            (f"{PUMICE}/regs/generated/docs/pumice_csr.md", "docs/pumice_csr.md"),
+        ],
+    },
+    {
+        "name": "pumice_csr (DV-facing regmap copy)",
+        "rdl": f"{PUMICE}/rtl/macro/pumice_csr.rdl",
+        "sources": PUMICE_SOURCES,
+        "flags": ["--no-html"],
+        # Second invocation, same reason as stream's: --regmap-output renames
+        # the emitted regmap rather than adding one, so a single run cannot
+        # produce both this and the regs/generated copy above. This is the file
+        # the component TBs load (pumice_top_csr_tb.py, pumice_top_tb.py), and
+        # it is what went a month stale after 16eda8ed7 added
+        # SCHED_WR_WM.wr_batch_max -- see PUMICE-047.
+        "regmap_output": "pumice_regmap.py",
+        "compare": [
+            (f"{PUMICE}/dv/tbclasses/pumice_regmap.py", "pumice_regmap.py"),
+        ],
+    },
 ]
 
 
@@ -105,7 +138,9 @@ def check_entry(entry, tmp_root):
         tail = (res.stdout + res.stderr).strip().splitlines()[-6:]
         return [f"generator FAILED (rc={res.returncode}):\n      " + "\n      ".join(tail)]
 
-    for tracked_rel, gen_rel in entry["compare"]:
+    for spec in entry["compare"]:
+        tracked_rel, gen_rel = spec[0], spec[1]
+        mode = spec[2] if len(spec) > 2 else "bytes"
         tracked = REPO_ROOT / tracked_rel
         generated = out_dir / gen_rel
         if not generated.exists():
@@ -114,9 +149,54 @@ def check_entry(entry, tmp_root):
         if not tracked.exists():
             problems.append(f"{tracked_rel} is MISSING but the generator emits it")
             continue
-        if not filecmp.cmp(tracked, generated, shallow=False):
+        if mode == "semantic":
+            bad = _regmap_differs(tracked, generated)
+            if bad:
+                problems.append(f"{tracked_rel} register map is STALE: {bad}")
+        elif not filecmp.cmp(tracked, generated, shallow=False):
             problems.append(f"{tracked_rel} is STALE (does not match a fresh regen)")
     return problems
+
+
+def _load_regmap(path):
+    """Load a *_regmap.py and return its register dict, or None."""
+    spec = importlib.util.spec_from_file_location("rm_" + path.stem, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    for name in dir(mod):
+        obj = getattr(mod, name)
+        if isinstance(obj, dict) and obj and all(
+                isinstance(v, dict) for v in list(obj.values())[:3]):
+            return obj
+    return None
+
+
+def _regmap_differs(tracked, generated):
+    """Compare two regmaps by REGISTER CONTENT, ignoring header/docstring prose.
+
+    Some regmaps carry a deliberately hand-written header -- rapids_regmap.py
+    explains that its two engine instances share the layout and are loaded at
+    different start_addresses, which a generated docstring cannot say. That is
+    an improvement, not drift, but it makes the file differ byte-for-byte from
+    a fresh regen forever. Comparing the register dictionary keeps the gate
+    honest about what actually matters: the registers.
+
+    Returns a human-readable description of the difference, or "" if equal.
+    """
+    a, b = _load_regmap(tracked), _load_regmap(generated)
+    if a is None or b is None:
+        return "could not load a register dict from one of the files"
+    only_tracked = sorted(set(a) - set(b))
+    only_fresh = sorted(set(b) - set(a))
+    changed = sorted(k for k in set(a) & set(b) if a[k] != b[k])
+    bits = []
+    if only_tracked:
+        bits.append(f"HAND-ADDED (not emitted by a regen): {only_tracked[:6]}")
+    if only_fresh:
+        bits.append(f"MISSING (emitted but not committed): {only_fresh[:6]}")
+    if changed:
+        bits.append(f"content differs: {changed[:6]}")
+    return "; ".join(bits)
 
 
 def main():

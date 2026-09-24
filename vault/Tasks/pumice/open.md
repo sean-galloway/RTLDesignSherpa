@@ -56,10 +56,18 @@ fully generable -- the failure was simply that nobody passed it after
 has to name both:
 
 ```
-python3 bin/peakrdl_generate.py \
-    projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl \
-    -o projects/components/memory-controllers/pumice-ddr2-lpddr2/regs/generated --no-html \
-    --regmap-output projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py
+# TWO invocations. --regmap-output REPLACES the default regmap, it does not
+# add a second one, so one run can only ever produce one of these files.
+P=projects/components/memory-controllers/pumice-ddr2-lpddr2
+
+# 1. regblock + docs + the regs/generated regmap
+python3 bin/peakrdl_generate.py $P/rtl/macro/pumice_csr.rdl \
+    -o $P/regs/generated --no-html
+
+# 2. the DV-facing regmap the component TBs load
+python3 bin/peakrdl_generate.py $P/rtl/macro/pumice_csr.rdl \
+    -o $P/regs/generated --no-html \
+    --regmap-output $P/dv/tbclasses/pumice_regmap.py
 ```
 
 (Verified: the file committed in aea7238c5 is byte-identical to what that
