@@ -137,6 +137,14 @@ class RapidsBeatsTopTB(TBBase):
         self.axis_master = None       # drives s_axis_* (sink ingress)
         self.ctrl_slaves = []
 
+        # Descriptor-fetch proof (TASK-057, ported from stream_core_tb).
+        # desc_fetch_addrs = every address a descriptor engine actually READ
+        # (m_axi_desc AR); kicked_desc_addrs = every address a kick launched.
+        # RAPIDS is two-half, so both are keyed by half -- a SRC kick must be
+        # proven by a SRC fetch, not by the other half happening to fetch.
+        self.desc_fetch_addrs = {'src': [], 'snk': []}
+        self.kicked_desc_addrs = {'src': {}, 'snk': {}}
+
         # Two by-name register maps: SRC half @ 0x0000, SNK half @ 0x1000.
         self.src_regs = RegisterMap(RAPIDS_REGMAP_PATH, apb_data_width=self.apb_data_width,
                                     apb_addr_width=self.apb_addr_width,
@@ -227,6 +235,14 @@ class RapidsBeatsTopTB(TBBase):
             data_width=self.DESC_WIDTH, id_width=self.AXI_ID_WIDTH,
             addr_width=self.ADDR_WIDTH, user_width=1, multi_sig=True,
             memory_model=self.desc_snk_mem, base_addr=self.DESC_BASE)
+
+        # Descriptor-fetch proof: capture every AR each descriptor engine
+        # issues via the slave's AR MONITOR, not raw signal poking -- see
+        # vault/handbook/dv/bfm-usage.md. add_callback is the framework hook.
+        self.desc_src_slave['AR'].add_callback(
+            lambda t: self._on_desc_ar('src', t))
+        self.desc_snk_slave['AR'].add_callback(
+            lambda t: self._on_desc_ar('snk', t))
 
         # Source data read slave (memory -> source).
         self.rd_slave = create_axi4_slave_rd(
@@ -442,6 +458,44 @@ class RapidsBeatsTopTB(TBBase):
         await self.write_fields(half, 'KICK_ENABLE', **{f'KICK{channel}': 1})
         self.log.info(f"Staged + kicked {half} ch{channel}, desc @ "
                       f"0x{descriptor_addr:016X}")
+        self.kicked_desc_addrs[half].setdefault(channel, []).append(descriptor_addr)
+
+    def _on_desc_ar(self, half, transaction):
+        """AR-monitor callback: record every descriptor read this half issues."""
+        addr = None
+        for f in ('araddr', 'addr'):
+            addr = getattr(transaction, f, None)
+            if addr is not None:
+                break
+        if addr is None and isinstance(transaction, dict):
+            addr = transaction.get('araddr', transaction.get('addr'))
+        if addr is not None:
+            try:
+                self.desc_fetch_addrs[half].append(int(addr))
+            except (ValueError, TypeError):
+                pass
+
+    def assert_descriptors_fetched(self):
+        """MUST: every descriptor address a kick launched was actually FETCHED
+        by that half's descriptor engine. Independent of the datapath check --
+        a dead or mis-decoded kick leaves the descriptor un-fetched while data
+        may still appear to move."""
+        missing = []
+        for half in ('src', 'snk'):
+            fetched = set(self.desc_fetch_addrs[half])
+            for ch, addrs in self.kicked_desc_addrs[half].items():
+                missing += [(half, ch, a) for a in addrs if a not in fetched]
+        if missing:
+            raise AssertionError(
+                "kick writes did NOT cause descriptor fetches: "
+                f"{[(h, c, hex(a)) for h, c, a in missing]}; observed="
+                f"{ {h: sorted(hex(x) for x in set(v)) for h, v in self.desc_fetch_addrs.items()} }")
+        n = sum(len(v) for hv in self.kicked_desc_addrs.values() for v in hv.values())
+        if n == 0:
+            raise AssertionError(
+                "descriptor-fetch proof ran with ZERO kicks recorded -- it would "
+                "pass vacuously; call kick_off_channel() before asserting")
+        self.log.info(f"descriptor-fetch proof: all {n} kicked descriptors were fetched")
 
     # =========================================================================
     # DESCRIPTOR + MEMORY HELPERS

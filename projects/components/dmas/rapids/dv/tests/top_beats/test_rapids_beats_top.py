@@ -63,6 +63,11 @@ async def cocotb_test_source_path(dut):
 
     tb.finalize_test()
     assert ok, f"source-path datapath failed: {stats.get('errors')}"
+
+    # TASK-057: independent of the datapath verdict above -- a dead or
+    # mis-decoded kick leaves the descriptor un-fetched while data can still
+    # appear to move.
+    tb.assert_descriptors_fetched()
     tb.log.info("rapids_beats_top SOURCE path PASSED")
 
 
@@ -141,6 +146,13 @@ async def cocotb_test_ext_addressing(dut):
                               f"(address walk diverged from dma_address_gen model)")
     tb.finalize_test()
     assert not errors, f"extended addressing failed: {errors}"
+
+    # TASK-057: the kick proof is INDEPENDENT of the datapath check above.
+    # A dead or mis-decoded kick leaves the descriptor un-fetched while data
+    # can still appear to move, so a datapath pass does not prove the kick
+    # register did anything. This asserts the address the kick launched was
+    # actually READ on that half's m_axi_desc AR channel.
+    tb.assert_descriptors_fetched()
     tb.log.info(f"rapids_beats_top EXT addressing PASSED ({rows} runs x {inner} beats)")
 
 
@@ -166,6 +178,11 @@ async def cocotb_test_sink_path(dut):
 
     tb.finalize_test()
     assert ok, f"sink-path datapath failed: {stats.get('errors')}"
+
+    # TASK-057: independent of the datapath verdict above -- a dead or
+    # mis-decoded kick leaves the descriptor un-fetched while data can still
+    # appear to move.
+    tb.assert_descriptors_fetched()
     tb.log.info("rapids_beats_top SINK path PASSED")
 
 

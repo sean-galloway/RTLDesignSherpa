@@ -64,18 +64,12 @@ SRC_DATA_BASE = 0x1000_0000    # source data (m_axi_rd) - address agnostic
 DST_DATA_BASE = 0x2000_0000    # sink data dest (m_axi_wr) - address agnostic
 CHANNEL_OFFSET = 0x0010_0000
 
-# Atomic-launch CSR offsets (raw region-2 byte offsets; not in the by-name
-# regmap). Mirror rapids_char_top.sv CSR_KICK_*/CSR_GO. The host stages every
-# CSR + descriptor over UART, then a single GO write arms the meter window,
-# starts the AXIS gen (sink), and fires all descriptor kicks on-chip in a few
-# aclk cycles -- keeping UART latency OUT of the measured window.
-CSR_KICK_CFG     = 0x064   # [0]=half(0 SRC/1 SNK) [1]=start_gen_on_go
-CSR_KICK_MASK    = 0x068   # [NUM_CHANNELS-1:0] channels to kick
-CSR_KICK_BASE_LO = 0x06C   # descriptor base addr [31:0]
-CSR_KICK_BASE_HI = 0x070   # descriptor base addr [63:32]
-CSR_KICK_STRIDE  = 0x074   # per-channel byte stride (base + ch*stride)
-CSR_GO           = 0x078   # [0]=GO
-CSR_OBS_TARGET   = 0x07C   # freeze the meter window at N productive beats (0=off)
+# Atomic launch: the host stages every CSR + descriptor over UART, then a single
+# GO write arms the meter window, starts the AXIS gen (sink), and fires all
+# descriptor kicks on-chip in a few aclk cycles -- keeping UART latency OUT of
+# the measured window. The kick CSRs are resolved BY NAME through
+# rapids_harness_csr_regmap.py (mirroring rapids_char_harness.sv); they used to
+# be hardcoded region-2 offsets here, which is what TASK-057 removed.
 KICK_STRIDE      = 0x1000  # per-channel descriptor stride (matches DESC_BASE math)
 
 # Bus-meter throughput math. The data masters are DATA_WIDTH=512b = 64 B/beat,
@@ -191,17 +185,17 @@ class RapidsCharCampaign:
         which channels, and the descriptor base/stride. Replaces the per-channel
         UART kick writes so the kicks land within a few aclk cycles of GO."""
         cfg = (1 if half == 'snk' else 0) | ((1 << 1) if start_gen else 0)
-        self.io.csr_write(CSR_KICK_CFG, cfg)
-        self.io.csr_write(CSR_KICK_MASK, mask)
-        self.io.csr_write(CSR_KICK_BASE_LO, DESC_BASE & 0xFFFF_FFFF)
-        self.io.csr_write(CSR_KICK_BASE_HI, (DESC_BASE >> 32) & 0xFFFF_FFFF)
-        self.io.csr_write(CSR_KICK_STRIDE, KICK_STRIDE)
+        self.io.csr_write_reg("KICK_CFG", HALF=cfg & 1, START_GEN_ON_GO=(cfg >> 1) & 1)
+        self.io.csr_write_reg("KICK_MASK", VALUE=mask)
+        self.io.csr_write_reg("KICK_BASE_LO", VALUE=DESC_BASE & 0xFFFF_FFFF)
+        self.io.csr_write_reg("KICK_BASE_HI", VALUE=(DESC_BASE >> 32) & 0xFFFF_FFFF)
+        self.io.csr_write_reg("KICK_STRIDE", VALUE=KICK_STRIDE)
 
     def go(self) -> None:
         """Single atomic GO: arm the meter window + start the AXIS gen (if
         staged) + fire every staged descriptor kick, all on-chip within a few
         aclk cycles. No UART latency enters the measured window."""
-        self.io.csr_write(CSR_GO, 1)
+        self.io.csr_write_reg("GO", GO=1)
 
     def reset_channels(self) -> None:
         """Pulse CHANNEL_RESET on both halves to clear stale scheduler /
@@ -278,7 +272,7 @@ class RapidsCharCampaign:
         #    (unreliable at large beat counts) asserts.
         expected_total = beats * n_active
         self._stage_kicks('snk', mask, start_gen=True)
-        self.io.csr_write(CSR_OBS_TARGET, expected_total)
+        self.io.csr_write_reg("OBS_TARGET", VALUE=expected_total)
 
         # ---- GO: arm meter + start gen + kick all channels, on-chip ---------
         self.go()
@@ -363,7 +357,7 @@ class RapidsCharCampaign:
         #    window-close target: freeze after the egress path checks all beats.
         expected_total = beats * n_active
         self._stage_kicks('src', mask, start_gen=False)
-        self.io.csr_write(CSR_OBS_TARGET, expected_total)
+        self.io.csr_write_reg("OBS_TARGET", VALUE=expected_total)
 
         # ---- GO: arm meter + kick all channels, on-chip --------------------
         self.go()

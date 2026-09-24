@@ -80,6 +80,20 @@ CSR = [
     (0x054, 'MON_LIMIT',   'rw', None),
     (0x058, 'MON_FLUSHWM', 'rw', None),
     (0x060, 'CH_SEL',      'rw', None),                               # indexed-read selector
+    # ---- kick sequencer (stage-all-then-GO) ----
+    # Mirrors rapids_char_harness.sv:170-181. These had no by-name entry, so
+    # test_rapids_char_top_kick.py hardcoded them -- the exact rot TASK-057
+    # exists to remove. NOTE the DUT's own KICK_ENABLE (0x040 inside the APB
+    # kick window) is NOT here: it is an offset into rapids_regmap.py, and the
+    # numeric clash with MEM_CTRL above is coincidental.
+    (0x064, 'KICK_CFG',    'rw', [('HALF', 0, 0, 'rw'),            # 0=SRC 1=SNK
+                                  ('START_GEN_ON_GO', 1, 1, 'rw')]),
+    (0x068, 'KICK_MASK',   'rw', None),                               # [NUM_CHANNELS-1:0]
+    (0x06C, 'KICK_BASE_LO','rw', None),                               # desc base [31:0]
+    (0x070, 'KICK_BASE_HI','rw', None),                               # desc base [63:32]
+    (0x074, 'KICK_STRIDE', 'rw', None),                               # base + ch*stride
+    (0x078, 'GO',          'w',  [('GO', 0, 0, 'w')]),                # arm+gen+kick, 1-cyc
+    (0x07C, 'OBS_TARGET',  'rw', None),                               # freeze window at N beats
     (0x0C0, 'OBS_CTRL',    'w',  [('ARM', 0, 0, 'w')]),               # bus-meter re-arm pulse
     # ---- readable status ----  (CSR_ID aliases 0x000 on the read path)
     (0x080, 'STATUS',      'r',  [('MON_IRQ', 0, 0, 'r'), ('SRC_IDLE', 1, 1, 'r'),

@@ -3,7 +3,7 @@
 #
 # Register map for the RAPIDS characterization HARNESS DESC-LOAD region.
 # SEPARATE from rapids_regmap.py (the RAPIDS DUT registers) -- this is the char
-# harness's OWN hand-rolled register block, decoded directly in rapids_char_top.sv
+# harness's OWN hand-rolled register block, decoded directly in rapids_char_harness.sv
 # (not PeakRDL). Hand-maintained to mirror that RTL; regenerate with
 # bin/gen_rapids_harness_regmap.py. Offsets are relative to the region base
 # (host region 1); the Device/RegisterMap is given start_address.
