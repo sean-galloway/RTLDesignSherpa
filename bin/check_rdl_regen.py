@@ -235,6 +235,141 @@ MANIFEST = [
         "regmap_output": "rapids_regmap.py",
         "compare": [("projects/components/dmas/rapids/rtl/rapids_regmap.py", "rapids_regmap.py", "semantic")],
     },
+    # --- retro_legacy_blocks -------------------------------------------------
+    # These use --copy-rtl, which flat-copies the generated rtl/*.sv into
+    # rtl/<block>/. There is NO generated/ root, so the copies ARE the
+    # artifacts. <block>_config_regs.sv is deliberately EXCLUDED: it is a
+    # hand-written wrapper ("Connects PeakRDL to Core"), not generator output,
+    # and comparing it would declare hand-written RTL permanently stale.
+    {
+        "name": "gpio (gpio_regs, RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/gpio/gpio_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/gpio/gpio_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/retro_legacy_blocks/rtl/gpio/gpio_regs.sv", "rtl/gpio_regs.sv"),
+            ("projects/components/retro_legacy_blocks/rtl/gpio/gpio_regs_pkg.sv", "rtl/gpio_regs_pkg.sv"),
+        ],
+    },
+    {
+        "name": "hpet (hpet_regs, RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/hpet/hpet_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/hpet/hpet_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/retro_legacy_blocks/rtl/hpet/hpet_regs.sv", "rtl/hpet_regs.sv"),
+            ("projects/components/retro_legacy_blocks/rtl/hpet/hpet_regs_pkg.sv", "rtl/hpet_regs_pkg.sv"),
+        ],
+    },
+    {
+        "name": "ioapic (ioapic_regs, RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/ioapic/ioapic_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/ioapic/ioapic_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_regs.sv", "rtl/ioapic_regs.sv"),
+            ("projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_regs_pkg.sv", "rtl/ioapic_regs_pkg.sv"),
+        ],
+    },
+    {
+        "name": "pic_8259 (pic_8259_regs, RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/pic_8259/pic_8259_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/pic_8259/pic_8259_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/retro_legacy_blocks/rtl/pic_8259/pic_8259_regs.sv", "rtl/pic_8259_regs.sv"),
+            ("projects/components/retro_legacy_blocks/rtl/pic_8259/pic_8259_regs_pkg.sv", "rtl/pic_8259_regs_pkg.sv"),
+        ],
+    },
+    {
+        "name": "pit_8254 (pit_regs, RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/pit_8254/pit_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/pit_8254/pit_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/retro_legacy_blocks/rtl/pit_8254/pit_regs.sv", "rtl/pit_regs.sv"),
+            ("projects/components/retro_legacy_blocks/rtl/pit_8254/pit_regs_pkg.sv", "rtl/pit_regs_pkg.sv"),
+        ],
+    },
+    {
+        "name": "pm_acpi (pm_acpi_regs, RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/pm_acpi/pm_acpi_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/pm_acpi/pm_acpi_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/retro_legacy_blocks/rtl/pm_acpi/pm_acpi_regs.sv", "rtl/pm_acpi_regs.sv"),
+            ("projects/components/retro_legacy_blocks/rtl/pm_acpi/pm_acpi_regs_pkg.sv", "rtl/pm_acpi_regs_pkg.sv"),
+        ],
+    },
+    {
+        "name": "rtc (rtc_regs, RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/rtc/rtc_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/rtc/rtc_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/retro_legacy_blocks/rtl/rtc/rtc_regs.sv", "rtl/rtc_regs.sv"),
+            ("projects/components/retro_legacy_blocks/rtl/rtc/rtc_regs_pkg.sv", "rtl/rtc_regs_pkg.sv"),
+        ],
+    },
+    {
+        "name": "smbus (smbus_regs, RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/smbus/smbus_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/smbus/smbus_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/retro_legacy_blocks/rtl/smbus/smbus_regs.sv", "rtl/smbus_regs.sv"),
+            ("projects/components/retro_legacy_blocks/rtl/smbus/smbus_regs_pkg.sv", "rtl/smbus_regs_pkg.sv"),
+        ],
+    },
+    {
+        "name": "uart_16550 (uart_16550_regs, RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/uart_16550/uart_16550_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/uart_16550/uart_16550_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/retro_legacy_blocks/rtl/uart_16550/uart_16550_regs.sv", "rtl/uart_16550_regs.sv"),
+            ("projects/components/retro_legacy_blocks/rtl/uart_16550/uart_16550_regs_pkg.sv", "rtl/uart_16550_regs_pkg.sv"),
+        ],
+    },
+    # pit_8254 has a tracked pit_regmap.py, but it is NOT listed here: it was
+    # produced by the SUPERSEDED bin/peakrdl_to_regmap.py and disagrees with
+    # the RDL on 14 fields (reserved bits marked sw='rw' where the RDL says
+    # 'r'; four PIT_CONTROL fields 'rw' where PeakRDL emits 'wo'). Fixing it
+    # changes what DV believes about those fields, so it needs its own
+    # before/after evidence rather than riding along in a tooling change.
+    {
+        "name": "hpet regmap (RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/hpet/hpet_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/hpet/hpet_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": "hpet_regmap.py",
+        "compare": [("projects/components/retro_legacy_blocks/rtl/hpet/hpet_regmap.py", "hpet_regmap.py")],
+    },
+    {
+        "name": "pic_8259 regmap (RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/pic_8259/pic_8259_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/pic_8259/pic_8259_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": "pic_8259_regmap.py",
+        "compare": [("projects/components/retro_legacy_blocks/rtl/pic_8259/pic_8259_regmap.py", "pic_8259_regmap.py")],
+    },
+    {
+        "name": "rtc regmap (RLB)",
+        "rdl": "projects/components/retro_legacy_blocks/rdl/rtc/rtc_regs.rdl",
+        "sources": ["projects/components/retro_legacy_blocks/rdl/rtc/rtc_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": "rtc_regmap.py",
+        "compare": [("projects/components/retro_legacy_blocks/rtl/rtc/rtc_regmap.py", "rtc_regmap.py")],
+    },
 ]
 
 
