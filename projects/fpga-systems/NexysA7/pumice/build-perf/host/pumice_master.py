@@ -813,9 +813,9 @@ def main() -> int:
                          "sim-sized (quick); use ~1000 on the FPGA for a long "
                          "soak with stable perf counters (clamped to the 16-bit "
                          "engine txn limit)")
-    ap.add_argument("--char-configs", default="baseline",
+    ap.add_argument("--char-configs", default="close_page",
                     help="controller configs to cross against every generator "
-                         "scenario: 'baseline' (default, single), 'matrix' (the "
+                         "scenario: 'close_page' (default, single), 'matrix' (the "
                          "isolating set: baseline/bank_interleave/open_page/"
                          "inorder/age_thr), 'all', or a comma-separated list of "
                          "preset names (map/page/order/predictor/refresh)")

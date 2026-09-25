@@ -80,7 +80,7 @@ def main(argv=None) -> int:
     ap.add_argument("--wb-gaps", default="12,15",
                     help="wr_batch: reader gaps to test")
     ap.add_argument("--wb-config", default="open_page",
-                    help="wr_batch: ControllerConfig name (open_page=OPEN, baseline=CLOSE)")
+                    help="wr_batch: ControllerConfig name (open_page=OPEN, close_page=CLOSE)")
     ap.add_argument("--wb-gens", default="1",
                     help="wr_batch: generator pair counts to sweep")
     ap.add_argument("--wb-txn", type=int, default=2000,

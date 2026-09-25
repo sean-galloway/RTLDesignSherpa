@@ -232,7 +232,7 @@ async def cocotb_test_char_families(dut):
 
     # Pull the SAME run definition the board CLI uses (RUN_PROFILES["smoke"]);
     # the only difference from an FPGA run is txn_scale (sim=1 for speed, the
-    # board uses ~1000). "smoke" crosses baseline/bank_interleave/open_page/inorder with
+    # board uses ~1000). "smoke" crosses close_page/bank_interleave/open_page/inorder with
     # the incremental + col_major families -- enough to exercise the
     # config-apply CSR path (scheme switch + scheduler) and the perf read-back.
     profile = os.environ.get("TEST_CHAR_PROFILE", "smoke")

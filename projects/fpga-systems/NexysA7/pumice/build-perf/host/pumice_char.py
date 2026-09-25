@@ -461,24 +461,40 @@ class ControllerConfig:
 #   order_mode   SCHED_POLICY.order_mode  0 FR-FCFS | 1 in_order | 3 age_threshold
 #   t_refi       TIMINGS_RFC_REFI.tREFI   refresh-bandwidth stress
 #   refresh      REF_CTRL                 mode / postpone / pullin credits
-# `baseline` = row-major, CLOSE-page, FR-FCFS; every other preset changes one
-# lever from it, except the predictor set, which sits on open_page (a
-# predictor's job is deciding when to close an open row).
+# `close_page` = row-major, CLOSE-page, FR-FCFS: the experiment's REFERENCE
+# CORNER, deliberately the pessimal one so each axis shows a clean single-lever
+# delta. Every other preset changes one lever from it, except the predictor
+# set, which sits on open_page (a predictor's job is deciding when to close an
+# open row).
 #
-# READ THAT NAME CAREFULLY. "baseline" is the experiment's REFERENCE CORNER,
-# deliberately the pessimal one so each axis shows a clean single-lever delta.
-# It is NOT the shipping default and never was: the hardware comes up OPEN page
-# (`PAGE_POLICY_OPEN = 2'h0`, and PAGE_POLICY_CFG.page_policy_or resets to
-# 2'h0), which measures 554-568 MB/s -- 92-95% of the 600 MB/s ceiling.
+# It was called `baseline` until 2026-09-25. That name read as "the shipping
+# default", which it never was, and the ~34-46 MB/s it reports kept being
+# quoted as pumice's default performance -- most recently by the author of the
+# fifteen-line warning that used to sit here explaining not to do that. A name
+# needing that much defence is the wrong name, so it now says what it is.
 #
 # Close page at the board geometry costs one ACT per BEAT (one AXI beat is one
 # DRAM burst at BL4 x16, and auto-precharge throws the row away after every
-# column), so `baseline` reads ~34 MB/s. That number is a property of the
-# reference corner, not of pumice's default, and it has been misread as the
-# latter. Every printed table now says so.
+# column), hence ~34-46 MB/s. That is a property of the reference corner.
+#
+# THE SHIPPING DEFAULT IS `defaults` BELOW: 555-572 MB/s measured on the board,
+# 92-95% of the 600 MB/s ceiling at 75 MHz.
 CONFIGS: Dict[str, ControllerConfig] = {
-    "baseline": ControllerConfig(
-        "baseline", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_CLOSE,
+    # THE POWER-ON STATE. Every lever left None, so apply() writes the reset
+    # value (0) to each mode axis -- what the board comes up in, and what a
+    # system integrator gets before touching a CSR. Reset selects "build
+    # default" on both policy knobs and pumice_top pins that to OPEN page
+    # (`localparam PAGE_POLICY_BUILD_DEFAULT = PAGE_POLICY_OPEN`), so this
+    # should track `open_page` closely.
+    #
+    # NOT redundant with open_page: open_page PROGRAMS the policy (1 = OPEN),
+    # this one programs 0 and lets the RTL choose. If a future RDL reset value
+    # or a change to PAGE_POLICY_BUILD_DEFAULT ever diverges from OPEN, these
+    # two rows separate and the matrix shows it. Without this row, nothing in
+    # the suite measures what the hardware does untouched.
+    "defaults": ControllerConfig("defaults"),
+    "close_page": ControllerConfig(
+        "close_page", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_CLOSE,
         order_mode=0, rd_in_order=True),
     # ---- axis: address map ------------------------------------------------
     "bank_interleave": ControllerConfig(
@@ -572,9 +588,12 @@ CONFIGS: Dict[str, ControllerConfig] = {
         page_policy=dc.PAGE_POLICY_CLOSE, order_mode=0,
         refresh={"postpone": 8, "pullin": 8}, rd_in_order=True),
 }
-BASELINE = CONFIGS["baseline"]
+CLOSE_PAGE = CONFIGS["close_page"]
 # The default matrix isolates one lever per axis (map, page policy, order).
-DEFAULT_MATRIX = ["baseline", "bank_interleave", "open_page", "inorder", "age_thr"]
+# `defaults` leads: the power-on state is the first thing a reader should see,
+# and the reference corner sits next to it for the single-lever delta.
+DEFAULT_MATRIX = ["defaults", "close_page", "bank_interleave", "open_page",
+                  "inorder", "age_thr"]
 
 
 def resolve_configs(spec) -> List[ControllerConfig]:
@@ -1039,7 +1058,7 @@ def _read_meter(drv: DDR2CharDriver, which: str) -> Meter:
 
 
 def measure(drv: DDR2CharDriver, sc: Scenario, *,
-            cfg: ControllerConfig = BASELINE, geom: Geometry = DEFAULT_GEOM,
+            cfg: ControllerConfig = CLOSE_PAGE, geom: Geometry = DEFAULT_GEOM,
             base_addr: int = 0x0, clk_mhz: float = 100.0,
             timeout_s: float = 20.0) -> CharRecord:
     """Run one (config, scenario) point (write phase then read phase) + perf.
@@ -1142,7 +1161,7 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
 
 
 def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
-                      cfg: ControllerConfig = BASELINE, geom: Geometry = DEFAULT_GEOM,
+                      cfg: ControllerConfig = CLOSE_PAGE, geom: Geometry = DEFAULT_GEOM,
                       base_addr: int = 0x0, clk_mhz: float = 100.0,
                       timeout_s: float = 40.0, n_wr: int = 1, n_rd: int = 1,
                       placement: str = "regions"
@@ -1404,7 +1423,7 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
 
     `txn_scale` multiplies every scenario's workload (cycles): 1 for a quick
     sim-sized pass, ~1000 for a long FPGA soak (see build_suite)."""
-    cfgs = resolve_configs(configs if configs is not None else [BASELINE])
+    cfgs = resolve_configs(configs if configs is not None else [CLOSE_PAGE])
     suite = build_suite(level, txn_scale=txn_scale, families=families)
     recs: List[CharRecord] = []
     total = len(cfgs) * len(suite)
@@ -1433,7 +1452,7 @@ def run_suite(drv: DDR2CharDriver, *, level: str = "medium", txn_scale: int = 1,
               progress: Optional[Callable[[str, int, int], None]] = None,
               ) -> List[CharRecord]:
     """Single-config (baseline) sweep -- run_matrix with just the baseline."""
-    return run_matrix(drv, configs=[BASELINE], level=level, txn_scale=txn_scale,
+    return run_matrix(drv, configs=[CLOSE_PAGE], level=level, txn_scale=txn_scale,
                       base_addr=base_addr, geom=geom, clk_mhz=clk_mhz,
                       progress=progress)
 
@@ -1450,19 +1469,19 @@ def run_suite(drv: DDR2CharDriver, *, level: str = "medium", txn_scale: int = 1,
 RUN_PROFILES: Dict[str, dict] = {
     # Sim CI + quick board check: covers the config-apply path (scheme switch +
     # scheduler CSRs) and the best-case/worst-case access patterns. Small.
-    "smoke": dict(configs=["baseline", "bank_interleave", "open_page", "inorder"],
+    "smoke": dict(configs=["close_page", "bank_interleave", "open_page", "inorder"],
                   level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
     # The isolating config matrix over the full family/burst grid.
     "matrix": dict(configs=DEFAULT_MATRIX, level="medium", families=None),
     # Minimal repros: one config x col_major only -- tight wave-debug iteration.
     "open_min": dict(configs=["open_page"], level="basic",
                      families=(FAM_COL_MAJOR,)),
-    "baseline_min": dict(configs=["baseline"], level="basic",
+    "close_page_min": dict(configs=["close_page"], level="basic",
                          families=(FAM_COL_MAJOR,)),
     # PUMICE-020 repro: the multiid (LFSR-id) scenario only — medium level is
     # what adds col_major_bl8_multiid to the suite. baseline config; the 1:1
     # hist-vs-txn_count check is the assertion under investigation.
-    "multiid_min": dict(configs=["baseline"], level="medium",
+    "multiid_min": dict(configs=["close_page"], level="medium",
                         families=(FAM_COL_MAJOR,)),
     # Axis-2 page-policy predictors (modes 4..7) on the reorder config, over
     # the pattern pair that separates them (streaming vs page-thrash). This
@@ -1480,7 +1499,7 @@ RUN_PROFILES: Dict[str, dict] = {
     # Valid in SIM even though paging BANDWIDTH is not: the counters count
     # commands the scheduler issued, which is page-policy logic, not DFI
     # timing. Sim proves the mechanism; the board supplies the MB/s.
-    "paging_grade": dict(configs=["open_page", "baseline"], level="basic",
+    "paging_grade": dict(configs=["open_page", "close_page"], level="basic",
                          families=None),
     "paging": dict(configs=["adapt_time", "adapt_access", "rbl_static", "rbl_dyn"],
                    level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
@@ -1489,7 +1508,7 @@ RUN_PROFILES: Dict[str, dict] = {
     "order": dict(configs=["open_page", "inorder", "inorder_open", "age_thr"],
                   level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
     # Refresh elasticity: strict vs credited vs the tREFI extremes.
-    "refresh": dict(configs=["baseline", "refresh_credit", "fast_refresh", "slow_refresh"],
+    "refresh": dict(configs=["close_page", "refresh_credit", "fast_refresh", "slow_refresh"],
                     level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
     # BOTH DIRECTIONS AT ONCE, one generator each. Every other profile runs a
     # write phase then a read phase, so read/write turnaround is never paid.
@@ -1626,7 +1645,7 @@ def _summarize_cross_config(recs: List[CharRecord]) -> List[str]:
     bl = 8 if 8 in bls else (bls[len(bls) // 2] if bls else 0)
 
     lines = [f"cross-config BW @ bl={bl}, BOTH directions (MB/s; ratio vs baseline):"]
-    base = "baseline" if "baseline" in configs else configs[0]
+    base = "close_page" if "close_page" in configs else configs[0]
     for fam in FAMILIES:
         b = idx.get((base, fam, bl))
         if not b:
@@ -1668,7 +1687,7 @@ def summarize(recs: List[CharRecord]) -> List[str]:
     for cfg in configs:
         sub = [r for r in recs if r.config == cfg]
         note = ""
-        if cfg == "baseline":
+        if cfg == "close_page":
             note = ("   <- experiment REFERENCE CORNER (close-page), NOT the "
                     "shipping default; hardware defaults to OPEN page")
         elif cfg == "open_page":
