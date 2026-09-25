@@ -149,13 +149,28 @@ def main() -> int:
     # 2026-09-25: scope widened to beside-code CLAUDE.md, which surfaced three
     # MORE findings, all the same gaxi_fifo_sync shape that amba BUG-001 fixed
     # (the module takes axi_aclk/axi_aresetn/wr_*/rd_*; the docs connect
-    # i_clk/i_rst_n/i_valid/i_data/i_ready). Each is named because a bare number
-    # hides what it should expose, and none is mine to fix:
-    #   projects/components/dmas/rapids/CLAUDE.md  x2  -- rapids owner
-    #   projects/components/dmas/stream/CLAUDE.md  x1  -- stream owner
-    # Plus the pre-existing rapids_core_beats page (TASK-077). Ratchet: 4 must
-    # SHRINK as those owners fix their files, and must never grow.
-    BASELINE = 4
+    # i_clk/i_rst_n/i_valid/i_data/i_ready). All three are FIXED (d2062a097):
+    #   projects/components/dmas/rapids/CLAUDE.md  x2  -- fixed by rapids owner
+    #   projects/components/dmas/stream/CLAUDE.md  x1  -- fixed by stream owner
+    # so the ratchet drops 4 -> 1. Measured in a detached worktree at that HEAD,
+    # not the working tree, per the warning above.
+    #
+    # The one left is the rapids_core_beats MAS page (TASK-077), and it is
+    # bigger than the printed message suggests. The message truncates to five
+    # names (sorted(set(miss))[:5]); the page actually carries 25 fabricated
+    # connections out of 43 in its Integration Example, plus ~40 more in its
+    # port TABLES, which this gate never inspects because RE_CONN only matches
+    # .port(net) connection syntax. Real names: sink write is m_axi_wr_*,
+    # source read m_axi_rd_*, fill s_axis_t*, drain m_axis_t*, MonBus
+    # mon_valid/mon_ready/mon_packet, status src_/snk_system_idle -- there is
+    # no error_flags port at all.
+    #
+    # Known blind spot, found while fixing the above: the check greps the whole
+    # MODULE SOURCE, not just its port list, so an internal wire name can mask a
+    # fabricated port name. all_channels_idle and scheduler_idle pass on the
+    # rapids_core_beats page for exactly that reason, despite neither being a
+    # port. Tightening it to the port list would raise the count.
+    BASELINE = 1
     if bad > BASELINE:
         print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} (TASK-077)')
         return 1
