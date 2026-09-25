@@ -1,8 +1,11 @@
 # TASK-008: no test bounds the write drain, and the cap is unreachable at the shipped watermarks
 > **Was `PUMICE-049` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** open 2026-09-24  **Priority:** P3 — coverage gap plus a usability
-finding; nothing is broken, the knob just cannot act where it ships
+**Status:** CLOSED 2026-09-24 — Sean's call. Part B is answered; part A is
+abandoned, not deferred, and the reason is recorded below so nobody re-opens it
+expecting a quick win. The knob is understood and working; what is missing is a
+DV-framework capability that should be justified by a second consumer, not by
+this one test. (was: open 2026-09-24, P3)
 
 Residue of [[ISSUE-003]], which disproved the clobber. Two parts.
 
@@ -278,3 +281,49 @@ and `test_pumice_core_dfi` are unchanged and green.
   mutation, the top-level repeat, and my own 0-vs-16 board comparison -- did so
   because the writer ran dry, so the occupancy exit fired and the cap was never
   consulted. All three measured the stimulus.
+
+
+## CLOSED 2026-09-24
+
+Sean: *"Close it out. I'm tired of keeping items open forever."*
+
+**Part B is answered.** `wr_batch_max` is not redundant with the watermarks and
+is not dead surface. It is the ONLY drain exit under a saturating writer --
+`occ <= wr_low_wm` covers the bursty case, the cap covers the case where the
+writer refills as fast as the drain empties, which is the read starvation fixed
+in `fc83c1b3c` ("0 = unbounded = the original starvation"). The two exits are
+not even equivalent when both could fire: the cap sets `r_rd_owed`, blocking
+re-arm until a read actually fires, so it is a GUARANTEE where the watermark is
+an opportunity a refilling writer closes next cycle. No change recommended: the
+shipped watermarks measured best on the board (314.0 MB/s against a 600 MB/s
+ceiling, vs 284.1 at hi=8/lo=4), so widening them to give the cap more room
+would trade measured bandwidth for knob exercise.
+
+**Part A is abandoned.** Five passes, no test shipped, and the blocker is a DV
+framework gap rather than anything about pumice: neither AXI4 sequence runner
+produces concurrent bidirectional traffic (`run_axi4_sequence_engine` is
+write-first-then-read by its own docstring; `run_axi4_sequence` holds a
+per-burst AW+W lock and awaits B). The test needs writes dense enough to hold
+occupancy above `wr_low_wm` WHILE reads stay available to pay the `r_rd_owed`
+debt, and no existing driver can do both at once.
+
+**Closed rather than deferred because the cost/benefit does not survive
+contact.** The knob is understood, demonstrably works at the register level,
+and is P3. Building a concurrent bidirectional BFM driver to cover it would be
+a change in RDS-DV justified by exactly one test. If a second consumer ever
+wants that driver, this is a ready-made first user -- but it should not be the
+reason to build it.
+
+**Do not re-open this to "just write the test".** The five attempts are
+documented above; the next one fails the same way unless the BFM changes first.
+
+**What stands, and is the durable value of this task:**
+- The cap works: at `wr_batch_max=1` the drain arms, one write column issues,
+  the drain clears and `r_rd_owed` is set. Observed on the registers.
+- It is not redundant with hi/lo. Different writers, and only the cap
+  guarantees a read.
+- Every measurement that made it look decorative -- PUMICE-047's original
+  mutation, the top-level repeat, and my own 0-vs-16 board comparison -- did so
+  because the writer ran dry, the occupancy exit fired, and the cap was never
+  consulted. All three measured the STIMULUS, not the knob. That is the trap to
+  remember if anyone revisits this.

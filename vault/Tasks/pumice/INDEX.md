@@ -36,7 +36,7 @@ commit message before that date, use the old `PUMICE-NNN` names.
 | PUMICE-034 | [TASK-005](task/closed/TASK-005.md) | | PUMICE-048 | [ISSUE-004](issue/closed/ISSUE-004.md) |
 | PUMICE-035 | [TASK-006](task/closed/TASK-006.md) | | | |
 | PUMICE-039 | [TASK-007](task/open/TASK-007.md) | | | |
-| PUMICE-049 | [TASK-008](task/open/TASK-008.md) | | | |
+| PUMICE-049 | [TASK-008](task/closed/TASK-008.md) | | | |
 | PUMICE-CLEANUP | [TASK-009](task/open/TASK-009.md) | | | |
 
 `PUMICE-NNN` numbers that are NOT in this table were already closed or dropped
