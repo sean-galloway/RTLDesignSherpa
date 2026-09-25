@@ -49,10 +49,6 @@ XLSX = os.path.join(HERE, "stream_signal_contracts.xlsx")
 REPO = os.path.abspath(os.path.join(HERE, *([".."] * 5)))
 
 
-
-
-
-
 # ---------------------------------------------------------------------------
 # Citation registry: (path-relative-to-repo, line-number, snippet-that-must-
 # appear-on-that-line). Checked before the workbook is written.
@@ -218,8 +214,6 @@ CITES = [
     (DRAIN, 145, "data_available = w_count"),
     (DRAIN, 176, "((AW+1)'(rd_size) > data_available)"),
 ]
-
-
 
 
 def build_desc_axi_contract(wb):
