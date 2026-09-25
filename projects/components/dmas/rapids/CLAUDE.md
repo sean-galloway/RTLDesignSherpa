@@ -579,14 +579,16 @@ gaxi_fifo_sync #(
     .DATA_WIDTH(64),
     .DEPTH(256)
 ) u_rapids_mon_fifo (
-    .i_clk      (aclk),
-    .i_rst_n    (aresetn),
-    .i_data     (monbus_pkt_data),
-    .i_valid    (monbus_pkt_valid),
-    .o_ready    (monbus_pkt_ready),
-    .o_data     (fifo_mon_data),
-    .o_valid    (fifo_mon_valid),
-    .i_ready    (consumer_ready)
+    .axi_aclk   (aclk),
+    .axi_aresetn(aresetn),
+    // producer side: wr_ready is "not full", so it is what backpressures MonBus
+    .wr_valid   (monbus_pkt_valid),
+    .wr_data    (monbus_pkt_data),
+    .wr_ready   (monbus_pkt_ready),
+    // consumer side
+    .rd_valid   (fifo_mon_valid),
+    .rd_data    (fifo_mon_data),
+    .rd_ready   (consumer_ready)
 );
 ```
 
@@ -629,9 +631,9 @@ assign monbus_pkt_ready = 1'b1;  // Always ready = potential packet loss
 CORRECTED:
 "Connect to FIFO or proper consumer:
 gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(256)) u_mon_fifo (
-    .i_valid(monbus_pkt_valid),
-    .i_data(monbus_pkt_data),
-    .o_ready(monbus_pkt_ready),
+    .wr_valid(monbus_pkt_valid),
+    .wr_data (monbus_pkt_data),
+    .wr_ready(monbus_pkt_ready),
     ...
 );"
 ```

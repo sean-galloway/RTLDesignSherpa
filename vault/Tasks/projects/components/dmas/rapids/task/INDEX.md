@@ -24,8 +24,8 @@ by construction rather than by discipline.
 
 ## Closed
 
-- **TASK-002** — RAPIDS-beats has NO contracts workbook at all
 - **TASK-001** — adopt the shared instrumentation pair (axi4_intf_master_observer + dma_slave_monitors)
+- **TASK-002** — RAPIDS-beats has NO contracts workbook at all
 - **TASK-004** — Register-map hygiene enforced in RAPIDS DV
 - **TASK-005** — one RTL harness -- move the host path down so verify-sim can reach it
 - **TASK-006** — re-measure the beat-count knee on rapids (July data is stale)
