@@ -119,3 +119,57 @@ Sensible resolutions, in order of cost:
 (2) is the one that matches how this codebase already handles exactly this
 problem one module over, and it makes the inertness impossible rather than
 merely documented.
+
+
+## 2026-09-24 (third pass) — max is NOT redundant, and there is no defect here
+
+Sean: *"If there are hi/lo values already, what is the point of max? It seems
+redundant and confusing."* Re-read the FSM. It is not redundant, and my
+previous two write-ups were both wrong in the same direction.
+
+**`r_wr_batch_cnt` counts WRITES ISSUED, not occupancy.** That is the detail
+both earlier passes missed. The two bounds therefore cover different writers:
+
+| writer | what ends the drain |
+|---|---|
+| bursty (CAM drains faster than it refills) | `occ <= low_wm` -- writes ran out, reads get slots naturally |
+| continuous (refills as fast as the drain empties) | occupancy NEVER reaches low_wm, so **only the cap can end it** |
+
+The second row is the entire justification. Against a saturating writer the
+watermarks are structurally incapable of ending a drain, which is precisely the
+read starvation fixed in `fc83c1b3c`. The RTL says so: *"0 = unbounded = the
+original starvation."*
+
+And the two exits are not equivalent even when both could fire. The CAP exit
+sets `r_rd_owed = 1`, blocking re-arm until a read actually fires; the
+OCCUPANCY exit does not. So the cap is a GUARANTEE ("a read goes before writes
+win again") where the watermark is only an OPPORTUNITY that a refilling writer
+closes on the next cycle.
+
+**hi/lo tune throughput; max bounds starvation.** Different jobs, both needed.
+
+**Retracting both earlier claims:**
+
+- "the drain runs about one write" -- wrong, `low_wm` is a floor, not a gap.
+- "a batch can never exceed `8 - low_wm = 7`, so 16 is above the structural
+  maximum" -- wrong, that conflates CAM occupancy with issue count. Under a
+  saturating writer the batch length is unbounded by occupancy and 16 is
+  reachable and meaningful.
+
+**So the "unreachable knob" framing is withdrawn entirely, and with it the
+proposed NUM_ENTRIES-derived clamp -- which would have been an actively harmful
+fix**, capping the one bound that protects against starvation at a value
+derived from a structure it has nothing to do with.
+
+What my measurement actually showed: `wr_batch_max` 0 vs 16 were
+indistinguishable *because the test workload's writer ran dry each drain*, so
+the occupancy exit fired first and the cap was never consulted. That is a
+property of the STIMULUS, not of the knob -- and it is the same trap as the
+original PUMICE-047 mutation, which "passed" for the same reason.
+
+**What is actually left of this task:** part A, a test that exercises the cap,
+and it now has a clear shape -- a SATURATING writer (one that refills faster
+than the drain empties, so occupancy stays above `low_wm`), then vary
+`wr_batch_max` and show the batch length follows it. That is the only
+configuration in which the knob is observable, and no existing profile produces
+it.
