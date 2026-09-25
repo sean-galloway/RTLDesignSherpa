@@ -89,4 +89,68 @@ sink shares the defect. That overlaps item 5's territory.
 
 - Items 1-2 re-filed against the beats RTL on 2026-09-25 (the cited signals no
   longer exist); they need re-scoping before mapping.
-- Items 4, 5, 6 not started.
+- Item 4 (`scheduler_beats`) not started.
+- **Item 5 DONE 2026-09-25, and RE-SCOPED: its title names machinery that
+  does not exist.** There is no credit accounting and no RDA in RAPIDS RTL:
+  word-boundary `RDA` occurrences are **0** (all 57 substring hits are
+  `*_rdata` -- `m_axi_rdata`, `s_axil_rdata` and friends), and the only
+  `credit` hits are a monbus threshold mask (`cfg_axis_credit_mask`) plus two
+  `scheduler_beats.sv` comments that say "No credit management" and "Phase 2
+  will add credit management". Same stale-premise failure as items 1-2.
+
+  What the module actually decides is **AXIS ingress admission**, now mapped
+  in sheets "Contracts snk ingress" and "K-maps snk ingress" (3 maps + a
+  STREAM comparison table).
+
+  **The map found a defect candidate.**
+  `s_axis_tready = (fill_ready && (r_pending_alloc[ch] > 0)) || (fill_alloc_req)`
+  (`snk_data_path_axis_beats.sv:204-205`). The second term carries no
+  `fill_ready` conjunct, and `fill_ready` is the channel FIFO's own `wr_ready`
+  (`snk_sram_controller_unit_beats.sv:184-185`) -- the only signal that says
+  the beat can be stored. In the map's single green cell at `fill_ready=0`,
+  an AXIS beat is accepted while the FIFO backpressures: the handshake
+  completes, nothing stores the beat, and `:234` counts it as received.
+
+  A second, related shape: `r_pending_alloc` is credited `fill_alloc_size` on
+  the allocation REQUEST (`:225`), never on acceptance -- and acceptance
+  (`alloc_ctrl_beats` `wr_ready`) is physically discarded at the
+  instantiation (`snk_sram_controller_unit_beats.sv:126`), while the
+  allocator advances its pointer only on `w_write && !r_wr_full`. So the
+  datapath can credit itself space the allocator refused.
+
+  **NOT YET ESTABLISHED -- deliberately not filed as a bug.** Reaching the
+  defect cell needs `fill_ready=0` simultaneously with
+  `fill_space_free >= cfg_alloc_size`, and those are two different counters
+  (FIFO occupancy vs `alloc_ctrl` allocation accounting, released only when
+  data leaves the latency bridge). The map states the question rather than
+  assuming the answer; a directed test driving AXIS into a backpressured
+  channel would settle it. Worth noting `ALLOC_SIZE` is an 8-bit rw field
+  defaulting to `0x10`, so `1` is writable, and at 1 line `:222` leaves
+  `r_pending_alloc` at 0 -- re-arming `fill_alloc_req` every cycle against a
+  one-cycle-stale `fill_space_free` (`:236`).
+
+  Contrast: STREAM has zero `r_pending_alloc`, and proves the contract RAPIDS
+  leaves open -- `axi_rd_alloc_req |-> $past(m_axi_arvalid && m_axi_arready)`
+  (`stream/rtl/fub/axi_read_engine.sv:580`, inside an `ifdef FORMAL` block).
+- **Item 6 RE-SCOPED 2026-09-25: its premise is wrong.** The task says
+  `alloc_ctrl_beats` / `drain_ctrl_beats` have "independently drifted since the
+  resync". They have not. Diffed against their STREAM originals, both are
+  byte-identical apart from two comment lines (the module name and the
+  `// Subsystem:` tag):
+  - `alloc_ctrl_beats.sv` vs `stream_alloc_ctrl.sv` -- 149 lines each, no
+    functional difference.
+  - `drain_ctrl_beats.sv` vs `stream_drain_ctrl.sv` -- identical, including
+    the over-drain `$error`.
+
+  The only line that actually drifted is `+ SCW'(bridge_occupancy)` in the
+  *units* (`src_/snk_sram_controller_unit_beats.sv:229`), which item 3 already
+  maps. A hypothesised mirror of that defect on the fill side was checked and
+  REFUTED: `fill_space_free <= alloc_space_free` (`:236`) carries no bridge
+  term, exactly as STREAM does at `sram_controller_unit.sv:314`.
+
+  The alloc/drain event asymmetry -- space released per-beat
+  (`alloc_ctrl.rd_valid = drain_valid && drain_ready`, `:129`) while data is
+  reserved per-block (`drain_ctrl.rd_valid = drain_req`, `:157`) -- is real,
+  but STREAM wires it the same way, so it is a design shape rather than a
+  RAPIDS defect. Item 6 is therefore largely subsumed by item 3; what remains
+  is contract documentation of the space-accounting shapes, not defect hunting.
