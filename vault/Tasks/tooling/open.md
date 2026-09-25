@@ -182,10 +182,31 @@ Work, in the order that pays:
    Emit the minimal sum-of-products, then DIFF it against the mirrored RTL
    expression and label the result identical / RTL-redundant / RTL-differs.
    The third case is the defect finder.
-5. **Promote to bin/.** Both generators carry a private copy of this machinery
-   (was /TOOLING_TODO.md item 1; that file's backlog folded into this area
-   2026-08-09 and the promotion now lives ONLY here). Do this AFTER 1-4 so
-   one implementation gets the improvements, not two.
+5. **Promote to bin/.** **DONE for stream, 2026-09-25 -- pumice remains.**
+   The machinery now lives in `bin/kmaps/` (`minimize`, `writer`, `citations`,
+   `styles`, 544 lines across 5 modules) and stream's generator imports it,
+   dropping 2006 -> 1581 lines. Sequenced correctly: items 0-4 were discharged
+   first by STREAM TASK-001, so the one implementation received the
+   improvements rather than two.
+
+   Verified BEHAVIOUR-NEUTRAL, which is the acceptance test for a refactor of
+   a working generator: the regenerated workbook reproduces content-hash
+   `3cc43a66d2fffb60` across 10 sheets with the citation gate green -- the
+   promotion changed no output at all. The lifted bodies were confirmed
+   line-for-line identical to their originals (86/86 and 283/283 lines) rather
+   than retyped.
+
+   `verify_citations(cites, repo)` is parameterised on promotion; the registry
+   and repo root are per-component, as are the RTL path constants and the
+   `build_*` builders.
+
+   **Remaining: pumice.** `gen_pumice_signal_contracts.py` still carries its
+   own copy and its API diverged -- `axis_eqs=` as a separate argument where
+   the shared writer folds equations into `varnames` triples, and it has no
+   citation gate at all. Converting it is a real refactor of a green workbook
+   rather than a rename, and pumice's task lane belongs to another session, so
+   it was documented rather than done. Until then two implementations exist and
+   item 5 is not fully closed.
 
 Acceptance: a workbook where every map states its axis equations, its
 sufficiency argument, its don't-cares with citations, and a derived-vs-RTL

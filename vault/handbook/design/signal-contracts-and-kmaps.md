@@ -28,10 +28,20 @@ and Karnaugh maps for the key combinational decisions.
 - Why: mirroring the expressions IS a design review. The stream workbook's
   first pass surfaced six findings the test suite had not (a retractable
   arvalid, an unlatched AW address contract, a transient error gate...).
-- Reference implementations: pumice + stream
-  docs/gen_signal_contracts_kmaps.py. New blocks copy the pattern; the
-  common machinery is being promoted to bin/ (TOOLING-KMAP step 5 in
-  vault/Tasks/tooling/open.md).
+- **The shared machinery lives in `bin/kmaps/`** (promoted 2026-09-25,
+  TOOLING-KMAP step 5): `minimize` (Quine-McCluskey), `writer` (the
+  three-part contract-table emitter with `relations=` and its invariant
+  check), `citations` (`verify_citations(cites, repo)`), `styles`. A new
+  component's generator imports these and supplies only what is specific to
+  its block: RTL path constants, its `CITES` registry, and its `build_*`
+  sheet builders.
+- Reference implementation: stream `docs/gen_signal_contracts_kmaps.py`,
+  which imports the shared package. **pumice's
+  `docs/gen_pumice_signal_contracts.py` still carries its own private copy**
+  and has NOT been repointed -- its API diverged (`axis_eqs=` as a separate
+  argument where the shared writer folds equations into `varnames` triples,
+  and no citation gate at all), so converting it is a real refactor of a
+  green workbook, not a rename. That is the remaining half of step 5.
 
 ## The required artifact is a CONTRACT TABLE, not a grid
 

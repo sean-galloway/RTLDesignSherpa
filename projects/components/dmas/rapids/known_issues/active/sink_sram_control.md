@@ -72,3 +72,20 @@ A full implementation could support:
 - All other SRAM control features work as designed
 - Enhancement would require significant architectural changes
 - Performance impact depends on specific workload characteristics
+
+### Re-verified against the beats RTL (2026-09-25) -- THE ARCHITECTURE CHANGED
+
+This entry asks to "re-verify against the beats controller". Done:
+
+- No `TODO`, `simplified`, `one read` or `single read` comment exists in
+  `snk_sram_controller_beats.sv` (237 lines).
+- The pre-beats `sink_sram_control.sv` it was filed against is retired.
+- The current module is built around a per-channel decode -- `fill_ready`
+  (`:70`), `drain_read` (`:86`), `fill_ready_per_channel` (`:109`),
+  `drain_read_decoded` (`:110`), with a fill-ready mux (`:132-138`) and a
+  drain-read decode (`:143-145`) -- not the single-read-at-a-time structure the
+  entry describes.
+
+Whether a concurrency limitation still exists is an open question, but it is NOT
+the one documented here, and the quoted code is gone. Needs re-filing against
+the beats RTL before it can be mapped.

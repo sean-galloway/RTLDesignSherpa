@@ -108,6 +108,30 @@ another module, a vestigial overflow gate, an unreachable input half worth a
 cover property, and a sim-only over-drain guard. The pumice workbook's
 K-map pass similarly predated and informed its scheduler rework.
 
+## Where the code lives
+
+The machinery is SHARED, in `bin/kmaps/` (promoted 2026-09-25, TOOLING-KMAP
+step 5). `bin/` is already on PYTHONPATH via `env_python`:
+
+    from kmaps.citations import verify_citations      # the citation gate
+    from kmaps.minimize   import qm_minimize, sop_str # Quine-McCluskey
+    from kmaps.styles     import GREEN, DCFILL, ...   # cell styles
+    from kmaps.writer     import KmapWriter, new_kmap_sheet, contract_sheet
+
+A component generator supplies ONLY what describes its own block: the RTL
+path constants, its `CITES` registry, and its `build_*` sheet builders. Do not
+copy the writer or the minimiser into a new generator -- that is how three
+private copies drift apart, which is the problem step 5 existed to end.
+
+`verify_citations(cites, repo)` takes its registry and repo root as arguments,
+because those are per-component.
+
+**pumice is the exception and has NOT been converted.** Its generator still
+carries a private copy whose API diverged (`axis_eqs=` as a separate argument
+where the shared writer folds equations into `varnames` triples, and no
+citation gate at all). Converting it is a real refactor of a green workbook,
+not a rename; until someone does it, two implementations exist.
+
 ## Running
 
     source env_python

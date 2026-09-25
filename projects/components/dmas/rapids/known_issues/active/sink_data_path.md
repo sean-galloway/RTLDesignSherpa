@@ -71,3 +71,31 @@ The timeout detection should:
 - Error signal is properly connected to higher-level error reporting
 - Infrastructure exists for timeout error handling
 - Only the detection logic itself is missing
+
+### Re-verified against the beats RTL (2026-09-25) -- THE CITED SIGNAL IS GONE
+
+This entry asks to "re-verify against the beats module". Done, and the result is
+that the code it describes no longer exists:
+
+- `error_axi_timeout` -- **0 occurrences** anywhere under `rapids/rtl/`.
+- `timeout_detect` -- 0 occurrences.
+- `snk_data_path_beats.sv` (280 lines) contains no timeout signalling and no
+  `error_*` assigns at all.
+- The pre-beats `sink_data_path.sv` the placeholder was filed against is retired
+  and absent from the tree.
+
+So the specific defect as written -- "only a placeholder assignment that always
+returns false" -- cannot be reproduced, because the placeholder is not there.
+
+**What IS true, stated precisely so this is not mistaken for "fixed".** The sink
+data path still has no AXI timeout detection; the gap is real, the cited
+implementation is not. Note the word is overloaded here exactly as it was in
+STREAM: `scheduler_beats.sv:105-107` DOES carry a full scheduler timeout
+(`cfg_sched_timeout_cycles` / `_limit` / `_enable`, `r_timeout_counter`), and the
+four `axi_timeout` hits in rapids are all `cfg_axi_timeout_mask`, a MONITOR
+packet mask (`monbus_axil_group_2in.sv:107`, `scheduler_group_array_beats.sv:925`).
+Neither is sink-path AXI timeout detection. Two mechanisms sharing a word is how
+STREAM's monitor timeout went untested for so long.
+
+Needs re-filing against the beats RTL with a current location before it can be
+mapped or fixed.
