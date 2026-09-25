@@ -14,7 +14,7 @@ is `git mv`, so an item is in exactly one state by construction.
 | Lane | For | Open | Active | Closed | Dropped |
 |---|---|---|---|---|---|
 | [task/](task/INDEX.md) | planned work we decided to do | 4 | 1 | 7 | 0 |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | 3 | 0 | 8 | 0 |
+| [bug/](bug/INDEX.md) | a defect with a reproduction | 2 | 0 | 9 | 0 |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 1 | 0 | 0 | 1 |
 
 Open counts include the reserved `-000` template in each lane, which is never a
@@ -37,7 +37,7 @@ handbook notes, so the map is kept:
 | `STREAM-MONREGS` | [TASK-002](task/open/TASK-002.md) |
 | `TASK-079` | [TASK-003](task/open/TASK-003.md) |
 | `TASK-056` | [TASK-004](task/active/TASK-004.md) |
-| `TASK-080` | [BUG-001](bug/open/BUG-001.md) |
+| `TASK-080` | [BUG-001](bug/closed/BUG-001.md) |
 | `TASK-090` | [BUG-002](bug/closed/BUG-002.md) |
 | `TASK-091` | [BUG-003](bug/open/BUG-003.md) |
 | `TASK-089` | [TASK-005](task/closed/TASK-005.md) |

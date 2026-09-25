@@ -13,18 +13,10 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes counter_bin.sv
-read -formal -sv -Iincludes fifo_control.sv
-read -formal -sv -Iincludes gaxi_fifo_sync_formal.sv
-read -formal -sv -Iincludes stream_latency_bridge.sv
+read_verilog -formal stream_latency_bridge_flat.v
 read -formal -sv formal_stream_latency_bridge.sv
 prep -top formal_stream_latency_bridge
 
 [files]
-stream_latency_bridge.sv ../../../projects/components/dmas/stream/rtl/fub/stream_latency_bridge.sv
-gaxi_fifo_sync_formal.sv
-counter_bin.sv ../../../rtl/common/counter_bin.sv
-fifo_control.sv ../../../rtl/common/fifo_control.sv
 formal_stream_latency_bridge.sv
-includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
-includes/fifo_defs.svh ../../../rtl/amba/includes/fifo_defs.svh
+stream_latency_bridge_flat.v
