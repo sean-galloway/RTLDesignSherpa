@@ -98,7 +98,7 @@ retro_legacy_blocks/
 │
 ├── PRD.md                   # Product Requirements Document
 ├── CLAUDE.md                # AI assistant guide
-├── TASKS.md                 # Task tracking
+│                            # (task tracking moved to vault/Tasks/RLB/ 2026-09-25)
 └── README.md                # This file
 ```
 

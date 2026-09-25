@@ -186,7 +186,7 @@
 - **Component Path**: `projects/components/retro_legacy_blocks/`
 
 **Related Issues**
-- Implementation tracked via TASKS.md in component directory
+- Implementation tracked in `vault/Tasks/RLB/` (per-block sub-areas as needed)
 - Status, stated deviations and the known test-vs-design gap documented in the RTL README.md
 
 ### Change History

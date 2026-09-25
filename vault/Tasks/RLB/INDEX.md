@@ -76,6 +76,8 @@ branch merge), RLB-003's four integrated 2026-09-08 from the full round_1
 critiques. Review filed as 18 issues + tracking #61 (roll-up comment posted).
 
 > Note: this area supersedes the pre-migration
-> `projects/components/retro_legacy_blocks/TASKS.md`. The master
-> `/vault/Tasks/INDEX.md` row now points here; the remaining rtl/*/TODO source
-> items still need to be folded in.
+> `projects/components/retro_legacy_blocks/TASKS.md`, which was folded in and
+> deleted 2026-09-25 -- its six items were all HPET and now live in
+> `RLB/hpet/` (one closed, one bug, four tasks). The `rtl/*/TODO` items this
+> note used to list no longer exist: `rtl/{ioapic,pm_acpi,smbus}/TODO.md` are
+> all gone, so nothing is outstanding from that source either.

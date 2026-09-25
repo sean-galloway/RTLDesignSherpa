@@ -1,4 +1,5 @@
-# TASK-001: Advanced scheduling / refresh modes (see `../ADVANCED_MODES_ROADMAP.md`)
+# TASK-001: Advanced scheduling / refresh modes for DDR3/LPDDR3
+> Roadmap: `projects/components/memory-controllers/ADVANCED_MODES_ROADMAP.md`
 > Migrated 2026-09-25 from `projects/components/memory-controllers/ddr3-lpddr3/TASKS.md` (tooling TOOL-001). That file was a stub: "To be populated as RTL work begins."
 
 **Priority:** P3 — there is no ddr3-lpddr3 RTL yet; this is the design-requirements survey that precedes it.

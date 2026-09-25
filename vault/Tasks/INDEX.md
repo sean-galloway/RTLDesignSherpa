@@ -114,6 +114,23 @@ a consumer, which `open` kept misrepresenting as ready-to-start work).
 Areas create `deferred.md` when they first need it; an absent file means
 nothing is parked.
 
+## Sub-areas: an area may hold items AND contain sub-areas (Sean, 2026-09-25)
+
+**RLB is the worked case.** `vault/Tasks/RLB/` holds cross-block work in its own
+lanes, and `vault/Tasks/RLB/hpet/` holds HPET's. Both are discovered as areas;
+IDs are scoped to the area AND the lane, so `RLB/hpet BUG-001` and a future
+`RLB/ioapic BUG-001` are different bugs. Cite one as "RLB/hpet BUG-001".
+
+Contrast a **grouping** directory, which carries no INDEX and no items of its
+own: `projects/`, `projects/components/`, `projects/components/dmas/`, and
+`memory-controllers/`. A grouping is a path; a sub-area is an area.
+
+**Create sub-areas on demand, never scaffold them.** Nine RLB blocks x three
+lanes x four state directories is ~100 files holding nothing, and an empty lane
+is indistinguishable from one the checker cannot parse in a passing run -- a
+failure this repo has already shipped. Add `RLB/<block>/` when that block gets
+its first item.
+
 ## The AREA is the namespace — a task lives in its own component's files (Sean, 2026-09-14)
 
 **A pumice task goes in `vault/Tasks/pumice/`. A converter task goes in the
@@ -287,10 +304,10 @@ reviewed tree starts until the review is back and integrated.
 | delta | pending | delta component | [TASKS.md](../../projects/components/delta/TASKS.md) |
 | [reed-solomon](projects/components/reed-solomon/INDEX.md) | **migrated** | future R/S ECC component (intent only, no RTL yet; holds RS-001) | successor to dropped COMMON-009 |
 | hive | pending | hive component | [TASKS.md](../../projects/components/hive/TASKS.md) |
-| [RLB](RLB/INDEX.md) | **migrated** | retro legacy blocks (ioapic, pm_acpi, smbus, pit, hpet) | remaining pre-migration rtl/*/TODO items still to fold in |
+| [RLB](RLB/INDEX.md) | **migrated** | retro legacy blocks (gpio, hpet, ioapic, pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). Cross-block work at this level; per-block work in sub-areas, e.g. [RLB/hpet](RLB/hpet/INDEX.md) | TASKS.md folded in + deleted 2026-09-25 (six HPET items -> RLB/hpet/); the rtl/*/TODO files it named no longer exist |
 | [pumice](pumice/INDEX.md) | **migrated** | pumice DDR2/LPDDR2 controller | — |
 | [docs-review](docs-review/INDEX.md) | **migrated** | Kimi doc review + humanization | rtl-doc-review/REVIEW_TODOS.md (off-repo) |
-| memory-controllers | pending | ddr3 / ddr4 (pumice migrated above) | ddr3-lpddr3, ddr4-lpddr4 TASKS.md |
+| memory-controllers | **migrated** | grouping dir, holds no items: [ddr3-lpddr3](memory-controllers/ddr3-lpddr3/INDEX.md), [ddr4-lpddr4](memory-controllers/ddr4-lpddr4/INDEX.md). pumice-ddr2-lpddr2 stays at [pumice](pumice/INDEX.md) | both TASKS.md stubs folded in + deleted 2026-09-25 |
 | [nexysa7](nexysa7/INDEX.md) | **started** | board campaigns + characterization flows | NEXYS-001 (consistent flow Makefiles); timing_characterization/TASKS.md, cdc_counter_display CDC_DEMO_TODO still to fold in |
 | formal | pending | formal proof backlog | [formal/FORMAL_TODO.md](../../formal/FORMAL_TODO.md) |
 | [coverage](coverage/INDEX.md) | **migrated** | coverage rollout (COV-001: last 3 areas off base tests.mk) | val/COVERAGE_TODO.md (folded in + deleted 2026-08-09) |
