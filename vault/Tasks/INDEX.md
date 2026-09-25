@@ -95,9 +95,20 @@ more than once. Real items start at `-001`.
 
     bin/check_task_ids.py --next pumice/bug     # -> BUG-001
     bin/check_task_ids.py --area tooling/issue  # check one lane
+    bin/check_task_ids.py --area RLB/hpet       # a sub-area: every lane beneath it
 
 The checker reports an area by its path under `vault/Tasks/` (`pumice/bug`,
 not `bug`), because 18 directories now share each lane name.
+
+**`--area` takes a bare name, a full path, or a PREFIX; `--next` is per-LANE.**
+Given `RLB` the check covers that area's flat pages AND all five lanes beneath
+it -- it used to match only the flat pages and report "1 area", silently
+skipping every lane. `--next` refuses a grouping or sub-area path instead of
+inventing an ID from the string: `--next RLB/hpet` printed `RLB/HPET-001` until
+2026-09-25, a prefix with a slash in it that no item filename can ever match,
+and any argument naming no area at all reported "passed (0 area(s))" with rc=0.
+Both now exit 2 and name the lanes you meant. A checker you can address
+incorrectly without being told is a checker that certifies nothing.
 
 `closed` and `dropped` are both terminal but they are not the same thing:
 `closed` means the work got done, `dropped` means we decided not to do it (or
@@ -198,7 +209,7 @@ misfiled" needs someone who knows the work, and auto-flipping the text would
 launder open work into the closed pile. Eleven of those exist today — see [[AUDIT-002]].
 
     bin/check_task_ids.py                 # check everything
-    bin/check_task_ids.py --next pumice   # -> PUMICE-016
+    bin/check_task_ids.py --next pumice   # -> PUMICE-045
 
 
 ## Heading shape — every task is `## <ID>`, uniformly (Sean, 2026-09-14)

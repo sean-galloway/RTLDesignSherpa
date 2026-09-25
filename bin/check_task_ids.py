@@ -19,9 +19,23 @@ Historical collisions are grandfathered via KNOWN_COLLISIONS so the check
 can be enforcing from day one without forcing a risky renumber of closed
 history (renumbering breaks existing wikilinks). Anything NEW fails.
 
+`--area` and `--next` name an area by bare name or by path under
+vault/Tasks/. Both USED TO ACCEPT ANYTHING: a name matching no area reported
+"check passed (0 area(s))" with rc=0, and --next INVENTED an ID from the
+string it was handed -- `--next totally-made-up` printed
+TOTALLY-MADE-UP-001, and `--next RLB/hpet` printed RLB/HPET-001, a prefix
+containing a slash that ITEM_ID can never match. Both now fail loudly.
+This bit the moment sub-areas arrived (2026-09-25): the discovery unit is the
+LANE, so `RLB/hpet` is not itself an area and every RLB/hpet argument passed
+while examining nothing. --area therefore also accepts a PREFIX and checks
+every lane beneath it, which is how an area with both flat pages and lanes
+(`--area RLB`) gets fully checked rather than reporting 1 area and skipping
+its five lanes.
+
 Usage:
     bin/check_task_ids.py                 # check every area
-    bin/check_task_ids.py --area pumice   # one area
+    bin/check_task_ids.py --area pumice   # one area (its pages AND its lanes)
+    bin/check_task_ids.py --area RLB/hpet # a sub-area: every lane beneath it
     bin/check_task_ids.py --next pumice   # print the next free ID and exit
 """
 from __future__ import annotations
@@ -193,6 +207,12 @@ def highest(ids, prefix: str | None = None) -> int:
     return max(nums) if nums else 0
 
 
+# A brand-new lane holds no item to read a prefix from, and the old fallback
+# upper-cased the whole --next argument, so an empty `RLB/hpet/task` would have
+# produced "RLB/HPET/TASK-001". The lane name is the real source.
+LANE_PREFIX = {"task": "TASK", "bug": "BUG", "issue": "ISSUE"}
+
+
 def area_label(area: pathlib.Path) -> str:
     """Report an area by its path under vault/Tasks, not its bare name.
 
@@ -302,15 +322,63 @@ def main() -> int:
     laned = {d.parent for d in tasks.rglob("*")
              if d.is_dir() and d.name in STATES and (d.parent / "INDEX.md").exists()}
     areas = sorted(flat | laned)
+    all_areas = list(areas)
+    known = {str(a.relative_to(tasks)): a for a in all_areas}
+
+    def resolve(want: str) -> list[pathlib.Path]:
+        """Areas named by `want`: exact rel path, bare name, or PREFIX.
+
+        The prefix arm is what makes a sub-area or grouping path addressable.
+        Without it `--area RLB/hpet` selected nothing and reported success.
+        """
+        want = want.strip("/")
+        return [a for a in all_areas
+                if str(a.relative_to(tasks)) == want
+                or a.name == want
+                or str(a.relative_to(tasks)).startswith(want + "/")]
+
+    def no_match(flag: str, want: str) -> int:
+        print(f"{flag} {want!r} matched no area under vault/Tasks/.",
+              file=sys.stderr)
+        near = [r for r in sorted(known)
+                if want.strip("/").lower() in r.lower()]
+        if near:
+            print("  did you mean:", file=sys.stderr)
+            for r in near:
+                print(f"    {r}", file=sys.stderr)
+        else:
+            print("  bin/check_task_ids.py (no args) lists every area it checks.",
+                  file=sys.stderr)
+        return 2
+
     if args.area:
-        areas = [a for a in areas
-                 if a.name == args.area or str(a.relative_to(tasks)) == args.area]
+        sel = resolve(args.area)
+        if not sel:
+            return no_match("--area", args.area)
+        areas = sel
 
     if args.next:
-        a = tasks / args.next
+        want = args.next.strip("/")
+        a = known.get(want)
+        if a is None:
+            # A path that exists but is not itself an area -- a grouping dir or
+            # a sub-area root -- must name its lanes, not invent an ID.
+            under = [r for r in sorted(known) if r.startswith(want + "/")]
+            if under:
+                print(f"--next {args.next!r} is not a lane; IDs are per-lane. "
+                      f"Pick one:", file=sys.stderr)
+                for r in under:
+                    print(f"    bin/check_task_ids.py --next {r}", file=sys.stderr)
+                return 2
+            return no_match("--next", args.next)
         ids, _, _ = scan_area(a)
         prefix = next((i.rsplit("-", 1)[0] for i in ids if re.search(r"-\d+$", i)),
-                      args.next.upper())
+                      LANE_PREFIX.get(a.name))
+        if not prefix or "/" in prefix:
+            print(f"--next {args.next!r}: cannot determine an ID prefix "
+                  f"(no existing item and {a.name!r} is not a known lane).",
+                  file=sys.stderr)
+            return 2
         print(f"{prefix}-{highest(ids) + 1:03d}")
         return 0
 

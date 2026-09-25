@@ -386,6 +386,47 @@ pass. Count the inputs you matched and compare with the inputs you found; if
 they differ, say so. `0 warnings` from a gate that parsed 82% of its input is
 not evidence that the data is clean.
 
+### 19. A gate you can address incorrectly certifies nothing
+
+`bin/check_task_ids.py --area <name>` matched an area by exact bare name or
+exact path. Sub-areas arrived on 2026-09-25 (`vault/Tasks/RLB/hpet/`) and the
+discovery unit turned out to be the LANE, not the area: `laned` collects the
+PARENT of each state directory, so the registered areas are `RLB/hpet/task` and
+`RLB/hpet/bug`, and `RLB/hpet` is not an area at all. Every invocation naming it
+printed
+
+    Task-tracker check passed (0 area(s))
+
+and exited 0. So did every typo, and so did `--area memory-controllers`, a
+grouping directory. The count sat in the output the whole time, inside a line
+ending `check passed`.
+
+`--next` was worse, because it did not merely examine nothing -- it FABRICATED.
+The prefix fell back to `args.next.upper()`, so `--next totally-made-up` printed
+`TOTALLY-MADE-UP-001`, and `--next RLB/hpet` printed `RLB/HPET-001`: a prefix
+with a slash in it, which `ITEM_ID` can never match, handed to someone
+following the documented filing workflow.
+
+Three lessons, cheapest first:
+
+- **An argument that selects nothing is an ERROR, not an empty set.** Both
+  flags exit 2 now and list the near misses. This is rule 2 applied to a gate's
+  own CLI instead of to its inputs -- the place nobody thought to apply it,
+  because the CLI felt like the trusted side.
+- **A derived value needs a real source, never the caller's string.** The ID
+  prefix now comes from an existing item, else from the lane name
+  (`LANE_PREFIX`); a prefix containing `/` is refused outright.
+- **Widening the addressing exposed the same blindness elsewhere.** `--area`
+  accepts a PREFIX now, and with that `--area pumice` covers 4 areas where it
+  used to report 1, `--area amba` 4, `--area RLB` 6. Those calls had been
+  checking an area's frozen flat pages while silently skipping all of its live
+  lanes -- a second instance of this rule, hiding behind a plausible "1 area".
+
+The fix was proved by MUTATION, not by the new count: breaking an H1 under
+`RLB/hpet` and re-running `--area RLB/hpet` produces a named failure and rc=1.
+"2 area(s)" alone would only have shown that selection changed, not that
+anything was read -- which is the whole distinction this note is about.
+
 ## The single question
 
 Before believing any zero, ask: **if the thing I am looking for were happening,
