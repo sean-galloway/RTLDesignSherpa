@@ -1399,6 +1399,35 @@ _PAGE_MODES = [(0, "build_default"), (1, "static_open"), (2, "static_close"),
                (6, "rbl_static"),    (7, "rbl_dyn")]
 
 
+# TASK-006 stall attribution, read straight off the DUT. The seven counters are
+# a PRIORITY classification of every cycle the arbiter did not fire, so they sum
+# to the stalled-cycle count and each cycle is charged exactly once. Free-running
+# since reset, so a window is (end - start).
+_STALL_FIELDS = ("bp", "refresh", "turnaround", "tccd", "actlimit",
+                 "banktimer", "noreq")
+
+
+def _stall_snap(dut):
+    """Snapshot the seven stall counters + the DUT's own page stats."""
+    d = {f: int(getattr(dut, f"stall_{f}").value) for f in _STALL_FIELDS}
+    for f in ("page_hit", "page_miss", "page_empty", "act", "pre", "ref"):
+        d[f] = int(getattr(dut, f"stat_{f}").value)
+    return d
+
+
+def _stall_delta(a, b):
+    return {k: b[k] - a[k] for k in a}
+
+
+def _stall_str(d):
+    tot = sum(d[f] for f in _STALL_FIELDS)
+    if tot == 0:
+        return "no stalled cycles"
+    parts = [f"{f}={d[f]}({100.0*d[f]/tot:.1f}%)"
+             for f in _STALL_FIELDS if d[f]]
+    return f"stalled={tot}  " + " ".join(parts)
+
+
 async def _util_window(dut, slave, *, tag, n=192, banks=None):
     """One measured write window on the CURRENT mode settings.
 
@@ -1427,6 +1456,7 @@ async def _util_window(dut, slave, *, tag, n=192, banks=None):
     base = (trk.prod, trk.bp)
     ref0 = slave.cmd_counts.get(_DC.REF, 0)
     cmd0 = {c: slave.cmd_counts.get(c, 0) for c in (_DC.ACT, _DC.PRE, _DC.WR)}
+    stall0 = _stall_snap(dut)
 
     #  = how many banks the stream spreads over. Bank parallelism is
     # what hides ACT/PRE latency, so the 1-bank case is where paging modes
@@ -1451,9 +1481,10 @@ async def _util_window(dut, slave, *, tag, n=192, banks=None):
     # "every mode is 100%" held at the default geometry and not on the board.
     cmds = {c: slave.cmd_counts.get(c, 0) - cmd0[c] for c in cmd0}
     per_access = sum(cmds.values()) / n if n else 0.0
+    stalls = _stall_delta(stall0, _stall_snap(dut))
     return ((prod / valid_cyc) if valid_cyc else 0.0, bp,
             slave.cmd_counts.get(_DC.REF, 0) - ref0,
-            max_run, n * BL_WORDS, cmds, per_access)
+            max_run, n * BL_WORDS, cmds, per_access, stalls)
 
 
 @cocotb.test(timeout_time=120, timeout_unit="ms")
@@ -1498,10 +1529,10 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     for tag, (mode, name) in enumerate(_PAGE_MODES):
         dut.page_mode_i.value = mode
         await ClockCycles(dut.aclk, 64)       # settle + drain before measuring
-        u8, bp8, r8, run8, beats8, cmds8, cpa8 = await _util_window(
+        u8, bp8, r8, run8, beats8, cmds8, cpa8, st8 = await _util_window(
             dut, slave, tag=tag)
         await ClockCycles(dut.aclk, 64)
-        u1, bp1, r1, run1, _, _, cpa1 = await _util_window(
+        u1, bp1, r1, run1, _, _, cpa1, st1 = await _util_window(
             dut, slave, tag=tag + 64, banks=1)
         rows.append((mode, name, u8, bp8, u1, bp1, r8 + r1, run8, beats8))
         cpa_rows.append((name, cpa8, cpa1, dict(cmds8)))
@@ -1510,6 +1541,10 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
                       "(ceiling %.1f%%)",
                       mode, name, 100.0 * u8, bp8, 100.0 * u1, bp1, r8 + r1,
                       cpa8, 100.0 * min(1.0, BL_WORDS / max(cpa8, 1e-9)))
+        # WHY the mode sits where it does -- a priority split of every
+        # non-firing cycle, read from the DUT's own TASK-006 counters.
+        dut._log.info("    8bank %s", _stall_str(st8))
+        dut._log.info("    1bank %s", _stall_str(st1))
 
     try:
         with open("paging_util_sweep.out", "w") as f:
@@ -1707,7 +1742,7 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
                 getattr(dut, k).value = v
             await ClockCycles(dut.aclk, 64)
             tag += 1
-            util, bp, refs, run, beats, _cmds, cpa = await _util_window(
+            util, bp, refs, run, beats, _cmds, cpa, _st = await _util_window(
                 dut, slave, tag=tag, n=96)
             rows.append((pname, sname, util, bp, refs, run, beats, cpa))
             if util < 1.0 or refs:

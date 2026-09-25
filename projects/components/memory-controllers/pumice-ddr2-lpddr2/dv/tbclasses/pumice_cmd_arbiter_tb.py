@@ -100,6 +100,13 @@ class PumiceCmdArbiterTB(TBBase):
         self.dut.bank_act_ready_i.value = 0
         self.dut.bank_rdwr_ready_i.value = 0
         self.dut.bank_pre_ready_i.value = 0
+        # ...and their advisory lookahead twins. r_bank_*_ready samples THESE,
+        # so leaving them undriven starves the pick pipeline no matter what the
+        # live inputs say -- which is exactly how this TB broke when the twins
+        # were added to the arbiter.
+        self.dut.bank_act_ready_la_i.value = 0
+        self.dut.bank_rdwr_ready_la_i.value = 0
+        self.dut.bank_pre_ready_la_i.value = 0
         self.dut.bank_row_active_i.value = 0
         self.dut.bank_open_row_i.value = 0
         self.dut.tfaw_ok_i.value = 1
@@ -148,12 +155,34 @@ class PumiceCmdArbiterTB(TBBase):
             fields={'slot': ("rd_issue_slot_o", max(1, len(self.dut.rd_issue_slot_o)))})
 
     # ---- helpers: pack per-bank vectors -------------------------------------
+    # The arbiter takes TWO readiness images: the LIVE one (what its final
+    # stage enforces against) and the ADVISORY lookahead twin (what the pick
+    # pipeline decides on, see bank_timer.sv safe_*_la_o). A unit test of the
+    # pick logic wants them equal -- that is exactly BANK_LA=0, where each
+    # lookahead term collapses to its live twin. Mirroring here rather than at
+    # the call sites means a test that sets readiness cannot accidentally set
+    # only half of it: leaving the _la_i twin undriven silently starves the
+    # pick pipeline, since r_bank_*_ready samples the TWIN, not the live one.
+    # Matched on the HANDLE, not on a name string: cocotb's _name is the full
+    # hierarchical path in some versions and the leaf in others, and a silent
+    # miss here reintroduces exactly the starvation this exists to prevent.
+    def _la_twin(self, sig):
+        for live, la in (("bank_act_ready_i",  "bank_act_ready_la_i"),
+                         ("bank_rdwr_ready_i", "bank_rdwr_ready_la_i"),
+                         ("bank_pre_ready_i",  "bank_pre_ready_la_i")):
+            if sig is getattr(self.dut, live):
+                return getattr(self.dut, la)
+        return None
+
     def set_bank_bits(self, sig, bank_to_val):
         v = 0
         for b, on in bank_to_val.items():
             if on:
                 v |= (1 << b)
         sig.value = v
+        twin = self._la_twin(sig)
+        if twin is not None:
+            twin.value = v
 
     def set_open_rows(self, rows):
         """rows: {bank: row}. Packs bank_open_row_i (row_active banks)."""

@@ -129,6 +129,14 @@ module pumice_core_tb_top
 );
 
     // ---- phy_dfi_* nets the DFISlavePHY BFM binds to (prefix phy_dfi) ----
+    // TASK-006 stall attribution, surfaced so the paging sweep can name the
+    // cause of a below-ceiling mode instead of only reporting the shortfall.
+    // Free-running since reset; a measurement window is (end - start).
+    logic [31:0] stall_bp, stall_refresh, stall_turnaround, stall_tccd;
+    logic [31:0] stall_actlimit, stall_banktimer, stall_noreq;
+    logic [31:0] stat_page_hit, stat_page_miss, stat_page_empty;
+    logic [31:0] stat_act, stat_pre, stat_ref;
+
     logic [DFI_ADDR_BUS_W-1:0]  phy_dfi_address;
     logic [DFI_BANK_BUS_W-1:0]  phy_dfi_bank;
     logic [DFI_CTRL_BUS_W-1:0]  phy_dfi_cas_n, phy_dfi_ras_n, phy_dfi_we_n;
@@ -194,13 +202,24 @@ module pumice_core_tb_top
         .page_ctr_thresh_i(page_ctr_thresh_i), .page_ctr_init_i(page_ctr_init_i),
         .page_rbl_thresh_i(page_rbl_thresh_i), .page_rbl_ways_i(page_rbl_ways_i),
         .page_rbl_sets_i(page_rbl_sets_i), .page_rbl_ivl_i(page_rbl_ivl_i),
-        // TASK-006 stall attribution: left open, the core TB scores the
-        // datapath, not the counters (those are read over the CSR bus).
-        .stall_bp_o(), .stall_refresh_o(), .stall_turnaround_o(),
-        .stall_tccd_o(), .stall_actlimit_o(), .stall_banktimer_o(),
-        .stall_noreq_o(),
-        .stat_page_hit_o(), .stat_page_miss_o(), .stat_page_empty_o(),
-        .stat_act_o(), .stat_pre_o(), .stat_ref_o(),
+        // TASK-006 stall attribution. These used to be left open here on the
+        // grounds that the core TB scores the datapath and the counters are
+        // read over the CSR bus -- but the core TB is where the paging sweep
+        // lives, and that is the test that asks WHY a mode is below its
+        // command-bus ceiling. Dangling them meant the one place able to
+        // answer that question was the one place that could not see it.
+        .stall_bp_o(stall_bp), .stall_refresh_o(stall_refresh),
+        .stall_turnaround_o(stall_turnaround),
+        .stall_tccd_o(stall_tccd), .stall_actlimit_o(stall_actlimit),
+        .stall_banktimer_o(stall_banktimer),
+        .stall_noreq_o(stall_noreq),
+        // Page/command stats, surfaced for the same reason as the stall
+        // counters above: the sweep reports ACT/txn and hit-rate from the
+        // DFI monitor, but these are the DUT's own view and disagreeing
+        // with them is itself a finding.
+        .stat_page_hit_o(stat_page_hit), .stat_page_miss_o(stat_page_miss),
+        .stat_page_empty_o(stat_page_empty),
+        .stat_act_o(stat_act), .stat_pre_o(stat_pre), .stat_ref_o(stat_ref),
         // CSR-backed MR values at their RDL resets (MR0 0x0433 = BL8/CL3/tWR3);
         // no runtime MR retune in this TB, init_restart tied off.
         .mr0_i(16'h0433), .mr1_i(16'h0000), .mr2_i(16'h0000), .mr3_i(16'h0000),
