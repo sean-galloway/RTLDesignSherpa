@@ -75,3 +75,47 @@ signal or a new strobe.
 **Also settles [[ISSUE-004]]:** the +25-30% batching gain in the record is
 REPRODUCED on the fixed drain (+25.7% to +30.5%). It was not an artefact of the
 broken drain.
+
+
+## 2026-09-24 (later) — CORRECTION: I misread the watermark, twice
+
+Sean, on my explanation: *"If it only ever lets one write batch then it stops,
+that is broken. For write heavy traffic, 8 or 16 might make sense."* The
+premise he was reacting to was mine and it was wrong.
+
+**`wr_low_wm` is a FLOOR the drain runs down to, not a gap.** `w_wr_occ` is the
+popcount of `wr_sch_valid_i` over `NUM_ENTRIES = 8` -- the write CAM -- and the
+drain clears on `w_wr_occ <= sched_wr_low_wm_i`. So:
+
+| watermarks | arms when | drains to | batch length |
+|---|---|---|---|
+| hi=2 / lo=1 (shipped) | 2 pending | 1 left | **up to 7** |
+| hi=8 / lo=4 | CAM FULL (8) | 4 left | 4, and needs a full CAM to start |
+
+The shipped setting gives LONGER batches that arm MORE readily. That is why it
+measured best (314.0 vs 284.1 MB/s, against a 600 MB/s ceiling) -- a result I
+had recorded as surprising and "overturning my hypothesis" when it is simply
+what the mechanism does. Batching is working, and working well.
+
+**The real reason `wr_batch_max=16` never binds is structural: the write CAM is
+8 deep, so a batch can never exceed `8 - low_wm = 7`.** The default cap sits
+above the hardware maximum. Not "the watermark gap is 1" -- that framing was an
+artefact of reading `low_wm` as the far end of a window.
+
+**So the defect is narrower than both of my earlier write-ups.** The cap is
+dead surface because it is set above what the hardware can produce, on a build
+where the CAM is 8. It is not evidence that batching is inert, and the
+watermarks should NOT be widened -- that measurably costs bandwidth.
+
+Sensible resolutions, in order of cost:
+1. Default `wr_batch_max` to something inside the reachable range (<= 7) so the
+   knob does something, or
+2. Derive its clamp from NUM_ENTRIES the way `POSTPONE_MAX` is derived from
+   MAX_PENDING (`refresh_ctrl.sv`), so it cannot be programmed above the
+   structural maximum and a host write that would be inert is visibly clamped
+   on readback, or
+3. Document it as a bound for deeper-CAM configurations and leave it.
+
+(2) is the one that matches how this codebase already handles exactly this
+problem one module over, and it makes the inertness impossible rather than
+merely documented.
