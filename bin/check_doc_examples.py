@@ -155,15 +155,18 @@ def main() -> int:
     # so the ratchet drops 4 -> 1. Measured in a detached worktree at that HEAD,
     # not the working tree, per the warning above.
     #
-    # The one left is the rapids_core_beats MAS page (rapids TASK-077), and it is
-    # bigger than the printed message suggests. The message truncates to five
-    # names (sorted(set(miss))[:5]); the page actually carries 25 fabricated
-    # connections out of 43 in its Integration Example, and its port TABLES are
-    # worse: 55 distinct signals named, only 13 resolve, so 42 are fabricated.
-    # Real names: sink write is m_axi_wr_*,
-    # source read m_axi_rd_*, fill s_axis_t*, drain m_axis_t*, MonBus
-    # mon_valid/mon_ready/mon_packet, status src_/snk_system_idle -- there is
-    # no error_flags port at all.
+    # rapids TASK-077 is FIXED (ff57ee35f), so the ratchet reaches 0. That page
+    # had far more wrong with it than the printed message suggested: the message
+    # truncates to five names (sorted(set(miss))[:5]), while the page carried 25
+    # fabricated connections out of 43 in its Integration Example AND 42 of 55
+    # fabricated signals in its port tables. It was rewritten against the module:
+    # sink write is m_axi_wr_*, source read m_axi_rd_*, ingress s_axis_t*,
+    # egress m_axis_t*, MonBus mon_valid/mon_ready/mon_packet, descriptor AXI is
+    # TWO masters (src_/snk_m_axi_desc_*), status is per half
+    # (src_/snk_system_idle) -- and there is no error_flags port at all.
+    #
+    # AT ZERO NOW. Any new finding fails the gate immediately, which is the
+    # point: there is no longer a backlog to hide in.
     #
     # What this gate does NOT see: RE_CONN is ^\s*\.(\w+)\s*\( , so it reads
     # connections (and, incidentally, parameter overrides -- 1342 of those
@@ -182,7 +185,7 @@ def main() -> int:
     # quantify it returned only artifacts (first 1569 parameter overrides, then
     # 227 hits from a port-list regex broken enough to call counter's rst_n a
     # non-port) -- so no claim is made here either way.
-    BASELINE = 1
+    BASELINE = 0
     if bad > BASELINE:
         print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} (rapids TASK-077)')
         return 1
