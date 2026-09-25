@@ -1,7 +1,9 @@
 # TASK-002: RAPIDS-beats has NO contracts workbook at all
 > **Was `RAPIDS-KMAP` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** in progress -- workbook created 2026-09-25, item 3 DONE  
+**Status:** all six targets addressed 2026-09-25 -- items 3, 4, 5 MAPPED;
+items 1, 2 CONFIRMED and mechanised in known_issues but not yet mapped; item 6
+subsumed by item 3. Not closed: 1 and 2 have no K-map yet.  
 **Unblocked:** the shared machinery was promoted to `bin/kmaps/` (TOOLING-KMAP item 5), so the generator builds on it rather than forking a third private copy.
 
 Unlike stream and pumice, RAPIDS has **no**

@@ -209,6 +209,63 @@ WHETHER THE RTL MATCHES IT. Three outcomes, all informative:
 `CHECK BY INSPECTION: <prose>` is a human assertion, not this. It is worth
 keeping as intent, but it is not the check.
 
+### The technique that finds defects: carry the term the RTL OMITS as an axis
+
+This is the single most productive move in the whole method, and it falls
+straight out of criterion 4. When you write the term list, do not restrict it
+to the signals the expression mentions. Add the term a correct version of the
+decision WOULD have to consult. Then the map's *independence* from that axis is
+the finding — visible on sight, because the grid is identical on both halves of
+the page.
+
+Every defect the RAPIDS workbook found (2026-09-25) came out this way:
+
+| Map | Axis the RTL does not read | What it exposed |
+|---|---|---|
+| drain grant | `fifo_ge_size` — the allocator's REAL count | grant qualified on a view that double-counts bridge beats; `rd_ptr` overshoots |
+| `r_pending_alloc` credit | `alloc_granted` — the allocator's `wr_ready` | credited on REQUEST, never on acceptance; the ready wire is left unconnected |
+| `CH_XFER_DATA` exit | `write_issued` — STREAM's completion term | RAPIDS waits on COMMITS where STREAM waits on ISSUE |
+| `s_axis_tready` | `fill_ready` — the FIFO's own `wr_ready` | AXIS beat accepted while the FIFO backpressures, so it is never stored |
+
+Three rules make it evidence rather than insinuation:
+
+- **Pair it with a `relations=` predicate.** Prove which cells are unreachable
+  so the survivors are the real exposure. `write_committed` implies
+  `write_issued` (commits trail issues), so half that map is X and the
+  remaining green cell is the whole claim. Without the predicate you are
+  pointing at cells that may be impossible.
+- **State what is NOT established.** Two of the four above need a
+  co-occurrence nobody has proven (a backpressured FIFO while the allocator
+  still shows space; a host clearing a timeout enable mid-transfer). Write that
+  into the `check` string and say what test would settle it. A map that
+  over-claims gets discounted wholesale; one that poses a sharp question gets
+  acted on.
+- **An unconnected port is the tell.** Three of the four trace to a signal that
+  is driven and then discarded at an instantiation (`.wr_ready ()`,
+  `.rd_ready ()`, `.sched_wr_error ()`). Grepping for `\.[a-z_]+\s*\(\s*\)`
+  across a macro directory is a cheap way to find candidate axes before you
+  write any map.
+
+### Verify the workbook, not the build echo
+
+A clean generator run proves the citations resolve; it does not prove the grids
+say what your prose says. Read the fills back out of the `.xlsx` and compare
+against an independent recomputation of the same expressions. On the RAPIDS
+workbook that caught prose claiming "the four green cells at `fifo_ge_size`=0"
+where the computed map had exactly ONE, and confirmed a claimed-redundant term
+really was unreachable in every deciding cell.
+
+Mutation-test both gates once per workbook, or you are trusting a checker
+nobody has seen fail ([[feedback_checker_verdict_needs_a_count]]): flip a cited
+line number (the citation gate must fail) and make one `relations=` predicate
+vacuous (the invariant check must reject it as non-constraining).
+
+Prose citations in a task file or `known_issues` entry have NO gate — the
+generator's registry protects only the workbook. Hand-run the same check
+before committing prose; on this task it caught a read-sticky line number
+where the write-sticky one was meant. See
+[[feedback_anchors_rot_faster_than_claims]].
+
 ## Why this matters more than it sounds
 
 The stream workbook's first pass found six real defects, so the practice already
