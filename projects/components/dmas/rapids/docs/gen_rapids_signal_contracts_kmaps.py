@@ -1098,11 +1098,14 @@ def build_snk_error_kmaps(wb):
         "WITH a B response, and the commit strobe is gated on bvalid/bready "
         f"and BID with no bresp test ({WR_ENG_B}:898), so it still counts as "
         f"write progress and resets the timeout counter ({SCHED_B}:920). The "
-        "error path catches it now, but the timeout never will -- which "
-        "matters for a dropped burst that returns no B at all. That is gap 1 "
-        "of the known issue and remains OPEN. NOT YET ESTABLISHED: no test "
-        "drives a sink SLVERR today; a directed test returning SLVERR on one "
-        "burst and checking the channel faults would close the loop.",
+        "error path catches it now. A burst that returns no B at all is a "
+        "different mechanism and is NOT this cone's job: AXI transaction "
+        "timeouts are detected by the monitor layer by design "
+        "(rtl/amba/monitor/axi_monitor_timer.sv plus "
+        "axi_monitor_reporter_timeout.sv, gated by cfg_timeout_enable), not by "
+        "a counter in the engine. NOT YET ESTABLISHED: no test drives a sink "
+        "SLVERR today; a directed test returning SLVERR on one burst and "
+        "checking the channel faults would close the loop.",
         depends_only_on=(
             "these four, plus channel reset which takes priority over the "
             f"whole branch ({SCHED_B}:369-370)."),

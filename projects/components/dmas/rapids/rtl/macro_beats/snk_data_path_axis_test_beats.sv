@@ -445,7 +445,7 @@ module snk_data_path_axis_test_beats #(
         // data path, and discarding the flag here would make it
         // unrepresentative of the fixed macro -- a directed SLVERR test would
         // then pass without exercising anything. See
-        // known_issues/active/sink_data_path.md.
+        // known_issues/resolved/sink_data_path.md.
         .sched_wr_error         (sched_wr_error_internal),
 
         // AXI Write Master Interface

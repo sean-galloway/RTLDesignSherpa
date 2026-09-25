@@ -20,7 +20,7 @@ Targets specific to RAPIDS, in priority order. The first three are OPEN
 known_issues, which makes them the highest-value maps in the repo:
 
 1. **Sink data path -- AXI timeout detection missing**
-   (`known_issues/active/sink_data_path.md`). A map of the timeout
+   (`known_issues/resolved/sink_data_path.md`). A map of the timeout
    qualification cone would make the missing term visible as an axis with no
    contributing expression.
 2. **Sink SRAM control -- single-read limitation**
@@ -96,9 +96,13 @@ sink shares the defect. That overlaps item 5's territory.
 
   **Item 1 is broader than filed, and half of it is a live RAPIDS-only
   defect.** Two distinct gaps:
-  - *No AXI transaction timeout exists* in `axi_write_engine_beats.sv` at all
-    (only a comment at `:340`). STREAM's engine is byte-identical, so this is
-    shared and fixing it means implementing detection.
+  - *No AXI transaction timeout in the engine* -- **BY DESIGN, not a gap.**
+    Owner's decision 2026-09-25: "the monitor code takes care of timeouts."
+    Detection lives in `rtl/amba/monitor/axi_monitor_timer.sv` and
+    `axi_monitor_reporter_timeout.sv` (gated by `cfg_timeout_enable`), and
+    RAPIDS instantiates a monitor at `scheduler_group_array_beats.sv:841` with
+    `USE_AXI_MONITORS` defaulting to 1. An earlier note of mine filed this as
+    an open defect; that is retracted.
   - *Bad-B-response detection exists and is discarded.* The engine already
     flags `m_axi_bresp != 2'b00` per channel, sticky (`:951`/`:955`), and
     exports it (`:144`, `assign sched_wr_error = r_wr_error;` at `:964`). On

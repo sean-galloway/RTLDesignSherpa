@@ -33,10 +33,13 @@ This directory tracks all known RTL issues in the RAPIDS subsystem, organized by
 known_issues/
 ├── README.md           ← This file
 ├── scheduler_group_signal_naming_conflicts.md
-└── active/             ← Unresolved issues and pending enhancements
-    ├── drain_size_gt1_source_beat_drop.md
+├── active/             ← Unresolved issues and pending enhancements
+│   ├── desc_arsize_exceeds_bus_width.md
+│   ├── drain_size_gt1_source_beat_drop.md
+│   └── sink_sram_control.md
+└── resolved/           ← Fixed; kept permanently for reference
+    ├── char_harness_sink_selfcheck_no_beats.md
     ├── sink_data_path.md
-    ├── sink_sram_control.md
     └── snk_scheduler_write_commit_stall.md
 ```
 
@@ -166,7 +169,7 @@ Even resolved issues remain in `resolved/` permanently for reference.
 ls projects/components/dmas/rapids/known_issues/active/
 
 # View specific issue
-cat projects/components/dmas/rapids/known_issues/active/sink_data_path.md
+cat projects/components/dmas/rapids/known_issues/resolved/sink_data_path.md
 ```
 
 ### Search Issues

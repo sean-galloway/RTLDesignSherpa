@@ -103,7 +103,7 @@ module snk_data_path_beats #(
     // Sticky per-channel write error from axi_write_engine_beats (bad B
     // response). Exported so the scheduler's w_hard_error can see it; it was
     // previously discarded here, which left that fatal-error term dead on the
-    // whole sink path. See known_issues/active/sink_data_path.md.
+    // whole sink path. See known_issues/resolved/sink_data_path.md.
     output logic [NC-1:0]               sched_wr_error,
 
     //=========================================================================

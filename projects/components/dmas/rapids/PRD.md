@@ -105,7 +105,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 **Location:** `projects/components/dmas/rapids/known_issues/`
 
 - **[Index](known_issues/README.md)** - Issue tracking overview (the old scheduler.md credit-counter write-up was retired with the pre-beats RTL)
-- **[Sink Data Path](known_issues/active/sink_data_path.md)** - Minor issues
+- **[Sink Data Path](known_issues/resolved/sink_data_path.md)** - RESOLVED 2026-09-25 (write-error flag wired; timeouts are the monitor's job by design)
 - **[Sink SRAM Control](known_issues/active/sink_sram_control.md)** - Edge cases
 - Plus `known_issues/active/` for current beats issues
 

@@ -27,7 +27,7 @@
 
 **Severity**: Medium
 **Impact**: Timeout errors not detected or reported
-**Status**: Gap 2 FIXED 2026-09-25. Gap 1 (no AXI transaction timeout) remains open, and is shared with STREAM.
+**Status**: RESOLVED 2026-09-25. The one real defect (the discarded write-error flag) is fixed; the "missing timeout" half is BY DESIGN -- timeouts are the monitor's job, not the datapath's.
 **Discovery Date**: During RTL review
 
 ### Description
@@ -109,19 +109,51 @@ entry was filed against the retired pre-beats `sink_data_path.sv:283`, so only
 the ANCHOR was stale. **The claim itself holds, and there are actually TWO
 distinct gaps here, not one.**
 
-### Gap 1 -- no AXI transaction timeout exists (shared with STREAM)
+### Gap 1 -- NOT A GAP. Timeouts belong to the monitor, by design
 
-`axi_write_engine_beats.sv` contains no timeout, watchdog or stall counter at
-all: the only `timeout` occurrence is a comment at `:340`. STREAM's
-`axi_write_engine.sv` is the same (the resolved issue
-`snk_scheduler_write_commit_stall.md` §6a established the two files are
-byte-identical apart from the include and header). So "timeout errors not
-detected" is literally true, and fixing it means IMPLEMENTING detection, not
-wiring something up. Because the file is shared, a fix belongs in both.
+**Owner's decision, 2026-09-25: "Gap1 is on purpose. The monitor code takes
+care of timeouts."** This section previously called it an open defect. That was
+wrong and is retracted.
 
-### Gap 2 -- bad-B-response detection EXISTS and is thrown away (RAPIDS only)
+`axi_write_engine_beats.sv` really does contain no timeout, watchdog or stall
+counter -- the only `timeout` occurrence is a comment at `:340`, and STREAM's
+byte-identical `axi_write_engine.sv` is the same. But that is the intended
+split of responsibility, not an omission: AXI transaction timeouts are detected
+by the monitor layer, which already does exactly what this entry's "Required
+Implementation" list asks for.
 
-This one is new and is the more actionable half.
+Where that machinery lives:
+
+- `rtl/amba/monitor/axi_monitor_timer.sv` -- per-transaction duration timing.
+- `rtl/amba/monitor/axi_monitor_reporter_timeout.sv` -- "Timeout-packet
+  detection cone (split out of axi_monitor_reporter so integrators can drop it
+  with ENABLE_TIMEOUT_LOGIC=0)". It scans for unreported ERROR slots the timer
+  flagged via `timeout_detected[idx]`, priority-encodes the first match, and
+  emits a MonBus packet. Gated by `cfg_timeout_enable` (`:30`, `:55`).
+- RAPIDS instantiates a monitor at `scheduler_group_array_beats.sv:841`
+  (`u_desc_axi_monitor`, `.USE_MONITOR(USE_AXI_MONITORS == 1)` at `:840`), and
+  `USE_AXI_MONITORS` defaults to 1 (`:59`, and `rapids_beats_top.sv:74`).
+
+Read the original "Required Implementation" list against that: monitor
+transaction duration, compare against a configurable threshold, assert on
+exceed, report via the monitor bus. That is the monitor's job description. The
+entry was asking the sink datapath to reimplement it, which would duplicate
+the mechanism in two places -- and the word "timeout" is already overloaded
+here (the scheduler's own `cfg_sched_timeout_*` progress timeout is a
+different, third thing).
+
+**What I checked and did NOT establish**, recorded so nobody reads more into
+this than the evidence supports: the monitor instance I found in `rapids/rtl`
+is on the DESCRIPTOR AXI bus. I did not locate an instance covering the sink
+WRITE data bus inside `rapids/rtl`, and `rapids_beats_top.sv:1205-1216` leaves
+the per-engine `cfg_rdeng_mon_*` configuration ports unconnected. The
+characterization build does carry a three-level MonBus merge per half, so the
+coverage may be wired at that integration level. Anyone extending monitor
+coverage should start there rather than adding a counter to the engine.
+
+### Gap 2 -- bad-B-response detection EXISTS and is thrown away (RAPIDS only) -- FIXED
+
+This was the real defect, and it is fixed (see the APPLIED note below).
 
 The write engine already detects bad write responses, per channel, sticky:
 
