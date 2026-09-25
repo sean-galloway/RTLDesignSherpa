@@ -174,6 +174,24 @@ The method that worked: for each `async def cocotb_test_X`, count `X` in its own
 file (1 = unreachable); and for levels, dump every `TEST_LEVEL` line in the TB
 and the test and read them.
 
+**Third checklist item swept (2026-09-24): "every `test_*.py` actually
+exercises the DUT it names" -- CLEAN, no finding.** All 18 files bind a
+sensible `dut_name`, across 9 distinct DUTs: `stream_top_ch8` x8,
+`stream_core` x8, `sram_controller` x2, `scheduler` x2, and one each of
+`stream_latency_bridge`, `perf_profiler`, `descriptor_engine`,
+`datapath_wr_test`, `datapath_rd_test`.
+
+Recorded because a naive name-vs-DUT comparison FLAGS SEVEN FILES and all seven
+are fine:
+- the six `top/test_stream_top_*.py` drive `stream_top_ch8`. A full-basename
+  comparison (`stream_top_regs` vs `stream_top_ch8`) misses that they share
+  `stream_top`; they are top-level tests and that IS the DUT they name.
+- `macro/test_stream_performance_profile.py` drives `stream_core`. It is named
+  for a FEATURE, not a module, which the criterion allows.
+
+So the check is "does the file drive a DUT consistent with its subject", not
+"does the filename contain the module name". Do not re-run it as a string match.
+
 **What "complete" has to mean, at minimum:**
 
 - Every `test_*.py` actually exercises the DUT it names.
