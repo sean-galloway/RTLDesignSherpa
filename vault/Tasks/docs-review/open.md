@@ -180,6 +180,22 @@ just removed from code files have no ratchet behind them. A staged-file check ov
 those classes would close it; not built, because it is new tooling rather than
 backlog.
 
+**Generated .docx are out of scope, and that is a decision not an oversight.**
+42 tracked `.docx` carry embedded emoji (Bridge_MAS_v1.0 141, UART_16550_MAS_v1.0
+101, Bridge_MAS_v1.7 36). None were built during the 85 minutes `EMOJI_MAP` was
+broken, and every source book behind them is now clean (Bridge_MAS 23 `.md` -> 0,
+UART_16550_MAS 26 -> 0, APB_Crossbar_MAS 5 -> 0), so the glyphs are frozen
+history. They are versioned RELEASE archives -- `generate_*_pdf.sh` takes
+`--rev`, and eight Bridge HAS/MAS versions coexist from v1.0 (May 14) to v1.7
+(Sep 13) -- so regenerating one rewrites what that release was, the same reason
+`docs/review/` is off-limits. `Bridge_MAS_v1.7.docx` is in any case already 8
+days stale against its sources (built 09-13, newest source commit 09-21); the
+next `--rev` picks up clean sources on its own. Do not sweep them.
+
+Measurement caveat for whoever re-counts: read the XML inside the zip, not the
+container's bytes. A raw scan reports 168 for Bridge_MAS_v1.0 (141 real) and 107
+for APB_Crossbar_MAS_v1.0 (**0** real).
+
 **One deliberate exception, not a miss:** the check mark in
 `projects/components/apbx-xbar/docs/apbx_xbar_mas/assets/graphviz/address_decode_flow.gv`.
 That `.gv` is the source for a committed SVG and PNG, and regeneration is not

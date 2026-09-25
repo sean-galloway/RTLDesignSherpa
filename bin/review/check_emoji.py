@@ -77,6 +77,13 @@ SINGLES = frozenset({0x2139, 0x24C2, 0x3030, 0x303D, 0x3297, 0x3299, 0xFE0F})
 #   U+2200-U+22FF math operators  >=, !=, element-of, xor
 #   U+203E overline               waveform high levels (713 of them in common)
 #   superscripts, subscripts, Greek, em/en dash, middle dot, (c)/(r)/(tm)
+#
+# Generated .docx/.xlsx deliverables are NOT scanned and must not be swept: they
+# are versioned release archives (generate_*_pdf.sh takes --rev), so rewriting
+# one falsifies what that release was. Their sources are the .md this tool does
+# read. If you ever do scan a container, read the XML INSIDE the zip -- a
+# raw-byte scan of the compressed stream both over- and under-counts
+# (Bridge_MAS_v1.0 reports 168 raw vs 141 real; APB_Crossbar_MAS_v1.0 107 vs 0).
 
 
 def is_emoji(ch: str) -> bool:
