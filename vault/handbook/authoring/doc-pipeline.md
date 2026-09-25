@@ -127,6 +127,13 @@ new ones.
 They break LaTeX. See [[humanization-voice]] - a generative rewrite is the most
 common way they get reintroduced.
 
+**`EMOJI_MAP` in `bin/md_to_docx.py` is HOW that rule is enforced, so it is
+input data -- never sweep it.** A decorative emoji sweep emptied five of its
+keys (2026-09-24); the dict collapsed from nine entries to two and the strip
+silently stopped working for all 30 `generate_*_pdf.sh` callers. Test it by
+BEHAVIOUR -- feed it a glyph, assert the replacement -- not by reading the
+literal, which looked fine. [[silent-fallbacks]] rule 14.
+
 Related: [[kimi-review-rounds]] reviews this Markdown before it is generated.
 
 ## The book index is GENERATED -- regenerate it, never hand-edit it

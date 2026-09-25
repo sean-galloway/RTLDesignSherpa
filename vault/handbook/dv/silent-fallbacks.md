@@ -225,6 +225,44 @@ covers: the documented reason had expired, and I had not tested it.
 parse. It reports only genuine syntax errors -- not missing modules, not width
 warnings -- so per rule 10 it stays worth reading.
 
+Five more corollaries, from an emoji sweep over 235 scripts (2026-09-24) that
+was pushed before anyone checked what it had actually done.
+
+**A glyph can be DATA.** `bin/md_to_docx.py`'s `EMOJI_MAP` is the table that
+strips emoji on the way to DOCX/PDF, so its KEYS are input, not decoration. The
+sweep emptied five of them; Python silently collapsed nine dict entries to two
+(`{'': '', ...}`) and the strip became a no-op for all 30 `generate_*_pdf.sh`
+callers. The sweep disabled the mechanism that enforces the very rule it was
+serving ([[doc-pipeline]]). Nothing failed, because a dict literal with
+duplicate keys is legal.
+
+**The character class is part of the blast radius.** The class covered
+U+1F300-1FAFF, U+2600-27BF and U+2B00-2BFF, so U+2300-23FF and U+2139 were
+never candidates: 18 glyphs survived in 14 files while the run reported
+completion. Worse, the reconciliation that "proved" zero leaks was written with
+the same class, so it could not see them. A completeness check that shares the
+transform's assumptions measures nothing -- it is rule 1 in a new costume.
+
+**So is the file-type scope.** Scoped to `.py` and `.sh`, the sweep never saw
+`Makefile`, `.mk`, `.sv`, `.md`, `.yaml` or `.toml` -- another ~111 glyphs in
+~20 files, including the Makefile whose own recipe echoed one.
+
+**A boundary rule eats more than the glyph.** Stripping "glyph plus adjacent
+spaces following a quote" also removed intentional indentation INSIDE 91
+strings (`"   <glyph> Weighted..."` became `"Weighted..."`). Capturing the
+spaces to restore them then left a TRAILING space wherever a `}` preceded the
+glyph, because `}` was one of the accepted left boundaries. Order the rules so
+the tightest context matches first, and capture what you intend to keep rather
+than consuming it.
+
+**The check that finally worked: classify every changed line, and require zero
+unclassified.** Each diff line had to fall into an expected bucket --
+damage-repair, indentation, leak -- or the run was wrong. That is what caught
+42 emptied string literals (`"<glyph>"` -> `""`, in 19 files) whose diff summary
+looked exactly like the intended change. A count of files touched proves
+nothing; so does an unchanged test count, since every one of those 42 sites was
+log text no assertion read.
+
 ### 15. A file that explains why it is a duplicate is still a duplicate
 Two trees in this repo declared themselves "macro-free forks" and gave reasons
 in their own headers. I read the reasons, believed them, and reverted a sweep
