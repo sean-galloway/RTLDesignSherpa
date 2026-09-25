@@ -39,7 +39,7 @@ handbook notes, so the map is kept:
 | `TASK-056` | [TASK-004](task/active/TASK-004.md) |
 | `TASK-080` | [BUG-001](bug/closed/BUG-001.md) |
 | `TASK-090` | [BUG-002](bug/closed/BUG-002.md) |
-| `TASK-091` | [BUG-003](bug/open/BUG-003.md) |
+| `TASK-091` | [BUG-003](bug/closed/BUG-003.md) |
 | `TASK-089` | [TASK-005](task/closed/TASK-005.md) |
 | `TASK-088` | [TASK-006](task/closed/TASK-006.md) |
 | `TASK-083` | [TASK-007](task/closed/TASK-007.md) |

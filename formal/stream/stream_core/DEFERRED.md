@@ -1,6 +1,28 @@
-# stream_core -- DEFERRED
+# stream_core -- RESOLVED (kept for the history below)
 
-## Status: DEFERRED (sv2v builds, yosys flatten name collision)
+## Status: PROVED 2026-09-24 -- `PASS 0 20399`, 15/15 steps, 5:43:36
+
+Closed by STREAM BUG-003. The blocker recorded below ("multiple drivers for
+`fub_rd_axi_aruser`" after flattening two `axi4_master_rd` instances) is gone:
+`stream_core.sv` was restructured to instantiate `axi4_master_rd_mon` and to
+drive the wire once, `assign fub_rd_axi_aruser = UW'(fub_rd_axi_arid)`. The
+flat confirms one declaration, one assignment, one consumer.
+
+**Two sections below are now superseded, and are kept only as history:**
+- "Files created" describes a Makefile using *sed preprocessing for monitor_pkg
+  imports*. That is gone -- the Makefile generates its closure from
+  `rtl/filelists/macro/stream_core.f` via `bin/flatten_filelist.py`
+  (`271143b55`), and the seven monitor sed rules were deleted.
+- "Properties defined (ready to verify)" -- P1..P6 are verified; the harness
+  asserts 10 properties under 6 assumes. The cover task (depth 25) has not run.
+
+The "inputs were STALE for five weeks" section is the part worth keeping: it is
+the clearest record in the repo of how a checked-in generated artifact plus a
+half-migrated pattern rule produces silent staleness.
+
+---
+
+## Original record (status line as filed: DEFERRED -- sv2v builds, yosys flatten name collision)
 
 ## Fixed (2026-04-17)
 

@@ -396,7 +396,6 @@ asserts, and it is why the items above are recorded rather than closed.
 | math_fp32_softmax_8 | common | Too complex for BMC | Skip |
 | math_fp8_e4m3_softmax_8 | common | Too complex for BMC | Skip |
 | math_fp8_e5m2_softmax_8 | common | Too complex for BMC | Skip |
-| stream_core | stream | Yosys flatten name collision (2x axi4_master_rd) | Deferred |
 
 ### Cover Failures (2 modules, prove PASS)
 
@@ -446,8 +445,18 @@ These have prove PASS but no cover task defined, or cover not yet run:
 
 | Module | Area | Reason |
 |--------|------|--------|
-| stream_core | stream | Yosys flatten name collision (two axi4_master_rd instances) |
 | stream_top_ch8 | stream | 40+ source files, 10K+ lines -- state space too large |
+
+> **stream_core removed from both deferral tables, 2026-09-24 (STREAM BUG-003).**
+> It proves: `PASS 0 20399`, 15/15 steps, 5:43:36 clock / 5:39:59 process,
+> smtbmc/z3, no traces. It was filed here as "not tractable for BMC" and as a
+> "Yosys flatten name collision"; neither holds. The real blocker was a
+> multi-driver on `fub_rd_axi_aruser` after flattening two `axi4_master_rd`
+> instances, and an RTL restructure to `axi4_master_rd_mon` with a single
+> explicit driver removed it. Per-step cost is very uneven (step 9 ~100 min,
+> step 11 ~1 s, steps 12-14 ~3 h), so a short timeout reads as intractable when
+> it is only slow. Scope: 10 reset-state asserts under 6 assumes; the cover task
+> (depth 25) was not run.
 
 ---
 

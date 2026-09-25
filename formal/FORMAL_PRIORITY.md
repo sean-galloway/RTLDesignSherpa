@@ -417,7 +417,7 @@ failed, blank = not started.
 |--------|-------|-------|
 | PASSING (prove+cover) | 300 | Full formal verification |
 | PROVE-only | 19 | Prove PASS, no cover task defined |
-| ERROR | 9 | 7 math complexity + counter_freq_invariant + stream_core |
+| ERROR | 8 | 7 math complexity + counter_freq_invariant (stream_core proved 2026-09-24, BUG-003) |
 | Not started | ~3 | sync_pulse, clock_pulse, shifter_universal (no .sby) |
 | Skipped (Priority 0) | ~120+ | Stubs, packages, trivial modules |
 
