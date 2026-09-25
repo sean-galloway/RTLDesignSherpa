@@ -22,6 +22,15 @@ the failure that taught it.
   that one file needs, and no canonical process document outside the repo. A
   second copy is how documentation rots - the copy nobody edits is the one the
   next session reads. Point at the handbook note instead.
+  **The one exception (Sean, 2026-09-25): TOOL MECHANICS may live beside the
+  tool, with the rationale in the handbook.** `bin/DOC_GENERATION.md`,
+  `bin/SIGNAL_CONTRACTS_KMAPS.md` and `bin/SIGNAL_NAMING_AUDIT.md` stay where
+  they are, and [[doc-pipeline]] and [[signal-contracts-and-kmaps]] keep
+  pointing outward at them. The test is whether the file carries *mechanics a
+  reader of that directory needs* -- the 6-step stand-up, the styles YAML, the
+  flags -- or *method that applies everywhere*, which still belongs in the
+  handbook. The same test applies to a subsystem CLAUDE.md: area-specific
+  mechanics stay, restated general method goes.
 - /GLOBAL_REQUIREMENTS.md remains the enforcement authority and wins on conflict.
 - When you learn a durable lesson, add it to the relevant handbook note -
   that is where future sessions will look. If no note fits, create one and

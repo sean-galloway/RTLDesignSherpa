@@ -12,12 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
-| [dropped/](dropped/) | 0 | ended without completing |
+| [dropped/](dropped/) | 1 | ended without completing |
 
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
-- **TASK-001** — trim the method out of `bridge/CLAUDE.md`, keep the area facts.
+
+## Dropped
+
+- **TASK-001** — trim method from `bridge/CLAUDE.md`; dropped, the file was already compliant and every row of its removal table was falsified by reading the text.

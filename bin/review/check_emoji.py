@@ -49,6 +49,8 @@ Exit 1 if anything is found, so it can gate.
 from __future__ import annotations
 
 import argparse
+import json
+import pathlib
 import collections
 import glob
 import os
@@ -91,17 +93,71 @@ def is_emoji(ch: str) -> bool:
     return o in SINGLES or any(lo <= o <= hi for lo, hi in RANGES)
 
 
+# Beyond .md: the classes a decorative sweep reaches. A sweep over 235 .py/.sh
+# on 2026-09-24 removed 2279 glyphs from code and nothing gated them afterwards,
+# while this checker looked only at .md -- the same scoping error its docstring
+# describes, one file class further out.
+ALL_TEXT_GLOBS = ["*.md", "*.py", "*.sh", "*.mk", "Makefile", "*/Makefile",
+                  "**/Makefile", "*.sv", "*.svh", "*.v", "*.yaml", "*.yml",
+                  "*.toml", "*.cfg", "*.txt", "*.gv", "*.tcl"]
+
+# .docx/.xlsx are ZIP containers: decoding their compressed bytes as UTF-8
+# invents codepoints (Bridge_MAS_v1.0 reports 168 raw where 141 are real,
+# APB_Crossbar_MAS_v1.0 107 where NONE are). Never scan them as text.
+SKIP_SUFFIX = {".docx", ".xlsx", ".pdf", ".png", ".jpg", ".jpeg", ".svg", ".gz",
+               ".zip", ".woff", ".woff2", ".ttf", ".eot", ".ico", ".bit", ".vcd"}
+
+BASELINE = "bin/emoji_code_baseline.json"
+
+
+def _guarded(path: str, text: str) -> str:
+    """md_to_docx's EMOJI_MAP keys are input data -- the table that strips emoji
+    on the way to DOCX/PDF. Counting them would make this gate demand its own
+    removal."""
+    if not path.endswith("bin/md_to_docx.py"):
+        return text
+    lines = text.split("\n")
+    try:
+        s = next(i for i, l in enumerate(lines) if l.startswith("EMOJI_MAP = {"))
+        e = next(i for i, l in enumerate(lines[s:], s) if l.rstrip() == "}")
+    except StopIteration:
+        return text
+    return "\n".join(lines[:s] + lines[e + 1:])
+
+
 def scan(path: str) -> collections.Counter:
     try:
         text = open(path, encoding="utf-8", errors="replace").read()
     except (OSError, UnicodeError):
         return collections.Counter()
-    return collections.Counter(ch for ch in text if is_emoji(ch))
+    return collections.Counter(ch for ch in _guarded(path, text) if is_emoji(ch))
 
 
-def tracked_markdown() -> list[str]:
-    out = subprocess.run(["git", "ls-files", "*.md"], capture_output=True, text=True)
-    return [f for f in out.stdout.split("\n") if f and os.path.isfile(f)]
+def tracked_markdown(code: bool = False) -> list[str]:
+    out = subprocess.run(["git", "ls-files"] + (ALL_TEXT_GLOBS if code else ["*.md"]),
+                         capture_output=True, text=True)
+    return [f for f in out.stdout.split("\n")
+            if f and os.path.isfile(f)
+            and os.path.splitext(f)[1].lower() not in SKIP_SUFFIX]
+
+
+def staged_files() -> list[str]:
+    out = subprocess.run(["git", "diff", "--cached", "--name-only",
+                          "--diff-filter=ACM"], capture_output=True, text=True)
+    keep = {".md", ".py", ".sh", ".mk", ".sv", ".svh", ".v", ".yaml", ".yml",
+            ".toml", ".cfg", ".txt", ".gv", ".tcl"}
+    return [f for f in out.stdout.split("\n")
+            if f and os.path.isfile(f)
+            and (os.path.splitext(f)[1].lower() in keep
+                 or os.path.basename(f) == "Makefile")]
+
+
+def head_count(path: str) -> int:
+    r = subprocess.run(["git", "show", f"HEAD:{path}"],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        return 0
+    return sum(1 for ch in _guarded(path, r.stdout) if is_emoji(ch))
 
 
 def expand(paths: list[str]) -> list[str]:
@@ -121,12 +177,37 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("paths", nargs="*", help="files, dirs (recursed for *.md), or globs")
     ap.add_argument("--all", action="store_true", help="every git-tracked .md in the repo")
+    ap.add_argument("--code", action="store_true",
+                    help="widen --all beyond .md to .py/.sh/Makefile/.sv/.yaml/.toml/...")
+    ap.add_argument("--staged", action="store_true",
+                    help="only files staged for commit (for the pre-commit hook)")
+    ap.add_argument("--ratchet", action="store_true",
+                    help="fail only if a file GREW its count against the baseline")
+    ap.add_argument("--update-baseline", action="store_true",
+                    help="rewrite the baseline from HEAD (committed blobs, not the worktree)")
     ap.add_argument("--summary", action="store_true", help="totals only, no per-file lines")
     a = ap.parse_args()
 
-    files = tracked_markdown() if a.all else expand(a.paths)
+    if a.update_baseline:
+        # From HEAD, never the worktree: a baseline built from uncommitted state
+        # records a level the repo has never been at, and CI only sees blobs.
+        base = {f: n for f in tracked_markdown(code=True) if (n := head_count(f))}
+        pathlib.Path(BASELINE).write_text(
+            json.dumps(base, indent=2, sort_keys=True) + "\n")
+        print(f"[emoji] baseline written from HEAD: "
+              f"{sum(base.values())} glyph(s) in {len(base)} file(s)")
+        return 0
+
+    if a.staged:
+        files = staged_files()
+        if not files:
+            return 0                      # nothing of ours in this commit
+    elif a.all:
+        files = tracked_markdown(code=a.code)
+    else:
+        files = expand(a.paths)
     if not files:
-        sys.exit("no files to scan (pass paths or --all)")
+        sys.exit("no files to scan (pass paths, --all or --staged)")
 
     total, dirty, glyphs = 0, 0, collections.Counter()
     for p in sorted(files):
@@ -139,6 +220,30 @@ def main() -> int:
         if not a.summary:
             print(f"{p:60} {sum(c.values()):>4}  "
                   + " ".join(f"{ch}x{n}" for ch, n in c.most_common(8)))
+
+    if a.ratchet:
+        try:
+            base = json.loads(pathlib.Path(BASELINE).read_text())
+        except OSError:
+            base = {}
+        grew = [(p, base.get(p, 0), sum(scan(p).values()))
+                for p in sorted(files)
+                if sum(scan(p).values()) > base.get(p, 0)]
+        # SAY WHAT WAS EXAMINED. A gate that passed and a gate that looked at
+        # nothing are indistinguishable from outside; that is how the
+        # port-consumer check sat broken for a whole area.
+        print(f"[emoji] {len(files)} staged file(s) examined, "
+              f"{total} glyph(s), {len(grew)} grew", file=sys.stderr)
+        if grew:
+            print("[emoji] BLOCKED: file(s) gained emoji:", file=sys.stderr)
+            for p, was, now in grew:
+                print(f"  {p}: {was} -> {now}", file=sys.stderr)
+            print("  Emoji break the LaTeX/PDF path and read as unprofessional "
+                  "in a spec. Use words.", file=sys.stderr)
+            print("  If a glyph is DATA (md_to_docx EMOJI_MAP), it belongs in a "
+                  "guarded block, not a bare literal.", file=sys.stderr)
+            return 1
+        return 0
 
     print(f"\n{total} emoji in {dirty} of {len(files)} file(s)")
     if glyphs:

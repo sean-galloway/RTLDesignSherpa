@@ -184,6 +184,22 @@ if echo "$STAGED" | grep -q '\.md$'; then
     fi
 fi
 
+# --- emoji must not come back ------------------------------------------------
+# 2279 glyphs came out of .py/.sh/Makefile/.sv on 2026-09-24 and nothing gated
+# them afterwards; DOCREV-014 records that a humanize pass readily ADDS them,
+# and this checker only ever looked at .md. Ratcheted rather than absolute:
+# dmas/stream and dmas/rapids carry 800+ glyphs today and that session must
+# still be able to commit its own files. One definition, from check_emoji.py.
+if echo "$STAGED" | grep -qE '\.(md|py|sh|mk|sv|svh|v|yaml|yml|toml|cfg|txt|gv|tcl)$|(^|/)Makefile$'; then
+    echo "[pre-commit] Checking staged files for emoji..."
+    if ! out=$("$PY" "$REPO_ROOT/bin/review/check_emoji.py" --staged --ratchet 2>&1); then
+        echo "$out" >&2
+        echo "[pre-commit] re-baseline only when the backlog genuinely shrank:" >&2
+        echo "             bin/review/check_emoji.py --update-baseline" >&2
+        fail=1
+    fi
+fi
+
 # --- filelist contract -------------------------------------------------------
 # The fast local mirror of .github/workflows/filelist-checks.yml. CI is the
 # authority; this saves the round trip.

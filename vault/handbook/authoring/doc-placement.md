@@ -22,7 +22,16 @@ the next session reads. This note is the authority on where each kind goes.
 
 ## The rules, and the case each came from
 
-1. **Methodology never lives in the RTL tree.** A style guide, a how-to, a
+1. **Methodology never lives in the RTL tree -- but tool mechanics may live
+   beside the tool** (Sean, 2026-09-25, resolving a TBD parked since the Kimi
+   migration). Rationale goes to the handbook; the mechanics a reader of that
+   directory needs may stay next to it. `bin/DOC_GENERATION.md` (356 lines the
+   handbook genuinely lacks: the 6-step stand-up, document-unit anatomy,
+   `<doc>_index.md` semantics, styles YAML), `bin/SIGNAL_CONTRACTS_KMAPS.md`
+   and `bin/SIGNAL_NAMING_AUDIT.md` are the standing cases, and this note plus
+   [[signal-contracts-and-kmaps]] deliberately defer outward at them. That
+   deferral is now a documented split rather than an inconsistency to fix.
+   The rest of the original rule still holds: A style guide, a how-to, a
    canonical process doc beside code is misplaced. It goes to `vault/handbook/`.
    *Case (2026-07-24): a 17 KB `DOCUMENTATION_STYLE_GUIDE.md` sat in
    `rtl/common/`; moved to [[module-doc-template]].*

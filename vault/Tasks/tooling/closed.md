@@ -897,7 +897,21 @@ is a documented exception to it. Either the rule gains a "tool mechanics may liv
 beside the tool, rationale in the handbook" clause, or those three move and the
 two handbook notes stop deferring outward. Both are defensible; it is a
 doc-architecture call, not a cleanup.
-**Owner:** TBD
+
+**RESOLVED 2026-09-25 (Sean): the rule gains the clause.** Tool mechanics may
+live beside the tool, with the rationale in the handbook. The three files stay,
+and `doc-pipeline.md` / `signal-contracts-and-kmaps.md` keep deferring outward
+-- that split is now documented in root `CLAUDE.md` and [[doc-placement]] rule 1
+rather than standing as a contradiction. The test that comes with it: mechanics
+a reader of that directory needs may stay; method that applies everywhere goes
+to the handbook. That same test now governs the subsystem `CLAUDE.md` files.
+**Owner:** resolved.
+
+The `- [ ]` checklist below is STALE and is kept only for history: the work it
+lists was completed in this same entry above. `HEADER_TOOL_USAGE.md` is 9 lines,
+`md_to_docx_install.md` 12 and `md_to_docx_usage.md` 13 -- all already reduced to
+pointers; `markdown_to_word_instructions.md` was retired; and the remaining three
+are the kept-by-exception cases. Nothing in it is outstanding.
 
 `CLAUDE.md` now states the handbook is the single source of truth for skills and
 methods, and that methodology does not live next to the code. Seven files in
