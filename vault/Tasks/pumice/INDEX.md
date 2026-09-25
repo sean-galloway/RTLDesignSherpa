@@ -18,7 +18,7 @@ state (`open/`, `active/`, `closed/`, `dropped/`). Pick the lane before filing:
 
 | Lane | For | Open |
 |---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | 6 |
+| [task/](task/INDEX.md) | planned work we decided to do | 5 |
 | [bug/](bug/INDEX.md) | a defect with a reproduction | 0 |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 0 |
 
@@ -35,7 +35,7 @@ commit message before that date, use the old `PUMICE-NNN` names.
 | PUMICE-029 | [TASK-004](task/dropped/TASK-004.md) | | PUMICE-047 | [ISSUE-003](issue/closed/ISSUE-003.md) |
 | PUMICE-034 | [TASK-005](task/closed/TASK-005.md) | | PUMICE-048 | [ISSUE-004](issue/closed/ISSUE-004.md) |
 | PUMICE-035 | [TASK-006](task/closed/TASK-006.md) | | | |
-| PUMICE-039 | [TASK-007](task/open/TASK-007.md) | | | |
+| PUMICE-039 | [TASK-007](task/closed/TASK-007.md) | | | |
 | PUMICE-049 | [TASK-008](task/closed/TASK-008.md) | | | |
 | PUMICE-CLEANUP | [TASK-009](task/open/TASK-009.md) | | | |
 

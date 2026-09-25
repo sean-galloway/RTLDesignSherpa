@@ -177,8 +177,33 @@ async def _bring_up(dut, page_policy=0, read_latency=0, strict_read=False):
     base = DFIBase(dfi_version=DFIVersion.V2_1, memory_type=MemoryType.DDR2,
                    timings=builtin_timings("ddr2-650-mt47h64m16hr"),
                    mapping=mapping, beats_per_burst=DFI_BEATS_PER_BURST)
+    # JEDEC spacing audit ON THE WIRE (TASK-007 item 4). The arbiter's own
+    # pumice_cmd_history_checker watches the ISSUED stream, which is why it
+    # reported ZERO tRFC violations through the whole 2026-09-17 failure while
+    # the wire was violating tRFC by 12 cycles -- an in-order FIFO below it had
+    # compressed REF->ACT from 15 cycles to 3. Checking here, at the DFI slave,
+    # audits what the DRAM actually sees, so that class is caught in sim
+    # instead of by an ILA capture.
+    #
+    # Values are the same ones _bring_up programs into the DUT, in DRAM-model
+    # cycles. Violations are recorded, not raised; callers assert on
+    # `slave.jedec_violations`.
     slave = DFISlavePHY(dut, dut.dfi_clk, base=base, memory=memory,
                         dfi_phase_bytes=DRAM_BEAT // 8,
+                        # AUDIT_T_* override the audit ALONE, leaving what the
+                        # DUT is programmed with untouched. That separation is
+                        # what makes the checker mutation-provable: raising one
+                        # here must produce violations on a design that did not
+                        # change. A checker nobody has seen fail is not a
+                        # checker.
+                        jedec_timings={
+                            "tRCD": int(os.environ.get("AUDIT_T_RCD",
+                                        os.environ.get("TEST_T_RCD", "3"))),
+                            "tRP":  int(os.environ.get("AUDIT_T_RP",
+                                        os.environ.get("TEST_T_RP", "3"))),
+                            "tRAS": int(os.environ.get("AUDIT_T_RAS", "4")),
+                            "tRFC": int(os.environ.get("AUDIT_T_RFC", "11")),
+                        },
                         strict_read_timing=strict_read, read_latency=read_latency)
     slave.dram = DramStateModel(timings=base.timings, num_banks=NUM_BANKS,
                                 policy=ViolationPolicy(hard=frozenset()))
@@ -1545,6 +1570,35 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
         # non-firing cycle, read from the DUT's own TASK-006 counters.
         dut._log.info("    8bank %s", _stall_str(st8))
         dut._log.info("    1bank %s", _stall_str(st1))
+        # What the DRAM actually saw. Reported per mode so a spacing miss is
+        # attributable to the paging mode that produced it.
+        if slave.jedec_violations:
+            byrule = {}
+            for v in slave.jedec_violations:
+                byrule[v["rule"]] = byrule.get(v["rule"], 0) + 1
+            dut._log.error("    WIRE JEDEC VIOLATIONS: %s (first: %s)",
+                           " ".join(f"{k}={n}" for k, n in sorted(byrule.items())),
+                           slave.jedec_violations[0])
+        else:
+            dut._log.info("    wire JEDEC spacing: clean over %d commands",
+                          slave.jedec_checks)
+
+    # WIRE-LEVEL GATE (TASK-007 item 4). Asserted with the check COUNT beside
+    # it: a checker that never armed also reports zero, and this repo has
+    # shipped blind checkers on exactly that reasoning. Mutation-proven
+    # 2026-09-25 -- AUDIT_T_RCD=40 AUDIT_T_RFC=400 fires tRCD/tRFC violations
+    # on an unchanged design, so a clean result here means the spacing the
+    # scheduler computed is the spacing that reached the DRAM.
+    assert slave.jedec_checks > 0, (
+        "wire JEDEC audit performed ZERO checks -- the DFI slave saw no "
+        "commands, so 'no violations' proves nothing. Check jedec_timings "
+        "reached DFISlavePHY.")
+    assert not slave.jedec_violations, (
+        f"{len(slave.jedec_violations)} JEDEC spacing violation(s) ON THE DFI "
+        f"WIRE over {slave.jedec_checks} commands. The arbiter can compute "
+        f"correct spacing and still have it destroyed downstream -- that is "
+        f"TASK-007's 180-beat idle-bus failure, which the arbiter-side history "
+        f"checker reported clean throughout. First: {slave.jedec_violations[0]}")
 
     try:
         with open("paging_util_sweep.out", "w") as f:

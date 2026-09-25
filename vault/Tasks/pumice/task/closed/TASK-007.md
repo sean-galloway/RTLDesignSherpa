@@ -39,7 +39,7 @@ batching is known to have starved reads -- the beat may not be unattributed.
 **The +25-30% board figure is NOT restated here.** It was measured with the
 unbounded drain. Re-measure against the 16-write cap before quoting it.
 
-**Status:** DEFERRED 2026-09-17  **Priority:** P3
+**Status:** CLOSED 2026-09-25 — corruption fixed (210 clean board runs), wire-level JEDEC audit now gates it. **Priority:** P3
 **Corruption FIXED and proven (210 clean board runs). Deferred on timing only --
 and that timing is ACCEPTED: Sean 2026-09-17, "this is designed for aggressive
 timing." Do NOT re-raise the +16 ps margin as a blocker.**
@@ -531,3 +531,70 @@ arbiter's OUTPUT REGISTER when the registered command would violate turnaround -
 which keeps the term out of the pick cone entirely and is safe here precisely
 because the DFI path below is constant-latency and cannot compress what it
 receives. (b) is simpler and should be tried first.
+
+
+## 2026-09-25 — items 2 and 4 CLOSED. Nothing outstanding.
+
+**Item 2 (read eye 10 taps vs the recorded tuple's 17) — NOT A DEVIATION.**
+It was a comparison across two different operating points. The bring-up tuple
+(bitslip 0, tap 8, eye 0..16) was measured on the **66.67 MHz** profile; this
+build is **75 MHz**, where the bit period is shorter and the eye is narrower.
+Measured across every 75 MHz run on record: 36 x `eye taps 0..9 (width 10)`,
+6 x the same centred at 4, 4 x `0..11 (width 12)` — 10 is simply the 75 MHz
+value, reproducibly. Sean, 2026-09-25: *"I thought the eye was always 10 clocks
+and you couldn't get it any better."* Correct.
+
+The `leveling not clean: final verify at centred failed` warning recorded here
+as reproducible **no longer occurs** — zero occurrences across today's runs on
+the current bitstream.
+
+One observation worth keeping, and it is not a defect: **every recorded eye
+starts at tap 0** — `0..9` or `0..11`, never `3..12`. IDELAY taps only ADD
+delay, so a window pinned at the bottom of the range is the signature of a
+LEFT-TRUNCATED eye: if the true optimum sits at or before tap 0 you cannot walk
+left to find the other edge, and "centring" at 4 centres the visible fragment
+rather than the eye. That would make 10 a measurement floor, not a physical
+limit. Testable by advancing the coarse alignment (`rddata_delay` +-1) and
+watching whether the window moves off tap 0 and widens. It is margin, not
+throughput, and 16 MB memtest is clean — filed as an observation, not work.
+
+**Item 4 (retarget the command-history checker at the DFI wire) — DONE, via
+the DFI slave rather than the RTL checker.**
+
+Two corrections to this task's own text, both found by reading the RTL:
+
+1. `pumice_cmd_history_checker` does **not** watch the arbiter output. It is
+   bound at `cmd_valid_o && cmd_ready_i` — POST cmd-FIFO and POST the CMD_DELAY
+   token release, i.e. the scheduler's output. At the time this task was
+   written the DFI layer still had its own pacer BELOW that point, which is
+   what compressed the stream; the checker's blind spot was the DFI path, not
+   the FIFO.
+2. That blind spot is now structural rather than positional: the DFI layer
+   holds no timing at all (2026-09-17), so the scheduler output SHOULD equal
+   the wire. "Should" is precisely what the ILA had to disprove last time.
+
+So the audit went where the wire is already decoded — `DFISlavePHY` in
+CocoTBFramework (RDS-DV `472c663`), which sees every command the DRAM sees.
+Optional `jedec_timings=` checks tRCD/tRP/tRAS/tRFC/tWTR/tRTW; tRFC and the
+turnarounds are the valuable ones because they are not per-bank, so per-bank
+state looks correct while they are violated — exactly where the 180-beat bug
+hid. Violations are recorded, and `jedec_checks` counts commands audited so
+"clean" is never vacuous.
+
+Wired into `_bring_up` with `AUDIT_T_*` knobs that move the audit ALONE,
+leaving the DUT programming untouched — which is what makes it
+mutation-provable. `perf_paging_sweep` now asserts zero wire violations AND a
+nonzero check count.
+
+    real timings          clean over 4067 audited commands, all 8 paging modes
+    AUDIT_T_RCD=40
+    AUDIT_T_RFC=400       fires: tRCD=29..471, tRFC=8, each with cycle/gap/required
+
+A clean result now means the spacing the scheduler computed is the spacing that
+reached the DRAM — the property this task spent three defects establishing, now
+checked every run instead of by ILA capture.
+
+Gate: GATE_RC=0, 0 FAILED, 188 passed at BOTH geometries.
+
+**Nothing is outstanding.** Item 1 is accepted (aggressive timing is the design
+point), item 3 closed 2026-09-17, items 2 and 4 above. CLOSING.

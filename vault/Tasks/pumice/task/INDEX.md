@@ -12,16 +12,15 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 7 | accepted, not started |
+| [open/](open/) | 6 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 4 | done (kept for history) |
+| [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 
 ## Open
 
 - **TASK-000** — TEMPLATE — copy this file, never file against it
 - **TASK-002** — characterize + tune the advanced modes (all three axes)
-- **TASK-007** — batch same-direction columns to amortise the R/W turnaround
 - **TASK-009** — doc + filelist cleanup (push from workstation)
 - **TASK-010** — no generator config can show RBL a win, and the harness is what blocks it
 - **TASK-011** — build generator patterns that can show RBL a win
@@ -34,6 +33,8 @@ exactly one state by construction rather than by discipline.
 - **TASK-008** — no test bounds the write drain, and the cap is unreachable at the shipped watermarks
 - **TASK-001** — QoS + advanced scheduling: mechanisms complete, all three
   reported gaps dispositioned (P1+P3 fixed, P2 re-filed as TASK-012)
+- **TASK-007** — write batching: corruption fixed (3 defects, 210 clean board
+  runs, +12.2% bus); wire-level JEDEC audit now gates the spacing
 
 ## Dropped
 
