@@ -1,31 +1,9 @@
-<!-- RTL Design Sherpa Documentation Header -->
-<table>
-<tr>
-<td width="80">
-  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
-    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
-  </a>
-</td>
-<td>
-  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
-  <sub>
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
-  </sub>
-</td>
-</tr>
-</table>
+# TASK-001: Advanced scheduling / refresh modes (from the DDR2 papers — see `../ADVANCED_MODES_ROADMAP.md`)
+> Migrated 2026-09-25 from `projects/components/memory-controllers/ddr4-lpddr4/TASKS.md` (tooling TOOL-001). That file was a stub: "To be populated as RTL work begins."
 
----
-
-<!-- End Header -->
-
-# ddr4-lpddr4 — Open Tasks
-
-*Stub. To be populated as RTL work begins.*
-
-## Advanced scheduling / refresh modes (from the DDR2 papers — see `../ADVANCED_MODES_ROADMAP.md`)
+**Priority:** P3 — there is no ddr4-lpddr4 RTL yet; this is the design-requirements survey that precedes it.
+**Status:** open 2026-09-25 (carried forward unchanged from the stub)
+**Owner:** TBD
 
 Config-bit-selectable, OFF-by-default, faithful-DRAM-model red→green each; commodity here
 because LPDDR4/DDR5 add controller-directed per-bank refresh + bank groups + FGR.

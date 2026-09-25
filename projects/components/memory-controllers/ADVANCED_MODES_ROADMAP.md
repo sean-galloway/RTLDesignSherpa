@@ -69,7 +69,8 @@ The DDR2/LPDDR2 project already carries the commodity-legal spice (RBLA, `fewest
 - **`ddr3-lpddr3`**: inherits the DDR2/LPDDR2 commodity baseline; **LPDDR3 per-bank
   refresh** (REFpb round-robin) is the only per-bank scheme commodity at this tier. The
   DDR2-paper model-only modes do not land here. **But DDR3 has its own research space** —
-  `ddr3-lpddr3/TASKS.md` has a survey task for DDR3/LPDDR3-specific new/exotic mechanisms
+  memory-controllers/ddr3-lpddr3 TASK-001 (`vault/Tasks/memory-controllers/ddr3-lpddr3/`)
+    is the survey task for DDR3/LPDDR3-specific new/exotic mechanisms
   (retention-aware refresh / RAIDR, temperature-compensated refresh, ChargeCache,
   Rowhammer-aware targeted refresh / PARA, SALP, self-refresh/power-down + ZQ scheduling).
 
