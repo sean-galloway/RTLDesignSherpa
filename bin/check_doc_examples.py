@@ -135,7 +135,7 @@ def main() -> int:
     # stopped scanning the component books would have printed the same 241.
     print(f'\n{doc_pages} doc pages + {pages} module pages checked, '
           f'{bad} with a fabricated example')
-    # One known finding in projects/components is tracked as TASK-077 and is
+    # One known finding in projects/components is tracked as rapids TASK-077 and is
     # being fixed by hand -- a whole-block regeneration drops the other
     # instantiations in the same block. Was 9; the stream clocks-and-reset page
     # (three findings) was fixed 2026-09-15, and the rest had already been
@@ -155,7 +155,7 @@ def main() -> int:
     # so the ratchet drops 4 -> 1. Measured in a detached worktree at that HEAD,
     # not the working tree, per the warning above.
     #
-    # The one left is the rapids_core_beats MAS page (TASK-077), and it is
+    # The one left is the rapids_core_beats MAS page (rapids TASK-077), and it is
     # bigger than the printed message suggests. The message truncates to five
     # names (sorted(set(miss))[:5]); the page actually carries 25 fabricated
     # connections out of 43 in its Integration Example, and its port TABLES are
@@ -184,7 +184,7 @@ def main() -> int:
     # non-port) -- so no claim is made here either way.
     BASELINE = 1
     if bad > BASELINE:
-        print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} (TASK-077)')
+        print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} (rapids TASK-077)')
         return 1
     if bad < BASELINE:
         print(f'  baseline can be lowered to {bad} -- edit BASELINE')
