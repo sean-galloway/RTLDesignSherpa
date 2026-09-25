@@ -192,6 +192,12 @@ module pumice_mem_cmd_scheduler
 
     logic refresh_req, refresh_drain, refresh_grant;
 
+    // advisory lookahead twins: what the pick pipeline decides on. The LIVE
+    // w_bank_*_ready above stay wired to the arbiter too -- they are what its
+    // final stage enforces against.
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 w_bank_act_ready_la;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 w_bank_rdwr_ready_la;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 w_bank_pre_ready_la;
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 w_bank_act_ready;
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 w_bank_rdwr_ready;
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 w_bank_pre_ready;
@@ -318,10 +324,20 @@ module pumice_mem_cmd_scheduler
     // ======================================================================
     // pumice_bank_timers — per-bank safe timers (open-page).
     // ======================================================================
+    // BANK_LA = the pick pipeline's select-to-fire depth: the advisory image
+    // is sampled into r_bank_*_ready and the command fires four register
+    // stages later (r_bank_*_ready -> STAGE-1a -> pre-pick -> output), all of
+    // which advance together on w_out_ready. Back-pressure only ever DELAYS
+    // the fire, which is the safe direction -- more decrement has happened, so
+    // a lookahead that assumed 4 is still conservative at 5+. Only firing
+    // EARLIER than the assumed depth would be wrong, and nothing can.
+    // Over-estimating costs a dropped pick at the final gate, never a
+    // violation; the reject rate lands in stall_banktimer_o.
     pumice_bank_timers #(
         .NUM_RANKS(NUM_RANKS),
         .NUM_BANKS(NUM_BANKS),
-        .ROW_WIDTH(ROW_WIDTH)
+        .ROW_WIDTH(ROW_WIDTH),
+        .BANK_LA  (4)
     ) u_bank_timers (
         .aclk             (aclk),
         .aresetn          (aresetn),
@@ -339,6 +355,9 @@ module pumice_mem_cmd_scheduler
         .evt_rank_i       (evt_rank),
         .evt_bank_i       (evt_bank),
         .evt_row_i        (evt_row),
+        .bank_act_ready_la_o (w_bank_act_ready_la),
+        .bank_rdwr_ready_la_o(w_bank_rdwr_ready_la),
+        .bank_pre_ready_la_o (w_bank_pre_ready_la),
         .bank_act_ready_o (w_bank_act_ready),
         .bank_rdwr_ready_o(w_bank_rdwr_ready),
         .bank_pre_ready_o (w_bank_pre_ready),
@@ -469,6 +488,9 @@ module pumice_mem_cmd_scheduler
         .bank_act_ready_i   (w_bank_act_ready),
         .bank_rdwr_ready_i  (w_bank_rdwr_ready),
         .bank_pre_ready_i   (w_bank_pre_ready),
+        .bank_act_ready_la_i (w_bank_act_ready_la),
+        .bank_rdwr_ready_la_i(w_bank_rdwr_ready_la),
+        .bank_pre_ready_la_i (w_bank_pre_ready_la),
         .bank_row_active_i  (w_bank_row_active),
         .bank_open_row_i    (w_bank_open_row),
         .tfaw_ok_i          (w_tfaw_ok),

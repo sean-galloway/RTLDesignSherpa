@@ -39,7 +39,8 @@ module bank_timer
     import pumice_pkg::*;
 #(
     parameter int ROW_WIDTH = 14,
-    parameter int TW        = 8       // timer width
+    parameter int TW        = 8,      // timer width
+    parameter int LA        = 0       // advisory lookahead depth, cycles
 ) (
     input  logic                 clk,
     input  logic                 rst_n,
@@ -65,6 +66,14 @@ module bank_timer
     output logic                 safe_rd_o,
     output logic                 safe_wr_o,
     output logic                 safe_pre_o,
+
+    // ADVISORY "will be safe LA cycles from now" (see the block at the bottom).
+    // NOT a permission to issue -- the scheduler re-checks the live safe_*
+    // above at its final stage. LA=0 makes each of these identical to its
+    // safe_*_o twin.
+    output logic                 safe_act_la_o,
+    output logic                 safe_rdwr_la_o,
+    output logic                 safe_pre_la_o,
 
     // row tracking
     output logic                 row_valid_o,
@@ -136,6 +145,33 @@ module bank_timer
     assign safe_wr_o  = safe_rd_o;
     // PRE: row open, tRAS + tRTP/tWR met, not auto-precharging.
     assign safe_pre_o = r_row_valid && (r_ras == '0) && (r_preblk == '0) && !r_ap_pending;
+
+    // ---- LOOKAHEAD: "will be safe in LA cycles" (ADVISORY ONLY) -----------
+    // Every constraint above is a saturating down-counter that decrements once
+    // per cycle, so `r_X <= LA` is EXACTLY "r_X reaches 0 within LA cycles" --
+    // provided nothing reloads it in between. A reload can only come from a
+    // command the SCHEDULER issues, which is why these are advisory: the
+    // scheduler re-checks the live safe_* at its final stage before anything
+    // leaves, so a lookahead that guessed wrong costs one dropped pick (a
+    // bubble), never a JEDEC violation. That is the whole contract here.
+    //
+    // The row-state terms are NOT counters and are deliberately NOT
+    // extrapolated:
+    //   - r_row_valid is set by an ACT and cleared by a PRE that the scheduler
+    //     itself issues; predicting it would mean predicting the scheduler
+    //     from inside the timer.
+    //   - the auto-precharge self-close IS autonomous, but it RELOADS tRP when
+    //     it fires, so `r_rp <= LA` is WRONG for an AP-pending bank -- the true
+    //     condition is max(preblk,ras) + t_rp <= LA. Left out of this first
+    //     cut, so an AP-pending bank reads not-safe exactly as it does today.
+    // Both omissions are conservative: they can only UNDER-report safety.
+    //
+    // LA=0 collapses every term to its safe_*_o twin, so the plumbing can be
+    // landed and gated as a provable no-op before the depth is turned up.
+    assign safe_act_la_o  = !r_row_valid && (r_rp  <= TW'(LA)) && (r_rc <= TW'(LA));
+    assign safe_rdwr_la_o = r_row_valid  && (r_rcd <= TW'(LA)) && !r_ap_pending;
+    assign safe_pre_la_o  = r_row_valid  && (r_ras <= TW'(LA))
+                         && (r_preblk <= TW'(LA)) && !r_ap_pending;
 
     assign row_valid_o = r_row_valid;
     assign open_row_o  = r_open_row;

@@ -137,9 +137,16 @@ module pumice_cmd_arbiter
     input  logic [7:0]                t_rfc_pb_i,       // REFpb recovery; 0 = t_rfc_i
 
     // ---- per-bank readiness (from pumice_bank_timers) ----
+    // LIVE readiness -- what the FINAL STAGE enforces against (w_out_safe).
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_act_ready_i,
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_rdwr_ready_i,
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_pre_ready_i,
+    // ADVISORY lookahead -- what the PICK PIPELINE decides on. It is sampled
+    // into r_bank_*_ready below and is four register stages away from the
+    // fire, which is exactly the depth the lookahead is meant to cover.
+    input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_act_ready_la_i,
+    input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_rdwr_ready_la_i,
+    input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_pre_ready_la_i,
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_row_active_i,
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0]  bank_open_row_i,
 
@@ -284,8 +291,34 @@ module pumice_cmd_arbiter
     // Output-stage accept (also the pre-pick advance). Declared here rather
     // than at the output register because the pre-pick flop above uses it.
     logic w_out_ready, w_fire_out;
-    assign w_out_ready = !r_pick_valid || cmd_ready_i;
-    assign w_fire_out  = r_pick_valid && cmd_ready_i;
+    // ---- FINAL-STAGE TIMING ENFORCEMENT (PUMICE lookahead, phase 1) --------
+    // The pick pipeline decides on a REGISTERED bank image (r_bank_act_ready),
+    // so by the time a command reaches here the timers it was judged against
+    // are four register stages old. Make this stage the authority instead: the
+    // op in the output register is re-checked against the LIVE, unregistered
+    // bank readiness, and may not fire until that says safe. Real timing is
+    // enforced HERE; everything upstream is advisory.
+    //
+    // A rejected pick is DROPPED, never held. Holding it would freeze
+    // w_out_ready and head-of-line block the whole pipeline behind a command
+    // waiting on one bank -- measured as a REGRESSION (close-page 30.77% ->
+    // 28.57%) when a stalled column occupied the slot and blocked the ACT it
+    // was waiting for. Dropping is lossless: every CAM commit/issue is
+    // qualified by w_fire_out (wr_commit_valid_o / rd_issue_valid_o below), so
+    // an unfired entry stays schedulable and is simply re-picked. The pre-pick
+    // is a re-evaluated decision, not a stream, and an empty mask is a bubble.
+    //
+    // Refresh and init commands carry no bank and are never gated here.
+    logic w_out_safe, w_out_reject;
+    always_comb begin
+        w_out_safe = 1'b1;
+        if      (r_do_act)            w_out_safe = bank_act_ready_i [RK0][r_bank];
+        else if (r_do_rd || r_do_wr)  w_out_safe = bank_rdwr_ready_i[RK0][r_bank];
+        else if (r_do_pre)            w_out_safe = bank_pre_ready_i [RK0][r_bank];
+    end
+    assign w_out_reject = r_pick_valid && !w_out_safe;
+    assign w_out_ready  = !r_pick_valid || cmd_ready_i || w_out_reject;
+    assign w_fire_out   = r_pick_valid && cmd_ready_i && w_out_safe;
 
     // Pre-pick forward-guard, the twin of w_inflight_col/w_inflight_preact
     // below but for the REGISTERED pipeline stages. A column or ACT/PRE now
@@ -607,9 +640,12 @@ module pumice_cmd_arbiter
             r_bank_act_ready <= '0; r_bank_rdwr_ready <= '0;
             r_bank_pre_ready <= '0; r_bank_row_active <= '0; r_bank_open_row <= '0;
         end else begin
-            r_bank_act_ready  <= bank_act_ready_i;
-            r_bank_rdwr_ready <= bank_rdwr_ready_i;
-            r_bank_pre_ready  <= bank_pre_ready_i;
+            // the ADVISORY twins, not the live set: this image is consumed
+            // four register stages before the command actually fires, and the
+            // final stage (w_out_safe) is what enforces the live timing.
+            r_bank_act_ready  <= bank_act_ready_la_i;
+            r_bank_rdwr_ready <= bank_rdwr_ready_la_i;
+            r_bank_pre_ready  <= bank_pre_ready_la_i;
             r_bank_row_active <= bank_row_active_i;
             r_bank_open_row   <= bank_open_row_i;
         end
@@ -1204,7 +1240,9 @@ module pumice_cmd_arbiter
             stall_banktimer_o  <= 32'h0;
             stall_noreq_o      <= 32'h0;
         end else if (w_stalled) begin
-            if (r_pick_valid)                       // picked, DFI said no
+            if (w_out_reject)                       // picked, live bank timer said no
+                stall_banktimer_o  <= stall_banktimer_o + 32'h1;
+            else if (r_pick_valid)                  // picked, DFI said no
                 stall_bp_o         <= stall_bp_o + 32'h1;
             else if (refresh_req_i || refresh_drain_i)
                 stall_refresh_o    <= stall_refresh_o + 32'h1;

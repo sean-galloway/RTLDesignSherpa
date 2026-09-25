@@ -31,7 +31,8 @@ module pumice_bank_timers
     parameter int NUM_BANKS = 8,
     parameter int ROW_WIDTH = 14,
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
-    parameter int BKW = $clog2(NUM_BANKS)
+    parameter int BKW = $clog2(NUM_BANKS),
+    parameter int BANK_LA = 0   // advisory lookahead depth handed to bank_timer
 ) (
     input  logic                       aclk,
     input  logic                       aresetn,
@@ -54,6 +55,11 @@ module pumice_bank_timers
     input  logic [ROW_WIDTH-1:0]       evt_row_i,
 
     // ----- per-bank readiness to the arbiter (combinational, single-stage) -----
+    // advisory lookahead twins (see bank_timer.sv); BANK_LA=0 == the live set
+    output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_act_ready_la_o,
+    output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_rdwr_ready_la_o,
+    output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_pre_ready_la_o,
+
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_act_ready_o,
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_rdwr_ready_o,
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_pre_ready_o,
@@ -74,7 +80,7 @@ module pumice_bank_timers
             logic w_sel;
             assign w_sel = (evt_rank_i == RKW'(k)) && (evt_bank_i == BKW'(b));
 
-            bank_timer #(.ROW_WIDTH(ROW_WIDTH)) u_bt (
+            bank_timer #(.ROW_WIDTH(ROW_WIDTH), .LA(BANK_LA)) u_bt (
                 .clk             (aclk),
                 .rst_n           (aresetn),
                 .t_rcd_i         (t_rcd_i),
@@ -93,6 +99,9 @@ module pumice_bank_timers
                 .safe_rd_o       (bank_rdwr_ready_o[k][b]),
                 .safe_wr_o       (/* == safe_rd */),
                 .safe_pre_o      (bank_pre_ready_o [k][b]),
+                .safe_act_la_o   (bank_act_ready_la_o [k][b]),
+                .safe_rdwr_la_o  (bank_rdwr_ready_la_o[k][b]),
+                .safe_pre_la_o   (bank_pre_ready_la_o [k][b]),
                 .row_valid_o     (bank_row_active_o[k][b]),
                 .open_row_o      (bank_open_row_o  [k][b]),
                 .state_o         (bank_state_o     [k][b]),
