@@ -226,3 +226,55 @@ in one session (the "one write" reading, the "CAM depth caps it at 7" reading,
 and the "max is redundant" framing). Each was corrected only after Sean pushed
 back. Treat my descriptions of this block as provisional until a test exercises
 the path.
+
+
+## 2026-09-24 (fifth pass) — the blocker is in the BFM, not in either testbench
+
+Moved the attempt to CORE level as the previous pass recommended, where the
+CAMs are real, entries retire and the watermarks are top-level inputs
+(`pumice_core_tb_top.sv:74-79`). It failed for a reason neither earlier pass
+had identified, and this one is specific.
+
+**Measured: `runs=[96]`** -- 96 consecutive write columns on `evt_wr_o`, ZERO
+reads interleaved, at `wr_batch_max=2`. With no read in the CAM the cap has
+nothing to yield to, so writes issue continuously whatever the knob says. Same
+end state as the fub attempt, different cause.
+
+**The cause, from the framework's own docstring** (`RTLDesignSherpa-DV`,
+`axi4_sequence.py`, `run_axi4_sequence_engine`):
+
+> *"Reads and writes can coexist in one sequence (engine-style is
+> **write-first-then-read** by default)."*
+
+So the engine runner issues every AW, then every AR. And the non-engine runner
+`run_axi4_sequence` takes a per-instance AW+W lock and awaits each B response
+before the next burst, so it cannot saturate at all. **Neither runner produces
+concurrent bidirectional traffic**, and that is exactly what this test needs:
+writes dense enough to hold occupancy above `wr_low_wm` WHILE reads remain
+available to pay the `r_rd_owed` debt.
+
+**So the blocker is a BFM capability gap, not a testbench-choice problem.**
+That is worth knowing because it explains all three failed attempts at once,
+including the fub one: the fub TB's never-retiring entries and the BFM's
+write-then-read ordering are two different ways of arriving at "no read is
+available when the cap fires".
+
+**What would unblock it:** a concurrent bidirectional driver -- two coroutines
+driving `master_wr` and `master_rd` independently rather than one sequence
+through a shared runner. `PumiceAxiBfm` already holds both (`self.wr`,
+`self.rd`), so this is plausible, but it is a change in RDS-DV (or a new local
+driver), not a tweak to this test. Scope it there before trying again.
+
+**State: nothing shipped.** Both attempts reverted; `test_pumice_cmd_arbiter`
+and `test_pumice_core_dfi` are unchanged and green.
+
+**What IS established across the five passes, and is worth keeping:**
+- The cap works. Observed on the registers at fub level: at `wr_batch_max=1`
+  the drain arms, one write column issues, the drain clears and `r_rd_owed`
+  is set.
+- The cap is the ONLY drain exit under a saturating writer; the occupancy exit
+  covers the bursty case. They are not redundant.
+- Every measurement that made the knob look decorative -- PUMICE-047's original
+  mutation, the top-level repeat, and my own 0-vs-16 board comparison -- did so
+  because the writer ran dry, so the occupancy exit fired and the cap was never
+  consulted. All three measured the stimulus.
