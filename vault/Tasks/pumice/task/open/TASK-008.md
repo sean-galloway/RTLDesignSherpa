@@ -173,3 +173,56 @@ than the drain empties, so occupancy stays above `low_wm`), then vary
 `wr_batch_max` and show the batch length follows it. That is the only
 configuration in which the knob is observable, and no existing profile produces
 it.
+
+
+## 2026-09-24 (fourth pass) — part A ATTEMPTED AND NOT LANDED
+
+I tried to write the saturating-writer test and did not get it to a state worth
+committing. Nothing was shipped; the arbiter suite is green and unchanged.
+Recording what was learned so the next attempt starts ahead of this one.
+
+**Evidence the knob WORKS, captured directly.** Instrumenting the drain FSM in
+the fub TB (all 8 write slots schedulable so occupancy pins at NUM_ENTRIES,
+`wr_low_wm = 0` so the occupancy exit can never fire, `wr_batch_max = 1`):
+
+```
+drain=1 owed=0 cnt=0 rdcol=1 wrcol=1 occ=8   <- cap fires here
+drain=0 owed=1 cnt=0 rdcol=1 wrcol=1 occ=8   <- drain cleared, read debt set
+```
+
+The cap arms the drain, allows one write column, clears the drain and records
+`r_rd_owed`. That is the mechanism doing exactly what it is for, observed on
+the registers rather than inferred from bandwidth. An assertion on that single
+batch (`fires == 1` and `capped`) PASSES.
+
+**Two testbench limits blocked a complete test**, and both come from the same
+property that makes the writer saturate -- entries never retire:
+
+1. **The read side exhausts.** A read column is marked in-flight when it is
+   SELECTED (`w_rd_col_inflight_ent`, ~line 384), not when it retires, so after
+   a few picks `rd_col_f` sits at 0 and no read ever fires. `r_rd_owed` is
+   therefore never paid, the drain cannot re-arm, and a SECOND batch is
+   unobservable. Asserting across batches would be testing the entry model.
+2. **`wr_batch_max = 0` did not behave as the control.** The drain armed on 0
+   of 40 cycles where `= 1` armed, which cannot be right -- the cap does not
+   gate arming, only clearing. That is an unexplained discrepancy in MY
+   stimulus or sampling, not a demonstrated DUT property, and it is exactly the
+   control the test needs to show the knob is what bounded the batch.
+
+**Do not treat the single-batch pass as sufficient.** Without a working
+`wr_batch_max = 0` control it does not exclude something else clearing the
+drain after one write.
+
+**For the next attempt.** The fub TB's never-retiring entry model is the wrong
+vehicle: it is what creates the saturating writer AND what starves the reader,
+and those two needs conflict. Either extend the TB to retire entries (a real
+change, affecting other tests) or move the test up to the CORE level, where
+real CAMs retire and a genuinely saturating writer can be driven through the
+BFMs while reads continue to complete. The core level is probably right --
+it is also where the behaviour matters.
+
+**Caveat on everything above:** I have now misread this drain FSM three times
+in one session (the "one write" reading, the "CAM depth caps it at 7" reading,
+and the "max is redundant" framing). Each was corrected only after Sean pushed
+back. Treat my descriptions of this block as provisional until a test exercises
+the path.
