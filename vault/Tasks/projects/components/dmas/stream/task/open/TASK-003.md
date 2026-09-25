@@ -32,6 +32,17 @@ that were the TB sampling `space_free` before its register pipeline settled,
 and the scheduler write-timeout that a TB signal poke could not reach because
 the value is register-driven on the top. Both are the inverse of the apb5 case
 and both belong in the scrub's findings taxonomy.
+**A concrete find already in hand (2026-09-24, from TASK-002).**
+`dv/tests/top/test_stream_top_mon_cfg.py` checks `rb == 0xDEADBEEF` and reports
+"the register is unreachable". Nothing in that DUT's closure can drive
+0xDEADBEEF -- it appears only as an `LFSR_SEED` in `rtl/amba/shared` and as
+`axi4_subtractive_slave`'s READ_FILL, and `read_apb_register` returns
+`packet.fields.get('prdata', 0)`, defaulting to 0. So the branch is dead: an
+assertion that cannot fire, which is exactly this task's "no test asserts a
+condition the bug itself satisfies" clause in its inverse form. Its sibling
+`test_stream_top_regs.py:56` defines the same `NO_RESPONSE = 0xDEADBEEF`, so
+check both.
+
 **What "complete" has to mean, at minimum:**
 
 - Every `test_*.py` actually exercises the DUT it names.

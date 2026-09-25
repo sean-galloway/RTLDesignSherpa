@@ -38,7 +38,12 @@
 
 module stream_config_block #(
     parameter int NUM_CHANNELS = 8,
-    parameter int ADDR_WIDTH = 64
+    parameter int ADDR_WIDTH = 64,
+    // When 0, every monitor configuration output is strapped off regardless of
+    // the MON register contents, so a build that omits the monitors cannot be
+    // configured into looking as though it has them. Default 1 leaves every
+    // existing instantiation bit-identical. Follows rapids_config_block.
+    parameter bit USE_MON_REGS = 1'b1
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -304,67 +309,67 @@ module stream_config_block #(
     // Descriptor AXI Monitor Configuration
     //-------------------------------------------------------------------------
 
-    assign cfg_desc_mon_enable = reg_daxmon_enable_mon_en & reg_global_ctrl_global_en;
-    assign cfg_desc_mon_err_enable = reg_daxmon_enable_err_en;
-    assign cfg_desc_mon_perf_enable = reg_daxmon_enable_perf_en;
-    assign cfg_desc_mon_compl_enable = reg_daxmon_enable_compl_en;
-    assign cfg_desc_mon_thresh_enable = reg_daxmon_enable_thresh_en;
-    assign cfg_desc_mon_timeout_enable = reg_daxmon_enable_timeout_en;
-    assign cfg_desc_mon_timeout_cycles = reg_daxmon_timeout_timeout_cycles;
-    assign cfg_desc_mon_latency_thresh = reg_daxmon_latency_thresh_latency_thresh;
-    assign cfg_desc_mon_pkt_mask = reg_daxmon_pkt_mask_pkt_mask;
-    assign cfg_desc_mon_err_select = reg_daxmon_err_cfg_err_select;
-    assign cfg_desc_mon_err_mask = reg_daxmon_err_cfg_err_mask;
-    assign cfg_desc_mon_timeout_mask = reg_daxmon_mask1_timeout_mask;
-    assign cfg_desc_mon_compl_mask = reg_daxmon_mask1_compl_mask;
-    assign cfg_desc_mon_thresh_mask = reg_daxmon_mask2_thresh_mask;
-    assign cfg_desc_mon_perf_mask = reg_daxmon_mask2_perf_mask;
-    assign cfg_desc_mon_addr_mask = reg_daxmon_mask3_addr_mask;
-    assign cfg_desc_mon_debug_mask = reg_daxmon_mask3_debug_mask;
+    assign cfg_desc_mon_enable = USE_MON_REGS ? (reg_daxmon_enable_mon_en & reg_global_ctrl_global_en) : 1'b0;
+    assign cfg_desc_mon_err_enable = USE_MON_REGS ? reg_daxmon_enable_err_en : 1'b0;
+    assign cfg_desc_mon_perf_enable = USE_MON_REGS ? reg_daxmon_enable_perf_en : 1'b0;
+    assign cfg_desc_mon_compl_enable = USE_MON_REGS ? reg_daxmon_enable_compl_en : 1'b0;
+    assign cfg_desc_mon_thresh_enable = USE_MON_REGS ? reg_daxmon_enable_thresh_en : 1'b0;
+    assign cfg_desc_mon_timeout_enable = USE_MON_REGS ? reg_daxmon_enable_timeout_en : 1'b0;
+    assign cfg_desc_mon_timeout_cycles = USE_MON_REGS ? reg_daxmon_timeout_timeout_cycles : 32'h0;
+    assign cfg_desc_mon_latency_thresh = USE_MON_REGS ? reg_daxmon_latency_thresh_latency_thresh : 32'h0;
+    assign cfg_desc_mon_pkt_mask = USE_MON_REGS ? reg_daxmon_pkt_mask_pkt_mask : 16'h0;
+    assign cfg_desc_mon_err_select = USE_MON_REGS ? reg_daxmon_err_cfg_err_select : 16'h0;
+    assign cfg_desc_mon_err_mask = USE_MON_REGS ? reg_daxmon_err_cfg_err_mask : 16'h0;
+    assign cfg_desc_mon_timeout_mask = USE_MON_REGS ? reg_daxmon_mask1_timeout_mask : 16'h0;
+    assign cfg_desc_mon_compl_mask = USE_MON_REGS ? reg_daxmon_mask1_compl_mask : 16'h0;
+    assign cfg_desc_mon_thresh_mask = USE_MON_REGS ? reg_daxmon_mask2_thresh_mask : 16'h0;
+    assign cfg_desc_mon_perf_mask = USE_MON_REGS ? reg_daxmon_mask2_perf_mask : 16'h0;
+    assign cfg_desc_mon_addr_mask = USE_MON_REGS ? reg_daxmon_mask3_addr_mask : 16'h0;
+    assign cfg_desc_mon_debug_mask = USE_MON_REGS ? reg_daxmon_mask3_debug_mask : 16'h0;
 
     //-------------------------------------------------------------------------
     // Read Engine AXI Monitor Configuration
     //-------------------------------------------------------------------------
 
-    assign cfg_rdeng_mon_enable = reg_rdmon_enable_mon_en & reg_global_ctrl_global_en;
-    assign cfg_rdeng_mon_err_enable = reg_rdmon_enable_err_en;
-    assign cfg_rdeng_mon_perf_enable = reg_rdmon_enable_perf_en;
-    assign cfg_rdeng_mon_compl_enable = reg_rdmon_enable_compl_en;
-    assign cfg_rdeng_mon_thresh_enable = reg_rdmon_enable_thresh_en;
-    assign cfg_rdeng_mon_timeout_enable = reg_rdmon_enable_timeout_en;
-    assign cfg_rdeng_mon_timeout_cycles = reg_rdmon_timeout_timeout_cycles;
-    assign cfg_rdeng_mon_latency_thresh = reg_rdmon_latency_thresh_latency_thresh;
-    assign cfg_rdeng_mon_pkt_mask = reg_rdmon_pkt_mask_pkt_mask;
-    assign cfg_rdeng_mon_err_select = reg_rdmon_err_cfg_err_select;
-    assign cfg_rdeng_mon_err_mask = reg_rdmon_err_cfg_err_mask;
-    assign cfg_rdeng_mon_timeout_mask = reg_rdmon_mask1_timeout_mask;
-    assign cfg_rdeng_mon_compl_mask = reg_rdmon_mask1_compl_mask;
-    assign cfg_rdeng_mon_thresh_mask = reg_rdmon_mask2_thresh_mask;
-    assign cfg_rdeng_mon_perf_mask = reg_rdmon_mask2_perf_mask;
-    assign cfg_rdeng_mon_addr_mask = reg_rdmon_mask3_addr_mask;
-    assign cfg_rdeng_mon_debug_mask = reg_rdmon_mask3_debug_mask;
+    assign cfg_rdeng_mon_enable = USE_MON_REGS ? (reg_rdmon_enable_mon_en & reg_global_ctrl_global_en) : 1'b0;
+    assign cfg_rdeng_mon_err_enable = USE_MON_REGS ? reg_rdmon_enable_err_en : 1'b0;
+    assign cfg_rdeng_mon_perf_enable = USE_MON_REGS ? reg_rdmon_enable_perf_en : 1'b0;
+    assign cfg_rdeng_mon_compl_enable = USE_MON_REGS ? reg_rdmon_enable_compl_en : 1'b0;
+    assign cfg_rdeng_mon_thresh_enable = USE_MON_REGS ? reg_rdmon_enable_thresh_en : 1'b0;
+    assign cfg_rdeng_mon_timeout_enable = USE_MON_REGS ? reg_rdmon_enable_timeout_en : 1'b0;
+    assign cfg_rdeng_mon_timeout_cycles = USE_MON_REGS ? reg_rdmon_timeout_timeout_cycles : 32'h0;
+    assign cfg_rdeng_mon_latency_thresh = USE_MON_REGS ? reg_rdmon_latency_thresh_latency_thresh : 32'h0;
+    assign cfg_rdeng_mon_pkt_mask = USE_MON_REGS ? reg_rdmon_pkt_mask_pkt_mask : 16'h0;
+    assign cfg_rdeng_mon_err_select = USE_MON_REGS ? reg_rdmon_err_cfg_err_select : 16'h0;
+    assign cfg_rdeng_mon_err_mask = USE_MON_REGS ? reg_rdmon_err_cfg_err_mask : 16'h0;
+    assign cfg_rdeng_mon_timeout_mask = USE_MON_REGS ? reg_rdmon_mask1_timeout_mask : 16'h0;
+    assign cfg_rdeng_mon_compl_mask = USE_MON_REGS ? reg_rdmon_mask1_compl_mask : 16'h0;
+    assign cfg_rdeng_mon_thresh_mask = USE_MON_REGS ? reg_rdmon_mask2_thresh_mask : 16'h0;
+    assign cfg_rdeng_mon_perf_mask = USE_MON_REGS ? reg_rdmon_mask2_perf_mask : 16'h0;
+    assign cfg_rdeng_mon_addr_mask = USE_MON_REGS ? reg_rdmon_mask3_addr_mask : 16'h0;
+    assign cfg_rdeng_mon_debug_mask = USE_MON_REGS ? reg_rdmon_mask3_debug_mask : 16'h0;
 
     //-------------------------------------------------------------------------
     // Write Engine AXI Monitor Configuration
     //-------------------------------------------------------------------------
 
-    assign cfg_wreng_mon_enable = reg_wrmon_enable_mon_en & reg_global_ctrl_global_en;
-    assign cfg_wreng_mon_err_enable = reg_wrmon_enable_err_en;
-    assign cfg_wreng_mon_perf_enable = reg_wrmon_enable_perf_en;
-    assign cfg_wreng_mon_compl_enable = reg_wrmon_enable_compl_en;
-    assign cfg_wreng_mon_thresh_enable = reg_wrmon_enable_thresh_en;
-    assign cfg_wreng_mon_timeout_enable = reg_wrmon_enable_timeout_en;
-    assign cfg_wreng_mon_timeout_cycles = reg_wrmon_timeout_timeout_cycles;
-    assign cfg_wreng_mon_latency_thresh = reg_wrmon_latency_thresh_latency_thresh;
-    assign cfg_wreng_mon_pkt_mask = reg_wrmon_pkt_mask_pkt_mask;
-    assign cfg_wreng_mon_err_select = reg_wrmon_err_cfg_err_select;
-    assign cfg_wreng_mon_err_mask = reg_wrmon_err_cfg_err_mask;
-    assign cfg_wreng_mon_timeout_mask = reg_wrmon_mask1_timeout_mask;
-    assign cfg_wreng_mon_compl_mask = reg_wrmon_mask1_compl_mask;
-    assign cfg_wreng_mon_thresh_mask = reg_wrmon_mask2_thresh_mask;
-    assign cfg_wreng_mon_perf_mask = reg_wrmon_mask2_perf_mask;
-    assign cfg_wreng_mon_addr_mask = reg_wrmon_mask3_addr_mask;
-    assign cfg_wreng_mon_debug_mask = reg_wrmon_mask3_debug_mask;
+    assign cfg_wreng_mon_enable = USE_MON_REGS ? (reg_wrmon_enable_mon_en & reg_global_ctrl_global_en) : 1'b0;
+    assign cfg_wreng_mon_err_enable = USE_MON_REGS ? reg_wrmon_enable_err_en : 1'b0;
+    assign cfg_wreng_mon_perf_enable = USE_MON_REGS ? reg_wrmon_enable_perf_en : 1'b0;
+    assign cfg_wreng_mon_compl_enable = USE_MON_REGS ? reg_wrmon_enable_compl_en : 1'b0;
+    assign cfg_wreng_mon_thresh_enable = USE_MON_REGS ? reg_wrmon_enable_thresh_en : 1'b0;
+    assign cfg_wreng_mon_timeout_enable = USE_MON_REGS ? reg_wrmon_enable_timeout_en : 1'b0;
+    assign cfg_wreng_mon_timeout_cycles = USE_MON_REGS ? reg_wrmon_timeout_timeout_cycles : 32'h0;
+    assign cfg_wreng_mon_latency_thresh = USE_MON_REGS ? reg_wrmon_latency_thresh_latency_thresh : 32'h0;
+    assign cfg_wreng_mon_pkt_mask = USE_MON_REGS ? reg_wrmon_pkt_mask_pkt_mask : 16'h0;
+    assign cfg_wreng_mon_err_select = USE_MON_REGS ? reg_wrmon_err_cfg_err_select : 16'h0;
+    assign cfg_wreng_mon_err_mask = USE_MON_REGS ? reg_wrmon_err_cfg_err_mask : 16'h0;
+    assign cfg_wreng_mon_timeout_mask = USE_MON_REGS ? reg_wrmon_mask1_timeout_mask : 16'h0;
+    assign cfg_wreng_mon_compl_mask = USE_MON_REGS ? reg_wrmon_mask1_compl_mask : 16'h0;
+    assign cfg_wreng_mon_thresh_mask = USE_MON_REGS ? reg_wrmon_mask2_thresh_mask : 16'h0;
+    assign cfg_wreng_mon_perf_mask = USE_MON_REGS ? reg_wrmon_mask2_perf_mask : 16'h0;
+    assign cfg_wreng_mon_addr_mask = USE_MON_REGS ? reg_wrmon_mask3_addr_mask : 16'h0;
+    assign cfg_wreng_mon_debug_mask = USE_MON_REGS ? reg_wrmon_mask3_debug_mask : 16'h0;
 
     //-------------------------------------------------------------------------
     // AXI Transfer Configuration

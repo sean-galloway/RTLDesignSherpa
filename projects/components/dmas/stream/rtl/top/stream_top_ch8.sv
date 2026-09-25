@@ -63,6 +63,10 @@ module stream_top_ch8 #(
     parameter int AXI_ID_WIDTH = 8,
     parameter int AXI_USER_WIDTH = 3,    // $clog2(NUM_CHANNELS) for channel ID
     parameter int USE_AXI_MONITORS = 0,  // 0 = Disable monitors, 1 = Enable monitors
+    // Monitor REGISTER block hookup. Defaults to USE_AXI_MONITORS so the
+    // registers and the hardware they configure move together: with it 0 the
+    // MON config outputs are strapped off in stream_config_block.
+    parameter bit USE_MON_REGS = (USE_AXI_MONITORS != 0),
     // In-core monitor address-range (allowlist) checker. MON_N_ADDR_RANGES=0
     // (default) leaves it un-synthesised -> OFF on the perf harness; the
     // monitor-validation harness sets 4. MON_ADDR_RANGE_IS_ERROR is the
@@ -822,16 +826,73 @@ module stream_top_ch8 #(
     // registers with swacc, so both windows were retired and the router had
     // decayed to addr_hit_m0 = 1'b0 -- every access already took the default
     // route. The CDC now drives the PeakRDL adapter directly.
-    assign peakrdl_cmd_valid  = apb_cmd_valid;
-    assign apb_cmd_ready      = peakrdl_cmd_ready;
+    // ...with one exception, below: the MON window is intercepted when its
+    // registers are not built.
+    //
+    // MON-window guard (TASK-002). With USE_MON_REGS=0 the monitor registers
+    // configure nothing -- stream_config_block straps all 51 cfg_*mon_* outputs
+    // off -- so answering them normally lets a host arm RDMON_TIMEOUT, read the
+    // written value back, and conclude a monitor is configured that does not
+    // exist. Read-back success is normally the strongest evidence a host has
+    // that configuration took, and there it would affirmatively lie. The window
+    // returns an error response instead, so "not built" is distinguishable from
+    // "built and set to zero" -- a readback of zero cannot express that.
+    //
+    // This cannot live in the regblock: generated stream_regs ties cpuif_wr_err
+    // to '0, so a MON WRITE can never be reported as failed from inside it.
+    //
+    // Shape follows the retired cmdrsp_router (deleted in 45fa4972e): decode is
+    // combinational, the selection is registered when the command is accepted
+    // and cleared when the response is accepted, and the response is muxed on
+    // the REGISTERED select so a stale response cannot leak. That is safe only
+    // because the upstream is strictly one-outstanding -- apb4_slave issues on
+    // the IDLE->BUSY edge and consumes the response in BUSY, and
+    // apb4_slave_cdc wraps that same FSM behind its two CDC FIFOs.
+    //
+    // With USE_MON_REGS=1 (the default, = USE_AXI_MONITORS) w_mon_blocked is a
+    // constant 0, so all of this folds away to the straight-through wiring it
+    // replaces and existing builds stay bit-identical.
+    localparam int MON_WINDOW_BIT = 12;  // MON @ 0x1000, APB_ADDR_WIDTH 13
+
+    logic w_mon_blocked;
+    logic r_mon_err_pending;
+
+    generate
+        if (APB_ADDR_WIDTH > MON_WINDOW_BIT) begin : g_mon_guard
+            assign w_mon_blocked = !USE_MON_REGS && apb_cmd_paddr[MON_WINDOW_BIT];
+        end else begin : g_no_mon_window
+            // Address bus too narrow to reach 0x1000: there is no MON window to
+            // guard, and indexing paddr[MON_WINDOW_BIT] would be out of range.
+            assign w_mon_blocked = 1'b0;
+        end
+    endgenerate
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_mon_err_pending <= 1'b0;
+        end else if (apb_cmd_valid && apb_cmd_ready && w_mon_blocked) begin
+            r_mon_err_pending <= 1'b1;
+        end else if (apb_rsp_valid && apb_rsp_ready) begin
+            r_mon_err_pending <= 1'b0;
+        end
+    )
+
+    // Command. A blocked access never reaches the adapter but is still
+    // ACCEPTED: APB cannot express "ignored", and holding cmd_ready low would
+    // hang the bus rather than report an error.
+    assign peakrdl_cmd_valid  = apb_cmd_valid && !w_mon_blocked;
+    assign apb_cmd_ready      = w_mon_blocked ? !r_mon_err_pending
+                                              : peakrdl_cmd_ready;
     assign peakrdl_cmd_pwrite = apb_cmd_pwrite;
     assign peakrdl_cmd_paddr  = apb_cmd_paddr;
     assign peakrdl_cmd_pwdata = apb_cmd_pwdata;
 
-    assign apb_rsp_valid      = peakrdl_rsp_valid;
-    assign peakrdl_rsp_ready  = apb_rsp_ready;
-    assign apb_rsp_prdata     = peakrdl_rsp_prdata;
-    assign apb_rsp_pslverr    = peakrdl_rsp_pslverr;
+    // Response. The guard's error beat wins while pending, and the adapter is
+    // held off so it cannot double-respond.
+    assign apb_rsp_valid      = r_mon_err_pending ? 1'b1 : peakrdl_rsp_valid;
+    assign peakrdl_rsp_ready  = !r_mon_err_pending && apb_rsp_ready;
+    assign apb_rsp_prdata     = r_mon_err_pending ? '0   : peakrdl_rsp_prdata;
+    assign apb_rsp_pslverr    = r_mon_err_pending ? 1'b1 : peakrdl_rsp_pslverr;
 
     //=========================================================================
     // CMD/RSP to Passthrough Adapter (peakrdl_to_cmdrsp)
@@ -1206,7 +1267,8 @@ module stream_top_ch8 #(
     // stream_core configuration signals
     stream_config_block #(
         .NUM_CHANNELS(NUM_CHANNELS),
-        .ADDR_WIDTH(ADDR_WIDTH)
+        .ADDR_WIDTH(ADDR_WIDTH),
+        .USE_MON_REGS(USE_MON_REGS)
     ) u_config_block (
         .clk                (aclk),
         .rst_n              (aresetn),

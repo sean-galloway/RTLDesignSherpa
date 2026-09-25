@@ -34,7 +34,7 @@ handbook notes, so the map is kept:
 | Was | Is |
 |---|---|
 | `STREAM-KMAP` | [TASK-001](task/open/TASK-001.md) |
-| `STREAM-MONREGS` | [TASK-002](task/open/TASK-002.md) |
+| `STREAM-MONREGS` | [TASK-002](task/closed/TASK-002.md) |
 | `TASK-079` | [TASK-003](task/open/TASK-003.md) |
 | `TASK-056` | [TASK-004](task/active/TASK-004.md) |
 | `TASK-080` | [BUG-001](bug/closed/BUG-001.md) |

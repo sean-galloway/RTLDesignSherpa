@@ -102,7 +102,7 @@ Reference implementations:
 
 - **sim:** `dmas/stream/dv/tests/top/test_stream_top_regs.py` -- both monitor
   configurations, and the monitors-absent case is an `xfail` gate for
-  STREAM [TASK-002](../../Tasks/projects/components/dmas/stream/task/open/TASK-002.md) rather than a silent gap
+  STREAM [TASK-002](../../Tasks/projects/components/dmas/stream/task/closed/TASK-002.md) rather than a silent gap
 - **board:** `Genesys2/stream/build-mon/host/host_reg_walk.py` -- four endpoints,
   258 registers, bases taken from the address modules that own them and never
   re-typed ([[registers-by-name]])

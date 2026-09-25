@@ -2,7 +2,7 @@
 
 # projects/components/dmas/rapids — issues
 
-**Next ID: ISSUE-003** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-004** — never recycle a number, even when its item closed.
 
 An observed problem that is not yet a diagnosed defect or a decided piece of work: an anomaly, a risk, an open question. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -21,6 +21,7 @@ by construction rather than by discipline.
 
 - **ISSUE-000** — reserved template; copy the file, do not file against it.
 - **ISSUE-001** — after TASK-082, snkGB/s reports ingress latency, not datapath rate
+- **ISSUE-003** — monitor registers answer normally when the monitors are not built
 
 ## Closed
 
