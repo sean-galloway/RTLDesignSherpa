@@ -19,7 +19,7 @@ state (`open/`, `active/`, `closed/`, `dropped/`). Pick the lane before filing:
 | Lane | For | Open |
 |---|---|---|
 | [task/](task/INDEX.md) | planned work we decided to do | 8 |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | 1 |
+| [bug/](bug/INDEX.md) | a defect with a reproduction | 0 |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 0 |
 
 **IDs are per-lane sequences** (`TASK-001`, `BUG-001`, `ISSUE-001`), per the

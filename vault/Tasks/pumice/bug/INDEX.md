@@ -12,16 +12,19 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
 
 - **BUG-000** — TEMPLATE — copy this file, never file against it
-- **BUG-002** — close-page modes reach only 62.8% of their own command-bus ceiling
 
 ## Closed
 
 - **BUG-001** — one unattributed mismatched beat, seen once in 1008 matrix cells
+- **BUG-002** — close-page below its command-bus ceiling — FIXED 2026-09-25,
+  62.8% -> 85.7% via bank-timer lookahead + final-stage timing authority
+  (silicon-confirmed +32.8%); residual is the in-order pick pipeline, the
+  documented design point
