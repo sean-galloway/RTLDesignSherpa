@@ -1,7 +1,7 @@
 # TASK-004: pumice is AT REST: what a future session needs to know
 > **Was `PUMICE-029` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** open 2026-09-10 (informational; do not close, it is the handover)
+**Status:** DROPPED 2026-09-25 (content moved, see below) — was open 2026-09-10 (informational; do not close, it is the handover)
 **Priority:** read before touching pumice
 
 pumice met its targets on 2026-09-10 and was deliberately put down. This block
@@ -67,3 +67,18 @@ Related: [[project_pumice_read_ceiling_fixed]],
 [[project_litedram_same_harness_ab]], [[project_pumice_char_suite]].
 
 ---
+
+
+## 2026-09-25 — DROPPED as a task; the content MOVED, it was not discarded
+
+Sean: *"if a task can't be closed, that means it is a rule that should be
+elsewhere."* This was never a work item — it had no completion condition, so
+it would have sat in the open lane forever, inflating the count and training
+readers to skim it.
+
+Content now lives at: **projects/components/memory-controllers/pumice-ddr2-lpddr2/CLAUDE.md**
+
+Dropped here rather than closed, because "closed" implies work finished. No
+work was done; the record moved to where the repo's own convention says it
+belongs (area facts beside the code, method in the handbook — see the root
+CLAUDE.md).

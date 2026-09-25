@@ -101,6 +101,37 @@ whatever the default level is (FUNC), with no clean, no `-n` parallelism, and
 no reruns. The Makefile targets add `-n`, rerun-on-failure, and the level. Use
 the target; do not hand-roll the pytest line.
 
+## Some areas have a gate the module suite cannot be
+
+A component's own `dv/tests` suite can be green and still not have gated the
+thing that ships. pumice is the worked example: `ddr2_char_framework/dv/tests`
+is the only suite that builds the board's x16 / strict-timing configuration, and
+an arbiter fix once passed all 213 pumice fub/macro/top tests while failing 7
+there. **The char-framework sim is the board gate, and it runs before any
+pumice RTL commit.**
+
+The failure mode is quieter than a red suite: that area had silently stopped
+gating because the Makefile's `run-all-*` targets were being swallowed by a
+`run-%` pattern into a nonexistent test id, so the gate invocation exited clean
+having run nothing. Aliases fixed it 2026-09-08. A gate that runs nothing looks
+exactly like a gate that passes.
+
+Two rules follow, and they generalise beyond pumice:
+
+- **If an area has a configuration only one suite builds, that suite is the
+  gate** — regardless of which directory the edit was in.
+- **A gate's verdict is its EXIT CODE**, plus whatever success line the runner
+  prints. Not the pass counts. On 2026-09-25 a pumice gate exited `rc=2` with 8
+  FAILED lines and was reported as green, because the check grepped for
+  `passed` and took the last three lines: three real green summaries from
+  earlier groups. The commit shipped with two unit tests broken. Both signals
+  that would have caught it — the exit code, and the runner's
+  `OK: ... passed at BOTH geometries` line — were absent and neither was
+  checked.
+
+(Was `vault/Tasks/pumice/task/open/TASK-003.md`, which was a rule filed as a
+task and therefore could never be closed.)
+
 ## Serial ordering that matters
 
 At the `projects/components/` level, `make run-all-full-parallel` is serial per

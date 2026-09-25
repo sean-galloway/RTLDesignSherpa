@@ -1,7 +1,7 @@
 # TASK-001: QoS + advanced scheduling (post-cleanup)
 > **Was `PUMICE-006` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** MECHANISMS COMPLETE 2026-08-27 — all three axes implemented
+**Status:** CLOSED 2026-09-25 — mechanisms complete 2026-08-27; all three reported gaps dispositioned (P1+P3 fixed, P2 re-filed as TASK-012). Originally: all three axes implemented
 (Axis 1 scheduling, Axis 2 paging, Axis 3 refresh), every mode OFF by
 default and mutation-proven. Characterization/tuning split to
 [[TASK-002]]. Holds open only for mechanism gaps 013 reports back.
@@ -259,3 +259,24 @@ default and every mechanism mutation-proven at the fub level.
 (PUMICE-004).
 
 ---
+
+
+## 2026-09-25 — CLOSED. All three reported gaps dispositioned.
+
+This umbrella held open only for mechanism gaps [[TASK-002]]'s campaign
+reported back. All three are now settled, so it closes:
+
+| gap | disposition |
+|---|---|
+| P1 RBL `reset_interval` default 0 | **FIXED** 2026-09-23 — RDL reset `16'h0` -> `16'd256`; verified on silicon 34.9 -> 554.1 MB/s |
+| P2 `REF_STATS_REF` free-runs | **RE-FILED** as [[TASK-012]] — a real gap, but its own item, not a reason to hold an umbrella open |
+| P3 config-table confounds | **FIXED** — `inorder_open` exists and the `order` profile uses it, so the order axis is measured at equal page policy; `refresh_credit_open` / `fast_refresh_open` / `slow_refresh_open` exist and `pairs_refresh_open` measures axis 3 off the CLOSE-page floor |
+
+The mechanisms themselves have been complete since 2026-08-27 (Axis 1
+scheduling, Axis 2 paging, Axis 3 refresh; every mode OFF by default and
+mutation-proven). Characterization and tuning is [[TASK-002]] and stays open.
+
+Since this was written the scheduler also gained the bank-timer lookahead and
+final-stage timing authority ([[BUG-002]], closed 2026-09-25), which is a
+mechanism change in this area — but it was filed and closed as a defect, not
+as a gap here.
