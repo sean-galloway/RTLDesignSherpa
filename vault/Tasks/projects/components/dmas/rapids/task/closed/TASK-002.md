@@ -1,7 +1,7 @@
 # TASK-002: RAPIDS-beats has NO contracts workbook at all
 > **Was `RAPIDS-KMAP` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** COMPLETE 2026-09-25. All six targets addressed; items 1, 2, 3, 4
+**Status:** CLOSED 2026-09-25 — All six targets addressed; items 1, 2, 3, 4
 and 5 are MAPPED in `docs/rapids_signal_contracts.xlsx` (7 sheets, 11 computed
 maps), and item 6's premise was disproved and folded into item 3.  
 **Unblocked:** the shared machinery was promoted to `bin/kmaps/` (TOOLING-KMAP item 5), so the generator builds on it rather than forking a third private copy.

@@ -12,19 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 4 | done (kept for history) |
+| [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
-- **TASK-002** — RAPIDS-beats has NO contracts workbook at all
 - **TASK-003** — scrub the tests for completeness (rapids)
 
 ## Closed
 
+- **TASK-002** — RAPIDS-beats has NO contracts workbook at all
 - **TASK-001** — adopt the shared instrumentation pair (axi4_intf_master_observer + dma_slave_monitors)
 - **TASK-004** — Register-map hygiene enforced in RAPIDS DV
 - **TASK-005** — one RTL harness -- move the host path down so verify-sim can reach it
