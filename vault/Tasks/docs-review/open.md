@@ -131,10 +131,11 @@ both generated families is ZERO. The two `rtl/cdc` headers that pointed at
 
 ## DOCREV-014 — emoji sweep: 309 glyphs in 13 tracked .md (843 in 72 files counting code)
 **Status:** open 2026-07-31; scope and figures corrected the same day.
-**RE-MEASURED 2026-09-16 with the tool: 2979 glyphs in 133 of 1397 files** (was
-4512 in 252 of 1310). Roughly a third of the glyphs and half the files have been
-cleared since, by owners fixing pages for other reasons -- the headline above is
-stale, not the rule.
+*History, all superseded by the 2026-09-24 figure below -- the headline is
+current, these are not:* 4512 in 252 of 1310 when opened (2026-07-31), then
+2979 in 133 of 1397 (2026-09-16). Roughly a third of the glyphs and half the
+files cleared between those two, by owners fixing pages for other reasons. The
+rule never changed; only the backlog did.
 
 **RE-MEASURED 2026-09-24 with the tool: 309 glyphs in 13 of 1557 files, and
 every one of the 13 is `dmas/stream`, `dmas/rapids` or `Genesys2/stream`.**
