@@ -129,7 +129,7 @@ both generated families is ZERO. The two `rtl/cdc` headers that pointed at
 
 ---
 
-## DOCREV-014 — emoji sweep: 4512 glyphs across 252 tracked .md files
+## DOCREV-014 — emoji sweep: 309 glyphs in 13 tracked .md (843 in 72 files counting code)
 **Status:** open 2026-07-31; scope and figures corrected the same day.
 **RE-MEASURED 2026-09-16 with the tool: 2979 glyphs in 133 of 1397 files** (was
 4512 in 252 of 1310). Roughly a third of the glyphs and half the files have been
