@@ -164,13 +164,29 @@ async def cocotb_test_mon_cfg_hookup(dut):
     # apb_addr_width is a CONSTRUCTOR kwarg defaulting to 12 -- it is NOT read
     # from the environment, so setting APB_ADDR_WIDTH in extra_env does nothing
     # here. At 12 bits every MON address (0x1000+) silently TRUNCATES into the
-    # functional block: RDMON_ENABLE 0x10E0 -> 0x0E0 (unmapped, 0xDEADBEEF) and
+    # functional block: RDMON_ENABLE 0x10E0 -> 0x0E0 (unmapped) and
     # WRMON_ENABLE 0x1100 -> 0x100, which is GLOBAL_CTRL. The test was writing
     # the DMA's global control register and reading the result as a monitor
     # hookup failure.
     tb = StreamCoreTB(dut, apb_addr_width=13)
     await tb.setup_clocks_and_reset()
     await tb.init_apb4_master()
+
+    # VACUITY GUARD. The unreachable-register check below reads
+    # tb.last_rsp_pslverr, so it rests on PSLVERR having BOUND. cocotb_bus gates
+    # OPTIONAL signals on a case-SENSITIVE hasattr and this DUT's ports are
+    # lowercase (s_apb_pslverr); _match_optional_case rebinds them, but if that
+    # regresses the flag reads 0 forever and the check silently stops firing --
+    # which is exactly what the 0xDEADBEEF sentinel it replaced did.
+    #
+    # NOTE: this build sets USE_AXI_MONITORS=1, so the MON window ANSWERS and
+    # pslverr stays 0 throughout a healthy run. The branch guards against an
+    # unreachable window (e.g. too narrow an APB_ADDR_WIDTH), so it is
+    # conditionally fireable here, not exercised on every pass.
+    assert tb.apb4_master.is_signal_present('PSLVERR'), (
+        "PSLVERR did not bind on the APB master, so an unreachable MON register "
+        "would be indistinguishable from a working one. See _match_optional_case "
+        "in CocoTBFramework/components/apb/apb_components.py.")
 
     core = _core_node(dut, tb.log)
     regs = _regmap()
@@ -217,10 +233,10 @@ async def cocotb_test_mon_cfg_hookup(dut):
             # apart from "the APB write never landed" -- and one of those is a
             # design defect while the other is a broken test.
             rb = int(await tb.read_reg(f"{reg_pfx}_ENABLE"))
-            if rb == 0xDEADBEEF:
+            if tb.last_rsp_pslverr:
                 failures.append(
-                    f"{mon}.{field}: APB read returned the NO-RESPONSE sentinel "
-                    f"0xDEADBEEF -- the register is unreachable (window too "
+                    f"{mon}.{field}: APB read returned an ERROR response "
+                    f"(PSLVERR) -- the register is unreachable (window too "
                     f"narrow? MON regfile is at 0x1000+). Nothing about the "
                     f"hookup can be concluded.")
                 continue

@@ -33,7 +33,7 @@ and the scheduler write-timeout that a TB signal poke could not reach because
 the value is register-driven on the top. Both are the inverse of the apb5 case
 and both belong in the scrub's findings taxonomy.
 **A concrete find already in hand (2026-09-24, from TASK-002).**
-`dv/tests/top/test_stream_top_mon_cfg.py` checks `rb == 0xDEADBEEF` and reports
+`dv/tests/top/test_stream_top_mon_cfg.py` checked `rb == 0xDEADBEEF` and reported
 "the register is unreachable". Nothing in that DUT's closure can drive
 0xDEADBEEF -- it appears only as an `LFSR_SEED` in `rtl/amba/shared` and as
 `axi4_subtractive_slave`'s READ_FILL, and `read_apb_register` returns
@@ -46,7 +46,16 @@ re-do it. It was worse there: the sentinel sat in that file's monitors-absent
 `xfail`, which was TASK-002's own regression gate, so the gate could not observe
 its fix and stayed XFAIL after it landed. Fixed under TASK-002 by adding
 `StreamCoreTB.last_rsp_pslverr` and moving the predicates onto the real APB
-error response. `test_stream_top_mon_cfg.py` is the remaining one.
+error response. `test_stream_top_mon_cfg.py` is **also fixed now** (same change: the predicate
+reads `tb.last_rsp_pslverr`, plus a vacuity guard asserting PSLVERR bound).
+
+Stated honestly: that converts a NEVER-fireable check into a CONDITIONALLY
+fireable one. mon_cfg builds with `USE_AXI_MONITORS=1`, where the MON window
+answers and pslverr stays 0, so the branch did not fire on its passing run (1
+passed, 357.52s, 30 MON accesses, 0 bind failures) and is not exercised on every
+pass -- it guards an unreachable window, e.g. too narrow an `APB_ADDR_WIDTH`.
+What IS proven live there is the bind guard. Both files are done; the wider
+17-file scrub this task exists for is untouched.
 
 **A second find (2026-09-24, measured while closing TASK-002).** Every test in
 `dv/tests/top/` sets `COCOTB_RESULTS_FILE` in `extra_env`, and **no
@@ -63,6 +72,15 @@ losing data; 439 files just carry a setting that does nothing. Worth settling
 whether the variable is inert with this cocotb-test version and should be
 dropped, or should work and something discards it -- a suite should not
 configure an artifact it never produces.
+
+**A third find (2026-09-24): `logs/` hides stale evidence.** The per-test log
+name carries the xdist worker id, which is reassigned between runs, so
+`dv/tests/top/logs/` accumulates `test_*_gw0..gw7.log` from earlier runs at
+wildly different sizes (75 KB next to 192 KB). Grepping "the log" for a test can
+therefore read a PREVIOUS run's file and draw a confident conclusion from it. A
+re-run also overwrites the log of the run it replaces, so a failure's evidence
+is gone unless copied aside first. Anyone scrubbing these tests should check the
+timestamp inside the log against the run they mean, or clear `logs/` first.
 
 **What "complete" has to mean, at minimum:**
 
