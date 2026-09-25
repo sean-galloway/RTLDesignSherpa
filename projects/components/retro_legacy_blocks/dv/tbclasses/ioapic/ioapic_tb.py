@@ -249,7 +249,7 @@ class IOAPICTB(TBBase):
 
             # Initialize the APB master (starts transmit coroutine)
             await self.apb4_master.reset_bus()
-            self.log.info(f"✓ APB Master created and initialized: {type(self.apb4_master)}")
+            self.log.info(f"APB Master created and initialized: {type(self.apb4_master)}")
 
         except Exception as e:
             self.log.error(f"Failed to create APB Master: {e}")

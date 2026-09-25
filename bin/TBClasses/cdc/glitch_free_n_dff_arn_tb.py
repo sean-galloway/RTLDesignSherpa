@@ -120,7 +120,7 @@ class GlitchFreeNDffArnTB(TBBase):
                 self.log.debug(f"  PASS: 0x{test_val:X} propagated in {self.FLOP_COUNT} cycles")
 
         if all_passed:
-            self.log.info(f"✓ Propagation delay test passed ({self.FLOP_COUNT} cycles)")
+            self.log.info(f"Propagation delay test passed ({self.FLOP_COUNT} cycles)")
 
         return all_passed
 
@@ -157,7 +157,7 @@ class GlitchFreeNDffArnTB(TBBase):
             self.log.debug(f"  PASS: Continuous stream handled correctly (output=0x{final_output:X})")
 
         if all_passed:
-            self.log.info("✓ Continuous data test passed")
+            self.log.info("Continuous data test passed")
 
         return all_passed
 
@@ -197,7 +197,7 @@ class GlitchFreeNDffArnTB(TBBase):
         await self.wait_clocks('clk', 2)
 
         if all_passed:
-            self.log.info("✓ Reset behavior test passed")
+            self.log.info("Reset behavior test passed")
 
         return all_passed
 
@@ -225,7 +225,7 @@ class GlitchFreeNDffArnTB(TBBase):
                 all_passed = False
 
         if all_passed:
-            self.log.info(f"✓ All {2**self.WIDTH} patterns passed")
+            self.log.info(f"All {2**self.WIDTH} patterns passed")
 
         return all_passed
 
@@ -251,7 +251,7 @@ class GlitchFreeNDffArnTB(TBBase):
 
         if all_passed:
             self.log.debug(f"  PASS: Output stable at 0x{test_val:X}")
-            self.log.info("✓ Data stability test passed")
+            self.log.info("Data stability test passed")
 
         return all_passed
 
@@ -283,7 +283,7 @@ class GlitchFreeNDffArnTB(TBBase):
         self.log.info("=" * 60)
         self.log.info("Test Summary:")
         for name, passed in results:
-            status = "✓ PASSED" if passed else "✗ FAILED"
+            status = "PASSED" if passed else "FAILED"
             self.log.info(f"  {name}: {status}")
         self.log.info("=" * 60)
 

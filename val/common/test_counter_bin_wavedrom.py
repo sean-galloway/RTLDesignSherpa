@@ -135,7 +135,7 @@ async def counter_bin_wavedrom_test(dut):
 
                         if os.path.exists(src_file):
                             shutil.move(src_file, dest_file)
-                            tb.log.info(f"✓ Generated waveform: {dest_file}")
+                            tb.log.info(f"Generated waveform: {dest_file}")
 
                             # Trim dead time from waveform
                             trim_script = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -145,7 +145,7 @@ async def counter_bin_wavedrom_test(dut):
                                     'python3', trim_script, dest_file, '-b', '2', '-a', '2'
                                 ], capture_output=True, text=True)
                                 if result.returncode == 0:
-                                    tb.log.info(f"✓ Trimmed waveform: {output_filename}")
+                                    tb.log.info(f"Trimmed waveform: {output_filename}")
                                 else:
                                     tb.log.warning(f"Trimming failed: {result.stderr}")
                         else:
@@ -155,7 +155,7 @@ async def counter_bin_wavedrom_test(dut):
                 else:
                     tb.log.warning(f"No solution generated for scenario: {output_filename}")
 
-        tb.log.info("🎉 COUNTER BIN WAVEDROM GENERATION COMPLETE! 🎉")
+        tb.log.info("COUNTER BIN WAVEDROM GENERATION COMPLETE!")
 
     finally:
         if tb.wave_solver:
@@ -272,9 +272,9 @@ def test_counter_bin_wavedrom(request, width, max_val):
 
             waves=enable_waves,
         )
-        print(f"✓ Counter Bin WaveDrom generation PASSED")
+        print(f"Counter Bin WaveDrom generation PASSED")
     except Exception as e:
-        print(f"✗ Counter Bin WaveDrom generation FAILED: {str(e)}")
+        print(f"Counter Bin WaveDrom generation FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         raise

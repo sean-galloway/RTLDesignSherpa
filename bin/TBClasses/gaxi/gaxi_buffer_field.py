@@ -219,26 +219,26 @@ class GaxiFieldBufferTB(TBBase):
             log=self.log
         )
 
-        self.log.info(f"🔍 DEBUG: About to create GAXIBufferSequence (mode={self.TEST_MODE})")
-        self.log.info(f"🔍 DEBUG: field_config type: {type(self.field_config)}")
-        self.log.info(f"🔍 DEBUG: field_config: {self.field_config}")
+        self.log.info(f"DEBUG: About to create GAXIBufferSequence (mode={self.TEST_MODE})")
+        self.log.info(f"DEBUG: field_config type: {type(self.field_config)}")
+        self.log.info(f"DEBUG: field_config: {self.field_config}")
 
         try:
-            self.log.info(f"🔍 DEBUG: Calling GAXIBufferSequence.__init__...")
+            self.log.info(f"DEBUG: Calling GAXIBufferSequence.__init__...")
             self.sequence_gen = GAXIBufferSequence(
                 name="field_buffer_test",
                 field_config=self.field_config,
                 packet_class=GAXIPacket,
             )
-            self.log.info(f"🔍 DEBUG: ✅ GAXIBufferSequence created successfully!")
+            self.log.info(f"DEBUG: GAXIBufferSequence created successfully!")
             
         except Exception as e:
-            self.log.error(f"🚨 ERROR: GAXIBufferSequence creation failed: {e}")
+            self.log.error(f"ERROR: GAXIBufferSequence creation failed: {e}")
             import traceback
-            self.log.error(f"🚨 ERROR: Traceback:\n{traceback.format_exc()}")
+            self.log.error(f"ERROR: Traceback:\n{traceback.format_exc()}")
             raise
 
-        self.log.info(f"🔍 DEBUG: About to setup statistics...")
+        self.log.info(f"DEBUG: About to setup statistics...")
 
         # Statistics tracking - enhanced with field-specific and new infrastructure patterns
         self.stats = {
@@ -372,26 +372,26 @@ class GaxiFieldBufferTB(TBBase):
 
     def set_randomizer_profile(self, profile_name):
         """Set randomizer profile for write and read components"""
-        self.log.info(f"🔍 STEP 1: Starting set_randomizer_profile('{profile_name}') for mode={self.TEST_MODE}")
+        self.log.info(f"STEP 1: Starting set_randomizer_profile('{profile_name}') for mode={self.TEST_MODE}")
 
-        self.log.info(f"🔍 STEP 2: Getting write randomizer...")
+        self.log.info(f"STEP 2: Getting write randomizer...")
         write_randomizer = self.get_randomizer(profile_name, 'write')
-        self.log.info(f"🔍 STEP 2: Got write randomizer: {type(write_randomizer)}")
+        self.log.info(f"STEP 2: Got write randomizer: {type(write_randomizer)}")
 
-        self.log.info(f"🔍 STEP 3: Getting read randomizer...")
+        self.log.info(f"STEP 3: Getting read randomizer...")
         read_randomizer = self.get_randomizer(profile_name, 'read')
-        self.log.info(f"🔍 STEP 3: Got read randomizer: {type(read_randomizer)}")
+        self.log.info(f"STEP 3: Got read randomizer: {type(read_randomizer)}")
 
         # Apply randomizers to components
-        self.log.info(f"🔍 STEP 4: About to call write_master.set_randomizer() (mode={self.TEST_MODE})")
+        self.log.info(f"STEP 4: About to call write_master.set_randomizer() (mode={self.TEST_MODE})")
         self.write_master.set_randomizer(write_randomizer)
-        self.log.info(f"🔍 STEP 4: ✅ write_master.set_randomizer() completed successfully")
+        self.log.info(f"STEP 4: write_master.set_randomizer() completed successfully")
 
-        self.log.info(f"🔍 STEP 5: About to call read_slave.set_randomizer() (mode={self.TEST_MODE})")
+        self.log.info(f"STEP 5: About to call read_slave.set_randomizer() (mode={self.TEST_MODE})")
         self.read_slave.set_randomizer(read_randomizer)
-        self.log.info(f"🔍 STEP 5: ✅ read_slave.set_randomizer() completed successfully")
+        self.log.info(f"STEP 5: read_slave.set_randomizer() completed successfully")
 
-        self.log.info(f"🔍 STEP 6: All randomizer setup completed successfully for mode={self.TEST_MODE}")
+        self.log.info(f"STEP 6: All randomizer setup completed successfully for mode={self.TEST_MODE}")
         self.log.info(f"Set randomizers to profile '{profile_name}' for write/read domains")
 
         def get_randomizer_config_names(self):
@@ -542,9 +542,9 @@ class GaxiFieldBufferTB(TBBase):
         result = self.verify_transactions()
 
         if result:
-            self.log.info(f"✓ Simple incremental loops completed successfully")
+            self.log.info(f"Simple incremental loops completed successfully")
         else:
-            self.log.error(f"✗ Simple incremental loops failed verification")
+            self.log.error(f"Simple incremental loops failed verification")
 
         return result
 
@@ -653,10 +653,10 @@ class GaxiFieldBufferTB(TBBase):
         self.total_errors += errors  # Update compatibility attribute
 
         if errors == 0:
-            self.log.info(f"✓ Verification passed: {len(sent_packets)} packets verified")
+            self.log.info(f"Verification passed: {len(sent_packets)} packets verified")
             return True
         else:
-            self.log.error(f"✗ Verification failed: {errors} field mismatches")
+            self.log.error(f"Verification failed: {errors} field mismatches")
             return False
 
     def _compare_packets_detailed(self, sent, received, packet_index):

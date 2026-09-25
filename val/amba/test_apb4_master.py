@@ -978,11 +978,11 @@ async def apb4_master_wavedrom_test(dut):
 
     # Check if all required waveforms were generated
     if not results['all_required_satisfied']:
-        dut._log.error(f"❌ NOT ALL REQUIRED WAVEFORMS GENERATED ❌")
+        dut._log.error(f"NOT ALL REQUIRED WAVEFORMS GENERATED")
         dut._log.error(f"Failed constraints: {results['failed_constraints']}")
         raise AssertionError(f"Required waveforms not generated: {results['failed_constraints']}")
 
-    dut._log.info(f"✓ APB Master WaveDrom Complete: {len(results['solutions'])} scenarios generated")
+    dut._log.info(f"APB Master WaveDrom Complete: {len(results['solutions'])} scenarios generated")
 
     # Set done flag
     tb.done = True

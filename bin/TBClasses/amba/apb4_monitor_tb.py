@@ -276,8 +276,8 @@ class SimpleAPBMonitorTB(TBBase):
 
             # Analyze results
             packet_count = len(self.packets_collected)
-            self.log.info(f"✅ Comprehensive test completed!")
-            self.log.info(f"✅ Collected {packet_count} monitor packets")
+            self.log.info(f"Comprehensive test completed!")
+            self.log.info(f"Collected {packet_count} monitor packets")
 
             # Categorize packets by type
             completion_packets = []
@@ -328,7 +328,7 @@ class SimpleAPBMonitorTB(TBBase):
                 return True  # Don't fail completely - RTL might need tuning
 
         except Exception as e:
-            self.log.error(f"❌ Comprehensive test failed: {e}")
+            self.log.error(f"Comprehensive test failed: {e}")
             return False
 
     async def run_timeout_test(self) -> bool:
@@ -467,5 +467,5 @@ class SimpleAPBMonitorTB(TBBase):
             return True
 
         except Exception as e:
-            self.log.error(f"❌ Timeout test failed: {e}")
+            self.log.error(f"Timeout test failed: {e}")
             return False

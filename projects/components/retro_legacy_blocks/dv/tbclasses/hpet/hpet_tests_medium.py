@@ -188,7 +188,7 @@ class HPETMediumTests:
             await self.tb.write_register(config_addr, 0x00000000)
 
             await self.tb.wait_apb_idle()
-            self.log.info(f"✓ Timer {timer_id} periodic test passed{self.tb.get_time_ns_str()}")
+            self.log.info(f"Timer {timer_id} periodic test passed{self.tb.get_time_ns_str()}")
             return True
 
         except Exception as e:
@@ -245,7 +245,7 @@ class HPETMediumTests:
             await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_HI, 0x00000000)
 
             await self.tb.wait_apb_idle()
-            self.log.info("✓ 64-bit counter test passed")
+            self.log.info("64-bit counter test passed")
             return True
 
         except Exception as e:
@@ -308,7 +308,7 @@ class HPETMediumTests:
             self.log.info(f"64-bit comparator set to {comp_hi_val:08X}:{comp_lo_val:08X}")
 
             await self.tb.wait_apb_idle()
-            self.log.info(f"✓ Timer {timer_id} 64-bit comparator test passed")
+            self.log.info(f"Timer {timer_id} 64-bit comparator test passed")
             return True
 
         except Exception as e:
@@ -404,7 +404,7 @@ class HPETMediumTests:
                 await self.tb.write_register(config_addr, 0x00000000)
 
             await self.tb.wait_apb_idle()
-            self.log.info(f"✓ Multiple timers test passed ({fired_count} timers)")
+            self.log.info(f"Multiple timers test passed ({fired_count} timers)")
             return True
 
         except Exception as e:
@@ -501,7 +501,7 @@ class HPETMediumTests:
             await self.tb.write_register(config_addr, 0x00000000)
 
             await self.tb.wait_apb_idle()
-            self.log.info(f"✓ Timer {timer_id} mode switching test passed")
+            self.log.info(f"Timer {timer_id} mode switching test passed")
             return True
 
         except Exception as e:

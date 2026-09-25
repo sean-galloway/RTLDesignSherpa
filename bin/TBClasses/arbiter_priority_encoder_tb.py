@@ -133,7 +133,7 @@ class ArbiterPriorityEncoderTB(TBBase):
                 self.log.debug(f"  PASS: {desc}")
 
         if all_passed:
-            self.log.info("✓ Priority order test passed")
+            self.log.info("Priority order test passed")
 
         return all_passed
 
@@ -170,7 +170,7 @@ class ArbiterPriorityEncoderTB(TBBase):
             self.log.debug(f"  PASS: Unmasked requests used (winner=0)")
 
         if all_passed:
-            self.log.info("✓ Masked vs unmasked test passed")
+            self.log.info("Masked vs unmasked test passed")
 
         return all_passed
 
@@ -187,7 +187,7 @@ class ArbiterPriorityEncoderTB(TBBase):
             return False
 
         self.log.debug(f"  PASS: No requests - winner_valid = 0")
-        self.log.info("✓ No requests test passed")
+        self.log.info("No requests test passed")
         return True
 
     async def test_all_clients(self):
@@ -210,7 +210,7 @@ class ArbiterPriorityEncoderTB(TBBase):
                 self.log.debug(f"  PASS: Client {client} → winner {winner}")
 
         if all_passed:
-            self.log.info(f"✓ All {self.CLIENTS} clients test passed")
+            self.log.info(f"All {self.CLIENTS} clients test passed")
 
         return all_passed
 
@@ -253,7 +253,7 @@ class ArbiterPriorityEncoderTB(TBBase):
                     all_passed = False
 
         if all_passed:
-            self.log.info(f"✓ All {2**self.CLIENTS} combinations passed")
+            self.log.info(f"All {2**self.CLIENTS} combinations passed")
 
         return all_passed
 
@@ -285,7 +285,7 @@ class ArbiterPriorityEncoderTB(TBBase):
         self.log.info("=" * 60)
         self.log.info("Test Summary:")
         for name, passed in results:
-            status = "✓ PASSED" if passed else "✗ FAILED"
+            status = "PASSED" if passed else "FAILED"
             self.log.info(f"  {name}: {status}")
         self.log.info("=" * 60)
 

@@ -431,7 +431,7 @@ class HPETTB(TBBase):
             # Properly initialize the APB master
             await self.apb4_master.reset_bus()
 
-            self.log.info(f"✓ APB Master created and initialized: {type(self.apb4_master)}")
+            self.log.info(f"APB Master created and initialized: {type(self.apb4_master)}")
 
         except Exception as e:
             self.log.error(f"Failed to create APB Master: {e}")
@@ -444,7 +444,7 @@ class HPETTB(TBBase):
                 addr_width=12, data_width=32,  # Fixed 12-bit addr, 32-bit data
                 log=self.log
             )
-            self.log.info(f"✓ APB Monitor created: {type(self.apb4_monitor)}")
+            self.log.info(f"APB Monitor created: {type(self.apb4_monitor)}")
 
         except Exception as e:
             self.log.error(f"Failed to create APB Monitor: {e}")

@@ -184,7 +184,7 @@ async def axi4_master_rd_mon_fault_classes_test(dut):
     else:
         raise ValueError(f"unknown TEST_CASE {case!r}")
 
-    tb.log.info(f"✓ fault-class case '{case}' PASS")
+    tb.log.info(f"fault-class case '{case}' PASS")
 
 
 # ----------------------------------------------------------------------------

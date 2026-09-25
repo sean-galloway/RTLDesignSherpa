@@ -391,10 +391,10 @@ Examples:
 
         if modified:
             stats['modified'] += 1
-            print(f"✓ {rel_path}: {message}")
+            print(f"{rel_path}: {message}")
         elif 'Error' in message:
             stats['errors'] += 1
-            print(f"✗ {rel_path}: {message}")
+            print(f"{rel_path}: {message}")
         else:
             stats['skipped'] += 1
             if args.verbose:

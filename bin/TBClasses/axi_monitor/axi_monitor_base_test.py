@@ -206,7 +206,7 @@ class AXIMonitorBaseTest(AXIMonitorTB, ABC):
 
     async def execute_transaction_pattern(self, pattern: TransactionPattern) -> bool:
         """Execute a predefined transaction pattern"""
-        self.log.info(f"🔄 Executing pattern: {pattern.name}")
+        self.log.info(f"Executing pattern: {pattern.name}")
         
         issued_transactions = []
         pattern_start_time = get_sim_time('ns')
@@ -243,13 +243,13 @@ class AXIMonitorBaseTest(AXIMonitorTB, ABC):
         completion_success = await self.wait_for_all_transactions_complete()
         
         pattern_duration = get_sim_time('ns') - pattern_start_time
-        self.log.info(f"✅ Pattern {pattern.name} completed in {pattern_duration:.1f}ns")
+        self.log.info(f"Pattern {pattern.name} completed in {pattern_duration:.1f}ns")
         
         return completion_success
 
     async def execute_error_scenario(self, scenario: ErrorScenario) -> bool:
         """Execute an error injection scenario"""
-        self.log.info(f"💥 Executing error scenario: {scenario.name}")
+        self.log.info(f"Executing error scenario: {scenario.name}")
         
         scenario_start_time = get_sim_time('ns')
         
@@ -308,7 +308,7 @@ class AXIMonitorBaseTest(AXIMonitorTB, ABC):
                         break
                 
                 if not interrupt_found:
-                    self.log.error(f"❌ Expected interrupt {expected_packet_type} not found")
+                    self.log.error(f"Expected interrupt {expected_packet_type} not found")
                     scenario_passed = False
                     
             elif response_type == 'error_detection':
@@ -316,18 +316,18 @@ class AXIMonitorBaseTest(AXIMonitorTB, ABC):
                 actual_errors = len(self.scoreboard.verification_errors)
                 
                 if actual_errors < expected_error_count:
-                    self.log.error(f"❌ Expected {expected_error_count} errors, got {actual_errors}")
+                    self.log.error(f"Expected {expected_error_count} errors, got {actual_errors}")
                     scenario_passed = False
         
         scenario_duration = get_sim_time('ns') - scenario_start_time
-        status = "✅ PASSED" if scenario_passed else "❌ FAILED"
+        status = "PASSED" if scenario_passed else "FAILED"
         self.log.info(f"{status} Error scenario {scenario.name} in {scenario_duration:.1f}ns")
         
         return scenario_passed
 
     async def execute_performance_test(self, perf_test: PerformanceTest) -> bool:
         """Execute a performance test"""
-        self.log.info(f"📊 Executing performance test: {perf_test.name}")
+        self.log.info(f"Executing performance test: {perf_test.name}")
         
         test_start_time = get_sim_time('ns')
         initial_stats = dict(self.test_stats)
@@ -397,13 +397,13 @@ class AXIMonitorBaseTest(AXIMonitorTB, ABC):
                 comparison = criteria['comparison']
                 
                 if comparison == 'max' and actual_value > threshold:
-                    self.log.error(f"❌ {metric} {actual_value} exceeds threshold {threshold}")
+                    self.log.error(f"{metric} {actual_value} exceeds threshold {threshold}")
                     test_passed = False
                 elif comparison == 'min' and actual_value < threshold:
-                    self.log.error(f"❌ {metric} {actual_value} below threshold {threshold}")
+                    self.log.error(f"{metric} {actual_value} below threshold {threshold}")
                     test_passed = False
         
-        status = "✅ PASSED" if test_passed else "❌ FAILED"
+        status = "PASSED" if test_passed else "FAILED"
         self.log.info(f"{status} Performance test {perf_test.name}")
         self.log.info(f"  Throughput: {metrics['throughput_tps']:.1f} TPS")
         self.log.info(f"  Avg Latency: {metrics['avg_latency_ns']:.1f} ns")
@@ -531,7 +531,7 @@ class AXIMonitorBaseTest(AXIMonitorTB, ABC):
 
     def print_test_specific_report(self):
         """Print test-specific report"""
-        self.log.info(f"\n📋 {self.test_name} Specific Results:")
+        self.log.info(f"\n{self.test_name} Specific Results:")
         
         if self.performance_metrics:
             self.log.info("Performance Metrics:")
@@ -543,7 +543,7 @@ class AXIMonitorBaseTest(AXIMonitorTB, ABC):
         if self.error_detection_results:
             self.log.info("Error Detection Results:")
             for error_type, detected in self.error_detection_results.items():
-                status = "✅" if detected else "❌"
+                status = "" if detected else ""
                 self.log.info(f"  {status} {error_type}")
 
     async def run_base_test_flow(self) -> bool:
@@ -570,13 +570,13 @@ class AXIMonitorBaseTest(AXIMonitorTB, ABC):
             
             overall_passed = test_passed and monitor_verification
             
-            status = "✅ PASSED" if overall_passed else "❌ FAILED"
+            status = "PASSED" if overall_passed else "FAILED"
             self.log.info(f"{status} {self.test_name}")
             
             return overall_passed
             
         except Exception as e:
-            self.log.error(f"❌ {self.test_name} failed with exception: {e}")
+            self.log.error(f"{self.test_name} failed with exception: {e}")
             import traceback
             self.log.error(f"Traceback: {traceback.format_exc()}")
             return False
@@ -618,7 +618,7 @@ class ExampleBasicTest(AXIMonitorBaseTest):
 
     async def run_test(self) -> bool:
         """Main test implementation"""
-        self.log.info(f"🧪 Running {self.test_name}")
+        self.log.info(f"Running {self.test_name}")
         
         # Run transaction patterns
         patterns_passed = await self.run_all_patterns()
@@ -644,4 +644,4 @@ async def test_example_basic(dut):
     if not result:
         raise cocotb.result.TestFailure("Example basic test failed")
     else:
-        test.log.info("🎉 Example basic test passed!")
+        test.log.info("Example basic test passed!")

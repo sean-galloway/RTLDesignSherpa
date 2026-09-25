@@ -273,7 +273,7 @@ async def gaxi_drop_fifo_wavedrom_cocotb(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 1 captured: fill FIFO")
+    dut._log.info("Scenario 1 captured: fill FIFO")
 
     # ===================================================================
     # Scenario 2: Drop by Count
@@ -299,7 +299,7 @@ async def gaxi_drop_fifo_wavedrom_cocotb(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 2 captured: drop by count")
+    dut._log.info("Scenario 2 captured: drop by count")
 
     # ===================================================================
     # Scenario 3: Drop All
@@ -324,7 +324,7 @@ async def gaxi_drop_fifo_wavedrom_cocotb(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 3 captured: drop all")
+    dut._log.info("Scenario 3 captured: drop all")
 
     # ===================================================================
     # Scenario 4: Write with Fill + Read + Drop (comprehensive)
@@ -365,9 +365,9 @@ async def gaxi_drop_fifo_wavedrom_cocotb(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 4 captured: comprehensive")
+    dut._log.info("Scenario 4 captured: comprehensive")
 
-    dut._log.info("✅ WaveDrom generation complete - check docs/markdown/assets/WAVES/staged/")
+    dut._log.info("WaveDrom generation complete - check docs/markdown/assets/WAVES/staged/")
 
 
 async def run_basic_test(dut):
@@ -394,7 +394,7 @@ async def run_basic_test(dut):
     assert dut.rd_data.value == 0xAA
     dut.rd_ready.value = 0
 
-    dut._log.info("✓ Basic test passed")
+    dut._log.info("Basic test passed")
 
 
 def _wavedrom_grid(gate, func, full):
@@ -501,9 +501,9 @@ def test_gaxi_drop_fifo_wavedrom(data_width, depth):
             keep_files=True,
             compile_args=compile_args,
         )
-        print(f"✓ WaveDrom test PASSED")
+        print(f"WaveDrom test PASSED")
     except Exception as e:
-        print(f"✗ WaveDrom test FAILED: {str(e)}")
+        print(f"WaveDrom test FAILED: {str(e)}")
         print(f"View waveform: gtkwave {sim_build}/dump.fst")
         raise
 

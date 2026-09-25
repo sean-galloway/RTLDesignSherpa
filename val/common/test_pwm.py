@@ -204,9 +204,9 @@ def test_pwm(request, width, channels, test_level):
 
             waves=enable_waves,
         )
-        print(f"✓ {test_level.upper()} test PASSED: width={width}, channels={channels}")
+        print(f"{test_level.upper()} test PASSED: width={width}, channels={channels}")
     except Exception as e:
-        print(f"✗ {test_level.upper()} test FAILED: {str(e)}")
+        print(f"{test_level.upper()} test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

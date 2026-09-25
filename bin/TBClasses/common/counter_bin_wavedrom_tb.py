@@ -182,7 +182,7 @@ class CounterBinWaveDromTB(TBBase):
             enable_constraint.skip_boundary_detection = True
             self.wave_solver.add_constraint(enable_constraint)
 
-            self.log.info("✓ WaveDrom setup complete for Counter Bin")
+            self.log.info("WaveDrom setup complete for Counter Bin")
 
         except Exception as e:
             self.log.error(f"Failed to setup WaveDrom: {e}")
@@ -211,7 +211,7 @@ class CounterBinWaveDromTB(TBBase):
         self.enable.value = 0
         await self.wait_clocks('clk', 3)
 
-        self.log.info("✓ Scenario 1 complete")
+        self.log.info("Scenario 1 complete")
 
     async def scenario_msb_wraparound(self):
         """
@@ -236,7 +236,7 @@ class CounterBinWaveDromTB(TBBase):
         self.enable.value = 0
         await self.wait_clocks('clk', 3)
 
-        self.log.info("✓ Scenario 2 complete")
+        self.log.info("Scenario 2 complete")
 
     async def scenario_enable_control(self):
         """
@@ -263,7 +263,7 @@ class CounterBinWaveDromTB(TBBase):
         self.enable.value = 0
         await self.wait_clocks('clk', 3)
 
-        self.log.info("✓ Scenario 3 complete")
+        self.log.info("Scenario 3 complete")
 
     async def scenario_full_cycle(self):
         """
@@ -287,4 +287,4 @@ class CounterBinWaveDromTB(TBBase):
         self.enable.value = 0
         await self.wait_clocks('clk', 3)
 
-        self.log.info("✓ Scenario 4 complete")
+        self.log.info("Scenario 4 complete")

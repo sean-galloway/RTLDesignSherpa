@@ -69,7 +69,7 @@ class APBTimeoutTest(APBMonitorCoreTB):
 
     async def run_timeout_test(self) -> bool:
         """Run the timeout event test"""
-        self.log.info("🧪 Testing APB Timeout Events")
+        self.log.info("Testing APB Timeout Events")
 
         # Setup with timeout-focused configuration
         monitor_config = self.get_test_configuration()
@@ -81,13 +81,13 @@ class APBTimeoutTest(APBMonitorCoreTB):
 
         # FIXED: Use MonbusPktType and integer packet types
         expected_cmd_timeout = APBMonitorEvent(
-            packet_type=MonbusPktType.TIMEOUT.value,  # ✅ Integer-based packet type
+            packet_type=MonbusPktType.TIMEOUT.value,  # Integer-based packet type
             event_code=APBTimeoutCode.SETUP.value,  # Command/setup timeout
             tolerance_ns=2000.0
         )
 
         expected_rsp_timeout = APBMonitorEvent(
-            packet_type=MonbusPktType.TIMEOUT.value,  # ✅ Integer-based packet type
+            packet_type=MonbusPktType.TIMEOUT.value,  # Integer-based packet type
             event_code=APBTimeoutCode.ACCESS.value,  # Response/access timeout
             tolerance_ns=2000.0
         )
@@ -139,7 +139,7 @@ class APBTimeoutTest(APBMonitorCoreTB):
 
             if timeout_code in [APBTimeoutCode.SETUP.value, APBTimeoutCode.ACCESS.value, APBTimeoutCode.ENABLE.value]:
                 timeout_name = APBTimeoutCode(timeout_code).name if timeout_code in [e.value for e in APBTimeoutCode] else f"CODE_{timeout_code:X}"
-                self.log.info(f"✅ Timeout event detected successfully: {timeout_name}")
+                self.log.info(f"Timeout event detected successfully: {timeout_name}")
 
                 # Log additional details about the timeout packet
                 self.log.info(f"Timeout packet details:")
@@ -150,7 +150,7 @@ class APBTimeoutTest(APBMonitorCoreTB):
 
                 return True
             else:
-                self.log.warning(f"⚠️ Got timeout event but unknown code: 0x{timeout_code:X}")
+                self.log.warning(f"Got timeout event but unknown code: 0x{timeout_code:X}")
                 return False
         elif total_packets > 0:
             # We got some packets but not timeout - log what we got
@@ -158,11 +158,11 @@ class APBTimeoutTest(APBMonitorCoreTB):
             for i, pkt in enumerate(all_packets):
                 self.log.info(f"  Packet {i}: {pkt.get_packet_type_name()}.{pkt.get_event_code_name()}")
 
-            self.log.warning(f"⚠️ Got {total_packets} monitor packets but no timeout events")
+            self.log.warning(f"Got {total_packets} monitor packets but no timeout events")
             self.log.warning("This might indicate timeout detection is not enabled or thresholds are too high")
             return False
         else:
-            self.log.warning("⚠️ No monitor packets received - timeout detection may not be working")
+            self.log.warning("No monitor packets received - timeout detection may not be working")
             return False
 
     async def verify_timeout_behavior(self) -> bool:
@@ -171,8 +171,8 @@ class APBTimeoutTest(APBMonitorCoreTB):
         timeout_packets = self.monbus_slave.get_timeout_packets()
 
         if len(timeout_packets) > 0:
-            self.log.info("✅ Timeout event verification PASSED")
+            self.log.info("Timeout event verification PASSED")
             return True
         else:
-            self.log.warning("⚠️ No timeout events detected - this may be expected behavior")
+            self.log.warning("No timeout events detected - this may be expected behavior")
             return True  # Don't fail the test if no timeouts occur

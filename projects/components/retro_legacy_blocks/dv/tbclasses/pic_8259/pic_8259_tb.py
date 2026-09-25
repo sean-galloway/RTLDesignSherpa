@@ -185,7 +185,7 @@ class PIC8259TB(TBBase):
 
             # Initialize the APB master (starts transmit coroutine)
             await self.apb4_master.reset_bus()
-            self.log.info(f"✓ APB Master created and initialized: {type(self.apb4_master)}")
+            self.log.info(f"APB Master created and initialized: {type(self.apb4_master)}")
 
         except Exception as e:
             self.log.error(f"Failed to create APB Master: {e}")
@@ -527,9 +527,9 @@ class PIC8259TB(TBBase):
         init_complete = status & 1  # init_complete is bit 0
 
         if init_complete:
-            self.log.info("✓ PIC initialization complete")
+            self.log.info("PIC initialization complete")
         else:
-            self.log.error("✗ PIC initialization failed!")
+            self.log.error("PIC initialization failed!")
 
         # Wait a few more cycles to ensure PIC is fully operational
         await self.wait_clocks('pclk', 10)

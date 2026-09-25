@@ -312,7 +312,7 @@ class APBMonitorCoreTB(TBBase):
             self.scoreboard.record_monitor_packet(packet)
 
             time_str = self.get_time_ns_str()
-            self.log.info(f"📦 Monitor packet{time_str}: {packet.get_packet_type_name()}.{packet.get_event_code_name()}")
+            self.log.info(f"Monitor packet{time_str}: {packet.get_packet_type_name()}.{packet.get_event_code_name()}")
 
         # Add callback to MonbusSlave
         self.monbus_slave.add_packet_callback(monbus_packet_callback)
@@ -376,7 +376,7 @@ class APBMonitorCoreTB(TBBase):
 
         self.test_stats['cmd_packets_sent'] += 1
 
-        self.log.debug(f"📤 CMD sent: ID={txn_id:02X} {format_packet_summary(cmd_packet)}")
+        self.log.debug(f"CMD sent: ID={txn_id:02X} {format_packet_summary(cmd_packet)}")
         return txn_id
 
     async def send_apb_response(self, rsp_packet: APBResponsePacket, transaction_id: Optional[int] = None):
@@ -394,8 +394,8 @@ class APBMonitorCoreTB(TBBase):
 
         self.test_stats['rsp_packets_sent'] += 1
 
-        status = "✅" if matched else "❌"
-        self.log.debug(f"📤 RSP sent {status}: {format_packet_summary(rsp_packet)}")
+        status = "" if matched else ""
+        self.log.debug(f"RSP sent {status}: {format_packet_summary(rsp_packet)}")
 
     async def send_write_transaction(self, addr: int, data: int, strb: int = None,
                                    expect_error: bool = False, response_delay: int = 5) -> int:

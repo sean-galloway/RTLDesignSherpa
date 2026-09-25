@@ -71,9 +71,9 @@ async def comprehensive_apb_gaxi_test(dut):
         result = await tb.run_refactor_debug_test()
 
         if result:
-            tb.log.info("🎉 APB-GAXI DEBUG TEST PASSED! 🎉")
+            tb.log.info("APB-GAXI DEBUG TEST PASSED!")
         else:
-            tb.log.error("❌ APB-GAXI DEBUG TEST FAILED ❌")
+            tb.log.error("APB-GAXI DEBUG TEST FAILED")
             tb.log.error("Check the detailed analysis above to identify refactor issues")
             assert False, "APB-GAXI debug test failed"
 
@@ -84,9 +84,9 @@ async def comprehensive_apb_gaxi_test(dut):
         final_result = await tb.verify_scoreboard(timeout=5000)
 
         if final_result and tb.test_stats['failed_tests'] == 0:
-            tb.log.info("🎉 COMPREHENSIVE TEST SUITE PASSED! 🎉")
+            tb.log.info("COMPREHENSIVE TEST SUITE PASSED!")
         else:
-            tb.log.error("❌ COMPREHENSIVE TEST SUITE FAILED ❌")
+            tb.log.error("COMPREHENSIVE TEST SUITE FAILED")
             assert False, f"Test suite failed: {tb.test_stats['failed_tests']} failed tests"
 
     finally:
@@ -189,12 +189,12 @@ def test_apb_gaxi_refactor_debug(request, addr_width, data_width, depth):
             plus_args=plus_args,
         )
 
-        print(f"✓ APB-GAXI refactor debug test completed!")
+        print(f"APB-GAXI refactor debug test completed!")
         print(f"Logs: {log_path}")
         print(f"Waveforms: {cmd_filename}")
 
     except Exception as e:
-        print(f"❌ APB-GAXI refactor debug test failed: {str(e)}")
+        print(f"APB-GAXI refactor debug test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         print(f"Check the log file for detailed refactor issue analysis.")

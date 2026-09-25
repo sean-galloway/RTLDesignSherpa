@@ -187,7 +187,7 @@ class AxiWriteSplitterScoreboard:
 
             if self.log:
                 time_str = self.get_time_str()
-                self.log.debug(f"📍 M_AXI_AW{time_str}: ID={aw_packet.id:02X} "
+                self.log.debug(f"M_AXI_AW{time_str}: ID={aw_packet.id:02X} "
                             f"ADDR=0x{aw_packet.addr:08X} LEN={aw_packet.len}")
 
         # FIXED: Enhanced write data packet handling
@@ -217,7 +217,7 @@ class AxiWriteSplitterScoreboard:
 
                     if self.log:
                         time_str = self.get_time_str()
-                        self.log.debug(f"✅ W_DATA_ASSOCIATED{time_str}: "
+                        self.log.debug(f"W_DATA_ASSOCIATED{time_str}: "
                                     f"ID={txn_id:02X} beat={current_data_count+1}/{expected_data_count} "
                                     f"LAST={w_packet.last}")
                     break
@@ -236,7 +236,7 @@ class AxiWriteSplitterScoreboard:
 
                         if self.log:
                             time_str = self.get_time_str()
-                            self.log.debug(f"🔄 W_DATA_FALLBACK{time_str}: "
+                            self.log.debug(f"W_DATA_FALLBACK{time_str}: "
                                         f"ID={txn_id:02X} beat={current_data_count+1}/{expected_data_count} "
                                         f"state={split_txn.state.value} LAST={w_packet.last}")
                         break
@@ -245,7 +245,7 @@ class AxiWriteSplitterScoreboard:
             if not data_associated:
                 if self.log:
                     time_str = self.get_time_str()
-                    self.log.warning(f"⚠️ ORPHANED_WRITE_DATA{time_str}: "
+                    self.log.warning(f"ORPHANED_WRITE_DATA{time_str}: "
                                     f"DATA=0x{w_packet.data:016X} LAST={w_packet.last}")
                     self.log.warning(f"   Active transactions: {list(self.active_split_transactions.keys())}")
                     for txn_id, split_txn in self.active_split_transactions.items():
@@ -271,7 +271,7 @@ class AxiWriteSplitterScoreboard:
 
             if self.log:
                 time_str = self.get_time_str()
-                self.log.debug(f"📥 B_RESPONSE{time_str}: ID={b_packet.id:02X} "
+                self.log.debug(f"B_RESPONSE{time_str}: ID={b_packet.id:02X} "
                             f"RESP={b_packet.get_response_name()}")
 
     def record_split_info(self, packet) -> None:
@@ -437,7 +437,7 @@ class AxiWriteSplitterScoreboard:
         # Extra logging for wide data buses
         if self.data_width >= 512 and self.log:
             time_str = self.get_time_str()
-            self.log.debug(f"🔍 DW={self.data_width} Write Split calculation{time_str}:")
+            self.log.debug(f"DW={self.data_width} Write Split calculation{time_str}:")
             self.log.debug(f"  Start: 0x{start_addr:08X} -> boundary {start_boundary}")
             self.log.debug(f"  End: 0x{end_addr:08X} -> boundary {end_boundary}")
             self.log.debug(f"  Bytes per beat: {bytes_per_beat}")
@@ -458,7 +458,7 @@ class AxiWriteSplitterScoreboard:
         """Debug the response consolidation flow"""
         time_str = self.get_time_str()
 
-        self.log.info(f"🔍 RESPONSE_FLOW_DEBUG{time_str}: ID={txn_id:02X}")
+        self.log.info(f"RESPONSE_FLOW_DEBUG{time_str}: ID={txn_id:02X}")
 
         upstream_responses = self.response_tracking.get(txn_id, [])
         downstream_responses = self.downstream_response_tracking.get(txn_id, [])
@@ -524,7 +524,7 @@ class AxiWriteSplitterScoreboard:
 
         if self.log:
             time_str = self.get_time_str()
-            self.log.debug(f"🔍 VERIFY_SPLIT{time_str}: ID={txn_id:02X} should_split={should_split} expected={expected_splits}")
+            self.log.debug(f"VERIFY_SPLIT{time_str}: ID={txn_id:02X} should_split={should_split} expected={expected_splits}")
 
         # Verify address splitting
         if should_split:
@@ -583,7 +583,7 @@ class AxiWriteSplitterScoreboard:
         else:
             if self.log:
                 time_str = self.get_time_str()
-                self.log.debug(f"✅ DATA_COUNT_OK{time_str}: ID={txn_id:02X} {len(write_data)}/{expected_data_beats} beats")
+                self.log.debug(f"DATA_COUNT_OK{time_str}: ID={txn_id:02X} {len(write_data)}/{expected_data_beats} beats")
 
         # Verify WLAST generation for splits
         if should_split and write_data:
@@ -607,21 +607,21 @@ class AxiWriteSplitterScoreboard:
         else:
             if self.log:
                 time_str = self.get_time_str()
-                self.log.debug(f"✅ RESPONSE_COUNT_OK{time_str}: ID={txn_id:02X} upstream={len(upstream_responses)}")
+                self.log.debug(f"RESPONSE_COUNT_OK{time_str}: ID={txn_id:02X} upstream={len(upstream_responses)}")
 
         # Verify response consolidation logic (if we have downstream response tracking)
         if hasattr(self, 'downstream_response_tracking') and downstream_responses:
             if should_split:
                 # For split transactions, verify consolidation worked
                 if len(downstream_responses) != expected_downstream_responses:
-                    self.log.warning(f"⚠️ Downstream response count: expected {expected_downstream_responses}, got {len(downstream_responses)}")
+                    self.log.warning(f"Downstream response count: expected {expected_downstream_responses}, got {len(downstream_responses)}")
                     # This might be OK depending on testbench implementation
 
                 if len(upstream_responses) == 1 and len(downstream_responses) > 1:
                     # Response consolidation working correctly
                     if self.log:
                         time_str = self.get_time_str()
-                        self.log.info(f"✅ RESPONSE_CONSOLIDATION_OK{time_str}: ID={txn_id:02X} "
+                        self.log.info(f"RESPONSE_CONSOLIDATION_OK{time_str}: ID={txn_id:02X} "
                                     f"{len(downstream_responses)} downstream → {len(upstream_responses)} upstream")
 
                     # Verify consolidated response status (should be worst of all downstream responses)
@@ -638,7 +638,7 @@ class AxiWriteSplitterScoreboard:
             else:
                 # For non-split transactions, should be simple pass-through
                 if len(downstream_responses) != 1 or len(upstream_responses) != 1:
-                    self.log.warning(f"⚠️ Non-split transaction response counts: "
+                    self.log.warning(f"Non-split transaction response counts: "
                                 f"downstream={len(downstream_responses)}, upstream={len(upstream_responses)}")
 
         # ==========================================================================
@@ -672,13 +672,13 @@ class AxiWriteSplitterScoreboard:
                 time_str = self.get_time_str()
                 duration = end_time - start_time if (start_time > 0 and end_time > 0) else 0.0
 
-                self.log.info(f"✅ VERIFICATION_PASSED{time_str}: ID={txn_id:02X}")
+                self.log.info(f"VERIFICATION_PASSED{time_str}: ID={txn_id:02X}")
                 self.log.info(f"   Address Splits: {len(split_aws)}/{expected_splits}")
                 self.log.info(f"   Data Beats: {len(write_data)}/{expected_data_beats}")
                 self.log.info(f"   Upstream Responses: {len(upstream_responses)}/{expected_upstream_responses}")
                 if downstream_responses:
                     self.log.info(f"   Downstream Responses: {len(downstream_responses)}")
-                    self.log.info(f"   Consolidation: {len(downstream_responses)} → {len(upstream_responses)} ✅")
+                    self.log.info(f"   Consolidation: {len(downstream_responses)} → {len(upstream_responses)}")
                 if duration > 0:
                     self.log.info(f"   Duration: {duration:.1f}ns")
 
@@ -721,7 +721,7 @@ class AxiWriteSplitterScoreboard:
 
         if self.log:
             time_str = self.get_time_str()
-            self.log.debug(f"✅ RESPONSE_STATUS_OK{time_str}: ID={txn_id:02X} "
+            self.log.debug(f"RESPONSE_STATUS_OK{time_str}: ID={txn_id:02X} "
                         f"consolidated to {self._resp_status_name(upstream_status)}")
 
         return True
@@ -851,7 +851,7 @@ class AxiWriteSplitterScoreboard:
         else:
             if self.log:
                 time_str = self.get_time_str()
-                self.log.debug(f"✅ WLAST_COUNT_OK{time_str}: ID={txn_id:02X} {actual_wlast_count}/{expected_wlast_count}")
+                self.log.debug(f"WLAST_COUNT_OK{time_str}: ID={txn_id:02X} {actual_wlast_count}/{expected_wlast_count}")
 
         # Verify WLAST positioning - should occur at split boundaries
         if len(split_aws) > 1:
@@ -881,7 +881,7 @@ class AxiWriteSplitterScoreboard:
         if wlast_positions != expected_positions:
             if self.log:
                 time_str = self.get_time_str()
-                self.log.warning(f"⚠️ WLAST_POSITION{time_str}: ID={txn_id:02X} "
+                self.log.warning(f"WLAST_POSITION{time_str}: ID={txn_id:02X} "
                             f"expected positions {expected_positions}, got {wlast_positions}")
             # This might be OK depending on implementation details
 
@@ -909,9 +909,9 @@ class AxiWriteSplitterScoreboard:
         if self.log:
             time_str = self.get_time_str()
             if overall_passed:
-                self.log.info(f"✓ All write split verifications passed{time_str}")
+                self.log.info(f"All write split verifications passed{time_str}")
             else:
-                self.log.error(f"✗ Write split verification failed{time_str}: {len(self.errors)} errors")
+                self.log.error(f"Write split verification failed{time_str}: {len(self.errors)} errors")
                 self.log.error(f"Failed transaction IDs: {[f'0x{tid:02X}' for tid in failed_transactions]}")
 
         return overall_passed
@@ -947,7 +947,7 @@ class AxiWriteSplitterScoreboard:
             for category, count in error_categories.items():
                 report += f"  {category}: {count} errors\n"
         else:
-            report += f"\n✓ No errors detected\n"
+            report += f"\nNo errors detected\n"
 
         return report
 

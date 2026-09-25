@@ -149,7 +149,7 @@ class AXIL4SlaveWriteTB(TBBase):
             self.b_master = self.slave_components['B']     # Drives B responses
             self.axil4_slave = self.slave_components['interface']
 
-            self.log.info("✅ AXIL4 Slave Write components created")
+            self.log.info("AXIL4 Slave Write components created")
         except Exception as e:
             self.log.error(f"Failed to create slave components: {e}")
             raise
@@ -183,7 +183,7 @@ class AXIL4SlaveWriteTB(TBBase):
                 addr_width=self.TEST_ADDR_WIDTH
             )
 
-            self.log.info("✅ AXIL4 Master Write components created")
+            self.log.info("AXIL4 Master Write components created")
         except Exception as e:
             self.log.error(f"Failed to create master components: {e}")
             raise
@@ -461,9 +461,9 @@ class AXIL4SlaveWriteTB(TBBase):
             
             if success:
                 success_count += 1
-                self.log.info(f"✅ {name} strobe pattern: PASS")
+                self.log.info(f"{name} strobe pattern: PASS")
             else:
-                self.log.error(f"❌ {name} strobe pattern: FAIL - {info}")
+                self.log.error(f"{name} strobe pattern: FAIL - {info}")
 
         overall_success = success_count == len(valid_patterns)
         return overall_success, success_count, len(valid_patterns)
@@ -486,10 +486,10 @@ class AXIL4SlaveWriteTB(TBBase):
             
             if success:
                 success_count += 1
-                self.log.info(f"✅ {range_name} address decode: PASS")
+                self.log.info(f"{range_name} address decode: PASS")
             else:
                 failed_regs = [r for r in results if not r['success']]
-                self.log.error(f"❌ {range_name} address decode: {len(failed_regs)} failures")
+                self.log.error(f"{range_name} address decode: {len(failed_regs)} failures")
 
         overall_success = success_count == total_tests
         self.log.info(f"Address decode write test result: {success_count}/{total_tests} ranges successful")
@@ -573,7 +573,7 @@ class AXIL4SlaveWriteTB(TBBase):
             success, results = await self.register_write_sequence_test(base_addr, count, pattern_func)
             pattern_results.append((pattern_name, success, len([r for r in results if r['success']]), count))
             
-            status = "✅ PASS" if success else "❌ FAIL"
+            status = "PASS" if success else "FAIL"
             success_count = len([r for r in results if r['success']])
             self.log.info(f"{pattern_name}: {status} ({success_count}/{count})")
 

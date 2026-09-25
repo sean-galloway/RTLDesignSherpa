@@ -319,13 +319,13 @@ async def apb4_slave_cdc_wavedrom_test(dut):
                 with open(json_file, 'w') as f:
                     json.dump(wavejson, f, indent=2)
 
-                dut._log.info(f"✓ Added clock periods to {os.path.basename(json_file)}")
+                dut._log.info(f"Added clock periods to {os.path.basename(json_file)}")
         except Exception as e:
             dut._log.warning(f"Could not update {os.path.basename(json_file)}: {e}")
 
     # Check if all required waveforms were generated
     if not results['all_required_satisfied']:
-        dut._log.error(f"❌ NOT ALL REQUIRED WAVEFORMS GENERATED ❌")
+        dut._log.error(f"NOT ALL REQUIRED WAVEFORMS GENERATED")
         dut._log.error(f"Failed constraints: {results['failed_constraints']}")
         raise AssertionError(f"Required waveforms not generated: {results['failed_constraints']}")
 
@@ -335,7 +335,7 @@ async def apb4_slave_cdc_wavedrom_test(dut):
     await tb.wait_clocks('pclk', 10)
 
     dut._log.info("=" * 80)
-    dut._log.info(f"✅ APB Slave CDC WaveDrom Complete: {len(results['solutions'])} scenarios generated")
+    dut._log.info(f"APB Slave CDC WaveDrom Complete: {len(results['solutions'])} scenarios generated")
     dut._log.info("   Clock ratio: pclk (period=1.0) : aclk (period=0.5) = 1:2")
     dut._log.info("=" * 80)
 
@@ -366,9 +366,9 @@ async def comprehensive_apb_cdc_test(dut):
         result = await tb.run_cdc_comprehensive_test()
 
         if result:
-            tb.log.info("🎉 APB-GAXI CDC BASIC TEST PASSED! 🎉")
+            tb.log.info("APB-GAXI CDC BASIC TEST PASSED!")
         else:
-            tb.log.error("❌ APB-GAXI CDC BASIC TEST FAILED ❌")
+            tb.log.error("APB-GAXI CDC BASIC TEST FAILED")
             tb.log.error("Check the detailed CDC analysis above to identify cross-domain issues")
             assert False, "APB-GAXI CDC basic test failed"
 
@@ -379,9 +379,9 @@ async def comprehensive_apb_cdc_test(dut):
         final_result = await tb.verify_scoreboard(timeout=5000)
 
         if final_result and tb.test_stats['failed_tests'] == 0:
-            tb.log.info("🎉 COMPREHENSIVE CDC TEST SUITE PASSED! 🎉")
+            tb.log.info("COMPREHENSIVE CDC TEST SUITE PASSED!")
         else:
-            tb.log.error("❌ COMPREHENSIVE CDC TEST SUITE FAILED ❌")
+            tb.log.error("COMPREHENSIVE CDC TEST SUITE FAILED")
             assert False, f"CDC test suite failed: {tb.test_stats['failed_tests']} failed tests"
 
     finally:
@@ -492,12 +492,12 @@ def test_apb4_slave_cdc_robust(request, addr_width, data_width, depth):
             plus_args=plus_args,
         )
 
-        print(f"✓ APB-GAXI CDC robust test completed!")
+        print(f"APB-GAXI CDC robust test completed!")
         print(f"Logs: {log_path}")
         print(f"Waveforms: {cmd_filename}")
 
     except Exception as e:
-        print(f"❌ APB-GAXI CDC robust test failed: {str(e)}")
+        print(f"APB-GAXI CDC robust test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         print(f"Check the log file for detailed CDC analysis.")
@@ -604,12 +604,12 @@ def generate_apb4_slave_cdc_wavedrom_params():
             plus_args=plus_args,
         )
 
-        print(f"✓ APB-GAXI CDC robust test completed!")
+        print(f"APB-GAXI CDC robust test completed!")
         print(f"Logs: {log_path}")
         print(f"Waveforms: {cmd_filename}")
 
     except Exception as e:
-        print(f"❌ APB-GAXI CDC robust test failed: {str(e)}")
+        print(f"APB-GAXI CDC robust test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         print(f"Check the log file for detailed CDC analysis.")
@@ -722,12 +722,12 @@ def test_apb4_slave_cdc_wavedrom(request, addr_width, data_width, rsp_depth, cmd
             plus_args=plus_args,
         )
 
-        print(f"✓ APB Slave CDC WaveDrom test completed!")
+        print(f"APB Slave CDC WaveDrom test completed!")
         print(f"Logs: {log_path}")
         print(f"WaveJSON files: val/amba/WaveJSON/test_apb4_slave_cdc_*.json")
         print(f"Note: Waveforms show BOTH APB and CMD/RSP (GAXI) interfaces across clock domains")
 
     except Exception as e:
-        print(f"❌ APB Slave CDC WaveDrom test failed: {str(e)}")
+        print(f"APB Slave CDC WaveDrom test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         raise

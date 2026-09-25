@@ -82,9 +82,9 @@ def test_struct_utilities(struct_file_path, struct_name):
             list_available_structs,
             get_struct_info
         )
-        print("✓ Successfully imported all struct utilities")
+        print("Successfully imported all struct utilities")
     except ImportError as e:
-        print(f"✗ Failed to import utilities: {e}")
+        print(f"Failed to import utilities: {e}")
         return False
     
     # Test 3: validate_struct_setup
@@ -95,7 +95,7 @@ def test_struct_utilities(struct_file_path, struct_name):
         print(f"Message: {message}")
         print(f"Available structs: {structs}")
     except Exception as e:
-        print(f"✗ validate_struct_setup failed: {e}")
+        print(f"validate_struct_setup failed: {e}")
     
     # Test 4: list_available_structs
     print_section("4. Testing list_available_structs()")
@@ -104,14 +104,14 @@ def test_struct_utilities(struct_file_path, struct_name):
         print(f"Available structs: {available_structs}")
         print(f"Target struct '{struct_name}' in list: {struct_name in available_structs}")
     except Exception as e:
-        print(f"✗ list_available_structs failed: {e}")
+        print(f"list_available_structs failed: {e}")
     
     # Test 5: get_struct_info
     print_section("5. Testing get_struct_info()")
     try:
         struct_info = get_struct_info(abs_path, struct_name)
         if struct_info:
-            print(f"✓ Found struct info for '{struct_name}':")
+            print(f"Found struct info for '{struct_name}':")
             print(f"  Typedef name: {struct_info.get('typedef_name', 'N/A')}")
             print(f"  Bit width: {struct_info.get('bit_width', 'N/A')}")
             if 'field_info' in struct_info:
@@ -122,17 +122,17 @@ def test_struct_utilities(struct_file_path, struct_name):
             if 'validation' in struct_info:
                 valid = struct_info['validation']['valid']
                 msg = struct_info['validation']['message']
-                print(f"  Validation: {'✓' if valid else '✗'} {msg}")
+                print(f"  Validation: {'' if valid else ''} {msg}")
         else:
-            print(f"✗ No struct info found for '{struct_name}'")
+            print(f"No struct info found for '{struct_name}'")
     except Exception as e:
-        print(f"✗ get_struct_info failed: {e}")
+        print(f"get_struct_info failed: {e}")
     
     # Test 6: extract_struct_for_test (direct)
     print_section("6. Testing extract_struct_for_test() (direct)")
     try:
         struct_info = extract_struct_for_test(abs_path, struct_name, temp_dir)
-        print(f"✓ Direct extraction successful!")
+        print(f"Direct extraction successful!")
         print(f"  Success: {struct_info.get('success', 'N/A')}")
         print(f"  Struct name: {struct_info.get('struct_name', 'N/A')}")
         print(f"  Typedef name: {struct_info.get('typedef_name', 'N/A')}")
@@ -150,7 +150,7 @@ def test_struct_utilities(struct_file_path, struct_name):
         saved_struct_info = struct_info
         
     except Exception as e:
-        print(f"✗ extract_struct_for_test failed: {e}")
+        print(f"extract_struct_for_test failed: {e}")
         saved_struct_info = None
     
     # Test 7: setup_struct_environment
@@ -158,13 +158,13 @@ def test_struct_utilities(struct_file_path, struct_name):
     try:
         if saved_struct_info:
             env_vars = setup_struct_environment(saved_struct_info)
-            print(f"✓ Generated {len(env_vars)} environment variables:")
+            print(f"Generated {len(env_vars)} environment variables:")
             for key, value in env_vars.items():
                 print(f"  {key} = '{value}'")
         else:
-            print("✗ Skipping - no struct_info from previous test")
+            print("Skipping - no struct_info from previous test")
     except Exception as e:
-        print(f"✗ setup_struct_environment failed: {e}")
+        print(f"setup_struct_environment failed: {e}")
     
     # Test 8: extract_struct_for_test_simple (auto-find)
     print_section("8. Testing extract_struct_for_test_simple() (auto-find)")
@@ -174,13 +174,13 @@ def test_struct_utilities(struct_file_path, struct_name):
         print(f"Using repo_root: {repo_root}")
         
         struct_info = extract_struct_for_test_simple(struct_name, temp_dir, repo_root)
-        print(f"✓ Auto-find extraction successful!")
+        print(f"Auto-find extraction successful!")
         print(f"  Found and extracted: {struct_info.get('struct_name', 'N/A')}")
         print(f"  Typedef name: {struct_info.get('typedef_name', 'N/A')}")
         print(f"  Bit width: {struct_info.get('bit_width', 'N/A')}")
         
     except Exception as e:
-        print(f"✗ extract_struct_for_test_simple failed: {e}")
+        print(f"extract_struct_for_test_simple failed: {e}")
         print(f"   This is expected if the file isn't in standard search locations")
     
     # Test 9: Check generated files
@@ -188,7 +188,7 @@ def test_struct_utilities(struct_file_path, struct_name):
     if saved_struct_info and 'files_generated' in saved_struct_info:
         for file_type, file_path in saved_struct_info['files_generated'].items():
             if file_path and os.path.exists(file_path):
-                print(f"✓ {file_type}: {file_path}")
+                print(f"{file_type}: {file_path}")
                 if file_type == 'python_helpers':
                     # Try to import the generated Python helpers
                     try:
@@ -197,17 +197,17 @@ def test_struct_utilities(struct_file_path, struct_name):
                         helpers_module = importlib.util.module_from_spec(spec)
                         spec.loader.exec_module(helpers_module)
                         
-                        print(f"  ✓ Successfully imported generated Python helpers")
+                        print(f"Successfully imported generated Python helpers")
                         if hasattr(helpers_module, 'STRUCT_FIELDS'):
-                            print(f"  ✓ STRUCT_FIELDS available: {list(helpers_module.STRUCT_FIELDS.keys())}")
+                            print(f"STRUCT_FIELDS available: {list(helpers_module.STRUCT_FIELDS.keys())}")
                         if hasattr(helpers_module, 'pack_struct'):
-                            print(f"  ✓ pack_struct function available")
+                            print(f"pack_struct function available")
                         if hasattr(helpers_module, 'unpack_struct'):
-                            print(f"  ✓ unpack_struct function available")
+                            print(f"unpack_struct function available")
                     except Exception as e:
-                        print(f"  ✗ Failed to import Python helpers: {e}")
+                        print(f"Failed to import Python helpers: {e}")
             else:
-                print(f"✗ {file_type}: {file_path} (does not exist)")
+                print(f"{file_type}: {file_path} (does not exist)")
     
     print_header("Test Summary")
     print(f"Temp directory (preserved for inspection): {temp_dir}")

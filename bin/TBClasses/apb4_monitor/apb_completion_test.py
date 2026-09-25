@@ -67,7 +67,7 @@ class APBCompletionTest(APBMonitorCoreTB):
 
     async def run_completion_test(self) -> bool:
         """Run the completion event test"""
-        self.log.info("🧪 Testing APB Completion Events")
+        self.log.info("Testing APB Completion Events")
         
         # Setup with completion-focused configuration
         monitor_config = self.get_test_configuration()
@@ -77,7 +77,7 @@ class APBCompletionTest(APBMonitorCoreTB):
         
         # FIXED: Use MonbusPktType and integer packet type
         expected_event = APBMonitorEvent(
-            packet_type=MonbusPktType.COMPLETION.value,  # ✅ Integer-based packet type
+            packet_type=MonbusPktType.COMPLETION.value,  # Integer-based packet type
             event_code=APBCompletionCode.TRANS_COMPLETE.value,
             tolerance_ns=1000.0
         )
@@ -104,7 +104,7 @@ class APBCompletionTest(APBMonitorCoreTB):
         
         # Check if we got the expected completion event
         if len(completion_packets) >= 1:
-            self.log.info("✅ Completion event detected successfully")
+            self.log.info("Completion event detected successfully")
             
             # Log details about the completion packet
             completion_pkt = completion_packets[0]
@@ -121,10 +121,10 @@ class APBCompletionTest(APBMonitorCoreTB):
             for i, pkt in enumerate(all_packets):
                 self.log.info(f"  Packet {i}: {pkt.get_packet_type_name()}.{pkt.get_event_code_name()}")
             
-            self.log.warning(f"⚠️ Got {total_packets} monitor packets but no completion events")
+            self.log.warning(f"Got {total_packets} monitor packets but no completion events")
             return False
         else:
-            self.log.error("❌ No monitor packets received - check RTL configuration")
+            self.log.error("No monitor packets received - check RTL configuration")
             return False
 
     async def verify_completion_behavior(self) -> bool:
@@ -133,8 +133,8 @@ class APBCompletionTest(APBMonitorCoreTB):
         verification_passed = self.scoreboard.verify_monitor_behavior()
         
         if verification_passed:
-            self.log.info("✅ Completion event verification PASSED")
+            self.log.info("Completion event verification PASSED")
         else:
-            self.log.error("❌ Completion event verification FAILED")
+            self.log.error("Completion event verification FAILED")
             
         return verification_passed

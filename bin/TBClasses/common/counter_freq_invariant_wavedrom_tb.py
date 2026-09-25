@@ -171,7 +171,7 @@ class CounterFreqInvariantWaveDromTB(TBBase):
             tick_constraint.skip_boundary_detection = True
             self.wave_solver.add_constraint(tick_constraint)
 
-            self.log.info("✓ WaveDrom setup complete for Counter Freq Invariant")
+            self.log.info("WaveDrom setup complete for Counter Freq Invariant")
 
         except Exception as e:
             self.log.error(f"Failed to setup WaveDrom: {e}")
@@ -207,7 +207,7 @@ class CounterFreqInvariantWaveDromTB(TBBase):
 
         await self.wait_clocks('clk', 3)
 
-        self.log.info("✓ Scenario 1 complete")
+        self.log.info("Scenario 1 complete")
 
     async def scenario_freq_change(self):
         """
@@ -246,7 +246,7 @@ class CounterFreqInvariantWaveDromTB(TBBase):
 
         await self.wait_clocks('clk', 3)
 
-        self.log.info("✓ Scenario 2 complete")
+        self.log.info("Scenario 2 complete")
 
     async def scenario_sync_reset(self):
         """
@@ -297,7 +297,7 @@ class CounterFreqInvariantWaveDromTB(TBBase):
 
         await self.wait_clocks('clk', 3)
 
-        self.log.info("✓ Scenario 3 complete")
+        self.log.info("Scenario 3 complete")
 
     async def scenario_counter_increment(self):
         """
@@ -327,4 +327,4 @@ class CounterFreqInvariantWaveDromTB(TBBase):
 
         await self.wait_clocks('clk', 3)
 
-        self.log.info("✓ Scenario 4 complete")
+        self.log.info("Scenario 4 complete")

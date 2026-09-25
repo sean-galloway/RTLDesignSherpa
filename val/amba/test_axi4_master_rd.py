@@ -115,7 +115,7 @@ async def axi4_read_master_test(dut):
         tb.log.error("Basic connectivity test failed!")
         raise RuntimeError("Basic connectivity failed")
 
-    tb.log.info(f"✓ Basic connectivity test passed: data=0x{data:08X}")
+    tb.log.info(f"Basic connectivity test passed: data=0x{data:08X}")
 
     # Test 2: Single read sequences with different timing profiles
     tb.log.info("=== Test 2: Single Read Sequences ===")
@@ -129,7 +129,7 @@ async def axi4_read_master_test(dut):
             tb.log.error(f"Single read sequence failed with '{profile}' timing")
             # Don't fail immediately - continue testing other profiles
         else:
-            tb.log.info(f"✓ Single read sequence passed with '{profile}' timing")
+            tb.log.info(f"Single read sequence passed with '{profile}' timing")
 
     # Test 3: Burst read sequences
     tb.log.info("=== Scenario AXI4-MR-02: Burst read (4 beats) ===")
@@ -145,7 +145,7 @@ async def axi4_read_master_test(dut):
         if not result:
             tb.log.error(f"Burst read sequence failed with '{profile}' timing")
         else:
-            tb.log.info(f"✓ Burst read sequence passed with '{profile}' timing")
+            tb.log.info(f"Burst read sequence passed with '{profile}' timing")
 
     # Test 4: Mixed read patterns (medium and full levels)
     if test_level in ['func', 'full']:
@@ -188,9 +188,9 @@ async def axi4_read_master_test(dut):
         tb.log.info(f"Testing {description} at 0x{addr:08X}")
         success, data, info = await tb.single_read_test(addr)
         if success:
-            tb.log.info(f"✓ {description}: data=0x{data:08X}")
+            tb.log.info(f"{description}: data=0x{data:08X}")
         else:
-            tb.log.warning(f"⚠ {description} failed")
+            tb.log.warning(f"{description} failed")
 
     # Test 6: Stress testing (medium and full levels)
     if test_level in ['func', 'full']:
@@ -202,9 +202,9 @@ async def axi4_read_master_test(dut):
 
         result = await tb.stress_read_test(stress_count)
         if result:
-            tb.log.info(f"✓ Stress test passed ({stress_count} reads)")
+            tb.log.info(f"Stress test passed ({stress_count} reads)")
         else:
-            tb.log.warning(f"⚠ Stress test had issues ({stress_count} reads)")
+            tb.log.warning(f"Stress test had issues ({stress_count} reads)")
 
     # Test 7: Boundary conditions (full level)
     if test_level == 'full':
@@ -218,16 +218,16 @@ async def axi4_read_master_test(dut):
             max_burst = min(16, 256)  # Reasonable maximum
             success, _, _ = await tb.burst_read_test(0x1000, max_burst)
             if success:
-                tb.log.info(f"✓ Maximum burst test passed (length={max_burst})")
+                tb.log.info(f"Maximum burst test passed (length={max_burst})")
             else:
-                tb.log.warning(f"⚠ Maximum burst test failed (length={max_burst})")
+                tb.log.warning(f"Maximum burst test failed (length={max_burst})")
 
         # Test edge addresses
         edge_addresses = [0x0000, 0x1000, 0x2000, 0x3000]
         for addr in edge_addresses:
             success, _, _ = await tb.single_read_test(addr)
             if success:
-                tb.log.debug(f"✓ Edge address test passed: 0x{addr:08X}")
+                tb.log.debug(f"Edge address test passed: 0x{addr:08X}")
 
     # Final statistics and cleanup
     tb.log.info("=== Test Results Summary ===")
@@ -246,9 +246,9 @@ async def axi4_read_master_test(dut):
     # Determine overall test result
     success_rate = float(stats['summary']['success_rate'].rstrip('%'))
     if success_rate >= 95.0:
-        tb.log.info(f"✓ ALL {test_level.upper()} AXI4 READ MASTER TESTS PASSED!")
+        tb.log.info(f"ALL {test_level.upper()} AXI4 READ MASTER TESTS PASSED!")
     else:
-        tb.log.error(f"✗ AXI4 READ MASTER TESTS FAILED (success rate: {success_rate:.1f}%)")
+        tb.log.error(f"AXI4 READ MASTER TESTS FAILED (success rate: {success_rate:.1f}%)")
         raise RuntimeError(f"Test failed with {success_rate:.1f}% success rate")
 
 
@@ -487,9 +487,9 @@ def test_axi4_read_master(request, stub, id_width, addr_width, data_width, user_
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} AXI4 Read Master test PASSED")
+        print(f"{test_level.upper()} AXI4 Read Master test PASSED")
     except Exception as e:
-        print(f"✗ {test_level.upper()} AXI4 Read Master test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXI4 Read Master test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

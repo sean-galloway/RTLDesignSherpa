@@ -66,9 +66,9 @@ async def simple_apb4_monitor_test(dut):
     passed = basic_passed and timeout_passed
 
     if passed:
-        tb.log.info("🎉 SIMPLE APB MONITOR TEST PASSED! 🎉")
+        tb.log.info("SIMPLE APB MONITOR TEST PASSED!")
     else:
-        tb.log.error("❌ Test failed")
+        tb.log.error("Test failed")
         assert False, "Simple APB monitor test failed"
 
 
@@ -171,10 +171,10 @@ def test_apb4_monitor():
             # which needs N_ADDR_RANGES > 0 and its own stimulus.
             testcase="simple_apb4_monitor_test",
         )
-        print("✅ APB Monitor Test PASSED")
+        print("APB Monitor Test PASSED")
 
     except Exception as e:
-        print(f"❌ APB Monitor Test FAILED: {e}")
+        print(f"APB Monitor Test FAILED: {e}")
         print(f"Logs at: {log_path}")
         raise
 

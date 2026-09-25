@@ -112,7 +112,7 @@ async def comprehensive_apb4_slave_test(dut):
 
             # Check if all required waveforms were generated
             if not results['all_required_satisfied']:
-                tb.log.error(f"❌ NOT ALL REQUIRED WAVEFORMS GENERATED ❌")
+                tb.log.error(f"NOT ALL REQUIRED WAVEFORMS GENERATED")
                 tb.log.error(f"Failed constraints: {results['failed_constraints']}")
                 assert False, f"Required waveforms not generated: {results['failed_constraints']}"
 
@@ -120,9 +120,9 @@ async def comprehensive_apb4_slave_test(dut):
         final_result = await tb.verify_scoreboard(timeout=5000)
 
         if final_result:
-            tb.log.info("🎉 APB WAVEDROM GENERATION COMPLETE! 🎉")
+            tb.log.info("APB WAVEDROM GENERATION COMPLETE!")
         else:
-            tb.log.error("❌ APB WAVEDROM GENERATION FAILED ❌")
+            tb.log.error("APB WAVEDROM GENERATION FAILED")
             assert False, "Waveform generation test failed"
 
     finally:

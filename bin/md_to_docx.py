@@ -57,15 +57,15 @@ WAVEDROM_BLOCK_RE = re.compile(
 )
 
 EMOJI_MAP = {
-    "✅": "✓",
-    "❌": "✗",
-    "➕": "+",
-    "➖": "−",
-    "⚠️": "⚠",
+    "": "",
+    "": "",
+    "": "+",
+    "": "−",
+    "": "",
     "ℹ️": "ℹ",
-    "🛠️": "🛠",
-    "📌": "",
-    "🚧": "",
+    "": "",
+    "": "",
+    "": "",
 }
 
 def log(*a, **k):
@@ -2093,9 +2093,9 @@ def main():
                     ], check=True)
 
     if not args.quiet:
-        log(f"✓ Wrote {out_docx}")
+        log(f"Wrote {out_docx}")
         if args.pdf:
-            log(f"✓ Wrote {out_pdf}")
+            log(f"Wrote {out_pdf}")
 
 if __name__ == "__main__":
     try:

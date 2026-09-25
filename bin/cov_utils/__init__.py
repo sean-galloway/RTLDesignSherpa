@@ -25,7 +25,7 @@ scenarios) remain in each project's dv/{project}_coverage/ directory.
 
 Structure:
     bin/cov_utils/                     # AGNOSTIC shared utilities (named to avoid shadowing)
-        generate_coverage_report.py    # ★ CLI script: generic coverage report generator
+        generate_coverage_report.py    # CLI script: generic coverage report generator
         protocol_coverage_base.py      # Base classes for AXI/APB/AXIS coverage
         report_generator.py            # Report generation utilities
         verilator_coverage.py          # Verilator .dat file parsing

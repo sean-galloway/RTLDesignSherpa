@@ -76,7 +76,7 @@ async def cocotb_basic_counting(dut):
         curr = int(dut.counter_bin_curr.value)
         assert curr == expected, f"Count mismatch: got {curr}, expected {expected}"
 
-    dut._log.info("✅ Basic counting test PASSED")
+    dut._log.info("Basic counting test PASSED")
 
 @cocotb.test()
 async def cocotb_fifo_wraparound(dut):
@@ -124,7 +124,7 @@ async def cocotb_fifo_wraparound(dut):
     assert msb_second == 0, f"MSB should be 0 after second wrap, got {msb_second}"
     assert lower_bits_second == 0, f"Lower bits should be 0 after second wrap, got {lower_bits_second}"
 
-    dut._log.info("✅ FIFO wraparound test PASSED")
+    dut._log.info("FIFO wraparound test PASSED")
 
 @cocotb.test()
 async def cocotb_load_operation(dut):
@@ -148,7 +148,7 @@ async def cocotb_load_operation(dut):
         curr = int(dut.counter_bin_curr.value)
         assert curr == load_val, f"Load failed: got {curr}, expected {load_val}"
 
-    dut._log.info("✅ Load operation test PASSED")
+    dut._log.info("Load operation test PASSED")
 
 @cocotb.test()
 async def cocotb_load_priority(dut):
@@ -178,7 +178,7 @@ async def cocotb_load_priority(dut):
     # Should be load_val2, not load_val1+1 (load takes priority over enable)
     assert curr == load_val2, f"Load priority failed: got {curr}, expected {load_val2} (not {load_val1+1})"
 
-    dut._log.info("✅ Load priority test PASSED")
+    dut._log.info("Load priority test PASSED")
 
 @cocotb.test()
 async def cocotb_hold_when_disabled(dut):
@@ -202,7 +202,7 @@ async def cocotb_hold_when_disabled(dut):
         curr = int(dut.counter_bin_curr.value)
         assert curr == test_value, f"Counter changed while disabled: got {curr}, expected {test_value}"
 
-    dut._log.info("✅ Hold when disabled test PASSED")
+    dut._log.info("Hold when disabled test PASSED")
 
 ##############################################################################
 # Pytest Test Cases
@@ -355,9 +355,9 @@ def test_counter_bin_load(request, width, max_value, test_id):
 
             waves=enable_waves,
         )
-        print(f"✓ Test PASSED: width={width}, max={max_value}, id={test_id}")
+        print(f"Test PASSED: width={width}, max={max_value}, id={test_id}")
     except Exception as e:
-        print(f"✗ Test FAILED: {str(e)}")
+        print(f"Test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms run: {cmd_filename}")
         raise
@@ -401,5 +401,5 @@ async def cocotb_variable_increment(dut):
     await tb.setup_clocks_and_reset()
     await tb.test_variable_increment()
     await tb.test_add_priority()
-    dut._log.info("✅ Variable increment test PASSED")
+    dut._log.info("Variable increment test PASSED")
 

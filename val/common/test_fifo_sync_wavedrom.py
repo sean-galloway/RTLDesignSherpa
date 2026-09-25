@@ -190,7 +190,7 @@ class FifoSyncWaveDromTB(FifoBufferTB):
                     edges=edges,
                 ))
 
-            self.log.info("✓ WaveDrom setup complete for Synchronous FIFO "
+            self.log.info("WaveDrom setup complete for Synchronous FIFO "
                           f"({len(scenarios)} constraints registered)")
 
         except Exception as e:
@@ -233,7 +233,7 @@ class FifoSyncWaveDromTB(FifoBufferTB):
             await self.wait_clocks(self.wr_clk_name, 2)
 
         await self.wait_clocks(self.wr_clk_name, 5)
-        self.log.info("✓ Scenario 1 complete")
+        self.log.info("Scenario 1 complete")
 
     async def scenario_back_to_back(self):
         """
@@ -262,7 +262,7 @@ class FifoSyncWaveDromTB(FifoBufferTB):
             await self.wait_clocks(self.wr_clk_name, 1)
 
         await self.wait_clocks(self.wr_clk_name, 5)
-        self.log.info("✓ Scenario 2 complete")
+        self.log.info("Scenario 2 complete")
 
     async def scenario_simultaneous_write_read(self):
         """
@@ -296,7 +296,7 @@ class FifoSyncWaveDromTB(FifoBufferTB):
             self.dut.read.value = 0
 
         await self.wait_clocks(self.wr_clk_name, 5)
-        self.log.info("✓ Scenario 3 complete")
+        self.log.info("Scenario 3 complete")
 
     async def scenario_flag_transitions(self):
         """
@@ -328,7 +328,7 @@ class FifoSyncWaveDromTB(FifoBufferTB):
         # Observe empty flag
         await self.wait_clocks(self.wr_clk_name, 5)
 
-        self.log.info("✓ Scenario 4 complete")
+        self.log.info("Scenario 4 complete")
 
     async def generate_all_wavedrom_scenarios(self):
         """Generate all synchronous FIFO WaveDrom scenarios."""
@@ -358,7 +358,7 @@ class FifoSyncWaveDromTB(FifoBufferTB):
         await self.scenario_flag_transitions()
         await self.wait_clocks(self.wr_clk_name, 10)
 
-        self.log.info("✓ All Synchronous FIFO WaveDrom scenarios generated")
+        self.log.info("All Synchronous FIFO WaveDrom scenarios generated")
 
 @cocotb.test(timeout_time=500, timeout_unit="us")
 async def fifo_sync_wavedrom_test(dut):
@@ -560,9 +560,9 @@ def test_fifo_sync_wavedrom(request, data_width, depth, clk_period):
 
             waves=enable_waves,
         )
-        print(f"✓ Synchronous FIFO WaveDrom generation PASSED")
+        print(f"Synchronous FIFO WaveDrom generation PASSED")
     except Exception as e:
-        print(f"✗ Synchronous FIFO WaveDrom generation FAILED: {str(e)}")
+        print(f"Synchronous FIFO WaveDrom generation FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         raise

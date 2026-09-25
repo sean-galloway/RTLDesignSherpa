@@ -163,7 +163,7 @@ class MonbusSlave(GAXISlave):
             'axis_packets': 0,
             'arb_packets': 0,
             'wb_packets': 0,
-            'unknown_packets': 0,  # ✅ ADD: For unexpected protocols
+            'unknown_packets': 0,  # ADD: For unexpected protocols
 
             # Packet type breakdown - FIXED KEYS  
             'error_packets': 0,
@@ -172,7 +172,7 @@ class MonbusSlave(GAXISlave):
             'threshold_packets': 0,
             'perf_packets': 0,
             'debug_packets': 0,
-            'unknown_type_packets': 0,  # ✅ ADD: For unexpected packet types
+            'unknown_type_packets': 0,  # ADD: For unexpected packet types
 
             # ARB-specific statistics - EXISTING KEYS
             'arb_error_events': 0,
@@ -235,7 +235,7 @@ class MonbusSlave(GAXISlave):
 
             # Debug logging
             if self.super_debug and self.log:
-                self.log.info(f"📦 MonBus packet received: {monbus_packet.format_for_display()}")
+                self.log.info(f"MonBus packet received: {monbus_packet.format_for_display()}")
 
         except Exception as e:
             self.monbus_stats['field_access_errors'] += 1
@@ -302,7 +302,7 @@ class MonbusSlave(GAXISlave):
         self.monbus_stats['verification_errors'] += 1
         self.monbus_stats['verification_error_list'].append(error_msg)
         if self.super_debug and self.log:
-            self.log.warning(f"⚠️ {error_msg}")
+            self.log.warning(f"{error_msg}")
 
     def _update_packet_statistics(self, packet: MonbusPacket, current_time: float):
         """Update comprehensive packet statistics"""
@@ -318,7 +318,7 @@ class MonbusSlave(GAXISlave):
         try:
             protocol = ProtocolType(packet.protocol)
             
-            # ✅ FIX: Map protocol enum names to correct stats keys
+            # FIX: Map protocol enum names to correct stats keys
             protocol_mapping = {
                 'PROTOCOL_AXI': 'axi_packets',
                 'PROTOCOL_APB': 'apb_packets', 
@@ -343,7 +343,7 @@ class MonbusSlave(GAXISlave):
         try:
             pkt_type = PktType(packet.pkt_type)
             
-            # ✅ FIX: Map packet type enum names to correct stats keys
+            # FIX: Map packet type enum names to correct stats keys
             pkt_type_mapping = {
                 'PktTypeError': 'error_packets',
                 'PktTypeTimeout': 'timeout_packets', 
@@ -677,13 +677,13 @@ class MonbusSlave(GAXISlave):
             for key, expected_value in expected.items():
                 if not hasattr(packet, key):
                     if self.super_debug and self.log:
-                        self.log.warning(f"⚠️ Packet missing field '{key}'")
+                        self.log.warning(f"Packet missing field '{key}'")
                     return False
 
                 actual_value = getattr(packet, key)
                 if actual_value != expected_value:
                     if self.super_debug and self.log:
-                        self.log.warning(f"⚠️ Field mismatch: {key} expected {expected_value}, got {actual_value}")
+                        self.log.warning(f"Field mismatch: {key} expected {expected_value}, got {actual_value}")
                     return False
 
         return True

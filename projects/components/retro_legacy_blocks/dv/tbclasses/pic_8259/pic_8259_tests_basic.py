@@ -78,11 +78,11 @@ class PIC8259BasicTests:
             isr = await self.tb.read_isr()
             self.log.info(f"ISR read: 0x{isr:02X}")
 
-            self.log.info("✓ Register access test passed")
+            self.log.info("Register access test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Register access test failed: {e}")
+            self.log.error(f"Register access test failed: {e}")
             return False
 
     async def test_initialization(self) -> bool:
@@ -119,11 +119,11 @@ class PIC8259BasicTests:
                 self.log.error(f"IMR mismatch after init: expected 0xFF, got 0x{imr:02X}")
                 return False
 
-            self.log.info("✓ Initialization test passed")
+            self.log.info("Initialization test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Initialization test failed: {e}")
+            self.log.error(f"Initialization test failed: {e}")
             return False
 
     async def test_single_irq(self) -> bool:
@@ -182,11 +182,11 @@ class PIC8259BasicTests:
                 self.log.warning(f"ISR[0] still set after EOI: ISR=0x{isr_after:02X}")
                 # Not failing test as ISR behavior depends on INTA cycle
 
-            self.log.info("✓ Single IRQ test passed")
+            self.log.info("Single IRQ test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Single IRQ test failed: {e}")
+            self.log.error(f"Single IRQ test failed: {e}")
             return False
 
     async def test_irq_masking(self) -> bool:
@@ -227,7 +227,7 @@ class PIC8259BasicTests:
                 self.log.error("INT asserted for masked IRQ1")
                 return False
 
-            self.log.info("✓ Masked IRQ correctly blocked INT")
+            self.log.info("Masked IRQ correctly blocked INT")
 
             # Now unmask IRQ1
             await self.tb.set_imr(0xFD)  # Unmask IRQ1
@@ -239,16 +239,16 @@ class PIC8259BasicTests:
                 self.log.error("INT not asserted after unmasking IRQ1")
                 return False
 
-            self.log.info("✓ Unmasked IRQ correctly generated INT")
+            self.log.info("Unmasked IRQ correctly generated INT")
 
             # Send EOI to clean up
             await self.tb.send_eoi(irq=1, specific=True)
 
-            self.log.info("✓ IRQ masking test passed")
+            self.log.info("IRQ masking test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ IRQ masking test failed: {e}")
+            self.log.error(f"IRQ masking test failed: {e}")
             return False
 
     async def test_multiple_irqs(self) -> bool:
@@ -292,7 +292,7 @@ class PIC8259BasicTests:
                 self.log.error("INT not asserted for multiple IRQs")
                 return False
 
-            self.log.info("✓ Multiple IRQs generated INT")
+            self.log.info("Multiple IRQs generated INT")
 
             # In real system, INTA would select highest priority IRQ
             # For now, verify IRR shows pending IRQs
@@ -309,11 +309,11 @@ class PIC8259BasicTests:
             # Send EOI for IRQ5
             await self.tb.send_eoi(irq=5, specific=True)
 
-            self.log.info("✓ Multiple IRQ priority test passed")
+            self.log.info("Multiple IRQ priority test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Multiple IRQ test failed: {e}")
+            self.log.error(f"Multiple IRQ test failed: {e}")
             return False
 
     async def test_eoi_handling(self) -> bool:
@@ -346,7 +346,7 @@ class PIC8259BasicTests:
             await self.tb.send_eoi(irq=3, specific=True)
             await self.tb.wait_clocks('pclk', 5)
 
-            self.log.info("✓ Specific EOI sent successfully")
+            self.log.info("Specific EOI sent successfully")
 
             # Test non-specific EOI
             # Assert another IRQ
@@ -357,13 +357,13 @@ class PIC8259BasicTests:
             await self.tb.send_eoi(irq=None, specific=False)
             await self.tb.wait_clocks('pclk', 5)
 
-            self.log.info("✓ Non-specific EOI sent successfully")
+            self.log.info("Non-specific EOI sent successfully")
 
-            self.log.info("✓ EOI handling test passed")
+            self.log.info("EOI handling test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ EOI handling test failed: {e}")
+            self.log.error(f"EOI handling test failed: {e}")
             return False
 
     async def test_level_triggered_mode(self) -> bool:
@@ -404,7 +404,7 @@ class PIC8259BasicTests:
                 self.log.error("INT not asserted for level-triggered IRQ2")
                 return False
 
-            self.log.info("✓ Level-triggered IRQ2 detected")
+            self.log.info("Level-triggered IRQ2 detected")
 
             # Deassert IRQ2 (level low)
             await self.tb.deassert_irq(2)
@@ -416,11 +416,11 @@ class PIC8259BasicTests:
                 self.log.warning(f"IRR[2] still set after level low: IRR=0x{irr_after:02X}")
                 # Not failing - behavior depends on implementation
 
-            self.log.info("✓ Level-triggered mode test passed")
+            self.log.info("Level-triggered mode test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Level-triggered mode test failed: {e}")
+            self.log.error(f"Level-triggered mode test failed: {e}")
             return False
 
     async def test_priority_rotation(self) -> bool:
@@ -451,7 +451,7 @@ class PIC8259BasicTests:
             await self.tb.write_register(PIC8259RegisterMap.PIC_OCW2, set_priority_cmd)
             await self.tb.wait_clocks('pclk', 5)
 
-            self.log.info("✓ Set priority command sent (IRQ3 = lowest)")
+            self.log.info("Set priority command sent (IRQ3 = lowest)")
 
             # Assert IRQ4 (should now be highest priority)
             await self.tb.pulse_irq(4, pulse_cycles=10)
@@ -477,13 +477,13 @@ class PIC8259BasicTests:
             await self.tb.write_register(PIC8259RegisterMap.PIC_OCW2, rotate_eoi_cmd)
             await self.tb.wait_clocks('pclk', 5)
 
-            self.log.info("✓ Rotate on non-specific EOI sent")
+            self.log.info("Rotate on non-specific EOI sent")
 
-            self.log.info("✓ Priority rotation test passed")
+            self.log.info("Priority rotation test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Priority rotation test failed: {e}")
+            self.log.error(f"Priority rotation test failed: {e}")
             return False
 
     async def test_all_irq_lines(self) -> bool:
@@ -530,13 +530,13 @@ class PIC8259BasicTests:
                 await self.tb.send_eoi(irq=irq, specific=True)
                 await self.tb.wait_clocks('pclk', 5)
 
-                self.log.info(f"✓ IRQ{irq} passed")
+                self.log.info(f"IRQ{irq} passed")
 
-            self.log.info("✓ All IRQ lines test passed")
+            self.log.info("All IRQ lines test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ All IRQ lines test failed: {e}")
+            self.log.error(f"All IRQ lines test failed: {e}")
             return False
 
     async def test_irq_stress(self) -> bool:
@@ -580,7 +580,7 @@ class PIC8259BasicTests:
 
                 await self.tb.wait_clocks('pclk', 5)
 
-            self.log.info(f"✓ Processed {irq_count} rapid IRQs")
+            self.log.info(f"Processed {irq_count} rapid IRQs")
 
             # Verify system is still responsive
             await self.tb.pulse_irq(0, pulse_cycles=10)
@@ -593,11 +593,11 @@ class PIC8259BasicTests:
 
             await self.tb.send_eoi(irq=0, specific=True)
 
-            self.log.info("✓ IRQ stress test passed")
+            self.log.info("IRQ stress test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ IRQ stress test failed: {e}")
+            self.log.error(f"IRQ stress test failed: {e}")
             return False
 
     # =========================================================================

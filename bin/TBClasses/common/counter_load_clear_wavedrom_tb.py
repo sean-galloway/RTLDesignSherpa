@@ -183,7 +183,7 @@ class CounterLoadClearWaveDromTB(TBBase):
             load_constraint.skip_boundary_detection = True
             self.wave_solver.add_constraint(load_constraint)
 
-            self.log.info("✓ WaveDrom setup complete for Counter Load Clear")
+            self.log.info("WaveDrom setup complete for Counter Load Clear")
 
         except Exception as e:
             self.log.error(f"Failed to setup WaveDrom: {e}")
@@ -220,7 +220,7 @@ class CounterLoadClearWaveDromTB(TBBase):
         self.increment.value = 0
         await self.wait_clocks('clk', 3)
 
-        self.log.info("✓ Scenario 1 complete")
+        self.log.info("Scenario 1 complete")
 
     async def scenario_clear_operation(self):
         """
@@ -256,7 +256,7 @@ class CounterLoadClearWaveDromTB(TBBase):
         self.increment.value = 0
         await self.wait_clocks('clk', 3)
 
-        self.log.info("✓ Scenario 2 complete")
+        self.log.info("Scenario 2 complete")
 
     async def scenario_dynamic_match(self):
         """
@@ -299,7 +299,7 @@ class CounterLoadClearWaveDromTB(TBBase):
         self.increment.value = 0
         await self.wait_clocks('clk', 3)
 
-        self.log.info("✓ Scenario 3 complete")
+        self.log.info("Scenario 3 complete")
 
     async def scenario_wraparound(self):
         """
@@ -329,4 +329,4 @@ class CounterLoadClearWaveDromTB(TBBase):
         self.increment.value = 0
         await self.wait_clocks('clk', 3)
 
-        self.log.info("✓ Scenario 4 complete")
+        self.log.info("Scenario 4 complete")

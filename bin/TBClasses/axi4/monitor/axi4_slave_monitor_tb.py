@@ -104,7 +104,7 @@ class AXI4SlaveMonitorTB:
             log=self.log
         )
 
-        self.log.info("✓ Testbench initialized")
+        self.log.info("Testbench initialized")
 
     async def run_integration_tests(self, test_level='basic'):
         self.log.info("="*80)
@@ -134,7 +134,7 @@ class AXI4SlaveMonitorTB:
             success, data, info = await self.base_tb.single_read_response_test(0x1000)
 
         if not success:
-            self.log.error("❌ Basic connectivity test FAILED!")
+            self.log.error("Basic connectivity test FAILED!")
             raise RuntimeError("Basic connectivity failed")
 
         await self.base_tb.wait_clocks('aclk', 50)  # Increased from 20 - monitor packets need time to propagate
@@ -143,10 +143,10 @@ class AXI4SlaveMonitorTB:
         self.log.info(f"Monitor packets after basic test: {packets}")
 
         if packets == 0:
-            self.log.error("❌ No monitor packets generated!")
+            self.log.error("No monitor packets generated!")
             raise RuntimeError("Monitor not generating packets")
 
-        self.log.info("✅ TEST 1 PASSED")
+        self.log.info("TEST 1 PASSED")
 
     async def _test_multiple_transactions(self, test_level):
         self.log.info("\n" + "="*80)
@@ -169,7 +169,7 @@ class AXI4SlaveMonitorTB:
             result = await self.base_tb.basic_read_sequence(num_trans)
 
         if not result:
-            self.log.error("❌ Transaction sequence FAILED!")
+            self.log.error("Transaction sequence FAILED!")
             raise RuntimeError("Transaction sequence failed")
 
         await self.base_tb.wait_clocks('aclk', 50)
@@ -180,10 +180,10 @@ class AXI4SlaveMonitorTB:
         self.log.info(f"Generated {new_packets} packets for {num_trans} transactions")
 
         if new_packets < num_trans * 0.5:
-            self.log.error(f"❌ Too few packets! Expected ~{num_trans}, got {new_packets}")
+            self.log.error(f"Too few packets! Expected ~{num_trans}, got {new_packets}")
             raise RuntimeError("Insufficient monitor packets")
 
-        self.log.info("✅ TEST 2 PASSED")
+        self.log.info("TEST 2 PASSED")
 
     async def _test_burst_transactions(self, test_level):
         self.log.info("\n" + "="*80)
@@ -197,7 +197,7 @@ class AXI4SlaveMonitorTB:
         result = await self.base_tb.burst_read_sequence(burst_lengths)
 
         if not result:
-            self.log.error("❌ Burst sequence FAILED!")
+            self.log.error("Burst sequence FAILED!")
             raise RuntimeError("Burst sequence failed")
 
         await self.base_tb.wait_clocks('aclk', 100)
@@ -208,10 +208,10 @@ class AXI4SlaveMonitorTB:
         self.log.info(f"Burst test generated {new_packets} monitor packets")
 
         if new_packets == 0:
-            self.log.error("❌ No packets for burst transactions!")
+            self.log.error("No packets for burst transactions!")
             raise RuntimeError("No burst packets")
 
-        self.log.info("✅ TEST 3 PASSED")
+        self.log.info("TEST 3 PASSED")
 
     async def _test_error_detection(self):
         self.log.info("\n" + "="*80)
@@ -221,7 +221,7 @@ class AXI4SlaveMonitorTB:
         errors = sum(1 for pkt in self.mon_slave.received_packets if hasattr(pkt, 'pkt_type') and 0x20 <= pkt.pkt_type <= 0x2F)
         self.log.info(f"Error packets so far: {errors}")
         self.log.info("(Error injection requires enhanced master - monitoring verified)")
-        self.log.info("✅ TEST 4 PASSED (monitoring verified)")
+        self.log.info("TEST 4 PASSED (monitoring verified)")
 
     async def _test_sustained_traffic(self, test_level):
         self.log.info("\n" + "="*80)
@@ -251,10 +251,10 @@ class AXI4SlaveMonitorTB:
         self.log.info(f"Sustained traffic: {new_packets} packets for {sustained_count} transactions")
 
         if new_packets < sustained_count * 0.3:
-            self.log.error("❌ Too few packets during sustained traffic!")
+            self.log.error("Too few packets during sustained traffic!")
             raise RuntimeError("Sustained traffic packet generation failed")
 
-        self.log.info("✅ TEST 5 PASSED")
+        self.log.info("TEST 5 PASSED")
 
     async def _final_report(self):
         total_packets = len(self.mon_slave.received_packets)
@@ -273,8 +273,8 @@ class AXI4SlaveMonitorTB:
         self.log.info("="*80)
 
         if total_packets < 10:
-            self.log.error("❌ Insufficient monitor packets generated!")
+            self.log.error("Insufficient monitor packets generated!")
             raise RuntimeError(f"Only {total_packets} packets generated")
 
-        self.log.info("✅ ALL TESTS PASSED")
+        self.log.info("ALL TESTS PASSED")
         self.log.info("="*80)

@@ -72,9 +72,9 @@ async def comprehensive_apb_cdc_cg_test(dut):
         result = await tb.run_cdc_cg_comprehensive_test()
 
         if result:
-            tb.log.info("🎉 APB-GAXI CDC + CLOCK GATING BASIC TEST PASSED! 🎉")
+            tb.log.info("APB-GAXI CDC + CLOCK GATING BASIC TEST PASSED!")
         else:
-            tb.log.error("❌ APB-GAXI CDC + CLOCK GATING BASIC TEST FAILED ❌")
+            tb.log.error("APB-GAXI CDC + CLOCK GATING BASIC TEST FAILED")
             tb.log.error("Check the detailed CDC + Clock Gating analysis above to identify issues")
             assert False, "APB-GAXI CDC + Clock Gating basic test failed"
 
@@ -85,9 +85,9 @@ async def comprehensive_apb_cdc_cg_test(dut):
         final_result = await tb.verify_scoreboard(timeout=8000)
 
         if final_result and tb.test_stats['failed_tests'] == 0:
-            tb.log.info("🎉 COMPREHENSIVE CDC + CLOCK GATING TEST SUITE PASSED! 🎉")
+            tb.log.info("COMPREHENSIVE CDC + CLOCK GATING TEST SUITE PASSED!")
         else:
-            tb.log.error("❌ COMPREHENSIVE CDC + CLOCK GATING TEST SUITE FAILED ❌")
+            tb.log.error("COMPREHENSIVE CDC + CLOCK GATING TEST SUITE FAILED")
             assert False, f"CDC + Clock Gating test suite failed: {tb.test_stats['failed_tests']} failed tests"
 
     finally:
@@ -202,13 +202,13 @@ def test_apb4_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idl
             plus_args=plus_args,
         )
 
-        print(f"✓ APB-GAXI CDC + Clock Gating robust test completed!")
+        print(f"APB-GAXI CDC + Clock Gating robust test completed!")
         print(f"Logs: {log_path}")
         print(f"Waveforms: {cmd_filename}")
         print(f"Clock Gating Analysis Available in Logs")
 
     except Exception as e:
-        print(f"❌ APB-GAXI CDC + Clock Gating robust test failed: {str(e)}")
+        print(f"APB-GAXI CDC + Clock Gating robust test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         print(f"Check the log file for detailed CDC + Clock Gating analysis.")
@@ -312,13 +312,13 @@ def test_apb4_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idl
             plus_args=plus_args,
         )
 
-        print(f"✓ APB-GAXI CDC + Clock Gating robust test completed!")
+        print(f"APB-GAXI CDC + Clock Gating robust test completed!")
         print(f"Logs: {log_path}")
         print(f"Waveforms: {cmd_filename}")
         print(f"Clock Gating Analysis Available in Logs")
 
     except Exception as e:
-        print(f"❌ APB-GAXI CDC + Clock Gating robust test failed: {str(e)}")
+        print(f"APB-GAXI CDC + Clock Gating robust test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         print(f"Check the log file for detailed CDC + Clock Gating analysis.")

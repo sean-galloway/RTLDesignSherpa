@@ -129,13 +129,13 @@ async def axis_slave_cg_test(dut):
                     total_tests += 1
                     if success and ready_signals_ok:
                         passed_tests += 1
-                        tb.log.info(f"✓ Idle count {idle_count}: Transfer successful, ready signals OK")
+                        tb.log.info(f"Idle count {idle_count}: Transfer successful, ready signals OK")
                     else:
-                        tb.log.error(f"✗ Idle count {idle_count}: Transfer: {success}, ready signals: {ready_signals_ok}")
+                        tb.log.error(f"Idle count {idle_count}: Transfer: {success}, ready signals: {ready_signals_ok}")
 
                 except Exception as e:
                     total_tests += 1
-                    tb.log.error(f"✗ Idle count {idle_count} test failed: {e}")
+                    tb.log.error(f"Idle count {idle_count} test failed: {e}")
 
             # Test 3: Gating Transition Validation
             tb.log.info("=== Test 3: Gating Transitions ===")
@@ -154,12 +154,12 @@ async def axis_slave_cg_test(dut):
                     total_tests += 1
                     if ungating_achieved:
                         passed_tests += 1
-                        tb.log.info("✓ Gating transitions working correctly")
+                        tb.log.info("Gating transitions working correctly")
                     else:
-                        tb.log.error("✗ Ungating not achieved after activity resumed")
+                        tb.log.error("Ungating not achieved after activity resumed")
                 except Exception as e:
                     total_tests += 1
-                    tb.log.error(f"✗ Gating transition test failed: {e}")
+                    tb.log.error(f"Gating transition test failed: {e}")
             else:
                 total_tests += 1
                 tb.log.warning("Could not achieve gated state for transition testing")
@@ -206,10 +206,10 @@ async def axis_slave_cg_test(dut):
                 await tb.run_gating_stress_test(num_packets=20)
                 total_tests += 1
                 passed_tests += 1
-                tb.log.info("✓ Stress test passed")
+                tb.log.info("Stress test passed")
             except Exception as e:
                 total_tests += 1
-                tb.log.error(f"✗ Stress test failed: {e}")
+                tb.log.error(f"Stress test failed: {e}")
 
         # === FINAL RESULTS ===
         tb.log.info("=" * 80)
@@ -227,10 +227,10 @@ async def axis_slave_cg_test(dut):
                 tb.log.info(f"  Idle count {result['idle_count']}: {result['efficiency_percent']:.1f}% efficiency")
 
         if success_rate < 75:  # Allow margin for clock gating complexity and statistics timing
-            tb.log.error("❌ AXIS SLAVE CG TEST FAILED")
+            tb.log.error("AXIS SLAVE CG TEST FAILED")
             raise Exception(f"Clock gated test failed with {success_rate:.1f}% success rate")
 
-        tb.log.info("✅ AXIS SLAVE CG TEST PASSED")
+        tb.log.info("AXIS SLAVE CG TEST PASSED")
 
     except Exception as e:
         tb.log.error(f"AXIS slave CG test FAILED with exception: {str(e)}")
@@ -388,9 +388,9 @@ def test_axis4_slave_cg(skid_depth, data_width, id_width, dest_width, user_width
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} AXIS Slave CG test PASSED")
+        print(f"{test_level.upper()} AXIS Slave CG test PASSED")
     except Exception as e:
-        print(f"✗ {test_level.upper()} AXIS Slave CG test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXIS Slave CG test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

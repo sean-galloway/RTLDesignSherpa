@@ -685,7 +685,7 @@ class ComprehensiveAPBSlaveTB(TBBase):
         # supports error responses - skipping for now as it requires
         # specific slave configuration
 
-        self.log.info("✓ All APB WaveDrom scenarios generated")
+        self.log.info("All APB WaveDrom scenarios generated")
 
     async def run_comprehensive_test_suite(self):
         """Run comprehensive test suite with all configurations."""
@@ -732,9 +732,9 @@ class ComprehensiveAPBSlaveTB(TBBase):
                     result = await self.verify_scoreboard()
 
                     if result:
-                        self.log.info(f"✓ Test {current_test} PASSED: {config_desc} - {seq_name}")
+                        self.log.info(f"Test {current_test} PASSED: {config_desc} - {seq_name}")
                     else:
-                        self.log.error(f"✗ Test {current_test} FAILED: {config_desc} - {seq_name}")
+                        self.log.error(f"Test {current_test} FAILED: {config_desc} - {seq_name}")
 
                     # Allow settling time between tests
                     await self.wait_clocks('pclk', 10)
@@ -742,7 +742,7 @@ class ComprehensiveAPBSlaveTB(TBBase):
                     self.test_stats['total_tests'] += 1
 
                 except Exception as e:
-                    self.log.error(f"✗ Test {current_test} EXCEPTION: {config_desc} - {seq_name}: {e}")
+                    self.log.error(f"Test {current_test} EXCEPTION: {config_desc} - {seq_name}: {e}")
                     self.test_stats['failed_tests'] += 1
                     # Continue with next test
                     continue
@@ -789,14 +789,14 @@ class ComprehensiveAPBSlaveTB(TBBase):
                 result = await self.verify_scoreboard()
 
                 if result:
-                    self.log.info(f"✓ Stress Test PASSED: {config_desc}")
+                    self.log.info(f"Stress Test PASSED: {config_desc}")
                 else:
-                    self.log.error(f"✗ Stress Test FAILED: {config_desc}")
+                    self.log.error(f"Stress Test FAILED: {config_desc}")
 
                 self.test_stats['total_tests'] += 1
 
             except Exception as e:
-                self.log.error(f"✗ Stress Test EXCEPTION: {config_desc}: {e}")
+                self.log.error(f"Stress Test EXCEPTION: {config_desc}: {e}")
                 self.test_stats['failed_tests'] += 1
 
     async def run_error_injection_tests(self):
@@ -827,14 +827,14 @@ class ComprehensiveAPBSlaveTB(TBBase):
             result = await self.verify_scoreboard()
 
             if result:
-                self.log.info("✓ Error Injection Test PASSED")
+                self.log.info("Error Injection Test PASSED")
             else:
-                self.log.error("✗ Error Injection Test FAILED")
+                self.log.error("Error Injection Test FAILED")
 
             self.test_stats['total_tests'] += 1
 
         except Exception as e:
-            self.log.error(f"✗ Error Injection Test EXCEPTION: {e}")
+            self.log.error(f"Error Injection Test EXCEPTION: {e}")
             self.test_stats['failed_tests'] += 1
 
     def generate_test_report(self):

@@ -85,7 +85,7 @@ class HPETBasicTests:
             self.log.info(f"HPET Status: 0x{status_value:08X}")
 
             await self.tb.wait_apb_idle()
-            self.log.info("✓ Register access test passed")
+            self.log.info("Register access test passed")
             return True
 
         except Exception as e:
@@ -142,7 +142,7 @@ class HPETBasicTests:
                 return False
 
             await self.tb.wait_apb_idle()
-            self.log.info("✓ Counter functionality test passed")
+            self.log.info("Counter functionality test passed")
             return True
 
         except Exception as e:
@@ -222,7 +222,7 @@ class HPETBasicTests:
                 self.log.warning(f"Timer {timer_id} interrupt did not clear promptly")
 
             await self.tb.wait_apb_idle()
-            self.log.info(f"✓ Timer {timer_id} one-shot test passed{self.tb.get_time_ns_str()}")
+            self.log.info(f"Timer {timer_id} one-shot test passed{self.tb.get_time_ns_str()}")
             return True
 
         except Exception as e:
@@ -282,7 +282,7 @@ class HPETBasicTests:
                 self.log.error("Interrupt status bit not cleared")
                 return False
 
-            self.log.info("✓ Interrupt clearing test passed")
+            self.log.info("Interrupt clearing test passed")
             return True
 
         except Exception as e:

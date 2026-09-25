@@ -248,10 +248,10 @@ class SignalNamingAuditor:
     def print_report(self) -> None:
         """Print conflict report to console"""
         if not self.conflicts:
-            print("\n✅ No signal naming conflicts detected!")
+            print("\nNo signal naming conflicts detected!")
             return
 
-        print(f"\n⚠️  Found {len(self.conflicts)} potential signal naming conflicts:\n")
+        print(f"\nFound {len(self.conflicts)} potential signal naming conflicts:\n")
         print("=" * 80)
 
         for idx, conflict in enumerate(self.conflicts, 1):
@@ -270,11 +270,11 @@ class SignalNamingAuditor:
                 if self.verbose:
                     print(f"    {sig.context}")
 
-            print(f"\n📋 Impact:")
+            print(f"\nImpact:")
             print(f"   When using AXI factory with prefix='{conflict.prefix}_', the factory will find")
             print(f"   BOTH internal and external signals, causing initialization to fail.")
 
-            print(f"\n💡 Solutions:")
+            print(f"\nSolutions:")
             print(f"   1. Rename internal signals: {conflict.internal_signals[0].name} → {conflict.internal_signals[0].name}_to_sched")
             print(f"   2. Use explicit signal_map parameter in factory call")
             print(f"   3. Test at higher integration level where internal signals are hidden")
@@ -320,7 +320,7 @@ class SignalNamingAuditor:
                 f.write("3. **Test at higher integration level** where internal signals are hidden\n\n")
                 f.write("---\n\n")
 
-        print(f"\n📄 Markdown report written to: {output_file}")
+        print(f"\nMarkdown report written to: {output_file}")
 
 
 def main():

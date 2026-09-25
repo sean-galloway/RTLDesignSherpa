@@ -63,7 +63,7 @@ class APBErrorTest(APBMonitorCoreTB):
 
     async def run_error_test(self) -> bool:
         """Run the error event test"""
-        self.log.info("🧪 Testing APB Error Events")
+        self.log.info("Testing APB Error Events")
         
         # Setup with error-focused configuration
         monitor_config = self.get_test_configuration()
@@ -73,7 +73,7 @@ class APBErrorTest(APBMonitorCoreTB):
         
         # FIXED: Use MonbusPktType and integer packet type
         expected_event = APBMonitorEvent(
-            packet_type=MonbusPktType.ERROR.value,  # ✅ Integer-based packet type
+            packet_type=MonbusPktType.ERROR.value,  # Integer-based packet type
             event_code=APBErrorCode.PSLVERR.value,
             expected_data=0x2000,  # Expected address where error occurs
             tolerance_ns=1000.0
@@ -104,7 +104,7 @@ class APBErrorTest(APBMonitorCoreTB):
             # Verify it's the right type of error
             error_pkt = error_packets[0]
             if error_pkt.event_code == APBErrorCode.PSLVERR.value:
-                self.log.info("✅ PSLVERR error event detected successfully")
+                self.log.info("PSLVERR error event detected successfully")
                 
                 # Log additional details about the error packet
                 self.log.info(f"Error packet details:")
@@ -115,7 +115,7 @@ class APBErrorTest(APBMonitorCoreTB):
                 
                 return True
             else:
-                self.log.warning(f"⚠️ Got error event but wrong code: {error_pkt.event_code} (expected {APBErrorCode.PSLVERR.value})")
+                self.log.warning(f"Got error event but wrong code: {error_pkt.event_code} (expected {APBErrorCode.PSLVERR.value})")
                 return False
         elif total_packets > 0:
             # We got some packets but not error - log what we got
@@ -123,10 +123,10 @@ class APBErrorTest(APBMonitorCoreTB):
             for i, pkt in enumerate(all_packets):
                 self.log.info(f"  Packet {i}: {pkt.get_packet_type_name()}.{pkt.get_event_code_name()}")
             
-            self.log.warning(f"⚠️ Got {total_packets} monitor packets but no error events")
+            self.log.warning(f"Got {total_packets} monitor packets but no error events")
             return False
         else:
-            self.log.error("❌ No monitor packets received - check RTL configuration")
+            self.log.error("No monitor packets received - check RTL configuration")
             return False
 
     async def verify_error_behavior(self) -> bool:
@@ -135,9 +135,9 @@ class APBErrorTest(APBMonitorCoreTB):
         verification_passed = self.scoreboard.verify_monitor_behavior()
         
         if verification_passed:
-            self.log.info("✅ Error event verification PASSED")
+            self.log.info("Error event verification PASSED")
         else:
-            self.log.error("❌ Error event verification FAILED")
+            self.log.error("Error event verification FAILED")
             
         return verification_passed
 
@@ -163,9 +163,9 @@ async def test_apb_error_events(dut):
         
         # Final result
         if overall_passed:
-            test.log.info("🎉 APB Error Event Test PASSED")
+            test.log.info("APB Error Event Test PASSED")
         else:
-            test.log.error("💥 APB Error Event Test FAILED")
+            test.log.error("APB Error Event Test FAILED")
             
         assert overall_passed, "APB error event test failed"
         

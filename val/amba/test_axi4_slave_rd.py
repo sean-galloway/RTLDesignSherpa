@@ -119,7 +119,7 @@ async def axi4_slave_read_test(dut):
             tb.log.error("Basic slave connectivity test failed!")
             raise Exception(f"Basic connectivity failed: {info}")
 
-        tb.log.info("✓ Basic slave connectivity test passed")
+        tb.log.info("Basic slave connectivity test passed")
         tests_passed += 1
 
         # Test 2: Single read responses with different timing profiles
@@ -136,7 +136,7 @@ async def axi4_slave_read_test(dut):
                     tb.log.error(error_msg)
                     raise Exception(error_msg)
 
-            tb.log.info(f"✓ Single read responses passed with '{profile}' timing")
+            tb.log.info(f"Single read responses passed with '{profile}' timing")
             tests_passed += 1
 
         # Test 3: Burst read responses with different lengths
@@ -152,7 +152,7 @@ async def axi4_slave_read_test(dut):
                 tb.log.error(error_msg)
                 raise Exception(error_msg)
 
-            tb.log.info(f"✓ Burst read responses passed for lengths {burst_config}")
+            tb.log.info(f"Burst read responses passed for lengths {burst_config}")
             tests_passed += 1
 
         # Test 4: Mixed timing profiles (full test level only)
@@ -191,7 +191,7 @@ async def axi4_slave_read_test(dut):
                     tb.log.error(error_msg)
                     raise Exception(error_msg)
 
-                tb.log.info(f"✓ Mixed operations passed with '{profile}' timing")
+                tb.log.info(f"Mixed operations passed with '{profile}' timing")
                 tests_passed += 1
 
         # Test 5: Address range responses
@@ -214,16 +214,16 @@ async def axi4_slave_read_test(dut):
                 addr = base_addr + (i * (tb.TEST_DATA_WIDTH // 8))
                 success, data, info = await tb.single_read_response_test(addr)
                 if success:
-                    tb.log.debug(f"✓ Address 0x{addr:08X} returned data 0x{data:08X}")
+                    tb.log.debug(f"Address 0x{addr:08X} returned data 0x{data:08X}")
                 else:
                     tb.log.error(f"Address range test failed at 0x{addr:08X}: {info}")
                     raise Exception(f"Address range test failed: {info}")
 
             range_tests_passed += 1
-            tb.log.info(f"✓ {description} responses passed")
+            tb.log.info(f"{description} responses passed")
 
         if range_tests_passed == len(address_ranges):
-            tb.log.info("✓ All address range responses passed")
+            tb.log.info("All address range responses passed")
             tests_passed += 1
 
         # Test 6: Stress testing
@@ -238,7 +238,7 @@ async def axi4_slave_read_test(dut):
             tb.log.error(error_msg)
             raise Exception(error_msg)
 
-        tb.log.info("✓ Slave stress test passed")
+        tb.log.info("Slave stress test passed")
         tests_passed += 1
 
         # Test 7: Outstanding transaction responses (medium and full levels)
@@ -249,7 +249,7 @@ async def axi4_slave_read_test(dut):
 
             success, stats = await tb.test_outstanding_transactions(count=15)
             if success:
-                tb.log.info(f"✓ Outstanding transaction responses passed ({stats['success_rate']:.1%})")
+                tb.log.info(f"Outstanding transaction responses passed ({stats['success_rate']:.1%})")
                 tests_passed += 1
             else:
                 # Allow partial success for outstanding transactions
@@ -284,9 +284,9 @@ async def axi4_slave_read_test(dut):
         phase_success_rate = (tests_passed / total_tests) if total_tests > 0 else 0
 
         if tests_passed == total_tests and success_rate >= 95.0:
-            tb.log.info("✅ AXI4 SLAVE READ TESTS PASSED")
+            tb.log.info("AXI4 SLAVE READ TESTS PASSED")
         else:
-            tb.log.error(f"❌ AXI4 SLAVE READ TESTS FAILED (phase success: {phase_success_rate:.1f}%, response success: {success_rate:.1f}%)")
+            tb.log.error(f"AXI4 SLAVE READ TESTS FAILED (phase success: {phase_success_rate:.1f}%, response success: {success_rate:.1f}%)")
             raise RuntimeError(f"Test failed with {phase_success_rate:.1f}% phase success and {success_rate:.1f}% response success")
 
     except Exception as e:
@@ -532,9 +532,9 @@ def test_axi4_slave_read(request, stub, id_width, addr_width, data_width, user_w
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✅ {test_level.upper()} AXI4 Slave Read test PASSED")
+        print(f"{test_level.upper()} AXI4 Slave Read test PASSED")
     except Exception as e:
-        print(f"❌ {test_level.upper()} AXI4 Slave Read test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXI4 Slave Read test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

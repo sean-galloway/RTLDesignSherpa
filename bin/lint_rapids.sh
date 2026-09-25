@@ -48,7 +48,7 @@ rm -rf "$RAPIDS_REPORTS"
 mkdir -p "$RAPIDS_REPORTS/verilator"
 mkdir -p "$RAPIDS_REPORTS/verible"
 mkdir -p "$RAPIDS_REPORTS/yosys"
-echo -e "${GREEN}✓ Reports directory cleaned: $RAPIDS_REPORTS${NC}"
+echo -e "${GREEN}Reports directory cleaned: $RAPIDS_REPORTS${NC}"
 echo ""
 
 # Function to check if tool exists
@@ -56,10 +56,10 @@ check_tool() {
     local tool=$1
     local name=$2
     if [ -x "$tool" ] || command -v "$tool" &> /dev/null; then
-        echo -e "${GREEN}✓ $name found${NC}"
+        echo -e "${GREEN}$name found${NC}"
         return 0
     else
-        echo -e "${RED}✗ $name not found${NC}"
+        echo -e "${RED}$name not found${NC}"
         return 1
     fi
 }
@@ -105,13 +105,13 @@ lint_verilator() {
     local errors=$(grep -c "^%Error" "$report_file" 2>/dev/null || echo "0")
 
     if [ "$errors" -gt 0 ]; then
-        echo -e "  ${RED}✗${NC} $module_name - Errors: $errors, Warnings: $warnings"
+        echo -e "  ${RED}${NC} $module_name - Errors: $errors, Warnings: $warnings"
         return 1
     elif [ "$warnings" -gt 0 ]; then
-        echo -e "  ${YELLOW}⚠${NC} $module_name - Warnings: $warnings"
+        echo -e "  ${YELLOW}${NC} $module_name - Warnings: $warnings"
         return 0
     else
-        echo -e "  ${GREEN}✓${NC} $module_name - Clean"
+        echo -e "  ${GREEN}${NC} $module_name - Clean"
         return 0
     fi
 }
@@ -132,10 +132,10 @@ lint_verible() {
     fi
 
     if [ "$issues" -gt 0 ]; then
-        echo -e "  ${YELLOW}⚠${NC} $module_name - Style issues: $issues"
+        echo -e "  ${YELLOW}${NC} $module_name - Style issues: $issues"
         return 0
     else
-        echo -e "  ${GREEN}✓${NC} $module_name - Clean"
+        echo -e "  ${GREEN}${NC} $module_name - Clean"
         return 0
     fi
 }
@@ -160,10 +160,10 @@ lint_yosys() {
     fi
 
     if [ "$errors" -gt 0 ]; then
-        echo -e "  ${RED}✗${NC} $module_name - Syntax errors: $errors"
+        echo -e "  ${RED}${NC} $module_name - Syntax errors: $errors"
         return 1
     else
-        echo -e "  ${GREEN}✓${NC} $module_name - Clean"
+        echo -e "  ${GREEN}${NC} $module_name - Clean"
         return 0
     fi
 }
@@ -274,9 +274,9 @@ echo ""
 
 # Exit with error if any critical issues found
 if [ $verilator_errors -gt 0 ] || [ $yosys_errors -gt 0 ]; then
-    echo -e "${RED}⚠ Critical issues found - see reports for details${NC}"
+    echo -e "${RED}Critical issues found - see reports for details${NC}"
     exit 1
 else
-    echo -e "${GREEN}✓ No critical errors found${NC}"
+    echo -e "${GREEN}No critical errors found${NC}"
     exit 0
 fi

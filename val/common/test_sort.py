@@ -204,9 +204,9 @@ def test_sort(request, num_vals, size, test_level):
 
             waves=enable_waves,
         )
-        print(f"✓ {test_level.upper()} test PASSED: {num_vals} values, size={size}")
+        print(f"{test_level.upper()} test PASSED: {num_vals} values, size={size}")
     except Exception as e:
-        print(f"✗ {test_level.upper()} test FAILED: {str(e)}")
+        print(f"{test_level.upper()} test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

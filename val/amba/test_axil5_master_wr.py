@@ -473,9 +473,9 @@ def test_axil5_write_master(request, addr_width, data_width, aw_depth, w_depth, 
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} AXIL5 Write Master test PASSED")
+        print(f"{test_level.upper()} AXIL5 Write Master test PASSED")
     except Exception as e:
-        print(f"✗ {test_level.upper()} AXIL5 Write Master test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXIL5 Write Master test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise
@@ -620,9 +620,9 @@ def test_axil5_write_master(request, addr_width, data_width, aw_depth, w_depth, 
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} AXIL5 Write Master test PASSED")
+        print(f"{test_level.upper()} AXIL5 Write Master test PASSED")
     except Exception as e:
-        print(f"✗ {test_level.upper()} AXIL5 Write Master test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXIL5 Write Master test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

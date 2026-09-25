@@ -267,7 +267,7 @@ class GTKWaveGenerator:
             f.write('[pattern_trace] 1\n')
             f.write('[pattern_trace] 0\n')
 
-        print(f"✅ Generated: {output_file}")
+        print(f"Generated: {output_file}")
 
 def main():
     parser = argparse.ArgumentParser(description='Generate GTKWave save files for RTL Common Library')
@@ -313,7 +313,7 @@ def main():
         # Parse module
         sv_parser = SVModuleParser(str(sv_file))
         if not sv_parser.parse():
-            print(f"❌ Failed to parse: {module_name}.sv")
+            print(f"Failed to parse: {module_name}.sv")
             failed_count += 1
             continue
 
@@ -323,7 +323,7 @@ def main():
             gtkw_gen.generate(str(output_file))
             generated_count += 1
         except Exception as e:
-            print(f"❌ Failed to generate {module_name}.gtkw: {e}")
+            print(f"Failed to generate {module_name}.gtkw: {e}")
             failed_count += 1
 
     print(f"\n{'='*70}")

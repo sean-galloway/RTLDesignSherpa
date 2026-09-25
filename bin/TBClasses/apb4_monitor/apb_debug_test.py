@@ -63,7 +63,7 @@ class APBDebugTest(APBMonitorCoreTB):
 
     async def run_debug_test(self) -> bool:
         """Run the debug event test"""
-        self.log.info("🧪 Testing APB Debug Events")
+        self.log.info("Testing APB Debug Events")
 
         # Setup with debug-focused configuration
         monitor_config = self.get_test_configuration()
@@ -73,7 +73,7 @@ class APBDebugTest(APBMonitorCoreTB):
 
         # FIXED: Use MonbusPktType and integer packet type
         expected_event = APBMonitorEvent(
-            packet_type=MonbusPktType.DEBUG.value,  # ✅ Integer-based packet type
+            packet_type=MonbusPktType.DEBUG.value,  # Integer-based packet type
             event_code=APBDebugCode.SETUP_PHASE.value,
             tolerance_ns=1000.0
         )
@@ -103,7 +103,7 @@ class APBDebugTest(APBMonitorCoreTB):
             # Verify it's the right type of debug event
             debug_pkt = debug_packets[0]
             if debug_pkt.event_code == APBDebugCode.SETUP_PHASE.value:
-                self.log.info("✅ SETUP_PHASE debug event detected successfully")
+                self.log.info("SETUP_PHASE debug event detected successfully")
 
                 # Log additional details about the debug packet
                 self.log.info(f"Debug packet details:")
@@ -114,7 +114,7 @@ class APBDebugTest(APBMonitorCoreTB):
 
                 return True
             else:
-                self.log.warning(f"⚠️ Got debug event but wrong code: 0x{debug_pkt.event_code:X} (expected 0x{APBDebugCode.SETUP_PHASE.value:X})")
+                self.log.warning(f"Got debug event but wrong code: 0x{debug_pkt.event_code:X} (expected 0x{APBDebugCode.SETUP_PHASE.value:X})")
                 return False
         elif total_packets > 0:
             # We got some packets but not debug - log what we got
@@ -122,10 +122,10 @@ class APBDebugTest(APBMonitorCoreTB):
             for i, pkt in enumerate(all_packets):
                 self.log.info(f"  Packet {i}: {pkt.get_packet_type_name()}.{pkt.get_event_code_name()}")
 
-            self.log.warning(f"⚠️ Got {total_packets} monitor packets but no debug events")
+            self.log.warning(f"Got {total_packets} monitor packets but no debug events")
             return False
         else:
-            self.log.error("❌ No monitor packets received - check RTL configuration")
+            self.log.error("No monitor packets received - check RTL configuration")
             return False
 
     async def verify_debug_behavior(self) -> bool:
@@ -134,9 +134,9 @@ class APBDebugTest(APBMonitorCoreTB):
         verification_passed = self.scoreboard.verify_monitor_behavior()
 
         if verification_passed:
-            self.log.info("✅ Debug event verification PASSED")
+            self.log.info("Debug event verification PASSED")
         else:
-            self.log.error("❌ Debug event verification FAILED")
+            self.log.error("Debug event verification FAILED")
 
         return verification_passed
 
@@ -162,9 +162,9 @@ async def test_apb_debug_events(dut):
 
         # Final result
         if overall_passed:
-            test.log.info("🎉 APB Debug Event Test PASSED")
+            test.log.info("APB Debug Event Test PASSED")
         else:
-            test.log.error("💥 APB Debug Event Test FAILED")
+            test.log.error("APB Debug Event Test FAILED")
 
         assert overall_passed, "APB debug event test failed"
 

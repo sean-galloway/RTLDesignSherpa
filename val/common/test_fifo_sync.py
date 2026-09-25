@@ -141,7 +141,7 @@ async def fifo_test(dut):
             delay_key=delay_key,
             delay_clks_after=15
         )
-        tb.log.info(f"✓ Completed '{delay_key}' configuration")
+        tb.log.info(f"Completed '{delay_key}' configuration")
 
     # Run comprehensive sweep for func and full levels
     if run_comprehensive_sweep:
@@ -372,10 +372,10 @@ def test_fifo_sync(request, data_width, depth, wr_clk_period, rd_clk_period, reg
 
             waves=enable_waves,
         )
-        print(f"✓ {test_level.upper()} test PASSED: {mode} mode")
+        print(f"{test_level.upper()} test PASSED: {mode} mode")
     except Exception as e:
         # If the test fails, make sure logs are preserved
-        print(f"✗ {test_level.upper()} test FAILED: {str(e)}")
+        print(f"{test_level.upper()} test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the Waveforms run this command: {cmd_filename}")
         raise  # Re-raise exception to indicate failure

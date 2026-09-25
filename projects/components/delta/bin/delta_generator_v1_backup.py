@@ -677,7 +677,7 @@ Examples:
 
         generated_files.append(output_path)
 
-        print(f"✓ Generated {topo} topology: {output_path}")
+        print(f"Generated {topo} topology: {output_path}")
         print(f"  - Masters: {args.masters}")
         print(f"  - Slaves: {args.slaves}")
         print(f"  - Data Width: {args.data_width}")
@@ -693,7 +693,7 @@ Examples:
         with open(splitter_path, 'w') as f:
             f.write(splitter_code)
         generated_files.append(splitter_path)
-        print(f"✓ Generated node primitive: {splitter_path}")
+        print(f"Generated node primitive: {splitter_path}")
 
         # TODO: Generate merger when needed
         # merger_path = os.path.join(args.output_dir, "delta_merge_2to1.sv")
@@ -702,7 +702,7 @@ Examples:
         # generated_files.append(merger_path)
 
     print(f"\n{'='*70}")
-    print(f"✓ Delta generation complete!")
+    print(f"Delta generation complete!")
     print(f"  Total files: {len(generated_files)}")
     print(f"  Output directory: {args.output_dir}")
     print(f"{'='*70}")

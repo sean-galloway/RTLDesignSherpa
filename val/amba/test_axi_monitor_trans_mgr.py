@@ -949,9 +949,9 @@ def test_axi_monitor_trans_mgr(iw, aw, max_transactions, seed):
             keep_files=True,
             compile_args=compile_args,
         )
-        print(f"✓ PASSED: {test_name}")
+        print(f"PASSED: {test_name}")
     except Exception as e:
-        print(f"✗ FAILED: {test_name}")
+        print(f"FAILED: {test_name}")
         print(f"Error: {str(e)}")
         print(f"Log: {log_path}")
         raise

@@ -107,7 +107,7 @@ async def uart_axil_bridge_test(dut):
 
         # Verify final results
         if success and final_stats['errors'] == 0:
-            tb.log.info(f"✅ ALL {test_level.upper()} TESTS PASSED!")
+            tb.log.info(f"ALL {test_level.upper()} TESTS PASSED!")
         else:
             error_summary = []
             if not success:
@@ -115,7 +115,7 @@ async def uart_axil_bridge_test(dut):
             if final_stats['errors'] > 0:
                 error_summary.append(f"{final_stats['errors']} errors")
 
-            tb.log.error(f"❌ {test_level.upper()} TESTS FAILED: {', '.join(error_summary)}")
+            tb.log.error(f"{test_level.upper()} TESTS FAILED: {', '.join(error_summary)}")
             assert False, f"Test failures: {', '.join(error_summary)}"
 
     finally:
@@ -287,19 +287,19 @@ def test_uart_axil_bridge(request, params):
             plus_args=['--trace'] if enable_waves else [],
         )
 
-        print(f"✅ {test_level.upper()} TEST PASSED")
+        print(f"{test_level.upper()} TEST PASSED")
         print(f"   Configuration: DW={axil_data_width}, AW={axil_addr_width}, Baud={clks_per_bit} clks/bit")
 
     except Exception as e:
-        print(f"❌ {test_level.upper()} TEST FAILED: {str(e)}")
+        print(f"{test_level.upper()} TEST FAILED: {str(e)}")
         print(f"   Configuration: DW={axil_data_width}, AW={axil_addr_width}, Baud={clks_per_bit} clks/bit")
         print(f"   Logs: {log_path}")
         print(f"   Waveforms: {cmd_filename}")
 
         # Provide debugging guidance
         if "timeout" in str(e).lower():
-            print(f"   💡 Check for UART timing or command parser deadlock")
+            print(f"Check for UART timing or command parser deadlock")
         elif "assertion" in str(e).lower():
-            print(f"   💡 Check UART command format in waveforms")
+            print(f"Check UART command format in waveforms")
 
         raise

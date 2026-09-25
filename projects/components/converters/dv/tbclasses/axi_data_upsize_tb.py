@@ -259,7 +259,7 @@ class AXIDataUpsizeTB(TBBase):
                                    f"expected 0x{expected_sb:x}, got 0x{wide_sideband:x}")
                     return False
 
-        self.log.info(f"✓ Basic accumulation test PASSED ({num_transactions} transactions)")
+        self.log.info(f"Basic accumulation test PASSED ({num_transactions} transactions)")
         return True
 
     async def test_early_last(self, num_transactions=10):
@@ -314,7 +314,7 @@ class AXIDataUpsizeTB(TBBase):
                 self.log.error(f"Transaction {txn}: Expected wide_last=1 for early termination")
                 return False
 
-        self.log.info(f"✓ Early LAST test PASSED ({num_transactions} transactions)")
+        self.log.info(f"Early LAST test PASSED ({num_transactions} transactions)")
         return True
 
     async def test_backpressure(self, num_transactions=5):
@@ -354,7 +354,7 @@ class AXIDataUpsizeTB(TBBase):
                 )
                 return False
 
-        self.log.info(f"✓ Backpressure test PASSED ({num_transactions} transactions)")
+        self.log.info(f"Backpressure test PASSED ({num_transactions} transactions)")
         return True
 
     async def test_continuous_streaming(self, num_wide_beats=20):
@@ -383,5 +383,5 @@ class AXIDataUpsizeTB(TBBase):
             self.log.error(f"Continuous streaming: Expected {expected_wide_beats} beats, got {actual_wide_beats}")
             return False
 
-        self.log.info(f"✓ Continuous streaming test PASSED ({num_wide_beats} wide beats)")
+        self.log.info(f"Continuous streaming test PASSED ({num_wide_beats} wide beats)")
         return True

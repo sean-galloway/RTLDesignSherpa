@@ -137,7 +137,7 @@ class AXIL4SlaveReadTB(TBBase):
             self.r_master = self.slave_components['R']     # Drives R responses
             self.axil4_slave = self.slave_components['interface']
 
-            self.log.info("✅ AXIL4 Slave Read components created")
+            self.log.info("AXIL4 Slave Read components created")
         except Exception as e:
             self.log.error(f"Failed to create slave components: {e}")
             raise
@@ -170,7 +170,7 @@ class AXIL4SlaveReadTB(TBBase):
                 addr_width=self.TEST_ADDR_WIDTH
             )
 
-            self.log.info("✅ AXIL4 Master Read components created")
+            self.log.info("AXIL4 Master Read components created")
         except Exception as e:
             self.log.error(f"Failed to create master components: {e}")
             raise
@@ -247,7 +247,7 @@ class AXIL4SlaveReadTB(TBBase):
             data_bytes = self.memory_model.integer_to_bytearray(data, bytes_per_reg)
             self.memory_model.write(addr, data_bytes)
 
-        self.log.info("✅ Memory register patterns initialized")
+        self.log.info("Memory register patterns initialized")
 
     def set_timing_profile(self, profile_name):
         """Set timing profile for register access testing"""
@@ -422,10 +422,10 @@ class AXIL4SlaveReadTB(TBBase):
             
             if success:
                 success_count += 1
-                self.log.info(f"✅ {range_name} address decode: PASS")
+                self.log.info(f"{range_name} address decode: PASS")
             else:
                 failed_regs = [r for r in results if not r['success']]
-                self.log.error(f"❌ {range_name} address decode: {len(failed_regs)} failures")
+                self.log.error(f"{range_name} address decode: {len(failed_regs)} failures")
 
         overall_success = success_count == total_tests
         self.log.info(f"Address decode test result: {success_count}/{total_tests} ranges successful")
@@ -516,7 +516,7 @@ class AXIL4SlaveReadTB(TBBase):
             pattern_success = success_count == count
             pattern_results.append((pattern_name, pattern_success, success_count, count))
             
-            status = "✅ PASS" if pattern_success else "❌ FAIL"
+            status = "PASS" if pattern_success else "FAIL"
             self.log.info(f"{pattern_name}: {status} ({success_count}/{count})")
 
         overall_success = all(result[1] for result in pattern_results)

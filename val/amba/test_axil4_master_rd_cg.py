@@ -559,9 +559,9 @@ def test_axil4_master_read_cg(addr_width, data_width, ar_depth, r_depth, test_le
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} AXIL4 Master Read Clock Gated test PASSED")
+        print(f"{test_level.upper()} AXIL4 Master Read Clock Gated test PASSED")
     except Exception as e:
-        print(f"✗ {test_level.upper()} AXIL4 Master Read Clock Gated test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXIL4 Master Read Clock Gated test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

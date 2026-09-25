@@ -455,10 +455,10 @@ class AXI4DWidthConverterWriteTB(TBBase):
 
         success = (len(collected_data) == expected_beats)
         if success:
-            self.log.info(f"✅ Basic test PASSED - collected {len(collected_data)}/{expected_beats} beats")
+            self.log.info(f"Basic test PASSED - collected {len(collected_data)}/{expected_beats} beats")
             self.log.info(f"   Converted data: {[hex(d) for d in collected_data]}")
         else:
-            self.log.error(f"❌ Basic test FAILED - collected {len(collected_data)}/{expected_beats} beats")
+            self.log.error(f"Basic test FAILED - collected {len(collected_data)}/{expected_beats} beats")
             if len(collected_data) > 0:
                 self.log.error(f"   Collected data: {[hex(d) for d in collected_data]}")
             self.errors += 1
@@ -476,7 +476,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
         self.captured_w_packets.clear()
 
         if debug:
-            self.log.info(f"🔍 Starting write: addr=0x{addr:08X}, beats={len(data)}")
+            self.log.info(f"Starting write: addr=0x{addr:08X}, beats={len(data)}")
 
         # Send write transaction (waits for B response)
         await self.write_transaction(addr, data)
@@ -501,11 +501,11 @@ class AXI4DWidthConverterWriteTB(TBBase):
                     last_pkt = self.captured_w_packets[-1]
                     if hasattr(last_pkt, 'last') and int(last_pkt.last) == 1:
                         if debug:
-                            self.log.info(f"   ✓ All {expected_beats} packets received at +{cycle} cycles ({cocotb.utils.get_sim_time('ns')}ns)")
+                            self.log.info(f"All {expected_beats} packets received at +{cycle} cycles ({cocotb.utils.get_sim_time('ns')}ns)")
                         break
             elif captured_count > expected_beats:
                 if debug:
-                    self.log.error(f"   ❌ Over-captured: {captured_count}/{expected_beats} packets")
+                    self.log.error(f"Over-captured: {captured_count}/{expected_beats} packets")
                 break
 
             # Wait and poll again
@@ -516,7 +516,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
         success = (len(collected_data) == expected_beats)
 
         if not success:
-            self.log.error(f"❌ Write FAILED - collected {len(collected_data)}/{expected_beats} beats at {cocotb.utils.get_sim_time('ns')}ns")
+            self.log.error(f"Write FAILED - collected {len(collected_data)}/{expected_beats} beats at {cocotb.utils.get_sim_time('ns')}ns")
             if debug:
                 self.log.error(f"   Data captured: {[f'0x{d:X}' for d in collected_data]}")
                 # Check what's on the bus right now
@@ -526,7 +526,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
                 self.log.error(f"   Current bus state: m_axi_wvalid={m_wvalid}, m_axi_wready={m_wready}, m_axi_wlast={m_wlast}")
             self.errors += 1
         elif debug:
-            self.log.info(f"   ✅ Verification PASSED")
+            self.log.info(f"Verification PASSED")
 
         return success
 
@@ -569,7 +569,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
 
         if len(self.master_write_slave['interface'].aw_channel._recvQ) < expected_aw_count:
             actual = len(self.master_write_slave['interface'].aw_channel._recvQ)
-            self.log.error(f"❌ Timeout waiting for master AW transaction (expected {expected_aw_count}, got {actual})")
+            self.log.error(f"Timeout waiting for master AW transaction (expected {expected_aw_count}, got {actual})")
             return False
 
         # Wait for all W beats on master side
@@ -580,7 +580,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
 
         if len(self.master_write_slave['interface'].w_channel._recvQ) < expected_w_count:
             actual_beats = len(self.master_write_slave['interface'].w_channel._recvQ) - initial_w_count
-            self.log.error(f"❌ Expected {expected_master_beats} new master beats, got {actual_beats}")
+            self.log.error(f"Expected {expected_master_beats} new master beats, got {actual_beats}")
             return False
 
         # Get AW packet (the new one at index initial_aw_count)
@@ -589,7 +589,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
 
         # Verify address
         if master_addr != addr:
-            self.log.error(f"❌ Address mismatch: Expected 0x{addr:X}, got 0x{master_addr:X}")
+            self.log.error(f"Address mismatch: Expected 0x{addr:X}, got 0x{master_addr:X}")
             return False
 
         # Get W packets (the new ones starting at initial_w_count)
@@ -599,7 +599,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
             data_value = getattr(w_pkt, 'data', 0)
             master_data.append(data_value)
 
-        self.log.info(f"✅ Write verification passed: {len(slave_data_list)} slave beats → {expected_master_beats} master beats")
+        self.log.info(f"Write verification passed: {len(slave_data_list)} slave beats → {expected_master_beats} master beats")
         return True
 
 
@@ -837,10 +837,10 @@ class AXI4DWidthConverterWriteTB(TBBase):
             success = await self.do_write_and_verify(addr, data)
 
             if not success:
-                self.log.error(f"  ❌ Transaction {i} at 0x{addr:X} FAILED")
+                self.log.error(f"Transaction {i} at 0x{addr:X} FAILED")
                 all_success = False
             else:
-                self.log.info(f"  ✅ Transaction {i} at 0x{addr:X} PASSED")
+                self.log.info(f"Transaction {i} at 0x{addr:X} PASSED")
 
         # Test 2: Different burst lengths
         self.log.info("--- Test 2: Variable Burst Lengths ---")
@@ -852,10 +852,10 @@ class AXI4DWidthConverterWriteTB(TBBase):
             success = await self.do_write_and_verify(addr, data)
 
             if not success:
-                self.log.error(f"  ❌ Burst length {burst_len} test FAILED")
+                self.log.error(f"Burst length {burst_len} test FAILED")
                 all_success = False
             else:
-                self.log.info(f"  ✅ Burst length {burst_len} test PASSED")
+                self.log.info(f"Burst length {burst_len} test PASSED")
             addr += 0x100
 
         # Test 2b: maximum-length bursts -- see test_max_length_burst
@@ -877,15 +877,15 @@ class AXI4DWidthConverterWriteTB(TBBase):
             success = await self.do_write_and_verify(addr, data)
 
             if not success:
-                self.log.error(f"  ❌ Random test at 0x{addr:X} FAILED")
+                self.log.error(f"Random test at 0x{addr:X} FAILED")
                 all_success = False
             else:
-                self.log.info(f"  ✅ Random test at 0x{addr:X} PASSED")
+                self.log.info(f"Random test at 0x{addr:X} PASSED")
 
         if all_success:
-            self.log.info("✅ All Medium tests PASSED")
+            self.log.info("All Medium tests PASSED")
         else:
-            self.log.error("❌ Some Medium tests FAILED")
+            self.log.error("Some Medium tests FAILED")
 
         return all_success
 
@@ -923,10 +923,10 @@ class AXI4DWidthConverterWriteTB(TBBase):
             success = await self.do_write_and_verify(addr, data)
 
             if not success:
-                self.log.error(f"  ❌ Long burst test ({burst_len} beats) FAILED")
+                self.log.error(f"Long burst test ({burst_len} beats) FAILED")
                 all_success = False
             else:
-                self.log.info(f"  ✅ Long burst test ({burst_len} beats) PASSED")
+                self.log.info(f"Long burst test ({burst_len} beats) PASSED")
             addr += 0x1000
 
         # Test 3: Stress test with many write transactions
@@ -962,12 +962,12 @@ class AXI4DWidthConverterWriteTB(TBBase):
                 self.log.info(f"  Progress: {i}/{num_stress_txns} transactions")
 
         if failed > 0:
-            self.log.error(f"  ❌ Stress test: {failed}/{num_stress_txns} transactions FAILED")
+            self.log.error(f"Stress test: {failed}/{num_stress_txns} transactions FAILED")
             self.log.error(f"     Failed transactions: {failed_txns}")
             self.errors += failed
             all_success = False
         else:
-            self.log.info(f"  ✅ Stress test: All {num_stress_txns} transactions PASSED")
+            self.log.info(f"Stress test: All {num_stress_txns} transactions PASSED")
 
         # Test 4: Multiple writes to same address (write-only)
         self.log.info("--- Test 4: Sequential Writes to Same Address ---")
@@ -977,7 +977,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
         success = await self.do_write_and_verify(addr, initial_data)
 
         if not success:
-            self.log.error(f"  ❌ Initial write FAILED")
+            self.log.error(f"Initial write FAILED")
             all_success = False
 
         # Overwrite with modified data
@@ -985,10 +985,10 @@ class AXI4DWidthConverterWriteTB(TBBase):
         success = await self.do_write_and_verify(addr, modified_data)
 
         if not success:
-            self.log.error(f"  ❌ Modified write FAILED")
+            self.log.error(f"Modified write FAILED")
             all_success = False
         else:
-            self.log.info(f"  ✅ Sequential writes to same address PASSED")
+            self.log.info(f"Sequential writes to same address PASSED")
 
         # Test 5: Address boundary conditions
         self.log.info("--- Test 5: Address Boundary Conditions ---")
@@ -1004,15 +1004,15 @@ class AXI4DWidthConverterWriteTB(TBBase):
             success = await self.do_write_and_verify(addr, data)
 
             if not success:
-                self.log.error(f"  ❌ Boundary test at 0x{addr:X} FAILED")
+                self.log.error(f"Boundary test at 0x{addr:X} FAILED")
                 all_success = False
             else:
-                self.log.info(f"  ✅ Boundary test at 0x{addr:X} PASSED")
+                self.log.info(f"Boundary test at 0x{addr:X} PASSED")
 
         # Final result
         if all_success:
-            self.log.info("✅ All Full tests PASSED")
+            self.log.info("All Full tests PASSED")
         else:
-            self.log.error("❌ Some Full tests FAILED")
+            self.log.error("Some Full tests FAILED")
 
         return all_success

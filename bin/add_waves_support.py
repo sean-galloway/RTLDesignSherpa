@@ -206,10 +206,10 @@ def main():
         stats[status] += 1
 
         if status in ['updated', 'would_update']:
-            print(f"{'[DRY RUN] ' if args.dry_run else ''}✓ {rel_path}")
+            print(f"{'[DRY RUN] ' if args.dry_run else ''}{rel_path}")
             print(f"  {message}")
         elif status == 'error':
-            print(f"✗ {rel_path}")
+            print(f"{rel_path}")
             print(f"  ERROR: {message}")
         # Skip printing 'skip' status to reduce noise
 

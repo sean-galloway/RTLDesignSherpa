@@ -499,17 +499,17 @@ def main():
         if topo == "flat":
             generator = DeltaFlatCrossbar(config)
             generator.verilog(args.output_dir)
-            print(f"✓ Generated flat topology: {args.output_dir}/delta_axis_flat_{args.masters}x{args.slaves}.sv")
+            print(f"Generated flat topology: {args.output_dir}/delta_axis_flat_{args.masters}x{args.slaves}.sv")
         else:
-            print(f"⚠ Tree topology generation not yet implemented in framework version")
+            print(f"Tree topology generation not yet implemented in framework version")
 
     if args.nodes:
         splitter = DeltaSplitter1to2(config)
         splitter.verilog(args.output_dir)
-        print(f"✓ Generated node primitive: {args.output_dir}/delta_split_1to2.sv")
+        print(f"Generated node primitive: {args.output_dir}/delta_split_1to2.sv")
 
     print(f"\n{'='*70}")
-    print(f"✓ Delta generation complete (framework version)!")
+    print(f"Delta generation complete (framework version)!")
     print(f"{'='*70}")
 
 

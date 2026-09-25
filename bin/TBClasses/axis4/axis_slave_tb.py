@@ -598,9 +598,9 @@ class AXISSlaveTB(TBBase):
             )
 
             if success:
-                self.log.info("✓ Final report validation PASSED")
+                self.log.info("Final report validation PASSED")
             else:
-                self.log.error("✗ Final report validation FAILED")
+                self.log.error("Final report validation FAILED")
                 self.log.error(f"Validation details: packets_sent={packets_sent}, packets_received={packets_received}, axis_observed={axis_observed}, fub_observed={fub_observed}")
 
             return success

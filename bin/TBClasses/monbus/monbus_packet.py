@@ -344,7 +344,7 @@ def create_arb_performance_packet(perf_code, channel_id: int = 0, unit_id: int =
     }
 
 
-def create_core_error_packet(error_code, channel_id: int = 0, unit_id: int = 1,  # ✅ NEW
+def create_core_error_packet(error_code, channel_id: int = 0, unit_id: int = 1,  # NEW
                            agent_id: int = 0x20, data: int = 0) -> Dict[str, Any]:
     """Create CORE error packet fields for testing"""
     return {

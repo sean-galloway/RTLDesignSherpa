@@ -74,7 +74,7 @@ class AXI4MasterReadCGTB(AXI4MasterReadTB):
                 enable_signal_name="cfg_cg_enable",
                 idle_count_signal_name="cfg_cg_idle_count"
             )
-            self.log.info("✓ Clock gating controller initialized")
+            self.log.info("Clock gating controller initialized")
         except Exception as e:
             self.log.warning(f"Could not initialize CG controller: {e}")
 
@@ -198,9 +198,9 @@ class AXI4MasterReadCGTB(AXI4MasterReadTB):
         equivalence = (result_no_cg == result_with_cg)
         
         if equivalence:
-            self.log.info("✓ Functional equivalence validated")
+            self.log.info("Functional equivalence validated")
         else:
-            self.log.error("✗ Functional equivalence validation failed")
+            self.log.error("Functional equivalence validation failed")
             self.log.error(f"No CG result: {result_no_cg}")
             self.log.error(f"With CG result: {result_with_cg}")
             
@@ -307,9 +307,9 @@ async def axi4_master_read_cg_test(dut):
                 total_tests += 1
                 if read_success == 5 and ready_signals_ok:
                     passed_tests += 1
-                    tb.log.info(f"✓ Idle count {idle_count}: All reads successful, ready signals OK")
+                    tb.log.info(f"Idle count {idle_count}: All reads successful, ready signals OK")
                 else:
-                    tb.log.error(f"✗ Idle count {idle_count}: {read_success}/5 reads successful, ready signals: {ready_signals_ok}")
+                    tb.log.error(f"Idle count {idle_count}: {read_success}/5 reads successful, ready signals: {ready_signals_ok}")
 
             # Test 3: Gating Transition Validation
             tb.log.info("=== Test 3: Gating Transitions ===")
@@ -328,9 +328,9 @@ async def axi4_master_read_cg_test(dut):
                 total_tests += 1
                 if success and ungating_achieved:
                     passed_tests += 1
-                    tb.log.info("✓ Gating transitions working correctly")
+                    tb.log.info("Gating transitions working correctly")
                 else:
-                    tb.log.error(f"✗ Gating transition issues: read_success={success}, ungating={ungating_achieved}")
+                    tb.log.error(f"Gating transition issues: read_success={success}, ungating={ungating_achieved}")
             else:
                 total_tests += 1
                 tb.log.warning("Could not achieve gated state for transition testing")
@@ -381,9 +381,9 @@ async def axi4_master_read_cg_test(dut):
             total_tests += 1
             if stress_success >= 18:  # Allow some margin for stress test
                 passed_tests += 1
-                tb.log.info(f"✓ Stress test: {stress_success}/20 reads successful")
+                tb.log.info(f"Stress test: {stress_success}/20 reads successful")
             else:
-                tb.log.error(f"✗ Stress test: {stress_success}/20 reads successful")
+                tb.log.error(f"Stress test: {stress_success}/20 reads successful")
 
         # === FINAL RESULTS ===
         tb.log.info("=" * 80)
@@ -401,10 +401,10 @@ async def axi4_master_read_cg_test(dut):
                 tb.log.info(f"  Idle count {result['idle_count']}: {result['efficiency_percent']:.1f}% efficiency")
                 
         if success_rate < 90:
-            tb.log.error("❌ AXI4 MASTER READ CG TEST FAILED")
+            tb.log.error("AXI4 MASTER READ CG TEST FAILED")
             raise Exception(f"Clock gated test failed with {success_rate:.1f}% success rate")
             
-        tb.log.info("✅ AXI4 MASTER READ CG TEST PASSED")
+        tb.log.info("AXI4 MASTER READ CG TEST PASSED")
 
     except Exception as e:
         tb.log.error(f"AXI4 master read CG test FAILED with exception: {str(e)}")
@@ -569,9 +569,9 @@ def test_axi4_master_read_cg(id_width, addr_width, data_width, user_width, ar_de
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} AXI4 Read Master test clock gate PASSED")
+        print(f"{test_level.upper()} AXI4 Read Master test clock gate PASSED")
     except Exception as e:
-        print(f"✗ {test_level.upper()} AXI4 Read Master test clock gate FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXI4 Read Master test clock gate FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

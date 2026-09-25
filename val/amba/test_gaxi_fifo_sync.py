@@ -165,18 +165,18 @@ async def gaxi_fifo_sync_test(dut):
             delay_key=delay_key,
             delay_clks_after=15
         )
-        tb.log.info(f"✓ Completed '{delay_key}' configuration")
+        tb.log.info(f"Completed '{delay_key}' configuration")
 
     # Run comprehensive sweep for medium and full levels
     if run_comprehensive_sweep:
         tb.log.info("Running comprehensive randomizer sweep...")
         await tb.comprehensive_randomizer_sweep(packets_per_config=comprehensive_packets)
-        tb.log.info("✓ Completed comprehensive sweep")
+        tb.log.info("Completed comprehensive sweep")
 
     # Always run back-to-back test (essential for GAXI validation)
     tb.log.info("Running back-to-back test...")
     await tb.back_to_back_test(count=packet_counts['back_to_back'])
-    tb.log.info("✓ Completed back-to-back test")
+    tb.log.info("Completed back-to-back test")
 
     # Run stress test for medium and full levels
     if run_stress_test:
@@ -186,9 +186,9 @@ async def gaxi_fifo_sync_test(dut):
             count=packet_counts['stress_test'],
             delay_key=stress_config
         )
-        tb.log.info("✓ Completed stress test")
+        tb.log.info("Completed stress test")
 
-    tb.log.info(f"✓ ALL {test_level.upper()} GAXI FIFO SYNC ({mode_name}) TESTS PASSED!")
+    tb.log.info(f"ALL {test_level.upper()} GAXI FIFO SYNC ({mode_name}) TESTS PASSED!")
 
 
 @cocotb.test(timeout_time=5, timeout_unit="sec")
@@ -303,7 +303,7 @@ async def gaxi_fifo_sync_wavedrom_test(dut):
     )
     wave_solver.add_constraint(simultaneous)
 
-    dut._log.info(f"✓ WaveDrom configured: 3 scenarios for {mode_name} mode")
+    dut._log.info(f"WaveDrom configured: 3 scenarios for {mode_name} mode")
 
     # Scenario 1: Write to empty
     dut._log.info("=== Scenario 1: Write to empty ===")
@@ -328,7 +328,7 @@ async def gaxi_fifo_sync_wavedrom_test(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 1 captured")
+    dut._log.info("Scenario 1 captured")
 
     # Drain
     dut.rd_ready.value = 1
@@ -352,7 +352,7 @@ async def gaxi_fifo_sync_wavedrom_test(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 2 captured")
+    dut._log.info("Scenario 2 captured")
 
     # Drain
     dut.rd_ready.value = 1
@@ -388,9 +388,9 @@ async def gaxi_fifo_sync_wavedrom_test(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 3 captured")
+    dut._log.info("Scenario 3 captured")
 
-    dut._log.info(f"✓ GAXI FIFO Sync {mode_name} WaveDrom Complete: 3 scenarios generated")
+    dut._log.info(f"GAXI FIFO Sync {mode_name} WaveDrom Complete: 3 scenarios generated")
 
 
 def generate_test_params():
@@ -602,9 +602,9 @@ def test_gaxi_fifo_sync(request, data_width, depth, registered, clk_period, test
             plus_args=plus_args,
             testcase="gaxi_fifo_sync_test",
         )
-        print(f"✓ {test_level.upper()} test PASSED: gaxi_fifo_sync ({mode_name} mode)")
+        print(f"{test_level.upper()} test PASSED: gaxi_fifo_sync ({mode_name} mode)")
     except Exception as e:
-        print(f"✗ {test_level.upper()} test FAILED: {str(e)}")
+        print(f"{test_level.upper()} test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         raise
@@ -683,9 +683,9 @@ def test_gaxi_fifo_sync_wavedrom(request, data_width, depth, registered, clk_per
             plus_args=(['--trace'] if enable_waves else []),
             testcase="gaxi_fifo_sync_wavedrom_test",
         )
-        print(f"✓ WaveDrom test PASSED: gaxi_fifo_sync ({mode_name} mode) - 3 scenarios generated")
+        print(f"WaveDrom test PASSED: gaxi_fifo_sync ({mode_name} mode) - 3 scenarios generated")
     except Exception as e:
-        print(f"✗ WaveDrom test FAILED: {str(e)}")
+        print(f"WaveDrom test FAILED: {str(e)}")
         raise
 
 

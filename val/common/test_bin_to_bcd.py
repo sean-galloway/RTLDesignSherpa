@@ -223,9 +223,9 @@ def test_bin_to_bcd(request, width, digits, test_level):
 
             waves=enable_waves,
         )
-        print(f"✓ {test_level.upper()} test PASSED: width={width}, digits={digits}")
+        print(f"{test_level.upper()} test PASSED: width={width}, digits={digits}")
     except Exception as e:
-        print(f"✗ {test_level.upper()} test FAILED: {str(e)}")
+        print(f"{test_level.upper()} test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

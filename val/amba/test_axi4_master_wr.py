@@ -121,7 +121,7 @@ async def axi4_write_master_test(dut):
             tb.log.error(error_msg)
             raise Exception(error_msg)
 
-        tb.log.info("✓ Basic connectivity test passed")
+        tb.log.info("Basic connectivity test passed")
 
         # =================================================================
         # Test 2: Single writes with different timing profiles
@@ -138,7 +138,7 @@ async def axi4_write_master_test(dut):
                     tb.log.error(error_msg)
                     raise Exception(error_msg)
 
-                tb.log.info(f"✓ {count} single writes passed ({stats['success_rate']:.1%} success rate)")
+                tb.log.info(f"{count} single writes passed ({stats['success_rate']:.1%} success rate)")
 
         # =================================================================
         # Test 3: Burst writes with different timing profiles
@@ -155,7 +155,7 @@ async def axi4_write_master_test(dut):
                     tb.log.error(error_msg)
                     raise Exception(error_msg)
 
-                tb.log.info(f"✓ Burst writes passed ({stats['success_rate']:.1%} success rate)")
+                tb.log.info(f"Burst writes passed ({stats['success_rate']:.1%} success rate)")
 
         # =================================================================
         # Test 4: Address boundary testing
@@ -187,7 +187,7 @@ async def axi4_write_master_test(dut):
                 tb.log.warning(f"Boundary test failed at address 0x{addr:08X}: {info}")
                 # Don't fail the entire test for boundary issues, just log
 
-        tb.log.info("✓ Address boundary testing completed")
+        tb.log.info("Address boundary testing completed")
 
         # =================================================================
         # Test 5: Data pattern testing
@@ -213,7 +213,7 @@ async def axi4_write_master_test(dut):
             if not success:
                 tb.log.warning(f"Pattern test failed for 0x{pattern:08X}: {info}")
 
-        tb.log.info("✓ Data pattern testing completed")
+        tb.log.info("Data pattern testing completed")
 
         # =================================================================
         # Test 6: ID field testing (if ID width > 1)
@@ -233,7 +233,7 @@ async def axi4_write_master_test(dut):
                 if not success:
                     tb.log.warning(f"ID test failed for ID {test_id}: {info}")
 
-            tb.log.info("✓ Transaction ID testing completed")
+            tb.log.info("Transaction ID testing completed")
 
         # =================================================================
         # Test 7: Error injection testing (if enabled)
@@ -241,7 +241,7 @@ async def axi4_write_master_test(dut):
         if run_error_tests:
             tb.log.info("=== Test 7: Error Injection Testing ===")
             await tb.run_error_injection_tests()
-            tb.log.info("✓ Error injection testing completed")
+            tb.log.info("Error injection testing completed")
 
         # =================================================================
         # Test 8: Stress testing
@@ -256,7 +256,7 @@ async def axi4_write_master_test(dut):
             tb.log.error(error_msg)
             raise Exception(error_msg)
 
-        tb.log.info(f"✓ Stress test passed ({stats['success_rate']:.1%} success rate)")
+        tb.log.info(f"Stress test passed ({stats['success_rate']:.1%} success rate)")
 
         # =================================================================
         # Test 9: Outstanding transaction testing
@@ -267,7 +267,7 @@ async def axi4_write_master_test(dut):
 
             success, stats = await tb.test_outstanding_transactions(count=20)
             if success:
-                tb.log.info(f"✓ Outstanding transaction test passed ({stats['success_rate']:.1%})")
+                tb.log.info(f"Outstanding transaction test passed ({stats['success_rate']:.1%})")
             else:
                 tb.log.warning(f"Outstanding transaction test had issues: {stats}")
 
@@ -291,10 +291,10 @@ async def axi4_write_master_test(dut):
         tb.log.info(f"Test duration:     {final_stats['summary']['test_duration']:.2f}s")
 
         if failed_writes > 0:
-            tb.log.error("❌ AXI4 write test FAILED: Some writes failed")
+            tb.log.error("AXI4 write test FAILED: Some writes failed")
             raise Exception(f"AXI4 write test FAILED: {failed_writes} writes failed")
 
-        tb.log.info("✅ AXI4 write master test PASSED: All writes successful")
+        tb.log.info("AXI4 write master test PASSED: All writes successful")
 
     except Exception as e:
         # Log final error and re-raise
@@ -539,9 +539,9 @@ def test_axi4_write_master(stub, id_width, addr_width, data_width, user_width, a
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✅ {test_level.upper()} AXI4 Write Master test PASSED")
+        print(f"{test_level.upper()} AXI4 Write Master test PASSED")
     except Exception as e:
-        print(f"❌ {test_level.upper()} AXI4 Write Master test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXI4 Write Master test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

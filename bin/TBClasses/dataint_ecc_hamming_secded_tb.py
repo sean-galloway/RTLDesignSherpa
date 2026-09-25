@@ -159,7 +159,7 @@ class DataintEccHammingSecDedTB(TBBase):
                 self.log.debug(f"  PASS: 0x{data:X} → 0x{encoded:X} → 0x{decoded:X}")
 
         if all_passed:
-            self.log.info("✓ No errors test passed")
+            self.log.info("No errors test passed")
 
         return all_passed
 
@@ -206,9 +206,9 @@ class DataintEccHammingSecDedTB(TBBase):
                 self.log.debug(f"  PASS: Bit {bit_pos} error corrected (0x{test_data:X})")
 
         if all_passed:
-            self.log.info(f"✓ Single-bit correction test passed ({self.TOTAL_WIDTH} bit positions)")
+            self.log.info(f"Single-bit correction test passed ({self.TOTAL_WIDTH} bit positions)")
         else:
-            self.log.error(f"✗ Single-bit correction failed ({error_count} errors)")
+            self.log.error(f"Single-bit correction failed ({error_count} errors)")
 
         return all_passed
 
@@ -255,7 +255,7 @@ class DataintEccHammingSecDedTB(TBBase):
                 self.log.debug(f"  PASS: Bits {bit_pos1},{bit_pos2} double error detected")
 
         if all_passed:
-            self.log.info(f"✓ Double-bit detection test passed ({len(test_pairs)} combinations)")
+            self.log.info(f"Double-bit detection test passed ({len(test_pairs)} combinations)")
 
         return all_passed
 
@@ -276,7 +276,7 @@ class DataintEccHammingSecDedTB(TBBase):
                 all_passed = False
 
         if all_passed:
-            self.log.info(f"✓ All {2**self.WIDTH} patterns passed")
+            self.log.info(f"All {2**self.WIDTH} patterns passed")
 
         return all_passed
 
@@ -304,7 +304,7 @@ class DataintEccHammingSecDedTB(TBBase):
         self.log.info("=" * 60)
         self.log.info("Test Summary:")
         for name, passed in results:
-            status = "✓ PASSED" if passed else "✗ FAILED"
+            status = "PASSED" if passed else "FAILED"
             self.log.info(f"  {name}: {status}")
         self.log.info("=" * 60)
 

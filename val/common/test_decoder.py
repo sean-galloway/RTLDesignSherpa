@@ -207,9 +207,9 @@ def test_decoder(request, input_width, test_level):
 
             waves=enable_waves,
         )
-        print(f"✓ {test_level.upper()} test PASSED: {input_width}-to-{output_width} decoder")
+        print(f"{test_level.upper()} test PASSED: {input_width}-to-{output_width} decoder")
     except Exception as e:
-        print(f"✗ {test_level.upper()} test FAILED: {str(e)}")
+        print(f"{test_level.upper()} test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

@@ -63,14 +63,14 @@ def main():
     print(f"Total unique test name patterns: {len(all_names)}")
 
     if duplicates:
-        print(f"\n⚠️  EXACT DUPLICATES FOUND: {len(duplicates)}")
+        print(f"\nEXACT DUPLICATES FOUND: {len(duplicates)}")
         print("=" * 80)
         for name, files in duplicates.items():
             print(f"\nPattern: {name}")
             for f in files:
                 print(f"  - {f}")
     else:
-        print("\n✅ No exact duplicate patterns found")
+        print("\nNo exact duplicate patterns found")
 
     # Check for base name conflicts
     print("\n" + "=" * 80)
@@ -115,10 +115,10 @@ def main():
 
     print("\n" + "=" * 80)
     if not duplicates:
-        print("✅ SAFE FOR PARALLEL EXECUTION")
+        print("SAFE FOR PARALLEL EXECUTION")
         print("   All test names appear unique when parameters are resolved.")
     else:
-        print("⚠️  POTENTIAL CONFLICTS")
+        print("POTENTIAL CONFLICTS")
         print("   Review duplicate patterns above.")
     print("=" * 80)
 

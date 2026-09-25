@@ -455,25 +455,25 @@ class ParameterAuditor:
 
                 # Issues
                 if audit.params_missing_defaults:
-                    f.write(f"**⚠️ Missing Defaults:** {', '.join(audit.params_missing_defaults)}\n\n")
+                    f.write(f"** Missing Defaults:** {', '.join(audit.params_missing_defaults)}\n\n")
 
                 if audit.params_not_in_header:
-                    f.write(f"**⚠️ Not in Header:** {', '.join(audit.params_not_in_header)}\n\n")
+                    f.write(f"** Not in Header:** {', '.join(audit.params_not_in_header)}\n\n")
 
                 if audit.derived_not_localparam:
-                    f.write(f"**⚠️ Derived but not localparam:**\n")
+                    f.write(f"** Derived but not localparam:**\n")
                     for issue in audit.derived_not_localparam:
                         f.write(f"- {issue}\n")
                     f.write("\n")
 
                 if audit.naming_issues:
-                    f.write(f"**⚠️ Naming Issues:**\n")
+                    f.write(f"** Naming Issues:**\n")
                     for issue in audit.naming_issues:
                         f.write(f"- {issue}\n")
                     f.write("\n")
 
                 if audit.magic_numbers:
-                    f.write(f"**⚠️ Potential Magic Numbers ({len(audit.magic_numbers)}):**\n")
+                    f.write(f"** Potential Magic Numbers ({len(audit.magic_numbers)}):**\n")
                     # Show first 5
                     for magic in audit.magic_numbers[:5]:
                         f.write(f"- Line {magic.line_number}: `{magic.value}` in `{magic.context}`\n")
@@ -561,7 +561,7 @@ def main():
     auditor.generate_markdown_report(report_dir / 'parameterization_audit.md')
     auditor.generate_csv_report(report_dir / 'parameterization_audit.csv')
 
-    print("\n✅ Parameterization audit complete!")
+    print("\nParameterization audit complete!")
 
     # Summary
     avg_score = sum(m.consistency_score for m in auditor.modules.values()) / len(auditor.modules)

@@ -600,7 +600,7 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
     try:
         validate_config(masters, slaves, connectivity)
     except ValidationError as e:
-        print(f"\n❌ Configuration validation FAILED:")
+        print(f"\nConfiguration validation FAILED:")
         print(f"   {e}")
         raise
 

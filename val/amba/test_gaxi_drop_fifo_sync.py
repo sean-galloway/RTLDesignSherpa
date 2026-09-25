@@ -68,7 +68,7 @@ async def basic_fifo_operation_cocotb(dut):
     tb = GaxiDropFifoSyncTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.test_basic_fifo_operation()
-    tb.log.info("✅ Basic FIFO operation test PASSED")
+    tb.log.info("Basic FIFO operation test PASSED")
 
 
 @cocotb.test()
@@ -77,7 +77,7 @@ async def drop_by_count_cocotb(dut):
     tb = GaxiDropFifoSyncTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.test_drop_by_count()
-    tb.log.info("✅ Drop by count test PASSED")
+    tb.log.info("Drop by count test PASSED")
 
 
 @cocotb.test()
@@ -86,7 +86,7 @@ async def drop_all_cocotb(dut):
     tb = GaxiDropFifoSyncTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.test_drop_all()
-    tb.log.info("✅ Drop all test PASSED")
+    tb.log.info("Drop all test PASSED")
 
 
 @cocotb.test()
@@ -95,7 +95,7 @@ async def drop_during_io_blocked_cocotb(dut):
     tb = GaxiDropFifoSyncTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.test_drop_during_io_blocked()
-    tb.log.info("✅ I/O blocking during drop test PASSED")
+    tb.log.info("I/O blocking during drop test PASSED")
 
 
 @cocotb.test()
@@ -104,7 +104,7 @@ async def fill_and_random_drop_cocotb(dut):
     tb = GaxiDropFifoSyncTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.test_fill_and_random_drop()
-    tb.log.info("✅ Fill + random drop test PASSED")
+    tb.log.info("Fill + random drop test PASSED")
 
 
 @cocotb.test()
@@ -113,7 +113,7 @@ async def streaming_read_cocotb(dut):
     tb = GaxiDropFifoSyncTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.test_streaming_read()
-    tb.log.info("✅ Streaming read test PASSED")
+    tb.log.info("Streaming read test PASSED")
 
 
 @cocotb.test()
@@ -122,7 +122,7 @@ async def wraparound_with_drop_cocotb(dut):
     tb = GaxiDropFifoSyncTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.test_wraparound_with_drop()
-    tb.log.info("✅ Wraparound with drop test PASSED")
+    tb.log.info("Wraparound with drop test PASSED")
 
 
 ##############################################################################
@@ -309,9 +309,9 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ Test PASSED: data_width={data_width}, depth={depth}, registered={registered}, id={test_id}")
+        print(f"Test PASSED: data_width={data_width}, depth={depth}, registered={registered}, id={test_id}")
     except Exception as e:
-        print(f"✗ Test FAILED: {str(e)}")
+        print(f"Test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms run: {cmd_filename}")
         raise

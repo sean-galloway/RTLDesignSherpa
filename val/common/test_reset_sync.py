@@ -143,11 +143,11 @@ def test_reset_sync(n, test_mode):
 
             waves=enable_waves,
         )
-        print(f"✓ PASSED: {test_name}")
+        print(f"PASSED: {test_name}")
         if enable_waves:
             print(f"Waveform: {wave_cfg['trace_file']}")
     except Exception as e:
-        print(f"✗ FAILED: {test_name}")
+        print(f"FAILED: {test_name}")
         print(f"Error: {str(e)}")
         print(f"Log: {log_path}")
         if enable_waves:

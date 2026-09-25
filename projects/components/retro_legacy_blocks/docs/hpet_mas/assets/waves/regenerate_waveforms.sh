@@ -29,10 +29,10 @@ for json in *.json; do
 
     # Generate SVG using wavedrom-cli
     if wavedrom-cli -i "$json" -s "$SVG_DIR/$svg" 2>/tmp/wavedrom_error.log; then
-        echo "✓"
+        echo ""
         success_count=$((success_count + 1))
     else
-        echo "✗"
+        echo ""
         echo "  Error details:"
         cat /tmp/wavedrom_error.log | sed 's/^/    /'
         error_count=$((error_count + 1))

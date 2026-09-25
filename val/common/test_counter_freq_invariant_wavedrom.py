@@ -138,7 +138,7 @@ async def counter_freq_invariant_wavedrom_test(dut):
 
                         if os.path.exists(src_file):
                             shutil.move(src_file, dest_file)
-                            tb.log.info(f"✓ Generated waveform: {dest_file}")
+                            tb.log.info(f"Generated waveform: {dest_file}")
 
                             # Trim dead time from waveform
                             trim_script = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -149,7 +149,7 @@ async def counter_freq_invariant_wavedrom_test(dut):
                                 ], capture_output=True, text=True,
                                 )
                                 if result.returncode == 0:
-                                    tb.log.info(f"✓ Trimmed waveform: {output_filename}")
+                                    tb.log.info(f"Trimmed waveform: {output_filename}")
                                 else:
                                     tb.log.warning(f"Trimming failed: {result.stderr}")
                         else:
@@ -159,7 +159,7 @@ async def counter_freq_invariant_wavedrom_test(dut):
                 else:
                     tb.log.warning(f"No solution generated for scenario: {output_filename}")
 
-        tb.log.info("🎉 COUNTER FREQ INVARIANT WAVEDROM GENERATION COMPLETE! 🎉")
+        tb.log.info("COUNTER FREQ INVARIANT WAVEDROM GENERATION COMPLETE!")
 
     finally:
         if tb.wave_solver:
@@ -273,9 +273,9 @@ def test_counter_freq_invariant_wavedrom(request, counter_width):
 
             waves=enable_waves,
         )
-        print(f"✓ Counter Freq Invariant WaveDrom generation PASSED")
+        print(f"Counter Freq Invariant WaveDrom generation PASSED")
     except Exception as e:
-        print(f"✗ Counter Freq Invariant WaveDrom generation FAILED: {str(e)}")
+        print(f"Counter Freq Invariant WaveDrom generation FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         raise

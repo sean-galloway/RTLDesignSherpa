@@ -31,10 +31,10 @@ for gv in *.gv *.dot; do
 
     # Generate SVG using dot
     if dot -Tsvg "$gv" -o "$SVG_DIR/$svg" 2>/tmp/dot_error.log; then
-        echo "✓"
+        echo ""
         success_count=$((success_count + 1))
     else
-        echo "✗"
+        echo ""
         echo "  Error details:"
         cat /tmp/dot_error.log | sed 's/^/    /'
         error_count=$((error_count + 1))

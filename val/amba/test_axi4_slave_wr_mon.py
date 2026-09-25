@@ -233,7 +233,7 @@ async def axi4_slave_wr_mon_wavedrom_test(dut):
     dut._log.info("=== Scenario 1: Single-Beat Write Transaction ===")
     success, info = await tb.base_tb.single_write_response_test(address=0x1000, data=0xDEADBEEF)
     if success:
-        dut._log.info(f"✓ Single-beat write completed: address=0x1000, data=0xDEADBEEF")
+        dut._log.info(f"Single-beat write completed: address=0x1000, data=0xDEADBEEF")
 
     await tb.base_tb.wait_clocks('aclk', 30)
 
@@ -241,7 +241,7 @@ async def axi4_slave_wr_mon_wavedrom_test(dut):
     dut._log.info("=== Scenario 2: Single-Beat Write (address 0x2000) ===")
     success, info = await tb.base_tb.single_write_response_test(address=0x2000, data=0xCAFEBABE)
     if success:
-        dut._log.info(f"✓ Single-beat write completed: address=0x2000, data=0xCAFEBABE")
+        dut._log.info(f"Single-beat write completed: address=0x2000, data=0xCAFEBABE")
 
     await tb.base_tb.wait_clocks('aclk', 30)
 
@@ -254,11 +254,11 @@ async def axi4_slave_wr_mon_wavedrom_test(dut):
     # Check results - MUST pass for regression testing
     dut._log.info("=" * 80)
     if not results['all_required_satisfied']:
-        dut._log.error(f"❌ REQUIRED WAVEFORMS NOT GENERATED ❌")
+        dut._log.error(f"REQUIRED WAVEFORMS NOT GENERATED")
         dut._log.error(f"Failed constraints: {results['failed_constraints']}")
         raise AssertionError(f"Required waveforms not generated: {results['failed_constraints']}")
 
-    dut._log.info(f"✅ AXI4 Slave Write Monitor WaveDrom Complete: {len(results['solutions'])} waveforms generated")
+    dut._log.info(f"AXI4 Slave Write Monitor WaveDrom Complete: {len(results['solutions'])} waveforms generated")
     dut._log.info("=" * 80)
 
 
@@ -394,8 +394,8 @@ def test_axi4_slave_wr_mon(id_width, addr_width, data_width, user_width, wstrb_w
             keep_files=True,
             compile_args=compile_args,
         )
-        print(f"✓ PASSED: {test_name}")
+        print(f"PASSED: {test_name}")
     except Exception as e:
-        print(f"✗ FAILED: {test_name}")
+        print(f"FAILED: {test_name}")
         print(f"Error: {str(e)}")
         raise

@@ -90,7 +90,7 @@ async def axi4_dwidth_converter_rd_test(dut):
 
         # Verify final results
         if success and final_stats['errors'] == 0:
-            tb.log.info(f"🎉 ALL {test_level.upper()} TESTS PASSED!")
+            tb.log.info(f"ALL {test_level.upper()} TESTS PASSED!")
         else:
             error_summary = []
             if not success:
@@ -98,7 +98,7 @@ async def axi4_dwidth_converter_rd_test(dut):
             if final_stats['errors'] > 0:
                 error_summary.append(f"{final_stats['errors']} errors")
 
-            tb.log.error(f"❌ {test_level.upper()} TESTS FAILED: {', '.join(error_summary)}")
+            tb.log.error(f"{test_level.upper()} TESTS FAILED: {', '.join(error_summary)}")
             assert False, f"Test failures: {', '.join(error_summary)}"
 
     finally:
@@ -332,19 +332,19 @@ def test_axi4_dwidth_converter_rd(request, params):
             plus_args=['--trace'] if enable_waves else [],
         )
 
-        print(f"✅ {test_level.upper()} TEST PASSED")
+        print(f"{test_level.upper()} TEST PASSED")
         print(f"   Configuration: {s_data_width}→{m_data_width} ({mode} {width_ratio}:1)")
 
     except Exception as e:
-        print(f"❌ {test_level.upper()} TEST FAILED: {str(e)}")
+        print(f"{test_level.upper()} TEST FAILED: {str(e)}")
         print(f"   Configuration: {s_data_width}→{m_data_width} ({mode} {width_ratio}:1)")
         print(f"   Logs: {log_path}")
         print(f"   Waveforms: {cmd_filename}")
 
         # Provide debugging guidance
         if "timeout" in str(e).lower():
-            print(f"   💡 Check for deadlocks or excessive latency in converter")
+            print(f"Check for deadlocks or excessive latency in converter")
         elif "assertion" in str(e).lower():
-            print(f"   💡 Check data integrity in waveforms")
+            print(f"Check data integrity in waveforms")
 
         raise

@@ -447,7 +447,7 @@ def main():
     with open(output_path, 'w') as f:
         f.write(code)
 
-    print(f"✓ Generated: {output_path}")
+    print(f"Generated: {output_path}")
 
 
 if __name__ == "__main__":

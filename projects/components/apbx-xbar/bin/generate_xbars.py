@@ -83,7 +83,7 @@ def generate_all_standard():
         with open(output_file, 'w') as f:
             f.write(code)
 
-        print(f"  ✅ {output_file}")
+        print(f"{output_file}")
 
     for (masters, slaves), mv, sv, suffix in mixed:
         output_file = output_dir / f"apbx_xbar_{masters}to{slaves}{suffix}.sv"
@@ -102,7 +102,7 @@ def generate_all_standard():
         )
         with open(output_file, 'w') as f:
             f.write(code)
-        print(f"  ✅ {output_file}")
+        print(f"{output_file}")
 
     # Retro Legacy Blocks 1-to-10 (RLB-016). Unlike everything above, this
     # variant is CONSUMED BY ANOTHER COMPONENT, so it is emitted into that
@@ -169,7 +169,7 @@ def generate_custom(masters, slaves, base_addr=0x10000000, slave_size=0x10000):
     with open(output_file, 'w') as f:
         f.write(code)
 
-    print(f"✅ Generated {output_file}")
+    print(f"Generated {output_file}")
 
 
 if __name__ == '__main__':
@@ -210,7 +210,7 @@ Examples:
         # Generate custom variant
         generate_custom(args.masters, args.slaves, args.base_addr, args.slave_size)
     elif args.masters or args.slaves:
-        print("❌ Error: Must specify both --masters and --slaves", file=sys.stderr)
+        print("Error: Must specify both --masters and --slaves", file=sys.stderr)
         sys.exit(1)
     else:
         # Generate all standard variants

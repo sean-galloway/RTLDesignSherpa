@@ -527,9 +527,9 @@ class FifoMultiSigMapBufferTB(TBBase):
                     delay_key=config_name,
                     delay_clks_after=6
                 )
-                self.log.info(f'✓ Signal mapping config {config_name} passed')
+                self.log.info(f'Signal mapping config {config_name} passed')
             except Exception as e:
-                self.log.error(f'✗ Signal mapping config {config_name} failed: {e}')
+                self.log.error(f'Signal mapping config {config_name} failed: {e}')
                 failures += 1
 
         self.log.info(f"Signal mapping randomizer sweep completed: {total_configs - failures}/{total_configs} profiles passed")
@@ -598,9 +598,9 @@ class FifoMultiSigMapBufferTB(TBBase):
 
         # Verify signal mapping worked correctly by checking packet integrity
         if len(self.wr_monitor._recvQ) == len(self.rd_monitor._recvQ) == count:
-            self.log.info(f"✓ Signal mapping verification passed: all {count} packets transmitted and received correctly")
+            self.log.info(f"Signal mapping verification passed: all {count} packets transmitted and received correctly")
         else:
-            self.log.error(f"✗ Signal mapping verification failed: packet count mismatch")
+            self.log.error(f"Signal mapping verification failed: packet count mismatch")
             self.total_errors += 1
 
         # Get statistics

@@ -801,13 +801,13 @@ class CDC4PhaseHandshakeTB(TBBase):
                 )
 
                 if success:
-                    self.log.info(f"✓ Config '{config_name}' passed")
+                    self.log.info(f"Config '{config_name}' passed")
                 else:
-                    self.log.error(f"✗ Config '{config_name}' failed")
+                    self.log.error(f"Config '{config_name}' failed")
                     failures += 1
 
             except Exception as e:
-                self.log.error(f"✗ Config '{config_name}' exception: {e}")
+                self.log.error(f"Config '{config_name}' exception: {e}")
                 failures += 1
 
         self.log.info(f"[{test_name}] Completed: {total_configs - failures}/{total_configs} configs passed")
@@ -987,12 +987,12 @@ class CDC4PhaseHandshakeTB(TBBase):
                 success = await test_func(*args)
                 if success:
                     passed_tests += 1
-                    self.log.info(f"✓ {test_name} PASSED")
+                    self.log.info(f"{test_name} PASSED")
                 else:
-                    self.log.error(f"✗ {test_name} FAILED")
+                    self.log.error(f"{test_name} FAILED")
 
             except Exception as e:
-                self.log.error(f"✗ {test_name} EXCEPTION: {e}")
+                self.log.error(f"{test_name} EXCEPTION: {e}")
                 import traceback
                 self.log.error(traceback.format_exc())
 

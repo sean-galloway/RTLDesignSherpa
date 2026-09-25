@@ -266,7 +266,7 @@ Usage:
         for v in r.values()
         if isinstance(v, dict) and v.get('type') == 'field'
     )
-    print(f"✓ Generated regmap: {output_file}")
+    print(f"Generated regmap: {output_file}")
     print(f"  Registers: {len(reg_dict)}, Fields: {field_count}")
     return output_file
 
@@ -388,10 +388,10 @@ def main():
     # Create output directories
     for dir_path in [rtl_dir, docs_dir, headers_dir]:
         dir_path.mkdir(parents=True, exist_ok=True)
-        print(f"✓ Created directory: {dir_path}")
+        print(f"Created directory: {dir_path}")
 
     # Compile SystemRDL
-    print(f"\n📖 Compiling SystemRDL: {args.rdl_file}")
+    print(f"\nCompiling SystemRDL: {args.rdl_file}")
     rdlc = RDLCompiler()
 
     # Register PeakRDL-regblock User Defined Properties
@@ -402,18 +402,18 @@ def main():
     try:
         rdlc.compile_file(str(args.rdl_file))
         root = rdlc.elaborate()
-        print(f"✓ SystemRDL compilation successful")
+        print(f"SystemRDL compilation successful")
         # Get the first addrmap child for address info
         top_node = root.top
         print(f"  Address map: {top_node.inst_name}")
         print(f"  Address range: 0x{top_node.absolute_address:X} - 0x{top_node.absolute_address + top_node.size - 1:X}")
     except Exception as e:
-        print(f"✗ SystemRDL compilation failed: {e}")
+        print(f"SystemRDL compilation failed: {e}")
         sys.exit(1)
 
     # Generate SystemVerilog RTL
     if not args.docs_only:
-        print(f"\n🔨 Generating SystemVerilog RTL...")
+        print(f"\nGenerating SystemVerilog RTL...")
         try:
             exporter = RegblockExporter()
             cpuif_cls = CPUIF_MAP[args.cpuif]
@@ -429,49 +429,49 @@ def main():
             rtl_output = rtl_dir / f"{top_node.inst_name}.sv"
             if not rtl_output.exists():
                 raise FileNotFoundError(f"expected output missing: {rtl_output}")
-            print(f"✓ Generated: {rtl_output}")
+            print(f"Generated: {rtl_output}")
             print(f"  CPU Interface: {args.cpuif}")
 
             # Note about adapters
             if args.cpuif == "passthrough":
                 print(f"  NOTE: Use rtl/amba/adapters/peakrdl_to_cmdrsp.sv for cmd/rsp interface")
         except Exception as e:
-            print(f"✗ RTL generation failed: {e}")
+            print(f"RTL generation failed: {e}")
             import traceback
             traceback.print_exc()
             sys.exit(1)
 
     # Generate HTML Documentation
     if not args.rtl_only and not args.no_html:
-        print(f"\n📚 Generating HTML documentation...")
+        print(f"\nGenerating HTML documentation...")
         try:
             exporter = HTMLExporter()
             html_output = docs_dir / f"{top_node.inst_name}.html"
             exporter.export(root, str(html_output))
-            print(f"✓ Generated: {html_output}")
+            print(f"Generated: {html_output}")
         except Exception as e:
-            print(f"✗ HTML generation failed: {e}")
+            print(f"HTML generation failed: {e}")
 
     # Generate Markdown Documentation
     if not args.rtl_only and not args.no_markdown:
-        print(f"\n📝 Generating Markdown documentation...")
+        print(f"\nGenerating Markdown documentation...")
         try:
             exporter = MarkdownExporter()
             md_output = docs_dir / f"{top_node.inst_name}.md"
             exporter.export(root, str(md_output))
-            print(f"✓ Generated: {md_output}")
+            print(f"Generated: {md_output}")
         except Exception as e:
-            print(f"✗ Markdown generation failed: {e}")
+            print(f"Markdown generation failed: {e}")
 
     # Generate RegisterMap dictionary (by-name register access for DV)
     emit_regmap = args.regmap or (not args.no_regmap and not args.docs_only)
     if emit_regmap:
-        print(f"\n🗺️  Generating RegisterMap dictionary...")
+        print(f"\nGenerating RegisterMap dictionary...")
         regmap_output = args.regmap_output or (output_dir / f"{top_node.inst_name}_regmap.py")
         try:
             export_regmap(top_node, regmap_output, args.rdl_file)
         except Exception as e:
-            print(f"✗ RegisterMap export failed: {e}")
+            print(f"RegisterMap export failed: {e}")
             import traceback
             traceback.print_exc()
 
@@ -479,7 +479,7 @@ def main():
     print("\n" + "=" * 80)
     print("Generation Complete!")
     print("=" * 80)
-    print(f"\n📁 Output directory: {output_dir}")
+    print(f"\nOutput directory: {output_dir}")
 
     if not args.docs_only:
         print(f"\nGenerated RTL:")
@@ -494,7 +494,7 @@ def main():
 
     # Copy RTL to destination if requested
     if args.copy_rtl and not args.docs_only:
-        print(f"\n📦 Copying RTL to {args.copy_rtl}...")
+        print(f"\nCopying RTL to {args.copy_rtl}...")
         try:
             # Create destination directory if needed
             args.copy_rtl.mkdir(parents=True, exist_ok=True)
@@ -506,7 +506,7 @@ def main():
                     dest_file = args.copy_rtl / f.name
                     shutil.copy2(f, dest_file)
                     copied_files.append(f.name)
-                    print(f"  ✓ Copied: {f.name}")
+                    print(f"Copied: {f.name}")
 
             # Also copy package files if they exist
             for f in sorted(rtl_dir.rglob("*.svh")):
@@ -514,17 +514,17 @@ def main():
                     dest_file = args.copy_rtl / f.name
                     shutil.copy2(f, dest_file)
                     copied_files.append(f.name)
-                    print(f"  ✓ Copied: {f.name}")
+                    print(f"Copied: {f.name}")
 
-            print(f"\n✓ Successfully copied {len(copied_files)} file(s) to {args.copy_rtl}")
+            print(f"\nSuccessfully copied {len(copied_files)} file(s) to {args.copy_rtl}")
 
         except Exception as e:
-            print(f"\n✗ Copy failed: {e}")
+            print(f"\nCopy failed: {e}")
             return 1
 
     # Usage hints
     if not args.docs_only and args.cpuif == "passthrough":
-        print(f"\n💡 Integration Hint:")
+        print(f"\nIntegration Hint:")
         print(f"  Use the generic adapter for cmd/rsp interface:")
         print(f"  rtl/amba/adapters/peakrdl_to_cmdrsp.sv")
         print(f"\n  See rtl/amba/adapters/README.md for usage example")

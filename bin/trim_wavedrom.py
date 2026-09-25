@@ -219,7 +219,7 @@ def trim_wavejson(input_path, output_path=None, buffer_before=2, buffer_after=2,
         with open(output_path, 'w') as f:
             json.dump(wavejson, f, indent=2)
         if verbose:
-            print(f"✓ Trimmed waveform saved to: {output_path}")
+            print(f"Trimmed waveform saved to: {output_path}")
         return True
     except Exception as e:
         print(f"Error writing output: {e}")

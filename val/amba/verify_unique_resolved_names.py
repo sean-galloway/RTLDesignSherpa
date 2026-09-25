@@ -78,7 +78,7 @@ def main():
     sim_builds = get_actual_sim_builds()
 
     if not sim_builds:
-        print("\n⚠️  No sim_build directories found.")
+        print("\nNo sim_build directories found.")
         print("   Run some tests first to generate sim_build directories.")
         return
 
@@ -88,13 +88,13 @@ def main():
     duplicates = check_for_duplicates(sim_builds)
 
     if duplicates:
-        print(f"\n❌ CRITICAL: EXACT DUPLICATE NAMES FOUND: {len(duplicates)}")
+        print(f"\nCRITICAL: EXACT DUPLICATE NAMES FOUND: {len(duplicates)}")
         print("=" * 80)
         for name, count in duplicates.items():
             print(f"\n'{name}' appears {count} times")
             print("  This WILL cause collisions in parallel execution!")
     else:
-        print("\n✅ NO EXACT DUPLICATES - All resolved names are unique")
+        print("\nNO EXACT DUPLICATES - All resolved names are unique")
 
     # Analyze module families
     print("\n" + "=" * 80)
@@ -120,11 +120,11 @@ def main():
     print("=" * 80)
 
     if duplicates:
-        print("\n❌ UNSAFE FOR PARALLEL EXECUTION")
+        print("\nUNSAFE FOR PARALLEL EXECUTION")
         print(f"   Found {len(duplicates)} exact duplicate names")
         print("   These will overwrite each other's sim_build directories")
     else:
-        print("\n✅ SAFE FOR PARALLEL EXECUTION")
+        print("\nSAFE FOR PARALLEL EXECUTION")
         print(f"   All {len(sim_builds)} test names are unique")
         print("   Each test has its own sim_build directory")
 

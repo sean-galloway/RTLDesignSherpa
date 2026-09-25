@@ -296,7 +296,7 @@ class AxiReadSplitterScoreboard:
 
             # Add detailed boundary analysis for wide data buses
             if self.data_width >= 512:
-                error_report += f"\n🔍 DW={self.data_width} BOUNDARY ANALYSIS:\n"
+                error_report += f"\nDW={self.data_width} BOUNDARY ANALYSIS:\n"
                 start_addr = original_ar.addr
                 bytes_per_beat = 1 << original_ar.size
                 total_bytes = (original_ar.len + 1) * bytes_per_beat
@@ -370,7 +370,7 @@ class AxiReadSplitterScoreboard:
         # Extra logging for wide data buses
         if self.data_width >= 512 and self.log:
             time_str = self.get_time_str()
-            self.log.debug(f"🔍 DW={self.data_width} Split calculation{time_str}:")
+            self.log.debug(f"DW={self.data_width} Split calculation{time_str}:")
             self.log.debug(f"  Start: 0x{start_addr:08X} -> boundary {start_boundary}")
             self.log.debug(f"  End: 0x{end_addr:08X} -> boundary {end_boundary}")
             self.log.debug(f"  Bytes per beat: {bytes_per_beat}")
@@ -585,9 +585,9 @@ class AxiReadSplitterScoreboard:
         if self.log:
             time_str = self.get_time_str()
             if overall_passed:
-                self.log.info(f"✓ All split verifications passed{time_str}")
+                self.log.info(f"All split verifications passed{time_str}")
             else:
-                self.log.error(f"✗ Split verification failed{time_str}: {len(self.errors)} errors")
+                self.log.error(f"Split verification failed{time_str}: {len(self.errors)} errors")
                 self.log.error(f"Failed transaction IDs: {[f'0x{tid:02X}' for tid in failed_transactions]}")
 
         return overall_passed
@@ -623,7 +623,7 @@ class AxiReadSplitterScoreboard:
             for category, count in error_categories.items():
                 report += f"  {category}: {count} errors\n"
         else:
-            report += f"\n✓ No errors detected\n"
+            report += f"\nNo errors detected\n"
 
         return report
 

@@ -448,9 +448,9 @@ def test_monbus_axil4_axi4_group(request, s_axil_data_width):
             keep_files=True,
             compile_args=compile_args,
         )
-        print(f"✓ MonBus AXIL/AXI4 burst test PASSED! Logs: {log_path}")
+        print(f"MonBus AXIL/AXI4 burst test PASSED! Logs: {log_path}")
     except Exception as e:
-        print(f"✗ MonBus AXIL/AXI4 burst test FAILED: {e}")
+        print(f"MonBus AXIL/AXI4 burst test FAILED: {e}")
         print(f"Logs: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         raise

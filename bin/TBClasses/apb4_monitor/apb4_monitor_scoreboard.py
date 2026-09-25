@@ -174,7 +174,7 @@ class APBMonitorScoreboard:
                 pass
 
         if self.config.verbose_logging and self.log:
-            self.log.debug(f"📝 CMD recorded: ID={txn_id:02X} {format_packet_summary(cmd_packet)}")
+            self.log.debug(f"CMD recorded: ID={txn_id:02X} {format_packet_summary(cmd_packet)}")
 
         # Call callbacks
         for callback in self.transaction_callbacks:
@@ -238,7 +238,7 @@ class APBMonitorScoreboard:
             self._validate_transaction_timing(transaction)
 
         if self.config.verbose_logging and self.log:
-            self.log.debug(f"📝 RSP recorded: ID={target_txn_id:02X} {format_packet_summary(rsp_packet)}")
+            self.log.debug(f"RSP recorded: ID={target_txn_id:02X} {format_packet_summary(rsp_packet)}")
 
         # Call callbacks
         for callback in self.transaction_callbacks:
@@ -267,7 +267,7 @@ class APBMonitorScoreboard:
         self.stats['monitor_packets_received'] += 1
 
         if self.config.log_all_packets and self.log:
-            self.log.debug(f"📦 Monitor packet: {format_packet_summary(packet)}")
+            self.log.debug(f"Monitor packet: {format_packet_summary(packet)}")
 
         # Try to match with expected events
         self._match_monitor_event(packet)
@@ -298,7 +298,7 @@ class APBMonitorScoreboard:
         self.expected_events.append(event)
 
         if self.config.verbose_logging and self.log:
-            self.log.debug(f"📋 Expected event: {event}")
+            self.log.debug(f"Expected event: {event}")
 
     def expect_error_event(self, error_code: int, expected_addr: int = None,
                           tolerance_ns: float = None) -> APBMonitorEvent:
@@ -375,7 +375,7 @@ class APBMonitorScoreboard:
                 self.stats['expected_events_matched'] += 1
 
                 if self.config.verbose_logging and self.log:
-                    self.log.debug(f"✅ Matched expected event: {expected_event}")
+                    self.log.debug(f"Matched expected event: {expected_event}")
                 return
 
         # No match found - this is unexpected
@@ -383,7 +383,7 @@ class APBMonitorScoreboard:
         self.stats['unexpected_events'] += 1
 
         if self.log:
-            self.log.warning(f"❓ Unexpected monitor event: {format_packet_summary(packet)}")
+            self.log.warning(f"Unexpected monitor event: {format_packet_summary(packet)}")
 
     def _associate_packet_with_transaction(self, packet: MonbusPacket):
         """Associate monitor packet with relevant transactions"""
@@ -413,7 +413,7 @@ class APBMonitorScoreboard:
         self.verification_errors.append(error)
 
         if self.log:
-            self.log.error(f"❌ {error_type.upper()}: {message}")
+            self.log.error(f"{error_type.upper()}: {message}")
 
     def _validate_transaction_timing(self, transaction: APBTransaction):
         """Validate APB transaction timing"""
@@ -482,7 +482,7 @@ class APBMonitorScoreboard:
             True if all verifications pass
         """
         if self.log:
-            self.log.info("🔍 Verifying APB monitor behavior...")
+            self.log.info("Verifying APB monitor behavior...")
 
         verification_passed = True
 
@@ -511,7 +511,7 @@ class APBMonitorScoreboard:
 
         # Log results
         if self.log:
-            status = "✅ PASSED" if verification_passed else "❌ FAILED"
+            status = "PASSED" if verification_passed else "FAILED"
             self.log.info(f"{status} APB monitor verification")
             self.log.info(f"  Transactions: {self.stats['transactions_completed']} completed, "
                          f"{self.stats['transactions_error']} errors, "
@@ -589,11 +589,11 @@ class APBMonitorScoreboard:
         """Generate a comprehensive validation report"""
         stats = self.get_statistics()
 
-        report = f"\n📊 {self.component_name} Validation Report\n"
+        report = f"\n{self.component_name} Validation Report\n"
         report += "=" * 60 + "\n"
 
         # Transaction statistics
-        report += f"📝 Transaction Statistics:\n"
+        report += f"Transaction Statistics:\n"
         report += f"  Started: {stats['transactions_started']}\n"
         report += f"  Completed: {stats['transactions_completed']}\n"
         report += f"  Errors: {stats['transactions_error']}\n"
@@ -610,13 +610,13 @@ class APBMonitorScoreboard:
             report += f"  Minimum: {stats['min_latency_ns']:.1f} ns\n\n"
 
         # Monitor event statistics
-        report += f"📦 Monitor Event Statistics:\n"
+        report += f"Monitor Event Statistics:\n"
         report += f"  Packets Received: {stats['monitor_packets_received']}\n"
         report += f"  Expected Matched: {stats['expected_events_matched']}\n"
         report += f"  Unexpected Events: {stats['unexpected_events']}\n\n"
 
         # APB-specific statistics
-        report += f"🔧 APB-Specific Validation:\n"
+        report += f"APB-Specific Validation:\n"
         report += f"  Strobe Violations: {stats['strobe_violations']}\n"
         report += f"  Protocol Violations: {stats['protocol_violations']}\n"
         report += f"  Performance Violations: {stats['performance_violations']}\n"
@@ -624,12 +624,12 @@ class APBMonitorScoreboard:
 
         # Error summary
         if stats['verification_errors'] > 0:
-            report += f"❌ Verification Errors ({stats['verification_errors']}):\n"
+            report += f"Verification Errors ({stats['verification_errors']}):\n"
             for error in self.verification_errors[-5:]:  # Show last 5
                 report += f"  - {error['type']}: {error['message']}\n"
             report += "\n"
         else:
-            report += "✅ No verification errors detected\n\n"
+            report += "No verification errors detected\n\n"
 
         return report
 

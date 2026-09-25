@@ -74,7 +74,7 @@ class AXISSlaveCGTB(AXISSlaveTB):
                 enable_signal_name="cfg_cg_enable",
                 idle_count_signal_name="cfg_cg_idle_count"
             )
-            self.log.info("✓ Clock gating controller initialized")
+            self.log.info("Clock gating controller initialized")
         except Exception as e:
             self.log.warning(f"Could not initialize CG controller: {e}")
 
@@ -194,9 +194,9 @@ class AXISSlaveCGTB(AXISSlaveTB):
         equivalence = (result_no_cg == result_with_cg)
 
         if equivalence:
-            self.log.info("✓ Functional equivalence validated")
+            self.log.info("Functional equivalence validated")
         else:
-            self.log.error("✗ Functional equivalence validation failed")
+            self.log.error("Functional equivalence validation failed")
             self.log.error(f"No CG result: {result_no_cg}")
             self.log.error(f"With CG result: {result_with_cg}")
 

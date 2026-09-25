@@ -241,9 +241,9 @@ def test_dataint_parity(request, data_width, chunks, parity_type, test_level):
 
             waves=enable_waves,
         )
-        print(f"✓ {test_level.upper()} test PASSED: {chunks} chunks, {p_str} parity")
+        print(f"{test_level.upper()} test PASSED: {chunks} chunks, {p_str} parity")
     except Exception as e:
-        print(f"✗ {test_level.upper()} test FAILED: {str(e)}")
+        print(f"{test_level.upper()} test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

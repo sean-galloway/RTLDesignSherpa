@@ -186,8 +186,8 @@ def test_glitch_free_n_dff_arn(request, flop_count, width, test_mode):
             waves=enable_waves,
             includes=includes,  # From filelist via get_sources_from_filelist()
         )
-        print(f"✓ Test completed! Logs: {log_path}")
+        print(f"Test completed! Logs: {log_path}")
     except Exception as e:
-        print(f"❌ Test failed: {str(e)}")
+        print(f"Test failed: {str(e)}")
         print(f"Logs: {log_path}")
         raise

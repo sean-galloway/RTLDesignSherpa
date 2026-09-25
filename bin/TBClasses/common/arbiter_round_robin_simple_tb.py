@@ -358,7 +358,7 @@ class ArbiterRoundRobinSimpleTB(TBBase):
             f"(per-client grants: {list(grants_per_client[:self.CLIENTS])})"
         )
 
-        self.log.info(f"✓ Fairness test passed: {total_grants} grants, "
+        self.log.info(f"Fairness test passed: {total_grants} grants, "
                       f"fairness: {fairness_index:.3f}")
 
         await self.test_saturated_fairness()
@@ -423,7 +423,7 @@ class ArbiterRoundRobinSimpleTB(TBBase):
                     f"expected ~{expected:.1f}. Per-client grants: {seen}"
                 )
 
-        self.log.info(f"✓ Saturated fairness test passed: {seen}")
+        self.log.info(f"Saturated fairness test passed: {seen}")
 
     async def test_single_client_saturation(self):
         """Test single client saturation"""
@@ -552,9 +552,9 @@ class ArbiterRoundRobinSimpleTB(TBBase):
             )
 
             if success:
-                self.log.info("✓ Final report validation PASSED")
+                self.log.info("Final report validation PASSED")
             else:
-                self.log.error("✗ Final report validation FAILED")
+                self.log.error("Final report validation FAILED")
 
             return success
 

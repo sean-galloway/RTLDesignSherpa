@@ -27,7 +27,7 @@ All type definitions are imported from the synchronized monbus_types.py file.
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any, Union
 
-# ✅ IMPORT ALL TYPES FROM SYNCHRONIZED monbus_types.py
+# IMPORT ALL TYPES FROM SYNCHRONIZED monbus_types.py
 from TBClasses.monbus.monbus_types import (
     ProtocolType, PktType,
     # ARB Protocol event codes

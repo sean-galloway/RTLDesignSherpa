@@ -96,7 +96,7 @@ async def cdc_2_phase_handshake_test(dut):
 
         # Verify final results
         if success and final_stats['total_errors'] == 0:
-            tb.log.info(f"🎉 ALL {test_level.upper()} CDC TESTS PASSED!")
+            tb.log.info(f"ALL {test_level.upper()} CDC TESTS PASSED!")
         else:
             error_summary = []
             if not success:
@@ -106,7 +106,7 @@ async def cdc_2_phase_handshake_test(dut):
             if final_stats['cdc_violations'] > 0:
                 error_summary.append(f"{final_stats['cdc_violations']} CDC violations")
 
-            tb.log.error(f"❌ {test_level.upper()} CDC TESTS FAILED: {', '.join(error_summary)}")
+            tb.log.error(f"{test_level.upper()} CDC TESTS FAILED: {', '.join(error_summary)}")
             assert False, f"CDC test failures: {', '.join(error_summary)}"
 
     finally:
@@ -357,19 +357,19 @@ def test_cdc_2_phase_handshake(request, params):
             plus_args=plus_args,
         )
 
-        print(f"✅ {test_level.upper()} CDC TEST PASSED")
+        print(f"{test_level.upper()} CDC TEST PASSED")
         print(f"   Clock config: src={src_period}ns, dst={dst_period}ns, ratio={ratio:.3f}")
 
     except Exception as e:
-        print(f"❌ {test_level.upper()} CDC TEST FAILED: {str(e)}")
+        print(f"{test_level.upper()} CDC TEST FAILED: {str(e)}")
         print(f"   Clock config: src={src_period}ns, dst={dst_period}ns, ratio={ratio:.3f}")
         print(f"   Logs: {log_path}")
         print(f"   Waveforms: {cmd_filename}")
 
         # Provide debugging guidance
         if "timeout" in str(e).lower():
-            print(f"   💡 Check for CDC deadlocks or excessive latency")
+            print(f"Check for CDC deadlocks or excessive latency")
         elif "assertion" in str(e).lower():
-            print(f"   💡 Check CDC timing violations in waveforms")
+            print(f"Check CDC timing violations in waveforms")
 
         raise

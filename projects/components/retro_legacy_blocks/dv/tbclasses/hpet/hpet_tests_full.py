@@ -162,7 +162,7 @@ class HPETFullTests:
                 return False
 
             await self.tb.wait_apb_idle()
-            self.log.info(f"✓ All timers stress test passed{self.tb.get_time_ns_str()}")
+            self.log.info(f"All timers stress test passed{self.tb.get_time_ns_str()}")
             return True
 
         except Exception as e:
@@ -219,7 +219,7 @@ class HPETFullTests:
             self.log.info(f"Counter reads: {[f'0x{v:08X}' for v in counter_reads[:5]]}")
 
             await self.tb.wait_apb_idle()
-            self.log.info("✓ Clock domain crossing test passed")
+            self.log.info("Clock domain crossing test passed")
             return True
 
         except Exception as e:
@@ -289,7 +289,7 @@ class HPETFullTests:
             await self.tb.write_register(HPETRegisterMap.HPET_STATUS, 1 << timer_id)
 
             await self.tb.wait_apb_idle()
-            self.log.info("✓ Interrupt latency test passed")
+            self.log.info("Interrupt latency test passed")
             return True
 
         except Exception as e:
@@ -330,7 +330,7 @@ class HPETFullTests:
             # Should fire immediately
             await Timer(100, units="ns")
             if self.tb.timer_interrupt_state[timer_id]:
-                self.log.info("✓ Zero comparator test: interrupt fired as expected")
+                self.log.info("Zero comparator test: interrupt fired as expected")
                 results.append(True)
             else:
                 self.log.warning("Zero comparator test: no immediate interrupt")
@@ -363,7 +363,7 @@ class HPETFullTests:
             # Should fire quickly since counter is close to max
             max_comp_fired = self.tb.timer_interrupt_state[timer_id]
             results.append(max_comp_fired)
-            self.log.info(f"Maximum comparator test: {'✓ fired' if max_comp_fired else '⚠ no fire'}")
+            self.log.info(f"Maximum comparator test: {'fired' if max_comp_fired else 'no fire'}")
 
             await self.tb.write_register(HPETRegisterMap.HPET_STATUS, 1 << timer_id)
             await self.tb.write_register(config_addr, 0x00000000)
@@ -378,7 +378,7 @@ class HPETFullTests:
                 await Timer(10, units="ns")
 
             results.append(True)  # If we get here without hanging, it's a pass
-            self.log.info("✓ Rapid enable/disable test completed")
+            self.log.info("Rapid enable/disable test completed")
 
             # Test 4: Invalid register addresses (if address space allows)
             self.log.info("Testing invalid register access")
@@ -401,7 +401,7 @@ class HPETFullTests:
             self.log.info(f"Edge cases: {passed_count}/{edge_case_count} passed")
 
             await self.tb.wait_apb_idle()
-            self.log.info("✓ Edge cases test completed")
+            self.log.info("Edge cases test completed")
             return success
 
         except Exception as e:
@@ -509,7 +509,7 @@ class HPETFullTests:
 
             await self.tb.wait_apb_idle()
 
-            status = "✓ passed" if performance_ok else "⚠ marginal"
+            status = "passed" if performance_ok else "marginal"
             self.log.info(f"Performance benchmark {status}")
             return performance_ok
 

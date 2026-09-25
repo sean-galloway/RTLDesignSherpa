@@ -208,16 +208,16 @@ class UARTAXILBridgeTB(TBBase):
 
             response = chr(pkt0.data) + chr(pkt1.data) + chr(pkt2.data)
             if response == "OK\n":
-                self.log.info(f"✅ Write command successful: addr=0x{addr:X}, data=0x{data:X}")
+                self.log.info(f"Write command successful: addr=0x{addr:X}, data=0x{data:X}")
                 self.stats['writes_completed'] += 1
                 # Memory model is automatically updated by AXIL4SlaveWrite
                 return True
             else:
-                self.log.error(f"❌ Unexpected response: '{response}' (expected 'OK\\n')")
+                self.log.error(f"Unexpected response: '{response}' (expected 'OK\\n')")
                 self.stats['errors'] += 1
                 return False
         else:
-            self.log.error(f"❌ No response received (expected 'OK\\n')")
+            self.log.error(f"No response received (expected 'OK\\n')")
             self.stats['errors'] += 1
             return False
 
@@ -287,19 +287,19 @@ class UARTAXILBridgeTB(TBBase):
                 try:
                     data_hex = response[2:-1]  # Strip "0x" and "\n"
                     data = int(data_hex, 16)
-                    self.log.info(f"✅ Read command successful: addr=0x{addr:X}, data=0x{data:X}")
+                    self.log.info(f"Read command successful: addr=0x{addr:X}, data=0x{data:X}")
                     self.stats['reads_completed'] += 1
                     return True, data
                 except ValueError:
-                    self.log.error(f"❌ Invalid hex response: '{response.strip()}'")
+                    self.log.error(f"Invalid hex response: '{response.strip()}'")
                     self.stats['errors'] += 1
                     return False, None
             else:
-                self.log.error(f"❌ Malformed response: '{response.strip()}' (expected '0x<hex>\\n')")
+                self.log.error(f"Malformed response: '{response.strip()}' (expected '0x<hex>\\n')")
                 self.stats['errors'] += 1
                 return False, None
         else:
-            self.log.error(f"❌ No response received (expected '0x<hex>\\n', length={response_len})")
+            self.log.error(f"No response received (expected '0x<hex>\\n', length={response_len})")
             self.stats['errors'] += 1
             return False, None
 
@@ -327,7 +327,7 @@ class UARTAXILBridgeTB(TBBase):
         if not read_success:
             success = False
         elif read_data != 0xDEADBEEF:
-            self.log.error(f"❌ Read data mismatch: expected 0xDEADBEEF, got 0x{read_data:X}")
+            self.log.error(f"Read data mismatch: expected 0xDEADBEEF, got 0x{read_data:X}")
             self.stats['errors'] += 1
             success = False
 
@@ -340,7 +340,7 @@ class UARTAXILBridgeTB(TBBase):
         if not read_success:
             success = False
         elif read_data != 0x12345678:
-            self.log.error(f"❌ Read data mismatch: expected 0x12345678, got 0x{read_data:X}")
+            self.log.error(f"Read data mismatch: expected 0x12345678, got 0x{read_data:X}")
             self.stats['errors'] += 1
             success = False
 
@@ -371,7 +371,7 @@ class UARTAXILBridgeTB(TBBase):
             if not read_success:
                 success = False
             elif read_data != data:
-                self.log.error(f"❌ Read data mismatch at addr 0x{addr:X}: expected 0x{data:X}, got 0x{read_data:X}")
+                self.log.error(f"Read data mismatch at addr 0x{addr:X}: expected 0x{data:X}, got 0x{read_data:X}")
                 self.stats['errors'] += 1
                 success = False
 
@@ -422,7 +422,7 @@ class UARTAXILBridgeTB(TBBase):
             if not read_success:
                 success = False
             elif read_data != data:
-                self.log.error(f"❌ Read data mismatch at addr 0x{addr:X}: expected 0x{data:X}, got 0x{read_data:X}")
+                self.log.error(f"Read data mismatch at addr 0x{addr:X}: expected 0x{data:X}, got 0x{read_data:X}")
                 self.stats['errors'] += 1
                 success = False
 

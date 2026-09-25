@@ -277,7 +277,7 @@ def debug_filelist(repo_root, filelist_path, output_file='filelist_debug.txt'):
     verilog_sources = processor.get_file_list()
     includes = processor.get_include_list()
 
-    print(f"✓ Debug output written to: {output_file}")
+    print(f"Debug output written to: {output_file}")
     print(f"  Verilog sources: {len(verilog_sources)} files")
     print(f"  Include dirs: {len(includes)} directories")
 

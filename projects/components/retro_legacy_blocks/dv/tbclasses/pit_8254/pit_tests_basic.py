@@ -94,11 +94,11 @@ class PITBasicTests:
                     f"Counter{counter_id} mismatch: expected 0x{test_value:04x}, got 0x{data:04x}"
                 self.tb.log.info(f"  COUNTER{counter_id}_DATA write/read: OK (0x{data:04x})")
 
-            self.tb.log.info("✓ Register access test PASSED")
+            self.tb.log.info("Register access test PASSED")
             return True
 
         except AssertionError as e:
-            self.tb.log.error(f"✗ Register access test FAILED: {e}")
+            self.tb.log.error(f"Register access test FAILED: {e}")
             return False
 
     async def test_pit_enable_disable(self) -> bool:
@@ -127,11 +127,11 @@ class PITBasicTests:
             assert (config & 0x1) == 1, "PIT should be enabled"
             self.tb.log.info("  PIT enabled: OK")
 
-            self.tb.log.info("✓ PIT enable/disable test PASSED")
+            self.tb.log.info("PIT enable/disable test PASSED")
             return True
 
         except AssertionError as e:
-            self.tb.log.error(f"✗ PIT enable/disable test FAILED: {e}")
+            self.tb.log.error(f"PIT enable/disable test FAILED: {e}")
             return False
 
     async def test_control_word_programming(self) -> bool:
@@ -188,11 +188,11 @@ class PITBasicTests:
 
                 self.tb.log.info(f"  Counter {counter_id} configured: OK")
 
-            self.tb.log.info("✓ Control word programming test PASSED")
+            self.tb.log.info("Control word programming test PASSED")
             return True
 
         except AssertionError as e:
-            self.tb.log.error(f"✗ Control word programming test FAILED: {e}")
+            self.tb.log.error(f"Control word programming test FAILED: {e}")
             return False
 
     async def test_counter_mode0_simple(self) -> bool:
@@ -233,11 +233,11 @@ class PITBasicTests:
             assert status_parsed['out'] == 1, f"Counter {counter_id} OUT status should be 1"
             self.tb.log.info(f"  Counter {counter_id} status OUT=1: OK")
 
-            self.tb.log.info("✓ Counter mode 0 simple test PASSED")
+            self.tb.log.info("Counter mode 0 simple test PASSED")
             return True
 
         except AssertionError as e:
-            self.tb.log.error(f"✗ Counter mode 0 simple test FAILED: {e}")
+            self.tb.log.error(f"Counter mode 0 simple test FAILED: {e}")
             return False
 
     async def test_multiple_counters(self) -> bool:
@@ -269,11 +269,11 @@ class PITBasicTests:
                 assert result, f"Counter {counter_id} did not fire"
                 self.tb.log.info(f"  Counter {counter_id} fired: OK")
 
-            self.tb.log.info("✓ Multiple counters test PASSED")
+            self.tb.log.info("Multiple counters test PASSED")
             return True
 
         except AssertionError as e:
-            self.tb.log.error(f"✗ Multiple counters test FAILED: {e}")
+            self.tb.log.error(f"Multiple counters test FAILED: {e}")
             return False
 
     async def test_status_register(self) -> bool:
@@ -306,11 +306,11 @@ class PITBasicTests:
             assert status_parsed['bcd'] == 0
             assert status_parsed['null_count'] == 0  # Should have loaded value
 
-            self.tb.log.info("✓ Status register test PASSED")
+            self.tb.log.info("Status register test PASSED")
             return True
 
         except AssertionError as e:
-            self.tb.log.error(f"✗ Status register test FAILED: {e}")
+            self.tb.log.error(f"Status register test FAILED: {e}")
             return False
 
     async def test_counter_mode2_rate_generator(self) -> bool:
@@ -362,11 +362,11 @@ class PITBasicTests:
                 f"Counter {counter_id} mode mismatch"
 
             self.tb.log.info(f"  Counter {counter_id} in mode 2: OK")
-            self.tb.log.info("✓ Counter mode 2 rate generator test PASSED")
+            self.tb.log.info("Counter mode 2 rate generator test PASSED")
             return True
 
         except AssertionError as e:
-            self.tb.log.error(f"✗ Counter mode 2 rate generator test FAILED: {e}")
+            self.tb.log.error(f"Counter mode 2 rate generator test FAILED: {e}")
             return False
 
     async def test_counter_mode3_square_wave(self) -> bool:
@@ -418,11 +418,11 @@ class PITBasicTests:
                 f"Counter {counter_id} mode mismatch"
 
             self.tb.log.info(f"  Counter {counter_id} in mode 3: OK")
-            self.tb.log.info("✓ Counter mode 3 square wave test PASSED")
+            self.tb.log.info("Counter mode 3 square wave test PASSED")
             return True
 
         except AssertionError as e:
-            self.tb.log.error(f"✗ Counter mode 3 square wave test FAILED: {e}")
+            self.tb.log.error(f"Counter mode 3 square wave test FAILED: {e}")
             return False
 
     async def test_all_counter_modes(self) -> bool:
@@ -484,11 +484,11 @@ class PITBasicTests:
 
                 self.tb.log.info(f"  {mode_name}: OK")
 
-            self.tb.log.info("✓ All counter modes test PASSED")
+            self.tb.log.info("All counter modes test PASSED")
             return True
 
         except AssertionError as e:
-            self.tb.log.error(f"✗ All counter modes test FAILED: {e}")
+            self.tb.log.error(f"All counter modes test FAILED: {e}")
             return False
 
     async def test_counter_stress(self) -> bool:
@@ -535,11 +535,11 @@ class PITBasicTests:
             statuses = await self.tb.read_status()
             self.tb.log.info(f"  Final status: 0x{statuses[0]:02x}{statuses[1]:02x}{statuses[2]:02x}")
 
-            self.tb.log.info("✓ Counter stress test PASSED")
+            self.tb.log.info("Counter stress test PASSED")
             return True
 
         except Exception as e:
-            self.tb.log.error(f"✗ Counter stress test FAILED: {e}")
+            self.tb.log.error(f"Counter stress test FAILED: {e}")
             return False
 
     # =========================================================================

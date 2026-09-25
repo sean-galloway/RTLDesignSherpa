@@ -127,7 +127,7 @@ class AXI4MasterReadTB(TBBase):
             self.r_slave = self.master_components['R']     # Receives R channel
             self.axi4_master = self.master_components['interface']
 
-            self.log.info("✓ AXI4 Master Read components created")
+            self.log.info("AXI4 Master Read components created")
         except Exception as e:
             self.log.error(f"Failed to create master components: {e}")
             raise
@@ -150,7 +150,7 @@ class AXI4MasterReadTB(TBBase):
             self.ar_slave = self.slave_components['AR']    # Receives AR requests
             self.r_master = self.slave_components['R']     # Drives R responses
 
-            self.log.info("✓ AXI4 Slave Read components created")
+            self.log.info("AXI4 Slave Read components created")
         except Exception as e:
             self.log.error(f"Failed to create slave components: {e}")
             raise
@@ -215,7 +215,7 @@ class AXI4MasterReadTB(TBBase):
             data_bytes = self.memory_model.integer_to_bytearray(data, bytes_per_word)
             self.memory_model.write(addr, data_bytes)
 
-        self.log.info("✓ Memory patterns initialized")
+        self.log.info("Memory patterns initialized")
 
     def _create_axi4_randomizer_configs(self):
         """Create AXI4-specific randomizer configurations"""

@@ -126,7 +126,7 @@ class ResetSyncTB(TBBase):
 
         assert self.dut.sync_rst_n.value == 1, f"sync_rst_n should be 1 after {self.N+1} total clock edges"
 
-        self.log.info("✅ Basic synchronization: PASSED")
+        self.log.info("Basic synchronization: PASSED")
         return True
 
     async def test_reset_assertion_immediate(self):
@@ -148,7 +148,7 @@ class ResetSyncTB(TBBase):
         # sync_rst_n should immediately go to 0 (asynchronous reset)
         assert self.dut.sync_rst_n.value == 0, "sync_rst_n should go to 0 immediately on reset"
 
-        self.log.info("✅ Immediate reset assertion: PASSED")
+        self.log.info("Immediate reset assertion: PASSED")
         return True
 
     async def test_multiple_reset_cycles(self):
@@ -175,7 +175,7 @@ class ResetSyncTB(TBBase):
                 await Timer(1, units='ns')  # Allow combinational output to settle
                 assert self.dut.sync_rst_n.value == 1, f"Cycle {cycle}: sync_rst_n should remain 1"
 
-        self.log.info("✅ Multiple reset cycles: PASSED")
+        self.log.info("Multiple reset cycles: PASSED")
         return True
 
     async def test_reset_glitch_filtering(self):
@@ -210,7 +210,7 @@ class ResetSyncTB(TBBase):
         await Timer(1, units='ns')  # Allow combinational output to settle
         assert self.dut.sync_rst_n.value == 1, "Should recover to 1 after N clocks"
 
-        self.log.info("✅ Reset glitch filtering: PASSED")
+        self.log.info("Reset glitch filtering: PASSED")
         return True
 
     async def run_all_tests(self):

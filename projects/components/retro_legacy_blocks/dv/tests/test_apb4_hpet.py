@@ -146,9 +146,9 @@ async def hpet_test(dut):
     final_passed = passed and register_verified and interrupt_verified
 
     if final_passed:
-        tb.log.info("🎉 HPET test PASSED! 🎉")
+        tb.log.info("HPET test PASSED!")
     else:
-        tb.log.error("❌ HPET test FAILED ❌")
+        tb.log.error("HPET test FAILED")
         errors = tb.scoreboard.errors
         if errors:
             tb.log.error("Verification errors:")
@@ -334,10 +334,10 @@ def test_hpet(request, num_timers, vendor_id, revision_id, cdc_enable, test_leve
             sim_args=sim_args,
             plus_args=['--trace'] if enable_waves else [],
         )
-        print(f"✅ {test_level.upper()} HPET test PASSED: {description}")
+        print(f"{test_level.upper()} HPET test PASSED: {description}")
 
     except Exception as e:
-        print(f"❌ {test_level.upper()} HPET test FAILED: {description}")
+        print(f"{test_level.upper()} HPET test FAILED: {description}")
         print(f"Error: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run this command: {cmd_filename}")

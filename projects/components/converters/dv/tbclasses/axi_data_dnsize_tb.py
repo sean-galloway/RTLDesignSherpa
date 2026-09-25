@@ -428,7 +428,7 @@ class AXIDataDnsizeTB(TBBase):
                                        f"expected 0x{expected_sb:x}, got 0x{narrow_sideband:x}")
                         return False
 
-        self.log.info(f"✓ Basic splitting test PASSED ({num_transactions} transactions)")
+        self.log.info(f"Basic splitting test PASSED ({num_transactions} transactions)")
         return True
 
     async def test_last_propagation(self, num_transactions=5):
@@ -472,7 +472,7 @@ class AXIDataDnsizeTB(TBBase):
                                    f"expected {expected_last}, got {narrow_last}")
                     return False
 
-        self.log.info(f"✓ LAST propagation test PASSED ({num_transactions} transactions)")
+        self.log.info(f"LAST propagation test PASSED ({num_transactions} transactions)")
         return True
 
     async def test_burst_tracking(self, num_bursts=15):
@@ -542,7 +542,7 @@ class AXIDataDnsizeTB(TBBase):
                                    f"expected {expected_last}, got {narrow_last}")
                     return False
 
-        self.log.info(f"✓ Burst tracking test PASSED ({num_bursts} bursts)")
+        self.log.info(f"Burst tracking test PASSED ({num_bursts} bursts)")
         return True
 
 
@@ -632,7 +632,7 @@ class AXIDataDnsizeTB(TBBase):
             self.log.error(f"Backpressure test: Expected {expected_total} beats, got {actual_total}")
             return False
 
-        self.log.info(f"✓ Backpressure test PASSED ({num_transactions} transactions)")
+        self.log.info(f"Backpressure test PASSED ({num_transactions} transactions)")
         return True
 
     async def test_continuous_streaming(self, num_wide_beats=30):
@@ -654,5 +654,5 @@ class AXIDataDnsizeTB(TBBase):
             self.log.error(f"Continuous streaming: Expected {expected_narrow_beats} beats, got {actual_narrow_beats}")
             return False
 
-        self.log.info(f"✓ Continuous streaming test PASSED ({num_wide_beats} wide beats)")
+        self.log.info(f"Continuous streaming test PASSED ({num_wide_beats} wide beats)")
         return True

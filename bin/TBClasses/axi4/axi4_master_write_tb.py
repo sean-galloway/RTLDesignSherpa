@@ -851,7 +851,7 @@ class AXI4MasterWriteTB(TBBase):
             self.log.info("Testing unaligned address...")
             success, info = await self.single_write_test(0x1001, 0x12345678)  # Unaligned
             if not success:
-                self.log.info("✓ Unaligned address properly rejected")
+                self.log.info("Unaligned address properly rejected")
             else:
                 self.log.info("ℹ Unaligned address accepted (system supports unaligned)")
         except Exception as e:
@@ -863,7 +863,7 @@ class AXI4MasterWriteTB(TBBase):
             max_data = (1 << self.TEST_DATA_WIDTH) - 1
             success, info = await self.single_write_test(0x5000, max_data)
             if success:
-                self.log.info("✓ Maximum data value handled correctly")
+                self.log.info("Maximum data value handled correctly")
             else:
                 self.log.warning(f"Maximum data value failed: {info}")
         except Exception as e:
@@ -874,7 +874,7 @@ class AXI4MasterWriteTB(TBBase):
             self.log.info("Testing boundary addresses...")
             success, info = await self.single_write_test(0x0, 0xDEADBEEF)  # Zero address
             if success:
-                self.log.info("✓ Zero address handled correctly")
+                self.log.info("Zero address handled correctly")
         except Exception as e:
             self.log.info(f"ℹ Zero address test caused exception: {str(e)}")
 
@@ -938,10 +938,10 @@ class AXI4MasterWriteTB(TBBase):
         }
         
         if success_count == count:
-            self.log.info(f"✅ Outstanding transaction test PASSED: {success_count}/{count} (100%)")
+            self.log.info(f"Outstanding transaction test PASSED: {success_count}/{count} (100%)")
             return True, stats
         else:
-            self.log.error(f"❌ Outstanding transaction test FAILED: {success_count}/{count} ({success_rate:.1%})")
+            self.log.error(f"Outstanding transaction test FAILED: {success_count}/{count} ({success_rate:.1%})")
             self.log.error(f"Failed transactions: {failed_transactions}")
             return False, stats
 

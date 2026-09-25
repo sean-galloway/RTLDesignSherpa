@@ -485,9 +485,9 @@ class AXISMasterTB(TBBase):
             )
 
             if success:
-                self.log.info("✓ Final report validation PASSED")
+                self.log.info("Final report validation PASSED")
             else:
-                self.log.error("✗ Final report validation FAILED")
+                self.log.error("Final report validation FAILED")
 
             return success
 

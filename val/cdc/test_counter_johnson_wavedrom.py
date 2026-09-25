@@ -159,7 +159,7 @@ async def counter_johnson_wavedrom_test(dut):
                 else:
                     tb.log.warning(f"  No solution generated for {output_filename}")
 
-        tb.log.info("\n🎉 JOHNSON COUNTER WAVEDROM GENERATION COMPLETE! 🎉")
+        tb.log.info("\nJOHNSON COUNTER WAVEDROM GENERATION COMPLETE!")
 
         # The scenarios' checks used to only log.error -- the test could not
         # fail on wrong DUT behaviour (test-audit finding). Waveforms for the
@@ -173,7 +173,7 @@ async def counter_johnson_wavedrom_test(dut):
             await tb.wave_solver.stop_sampling()
         await tb.wait_cycles(10)
 
-    tb.log.info(f"✓ Johnson Counter WaveDrom test PASSED{tb.get_time_ns_str()}")
+    tb.log.info(f"Johnson Counter WaveDrom test PASSED{tb.get_time_ns_str()}")
     return True
 
 def _wavedrom_grid(gate, func, full):
@@ -278,10 +278,10 @@ def test_counter_johnson_wavedrom(request, wave_cfg):
 
             waves=enable_waves,
         )
-        print(f"✓ WaveDrom test PASSED")
+        print(f"WaveDrom test PASSED")
         print(f"WaveJSON files generated in: {sim_build}/")
     except Exception as e:
-        print(f"✗ WaveDrom test FAILED: {str(e)}")
+        print(f"WaveDrom test FAILED: {str(e)}")
         print(f"Logs: {log_path}")
         print(f"View waveforms: {cmd_filename}")
         raise

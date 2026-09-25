@@ -762,4 +762,4 @@ def validate_config(
         for slave in slaves:
             validate_master_slave_compatibility(master, slave, connectivity)
 
-    print("✓ Configuration validation passed")
+    print("Configuration validation passed")

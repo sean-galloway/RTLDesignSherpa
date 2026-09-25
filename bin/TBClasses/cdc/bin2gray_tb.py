@@ -84,7 +84,7 @@ class Bin2GrayTB(TBBase):
             self.log.info(f"Binary: 0x{binary_val:0{(self.WIDTH+3)//4}X} "
                             f"-> Gray: 0x{actual_gray:0{(self.WIDTH+3)//4}X} "
                             f"(Expected: 0x{expected_gray:0{(self.WIDTH+3)//4}X}) "
-                            f"{'✓' if success else '✗'}")
+                            f"{'' if success else ''}")
 
         return success, actual_gray, expected_gray
 

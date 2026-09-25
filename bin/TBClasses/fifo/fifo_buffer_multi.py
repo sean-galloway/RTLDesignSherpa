@@ -500,9 +500,9 @@ class FifoMultiBufferTB(TBBase):
                     delay_key=config_name,
                     delay_clks_after=6
                 )
-                self.log.info(f'✓ Multi-signal config {config_name} passed')
+                self.log.info(f'Multi-signal config {config_name} passed')
             except Exception as e:
-                self.log.error(f'✗ Multi-signal config {config_name} failed: {e}')
+                self.log.error(f'Multi-signal config {config_name} failed: {e}')
                 failures += 1
 
         self.log.info(f"Multi-signal randomizer sweep completed: {total_configs - failures}/{total_configs} profiles passed")

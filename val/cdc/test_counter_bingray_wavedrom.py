@@ -158,7 +158,7 @@ async def counter_bingray_wavedrom_test(dut):
                 else:
                     tb.log.warning(f"  No solution generated for {output_filename}")
 
-        tb.log.info("\n🎉 BINARY-GRAY COUNTER WAVEDROM GENERATION COMPLETE! 🎉")
+        tb.log.info("\nBINARY-GRAY COUNTER WAVEDROM GENERATION COMPLETE!")
         tb.log.info(f"Generated {len(scenarios)} waveform files in: {output_dir}")
 
     finally:
@@ -166,7 +166,7 @@ async def counter_bingray_wavedrom_test(dut):
             await tb.wave_solver.stop_sampling()
         await tb.wait_cycles(10)
 
-    tb.log.info(f"✓ Binary-Gray Counter WaveDrom test PASSED{tb.get_time_ns_str()}")
+    tb.log.info(f"Binary-Gray Counter WaveDrom test PASSED{tb.get_time_ns_str()}")
     return True
 
 def _wavedrom_grid(gate, func, full):
@@ -271,10 +271,10 @@ def test_counter_bingray_wavedrom(request, wave_cfg):
 
             waves=enable_waves,
         )
-        print(f"✓ WaveDrom test PASSED")
+        print(f"WaveDrom test PASSED")
         print(f"WaveJSON files generated in: {sim_build}/")
     except Exception as e:
-        print(f"✗ WaveDrom test FAILED: {str(e)}")
+        print(f"WaveDrom test FAILED: {str(e)}")
         print(f"Logs: {log_path}")
         print(f"View waveforms: {cmd_filename}")
         raise

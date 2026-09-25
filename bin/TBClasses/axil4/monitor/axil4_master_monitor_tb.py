@@ -224,7 +224,7 @@ class AXIL4MasterMonitorTB(TBBase):
             log=self.log
         )
 
-        self.log.info("✓ Testbench initialized")
+        self.log.info("Testbench initialized")
 
     def set_timing_profile(self, profile):
         """Set timing profile for randomized delays"""
@@ -321,7 +321,7 @@ class AXIL4MasterMonitorTB(TBBase):
             success, data, info = await self.single_read_test(0x1000)
 
         if not success:
-            self.log.error("❌ Basic connectivity test FAILED!")
+            self.log.error("Basic connectivity test FAILED!")
             raise RuntimeError("Basic connectivity failed")
 
         # Wait for the completion packet. The monitor asserts monbus_valid and
@@ -342,10 +342,10 @@ class AXIL4MasterMonitorTB(TBBase):
         self.log.info(f"Monitor packets after basic test: {packets}")
 
         if packets == 0:
-            self.log.error("❌ No monitor packets generated!")
+            self.log.error("No monitor packets generated!")
             raise RuntimeError("Monitor not generating packets")
 
-        self.log.info("✅ TEST 1 PASSED")
+        self.log.info("TEST 1 PASSED")
 
     async def _test_multiple_transactions(self, test_level):
         """Test 2: Multiple transactions and packet scaling"""
@@ -364,7 +364,7 @@ class AXIL4MasterMonitorTB(TBBase):
             result = await self.basic_read_sequence(num_trans)
 
         if not result:
-            self.log.error("❌ Transaction sequence FAILED!")
+            self.log.error("Transaction sequence FAILED!")
             raise RuntimeError("Transaction sequence failed")
 
         await self.wait_clocks('aclk', 50)
@@ -376,10 +376,10 @@ class AXIL4MasterMonitorTB(TBBase):
 
         # AXIL generates 1 completion packet per transaction minimum
         if new_packets < num_trans * 0.5:
-            self.log.error(f"❌ Too few packets! Expected ~{num_trans}, got {new_packets}")
+            self.log.error(f"Too few packets! Expected ~{num_trans}, got {new_packets}")
             raise RuntimeError("Insufficient monitor packets")
 
-        self.log.info("✅ TEST 2 PASSED")
+        self.log.info("TEST 2 PASSED")
 
     async def _test_error_detection(self):
         """Test 3: Error detection and reporting"""
@@ -392,7 +392,7 @@ class AXIL4MasterMonitorTB(TBBase):
         self.log.info(f"Error packets so far: {errors}")
         self.log.info("(Error injection requires enhanced slave - monitoring verified)")
 
-        self.log.info("✅ TEST 3 PASSED")
+        self.log.info("TEST 3 PASSED")
 
     async def _test_sustained_traffic(self, test_level):
         """Test 4: Sustained traffic with backpressure"""
@@ -411,7 +411,7 @@ class AXIL4MasterMonitorTB(TBBase):
             result = await self.basic_read_sequence(num_trans)
 
         if not result:
-            self.log.error("❌ Sustained traffic FAILED!")
+            self.log.error("Sustained traffic FAILED!")
             raise RuntimeError("Sustained traffic failed")
 
         await self.wait_clocks('aclk', 100)
@@ -422,10 +422,10 @@ class AXIL4MasterMonitorTB(TBBase):
         self.log.info(f"Sustained traffic: {num_trans} transactions → {new_packets} packets")
 
         if new_packets < num_trans * 0.5:
-            self.log.error("❌ Packet loss during sustained traffic!")
+            self.log.error("Packet loss during sustained traffic!")
             raise RuntimeError("Packet loss detected")
 
-        self.log.info("✅ TEST 4 PASSED")
+        self.log.info("TEST 4 PASSED")
 
     async def _final_report(self):
         """Generate final test report"""
@@ -451,5 +451,5 @@ class AXIL4MasterMonitorTB(TBBase):
                 name = type_names.get(ptype, f"TYPE_{ptype:X}")
                 self.log.info(f"  {name}: {count}")
 
-        self.log.info("\n✅ ALL TESTS PASSED")
+        self.log.info("\nALL TESTS PASSED")
         self.log.info("="*80)

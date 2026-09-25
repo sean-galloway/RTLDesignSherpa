@@ -118,7 +118,7 @@ async def axil4_slave_read_test(dut):
             tb.log.error("Basic AXIL4 slave connectivity test failed!")
             raise Exception(f"Basic connectivity failed: {info}")
 
-        tb.log.info("✅ Basic AXIL4 slave connectivity test passed")
+        tb.log.info("Basic AXIL4 slave connectivity test passed")
         tests_passed += 1
 
         # Test 2: Register read sequences with different timing profiles
@@ -135,7 +135,7 @@ async def axil4_slave_read_test(dut):
                     tb.log.error(error_msg)
                     raise Exception(error_msg)
 
-            tb.log.info(f"✅ Register read sequences passed with '{profile}' timing")
+            tb.log.info(f"Register read sequences passed with '{profile}' timing")
             tests_passed += 1
 
         # Test 3: Address decode validation
@@ -149,7 +149,7 @@ async def axil4_slave_read_test(dut):
             tb.log.error(error_msg)
             raise Exception(error_msg)
 
-        tb.log.info("✅ Address decode validation passed")
+        tb.log.info("Address decode validation passed")
         tests_passed += 1
 
         # Test 4: Register pattern validation
@@ -164,7 +164,7 @@ async def axil4_slave_read_test(dut):
             tb.log.error(error_msg)
             raise Exception(error_msg)
 
-        tb.log.info("✅ Register pattern validation passed")
+        tb.log.info("Register pattern validation passed")
         tests_passed += 1
 
         # Test 5: Timing profile validation (medium and full levels)
@@ -175,11 +175,11 @@ async def axil4_slave_read_test(dut):
 
                 success = await tb.timing_profile_test(profile, test_count=20)
                 if success:
-                    tb.log.info(f"✅ Timing profile '{profile}' validation passed")
+                    tb.log.info(f"Timing profile '{profile}' validation passed")
                     tests_passed += 1
                 else:
                     # Allow partial success for timing tests
-                    tb.log.warning(f"⚠️ Timing profile '{profile}' had some failures (continuing)")
+                    tb.log.warning(f"Timing profile '{profile}' had some failures (continuing)")
                     tests_passed += 1  # Count as success with warning
 
         # Test 6: Stress testing
@@ -194,7 +194,7 @@ async def axil4_slave_read_test(dut):
             tb.log.error(error_msg)
             raise Exception(error_msg)
 
-        tb.log.info("✅ AXIL4 slave stress test passed")
+        tb.log.info("AXIL4 slave stress test passed")
         tests_passed += 1
 
         # Test 7: Mixed register operations (full level only)
@@ -229,7 +229,7 @@ async def axil4_slave_read_test(dut):
                 tb.log.error(error_msg)
                 raise Exception(error_msg)
 
-            tb.log.info("✅ Mixed register operations passed")
+            tb.log.info("Mixed register operations passed")
             tests_passed += 1
 
         # =================================================================
@@ -255,9 +255,9 @@ async def axil4_slave_read_test(dut):
         phase_success_rate = (tests_passed / total_tests) if total_tests > 0 else 0
 
         if tests_passed == total_tests and success_rate >= 95.0:
-            tb.log.info("✅ AXIL4 SLAVE READ TESTS PASSED")
+            tb.log.info("AXIL4 SLAVE READ TESTS PASSED")
         else:
-            tb.log.error(f"❌ AXIL4 SLAVE READ TESTS FAILED (phase success: {phase_success_rate:.1f}%, response success: {success_rate:.1f}%)")
+            tb.log.error(f"AXIL4 SLAVE READ TESTS FAILED (phase success: {phase_success_rate:.1f}%, response success: {success_rate:.1f}%)")
             raise RuntimeError(f"Test failed with {phase_success_rate:.1f}% phase success and {success_rate:.1f}% response success")
 
     except Exception as e:
@@ -428,9 +428,9 @@ def test_axil4_slave_read(request, addr_width, data_width, ar_depth, r_depth, te
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✅ {test_level.upper()} AXIL4 Slave Read test PASSED")
+        print(f"{test_level.upper()} AXIL4 Slave Read test PASSED")
     except Exception as e:
-        print(f"❌ {test_level.upper()} AXIL4 Slave Read test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXIL4 Slave Read test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise
@@ -566,9 +566,9 @@ if __name__ == "__main__":
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✅ {test_level.upper()} AXIL4 Slave Read test PASSED")
+        print(f"{test_level.upper()} AXIL4 Slave Read test PASSED")
     except Exception as e:
-        print(f"❌ {test_level.upper()} AXIL4 Slave Read test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXIL4 Slave Read test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

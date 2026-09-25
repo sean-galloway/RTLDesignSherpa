@@ -294,10 +294,10 @@ class AXI4MonitorTB(TBBase):
             stats_end = self.get_stats()
             new_compl = stats_end['completion_packets'] - stats_start['completion_packets']
             assert new_compl >= 5, f"Got {new_compl} completions, expected >= 5"
-            self.log.info(f"✅ PASS: Basic transactions ({new_compl}/5 completions)")
+            self.log.info(f"PASS: Basic transactions ({new_compl}/5 completions)")
             return True
         except Exception as e:
-            self.log.error(f"❌ FAIL: {e}")
+            self.log.error(f"FAIL: {e}")
             return False
 
     async def test_burst_transactions(self) -> bool:
@@ -321,10 +321,10 @@ class AXI4MonitorTB(TBBase):
             stats_end = self.get_stats()
             new_compl = stats_end['completion_packets'] - stats_start['completion_packets']
             assert new_compl >= 3, f"Got {new_compl} completions, expected >= 3"
-            self.log.info(f"✅ PASS: Burst transactions ({new_compl}/3 completions)")
+            self.log.info(f"PASS: Burst transactions ({new_compl}/3 completions)")
             return True
         except Exception as e:
-            self.log.error(f"❌ FAIL: {e}")
+            self.log.error(f"FAIL: {e}")
             return False
 
     async def test_error_responses(self) -> bool:
@@ -348,10 +348,10 @@ class AXI4MonitorTB(TBBase):
             stats_end = self.get_stats()
             new_errors = stats_end['error_packets'] - stats_start['error_packets']
             assert new_errors >= 3, f"Got {new_errors} error packets, expected >= 3"
-            self.log.info(f"✅ PASS: Error responses ({new_errors}/3 errors)")
+            self.log.info(f"PASS: Error responses ({new_errors}/3 errors)")
             return True
         except Exception as e:
-            self.log.error(f"❌ FAIL: {e}")
+            self.log.error(f"FAIL: {e}")
             return False
 
     async def test_orphan_detection(self) -> bool:
@@ -377,10 +377,10 @@ class AXI4MonitorTB(TBBase):
             stats_end = self.get_stats()
             new_errors = stats_end['error_packets'] - stats_start['error_packets']
             assert new_errors >= 2, f"Got {new_errors} orphan errors, expected >= 2"
-            self.log.info(f"✅ PASS: Orphan detection ({new_errors}/2 orphans)")
+            self.log.info(f"PASS: Orphan detection ({new_errors}/2 orphans)")
             return True
         except Exception as e:
-            self.log.error(f"❌ FAIL: {e}")
+            self.log.error(f"FAIL: {e}")
             return False
 
     async def test_sustained_throughput(self) -> bool:
@@ -412,10 +412,10 @@ class AXI4MonitorTB(TBBase):
             # Expect at least 90% of transactions to generate packets (writes are slower)
             expected_min = int(self.NUM_TXN * 0.90)
             assert new_packets >= expected_min, f"Got {new_packets} packets, expected >= {expected_min}"
-            self.log.info(f"✅ PASS: Sustained throughput ({new_packets}/{self.NUM_TXN} packets)")
+            self.log.info(f"PASS: Sustained throughput ({new_packets}/{self.NUM_TXN} packets)")
             return True
         except Exception as e:
-            self.log.error(f"❌ FAIL: {e}")
+            self.log.error(f"FAIL: {e}")
             return False
 
     async def test_zero_delay_stress(self) -> bool:
@@ -448,10 +448,10 @@ class AXI4MonitorTB(TBBase):
             new_completions = stats_end['completion_packets'] - stats_start['completion_packets']
             completion_rate = (new_completions / num_txn) * 100
             assert new_completions >= expected, f"Got {new_completions} completions ({completion_rate:.1f}%), expected >= {expected} (20%)"
-            self.log.info(f"✅ PASS: Zero-delay stress ({new_completions}/{num_txn} completions, {completion_rate:.1f}%)")
+            self.log.info(f"PASS: Zero-delay stress ({new_completions}/{num_txn} completions, {completion_rate:.1f}%)")
             return True
         except Exception as e:
-            self.log.error(f"❌ FAIL: {e}")
+            self.log.error(f"FAIL: {e}")
             return False
 
     async def run_all_tests(self) -> bool:
@@ -615,9 +615,9 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
             keep_files=True,
             compile_args=compile_args,
         )
-        print(f"✓ PASSED: {test_name}")
+        print(f"PASSED: {test_name}")
     except Exception as e:
-        print(f"✗ FAILED: {test_name}")
+        print(f"FAILED: {test_name}")
         print(f"Error: {str(e)}")
         print(f"Log: {log_path}")
         raise

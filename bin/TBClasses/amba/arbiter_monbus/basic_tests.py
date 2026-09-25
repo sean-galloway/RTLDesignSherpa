@@ -85,7 +85,7 @@ class BasicFunctionalityTest:
         # Verify no packets generated
         packet_count_disabled = len(self.framework.packet_collector.packets)
         assert packet_count_disabled == 0, f"Expected 0 packets when disabled, got {packet_count_disabled}"
-        self.log.info("✅ No packets generated when monitor disabled")
+        self.log.info("No packets generated when monitor disabled")
         
         # Test 2: Monitor enabled - should produce packets
         self.log.info("Phase 2: Testing monitor enabled state")
@@ -102,7 +102,7 @@ class BasicFunctionalityTest:
         packet_count_enabled = len(self.framework.packet_collector.packets)
         
         assert packet_count_enabled > 0, "Expected packets when monitor enabled"
-        self.log.info(f"✅ {packet_count_enabled} packets generated when monitor enabled")
+        self.log.info(f"{packet_count_enabled} packets generated when monitor enabled")
         
         # Test 3: Re-disable monitor
         self.log.info("Phase 3: Testing monitor re-disable")
@@ -117,7 +117,7 @@ class BasicFunctionalityTest:
         
         final_count = len(self.framework.packet_collector.packets)
         assert final_count == initial_count, f"Monitor should be disabled: expected {initial_count}, got {final_count}"
-        self.log.info("✅ Monitor re-disable successful")
+        self.log.info("Monitor re-disable successful")
         
         # Re-enable for subsequent tests
         self.dut.cfg_mon_enable.value = 1
@@ -146,7 +146,7 @@ class BasicFunctionalityTest:
         for i, packet in enumerate(packets):
             self.log.debug(f"Validating packet {i+1}: {packet}")
             
-            # Test 1: Protocol field should be 3 bits (0-7) ✅ UPDATED
+            # Test 1: Protocol field should be 3 bits (0-7) UPDATED
             if packet.protocol > 7:
                 format_errors.append(f"Packet {i}: Protocol {packet.protocol} exceeds 3-bit range (0-7)")
             
@@ -204,7 +204,7 @@ class BasicFunctionalityTest:
         
         # Report format validation results
         if format_errors:
-            self.log.error(f"❌ Packet format validation failed with {len(format_errors)} errors:")
+            self.log.error(f"Packet format validation failed with {len(format_errors)} errors:")
             for error in format_errors[:10]:  # Show first 10 errors
                 self.log.error(f"  - {error}")
             if len(format_errors) > 10:
@@ -260,7 +260,7 @@ class BasicFunctionalityTest:
             )
         
         assert success, "Expected ARB protocol packets not generated"
-        self.log.info("✅ ARB protocol packets generated successfully")
+        self.log.info("ARB protocol packets generated successfully")
         
         # Test 2: Verify ARB packet content
         arb_packets = [p for p in self.framework.packet_collector.packets 
@@ -278,7 +278,7 @@ class BasicFunctionalityTest:
             
             self.log.debug(f"Valid ARB packet: {packet}")
         
-        self.log.info(f"✅ All {len(arb_packets)} ARB packets passed validation")
+        self.log.info(f"All {len(arb_packets)} ARB packets passed validation")
     
     async def test_packet_type_filtering(self):
         """Test packet type enable/disable filtering"""
@@ -309,7 +309,7 @@ class BasicFunctionalityTest:
         assert len(error_packets) > 0, "Expected error packets not generated"
         assert len(non_error_packets) == 0, f"Unexpected non-error packets generated: {len(non_error_packets)}"
         
-        self.log.info(f"✅ Only error packets generated: {len(error_packets)} packets")
+        self.log.info(f"Only error packets generated: {len(error_packets)} packets")
         
         # Test 2: Enable only performance packets
         self.log.info("Phase 2: Testing performance packet filtering")
@@ -332,7 +332,7 @@ class BasicFunctionalityTest:
         assert len(perf_packets) > 0, "Expected performance packets not generated"
         assert len(non_perf_packets) == 0, f"Unexpected non-performance packets: {len(non_perf_packets)}"
         
-        self.log.info(f"✅ Only performance packets generated: {len(perf_packets)} packets")
+        self.log.info(f"Only performance packets generated: {len(perf_packets)} packets")
         
         # Test 3: Enable multiple packet types
         self.log.info("Phase 3: Testing multiple packet type filtering")
@@ -356,7 +356,7 @@ class BasicFunctionalityTest:
         
         if len(packets) > 0:
             assert len(disallowed_packets) == 0, f"Unexpected packet types generated: {[p.packet_type for p in disallowed_packets]}"
-            self.log.info(f"✅ Only allowed packet types generated: {len(allowed_packets)}/{len(packets)} packets")
+            self.log.info(f"Only allowed packet types generated: {len(allowed_packets)}/{len(packets)} packets")
         else:
             self.log.info("ℹ️ No packets generated in this test phase")
         
@@ -387,7 +387,7 @@ class BasicFunctionalityTest:
         # Should still be able to collect some packets
         initial_count = len(self.framework.packet_collector.packets)
         
-        self.log.info(f"✅ Monitor operational with extreme config values: {initial_count} packets")
+        self.log.info(f"Monitor operational with extreme config values: {initial_count} packets")
         
         # Test 2: Restore reasonable configuration
         await self.framework.apply_monitor_config()  # Use defaults
@@ -397,7 +397,7 @@ class BasicFunctionalityTest:
         await ClockCycles(self.dut.clk, 10)
         
         final_count = len(self.framework.packet_collector.packets)
-        self.log.info(f"✅ Monitor operational with default config: {final_count} packets")
+        self.log.info(f"Monitor operational with default config: {final_count} packets")
 
     async def test_protocol_filtering(self):
         """Test protocol-specific packet filtering"""
@@ -431,9 +431,9 @@ class BasicFunctionalityTest:
             self.log.info(f"Generated {len(packets)} packets: {len(arb_packets)} ARB, {len(non_arb_packets)} other")
 
             if len(arb_packets) > 0:
-                self.log.info("✅ ARB protocol packets generated successfully")
+                self.log.info("ARB protocol packets generated successfully")
             else:
-                self.log.warning("⚠️ No ARB protocol packets generated, but monitor is working")
+                self.log.warning("No ARB protocol packets generated, but monitor is working")
         else:
             self.log.info("ℹ️ No packets generated in this test")
 
@@ -444,7 +444,7 @@ class BasicFunctionalityTest:
 
 async def run_basic_functionality_tests(framework: TestFramework):
     """Run all basic functionality tests"""
-    framework.log.info("🚀 Starting Basic Functionality Tests (Updated for 3-bit Protocol)")
+    framework.log.info("Starting Basic Functionality Tests (Updated for 3-bit Protocol)")
     
     test_instance = BasicFunctionalityTest(framework)
     
@@ -462,12 +462,12 @@ async def run_basic_functionality_tests(framework: TestFramework):
     for test_func in test_functions:
         try:
             await test_func()
-            framework.log.info(f"✅ {test_func.__name__} PASSED")
+            framework.log.info(f"{test_func.__name__} PASSED")
         except Exception as e:
-            framework.log.error(f"❌ {test_func.__name__} FAILED: {str(e)}")
+            framework.log.error(f"{test_func.__name__} FAILED: {str(e)}")
             raise
     
-    framework.log.info("🎉 All Basic Functionality Tests PASSED!")
+    framework.log.info("All Basic Functionality Tests PASSED!")
     
     # Generate summary report
     framework.log.info("\n" + framework.packet_collector.generate_analysis_report())

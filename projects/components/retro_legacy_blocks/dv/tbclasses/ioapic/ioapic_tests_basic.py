@@ -78,11 +78,11 @@ class IOAPICBasicTests:
                 self.log.error(f"IOAPICID write failed: expected 0x{new_id:08X}, got 0x{ioapicid:08X}")
                 return False
 
-            self.log.info("✓ Indirect register access test passed")
+            self.log.info("Indirect register access test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Register access test failed: {e}")
+            self.log.error(f"Register access test failed: {e}")
             return False
 
     async def test_identification_registers(self) -> bool:
@@ -125,11 +125,11 @@ class IOAPICBasicTests:
 
             self.log.info(f"IOAPIC Arbitration ID: 0x{arb_id:X}")
 
-            self.log.info("✓ Identification registers test passed")
+            self.log.info("Identification registers test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Identification registers test failed: {e}")
+            self.log.error(f"Identification registers test failed: {e}")
             return False
 
     async def test_redirection_table_access(self) -> bool:
@@ -211,11 +211,11 @@ class IOAPICBasicTests:
                     self.log.error(f"IRQ{irq} vector mismatch: expected 0x{test_vec:02X}, got 0x{read_vec:02X}")
                     return False
 
-            self.log.info("✓ Redirection table access test passed")
+            self.log.info("Redirection table access test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Redirection table access test failed: {e}")
+            self.log.error(f"Redirection table access test failed: {e}")
             return False
 
     async def test_edge_triggered_interrupt(self) -> bool:
@@ -276,16 +276,16 @@ class IOAPICBasicTests:
                 self.log.error(f"Destination mismatch: expected 0x{test_dest:02X}, got 0x{dest:02X}")
                 return False
 
-            self.log.info(f"✓ Edge-triggered interrupt delivered: vector=0x{vector:02X}, dest=0x{dest:02X}")
+            self.log.info(f"Edge-triggered interrupt delivered: vector=0x{vector:02X}, dest=0x{dest:02X}")
 
             # Acknowledge interrupt (set int_ready)
             await self.tb.wait_clocks('pclk', 5)
 
-            self.log.info("✓ Edge-triggered interrupt test passed")
+            self.log.info("Edge-triggered interrupt test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Edge-triggered interrupt test failed: {e}")
+            self.log.error(f"Edge-triggered interrupt test failed: {e}")
             return False
 
     async def test_interrupt_masking(self) -> bool:
@@ -335,7 +335,7 @@ class IOAPICBasicTests:
                     self.log.warning(f"Stale interrupt from another IRQ (vector=0x{vector:02X}), draining...")
                     await self.tb.drain_pending_interrupts()
 
-            self.log.info("✓ Masked IRQ correctly blocked interrupt")
+            self.log.info("Masked IRQ correctly blocked interrupt")
 
             # Now unmask IRQ3
             await self.tb.write_redirection_entry(
@@ -365,13 +365,13 @@ class IOAPICBasicTests:
                 self.log.error(f"Vector mismatch: expected 0x{test_vector:02X}, got 0x{vector:02X}")
                 return False
 
-            self.log.info("✓ Unmasked IRQ correctly generated interrupt")
+            self.log.info("Unmasked IRQ correctly generated interrupt")
 
-            self.log.info("✓ Interrupt masking test passed")
+            self.log.info("Interrupt masking test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Interrupt masking test failed: {e}")
+            self.log.error(f"Interrupt masking test failed: {e}")
             return False
 
     async def test_multiple_irqs_priority(self) -> bool:
@@ -435,13 +435,13 @@ class IOAPICBasicTests:
                 self.log.warning(f"First vector: expected 0x{expected_vector:02X} (IRQ0), got 0x{vector:02X}")
                 # Not failing test as priority implementation may vary
 
-            self.log.info(f"✓ First interrupt delivered: vector=0x{vector:02X}")
+            self.log.info(f"First interrupt delivered: vector=0x{vector:02X}")
 
-            self.log.info("✓ Multiple IRQ priority test passed")
+            self.log.info("Multiple IRQ priority test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Multiple IRQ priority test failed: {e}")
+            self.log.error(f"Multiple IRQ priority test failed: {e}")
             return False
 
     async def test_level_triggered_interrupt(self) -> bool:
@@ -497,7 +497,7 @@ class IOAPICBasicTests:
                 self.log.error(f"Vector mismatch: expected 0x{test_vector:02X}, got 0x{vector:02X}")
                 return False
 
-            self.log.info(f"✓ Level-triggered interrupt delivered: vector=0x{vector:02X}")
+            self.log.info(f"Level-triggered interrupt delivered: vector=0x{vector:02X}")
 
             # Send EOI while level is still high
             await self.tb.send_eoi(test_vector)
@@ -507,7 +507,7 @@ class IOAPICBasicTests:
             int_retriggered = await self.tb.wait_for_interrupt(timeout_cycles=30)
 
             if int_retriggered:
-                self.log.info("✓ Level-triggered interrupt re-triggered after EOI (level still high)")
+                self.log.info("Level-triggered interrupt re-triggered after EOI (level still high)")
                 # Acknowledge and send another EOI
                 await self.tb.send_eoi(test_vector)
             else:
@@ -517,11 +517,11 @@ class IOAPICBasicTests:
             await self.tb.deassert_irq(4)
             await self.tb.wait_clocks('pclk', 10)
 
-            self.log.info("✓ Level-triggered interrupt test passed")
+            self.log.info("Level-triggered interrupt test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Level-triggered interrupt test failed: {e}")
+            self.log.error(f"Level-triggered interrupt test failed: {e}")
             return False
 
     async def test_polarity_inversion(self) -> bool:
@@ -574,11 +574,11 @@ class IOAPICBasicTests:
                 self.log.warning("Active-low interrupt not delivered (may need longer sync time)")
                 # Not failing - polarity handling may vary
 
-            self.log.info("✓ Polarity inversion test passed")
+            self.log.info("Polarity inversion test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Polarity inversion test failed: {e}")
+            self.log.error(f"Polarity inversion test failed: {e}")
             return False
 
     async def test_all_irq_lines(self) -> bool:
@@ -635,7 +635,7 @@ class IOAPICBasicTests:
                     self.log.error(f"IRQ{irq} vector mismatch: expected 0x{test_vector:02X}, got 0x{vector:02X}")
                     return False
 
-                self.log.info(f"✓ IRQ{irq} passed (vector=0x{vector:02X})")
+                self.log.info(f"IRQ{irq} passed (vector=0x{vector:02X})")
 
                 # Acknowledge the interrupt and drain any pending
                 await self.tb.send_eoi(test_vector)
@@ -644,11 +644,11 @@ class IOAPICBasicTests:
                 # Small delay between IRQs
                 await self.tb.wait_clocks('pclk', 5)
 
-            self.log.info("✓ All IRQ lines test passed")
+            self.log.info("All IRQ lines test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ All IRQ lines test failed: {e}")
+            self.log.error(f"All IRQ lines test failed: {e}")
             return False
 
     async def test_irq_stress(self) -> bool:
@@ -694,7 +694,7 @@ class IOAPICBasicTests:
                 await self.tb.wait_clocks('pclk', 20)
                 await self.tb.drain_pending_interrupts()
 
-            self.log.info(f"✓ Processed {irq_count} rapid IRQs")
+            self.log.info(f"Processed {irq_count} rapid IRQs")
 
             # Verify system is still responsive
             await self.tb.pulse_irq(0, pulse_cycles=10)
@@ -704,11 +704,11 @@ class IOAPICBasicTests:
                 self.log.error("System not responsive after stress test")
                 return False
 
-            self.log.info("✓ IRQ stress test passed")
+            self.log.info("IRQ stress test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ IRQ stress test failed: {e}")
+            self.log.error(f"IRQ stress test failed: {e}")
             return False
 
     # =========================================================================
@@ -770,11 +770,11 @@ class IOAPICBasicTests:
                 self.log.error(f"Destination mismatch: expected 0x{test_dest:02X}, got 0x{dest:02X}")
                 return False
 
-            self.log.info(f"✓ Fixed delivery mode: vector=0x{vector:02X}, dest=0x{dest:02X}")
+            self.log.info(f"Fixed delivery mode: vector=0x{vector:02X}, dest=0x{dest:02X}")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Fixed delivery mode test failed: {e}")
+            self.log.error(f"Fixed delivery mode test failed: {e}")
             return False
 
     async def test_delivery_mode_lowest_priority(self) -> bool:
@@ -816,7 +816,7 @@ class IOAPICBasicTests:
                 self.log.error(f"Delivery mode not set: expected {IOAPICRegisterMap.DELIV_MODE_LOWPRI}, got {delivery_mode}")
                 return False
 
-            self.log.info(f"✓ Lowest priority mode configured: delivery_mode={delivery_mode}")
+            self.log.info(f"Lowest priority mode configured: delivery_mode={delivery_mode}")
 
             # Pulse IRQ7
             await self.tb.pulse_irq(7, pulse_cycles=10)
@@ -826,14 +826,14 @@ class IOAPICBasicTests:
 
             if int_delivered:
                 valid, vector, dest = await self.tb.get_interrupt_delivery()
-                self.log.info(f"✓ Lowest priority interrupt delivered: vector=0x{vector:02X}, dest=0x{dest:02X}")
+                self.log.info(f"Lowest priority interrupt delivered: vector=0x{vector:02X}, dest=0x{dest:02X}")
             else:
-                self.log.info("✓ Lowest priority mode accepted (delivery is implementation-dependent)")
+                self.log.info("Lowest priority mode accepted (delivery is implementation-dependent)")
 
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Lowest priority delivery mode test failed: {e}")
+            self.log.error(f"Lowest priority delivery mode test failed: {e}")
             return False
 
     async def test_delivery_mode_smi(self) -> bool:
@@ -873,7 +873,7 @@ class IOAPICBasicTests:
                 self.log.error(f"SMI mode not set: expected {IOAPICRegisterMap.DELIV_MODE_SMI}, got {delivery_mode}")
                 return False
 
-            self.log.info(f"✓ SMI delivery mode configured: delivery_mode={delivery_mode}")
+            self.log.info(f"SMI delivery mode configured: delivery_mode={delivery_mode}")
 
             # Pulse IRQ8
             await self.tb.pulse_irq(8, pulse_cycles=10)
@@ -882,11 +882,11 @@ class IOAPICBasicTests:
             await self.tb.wait_clocks('pclk', 20)
             await self.tb.drain_pending_interrupts()
 
-            self.log.info("✓ SMI delivery mode test passed")
+            self.log.info("SMI delivery mode test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ SMI delivery mode test failed: {e}")
+            self.log.error(f"SMI delivery mode test failed: {e}")
             return False
 
     async def test_delivery_mode_nmi(self) -> bool:
@@ -926,7 +926,7 @@ class IOAPICBasicTests:
                 self.log.error(f"NMI mode not set: expected {IOAPICRegisterMap.DELIV_MODE_NMI}, got {delivery_mode}")
                 return False
 
-            self.log.info(f"✓ NMI delivery mode configured: delivery_mode={delivery_mode}")
+            self.log.info(f"NMI delivery mode configured: delivery_mode={delivery_mode}")
 
             # Pulse IRQ9
             await self.tb.pulse_irq(9, pulse_cycles=10)
@@ -935,11 +935,11 @@ class IOAPICBasicTests:
             await self.tb.wait_clocks('pclk', 20)
             await self.tb.drain_pending_interrupts()
 
-            self.log.info("✓ NMI delivery mode test passed")
+            self.log.info("NMI delivery mode test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ NMI delivery mode test failed: {e}")
+            self.log.error(f"NMI delivery mode test failed: {e}")
             return False
 
     async def test_delivery_mode_init(self) -> bool:
@@ -979,7 +979,7 @@ class IOAPICBasicTests:
                 self.log.error(f"INIT mode not set: expected {IOAPICRegisterMap.DELIV_MODE_INIT}, got {delivery_mode}")
                 return False
 
-            self.log.info(f"✓ INIT delivery mode configured: delivery_mode={delivery_mode}")
+            self.log.info(f"INIT delivery mode configured: delivery_mode={delivery_mode}")
 
             # Pulse IRQ10
             await self.tb.pulse_irq(10, pulse_cycles=10)
@@ -988,11 +988,11 @@ class IOAPICBasicTests:
             await self.tb.wait_clocks('pclk', 20)
             await self.tb.drain_pending_interrupts()
 
-            self.log.info("✓ INIT delivery mode test passed")
+            self.log.info("INIT delivery mode test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ INIT delivery mode test failed: {e}")
+            self.log.error(f"INIT delivery mode test failed: {e}")
             return False
 
     async def test_delivery_mode_extint(self) -> bool:
@@ -1032,7 +1032,7 @@ class IOAPICBasicTests:
                 self.log.error(f"ExtINT mode not set: expected {IOAPICRegisterMap.DELIV_MODE_EXTINT}, got {delivery_mode}")
                 return False
 
-            self.log.info(f"✓ ExtINT delivery mode configured: delivery_mode={delivery_mode}")
+            self.log.info(f"ExtINT delivery mode configured: delivery_mode={delivery_mode}")
 
             # Pulse IRQ11
             await self.tb.pulse_irq(11, pulse_cycles=10)
@@ -1041,11 +1041,11 @@ class IOAPICBasicTests:
             await self.tb.wait_clocks('pclk', 20)
             await self.tb.drain_pending_interrupts()
 
-            self.log.info("✓ ExtINT delivery mode test passed")
+            self.log.info("ExtINT delivery mode test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ ExtINT delivery mode test failed: {e}")
+            self.log.error(f"ExtINT delivery mode test failed: {e}")
             return False
 
     async def test_destination_mode_physical(self) -> bool:
@@ -1095,13 +1095,13 @@ class IOAPICBasicTests:
                     self.log.error(f"Destination mismatch: expected 0x{test_dest:02X}, got 0x{read_dest:02X}")
                     return False
 
-                self.log.info(f"✓ Physical dest 0x{test_dest:02X} configured correctly")
+                self.log.info(f"Physical dest 0x{test_dest:02X} configured correctly")
 
-            self.log.info("✓ Physical destination mode test passed")
+            self.log.info("Physical destination mode test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Physical destination mode test failed: {e}")
+            self.log.error(f"Physical destination mode test failed: {e}")
             return False
 
     async def test_destination_mode_logical(self) -> bool:
@@ -1149,7 +1149,7 @@ class IOAPICBasicTests:
                 self.log.error(f"Logical destination mismatch: expected 0x{test_dest:02X}, got 0x{read_dest:02X}")
                 return False
 
-            self.log.info(f"✓ Logical destination mode configured: dest_mode={dest_mode}, dest=0x{read_dest:02X}")
+            self.log.info(f"Logical destination mode configured: dest_mode={dest_mode}, dest=0x{read_dest:02X}")
 
             # Pulse IRQ13 to test logical delivery
             await self.tb.pulse_irq(13, pulse_cycles=10)
@@ -1159,15 +1159,15 @@ class IOAPICBasicTests:
 
             if int_delivered:
                 valid, vector, dest = await self.tb.get_interrupt_delivery()
-                self.log.info(f"✓ Logical mode interrupt delivered: vector=0x{vector:02X}, dest=0x{dest:02X}")
+                self.log.info(f"Logical mode interrupt delivered: vector=0x{vector:02X}, dest=0x{dest:02X}")
             else:
-                self.log.info("✓ Logical mode accepted (delivery may require matching LAPIC)")
+                self.log.info("Logical mode accepted (delivery may require matching LAPIC)")
 
-            self.log.info("✓ Logical destination mode test passed")
+            self.log.info("Logical destination mode test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Logical destination mode test failed: {e}")
+            self.log.error(f"Logical destination mode test failed: {e}")
             return False
 
     async def test_remote_irr_status(self) -> bool:
@@ -1240,11 +1240,11 @@ class IOAPICBasicTests:
                 self.log.warning("Level-triggered interrupt not delivered")
                 await self.tb.deassert_irq(14)
 
-            self.log.info("✓ Remote IRR status test passed")
+            self.log.info("Remote IRR status test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Remote IRR status test failed: {e}")
+            self.log.error(f"Remote IRR status test failed: {e}")
             return False
 
     async def test_delivery_status_read(self) -> bool:
@@ -1296,11 +1296,11 @@ class IOAPICBasicTests:
             # Wait and drain
             await self.tb.wait_for_interrupt(timeout_cycles=30)
 
-            self.log.info("✓ Delivery status read test passed")
+            self.log.info("Delivery status read test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Delivery status read test failed: {e}")
+            self.log.error(f"Delivery status read test failed: {e}")
             return False
 
     async def test_vector_range_validation(self) -> bool:
@@ -1342,7 +1342,7 @@ class IOAPICBasicTests:
                     self.log.error(f"Vector mismatch: wrote 0x{test_vector:02X}, read 0x{read_vector:02X}")
                     return False
 
-                self.log.info(f"✓ Vector 0x{test_vector:02X} accepted")
+                self.log.info(f"Vector 0x{test_vector:02X} accepted")
 
             # Test reserved vector range (0x00-0x0F) - may or may not be accepted
             reserved_vectors = [0x00, 0x08, 0x0F]
@@ -1364,11 +1364,11 @@ class IOAPICBasicTests:
 
                 self.log.info(f"  Reserved vector 0x{test_vector:02X} -> read 0x{read_vector:02X}")
 
-            self.log.info("✓ Vector range validation test passed")
+            self.log.info("Vector range validation test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Vector range validation test failed: {e}")
+            self.log.error(f"Vector range validation test failed: {e}")
             return False
 
     async def test_full_redirection_table(self) -> bool:
@@ -1434,12 +1434,12 @@ class IOAPICBasicTests:
                 self.log.error(f"Full redirection table test had {errors} errors")
                 return False
 
-            self.log.info("✓ All 24 redirection entries verified")
-            self.log.info("✓ Full redirection table access test passed")
+            self.log.info("All 24 redirection entries verified")
+            self.log.info("Full redirection table access test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Full redirection table access test failed: {e}")
+            self.log.error(f"Full redirection table access test failed: {e}")
             return False
 
     async def test_mask_all_irqs(self) -> bool:
@@ -1481,7 +1481,7 @@ class IOAPICBasicTests:
                 self.log.error("Interrupt delivered despite all masked")
                 return False
 
-            self.log.info("✓ All IRQs masked - no interrupts delivered")
+            self.log.info("All IRQs masked - no interrupts delivered")
 
             # Unmask IRQ0 and verify it works
             await self.tb.write_redirection_entry(
@@ -1504,12 +1504,12 @@ class IOAPICBasicTests:
                 self.log.error("Interrupt not delivered after unmasking")
                 return False
 
-            self.log.info("✓ IRQ0 unmasked - interrupt delivered")
-            self.log.info("✓ Mask all IRQs test passed")
+            self.log.info("IRQ0 unmasked - interrupt delivered")
+            self.log.info("Mask all IRQs test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Mask all IRQs test failed: {e}")
+            self.log.error(f"Mask all IRQs test failed: {e}")
             return False
 
     async def test_eoi_broadcast(self) -> bool:
@@ -1581,11 +1581,11 @@ class IOAPICBasicTests:
 
             await self.tb.wait_clocks('pclk', 10)
 
-            self.log.info("✓ EOI broadcast behavior test passed")
+            self.log.info("EOI broadcast behavior test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ EOI broadcast behavior test failed: {e}")
+            self.log.error(f"EOI broadcast behavior test failed: {e}")
             return False
 
     async def test_ioapic_id_programming(self) -> bool:
@@ -1627,13 +1627,13 @@ class IOAPICBasicTests:
                     self.log.error(f"ID mismatch: wrote 0x{test_id:X}, read 0x{read_apic_id:X}")
                     return False
 
-                self.log.info(f"✓ IOAPIC ID 0x{test_id:X} programmed correctly")
+                self.log.info(f"IOAPIC ID 0x{test_id:X} programmed correctly")
 
-            self.log.info("✓ IOAPIC ID programming test passed")
+            self.log.info("IOAPIC ID programming test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ IOAPIC ID programming test failed: {e}")
+            self.log.error(f"IOAPIC ID programming test failed: {e}")
             return False
 
     async def test_arbitration_id_read(self) -> bool:
@@ -1665,9 +1665,9 @@ class IOAPICBasicTests:
             # In many implementations, arb ID equals IOAPIC ID
             # But this is implementation-dependent, so just verify it's readable
 
-            self.log.info("✓ Arbitration ID read test passed")
+            self.log.info("Arbitration ID read test passed")
             return True
 
         except Exception as e:
-            self.log.error(f"✗ Arbitration ID read test failed: {e}")
+            self.log.error(f"Arbitration ID read test failed: {e}")
             return False

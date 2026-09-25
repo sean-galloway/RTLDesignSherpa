@@ -187,7 +187,7 @@ generate_component() {
       fi
     done
   else
-    echo "⚠️  WARNING: Assets directory not found: ${assets}"
+    echo "WARNING: Assets directory not found: ${assets}"
     echo "   Continuing without assets..."
     echo
   fi
@@ -209,11 +209,11 @@ generate_component() {
     "${output_docx}" 2>&1 | grep -v "Missing required argument: input" | grep -v "^Options:$" | grep -v "^  -" | grep -v "^      --" || true
   then
     echo
-    echo "✅ Done: Generated ${output_docx} and ${output_pdf}"
+    echo "Done: Generated ${output_docx} and ${output_pdf}"
     echo
   else
     echo
-    echo "❌ ERROR: Failed to generate ${display_name} specification"
+    echo "ERROR: Failed to generate ${display_name} specification"
     echo
     return 1
   fi
@@ -284,9 +284,9 @@ echo "============================================================"
 echo
 
 if [[ $error_count -eq 0 ]]; then
-  echo "✅ All specifications generated successfully!"
+  echo "All specifications generated successfully!"
   exit 0
 else
-  echo "⚠️  Some specifications failed to generate (see errors above)"
+  echo "Some specifications failed to generate (see errors above)"
   exit 1
 fi

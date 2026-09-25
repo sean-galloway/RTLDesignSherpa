@@ -123,7 +123,7 @@ async def axi4_slave_write_test(dut):
             tb.log.error(error_msg)
             raise Exception(error_msg)
 
-        tb.log.info("✓ Basic slave connectivity test passed")
+        tb.log.info("Basic slave connectivity test passed")
 
         # =================================================================
         # Test 2: Single write responses with different timing profiles
@@ -140,7 +140,7 @@ async def axi4_slave_write_test(dut):
                     tb.log.error(error_msg)
                     raise Exception(error_msg)
 
-                tb.log.info(f"✓ Single write responses passed ({stats['success_rate']:.1%} success rate)")
+                tb.log.info(f"Single write responses passed ({stats['success_rate']:.1%} success rate)")
 
         # =================================================================
         # Test 3: Burst write responses with different lengths
@@ -157,7 +157,7 @@ async def axi4_slave_write_test(dut):
                     tb.log.error(error_msg)
                     raise Exception(error_msg)
 
-                tb.log.info(f"✓ Burst write responses passed ({stats['success_rate']:.1%} success rate)")
+                tb.log.info(f"Burst write responses passed ({stats['success_rate']:.1%} success rate)")
 
         # =================================================================
         # Test 4: Mixed operation responses
@@ -186,7 +186,7 @@ async def axi4_slave_write_test(dut):
                     tb.log.error(error_msg)
                     raise Exception(error_msg)
 
-            tb.log.info("✓ Mixed operation responses passed")
+            tb.log.info("Mixed operation responses passed")
 
         # =================================================================
         # Test 5: Timing variation responses
@@ -201,7 +201,7 @@ async def axi4_slave_write_test(dut):
                     tb.log.error(error_msg)
                     raise Exception(error_msg)
 
-                tb.log.info(f"✓ {profile.capitalize()} timing responses passed ({stats['success_rate']:.1%})")
+                tb.log.info(f"{profile.capitalize()} timing responses passed ({stats['success_rate']:.1%})")
 
         # =================================================================
         # Test 6: Address range responses
@@ -226,7 +226,7 @@ async def axi4_slave_write_test(dut):
                     tb.log.error(error_msg)
                     raise Exception(error_msg)
 
-            tb.log.info(f"✓ {description} responses passed")
+            tb.log.info(f"{description} responses passed")
 
         # =================================================================
         # Test 7: Stress testing
@@ -241,7 +241,7 @@ async def axi4_slave_write_test(dut):
             tb.log.error(error_msg)
             raise Exception(error_msg)
 
-        tb.log.info(f"✓ Slave stress test passed ({stats['success_rate']:.1%} success rate)")
+        tb.log.info(f"Slave stress test passed ({stats['success_rate']:.1%} success rate)")
 
         # =================================================================
         # Test 8: Outstanding transaction responses
@@ -252,7 +252,7 @@ async def axi4_slave_write_test(dut):
 
             success, stats = await tb.test_outstanding_transactions(count=20)
             if success:
-                tb.log.info(f"✓ Outstanding transaction responses passed ({stats['success_rate']:.1%})")
+                tb.log.info(f"Outstanding transaction responses passed ({stats['success_rate']:.1%})")
             else:
                 tb.log.warning(f"Outstanding transaction responses had issues: {stats}")
 
@@ -275,10 +275,10 @@ async def axi4_slave_write_test(dut):
         tb.log.info(f"Test duration:              {final_stats['summary']['test_duration']:.2f}s")
 
         if failed_writes > 0:
-            tb.log.error("❌ AXI4 slave write test FAILED: Some responses failed")
+            tb.log.error("AXI4 slave write test FAILED: Some responses failed")
             raise Exception(f"AXI4 slave write test FAILED: {failed_writes} responses failed")
 
-        tb.log.info("✅ AXI4 slave write test PASSED: All responses successful")
+        tb.log.info("AXI4 slave write test PASSED: All responses successful")
 
     except Exception as e:
         # Log final error and re-raise
@@ -538,9 +538,9 @@ def test_axi4_slave_write(stub, id_width, addr_width, data_width, user_width, aw
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✅ {test_level.upper()} AXI4 Slave Write test PASSED")
+        print(f"{test_level.upper()} AXI4 Slave Write test PASSED")
     except Exception as e:
-        print(f"❌ {test_level.upper()} AXI4 Slave Write test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXI4 Slave Write test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

@@ -283,7 +283,7 @@ class WeightedRoundRobinTB(TBBase):
                 self.log.error(f"Scenario '{scenario['name']}' packed value 0x{packed:x} > max 0x{max_packed_value:x}")
                 raise ValueError(f"Weight scenario '{scenario['name']}' exceeds signal capacity")
 
-            self.log.debug(f"  Scenario '{scenario['name']}': {clamped_weights} -> 0x{packed:x} ✓")
+            self.log.debug(f"  Scenario '{scenario['name']}': {clamped_weights} -> 0x{packed:x}")
 
         # Remove any invalid scenarios
         self.weight_test_scenarios = [s for s in self.weight_test_scenarios if sum(s['weights']) > 0]
@@ -529,7 +529,7 @@ class WeightedRoundRobinTB(TBBase):
                 'grants': final_grants[i]
             })
 
-            status = "✓" if compliant else "✗"
+            status = "" if compliant else ""
             self.log.info(f"  Client {i}: {status} Expected {expected:.3f}, Got {actual:.3f}, Error {error_pct:.1f}%")
 
         # Overall compliance
@@ -589,12 +589,12 @@ class WeightedRoundRobinTB(TBBase):
 
                 if result['overall_compliant']:
                     passed_scenarios += 1
-                    self.log.info(f"✓ Scenario '{scenario['name']}' PASSED")
+                    self.log.info(f"Scenario '{scenario['name']}' PASSED")
                 else:
-                    self.log.error(f"✗ Scenario '{scenario['name']}' FAILED")
+                    self.log.error(f"Scenario '{scenario['name']}' FAILED")
 
             except Exception as e:
-                self.log.error(f"✗ Scenario '{scenario['name']}' FAILED with exception: {e}")
+                self.log.error(f"Scenario '{scenario['name']}' FAILED with exception: {e}")
                 test_results.append({
                     'scenario_name': scenario['name'],
                     'overall_compliant': False,
@@ -624,7 +624,7 @@ class WeightedRoundRobinTB(TBBase):
         # single directed scenario -- zero-weight clients being granted,
         # geometric progression catching a weight-packing overflow -- could
         # fail in every configuration and the suite stayed green. The per
-        # scenario "✗" was logged and the assertion never saw it.
+        # scenario "" was logged and the assertion never saw it.
         #
         # This is the second time a statistical threshold has been applied to
         # directed checks here; the first was min_fairness_threshold = 0.3 on a
@@ -636,7 +636,7 @@ class WeightedRoundRobinTB(TBBase):
             f"{len(failed)} of {total_scenarios} weighted scenario(s) failed: "
             f"{failed}. Each is a directed check -- there is no pass-rate "
             f"tolerance for these.")
-        self.log.info(f"✓ Weighted fairness test PASSED: {passed_scenarios}/{total_scenarios} scenarios")
+        self.log.info(f"Weighted fairness test PASSED: {passed_scenarios}/{total_scenarios} scenarios")
 
     # =============================================================================
     # BASIC TESTS - SAME AS RR EXCEPT SIMPLE WEIGHT SETUP
@@ -813,11 +813,11 @@ class WeightedRoundRobinTB(TBBase):
                     f"Client {i} was the ONLY requester for "
                     f"{15 if auto_ack_enabled else 10} cycles and received no "
                     f"grant (weights all 1, WAIT_GNT_ACK={self.WAIT_GNT_ACK})")
-                self.log.info(f"✓ Client {i} walking test successful "
+                self.log.info(f"Client {i} walking test successful "
                               f"({granted} grant(s))")
 
             except Exception as e:
-                self.log.error(f"✗ Client {i} walking test failed: {e}")
+                self.log.error(f"Client {i} walking test failed: {e}")
                 raise
 
             await self.wait_clocks('clk', 10)
@@ -1030,9 +1030,9 @@ class WeightedRoundRobinTB(TBBase):
             )
 
             if success:
-                self.log.info("✓ Final proper weighted report validation PASSED")
+                self.log.info("Final proper weighted report validation PASSED")
             else:
-                self.log.error("✗ Final proper weighted report validation FAILED")
+                self.log.error("Final proper weighted report validation FAILED")
 
             return success
 

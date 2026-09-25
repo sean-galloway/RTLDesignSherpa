@@ -53,7 +53,7 @@ class RTCBasicTests:
                 self.log.error(f"CONFIG register mismatch: got {value:08x}, expected {expected:08x}")
                 return False
 
-            self.log.info("✓ Register access test passed")
+            self.log.info("Register access test passed")
             return True
 
         except Exception as e:
@@ -85,7 +85,7 @@ class RTCBasicTests:
                 self.log.error("RTC enable bit still set")
                 return False
 
-            self.log.info("✓ RTC enable/disable test passed")
+            self.log.info("RTC enable/disable test passed")
             return True
 
         except Exception as e:
@@ -135,7 +135,7 @@ class RTCBasicTests:
                 self.log.error(f"Year mismatch: got {time['year']}, expected 25")
                 return False
 
-            self.log.info(f"✓ Time set correctly: {time}")
+            self.log.info(f"Time set correctly: {time}")
             return True
 
         except Exception as e:
@@ -169,7 +169,7 @@ class RTCBasicTests:
             # Check that time has advanced
             # (exact value depends on clock divider implementation)
             if time['seconds'] >= 58:
-                self.log.info("✓ Time is counting")
+                self.log.info("Time is counting")
                 return True
             else:
                 self.log.warning("Time may not be counting correctly")
@@ -217,7 +217,7 @@ class RTCBasicTests:
             self.log.info(f"Status after alarm setup: {status}")
 
             # For now, just verify we can configure alarm
-            self.log.info("✓ Alarm configuration test passed")
+            self.log.info("Alarm configuration test passed")
             return True
 
         except Exception as e:
@@ -245,7 +245,7 @@ class RTCBasicTests:
             await self.tb.clear_status_flags(clear_alarm=True, clear_tick=True)
             await ClockCycles(self.tb.pclk, 10)
 
-            self.log.info("✓ Status flags test passed")
+            self.log.info("Status flags test passed")
             return True
 
         except Exception as e:

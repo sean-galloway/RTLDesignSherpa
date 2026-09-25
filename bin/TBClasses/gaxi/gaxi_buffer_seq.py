@@ -53,51 +53,51 @@ class GAXIBufferSequence(GAXISequence):
             field_config: Field configuration for multi-field packets (dict or FieldConfig)
             packet_class: Class to use for packet creation
         """
-        print(f"🔍 GAXIBufferSequence.__init__: Step 1 - About to call super().__init__")
+        print(f"GAXIBufferSequence.__init__: Step 1 - About to call super().__init__")
         
         # CRITICAL: Call parent initialization FIRST
         super().__init__(name, field_config, packet_class)
-        print(f"🔍 GAXIBufferSequence.__init__: Step 1 - ✅ super().__init__ completed")
+        print(f"GAXIBufferSequence.__init__: Step 1 - super().__init__ completed")
         
-        print(f"🔍 GAXIBufferSequence.__init__: Step 2 - About to extract field widths")
+        print(f"GAXIBufferSequence.__init__: Step 2 - About to extract field widths")
         
         # NOW extract field widths after parent is properly initialized
         try:
             self.addr_width = self._get_field_width('addr')
-            print(f"🔍 GAXIBufferSequence.__init__: addr_width = {self.addr_width}")
+            print(f"GAXIBufferSequence.__init__: addr_width = {self.addr_width}")
             
             self.ctrl_width = self._get_field_width('ctrl')
-            print(f"🔍 GAXIBufferSequence.__init__: ctrl_width = {self.ctrl_width}")
+            print(f"GAXIBufferSequence.__init__: ctrl_width = {self.ctrl_width}")
             
             self.data0_width = self._get_field_width('data0')
-            print(f"🔍 GAXIBufferSequence.__init__: data0_width = {self.data0_width}")
+            print(f"GAXIBufferSequence.__init__: data0_width = {self.data0_width}")
             
             self.data1_width = self._get_field_width('data1')
-            print(f"🔍 GAXIBufferSequence.__init__: data1_width = {self.data1_width}")
+            print(f"GAXIBufferSequence.__init__: data1_width = {self.data1_width}")
             
-            print(f"🔍 GAXIBufferSequence.__init__: Step 2 - ✅ Field widths extracted")
+            print(f"GAXIBufferSequence.__init__: Step 2 - Field widths extracted")
             
         except Exception as e:
-            print(f"🚨 ERROR: Field width extraction failed: {e}")
+            print(f"ERROR: Field width extraction failed: {e}")
             # Fallback to safe defaults
             self.addr_width = 12
             self.ctrl_width = 6
             self.data0_width = 32
             self.data1_width = 32
-            print(f"🔍 GAXIBufferSequence.__init__: Using fallback field widths")
+            print(f"GAXIBufferSequence.__init__: Using fallback field widths")
         
-        print(f"🔍 GAXIBufferSequence.__init__: Step 3 - About to create randomizer manager")
+        print(f"GAXIBufferSequence.__init__: Step 3 - About to create randomizer manager")
         
         try:
             self._create_randomizer_manager()
-            print(f"🔍 GAXIBufferSequence.__init__: Step 3 - ✅ Randomizer manager created")
+            print(f"GAXIBufferSequence.__init__: Step 3 - Randomizer manager created")
         except Exception as e:
-            print(f"🚨 ERROR: Randomizer manager creation failed: {e}")
+            print(f"ERROR: Randomizer manager creation failed: {e}")
             # Create minimal randomizer setup
             self.randomizer_instances = {}
-            print(f"🔍 GAXIBufferSequence.__init__: Using minimal randomizer setup")
+            print(f"GAXIBufferSequence.__init__: Using minimal randomizer setup")
         
-        print(f"🔍 GAXIBufferSequence.__init__: Step 4 - Setting up enhanced statistics")
+        print(f"GAXIBufferSequence.__init__: Step 4 - Setting up enhanced statistics")
         
         # Enhanced statistics tracking
         self.stats.update({
@@ -108,7 +108,7 @@ class GAXIBufferSequence(GAXISequence):
             'burst_tests': 0
         })
         
-        print(f"🔍 GAXIBufferSequence.__init__: ✅ ALL INITIALIZATION COMPLETED SUCCESSFULLY!")
+        print(f"GAXIBufferSequence.__init__: ALL INITIALIZATION COMPLETED SUCCESSFULLY!")
 
     def _create_randomizer_manager(self):
         """Create FlexConfigGen manager for sequence randomization"""

@@ -164,7 +164,7 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
             write_constraint.skip_boundary_detection = True
             self.wave_solver.add_constraint(write_constraint)
 
-            self.log.info("✓ WaveDrom setup complete for FIFO Async")
+            self.log.info("WaveDrom setup complete for FIFO Async")
 
         except Exception as e:
             self.log.error(f"Failed to setup WaveDrom: {e}")
@@ -224,7 +224,7 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
         # Read everything out
         await self.wait_clocks(self.rd_clk_name, 3)
         await self._await_drain()
-        self.log.info("✓ Scenario 1 complete")
+        self.log.info("Scenario 1 complete")
 
     async def scenario_gray_code_sync(self):
         """
@@ -249,7 +249,7 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
         # Reads with async clock
         await self.wait_clocks(self.rd_clk_name, 3)
         await self._await_drain()
-        self.log.info("✓ Scenario 2 complete")
+        self.log.info("Scenario 2 complete")
 
     async def scenario_power_of_2_depth(self):
         """
@@ -274,7 +274,7 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
         # Read out showing wrap-around
         await self.wait_clocks(self.rd_clk_name, 3)
         await self._await_drain()
-        self.log.info("✓ Scenario 3 complete")
+        self.log.info("Scenario 3 complete")
 
     async def generate_all_wavedrom_scenarios(self):
         """Generate all FIFO async WaveDrom scenarios."""
@@ -289,5 +289,5 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
         await self.scenario_power_of_2_depth()
         await self.wait_clocks(self.wr_clk_name, 10)
 
-        self.log.info("✓ All FIFO Async WaveDrom scenarios generated")
+        self.log.info("All FIFO Async WaveDrom scenarios generated")
 

@@ -155,20 +155,20 @@ async def fifo_async_test(dut):
             delay_key=delay_key,
             delay_clks_after=30  # ASYNC SPECIFIC - longer delay for clock domain crossing
         )
-        tb.log.info(f"✓ Completed '{delay_key}' configuration")
+        tb.log.info(f"Completed '{delay_key}' configuration")
 
     # Run comprehensive sweep for func and full levels
     if run_comprehensive_sweep:
         tb.log.info("=== Scenario FIFO-04: Almost-full/almost-empty thresholds ===")
         tb.log.info("Running comprehensive randomizer sweep...")
         assert await tb.comprehensive_randomizer_sweep(packets_per_config=comprehensive_packets), 'scenario reported failure'
-        tb.log.info("✓ Completed comprehensive sweep")
+        tb.log.info("Completed comprehensive sweep")
 
     # Always run back-to-back test (essential for FIFO validation)
     tb.log.info("=== Scenario FIFO-05: FIFO fill and drain ===")
     tb.log.info("Running back-to-back test...")
     assert await tb.back_to_back_test(count=packet_counts['back_to_back']), 'scenario reported failure'
-    tb.log.info("✓ Completed back-to-back test")
+    tb.log.info("Completed back-to-back test")
 
     # Run stress test for func and full levels
     if run_stress_test:
@@ -180,9 +180,9 @@ async def fifo_async_test(dut):
             count=packet_counts['stress_test'],
             delay_key=stress_config
         ), 'scenario reported failure'
-        tb.log.info("✓ Completed stress test")
+        tb.log.info("Completed stress test")
 
-    tb.log.info(f"✓ ALL {test_level.upper()} ASYNC TESTS PASSED!")
+    tb.log.info(f"ALL {test_level.upper()} ASYNC TESTS PASSED!")
 
 def generate_params():
     """
@@ -369,10 +369,10 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
 
             waves=enable_waves,
         )
-        print(f"✓ {test_level.upper()} async test PASSED: {mode} mode")
+        print(f"{test_level.upper()} async test PASSED: {mode} mode")
     except Exception as e:
         # If the test fails, make sure logs are preserved
-        print(f"✗ {test_level.upper()} async test FAILED: {str(e)}")
+        print(f"{test_level.upper()} async test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the Waveforms run this command: {cmd_filename}")
         raise  # Re-raise exception to indicate failure

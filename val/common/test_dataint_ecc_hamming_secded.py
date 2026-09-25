@@ -249,8 +249,8 @@ endmodule
 
             waves=enable_waves,
                 )
-        print(f"✓ Test completed! Logs: {log_path}")
+        print(f"Test completed! Logs: {log_path}")
     except Exception as e:
-        print(f"❌ Test failed: {str(e)}")
+        print(f"Test failed: {str(e)}")
         print(f"Logs: {log_path}")
         raise

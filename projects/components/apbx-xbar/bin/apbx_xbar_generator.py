@@ -873,13 +873,13 @@ Examples:
         with open(output_file, 'w') as f:
             f.write(code)
 
-        print(f"✅ Generated {output_file}")
+        print(f"Generated {output_file}")
         print(f"   Masters: {args.masters}, Slaves: {args.slaves}")
         print(f"   Base Address: 0x{args.base_addr:08X}")
         print(f"   Slave Size: 0x{args.slave_size:X} ({args.slave_size//1024}KB per slave)")
 
     except Exception as e:
-        print(f"❌ Error: {e}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         return 1
 
     return 0

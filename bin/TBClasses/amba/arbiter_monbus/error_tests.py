@@ -26,7 +26,7 @@ from typing import Dict, List, Optional, Any
 
 from TBClasses.monbus.monbus_types import ProtocolType, PktType
 
-# ✅ CENTRALIZED IMPORTS - Use synchronized types from monbus_types.py
+# CENTRALIZED IMPORTS - Use synchronized types from monbus_types.py
 from TBClasses.monbus.monbus_types import (
     ProtocolType, PktType,
     ARBErrorCode, ARBThresholdCode, ARBTimeoutCode, ARBCompletionCode,

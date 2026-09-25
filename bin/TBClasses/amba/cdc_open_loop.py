@@ -298,7 +298,7 @@ class CDCOpenLoopTB(TBBase):
         await self.drain_settle()
         if not self.verify_no_loss():
             return False
-        self.log.info(f"  ✓ basic: {len(self.received)}/{count} arrived")
+        self.log.info(f"basic: {len(self.received)}/{count} arrived")
         return True
 
     async def run_walking_pattern(self):
@@ -321,7 +321,7 @@ class CDCOpenLoopTB(TBBase):
             return False
         if not self.verify_slice_no_loss(sent_before, before, "WALKING"):
             return False
-        self.log.info(f"  ✓ walking: {delivered}/{expected} arrived, data verified")
+        self.log.info(f"walking: {delivered}/{expected} arrived, data verified")
         return True
 
     async def run_back_to_back(self, count=50):
@@ -341,7 +341,7 @@ class CDCOpenLoopTB(TBBase):
             return False
         if not self.verify_slice_no_loss(sent_before, before, "B2B"):
             return False
-        self.log.info(f"  ✓ b2b: {delivered}/{count} arrived, data verified")
+        self.log.info(f"b2b: {delivered}/{count} arrived, data verified")
         return True
 
     async def run_cliff_probe(self, count=40):
@@ -403,7 +403,7 @@ class CDCOpenLoopTB(TBBase):
         if not self.verify_no_loss():
             self.log.error("busy-drop: DUT did not cleanly ignore src_valid during busy")
             return False
-        self.log.info("  ✓ busy-drop: guard ignored all busy-time valids")
+        self.log.info("busy-drop: guard ignored all busy-time valids")
         return True
 
     async def run_all_for_level(self):

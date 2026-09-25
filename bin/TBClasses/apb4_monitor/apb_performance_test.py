@@ -67,7 +67,7 @@ class APBPerformanceTest(APBMonitorCoreTB):
 
     async def run_performance_test(self) -> bool:
         """Run the performance event test"""
-        self.log.info("🧪 Testing APB Performance Events")
+        self.log.info("Testing APB Performance Events")
 
         # Setup with performance-focused configuration
         monitor_config = self.get_test_configuration()
@@ -79,13 +79,13 @@ class APBPerformanceTest(APBMonitorCoreTB):
 
         # FIXED: Use MonbusPktType and integer packet types
         expected_latency_event = APBMonitorEvent(
-            packet_type=MonbusPktType.PERF.value,  # ✅ Integer-based packet type
+            packet_type=MonbusPktType.PERF.value,  # Integer-based packet type
             event_code=APBPerformanceCode.TOTAL_LATENCY.value,
             tolerance_ns=2000.0
         )
 
         expected_throughput_event = APBMonitorEvent(
-            packet_type=MonbusPktType.PERF.value,  # ✅ Integer-based packet type
+            packet_type=MonbusPktType.PERF.value,  # Integer-based packet type
             event_code=APBPerformanceCode.THROUGHPUT.value,
             tolerance_ns=2000.0
         )
@@ -125,7 +125,7 @@ class APBPerformanceTest(APBMonitorCoreTB):
             valid_perf_codes = [e.value for e in APBPerformanceCode]
             if perf_code in valid_perf_codes:
                 perf_name = APBPerformanceCode(perf_code).name
-                self.log.info(f"✅ Performance event detected successfully: {perf_name}")
+                self.log.info(f"Performance event detected successfully: {perf_name}")
 
                 # Log additional details about the performance packet
                 self.log.info(f"Performance packet details:")
@@ -136,7 +136,7 @@ class APBPerformanceTest(APBMonitorCoreTB):
 
                 return True
             else:
-                self.log.warning(f"⚠️ Got performance event but unknown code: 0x{perf_code:X}")
+                self.log.warning(f"Got performance event but unknown code: 0x{perf_code:X}")
                 return False
         elif total_packets > 0:
             # We got some packets but not performance - log what we got
@@ -144,11 +144,11 @@ class APBPerformanceTest(APBMonitorCoreTB):
             for i, pkt in enumerate(all_packets):
                 self.log.info(f"  Packet {i}: {pkt.get_packet_type_name()}.{pkt.get_event_code_name()}")
 
-            self.log.warning(f"⚠️ Got {total_packets} monitor packets but no performance events")
+            self.log.warning(f"Got {total_packets} monitor packets but no performance events")
             self.log.warning("This might indicate performance monitoring is not enabled or thresholds are too high")
             return False
         else:
-            self.log.warning("⚠️ No monitor packets received - performance monitoring may not be working")
+            self.log.warning("No monitor packets received - performance monitoring may not be working")
             return False
 
     async def verify_performance_behavior(self) -> bool:
@@ -157,9 +157,9 @@ class APBPerformanceTest(APBMonitorCoreTB):
         performance_packets = self.monbus_slave.get_performance_packets()
 
         if len(performance_packets) > 0:
-            self.log.info("✅ Performance event verification PASSED")
+            self.log.info("Performance event verification PASSED")
             return True
         else:
-            self.log.warning("⚠️ No performance events detected - check thresholds and enable signals")
+            self.log.warning("No performance events detected - check thresholds and enable signals")
             # Don't fail the test if no performance events occur - this may be expected
             return True

@@ -72,7 +72,7 @@ async def axi_read_splitter_test(dut):
     # Verify test result
     assert passed, f"AXI read splitter test failed at level {test_level}"
 
-    tb.log.info(f"✓ ALL {test_level.upper()} AXI READ SPLITTER TESTS PASSED!")
+    tb.log.info(f"ALL {test_level.upper()} AXI READ SPLITTER TESTS PASSED!")
 
 
 def generate_test_params():
@@ -234,10 +234,10 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} AXI Read Splitter test PASSED")
+        print(f"{test_level.upper()} AXI Read Splitter test PASSED")
 
     except Exception as e:
-        print(f"✗ {test_level.upper()} AXI Read Splitter test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXI Read Splitter test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run this command: {cmd_filename}")
         raise
@@ -382,10 +382,10 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} AXI Read Splitter test PASSED")
+        print(f"{test_level.upper()} AXI Read Splitter test PASSED")
 
     except Exception as e:
-        print(f"✗ {test_level.upper()} AXI Read Splitter test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXI Read Splitter test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run this command: {cmd_filename}")
         raise

@@ -286,7 +286,7 @@ def convert_rdl_to_regmap(rdl_file: Path) -> Dict[str, Any]:
     Main conversion function.
     Parses RDL file and returns RegisterMap-compatible dictionary.
     """
-    print(f"📖 Compiling SystemRDL: {rdl_file}")
+    print(f"Compiling SystemRDL: {rdl_file}")
     
     # Compile RDL file
     rdlc = RDLCompiler()
@@ -296,19 +296,19 @@ def convert_rdl_to_regmap(rdl_file: Path) -> Dict[str, Any]:
         root = rdlc.elaborate()
         top = root.top
         
-        print(f"✓ Compilation successful")
+        print(f"Compilation successful")
         print(f"  Address map: {top.inst_name}")
         print(f"  Address range: 0x{top.absolute_address:X} - 0x{top.absolute_address + top.size - 1:X}")
         
     except Exception as e:
-        print(f"✗ Compilation failed: {e}")
+        print(f"Compilation failed: {e}")
         raise
     
     # Process the address map
-    print(f"\n🔨 Processing registers...")
+    print(f"\nProcessing registers...")
     register_dict = process_addrmap(top)
     
-    print(f"✓ Processed {len(register_dict)} registers")
+    print(f"Processed {len(register_dict)} registers")
     
     # Wrap in top_block key as expected by RegisterMap
     return {'top_block': register_dict}
@@ -318,7 +318,7 @@ def write_python_dict(output_file: Path, reg_dict: Dict[str, Any], rdl_file: Pat
     """
     Write the dictionary to a Python file with proper formatting.
     """
-    print(f"\n📝 Writing output: {output_file}")
+    print(f"\nWriting output: {output_file}")
     
     with open(output_file, 'w') as f:
         # Write header
@@ -350,7 +350,7 @@ Usage:
         f.write(pprint.pformat(reg_dict['top_block'], width=100, compact=False))
         f.write("\n")
     
-    print(f"✓ Generated: {output_file}")
+    print(f"Generated: {output_file}")
 
 
 def main():
@@ -398,7 +398,7 @@ Examples:
         write_python_dict(args.output, reg_dict, args.rdl_file)
         
         print("\n" + "=" * 80)
-        print("✅ Conversion Complete!")
+        print("Conversion Complete!")
         print("=" * 80)
         print(f"\nGenerated: {args.output}")
         print(f"\nRegister Summary:")
@@ -415,7 +415,7 @@ Examples:
         return 0
         
     except Exception as e:
-        print(f"\n✗ Conversion failed: {e}")
+        print(f"\nConversion failed: {e}")
         import traceback
         traceback.print_exc()
         return 1

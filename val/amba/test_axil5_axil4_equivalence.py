@@ -388,9 +388,9 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} AXIL4 Read Master test PASSED")
+        print(f"{test_level.upper()} AXIL4 Read Master test PASSED")
     except Exception as e:
-        print(f"✗ {test_level.upper()} AXIL4 Read Master test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXIL4 Read Master test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise
@@ -531,9 +531,9 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} AXIL4 Read Master test PASSED")
+        print(f"{test_level.upper()} AXIL4 Read Master test PASSED")
     except Exception as e:
-        print(f"✗ {test_level.upper()} AXIL4 Read Master test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXIL4 Read Master test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

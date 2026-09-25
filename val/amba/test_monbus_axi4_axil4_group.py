@@ -335,9 +335,9 @@ def test_monbus_axi4_axil4_group(request):
             keep_files=True,
             compile_args=compile_args,
         )
-        print(f"✓ monbus_axi4_axil4_group test PASSED! Logs: {log_path}")
+        print(f"monbus_axi4_axil4_group test PASSED! Logs: {log_path}")
     except Exception as e:
-        print(f"✗ monbus_axi4_axil4_group test FAILED: {e}")
+        print(f"monbus_axi4_axil4_group test FAILED: {e}")
         print(f"Logs: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         raise

@@ -93,7 +93,7 @@ async def run_basic_functional_test(dut):
     assert dut.rd_data.value == 0xBB, f"Read mismatch: got {dut.rd_data.value:02x}, expected 0xBB"
     dut.rd_ready.value = 0
 
-    dut._log.info("✓ Basic functional test passed")
+    dut._log.info("Basic functional test passed")
 
 
 @cocotb.test(timeout_time=10, timeout_unit="sec")
@@ -340,7 +340,7 @@ async def gaxi_comprehensive_wavedrom_test(dut):
     if _all_scenarios:
         wave_solver.add_constraint(alternating_constraint)
 
-    dut._log.info(f"✓ GAXI wavedrom configured: 6 comprehensive scenarios, segmented capture mode")
+    dut._log.info(f"GAXI wavedrom configured: 6 comprehensive scenarios, segmented capture mode")
     dut._log.info(f"  1. Zero-latency bypass (skid buffer)")
     dut._log.info(f"  2. Burst write until full (FIFO)")
     dut._log.info(f"  3. Simultaneous read/write (pass-through)")
@@ -381,7 +381,7 @@ async def gaxi_comprehensive_wavedrom_test(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 1 captured: zero-latency bypass")
+    dut._log.info("Scenario 1 captured: zero-latency bypass")
 
     # Drain FIFO
     dut.rd_ready.value = 1
@@ -424,7 +424,7 @@ async def gaxi_comprehensive_wavedrom_test(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 2 captured: burst write until full")
+    dut._log.info("Scenario 2 captured: burst write until full")
 
     # Drain FIFO
     dut.rd_ready.value = 1
@@ -468,7 +468,7 @@ async def gaxi_comprehensive_wavedrom_test(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 3 captured: simultaneous read/write")
+    dut._log.info("Scenario 3 captured: simultaneous read/write")
 
     # Drain FIFO
     dut.rd_ready.value = 1
@@ -512,7 +512,7 @@ async def gaxi_comprehensive_wavedrom_test(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 4 captured: burst read until empty")
+    dut._log.info("Scenario 4 captured: burst read until empty")
 
     await RisingEdge(dut.axi_aclk)
     await RisingEdge(dut.axi_aclk)
@@ -556,7 +556,7 @@ async def gaxi_comprehensive_wavedrom_test(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 5 captured: fill then drain")
+    dut._log.info("Scenario 5 captured: fill then drain")
 
     await RisingEdge(dut.axi_aclk)
     await RisingEdge(dut.axi_aclk)
@@ -603,12 +603,12 @@ async def gaxi_comprehensive_wavedrom_test(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 6 captured: alternating read/write")
+    dut._log.info("Scenario 6 captured: alternating read/write")
 
     # === Final Report ===
     wave_solver.debug_status()
 
-    dut._log.info(f"✓ GAXI Comprehensive Wavedrom Complete (Segmented Capture)")
+    dut._log.info(f"GAXI Comprehensive Wavedrom Complete (Segmented Capture)")
     dut._log.info(f"  Total scenarios: 6")
     dut._log.info(f"  1. Zero-latency bypass (skid buffer)")
     dut._log.info(f"  2. Burst write until full (FIFO)")

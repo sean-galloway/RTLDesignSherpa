@@ -160,7 +160,7 @@ async def peakrdl_adapter_basic(dut):
     prdata, pslverr = await tb.recv_rsp()
     assert pslverr == 0, "Expected no error"
 
-    dut._log.info("✓ Basic write passed")
+    dut._log.info("Basic write passed")
 
     dut._log.info("=== Test: Basic Read ===")
 
@@ -184,7 +184,7 @@ async def peakrdl_adapter_basic(dut):
     assert prdata == 0xCAFEBABE, f"Read data mismatch: {hex(prdata)}"
     assert pslverr == 0, "Expected no error"
 
-    dut._log.info("✓ Basic read passed")
+    dut._log.info("Basic read passed")
 
 
 @cocotb.test()
@@ -223,7 +223,7 @@ async def peakrdl_adapter_backpressure(dut):
     prdata, pslverr = await tb.recv_rsp()
     assert pslverr == 0
 
-    dut._log.info("✓ Backpressure test passed")
+    dut._log.info("Backpressure test passed")
 
 
 @cocotb.test()
@@ -269,7 +269,7 @@ async def peakrdl_adapter_byte_strobes(dut):
         # Receive response
         await tb.recv_rsp()
 
-    dut._log.info("✓ Byte strobe conversion passed")
+    dut._log.info("Byte strobe conversion passed")
 
 
 @cocotb.test()
@@ -331,7 +331,7 @@ async def peakrdl_adapter_stress(dut):
         if (i + 1) % 50 == 0:
             dut._log.info(f"  Completed {i + 1}/{num_transactions} transactions")
 
-    dut._log.info(f"✓ Stress test passed: {num_transactions} transactions")
+    dut._log.info(f"Stress test passed: {num_transactions} transactions")
 
 
 # ==============================================================================

@@ -241,7 +241,7 @@ async def axi4_slave_rd_mon_wavedrom_test(dut):
     dut._log.info("=== Scenario 1: Single-Beat Read Transaction ===")
     success, data, info = await tb.base_tb.single_read_response_test(addr=0x1000)
     if success:
-        dut._log.info(f"✓ Single-beat read completed: addr=0x1000, data=0x{data:08X}")
+        dut._log.info(f"Single-beat read completed: addr=0x1000, data=0x{data:08X}")
 
     await tb.base_tb.wait_clocks('aclk', 30)
 
@@ -249,7 +249,7 @@ async def axi4_slave_rd_mon_wavedrom_test(dut):
     dut._log.info("=== Scenario 2: Single-Beat Read (addr 0x2000) ===")
     success, data, info = await tb.base_tb.single_read_response_test(addr=0x2000)
     if success:
-        dut._log.info(f"✓ Single-beat read completed: addr=0x2000, data=0x{data:08X}")
+        dut._log.info(f"Single-beat read completed: addr=0x2000, data=0x{data:08X}")
 
     await tb.base_tb.wait_clocks('aclk', 30)
 
@@ -262,11 +262,11 @@ async def axi4_slave_rd_mon_wavedrom_test(dut):
     # Check results - MUST pass for regression testing
     dut._log.info("=" * 80)
     if not results['all_required_satisfied']:
-        dut._log.error(f"❌ REQUIRED WAVEFORMS NOT GENERATED ❌")
+        dut._log.error(f"REQUIRED WAVEFORMS NOT GENERATED")
         dut._log.error(f"Failed constraints: {results['failed_constraints']}")
         raise AssertionError(f"Required waveforms not generated: {results['failed_constraints']}")
 
-    dut._log.info(f"✅ AXI4 Slave Read Monitor WaveDrom Complete: {len(results['solutions'])} waveforms generated")
+    dut._log.info(f"AXI4 Slave Read Monitor WaveDrom Complete: {len(results['solutions'])} waveforms generated")
     dut._log.info("=" * 80)
 
 
@@ -397,8 +397,8 @@ def test_axi4_slave_rd_mon(id_width, addr_width, data_width, user_width, max_tra
             keep_files=True,
             compile_args=compile_args,
         )
-        print(f"✓ PASSED: {test_name}")
+        print(f"PASSED: {test_name}")
     except Exception as e:
-        print(f"✗ FAILED: {test_name}")
+        print(f"FAILED: {test_name}")
         print(f"Error: {str(e)}")
         raise

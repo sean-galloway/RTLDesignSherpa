@@ -45,7 +45,7 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from TBClasses.monbus.monbus_slave import MonbusSlave
 from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
 
-# ✅ UPDATED IMPORTS - Use synchronized types and clean import structure
+# UPDATED IMPORTS - Use synchronized types and clean import structure
 from TBClasses.monbus.monbus_types import ProtocolType, PktType
 from TBClasses.amba.arbiter_monbus.monitor_config import MonitorConfig, TestResult, ConfigUtils
 
@@ -106,7 +106,7 @@ class ArbiterMonbusCommonTB(TBBase):
 
     async def setup_testbench(self):
         """Your existing setup method - keep everything exactly as-is"""
-        self.log.info("🚀 Setting up enhanced testbench...")
+        self.log.info("Setting up enhanced testbench...")
 
         try:
             # ALL YOUR EXISTING MonBus slave initialization - keep as-is
@@ -144,10 +144,10 @@ class ArbiterMonbusCommonTB(TBBase):
             # Initialize new test framework after all test classes exist
             self.test_framework = TestFramework(self)
             
-            self.log.info("✅ Testbench setup completed successfully")
+            self.log.info("Testbench setup completed successfully")
 
         except Exception as e:
-            self.log.error(f"❌ Testbench setup failed: {e}")
+            self.log.error(f"Testbench setup failed: {e}")
             raise
 
     async def reset_dut(self, reset_duration_clks: int = 10):
@@ -163,7 +163,7 @@ class ArbiterMonbusCommonTB(TBBase):
         3. Releases reset to 1 (deasserted)
         4. Waits 10 clocks for reset to propagate
         """
-        self.log.info(f"🔄 Starting DUT reset sequence ({reset_duration_clks} cycles)...")
+        self.log.info(f"Starting DUT reset sequence ({reset_duration_clks} cycles)...")
 
         # STEP 1: Assert reset (active low) and clear all inputs
         self.log.debug("Step 1: Asserting reset and clearing all inputs")
@@ -240,7 +240,7 @@ class ArbiterMonbusCommonTB(TBBase):
         if hasattr(self, 'monbus_slave') and self.monbus_slave:
             self.monbus_slave.reset_statistics()
 
-        self.log.info(f"✅ DUT reset sequence completed successfully ({reset_duration_clks} cycles)")
+        self.log.info(f"DUT reset sequence completed successfully ({reset_duration_clks} cycles)")
 
     # Optional: Keep apply_reset as an alias for backward compatibility
     async def apply_reset(self, reset_duration_clks: int = 10):
@@ -280,7 +280,7 @@ class ArbiterMonbusCommonTB(TBBase):
             # FIFO is empty when monbus_valid = 0 AND fifo_count = 0
             if monbus_valid == 0 and fifo_count == 0:
                 end_time = self.get_time_ns_str()
-                self.log.debug(f"✅ FIFO empty after {cycles_waited} cycles @ {end_time}")
+                self.log.debug(f"FIFO empty after {cycles_waited} cycles @ {end_time}")
                 return True
 
             # Log state changes for debugging
@@ -296,7 +296,7 @@ class ArbiterMonbusCommonTB(TBBase):
         final_count = int(self.dut.debug_fifo_count.value) if hasattr(self.dut, 'debug_fifo_count') else 0
         final_time = self.get_time_ns_str()
 
-        self.log.warning(f"⚠️  FIFO drain timeout after {max_cycles} cycles @ {final_time}")
+        self.log.warning(f"FIFO drain timeout after {max_cycles} cycles @ {final_time}")
         self.log.warning(f"   Initial: valid={initial_valid}, count={initial_fifo_count}")
         self.log.warning(f"   Final: valid={final_valid}, count={final_count}")
         return False
@@ -305,7 +305,7 @@ class ArbiterMonbusCommonTB(TBBase):
         """
         Simple version: disable monitor and clear testbench packet buffer
         """
-        self.log.info(f"🔄 Disabling monitor and clearing packet buffer...{self.get_time_ns_str()}")
+        self.log.info(f"Disabling monitor and clearing packet buffer...{self.get_time_ns_str()}")
 
         # Disable monitor
         if hasattr(self.dut, 'cfg_mon_enable'):
@@ -316,7 +316,7 @@ class ArbiterMonbusCommonTB(TBBase):
         while self.dut.monbus_valid.value == 1:
             await self.wait_falling_clocks('clk')
 
-        self.log.info(f"🔄 monbus_valid no longer asserted...{self.get_time_ns_str()}")
+        self.log.info(f"monbus_valid no longer asserted...{self.get_time_ns_str()}")
 
 
         packets_before = len(self.monbus_slave.received_packets)
@@ -324,14 +324,14 @@ class ArbiterMonbusCommonTB(TBBase):
         self.monbus_slave.reset_statistics()
         self.log.debug(f"Cleared {packets_before} packets from testbench buffer{self.get_time_ns_str()}")
 
-        self.log.info("✅ Monitor disabled and packets cleared")
+        self.log.info("Monitor disabled and packets cleared")
         return True
 
     async def disable_monitor_and_drain_fifo(self, max_drain_cycles: int = 200):
         """
         Disable monitor and clear ALL packets (hardware + testbench)
         """
-        self.log.info(f"🔄 Disabling monitor and clearing all packets...{self.get_time_ns_str()}")
+        self.log.info(f"Disabling monitor and clearing all packets...{self.get_time_ns_str()}")
 
         # STEP 1: Disable monitor
         self.log.debug(f"Step 1: Disabling monitor{self.get_time_ns_str()}")
@@ -343,7 +343,7 @@ class ArbiterMonbusCommonTB(TBBase):
         while self.dut.monbus_valid.value == 1:
             await self.wait_falling_clocks('clk')
 
-        self.log.info(f"🔄 monbus_valid no longer asserted...{self.get_time_ns_str()}")
+        self.log.info(f"monbus_valid no longer asserted...{self.get_time_ns_str()}")
 
         # STEP 3: Clear the testbench packet buffer (this is the key fix!)
         self.log.debug(f"Step 3: Clearing testbench packet buffer{self.get_time_ns_str()}")
@@ -359,7 +359,7 @@ class ArbiterMonbusCommonTB(TBBase):
         # STEP 5: Wait for any remaining hardware FIFO to drain (optional)
         await self.wait_for_fifo_empty(50)  # Shorter timeout since testbench is cleared
 
-        self.log.info(f"✅ Monitor disabled and all packets cleared{self.get_time_ns_str()}")
+        self.log.info(f"Monitor disabled and all packets cleared{self.get_time_ns_str()}")
         return True
 
     async def prepare_clean_test_state_with_fifo_drain(self):
@@ -368,7 +368,7 @@ class ArbiterMonbusCommonTB(TBBase):
 
         Use this instead of prepare_clean_test_state() for enable/disable tests
         """
-        self.log.info(f"🧹 Preparing clean test state with FIFO drain...{self.get_time_ns_str()}")
+        self.log.info(f"Preparing clean test state with FIFO drain...{self.get_time_ns_str()}")
 
         # STEP 1: Disable monitor and drain FIFO completely
         await self.disable_monitor_and_drain_fifo()
@@ -384,10 +384,10 @@ class ArbiterMonbusCommonTB(TBBase):
         final_count = int(self.dut.debug_fifo_count.value) if hasattr(self.dut, 'debug_fifo_count') else 0
 
         if final_valid != 0 or final_count != 0:
-            self.log.error(f"❌ Clean state verification failed: valid={final_valid}, count={final_count}{self.get_time_ns_str()}")
+            self.log.error(f"Clean state verification failed: valid={final_valid}, count={final_count}{self.get_time_ns_str()}")
             return False
 
-        self.log.info(f"✅ Clean test state with empty FIFO prepared successfully{self.get_time_ns_str()}")
+        self.log.info(f"Clean test state with empty FIFO prepared successfully{self.get_time_ns_str()}")
         return True
 
     async def initialize_arbiter_outputs(self):
@@ -469,7 +469,7 @@ class ArbiterMonbusCommonTB(TBBase):
             # Create MonitorConfig object
             config = MonitorConfig(**config_params)
 
-        self.log.info(f"📝 Applying monitor configuration: {config}{self.get_time_ns_str()}")
+        self.log.info(f"Applying monitor configuration: {config}{self.get_time_ns_str()}")
 
         try:
             # Apply configuration to DUT
@@ -501,7 +501,7 @@ class ArbiterMonbusCommonTB(TBBase):
                     self.log.error(f"Actual pkt_type_enable:   0x{actual_config:04x}")
                     verification_passed = False
                 else:
-                    self.log.info(f"✅ Configuration verified: pkt_type_enable = 0x{actual_config:04x}")
+                    self.log.info(f"Configuration verified: pkt_type_enable = 0x{actual_config:04x}")
 
             if not verification_passed:
                 raise RuntimeError("Monitor configuration verification failed")
@@ -515,7 +515,7 @@ class ArbiterMonbusCommonTB(TBBase):
 
     async def prepare_clean_test_state(self):
         """Prepare a clean state before each test"""
-        self.log.info(f"🧹 Preparing clean test state...{self.get_time_ns_str()}")
+        self.log.info(f"Preparing clean test state...{self.get_time_ns_str()}")
 
         # STEP 1: Disable monitor
         await self.apply_monitor_config(MonitorConfig.disabled())
@@ -532,7 +532,7 @@ class ArbiterMonbusCommonTB(TBBase):
         # STEP 5: Wait for system to stabilize
         await self.wait_clocks('clk', 10)
 
-        self.log.info("✅ Clean test state prepared")
+        self.log.info("Clean test state prepared")
 
     async def set_idle_arbiter_state(self):
         """Set arbiter to completely idle state"""
@@ -685,7 +685,7 @@ class ArbiterMonbusCommonTB(TBBase):
         """Generate arbiter activity patterns for testing"""
         self.log.debug(f"Generating {cycles} cycles of '{pattern}' activity{self.get_time_ns_str()}")
 
-        # ✅ EXISTING PATTERNS (already implemented)
+        # EXISTING PATTERNS (already implemented)
         if pattern == "random":
             await self._generate_random_activity(cycles)
         elif pattern == "starvation":
@@ -705,7 +705,7 @@ class ArbiterMonbusCommonTB(TBBase):
         elif pattern == "protocol_violation":
             await self._generate_protocol_violation_pattern(cycles)
         
-        # ✅ THRESHOLD TEST PATTERNS (previously missing)
+        # THRESHOLD TEST PATTERNS (previously missing)
         elif pattern == "latency_stress":
             await self._generate_latency_stress_pattern(cycles)
         elif pattern == "inefficient":
@@ -713,11 +713,11 @@ class ArbiterMonbusCommonTB(TBBase):
         elif pattern == "controlled":
             await self._generate_controlled_pattern(cycles)
         
-        # ✅ BASIC TEST PATTERNS
+        # BASIC TEST PATTERNS
         elif pattern == "mixed":
             await self._generate_mixed_pattern(cycles)
         
-        # ✅ CORNER CASE TEST PATTERNS
+        # CORNER CASE TEST PATTERNS
         elif pattern.startswith("fill_cycle_"):
             cycle_num = int(pattern.split("_")[-1]) if pattern.split("_")[-1].isdigit() else 0
             await self._generate_fill_cycle_pattern(cycles, cycle_num)
@@ -736,13 +736,13 @@ class ArbiterMonbusCommonTB(TBBase):
             filter_name = pattern.replace("filter_", "")
             await self._generate_filter_pattern(cycles, filter_name)
         
-        # ✅ ERROR TEST PATTERNS
+        # ERROR TEST PATTERNS
         elif pattern == "mixed_errors":
             await self._generate_mixed_errors_pattern(cycles)
         elif pattern == "controlled_errors":
             await self._generate_controlled_errors_pattern(cycles)
         
-        # ✅ PERFORMANCE TEST PATTERNS
+        # PERFORMANCE TEST PATTERNS
         elif pattern == "grant_focused":
             await self._generate_grant_focused_pattern(cycles)
         elif pattern == "ack_focused":
@@ -754,7 +754,7 @@ class ArbiterMonbusCommonTB(TBBase):
         elif pattern == "latency_focused":
             await self._generate_latency_focused_pattern(cycles)
         
-        # ✅ STRESS TEST PATTERNS
+        # STRESS TEST PATTERNS
         elif pattern.startswith("config_test_"):
             test_num = int(pattern.split("_")[-1]) if pattern.split("_")[-1].isdigit() else 0
             await self._generate_config_test_pattern(cycles, test_num)
@@ -770,7 +770,7 @@ class ArbiterMonbusCommonTB(TBBase):
             await self._generate_backpressure_pattern(cycles, level)
         
         else:
-            # ✅ FATAL ERROR INSTEAD OF SILENT FALLBACK
+            # FATAL ERROR INSTEAD OF SILENT FALLBACK
             valid_patterns = [
                 "random", "starvation", "unfair", "performance", "all_active", "single", "balanced",
                 "ack_timeout", "protocol_violation", "latency_stress", "inefficient", "controlled",
@@ -779,7 +779,7 @@ class ArbiterMonbusCommonTB(TBBase):
                 "ack_focused", "controlled_performance", "high_throughput", "latency_focused",
                 "config_test_N", "extended_cycle_N", "rapid_cycle", "maximum_rate", "backpressure_N"
             ]
-            error_msg = f"❌ FATAL: Unknown activity pattern '{pattern}'\n" \
+            error_msg = f"FATAL: Unknown activity pattern '{pattern}'\n" \
                     f"Valid patterns: {', '.join(valid_patterns)}"
             self.log.error(error_msg)
             raise ValueError(error_msg)
@@ -1568,9 +1568,9 @@ class ArbiterMonbusCommonTB(TBBase):
                 
                 results[test_name] = result.passed
                 if not result.passed:
-                    self.log.error(f"{test_name}: ❌ FAIL - {result.details}")
+                    self.log.error(f"{test_name}: FAIL - {result.details}")
             except Exception as e:
-                self.log.error(f"{test_name}: ❌ EXCEPTION - {str(e)}")
+                self.log.error(f"{test_name}: EXCEPTION - {str(e)}")
                 results[test_name] = False
         
         # Keep your existing result storage and printing
@@ -1618,7 +1618,7 @@ class ArbiterMonbusCommonTB(TBBase):
             
         try:
             result = await test_methods[test_name]()
-            status = "✅ PASS" if result.passed else "❌ FAIL"
+            status = "PASS" if result.passed else "FAIL"
             self.log.info(f"=== {test_name}: {status} ===")
             return result
         except Exception as e:
@@ -1638,7 +1638,7 @@ class ArbiterMonbusCommonTB(TBBase):
         self.log.info(f"{self.test_level.upper()}: {passed_count}/{total_compatible} passed")
         
         for test_name in compatible_tests:
-            status = "✅ PASS" if results[test_name] else "❌ FAIL"
+            status = "PASS" if results[test_name] else "FAIL"
             self.log.info(f"  {test_name}: {status}")
         
         if skipped_tests:
@@ -1670,7 +1670,7 @@ class ArbiterMonbusCommonTB(TBBase):
 
             if isinstance(results, dict):
                 for test_name, passed in results.items():
-                    status = "✅ PASS" if passed else "❌ FAIL"
+                    status = "PASS" if passed else "FAIL"
                     self.log.info(f"  {test_name}: {status}")
 
             total_tests += category_total

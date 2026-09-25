@@ -74,7 +74,7 @@ class ResponseErrorDetectionTest(AXIMonitorBaseTest):
 
     async def run_test(self) -> bool:
         """Test response error detection for both read and write transactions"""
-        self.log.info("🧪 Testing Response Error Detection")
+        self.log.info("Testing Response Error Detection")
 
         all_passed = True
 
@@ -98,7 +98,7 @@ class ResponseErrorDetectionTest(AXIMonitorBaseTest):
 
     async def _test_read_response_errors(self) -> bool:
         """Test read response error detection"""
-        self.log.info("📖 Testing read response errors...")
+        self.log.info("Testing read response errors...")
 
         test_passed = True
 
@@ -123,7 +123,7 @@ class ResponseErrorDetectionTest(AXIMonitorBaseTest):
             # Wait for transaction completion and error detection
             completion = await self.wait_for_transaction_completion(txn_id, timeout_cycles=200)
             if not completion:
-                self.log.error(f"❌ Read transaction {txn_id:02X} with {error_type} did not complete")
+                self.log.error(f"Read transaction {txn_id:02X} with {error_type} did not complete")
                 test_passed = False
 
             # Small delay for error processing
@@ -133,7 +133,7 @@ class ResponseErrorDetectionTest(AXIMonitorBaseTest):
 
     async def _test_write_response_errors(self) -> bool:
         """Test write response error detection"""
-        self.log.info("✍️ Testing write response errors...")
+        self.log.info("Testing write response errors...")
 
         test_passed = True
 
@@ -158,7 +158,7 @@ class ResponseErrorDetectionTest(AXIMonitorBaseTest):
             # Wait for completion
             completion = await self.wait_for_transaction_completion(txn_id, timeout_cycles=200)
             if not completion:
-                self.log.error(f"❌ Write transaction {txn_id:02X} with {error_type} did not complete")
+                self.log.error(f"Write transaction {txn_id:02X} with {error_type} did not complete")
                 test_passed = False
 
             await self.wait_clocks('aclk', 20)
@@ -167,7 +167,7 @@ class ResponseErrorDetectionTest(AXIMonitorBaseTest):
 
     async def _test_mixed_error_scenarios(self) -> bool:
         """Test multiple simultaneous errors"""
-        self.log.info("🔀 Testing mixed error scenarios...")
+        self.log.info("Testing mixed error scenarios...")
 
         # Issue multiple transactions with different error types
         transactions = []
@@ -203,7 +203,7 @@ class ResponseErrorDetectionTest(AXIMonitorBaseTest):
 
     async def _verify_error_detection(self) -> bool:
         """Verify all expected errors were properly detected and reported"""
-        self.log.info("🔍 Verifying error detection...")
+        self.log.info("Verifying error detection...")
 
         verification_passed = True
 
@@ -230,7 +230,7 @@ class ResponseErrorDetectionTest(AXIMonitorBaseTest):
                         break
 
             if not error_found:
-                self.log.error(f"❌ Expected {expected_error['error_type']} error for "
+                self.log.error(f"Expected {expected_error['error_type']} error for "
                               f"transaction {expected_error['transaction_id']:02X} not detected")
                 verification_passed = False
 
@@ -238,12 +238,12 @@ class ResponseErrorDetectionTest(AXIMonitorBaseTest):
         detected_count = sum(1 for e in self.expected_error_interrupts if e['detected'])
         total_count = len(self.expected_error_interrupts)
 
-        self.log.info(f"📊 Error Detection Summary: {detected_count}/{total_count} errors detected")
+        self.log.info(f"Error Detection Summary: {detected_count}/{total_count} errors detected")
 
         if detected_count == total_count:
-            self.log.info("✅ All expected errors were detected correctly")
+            self.log.info("All expected errors were detected correctly")
         else:
-            self.log.error(f"❌ {total_count - detected_count} errors were not detected")
+            self.log.error(f"{total_count - detected_count} errors were not detected")
             verification_passed = False
 
         # Store results for reporting
@@ -278,7 +278,7 @@ class ProtocolViolationTest(AXIMonitorBaseTest):
 
     async def run_test(self) -> bool:
         """Test various protocol violation scenarios"""
-        self.log.info("🧪 Testing Protocol Violation Detection")
+        self.log.info("Testing Protocol Violation Detection")
 
         all_passed = True
 
@@ -302,7 +302,7 @@ class ProtocolViolationTest(AXIMonitorBaseTest):
 
     async def _test_orphaned_transactions(self) -> bool:
         """Test detection of orphaned data/response packets"""
-        self.log.info("👻 Testing orphaned transaction detection...")
+        self.log.info("Testing orphaned transaction detection...")
 
         test_passed = True
 
@@ -330,7 +330,7 @@ class ProtocolViolationTest(AXIMonitorBaseTest):
 
     async def _test_duplicate_addresses(self) -> bool:
         """Test detection of duplicate address transactions"""
-        self.log.info("🔄 Testing duplicate address detection...")
+        self.log.info("Testing duplicate address detection...")
 
         # Issue transaction with same ID twice
         await self.inject_protocol_violation("duplicate_address")
@@ -346,7 +346,7 @@ class ProtocolViolationTest(AXIMonitorBaseTest):
 
     async def _test_invalid_burst_parameters(self) -> bool:
         """Test detection of invalid burst parameters"""
-        self.log.info("💥 Testing invalid burst parameter detection...")
+        self.log.info("Testing invalid burst parameter detection...")
 
         # This would require custom transaction generation with invalid parameters
         # For now, just mark as tested
@@ -360,7 +360,7 @@ class ProtocolViolationTest(AXIMonitorBaseTest):
 
     async def _verify_protocol_violations(self) -> bool:
         """Verify protocol violations were detected"""
-        self.log.info("🔍 Verifying protocol violation detection...")
+        self.log.info("Verifying protocol violation detection...")
 
         verification_passed = True
 
@@ -377,15 +377,15 @@ class ProtocolViolationTest(AXIMonitorBaseTest):
                     break
 
             if not violation_found and violation['type'] != 'invalid_burst':  # Skip invalid_burst for now
-                self.log.error(f"❌ Protocol violation '{violation['type']}' not detected")
+                self.log.error(f"Protocol violation '{violation['type']}' not detected")
                 verification_passed = False
 
         # Check scoreboard for protocol violations
         protocol_violation_count = len(self.scoreboard.protocol_violations)
         if protocol_violation_count == 0:
-            self.log.warning("⚠️ No protocol violations recorded in scoreboard")
+            self.log.warning("No protocol violations recorded in scoreboard")
         else:
-            self.log.info(f"📊 Scoreboard recorded {protocol_violation_count} protocol violations")
+            self.log.info(f"Scoreboard recorded {protocol_violation_count} protocol violations")
 
         return verification_passed
 
@@ -406,22 +406,22 @@ class ErrorRecoveryTest(AXIMonitorBaseTest):
 
     async def run_test(self) -> bool:
         """Test error recovery scenarios"""
-        self.log.info("🧪 Testing Error Recovery")
+        self.log.info("Testing Error Recovery")
 
         all_passed = True
 
         # Phase 1: Normal operation
-        self.log.info("📝 Phase 1: Baseline normal operation")
+        self.log.info("Phase 1: Baseline normal operation")
         normal_passed = await self._test_normal_operation()
         all_passed = all_passed and normal_passed
 
         # Phase 2: Inject errors
-        self.log.info("💥 Phase 2: Inject various errors")
+        self.log.info("Phase 2: Inject various errors")
         error_passed = await self._test_error_injection()
         all_passed = all_passed and error_passed
 
         # Phase 3: Recovery verification
-        self.log.info("🔄 Phase 3: Verify recovery")
+        self.log.info("Phase 3: Verify recovery")
         recovery_passed = await self._test_recovery_operation()
         all_passed = all_passed and recovery_passed
 
@@ -531,4 +531,4 @@ async def test_all_error_detection(dut):
     if not all_passed:
         raise cocotb.result.TestFailure("Error detection test suite failed")
     else:
-        dut._log.info("🎉 All error detection tests passed!")
+        dut._log.info("All error detection tests passed!")

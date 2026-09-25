@@ -172,7 +172,7 @@ async def axi4_master_rd_mon_enable_sweep_test(dut):
             "observed (state-change emitter should fire on every transition)"
         )
 
-    tb.log.info("✓ ENABLE_*_LOGIC parameter sweep PASS")
+    tb.log.info("ENABLE_*_LOGIC parameter sweep PASS")
 
 
 # ============================================================================

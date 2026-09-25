@@ -162,7 +162,7 @@ class AXIMonitorScoreboard:
 
         if self.log:
             time_str = self.get_time_str()
-            self.log.debug(f"📍 AR{time_str}: ID={txn_id:02X} ADDR=0x{ar_packet.addr:08X} "
+            self.log.debug(f"AR{time_str}: ID={txn_id:02X} ADDR=0x{ar_packet.addr:08X} "
                           f"LEN={ar_packet.len} SIZE={ar_packet.size}")
 
     def record_write_address(self, packet) -> None:
@@ -202,7 +202,7 @@ class AXIMonitorScoreboard:
 
         if self.log:
             time_str = self.get_time_str()
-            self.log.debug(f"📍 AW{time_str}: ID={txn_id:02X} ADDR=0x{aw_packet.addr:08X} "
+            self.log.debug(f"AW{time_str}: ID={txn_id:02X} ADDR=0x{aw_packet.addr:08X} "
                           f"LEN={aw_packet.len} SIZE={aw_packet.size}")
 
     def record_read_data(self, packet) -> None:
@@ -250,7 +250,7 @@ class AXIMonitorScoreboard:
 
         if self.log:
             time_str = self.get_time_str()
-            self.log.debug(f"📥 R{time_str}: ID={txn_id:02X} "
+            self.log.debug(f"R{time_str}: ID={txn_id:02X} "
                           f"RESP={r_packet.get_response_name()} LAST={r_packet.last}")
 
     def record_write_data(self, packet) -> None:
@@ -299,7 +299,7 @@ class AXIMonitorScoreboard:
 
         if self.log:
             time_str = self.get_time_str()
-            self.log.debug(f"📤 W{time_str}: LAST={w_packet.last} "
+            self.log.debug(f"W{time_str}: LAST={w_packet.last} "
                           f"STRB={w_packet.get_strobe_pattern()} "
                           f"(beat {actual_beats}/{expected_beats})")
 
@@ -344,7 +344,7 @@ class AXIMonitorScoreboard:
 
         if self.log:
             time_str = self.get_time_str()
-            self.log.debug(f"📥 B{time_str}: ID={txn_id:02X} "
+            self.log.debug(f"B{time_str}: ID={txn_id:02X} "
                           f"RESP={b_packet.get_response_name()}")
 
     def record_interrupt_packet(self, packet_value: int) -> None:
@@ -366,7 +366,7 @@ class AXIMonitorScoreboard:
 
         if self.log:
             time_str = self.get_time_str()
-            self.log.debug(f"🚨 INTERRUPT{time_str}: "
+            self.log.debug(f"INTERRUPT{time_str}: "
                           f"TYPE={interrupt_packet.get_packet_type_name()} "
                           f"CODE={interrupt_packet.get_event_code_name()} "
                           f"CHAN={interrupt_packet.channel_id:02X}")
@@ -393,7 +393,7 @@ class AXIMonitorScoreboard:
 
         if self.log:
             time_str = self.get_time_str()
-            self.log.debug(f"⚙️ CONFIG{time_str}: "
+            self.log.debug(f"CONFIG{time_str}: "
                           f"FREQ={config.freq_sel} TIMEOUTS=({config.addr_cnt},"
                           f"{config.data_cnt},{config.resp_cnt})")
 
@@ -418,7 +418,7 @@ class AXIMonitorScoreboard:
         if self.log:
             time_str = self.get_time_str()
             duration = completion_time - monitored_txn.start_time
-            self.log.info(f"✅ TRANSACTION_COMPLETE{time_str}: ID={txn_id:02X} "
+            self.log.info(f"TRANSACTION_COMPLETE{time_str}: ID={txn_id:02X} "
                          f"{'READ' if monitored_txn.is_read else 'WRITE'} "
                          f"DURATION={duration:.1f}ns")
 
@@ -434,7 +434,7 @@ class AXIMonitorScoreboard:
         self.stats['protocol_violations'] += 1
 
         if self.log:
-            self.log.error(f"🚫 PROTOCOL_VIOLATION{violation['time_str']}: {message}")
+            self.log.error(f"PROTOCOL_VIOLATION{violation['time_str']}: {message}")
 
     def _add_orphaned_packet(self, packet, timestamp: float, packet_type: str):
         """Add an orphaned packet (no matching transaction)"""
@@ -448,7 +448,7 @@ class AXIMonitorScoreboard:
         self.stats['orphaned_packets'] += 1
 
         if self.log:
-            self.log.warning(f"⚠️ ORPHANED_{packet_type}{orphan_info['time_str']}")
+            self.log.warning(f"ORPHANED_{packet_type}{orphan_info['time_str']}")
 
     def _correlate_interrupt_packet(self, interrupt_packet: InterruptPacket):
         """Try to correlate interrupt packet with active transactions"""
@@ -469,13 +469,13 @@ class AXIMonitorScoreboard:
 
             if self.log:
                 time_str = self.get_time_str()
-                self.log.debug(f"🔗 INTERRUPT_CORRELATED{time_str}: "
+                self.log.debug(f"INTERRUPT_CORRELATED{time_str}: "
                               f"ID={potential_id:02X} "
                               f"TYPE={interrupt_packet.get_packet_type_name()}")
         else:
             if self.log:
                 time_str = self.get_time_str()
-                self.log.warning(f"❓ INTERRUPT_UNCORRELATED{time_str}: "
+                self.log.warning(f"INTERRUPT_UNCORRELATED{time_str}: "
                                 f"CHAN={interrupt_packet.channel_id:02X}")
 
     def verify_transaction_protocol(self, txn_id: int) -> bool:
@@ -644,7 +644,7 @@ class AXIMonitorScoreboard:
         self.verification_errors.append(error)
 
         if self.log:
-            self.log.error(f"❌ VERIFICATION_ERROR{error['time_str']}: {message}")
+            self.log.error(f"VERIFICATION_ERROR{error['time_str']}: {message}")
 
     def _add_verification_warning(self, message: str):
         """Add a verification warning"""
@@ -656,7 +656,7 @@ class AXIMonitorScoreboard:
         self.verification_warnings.append(warning)
 
         if self.log:
-            self.log.warning(f"⚠️ VERIFICATION_WARNING{warning['time_str']}: {message}")
+            self.log.warning(f"VERIFICATION_WARNING{warning['time_str']}: {message}")
 
     def get_transaction_status(self, txn_id: int) -> Optional[Dict[str, Any]]:
         """Get detailed status for a specific transaction"""
@@ -713,7 +713,7 @@ class AXIMonitorScoreboard:
         recent_completed = list(self.completed_transactions.items())[-10:]
         report += f"\nRecent Completed Transactions: {len(recent_completed)}\n"
         for txn_id, txn in recent_completed:
-            status = "✅" if not txn.has_errors() else "❌"
+            status = "" if not txn.has_errors() else ""
             report += f"  {status} ID={txn_id:02X}: {txn.total_latency:.1f}ns ({'R' if txn.is_read else 'W'})\n"
 
         # Protocol violations

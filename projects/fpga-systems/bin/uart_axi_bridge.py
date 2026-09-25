@@ -211,9 +211,9 @@ def main():
         if read_data is not None:
             print(f"  Read: 0x{read_data:08X}")
             if read_data == data:
-                print("  ✓ Readback matches!")
+                print("Readback matches!")
             else:
-                print("  ✗ Readback mismatch!")
+                print("Readback mismatch!")
         
         # Write-verify example
         print("\n[Write-Verify Transaction]")

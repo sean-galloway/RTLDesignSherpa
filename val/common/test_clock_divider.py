@@ -251,9 +251,9 @@ def test_clock_divider(request, n, po_width, counter_width, test_level):
 
             waves=enable_waves,
         )
-        print(f"✓ {test_level.upper()} test PASSED: N={n}, PO_WIDTH={po_width}, COUNTER_WIDTH={counter_width}")
+        print(f"{test_level.upper()} test PASSED: N={n}, PO_WIDTH={po_width}, COUNTER_WIDTH={counter_width}")
     except Exception as e:
-        print(f"✗ {test_level.upper()} test FAILED: {str(e)}")
+        print(f"{test_level.upper()} test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

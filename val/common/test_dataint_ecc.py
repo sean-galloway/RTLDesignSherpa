@@ -229,9 +229,9 @@ def test_dataint_ecc(request, data_width, module_type, test_level):
 
             waves=enable_waves,
         )
-        print(f"✓ {test_level.upper()} test PASSED: {module_type} module")
+        print(f"{test_level.upper()} test PASSED: {module_type} module")
     except Exception as e:
-        print(f"✗ {test_level.upper()} test FAILED: {str(e)}")
+        print(f"{test_level.upper()} test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

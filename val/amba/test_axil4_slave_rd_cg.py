@@ -75,7 +75,7 @@ class AXIL4SlaveReadCGTB(AXIL4SlaveReadTB):
                 enable_signal_name="cfg_cg_enable",
                 idle_count_signal_name="cfg_cg_idle_count"
             )
-            self.log.info("✅ AXIL4 Clock gating controller initialized")
+            self.log.info("AXIL4 Clock gating controller initialized")
         except Exception as e:
             self.log.warning(f"Could not initialize CG controller: {e}")
 
@@ -235,9 +235,9 @@ async def axil4_slave_read_cg_test(dut):
             total_tests += 1
             if equivalence:
                 passed_tests += 1
-                tb.log.info("✅ AXIL4 functional equivalence: PASS")
+                tb.log.info("AXIL4 functional equivalence: PASS")
             else:
-                tb.log.error("❌ AXIL4 functional equivalence: FAIL")
+                tb.log.error("AXIL4 functional equivalence: FAIL")
 
             # Test 2: Power Efficiency at Different Idle Counts
             tb.log.info("=== Test 2: AXIL4 Power Efficiency Testing ===")
@@ -262,9 +262,9 @@ async def axil4_slave_read_cg_test(dut):
                 total_tests += 1
                 if efficiency_result['power_efficiency_percent'] > 10.0:  # Reasonable threshold
                     passed_tests += 1
-                    tb.log.info(f"✅ AXIL4 efficiency test (idle={idle_count}): {efficiency_result['power_efficiency_percent']:.1f}%")
+                    tb.log.info(f"AXIL4 efficiency test (idle={idle_count}): {efficiency_result['power_efficiency_percent']:.1f}%")
                 else:
-                    tb.log.warning(f"⚠️ AXIL4 low efficiency (idle={idle_count}): {efficiency_result['power_efficiency_percent']:.1f}%")
+                    tb.log.warning(f"AXIL4 low efficiency (idle={idle_count}): {efficiency_result['power_efficiency_percent']:.1f}%")
 
             # Test 3: Clock Gating Disable/Enable Transitions
             tb.log.info("=== Test 3: AXIL4 Enable/Disable Transitions ===")
@@ -286,9 +286,9 @@ async def axil4_slave_read_cg_test(dut):
             total_tests += 1
             if transition_success >= 4:  # Allow one failure
                 passed_tests += 1
-                tb.log.info(f"✅ AXIL4 transition test: {transition_success}/5 successful")
+                tb.log.info(f"AXIL4 transition test: {transition_success}/5 successful")
             else:
-                tb.log.error(f"❌ AXIL4 transition test: {transition_success}/5 successful")
+                tb.log.error(f"AXIL4 transition test: {transition_success}/5 successful")
 
         # === EFFICIENCY-FOCUSED TESTS ===
         if cg_test_mode in ['efficiency']:
@@ -314,9 +314,9 @@ async def axil4_slave_read_cg_test(dut):
             total_tests += 1
             if efficiency_result['power_efficiency_percent'] > 15.0:  # Higher threshold for efficiency mode
                 passed_tests += 1
-                tb.log.info(f"✅ AXIL4 extended efficiency: {efficiency_result['power_efficiency_percent']:.1f}%")
+                tb.log.info(f"AXIL4 extended efficiency: {efficiency_result['power_efficiency_percent']:.1f}%")
             else:
-                tb.log.warning(f"⚠️ AXIL4 extended efficiency: {efficiency_result['power_efficiency_percent']:.1f}%")
+                tb.log.warning(f"AXIL4 extended efficiency: {efficiency_result['power_efficiency_percent']:.1f}%")
 
         # Test 4: Register Access with Clock Gating (medium and full levels)
         if test_level in ['func', 'full']:
@@ -329,9 +329,9 @@ async def axil4_slave_read_cg_test(dut):
             total_tests += 1
             if success:
                 passed_tests += 1
-                tb.log.info(f"✅ AXIL4 register access with gating: {success_count}/{total_count} successful")
+                tb.log.info(f"AXIL4 register access with gating: {success_count}/{total_count} successful")
             else:
-                tb.log.error(f"❌ AXIL4 register access with gating: {success_count}/{total_count} successful")
+                tb.log.error(f"AXIL4 register access with gating: {success_count}/{total_count} successful")
 
         # Test 5: Stress Testing with Clock Gating (full level)
         if test_level == 'full':
@@ -351,9 +351,9 @@ async def axil4_slave_read_cg_test(dut):
             total_tests += 1
             if stress_success >= int(stress_count * 0.9):  # Allow 10% failures in stress test
                 passed_tests += 1
-                tb.log.info(f"✅ AXIL4 stress test: {stress_success}/{stress_count} responses successful")
+                tb.log.info(f"AXIL4 stress test: {stress_success}/{stress_count} responses successful")
             else:
-                tb.log.error(f"❌ AXIL4 stress test: {stress_success}/{stress_count} responses successful")
+                tb.log.error(f"AXIL4 stress test: {stress_success}/{stress_count} responses successful")
 
         # === FINAL RESULTS ===
         tb.log.info("=" * 80)
@@ -371,10 +371,10 @@ async def axil4_slave_read_cg_test(dut):
                 tb.log.info(f"  Idle count {result['idle_count']}: {result['efficiency_percent']:.1f}% efficiency")
                 
         if success_rate < 90:
-            tb.log.error("❌ AXIL4 SLAVE READ CG TEST FAILED")
+            tb.log.error("AXIL4 SLAVE READ CG TEST FAILED")
             raise Exception(f"Clock gated test failed with {success_rate:.1f}% success rate")
             
-        tb.log.info("✅ AXIL4 SLAVE READ CG TEST PASSED")
+        tb.log.info("AXIL4 SLAVE READ CG TEST PASSED")
 
     except Exception as e:
         tb.log.error(f"AXIL4 slave read CG test FAILED with exception: {str(e)}")
@@ -538,9 +538,9 @@ def test_axil4_slave_read_cg(addr_width, data_width, ar_depth, r_depth, test_lev
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✅ {test_level.upper()} AXIL4 Slave Read CG test PASSED")
+        print(f"{test_level.upper()} AXIL4 Slave Read CG test PASSED")
     except Exception as e:
-        print(f"❌ {test_level.upper()} AXIL4 Slave Read CG test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXIL4 Slave Read CG test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

@@ -178,7 +178,7 @@ class DataComparator:
 
         # Check for count mismatch
         if len(self.r_beats) != len(self.w_beats):
-            f.write("⚠️  WARNING: Beat count mismatch!\n")
+            f.write("WARNING: Beat count mismatch!\n")
             f.write(f"   R beats: {len(self.r_beats)}\n")
             f.write(f"   W beats: {len(self.w_beats)}\n")
             f.write(f"   Difference: {abs(len(self.r_beats) - len(self.w_beats))}\n\n")
@@ -201,7 +201,7 @@ class DataComparator:
                 matches += 1
                 # Only show first 10 matches to avoid clutter
                 if matches <= 10:
-                    f.write(f"Beat {i:4d}: ✓ MATCH\n")
+                    f.write(f"Beat {i:4d}: MATCH\n")
                     f.write(f"  R[{r_beat.timestamp:7.1f}ns]: 0x{r_beat.data}\n")
                     f.write(f"  W[{w_beat.timestamp:7.1f}ns]: 0x{w_beat.data}\n\n")
                 elif matches == 11:
@@ -209,7 +209,7 @@ class DataComparator:
             else:
                 mismatches += 1
                 mismatch_details.append((i, r_beat, w_beat))
-                f.write(f"Beat {i:4d}: ✗ MISMATCH\n")
+                f.write(f"Beat {i:4d}: MISMATCH\n")
                 f.write(f"  R[{r_beat.timestamp:7.1f}ns]: 0x{r_beat.data}\n")
                 f.write(f"  W[{w_beat.timestamp:7.1f}ns]: 0x{w_beat.data}\n\n")
 
@@ -243,9 +243,9 @@ class DataComparator:
 
         # Result
         if mismatches == 0 and len(self.r_beats) == len(self.w_beats):
-            f.write("✓ PASS: All beats match!\n")
+            f.write("PASS: All beats match!\n")
         else:
-            f.write("✗ FAIL: Data mismatches detected\n")
+            f.write("FAIL: Data mismatches detected\n")
             if len(mismatch_details) > 0:
                 f.write(f"\nFirst mismatch at beat {mismatch_details[0][0]}\n")
 

@@ -185,18 +185,18 @@ async def gaxi_async_test(dut):
             delay_key=delay_key,
             delay_clks_after=20 * async_wait_multiplier  # More time for async
         )
-        tb.log.info(f"✓ Completed '{delay_key}' configuration")
+        tb.log.info(f"Completed '{delay_key}' configuration")
 
     # Run comprehensive sweep for func and full levels
     if run_comprehensive_sweep:
         tb.log.info("Running comprehensive randomizer sweep...")
         await tb.comprehensive_randomizer_sweep(packets_per_config=comprehensive_packets)
-        tb.log.info("✓ Completed comprehensive sweep")
+        tb.log.info("Completed comprehensive sweep")
 
     # Always run back-to-back test (essential for GAXI validation)
     tb.log.info("Running back-to-back test...")
     await tb.back_to_back_test(count=packet_counts['back_to_back'])
-    tb.log.info("✓ Completed back-to-back test")
+    tb.log.info("Completed back-to-back test")
 
     # Run stress test for medium and full levels
     if run_stress_test:
@@ -206,7 +206,7 @@ async def gaxi_async_test(dut):
             count=packet_counts['stress_test'],
             delay_key=stress_config
         )
-        tb.log.info("✓ Completed stress test")
+        tb.log.info("Completed stress test")
 
     # Async-specific test: Clock domain crossing stress test
     if test_level in ['func', 'full']:
@@ -215,7 +215,7 @@ async def gaxi_async_test(dut):
             count=packet_counts['stress_test'] // 2,
             delay_key='chaotic'  # Use chaotic timing for CDC stress
         )
-        tb.log.info("✓ Completed CDC stress test")
+        tb.log.info("Completed CDC stress test")
 
     # The scoreboard's verdict decides the test, not the phase logs: every
     # phase above returns total_errors == 0 but its return value is easy to
@@ -223,7 +223,7 @@ async def gaxi_async_test(dut):
     assert tb.total_errors == 0, (
         f"Scoreboard recorded {tb.total_errors} error(s) across the "
         f"incremental/sweep/back-to-back/stress phases -- see the log above")
-    tb.log.info(f"✓ ALL {test_level.upper()} ASYNC TESTS PASSED!")
+    tb.log.info(f"ALL {test_level.upper()} ASYNC TESTS PASSED!")
 
 
 @cocotb.test(timeout_time=10, timeout_unit="sec")
@@ -348,7 +348,7 @@ async def gaxi_async_wavedrom_test(dut):
     )
     wave_solver.add_constraint(continuous)
 
-    dut._log.info(f"✓ WaveDrom configured: 3 async CDC scenarios")
+    dut._log.info(f"WaveDrom configured: 3 async CDC scenarios")
 
     # Scenario 1: Write to empty
     dut._log.info("=== Scenario 1: Write to empty (CDC latency) ===")
@@ -375,7 +375,7 @@ async def gaxi_async_wavedrom_test(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 1 captured")
+    dut._log.info("Scenario 1 captured")
 
     # Drain
     dut.rd_ready.value = 1
@@ -402,7 +402,7 @@ async def gaxi_async_wavedrom_test(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 2 captured")
+    dut._log.info("Scenario 2 captured")
 
     # Drain
     dut.rd_ready.value = 1
@@ -434,9 +434,9 @@ async def gaxi_async_wavedrom_test(dut):
     await wave_solver.stop_sampling()
     await wave_solver.solve_and_generate()
     wave_solver.clear_windows()
-    dut._log.info("✓ Scenario 3 captured")
+    dut._log.info("Scenario 3 captured")
 
-    dut._log.info(f"✓ GAXI Async {mode} WaveDrom Complete: 3 CDC scenarios generated")
+    dut._log.info(f"GAXI Async {mode} WaveDrom Complete: 3 CDC scenarios generated")
 
 
 # WaveDrom test parameters - separate from functional tests
@@ -836,10 +836,10 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} ASYNC test PASSED: {mode} mode (WR:{wr_clk_period}ns/RD:{rd_clk_period}ns)")
+        print(f"{test_level.upper()} ASYNC test PASSED: {mode} mode (WR:{wr_clk_period}ns/RD:{rd_clk_period}ns)")
     except Exception as e:
         # If the test fails, make sure logs are preserved
-        print(f"✗ {test_level.upper()} ASYNC test FAILED: {str(e)}")
+        print(f"{test_level.upper()} ASYNC test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the Waveforms run this command: {cmd_filename}")
         raise  # Re-raise exception to indicate failure

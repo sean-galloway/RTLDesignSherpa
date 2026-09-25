@@ -390,9 +390,9 @@ def test_axi_monitor_trans_mgr_wr_bank(max_transactions, num_banks, use_wq):
             keep_files=True,
             compile_args=compile_args,
         )
-        print(f"✓ PASSED: {test_name}")
+        print(f"PASSED: {test_name}")
     except Exception as e:
-        print(f"✗ FAILED: {test_name}")
+        print(f"FAILED: {test_name}")
         print(f"Error: {str(e)}")
         print(f"Log: {log_path}")
         raise

@@ -93,7 +93,7 @@ async def capacity_only_cocotb(dut):
     assert final_count_after_drain == 0, \
         f"FIFO not empty after drain: count={final_count_after_drain}"
 
-    tb.log.info("✅ Capacity test PASSED")
+    tb.log.info("Capacity test PASSED")
 
 
 def generate_capacity_test_params():
@@ -220,9 +220,9 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
             keep_files=True,
             compile_args=compile_args,
         )
-        print(f"✓ Capacity test PASSED")
+        print(f"Capacity test PASSED")
     except Exception as e:
-        print(f"✗ Capacity test FAILED: {str(e)}")
+        print(f"Capacity test FAILED: {str(e)}")
         print(f"View waveform: gtkwave {sim_build}/dump.fst")
         raise
 
@@ -303,9 +303,9 @@ if __name__ == "__main__":
             keep_files=True,
             compile_args=compile_args,
         )
-        print(f"✓ Capacity test PASSED")
+        print(f"Capacity test PASSED")
     except Exception as e:
-        print(f"✗ Capacity test FAILED: {str(e)}")
+        print(f"Capacity test FAILED: {str(e)}")
         print(f"View waveform: gtkwave {sim_build}/dump.fst")
         raise
 

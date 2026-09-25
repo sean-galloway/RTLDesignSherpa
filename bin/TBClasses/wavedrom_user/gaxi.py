@@ -679,7 +679,7 @@ class GAXIWaveDromTemplate:
         # Add clock group
         self.wave_solver.add_clock_group('default', clock_signal)
 
-        # 🎯 AUTO-BIND ALL SIGNALS (The magic!)
+        # AUTO-BIND ALL SIGNALS (The magic!)
         self.num_signals = self.wave_solver.auto_bind_signals(
             protocol_type='gaxi',
             signal_prefix=signal_prefix,
@@ -699,7 +699,7 @@ class GAXIWaveDromTemplate:
             context_cycles_after=context_cycles_after
         )
 
-        dut._log.info(f"✓ GAXI wavedrom configured: {self.num_signals} signals, {self.num_constraints} constraints")
+        dut._log.info(f"GAXI wavedrom configured: {self.num_signals} signals, {self.num_constraints} constraints")
 
     async def start_sampling(self):
         """Start wavedrom sampling"""

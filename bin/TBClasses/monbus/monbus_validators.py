@@ -597,7 +597,7 @@ def analyze_packet_distribution(packets: List[MonbusPacket]) -> Dict[str, Any]:
         'agent_distribution': {},
         'unit_distribution': {},
         'arb_specific_analysis': {},
-        'core_specific_analysis': {}  # ✅ NEW
+        'core_specific_analysis': {}  # NEW
     }
 
     if not packets:

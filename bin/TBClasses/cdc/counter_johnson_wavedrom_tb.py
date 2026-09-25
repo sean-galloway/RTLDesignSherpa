@@ -398,4 +398,4 @@ class CounterJohnsonWaveDromTB(TBBase):
         await self.scenario_reset_behavior()
         await self.wait_cycles(10)
 
-        self.log.info(f"✓ All Johnson Counter WaveDrom scenarios generated{self.get_time_ns_str()}")
+        self.log.info(f"All Johnson Counter WaveDrom scenarios generated{self.get_time_ns_str()}")

@@ -207,9 +207,9 @@ def test_debounce(request, num_buttons, debounce_delay, pressed_state, test_leve
 
             waves=enable_waves,
         )
-        print(f"✓ {test_level.upper()} test PASSED: {num_buttons} buttons, {p_str}")
+        print(f"{test_level.upper()} test PASSED: {num_buttons} buttons, {p_str}")
     except Exception as e:
-        print(f"✗ {test_level.upper()} test FAILED: {str(e)}")
+        print(f"{test_level.upper()} test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

@@ -492,9 +492,9 @@ class FifoFieldBufferTB(TBBase):
                     delay_key=config_name,
                     delay_clks_after=8
                 )
-                self.log.info(f'✓ Field config {config_name} passed')
+                self.log.info(f'Field config {config_name} passed')
             except Exception as e:
-                self.log.error(f'✗ Field config {config_name} failed: {e}')
+                self.log.error(f'Field config {config_name} failed: {e}')
                 failures += 1
 
         self.log.info(f"Field randomizer sweep completed: {total_configs - failures}/{total_configs} profiles passed")

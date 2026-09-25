@@ -146,18 +146,18 @@ async def gaxi_regslice_test(dut):
             delay_key=delay_key,
             delay_clks_after=15
         )
-        tb.log.info(f"✅ Completed '{delay_key}' configuration")
+        tb.log.info(f"Completed '{delay_key}' configuration")
 
     # Run comprehensive sweep for medium and full levels
     if run_comprehensive_sweep:
         tb.log.info("Running comprehensive randomizer sweep...")
         await tb.comprehensive_randomizer_sweep(packets_per_config=comprehensive_packets)
-        tb.log.info("✅ Completed comprehensive sweep")
+        tb.log.info("Completed comprehensive sweep")
 
     # Always run back-to-back test (essential for GAXI validation)
     tb.log.info("Running back-to-back test...")
     await tb.back_to_back_test(count=packet_counts['back_to_back'])
-    tb.log.info("✅ Completed back-to-back test")
+    tb.log.info("Completed back-to-back test")
 
     # Run stress test for medium and full levels
     if run_stress_test:
@@ -167,9 +167,9 @@ async def gaxi_regslice_test(dut):
             count=packet_counts['stress_test'],
             delay_key=stress_config
         )
-        tb.log.info("✅ Completed stress test")
+        tb.log.info("Completed stress test")
 
-    tb.log.info(f"✅ ALL {test_level.upper()} TESTS PASSED!")
+    tb.log.info(f"ALL {test_level.upper()} TESTS PASSED!")
 
 
 def generate_test_params():

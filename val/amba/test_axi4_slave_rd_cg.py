@@ -74,7 +74,7 @@ class AXI4SlaveReadCGTB(AXI4SlaveReadTB):
                 enable_signal_name="cfg_cg_enable",
                 idle_count_signal_name="cfg_cg_idle_count"
             )
-            self.log.info("✅ Clock gating controller initialized")
+            self.log.info("Clock gating controller initialized")
         except Exception as e:
             self.log.warning(f"Could not initialize CG controller: {e}")
 
@@ -212,9 +212,9 @@ async def axi4_slave_read_cg_test(dut):
             total_tests += 1
             if equivalence:
                 passed_tests += 1
-                tb.log.info("✅ Functional equivalence: PASS")
+                tb.log.info("Functional equivalence: PASS")
             else:
-                tb.log.error("❌ Functional equivalence: FAIL")
+                tb.log.error("Functional equivalence: FAIL")
 
             # Test 2: Clock Gating Efficiency at Different Idle Counts
             tb.log.info("=== Test 2: Power Efficiency Testing ===")
@@ -239,9 +239,9 @@ async def axi4_slave_read_cg_test(dut):
                 total_tests += 1
                 if efficiency_result['power_efficiency_percent'] > 10.0:  # Reasonable threshold
                     passed_tests += 1
-                    tb.log.info(f"✅ Efficiency test (idle={idle_count}): {efficiency_result['power_efficiency_percent']:.1f}%")
+                    tb.log.info(f"Efficiency test (idle={idle_count}): {efficiency_result['power_efficiency_percent']:.1f}%")
                 else:
-                    tb.log.warning(f"⚠️ Low efficiency (idle={idle_count}): {efficiency_result['power_efficiency_percent']:.1f}%")
+                    tb.log.warning(f"Low efficiency (idle={idle_count}): {efficiency_result['power_efficiency_percent']:.1f}%")
 
             # Test 3: Clock Gating Disable/Enable Transitions
             tb.log.info("=== Test 3: Enable/Disable Transitions ===")
@@ -263,9 +263,9 @@ async def axi4_slave_read_cg_test(dut):
             total_tests += 1
             if transition_success >= 4:  # Allow one failure
                 passed_tests += 1
-                tb.log.info(f"✅ Transition test: {transition_success}/5 successful")
+                tb.log.info(f"Transition test: {transition_success}/5 successful")
             else:
-                tb.log.error(f"❌ Transition test: {transition_success}/5 successful")
+                tb.log.error(f"Transition test: {transition_success}/5 successful")
 
         # === EFFICIENCY-FOCUSED TESTS ===
         if cg_test_mode in ['efficiency']:
@@ -291,9 +291,9 @@ async def axi4_slave_read_cg_test(dut):
             total_tests += 1
             if efficiency_result['power_efficiency_percent'] > 15.0:  # Higher threshold for efficiency mode
                 passed_tests += 1
-                tb.log.info(f"✅ Extended efficiency: {efficiency_result['power_efficiency_percent']:.1f}%")
+                tb.log.info(f"Extended efficiency: {efficiency_result['power_efficiency_percent']:.1f}%")
             else:
-                tb.log.warning(f"⚠️ Extended efficiency: {efficiency_result['power_efficiency_percent']:.1f}%")
+                tb.log.warning(f"Extended efficiency: {efficiency_result['power_efficiency_percent']:.1f}%")
 
         # Test 4: Stress Testing (medium and full levels)
         if test_level in ['func', 'full']:
@@ -311,9 +311,9 @@ async def axi4_slave_read_cg_test(dut):
             total_tests += 1
             if stress_success >= 18:  # Allow couple failures in stress test
                 passed_tests += 1
-                tb.log.info(f"✅ Stress test: {stress_success}/20 responses successful")
+                tb.log.info(f"Stress test: {stress_success}/20 responses successful")
             else:
-                tb.log.error(f"❌ Stress test: {stress_success}/20 responses successful")
+                tb.log.error(f"Stress test: {stress_success}/20 responses successful")
 
         # === FINAL RESULTS ===
         tb.log.info("=" * 80)
@@ -331,10 +331,10 @@ async def axi4_slave_read_cg_test(dut):
                 tb.log.info(f"  Idle count {result['idle_count']}: {result['efficiency_percent']:.1f}% efficiency")
                 
         if success_rate < 90:
-            tb.log.error("❌ AXI4 SLAVE READ CG TEST FAILED")
+            tb.log.error("AXI4 SLAVE READ CG TEST FAILED")
             raise Exception(f"Clock gated test failed with {success_rate:.1f}% success rate")
             
-        tb.log.info("✅ AXI4 SLAVE READ CG TEST PASSED")
+        tb.log.info("AXI4 SLAVE READ CG TEST PASSED")
 
     except Exception as e:
         tb.log.error(f"AXI4 slave read CG test FAILED with exception: {str(e)}")
@@ -499,9 +499,9 @@ def test_axi4_slave_read_cg(id_width, addr_width, data_width, user_width, ar_dep
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} AXI4 Slave Read CG test PASSED")
+        print(f"{test_level.upper()} AXI4 Slave Read CG test PASSED")
     except Exception as e:
-        print(f"✗ {test_level.upper()} AXI4 Slave Read CG test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXI4 Slave Read CG test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

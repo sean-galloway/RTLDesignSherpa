@@ -161,7 +161,7 @@ class MonbusAxilAxilGroupTB(TBBase):
         await self.deassert_reset()
         await self.wait_clocks(self.clk_name, 5)
 
-        self.log.info("✅ Clocks started and reset sequence completed")
+        self.log.info("Clocks started and reset sequence completed")
 
     async def assert_reset(self):
         """Assert reset signal (active-low)."""
@@ -217,10 +217,10 @@ class MonbusAxilAxilGroupTB(TBBase):
             )
             self.monbus_sniffer.start()
             self.log.info(
-                f"✅ MonbusSniffer started (will dump to {self._monbus_capture_path})"
+                f"MonbusSniffer started (will dump to {self._monbus_capture_path})"
             )
 
-        self.log.info("✅ All interfaces setup completed")
+        self.log.info("All interfaces setup completed")
 
     def finalize_monbus_capture(self):
         """Call at end-of-test to flush the sniffer's records to disk.
@@ -243,7 +243,7 @@ class MonbusAxilAxilGroupTB(TBBase):
         else:
             self.monbus_sniffer.dump_json(path, extra_meta=meta)
         self.log.info(
-            f"✅ MonbusSniffer captured {self.monbus_sniffer.count} records → {path}"
+            f"MonbusSniffer captured {self.monbus_sniffer.count} records → {path}"
         )
 
     async def initialize_config_signals(self):
@@ -270,7 +270,7 @@ class MonbusAxilAxilGroupTB(TBBase):
         self.mon.start_trace_consumer()
 
         await self.wait_clocks(self.clk_name, 1)
-        self.log.info("✅ Configuration signals initialized")
+        self.log.info("Configuration signals initialized")
 
     # ========================================================================
     # Test Methods
@@ -410,7 +410,7 @@ class MonbusAxilAxilGroupTB(TBBase):
             if exp_data is not None and p.event_data != exp_data:
                 self.log.error(f"[{idx}] event_data=0x{p.event_data:x} != 0x{exp_data:x}")
                 ok = False
-        self.log.info(f"{'✅' if ok else '❌'} decoded {len(drained)}/{count} error "
+        self.log.info(f"{'' if ok else ''} decoded {len(drained)}/{count} error "
                       f"records via {self.TEST_S_AXIL_DATA_WIDTH}-bit drain")
         return ok, {'records': len(drained), 'expected': count,
                     'drain_width': self.TEST_S_AXIL_DATA_WIDTH}

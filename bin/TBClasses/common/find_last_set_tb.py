@@ -100,7 +100,7 @@ class FindLastSetTB(TBBase):
             self.log.info(f"Data: 0x{data_val:0{(self.WIDTH+3)//4}X} "
                             f"-> Index: {actual_index} "
                             f"(Expected: {expected_index}) "
-                            f"{'✓' if success else '✗'}")
+                            f"{'' if success else ''}")
 
         return success, actual_index, expected_index
 

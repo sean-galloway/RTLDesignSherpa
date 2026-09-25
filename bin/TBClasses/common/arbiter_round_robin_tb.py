@@ -814,7 +814,7 @@ class ArbiterRoundRobinTB(TBBase):
             f"Poor fairness: {fairness_index:.3f} < {min_fairness_threshold}"
         )
 
-        self.log.info(f"✓ Fairness test passed: {total_new_grants} grants, fairness: {fairness_index:.3f}")
+        self.log.info(f"Fairness test passed: {total_new_grants} grants, fairness: {fairness_index:.3f}")
 
     async def test_single_client_saturation(self):
         """Test single client saturation with better grant detection"""
@@ -1154,9 +1154,9 @@ class ArbiterRoundRobinTB(TBBase):
             )
 
             if success:
-                self.log.info("✓ Final report validation PASSED")
+                self.log.info("Final report validation PASSED")
             else:
-                self.log.error("✗ Final report validation FAILED")
+                self.log.error("Final report validation FAILED")
 
             return success
 

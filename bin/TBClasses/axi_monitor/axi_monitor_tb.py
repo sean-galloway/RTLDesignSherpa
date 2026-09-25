@@ -351,7 +351,7 @@ class AXIMonitorTB(TBBase):
                 to_remove.append(txn_id)
         
         for txn_id in to_remove:
-            self.log.debug(f"🧹 Cleaning up completed transaction {txn_id:02X}")
+            self.log.debug(f"Cleaning up completed transaction {txn_id:02X}")
             del self.active_transactions[txn_id]
 
     def _get_next_id(self) -> int:
@@ -368,16 +368,16 @@ class AXIMonitorTB(TBBase):
                 return candidate_id
         
         # If we can't find a free ID, log error and use a random one
-        self.log.error(f"❌ Cannot find free transaction ID - {len(self.active_transactions)} active transactions")
+        self.log.error(f"Cannot find free transaction ID - {len(self.active_transactions)} active transactions")
         
         # Try to find any free ID
         for test_id in range(self.MAX_ID + 1):
             if test_id not in self.active_transactions:
-                self.log.warning(f"⚠️ Using emergency ID {test_id:02X}")
+                self.log.warning(f"Using emergency ID {test_id:02X}")
                 return test_id
         
         # Last resort - use 0 and log the problem
-        self.log.error(f"❌ All transaction IDs in use! Using 0 as last resort")
+        self.log.error(f"All transaction IDs in use! Using 0 as last resort")
         return 0
 
     def _align_address(self, addr: int) -> int:
@@ -446,7 +446,7 @@ class AXIMonitorTB(TBBase):
         else:
             # If explicit ID provided, check it's not in use
             if txn_id in self.active_transactions:
-                self.log.error(f"❌ Transaction ID {txn_id:02X} already in use!")
+                self.log.error(f"Transaction ID {txn_id:02X} already in use!")
                 txn_id = self._get_next_id()
 
         if addr is None:
@@ -456,7 +456,7 @@ class AXIMonitorTB(TBBase):
 
         # Double check ID is not in use before creating transaction
         if txn_id in self.active_transactions:
-            self.log.error(f"❌ CRITICAL: Transaction ID {txn_id:02X} collision detected!")
+            self.log.error(f"CRITICAL: Transaction ID {txn_id:02X} collision detected!")
             # Try to clean up any completed transactions
             await self._cleanup_completed_transactions()
             # Get a truly new ID
@@ -501,7 +501,7 @@ class AXIMonitorTB(TBBase):
 
         self.test_stats['transactions_issued'] += 1
         txn_type = "READ" if self.IS_READ else "WRITE"
-        self.log.debug(f"🚀 Issued {txn_type}: ID={txn_id:02X} ADDR=0x{addr:08X} LEN={length}")
+        self.log.debug(f"Issued {txn_type}: ID={txn_id:02X} ADDR=0x{addr:08X} LEN={length}")
         return txn_id
 
     async def _delayed_data_queue(self, txn_context, delay_cycles: int):
@@ -602,7 +602,7 @@ class AXIMonitorTB(TBBase):
 
         time_str = self.get_time_ns_str()
         channel = "AR" if self.IS_READ else "AW"
-        self.log.debug(f"📍 {channel}{time_str}: ID={packet.id:02X} ADDR=0x{packet.addr:08X}")
+        self.log.debug(f"{channel}{time_str}: ID={packet.id:02X} ADDR=0x{packet.addr:08X}")
 
     def _data_callback(self, packet):
         """Handle DATA channel transactions"""
@@ -615,9 +615,9 @@ class AXIMonitorTB(TBBase):
         time_str = self.get_time_ns_str()
         channel = "R" if self.IS_READ else "W"
         if self.IS_READ:
-            self.log.debug(f"📥 {channel}{time_str}: ID={packet.id:02X} LAST={packet.last}")
+            self.log.debug(f"{channel}{time_str}: ID={packet.id:02X} LAST={packet.last}")
         else:
-            self.log.debug(f"📤 {channel}{time_str}: LAST={packet.last}")
+            self.log.debug(f"{channel}{time_str}: LAST={packet.last}")
 
     def _resp_callback(self, packet):
         """Handle RESP channel transactions (writes only)"""
@@ -625,23 +625,23 @@ class AXIMonitorTB(TBBase):
         self.test_stats['resp_packets'] += 1
 
         time_str = self.get_time_ns_str()
-        self.log.debug(f"📥 B{time_str}: ID={packet.id:02X} RESP={packet.resp}")
+        self.log.debug(f"B{time_str}: ID={packet.id:02X} RESP={packet.resp}")
 
     # Handshake callbacks
     def _cmd_handshake_callback(self, event):
         """Handle CMD ready handshake events"""
         self.test_stats['handshake_events'] += 1
-        self.log.debug(f"🤝 CMD_HANDSHAKE: {event}")
+        self.log.debug(f"CMD_HANDSHAKE: {event}")
 
     def _data_handshake_callback(self, event):
         """Handle DATA ready handshake events"""
         self.test_stats['handshake_events'] += 1
-        self.log.debug(f"🤝 DATA_HANDSHAKE: {event}")
+        self.log.debug(f"DATA_HANDSHAKE: {event}")
 
     def _resp_handshake_callback(self, event):
         """Handle RESP ready handshake events"""
         self.test_stats['handshake_events'] += 1
-        self.log.debug(f"🤝 RESP_HANDSHAKE: {event}")
+        self.log.debug(f"RESP_HANDSHAKE: {event}")
 
     async def wait_for_transaction_completion(self, txn_id: int, timeout_cycles: int = 500) -> bool:
         """Wait for a specific transaction to complete"""
@@ -654,7 +654,7 @@ class AXIMonitorTB(TBBase):
                 return True
             await RisingEdge(self.dut.aclk)
 
-        self.log.error(f"❌ Transaction {txn_id:02X} timed out after {timeout_cycles} cycles")
+        self.log.error(f"Transaction {txn_id:02X} timed out after {timeout_cycles} cycles")
         return False
 
     async def wait_for_all_transactions_complete(self, timeout_cycles: int = 1000) -> bool:
@@ -668,12 +668,12 @@ class AXIMonitorTB(TBBase):
 
         incomplete_ids = [txn.txn_id for txn in self.active_transactions.values()
                          if not txn.is_complete()]
-        self.log.error(f"❌ Transactions still active: {[f'{id:02X}' for id in incomplete_ids]}")
+        self.log.error(f"Transactions still active: {[f'{id:02X}' for id in incomplete_ids]}")
         return False
 
     async def test_basic_transactions_with_ready_patterns(self) -> bool:
         """Test basic transactions with different ready patterns"""
-        self.log.info(f"🧪 Testing basic {'READ' if self.IS_READ else 'WRITE'} transactions with ready patterns")
+        self.log.info(f"Testing basic {'READ' if self.IS_READ else 'WRITE'} transactions with ready patterns")
 
         try:
             # Test 1: All immediate ready
@@ -705,7 +705,7 @@ class AXIMonitorTB(TBBase):
             return completion_success and verification_passed
 
         except Exception as e:
-            self.log.error(f"❌ Basic transaction test failed: {e}")
+            self.log.error(f"Basic transaction test failed: {e}")
             return False
 
     def get_ready_statistics(self) -> Dict[str, Any]:
@@ -717,23 +717,23 @@ class AXIMonitorTB(TBBase):
         """Print comprehensive test report"""
         self.log.info("=" * 100)
         mode = "READ" if self.IS_READ else "WRITE"
-        self.log.info(f"🏁 Final AXI Monitor {mode.upper()} Test Report{self.get_time_ns_str()}")
+        self.log.info(f"Final AXI Monitor {mode.upper()} Test Report{self.get_time_ns_str()}")
         self.log.info("=" * 100)
 
         # Test configuration
-        self.log.info(f"📋 Test Configuration:")
+        self.log.info(f"Test Configuration:")
         self.log.info(f"  Mode: {mode.upper()} {'AXI4' if self.IS_AXI4 else 'AXI-Lite'}")
         self.log.info(f"  Bus Width: {self.DW}-bit, Alignment: {self.ADDR_ALIGNMENT} bytes")
         self.log.info(f"  Fixed Size: {self.FIXED_SIZE} ({self.BYTES_PER_BEAT} bytes), Burst: INCR")
 
         # Test statistics
-        self.log.info(f"\n📊 Test Statistics:")
+        self.log.info(f"\nTest Statistics:")
         for key, value in self.test_stats.items():
             self.log.info(f"  {key}: {value}")
 
         # Ready controller statistics
         ready_stats = self.get_ready_statistics()
-        self.log.info(f"\n🤝 Ready Controller Statistics:")
+        self.log.info(f"\nReady Controller Statistics:")
         for channel, stats in ready_stats.items():
             self.log.info(f"  {channel}:")
             for key, value in stats.items():
@@ -743,7 +743,7 @@ class AXIMonitorTB(TBBase):
         if self.active_transactions:
             self.log.info(f"\n⏳ Active Transactions: {len(self.active_transactions)}")
             for txn_id, txn in self.active_transactions.items():
-                complete = "✅" if txn.is_complete() else "⏳"
+                complete = "" if txn.is_complete() else "⏳"
                 self.log.info(f"  {complete} ID={txn_id:02X}: beats={txn.beats_sent}/{txn.beats_total}")
 
         # Scoreboard report
@@ -770,7 +770,7 @@ class AXIMonitorTB(TBBase):
 
         Runs appropriate tests based on configuration and returns overall pass/fail status.
         """
-        self.log.info(f"🚀 Starting AXI Monitor test suite...")
+        self.log.info(f"Starting AXI Monitor test suite...")
 
         # Get test configuration
         protocol_str = "AXI4" if self.IS_AXI4 else "AXI-Lite"
@@ -801,13 +801,13 @@ class AXIMonitorTB(TBBase):
             all_tests_passed = all_tests_passed and final_verification
 
         except Exception as e:
-            self.log.error(f"❌ Test suite failed with exception: {e}")
+            self.log.error(f"Test suite failed with exception: {e}")
             import traceback
             self.log.error(f"Traceback: {traceback.format_exc()}")
             all_tests_passed = False
 
         # Print final results
-        status = "✅ PASSED" if all_tests_passed else "❌ FAILED"
+        status = "PASSED" if all_tests_passed else "FAILED"
         self.log.info(f"{status} AXI Monitor {protocol_str} {monitor_type} test suite")
 
         return all_tests_passed
@@ -815,7 +815,7 @@ class AXIMonitorTB(TBBase):
     # Add this method to AXIMonitorTB class
     async def _test_simple_reads(self) -> bool:
         """Simple read transaction test"""
-        self.log.info("📖 Testing simple READ transactions...")
+        self.log.info("Testing simple READ transactions...")
 
         try:
             # Set immediate ready for simple test
@@ -831,28 +831,28 @@ class AXIMonitorTB(TBBase):
             completion_success = await self.wait_for_all_transactions_complete(timeout_cycles=500)
 
             if not completion_success:
-                self.log.error("❌ READ transactions did not complete")
+                self.log.error("READ transactions did not complete")
                 return False
 
             # Check monitor bus for completion packets
             monbus_packets = len(self.monbus_slave.packets_received)
-            self.log.info(f"📦 Monitor bus received {monbus_packets} packets")
+            self.log.info(f"Monitor bus received {monbus_packets} packets")
 
             # Check scoreboard
             completed_txns = len(self.scoreboard.completed_transactions)
-            self.log.info(f"📊 Scoreboard shows {completed_txns} completed transactions")
+            self.log.info(f"Scoreboard shows {completed_txns} completed transactions")
 
-            self.log.info("✅ Simple READ transactions completed successfully")
+            self.log.info("Simple READ transactions completed successfully")
             return True
 
         except Exception as e:
-            self.log.error(f"❌ Simple READ test failed: {e}")
+            self.log.error(f"Simple READ test failed: {e}")
             return False
 
     # Add this method to AXIMonitorTB class
     async def _test_simple_writes(self) -> bool:
         """Simple write transaction test - validates cmd/data/resp masters and monbus"""
-        self.log.info("✍️ Testing simple WRITE transactions...")
+        self.log.info("Testing simple WRITE transactions...")
 
         try:
             # Set immediate ready for simple test
@@ -877,7 +877,7 @@ class AXIMonitorTB(TBBase):
             completion_success = await self.wait_for_all_transactions_complete(timeout_cycles=1000)
 
             if not completion_success:
-                self.log.error("❌ WRITE transactions did not complete within timeout")
+                self.log.error("WRITE transactions did not complete within timeout")
                 active_txns = [f'{txn.txn_id:02X}' for txn in self.active_transactions.values()]
                 self.log.error(f"Active transactions still pending: {active_txns}")
                 return False
@@ -887,10 +887,10 @@ class AXIMonitorTB(TBBase):
 
             # Check monitor bus packets
             monbus_packets = self.monbus_slave.packets_received
-            self.log.info(f"📦 Monitor bus received {len(monbus_packets)} packets")
+            self.log.info(f"Monitor bus received {len(monbus_packets)} packets")
 
             if len(monbus_packets) == 0:
-                self.log.warning("⚠️ No monitor bus packets received - this may indicate an issue")
+                self.log.warning("No monitor bus packets received - this may indicate an issue")
             else:
                 # Log received packets
                 for i, packet in enumerate(monbus_packets[-5:]):  # Show last 5 packets
@@ -900,23 +900,23 @@ class AXIMonitorTB(TBBase):
             # Check scoreboard
             completed_txns = len(self.scoreboard.completed_transactions)
             active_txns = len(self.scoreboard.active_transactions)
-            self.log.info(f"📊 Scoreboard: {completed_txns} completed, {active_txns} active transactions")
+            self.log.info(f"Scoreboard: {completed_txns} completed, {active_txns} active transactions")
 
             if completed_txns < len(transaction_ids):
-                self.log.warning(f"⚠️ Expected {len(transaction_ids)} completed transactions, got {completed_txns}")
+                self.log.warning(f"Expected {len(transaction_ids)} completed transactions, got {completed_txns}")
 
             # Check for any verification errors
             verification_errors = len(self.scoreboard.verification_errors)
             protocol_violations = len(self.scoreboard.protocol_violations)
 
             if verification_errors > 0:
-                self.log.error(f"❌ {verification_errors} verification errors detected")
+                self.log.error(f"{verification_errors} verification errors detected")
                 for error in self.scoreboard.verification_errors[-3:]:  # Show last 3
                     self.log.error(f"  Error: {error['message']}")
                 return False
 
             if protocol_violations > 0:
-                self.log.error(f"❌ {protocol_violations} protocol violations detected")
+                self.log.error(f"{protocol_violations} protocol violations detected")
                 for violation in self.scoreboard.protocol_violations[-3:]:  # Show last 3
                     self.log.error(f"  Violation: {violation['message']}")
                 return False
@@ -930,17 +930,17 @@ class AXIMonitorTB(TBBase):
             )
 
             if success:
-                self.log.info("✅ Simple WRITE transactions completed successfully")
+                self.log.info("Simple WRITE transactions completed successfully")
                 self.log.info(f"   - {len(transaction_ids)} transactions issued and completed")
                 self.log.info(f"   - {len(monbus_packets)} monitor bus packets generated")
                 self.log.info(f"   - 0 verification errors or protocol violations")
             else:
-                self.log.error("❌ Simple WRITE test failed validation checks")
+                self.log.error("Simple WRITE test failed validation checks")
 
             return success
 
         except Exception as e:
-            self.log.error(f"❌ Simple WRITE test failed with exception: {e}")
+            self.log.error(f"Simple WRITE test failed with exception: {e}")
             import traceback
             self.log.error(f"Traceback: {traceback.format_exc()}")
             return False
@@ -948,23 +948,23 @@ class AXIMonitorTB(TBBase):
     # Add this method to AXIMonitorTB class
     async def _final_verification(self) -> bool:
         """Final verification of overall monitor behavior"""
-        self.log.info("🔍 Running final verification...")
+        self.log.info("Running final verification...")
 
         try:
             # Run scoreboard verification
             scoreboard_passed = self.scoreboard.verify_monitor_behavior()
 
             if not scoreboard_passed:
-                self.log.error("❌ Scoreboard verification failed")
+                self.log.error("Scoreboard verification failed")
                 return False
 
             # Check monitor bus slave for any errors
             if self.monbus_slave.has_verification_errors():
-                self.log.error("❌ Monitor bus slave reported verification errors")
+                self.log.error("Monitor bus slave reported verification errors")
                 return False
 
             # Print summary statistics
-            self.log.info("📈 Final Test Statistics:")
+            self.log.info("Final Test Statistics:")
             self.log.info(f"   - Transactions issued: {self.test_stats['transactions_issued']}")
             self.log.info(f"   - CMD packets: {self.test_stats['cmd_packets']}")
             self.log.info(f"   - DATA packets: {self.test_stats['data_packets']}")
@@ -980,9 +980,9 @@ class AXIMonitorTB(TBBase):
             monbus_stats = self.monbus_slave.get_statistics()
             self.log.info(f"   - Monitor bus packets: {monbus_stats['packets_received']}")
 
-            self.log.info("✅ Final verification passed")
+            self.log.info("Final verification passed")
             return True
 
         except Exception as e:
-            self.log.error(f"❌ Final verification failed: {e}")
+            self.log.error(f"Final verification failed: {e}")
             return False

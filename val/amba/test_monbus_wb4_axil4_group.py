@@ -99,15 +99,15 @@ async def cocotb_test_monbus_wb4_axil4_group(dut):
     if test_type == 'basic_flow':
         success, stats = await tb.test_basic_packet_flow(count=16)
         assert success, f"Basic packet flow test failed: {stats}"
-        tb.log.info(f"✅ Basic flow: {stats['success_rate']:.1%} success rate")
+        tb.log.info(f"Basic flow: {stats['success_rate']:.1%} success rate")
     elif test_type == 'error_fifo':
         success, stats = await tb.test_error_fifo_functionality(count=8)
         assert success, f"Error FIFO test failed: {stats}"
-        tb.log.info(f"✅ Error FIFO: {stats['packets_read']} packets read")
+        tb.log.info(f"Error FIFO: {stats['packets_read']} packets read")
     elif test_type == 'error_decode':
         success, stats = await tb.test_error_fifo_decode(count=8)
         assert success, f"Error FIFO decode test failed: {stats}"
-        tb.log.info(f"✅ Error decode: {stats['records']} records via "
+        tb.log.info(f"Error decode: {stats['records']} records via "
                     f"{stats['drain_width']}-bit drain")
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -258,8 +258,8 @@ def test_monbus_wb4_axil4_group(request, test_type, fifo_depth_err, fifo_depth_w
             sim_args=sim_args,
             plus_args=['--trace'] if enable_waves else [],
         )
-        print(f"✓ MonBus AXIL/AXIL {test_type} test PASSED! Logs: {log_path}")
+        print(f"MonBus AXIL/AXIL {test_type} test PASSED! Logs: {log_path}")
     except Exception as e:
-        print(f"✗ MonBus AXIL/AXIL {test_type} test FAILED: {str(e)}")
+        print(f"MonBus AXIL/AXIL {test_type} test FAILED: {str(e)}")
         print(f"Logs: {log_path}")
         raise

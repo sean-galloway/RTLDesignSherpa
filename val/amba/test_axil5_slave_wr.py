@@ -134,7 +134,7 @@ async def axil5_slave_write_test(dut):
             tb.log.error("Basic AXIL5 slave write connectivity test failed!")
             raise Exception(f"Basic connectivity failed: {info}")
 
-        tb.log.info("✅ Basic AXIL5 slave write connectivity test passed")
+        tb.log.info("Basic AXIL5 slave write connectivity test passed")
         tests_passed += 1
 
         # Test 2: Register write sequences with different timing profiles
@@ -152,7 +152,7 @@ async def axil5_slave_write_test(dut):
                     tb.log.error(error_msg)
                     raise Exception(error_msg)
 
-            tb.log.info(f"✅ Register write sequences passed with '{profile}' timing")
+            tb.log.info(f"Register write sequences passed with '{profile}' timing")
             tests_passed += 1
 
         # Test 3: Write strobe pattern validation
@@ -169,7 +169,7 @@ async def axil5_slave_write_test(dut):
                 tb.log.error(error_msg)
                 raise Exception(error_msg)
 
-            tb.log.info(f"✅ Write strobe pattern validation passed ({success_count}/{total_patterns})")
+            tb.log.info(f"Write strobe pattern validation passed ({success_count}/{total_patterns})")
             tests_passed += 1
 
         # Test 4: Address decode validation
@@ -183,7 +183,7 @@ async def axil5_slave_write_test(dut):
             tb.log.error(error_msg)
             raise Exception(error_msg)
 
-        tb.log.info("✅ Write address decode validation passed")
+        tb.log.info("Write address decode validation passed")
         tests_passed += 1
 
         # Test 5: Register pattern validation
@@ -198,7 +198,7 @@ async def axil5_slave_write_test(dut):
             tb.log.error(error_msg)
             raise Exception(error_msg)
 
-        tb.log.info("✅ Register write pattern validation passed")
+        tb.log.info("Register write pattern validation passed")
         tests_passed += 1
 
         # Test 6: Timing profile validation (medium and full levels)
@@ -209,11 +209,11 @@ async def axil5_slave_write_test(dut):
 
                 success = await tb.timing_profile_test(profile, test_count=20)
                 if success:
-                    tb.log.info(f"✅ Write timing profile '{profile}' validation passed")
+                    tb.log.info(f"Write timing profile '{profile}' validation passed")
                     tests_passed += 1
                 else:
                     # Allow partial success for timing tests
-                    tb.log.warning(f"⚠️ Write timing profile '{profile}' had some failures (continuing)")
+                    tb.log.warning(f"Write timing profile '{profile}' had some failures (continuing)")
                     tests_passed += 1  # Count as success with warning
 
         # Test 7: Stress testing
@@ -230,7 +230,7 @@ async def axil5_slave_write_test(dut):
             tb.log.error(error_msg)
             raise Exception(error_msg)
 
-        tb.log.info("✅ AXIL5 slave write stress test passed")
+        tb.log.info("AXIL5 slave write stress test passed")
         tests_passed += 1
 
         # Test 8: Mixed register write operations (full level only)
@@ -265,7 +265,7 @@ async def axil5_slave_write_test(dut):
                 tb.log.error(error_msg)
                 raise Exception(error_msg)
 
-            tb.log.info("✅ Mixed register write operations passed")
+            tb.log.info("Mixed register write operations passed")
             tests_passed += 1
 
         # Test 9: Memory persistence verification (full level only)
@@ -303,7 +303,7 @@ async def axil5_slave_write_test(dut):
                 tb.log.error(error_msg)
                 raise Exception(error_msg)
 
-            tb.log.info("✅ Memory persistence verification passed")
+            tb.log.info("Memory persistence verification passed")
             tests_passed += 1
 
         # =================================================================
@@ -329,9 +329,9 @@ async def axil5_slave_write_test(dut):
         phase_success_rate = (tests_passed / total_tests) if total_tests > 0 else 0
 
         if tests_passed == total_tests and success_rate >= 95.0:
-            tb.log.info("✅ AXIL5 SLAVE WRITE TESTS PASSED")
+            tb.log.info("AXIL5 SLAVE WRITE TESTS PASSED")
         else:
-            tb.log.error(f"❌ AXIL5 SLAVE WRITE TESTS FAILED (phase success: {phase_success_rate:.1f}%, write success: {success_rate:.1f}%)")
+            tb.log.error(f"AXIL5 SLAVE WRITE TESTS FAILED (phase success: {phase_success_rate:.1f}%, write success: {success_rate:.1f}%)")
             raise RuntimeError(f"Test failed with {phase_success_rate:.1f}% phase success and {success_rate:.1f}% write success")
 
     except Exception as e:
@@ -505,9 +505,9 @@ def test_axil5_slave_write(request, addr_width, data_width, aw_depth, w_depth, b
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✅ {test_level.upper()} AXIL5 Slave Write test PASSED")
+        print(f"{test_level.upper()} AXIL5 Slave Write test PASSED")
     except Exception as e:
-        print(f"❌ {test_level.upper()} AXIL5 Slave Write test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXIL5 Slave Write test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise
@@ -646,9 +646,9 @@ if __name__ == "__main__":
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✅ {test_level.upper()} AXIL5 Slave Write test PASSED")
+        print(f"{test_level.upper()} AXIL5 Slave Write test PASSED")
     except Exception as e:
-        print(f"❌ {test_level.upper()} AXIL5 Slave Write test FAILED: {str(e)}")
+        print(f"{test_level.upper()} AXIL5 Slave Write test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

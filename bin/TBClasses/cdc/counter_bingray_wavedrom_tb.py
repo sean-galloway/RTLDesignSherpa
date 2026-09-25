@@ -314,7 +314,7 @@ class CounterBinGrayWaveDromTB(TBBase):
             if next_bin != expected_next:
                 self.log.error(f"Cycle {cycle}: Next expected {expected_next}, got {next_bin}{self.get_time_ns_str()}")
             else:
-                self.log.debug(f"Cycle {cycle}: Bin={curr_bin}, Next={next_bin} ✓{self.get_time_ns_str()}")
+                self.log.debug(f"Cycle {cycle}: Bin={curr_bin}, Next={next_bin}{self.get_time_ns_str()}")
 
         # Disable and show lookahead holds
         self.enable.value = 0
@@ -418,4 +418,4 @@ class CounterBinGrayWaveDromTB(TBBase):
         await self.scenario_enable_and_reset()
         await self.wait_cycles(10)
 
-        self.log.info(f"✓ All Binary-Gray Counter WaveDrom scenarios generated{self.get_time_ns_str()}")
+        self.log.info(f"All Binary-Gray Counter WaveDrom scenarios generated{self.get_time_ns_str()}")
