@@ -89,7 +89,44 @@ sink shares the defect. That overlaps item 5's territory.
 
 - Items 1-2 re-filed against the beats RTL on 2026-09-25 (the cited signals no
   longer exist); they need re-scoping before mapping.
-- Item 4 (`scheduler_beats`) not started.
+- **Item 4 DONE 2026-09-25.** Sheet "K-maps sched commit": 3 maps + a
+  STREAM/RAPIDS comparison. This is the FIRST item whose premise held up --
+  `scheduler_beats.sv` really did diverge (1150 lines vs STREAM's 1390),
+  unlike the alloc/drain FUBs which are byte-identical.
+
+  **The divergence is one term.** STREAM exits `CH_XFER_DATA` on ISSUE
+  (`w_transfer_complete = w_read_complete && w_write_issued`,
+  `stream/.../scheduler.sv:909`) and defers the commit-wait to `CH_COMPLETE`
+  for the LAST descriptor only (`:542`). RAPIDS exits on COMMIT
+  (`w_transfer_complete = w_read_complete && w_write_complete`,
+  `scheduler_beats.sv:776`) for EVERY descriptor, and its `CH_COMPLETE` has no
+  commit gate at all. The two formal properties differ by exactly that word
+  (`:1136` vs `stream:1376`). Map 1 shows it: `write_issued` is carried as an
+  axis that does not appear in the RAPIDS expression.
+
+  Costs RAPIDS chain throughput (cannot advance to the next descriptor until
+  B responses land) and means a lost commit surfaces on ANY descriptor, not
+  just the last. It is NOT a tolerance difference: under a lost commit neither
+  design recovers -- both hang short of `CH_IDLE`. An earlier draft of the
+  note in `known_issues/resolved/snk_scheduler_write_commit_stall.md` claimed
+  STREAM was tolerant; that was wrong and has been retracted there, along with
+  three drifted line citations in that issue (`:559`/`:601`/`:921` -> now
+  `:733`/`:775`/`:1105`).
+
+  **Second finding -- a timeout exposure, NOT filed as a bug.**
+  `w_timeout_escalate = (cfg_sched_timeout_limit != 0) && (r_timeout_strikes
+  >= cfg_sched_timeout_limit)` (`:970-971`) is independent of
+  `cfg_sched_timeout_enable`. Strikes are cleared only by channel reset, by
+  reaching `CH_IDLE`, or by real write progress (`:932-936`) -- never by the
+  enable bit. So a channel holding banked strikes whose timeout is then
+  disabled by software still escalates into sticky `CH_ERROR` (`:380`).
+  Whether any host sequence clears enable mid-transfer is NOT established; the
+  map states the exposure rather than asserting a defect.
+
+  Also recorded: the `!w_write_complete` term in `sched_wr_valid` (`:860`) is
+  logically redundant -- `beats_to_issue` already forces it, and every cell
+  where it could decide the output is unreachable. Belt-and-braces, not live
+  logic.
 - **Item 5 DONE 2026-09-25, and RE-SCOPED: its title names machinery that
   does not exist.** There is no credit accounting and no RDA in RAPIDS RTL:
   word-boundary `RDA` occurrences are **0** (all 57 substring hits are

@@ -36,15 +36,19 @@ SNK_UNIT = "projects/components/dmas/rapids/rtl/macro_beats/snk_sram_controller_
 DRAIN_B = "projects/components/dmas/rapids/rtl/fub_beats/drain_ctrl_beats.sv"
 ALLOC_B = "projects/components/dmas/rapids/rtl/fub_beats/alloc_ctrl_beats.sv"
 SNK_AXIS = "projects/components/dmas/rapids/rtl/macro_beats/snk_data_path_axis_beats.sv"
+SCHED_B = "projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv"
 LBRIDGE = "projects/components/dmas/rapids/rtl/fub_beats/latency_bridge_beats.sv"
 
 # STREAM, cited as the CONTRAST: same fork, defect already fixed there.
 STR_UNIT = "projects/components/dmas/stream/rtl/fub/sram_controller_unit.sv"
 STR_WENG = "projects/components/dmas/stream/rtl/fub/axi_write_engine.sv"
 STR_RENG = "projects/components/dmas/stream/rtl/fub/axi_read_engine.sv"
+STR_SCHED = "projects/components/dmas/stream/rtl/fub/scheduler.sv"
 
 KI_DRAIN = ("projects/components/dmas/rapids/known_issues/active/"
             "drain_size_gt1_source_beat_drop.md")
+KI_STALL = ("projects/components/dmas/rapids/known_issues/resolved/"
+            "snk_scheduler_write_commit_stall.md")
 
 # ---------------------------------------------------------------------------
 # Citation registry: (path-relative-to-repo, line, snippet-on-that-line).
@@ -116,6 +120,35 @@ CITES = [
     (ALLOC_B, 141, "assign space_free = (AW+1)'(D) - w_count;"),
 
     (STR_RENG, 580, "axi_rd_alloc_req |-> $past(m_axi_arvalid && m_axi_arready));"),
+
+    # --- item 4: scheduler issue/commit gating + timeout escalation -----
+    (SCHED_B, 418, "if (w_exec_complete) begin"),
+    (SCHED_B, 771, "assign w_read_complete = (r_read_beats_remaining == 32'h0);"),
+    (SCHED_B, 775, "assign w_write_complete = (r_write_beats_to_commit == 32'h0);"),
+    (SCHED_B, 776, "assign w_transfer_complete = w_read_complete && w_write_complete;"),
+    (SCHED_B, 779, "assign w_is_data   = (r_desc_opcode == DESC_OP_DATA);"),
+    (SCHED_B, 792, "assign w_exec_complete = w_is_data ? w_transfer_complete : w_ctrl_complete;"),
+    (SCHED_B, 858, "assign sched_wr_valid = (r_current_state == rapids_pkg::CH_XFER_DATA) && w_is_data &&"),
+    (SCHED_B, 859, "(r_write_beats_remaining != 32'h0) &&"),
+    (SCHED_B, 860, "!w_write_complete &&"),
+    (SCHED_B, 861, "!w_sched_wr_completing_this_cycle &&"),
+    (SCHED_B, 862, "!w_wr_need_base;"),
+    (SCHED_B, 920, "if (sched_wr_done_strobe || sched_wr_commit_strobe) begin"),
+    (SCHED_B, 932, "if (r_channel_reset_active || (r_current_state == rapids_pkg::CH_IDLE)) begin"),
+    (SCHED_B, 936, "end else if (w_timeout_expired && !(&r_timeout_strikes)) begin"),
+    (SCHED_B, 965, "assign w_timeout_expired = cfg_sched_timeout_enable &&"),
+    (SCHED_B, 966, "(r_timeout_counter >= cfg_sched_timeout_cycles);"),
+    (SCHED_B, 970, "assign w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0) &&"),
+    (SCHED_B, 971, "(r_timeout_strikes >= cfg_sched_timeout_limit);"),
+    (SCHED_B, 978, "assign w_hard_error = descriptor_error || sched_rd_error || sched_wr_error ||"),
+    (SCHED_B, 1105, "assign scheduler_idle = (r_current_state == rapids_pkg::CH_IDLE) && !r_channel_reset_active;"),
+    (SCHED_B, 1136, "(w_read_complete && w_write_complete);"),
+
+    (STR_SCHED, 525, "end else if (w_transfer_complete && !r_rd_ahead) begin"),
+    (STR_SCHED, 542, "end else if (w_write_complete) begin"),
+    (STR_SCHED, 902, "assign w_write_issued   = (r_write_beats_remaining == 32'h0);"),
+    (STR_SCHED, 909, "assign w_transfer_complete = w_read_complete && w_write_issued;"),
+    (STR_SCHED, 1376, "(w_read_complete && w_write_issued);"),
 ]
 
 
@@ -618,6 +651,205 @@ def build_snk_ingress_kmaps(wb):
              "to compare against.")
 
 
+# ---------------------------------------------------------------------------
+# Item 4: scheduler issue/commit gating and timeout escalation
+# ---------------------------------------------------------------------------
+def build_sched_commit_kmaps(wb):
+    km = new_kmap_sheet(wb, "K-maps sched commit")
+    km.sheet_intro(
+        f"scheduler_beats - completion gating and timeout escalation ({SCHED_B})",
+        ["Computed from a python mirror of the exact RTL expression "
+         "(file:line cited, RTL quoted). Gray order 00 01 11 10; 1-cells "
+         "green, 0-cells grey, unreachable cells X.",
+         "TARGET: TASK-002 item 4. Unlike the alloc/drain FUBs (byte-"
+         "identical to STREAM's), this module DIVERGED: 1150 lines against "
+         f"STREAM's 1390. Map 1 is where the divergence lives, and it is "
+         f"the cone of the resolved wedge in {KI_STALL}."])
+
+    km.kmap(
+        "CH_XFER_DATA exit  (DATA descriptor)", f"{SCHED_B}:418",
+        "w_exec_complete = w_is_data ? w_transfer_complete : w_ctrl_complete, "
+        "with w_transfer_complete = w_read_complete && w_write_complete and "
+        "w_write_complete = (r_write_beats_to_commit == 0)",
+        [("read_complete",
+          "r_read_beats_remaining == 0 -- all source beats read",
+          f"{SCHED_B}:771"),
+         ("write_issued",
+          "r_write_beats_remaining == 0 -- all destination beats ISSUED. "
+          "This is STREAM's completion term; in RAPIDS it is NOT an input "
+          "to this decision",
+          f"{STR_SCHED}:902"),
+         ("write_committed",
+          "r_write_beats_to_commit == 0 -- all destination beats COMMITTED "
+          "(B responses accounted)",
+          f"{SCHED_B}:775"),
+         ("is_data",
+          "w_is_data -- DATA descriptor (control opcodes exit on "
+          "w_ctrl_complete instead, outside this map)",
+          f"{SCHED_B}:779")],
+        lambda rc, wi, wc, isd: bool(isd and rc and wc),
+        "The map is INDEPENDENT of write_issued, which is the divergence. "
+        f"STREAM exits this state on ISSUE ({STR_SCHED}:909, "
+        f"w_transfer_complete = w_read_complete && w_write_issued) and "
+        f"defers the commit-wait to CH_COMPLETE, and only for the LAST "
+        f"descriptor ({STR_SCHED}:542). RAPIDS waits for COMMITS here, on "
+        f"EVERY descriptor ({SCHED_B}:776), and its CH_COMPLETE carries no "
+        "commit gate at all. Two consequences. (1) Chain throughput: RAPIDS "
+        "cannot advance to the next descriptor until the current one's B "
+        "responses land; STREAM streams through. (2) A lost commit surfaces "
+        "on ANY descriptor in RAPIDS rather than only the last. NOT a "
+        "tolerance difference: under a lost commit NEITHER design recovers "
+        "-- write_committed never reaches 1, no green cell is ever entered, "
+        f"the channel never reaches CH_IDLE and scheduler_idle "
+        f"({SCHED_B}:1105) never asserts. That is the wedge recorded in "
+        f"{KI_STALL} (ILA: r_write_beats_to_commit=1, "
+        "r_write_beats_remaining=0).",
+        depends_only_on=(
+            "these four for a DATA descriptor. The timeout path reaches the "
+            "FSM through a separate w_hard_error/w_timeout_escalate branch "
+            f"evaluated BEFORE this case ({SCHED_B}:978); channel reset "
+            "overrides both."),
+        relations=[
+            ("A beat can only commit after it has been issued, so "
+             "committed <= issued, hence r_write_beats_to_commit >= "
+             "r_write_beats_remaining. write_committed therefore IMPLIES "
+             "write_issued, and cells with write_committed=1 and "
+             "write_issued=0 are unreachable and marked X. This is exactly "
+             "why waiting on commits is strictly later than waiting on "
+             "issues, never earlier.",
+             lambda rc, wi, wc, isd: not (wc and not wi),
+             f"{SCHED_B}:775, {STR_SCHED}:902")],
+        rtl_sop="is_data & read_complete & write_committed")
+
+    km.kmap(
+        "sched_wr_valid  (request more writes)", f"{SCHED_B}:858",
+        "sched_wr_valid = (state == CH_XFER_DATA) && w_is_data && "
+        "(r_write_beats_remaining != 0) && !w_write_complete && "
+        "!w_sched_wr_completing_this_cycle && !w_wr_need_base",
+        [("xfer_and_data",
+          "r_current_state == CH_XFER_DATA && w_is_data",
+          f"{SCHED_B}:858"),
+         ("beats_to_issue",
+          "r_write_beats_remaining != 0 -- the explicit issue-count gate",
+          f"{SCHED_B}:859"),
+         ("write_committed",
+          "w_write_complete -- all beats committed",
+          f"{SCHED_B}:860"),
+         ("completing_now",
+          "w_sched_wr_completing_this_cycle -- look-ahead de-assert",
+          f"{SCHED_B}:861"),
+         ("need_base",
+          "w_wr_need_base -- TASK-101 run-boundary stall",
+          f"{SCHED_B}:862")],
+        lambda xd, bti, wc, cn, nb: bool(xd and bti and not wc and not cn and not nb),
+        "The issue-count gate is what stops a spurious garbage AW during "
+        f"the commit-wait ({SCHED_B}:853-857). Note the !w_write_complete "
+        "term is LOGICALLY REDUNDANT here: beats_to_issue=1 already forces "
+        "write_committed=0 (see the relation), so it can never be the "
+        "deciding term -- every cell where it would matter is marked X. It "
+        "is belt-and-braces, not live logic, and a future reader should not "
+        "assume removing it changes behaviour. STREAM carries the same "
+        f"5-term conjunction with a near-identical comment "
+        f"({STR_SCHED}:1004-1008), so this gate did NOT diverge.",
+        depends_only_on=(
+            "these five. sched_wr_addr/beats are payload, not qualifiers; "
+            "sched_wr_ready is the engine's backpressure and deliberately "
+            "does not gate the request."),
+        relations=[
+            ("r_write_beats_to_commit >= r_write_beats_remaining always "
+             "(commits trail issues), so beats_to_issue (remaining != 0) "
+             "implies to_commit != 0, i.e. write_committed = 0. Cells with "
+             "both beats_to_issue=1 and write_committed=1 are unreachable "
+             "and marked X.",
+             lambda xd, bti, wc, cn, nb: not (bti and wc),
+             f"{SCHED_B}:775, {SCHED_B}:859")],
+        rtl_sop="xfer_and_data & beats_to_issue & ~write_committed "
+                "& ~completing_now & ~need_base")
+
+    km.kmap(
+        "w_timeout_escalate  (soft -> fatal)", f"{SCHED_B}:970",
+        "w_timeout_escalate = (cfg_sched_timeout_limit != 0) && "
+        "(r_timeout_strikes >= cfg_sched_timeout_limit)",
+        [("timeout_enable",
+          "cfg_sched_timeout_enable -- the feature's enable bit; gates "
+          "w_timeout_expired, which is the ONLY thing that increments "
+          "strikes",
+          f"{SCHED_B}:965"),
+         ("counter_expired",
+          "r_timeout_counter >= cfg_sched_timeout_cycles -- this window "
+          "elapsed",
+          f"{SCHED_B}:966"),
+         ("limit_nonzero",
+          "cfg_sched_timeout_limit != 0 -- escalation armed (0 = never "
+          "escalate, pure soft timeout)",
+          f"{SCHED_B}:970"),
+         ("strikes_at_limit",
+          "r_timeout_strikes >= cfg_sched_timeout_limit -- enough "
+          "consecutive windows with no write progress",
+          f"{SCHED_B}:971")],
+        lambda en, cnt, lim, strk: bool(lim and strk),
+        "Escalation drives the channel into sticky CH_ERROR "
+        f"({SCHED_B}:380), so the green cells are fatal transitions. The "
+        "map is INDEPENDENT of timeout_enable, and that is worth a look: "
+        "strikes are cleared only by channel reset, by reaching CH_IDLE, or "
+        f"by real write progress ({SCHED_B}:932-936) -- never by the enable "
+        "bit going low. So a channel that has already accumulated strikes "
+        "and then has cfg_sched_timeout_enable cleared by software still "
+        "has w_timeout_escalate asserted and still wedges into CH_ERROR. "
+        "NOT YET ESTABLISHED whether any host sequence actually clears "
+        "enable mid-transfer; the map states the exposure rather than "
+        "asserting the bug. A directed test that raises strikes, clears "
+        "enable, and checks the channel does not enter CH_ERROR would "
+        "settle it.",
+        depends_only_on=(
+            "these four. cfg_sched_timeout_cycles enters only through "
+            "counter_expired; the counter's own 4-way arming priority "
+            f"({SCHED_B}:920-928) decides WHEN a window elapses, not "
+            "whether escalation fires once strikes are banked."),
+        relations=[
+            ("(r_timeout_strikes >= cfg_sched_timeout_limit) is "
+             "unconditionally TRUE when cfg_sched_timeout_limit is 0, "
+             "because the counter is unsigned. So limit_nonzero=0 forces "
+             "strikes_at_limit=1, and cells with both 0 are unreachable "
+             "and marked X. This is precisely why the explicit != 0 guard "
+             "exists: without it, disabling escalation would enable it.",
+             lambda en, cnt, lim, strk: not ((not lim) and (not strk)),
+             f"{SCHED_B}:970, {SCHED_B}:971")],
+        rtl_sop="limit_nonzero & strikes_at_limit")
+
+    km.table(
+        "STREAM vs RAPIDS scheduler: where the commit-wait sits",
+        f"{SCHED_B}:418",
+        ["Concern", "STREAM scheduler.sv (1390 lines)",
+         "RAPIDS scheduler_beats.sv (1150 lines)"],
+        [["CH_XFER_DATA exit term",
+          f"w_write_issued -- issue-based ({STR_SCHED}:909)",
+          f"w_write_complete -- commit-based ({SCHED_B}:776)"],
+         ["formal property asserts",
+          f"(w_read_complete && w_write_issued) ({STR_SCHED}:1376)",
+          f"(w_read_complete && w_write_complete) ({SCHED_B}:1136)"],
+         ["CH_COMPLETE commit gate",
+          f"yes, last descriptor only ({STR_SCHED}:542); chained advances "
+          "immediately",
+          f"none ({SCHED_B}:424-432)"],
+         ["chain streams without waiting for B",
+          "yes", "no -- every descriptor waits for commits"],
+         ["recovers from a lost commit",
+          "no -- hangs in CH_COMPLETE",
+          "no -- hangs in CH_XFER_DATA"],
+         ["sched_wr_valid issue-count gate",
+          f"same 5 terms ({STR_SCHED}:1004-1008)",
+          f"same 5 terms ({SCHED_B}:858-862)"]],
+        note="The alloc/drain FUBs are byte-identical between the two "
+             "projects; this scheduler is not. The divergence is narrow -- "
+             "one term in the completion wire and the placement of the "
+             "commit-wait -- but it changes chain behaviour and which "
+             "descriptor exposes a lost commit. Neither side has a recovery "
+             f"path; see {KI_STALL}, whose section 6a found the write "
+             "engine byte-identical and therefore the under-count risk "
+             "shared.")
+
+
 def main():
     verify_citations(CITES, REPO)
     wb = openpyxl.Workbook()
@@ -627,6 +859,7 @@ def main():
     build_src_drain_kmaps(wb)
     build_snk_ingress_contract(wb)
     build_snk_ingress_kmaps(wb)
+    build_sched_commit_kmaps(wb)
 
     wb.save(XLSX)
     print(f"wrote {XLSX}")

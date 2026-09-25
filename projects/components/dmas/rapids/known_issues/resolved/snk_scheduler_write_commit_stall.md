@@ -284,3 +284,66 @@ this becomes a shared rapids+stream RTL fix. Separately correct the
 halves before every run. It makes the full 24-config char matrix run in one
 programming and unblocks `active<8`, but it does **not** fix the RTL — the sink
 must self-return to `CH_IDLE`.
+
+---
+
+## Citation drift corrected (2026-09-25)
+
+Checked while building the RAPIDS contracts workbook for TASK-002 item 4. The
+root-cause chain in section 4 cites three line numbers that have all moved in
+`scheduler_beats.sv`; the mechanism it describes is unchanged, only the
+anchors are stale.
+
+| Cited as | Actually at | Line now reads |
+|---|---|---|
+| `:559` commit decrement | `:733` | `if (sched_wr_commit_strobe) begin` (`:559` is now a bare `);`) |
+| `:601` `w_write_complete` | `:775` | `assign w_write_complete = (r_write_beats_to_commit == 32'h0);` (`:601` is now `r_ctrl_issued <= 1'b0;`) |
+| `:921` `scheduler_idle` | `:1105` | `assign scheduler_idle = (r_current_state == rapids_pkg::CH_IDLE) && !r_channel_reset_active;` (`:921` is now a timeout-counter clear) |
+
+### A structural note this issue did not record
+
+Section 5 framed the choice as (A) the shared write engine under-reporting
+commits vs (B) RAPIDS' commit accumulator. There is a third difference worth
+recording -- not a tolerance difference, but a difference in WHERE the
+commit-wait sits.
+
+Both schedulers carry a `concurrent_transfer_complete` property, and they do
+not assert the same thing:
+
+- STREAM (`stream/rtl/fub/scheduler.sv:1376`):
+  `|-> (w_read_complete && w_write_issued)`, with
+  `w_write_issued = (r_write_beats_remaining == 32'h0)` (`:902`)
+- RAPIDS (`scheduler_beats.sv:1136`):
+  `|-> (w_read_complete && w_write_complete)`, with
+  `w_write_complete = (r_write_beats_to_commit == 32'h0)` (`:775`)
+
+That flows into the FSMs:
+
+| | STREAM | RAPIDS |
+|---|---|---|
+| `CH_XFER_DATA` exit | `w_transfer_complete && !r_rd_ahead` (`:525`), and `w_transfer_complete = w_read_complete && w_write_issued` (`:909`) -- **issue-based** | `w_exec_complete` (`:418`) -> `w_transfer_complete = w_read_complete && w_write_complete` (`:776`) -- **commit-based** |
+| `CH_COMPLETE` | chained -> advance immediately; last descriptor -> HOLD until `w_write_complete` (`:542`) | no commit gate at all (`:424-432`) |
+
+**Both designs wait for commits; they wait in different places.** STREAM defers
+the wait to `CH_COMPLETE` and only for the LAST descriptor, so a chain streams
+continuously. RAPIDS waits in `CH_XFER_DATA` for EVERY descriptor.
+
+An earlier draft of this note claimed STREAM would therefore tolerate a lost
+commit while RAPIDS would not. **That is wrong and is retracted.** Under the
+fault this issue diagnosed -- a B response that lands but is never accounted --
+neither design recovers: STREAM hangs in `CH_COMPLETE` on the last descriptor,
+RAPIDS hangs in `CH_XFER_DATA`, and in both cases the channel never reaches
+`CH_IDLE`, so `scheduler_idle` (`scheduler_beats.sv:1105`) never asserts and
+`snk_system_idle` stays low -- the same observable wedge. The ILA capture
+(`r_write_beats_to_commit = 1`, `r_write_beats_remaining = 0`) is consistent
+with both.
+
+What the difference actually costs RAPIDS is chain throughput: it cannot
+advance to the next descriptor until the current one's commits land, where
+STREAM can. And it means a lost commit surfaces on ANY descriptor in RAPIDS
+rather than only the last.
+
+This does not contradict the fix that closed this issue (a B-response FIFO in
+the slave). It is recorded because section 6a found the write engine
+byte-identical with STREAM's, so the latent under-count risk is shared -- and
+neither scheduler has a recovery path for it.
