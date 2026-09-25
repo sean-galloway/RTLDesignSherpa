@@ -56,16 +56,20 @@ WAVEDROM_BLOCK_RE = re.compile(
     re.DOTALL | re.IGNORECASE
 )
 
+# The KEYS below are input data: this table is what strips emoji out of a page
+# on its way to DOCX/PDF, so the glyphs must stay literal here. A decorative
+# emoji sweep emptied five of them on 2026-09-24, collapsing 9 dict entries to
+# 2 and silently disabling the strip for every generate_*_pdf.sh caller.
 EMOJI_MAP = {
-    "": "",
-    "": "",
-    "": "+",
-    "": "−",
-    "": "",
+    "✅": "✓",
+    "❌": "✗",
+    "➕": "+",
+    "➖": "−",
+    "⚠️": "⚠",
     "ℹ️": "ℹ",
-    "": "",
-    "": "",
-    "": "",
+    "🛠️": "🛠",
+    "📌": "",
+    "🚧": "",
 }
 
 def log(*a, **k):

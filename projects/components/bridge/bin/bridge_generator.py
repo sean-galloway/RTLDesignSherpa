@@ -392,13 +392,13 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
         with open(test_file_path, 'w') as f:
             f.write(test_content)
 
-        print(f"Generated TB class: {tb_file_path}")
-        print(f"Generated test file: {test_file_path}")
+        print(f"  Generated TB class: {tb_file_path}")
+        print(f"  Generated test file: {test_file_path}")
 
         return True
 
     except Exception as e:
-        print(f"Test generation failed: {e}")
+        print(f"  Test generation failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -573,12 +573,12 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
         with open(test_file_path, 'w') as f:
             f.write(test_content)
 
-        print(f"Generated monitor TB class: {tb_file_path}")
-        print(f"Generated monitor test: {test_file_path}")
+        print(f"  Generated monitor TB class: {tb_file_path}")
+        print(f"  Generated monitor test: {test_file_path}")
         return True
 
     except Exception as e:
-        print(f"Monitor test generation failed: {e}")
+        print(f"  Monitor test generation failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -678,7 +678,7 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
         return (True, emitted_variants)
 
     except Exception as e:
-        print(f"Bridge generation failed: {e}")
+        print(f"  Bridge generation failed: {e}")
         import traceback
         traceback.print_exc()
         return (False, [])
@@ -860,9 +860,9 @@ def _emit_bridge_variant(
             getattr(sl, 'internal', False) for sl in slave_infos)
         from pathlib import Path as _Path
         cfg_out = cfg_gen.generate(_Path(bridge_dir), run_peakrdl=True)
-        print(f"Generated cfg RDL:      {cfg_out['rdl_path']}")
+        print(f"  Generated cfg RDL:      {cfg_out['rdl_path']}")
         for p in cfg_out['sv_paths']:
-            print(f"Generated cfg regblock: {p}")
+            print(f"  Generated cfg regblock: {p}")
         # Task 90.4: insert cfg pkg + regblock into generated_files so
         # the filelist (built below) picks them up in compile order.
         # The double-underscore prefix sorts BEFORE 'adapter_*' but
@@ -887,23 +887,23 @@ def _emit_bridge_variant(
             [p for p in cfg_out['sv_paths'] if not p.name.endswith('_pkg.sv')][0],
         )
 
-    print(f"Generated bridge package: {generated_files['package']}")
+    print(f"  Generated bridge package: {generated_files['package']}")
     for master in master_configs:
         adapter_key = f"adapter_{master.name}"
         if adapter_key in generated_files:
-            print(f"Generated adapter: {generated_files[adapter_key]}")
-    print(f"Generated bridge: {generated_files['bridge']}")
+            print(f"  Generated adapter: {generated_files[adapter_key]}")
+    print(f"  Generated bridge: {generated_files['bridge']}")
 
     # Copy configuration files to bridge directory for reference
     if ports_file:
         config_copy = os.path.join(bridge_dir, os.path.basename(ports_file))
         shutil.copy2(ports_file, config_copy)
-        print(f"Copied config: {config_copy}")
+        print(f"  Copied config: {config_copy}")
 
     if connectivity_file:
         conn_copy = os.path.join(bridge_dir, os.path.basename(connectivity_file))
         shutil.copy2(connectivity_file, conn_copy)
-        print(f"Copied connectivity: {conn_copy}")
+        print(f"  Copied connectivity: {conn_copy}")
 
     # Generate filelist with dependencies
     #
@@ -1266,7 +1266,7 @@ def _emit_bridge_variant(
     with open(filelist_path, 'w') as f:
         f.write(filelist_content)
 
-    print(f"Generated filelist: {filelist_path}")
+    print(f"  Generated filelist: {filelist_path}")
 
 
 def parse_bulk_csv(bulk_file):
@@ -1432,7 +1432,7 @@ Bulk Generation CSV Format:
                                 output_rtl_dir=config['output_dir']
                             )
                             if not mon_ok:
-                                print(f"Monitor test generation failed for {variant_name}")
+                                print(f"  Monitor test generation failed for {variant_name}")
                                 test_fail_count += 1
                             continue
                         print(f"  Generating tests for {variant_name}...")
@@ -1446,7 +1446,7 @@ Bulk Generation CSV Format:
                             output_rtl_dir=config['output_dir']
                         )
                         if not test_success:
-                            print(f"Test generation failed for {variant_name}")
+                            print(f"  Test generation failed for {variant_name}")
                             test_fail_count += 1
             else:
                 fail_count += 1
@@ -1506,7 +1506,7 @@ Bulk Generation CSV Format:
                         output_rtl_dir=args.output_dir
                     )
                     if not mon_ok:
-                        print("Monitor test generation failed")
+                        print("  Monitor test generation failed")
                     continue
                 print("")
                 print(f"Generating tests for {variant_name}...")
@@ -1520,7 +1520,7 @@ Bulk Generation CSV Format:
                     output_rtl_dir=args.output_dir
                 )
                 if not test_success:
-                    print("Test generation failed")
+                    print("  Test generation failed")
 
         print("")
         print("="*70)

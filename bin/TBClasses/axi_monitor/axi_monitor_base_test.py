@@ -543,7 +543,7 @@ class AXIMonitorBaseTest(AXIMonitorTB, ABC):
         if self.error_detection_results:
             self.log.info("Error Detection Results:")
             for error_type, detected in self.error_detection_results.items():
-                status = "" if detected else ""
+                status = "PASS" if detected else "FAIL"
                 self.log.info(f"  {status} {error_type}")
 
     async def run_base_test_flow(self) -> bool:

@@ -206,7 +206,7 @@ class BinToBcdTB(TBBase):
                             f"-> BCD: {actual_str} "
                             f"(Expected: {expected_str}) "
                             f"Cycles: {cycles} "
-                            f"{'' if success else ''}")
+                            f"{'OK' if success else 'FAIL'}")
 
         return success, actual_bcd, expected_bcd, cycles
 

@@ -303,7 +303,7 @@ class AXI4MonitorTB(TBBase):
     async def test_burst_transactions(self) -> bool:
         """Test 2: Burst transactions (AXI4 only)"""
         if not self.IS_AXI4:
-            self.log.info("⏭️  SKIP: Burst transactions (AXI4-Lite)")
+            self.log.info("SKIP: Burst transactions (AXI4-Lite)")
             return True
 
         self.log.info("TEST 2: Burst Transactions")
@@ -421,7 +421,7 @@ class AXI4MonitorTB(TBBase):
     async def test_zero_delay_stress(self) -> bool:
         """Test 6: Zero-delay stress (AXI4 only)"""
         if not self.IS_AXI4:
-            self.log.info("⏭️  SKIP: Zero-delay stress (AXI4-Lite)")
+            self.log.info("SKIP: Zero-delay stress (AXI4-Lite)")
             return True
 
         self.log.info("TEST 6: Zero-Delay Stress")

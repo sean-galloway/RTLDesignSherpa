@@ -286,7 +286,7 @@ async def axi4_master_rd_mon_wavedrom_test(dut):
 
     enable_wavedrom = int(os.environ.get('ENABLE_WAVEDROM', '0'))
     if not enable_wavedrom:
-        dut._log.info("⏭️  WaveDrom disabled (ENABLE_WAVEDROM=0), skipping wavedrom test")
+        dut._log.info("WaveDrom disabled (ENABLE_WAVEDROM=0), skipping wavedrom test")
         return
 
     from CocoTBFramework.components.wavedrom.constraint_solver import TemporalConstraintSolver

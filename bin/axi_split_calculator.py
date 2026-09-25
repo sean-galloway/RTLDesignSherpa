@@ -163,10 +163,10 @@ def print_split_result(result):
         print(f"   Split Length:      {res['split_len']} (AXI) = {res['split_beats']} beats")
         print(f"   Remaining Length:  {res['remaining_len']} (AXI) = {res['remaining_beats']} beats")
         print()
-        print("VERIFICATION:")
+        print("   VERIFICATION:")
         total_split_beats = res['split_beats'] + res['remaining_beats']
         conservation_ok = total_split_beats == inp['total_beats']
-        status = "" if conservation_ok else ""
+        status = "PASS" if conservation_ok else "FAIL"
         print(f"   Beat Conservation: {res['split_beats']} + {res['remaining_beats']} = {total_split_beats} (expected {inp['total_beats']}) {status}")
     else:
         print(f"   No split needed - transaction fits before boundary")

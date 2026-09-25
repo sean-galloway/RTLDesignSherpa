@@ -97,7 +97,7 @@ class Gray2BinTB(TBBase):
             self.log.info(f"Gray: 0x{gray_val:0{(self.WIDTH+3)//4}X} "
                          f"-> Binary: 0x{actual_binary:0{(self.WIDTH+3)//4}X} "
                          f"(Expected: 0x{expected_binary:0{(self.WIDTH+3)//4}X}) "
-                         f"{'' if success else ''}")
+                         f"{'OK' if success else 'FAIL'}")
 
         return success, actual_binary, expected_binary
 

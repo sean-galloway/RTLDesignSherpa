@@ -122,7 +122,7 @@ def test_struct_utilities(struct_file_path, struct_name):
             if 'validation' in struct_info:
                 valid = struct_info['validation']['valid']
                 msg = struct_info['validation']['message']
-                print(f"  Validation: {'' if valid else ''} {msg}")
+                print(f"  Validation: {'OK' if valid else 'FAIL'} {msg}")
         else:
             print(f"No struct info found for '{struct_name}'")
     except Exception as e:
@@ -197,15 +197,15 @@ def test_struct_utilities(struct_file_path, struct_name):
                         helpers_module = importlib.util.module_from_spec(spec)
                         spec.loader.exec_module(helpers_module)
                         
-                        print(f"Successfully imported generated Python helpers")
+                        print(f"  Successfully imported generated Python helpers")
                         if hasattr(helpers_module, 'STRUCT_FIELDS'):
-                            print(f"STRUCT_FIELDS available: {list(helpers_module.STRUCT_FIELDS.keys())}")
+                            print(f"  STRUCT_FIELDS available: {list(helpers_module.STRUCT_FIELDS.keys())}")
                         if hasattr(helpers_module, 'pack_struct'):
-                            print(f"pack_struct function available")
+                            print(f"  pack_struct function available")
                         if hasattr(helpers_module, 'unpack_struct'):
-                            print(f"unpack_struct function available")
+                            print(f"  unpack_struct function available")
                     except Exception as e:
-                        print(f"Failed to import Python helpers: {e}")
+                        print(f"  Failed to import Python helpers: {e}")
             else:
                 print(f"{file_type}: {file_path} (does not exist)")
     

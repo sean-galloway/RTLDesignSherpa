@@ -604,7 +604,7 @@ class APBMonitorScoreboard:
 
         # Latency statistics
         if stats['avg_latency_ns'] > 0:
-            report += f"⏱️  Latency Statistics:\n"
+            report += f"Latency Statistics:\n"
             report += f"  Average: {stats['avg_latency_ns']:.1f} ns\n"
             report += f"  Maximum: {stats['max_latency_ns']:.1f} ns\n"
             report += f"  Minimum: {stats['min_latency_ns']:.1f} ns\n\n"

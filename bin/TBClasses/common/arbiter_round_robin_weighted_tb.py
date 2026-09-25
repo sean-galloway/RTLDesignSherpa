@@ -529,7 +529,7 @@ class WeightedRoundRobinTB(TBBase):
                 'grants': final_grants[i]
             })
 
-            status = "" if compliant else ""
+            status = "OK" if compliant else "FAIL"
             self.log.info(f"  Client {i}: {status} Expected {expected:.3f}, Got {actual:.3f}, Error {error_pct:.1f}%")
 
         # Overall compliance
@@ -624,7 +624,7 @@ class WeightedRoundRobinTB(TBBase):
         # single directed scenario -- zero-weight clients being granted,
         # geometric progression catching a weight-packing overflow -- could
         # fail in every configuration and the suite stayed green. The per
-        # scenario "" was logged and the assertion never saw it.
+        # scenario "FAIL" was logged and the assertion never saw it.
         #
         # This is the second time a statistical threshold has been applied to
         # directed checks here; the first was min_fairness_threshold = 0.3 on a

@@ -368,8 +368,8 @@ def test_cdc_2_phase_handshake(request, params):
 
         # Provide debugging guidance
         if "timeout" in str(e).lower():
-            print(f"Check for CDC deadlocks or excessive latency")
+            print(f"   Check for CDC deadlocks or excessive latency")
         elif "assertion" in str(e).lower():
-            print(f"Check CDC timing violations in waveforms")
+            print(f"   Check CDC timing violations in waveforms")
 
         raise

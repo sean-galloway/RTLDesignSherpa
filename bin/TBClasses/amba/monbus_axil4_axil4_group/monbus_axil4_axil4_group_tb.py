@@ -410,7 +410,7 @@ class MonbusAxilAxilGroupTB(TBBase):
             if exp_data is not None and p.event_data != exp_data:
                 self.log.error(f"[{idx}] event_data=0x{p.event_data:x} != 0x{exp_data:x}")
                 ok = False
-        self.log.info(f"{'' if ok else ''} decoded {len(drained)}/{count} error "
+        self.log.info(f"{'PASS' if ok else 'FAIL'} decoded {len(drained)}/{count} error "
                       f"records via {self.TEST_S_AXIL_DATA_WIDTH}-bit drain")
         return ok, {'records': len(drained), 'expected': count,
                     'drain_width': self.TEST_S_AXIL_DATA_WIDTH}

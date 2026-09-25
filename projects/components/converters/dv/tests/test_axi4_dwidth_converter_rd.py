@@ -343,8 +343,8 @@ def test_axi4_dwidth_converter_rd(request, params):
 
         # Provide debugging guidance
         if "timeout" in str(e).lower():
-            print(f"Check for deadlocks or excessive latency in converter")
+            print(f"   Check for deadlocks or excessive latency in converter")
         elif "assertion" in str(e).lower():
-            print(f"Check data integrity in waveforms")
+            print(f"   Check data integrity in waveforms")
 
         raise

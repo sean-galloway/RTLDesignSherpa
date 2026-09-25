@@ -208,7 +208,7 @@ async def gaxi_fifo_sync_wavedrom_test(dut):
     # Check if waveforms are enabled
     enable_wavedrom = int(os.environ.get('ENABLE_WAVEDROM', '0'))
     if not enable_wavedrom:
-        dut._log.info("⏭️  WaveDrom disabled (ENABLE_WAVEDROM=0), skipping wavedrom test")
+        dut._log.info("WaveDrom disabled (ENABLE_WAVEDROM=0), skipping wavedrom test")
         return
 
     # Get REGISTERED mode

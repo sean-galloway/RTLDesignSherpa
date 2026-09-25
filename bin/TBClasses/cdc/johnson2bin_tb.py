@@ -177,7 +177,7 @@ class GrayJ2BinTB(TBBase):
             self.log.info(f"Gray: 0x{gray_val:0{(self.JCW+3)//4}X} "
                             f"-> Binary: {actual_binary:>3d} "
                             f"(Expected: {expected_binary:>3d}) "
-                            f"{'' if success else ''}")
+                            f"{'OK' if success else 'FAIL'}")
 
         return success, actual_binary, expected_binary
 

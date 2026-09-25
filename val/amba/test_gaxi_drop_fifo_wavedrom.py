@@ -100,7 +100,7 @@ async def gaxi_drop_fifo_wavedrom_cocotb(dut):
     # Check if waveforms are enabled
     enable_wavedrom = int(os.environ.get('ENABLE_WAVEDROM', '1'))
     if not enable_wavedrom:
-        dut._log.info("⏭️  WaveDrom disabled, running basic test")
+        dut._log.info("WaveDrom disabled, running basic test")
         # Run basic test without wavedrom
         await run_basic_test(dut)
         return

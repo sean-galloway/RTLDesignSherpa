@@ -394,7 +394,7 @@ class APBMonitorCoreTB(TBBase):
 
         self.test_stats['rsp_packets_sent'] += 1
 
-        status = "" if matched else ""
+        status = "PASS" if matched else "FAIL"
         self.log.debug(f"RSP sent {status}: {format_packet_summary(rsp_packet)}")
 
     async def send_write_transaction(self, addr: int, data: int, strb: int = None,

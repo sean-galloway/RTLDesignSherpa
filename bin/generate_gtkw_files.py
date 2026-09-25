@@ -306,7 +306,7 @@ def main():
 
         # Skip if file exists and not forcing
         if output_file.exists() and not args.force:
-            print(f"⏭️  Skipping: {module_name}.gtkw (already exists)")
+            print(f"Skipping: {module_name}.gtkw (already exists)")
             skipped_count += 1
             continue
 

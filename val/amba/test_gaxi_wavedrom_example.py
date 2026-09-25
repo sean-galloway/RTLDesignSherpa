@@ -143,7 +143,7 @@ async def gaxi_comprehensive_wavedrom_test(dut):
     # Check if waveforms are enabled (default: yes)
     enable_wavedrom = int(os.environ.get('ENABLE_WAVEDROM', '1'))
     if not enable_wavedrom:
-        dut._log.info("⏭️  WaveDrom disabled (ENABLE_WAVEDROM=0), running test without waveforms")
+        dut._log.info("WaveDrom disabled (ENABLE_WAVEDROM=0), running test without waveforms")
         # Run basic functional test without wavedrom
         await run_basic_functional_test(dut)
         return

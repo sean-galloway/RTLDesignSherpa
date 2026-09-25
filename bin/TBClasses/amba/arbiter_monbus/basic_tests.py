@@ -358,7 +358,7 @@ class BasicFunctionalityTest:
             assert len(disallowed_packets) == 0, f"Unexpected packet types generated: {[p.packet_type for p in disallowed_packets]}"
             self.log.info(f"Only allowed packet types generated: {len(allowed_packets)}/{len(packets)} packets")
         else:
-            self.log.info("ℹ️ No packets generated in this test phase")
+            self.log.info("No packets generated in this test phase")
         
         # Restore full packet type enable for subsequent tests
         await self.framework.apply_monitor_config({
@@ -435,7 +435,7 @@ class BasicFunctionalityTest:
             else:
                 self.log.warning("No ARB protocol packets generated, but monitor is working")
         else:
-            self.log.info("ℹ️ No packets generated in this test")
+            self.log.info("No packets generated in this test")
 
 
 # =============================================================================

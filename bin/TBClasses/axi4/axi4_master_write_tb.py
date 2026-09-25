@@ -853,9 +853,9 @@ class AXI4MasterWriteTB(TBBase):
             if not success:
                 self.log.info("Unaligned address properly rejected")
             else:
-                self.log.info("ℹ Unaligned address accepted (system supports unaligned)")
+                self.log.info("Unaligned address accepted (system supports unaligned)")
         except Exception as e:
-            self.log.info(f"ℹ Unaligned address test caused exception: {str(e)}")
+            self.log.info(f"Unaligned address test caused exception: {str(e)}")
         
         # Test 2: Maximum data values
         try:
@@ -876,7 +876,7 @@ class AXI4MasterWriteTB(TBBase):
             if success:
                 self.log.info("Zero address handled correctly")
         except Exception as e:
-            self.log.info(f"ℹ Zero address test caused exception: {str(e)}")
+            self.log.info(f"Zero address test caused exception: {str(e)}")
 
         # Restore the aggregate stats: this phase observes, it does not judge.
         # (Every probe outcome above is logged; none is a test failure.)

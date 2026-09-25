@@ -260,7 +260,7 @@ class ArbiterMonbusCommonTB(TBBase):
             max_cycles: Maximum cycles to wait for FIFO to empty
         """
         start_time = self.get_time_ns_str()
-        self.log.debug(f"⏳ Waiting for FIFO to empty (max {max_cycles} cycles)...{start_time}")
+        self.log.debug(f"Waiting for FIFO to empty (max {max_cycles} cycles)...{start_time}")
 
         # Ensure monbus_ready is asserted to enable draining
         if hasattr(self.dut, 'monbus_ready'):

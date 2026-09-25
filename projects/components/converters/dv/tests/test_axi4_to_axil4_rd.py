@@ -309,8 +309,8 @@ def test_axi4_to_axil4_rd(request, params):
 
         # Provide debugging guidance
         if "timeout" in str(e).lower():
-            print(f"Check for burst decomposition deadlocks")
+            print(f"   Check for burst decomposition deadlocks")
         elif "assertion" in str(e).lower():
-            print(f"Check address incrementing in waveforms")
+            print(f"   Check address incrementing in waveforms")
 
         raise

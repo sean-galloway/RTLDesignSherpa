@@ -275,19 +275,19 @@ class CoverageReportGenerator:
         lines.append("|------------|--------------------:|---------------|--------|")
 
         fub_pct = (fub_hit_bins / fub_total_bins * 100) if fub_total_bins > 0 else 0
-        lines.append(f"| **FUB** | {fub_pct:.1f}% ({fub_hit_bins}/{fub_total_bins}) | See details | {'' if fub_pct >= 80 else ''} |")
+        lines.append(f"| **FUB** | {fub_pct:.1f}% ({fub_hit_bins}/{fub_total_bins}) | See details | {'PASS' if fub_pct >= 80 else 'WARN'} |")
 
         if macro_total_bins > 0:
             macro_pct = (macro_hit_bins / macro_total_bins * 100)
-            lines.append(f"| **Macro** | {macro_pct:.1f}% ({macro_hit_bins}/{macro_total_bins}) | See details | {'' if macro_pct >= 80 else ''} |")
+            lines.append(f"| **Macro** | {macro_pct:.1f}% ({macro_hit_bins}/{macro_total_bins}) | See details | {'PASS' if macro_pct >= 80 else 'WARN'} |")
         else:
-            lines.append("| **Macro** | No tests run | - | |")
+            lines.append("| **Macro** | No tests run | - | FAIL |")
 
         if top_total_bins > 0:
             top_pct = (top_hit_bins / top_total_bins * 100)
-            lines.append(f"| **Top** | {top_pct:.1f}% ({top_hit_bins}/{top_total_bins}) | See details | {'' if top_pct >= 80 else ''} |")
+            lines.append(f"| **Top** | {top_pct:.1f}% ({top_hit_bins}/{top_total_bins}) | See details | {'PASS' if top_pct >= 80 else 'WARN'} |")
         else:
-            lines.append("| **Top** | No tests run | - | |")
+            lines.append("| **Top** | No tests run | - | FAIL |")
 
         lines.append("")
         return lines

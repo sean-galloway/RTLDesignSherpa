@@ -741,9 +741,9 @@ class AXIMonitorTB(TBBase):
 
         # Active transactions
         if self.active_transactions:
-            self.log.info(f"\n⏳ Active Transactions: {len(self.active_transactions)}")
+            self.log.info(f"\nActive Transactions: {len(self.active_transactions)}")
             for txn_id, txn in self.active_transactions.items():
-                complete = "" if txn.is_complete() else "⏳"
+                complete = "done" if txn.is_complete() else "pending"
                 self.log.info(f"  {complete} ID={txn_id:02X}: beats={txn.beats_sent}/{txn.beats_total}")
 
         # Scoreboard report

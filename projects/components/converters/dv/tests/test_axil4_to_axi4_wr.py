@@ -301,8 +301,8 @@ def test_axil4_to_axi4_wr(request, params):
 
         # Provide debugging guidance
         if "timeout" in str(e).lower():
-            print(f"Check for deadlocks or missing handshakes")
+            print(f"   Check for deadlocks or missing handshakes")
         elif "assertion" in str(e).lower():
-            print(f"Check field validation in waveforms")
+            print(f"   Check field validation in waveforms")
 
         raise

@@ -83,7 +83,7 @@ def generate_all_standard():
         with open(output_file, 'w') as f:
             f.write(code)
 
-        print(f"{output_file}")
+        print(f"  {output_file}")
 
     for (masters, slaves), mv, sv, suffix in mixed:
         output_file = output_dir / f"apbx_xbar_{masters}to{slaves}{suffix}.sv"
@@ -102,7 +102,7 @@ def generate_all_standard():
         )
         with open(output_file, 'w') as f:
             f.write(code)
-        print(f"{output_file}")
+        print(f"  {output_file}")
 
     # Retro Legacy Blocks 1-to-10 (RLB-016). Unlike everything above, this
     # variant is CONSUMED BY ANOTHER COMPONENT, so it is emitted into that

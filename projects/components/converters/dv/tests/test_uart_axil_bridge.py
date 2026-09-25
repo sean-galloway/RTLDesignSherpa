@@ -298,8 +298,8 @@ def test_uart_axil_bridge(request, params):
 
         # Provide debugging guidance
         if "timeout" in str(e).lower():
-            print(f"Check for UART timing or command parser deadlock")
+            print(f"   Check for UART timing or command parser deadlock")
         elif "assertion" in str(e).lower():
-            print(f"Check UART command format in waveforms")
+            print(f"   Check UART command format in waveforms")
 
         raise

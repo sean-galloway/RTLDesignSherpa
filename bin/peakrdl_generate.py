@@ -506,7 +506,7 @@ def main():
                     dest_file = args.copy_rtl / f.name
                     shutil.copy2(f, dest_file)
                     copied_files.append(f.name)
-                    print(f"Copied: {f.name}")
+                    print(f"  Copied: {f.name}")
 
             # Also copy package files if they exist
             for f in sorted(rtl_dir.rglob("*.svh")):
@@ -514,7 +514,7 @@ def main():
                     dest_file = args.copy_rtl / f.name
                     shutil.copy2(f, dest_file)
                     copied_files.append(f.name)
-                    print(f"Copied: {f.name}")
+                    print(f"  Copied: {f.name}")
 
             print(f"\nSuccessfully copied {len(copied_files)} file(s) to {args.copy_rtl}")
 

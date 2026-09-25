@@ -246,7 +246,7 @@ class AXI4DWidthConverterReadTB(TBBase):
         same_object = (self.slave_read_master['R'] is self.slave_read_master['interface'].r_channel)
 
         self.log.info(f"R CALLBACK TRIGGERED #{len(self.captured_r_packets)}: data=0x{pkt_copy.data:X}, last={pkt_copy.last}, resp={pkt_copy.resp}")
-        self.log.info(f"Queue state: dict['R']._recvQ={queue_len}, interface.r_channel._recvQ={interface_queue_len}, same_object={same_object}")
+        self.log.info(f"   Queue state: dict['R']._recvQ={queue_len}, interface.r_channel._recvQ={interface_queue_len}, same_object={same_object}")
 
     async def clear_bfm_state(self):
         """Clear BFM internal queues to prevent stale data from affecting subsequent tests."""
@@ -571,7 +571,7 @@ class AXI4DWidthConverterReadTB(TBBase):
                 self.log.error(f"   Current bus state: m_axi_rvalid={m_rvalid}, m_axi_rready={m_rready}, m_axi_rlast={m_rlast}")
             self.errors += 1
         elif debug:
-            self.log.info(f"Verification PASSED")
+            self.log.info(f"   Verification PASSED")
 
         return success
 
@@ -805,10 +805,10 @@ class AXI4DWidthConverterReadTB(TBBase):
             success = await self.do_read_and_verify(addr, burst_len)
 
             if not success:
-                self.log.error(f"Transaction {i} at 0x{addr:X} FAILED")
+                self.log.error(f"  Transaction {i} at 0x{addr:X} FAILED")
                 all_success = False
             else:
-                self.log.info(f"Transaction {i} at 0x{addr:X} PASSED")
+                self.log.info(f"  Transaction {i} at 0x{addr:X} PASSED")
 
         # Test 2: Different burst lengths
         self.log.info("--- Test 2: Variable Burst Lengths ---")
@@ -818,10 +818,10 @@ class AXI4DWidthConverterReadTB(TBBase):
             success = await self.do_read_and_verify(addr, burst_len)
 
             if not success:
-                self.log.error(f"Burst length {burst_len} test FAILED")
+                self.log.error(f"  Burst length {burst_len} test FAILED")
                 all_success = False
             else:
-                self.log.info(f"Burst length {burst_len} test PASSED")
+                self.log.info(f"  Burst length {burst_len} test PASSED")
             addr += 0x100
 
         # Test 2b: maximum-length bursts -- see test_max_length_burst
@@ -842,10 +842,10 @@ class AXI4DWidthConverterReadTB(TBBase):
             success = await self.do_read_and_verify(addr, burst_len)
 
             if not success:
-                self.log.error(f"Random test at 0x{addr:X} FAILED")
+                self.log.error(f"  Random test at 0x{addr:X} FAILED")
                 all_success = False
             else:
-                self.log.info(f"Random test at 0x{addr:X} PASSED")
+                self.log.info(f"  Random test at 0x{addr:X} PASSED")
 
         if all_success:
             self.log.info("All Medium tests PASSED")
@@ -886,10 +886,10 @@ class AXI4DWidthConverterReadTB(TBBase):
             success = await self.do_read_and_verify(addr, burst_len)
 
             if not success:
-                self.log.error(f"Long burst test ({burst_len} beats) FAILED")
+                self.log.error(f"  Long burst test ({burst_len} beats) FAILED")
                 all_success = False
             else:
-                self.log.info(f"Long burst test ({burst_len} beats) PASSED")
+                self.log.info(f"  Long burst test ({burst_len} beats) PASSED")
             addr += 0x1000
 
         # Test 3: Stress test with many read transactions
@@ -923,12 +923,12 @@ class AXI4DWidthConverterReadTB(TBBase):
                 self.log.info(f"  Progress: {i}/{num_stress_txns} transactions")
 
         if failed > 0:
-            self.log.error(f"Stress test: {failed}/{num_stress_txns} transactions FAILED")
+            self.log.error(f"  Stress test: {failed}/{num_stress_txns} transactions FAILED")
             self.log.error(f"     Failed transactions: {failed_txns}")
             self.errors += failed
             all_success = False
         else:
-            self.log.info(f"Stress test: All {num_stress_txns} transactions PASSED")
+            self.log.info(f"  Stress test: All {num_stress_txns} transactions PASSED")
 
         # Test 4: Multiple reads from same address
         self.log.info("--- Test 4: Sequential Reads from Same Address ---")
@@ -938,17 +938,17 @@ class AXI4DWidthConverterReadTB(TBBase):
         success = await self.do_read_and_verify(addr, burst_len)
 
         if not success:
-            self.log.error(f"Initial read FAILED")
+            self.log.error(f"  Initial read FAILED")
             all_success = False
 
         # Second read from same address
         success = await self.do_read_and_verify(addr, burst_len)
 
         if not success:
-            self.log.error(f"Second read FAILED")
+            self.log.error(f"  Second read FAILED")
             all_success = False
         else:
-            self.log.info(f"Sequential reads from same address PASSED")
+            self.log.info(f"  Sequential reads from same address PASSED")
 
         # Test 5: Address boundary conditions
         self.log.info("--- Test 5: Address Boundary Conditions ---")
@@ -964,10 +964,10 @@ class AXI4DWidthConverterReadTB(TBBase):
             success = await self.do_read_and_verify(addr, burst_len)
 
             if not success:
-                self.log.error(f"Boundary test at 0x{addr:X} FAILED")
+                self.log.error(f"  Boundary test at 0x{addr:X} FAILED")
                 all_success = False
             else:
-                self.log.info(f"Boundary test at 0x{addr:X} PASSED")
+                self.log.info(f"  Boundary test at 0x{addr:X} PASSED")
 
         # Final result
         if all_success:

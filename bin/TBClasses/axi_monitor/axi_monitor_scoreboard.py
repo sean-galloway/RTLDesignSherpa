@@ -713,7 +713,7 @@ class AXIMonitorScoreboard:
         recent_completed = list(self.completed_transactions.items())[-10:]
         report += f"\nRecent Completed Transactions: {len(recent_completed)}\n"
         for txn_id, txn in recent_completed:
-            status = "" if not txn.has_errors() else ""
+            status = "PASS" if not txn.has_errors() else "FAIL"
             report += f"  {status} ID={txn_id:02X}: {txn.total_latency:.1f}ns ({'R' if txn.is_read else 'W'})\n"
 
         # Protocol violations

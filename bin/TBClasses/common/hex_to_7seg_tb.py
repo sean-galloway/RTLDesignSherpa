@@ -123,7 +123,7 @@ class HexTo7SegTB(TBBase):
             self.log.info(f"Hex: 0x{hex_val:X} ({hex_char}) "
                          f"-> 7-seg: {self.format_7seg_pattern(actual_seg)} "
                          f"(Expected: {self.format_7seg_pattern(expected_seg)}) "
-                         f"{'' if success else ''}")
+                         f"{'OK' if success else 'FAIL'}")
         
         return success, actual_seg, expected_seg
 

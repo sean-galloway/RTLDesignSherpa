@@ -31,10 +31,10 @@ for puml in *.puml; do
     if plantuml -tsvg "$puml" 2>/tmp/plantuml_error.log; then
         # Move to svg directory
         mv "$svg" "$SVG_DIR/" 2>/dev/null || true
-        echo ""
+        echo "ok"
         success_count=$((success_count + 1))
     else
-        echo ""
+        echo "FAIL"
         echo "  Error details:"
         cat /tmp/plantuml_error.log | sed 's/^/    /'
         error_count=$((error_count + 1))
