@@ -24,12 +24,23 @@
 # For the second, "the register accepts a write and reads it back" is the WRONG
 # answer. Read-back success is the strongest evidence a host has that config
 # took effect; returning it for a monitor that was never built is affirmatively
-# misleading, and build-perf ships that way today. See [[STREAM-MONREGS]].
+# misleading. FIXED by TASK-002 (was STREAM-MONREGS): USE_MON_REGS now straps
+# the monitor config off and the MON window returns an error response.
 #
-# So the monitors-absent case asserts the MON window does NOT respond. That is
-# expected to FAIL until STREAM-MONREGS lands -- it is the regression gate for
-# that fix, and it is marked xfail(strict=False) so the suite stays honest
-# without going red for a defect that is already filed.
+# So the monitors-absent case asserts the MON window does NOT answer, and it is
+# now expected to PASS. The xfail it used to carry is gone.
+#
+# HOW "does not answer" IS DETECTED, AND WHY IT CHANGED
+# ----------------------------------------------------
+# This file used to look for a 0xDEADBEEF no-response sentinel. NOTHING in this
+# DUT's closure drives that value -- it exists only as an LFSR_SEED in
+# rtl/amba/shared and as axi4_subtractive_slave's READ_FILL -- so the check
+# could never fire. The consequence was not cosmetic: when TASK-002 actually
+# landed, this gate still reported every MON register as "responding" and stayed
+# XFAIL, unable to observe the fix it was written to guard.
+#
+# It now reads the APB error flag (PSLVERR) via tb.last_rsp_pslverr, which is
+# what the guard actually asserts.
 
 import os
 import sys
@@ -50,10 +61,9 @@ from projects.components.dmas.stream.dv.tbclasses.stream_core_tb import StreamCo
 
 STREAM_TEST_SEED = os.environ.get('RANDOM_SEED', '12345')
 
-# The APB no-response sentinel. Detect it EXPLICITLY: its bit pattern (0xEF in
-# the low byte) satisfies plenty of naive per-bit checks, which is exactly how
-# an unreachable register can masquerade as a working one.
-NO_RESPONSE = 0xDEADBEEF
+# NO_RESPONSE = 0xDEADBEEF was removed 2026-09-24. Nothing in this DUT's closure
+# drives that value, so every check against it was dead. Unreachable/refused is
+# now detected from the APB error flag, tb.last_rsp_pslverr.
 
 # Patterns chosen to catch stuck bits, and deliberately including values > 0xF:
 # a field silently truncated to 4 bits (as cfg_timeout_cycles was, in twelve
@@ -131,8 +141,21 @@ async def cocotb_test_reg_walk(dut):
     await tb.setup_clocks_and_reset()
     await tb.init_apb4_master()
 
+    # VACUITY GUARD. Every check below now reads tb.last_rsp_pslverr, so it all
+    # rests on PSLVERR having BOUND. cocotb_bus gates optional signals on a
+    # case-SENSITIVE hasattr and this DUT's ports are lowercase (s_apb_pslverr);
+    # CocoTBFramework's _match_optional_case rebinds them, but if that regresses
+    # the flag reads 0 forever -- monitors-absent would fail loudly, but
+    # monitors-present would SILENTLY stop detecting unreachable registers,
+    # which is the same blind spot the 0xDEADBEEF sentinel had.
+    assert tb.apb4_master.is_signal_present('PSLVERR'), (
+        "PSLVERR did not bind on the APB master: the error flag is invisible, "
+        "so the unreachable-register checks below would be vacuous. See "
+        "_match_optional_case in CocoTBFramework/components/apb/apb_components.py.")
+
     regs = _regmap()
     fails, checked, skipped = [], 0, 0
+    reset_checked, mon_checked = 0, 0
 
     _lvl = os.environ.get('TEST_LEVEL', 'func').lower()
     if _lvl not in ('gate', 'func', 'full'):
@@ -145,10 +168,11 @@ async def cocotb_test_reg_walk(dut):
         if _is_mon(name) and not monitors:
             continue                     # covered by the absence check below
         got = int(await tb.read_reg(name))
-        if got == NO_RESPONSE:
-            fails.append(f"{name} @ {reg.get('address')}: reset read returned "
-                         f"the NO-RESPONSE sentinel -- register unreachable")
+        if tb.last_rsp_pslverr:
+            fails.append(f"{name} @ {reg.get('address')}: reset read returned an "
+                         f"ERROR response (PSLVERR) -- register unreachable")
             continue
+        reset_checked += 1
 
         # Compare ONLY the bits software owns. The RDL `default` is the reset
         # value of a STORAGE element; fields marked sw='r' have no storage and
@@ -192,8 +216,9 @@ async def cocotb_test_reg_walk(dut):
             await ClockCycles(dut.aclk, 3)
             got = int(await tb.read_reg(name))
             expect = (pat & wmask) | (default & ~wmask & 0xFFFF_FFFF)
-            if got == NO_RESPONSE:
-                fails.append(f"{name}: no response after writing 0x{pat:08X}")
+            if tb.last_rsp_pslverr:
+                fails.append(f"{name}: ERROR response (PSLVERR) after writing "
+                             f"0x{pat:08X}")
                 break
             if got != expect:
                 fails.append(
@@ -212,7 +237,8 @@ async def cocotb_test_reg_walk(dut):
             if not _is_mon(name):
                 continue
             got = int(await tb.read_reg(name))
-            if got != NO_RESPONSE:
+            mon_checked += 1
+            if not tb.last_rsp_pslverr:
                 responded.append(f"{name} @ {reg.get('address')} -> 0x{got:08X}")
         if responded:
             fails.append(
@@ -220,10 +246,23 @@ async def cocotb_test_reg_walk(dut):
                 f"still respond, e.g. {responded[:3]}. A host cannot tell a "
                 f"configured monitor from an absent one: it writes, reads back "
                 f"what it wrote, and concludes the monitor is armed. "
-                f"See [[STREAM-MONREGS]].")
+                f"See TASK-002 (was STREAM-MONREGS).")
 
-    tb.log.info(f"register walk: {checked} write/readback checks, "
-                f"{skipped} read-only registers, {len(fails)} failures")
+    tb.log.info(f"register walk: {reset_checked} reset reads, "
+                f"{checked} write/readback checks, {skipped} read-only "
+                f"registers, {mon_checked} MON-absence reads, "
+                f"{len(fails)} failures")
+
+    # ARMED. The old summary counted only the write/readback phase, which `gate`
+    # skips -- so a passing gate run logged "0 checks, 0 failures", which reads
+    # as though nothing was verified and would hide a walk that examined no
+    # registers at all. A verdict of "no defects" is worthless without the count
+    # behind it.
+    assert (reset_checked + checked + mon_checked) > 0, (
+        "register walk performed ZERO checks: no reset reads, no write/readback "
+        "checks and no MON-absence reads. 'No failures' here would certify "
+        "nothing -- the register map or the level gating is wrong.")
+
     assert not fails, (
         f"register defects ({len(fails)}):\n  " + "\n  ".join(fails[:25])
         + ("\n  ..." if len(fails) > 25 else ""))
@@ -291,11 +330,9 @@ def test_stream_top_regs_monitors_present(request, test_level):
     _run_regs(request, 1, test_level)
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="STREAM-MONREGS: the monitor regfile is instantiated unconditionally "
-           "(stream_regs.rdl:758), so it answers even when USE_AXI_MONITORS=0. "
-           "This test is the regression gate for gating it.")
+# xfail removed 2026-09-24: TASK-002 landed (USE_MON_REGS gates the MON window),
+# so this gate is expected to PASS. It stayed XFAIL even after the fix until its
+# detection predicate moved off the 0xDEADBEEF sentinel -- see the header.
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_stream_top_regs_monitors_absent(request, test_level):
     """Monitors NOT built: the MON window must not answer."""

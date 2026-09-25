@@ -323,6 +323,15 @@ class StreamCoreTB(TBBase):
         # Cache the name -> offset map for the by-name write_reg/read_reg helpers.
         self.reg_offsets = self.reg_map.get_register_offset_map()
 
+        # Error flag of the LAST APB response, captured by read/write_apb_register.
+        # The APB master already records it (apb_components.py:
+        # transaction.fields['pslverr'] = bus.PSLVERR) and this TB was throwing it
+        # away, so read_reg could not tell "answered 0" from "refused". That made
+        # test_stream_top_regs' monitors-absent gate unable to observe its own fix
+        # (TASK-002). Kept as an attribute rather than a changed return type: all
+        # 8 call sites do `int(await tb.read_reg(...))`.
+        self.last_rsp_pslverr = 0
+
     async def setup_clocks_and_reset(self, rd_xfer_beats=16, wr_xfer_beats=16):
         """
         Complete initialization following datapath pattern.
@@ -1928,7 +1937,8 @@ class StreamCoreTB(TBBase):
             data: 32-bit data to write
 
         Returns:
-            APBPacket: Response packet
+            None. The response's error flag lands in self.last_rsp_pslverr.
+            (This previously claimed to return an APBPacket; it never has.)
         """
         if self.apb4_master is None:
             raise RuntimeError("APB master not initialized. Call init_apb4_master() first.")
@@ -1956,6 +1966,7 @@ class StreamCoreTB(TBBase):
         # This avoids race conditions with background monitors using ReadOnly()
         await RisingEdge(self.clk)
 
+        self.last_rsp_pslverr = int(packet.fields.get('pslverr', 0))
         reg_name = StreamRegisterMap.get_register_name(addr)
         self.log.info(f"APB WRITE: {reg_name} (0x{addr:03X}) = 0x{data:08X}")
 
@@ -1998,6 +2009,7 @@ class StreamCoreTB(TBBase):
 
         # Extract data from packet after transaction completes
         data = packet.fields.get('prdata', 0)
+        self.last_rsp_pslverr = int(packet.fields.get('pslverr', 0))
         reg_name = StreamRegisterMap.get_register_name(addr)
         self.log.info(f"APB READ:  {reg_name} (0x{addr:03X}) = 0x{data:08X}")
 

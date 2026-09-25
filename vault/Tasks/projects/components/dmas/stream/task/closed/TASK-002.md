@@ -112,9 +112,74 @@ warnings (135 MULTIDRIVEN + 52 WIDTHEXPAND) before and after.
 
 - `test_stream_top_mon_cfg.py` treats `0xDEADBEEF` as a no-response sentinel.
   Nothing can drive it, so that branch is dead code -- an assertion that cannot
-  fire. Recorded in [[TASK-003]] rather than fixed here.
+  fire. Recorded in [[TASK-003]]. (Its sibling in `test_stream_top_regs.py` was
+  the SAME defect but was NOT left undone -- see the correction below.)
 - 52 pre-existing `WIDTHEXPAND` warnings on this same monitor config path
   (`cfg_desc_mon_err_select`: 16-bit port against a 4-bit wire at the top; the
   masks: 16-bit ports against 8-bit wires). Untouched by this work and
   unchanged in count, but they are a real width mismatch on the signals this
   task is about.
+
+---
+
+## Correction, same day: this task had a regression gate and I did not run it
+
+The entry above was written and pushed before I discovered that
+`dv/tests/top/test_stream_top_regs.py` already carried a gate for this exact
+task:
+
+```python
+@pytest.mark.xfail(strict=False,
+    reason="STREAM-MONREGS: the monitor regfile is instantiated unconditionally
+            (stream_regs.rdl:758), so it answers even when USE_AXI_MONITORS=0.
+            This test is the regression gate for gating it.")
+def test_stream_top_regs_monitors_absent(...)
+```
+
+`STREAM-MONREGS` is this task's pre-rename ID. A test written to flip when this
+fix landed, and I shipped the fix without ever running it. A grep for
+`TASK-002` would not have found it; only the old ID appears in the code.
+
+**It did not flip, and that was the more serious half.** Its predicate was
+`got != 0xDEADBEEF`, and nothing in this DUT's closure drives that value, so
+after the fix it still scored all 86 MON registers as "still responding" and
+stayed XFAIL -- a gate structurally unable to observe the fix it guarded. With
+`strict=False` an XPASS would have reported as passed too, so the suite was
+green either way and nothing surfaced it. My "Left undone" bullet called this a
+dead branch for [[TASK-003]]; that understated it. It was this task's own gate.
+
+**Fixed here, not deferred:**
+- `StreamCoreTB` gained `last_rsp_pslverr`, captured in BOTH
+  `read_apb_register` and `write_apb_register`. The APB master already recorded
+  the flag (`transaction.fields['pslverr']`) and this TB discarded it, which is
+  why `read_reg` could not tell "answered 0" from "refused". Additive: an
+  attribute, not a changed return type, so all 8 call sites are untouched.
+  `write_apb_register`'s docstring also claimed to return an `APBPacket`; it
+  never has, and now says so.
+- All three sentinel predicates in `test_stream_top_regs.py` moved onto the real
+  error response; `NO_RESPONSE = 0xDEADBEEF` deleted.
+- The `xfail` removed. The gate now PASSES.
+- A vacuity guard added: the checks rest on PSLVERR having BOUND, and
+  `cocotb_bus` gates optional signals on a case-SENSITIVE `hasattr` while this
+  DUT's ports are lowercase. If `_match_optional_case` ever regresses the flag
+  reads 0 forever -- monitors-absent would fail loudly, but monitors-present
+  would SILENTLY stop detecting unreachable registers, the same blind spot the
+  sentinel had.
+- The summary line reported only the write/readback phase, which `gate` skips,
+  so a passing gate run logged "0 write/readback checks, 0 read-only registers,
+  0 failures" -- a green run stating it verified nothing. It now counts the
+  reset sweep and the MON-absence walk, and ASSERTS the total is non-zero.
+
+**Measured, both cells, one parameter apart:**
+
+| cell | before this correction | after |
+|---|---|---|
+| `monitors_absent` (USE_AXI_MONITORS=0) | XFAIL | **PASSED** |
+| `monitors_present` (USE_AXI_MONITORS=1) | PASSED | **PASSED** |
+
+Complementary evidence rather than a bare pass: the same 86 MON registers are
+read in both builds -- all 86 refused with PSLVERR when the monitors are absent,
+0 refused when they are present.
+
+Lesson recorded as [[feedback_find_the_existing_gate]]: before closing a task,
+grep the suite for its ID, old and new.

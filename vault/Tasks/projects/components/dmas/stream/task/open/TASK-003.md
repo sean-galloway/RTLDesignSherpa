@@ -39,9 +39,30 @@ and both belong in the scrub's findings taxonomy.
 `axi4_subtractive_slave`'s READ_FILL, and `read_apb_register` returns
 `packet.fields.get('prdata', 0)`, defaulting to 0. So the branch is dead: an
 assertion that cannot fire, which is exactly this task's "no test asserts a
-condition the bug itself satisfies" clause in its inverse form. Its sibling
-`test_stream_top_regs.py:56` defines the same `NO_RESPONSE = 0xDEADBEEF`, so
-check both.
+condition the bug itself satisfies" clause in its inverse form.
+
+`test_stream_top_regs.py` had the SAME defect and is **already fixed** -- do not
+re-do it. It was worse there: the sentinel sat in that file's monitors-absent
+`xfail`, which was TASK-002's own regression gate, so the gate could not observe
+its fix and stayed XFAIL after it landed. Fixed under TASK-002 by adding
+`StreamCoreTB.last_rsp_pslverr` and moving the predicates onto the real APB
+error response. `test_stream_top_mon_cfg.py` is the remaining one.
+
+**A second find (2026-09-24, measured while closing TASK-002).** Every test in
+`dv/tests/top/` sets `COCOTB_RESULTS_FILE` in `extra_env`, and **no
+`results_*.xml` is ever written** -- zero in `logs/`, zero under the stream
+area, and zero repo-wide (439 test files set the variable). The `.log` file is
+the only real record.
+
+Scoped honestly: this is INERT CONFIG, not a broken pipeline. Both consumers
+handle absence deliberately -- `bin/aggregate_test_results.py:648` prints "No
+XML results found" and names three alternatives (`--run`, `--scan-dir`,
+`--list`), and `bin/cov_utils/functional_coverage_tracker.py:110` takes its
+directory as a parameter and returns `{}` when empty. So nothing is silently
+losing data; 439 files just carry a setting that does nothing. Worth settling
+whether the variable is inert with this cocotb-test version and should be
+dropped, or should work and something discards it -- a suite should not
+configure an artifact it never produces.
 
 **What "complete" has to mean, at minimum:**
 
