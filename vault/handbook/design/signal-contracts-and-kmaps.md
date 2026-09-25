@@ -210,6 +210,6 @@ argument and no implicants is a picture of the code, not a check on it, and a
 picture agrees with the code by construction.
 
 Open work: [[TOOLING-KMAP]] (the emitter), then per component:
-STREAM [TASK-001](../../Tasks/projects/components/dmas/stream/task/open/TASK-001.md) (partial workbook, finish it), RAPIDS [TASK-002](../../Tasks/projects/components/dmas/rapids/task/open/TASK-002.md) (no
+STREAM [TASK-001](../../Tasks/projects/components/dmas/stream/task/closed/TASK-001.md) (DONE 2026-09-25: five priority targets discharged on all six criteria; 26 of 37 maps still render VERDICT: NOT CHECKED), RAPIDS [TASK-002](../../Tasks/projects/components/dmas/rapids/task/open/TASK-002.md) (no
 workbook at all). [[PUMICE-KMAP]] is DONE (closed 2026-09-10, all six
 criteria discharged across 17 computed maps).

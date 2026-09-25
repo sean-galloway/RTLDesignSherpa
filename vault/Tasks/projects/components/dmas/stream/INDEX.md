@@ -33,7 +33,7 @@ handbook notes, so the map is kept:
 
 | Was | Is |
 |---|---|
-| `STREAM-KMAP` | [TASK-001](task/open/TASK-001.md) |
+| `STREAM-KMAP` | [TASK-001](task/closed/TASK-001.md) |
 | `STREAM-MONREGS` | [TASK-002](task/closed/TASK-002.md) |
 | `TASK-079` | [TASK-003](task/open/TASK-003.md) |
 | `TASK-056` | [TASK-004](task/active/TASK-004.md) |
@@ -56,6 +56,8 @@ handbook notes, so the map is kept:
 | `TASK-082` | [ISSUE-001](issue/dropped/ISSUE-001.md) |
 | `(un-IDed heading)` | [TASK-011](task/closed/TASK-011.md) |
 
-`STREAM-KMAP` is blocked on [[TOOLING-KMAP]] and `TASK-003` on the qc/humanize
-pass; both stay in `open/` with the blocker stated in the body, since the lanes
-carry no `deferred/` state.
+`TASK-003` is blocked on the qc/humanize pass and stays in `open/` with the
+blocker stated in the body, since the lanes carry no `deferred/` state.
+`STREAM-KMAP` (now TASK-001) was closed 2026-09-25 -- its TOOLING-KMAP
+dependency was discharged locally by porting `relations=` plus an invariant
+checker into stream's own generator rather than waiting on shared tooling.

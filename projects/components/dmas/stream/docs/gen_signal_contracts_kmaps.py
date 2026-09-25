@@ -168,6 +168,8 @@ RD_MON = "rtl/amba/axi4/axi4_master_rd_mon.sv"
 WR_MON = "rtl/amba/axi4/axi4_master_wr_mon.sv"
 MON_BASE = "rtl/amba/monitor/axi_monitor_base.sv"
 MON_PKG = "rtl/amba/includes/monitor_common_pkg.sv"
+MON_RPT = "rtl/amba/monitor/axi_monitor_reporter.sv"
+MON_RPT_COMPL = "rtl/amba/monitor/axi_monitor_reporter_compl.sv"
 
 KI_WLAST = ("projects/components/dmas/stream/known_issues/resolved/"
             "axi_write_engine_wlast_drain.md")
@@ -258,6 +260,59 @@ CITES = [
     (ADDRGEN, 210, ".DEPTH(FIFO_DEPTH)"),
     (ADDRGEN, 213, ".axi_aresetn (rst_n),"),
     (ADDRGEN, 217, ".rd_valid    (o_base_valid),"),
+
+    # --- TASK-001 #1: monitor cfg -> packet-class qualification -------------
+    (CORE, 202, "parameter bit DATA_MON_ENABLE_COMPL_LOGIC"),
+    (CORE, 784, "if (USE_AXI_MONITORS == 1) begin : g_monitors_enabled"),
+    (CORE, 808, "int_cfg_rdeng_mon_compl_enable = cfg_rdeng_mon_compl_enable"),
+    (CORE, 869, "int_cfg_rdeng_mon_compl_enable = 1'b0"),
+    (CORE, 883, "int_cfg_rdeng_mon_perf_run = cfg_rdeng_mon_perf_run"),
+    (CORE, 1557, ".ENABLE_COMPL_LOGIC     (DATA_MON_ENABLE_COMPL_LOGIC),"),
+    (CORE, 1635, ".cfg_compl_enable       (int_cfg_rdeng_mon_compl_enable),"),
+    (MON_RPT, 230, "if (ENABLE_COMPL_LOGIC) begin : g_compl"),
+    (MON_RPT, 246, "assign compl_valid = 1'b0;"),
+    (MON_RPT, 496, "w_auto_retire[idx] = !ENABLE_COMPL_LOGIC"),
+    (MON_RPT, 497, "!cfg_compl_enable;"),
+    (MON_RPT_COMPL, 51, "trans_table[idx].valid && !event_reported[idx]"),
+    (MON_RPT_COMPL, 52, "state == TRANS_COMPLETE && cfg_compl_enable"),
+
+    # --- relations converted from prose claims (criterion 5) ----------------
+    (WR_ENG, 720, "assign m_axi_wvalid = r_w_active"),
+    (SCHED, 228, "w_state_idle        = (r_current_state == CH_IDLE)"),
+    (SCHED, 230, "w_state_xfer_data   = (r_current_state == CH_XFER_DATA)"),
+    (SCHED, 232, "w_state_next_desc   = (r_current_state == CH_NEXT_DESC)"),
+    (SCHED, 907, "w_write_complete = (r_write_beats_to_commit == 32'h0)"),
+    (SCHED, 1005, "(r_write_beats_remaining != 32'h0)"),
+    (SCHED, 1080, "assign descriptor_ready = (r_current_state == CH_IDLE)"),
+    (DESC_ENG, 726, "RD_ISSUE_ADDR: begin"),
+    (DESC_ENG, 753, "RD_ISSUE_ADDR2: begin"),
+
+    # --- TASK-001 #2: axi_write_engine drain strobe / WLAST -----------------
+    (WR_ENG, 704, "axi_wr_sram_drain = m_axi_wvalid && m_axi_wready"),
+    (WR_ENG, 721, "axi_wr_sram_valid[r_w_channel_id]"),
+    (WR_ENG, 722, "axi_wr_sram_valid_comb[r_w_channel_id]"),
+
+    # --- TASK-001 #3: descriptor_engine prefetch + fifo_threshold -----------
+    (DESC_ENG, 457, "w_chain_eligible = w_chain_condition"),
+    (DESC_ENG, 462, "w_desc_committed = (r_current_state == RD_COMPLETE)"),
+    (DESC_ENG, 469, "if (!cfg_prefetch_enable)"),
+    (DESC_ENG, 471, "else if (cfg_fifo_threshold == 4'h0)"),
+    (DESC_ENG, 476, "w_prefetch_allows = (w_desc_fifo_count < w_prefetch_limit)"),
+    (DESC_ENG, 479, "w_should_chain = w_chain_eligible && w_desc_committed"),
+
+    # --- TASK-001 #4: scheduler timeout / error latch and clear -------------
+    (SCHED, 1141, "if (sched_rd_error) r_read_error_sticky <= 1'b1;"),
+    (SCHED, 1142, "if (sched_wr_error) r_write_error_sticky <= 1'b1;"),
+    (SCHED, 1147, "if (sched_rd_error || sched_wr_error || w_timeout_escalate) begin"),
+    (SCHED, 1163, "w_timeout_expired = cfg_sched_timeout_enable"),
+    (SCHED, 1168, "w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0)"),
+
+    # --- TASK-001 #5: alloc / drain space accounting ------------------------
+    (ALLOC, 92, "w_wr_ptr_bin_next = r_wr_ptr_bin"),
+    (ALLOC, 141, "space_free = (AW+1)'(D) - w_count"),
+    (DRAIN, 111, "w_rd_ptr_bin_next = r_rd_ptr_bin"),
+    (DRAIN, 145, "data_available = w_count"),
+    (DRAIN, 176, "((AW+1)'(rd_size) > data_available)"),
 ]
 
 
@@ -301,7 +356,7 @@ class KmapWriter:
         self.row += 1
 
     def kmap(self, name, source, expr, varnames, fn, check, values=None,
-             depends_only_on=None, rtl_sop=None):
+             depends_only_on=None, rtl_sop=None, relations=None):
         """One K-map block.
 
         varnames: MSB-first list (2..6). Each entry is either a bare NAME
@@ -323,6 +378,21 @@ class KmapWriter:
 
         rtl_sop: the RTL expression written as a sum-of-products, so the emitter
             can diff it against the derived minimal cover and render a verdict.
+
+        relations: the SUFFICIENCY half, as (text, reachable_predicate, cite).
+            A cell whose bits fail ANY predicate cannot occur in hardware, so it
+            is emitted as X (don't-care) instead of a real 0/1 -- a 0 there
+            claims the logic was checked in a state it can never reach, and it
+            also blocks a legal simplification, since a don't-care is free to
+            join an implicant and a 0 is not. predicate=None is an INDEPENDENCE
+            note: the pair was examined and is genuinely unconstrained. Saying
+            so is part of the argument; silence is not.
+
+            Each constraining relation is CHECKED (TOOLING-KMAP item 0): a
+            predicate that excludes nothing is vacuous, and one that excludes
+            the whole space is inverted -- both fail the run. Full hardware
+            reachability is not decidable from the map, so this checks the
+            claim does real work, not that it is true.
         """
         ws = self.ws
         # accept both bare names and (name, expr, cite) triples
@@ -366,9 +436,51 @@ class KmapWriter:
         else:
             c = ws.cell(self.row, 1,
                         "AXES: not derived -- axis equations and citations "
-                        "missing (see [[STREAM-KMAP]])")
+                        "missing (see STREAM TASK-001)")
             c.font = Font(italic=True, color="9C6500")
             self.row += 1
+
+        rels = relations or []
+        constraining = [r for r in rels if r[1] is not None]
+        if rels:
+            c = ws.cell(self.row, 1,
+                        "RELATIONS between axes (these make cells UNREACHABLE "
+                        "-- shown as X, a don't-care, never as 0):")
+            c.font = HDR
+            c.alignment = WRAP
+            self.row += 1
+            for text, _pred, cite in rels:
+                mark = "    " if _pred is not None else "    (independent) "
+                c = ws.cell(self.row, 1, mark + text)
+                c.alignment = WRAP
+                ws.cell(self.row, 4, cite).font = MONO
+                self.row += 1
+
+        def _reachable(bits):
+            return all(pr(*bits) for _t, pr, _c in constraining)
+
+        # ---- invariant CHECK (TOOLING-KMAP item 0) ------------------------
+        # A relation that excludes nothing is a claim doing no work; one that
+        # excludes everything is inverted. Either way the map silently stops
+        # meaning what it says, so fail the run rather than emit it. Hardware
+        # reachability itself is not decidable here -- this checks the claim
+        # bites, not that it is true.
+        if constraining:
+            _space = [tuple((i >> (n - 1 - k)) & 1 for k in range(n))
+                      for i in range(1 << n)]
+            for _t, _pr, _c in constraining:
+                _excl = [b for b in _space if not _pr(*b)]
+                if not _excl:
+                    raise SystemExit(
+                        f"INVARIANT EXCLUDES NOTHING in kmap {name!r}: "
+                        f"{_t!r} ({_c}). Every cell satisfies it, so it is "
+                        f"not constraining the map -- drop it or fix the "
+                        f"predicate.")
+                if len(_excl) == len(_space):
+                    raise SystemExit(
+                        f"INVARIANT EXCLUDES EVERYTHING in kmap {name!r}: "
+                        f"{_t!r} ({_c}). The predicate is inverted -- it must "
+                        f"return True where the state IS reachable.")
 
         if depends_only_on:
             c = ws.cell(self.row, 1, f"DEPENDS ONLY ON: {depends_only_on}")
@@ -376,7 +488,7 @@ class KmapWriter:
         else:
             c = ws.cell(self.row, 1,
                         "DEPENDS ONLY ON: not stated -- this map is a SLICE "
-                        "with no sufficiency argument (see [[STREAM-KMAP]])")
+                        "with no sufficiency argument (see STREAM TASK-001)")
             c.font = Font(italic=True, color="9C6500")
         self.row += 2
 
@@ -407,7 +519,7 @@ class KmapWriter:
                 rc.alignment = CENTER
                 for j, cb in enumerate(cols):
                     bits = tuple(rb) + tuple(cb) + tuple(page)
-                    v = fn(*bits)
+                    v = fn(*bits) if _reachable(bits) else None
                     # minterm index: axis order is rows, cols, pages -- the same
                     # MSB-first order as varnames, so the index matches _qm.
                     idx = 0
@@ -1065,16 +1177,50 @@ def build_wr_engine_kmaps(wb):
 
     km.kmap(
         "axi_wr_sram_drain  (SRAM pop)", f"{WR_ENG}:704",
-        "assign axi_wr_sram_drain = m_axi_wvalid && m_axi_wready;",
-        ["m_axi_wvalid", "m_axi_wready"],
-        lambda v, r: v and r,
-        "Single 1-cell at (1,1): pop exactly the beats actually "
-        "transmitted. BUG FIX (lost-WLAST deadlock): the pre-fix "
-        "'r_w_active && m_axi_wready' form put a 1 in the wvalid=0 "
-        "column - the beat was consumed but never transmitted, and when "
-        "it was the burst's final beat WLAST never rode a valid beat and "
-        "the channel hung (found via the per-channel timing-skew 'mixed' "
-        f"profile, kept as regression sentinel). See {KI_WLAST}.")
+        "axi_wr_sram_drain = m_axi_wvalid && m_axi_wready, with "
+        "m_axi_wvalid = r_w_active && axi_wr_sram_valid[id] && "
+        "axi_wr_sram_valid_comb[id]",
+        [("r_w_active",
+          "burst in progress; set on W-phase FIFO pop, cleared on WLAST",
+          f"{WR_ENG}:720"),
+         ("sram_valid_reg",
+          "axi_wr_sram_valid[r_w_channel_id] -- REGISTERED per-channel valid",
+          f"{WR_ENG}:721"),
+         ("sram_valid_comb",
+          "axi_wr_sram_valid_comb[r_w_channel_id] -- COMBINATIONAL valid; "
+          "filters the 1-cycle dry window the registered one misses",
+          f"{WR_ENG}:722"),
+         ("wready",
+          "m_axi_wready -- downstream W-channel ready (input port)",
+          f"{WR_ENG}:704")],
+        lambda a_, vr, vc, r: a_ and vr and vc and r,
+        "Single 1-cell at all-ones. BUG FIX (lost-WLAST deadlock): the "
+        "pre-fix 'r_w_active && m_axi_wready' form put a 1 wherever the "
+        "SRAM valids were low - the beat was consumed but never "
+        "transmitted, and when it was the burst's final beat WLAST never "
+        "rode a valid beat and the channel hung (found via the "
+        "per-channel timing-skew 'mixed' profile, kept as regression "
+        f"sentinel). See {KI_WLAST}. NOTE the axes are DECOMPOSED: "
+        "m_axi_wvalid is itself three terms, and mapping it as one axis "
+        "would hide the registered-vs-combinational AND that fixes a "
+        "separate defect (a 1-cycle dry window leaking stale data onto "
+        f"the bus, {WR_ENG}:709-719).",
+        depends_only_on=(
+            "these four. wdata/wstrb/wuser ride the same beat but cannot "
+            "gate it; m_axi_wlast selects WHICH beat is last, not whether "
+            "this one pops; the channel id only selects which SRAM lane is "
+            "read. Burst bookkeeping (r_w_beats_remaining) reaches this cone "
+            "only via r_w_active."),
+        relations=[
+            ("sram_valid_comb is the combinational view of the same per-"
+             "channel valid that sram_valid_reg registers, so the registered "
+             "one cannot be high in a cycle the combinational one was never "
+             "high in the preceding cycle -- but within a single cycle both "
+             "orders occur, so no cell is excluded on that basis. Recorded as "
+             "an INDEPENDENCE note so the pair is not assumed related.",
+             None,
+             f"{WR_ENG}:720-722")],
+        rtl_sop="r_w_active & sram_valid_reg & sram_valid_comb & wready")
 
     km.kmap(
         "w_phase_fifo_pop", f"{WR_ENG}:776-787",
@@ -1085,8 +1231,13 @@ def build_wr_engine_kmaps(wb):
         lambda a, e, f, l: ((not a) and (not e)) or (f and l and (not e)),
         "1s only in the fifo_empty=0 columns: start-from-idle (active=0) "
         "and burst-chain-through (w_fire && wlast, no bubble between "
-        "back-to-back bursts). Cells with active=0 && w_fire=1 are "
-        "unreachable (m_axi_wvalid requires r_w_active).")
+        "back-to-back bursts).",
+        relations=[
+            ("w_fire implies r_w_active: m_axi_wvalid IS r_w_active, so a "
+             "beat cannot fire while the burst is inactive. The active=0 && "
+             "w_fire=1 cells are unreachable, not 0.",
+             lambda a, e, f, l: not (f and not a),
+             f"{WR_ENG}:720")])
 
     km.kmap(
         "sched_wr_error[i] latch enable", f"{WR_ENG}:951",
@@ -1136,10 +1287,17 @@ def build_scheduler_kmaps(wb):
         "issue_rem_nz term is load-bearing: w_write_complete tracks "
         "COMMITS now, so without it the engine would keep valid high "
         "through the commit-wait with sched_wr_beats==0 and issue a "
-        "garbage AW (transfer-size underflow -> awlen=0xFF). NOTE "
-        "commit_zero=1 with rem=1 cannot occur in practice (commits "
-        "cannot complete before issue), so that half is unreachable "
-        "cover, not a functional path.")
+        "garbage AW (transfer-size underflow -> awlen=0xFF).",
+        relations=[
+            ("commit_zero mirrors w_write_complete = (r_write_beats_to_commit "
+             "== 0); issue_rem_nz mirrors r_write_beats_remaining != 0. These "
+             "are DIFFERENT counters -- beats-to-commit vs beats-to-issue -- "
+             "and commits trail issues, so 'all committed' while beats remain "
+             "to issue does not occur. NOTE this is an ORDERING invariant on "
+             "two counters, not a one-hot impossibility: the checker confirms "
+             "it excludes cells, not that the ordering holds.",
+             lambda s_, rem, cz, c, nb: not (cz and rem),
+             f"{SCHED}:907, :1005, :999")])
 
     km.kmap(
         "w_addrgen_start  (run-base generator start; EXT only)",
@@ -1229,21 +1387,56 @@ def build_scheduler_kmaps(wb):
         "w_wr_advance",
         ["state_idle", "state_next_desc", "wr_advance"],
         lambda i, n, a: i or n or a,
-        "OR of three sources; zero only at all-zeros. idle/next_desc are "
-        "mutually exclusive (one-hot FSM) and wr_advance can only be 1 in "
-        "CH_XFER_DATA, so at most one source is live per cycle - the "
-        "(1,1,x) cells are unreachable cover.")
+        "OR of three sources; zero only at all-zeros.",
+        relations=[
+            ("state_idle and state_next_desc are equality tests on the SAME "
+             "one-hot channel_state_t register, so they cannot both be 1.",
+             lambda i, n, a_: not (i and n),
+             f"{SCHED}:228, :232"),
+            ("wr_advance is live only in CH_XFER_DATA, which is neither "
+             "CH_IDLE nor CH_NEXT_DESC -- so it cannot coincide with either.",
+             lambda i, n, a_: not (a_ and (i or n)),
+             f"{SCHED}:230, :1080")])
 
     km.kmap(
         "w_hard_error  (fatal -> sticky CH_ERROR)", f"{SCHED}:1170-1171",
         "w_hard_error = descriptor_error || sched_rd_error || "
         "sched_wr_error || r_read_error_sticky || r_write_error_sticky   "
         "[rd_any = live|sticky, wr_any = live|sticky]",
-        ["descriptor_error", "rd_any", "wr_any"],
+        [("descriptor_error",
+          "r_descriptor_error -- latched fatal fault OR escalated timeout",
+          f"{SCHED}:1147"),
+         ("rd_any",
+          "sched_rd_error | r_read_error_sticky  (live OR sticky)",
+          f"{SCHED}:1141"),
+         ("wr_any",
+          "sched_wr_error | r_write_error_sticky (live OR sticky)",
+          f"{SCHED}:1142")],
         lambda d, r, w: d or r or w,
-        "Zero ONLY at all-zeros (pure OR). A bare timeout window is "
-        "deliberately NOT in this cone - it escalates separately via "
-        "w_timeout_escalate (strikes >= cfg_sched_timeout_limit).")
+        "Zero ONLY at all-zeros (pure OR). THE WORD 'TIMEOUT' IS OVERLOADED "
+        "HERE AND THAT IS THE HAZARD: this is the SCHEDULER timeout "
+        "(cfg_sched_timeout_cycles), NOT the monitor timeout. A bare "
+        "scheduler timeout window is recoverable and deliberately NOT "
+        "latched into this cone -- only an ESCALATED one is, after "
+        "cfg_sched_timeout_limit consecutive windows "
+        f"({SCHED}:1144-1147). Two mechanisms sharing a word is how the "
+        "monitor's timeout went untested at this level for so long.",
+        depends_only_on=(
+            "these three. The timeout counter reaches this cone ONLY via "
+            "w_timeout_escalate folded into descriptor_error; the counter "
+            "itself re-arms per window and never latches "
+            f"({SCHED}:1120-1121). Channel reset is a CLEAR, not an input to "
+            "the OR: it zeroes all three stickies together "
+            f"({SCHED}:1154-1156), which is why no clear term appears as an "
+            "axis."),
+        relations=[
+            ("Every axis is sticky-or-live: once set, a sticky holds until "
+             "channel reset, so all eight combinations are reachable and "
+             "NOTHING is excluded. Stated explicitly -- an OR cone with no "
+             "unreachable cells is a real result, not a missing argument.",
+             None,
+             f"{SCHED}:1141-1142, :1154-1156")],
+        rtl_sop="descriptor_error | rd_any | wr_any")
 
     km.table(
         "r_timeout_counter next-value (priority order)",
@@ -1378,11 +1571,51 @@ def build_desc_engine_kmaps(wb):
         "w_should_chain = w_chain_eligible && w_desc_committed && "
         "w_prefetch_allows && w_desc_addr_fifo_wr_ready   [committed = "
         "(state==RD_COMPLETE) && desc-FIFO wr_ready]",
-        ["eligible", "committed", "prefetch_allows", "addr_fifo_ready"],
+        [("eligible",
+          "w_chain_eligible = w_chain_condition && <window/enable terms>",
+          f"{DESC_ENG}:457"),
+         ("committed",
+          "w_desc_committed = (r_current_state == RD_COMPLETE) && "
+          "w_desc_fifo_wr_ready  -- COMPOSITE, see the invariant below",
+          f"{DESC_ENG}:462"),
+         ("prefetch_allows",
+          "w_prefetch_allows = (w_desc_fifo_count < w_prefetch_limit)",
+          f"{DESC_ENG}:476"),
+         ("addr_fifo_ready",
+          "w_desc_addr_fifo_wr_ready -- address FIFO has room",
+          f"{DESC_ENG}:479")],
         lambda e, c, p, f: e and c and p and f,
         "Single 1-cell at all-ones. eligible && committed && !push "
         "(throttled or FIFO full) does NOT lose the fetch - it arms "
-        "r_chain_pending (deferred path below).")
+        "r_chain_pending (deferred path below). BUG FIX: "
+        "cfg_prefetch_enable and cfg_fifo_threshold were previously DEAD -- "
+        "wired nowhere. They reach this cone ONLY through prefetch_allows, "
+        "via w_prefetch_limit's three-arm mux: disabled -> 1 (on-demand), "
+        "threshold==0 -> 1 (guard, since 0 would stall chaining outright), "
+        f"else the threshold ({DESC_ENG}:469-474). An axis list carrying "
+        "defining expressions is what shows an axis that no RTL drives.",
+        depends_only_on=(
+            "these four. The descriptor payload (address, length, flags) "
+            "decides WHAT is fetched, never whether the chain pushes. The "
+            "deferred path (r_chain_pending) is downstream of this signal, "
+            "not upstream. cfg_prefetch_enable / cfg_fifo_threshold are NOT "
+            "separate axes on purpose: they enter only via prefetch_allows, "
+            "and collapsing them there is licensed by the invariant below."),
+        relations=[
+            ("committed is COMPOSITE: (state==RD_COMPLETE) && "
+             "w_desc_fifo_wr_ready. Kept as one axis because both conjuncts "
+             "must hold to commit and neither can be observed separately at "
+             "this cone -- the collapse is recorded here rather than hidden, "
+             "per criterion 3.",
+             None,
+             f"{DESC_ENG}:462"),
+            ("prefetch_allows already folds cfg_prefetch_enable and "
+             "cfg_fifo_threshold through w_prefetch_limit; the guard arm "
+             "means limit is never 0, so prefetch_allows cannot be "
+             "permanently false from a zero threshold.",
+             None,
+             f"{DESC_ENG}:469-476")],
+        rtl_sop="eligible & committed & prefetch_allows & addr_fifo_ready")
 
     km.kmap(
         "w_pending_push_fire  (deferred chain push)", f"{DESC_ENG}:485-486",
@@ -1433,10 +1666,14 @@ def build_desc_engine_kmaps(wb):
         "&& !r_axi_read_active",
         ["st_issue_addr", "st_issue_addr2", "read_active"],
         lambda s1, s2, a: (s1 or s2) and (not a),
-        "1s only in the read_active=0 half. The (1,1,x) cells are "
-        "unreachable (one-hot FSM). read_active latches on ar_ready and "
-        "clears on the R response, so a state re-entry cannot double-"
-        "issue the same AR.")
+        "1s only in the read_active=0 half. read_active latches on "
+        "ar_ready and clears on the R response, so a state re-entry cannot "
+        "double-issue the same AR.",
+        relations=[
+            ("RD_ISSUE_ADDR and RD_ISSUE_ADDR2 are distinct arms of one case "
+             "on the same state register, so both cannot hold at once.",
+             lambda s1, s2, a_: not (s1 and s2),
+             f"{DESC_ENG}:726, :753")])
 
     km.kmap(
         "descriptor_valid  (to scheduler)", f"{DESC_ENG}:1037",
@@ -1480,6 +1717,47 @@ def build_sram_kmaps(wb):
         "Single 1-cell at (1,1). Space is freed at unit EXIT (not FIFO "
         "entry): a beat parked in the latency-bridge skid still occupies "
         "its reservation, so space_free can never over-report.")
+
+    km.kmap(
+        "over-drain reachability  (drain reserve vs occupancy)",
+        f"{DRAIN}:111, :145, :176",
+        "rd_ptr advances by the FULL rd_size gated only on !rd_empty: "
+        "w_rd_ptr_bin_next = r_rd_ptr_bin + (w_read && !r_rd_empty ? "
+        "rd_size : 0); data_available = w_count",
+        [("rd_valid",
+          "drain request presented this cycle",
+          f"{DRAIN}:176"),
+         ("not_empty",
+          "!r_rd_empty -- the only structural gate on the pointer advance",
+          f"{DRAIN}:111"),
+         ("size_gt_avail",
+          "(AW+1)'(rd_size) > data_available  -- the over-reservation",
+          f"{DRAIN}:176")],
+        lambda v, ne, over: v and ne and over,
+        "The 1-cell at all-ones is the CORRUPTING case, and it is "
+        "REACHABLE -- that is the finding. rd_ptr overshoots wr_ptr, the "
+        "wrap-corrected occupancy computes as ~DEPTH instead of a small "
+        "number, both pointers then advance in lockstep and the channel "
+        "reports a nearly-full FIFO forever, stalling the shared in-order "
+        f"W-phase FIFO and freezing every channel ({DRAIN}:156-162).",
+        depends_only_on=(
+            "these three. wr_size and the write side cannot prevent this: "
+            "the advance is gated on !rd_empty ALONE, never on whether "
+            "rd_size fits. The alloc side is a separate FIFO with its own "
+            f"pointers ({ALLOC}:92, :141) and does not constrain this cone."),
+        relations=[
+            ("NOTHING here is structurally unreachable. TASK-001 expected "
+             "don't-cares resting on 'ordering guarantees elsewhere'; the "
+             "RTL does not provide one. The only protection is a CALLER "
+             "CONTRACT -- the write engine's w_effective_avail stale-view "
+             f"correction ({WR_ENG}:366-383) -- plus a SIMULATION-ONLY "
+             f"$error inside translate_off ({DRAIN}:171-181). A caller "
+             "contract and a sim assertion are not the same thing as an "
+             "impossible state, so no cell is marked X.",
+             None,
+             f"{DRAIN}:156-181"),
+        ],
+        rtl_sop="rd_valid & not_empty & size_gt_avail")
 
     km.table(
         "space_free accounting chain (read side)",
@@ -1566,7 +1844,13 @@ def build_core_monitor_kmaps(wb):
         "Zero only where core_ready=0 or (block_ready=0 AND "
         "mon_enable=1). The mon_enable=0 column must equal core_ready "
         "verbatim - a DISABLED monitor never stalls the datapath. A 0 at "
-        "(1,1,1) would be a monitor stalling while claiming capacity.")
+        "(1,1,1) would be a monitor stalling while claiming capacity.",
+        depends_only_on=(
+            "these three. The AR payload (addr/len/id/user) rides the same "
+            "handshake but cannot affect whether it completes; the monitor's "
+            "table contents reach this cone only through block_ready, which "
+            "is already an axis."),
+        rtl_sop="core_ready & block_ready  |  core_ready & !mon_enable")
 
     km.kmap(
         "w_block_ready  (monitor capacity)", f"{MON_BASE}:697-701",
@@ -1578,7 +1862,86 @@ def build_core_monitor_kmaps(wb):
         "block_ready follows count_below whenever the table is big "
         "enough to carry a margin; degenerate tables never block. "
         "POLARITY is the loaded gun here: 1 = proceed. The inverted "
-        "pre-fix polarity deadlocked every upstream handshake at reset.")
+        "pre-fix polarity deadlocked every upstream handshake at reset.",
+        depends_only_on=(
+            "these two. max_gt_margin is a compile-time comparison of two "
+            "localparams and count_below folds the whole active_count vs "
+            "MAX_TRANSACTIONS-BLOCK_MARGIN comparison into one term; nothing "
+            "else in the monitor reaches this assign."),
+        rtl_sop="!max_gt_margin  |  count_below")
+
+    # ---- monitor cfg -> packet-class qualification (STREAM TASK-001 #1) -----
+    # The defect this commemorates: cfg_compl_enable was once aliased to
+    # int_cfg_*_mon_enable and cfg_threshold_enable to *_mon_perf_enable. A map
+    # whose axes carry their DEFINING EXPRESSIONS shows two axes resolving to
+    # one signal immediately; a map with bare string axes cannot. Nothing in the
+    # test suite could see it -- the FUB tests drive the ports directly and the
+    # board only sees packets.
+    km.kmap(
+        "COMPL packet emission  (monitor cfg -> packet class)",
+        f"{MON_RPT_COMPL}:52",
+        "w_events[idx] = trans_table[idx].valid && !event_reported[idx] && "
+        "(state == TRANS_COMPLETE) && cfg_compl_enable   "
+        "[inside generate if (ENABLE_COMPL_LOGIC); else compl_valid = 1'b0]",
+        [("build_compl",
+          "ENABLE_COMPL_LOGIC <- DATA_MON_ENABLE_COMPL_LOGIC (stream_core "
+          "parameter, default 1'b0)",
+          f"{CORE}:202, :1557"),
+         ("use_mon",
+          "USE_AXI_MONITORS: selects the g_monitors_enabled generate that "
+          "feeds every int_cfg_*",
+          f"{CORE}:784"),
+         ("cfg_compl",
+          "cfg_compl_enable <- int_cfg_rdeng_mon_compl_enable "
+          "(= cfg_rdeng_mon_compl_enable when monitors are built)",
+          f"{CORE}:808, :1635"),
+         ("is_complete",
+          "trans_table[idx].state == TRANS_COMPLETE",
+          f"{MON_RPT_COMPL}:52")],
+        lambda b, u, c, t: b and u and c and t,
+        "Single 1-cell at all-ones. Each axis is ONE term with its own "
+        "equation -- that is the point: two axes resolving to the same "
+        "signal would be visible here, which is exactly the aliasing "
+        "defect that shipped. The complement is the slot-leak guard: "
+        "w_auto_retire = !ENABLE_COMPL_LOGIC || !cfg_compl_enable retires "
+        "a terminal entry when no packet can ever be emitted, so a "
+        "runtime-disabled class frees its slot instead of wedging the "
+        f"table ({MON_RPT}:496-497). "
+        "VERDICT READS 'DIFFERS' ON PURPOSE -- and it is the finding. The "
+        "derived cover drops use_mon: the invariant below makes cfg_compl=1 "
+        "imply use_mon=1, so the four use_mon=0 && cfg_compl=1 cells are X "
+        "and Quine-McCluskey absorbs them. The RTL's use_mon term is "
+        "therefore REDUNDANT GIVEN THE INVARIANT -- defence in depth, not "
+        "logic. It is worth keeping (it makes the monitors-off build "
+        "independent of the CSR plumbing being correct), but this map is "
+        "what says so, and if the tie-off at CORE:869 were ever removed the "
+        "term would stop being redundant and start being load-bearing.",
+        depends_only_on=(
+            "these four. valid && !event_reported are per-slot bookkeeping "
+            "orthogonal to the cfg chain (same expression, "
+            f"{MON_RPT_COMPL}:51), and the address-filter path retires "
+            f"separately before this cone ({MON_RPT}:483-489). The other "
+            "class enables (error/timeout/perf/threshold) drive their own "
+            "sub-reporters and cannot change COMPL emission. Per-index i is "
+            "a loop replication, not a variable of the decision."),
+        relations=[
+            ("use_mon=0 forces cfg_compl to 0: the g_monitors_disabled arm "
+             "ties every int_cfg_*_enable to 1'b0, so (use_mon=0, cfg_compl=1) "
+             "is unreachable, not a 0.",
+             lambda b, u, c, t: not (c and not u),
+             f"{CORE}:869"),
+            ("build_compl and cfg_compl are INDEPENDENT -- one is a synthesis "
+             "parameter, the other a runtime CSR bit, and no RTL relates "
+             "them. Stated because an aliasing defect would show up here as a "
+             "relation that HAD to exist.",
+             None,
+             f"{CORE}:202, :808"),
+            ("perf_run is the deliberate exception to the monitors-off "
+             "tie-off: it passes through to drive the always-on datapath perf "
+             "window, so monitors-off does NOT zero every cfg signal.",
+             None,
+             f"{CORE}:883")],
+        rtl_sop="build_compl & use_mon & cfg_compl & is_complete")
 
     km.table(
         "saturation-recovery contract (stream default sizing)",
