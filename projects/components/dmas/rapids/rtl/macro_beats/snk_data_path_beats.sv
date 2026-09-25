@@ -100,6 +100,12 @@ module snk_data_path_beats #(
     output logic [NC-1:0]               sched_wr_commit_strobe,
     output logic [NC-1:0][31:0]         sched_wr_commit_beats,
 
+    // Sticky per-channel write error from axi_write_engine_beats (bad B
+    // response). Exported so the scheduler's w_hard_error can see it; it was
+    // previously discarded here, which left that fatal-error term dead on the
+    // whole sink path. See known_issues/active/sink_data_path.md.
+    output logic [NC-1:0]               sched_wr_error,
+
     //=========================================================================
     // AXI4 Write Master Interface
     //=========================================================================
@@ -266,7 +272,7 @@ module snk_data_path_beats #(
         .m_axi_bready       (m_axi_bready),
 
         // Error and Debug (unconnected at this level)
-        .sched_wr_error     (),
+        .sched_wr_error     (sched_wr_error),
         .dbg_wr_all_complete(),
         .dbg_aw_transactions(),
         .dbg_w_beats        (),

@@ -191,6 +191,7 @@ module snk_data_path_axis_test_beats #(
     // Scheduler -> Write Engine interface
     logic [NC-1:0]                  sched_wr_valid;
     logic [NC-1:0]                  sched_wr_ready_internal;
+    logic [NC-1:0]               sched_wr_error_internal;
     logic [NC-1:0][AW-1:0]          sched_wr_addr;
     logic [NC-1:0][31:0]            sched_wr_beats;
 
@@ -358,7 +359,7 @@ module snk_data_path_axis_test_beats #(
 
                 // Error signals
                 .sched_rd_error         (1'b0),
-                .sched_wr_error         (1'b0),
+                .sched_wr_error         (sched_wr_error_internal[i]),
 
                 // Control-read / control-write engine interface. This is a
                 // data-only test wrapper (no control engines), so tie the
@@ -438,6 +439,14 @@ module snk_data_path_axis_test_beats #(
         .sched_wr_beats_done    (sched_wr_beats_done),
         .sched_wr_commit_strobe (sched_wr_commit_strobe),
         .sched_wr_commit_beats  (sched_wr_commit_beats),
+
+        // Sticky per-channel write error from axi_write_engine_beats.
+        // CONNECTED, not tied off: this wrapper exists to exercise the sink
+        // data path, and discarding the flag here would make it
+        // unrepresentative of the fixed macro -- a directed SLVERR test would
+        // then pass without exercising anything. See
+        // known_issues/active/sink_data_path.md.
+        .sched_wr_error         (sched_wr_error_internal),
 
         // AXI Write Master Interface
         .m_axi_awid             (m_axi_awid),

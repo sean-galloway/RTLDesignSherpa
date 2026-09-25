@@ -289,7 +289,7 @@ must self-return to `CH_IDLE`.
 
 ## Citation drift corrected (2026-09-25)
 
-Checked while building the RAPIDS contracts workbook for TASK-002 item 4. The
+Checked while building the RAPIDS contracts workbook for rapids TASK-002 item 4. The
 root-cause chain in section 4 cites three line numbers that have all moved in
 `scheduler_beats.sv`; the mechanism it describes is unchanged, only the
 anchors are stale.

@@ -27,7 +27,7 @@
 
 **Severity**: Medium
 **Impact**: Timeout errors not detected or reported
-**Status**: CONFIRMED against the beats RTL 2026-09-25 -- and broader than filed
+**Status**: Gap 2 FIXED 2026-09-25. Gap 1 (no AXI transaction timeout) remains open, and is shared with STREAM.
 **Discovery Date**: During RTL review
 
 ### Description
@@ -104,7 +104,7 @@ mapped or fixed.
 
 ## Re-verified against the beats RTL (2026-09-25)
 
-Checked while building the RAPIDS contracts workbook (TASK-002). The original
+Checked while building the RAPIDS contracts workbook (rapids TASK-002). The original
 entry was filed against the retired pre-beats `sink_data_path.sv:283`, so only
 the ANCHOR was stale. **The claim itself holds, and there are actually TWO
 distinct gaps here, not one.**
@@ -181,13 +181,32 @@ with it -- mirroring what the source path already does for `sched_rd_error`
 and what STREAM does for both. Gap 1 (an actual timeout) is a separate,
 larger piece of work in a file shared with STREAM.
 
-**Not applied here** -- this entry records the mechanism; the RTL change is
-the owner's call.
+**APPLIED 2026-09-25.** Gap 2 is fixed: `snk_data_path_beats` and
+`snk_data_path_axis_beats` each gained a `sched_wr_error` output, the discard
+at `snk_data_path_beats.sv` is now a real connection, and the
+`rapids_snk_beats.sv` tie-off (with its false TODO) is deleted. The engine's
+sticky bad-B-response flag now reaches `scheduler_beats`, so `w_hard_error`'s
+`sched_wr_error` term and `r_write_error_sticky` are live on the sink and a
+SLVERR/DECERR can drive the channel to `CH_ERROR` as it always could on the
+source half. Verilator lint is clean and warning-for-warning identical to the
+pre-change baseline.
+
+Gap 1 is NOT fixed -- there is still no AXI transaction timeout in
+`axi_write_engine_beats`, and because that file is byte-identical with
+STREAM's, implementing one belongs in both. This entry stays ACTIVE for that.
+
+Worth noting for whoever does gap 1: a SLVERR arrives WITH a B response, so it
+produces a commit strobe (`axi_write_engine_beats.sv:898` gates on
+`m_axi_bvalid && m_axi_bready && BID` with no `bresp` test) and therefore
+RESETS the scheduler's timeout counter (`scheduler_beats.sv:920`). Before this
+fix, errored traffic was invisible to the error path AND to the timeout path
+at once. With gap 2 fixed the error path now catches it, but a silently
+dropped burst that never returns a B is still only a timeout's job.
 
 ### Mapped in the contracts workbook (2026-09-25)
 
 Gap 2 is now a computed K-map in `projects/components/dmas/rapids/docs/rapids_signal_contracts.xlsx`,
-sheets "Contracts snk errors" and "K-maps snk errors" (TASK-002 item 1).
+sheets "Contracts snk errors" and "K-maps snk errors" (rapids TASK-002 item 1).
 
 Map 1 mirrors `w_hard_error` on the SINK instance and inverts the usual
 reading of a don't-care: **28 of 32 cells are X**, not because those states

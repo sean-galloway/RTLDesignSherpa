@@ -7,7 +7,7 @@ Built on the shared machinery in bin/kmaps (TOOLING-KMAP step 5), the same
 package the STREAM generator uses. What lives here is RAPIDS-specific: the RTL
 path constants, the CITES registry, and the build_* sheet builders.
 
-First target (TASK-002 item 3) is the `drain_size_gt1` SOURCE beat drop
+First target (rapids TASK-002 item 3) is the `drain_size_gt1` SOURCE beat drop
 (known_issues/active/drain_size_gt1_source_beat_drop.md). Beat-drop bugs are
 adjacency bugs, which is what a K-map is for -- and in this case the map makes
 a MISSING TERM visible: the drain grant is qualified on an availability view
@@ -39,6 +39,7 @@ SNK_AXIS = "projects/components/dmas/rapids/rtl/macro_beats/snk_data_path_axis_b
 SCHED_B = "projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv"
 WR_ENG_B = "projects/components/dmas/rapids/rtl/fub_beats/axi_write_engine_beats.sv"
 SNK_MACRO = "projects/components/dmas/rapids/rtl/macro_beats/rapids_snk_beats.sv"
+SNK_DP = "projects/components/dmas/rapids/rtl/macro_beats/snk_data_path_beats.sv"
 SRC_MACRO = "projects/components/dmas/rapids/rtl/macro_beats/rapids_src_beats.sv"
 SNK_SRAM = "projects/components/dmas/rapids/rtl/macro_beats/snk_sram_controller_beats.sv"
 SG = "projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_beats.sv"
@@ -105,19 +106,19 @@ CITES = [
     (STR_WENG, 387, "w_effective_avail"),
 
     # --- item 5: sink AXIS ingress admission ---------------------------
-    (SNK_AXIS, 185, "wire w_channel_needs_alloc = (r_pending_alloc[axis_channel_id] == '0);"),
-    (SNK_AXIS, 186, "wire w_channel_has_space = (fill_space_free[axis_channel_id] >= cfg_alloc_size);"),
-    (SNK_AXIS, 189, "assign fill_alloc_req = s_axis_tvalid && w_channel_needs_alloc && w_channel_has_space;"),
-    (SNK_AXIS, 197, "assign fill_valid = s_axis_tvalid &&"),
-    (SNK_AXIS, 198, "((r_pending_alloc[axis_channel_id] > 0) ||"),
-    (SNK_AXIS, 199, "(w_channel_needs_alloc && w_channel_has_space));"),
-    (SNK_AXIS, 204, "assign s_axis_tready = (fill_ready && (r_pending_alloc[axis_channel_id] > 0)) ||"),
-    (SNK_AXIS, 205, "(fill_alloc_req);"),
-    (SNK_AXIS, 219, "if (fill_alloc_req && (fill_alloc_id == ch[CIW-1:0])) begin"),
-    (SNK_AXIS, 222, "r_pending_alloc[ch] <= r_pending_alloc[ch] + fill_alloc_size - 1'b1;"),
-    (SNK_AXIS, 225, "r_pending_alloc[ch] <= r_pending_alloc[ch] + fill_alloc_size;"),
-    (SNK_AXIS, 229, "r_pending_alloc[ch] <= r_pending_alloc[ch] - 1'b1;"),
-    (SNK_AXIS, 234, "if (s_axis_tvalid && s_axis_tready) begin"),
+    (SNK_AXIS, 188, "wire w_channel_needs_alloc = (r_pending_alloc[axis_channel_id] == '0);"),
+    (SNK_AXIS, 189, "wire w_channel_has_space = (fill_space_free[axis_channel_id] >= cfg_alloc_size);"),
+    (SNK_AXIS, 192, "assign fill_alloc_req = s_axis_tvalid && w_channel_needs_alloc && w_channel_has_space;"),
+    (SNK_AXIS, 200, "assign fill_valid = s_axis_tvalid &&"),
+    (SNK_AXIS, 201, "((r_pending_alloc[axis_channel_id] > 0) ||"),
+    (SNK_AXIS, 202, "(w_channel_needs_alloc && w_channel_has_space));"),
+    (SNK_AXIS, 207, "assign s_axis_tready = (fill_ready && (r_pending_alloc[axis_channel_id] > 0)) ||"),
+    (SNK_AXIS, 208, "(fill_alloc_req);"),
+    (SNK_AXIS, 222, "if (fill_alloc_req && (fill_alloc_id == ch[CIW-1:0])) begin"),
+    (SNK_AXIS, 225, "r_pending_alloc[ch] <= r_pending_alloc[ch] + fill_alloc_size - 1'b1;"),
+    (SNK_AXIS, 228, "r_pending_alloc[ch] <= r_pending_alloc[ch] + fill_alloc_size;"),
+    (SNK_AXIS, 232, "r_pending_alloc[ch] <= r_pending_alloc[ch] - 1'b1;"),
+    (SNK_AXIS, 237, "if (s_axis_tvalid && s_axis_tready) begin"),
 
     (SNK_UNIT, 124, ".wr_valid           (fill_alloc_req),"),
     (SNK_UNIT, 126, ".wr_ready           ()"),
@@ -172,7 +173,8 @@ CITES = [
     (SNK_MACRO, 513, ".sched_rd_error         ('0),"),
     (SNK_MACRO, 514, ".sched_wr_error         (sched_wr_error),"),
     (SNK_MACRO, 596, "snk_data_path_axis_beats #("),
-    (SNK_MACRO, 680, "assign sched_wr_error = '0;"),
+    (SNK_MACRO, 640, ".sched_wr_error     (sched_wr_error),"),
+    (SNK_DP, 275, ".sched_wr_error     (sched_wr_error),"),
 
     (SRC_MACRO, 491, ".sched_rd_error         (sched_rd_error),"),
     (SRC_MACRO, 492, ".sched_wr_error         ('0),"),
@@ -288,7 +290,7 @@ def build_src_drain_kmaps(wb):
         ["Each grid is computed from a python mirror of the exact RTL "
          "expression (file:line cited, RTL quoted verbatim). Gray order "
          "00 01 11 10; 1-cells green, 0-cells grey, unreachable cells X.",
-         "TARGET: TASK-002 item 3, the DRAIN_SIZE>1 source beat drop "
+         "TARGET: rapids TASK-002 item 3, the DRAIN_SIZE>1 source beat drop "
          f"({KI_DRAIN}). The first map is the important one -- it is a map "
          "whose 1-cells include cells that should be impossible, and the "
          "axis that would have excluded them is not an input to the "
@@ -538,7 +540,7 @@ def build_snk_ingress_contract(wb):
         "The sink admits network beats through a per-channel reservation "
         "counter (r_pending_alloc) that is incremented on a REQUEST to an "
         "allocator whose grant signal is discarded. This sheet is the "
-        "contract for that interface. NOTE: TASK-002 item 5 names this "
+        "contract for that interface. NOTE: rapids TASK-002 item 5 names this "
         "target 'credit/RDA accounting'; neither exists in the RTL -- there "
         "are zero word-boundary RDA references and no credit machinery "
         "(scheduler_beats.sv says 'No credit management'). The real "
@@ -553,7 +555,7 @@ def build_snk_ingress_kmaps(wb):
         ["Computed from a python mirror of the exact RTL expression "
          "(file:line cited, RTL quoted). Gray order 00 01 11 10; 1-cells "
          "green, 0-cells grey, unreachable cells X.",
-         "TARGET: TASK-002 item 5, re-scoped. The first map is the one that "
+         "TARGET: rapids TASK-002 item 5, re-scoped. The first map is the one that "
          "matters: it shows an AXIS beat being accepted on a term that does "
          "not include the only signal that decides whether the beat can be "
          "stored."])
@@ -699,7 +701,7 @@ def build_snk_ingress_kmaps(wb):
           "module name and subsystem comment"]],
         note="RAPIDS' sink network side has no STREAM counterpart, so none "
              "of STREAM's proofs transfer here. That is exactly why "
-             "TASK-002 ranks this the most exposed area, and it is the "
+             "rapids TASK-002 ranks this the most exposed area, and it is the "
              "first sheet in this workbook with no fixed STREAM original "
              "to compare against.")
 
@@ -714,7 +716,7 @@ def build_sched_commit_kmaps(wb):
         ["Computed from a python mirror of the exact RTL expression "
          "(file:line cited, RTL quoted). Gray order 00 01 11 10; 1-cells "
          "green, 0-cells grey, unreachable cells X.",
-         "TARGET: TASK-002 item 4. Unlike the alloc/drain FUBs (byte-"
+         "TARGET: rapids TASK-002 item 4. Unlike the alloc/drain FUBs (byte-"
          "identical to STREAM's), this module DIVERGED: 1150 lines against "
          f"STREAM's 1390. Map 1 is where the divergence lives, and it is "
          f"the cone of the resolved wedge in {KI_STALL}."])
@@ -792,7 +794,7 @@ def build_sched_commit_kmaps(wb):
           "w_sched_wr_completing_this_cycle -- look-ahead de-assert",
           f"{SCHED_B}:861"),
          ("need_base",
-          "w_wr_need_base -- TASK-101 run-boundary stall",
+          "w_wr_need_base -- stream TASK-101 run-boundary stall",
           f"{SCHED_B}:862")],
         lambda xd, bti, wc, cn, nb: bool(xd and bti and not wc and not cn and not nb),
         "The issue-count gate is what stops a spurious garbage AW during "
@@ -914,19 +916,22 @@ def build_snk_error_contract(wb):
          "OKAY: m_axi_bvalid && m_axi_bready && (m_axi_bresp != 2'b00), "
          "channel taken from BID.",
          "A SLVERR or DECERR on a write response must reach the channel FSM "
-         "and fault the channel. It does not, on the sink.",
+         "and fault the channel. Since 2026-09-25 it does.",
          f"{WR_ENG_B}:951 sets it, :955 latches per channel, :964 drives "
          f"the port declared at :144. The detection is REAL and complete."),
 
         ("Sink errors / plumbing", "sched_wr_error (macro net)", "NC",
          "internal", "rapids_snk_beats",
-         "Tied to a constant: `assign sched_wr_error = '0;` with the comment "
-         "\"TODO: Add when write engine supports error reporting\".",
-         "The TODO's stated reason is FALSE -- the engine has supported error "
-         "reporting all along (see the row above). This net is what the "
-         "scheduler actually sees.",
-         f"{SNK_MACRO}:680, consumed at :514 by the "
-         f"scheduler_group_array_beats instantiated at :344."),
+         "Driven from the sink data path, which now exports the engine's "
+         "sticky flag. FIXED 2026-09-25: this net was previously "
+         "`assign sched_wr_error = '0;` under a TODO claiming the write "
+         "engine did not support error reporting -- which was false.",
+         "Must carry the engine's per-channel flag, not a constant. It now "
+         "does, so w_hard_error's sched_wr_error term and "
+         "r_write_error_sticky are live on the sink.",
+         f"{SNK_MACRO}:640 connects it, :514 feeds the "
+         f"scheduler_group_array_beats instantiated at :344. The data path "
+         f"exports it at {SNK_DP}:275."),
 
         ("Sink errors / plumbing", "sched_rd_error (macro net)", "NC",
          "internal", "rapids_snk_beats",
@@ -942,9 +947,9 @@ def build_snk_error_contract(wb):
          "scheduler_beats",
          "Latched high on any cycle sched_wr_error is high; cleared on reset "
          "and channel reset.",
-         "Constant 0 on the sink, because its only source is the tied-off "
-         "net. Feeds w_hard_error AND the MonBus error packet, so the sink's "
-         "error telemetry is dead too.",
+         "Was constant 0 on the sink while its only source was tied off; "
+         "live since 2026-09-25. Feeds w_hard_error AND the MonBus error "
+         "packet, so the sink's error telemetry works now too.",
          f"{SCHED_B}:944 latches it, :979 uses it in w_hard_error, :1084 "
          f"packs it into a monitor packet."),
 
@@ -953,8 +958,10 @@ def build_snk_error_contract(wb):
          "7-term OR: descriptor_error, sched_rd_error, sched_wr_error, both "
          "stickies, and the two control-engine error terms. Drives the "
          "sticky CH_ERROR transition.",
-         "On the sink, 4 of the 7 terms are constant 0. For a DATA "
-         "descriptor it reduces to descriptor_error alone.",
+         "2 of the 7 terms are still constant 0 on the sink "
+         "(sched_rd_error and r_read_error_sticky -- legitimately, there is "
+         "no AXI read engine here). Before 2026-09-25 it was 4, and a DATA "
+         "descriptor reduced to descriptor_error alone.",
          f"{SCHED_B}:978-980, consumed at :380. Live terms come from "
          f"{SG}:264 (descriptor_engine_beats) and {CTRLRD}:437."),
 
@@ -972,9 +979,11 @@ def build_snk_error_contract(wb):
     contract_sheet(
         wb, "Contracts snk errors",
         "RAPIDS-beats SINK error reporting and drain port -- signal contracts",
-        "TASK-002 items 1 and 2. Item 1: the write engine detects bad B "
-        "responses per channel and the sink throws that detection away, "
-        "leaving two fatal-error terms provably dead. Item 2: the sink SRAM "
+        "rapids TASK-002 items 1 and 2. Item 1: the write engine detects bad B "
+        "responses per channel, and the sink used to throw that detection "
+        "away, leaving two fatal-error terms provably dead. FIXED 2026-09-25 "
+        "-- the maps below show the repaired cone, with the defect kept as a "
+        "recorded relation so the history is not lost. Item 2: the sink SRAM "
         "drain port serves one channel per cycle by construction. Both were "
         "filed against retired pre-beats files, so only their anchors were "
         f"stale; see {KI_SDP} and {KI_SSC}.",
@@ -988,11 +997,13 @@ def build_snk_error_kmaps(wb):
         ["Computed from a python mirror of the exact RTL expression "
          "(file:line cited, RTL quoted). Gray order 00 01 11 10; 1-cells "
          "green, 0-cells grey, unreachable cells X.",
-         "TARGET: TASK-002 items 1 and 2. READ THE X CELLS FIRST. Normally "
-         "a don't-care marks a state that cannot physically occur. Here most "
-         "of map 1 is X because inputs were tied to constants at an "
-         "instantiation -- two legitimately, two by defect. The don't-cares "
-         "ARE the finding."])
+         "TARGET: rapids TASK-002 items 1 and 2. READ THE X CELLS FIRST. "
+         "Normally a don't-care marks a state that cannot physically occur. "
+         "In map 1 they mark states the INSTANTIATION forbids by tying an "
+         "input to a constant. That used to be four axes; two of those "
+         "tie-offs were a defect, fixed 2026-09-25, so the map now shows 16 "
+         "X cells rather than 28. The surviving exclusion is legitimate: "
+         "the sink has no AXI read engine."])
 
     km.kmap(
         "w_hard_error  (on the SINK instance)", f"{SCHED_B}:978",
@@ -1018,18 +1029,19 @@ def build_snk_error_kmaps(wb):
           "LIVE, but only for CTRL descriptors",
           f"{SCHED_B}:980, driven {CTRLRD}:437")],
         lambda de, wr, ws, rd, ce: bool(de or wr or ws or rd or ce),
-        "28 of 32 cells are unreachable, and NOT for the usual reason. These "
-        "are not physically impossible states -- they are states the "
-        "instantiation forbids by tying inputs to constants. Of the four "
-        "surviving cells, three are green, and the whole reachable surface "
-        "is spanned by just descriptor_error and ctrl_err. For a DATA "
-        "descriptor ctrl_err is 0 too, so on the sink w_hard_error REDUCES "
-        "TO descriptor_error ALONE. A write response of SLVERR or DECERR on "
-        "every beat of a transfer produces no fatal error, no CH_ERROR "
-        f"({SCHED_B}:380), and no error bit in the MonBus packet "
-        f"({SCHED_B}:1084) -- the channel reports success. The detection "
-        f"itself is real and complete ({WR_ENG_B}:951/:955/:964); only the "
-        "wiring is missing.",
+        "16 of 32 cells are unreachable, and NOT for the usual reason: they "
+        "are states the INSTANTIATION forbids by tying an input to a "
+        "constant, not states that cannot physically occur. The one "
+        "surviving exclusion is legitimate -- the sink has no AXI read "
+        "engine, so rd_path is identically 0. Of the 16 reachable cells 15 "
+        "are green: any single error term faults the channel. COMPARE THE "
+        "PREVIOUS VERSION: until 2026-09-25 wr_error and wr_sticky were ALSO "
+        "tied to 0, only 4 cells were reachable, and a SLVERR or DECERR on "
+        "every beat of a transfer produced no fatal error, no CH_ERROR "
+        f"({SCHED_B}:380) and no error bit in the MonBus packet "
+        f"({SCHED_B}:1084) -- the channel reported success. The detection was "
+        f"always real ({WR_ENG_B}:951/:955/:964); only the wiring was "
+        "missing, and it is now in place.",
         depends_only_on=(
             "these five. The timeout path is a SEPARATE disjunct at the "
             f"FSM ({SCHED_B}:380) and is mapped below; channel reset "
@@ -1044,17 +1056,19 @@ def build_snk_error_kmaps(wb):
              "than a second defect.",
              lambda de, wr, ws, rd, ce: not rd,
              f"{SNK_MACRO}:513"),
-            ("THE DEFECT: sched_wr_error reaches this scheduler from "
-             "rapids_snk_beats, where it is assigned a constant '0 under a "
-             "TODO claiming the write engine does not support error "
-             "reporting -- which is false. So wr_error is identically 0 on "
-             "this instance, and wr_sticky, whose only source is wr_error, "
-             "is identically 0 with it. Every cell with either set is "
-             "unreachable. Unlike the relation above, nothing about the "
-             "sink's architecture requires this.",
-             lambda de, wr, ws, rd, ce: (not wr) and (not ws),
-             f"{SNK_MACRO}:680, path :514 -> {SG_ARR}:541 -> {SG}:411 -> "
-             f"{SCHED_B}:163")],
+            ("HISTORY, no longer an exclusion: until 2026-09-25 "
+             "sched_wr_error was assigned a constant '0 in rapids_snk_beats "
+             "under a TODO claiming the write engine did not support error "
+             "reporting -- which was false. wr_error and wr_sticky were "
+             "therefore identically 0 and 28 of these 32 cells were "
+             "unreachable, leaving a surface spanned by descriptor_error and "
+             "ctrl_err alone. The sink data path now exports the engine's "
+             "flag and the tie-off is gone, so those cells are REACHABLE and "
+             "no predicate excludes them. Recorded as an independence note "
+             "so the repair is visible in the map, not only in git.",
+             None,
+             f"{SNK_MACRO}:640, path :514 -> {SG_ARR}:541 -> {SG}:411 -> "
+             f"{SCHED_B}:163; exported at {SNK_DP}:275")],
         rtl_sop="descriptor_error | wr_error | wr_sticky | rd_path | ctrl_err")
 
     km.kmap(
@@ -1074,28 +1088,32 @@ def build_snk_error_kmaps(wb):
           "cfg_sched_timeout_limit consecutive windows",
           f"{SCHED_B}:970")],
         lambda de, wr, ce, esc: bool(de or wr or ce or esc),
-        "With wr_error tied off, the sink's only routes into sticky "
-        "CH_ERROR are a descriptor fault, a control-engine fault on a CTRL "
-        "descriptor, and an escalated timeout. For the DATA descriptors that "
-        "carry all the traffic, that leaves descriptor_error and timeout "
-        "escalation. Note what this costs: a write that is being NAKed by "
-        "the fabric is exactly the case the timeout was meant to catch, but "
-        "a SLVERR arrives WITH a B response, so it counts as write progress "
-        f"and resets the timeout counter ({SCHED_B}:920). Errored traffic "
-        "therefore looks healthy to both mechanisms at once. NOT YET "
-        "ESTABLISHED as a field failure -- no test drives a sink SLVERR "
-        "today; a directed test returning SLVERR on one burst and checking "
-        "the channel faults would settle it.",
+        "No cell is excluded here any more: all four routes into sticky "
+        "CH_ERROR are live on the sink since the wr_error wiring was "
+        "restored on 2026-09-25. 15 of 16 cells are green -- any one fault "
+        "takes the channel to CH_ERROR. The wr_error column is the part that "
+        "was dead: previously every cell with it set was unreachable, so a "
+        "bad write response could not fault the channel at all. One "
+        "consequence is worth keeping in view even now: a SLVERR arrives "
+        "WITH a B response, and the commit strobe is gated on bvalid/bready "
+        f"and BID with no bresp test ({WR_ENG_B}:898), so it still counts as "
+        f"write progress and resets the timeout counter ({SCHED_B}:920). The "
+        "error path catches it now, but the timeout never will -- which "
+        "matters for a dropped burst that returns no B at all. That is gap 1 "
+        "of the known issue and remains OPEN. NOT YET ESTABLISHED: no test "
+        "drives a sink SLVERR today; a directed test returning SLVERR on one "
+        "burst and checking the channel faults would close the loop.",
         depends_only_on=(
             "these four, plus channel reset which takes priority over the "
             f"whole branch ({SCHED_B}:369-370)."),
         relations=[
-            ("wr_error is identically 0 on this instance for the reason "
-             "given in map 1, so every cell with it set is unreachable. It "
-             "is carried as an axis precisely so the map shows what the "
-             "sink gives up.",
-             lambda de, wr, ce, esc: not wr,
-             f"{SNK_MACRO}:680")],
+            ("wr_error USED to be identically 0 on this instance (see map 1), "
+             "which made every cell carrying it unreachable. The tie-off is "
+             "gone, so nothing is excluded here now. Kept as an independence "
+             "note because the axis is only interesting once you know it was "
+             "dead.",
+             None,
+             f"{SNK_MACRO}:640")],
         rtl_sop="descriptor_error | wr_error | ctrl_err | timeout_escalate")
 
     km.kmap(
@@ -1116,7 +1134,7 @@ def build_snk_error_kmaps(wb):
           "the decode",
           f"{SNK_SRAM}:157")],
         lambda dr, im, ir, hd: bool(dr and im and ir),
-        "TASK-002 item 2, and the map states the limitation exactly. Two "
+        "rapids TASK-002 item 2, and the map states the limitation exactly. Two "
         "things are visible. (1) The decode is INDEPENDENT of ch_has_data: "
         "a drain is decoded to whichever channel drain_id names, whether or "
         "not it holds data -- safety is entirely the consumer's "
@@ -1143,37 +1161,40 @@ def build_snk_error_kmaps(wb):
         rtl_sop="drain_read & id_match & id_in_range")
 
     km.table(
-        "Where the sink's write error is lost, stage by stage",
-        f"{SNK_MACRO}:680",
+        "How the sink's write error reaches the scheduler (FIXED 2026-09-25)",
+        f"{SNK_MACRO}:640",
         ["Stage", "What happens to the error", "Citation"],
         [["axi_write_engine_beats",
           "DETECTED: bad B response latched sticky per channel, port driven",
           f"{WR_ENG_B}:951 / :955 / :964"],
          ["snk_data_path_beats",
-          "DISCARDED: connected to an empty port under the comment "
-          "\"Error and Debug (unconnected at this level)\"",
-          "snk_data_path_beats.sv:269"],
-         ["snk_data_path_axis_beats / snk_data_path_beats",
-          "CANNOT PROPAGATE: neither module declares an error output; the "
-          "only such output in RAPIDS is the engine's own",
-          f"{WR_ENG_B}:144"],
+          "EXPORTED: was connected to an empty port under \"Error and Debug "
+          "(unconnected at this level)\"; now declares a sched_wr_error "
+          "output and drives it",
+          f"{SNK_DP}:275"],
+         ["snk_data_path_axis_beats",
+          "PASSED THROUGH: gained a matching sched_wr_error output. Before "
+          "the fix neither wrapper declared one, so the flag could not "
+          "propagate even in principle",
+          "snk_data_path_axis_beats.sv port list"],
          ["rapids_snk_beats",
-          "TIED OFF: assign sched_wr_error = '0, under a TODO whose stated "
-          "reason is false",
-          f"{SNK_MACRO}:680 -> :514"],
+          "CONNECTED: the assign sched_wr_error = '0 tie-off and its false "
+          "TODO are deleted; the net is driven by the data path",
+          f"{SNK_MACRO}:640 -> :514"],
          ["scheduler_beats",
-          "DEAD TERMS: sched_wr_error and r_write_error_sticky are constant "
-          "0, in both w_hard_error and the MonBus error packet",
+          "LIVE TERMS: sched_wr_error and r_write_error_sticky now carry the "
+          "engine's flag, in both w_hard_error and the MonBus error packet",
           f"{SCHED_B}:944 / :979 / :1084"],
          ["STREAM, for comparison",
           "WIRED: declared, connected, no tie-off, and surfaced for "
           "observability as obs_flags[11]",
           f"{STR_CORE}:669 / :1047 / :2130"]],
-        note="The RAPIDS SOURCE path is also correct "
-             f"({SRC_MACRO}:491). The fix is to give the two sink data-path "
-             "modules a sched_wr_error output, connect it, and replace the "
-             "tie-off -- mirroring what the source and STREAM already do. "
-             f"Recorded in {KI_SDP}; the RTL change is the owner's call.")
+        note="Applied 2026-09-25, mirroring what the RAPIDS source path "
+             f"({SRC_MACRO}:491) and STREAM already did. Verilator lint is "
+             "warning-for-warning identical to the pre-change baseline. Gap 1 "
+             "of the known issue is NOT fixed: there is still no AXI "
+             "transaction timeout in axi_write_engine_beats, and that file is "
+             f"byte-identical with STREAM's. See {KI_SDP}.")
 
 
 def main():

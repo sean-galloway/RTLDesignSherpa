@@ -637,6 +637,7 @@ module rapids_snk_beats #(
         .sched_wr_beats_done (sched_wr_beats_done),
         .sched_wr_commit_strobe(sched_wr_commit_strobe),
         .sched_wr_commit_beats (sched_wr_commit_beats),
+        .sched_wr_error     (sched_wr_error),
 
         // AXI Write Master
         .m_axi_awid         (m_axi_wr_awid),
@@ -675,8 +676,5 @@ module rapids_snk_beats #(
 
     // System is idle when ALL schedulers are idle
     assign system_idle = &scheduler_idle;
-
-    // Write error aggregation (sticky from axi_write_engine - not yet implemented)
-    assign sched_wr_error = '0;  // TODO: Add when write engine supports error reporting
 
 endmodule : rapids_snk_beats

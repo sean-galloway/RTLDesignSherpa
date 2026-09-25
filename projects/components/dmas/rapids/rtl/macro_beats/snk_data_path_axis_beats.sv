@@ -101,6 +101,9 @@ module snk_data_path_axis_beats #(
     output logic [NC-1:0]               sched_wr_commit_strobe,
     output logic [NC-1:0][31:0]         sched_wr_commit_beats,
 
+    // Sticky per-channel write error, passed up from snk_data_path_beats.
+    output logic [NC-1:0]               sched_wr_error,
+
     //=========================================================================
     // AXI4 Write Master Interface
     //=========================================================================
@@ -292,6 +295,7 @@ module snk_data_path_axis_beats #(
         .sched_wr_beats_done    (sched_wr_beats_done),
         .sched_wr_commit_strobe (sched_wr_commit_strobe),
         .sched_wr_commit_beats  (sched_wr_commit_beats),
+        .sched_wr_error         (sched_wr_error),
 
         // AXI Write Master Interface
         .m_axi_awid             (m_axi_awid),

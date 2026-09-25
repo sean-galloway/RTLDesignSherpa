@@ -135,7 +135,7 @@ go looking for missing logic inside the controller.
 ### Mapped in the contracts workbook (2026-09-25)
 
 Now a computed K-map in `projects/components/dmas/rapids/docs/rapids_signal_contracts.xlsx`,
-sheet "K-maps snk errors", map 3 (TASK-002 item 2).
+sheet "K-maps snk errors", map 3 (rapids TASK-002 item 2).
 
 The map mirrors the decode at `:147-148` with axes `drain_read`, `id_match`,
 `id_in_range` and `ch_has_data`. Two things are visible on sight: the decode
