@@ -1,77 +1,42 @@
 # SPDX-License-Identifier: MIT
 # Formal verification Makefile for stream_core
-# Workflow: sed preprocesses monitor_pkg imports -> sv2v flattens -> sby reads plain Verilog
+# Workflow: filelist closure -> one sed prep -> sv2v flattens -> sby reads plain Verilog
 #
-# Note: The monitor infrastructure files import monitor_pkg which re-exports
-# types from sub-packages. sv2v cannot handle the typedef re-export ambiguity.
-# The workaround is to sed-replace `import monitor_pkg::*` and `monitor_pkg::`
-# references with the individual sub-package imports/qualifiers.
+# SOURCES COME FROM THE FILELIST, NOT A HAND LIST (BUG-003, 2026-09-24).
+# This Makefile used to hand-list 31 sources and rotted behind the monitor
+# rework: it was missing monitor_trans_cam and ALL SIX axi_monitor_reporter_*
+# sub-blocks, so `make prove` died at elaboration. stream_core.f says why in
+# its own header -- "a consumer that hand-lists a component's files has to
+# track that component's internal dependencies, and it silently rots when they
+# change". So we resolve the filelist instead, and the rot cannot recur.
+#
+# NOTE: no other formal Makefile drives from a filelist yet (0 of 124). This
+# one does because its closure is large enough that hand-listing demonstrably
+# failed. See vault BUG-003 and [[filelists]].
+#
+# The old `monitor_pkg` sed workaround is GONE. Its premise -- "sv2v cannot
+# handle the typedef re-export ambiguity" -- was re-tested against sv2v v0.0.13
+# on the full 51-source closure INCLUDING monitor_pkg.sv: RC=0, clean stderr.
+# Seven sed-prepped monitor copies are no longer needed.
+#
+# ONE prep remains: sv2v does not honour `// synopsys translate_off`, so the
+# hang-diagnostic $display in axi_write_engine survives into the flat and yosys
+# cannot size its $time argument (AST_AUTOWIRE). Strip it for FORMAL ONLY --
+# simulation reads the original source and still gets the prints.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
+PYTHON    ?= python3
 TMPDIR    := .sv2v_prep
 
-# Include paths for sv2v preprocessing
-INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/dmas/stream/rtl/includes
+FILELIST  := $(REPO_ROOT)/projects/components/dmas/stream/rtl/filelists/macro/stream_core.f
+FLATTEN   := $(PYTHON) $(REPO_ROOT)/bin/flatten_filelist.py
 
-# Package files (order matters: dependencies first)
-# NOTE: monitor_pkg.sv is NOT included - we replace its imports with sub-packages
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba5_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/includes/stream_pkg.sv
+# The single file needing preprocessing, and its prepped copy.
+AWE_SRC   := $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/axi_write_engine.sv
+AWE_PREP  := $(TMPDIR)/axi_write_engine.sv
 
-# Common primitives
-COMMON := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-          $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
-          $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv \
-          $(REPO_ROOT)/rtl/common/fifo_control.sv \
-          $(REPO_ROOT)/rtl/common/arbiter_round_robin.sv \
-          $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv
-
-# AMBA infrastructure
-AMBA := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-        $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd.sv \
-        $(REPO_ROOT)/rtl/amba/axi4/axi4_master_wr.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/monbus_arbiter.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/monitor_trans_cam.sv
-
-# Monitor files that need preprocessing (import monitor_pkg::*)
-MON_ORIG := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timer.sv \
-            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_trans_mgr.sv \
-            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timeout.sv \
-            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter.sv \
-            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_base.sv \
-            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_filtered.sv \
-            $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd_mon.sv
-
-MON_PREP := $(patsubst %,$(TMPDIR)/%, $(notdir $(MON_ORIG)))
-
-# Stream FUBs
-FUBS := $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/descriptor_engine.sv \
-        $(REPO_ROOT)/projects/components/misc/rtl/dma_address_gen.sv \
-        $(REPO_ROOT)/projects/components/misc/rtl/stream_run_addr_gen.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/scheduler.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/stream_alloc_ctrl.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/stream_drain_ctrl.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/stream_latency_bridge.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/sram_controller_unit.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/sram_controller.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/axi_read_engine.sv \
-        $(TMPDIR)/axi_write_engine.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/perf_profiler.sv
-
-# Stream macros
-MACROS := $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/scheduler_group.sv \
-          $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/scheduler_group_array.sv
-
-# Device under test
-DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/stream_core.sv
-
-.PHONY: prove cover clean
+.PHONY: prove cover clean srcs
 
 prove: stream_core_flat.v
 	sby -f stream_core.sby prove
@@ -79,29 +44,27 @@ prove: stream_core_flat.v
 cover: stream_core_flat.v
 	sby -f stream_core.sby cover
 
-# Preprocess monitor files: replace monitor_pkg imports/qualifiers
 $(TMPDIR):
 	mkdir -p $(TMPDIR)
 
-$(TMPDIR)/%.sv: $(REPO_ROOT)/rtl/amba/monitor/%.sv | $(TMPDIR)
-	sed -e 's/import monitor_pkg::\*;/import monitor_common_pkg::*; import monitor_amba4_pkg::*; import monitor_amba5_pkg::*; import monitor_arbiter_pkg::*;/g' \
-	    -e 's/monitor_pkg::/monitor_common_pkg::/g' $< > $@
-
-$(TMPDIR)/axi4_master_rd_mon.sv: $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd_mon.sv | $(TMPDIR)
-	sed -e 's/import monitor_pkg::\*;/import monitor_common_pkg::*; import monitor_amba4_pkg::*; import monitor_amba5_pkg::*; import monitor_arbiter_pkg::*;/g' \
-	    -e 's/monitor_pkg::/monitor_common_pkg::/g' $< > $@
-
-# sv2v does not honour `// synopsys translate_off` -- it is a comment to sv2v,
-# so the hang-diagnostic $display survives into the flat and yosys cannot size
-# its $time argument ("Don't know how to detect sign and width for AST_AUTOWIRE").
-# Strip those blocks for FORMAL ONLY: simulation reads the original source and
-# still gets the prints. The `ifdef ENHANCED_DEBUG` prints need no handling --
-# sv2v honours preprocessor directives, so they are already excluded.
-$(TMPDIR)/axi_write_engine.sv: $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/axi_write_engine.sv | $(TMPDIR)
+$(AWE_PREP): $(AWE_SRC) | $(TMPDIR)
 	sed '/synopsys translate_off/,/synopsys translate_on/d' $< > $@
 
-stream_core_flat.v: $(DUT) $(PKGS) $(COMMON) $(AMBA) $(MON_PREP) $(FUBS) $(MACROS)
-	$(SV2V) $(INC) $(PKGS) $(COMMON) $(AMBA) $(MON_PREP) $(FUBS) $(MACROS) $(DUT) > $@
+# The closure is re-resolved on every build of the flat. A change INSIDE a
+# nested .f does not retrigger this rule on its own (make cannot see through
+# the -f indirection without expanding it at parse time, which would run the
+# resolver on every invocation); `make clean` or touching $(FILELIST) forces it.
+stream_core_flat.v: $(FILELIST) $(AWE_PREP)
+	$(FLATTEN) $(FILELIST) --absolute-paths --resolve-env -o $(TMPDIR)/stream_core.flat.f
+	$(SV2V) \
+	  $$(grep '^+incdir+' $(TMPDIR)/stream_core.flat.f | sed 's/^+incdir+/-I/') \
+	  $$(grep -E '\.sv$$' $(TMPDIR)/stream_core.flat.f \
+	     | sed 's|^$(AWE_SRC)$$|$(AWE_PREP)|') \
+	  > $@
+
+# Show the resolved source list (debugging aid: what the closure actually is).
+srcs: | $(TMPDIR)
+	$(FLATTEN) $(FILELIST) --absolute-paths --resolve-env
 
 clean:
 	rm -rf *_flat.v *_prove *_cover $(TMPDIR)
