@@ -1,10 +1,13 @@
 # ISSUE-002: close-page modes reach only ~63% of their own command-bus ceiling
 > **Was `PUMICE-046` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** CLOSED 2026-09-24 — root-caused, partially fixed (+29% on
+**Status:** CLOSED 2026-09-24, and RE-FILED AS [[BUG-002]] the same day on
+Sean's call — a measured shortfall against a computed ceiling is a defect
+whatever its cause, and belongs in the bug lane. This entry keeps the full
+investigation; BUG-002 carries the open defect. (closed as an issue: root-caused, partially fixed (+29% on
 rbl_dyn), residual ACCEPTED by Sean's ISSUE-001 ruling, and the tests now
 report the accepted number behind a regression floor that is mutation-proven
-to fire. Nothing is left to chase. (was: open 2026-09-20, P2)
+to fire. Nothing is left to chase as an ISSUE.) (was: open 2026-09-20, P2)
 
 Found while making the paging assertions geometry-aware for [[PUMICE-028]].
 The arbiter issues at most ONE DFI command per cycle, so no mode can exceed

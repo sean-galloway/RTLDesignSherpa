@@ -1,7 +1,12 @@
 # ISSUE-001: read latency is ~2x LiteDRAM's, and it caps small-burst reads
 > **Was `PUMICE-030` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** DEFERRED FAR 2026-09-22  **Priority:** P3 — BY DESIGN, not a defect
+**Status:** DROPPED 2026-09-24 — Sean's call. It was already recorded as BY
+DESIGN ("many features need flop stages") and deferred far; dropping it says
+so in the tracker's own vocabulary rather than leaving an issue open that
+nobody intends to resolve. The measurements stay valid history -- they are why
+the close-page residual in [[ISSUE-002]] was accepted on the same grounds.
+(was: DEFERRED FAR 2026-09-22, P3)
 
 **Sean 2026-09-22: "030 is this way by design, many features need flop stages,
 so defer 030 far into the future."** The latency is the price of the pipeline
@@ -134,3 +139,17 @@ are research features -- this may be a deliberate cost rather than a defect,
 but nobody has done the accounting to say which.
 
 ---
+
+
+## 2026-09-24 — DROPPED
+
+Dropped rather than closed: nothing was resolved, the design simply carries
+this cost deliberately. The convention reserves `dropped` for "ended without
+completing (abandoned / superseded / won't do)", and "won't do" is exactly the
+standing position -- shortening the ACT->column path means removing pick-
+pipeline or bank-timer flop stages, which Sean ruled out of scope.
+
+Kept for reference because two other items lean on it: the [[ISSUE-002]]
+close-page residual was accepted on this ruling, and the outstanding-dial
+measurements here (static_close flat at 33.9 MB/s across OS 8/16/32) are what
+showed the residual is not latency- or outstanding-bound.

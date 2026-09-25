@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-002** — never recycle a number, even when its item closed.
+**Next ID: BUG-003** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,7 @@ exactly one state by construction rather than by discipline.
 ## Open
 
 - **BUG-000** — TEMPLATE — copy this file, never file against it
+- **BUG-002** — close-page modes reach only 62.8% of their own command-bus ceiling
 
 ## Closed
 
