@@ -23,6 +23,14 @@ same scoping error hid a whole file class -- every count was globbed from
 `docs/markdown/`, so beside-code CLAUDE.md and README.md were never in the
 denominator.
 
+**Third instance of the same bug, 2026-09-24.** The block U+2300-U+23FF was
+absent, so the hourglass, pause, stopwatch and next-track glyphs read as clean:
+48 of them sat in tracked .md and this checker reported them as nothing. An
+emoji sweep over 235 scripts missed the same block for the same reason and left
+18 glyphs behind while reporting success. Only the EMOJI sub-ranges are added
+(U+231A-231B, U+23E9-23FA); U+2308-230B stay out because ceiling and floor
+brackets are live math in this repo.
+
 **Why not wider.** Technical documentation is full of non-ASCII that must
 survive untouched. Measured across 54 rtl-common files: 713 OVERLINE (waveform
 diagrams), 191 RIGHTWARDS ARROW, 178 box-drawing characters, 174 em dashes, 160
@@ -53,11 +61,17 @@ RANGES = (
     (0x1F000, 0x1FAFF),   # pictographs, transport, mahjong, cards, enclosed
     (0x2600, 0x27BF),     # misc symbols + dingbats: check mark, cross, warning
     (0x2B00, 0x2BFF),     # stars, thick arrows
+    (0x231A, 0x231B),     # watch, hourglass
+    (0x23E9, 0x23FA),     # media controls + clocks: next-track, pause, record,
+                          # alarm, stopwatch, timer, HOURGLASS WITH FLOWING SAND
 )
 # Stragglers outside those blocks that render as emoji.
 SINGLES = frozenset({0x2139, 0x24C2, 0x3030, 0x303D, 0x3297, 0x3299, 0xFE0F})
 
 # Deliberately NOT emoji -- documented so the next person does not "fix" it:
+#   U+2300-U+2319 technical       diameter, ceiling/floor brackets (U+2308-230B
+#                                 appear in real formulas here -- pumice's read
+#                                 ring depth is D >= ceil((t_rddata_en+CL)/tCCD))
 #   U+2190-U+21FF arrows          state transitions, navigation links
 #   U+2500-U+257F box drawing     ASCII waveforms and hierarchy diagrams
 #   U+2200-U+22FF math operators  >=, !=, element-of, xor

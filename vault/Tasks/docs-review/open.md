@@ -136,6 +136,58 @@ both generated families is ZERO. The two `rtl/cdc` headers that pointed at
 cleared since, by owners fixing pages for other reasons -- the headline above is
 stale, not the rule.
 
+**RE-MEASURED 2026-09-24 with the tool: 309 glyphs in 13 of 1557 files, and
+every one of the 13 is `dmas/stream`, `dmas/rapids` or `Genesys2/stream`.**
+Outside those areas the `.md` half of this task is DONE -- zero glyphs in
+anything not owned by another session.
+
+**The class had a third blind spot, now fixed.** U+2300-U+23FF was absent from
+`RANGES`, so hourglass, pause, stopwatch and next-track read as clean; 48 of
+them sat in tracked `.md` and this checker reported nothing. Adding the emoji
+sub-ranges only (U+231A-231B, U+23E9-23FA) moved the count 263 -> 309 and
+exposed 3 files that had always reported clean (`rapids/PRD.md`,
+`rapids/TASKS.md`, `stream/regs/README.md`). U+2308-230B stay OUT: ceiling and
+floor brackets are live math here. `check_tag_survival.py` imports `is_emoji`
+from this module, so the humanize gate tightened with it.
+
+That is the same defect the docstring already described twice -- a definition
+that omits a block, and a verification that shares the omission. It is now
+recorded there a third time.
+
+**The code file classes were swept the same day, and this checker does not see
+them** (`--all` globs `*.md`). Four commits:
+
+| commit | what |
+|---|---|
+| `6bd5b1912` | 1674 glyphs out of 235 `.py`/`.sh` |
+| `167ae7e89` | repaired 42 string literals that sweep had emptied (`"<glyph>"` -> `""`), restored 91 lost in-string indentations, swept 18 glyphs its class had missed |
+| `5f2ca09e9` | 518 glyphs from the 13 files held back because their glyphs carried meaning (PASS/WARN/FAIL, accessible/missing, YES/NO), plus 56 from the two pumice docs |
+| `4da579e07` | 110 glyphs -- 80 in Makefiles, testplan YAML, `.toml`, `.txt` and two `.sv` comment blocks; 30 in 6 `.md` |
+
+Measured from the four commits: **2279 glyphs out of code files and 86 out of
+`.md`**, 2365 in all. `167ae7e89` nets to only 7 because it deliberately put 11
+glyphs BACK -- the `EMOJI_MAP` keys, which are data -- while removing the 18 its
+class had leaked.
+
+The lesson from the emptied literals is [[silent-fallbacks]] rule 14; the
+`EMOJI_MAP` casualty (nine dict entries collapsed to two, emoji stripping dead
+for all 30 `generate_*_pdf.sh` callers) is in [[doc-pipeline]].
+
+**Residual, needs a decision.** Nothing gates emoji in `.py`/`.sh`/`Makefile`/
+`.sv`. This note already records that the humanizer readily ADDS them and that
+`check_tag_survival.py` only guards the `.md` humanize path, so the 2279 glyphs
+just removed from code files have no ratchet behind them. A staged-file check over
+those classes would close it; not built, because it is new tooling rather than
+backlog.
+
+**One deliberate exception, not a miss:** the check mark in
+`projects/components/apbx-xbar/docs/apbx_xbar_mas/assets/graphviz/address_decode_flow.gv`.
+That `.gv` is the source for a committed SVG and PNG, and regeneration is not
+byte-stable on this box (graphviz rewrites 182 lines including its version
+banner), so fixing one decorative glyph would either bundle a whole-asset
+rewrite from version drift or leave the shipped diagram inconsistent with its
+source.
+
 The shape makes this far more tractable than the raw count suggests: **1700 of
 the 2979 are a single glyph**, U+2705 WHITE HEAVY CHECK MARK, with U+274C CROSS
 MARK at 248 and U+2713 CHECK MARK at 151. Three characters are ~70% of the
