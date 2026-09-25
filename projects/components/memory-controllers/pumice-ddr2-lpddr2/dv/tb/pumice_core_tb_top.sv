@@ -136,6 +136,7 @@ module pumice_core_tb_top
     logic [31:0] stall_actlimit, stall_banktimer, stall_noreq;
     logic [31:0] stat_page_hit, stat_page_miss, stat_page_empty;
     logic [31:0] stat_act, stat_pre, stat_ref;
+    logic [31:0] stat_ref_busy;
 
     logic [DFI_ADDR_BUS_W-1:0]  phy_dfi_address;
     logic [DFI_BANK_BUS_W-1:0]  phy_dfi_bank;
@@ -220,6 +221,10 @@ module pumice_core_tb_top
         .stat_page_hit_o(stat_page_hit), .stat_page_miss_o(stat_page_miss),
         .stat_page_empty_o(stat_page_empty),
         .stat_act_o(stat_act), .stat_pre_o(stat_pre), .stat_ref_o(stat_ref),
+        // TASK-012: REFs that issued with work pending. The free-running
+        // stat_ref counts host idle time too, so this is the one a measured
+        // refresh cost comes from.
+        .stat_ref_busy_o(stat_ref_busy),
         // CSR-backed MR values at their RDL resets (MR0 0x0433 = BL8/CL3/tWR3);
         // no runtime MR retune in this TB, init_restart tied off.
         .mr0_i(16'h0433), .mr1_i(16'h0000), .mr2_i(16'h0000), .mr3_i(16'h0000),

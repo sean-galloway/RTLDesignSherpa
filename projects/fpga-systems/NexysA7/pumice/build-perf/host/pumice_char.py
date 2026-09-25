@@ -693,6 +693,11 @@ class PageStats:
     acts:    int        # SCHED_STATS_ACT  -- == miss + empty
     pres:    int        # SCHED_STATS_PRE  -- PRE + PREA
     refs:    int        # REF_STATS_REF    -- REFab + REFpb (SEE THE WARNING)
+    # TASK-012: REFs that issued with work pending. Contamination-free by
+    # construction -- the CAMs are empty while the host is idle between reads,
+    # so UART round trips are not counted. This is the MEASURED refresh cost;
+    # refs_in_window() only ever ESTIMATED it from tREFI.
+    refs_busy: int = 0
     # tREFI in MC cycles, as programmed. Carried so `refs` can be judged
     # against the window it is quoted beside -- see refs_are_wall_clock.
     t_refi:  int = 0
@@ -705,6 +710,7 @@ class PageStats:
         return PageStats(m(self.col_ops, other.col_ops), m(self.miss, other.miss),
                          m(self.empty, other.empty), m(self.acts, other.acts),
                          m(self.pres, other.pres), m(self.refs, other.refs),
+                         refs_busy=m(self.refs_busy, other.refs_busy),
                          t_refi=self.t_refi or other.t_refi)
 
     @property
@@ -743,7 +749,16 @@ class PageStats:
         every config precisely because it was timing the HOST, not the DRAM.
         The command counters (col_ops/acts/pres) do not have this problem --
         nothing issues DRAM commands while the host is idle.
+
+        TASK-012 (2026-09-25): REF_STATS_REF_BUSY now counts refreshes that
+        issued WITH WORK PENDING, which is contamination-free for the same
+        reason the command counters are -- the CAMs are empty while the host is
+        idle. When that counter is present and nonzero this returns the MEASURED
+        value and `window_cycles` is unused; the tREFI estimate below remains
+        the fallback for older bitstreams, which is why it is kept.
         """
+        if self.refs_busy > 0:
+            return float(self.refs_busy)      # MEASURED (TASK-012), not derived
         if self.t_refi <= 0 or window_cycles <= 0:
             return None
         return window_cycles / self.t_refi
@@ -751,6 +766,8 @@ class PageStats:
     def refs_are_wall_clock(self, window_cycles: int) -> bool:
         """True when the raw refresh delta is dominated by host idle time and
         must NOT be quoted as the workload's refresh cost."""
+        if self.refs_busy > 0:
+            return False        # refs_busy cannot include host idle time
         est = self.refs_in_window(window_cycles)
         return est is not None and self.refs > 2 * max(est, 1.0)
 
@@ -840,6 +857,7 @@ def read_page_stats(drv: DDR2CharDriver) -> PageStats:
         acts=   int(f("SCHED_STATS_ACT",  "VAL")),
         pres=   int(f("SCHED_STATS_PRE",  "VAL")),
         refs=   int(f("REF_STATS_REF",    "VAL")),
+        refs_busy=int(f("REF_STATS_REF_BUSY", "VAL")),
         t_refi= int(f("TIMINGS_RFC_REFI",  "tREFI")),
     )
 

@@ -84,6 +84,7 @@ Don't override. Generated from: $root
 | 0x170|     STALL_ACTLIMIT     |       Stall: activate rate limit       |
 | 0x174|     STALL_BANKTIMER    |          Stall: per-bank timer         |
 | 0x178|       STALL_NOREQ      |         Stall: nothing pending         |
+| 0x17C|   REF_STATS_REF_BUSY   |  Refresh Stats: Refreshes with demand  |
 | 0x1C0|      OBS_WORDS[0]      |        Observation Word Harvest        |
 | 0x1C4|      OBS_WORDS[1]      |        Observation Word Harvest        |
 | 0x1C8|      OBS_WORDS[2]      |        Observation Word Harvest        |
@@ -1817,7 +1818,7 @@ further amortisation while costing read forward progress.</p>
 
 #### VAL field
 
-<p>REFab + REFpb commands issued</p>
+<p>REFab + REFpb commands issued. FREE-RUNNING: refresh is autonomous, so a host-bracketed delta counts the UART round trips too -- measured on the board, a 186us window carried a delta implying 479ms (2584x). Use REF_STATS_REF_BUSY to attribute refresh cost to a workload; this one is for absolute accounting.</p>
 
 ### STALL_BP register
 
@@ -1916,6 +1917,22 @@ further amortisation while costing read forward progress.</p>
 #### VAL field
 
 <p>Both CAMs empty -- requester-bound, not DRAM-bound</p>
+
+### REF_STATS_REF_BUSY register
+
+- Absolute Address: 0x17C
+- Base Offset: 0x17C
+- Size: 0x4
+
+<p>TASK-012. REFab/REFpb commands that issued while at least one CAM entry was schedulable -- i.e. refreshes that actually took a command slot from pending work. Contamination-free by construction: the CAMs are empty while the host is idle between reads, so host round-trip time is not counted. This is the number axis 3 wants -- a refresh during idle costs the workload nothing, one during traffic costs bandwidth.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>REF commands issued with work pending</p>
 
 ## OBS_WORDS register file
 

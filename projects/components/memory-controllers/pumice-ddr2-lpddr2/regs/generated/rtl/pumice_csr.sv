@@ -126,6 +126,7 @@ module pumice_csr (
         logic STALL_ACTLIMIT;
         logic STALL_BANKTIMER;
         logic STALL_NOREQ;
+        logic REF_STATS_REF_BUSY;
         struct {
             logic WORD;
         } OBS_WORDS[9];
@@ -199,6 +200,7 @@ module pumice_csr (
         decoded_reg_strb.STALL_ACTLIMIT = cpuif_req_masked & (cpuif_addr == 12'h170);
         decoded_reg_strb.STALL_BANKTIMER = cpuif_req_masked & (cpuif_addr == 12'h174);
         decoded_reg_strb.STALL_NOREQ = cpuif_req_masked & (cpuif_addr == 12'h178);
+        decoded_reg_strb.REF_STATS_REF_BUSY = cpuif_req_masked & (cpuif_addr == 12'h17c);
         for(int i0=0; i0<9; i0++) begin
             decoded_reg_strb.OBS_WORDS[i0].WORD = cpuif_req_masked & (cpuif_addr == 12'h1c0 + (12)'(i0) * 12'h4);
         end
@@ -2762,7 +2764,7 @@ module pumice_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[81];
+    logic [31:0] readback_array[82];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -2918,14 +2920,15 @@ module pumice_csr (
     assign readback_array[67][31:0] = (decoded_reg_strb.STALL_ACTLIMIT && !decoded_req_is_wr) ? hwif_in.STALL_ACTLIMIT.VAL.next : '0;
     assign readback_array[68][31:0] = (decoded_reg_strb.STALL_BANKTIMER && !decoded_req_is_wr) ? hwif_in.STALL_BANKTIMER.VAL.next : '0;
     assign readback_array[69][31:0] = (decoded_reg_strb.STALL_NOREQ && !decoded_req_is_wr) ? hwif_in.STALL_NOREQ.VAL.next : '0;
+    assign readback_array[70][31:0] = (decoded_reg_strb.REF_STATS_REF_BUSY && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF_BUSY.VAL.next : '0;
     for(genvar i0=0; i0<9; i0++) begin
-        assign readback_array[i0 * 1 + 70][31:0] = (decoded_reg_strb.OBS_WORDS[i0].WORD && !decoded_req_is_wr) ? hwif_in.OBS_WORDS[i0].WORD.VAL.next : '0;
+        assign readback_array[i0 * 1 + 71][31:0] = (decoded_reg_strb.OBS_WORDS[i0].WORD && !decoded_req_is_wr) ? hwif_in.OBS_WORDS[i0].WORD.VAL.next : '0;
     end
-    assign readback_array[79][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[79][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[79][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[79][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[80][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[80][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[80][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[80][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[80][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[81][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -2933,7 +2936,7 @@ module pumice_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<81; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<82; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

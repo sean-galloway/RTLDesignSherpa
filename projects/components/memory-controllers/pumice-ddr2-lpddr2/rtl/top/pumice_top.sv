@@ -119,6 +119,7 @@ module pumice_top
     logic [31:0] w_stall_bp, w_stall_refresh, w_stall_turnaround, w_stall_tccd, w_stall_actlimit, w_stall_banktimer, w_stall_noreq;
     logic [31:0] w_stat_page_hit, w_stat_page_miss, w_stat_page_empty;
     logic [31:0] w_stat_act, w_stat_pre, w_stat_ref;
+    logic [31:0] w_stat_ref_busy;   // TASK-012: REFs with work pending
     always_comb begin
         hwif_in = '{default: '0};
         hwif_in.STALL_BP.VAL.next  = w_stall_bp;
@@ -134,6 +135,7 @@ module pumice_top
         hwif_in.SCHED_STATS_ACT.VAL.next   = w_stat_act;
         hwif_in.SCHED_STATS_PRE.VAL.next   = w_stat_pre;
         hwif_in.REF_STATS_REF.VAL.next     = w_stat_ref;
+        hwif_in.REF_STATS_REF_BUSY.VAL.next = w_stat_ref_busy;
         // Init status. STATUS.init_done is the ONLY way software can tell
         // that bring-up finished -- and it was never driven, so it read 0
         // forever while the sequencer sat in S_DONE with init_done_o = 1.
@@ -286,6 +288,7 @@ module pumice_top
         .stat_act_o         (w_stat_act),
         .stat_pre_o         (w_stat_pre),
         .stat_ref_o         (w_stat_ref),
+        .stat_ref_busy_o    (w_stat_ref_busy),
         .bank_lsb_i         (hwif_out.ADDR_MAP.bank_lsb.value),
         .hash_en_i          (hwif_out.ADDR_MAP.hash_en.value),
         .hash_seed_i        (hwif_out.ADDR_MAP.hash_seed.value),

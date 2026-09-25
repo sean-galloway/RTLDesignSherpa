@@ -1386,6 +1386,23 @@ async def cocotb_test_pumice_core_perf_refresh_bubbles(dut):
     assert m['util'] < 1.0, (
         f"utilization {100.0 * m['util']:.2f}% with {m['refs']} refreshes in "
         f"the window -- refresh cannot be free")
+    # 2b. TASK-012: REF_STATS_REF_BUSY counts refreshes that issued WITH WORK
+    #     PENDING. This test is the one place it can be proven non-vacuous --
+    #     refreshes fire here under a live write stream, so the count MUST be
+    #     nonzero. The free-running REF_STATS_REF cannot show this: it also
+    #     advances while the host is idle, which is the whole defect
+    #     REF_STATS_REF_BUSY exists to fix (a 186us board window once carried a
+    #     delta implying 479ms).
+    ref_busy = int(dut.stat_ref_busy.value)
+    ref_all  = int(dut.stat_ref.value)
+    assert ref_busy > 0, (
+        f"{ref_all} refreshes issued under a saturating write stream but "
+        f"REF_STATS_REF_BUSY counted ZERO with work pending. The demand gate "
+        f"is stuck low, so every refresh-cost number derived from it would "
+        f"read as free.")
+    assert ref_busy <= ref_all, (
+        f"REF_STATS_REF_BUSY ({ref_busy}) exceeds REF_STATS_REF ({ref_all}) -- "
+        f"it is a SUBSET by construction, so this is a counting bug")
     # 3. the stalls look like refresh, not like scattered noise: each bubble
     #    should be a contiguous run, and there should not be wildly more
     #    bubbles than refreshes.

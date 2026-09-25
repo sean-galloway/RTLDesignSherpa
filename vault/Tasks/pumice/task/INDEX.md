@@ -12,9 +12,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 6 | accepted, not started |
+| [open/](open/) | 5 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 5 | done (kept for history) |
+| [closed/](closed/) | 6 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 
 ## Open
@@ -24,7 +24,6 @@ exactly one state by construction rather than by discipline.
 - **TASK-009** — doc + filelist cleanup (push from workstation)
 - **TASK-010** — no generator config can show RBL a win, and the harness is what blocks it
 - **TASK-011** — build generator patterns that can show RBL a win
-- **TASK-012** — REF_STATS_REF free-runs, so axis 3 is estimated rather than measured
 
 ## Closed
 
@@ -35,6 +34,8 @@ exactly one state by construction rather than by discipline.
   reported gaps dispositioned (P1+P3 fixed, P2 re-filed as TASK-012)
 - **TASK-007** — write batching: corruption fixed (3 defects, 210 clean board
   runs, +12.2% bus); wire-level JEDEC audit now gates the spacing
+- **TASK-012** — axis 3 is MEASURED now: REF_STATS_REF_BUSY counts refreshes
+  that fired with work pending, so host idle time cannot contaminate it
 
 ## Dropped
 

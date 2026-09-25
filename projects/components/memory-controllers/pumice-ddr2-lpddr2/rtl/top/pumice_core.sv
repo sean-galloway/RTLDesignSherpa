@@ -161,6 +161,8 @@ module pumice_core
     output logic [31:0]                stat_act_o,
     output logic [31:0]                stat_pre_o,
     output logic [31:0]                stat_ref_o,
+    output logic [31:0]                stat_ref_busy_o,   // TASK-012
+
     input  logic [4:0]                 bank_lsb_i,
     input  logic                       hash_en_i,
     input  logic [7:0]                 hash_seed_i,
@@ -483,6 +485,7 @@ module pumice_core
         .stat_act_o         (stat_act_o),
         .stat_pre_o         (stat_pre_o),
         .stat_ref_o         (stat_ref_o),
+        .stat_ref_busy_o    (stat_ref_busy_o),
         .t_rcd_i            (t_rcd_i),
         .t_rp_i             (t_rp_i),
         .t_ras_i            (t_ras_i),

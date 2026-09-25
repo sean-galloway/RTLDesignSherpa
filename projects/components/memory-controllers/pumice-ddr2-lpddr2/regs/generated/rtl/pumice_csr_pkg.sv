@@ -274,6 +274,14 @@ package pumice_csr_pkg;
 
     typedef struct {
         logic [31:0] next;
+    } pumice_csr__REF_STATS_REF_BUSY__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__REF_STATS_REF_BUSY__VAL__in_t VAL;
+    } pumice_csr__REF_STATS_REF_BUSY__in_t;
+
+    typedef struct {
+        logic [31:0] next;
     } pumice_csr__OBS_WORDS__WORD__VAL__in_t;
 
     typedef struct {
@@ -314,6 +322,7 @@ package pumice_csr_pkg;
         pumice_csr__STALL_ACTLIMIT__in_t STALL_ACTLIMIT;
         pumice_csr__STALL_BANKTIMER__in_t STALL_BANKTIMER;
         pumice_csr__STALL_NOREQ__in_t STALL_NOREQ;
+        pumice_csr__REF_STATS_REF_BUSY__in_t REF_STATS_REF_BUSY;
         pumice_csr__OBS_WORDS__in_t OBS_WORDS[9];
     } pumice_csr__in_t;
 

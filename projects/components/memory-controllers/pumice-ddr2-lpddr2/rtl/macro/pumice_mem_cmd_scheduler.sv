@@ -99,6 +99,8 @@ module pumice_mem_cmd_scheduler
     output logic [31:0]               stat_act_o,
     output logic [31:0]               stat_pre_o,
     output logic [31:0]               stat_ref_o,
+    // TASK-012: refreshes that fired with work pending (see page_policy)
+    output logic [31:0]               stat_ref_busy_o,
     input  memtype_e                  memtype_i,
     input  logic [7:0]                t_rcd_i,
     input  logic [7:0]                t_rp_i,
@@ -454,7 +456,9 @@ module pumice_mem_cmd_scheduler
         .stat_page_empty_o (stat_page_empty_o),
         .stat_act_o        (stat_act_o),
         .stat_pre_o        (stat_pre_o),
-        .stat_ref_o        (stat_ref_o)
+        .stat_ref_o        (stat_ref_o),
+        .demand_i          (|rd_sch_valid_i || |wr_sch_valid_i),
+        .stat_ref_busy_o   (stat_ref_busy_o)
     );
 
     pumice_cmd_arbiter #(

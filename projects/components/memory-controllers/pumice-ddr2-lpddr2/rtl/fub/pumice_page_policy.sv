@@ -107,7 +107,22 @@ module pumice_page_policy
     output logic [31:0]                stat_page_empty_o,
     output logic [31:0]                stat_act_o,
     output logic [31:0]                stat_pre_o,
-    output logic [31:0]                stat_ref_o
+    output logic [31:0]                stat_ref_o,
+
+    // TASK-012. REF_STATS_REF free-runs: refresh is autonomous, so a
+    // host-bracketed delta counts every microsecond between two UART reads,
+    // not the workload. Measured on the board: a 186 us window carried a raw
+    // delta of 61446 -- 479 ms implied, a 2584x overstatement, and near
+    // identical across every config because it was timing the HOST.
+    //
+    // This counts only refreshes that fired WITH WORK PENDING, which is both
+    // contamination-free (the CAMs are empty while the host is idle, so those
+    // refreshes are not counted) and the number axis 3 actually wants: a
+    // refresh during idle costs the workload nothing, one during traffic costs
+    // bandwidth. No host arming, no window register, no write trigger -- so
+    // nothing here can be fired by RegisterMap.walk().
+    input  logic                       demand_i,          // any CAM entry schedulable
+    output logic [31:0]                stat_ref_busy_o
 );
 
     localparam logic [2:0] MODE_DEFAULT      = 3'd0;
@@ -341,6 +356,7 @@ module pumice_page_policy
             stat_act_o        <= 32'h0;
             stat_pre_o        <= 32'h0;
             stat_ref_o        <= 32'h0;
+            stat_ref_busy_o   <= 32'h0;
         end else begin
             if (w_is_pre && !w_pre_was_timeout)
                 r_conflict_mark[cmd_bank_i] <= 1'b1;
@@ -356,7 +372,12 @@ module pumice_page_policy
                 end
             end
             if (w_is_pre) stat_pre_o <= stat_pre_o + 32'h1;
-            if (w_is_ref) stat_ref_o <= stat_ref_o + 32'h1;
+            if (w_is_ref) begin
+                stat_ref_o <= stat_ref_o + 32'h1;
+                // Sampled at the REF's own issue cycle, so it reflects demand
+                // at the moment the refresh took the command slot.
+                if (demand_i) stat_ref_busy_o <= stat_ref_busy_o + 32'h1;
+            end
         end
     end)
 

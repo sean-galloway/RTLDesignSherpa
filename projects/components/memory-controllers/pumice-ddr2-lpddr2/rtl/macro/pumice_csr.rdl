@@ -822,7 +822,7 @@ addrmap pumice_csr {
 
     reg {
         name = "Refresh Stats: Refreshes";
-        field { sw = r; hw = w; desc = "REFab + REFpb commands issued"; } VAL[31:0];
+        field { sw = r; hw = w; desc = "REFab + REFpb commands issued. FREE-RUNNING: refresh is autonomous, so a host-bracketed delta counts the UART round trips too -- measured on the board, a 186us window carried a delta implying 479ms (2584x). Use REF_STATS_REF_BUSY to attribute refresh cost to a workload; this one is for absolute accounting."; } VAL[31:0];
     } REF_STATS_REF @ 0x15C;
 
     //-------------------------------------------------------------------------
@@ -878,6 +878,12 @@ addrmap pumice_csr {
         name = "Stall: nothing pending";
         field { sw = r; hw = w; desc = "Both CAMs empty -- requester-bound, not DRAM-bound"; } VAL[31:0];
     } STALL_NOREQ @ 0x178;
+
+    reg {
+        name = "Refresh Stats: Refreshes with demand";
+        desc = "TASK-012. REFab/REFpb commands that issued while at least one CAM entry was schedulable -- i.e. refreshes that actually took a command slot from pending work. Contamination-free by construction: the CAMs are empty while the host is idle between reads, so host round-trip time is not counted. This is the number axis 3 wants -- a refresh during idle costs the workload nothing, one during traffic costs bandwidth.";
+        field { sw = r; hw = w; desc = "REF commands issued with work pending"; } VAL[31:0];
+    } REF_STATS_REF_BUSY @ 0x17C;
 
     //=========================================================================
     // Module Identification (0xFF0 – 0xFFC)
