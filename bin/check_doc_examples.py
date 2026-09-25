@@ -158,18 +158,30 @@ def main() -> int:
     # The one left is the rapids_core_beats MAS page (TASK-077), and it is
     # bigger than the printed message suggests. The message truncates to five
     # names (sorted(set(miss))[:5]); the page actually carries 25 fabricated
-    # connections out of 43 in its Integration Example, plus ~40 more in its
-    # port TABLES, which this gate never inspects because RE_CONN only matches
-    # .port(net) connection syntax. Real names: sink write is m_axi_wr_*,
+    # connections out of 43 in its Integration Example, and its port TABLES are
+    # worse: 55 distinct signals named, only 13 resolve, so 42 are fabricated.
+    # Real names: sink write is m_axi_wr_*,
     # source read m_axi_rd_*, fill s_axis_t*, drain m_axis_t*, MonBus
     # mon_valid/mon_ready/mon_packet, status src_/snk_system_idle -- there is
     # no error_flags port at all.
     #
-    # Known blind spot, found while fixing the above: the check greps the whole
-    # MODULE SOURCE, not just its port list, so an internal wire name can mask a
-    # fabricated port name. all_channels_idle and scheduler_idle pass on the
-    # rapids_core_beats page for exactly that reason, despite neither being a
-    # port. Tightening it to the port list would raise the count.
+    # What this gate does NOT see: RE_CONN is ^\s*\.(\w+)\s*\( , so it reads
+    # connections (and, incidentally, parameter overrides -- 1342 of those
+    # across 224 pages) inside CODE BLOCKS only. Markdown TABLES are invisible
+    # to it, and on the rapids_core_beats page that is where most of the damage
+    # is: 42 of 55 table signals are fabricated and none are counted. A page can
+    # therefore sit at the baseline with its reference tables three-quarters
+    # wrong.
+    #
+    # An earlier version of this comment claimed the whole-source (rather than
+    # port-list) match lets an internal wire mask a fabricated port name, citing
+    # all_channels_idle and scheduler_idle. That was WRONG and is retracted:
+    # both are absent from the module text entirely and appear only in tables,
+    # so they are never checked rather than wrongly passing. Whether the
+    # whole-source match hides anything real is UNMEASURED -- two attempts to
+    # quantify it returned only artifacts (first 1569 parameter overrides, then
+    # 227 hits from a port-list regex broken enough to call counter's rst_n a
+    # non-port) -- so no claim is made here either way.
     BASELINE = 1
     if bad > BASELINE:
         print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} (TASK-077)')
