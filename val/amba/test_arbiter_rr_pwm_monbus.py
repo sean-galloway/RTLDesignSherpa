@@ -74,7 +74,7 @@ async def arbiter_rr_pwm_monbus_test(dut):
     # =========================================================================
     # Phase 1: Reset and Initialize
     # =========================================================================
-    print("🔄 Phase 1: Initialization and Reset...")
+    print("Phase 1: Initialization and Reset...")
 
     # Reset all inputs
     dut.rst_n.value = 0
@@ -109,7 +109,7 @@ async def arbiter_rr_pwm_monbus_test(dut):
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 10)
 
-    print(f"✅ Reset complete. Initial state:")
+    print(f"Reset complete. Initial state:")
     print(f"   Grant valid: {dut.grant_valid.value}")
     print(f"   PWM out: {dut.pwm_out.value}")
     print(f"   Monitor packet count: {dut.debug_packet_count.value}")
@@ -118,7 +118,7 @@ async def arbiter_rr_pwm_monbus_test(dut):
     # =========================================================================
     # Phase 2: Basic Arbiter Integration Test (No PWM, No Monitor)
     # =========================================================================
-    print("📍 Phase 2: Basic Arbiter Integration Test...")
+    print("Phase 2: Basic Arbiter Integration Test...")
 
     basic_grants = 0
     for cycle in range(50):  # Test different clients
@@ -147,13 +147,13 @@ async def arbiter_rr_pwm_monbus_test(dut):
         dut.request.value = 0
         await RisingEdge(dut.clk)  # One cycle with no request
 
-    print(f"✅ Basic arbiter test: {basic_grants} grants generated")
+    print(f"Basic arbiter test: {basic_grants} grants generated")
     print()
 
     # =========================================================================
     # Phase 3: PWM Integration Test (Block Arbiter Periodically)
     # =========================================================================
-    print("⚙️  Phase 3: PWM Integration Test...")
+    print("Phase 3: PWM Integration Test...")
 
     # Enable PWM with 25% duty cycle (blocked 75% of time)
     dut.cfg_pwm_duty.value = 0x4000       # 25% duty cycle
@@ -185,9 +185,9 @@ async def arbiter_rr_pwm_monbus_test(dut):
             pwm_blocked_cycles += 1
             # Arbiter should be blocked when PWM is low
             if dut.grant_valid.value == 1:
-                print(f"⚠️  WARNING: Grant issued when PWM blocked at cycle {cycle}")
+                print(f"WARNING: Grant issued when PWM blocked at cycle {cycle}")
 
-    print(f"✅ PWM integration test:")
+    print(f"PWM integration test:")
     print(f"   PWM active cycles: {pwm_active_cycles}")
     print(f"   PWM blocked cycles: {pwm_blocked_cycles}")
     print(f"   Grants during PWM: {pwm_grants}")
@@ -203,7 +203,7 @@ async def arbiter_rr_pwm_monbus_test(dut):
     # =========================================================================
     # Phase 4: Monitor Integration Test
     # =========================================================================
-    print("📊 Phase 4: Monitor Integration Test...")
+    print("Phase 4: Monitor Integration Test...")
 
     # Enable monitor
     dut.cfg_mon_enable.value = 1
@@ -253,7 +253,7 @@ async def arbiter_rr_pwm_monbus_test(dut):
     final_packet_count = int(dut.debug_packet_count.value)
     total_monitor_packets = final_packet_count - initial_packet_count
 
-    print(f"✅ Monitor integration test:")
+    print(f"Monitor integration test:")
     print(f"   Arbiter grants: {monitor_grants}")
     print(f"   Monitor packets generated: {total_monitor_packets}")
     print(f"   Packets observed on bus: {monitor_packets_observed}")
@@ -264,7 +264,7 @@ async def arbiter_rr_pwm_monbus_test(dut):
     # Phase 5: Full Integration Test (All Components Active)
     # =========================================================================
     if test_level in ['func', 'full']:
-        print("🔄 Phase 5: Full Integration Test (Arbiter + PWM + Monitor)...")
+        print("Phase 5: Full Integration Test (Arbiter + PWM + Monitor)...")
 
         # Configure PWM for moderate blocking
         dut.cfg_pwm_duty.value = 0x6000       # 37.5% duty cycle
@@ -312,7 +312,7 @@ async def arbiter_rr_pwm_monbus_test(dut):
         full_packets_end = int(dut.debug_packet_count.value)
         full_packets_generated = full_packets_end - full_packets_start
 
-        print(f"✅ Full integration test:")
+        print(f"Full integration test:")
         print(f"   Total grants: {full_grants}")
         print(f"   Monitor packets: {full_packets_generated}")
         print(f"   Integration successful: All components working together")
@@ -336,7 +336,7 @@ async def arbiter_rr_pwm_monbus_test(dut):
     # builds Verilator with --public-flat-rw, the same approach
     # test_mon_cg_gating.py uses for dut.gated_aclk).
     if test_wait_gnt_ack:
-        print("🔒 Phase 5b: ACK-timeout monitoring reaches the monitor...")
+        print("Phase 5b: ACK-timeout monitoring reaches the monitor...")
         # Observed at the PORTS, not by internal probe: an unacked grant must
         # produce a TIMEOUT packet carrying ARB_TIMEOUT_GRANT_ACK on the
         # monitor bus. (The wrapper hardcodes cfg_mon_ack_timeout_thresh and
@@ -378,7 +378,7 @@ async def arbiter_rr_pwm_monbus_test(dut):
     # =========================================================================
     # Phase 6: Final Validation and Report
     # =========================================================================
-    print("📋 Phase 6: Final Integration Validation...")
+    print("Phase 6: Final Integration Validation...")
 
     await ClockCycles(dut.clk, 20)  # Settle time
 
@@ -404,48 +404,48 @@ async def arbiter_rr_pwm_monbus_test(dut):
 
     # Criterion 1: Basic arbiter functionality (more realistic expectations)
     if basic_grants > 10:  # Should get reasonable grants from 100 cycles
-        validation_results.append("✅ Arbiter basic functionality working")
+        validation_results.append("PASS Arbiter basic functionality working")
     else:
-        validation_results.append("❌ Arbiter not generating enough grants")
+        validation_results.append("FAIL Arbiter not generating enough grants")
 
     # Criterion 2: PWM integration (check that PWM was configured and ran)
     if pwm_grants >= 0:  # PWM test ran (grants can be 0 if PWM blocks)
-        validation_results.append("✅ PWM integration functional")
+        validation_results.append("PASS PWM integration functional")
     else:
-        validation_results.append("❌ PWM integration not working")
+        validation_results.append("FAIL PWM integration not working")
 
     # Criterion 3: Monitor integration (should generate packets when enabled)
     if total_monitor_packets > 0:  # Any packets show monitor working
-        validation_results.append("✅ Monitor successfully tracking activity")
+        validation_results.append("PASS Monitor successfully tracking activity")
     else:
-        validation_results.append("❌ Monitor not generating sufficient packets")
+        validation_results.append("FAIL Monitor not generating sufficient packets")
 
     # Criterion 4: Integration stability (no hangs, proper termination)
     # Allow FIFO to be full during heavy testing - that's normal behavior
     if final_state['fifo_count'] <= 20:  # Allow some headroom above FIFO depth
-        validation_results.append("✅ System integration stable")
+        validation_results.append("PASS System integration stable")
     else:
-        validation_results.append("❌ System integration shows instability")
+        validation_results.append("FAIL System integration shows instability")
 
     # Print all validation results
     for result in validation_results:
         print(result)
 
     # Determine overall success
-    failed_criteria = [r for r in validation_results if r.startswith("❌")]
+    failed_criteria = [r for r in validation_results if r.startswith("FAIL")]
 
     if len(failed_criteria) == 0:
         print()
-        print("🎉 INTEGRATION TEST PASSED!")
-        print("   ✅ Round-robin arbiter working correctly")
-        print("   ✅ PWM generator controlling arbiter properly")
-        print("   ✅ Monitor bus tracking arbitration activity")
-        print("   ✅ All component integration validated successfully")
-        print(f"   📊 Total activity: {basic_grants + pwm_grants + monitor_grants} grants")
-        print(f"   📦 Monitor packets: {final_state['packet_count']}")
+        print("INTEGRATION TEST PASSED!")
+        print("   Round-robin arbiter working correctly")
+        print("   PWM generator controlling arbiter properly")
+        print("   Monitor bus tracking arbitration activity")
+        print("   All component integration validated successfully")
+        print(f"   Total activity: {basic_grants + pwm_grants + monitor_grants} grants")
+        print(f"   Monitor packets: {final_state['packet_count']}")
     else:
         print()
-        print(f"❌ INTEGRATION TEST FAILED! {len(failed_criteria)} criteria failed:")
+        print(f"INTEGRATION TEST FAILED! {len(failed_criteria)} criteria failed:")
         for failed in failed_criteria:
             print(f"   {failed}")
         raise AssertionError(f"Integration test failed: {len(failed_criteria)}/{len(validation_results)} criteria failed")
@@ -573,12 +573,12 @@ def test_arbiter_rr_pwm_monbus(request, clients, wait_gnt_ack, agent_id, unit_id
             plus_args=plus_args,
         )
 
-        print(f"✅ Integration test PASSED: {test_level} level")
+        print(f"Integration test PASSED: {test_level} level")
         print(f"   Configuration: {clients} clients, ACK={wait_gnt_ack}")
         print(f"   Agent ID: 0x{agent_id:02X}, Unit ID: {unit_id}")
 
     except Exception as e:
-        print(f"❌ Integration test FAILED: {str(e)}")
+        print(f"Integration test FAILED: {str(e)}")
         print(f"   Configuration: CLIENTS={clients}, WAIT_GNT_ACK={wait_gnt_ack}")
         print(f"   AGENT_ID=0x{agent_id:02X}, UNIT_ID={unit_id}, LEVEL={test_level}")
         print(f"   Logs preserved at: {log_path}")
@@ -700,12 +700,12 @@ if __name__ == "__main__":
             plus_args=plus_args,
         )
 
-        print(f"✅ Integration test PASSED: {test_level} level")
+        print(f"Integration test PASSED: {test_level} level")
         print(f"   Configuration: {clients} clients, ACK={wait_gnt_ack}")
         print(f"   Agent ID: 0x{agent_id:02X}, Unit ID: {unit_id}")
 
     except Exception as e:
-        print(f"❌ Integration test FAILED: {str(e)}")
+        print(f"Integration test FAILED: {str(e)}")
         print(f"   Configuration: CLIENTS={clients}, WAIT_GNT_ACK={wait_gnt_ack}")
         print(f"   AGENT_ID=0x{agent_id:02X}, UNIT_ID={unit_id}, LEVEL={test_level}")
         print(f"   Logs preserved at: {log_path}")

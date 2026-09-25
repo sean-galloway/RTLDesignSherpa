@@ -175,20 +175,20 @@ lines below:
 
 | Bit                   | DDR2 | DDR3 | DDR4 | LPDDR2 | LPDDR3 | LPDDR4 |
 |-----------------------|------|------|------|--------|--------|--------|
-| `lookahead_active`    | ✓    | ✓    | ✓    | ✓      | ✓      | ✓      |
-| `force_inorder`       | ✓    | ✓    | ✓    | ✓      | ✓      | ✓      |
-| `happy_enable`        | ✓    | ✓    | ✓    | ✓      | ✓      | ✓      |
-| `bank_group_balance`  | —    | —    | ✓    | —      | —      | ✓      |
-| `refpb_policy_or`     | —    | —    | —    | ✓      | ✓      | ✓      |
-| `fgr_mode`            | —    | ✓    | ✓    | —      | —      | —      |
-| `bg_field_position`   | —    | —    | ✓    | —      | —      | ✓      |
-| `wl_retries`          | —    | ✓    | ✓    | —      | —      | —      |
-| `ca_train_enable`     | —    | —    | —    | —      | ✓      | ✓      |
-| `cbt_enable`          | —    | —    | —    | —      | —      | ✓      |
-| `dpd_enable`          | —    | —    | —    | ✓      | ✓      | ✓      |
-| `ckedis_after_sr`     | —    | ✓    | ✓    | —      | —      | —      |
-| `rank_enable_mask`    | ✓    | ✓    | ✓    | ✓      | ✓      | ✓      |
-| `odt_rule_or`         | ✓    | ✓    | ✓    | ✓      | ✓      | ✓      |
-| `hash_en` / `hash_seed` | ✓  | ✓    | ✓    | ✓      | ✓      | ✓      |
+| `lookahead_active`    | Y    | Y    | Y    | Y      | Y      | Y      |
+| `force_inorder`       | Y    | Y    | Y    | Y      | Y      | Y      |
+| `happy_enable`        | Y    | Y    | Y    | Y      | Y      | Y      |
+| `bank_group_balance`  | —    | —    | Y    | —      | —      | Y      |
+| `refpb_policy_or`     | —    | —    | —    | Y      | Y      | Y      |
+| `fgr_mode`            | —    | Y    | Y    | —      | —      | —      |
+| `bg_field_position`   | —    | —    | Y    | —      | —      | Y      |
+| `wl_retries`          | —    | Y    | Y    | —      | —      | —      |
+| `ca_train_enable`     | —    | —    | —    | —      | Y      | Y      |
+| `cbt_enable`          | —    | —    | —    | —      | —      | Y      |
+| `dpd_enable`          | —    | —    | —    | Y      | Y      | Y      |
+| `ckedis_after_sr`     | —    | Y    | Y    | —      | —      | —      |
+| `rank_enable_mask`    | Y    | Y    | Y    | Y      | Y      | Y      |
+| `odt_rule_or`         | Y    | Y    | Y    | Y      | Y      | Y      |
+| `hash_en` / `hash_seed` | Y  | Y    | Y    | Y      | Y      | Y      |
 
 The "—" entries are present in the CSR map at the documented offsets but read 0 and ignore writes in that flavor. Software treats these as "soft-N/A" — not an error condition, just an absent feature.

@@ -56,7 +56,7 @@ async def arbiter_monbus_common_test(dut):
     await ClockCycles(dut.clk, 5)
 
     # Reset DUT
-    print("\n🔄 Phase 1: Initializing and Resetting DUT...")
+    print("\nPhase 1: Initializing and Resetting DUT...")
     dut.rst_n.value = 0
     dut.cfg_mon_enable.value = 0
     dut.monbus_ready.value = 1
@@ -83,7 +83,7 @@ async def arbiter_monbus_common_test(dut):
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 10)
 
-    print(f"✅ Reset complete. Initial state:")
+    print(f"Reset complete. Initial state:")
     print(f"   Monitor enabled: {dut.cfg_mon_enable.value}")
     print(f"   Debug packet count: {dut.debug_packet_count.value}")
     print(f"   Debug FIFO count: {dut.debug_fifo_count.value}")
@@ -99,7 +99,7 @@ async def arbiter_monbus_common_test(dut):
     }
 
     # PHASE 2: Monitor Enable/Disable Comprehensive Test
-    print("\n📝 Phase 2: Monitor Enable/Disable Test...")
+    print("\nPhase 2: Monitor Enable/Disable Test...")
 
     # Test disabled state
     dut.cfg_mon_enable.value = 0
@@ -133,7 +133,7 @@ async def arbiter_monbus_common_test(dut):
     test_stats['monitor_configs_tested'] += 1
 
     # PHASE 3: Basic Activity Pattern Tests
-    print("\n🎯 Phase 3: Basic Activity Pattern Tests...")
+    print("\nPhase 3: Basic Activity Pattern Tests...")
 
     activity_patterns = [
         ("round_robin", "Round-robin through all clients"),
@@ -257,7 +257,7 @@ async def arbiter_monbus_common_test(dut):
         print(f"     Generated {packets_this_test} packets during {pattern_name}")
 
     # PHASE 4: Configuration and Threshold Tests
-    print(f"\n⚙️  Phase 4: Configuration and Threshold Tests...")
+    print(f"\nPhase 4: Configuration and Threshold Tests...")
 
     threshold_configs = [
         {"latency": 20, "starvation": 50, "desc": "Low thresholds (sensitive)"},
@@ -297,7 +297,7 @@ async def arbiter_monbus_common_test(dut):
         print(f"     Generated {packets_this_config} packets with {config['desc']}")
 
     # PHASE 5: Error Condition Testing
-    print(f"\n⚠️  Phase 5: Error Condition and Edge Case Testing...")
+    print(f"\nPhase 5: Error Condition and Edge Case Testing...")
 
     error_tests = [
         "rapid_enable_disable",
@@ -421,7 +421,7 @@ async def arbiter_monbus_common_test(dut):
         print(f"     Generated {packets_this_error_test} packets during {error_test}")
 
     # PHASE 6: Final State Analysis
-    print(f"\n📊 Phase 6: Final State Analysis and Validation...")
+    print(f"\nPhase 6: Final State Analysis and Validation...")
 
     final_packet_count = int(dut.debug_packet_count.value)
     final_fifo_count = int(dut.debug_fifo_count.value)
@@ -455,47 +455,47 @@ async def arbiter_monbus_common_test(dut):
 
     # Check 1: Sufficient packet generation
     if final_packet_count >= 1000:
-        validation_results.append("✅ Excellent packet generation (≥1000 packets)")
+        validation_results.append("PASS Excellent packet generation (≥1000 packets)")
     elif final_packet_count >= 500:
-        validation_results.append("✅ Good packet generation (≥500 packets)")
+        validation_results.append("PASS Good packet generation (≥500 packets)")
     elif final_packet_count >= 100:
-        validation_results.append("⚠️  Moderate packet generation (≥100 packets)")
+        validation_results.append("WARN Moderate packet generation (≥100 packets)")
     else:
-        validation_results.append("❌ Insufficient packet generation (<100 packets)")
+        validation_results.append("FAIL Insufficient packet generation (<100 packets)")
 
     # Check 2: FIFO operation
     if drained_fifo_count <= 1:
-        validation_results.append("✅ FIFO draining correctly")
+        validation_results.append("PASS FIFO draining correctly")
     else:
-        validation_results.append("⚠️  FIFO may have drainage issues")
+        validation_results.append("WARN FIFO may have drainage issues")
 
     # Check 3: Configuration responsiveness
     if test_stats['monitor_configs_tested'] >= 3:
-        validation_results.append("✅ Multiple configurations tested successfully")
+        validation_results.append("PASS Multiple configurations tested successfully")
     else:
-        validation_results.append("⚠️  Limited configuration testing")
+        validation_results.append("WARN Limited configuration testing")
 
     # Check 4: Stress testing
     if test_stats['error_conditions_tested'] >= 3:
-        validation_results.append("✅ Comprehensive stress testing completed")
+        validation_results.append("PASS Comprehensive stress testing completed")
     else:
-        validation_results.append("⚠️  Limited stress testing")
+        validation_results.append("WARN Limited stress testing")
 
     print(f"\nVALIDATION RESULTS:")
     for result in validation_results:
         print(f"  {result}")
 
     # Determine overall success
-    failed_validations = [r for r in validation_results if r.startswith("❌")]
+    failed_validations = [r for r in validation_results if r.startswith("FAIL")]
     success = len(failed_validations) == 0 and final_packet_count >= 100
 
     if success:
-        print(f"\n🎉 COMPREHENSIVE TEST PASSED!")
+        print(f"\nCOMPREHENSIVE TEST PASSED!")
         print(f"   Monitor demonstrated robust functionality across all test phases")
         print(f"   Total packets: {final_packet_count}, Runtime: {get_sim_time('us'):.1f} μs")
-        print(f"   Monitor RTL is working correctly and thoroughly validated ✅")
+        print(f"   Monitor RTL is working correctly and thoroughly validated")
     else:
-        print(f"\n❌ COMPREHENSIVE TEST FAILED!")
+        print(f"\nCOMPREHENSIVE TEST FAILED!")
         print(f"   Failed validations: {len(failed_validations)}")
         print(f"   Issues found in monitor functionality")
 
@@ -659,13 +659,13 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
         )
 
         # If we get here, the cocotb test passed (no AssertionError was raised)
-        print(f"✅ Enhanced MonBus Common test PASSED: {test_level} level")
+        print(f"Enhanced MonBus Common test PASSED: {test_level} level")
         print(f"   Configuration: {clients} clients, FIFO depth {fifo_depth}")
         print(f"   Agent ID: 0x{mon_agent_id:02X}, Unit ID: 0x{mon_unit_id:01X}")
 
     except Exception as e:
         # Enhanced error reporting for MonBus Common
-        print(f"❌ Enhanced MonBus Common test FAILED: {str(e)}")
+        print(f"Enhanced MonBus Common test FAILED: {str(e)}")
         print(f"   Test configuration: {clients} clients, FIFO depth {fifo_depth}, Level {test_level}")
         print(f"   Agent ID: 0x{mon_agent_id:02X}, Unit ID: 0x{mon_unit_id:01X}")
         print(f"   Logs preserved at: {log_path}")

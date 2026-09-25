@@ -529,7 +529,7 @@ class LeadingOneTrailingOneTB(TBBase):
         for signal_name in expected:
             exp_val = expected[signal_name]
             act_val = actual[signal_name]
-            match = "✓" if exp_val == act_val else "✗"
+            match = "OK" if exp_val == act_val else "FAIL"
             self.log.error(f"  {signal_name:20s}: expected={exp_val:8x}, actual={act_val:8x} {match}")
 
         self.log.error("="*80)

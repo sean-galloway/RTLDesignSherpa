@@ -443,7 +443,7 @@ class ShifterLFSRGaloisTB(TBBase):
             for i in range(min(40, len(result['lfsr_values']))):
                 actual = result['lfsr_values'][i]
                 expected = expected_sequence[i] if i < len(expected_sequence) else "N/A"
-                match = "✓" if i < len(expected_sequence) and actual == expected else "✗"
+                match = "OK" if i < len(expected_sequence) and actual == expected else "FAIL"
                 if isinstance(expected, int):
                     self.log.info(f"  Cycle {i}: Actual=0x{actual:x} ({bin(actual)[2:].zfill(self.WIDTH)}) " +
                                f"Expected=0x{expected:x} ({bin(expected)[2:].zfill(self.WIDTH)}) {match}")

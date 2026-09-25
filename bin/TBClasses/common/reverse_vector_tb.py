@@ -390,7 +390,7 @@ class ReverseVectorTB(TBBase):
             input_bit = (input_value >> i) & 1
             expected_bit = (expected_output >> (self.WIDTH - 1 - i)) & 1
             actual_bit = (actual_output >> (self.WIDTH - 1 - i)) & 1
-            match = "✓" if expected_bit == actual_bit else "✗"
+            match = "OK" if expected_bit == actual_bit else "FAIL"
             self.log.error(f"  Bit {i:2d} → Bit {self.WIDTH-1-i:2d}: {input_bit} → expected {expected_bit}, actual {actual_bit} {match}")
 
         self.log.error("="*80)

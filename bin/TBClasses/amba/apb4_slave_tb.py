@@ -67,7 +67,7 @@ class APBGAXIDebugTB(TBBase):
 
         # Memory model
         self.mem = MemoryModel(num_lines=self.num_line, bytes_per_line=self.STRB_WIDTH, log=self.log)
-        self.log.info(f"✓ Memory model created: {self.num_line} lines x {self.STRB_WIDTH} bytes")
+        self.log.info(f"Memory model created: {self.num_line} lines x {self.STRB_WIDTH} bytes")
 
         # APB components - these should be unchanged by GAXI refactor
         self.apb4_master = create_apb4_master(
@@ -76,14 +76,14 @@ class APBGAXIDebugTB(TBBase):
             randomizer=FlexRandomizer(APB_MASTER_RANDOMIZER_CONFIGS['fixed']),
             log=self.log
         )
-        self.log.info("✓ APB Master created")
+        self.log.info("APB Master created")
 
         self.apb4_monitor = create_apb4_monitor(
             self.dut, 'APB Monitor', 's_apb', self.dut.pclk,
             addr_width=self.ADDR_WIDTH, data_width=self.DATA_WIDTH,
             log=self.log
         )
-        self.log.info("✓ APB Monitor created")
+        self.log.info("APB Monitor created")
 
         # GAXI field configurations - check if refactor changed these
         self.apbgaxiconfig = APBGAXIConfig(
@@ -94,7 +94,7 @@ class APBGAXIDebugTB(TBBase):
         self.cmd_field_config = self.apbgaxiconfig.create_cmd_field_config()
         self.rsp_field_config = self.apbgaxiconfig.create_rsp_field_config()
 
-        self.log.info(f"✓ Field configs created:")
+        self.log.info(f"Field configs created:")
 
         # Handle field_names as either method or property after refactor
         try:
@@ -120,7 +120,7 @@ class APBGAXIDebugTB(TBBase):
                 pkt_prefix='cmd', is_slave=True,
                 log=self.log, super_debug=True, multi_sig=True
             )
-            self.log.info("✓ CMD Monitor created")
+            self.log.info("CMD Monitor created")
 
             # Check what signals it resolved to
             if hasattr(self.cmd_monitor, 'signal_resolver'):
@@ -128,7 +128,7 @@ class APBGAXIDebugTB(TBBase):
                 self.log.info(f"  CMD Monitor resolved signals: {resolved}")
 
         except Exception as e:
-            self.log.error(f"✗ CMD Monitor creation failed: {e}")
+            self.log.error(f"CMD Monitor creation failed: {e}")
             raise
 
         try:
@@ -140,7 +140,7 @@ class APBGAXIDebugTB(TBBase):
                 memory_model=None,  # Don't use memory in slave
                 log=self.log, super_debug=True, multi_sig=True
             )
-            self.log.info("✓ CMD Slave created")
+            self.log.info("CMD Slave created")
 
             # Check what signals it resolved to
             if hasattr(self.cmd_slave, 'signal_resolver'):
@@ -148,7 +148,7 @@ class APBGAXIDebugTB(TBBase):
                 self.log.info(f"  CMD Slave resolved signals: {resolved}")
 
         except Exception as e:
-            self.log.error(f"✗ CMD Slave creation failed: {e}")
+            self.log.error(f"CMD Slave creation failed: {e}")
             raise
 
         # Response interface (master side - sends responses back to APB slave)
@@ -159,7 +159,7 @@ class APBGAXIDebugTB(TBBase):
                 pkt_prefix='rsp', is_slave=False,
                 log=self.log, super_debug=True, multi_sig=True
             )
-            self.log.info("✓ RSP Monitor created")
+            self.log.info("RSP Monitor created")
 
             # Check what signals it resolved to
             if hasattr(self.rsp_monitor, 'signal_resolver'):
@@ -167,7 +167,7 @@ class APBGAXIDebugTB(TBBase):
                 self.log.info(f"  RSP Monitor resolved signals: {resolved}")
 
         except Exception as e:
-            self.log.error(f"✗ RSP Monitor creation failed: {e}")
+            self.log.error(f"RSP Monitor creation failed: {e}")
             raise
 
         try:
@@ -184,7 +184,7 @@ class APBGAXIDebugTB(TBBase):
                 super_debug=True,
                 multi_sig=True
             )
-            self.log.info("✓ RSP Master created")
+            self.log.info("RSP Master created")
 
             # Check what signals it resolved to
             if hasattr(self.rsp_master, 'signal_resolver'):
@@ -192,7 +192,7 @@ class APBGAXIDebugTB(TBBase):
                 self.log.info(f"  RSP Master resolved signals: {resolved}")
 
         except Exception as e:
-            self.log.error(f"✗ RSP Master creation failed: {e}")
+            self.log.error(f"RSP Master creation failed: {e}")
             raise
 
         # Command handler - this orchestrates the command/response flow
@@ -204,36 +204,36 @@ class APBGAXIDebugTB(TBBase):
                 log=self.log,
                 response_generation_mode=True
             )
-            self.log.info("✓ Command Handler created in response generation mode")
+            self.log.info("Command Handler created in response generation mode")
 
         except Exception as e:
-            self.log.error(f"✗ Command Handler creation failed: {e}")
+            self.log.error(f"Command Handler creation failed: {e}")
             raise
 
         # Scoreboard for matching APB and GAXI transactions
         self.apb_gaxi_scoreboard = APBGAXIScoreboard('Debug Scoreboard', log=self.log)
-        self.log.info("✓ Scoreboard created")
+        self.log.info("Scoreboard created")
 
         # Connect callbacks with enhanced debugging
         self.log.info("Connecting callbacks...")
 
         try:
             self.apb4_monitor.add_callback(self.debug_apb_callback)
-            self.log.info("✓ APB Monitor callback connected")
+            self.log.info("APB Monitor callback connected")
         except Exception as e:
-            self.log.error(f"✗ APB Monitor callback failed: {e}")
+            self.log.error(f"APB Monitor callback failed: {e}")
 
         try:
             self.cmd_monitor.add_callback(self.debug_cmd_callback)
-            self.log.info("✓ CMD Monitor callback connected")
+            self.log.info("CMD Monitor callback connected")
         except Exception as e:
-            self.log.error(f"✗ CMD Monitor callback failed: {e}")
+            self.log.error(f"CMD Monitor callback failed: {e}")
 
         try:
             self.rsp_monitor.add_callback(self.debug_rsp_callback)
-            self.log.info("✓ RSP Monitor callback connected")
+            self.log.info("RSP Monitor callback connected")
         except Exception as e:
-            self.log.error(f"✗ RSP Monitor callback failed: {e}")
+            self.log.error(f"RSP Monitor callback failed: {e}")
 
         self.log.info("=== APB-GAXI DEBUG: Component initialization complete ===")
 
@@ -247,21 +247,21 @@ class APBGAXIDebugTB(TBBase):
                 self.debug_stats['apb_writes'] += 1
                 pwdata = getattr(transaction, 'pwdata', None)
                 pstrb = getattr(transaction, 'pstrb', None)
-                self.log.info(f"🔵 APB WRITE #{self.debug_stats['apb_writes']}: addr=0x{paddr:X}, data=0x{pwdata:X}, strb=0x{pstrb:X}")
+                self.log.info(f"APB WRITE #{self.debug_stats['apb_writes']}: addr=0x{paddr:X}, data=0x{pwdata:X}, strb=0x{pstrb:X}")
             elif pwrite == 0:
                 self.debug_stats['apb_reads'] += 1
                 prdata = getattr(transaction, 'prdata', None)
                 pslverr = getattr(transaction, 'pslverr', None)
-                self.log.info(f"🔵 APB READ #{self.debug_stats['apb_reads']}: addr=0x{paddr:X}, data=0x{prdata:X}, err={pslverr}")
+                self.log.info(f"APB READ #{self.debug_stats['apb_reads']}: addr=0x{paddr:X}, data=0x{prdata:X}, err={pslverr}")
             else:
-                self.log.error(f"🔴 APB UNKNOWN: pwrite={pwrite}")
+                self.log.error(f"APB UNKNOWN: pwrite={pwrite}")
 
             # Add to scoreboard
             self.apb_gaxi_scoreboard.add_apb_transaction(transaction)
-            self.log.debug("✓ APB transaction added to scoreboard")
+            self.log.debug("APB transaction added to scoreboard")
 
         except Exception as e:
-            self.log.error(f"🔴 APB callback error: {e}")
+            self.log.error(f"APB callback error: {e}")
 
     def debug_cmd_callback(self, transaction):
         """Debug GAXI command callback with field inspection."""
@@ -274,19 +274,19 @@ class APBGAXIDebugTB(TBBase):
                 pwrite = fields.get('pwrite', 'N/A')
                 paddr = fields.get('paddr', 'N/A')
                 pwdata = fields.get('pwdata', 'N/A')
-                self.log.info(f"🟢 GAXI CMD #{self.debug_stats['gaxi_commands']} (fields dict): pwrite={pwrite}, addr=0x{paddr:X}, data=0x{pwdata:X}")
+                self.log.info(f"GAXI CMD #{self.debug_stats['gaxi_commands']} (fields dict): pwrite={pwrite}, addr=0x{paddr:X}, data=0x{pwdata:X}")
             else:
                 pwrite = getattr(transaction, 'pwrite', 'N/A')
                 paddr = getattr(transaction, 'paddr', 'N/A')
                 pwdata = getattr(transaction, 'pwdata', 'N/A')
-                self.log.info(f"🟢 GAXI CMD #{self.debug_stats['gaxi_commands']} (attributes): pwrite={pwrite}, addr=0x{paddr:X}, data=0x{pwdata:X}")
+                self.log.info(f"GAXI CMD #{self.debug_stats['gaxi_commands']} (attributes): pwrite={pwrite}, addr=0x{paddr:X}, data=0x{pwdata:X}")
 
             # Add to scoreboard
             self.apb_gaxi_scoreboard.add_gaxi_transaction(transaction)
-            self.log.debug("✓ GAXI CMD transaction added to scoreboard")
+            self.log.debug("GAXI CMD transaction added to scoreboard")
 
         except Exception as e:
-            self.log.error(f"🔴 GAXI CMD callback error: {e}")
+            self.log.error(f"GAXI CMD callback error: {e}")
 
     def debug_rsp_callback(self, transaction):
         """Debug GAXI response callback with field inspection."""
@@ -298,18 +298,18 @@ class APBGAXIDebugTB(TBBase):
                 fields = transaction.fields
                 prdata = fields.get('prdata', 'N/A')
                 pslverr = fields.get('pslverr', 'N/A')
-                self.log.info(f"🟡 GAXI RSP #{self.debug_stats['gaxi_responses']} (fields dict): data=0x{prdata:X}, err={pslverr}")
+                self.log.info(f"GAXI RSP #{self.debug_stats['gaxi_responses']} (fields dict): data=0x{prdata:X}, err={pslverr}")
             else:
                 prdata = getattr(transaction, 'prdata', 'N/A')
                 pslverr = getattr(transaction, 'pslverr', 'N/A')
-                self.log.info(f"🟡 GAXI RSP #{self.debug_stats['gaxi_responses']} (attributes): data=0x{prdata:X}, err={pslverr}")
+                self.log.info(f"GAXI RSP #{self.debug_stats['gaxi_responses']} (attributes): data=0x{prdata:X}, err={pslverr}")
 
             # Add to scoreboard
             self.apb_gaxi_scoreboard.add_gaxi_transaction(transaction)
-            self.log.debug("✓ GAXI RSP transaction added to scoreboard")
+            self.log.debug("GAXI RSP transaction added to scoreboard")
 
         except Exception as e:
-            self.log.error(f"🔴 GAXI RSP callback error: {e}")
+            self.log.error(f"GAXI RSP callback error: {e}")
 
     async def reset_dut(self):
         """Reset DUT and all components."""
@@ -347,11 +347,11 @@ class APBGAXIDebugTB(TBBase):
             try:
                 signal_name = f's_apb_{sig}'
                 signal_obj = getattr(self.dut, signal_name)
-                signal_checks[signal_name] = '✓ accessible'
-                self.log.debug(f"✓ {signal_name} accessible")
+                signal_checks[signal_name] = 'accessible'
+                self.log.debug(f"{signal_name} accessible")
             except AttributeError:
-                signal_checks[signal_name] = '✗ missing'
-                self.log.warning(f"✗ {signal_name} not found")
+                signal_checks[signal_name] = 'missing'
+                self.log.warning(f"{signal_name} not found")
 
         # Check GAXI command signals (what your refactor might have changed)
         cmd_signals = ['cmd_valid', 'cmd_ready', 'cmd_pwrite', 'cmd_paddr', 'cmd_pwdata', 'cmd_pstrb', 'cmd_pprot']
@@ -360,11 +360,11 @@ class APBGAXIDebugTB(TBBase):
                 try:
                     signal_name = f'{direction}{sig}'
                     signal_obj = getattr(self.dut, signal_name)
-                    signal_checks[signal_name] = '✓ accessible'
-                    self.log.debug(f"✓ {signal_name} accessible")
+                    signal_checks[signal_name] = 'accessible'
+                    self.log.debug(f"{signal_name} accessible")
                 except AttributeError:
-                    signal_checks[signal_name] = '✗ missing'
-                    self.log.debug(f"✗ {signal_name} not found")
+                    signal_checks[signal_name] = 'missing'
+                    self.log.debug(f"{signal_name} not found")
 
         # Check GAXI response signals
         rsp_signals = ['rsp_valid', 'rsp_ready', 'rsp_prdata', 'rsp_pslverr']
@@ -373,23 +373,23 @@ class APBGAXIDebugTB(TBBase):
                 try:
                     signal_name = f'{direction}{sig}'
                     signal_obj = getattr(self.dut, signal_name)
-                    signal_checks[signal_name] = '✓ accessible'
-                    self.log.debug(f"✓ {signal_name} accessible")
+                    signal_checks[signal_name] = 'accessible'
+                    self.log.debug(f"{signal_name} accessible")
                 except AttributeError:
-                    signal_checks[signal_name] = '✗ missing'
-                    self.log.debug(f"✗ {signal_name} not found")
+                    signal_checks[signal_name] = 'missing'
+                    self.log.debug(f"{signal_name} not found")
 
         self.debug_stats['signal_checks'] = signal_checks
 
         # Summary
-        accessible_count = sum(1 for status in signal_checks.values() if '✓' in status)
+        accessible_count = sum(1 for status in signal_checks.values() if 'accessible' in status)
         total_count = len(signal_checks)
         self.log.info(f"Signal connectivity: {accessible_count}/{total_count} signals accessible")
 
         if accessible_count < total_count:
             self.log.warning("Some signals missing - this might be related to your refactor")
             for sig, status in signal_checks.items():
-                if '✗' in status:
+                if 'missing' in status:
                     self.log.warning(f"  Missing: {sig}")
 
         return accessible_count >= len(apb_signals)  # At least APB signals should work
@@ -463,9 +463,9 @@ class APBGAXIDebugTB(TBBase):
         try:
             await self.cmd_handler.start()
             handler_stats = self.cmd_handler.get_stats()
-            self.log.info(f"✓ Command handler started: {handler_stats}")
+            self.log.info(f"Command handler started: {handler_stats}")
         except Exception as e:
-            self.log.error(f"✗ Command handler start failed: {e}")
+            self.log.error(f"Command handler start failed: {e}")
             return False
 
         # Step 3: Wait for stable state
@@ -501,26 +501,26 @@ class APBGAXIDebugTB(TBBase):
         scoreboard_working = (scoreboard_stats['matched_pairs'] > 0)
 
         self.log.info("=== REFACTOR DEBUG ANALYSIS ===")
-        self.log.info(f"Signal connectivity: {'✓' if signals_ok else '✗'}")
-        self.log.info(f"APB transaction flow: {'✓' if apb_flow_working else '✗'}")
-        self.log.info(f"GAXI command generation: {'✓' if gaxi_cmd_working else '✗'}")
-        self.log.info(f"GAXI response generation: {'✓' if gaxi_rsp_working else '✗'}")
-        self.log.info(f"Scoreboard matching: {'✓' if scoreboard_working else '✗'}")
+        self.log.info(f"Signal connectivity: {'OK' if signals_ok else 'FAIL'}")
+        self.log.info(f"APB transaction flow: {'OK' if apb_flow_working else 'FAIL'}")
+        self.log.info(f"GAXI command generation: {'OK' if gaxi_cmd_working else 'FAIL'}")
+        self.log.info(f"GAXI response generation: {'OK' if gaxi_rsp_working else 'FAIL'}")
+        self.log.info(f"Scoreboard matching: {'OK' if scoreboard_working else 'FAIL'}")
 
         # Identify likely refactor issues
         if not gaxi_cmd_working:
-            self.log.error("🔥 ISSUE: GAXI commands not being generated - check signal mapping in refactor")
+            self.log.error("ISSUE: GAXI commands not being generated - check signal mapping in refactor")
         if not gaxi_rsp_working:
-            self.log.error("🔥 ISSUE: GAXI responses not being generated - check command handler or RSP master")
+            self.log.error("ISSUE: GAXI responses not being generated - check command handler or RSP master")
         if gaxi_cmd_working and gaxi_rsp_working and not scoreboard_working:
-            self.log.error("🔥 ISSUE: GAXI flow works but scoreboard doesn't match - check field formats")
+            self.log.error("ISSUE: GAXI flow works but scoreboard doesn't match - check field formats")
 
         success = apb_flow_working and gaxi_cmd_working and gaxi_rsp_working and scoreboard_working
 
         if success:
-            self.log.info("✓ APB-GAXI REFACTOR DEBUG TEST PASSED")
+            self.log.info("APB-GAXI REFACTOR DEBUG TEST PASSED")
         else:
-            self.log.error("✗ APB-GAXI REFACTOR DEBUG TEST FAILED - issues identified above")
+            self.log.error("APB-GAXI REFACTOR DEBUG TEST FAILED - issues identified above")
 
         return success
 
@@ -826,9 +826,9 @@ class APBGAXIDebugTB(TBBase):
                     result = await self.verify_scoreboard()
 
                     if result:
-                        self.log.info(f"✓ Test {current_test} PASSED: {config_desc} - {seq_name}")
+                        self.log.info(f"Test {current_test} PASSED: {config_desc} - {seq_name}")
                     else:
-                        self.log.error(f"✗ Test {current_test} FAILED: {config_desc} - {seq_name}")
+                        self.log.error(f"Test {current_test} FAILED: {config_desc} - {seq_name}")
 
                     # Allow settling time between tests
                     await self.wait_clocks('pclk', 10)
@@ -836,7 +836,7 @@ class APBGAXIDebugTB(TBBase):
                     self.test_stats['total_tests'] += 1
 
                 except Exception as e:
-                    self.log.error(f"✗ Test {current_test} EXCEPTION: {config_desc} - {seq_name}: {e}")
+                    self.log.error(f"Test {current_test} EXCEPTION: {config_desc} - {seq_name}: {e}")
                     self.test_stats['failed_tests'] += 1
                     # Continue with next test
                     continue
@@ -883,14 +883,14 @@ class APBGAXIDebugTB(TBBase):
                 result = await self.verify_scoreboard()
 
                 if result:
-                    self.log.info(f"✓ Stress Test PASSED: {config_desc}")
+                    self.log.info(f"Stress Test PASSED: {config_desc}")
                 else:
-                    self.log.error(f"✗ Stress Test FAILED: {config_desc}")
+                    self.log.error(f"Stress Test FAILED: {config_desc}")
 
                 self.test_stats['total_tests'] += 1
 
             except Exception as e:
-                self.log.error(f"✗ Stress Test EXCEPTION: {config_desc}: {e}")
+                self.log.error(f"Stress Test EXCEPTION: {config_desc}: {e}")
                 self.test_stats['failed_tests'] += 1
 
     async def run_error_injection_tests(self):
@@ -921,14 +921,14 @@ class APBGAXIDebugTB(TBBase):
             result = await self.verify_scoreboard()
 
             if result:
-                self.log.info("✓ Error Injection Test PASSED")
+                self.log.info("Error Injection Test PASSED")
             else:
-                self.log.error("✗ Error Injection Test FAILED")
+                self.log.error("Error Injection Test FAILED")
 
             self.test_stats['total_tests'] += 1
 
         except Exception as e:
-            self.log.error(f"✗ Error Injection Test EXCEPTION: {e}")
+            self.log.error(f"Error Injection Test EXCEPTION: {e}")
             self.test_stats['failed_tests'] += 1
 
     def generate_test_report(self):

@@ -87,7 +87,7 @@ class RealisticAxiSplitTB(TBBase):
         self.log.info(f"SAFE_ADDR_LIMIT=0x{self.SAFE_ADDR_LIMIT:08X} (no wraparound)")
         self.log.info(f"BYTES_PER_BEAT={self.BYTES_PER_BEAT}, EXPECTED_AX_SIZE={self.EXPECTED_AX_SIZE}")
         self.log.info(f"TEST_MASKS={[hex(m) for m in self.TEST_MASKS]}")
-        self.log.info("🚫 WRAPAROUND TESTING DISABLED (realistic assumption)")
+        self.log.info("WRAPAROUND TESTING DISABLED (realistic assumption)")
 
     async def setup_clock_and_reset(self):
         """Setup clock and reset"""
@@ -230,7 +230,7 @@ class RealisticAxiSplitTB(TBBase):
         """
         Test realistic edge cases that can actually occur in systems
         """
-        self.log.info("🔬 Testing realistic edge case collection")
+        self.log.info("Testing realistic edge case collection")
 
         edge_cases = [
             # Edge cases for different data widths at various boundaries
@@ -287,7 +287,7 @@ class RealisticAxiSplitTB(TBBase):
                 self.log.debug(f"Skipping unsafe case: {desc}")
                 continue
 
-            self.log.info(f"\n🔍 REALISTIC EDGE CASE: {desc}")
+            self.log.info(f"\nREALISTIC EDGE CASE: {desc}")
             self.log.info(f"  Addr: 0x{aligned_addr:08X}, Len: {length}, Size: {size}, Mask: 0x{mask:03X}")
 
             test_desc = f"REALISTIC EDGE: {desc}"
@@ -295,7 +295,7 @@ class RealisticAxiSplitTB(TBBase):
 
             if not passed:
                 all_passed = False
-                self.log.error(f"💥 REALISTIC EDGE CASE FAILED: {desc}")
+                self.log.error(f"REALISTIC EDGE CASE FAILED: {desc}")
 
         return all_passed
 
@@ -373,7 +373,7 @@ class RealisticAxiSplitTB(TBBase):
             bytes_per_beat = 1 << size
             total_bytes = (length + 1) * bytes_per_beat
 
-            self.log.info("📥 INPUTS:")
+            self.log.info("INPUTS:")
             self.log.info(f"   Address: 0x{actual_addr:08X}, Length: {length} ({length + 1} beats)")
             self.log.info(f"   Boundary: 0x{mask:03X} ({boundary_size} bytes), Total bytes: {total_bytes}")
 
@@ -385,26 +385,26 @@ class RealisticAxiSplitTB(TBBase):
                 self.log.info(f"   Crosses boundary: {expected['crosses_boundary']}")
 
             # Format expected vs actual
-            self.log.info("📤 EXPECTED vs ACTUAL:")
+            self.log.info("EXPECTED vs ACTUAL:")
             for signal in ['split_required', 'split_len', 'remaining_len_after_split', 'new_split_needed']:
                 exp_val = expected[signal]
                 act_val = actual[signal]
-                status = "✅" if exp_val == act_val else "❌"
+                status = "PASS" if exp_val == act_val else "FAIL"
                 self.log.info(f"   {signal:25} | {str(exp_val):>8} | {str(act_val):>8} | {status}")
 
             # Special formatting for addresses
             exp_addr = expected['next_boundary_addr']
             act_addr = actual['next_boundary_addr']
-            addr_status = "✅" if exp_addr == act_addr else "❌"
+            addr_status = "PASS" if exp_addr == act_addr else "FAIL"
             self.log.info(f"   {'next_boundary_addr':25} | 0x{exp_addr:06X} | 0x{act_addr:06X} | {addr_status}")
 
             if not passed:
-                self.log.error("❌ ERRORS FOUND:")
+                self.log.error("ERRORS FOUND:")
                 for i, error in enumerate(errors, 1):
                     self.log.error(f"   {i}. {error}")
                 self.errors.extend([f"Test {self.test_count}{time_str}: {err}" for err in errors])
             else:
-                self.log.info("✅ PASSED")
+                self.log.info("PASSED")
 
             self.log.info("")
 
@@ -758,7 +758,7 @@ class RealisticAxiSplitTB(TBBase):
         overall_passed = True
 
         # Phase 1: Realistic edge cases
-        self.log.info("🔥 PHASE 1: Realistic Edge Cases")
+        self.log.info("PHASE 1: Realistic Edge Cases")
         edge_cases_passed = await self.test_realistic_edge_cases()
         if not edge_cases_passed:
             overall_passed = False
@@ -767,18 +767,18 @@ class RealisticAxiSplitTB(TBBase):
                 return overall_passed
 
         # Phase 2: Systematic mask testing
-        self.log.info("🔍 PHASE 2: Systematic Mask Testing")
+        self.log.info("PHASE 2: Systematic Mask Testing")
         for i, mask in enumerate(self.TEST_MASKS):
-            self.log.info(f"\n🎯 Starting {mode_desc} tests for mask 0x{mask:03X} ({i+1}/{len(self.TEST_MASKS)})")
+            self.log.info(f"\nStarting {mode_desc} tests for mask 0x{mask:03X} ({i+1}/{len(self.TEST_MASKS)})")
 
             mask_passed = await self.test_mask_systematic(mask)
             if not mask_passed:
-                self.log.error(f"❌ MASK 0x{mask:03X} tests failed")
+                self.log.error(f"MASK 0x{mask:03X} tests failed")
                 overall_passed = False
                 if self.TEST_LEVEL == 'gate':
                     break
             else:
-                self.log.info(f"✅ MASK 0x{mask:03X} tests passed")
+                self.log.info(f"MASK 0x{mask:03X} tests passed")
 
         # Print summary
         self.print_final_summary()
@@ -798,10 +798,10 @@ class RealisticAxiSplitTB(TBBase):
         self.log.info(f"Total Errors: {total_errors}")
 
         if total_errors == 0:
-            self.log.info("🎉 ALL REALISTIC TESTS PASSED! 🎉")
-            self.log.info("✅ RTL correctly handles realistic boundary crossing scenarios")
+            self.log.info("ALL REALISTIC TESTS PASSED!")
+            self.log.info("RTL correctly handles realistic boundary crossing scenarios")
         else:
-            self.log.error(f"❌ {total_errors} ERRORS FOUND in realistic scenarios")
+            self.log.error(f"{total_errors} ERRORS FOUND in realistic scenarios")
             for i, error in enumerate(self.errors[:5], 1):
                 self.log.error(f"  {i}: {error}")
             if len(self.errors) > 5:

@@ -72,7 +72,7 @@ class APBSlaveCDCTB(TBBase):
 
         # Memory model - larger for comprehensive testing
         self.mem = MemoryModel(num_lines=self.num_line, bytes_per_line=self.STRB_WIDTH, log=self.log)
-        self.log.info(f"✓ Memory model created: {self.num_line} lines x {self.STRB_WIDTH} bytes")
+        self.log.info(f"Memory model created: {self.num_line} lines x {self.STRB_WIDTH} bytes")
 
         # APB components - these should be unchanged by GAXI refactor
         self.apb4_master = create_apb4_master(
@@ -81,14 +81,14 @@ class APBSlaveCDCTB(TBBase):
             randomizer=FlexRandomizer(APB_MASTER_RANDOMIZER_CONFIGS['fixed']),
             log=self.log
         )
-        self.log.info("✓ APB Master created (pclk domain)")
+        self.log.info("APB Master created (pclk domain)")
 
         self.apb4_monitor = create_apb4_monitor(
             self.dut, 'APB Monitor', 's_apb', self.dut.pclk,
             addr_width=self.ADDR_WIDTH, data_width=self.DATA_WIDTH,
             log=self.log
         )
-        self.log.info("✓ APB Monitor created (pclk domain)")
+        self.log.info("APB Monitor created (pclk domain)")
 
         # GAXI field configurations
         self.apbgaxiconfig = APBGAXIConfig(
@@ -99,7 +99,7 @@ class APBSlaveCDCTB(TBBase):
         self.cmd_field_config = self.apbgaxiconfig.create_cmd_field_config()
         self.rsp_field_config = self.apbgaxiconfig.create_rsp_field_config()
 
-        self.log.info(f"✓ Field configs created for CDC operation")
+        self.log.info(f"Field configs created for CDC operation")
 
         # CDC-specific GAXI components with separate clock domains
         super_debug = True  # Enable debug for CDC testing
@@ -113,10 +113,10 @@ class APBSlaveCDCTB(TBBase):
                 pkt_prefix='cmd', is_slave=True,
                 log=self.log, super_debug=super_debug, multi_sig=True
             )
-            self.log.info("✓ CMD Monitor created (aclk domain)")
+            self.log.info("CMD Monitor created (aclk domain)")
 
         except Exception as e:
-            self.log.error(f"✗ CMD Monitor creation failed: {e}")
+            self.log.error(f"CMD Monitor creation failed: {e}")
             raise
 
         try:
@@ -128,10 +128,10 @@ class APBSlaveCDCTB(TBBase):
                 memory_model=None,  # Don't use memory in slave for CDC
                 log=self.log, super_debug=super_debug, multi_sig=True
             )
-            self.log.info("✓ CMD Slave created (aclk domain)")
+            self.log.info("CMD Slave created (aclk domain)")
 
         except Exception as e:
-            self.log.error(f"✗ CMD Slave creation failed: {e}")
+            self.log.error(f"CMD Slave creation failed: {e}")
             raise
 
         # Response interface (master side - sends responses back to APB slave)
@@ -143,10 +143,10 @@ class APBSlaveCDCTB(TBBase):
                 pkt_prefix='rsp', is_slave=False,
                 log=self.log, super_debug=super_debug, multi_sig=True
             )
-            self.log.info("✓ RSP Monitor created (pclk domain)")
+            self.log.info("RSP Monitor created (pclk domain)")
 
         except Exception as e:
-            self.log.error(f"✗ RSP Monitor creation failed: {e}")
+            self.log.error(f"RSP Monitor creation failed: {e}")
             raise
 
         try:
@@ -158,10 +158,10 @@ class APBSlaveCDCTB(TBBase):
                 memory_model=None,
                 log=self.log, super_debug=super_debug, multi_sig=True
             )
-            self.log.info("✓ RSP Master created (pclk domain)")
+            self.log.info("RSP Master created (pclk domain)")
 
         except Exception as e:
-            self.log.error(f"✗ RSP Master creation failed: {e}")
+            self.log.error(f"RSP Master creation failed: {e}")
             raise
 
         # Command handler - orchestrates the command/response flow across clock domains
@@ -173,36 +173,36 @@ class APBSlaveCDCTB(TBBase):
                 log=self.log,
                 response_generation_mode=True
             )
-            self.log.info("✓ Command Handler created in response generation mode (CDC)")
+            self.log.info("Command Handler created in response generation mode (CDC)")
 
         except Exception as e:
-            self.log.error(f"✗ Command Handler creation failed: {e}")
+            self.log.error(f"Command Handler creation failed: {e}")
             raise
 
         # Enhanced scoreboard for CDC testing
         self.apb_gaxi_scoreboard = APBGAXIScoreboard('CDC Scoreboard', log=self.log)
-        self.log.info("✓ Enhanced Scoreboard created")
+        self.log.info("Enhanced Scoreboard created")
 
         # Connect callbacks with CDC-aware debugging
         self.log.info("Connecting CDC-aware callbacks...")
 
         try:
             self.apb4_monitor.add_callback(self.debug_apb_callback)
-            self.log.info("✓ APB Monitor callback connected (pclk domain)")
+            self.log.info("APB Monitor callback connected (pclk domain)")
         except Exception as e:
-            self.log.error(f"✗ APB Monitor callback failed: {e}")
+            self.log.error(f"APB Monitor callback failed: {e}")
 
         try:
             self.cmd_monitor.add_callback(self.debug_cmd_callback)
-            self.log.info("✓ CMD Monitor callback connected (aclk domain)")
+            self.log.info("CMD Monitor callback connected (aclk domain)")
         except Exception as e:
-            self.log.error(f"✗ CMD Monitor callback failed: {e}")
+            self.log.error(f"CMD Monitor callback failed: {e}")
 
         try:
             self.rsp_monitor.add_callback(self.debug_rsp_callback)
-            self.log.info("✓ RSP Monitor callback connected (pclk domain)")
+            self.log.info("RSP Monitor callback connected (pclk domain)")
         except Exception as e:
-            self.log.error(f"✗ RSP Monitor callback failed: {e}")
+            self.log.error(f"RSP Monitor callback failed: {e}")
 
         self.log.info("=== APB-GAXI CDC: Component initialization complete ===")
 
@@ -219,23 +219,23 @@ class APBSlaveCDCTB(TBBase):
                 self.debug_stats['apb_writes'] += 1
                 pwdata = getattr(transaction, 'pwdata', None)
                 pstrb = getattr(transaction, 'pstrb', None)
-                self.log.info(f"🔵 APB WRITE #{self.debug_stats['apb_writes']} (pclk→aclk): "
+                self.log.info(f"APB WRITE #{self.debug_stats['apb_writes']} (pclk→aclk): "
                                 f"addr=0x{paddr:X}, data=0x{pwdata:X}, strb=0x{pstrb:X}")
             elif pwrite == 0:
                 self.debug_stats['apb_reads'] += 1
                 prdata = getattr(transaction, 'prdata', None)
                 pslverr = getattr(transaction, 'pslverr', None)
-                self.log.info(f"🔵 APB READ #{self.debug_stats['apb_reads']} (pclk→aclk): "
+                self.log.info(f"APB READ #{self.debug_stats['apb_reads']} (pclk→aclk): "
                                 f"addr=0x{paddr:X}, data=0x{prdata:X}, err={pslverr}")
             else:
-                self.log.error(f"🔴 APB UNKNOWN: pwrite={pwrite}")
+                self.log.error(f"APB UNKNOWN: pwrite={pwrite}")
 
             # Add to scoreboard
             self.apb_gaxi_scoreboard.add_apb_transaction(transaction)
-            self.log.debug("✓ APB transaction added to CDC scoreboard")
+            self.log.debug("APB transaction added to CDC scoreboard")
 
         except Exception as e:
-            self.log.error(f"🔴 APB CDC callback error: {e}")
+            self.log.error(f"APB CDC callback error: {e}")
 
     def debug_cmd_callback(self, transaction):
         """CDC-aware GAXI command callback with aclk domain tracking."""
@@ -249,21 +249,21 @@ class APBSlaveCDCTB(TBBase):
                 pwrite = fields.get('pwrite', 'N/A')
                 paddr = fields.get('paddr', 'N/A')
                 pwdata = fields.get('pwdata', 'N/A')
-                self.log.info(f"🟢 GAXI CMD #{self.debug_stats['gaxi_commands']} (aclk): "
+                self.log.info(f"GAXI CMD #{self.debug_stats['gaxi_commands']} (aclk): "
                                 f"pwrite={pwrite}, addr=0x{paddr:X}, data=0x{pwdata:X}")
             else:
                 pwrite = getattr(transaction, 'pwrite', 'N/A')
                 paddr = getattr(transaction, 'paddr', 'N/A')
                 pwdata = getattr(transaction, 'pwdata', 'N/A')
-                self.log.info(f"🟢 GAXI CMD #{self.debug_stats['gaxi_commands']} (aclk): "
+                self.log.info(f"GAXI CMD #{self.debug_stats['gaxi_commands']} (aclk): "
                                 f"pwrite={pwrite}, addr=0x{paddr:X}, data=0x{pwdata:X}")
 
             # Add to scoreboard
             self.apb_gaxi_scoreboard.add_gaxi_transaction(transaction)
-            self.log.debug("✓ GAXI CMD transaction added to CDC scoreboard")
+            self.log.debug("GAXI CMD transaction added to CDC scoreboard")
 
         except Exception as e:
-            self.log.error(f"🔴 GAXI CMD CDC callback error: {e}")
+            self.log.error(f"GAXI CMD CDC callback error: {e}")
 
     def debug_rsp_callback(self, transaction):
         """CDC-aware GAXI response callback with pclk domain tracking."""
@@ -276,20 +276,20 @@ class APBSlaveCDCTB(TBBase):
                 fields = transaction.fields
                 prdata = fields.get('prdata', 'N/A')
                 pslverr = fields.get('pslverr', 'N/A')
-                self.log.info(f"🟡 GAXI RSP #{self.debug_stats['gaxi_responses']} (aclk→pclk): "
+                self.log.info(f"GAXI RSP #{self.debug_stats['gaxi_responses']} (aclk→pclk): "
                                 f"data=0x{prdata:X}, err={pslverr}")
             else:
                 prdata = getattr(transaction, 'prdata', 'N/A')
                 pslverr = getattr(transaction, 'pslverr', 'N/A')
-                self.log.info(f"🟡 GAXI RSP #{self.debug_stats['gaxi_responses']} (aclk→pclk): "
+                self.log.info(f"GAXI RSP #{self.debug_stats['gaxi_responses']} (aclk→pclk): "
                                 f"data=0x{prdata:X}, err={pslverr}")
 
             # Add to scoreboard
             self.apb_gaxi_scoreboard.add_gaxi_transaction(transaction)
-            self.log.debug("✓ GAXI RSP transaction added to CDC scoreboard")
+            self.log.debug("GAXI RSP transaction added to CDC scoreboard")
 
         except Exception as e:
-            self.log.error(f"🔴 GAXI RSP CDC callback error: {e}")
+            self.log.error(f"GAXI RSP CDC callback error: {e}")
 
     async def reset_dut(self):
         """Enhanced CDC reset with separate clock domain handling."""
@@ -338,11 +338,11 @@ class APBSlaveCDCTB(TBBase):
             try:
                 signal_name = f's_apb_{sig}'
                 signal_obj = getattr(self.dut, signal_name)
-                signal_checks[f"{signal_name} (pclk)"] = '✓ accessible'
-                self.log.debug(f"✓ {signal_name} accessible in pclk domain")
+                signal_checks[f"{signal_name} (pclk)"] = 'accessible'
+                self.log.debug(f"{signal_name} accessible in pclk domain")
             except AttributeError:
-                signal_checks[f"{signal_name} (pclk)"] = '✗ missing'
-                self.log.warning(f"✗ {signal_name} not found in pclk domain")
+                signal_checks[f"{signal_name} (pclk)"] = 'missing'
+                self.log.warning(f"{signal_name} not found in pclk domain")
 
         # Check GAXI command signals (aclk domain)
         cmd_signals = ['cmd_valid', 'cmd_ready', 'cmd_pwrite', 'cmd_paddr', 'cmd_pwdata', 'cmd_pstrb', 'cmd_pprot']
@@ -351,11 +351,11 @@ class APBSlaveCDCTB(TBBase):
                 try:
                     signal_name = f'{direction}{sig}'
                     signal_obj = getattr(self.dut, signal_name)
-                    signal_checks[f"{signal_name} (aclk)"] = '✓ accessible'
-                    self.log.debug(f"✓ {signal_name} accessible in aclk domain")
+                    signal_checks[f"{signal_name} (aclk)"] = 'accessible'
+                    self.log.debug(f"{signal_name} accessible in aclk domain")
                 except AttributeError:
-                    signal_checks[f"{signal_name} (aclk)"] = '✗ missing'
-                    self.log.debug(f"✗ {signal_name} not found in aclk domain")
+                    signal_checks[f"{signal_name} (aclk)"] = 'missing'
+                    self.log.debug(f"{signal_name} not found in aclk domain")
 
         # Check GAXI response signals (pclk domain)
         rsp_signals = ['rsp_valid', 'rsp_ready', 'rsp_prdata', 'rsp_pslverr']
@@ -364,34 +364,34 @@ class APBSlaveCDCTB(TBBase):
                 try:
                     signal_name = f'{direction}{sig}'
                     signal_obj = getattr(self.dut, signal_name)
-                    signal_checks[f"{signal_name} (pclk)"] = '✓ accessible'
-                    self.log.debug(f"✓ {signal_name} accessible in pclk domain")
+                    signal_checks[f"{signal_name} (pclk)"] = 'accessible'
+                    self.log.debug(f"{signal_name} accessible in pclk domain")
                 except AttributeError:
-                    signal_checks[f"{signal_name} (pclk)"] = '✗ missing'
-                    self.log.debug(f"✗ {signal_name} not found in pclk domain")
+                    signal_checks[f"{signal_name} (pclk)"] = 'missing'
+                    self.log.debug(f"{signal_name} not found in pclk domain")
 
         # Check CDC-specific clocks and resets
         cdc_signals = ['aclk', 'pclk', 'aresetn', 'presetn']
         for sig in cdc_signals:
             try:
                 signal_obj = getattr(self.dut, sig)
-                signal_checks[f"{sig} (CDC)"] = '✓ accessible'
-                self.log.debug(f"✓ {sig} CDC signal accessible")
+                signal_checks[f"{sig} (CDC)"] = 'accessible'
+                self.log.debug(f"{sig} CDC signal accessible")
             except AttributeError:
-                signal_checks[f"{sig} (CDC)"] = '✗ missing'
-                self.log.warning(f"✗ {sig} CDC signal not found")
+                signal_checks[f"{sig} (CDC)"] = 'missing'
+                self.log.warning(f"{sig} CDC signal not found")
 
         self.debug_stats['signal_checks'] = signal_checks
 
         # Summary
-        accessible_count = sum(1 for status in signal_checks.values() if '✓' in status)
+        accessible_count = sum(1 for status in signal_checks.values() if 'accessible' in status)
         total_count = len(signal_checks)
         self.log.info(f"CDC Signal connectivity: {accessible_count}/{total_count} signals accessible")
 
         if accessible_count < total_count:
             self.log.warning("Some CDC signals missing - check clock domain assignments")
             for sig, status in signal_checks.items():
-                if '✗' in status:
+                if 'missing' in status:
                     self.log.warning(f"  Missing: {sig}")
 
         return accessible_count >= len(apb_signals) + len(cdc_signals)  # At least core signals should work
@@ -475,9 +475,9 @@ class APBSlaveCDCTB(TBBase):
         try:
             await self.cmd_handler.start()
             handler_stats = self.cmd_handler.get_stats()
-            self.log.info(f"✓ CDC Command handler started: {handler_stats}")
+            self.log.info(f"CDC Command handler started: {handler_stats}")
         except Exception as e:
-            self.log.error(f"✗ CDC Command handler start failed: {e}")
+            self.log.error(f"CDC Command handler start failed: {e}")
             return False
 
         # Step 3: Wait for CDC stabilization
@@ -517,27 +517,27 @@ class APBSlaveCDCTB(TBBase):
         cdc_working = (self.debug_stats['clock_domain_crossings'] > 0)
 
         self.log.info("=== CDC COMPREHENSIVE ANALYSIS ===")
-        self.log.info(f"Signal connectivity: {'✓' if signals_ok else '✗'}")
-        self.log.info(f"APB transaction flow (pclk): {'✓' if apb_flow_working else '✗'}")
-        self.log.info(f"GAXI command generation (aclk): {'✓' if gaxi_cmd_working else '✗'}")
-        self.log.info(f"GAXI response generation (pclk): {'✓' if gaxi_rsp_working else '✗'}")
-        self.log.info(f"CDC clock domain crossing: {'✓' if cdc_working else '✗'}")
-        self.log.info(f"Scoreboard matching: {'✓' if scoreboard_working else '✗'}")
+        self.log.info(f"Signal connectivity: {'OK' if signals_ok else 'FAIL'}")
+        self.log.info(f"APB transaction flow (pclk): {'OK' if apb_flow_working else 'FAIL'}")
+        self.log.info(f"GAXI command generation (aclk): {'OK' if gaxi_cmd_working else 'FAIL'}")
+        self.log.info(f"GAXI response generation (pclk): {'OK' if gaxi_rsp_working else 'FAIL'}")
+        self.log.info(f"CDC clock domain crossing: {'OK' if cdc_working else 'FAIL'}")
+        self.log.info(f"Scoreboard matching: {'OK' if scoreboard_working else 'FAIL'}")
 
         # CDC-specific issue identification
         if not gaxi_cmd_working:
-            self.log.error("🔥 CDC ISSUE: GAXI commands not crossing pclk→aclk - check CDC handshake")
+            self.log.error("CDC ISSUE: GAXI commands not crossing pclk→aclk - check CDC handshake")
         if not gaxi_rsp_working:
-            self.log.error("🔥 CDC ISSUE: GAXI responses not crossing aclk→pclk - check CDC response path")
+            self.log.error("CDC ISSUE: GAXI responses not crossing aclk→pclk - check CDC response path")
         if not cdc_working:
-            self.log.error("🔥 CDC ISSUE: No clock domain crossings detected - check CDC implementation")
+            self.log.error("CDC ISSUE: No clock domain crossings detected - check CDC implementation")
 
         success = apb_flow_working and gaxi_cmd_working and gaxi_rsp_working and scoreboard_working and cdc_working
 
         if success:
-            self.log.info("✓ APB-GAXI CDC COMPREHENSIVE TEST PASSED")
+            self.log.info("APB-GAXI CDC COMPREHENSIVE TEST PASSED")
         else:
-            self.log.error("✗ APB-GAXI CDC COMPREHENSIVE TEST FAILED - CDC issues identified above")
+            self.log.error("APB-GAXI CDC COMPREHENSIVE TEST FAILED - CDC issues identified above")
 
         return success
 
@@ -927,9 +927,9 @@ class APBSlaveCDCTB(TBBase):
                     result = await self.verify_scoreboard(timeout=3000)
 
                     if result:
-                        self.log.info(f"✓ CDC Test {current_test} PASSED: {config_desc} - {seq_name}")
+                        self.log.info(f"CDC Test {current_test} PASSED: {config_desc} - {seq_name}")
                     else:
-                        self.log.error(f"✗ CDC Test {current_test} FAILED: {config_desc} - {seq_name}")
+                        self.log.error(f"CDC Test {current_test} FAILED: {config_desc} - {seq_name}")
 
                     # Allow CDC settling time between tests
                     await self.wait_clocks('aclk', 20)
@@ -938,7 +938,7 @@ class APBSlaveCDCTB(TBBase):
                     self.test_stats['total_tests'] += 1
 
                 except Exception as e:
-                    self.log.error(f"✗ CDC Test {current_test} EXCEPTION: {config_desc} - {seq_name}: {e}")
+                    self.log.error(f"CDC Test {current_test} EXCEPTION: {config_desc} - {seq_name}: {e}")
                     self.test_stats['failed_tests'] += 1
                     continue
 

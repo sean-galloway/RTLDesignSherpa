@@ -287,7 +287,7 @@ class AxiReadSplitterTB(TBBase):
         is_aligned = (addr & self.ADDR_ALIGN_MASK) == 0
 
         if not is_aligned:
-            self.log.error(f"❌ Address 0x{addr:08X} is NOT aligned to {self.BYTES_PER_BEAT}-byte boundary!")
+            self.log.error(f"Address 0x{addr:08X} is NOT aligned to {self.BYTES_PER_BEAT}-byte boundary!")
             self.log.error(f"   Expected alignment mask: 0x{self.ADDR_ALIGN_MASK:X}")
             self.log.error(f"   Address & mask = 0x{addr & self.ADDR_ALIGN_MASK:X} (should be 0)")
 
@@ -306,12 +306,12 @@ class AxiReadSplitterTB(TBBase):
 
         # Build comprehensive error report
         report = f"\n{'='*100}\n"
-        report += f"🚨 ERROR DETECTED: {error_type}\n"
+        report += f"ERROR DETECTED: {error_type}\n"
         report += f"{'='*100}\n"
         report += f"ERROR MESSAGE: {error_msg}\n"
         report += f"ERROR TIME: {time_str}\n"
         report += f"TEST CASE: {ctx.test_case}\n"
-        report += f"\n📋 ORIGINAL TRANSACTION:\n"
+        report += f"\nORIGINAL TRANSACTION:\n"
         report += f"  Transaction ID: 0x{txn_id:02X}\n"
         report += f"  Start Time: {ctx.start_time:.1f}ns\n"
         report += f"  Duration: {ctx.get_duration():.1f}ns\n"
@@ -321,19 +321,19 @@ class AxiReadSplitterTB(TBBase):
         report += f"  Burst: {ctx.ar_packet.burst} ({'INCR' if ctx.ar_packet.burst == 1 else 'OTHER'})\n"
 
         # FIXED: Show address alignment validation
-        report += f"\n🎯 ADDRESS ALIGNMENT:\n"
+        report += f"\nADDRESS ALIGNMENT:\n"
         report += f"  Required Alignment: {self.BYTES_PER_BEAT}-byte boundary\n"
         report += f"  Alignment Mask: 0x{self.ADDR_ALIGN_MASK:X}\n"
         report += f"  Address & Mask: 0x{ctx.ar_packet.addr & self.ADDR_ALIGN_MASK:X}\n"
-        report += f"  Is Aligned: {'✅ YES' if (ctx.ar_packet.addr & self.ADDR_ALIGN_MASK) == 0 else '❌ NO'}\n"
+        report += f"  Is Aligned: {'YES' if (ctx.ar_packet.addr & self.ADDR_ALIGN_MASK) == 0 else 'NO'}\n"
 
         # SAFE: Show safety validation
-        report += f"\n🛡️ SAFETY VALIDATION:\n"
+        report += f"\nSAFETY VALIDATION:\n"
         report += f"  Safe Address Limit: 0x{self.SAFE_ADDR_LIMIT:08X}\n"
         report += f"  End Address: 0x{boundary_info['end_addr']:08X}\n"
-        report += f"  Is Safe: {'✅ YES' if boundary_info['end_addr'] < self.SAFE_ADDR_LIMIT else '❌ NO'}\n"
+        report += f"  Is Safe: {'YES' if boundary_info['end_addr'] < self.SAFE_ADDR_LIMIT else 'NO'}\n"
 
-        report += f"\n🎯 EXPECTED BEHAVIOR:\n"
+        report += f"\nEXPECTED BEHAVIOR:\n"
         report += f"  Total Bytes: {boundary_info['total_bytes']}\n"
         report += f"  Boundary Size: {self.BOUNDARY_SIZE} bytes (0x{self.BOUNDARY_SIZE:X})\n"
         report += f"  Crosses Boundary: {boundary_info['crosses_boundary']}\n"
@@ -342,12 +342,12 @@ class AxiReadSplitterTB(TBBase):
 
         # Show boundary calculation details for DW=512 debugging
         if self.DW >= 512:
-            report += f"\n🔍 BOUNDARY ANALYSIS (DW={self.DW} debugging):\n"
+            report += f"\nBOUNDARY ANALYSIS (DW={self.DW} debugging):\n"
             report += f"  Start Boundary: {boundary_info['start_boundary']}\n"
             report += f"  End Boundary: {boundary_info['end_boundary']}\n"
             report += f"  Boundaries Crossed: {boundary_info['num_boundaries_crossed']}\n"
 
-        report += f"\n📈 ACTUAL BEHAVIOR:\n"
+        report += f"\nACTUAL BEHAVIOR:\n"
 
         # Show received responses
         report += f"  Responses Received: {len(ctx.received_responses)}\n"
@@ -369,15 +369,15 @@ class AxiReadSplitterTB(TBBase):
 
         # Show any previous errors for this transaction
         if ctx.errors:
-            report += f"\n⚠️ PREVIOUS ERRORS FOR THIS TRANSACTION:\n"
+            report += f"\nPREVIOUS ERRORS FOR THIS TRANSACTION:\n"
             for prev_error, prev_time in ctx.errors:
                 report += f"  [{prev_time:.1f}ns] {prev_error}\n"
 
         # Show recent transaction timeline for context
-        report += f"\n📅 RECENT TRANSACTION EVENTS:\n"
+        report += f"\nRECENT TRANSACTION EVENTS:\n"
         recent_events = [e for e in self.transaction_timeline if abs(e[0] - timestamp) <= 1000.0][-10:]
         for event_time, event, event_context in recent_events:
-            marker = "👈" if abs(event_time - timestamp) < 1.0 else "  "
+            marker = "<<" if abs(event_time - timestamp) < 1.0 else "  "
             report += f"  {marker} [{event_time:.1f}ns] {event}: {event_context}\n"
 
         report += f"\n{'='*100}\n"
@@ -618,7 +618,7 @@ class AxiReadSplitterTB(TBBase):
         self.log_transaction_event("FUB_AR_SENT",
             f"ID={axi_packet.id:02X} ADDR=0x{axi_packet.addr:08X} LEN={axi_packet.len}")
 
-        self.log.info(f"🚀 [{self.current_test_case}] Transaction Started{time_str}: ID={axi_packet.id:02X} "
+        self.log.info(f"[{self.current_test_case}] Transaction Started{time_str}: ID={axi_packet.id:02X} "
                         f"ADDR=0x{axi_packet.addr:08X} LEN={axi_packet.len} "
                         f"SIZE={axi_packet.size}")
 
@@ -642,7 +642,7 @@ class AxiReadSplitterTB(TBBase):
         self.log_transaction_event("FUB_R_RECEIVED",
             f"ID={axi_packet.id:02X} LAST={axi_packet.last}")
 
-        self.log.debug(f"📥 FUB_R{time_str}: ID={axi_packet.id:02X} "
+        self.log.debug(f"FUB_R{time_str}: ID={axi_packet.id:02X} "
                         f"DATA=0x{axi_packet.data:016X} LAST={axi_packet.last}")
 
     def _m_axi_ar_callback(self, packet):
@@ -660,7 +660,7 @@ class AxiReadSplitterTB(TBBase):
         self.log_transaction_event("M_AXI_AR_SPLIT",
             f"ID={axi_packet.id:02X} ADDR=0x{axi_packet.addr:08X} LEN={axi_packet.len}")
 
-        self.log.debug(f"🔄 M_AXI_AR{time_str}: ID={axi_packet.id:02X} "
+        self.log.debug(f"M_AXI_AR{time_str}: ID={axi_packet.id:02X} "
                         f"ADDR=0x{axi_packet.addr:08X} LEN={axi_packet.len}")
 
     def _m_axi_r_callback(self, packet):
@@ -676,7 +676,7 @@ class AxiReadSplitterTB(TBBase):
         self.log_transaction_event("M_AXI_R_SENT",
             f"ID={axi_packet.id:02X} LAST={axi_packet.last}")
 
-        self.log.debug(f"📤 M_AXI_R{time_str}: ID={axi_packet.id:02X} "
+        self.log.debug(f"M_AXI_R{time_str}: ID={axi_packet.id:02X} "
                         f"DATA=0x{axi_packet.data:016X} LAST={axi_packet.last}")
 
     def _fub_split_callback(self, packet):
@@ -685,7 +685,7 @@ class AxiReadSplitterTB(TBBase):
         time_str = self.get_time_ns_str()
 
         # ENHANCED DEBUG: Log every split info callback with full details
-        self.log.info(f"🔍 SPLIT INFO CALLBACK{time_str}:")
+        self.log.info(f"SPLIT INFO CALLBACK{time_str}:")
         self.log.info(f"  Raw packet type: {type(packet)}")
         self.log.info(f"  Raw packet: {packet}")
 
@@ -707,7 +707,7 @@ class AxiReadSplitterTB(TBBase):
             if not isinstance(packet, SplitInfoPacket):
                 if isinstance(packet, dict):
                     split_packet = SplitInfoPacket.from_dict(packet, self.split_field_config)
-                    self.log.info(f"  ✅ Converted from dict to SplitInfoPacket")
+                    self.log.info(f"  Converted from dict to SplitInfoPacket")
                 else:
                     # Convert from generic packet
                     split_data = {
@@ -716,11 +716,11 @@ class AxiReadSplitterTB(TBBase):
                         'cnt': getattr(packet, 'cnt', 0)
                     }
                     split_packet = SplitInfoPacket.from_dict(split_data, self.split_field_config)
-                    self.log.info(f"  ✅ Converted from generic packet to SplitInfoPacket")
+                    self.log.info(f"  Converted from generic packet to SplitInfoPacket")
                     self.log.info(f"  Conversion data: {split_data}")
             else:
                 split_packet = packet
-                self.log.info(f"  ✅ Already SplitInfoPacket")
+                self.log.info(f"  Already SplitInfoPacket")
 
             # ENHANCED DEBUG: Log the final split packet details
             self.log.info(f"  Final split packet details:")
@@ -736,38 +736,38 @@ class AxiReadSplitterTB(TBBase):
             # Track split info in transaction context
             if split_packet.id in self.transaction_contexts:
                 self.transaction_contexts[split_packet.id].split_info_received = split_packet
-                self.log.info(f"  ✅ Stored in transaction context for ID 0x{split_packet.id:02X}")
+                self.log.info(f"  Stored in transaction context for ID 0x{split_packet.id:02X}")
 
                 # ENHANCED DEBUG: Verify the storage
                 stored_split_info = self.transaction_contexts[split_packet.id].split_info_received
                 if stored_split_info:
-                    self.log.info(f"  ✅ Verification - stored split info:")
+                    self.log.info(f"  Verification - stored split info:")
                     self.log.info(f"    stored addr: 0x{stored_split_info.addr:08X}")
                     self.log.info(f"    stored id: 0x{stored_split_info.id:02X}")
                     self.log.info(f"    stored cnt: {stored_split_info.cnt}")
                 else:
-                    self.log.error(f"  ❌ Storage verification failed - split_info_received is None!")
+                    self.log.error(f"  Storage verification failed - split_info_received is None!")
             else:
-                self.log.warning(f"  ⚠️ No transaction context found for ID 0x{split_packet.id:02X}")
+                self.log.warning(f"  No transaction context found for ID 0x{split_packet.id:02X}")
                 self.log.warning(f"  Available transaction IDs: {[f'0x{tid:02X}' for tid in self.transaction_contexts.keys()]}")
 
             # ENHANCED DEBUG: Log before calling scoreboard
-            self.log.info(f"  📋 Calling scoreboard.record_split_info()...")
+            self.log.info(f"  Calling scoreboard.record_split_info()...")
 
             # Record in scoreboard
             self.scoreboard.record_split_info(split_packet)
             self.test_stats['splits_detected'] += 1
 
             # ENHANCED DEBUG: Verify scoreboard storage
-            self.log.info(f"  📋 Verifying scoreboard storage...")
+            self.log.info(f"  Verifying scoreboard storage...")
             if split_packet.id in self.scoreboard.split_info_tracking:
                 stored_sb_split = self.scoreboard.split_info_tracking[split_packet.id]
-                self.log.info(f"  ✅ Verified in scoreboard split_info_tracking:")
+                self.log.info(f"  Verified in scoreboard split_info_tracking:")
                 self.log.info(f"    scoreboard addr: 0x{stored_sb_split.addr:08X}")
                 self.log.info(f"    scoreboard id: 0x{stored_sb_split.id:02X}")
                 self.log.info(f"    scoreboard cnt: {stored_sb_split.cnt}")
             else:
-                self.log.error(f"  ❌ NOT FOUND in scoreboard split_info_tracking!")
+                self.log.error(f"  NOT FOUND in scoreboard split_info_tracking!")
                 self.log.error(f"  Available scoreboard IDs: {[f'0x{sid:02X}' for sid in self.scoreboard.split_info_tracking.keys()]}")
 
             # Log transaction event
@@ -775,17 +775,17 @@ class AxiReadSplitterTB(TBBase):
                 f"ID={split_packet.id:02X} CNT={split_packet.cnt}")
 
             # Final success log
-            self.log.info(f"✅ SPLIT_INFO_PROCESSED{time_str}: ID={split_packet.id:02X} "
+            self.log.info(f"SPLIT_INFO_PROCESSED{time_str}: ID={split_packet.id:02X} "
                         f"ADDR=0x{split_packet.addr:08X} CNT={split_packet.cnt}")
 
             # ENHANCED DEBUG: Show final state summary
-            self.log.info(f"  📊 Final state summary:")
+            self.log.info(f"  Final state summary:")
             self.log.info(f"    Total splits detected: {self.test_stats['splits_detected']}")
             self.log.info(f"    Scoreboard split_info_tracking size: {len(self.scoreboard.split_info_tracking)}")
             self.log.info(f"    Transaction contexts with split_info: {sum(1 for ctx in self.transaction_contexts.values() if ctx.split_info_received is not None)}")
 
         except Exception as e:
-            self.log.error(f"❌ SPLIT_INFO_CALLBACK_ERROR{time_str}: {e}")
+            self.log.error(f"SPLIT_INFO_CALLBACK_ERROR{time_str}: {e}")
             self.log.error(f"  Exception type: {type(e)}")
             import traceback
             self.log.error(f"  Traceback:")
@@ -803,9 +803,9 @@ class AxiReadSplitterTB(TBBase):
                     if packet_id in self.transaction_contexts:
                         # Store the raw packet as fallback
                         self.transaction_contexts[packet_id].split_info_received = packet
-                        self.log.info(f"  🔄 Fallback: stored raw packet in transaction context")
+                        self.log.info(f"  Fallback: stored raw packet in transaction context")
             except Exception as fallback_e:
-                self.log.error(f"  ❌ Fallback storage also failed: {fallback_e}")
+                self.log.error(f"  Fallback storage also failed: {fallback_e}")
 
     def _calculate_expected_splits(self, ar_packet: AXIAddressPacket) -> int:
         """Calculate expected number of splits with detailed logging for DW=512"""
@@ -821,7 +821,7 @@ class AxiReadSplitterTB(TBBase):
         expected_splits = end_boundary - start_boundary + 1 if crosses_boundary else 1
 
         if self.DW >= 512:  # Extra logging for debugging DW=512
-            self.log.debug(f"🔍 Split calculation for DW={self.DW}:")
+            self.log.debug(f"Split calculation for DW={self.DW}:")
             self.log.debug(f"  Start: 0x{start_addr:08X} -> boundary {start_boundary}")
             self.log.debug(f"  End: 0x{end_addr:08X} -> boundary {end_boundary}")
             self.log.debug(f"  Bytes per beat: {bytes_per_beat}")
@@ -900,13 +900,13 @@ class AxiReadSplitterTB(TBBase):
                 boundary_cross = ar_packet.will_cross_boundary(self.BOUNDARY_SIZE)
                 total_bytes = ar_packet.calculate_total_bytes()
 
-                self.log.info(f"📊 DW={self.DW} Transaction Analysis{send_time_str}:")
-                self.log.info(f"  Address: 0x{ar_packet.addr:08X} (✅ {self.BYTES_PER_BEAT}-byte aligned)")
+                self.log.info(f"DW={self.DW} Transaction Analysis{send_time_str}:")
+                self.log.info(f"  Address: 0x{ar_packet.addr:08X} ( {self.BYTES_PER_BEAT}-byte aligned)")
                 self.log.info(f"  Length: {ar_packet.len} ({ar_packet.len + 1} beats)")
                 self.log.info(f"  Size: {ar_packet.size} ({1 << ar_packet.size} bytes/beat)")
                 self.log.info(f"  Total bytes: {total_bytes}")
                 self.log.info(f"  End address: 0x{ar_packet.addr + total_bytes - 1:08X}")
-                self.log.info(f"  Safe: ✅ (< 0x{self.SAFE_ADDR_LIMIT:08X})")
+                self.log.info(f"  Safe: (< 0x{self.SAFE_ADDR_LIMIT:08X})")
                 self.log.info(f"  Will cross boundary: {boundary_cross}")
 
             await self.fub_ar_master.send(ar_packet)
@@ -924,7 +924,7 @@ class AxiReadSplitterTB(TBBase):
         start_time = get_sim_time('ns')
         start_time_str = self.get_time_ns_str()
 
-        self.log.debug(f"⏳ Waiting for transaction 0x{txn_id:02X} completion{start_time_str}")
+        self.log.debug(f"Waiting for transaction 0x{txn_id:02X} completion{start_time_str}")
 
         for cycle in range(timeout_cycles):
             if self.scoreboard.is_transaction_complete(txn_id):
@@ -935,18 +935,18 @@ class AxiReadSplitterTB(TBBase):
                     self.transaction_contexts[txn_id].mark_complete(completion_time)
 
                 duration = completion_time - start_time
-                self.log.info(f"✅ Transaction 0x{txn_id:02X} completed{completion_time_str} "
+                self.log.info(f"Transaction 0x{txn_id:02X} completed{completion_time_str} "
                             f"(duration: {duration:.1f}ns, {cycle} cycles)")
                 
                 # TIMING FIX: Wait for split info to propagate
                 # The split info comes from a FIFO and may have additional pipeline delays
-                self.log.debug(f"⏳ Waiting for split info propagation for transaction 0x{txn_id:02X}...")
+                self.log.debug(f"Waiting for split info propagation for transaction 0x{txn_id:02X}...")
                 
                 # Wait a few more clock cycles for split info to arrive
                 await self.wait_clocks('aclk', 5)  # Adjust this if needed
                 
                 split_info_time_str = self.get_time_ns_str()
-                self.log.debug(f"✅ Split info wait period completed{split_info_time_str}")
+                self.log.debug(f"Split info wait period completed{split_info_time_str}")
                 
                 return
             await RisingEdge(self.dut.aclk)
@@ -957,7 +957,7 @@ class AxiReadSplitterTB(TBBase):
             txn_id, "TIMEOUT", f"Transaction timed out after {timeout_cycles} cycles"
         )
         self.log.error(error_report)
-        self.log.error(f"❌ Transaction 0x{txn_id:02X} TIMEOUT{timeout_time_str}")
+        self.log.error(f"Transaction 0x{txn_id:02X} TIMEOUT{timeout_time_str}")
 
     def _get_next_id(self) -> int:
         """Get next transaction ID"""
@@ -967,7 +967,7 @@ class AxiReadSplitterTB(TBBase):
     async def run_all_tests(self) -> bool:
         """Run comprehensive test suite with enhanced error reporting"""
         start_time_str = self.get_time_ns_str()
-        self.log.info(f"🧪 Running AXI Read Splitter tests at level: {self.TEST_LEVEL}{start_time_str}")
+        self.log.info(f"Running AXI Read Splitter tests at level: {self.TEST_LEVEL}{start_time_str}")
         self.log.info(f"Configuration: DW={self.DW}, ALIGNMENT=0x{self.ALIGNMENT_MASK:03X}, SAFE_LIMIT=0x{self.SAFE_ADDR_LIMIT:08X}")
 
         start_time = get_sim_time('ns')
@@ -983,23 +983,23 @@ class AxiReadSplitterTB(TBBase):
 
         for test_name, test_func in tests:
             test_start_str = self.get_time_ns_str()
-            self.log.info(f"🧪 Starting {test_name}{test_start_str}")
+            self.log.info(f"Starting {test_name}{test_start_str}")
             self.current_test_case = test_name
 
             try:
                 test_passed = await test_func()
                 test_end_str = self.get_time_ns_str()
                 if test_passed:
-                    self.log.info(f"✅ {test_name} PASSED{test_end_str}")
+                    self.log.info(f"{test_name} PASSED{test_end_str}")
                 else:
-                    self.log.error(f"❌ {test_name} FAILED{test_end_str}")
+                    self.log.error(f"{test_name} FAILED{test_end_str}")
                     all_passed = False
                     if self.TEST_LEVEL == 'basic':
                         break
 
             except Exception as e:
                 error_time_str = self.get_time_ns_str()
-                self.log.error(f"❌ {test_name} FAILED with exception{error_time_str}: {e}")
+                self.log.error(f"{test_name} FAILED with exception{error_time_str}: {e}")
                 import traceback
                 self.log.error(f"Traceback: {traceback.format_exc()}")
                 all_passed = False
@@ -1013,7 +1013,7 @@ class AxiReadSplitterTB(TBBase):
         verification_start_str = self.get_time_ns_str()
         self.test_stats['test_duration'] = (end_time - start_time) / 1e9
 
-        self.log.info(f"🔍 Performing final verification{verification_start_str}...")
+        self.log.info(f"Performing final verification{verification_start_str}...")
         final_verification = self.scoreboard.verify_split_correctness()
         if not final_verification:
             all_passed = False
@@ -1088,7 +1088,7 @@ class AxiReadSplitterTB(TBBase):
     async def test_basic_splitting(self) -> bool:
         """Test basic address boundary splitting with SAFE address generation"""
         test_start_str = self.get_time_ns_str()
-        self.log.info(f"🧪 Running basic splitting tests with SAFE address generation{test_start_str}")
+        self.log.info(f"Running basic splitting tests with SAFE address generation{test_start_str}")
 
         boundary_size = self.ALIGNMENT_MASK + 1
 
@@ -1143,10 +1143,10 @@ class AxiReadSplitterTB(TBBase):
 
             # Final safety validation before testing
             if not self.is_address_safe(addr, length):
-                self.log.warning(f"⚠️ Skipping unsafe test case: {description}")
+                self.log.warning(f"Skipping unsafe test case: {description}")
                 continue
 
-            self.log.info(f"🔬 Testing: {description}{case_start_str}")
+            self.log.info(f"Testing: {description}{case_start_str}")
             self.log.info(f"   Address: 0x{addr:08X} (aligned to {self.BYTES_PER_BEAT}-byte boundary)")
             self.log.info(f"   Length: {length} ({length + 1} beats)")
             self.log.info(f"   Total bytes: {(length + 1) * self.BYTES_PER_BEAT}")
@@ -1189,7 +1189,7 @@ class AxiReadSplitterTB(TBBase):
     async def test_burst_types(self) -> bool:
         """Test different burst types with SAFE address generation"""
         test_start_str = self.get_time_ns_str()
-        self.log.info(f"🧪 Testing burst types{test_start_str}")
+        self.log.info(f"Testing burst types{test_start_str}")
 
         boundary_size = self.ALIGNMENT_MASK + 1
         test_case_name = "burst_incr_only"
@@ -1199,11 +1199,11 @@ class AxiReadSplitterTB(TBBase):
 
         # Validate safety and alignment
         if not self.is_address_safe(test_addr, 7):
-            self.log.error(f"❌ Cannot generate safe address for burst test!")
+            self.log.error(f"Cannot generate safe address for burst test!")
             return False
 
         if not self.validate_address_alignment(test_addr):
-            self.log.error(f"❌ Generated address 0x{test_addr:08X} is not properly aligned!")
+            self.log.error(f"Generated address 0x{test_addr:08X} is not properly aligned!")
             return False
 
         self.log.info(f"Testing INCR burst crossing boundary:")
@@ -1246,7 +1246,7 @@ class AxiReadSplitterTB(TBBase):
         """Test with random transaction parameters with SAFE address generation"""
         test_start_str = self.get_time_ns_str()
         num_tests = {'basic': 5, 'medium': 20, 'full': 100}[self.TEST_LEVEL]
-        self.log.info(f"🧪 Running {num_tests} SAFE random transaction tests{test_start_str}")
+        self.log.info(f"Running {num_tests} SAFE random transaction tests{test_start_str}")
         self.log.info(f"   All addresses will be in safe region (< 0x{self.SAFE_ADDR_LIMIT:08X})")
         self.log.info(f"   All addresses will be aligned to {self.BYTES_PER_BEAT}-byte boundaries")
 
@@ -1259,7 +1259,7 @@ class AxiReadSplitterTB(TBBase):
             # For DW=512, use smaller lengths to avoid overwhelming the system
             max_len = 15 if self.DW < 512 else 3
 
-            self.log.debug(f"🎲 Safe random test {i+1}/{num_tests}{case_start_str}")
+            self.log.debug(f"Safe random test {i+1}/{num_tests}{case_start_str}")
 
             # FIXED: Generate safe aligned random address
             test_addr = self.generate_aligned_random_address()
@@ -1267,15 +1267,15 @@ class AxiReadSplitterTB(TBBase):
 
             # Double-check safety (should always pass with our generator)
             if not self.is_address_safe(test_addr, test_len):
-                self.log.warning(f"⚠️ Generated unsafe address, using fallback")
+                self.log.warning(f"Generated unsafe address, using fallback")
                 test_addr = self.align_address_to_data_width(0x00100000 + (i * 0x1000))
                 if not self.is_address_safe(test_addr, test_len):
-                    self.log.error(f"❌ Cannot generate safe address for random test {i}")
+                    self.log.error(f"Cannot generate safe address for random test {i}")
                     continue
 
             # Validate alignment (should always pass with our generator)
             if not self.validate_address_alignment(test_addr):
-                self.log.error(f"❌ Generated random address 0x{test_addr:08X} is not properly aligned!")
+                self.log.error(f"Generated random address 0x{test_addr:08X} is not properly aligned!")
                 all_passed = False
                 continue
 
@@ -1321,11 +1321,11 @@ class AxiReadSplitterTB(TBBase):
         """Print comprehensive test report with enhanced error details"""
         report_time_str = self.get_time_ns_str()
         self.log.info("=" * 100)
-        self.log.info(f"🏁 AXI Read Splitter Test Report - SAFE ADDRESS TESTING{report_time_str}")
+        self.log.info(f"AXI Read Splitter Test Report - SAFE ADDRESS TESTING{report_time_str}")
         self.log.info("=" * 100)
 
         # Test configuration
-        self.log.info(f"📋 Configuration:")
+        self.log.info(f"Configuration:")
         self.log.info(f"  Data Width: {self.DW} bits ({self.BYTES_PER_BEAT} bytes/beat)")
         self.log.info(f"  Address Alignment: {self.BYTES_PER_BEAT}-byte boundaries (mask: 0x{self.ADDR_ALIGN_MASK:X})")
         self.log.info(f"  AXI Size Field: {self.EXPECTED_AX_SIZE} (matches {self.BYTES_PER_BEAT}-byte transfers)")
@@ -1336,7 +1336,7 @@ class AxiReadSplitterTB(TBBase):
         self.log.info(f"  Seed: {self.SEED}")
 
         # Test statistics
-        self.log.info(f"\n📊 Test Statistics:")
+        self.log.info(f"\nTest Statistics:")
         self.log.info(f"  Transactions Sent: {self.test_stats['transactions_sent']}")
         self.log.info(f"  Responses Received: {self.test_stats['responses_received']}")
         self.log.info(f"  Splits Detected: {self.test_stats['splits_detected']}")
@@ -1344,11 +1344,11 @@ class AxiReadSplitterTB(TBBase):
 
         # Enhanced error summary
         if self.detailed_errors:
-            self.log.error(f"\n🚨 DETAILED ERRORS DETECTED: {len(self.detailed_errors)}")
-            self.log.error("Full error reports shown above ⬆️")
+            self.log.error(f"\nDETAILED ERRORS DETECTED: {len(self.detailed_errors)}")
+            self.log.error("Full error reports shown above")
         else:
-            self.log.info("✅ NO DETAILED ERRORS DETECTED")
-            self.log.info("✅ ALL SAFE ADDRESS TESTS PASSED")
+            self.log.info("NO DETAILED ERRORS DETECTED")
+            self.log.info("ALL SAFE ADDRESS TESTS PASSED")
 
         # Scoreboard report
         if self.scoreboard:

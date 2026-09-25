@@ -65,9 +65,9 @@ def test_basic_device():
         if readback is not None:
             print(f"   Read: 0x{readback:08X}")
             if readback == test_data:
-                print("   ✓ Data integrity check PASSED")
+                print("   Data integrity check PASSED")
             else:
-                print("   ✗ Data integrity check FAILED")
+                print("   Data integrity check FAILED")
 
 
 def test_memory_block():
@@ -94,16 +94,16 @@ def test_memory_block():
         errors = 0
         for i, (addr, data) in enumerate(dump):
             expected = test_pattern[i]
-            match = "✓" if data == expected else "✗"
+            match = "OK" if data == expected else "FAIL"
             print(f"   [{i:2d}] 0x{addr:08X}: 0x{data:08X} {match}")
             if data != expected:
                 errors += 1
         
         print(f"\n   Verification: {NUM_WORDS - errors}/{NUM_WORDS} correct")
         if errors == 0:
-            print("   ✓ Memory block test PASSED")
+            print("   Memory block test PASSED")
         else:
-            print(f"   ✗ Memory block test FAILED ({errors} errors)")
+            print(f"   Memory block test FAILED ({errors} errors)")
 
 
 def test_performance():

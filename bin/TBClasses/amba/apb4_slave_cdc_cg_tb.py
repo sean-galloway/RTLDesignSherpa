@@ -96,7 +96,7 @@ class APBSlaveCDCCGTB(TBBase):
 
         # Memory model - larger for comprehensive testing
         self.mem = MemoryModel(num_lines=self.num_line, bytes_per_line=self.STRB_WIDTH, log=self.log)
-        self.log.info(f"✓ Memory model created: {self.num_line} lines x {self.STRB_WIDTH} bytes")
+        self.log.info(f"Memory model created: {self.num_line} lines x {self.STRB_WIDTH} bytes")
         self.log.info(f"Clock gating parameters: CG_IDLE_COUNT_WIDTH={self.CG_IDLE_COUNT_WIDTH}, max_idle_count={(1 << self.CG_IDLE_COUNT_WIDTH) - 1}")
 
         # Log the actual test configurations being used
@@ -110,14 +110,14 @@ class APBSlaveCDCCGTB(TBBase):
             randomizer=FlexRandomizer(APB_MASTER_RANDOMIZER_CONFIGS['fixed']),
             log=self.log
         )
-        self.log.info("✓ APB Master created (pclk domain)")
+        self.log.info("APB Master created (pclk domain)")
 
         self.apb4_monitor = create_apb4_monitor(
             self.dut, 'APB Monitor', 's_apb', self.dut.pclk,
             addr_width=self.ADDR_WIDTH, data_width=self.DATA_WIDTH,
             log=self.log
         )
-        self.log.info("✓ APB Monitor created (pclk domain)")
+        self.log.info("APB Monitor created (pclk domain)")
 
         # GAXI field configurations
         self.apbgaxiconfig = APBGAXIConfig(
@@ -128,7 +128,7 @@ class APBSlaveCDCCGTB(TBBase):
         self.cmd_field_config = self.apbgaxiconfig.create_cmd_field_config()
         self.rsp_field_config = self.apbgaxiconfig.create_rsp_field_config()
 
-        self.log.info(f"✓ Field configs created for CDC + Clock Gating operation")
+        self.log.info(f"Field configs created for CDC + Clock Gating operation")
 
         # CDC-specific GAXI components with separate clock domains
         super_debug = True  # Enable debug for CDC testing
@@ -142,10 +142,10 @@ class APBSlaveCDCCGTB(TBBase):
                 pkt_prefix='cmd', is_slave=True,
                 log=self.log, super_debug=super_debug, multi_sig=True
             )
-            self.log.info("✓ CMD Monitor created (aclk domain)")
+            self.log.info("CMD Monitor created (aclk domain)")
 
         except Exception as e:
-            self.log.error(f"✗ CMD Monitor creation failed: {e}")
+            self.log.error(f"CMD Monitor creation failed: {e}")
             raise
 
         try:
@@ -157,10 +157,10 @@ class APBSlaveCDCCGTB(TBBase):
                 memory_model=None,  # Don't use memory in slave for CDC
                 log=self.log, super_debug=super_debug, multi_sig=True
             )
-            self.log.info("✓ CMD Slave created (aclk domain)")
+            self.log.info("CMD Slave created (aclk domain)")
 
         except Exception as e:
-            self.log.error(f"✗ CMD Slave creation failed: {e}")
+            self.log.error(f"CMD Slave creation failed: {e}")
             raise
 
         # Response interface (master side - sends responses back to APB slave)
@@ -172,10 +172,10 @@ class APBSlaveCDCCGTB(TBBase):
                 pkt_prefix='rsp', is_slave=False,
                 log=self.log, super_debug=super_debug, multi_sig=True
             )
-            self.log.info("✓ RSP Monitor created (aclk domain)")
+            self.log.info("RSP Monitor created (aclk domain)")
 
         except Exception as e:
-            self.log.error(f"✗ RSP Monitor creation failed: {e}")
+            self.log.error(f"RSP Monitor creation failed: {e}")
             raise
 
         try:
@@ -187,10 +187,10 @@ class APBSlaveCDCCGTB(TBBase):
                 memory_model=None,
                 log=self.log, super_debug=super_debug, multi_sig=True
             )
-            self.log.info("✓ RSP Master created (aclk domain)")
+            self.log.info("RSP Master created (aclk domain)")
 
         except Exception as e:
-            self.log.error(f"✗ RSP Master creation failed: {e}")
+            self.log.error(f"RSP Master creation failed: {e}")
             raise
 
         # Command handler - orchestrates the command/response flow across clock domains
@@ -202,10 +202,10 @@ class APBSlaveCDCCGTB(TBBase):
                 log=self.log,
                 response_generation_mode=True
             )
-            self.log.info("✓ Command Handler created in response generation mode (CDC)")
+            self.log.info("Command Handler created in response generation mode (CDC)")
 
         except Exception as e:
-            self.log.error(f"✗ Command Handler creation failed: {e}")
+            self.log.error(f"Command Handler creation failed: {e}")
             raise
 
         # Clock gating controllers for both domains
@@ -213,28 +213,28 @@ class APBSlaveCDCCGTB(TBBase):
 
         # Enhanced scoreboard for CDC testing
         self.apb_gaxi_scoreboard = APBGAXIScoreboard('CDC + Clock Gating Scoreboard', log=self.log)
-        self.log.info("✓ Enhanced Scoreboard created")
+        self.log.info("Enhanced Scoreboard created")
 
         # Connect callbacks with CDC-aware debugging
         self.log.info("Connecting CDC + Clock Gating aware callbacks...")
 
         try:
             self.apb4_monitor.add_callback(self.debug_apb_callback)
-            self.log.info("✓ APB Monitor callback connected (pclk domain)")
+            self.log.info("APB Monitor callback connected (pclk domain)")
         except Exception as e:
-            self.log.error(f"✗ APB Monitor callback failed: {e}")
+            self.log.error(f"APB Monitor callback failed: {e}")
 
         try:
             self.cmd_monitor.add_callback(self.debug_cmd_callback)
-            self.log.info("✓ CMD Monitor callback connected (aclk domain)")
+            self.log.info("CMD Monitor callback connected (aclk domain)")
         except Exception as e:
-            self.log.error(f"✗ CMD Monitor callback failed: {e}")
+            self.log.error(f"CMD Monitor callback failed: {e}")
 
         try:
             self.rsp_monitor.add_callback(self.debug_rsp_callback)
-            self.log.info("✓ RSP Monitor callback connected (aclk domain)")
+            self.log.info("RSP Monitor callback connected (aclk domain)")
         except Exception as e:
-            self.log.error(f"✗ RSP Monitor callback failed: {e}")
+            self.log.error(f"RSP Monitor callback failed: {e}")
 
         self.log.info("=== APB-GAXI CDC + Clock Gating: Component initialization complete ===")
 
@@ -253,7 +253,7 @@ class APBSlaveCDCCGTB(TBBase):
                 enable_signal_name="cfg_cg_enable",
                 idle_count_signal_name="cfg_cg_idle_count"
             )
-            self.log.info("✓ PCLK Clock Gating Controller created")
+            self.log.info("PCLK Clock Gating Controller created")
 
             # ACLK domain clock gating controller  
             self.aclk_cg_ctrl = AxiClockGateCtrl(
@@ -267,10 +267,10 @@ class APBSlaveCDCCGTB(TBBase):
                 enable_signal_name="cfg_cg_enable",    # Shared config
                 idle_count_signal_name="cfg_cg_idle_count"  # Shared config
             )
-            self.log.info("✓ ACLK Clock Gating Controller created")
+            self.log.info("ACLK Clock Gating Controller created")
 
         except Exception as e:
-            self.log.error(f"✗ Clock Gating Controller creation failed: {e}")
+            self.log.error(f"Clock Gating Controller creation failed: {e}")
             raise
 
     def debug_apb_callback(self, transaction):
@@ -293,29 +293,29 @@ class APBSlaveCDCCGTB(TBBase):
                 pwdata = getattr(transaction, 'pwdata', None)
                 pstrb = getattr(transaction, 'pstrb', None)
                 gated_str = f" [PCLK:{pclk_gated}, ACLK:{aclk_gated}]"
-                self.log.info(f"🔵 APB WRITE #{self.debug_stats['apb_writes']} (pclk→aclk): "
+                self.log.info(f"APB WRITE #{self.debug_stats['apb_writes']} (pclk→aclk): "
                                 f"addr=0x{paddr:X}, data=0x{pwdata:X}, strb=0x{pstrb:X}{gated_str}")
             elif pwrite == 0:
                 self.debug_stats['apb_reads'] += 1
                 prdata = getattr(transaction, 'prdata', None)
                 pslverr = getattr(transaction, 'pslverr', None)
                 gated_str = f" [PCLK:{pclk_gated}, ACLK:{aclk_gated}]"
-                self.log.info(f"🔵 APB READ #{self.debug_stats['apb_reads']} (pclk→aclk): "
+                self.log.info(f"APB READ #{self.debug_stats['apb_reads']} (pclk→aclk): "
                                 f"addr=0x{paddr:X}, data=0x{prdata:X}, err={pslverr}{gated_str}")
             else:
-                self.log.error(f"🔴 APB UNKNOWN: pwrite={pwrite}")
+                self.log.error(f"APB UNKNOWN: pwrite={pwrite}")
 
             # Detect potential clock gating violations
             if pclk_gated or aclk_gated:
                 self.test_stats['clock_gating_violations'] += 1
-                self.log.warning(f"⚠️ APB transaction during gating - PCLK:{pclk_gated}, ACLK:{aclk_gated}")
+                self.log.warning(f"APB transaction during gating - PCLK:{pclk_gated}, ACLK:{aclk_gated}")
 
             # Add to scoreboard
             self.apb_gaxi_scoreboard.add_apb_transaction(transaction)
-            self.log.debug("✓ APB transaction added to CDC + Clock Gating scoreboard")
+            self.log.debug("APB transaction added to CDC + Clock Gating scoreboard")
 
         except Exception as e:
-            self.log.error(f"🔴 APB CDC + Clock Gating callback error: {e}")
+            self.log.error(f"APB CDC + Clock Gating callback error: {e}")
 
     def debug_cmd_callback(self, transaction):
         """CDC + Clock Gating aware GAXI command callback with aclk domain tracking."""
@@ -339,20 +339,20 @@ class APBSlaveCDCCGTB(TBBase):
                 pwdata = getattr(transaction, 'pwdata', 'N/A')
 
             gated_str = " [DURING GATING]" if aclk_gated else ""
-            self.log.info(f"🟢 GAXI CMD #{self.debug_stats['gaxi_commands']} (aclk): "
+            self.log.info(f"GAXI CMD #{self.debug_stats['gaxi_commands']} (aclk): "
                             f"pwrite={pwrite}, addr=0x{paddr:X}, data=0x{pwdata:X}{gated_str}")
 
             # Detect potential clock gating violations
             if aclk_gated:
                 self.test_stats['clock_gating_violations'] += 1
-                self.log.warning(f"⚠️ GAXI CMD transaction during ACLK gating - potential violation!")
+                self.log.warning(f"GAXI CMD transaction during ACLK gating - potential violation!")
 
             # Add to scoreboard
             self.apb_gaxi_scoreboard.add_gaxi_transaction(transaction)
-            self.log.debug("✓ GAXI CMD transaction added to CDC + Clock Gating scoreboard")
+            self.log.debug("GAXI CMD transaction added to CDC + Clock Gating scoreboard")
 
         except Exception as e:
-            self.log.error(f"🔴 GAXI CMD CDC + Clock Gating callback error: {e}")
+            self.log.error(f"GAXI CMD CDC + Clock Gating callback error: {e}")
 
     def debug_rsp_callback(self, transaction):
         """CDC + Clock Gating aware GAXI response callback with aclk domain tracking."""
@@ -374,20 +374,20 @@ class APBSlaveCDCCGTB(TBBase):
                 pslverr = getattr(transaction, 'pslverr', 'N/A')
 
             gated_str = " [DURING GATING]" if aclk_gated else ""
-            self.log.info(f"🟡 GAXI RSP #{self.debug_stats['gaxi_responses']} (aclk→pclk): "
+            self.log.info(f"GAXI RSP #{self.debug_stats['gaxi_responses']} (aclk→pclk): "
                             f"data=0x{prdata:X}, err={pslverr}{gated_str}")
 
             # Detect potential clock gating violations
             if aclk_gated:
                 self.test_stats['clock_gating_violations'] += 1
-                self.log.warning(f"⚠️ GAXI RSP transaction during ACLK gating - potential violation!")
+                self.log.warning(f"GAXI RSP transaction during ACLK gating - potential violation!")
 
             # Add to scoreboard
             self.apb_gaxi_scoreboard.add_gaxi_transaction(transaction)
-            self.log.debug("✓ GAXI RSP transaction added to CDC + Clock Gating scoreboard")
+            self.log.debug("GAXI RSP transaction added to CDC + Clock Gating scoreboard")
 
         except Exception as e:
-            self.log.error(f"🔴 GAXI RSP CDC + Clock Gating callback error: {e}")
+            self.log.error(f"GAXI RSP CDC + Clock Gating callback error: {e}")
 
     async def reset_dut(self):
         """Enhanced CDC reset with separate clock domain handling and clock gating reset."""
@@ -453,7 +453,7 @@ class APBSlaveCDCCGTB(TBBase):
         await self.wait_clocks('aclk', 5)
         await self.wait_clocks('pclk', 5)
 
-        self.log.info(f"✓ Clock gating configured: enable={enable}, idle_count={idle_count}")
+        self.log.info(f"Clock gating configured: enable={enable}, idle_count={idle_count}")
 
     async def check_cdc_cg_signal_connectivity(self):
         """Check signal connectivity for CDC + Clock Gating specific signals."""
@@ -468,44 +468,44 @@ class APBSlaveCDCCGTB(TBBase):
             try:
                 signal_name = f's_apb_{sig}'
                 signal_obj = getattr(self.dut, signal_name)
-                signal_checks[f"{signal_name} (pclk)"] = '✓ accessible'
-                self.log.debug(f"✓ {signal_name} accessible in pclk domain")
+                signal_checks[f"{signal_name} (pclk)"] = 'accessible'
+                self.log.debug(f"{signal_name} accessible in pclk domain")
             except AttributeError:
-                signal_checks[f"{signal_name} (pclk)"] = '✗ missing'
-                self.log.warning(f"✗ {signal_name} not found in pclk domain")
+                signal_checks[f"{signal_name} (pclk)"] = 'missing'
+                self.log.warning(f"{signal_name} not found in pclk domain")
 
         # Check GAXI command signals (aclk domain)
         cmd_signals = ['cmd_valid', 'cmd_ready', 'cmd_pwrite', 'cmd_paddr', 'cmd_pwdata', 'cmd_pstrb', 'cmd_pprot']
         for sig in cmd_signals:
             try:
                 signal_obj = getattr(self.dut, sig)
-                signal_checks[f"{sig} (aclk)"] = '✓ accessible'
-                self.log.debug(f"✓ {sig} accessible in aclk domain")
+                signal_checks[f"{sig} (aclk)"] = 'accessible'
+                self.log.debug(f"{sig} accessible in aclk domain")
             except AttributeError:
-                signal_checks[f"{sig} (aclk)"] = '✗ missing'
-                self.log.debug(f"✗ {sig} not found in aclk domain")
+                signal_checks[f"{sig} (aclk)"] = 'missing'
+                self.log.debug(f"{sig} not found in aclk domain")
 
         # Check GAXI response signals (aclk domain)
         rsp_signals = ['rsp_valid', 'rsp_ready', 'rsp_prdata', 'rsp_pslverr']
         for sig in rsp_signals:
             try:
                 signal_obj = getattr(self.dut, sig)
-                signal_checks[f"{sig} (aclk)"] = '✓ accessible'
-                self.log.debug(f"✓ {sig} accessible in aclk domain")
+                signal_checks[f"{sig} (aclk)"] = 'accessible'
+                self.log.debug(f"{sig} accessible in aclk domain")
             except AttributeError:
-                signal_checks[f"{sig} (aclk)"] = '✗ missing'
-                self.log.debug(f"✗ {sig} not found in aclk domain")
+                signal_checks[f"{sig} (aclk)"] = 'missing'
+                self.log.debug(f"{sig} not found in aclk domain")
 
         # Check CDC-specific clocks and resets
         cdc_signals = ['aclk', 'pclk', 'aresetn', 'presetn']
         for sig in cdc_signals:
             try:
                 signal_obj = getattr(self.dut, sig)
-                signal_checks[f"{sig} (CDC)"] = '✓ accessible'
-                self.log.debug(f"✓ {sig} CDC signal accessible")
+                signal_checks[f"{sig} (CDC)"] = 'accessible'
+                self.log.debug(f"{sig} CDC signal accessible")
             except AttributeError:
-                signal_checks[f"{sig} (CDC)"] = '✗ missing'
-                self.log.warning(f"✗ {sig} CDC signal not found")
+                signal_checks[f"{sig} (CDC)"] = 'missing'
+                self.log.warning(f"{sig} CDC signal not found")
 
         # Check Clock Gating specific signals
         cg_signals = [
@@ -516,23 +516,23 @@ class APBSlaveCDCCGTB(TBBase):
         for sig in cg_signals:
             try:
                 signal_obj = getattr(self.dut, sig)
-                signal_checks[f"{sig} (CG)"] = '✓ accessible'
-                self.log.debug(f"✓ {sig} Clock Gating signal accessible")
+                signal_checks[f"{sig} (CG)"] = 'accessible'
+                self.log.debug(f"{sig} Clock Gating signal accessible")
             except AttributeError:
-                signal_checks[f"{sig} (CG)"] = '✗ missing'
-                self.log.warning(f"✗ {sig} Clock Gating signal not found")
+                signal_checks[f"{sig} (CG)"] = 'missing'
+                self.log.warning(f"{sig} Clock Gating signal not found")
 
         self.debug_stats['signal_checks'] = signal_checks
 
         # Summary
-        accessible_count = sum(1 for status in signal_checks.values() if '✓' in status)
+        accessible_count = sum(1 for status in signal_checks.values() if 'accessible' in status)
         total_count = len(signal_checks)
         self.log.info(f"CDC + Clock Gating Signal connectivity: {accessible_count}/{total_count} signals accessible")
 
         if accessible_count < total_count:
             self.log.warning("Some CDC + Clock Gating signals missing - check clock domain assignments")
             for sig, status in signal_checks.items():
-                if '✗' in status:
+                if 'missing' in status:
                     self.log.warning(f"  Missing: {sig}")
 
         return accessible_count >= len(apb_signals) + len(cdc_signals) + len(cg_signals)  # Core signals should work
@@ -580,10 +580,10 @@ class APBSlaveCDCCGTB(TBBase):
         self.test_stats['idle_detection_tests'] += 1
 
         if idle_success and gating_success:
-            self.log.info("✓ Clock gating idle detection test PASSED")
+            self.log.info("Clock gating idle detection test PASSED")
             return True
         else:
-            self.log.error(f"✗ Clock gating idle detection test FAILED: idle={idle_success}, gating={gating_success}")
+            self.log.error(f"Clock gating idle detection test FAILED: idle={idle_success}, gating={gating_success}")
             return False
 
     async def test_clock_gating_wakeup(self):
@@ -611,10 +611,10 @@ class APBSlaveCDCCGTB(TBBase):
 
         if wakeup_success:
             self.debug_stats['clock_gate_wakeups'] += 1
-            self.log.info("✓ Clock gating wakeup test PASSED")
+            self.log.info("Clock gating wakeup test PASSED")
             return True
         else:
-            self.log.error("✗ Clock gating wakeup test FAILED")
+            self.log.error("Clock gating wakeup test FAILED")
             return False
 
     async def test_power_efficiency(self, cg_config):
@@ -654,11 +654,11 @@ class APBSlaveCDCCGTB(TBBase):
                           not cg_config['enable'])
 
         if efficiency_pass:
-            self.log.info(f"✓ Power efficiency test PASSED: {cg_config['name']} - "
+            self.log.info(f"Power efficiency test PASSED: {cg_config['name']} - "
                          f"PCLK: {power_savings['pclk']:.1f}%, ACLK: {power_savings['aclk']:.1f}%")
             return True
         else:
-            self.log.error(f"✗ Power efficiency test FAILED: {cg_config['name']} - "
+            self.log.error(f"Power efficiency test FAILED: {cg_config['name']} - "
                           f"PCLK: {power_savings['pclk']:.1f}%, ACLK: {power_savings['aclk']:.1f}%")
             return False
 
@@ -674,9 +674,9 @@ class APBSlaveCDCCGTB(TBBase):
         try:
             await self.cmd_handler.start()
             handler_stats = self.cmd_handler.get_stats()
-            self.log.info(f"✓ CDC + Clock Gating Command handler started: {handler_stats}")
+            self.log.info(f"CDC + Clock Gating Command handler started: {handler_stats}")
         except Exception as e:
-            self.log.error(f"✗ CDC + Clock Gating Command handler start failed: {e}")
+            self.log.error(f"CDC + Clock Gating Command handler start failed: {e}")
             return False
 
         # Step 3: Test basic functionality with clock gating disabled
@@ -742,41 +742,41 @@ class APBSlaveCDCCGTB(TBBase):
         no_cg_violations = (self.test_stats['clock_gating_violations'] == 0)
 
         self.log.info("=== CDC + CLOCK GATING COMPREHENSIVE ANALYSIS ===")
-        self.log.info(f"Signal connectivity: {'✓' if signals_ok else '✗'}")
-        self.log.info(f"APB transaction flow (pclk): {'✓' if apb_flow_working else '✗'}")
-        self.log.info(f"GAXI command generation (aclk): {'✓' if gaxi_cmd_working else '✗'}")
-        self.log.info(f"GAXI response generation (aclk): {'✓' if gaxi_rsp_working else '✗'}")
-        self.log.info(f"CDC clock domain crossing: {'✓' if cdc_working else '✗'}")
-        self.log.info(f"Clock gating functionality: {'✓' if clock_gating_working else '✗'}")
-        self.log.info(f"Clock gating violations: {'✓' if no_cg_violations else '✗'}")
-        self.log.info(f"Idle detection: {'✓' if idle_result else '✗'}")
-        self.log.info(f"Wakeup mechanism: {'✓' if wakeup_result else '✗'}")
-        self.log.info(f"Scoreboard matching: {'✓' if scoreboard_working else '✗'}")
+        self.log.info(f"Signal connectivity: {'OK' if signals_ok else 'FAIL'}")
+        self.log.info(f"APB transaction flow (pclk): {'OK' if apb_flow_working else 'FAIL'}")
+        self.log.info(f"GAXI command generation (aclk): {'OK' if gaxi_cmd_working else 'FAIL'}")
+        self.log.info(f"GAXI response generation (aclk): {'OK' if gaxi_rsp_working else 'FAIL'}")
+        self.log.info(f"CDC clock domain crossing: {'OK' if cdc_working else 'FAIL'}")
+        self.log.info(f"Clock gating functionality: {'OK' if clock_gating_working else 'FAIL'}")
+        self.log.info(f"Clock gating violations: {'OK' if no_cg_violations else 'FAIL'}")
+        self.log.info(f"Idle detection: {'OK' if idle_result else 'FAIL'}")
+        self.log.info(f"Wakeup mechanism: {'OK' if wakeup_result else 'FAIL'}")
+        self.log.info(f"Scoreboard matching: {'OK' if scoreboard_working else 'FAIL'}")
 
         # CDC + Clock Gating specific issue identification
         if not gaxi_cmd_working:
-            self.log.error("🔥 CDC ISSUE: GAXI commands not crossing pclk→aclk - check CDC handshake")
+            self.log.error("CDC ISSUE: GAXI commands not crossing pclk→aclk - check CDC handshake")
         if not gaxi_rsp_working:
-            self.log.error("🔥 CDC ISSUE: GAXI responses not crossing aclk→pclk - check CDC response path")
+            self.log.error("CDC ISSUE: GAXI responses not crossing aclk→pclk - check CDC response path")
         if not cdc_working:
-            self.log.error("🔥 CDC ISSUE: No clock domain crossings detected - check CDC implementation")
+            self.log.error("CDC ISSUE: No clock domain crossings detected - check CDC implementation")
         if not clock_gating_working:
-            self.log.error("🔥 CLOCK GATING ISSUE: Clock gating not functioning properly")
+            self.log.error("CLOCK GATING ISSUE: Clock gating not functioning properly")
         if not no_cg_violations:
-            self.log.error("🔥 CLOCK GATING VIOLATION: Transactions detected during gating")
+            self.log.error("CLOCK GATING VIOLATION: Transactions detected during gating")
         if not idle_result:
-            self.log.error("🔥 CLOCK GATING ISSUE: Idle detection not working")
+            self.log.error("CLOCK GATING ISSUE: Idle detection not working")
         if not wakeup_result:
-            self.log.error("🔥 CLOCK GATING ISSUE: Wakeup mechanism not working")
+            self.log.error("CLOCK GATING ISSUE: Wakeup mechanism not working")
 
         success = (apb_flow_working and gaxi_cmd_working and gaxi_rsp_working and 
                   scoreboard_working and cdc_working and clock_gating_working and 
                   no_cg_violations and idle_result and wakeup_result)
 
         if success:
-            self.log.info("✓ APB-GAXI CDC + CLOCK GATING COMPREHENSIVE TEST PASSED")
+            self.log.info("APB-GAXI CDC + CLOCK GATING COMPREHENSIVE TEST PASSED")
         else:
-            self.log.error("✗ APB-GAXI CDC + CLOCK GATING COMPREHENSIVE TEST FAILED - Issues identified above")
+            self.log.error("APB-GAXI CDC + CLOCK GATING COMPREHENSIVE TEST FAILED - Issues identified above")
 
         return success
 
@@ -940,9 +940,9 @@ class APBSlaveCDCCGTB(TBBase):
                         result = await self.verify_scoreboard(timeout=5000)
 
                         if result:
-                            self.log.info(f"✓ CDC + CG Test {current_test} PASSED: {test_name}")
+                            self.log.info(f"CDC + CG Test {current_test} PASSED: {test_name}")
                         else:
-                            self.log.error(f"✗ CDC + CG Test {current_test} FAILED: {test_name}")
+                            self.log.error(f"CDC + CG Test {current_test} FAILED: {test_name}")
 
                         # Allow CDC + Clock Gating settling time between tests
                         await self.wait_clocks('aclk', 30)
@@ -951,7 +951,7 @@ class APBSlaveCDCCGTB(TBBase):
                         self.test_stats['total_tests'] += 1
 
                     except Exception as e:
-                        self.log.error(f"✗ CDC + CG Test {current_test} EXCEPTION: {test_name}: {e}")
+                        self.log.error(f"CDC + CG Test {current_test} EXCEPTION: {test_name}: {e}")
                         self.test_stats['failed_tests'] += 1
                         continue
 

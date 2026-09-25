@@ -5,9 +5,9 @@ layer. LiteDRAM-inspired split:
 
 ```
 pumice_axi4_ifc (CAMs)         pumice_mem_cmd_scheduler                 [DFI layer — future]
-  wr/rd sched_lu  ───────────►  per-bank timers + global timers +        drains cmd FIFO,
-  wr/rd oldest    ───────────►  refresh + init + ARBITER  ── cmd FIFO ──► packs onto nphases,
-  wr commit / rd issue ◄──────  (single abstract command / cycle)         serializes data,
+  wr/rd sched_lu  ───────────>  per-bank timers + global timers +        drains cmd FIFO,
+  wr/rd oldest    ───────────>  refresh + init + ARBITER  ── cmd FIFO ──> packs onto nphases,
+  wr commit / rd issue <──────  (single abstract command / cycle)         serializes data,
                                                                           CDC to PHY clock
 ```
 
@@ -24,7 +24,7 @@ pumice_axi4_ifc (CAMs)         pumice_mem_cmd_scheduler                 [DFI lay
 
 | FUB | verdict |
 |---|---|
-| `pumice_bank_timers` | NEW (open-page rework of xbank_timers) ✅ built+tested |
+| `pumice_bank_timers` | NEW (open-page rework of xbank_timers) built+tested |
 | `global_timers` | reuse (tFAW/tRRD per-rank; tWTR/tRTW/tCCD global) |
 | `refresh_ctrl` | reuse (tREFI + 8-deep postpone; arbiter PRE-alls before REF) |
 | `init_sequencer`, `mode_register` | reuse (JEDEC MRS init; gates traffic until done) |
