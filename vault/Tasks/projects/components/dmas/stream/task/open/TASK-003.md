@@ -82,6 +82,35 @@ re-run also overwrites the log of the run it replaces, so a failure's evidence
 is gone unless copied aside first. Anyone scrubbing these tests should check the
 timestamp inside the log against the run they mean, or clear `logs/` first.
 
+**One checklist item is now DONE, and it is a negative (2026-09-24).** The
+"no `run()` call pins `testcase=` to a single cocotb test" item was swept across
+all 18 `test_*.py` under `dv/tests/{fub,macro,top}`: **zero cocotb tests are
+hidden.** Every `cocotb_test_*` name is dispatched from somewhere.
+
+**Do not re-run this with a naive grep -- it gives a FALSE POSITIVE.** Matching
+`testcase="..."` only sees string literals, and three files dispatch through a
+VARIABLE, so they look unpinned or under-pinned:
+
+| file | tests | how they dispatch |
+|---|---|---|
+| `macro/test_stream_core.py` | 6 | 4 literal pins + a helper at :1559/:1566/:1573 |
+| `top/test_stream_top_advanced.py` | 6 | all 6 bound at :1033-1083, `testcase=cocotb_testcase` |
+| `top/test_stream_top.py` | 3 | 1 literal + `_run_extended(...)` at :819/:826 |
+
+My first pass scored those as "11 hidden tests". They were not hidden; the
+regex could not see a variable pin.
+
+The check that actually works is name-reachability, not pin-parsing: for each
+`async def cocotb_test_X`, count occurrences of `X` in its own file. Exactly one
+occurrence means nothing dispatches it. Two or more means it is reached, however
+the wrapper is written:
+
+```sh
+for name in $(grep -oE 'async def (cocotb_test_[A-Za-z_0-9]+)' "$f" | awk '{print $3}'); do
+  [ "$(grep -c "\b$name\b" "$f")" -le 1 ] && echo "UNREACHABLE: $name"
+done
+```
+
 **What "complete" has to mean, at minimum:**
 
 - Every `test_*.py` actually exercises the DUT it names.
