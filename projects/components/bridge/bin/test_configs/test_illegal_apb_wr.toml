@@ -23,6 +23,6 @@ protocol = "apb"
 addr_width = 32
 data_width = 32
 user_width = 1
-channels = "wr"  # ❌ ILLEGAL! APB must be 'rw'
+channels = "wr"  # ILLEGAL! APB must be 'rw'
 base_addr = "0x00000000"
 addr_range = "0x00010000"

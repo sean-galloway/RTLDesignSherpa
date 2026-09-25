@@ -226,7 +226,7 @@ notes: |
   Bridge 5x3_channels demonstrates channel-optimized bridge generation.
   Mixed channel configurations: wr-only, rd-only, and rw (full duplex).
 
-  **⚠️ CRITICAL STATUS: UNTESTED - NO TEST FILE EXISTS ⚠️**
+  **CRITICAL STATUS: UNTESTED - NO TEST FILE EXISTS**
 
   Generated RTL exists at:
   - projects/components/bridge/rtl/generated/bridge_5x3_channels/bridge_5x3_channels.sv

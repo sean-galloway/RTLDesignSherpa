@@ -63,7 +63,7 @@ verilator:
 		echo "Linting $$file..."; \
 		$(VERILATOR) $(VERILATOR_FLAGS) $$file > $(VERILATOR_DIR)/$$(basename $$file .sv).log 2>&1 || true; \
 	done
-	@echo "✓ Verilator lint complete"
+	@echo "Verilator lint complete"
 
 .PHONY: verible
 verible:
@@ -73,9 +73,9 @@ verible:
 		for file in $(SV_FILES); do \
 			$(VERIBLE) $(VERIBLE_FLAGS) $$file > $(VERIBLE_DIR)/$$(basename $$file .sv).log 2>&1 || true; \
 		done; \
-		echo "✓ Verible lint complete"; \
+		echo "Verible lint complete"; \
 	else \
-		echo "⚠ Verible not found. Skipping."; \
+		echo "Verible not found. Skipping."; \
 	fi
 
 .PHONY: yosys
@@ -86,14 +86,14 @@ yosys:
 		for file in $(SV_FILES); do \
 			$(YOSYS) $(YOSYS_FLAGS) $$file -p "hierarchy -check" > $(YOSYS_DIR)/$$(basename $$file .sv).log 2>&1 || true; \
 		done; \
-		echo "✓ Yosys synthesis check complete"; \
+		echo "Yosys synthesis check complete"; \
 	else \
-		echo "⚠ Yosys not found. Skipping."; \
+		echo "Yosys not found. Skipping."; \
 	fi
 
 .PHONY: lint-all
 lint-all: verilator verible
-	@echo "✓ All lint tools completed"
+	@echo "All lint tools completed"
 
 .PHONY: status
 status:
@@ -107,7 +107,7 @@ status:
 .PHONY: clean-all
 clean-all:
 	@rm -rf $(LINT_DIR)
-	@echo "✓ All lint artifacts cleaned"
+	@echo "All lint artifacts cleaned"
 
 .PHONY: lint
 lint: lint-all

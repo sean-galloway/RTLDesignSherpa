@@ -295,19 +295,19 @@ test-hive:
 	@if [ -f $(PROJECTS_DIR)/hive/dv/tests/Makefile ]; then \
 		$(MAKE) -C $(PROJECTS_DIR)/hive/dv/tests run-all || true; \
 	else \
-		echo "⚠ HIVE test Makefile not found (may not have tests yet)"; \
+		echo "HIVE test Makefile not found (may not have tests yet)"; \
 	fi
 
 .PHONY: test-projects
 test-projects: test-stream test-rapids test-bridge test-delta test-apbx_xbar test-retro_legacy_blocks test-hive
 	@echo "================================================================================"
-	@echo "✓ All project tests completed"
+	@echo "All project tests completed"
 	@echo "================================================================================"
 
 .PHONY: test-all
 test-all: test-val test-projects
 	@echo "================================================================================"
-	@echo "✓ ALL TESTS COMPLETED"
+	@echo "ALL TESTS COMPLETED"
 	@echo "================================================================================"
 
 # ==============================================================================
@@ -367,7 +367,7 @@ run-rtl-all-gate-parallel:
 	@$(MAKE) run-common-gate-parallel
 	@$(MAKE) run-amba-gate-parallel
 	@echo "================================================================================"
-	@echo "✓ ALL RTL GATE Tests Completed"
+	@echo "ALL RTL GATE Tests Completed"
 	@echo "================================================================================"
 
 .PHONY: run-rtl-all-func-parallel
@@ -378,7 +378,7 @@ run-rtl-all-func-parallel:
 	@$(MAKE) run-common-func-parallel
 	@$(MAKE) run-amba-func-parallel
 	@echo "================================================================================"
-	@echo "✓ ALL RTL FUNC Tests Completed"
+	@echo "ALL RTL FUNC Tests Completed"
 	@echo "================================================================================"
 
 .PHONY: run-rtl-all-full-parallel
@@ -389,7 +389,7 @@ run-rtl-all-full-parallel:
 	@$(MAKE) run-common-full-parallel
 	@$(MAKE) run-amba-full-parallel
 	@echo "================================================================================"
-	@echo "✓ ALL RTL FULL Tests Completed"
+	@echo "ALL RTL FULL Tests Completed"
 	@echo "================================================================================"
 
 # ==============================================================================
@@ -615,7 +615,7 @@ lint-stream:
 	@if [ -f $(PROJECTS_DIR)/dmas/stream/rtl/Makefile ]; then \
 		$(MAKE) -C $(PROJECTS_DIR)/dmas/stream/rtl lint-all; \
 	else \
-		echo "⚠ STREAM RTL Makefile not found"; \
+		echo "STREAM RTL Makefile not found"; \
 	fi
 
 .PHONY: lint-rapids
@@ -624,7 +624,7 @@ lint-rapids:
 	@if [ -f $(PROJECTS_DIR)/dmas/rapids/rtl/Makefile ]; then \
 		$(MAKE) -C $(PROJECTS_DIR)/dmas/rapids/rtl lint-all; \
 	else \
-		echo "⚠ RAPIDS RTL Makefile not found"; \
+		echo "RAPIDS RTL Makefile not found"; \
 	fi
 
 .PHONY: lint-bridge
@@ -633,7 +633,7 @@ lint-bridge:
 	@if [ -f $(PROJECTS_DIR)/bridge/rtl/Makefile ]; then \
 		$(MAKE) -C $(PROJECTS_DIR)/bridge/rtl lint-all; \
 	else \
-		echo "⚠ Bridge RTL Makefile not found"; \
+		echo "Bridge RTL Makefile not found"; \
 	fi
 
 .PHONY: lint-delta
@@ -642,7 +642,7 @@ lint-delta:
 	@if [ -f $(PROJECTS_DIR)/delta/rtl/Makefile ]; then \
 		$(MAKE) -C $(PROJECTS_DIR)/delta/rtl lint-all; \
 	else \
-		echo "⚠ Delta RTL Makefile not found"; \
+		echo "Delta RTL Makefile not found"; \
 	fi
 
 .PHONY: lint-apbx_xbar
@@ -651,7 +651,7 @@ lint-apbx_xbar:
 	@if [ -f $(PROJECTS_DIR)/apbx-xbar/rtl/Makefile ]; then \
 		$(MAKE) -C $(PROJECTS_DIR)/apbx-xbar/rtl lint-all; \
 	else \
-		echo "⚠ APB Crossbar RTL Makefile not found"; \
+		echo "APB Crossbar RTL Makefile not found"; \
 	fi
 
 .PHONY: lint-converters
@@ -660,7 +660,7 @@ lint-converters:
 	@if [ -f $(PROJECTS_DIR)/converters/rtl/Makefile ]; then \
 		$(MAKE) -C $(PROJECTS_DIR)/converters/rtl lint-all; \
 	else \
-		echo "⚠ Converters RTL Makefile not found"; \
+		echo "Converters RTL Makefile not found"; \
 	fi
 
 .PHONY: lint-retro_legacy_blocks
@@ -669,20 +669,20 @@ lint-retro_legacy_blocks:
 	@if [ -f $(PROJECTS_DIR)/retro_legacy_blocks/rtl/Makefile ]; then \
 		$(MAKE) -C $(PROJECTS_DIR)/retro_legacy_blocks/rtl lint-all; \
 	else \
-		echo "⚠ Retro Legacy Blocks RTL Makefile not found"; \
+		echo "Retro Legacy Blocks RTL Makefile not found"; \
 	fi
 
 
 .PHONY: lint-projects
 lint-projects: lint-stream lint-rapids lint-bridge lint-delta lint-apbx_xbar lint-converters lint-retro_legacy_blocks
 	@echo "================================================================================"
-	@echo "✓ All project RTL lint completed"
+	@echo "All project RTL lint completed"
 	@echo "================================================================================"
 
 .PHONY: lint-all
 lint-all: lint-rtl lint-projects
 	@echo "================================================================================"
-	@echo "✓ ALL LINT COMPLETED"
+	@echo "ALL LINT COMPLETED"
 	@echo "================================================================================"
 
 # ==============================================================================
@@ -889,7 +889,7 @@ clean-tests:
 			$(MAKE) -C $(PROJECTS_DIR)/$$proj/dv/tests clean-all 2>/dev/null || true; \
 		fi; \
 	done
-	@echo "✓ Test artifacts cleaned"
+	@echo "Test artifacts cleaned"
 
 .PHONY: clean-lint
 clean-lint:
@@ -900,12 +900,12 @@ clean-lint:
 			$(MAKE) -C $(PROJECTS_DIR)/$$proj/rtl clean-all 2>/dev/null || true; \
 		fi; \
 	done
-	@echo "✓ Lint artifacts cleaned"
+	@echo "Lint artifacts cleaned"
 
 .PHONY: clean-all
 clean-all: clean-tests clean-lint clean-results
 	@echo "================================================================================"
-	@echo "✓ All artifacts cleaned (tests + lint + results)"
+	@echo "All artifacts cleaned (tests + lint + results)"
 	@echo "================================================================================"
 
 # ==============================================================================

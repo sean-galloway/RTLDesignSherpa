@@ -163,7 +163,7 @@ test-all:
 		$(MAKE) -C $$comp/dv/tests run-all || exit 1; \
 	done
 	@echo ""
-	@echo "$(BOLD)$(GREEN)✓ All component tests complete$(RESET)"
+	@echo "$(BOLD)$(GREEN)All component tests complete$(RESET)"
 
 .PHONY: test-all-parallel
 test-all-parallel:
@@ -177,7 +177,7 @@ test-all-parallel:
 		$(MAKE) -C $$comp/dv/tests run-all-parallel || exit 1; \
 	done
 	@echo ""
-	@echo "$(BOLD)$(GREEN)✓ All component tests complete$(RESET)"
+	@echo "$(BOLD)$(GREEN)All component tests complete$(RESET)"
 
 # ==============================================================================
 # Test Targets - REG_LEVEL Variants (All Components)
@@ -195,7 +195,7 @@ test-all-gate:
 		$(MAKE) -C $$comp/dv/tests run-all-gate || exit 1; \
 	done
 	@echo ""
-	@echo "$(BOLD)$(GREEN)✓ All component gate tests complete$(RESET)"
+	@echo "$(BOLD)$(GREEN)All component gate tests complete$(RESET)"
 
 .PHONY: test-all-func
 test-all-func:
@@ -209,7 +209,7 @@ test-all-func:
 		$(MAKE) -C $$comp/dv/tests run-all-func || exit 1; \
 	done
 	@echo ""
-	@echo "$(BOLD)$(GREEN)✓ All component functional tests complete$(RESET)"
+	@echo "$(BOLD)$(GREEN)All component functional tests complete$(RESET)"
 
 .PHONY: test-all-full
 test-all-full:
@@ -223,7 +223,7 @@ test-all-full:
 		$(MAKE) -C $$comp/dv/tests run-all-full || exit 1; \
 	done
 	@echo ""
-	@echo "$(BOLD)$(GREEN)✓ All component comprehensive tests complete$(RESET)"
+	@echo "$(BOLD)$(GREEN)All component comprehensive tests complete$(RESET)"
 
 # Parallel versions
 .PHONY: test-all-gate-parallel
@@ -238,7 +238,7 @@ test-all-gate-parallel:
 		$(MAKE) -C $$comp/dv/tests run-all-gate-parallel || exit 1; \
 	done
 	@echo ""
-	@echo "$(BOLD)$(GREEN)✓ All component gate tests complete$(RESET)"
+	@echo "$(BOLD)$(GREEN)All component gate tests complete$(RESET)"
 
 .PHONY: test-all-func-parallel
 test-all-func-parallel:
@@ -252,7 +252,7 @@ test-all-func-parallel:
 		$(MAKE) -C $$comp/dv/tests run-all-func-parallel || exit 1; \
 	done
 	@echo ""
-	@echo "$(BOLD)$(GREEN)✓ All component functional tests complete$(RESET)"
+	@echo "$(BOLD)$(GREEN)All component functional tests complete$(RESET)"
 
 .PHONY: test-all-full-parallel
 test-all-full-parallel:
@@ -266,7 +266,7 @@ test-all-full-parallel:
 		$(MAKE) -C $$comp/dv/tests run-all-full-parallel || exit 1; \
 	done
 	@echo ""
-	@echo "$(BOLD)$(GREEN)✓ All component comprehensive tests complete$(RESET)"
+	@echo "$(BOLD)$(GREEN)All component comprehensive tests complete$(RESET)"
 
 # ==============================================================================
 # Standardized run-all-* Targets (canonical names)
@@ -366,18 +366,18 @@ $(foreach lvl,gate func full,$(eval $(call FAST_LEVEL_TARGETS,$(lvl))))
 	echo ""; \
 	echo "  components reported: $$seen (expected $(FAST_EXPECTED))"; \
 	if [ "$$seen" = "0" ]; then \
-		echo "$(BOLD)$(RED)✗ NOTHING RAN -- no component reported a result.$(RESET)"; \
+		echo "$(BOLD)$(RED)NOTHING RAN -- no component reported a result.$(RESET)"; \
 		echo "$(RED)  Do NOT read this as a pass.$(RESET)"; \
 		exit 1; \
 	fi; \
 	if [ -n "$(FAST_EXPECTED)" ] && [ "$$seen" != "$(FAST_EXPECTED)" ]; then \
-		echo "$(BOLD)$(RED)✗ INCOMPLETE -- only $$seen of $(FAST_EXPECTED) components reported.$(RESET)"; \
+		echo "$(BOLD)$(RED)INCOMPLETE -- only $$seen of $(FAST_EXPECTED) components reported.$(RESET)"; \
 		exit 1; \
 	fi; \
 	if [ $$fail -eq 0 ]; then \
-		echo "$(BOLD)$(GREEN)✓ All $$seen components passed$(RESET)"; \
+		echo "$(BOLD)$(GREEN)All $$seen components passed$(RESET)"; \
 	else \
-		echo "$(BOLD)$(RED)✗ One or more components FAILED (see logs above)$(RESET)"; \
+		echo "$(BOLD)$(RED)One or more components FAILED (see logs above)$(RESET)"; \
 	fi; \
 	exit $$fail
 
@@ -447,7 +447,7 @@ lint-all:
 		$(MAKE) -C $$comp/rtl lint-all || exit 1; \
 	done
 	@echo ""
-	@echo "$(BOLD)$(GREEN)✓ All component lint complete$(RESET)"
+	@echo "$(BOLD)$(GREEN)All component lint complete$(RESET)"
 
 # ==============================================================================
 # Lint Targets - Individual Components
@@ -523,7 +523,7 @@ status-lint:
 
 .PHONY: clean-all
 clean-all: clean-tests clean-lint
-	@echo "$(BOLD)$(GREEN)✓ All component artifacts cleaned$(RESET)"
+	@echo "$(BOLD)$(GREEN)All component artifacts cleaned$(RESET)"
 
 .PHONY: clean-tests
 clean-tests:
@@ -532,7 +532,7 @@ clean-tests:
 		echo "  Cleaning $$comp tests..."; \
 		$(MAKE) -C $$comp/dv/tests clean-all 2>/dev/null || true; \
 	done
-	@echo "$(BOLD)$(GREEN)✓ Test artifacts cleaned$(RESET)"
+	@echo "$(BOLD)$(GREEN)Test artifacts cleaned$(RESET)"
 
 .PHONY: clean-lint
 clean-lint:
@@ -541,7 +541,7 @@ clean-lint:
 		echo "  Cleaning $$comp lint..."; \
 		$(MAKE) -C $$comp/rtl clean-all 2>/dev/null || true; \
 	done
-	@echo "$(BOLD)$(GREEN)✓ Lint artifacts cleaned$(RESET)"
+	@echo "$(BOLD)$(GREEN)Lint artifacts cleaned$(RESET)"
 
 # Template for individual component clean targets
 define COMPONENT_CLEAN_TARGETS
@@ -550,7 +550,7 @@ clean-$(1):
 	@echo "$(BOLD)Cleaning $(1) artifacts...$(RESET)"
 	@$(MAKE) -C $(1)/dv/tests clean-all 2>/dev/null || true
 	@$(MAKE) -C $(1)/rtl clean-all 2>/dev/null || true
-	@echo "$(BOLD)$(GREEN)✓ $(1) artifacts cleaned$(RESET)"
+	@echo "$(BOLD)$(GREEN)$(1) artifacts cleaned$(RESET)"
 endef
 
 # Generate targets for each component
@@ -562,11 +562,11 @@ $(foreach comp,$(COMPONENTS),$(eval $(call COMPONENT_CLEAN_TARGETS,$(comp))))
 
 .PHONY: all
 all: test-all lint-all
-	@echo "$(BOLD)$(GREEN)✓ All component tests and lint complete$(RESET)"
+	@echo "$(BOLD)$(GREEN)All component tests and lint complete$(RESET)"
 
 .PHONY: ci
 ci: test-all-gate-parallel lint-all
-	@echo "$(BOLD)$(GREEN)✓ CI validation complete (gate tests + lint)$(RESET)"
+	@echo "$(BOLD)$(GREEN)CI validation complete (gate tests + lint)$(RESET)"
 
 # ==============================================================================
 # Quick Aliases
@@ -588,28 +588,28 @@ clean: clean-all
 
 .PHONY: gate
 gate: test-all-gate-parallel
-	@echo "$(BOLD)$(GREEN)✓ GATE tests complete (all components)$(RESET)"
+	@echo "$(BOLD)$(GREEN)GATE tests complete (all components)$(RESET)"
 
 .PHONY: func
 func: test-all-func-parallel
-	@echo "$(BOLD)$(GREEN)✓ FUNC tests complete (all components)$(RESET)"
+	@echo "$(BOLD)$(GREEN)FUNC tests complete (all components)$(RESET)"
 
 .PHONY: full
 full: test-all-full-parallel
-	@echo "$(BOLD)$(GREEN)✓ FULL tests complete (all components)$(RESET)"
+	@echo "$(BOLD)$(GREEN)FULL tests complete (all components)$(RESET)"
 
 # Serial versions (if parallel causes issues)
 .PHONY: gate-serial
 gate-serial: test-all-gate
-	@echo "$(BOLD)$(GREEN)✓ GATE tests complete (serial)$(RESET)"
+	@echo "$(BOLD)$(GREEN)GATE tests complete (serial)$(RESET)"
 
 .PHONY: func-serial
 func-serial: test-all-func
-	@echo "$(BOLD)$(GREEN)✓ FUNC tests complete (serial)$(RESET)"
+	@echo "$(BOLD)$(GREEN)FUNC tests complete (serial)$(RESET)"
 
 .PHONY: full-serial
 full-serial: test-all-full
-	@echo "$(BOLD)$(GREEN)✓ FULL tests complete (serial)$(RESET)"
+	@echo "$(BOLD)$(GREEN)FULL tests complete (serial)$(RESET)"
 
 # ==============================================================================
 # End of Makefile

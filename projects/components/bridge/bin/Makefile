@@ -85,7 +85,7 @@ all: $(BATCH_FILE)
 	@echo "================================================================================"
 	@cd $(BIN_DIR) && python3 $(GENERATOR) --bulk $(BATCH_FILE)
 	@echo ""
-	@echo "✓ All bridges generated successfully!"
+	@echo "All bridges generated successfully!"
 
 .PHONY: rtl
 rtl: all
@@ -97,7 +97,7 @@ rtl: all
 .PHONY: regen
 regen: clean all
 	@echo ""
-	@echo "✓ Full regeneration complete (clean + all)."
+	@echo "Full regeneration complete (clean + all)."
 
 .PHONY: single
 single:
@@ -120,14 +120,14 @@ endif
 		$(if $(NAME),--name $(NAME),) \
 		--output-dir $(if $(OUTPUT),$(OUTPUT),$(RTL_DIR))
 	@echo ""
-	@echo "✓ Single bridge generated successfully!"
+	@echo "Single bridge generated successfully!"
 
 # bridge_batch.csv is a hand-curated, git-tracked manifest -- NOT a
 # generated artifact. Never overwrite it from a template; if missing,
 # restore it from git.
 .PHONY: batch
 batch: $(BATCH_FILE)
-	@echo "✓ Batch manifest present: $(BATCH_FILE)"
+	@echo "Batch manifest present: $(BATCH_FILE)"
 
 $(BATCH_FILE):
 	@echo "Batch manifest missing -- restoring from git..."
@@ -162,13 +162,13 @@ status:
 clean:
 	@echo "Cleaning generated bridge directories..."
 	@rm -rf $(RTL_DIR)/bridge_*/
-	@echo "✓ Generated bridge directories removed"
+	@echo "Generated bridge directories removed"
 
 .PHONY: clean-all
 clean-all: clean
 	@echo "Removing old standalone bridge files..."
 	@cd $(RTL_DIR) && find . -maxdepth 1 -name "bridge_*.sv" ! -name "bridge_cam.sv" -type f -delete
-	@echo "✓ Old standalone bridge files removed (preserved bridge_cam.sv)"
+	@echo "Old standalone bridge files removed (preserved bridge_cam.sv)"
 	@echo "All generated files cleaned. Run 'make all' to regenerate."
 	@echo "(bridge_batch.csv is a git-tracked manifest and is never removed.)"
 
@@ -176,4 +176,4 @@ clean-all: clean
 test:
 	@echo "Running bridge generator unit tests..."
 	@python3 -m pytest $(BIN_DIR)/tests -q
-	@echo "✓ Generator unit tests passed"
+	@echo "Generator unit tests passed"

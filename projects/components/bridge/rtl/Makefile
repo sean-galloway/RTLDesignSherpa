@@ -88,11 +88,11 @@ verilator: ## Run Verilator lint on all files
 	done; \
 	rm -f $(VERILATOR_DIR)/.flat.f; \
 	if [ $$fail -eq 0 ]; then \
-		echo "$(GREEN)✓ Bridge RTL lint passed$(RESET)" | tee $(VERILATOR_DIR)/summary.txt; \
+		echo "$(GREEN)Bridge RTL lint passed$(RESET)" | tee $(VERILATOR_DIR)/summary.txt; \
 		echo "" >> $(VERILATOR_DIR)/summary.txt; \
 		echo "All $$n bridge variants passed lint checks" >> $(VERILATOR_DIR)/summary.txt; \
 	else \
-		echo "$(RED)✗ Bridge RTL lint failed: $$fail of $$n variants$(RESET)" | tee $(VERILATOR_DIR)/summary.txt; \
+		echo "$(RED)Bridge RTL lint failed: $$fail of $$n variants$(RESET)" | tee $(VERILATOR_DIR)/summary.txt; \
 		echo "" >> $(VERILATOR_DIR)/summary.txt; \
 		echo "See $(VERILATOR_DIR)/bridge_all.log" >> $(VERILATOR_DIR)/summary.txt; \
 		grep -E "%Warning|%Error" $(VERILATOR_DIR)/bridge_all.log | \
@@ -124,9 +124,9 @@ build-check: ## Build every variant with the cocotb flag set (catches UNOPTFLAT)
 	done; \
 	rm -f $(VERILATOR_DIR)/.flat.f; \
 	if [ $$fail -eq 0 ]; then \
-		echo "$(GREEN)✓ All $$n variants build clean$(RESET)"; \
+		echo "$(GREEN)All $$n variants build clean$(RESET)"; \
 	else \
-		echo "$(RED)✗ Build check failed: $$fail of $$n variants$(RESET)"; \
+		echo "$(RED)Build check failed: $$fail of $$n variants$(RESET)"; \
 		grep -E "%Warning|%Error" $(VERILATOR_DIR)/build_all.log | \
 			sed 's/.*\(%[A-Za-z]*-[A-Z]*\).*/\1/' | sort | uniq -c | sort -rn; \
 		exit 1; \
@@ -142,10 +142,10 @@ verible: ## Run Verible lint on all files
 		for file in $(SV_FILES); do \
 			echo "Linting $$file..."; \
 			if $(VERIBLE) $(VERIBLE_FLAGS) $$file > $(VERIBLE_DIR)/$$(basename $$file .sv).log 2>&1; then \
-				echo "✓ $$file" >> $(VERIBLE_DIR)/summary.txt; \
+				echo "PASS $$file" >> $(VERIBLE_DIR)/summary.txt; \
 				pass_count=$$((pass_count + 1)); \
 			else \
-				echo "✗ $$file" >> $(VERIBLE_DIR)/summary.txt; \
+				echo "FAIL $$file" >> $(VERIBLE_DIR)/summary.txt; \
 				fail_count=$$((fail_count + 1)); \
 			fi; \
 		done; \
@@ -168,10 +168,10 @@ yosys: ## Run Yosys synthesis check on all files
 		for file in $(SV_FILES); do \
 			echo "Checking $$file..."; \
 			if $(YOSYS) $(YOSYS_FLAGS) $$file -p "hierarchy -check" > $(YOSYS_DIR)/$$(basename $$file .sv).log 2>&1; then \
-				echo "✓ $$file" >> $(YOSYS_DIR)/summary.txt; \
+				echo "PASS $$file" >> $(YOSYS_DIR)/summary.txt; \
 				pass_count=$$((pass_count + 1)); \
 			else \
-				echo "✗ $$file" >> $(YOSYS_DIR)/summary.txt; \
+				echo "FAIL $$file" >> $(YOSYS_DIR)/summary.txt; \
 				fail_count=$$((fail_count + 1)); \
 			fi; \
 		done; \

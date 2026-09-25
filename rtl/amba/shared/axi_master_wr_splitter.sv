@@ -104,7 +104,7 @@ Original: ADDR=0x0FC0, LEN=7 (8 beats, 512 bytes total)
 → Split 1: ADDR=0x0FC0, LEN=0 (1 beat, to boundary at 0x1000) → Response 1: OKAY
 → Split 2: ADDR=0x1000, LEN=6 (7 beats, remaining data)      → Response 2: OKAY
 → Consolidation: Response 1 OR Response 2 = OKAY             → Final Response: OKAY
-→ FUB sees: 1 transaction, 8 data beats, 1 response ✓
+→ FUB sees: 1 transaction, 8 data beats, 1 response
 ```
 */
 

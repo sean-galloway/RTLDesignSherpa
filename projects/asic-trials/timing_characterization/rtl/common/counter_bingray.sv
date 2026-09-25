@@ -319,15 +319,15 @@
 //   - Check that carry chain was inferred (look for CARRY4 in netlist)
 //
 //   **Common FPGA Mistakes:**
-//   1. ❌ Not constraining Gray code CDC path
+//   1. Not constraining Gray code CDC path
 //      → Timing violations, metastability risk
-//   2. ❌ Using counter_bin_next without registering for complex logic
+//   2. Using counter_bin_next without registering for complex logic
 //      → Timing violations on full/empty flag paths
-//   3. ❌ Forgetting this is power-of-2 only
+//   3. Forgetting this is power-of-2 only
 //      → Use counter_johnson for non-power-of-2 depths
-//   4. ❌ Assuming Gray output is combinational
+//   4. Assuming Gray output is combinational
 //      → It's registered! No need to add external register
-//   5. ❌ Trying to use for non-FIFO applications
+//   5. Trying to use for non-FIFO applications
 //      → This is specialized for FIFO pointers, use counter_bin for general counting
 //
 //   **When to Use Vendor FIFO IP Instead:**

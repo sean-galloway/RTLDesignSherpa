@@ -204,8 +204,8 @@ self.instruction("                end")
 
 ### Immediate
 1. [PASS] **Delta flat topology:** Refactored and tested
-2. ⏳ **Delta tree topology:** Update `complete_tree_generator.py` to use framework
-3. ⏳ **Bridge generator:** Apply same framework patterns to AXI4 crossbar
+2.**Delta tree topology:** Update `complete_tree_generator.py` to use framework
+3.**Bridge generator:** Apply same framework patterns to AXI4 crossbar
 
 ### Future Enhancements
 - Add unit tests for generator framework classes

@@ -257,11 +257,11 @@ HIVE System Architecture
 
 | Component | Spec Status | Implementation Status |
 |-----------|-------------|----------------------|
-| HIVE-C Controller | Complete | ⏳ Pending |
-| SERV Monitors | Complete | ⏳ Pending |
-| Control Network | Complete | ⏳ Pending |
-| Configuration Manager | Complete | ⏳ Pending |
-| Integration | ⏳ In progress | ⏳ Pending |
+| HIVE-C Controller | Complete | Pending |
+| SERV Monitors | Complete | Pending |
+| Control Network | Complete | Pending |
+| Configuration Manager | Complete | Pending |
+| Integration | In progress | Pending |
 
 ---
 
@@ -337,19 +337,19 @@ endmodule
 
 - Chapter 1 (Overview) complete
 - Chapter 2 (Blocks) in progress
-- ⏳ Chapter 3 (Interfaces) pending
-- ⏳ Chapter 4 (Programming) pending
-- ⏳ Chapter 5 (Performance) pending
+- Chapter 3 (Interfaces) pending
+- Chapter 4 (Programming) pending
+- Chapter 5 (Performance) pending
 
 **See:** `TASKS.md` for detailed work items (to be created)
 
 ### 10.2 Roadmap
 
 **Near-Term (Q4 2025):**
-- ⏳ Complete specification chapters
-- ⏳ HIVE-C RTL implementation
-- ⏳ SERV monitor wrapper implementation
-- ⏳ Control network implementation
+- Complete specification chapters
+- HIVE-C RTL implementation
+- SERV monitor wrapper implementation
+- Control network implementation
 
 **Long-Term (2026+):**
 - Configuration manager implementation

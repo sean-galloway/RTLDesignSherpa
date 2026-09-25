@@ -42,7 +42,7 @@
 - **In Progress** - Currently being worked on
 - **Planned** - Ready to start, no blockers
 - **Complete** - Finished and verified
-- ⏸**Deferred** - Low priority, postponed
+-**Deferred** - Low priority, postponed
 
 ## Priority Levels
 
@@ -173,7 +173,7 @@ timeout = 100000  # 100us timeout - allow time for all 8 timers
 ## Enhancement and Optimization (P3)
 
 ### TASK-003: Add Comparator Readback Feature
-**Status:** ⏸Deferred
+**Status:** Deferred
 **Priority:** P3 (Low)
 **Effort:** 4-8 hours
 **Assigned:** Unassigned
@@ -233,7 +233,7 @@ field comparator_lo {
 ---
 
 ### TASK-004: Add Legacy Replacement Mode Support
-**Status:** ⏸Deferred
+**Status:** Deferred
 **Priority:** P3 (Low)
 **Effort:** 16-24 hours
 **Assigned:** Unassigned
@@ -296,7 +296,7 @@ assign legacy_irq8 = cfg_legacy_mapping ? timer_irq[1] : 1'b0;
 ---
 
 ### TASK-005: Add 64-bit Atomic Counter Read
-**Status:** ⏸Deferred
+**Status:** Deferred
 **Priority:** P3 (Low)
 **Effort:** 8-12 hours
 **Assigned:** Unassigned

@@ -195,7 +195,7 @@ notes: |
   Bridge 4x4_rw is a complex multi-master configuration.
   Full duplex channels (rw): AW, W, B, AR, R
 
-  **⚠️ CRITICAL STATUS: UNTESTED - NO TEST FILE EXISTS ⚠️**
+  **CRITICAL STATUS: UNTESTED - NO TEST FILE EXISTS**
 
   Generated RTL exists at:
   - projects/components/bridge/rtl/generated/bridge_4x4_rw/bridge_4x4_rw.sv

@@ -163,11 +163,11 @@ Counter data lanes follow the control word's RW field:
 | Mode | Name                          | Status       |
 |------|-------------------------------|--------------|
 | 0    | Interrupt on terminal count   | Complete  |
-| 1    | Hardware retriggerable one-shot | ⏳ TODO     |
-| 2    | Rate generator                | ⏳ TODO      |
-| 3    | Square wave generator         | ⏳ TODO      |
-| 4    | Software triggered strobe     | ⏳ TODO      |
-| 5    | Hardware triggered strobe     | ⏳ TODO      |
+| 1    | Hardware retriggerable one-shot | TODO     |
+| 2    | Rate generator                | TODO      |
+| 3    | Square wave generator         | TODO      |
+| 4    | Software triggered strobe     | TODO      |
+| 5    | Hardware triggered strobe     | TODO      |
 
 ## Interrupt Outputs
 

@@ -18,8 +18,8 @@
 #   - localparam   → snake_case or descriptive (not TitleCase)
 #
 # Verible default wants:
-#   - parameter    → UPPER_CASE ✓
-#   - localparam   → TitleCase  ✗ (we use snake_case)
+#   - parameter    → UPPER_CASE  (ours)
+#   - localparam   → TitleCase  (NOT ours; we use snake_case)
 #
 # Rationale: Many localparams are derived/calculated values that read better
 #            in lowercase (e.g., addr_width_c, fifo_depth_log2)
