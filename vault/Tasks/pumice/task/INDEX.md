@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-011** — never recycle a number, even when its item closed.
+**Next ID: TASK-012** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 9 | accepted, not started |
+| [open/](open/) | 10 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -28,6 +28,7 @@ exactly one state by construction rather than by discipline.
 - **TASK-008** — no test bounds the write drain, and the cap is unreachable at the shipped watermarks
 - **TASK-009** — doc + filelist cleanup (push from workstation)
 - **TASK-010** — no generator config can show RBL a win, and the harness is what blocks it
+- **TASK-011** — build generator patterns that can show RBL a win
 
 ## Closed
 
