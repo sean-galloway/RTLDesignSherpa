@@ -28,7 +28,35 @@
 Fix names in place. Do NOT regenerate the block: several of these contain more
 than one instantiation and a whole-block rewrite silently drops the others.
 
-`bin/check_doc_examples.py` ratchets at 9, so the count cannot grow.
+`bin/check_doc_examples.py` ratchets, so the count cannot grow.
+
+**RE-MEASURED 2026-09-25 at a clean HEAD: 4 findings, and the ratchet is 4.**
+The "9" above was the figure when this was opened; the burn-down happened and
+the task text never caught up. Every page listed in the table below is CLEAN
+now -- `stream_mas/ch01_overview/03_clocks_and_reset.md`, `02_port_list.md`,
+`ch02_blocks/08_sram_controller.md`,
+`rapids_beats_mas/ch04_interfaces/03_monbus_interface_spec.md` and
+`pit_8254_mas/ch03_interfaces/01_top_level.md` all report zero. Their owners
+fixed them, exactly as the note predicted. Only `rapids_core_beats` survives
+from the original set.
+
+The other three are NEW, surfaced the same day by widening the checker to
+beside-code `CLAUDE.md`, which no page walk had ever reached (it is rooted at
+`docs/` and `<project>/docs/`, and a `CLAUDE.md` is in neither). All three are
+the same `gaxi_fifo_sync` shape that amba BUG-001 fixed in `rtl/amba/CLAUDE.md`
+-- the module takes `axi_aclk`/`axi_aresetn`/`wr_*`/`rd_*`, the docs connect
+`i_clk`/`i_rst_n`/`i_valid`/`i_data`/`i_ready`:
+
+| Page | Module | Names | Owner |
+|---|---|---|---|
+| `rapids_beats_mas/ch03_macro_blocks/11_rapids_core_beats.md` | `rapids_core_beats` | `monbus_pkt_*`, `snk_fill_*` | rapids -- module has no such ports at all |
+| `dmas/rapids/CLAUDE.md` (x2) | `gaxi_fifo_sync` | `i_clk`, `i_rst_n`, `i_valid`, `i_data`, `i_ready`, `o_ready` | rapids |
+| `dmas/stream/CLAUDE.md` | `gaxi_fifo_sync` | `i_clk`, `i_rst_n`, `i_valid`, `i_data`, `i_ready` | stream |
+
+All four are in rapids and stream, which another session owns, so this stays
+open for those owners rather than being fixed here. The fix is mechanical: copy
+the working instantiation out of `apb4_monitor.sv`'s own `monitor_fifo`, which
+also carries the `REGISTERED(0)` mux-read trap worth keeping.
 
 **Measure the baseline at HEAD, not in the working tree.** I first set it to 4,
 which is what my dirty tree showed -- other sessions had uncommitted fixes for

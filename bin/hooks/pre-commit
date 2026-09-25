@@ -108,7 +108,12 @@ fi
 # had the RTL and the example in the SAME bundle unit and missed them; two were
 # INTRODUCED by a humanize round. A script finds them in under a second, so a
 # script owns this, not a reviewer.
-if echo "$STAGED" | grep -qE '^docs/markdown/.*\.md$|\.sv$'; then
+# The trigger used to be '^docs/markdown/.*\.md$|\.sv$', so a commit touching
+# only projects/components/**/docs/**.md or any CLAUDE.md never fired this --
+# it ran solely when a .sv happened to ride along. Components change far more
+# often than rtl/ does (797 vs 179 commits in 90 days), and a doc-only resync
+# is exactly the case that matters.
+if echo "$STAGED" | grep -qE '^docs/.*\.md$|/docs/.*\.md$|(^|/)CLAUDE\.md$|\.sv$'; then
     echo "[pre-commit] Checking doc instantiation examples..."
     if ! out=$("$PY" "$REPO_ROOT/bin/check_doc_examples.py" 2>&1); then
         echo "$out" | tail -12 >&2

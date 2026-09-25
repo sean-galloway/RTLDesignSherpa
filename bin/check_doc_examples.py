@@ -48,6 +48,7 @@ def main() -> int:
     os.chdir(root)
     bad = 0
     pages = 0
+    doc_pages = 0
     # Index every module once, so a page can be checked against whatever module
     # its example actually instantiates rather than one guessed from the page
     # name. This is what lets the check reach projects/components, whose docs
@@ -70,15 +71,24 @@ def main() -> int:
     roots = ['docs'] + [os.path.join(r, 'docs')
                         for r, ds, _f in os.walk('projects') if 'docs' in ds]
     seen = set()
+    # Beside-code CLAUDE.md is in NO docs/ tree, so neither walk reached it --
+    # and it is the file an agent reads first. Ten fabricated examples sat in
+    # rtl/amba/CLAUDE.md under this very gate until 2026-09-25 (amba BUG-001).
+    page_list = []
     for root in roots:
-      for d, _s, files in os.walk(root):
-        for fn in sorted(files):
-            if not fn.endswith('.md'):
+        for d, _s, files in os.walk(root):
+            page_list += [os.path.join(d, fn) for fn in sorted(files)
+                          if fn.endswith('.md')]
+    page_list += [q for q in subprocess.check_output(
+        ['git', 'ls-files', '*CLAUDE.md'], text=True).split() if os.path.isfile(q)]
+    for path in page_list:
+        if True:
+            if not path.endswith('.md'):
                 continue
-            path = os.path.join(d, fn)
             if path in seen:
                 continue
             seen.add(path)
+            doc_pages += 1
             text = open(path, errors='ignore').read()
             for blk in re.findall(r'```systemverilog(.*?)```', text, re.S):
                 # Split the block at each instantiation so a connection is
@@ -120,7 +130,11 @@ def main() -> int:
                 bad += 1
                 names = ', '.join(sorted(set(missing))[:6])
                 print(f'  {path}: example names ports the module lacks -- {names}')
-    print(f'\n{pages} module pages checked, {bad} with a fabricated example')
+    # BOTH walks, because the old line counted only the per-module pages: it
+    # read 241 while the first walk was silently covering 939 more. A gate that
+    # stopped scanning the component books would have printed the same 241.
+    print(f'\n{doc_pages} doc pages + {pages} module pages checked, '
+          f'{bad} with a fabricated example')
     # One known finding in projects/components is tracked as TASK-077 and is
     # being fixed by hand -- a whole-block regeneration drops the other
     # instantiations in the same block. Was 9; the stream clocks-and-reset page
@@ -132,7 +146,16 @@ def main() -> int:
     # tree carries other sessions' uncommitted fixes, so a baseline taken
     # there is lower than what CI sees -- I set 4 that way and CI failed with
     # 9. `git worktree add --detach /tmp/chk HEAD` and run it there.
-    BASELINE = 1
+    # 2026-09-25: scope widened to beside-code CLAUDE.md, which surfaced three
+    # MORE findings, all the same gaxi_fifo_sync shape that amba BUG-001 fixed
+    # (the module takes axi_aclk/axi_aresetn/wr_*/rd_*; the docs connect
+    # i_clk/i_rst_n/i_valid/i_data/i_ready). Each is named because a bare number
+    # hides what it should expose, and none is mine to fix:
+    #   projects/components/dmas/rapids/CLAUDE.md  x2  -- rapids owner
+    #   projects/components/dmas/stream/CLAUDE.md  x1  -- stream owner
+    # Plus the pre-existing rapids_core_beats page (TASK-077). Ratchet: 4 must
+    # SHRINK as those owners fix their files, and must never grow.
+    BASELINE = 4
     if bad > BASELINE:
         print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} (TASK-077)')
         return 1
