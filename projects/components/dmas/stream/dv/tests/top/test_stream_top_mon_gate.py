@@ -168,6 +168,15 @@ async def cocotb_test_mon_window_gated(dut):
     tb.log.info("MON window correctly errors with the monitors not built")
 
 
+# A CONTRACT test, like test_stream_top_mon_cfg: it proves the MON window
+# refuses when the monitors are not built. There is no count to scale, so
+# REG_LEVEL selects how many cells run it rather than how much work each does --
+# the same call apbx-xbar made for its contract tests.
+#
+# Stated because it is otherwise indistinguishable from a defect: this file does
+# NOT read TEST_LEVEL, and StreamCoreTB only stores and logs it
+# (stream_core_tb.py:209-212, no branch), so every cell does identical work. That
+# is deliberate here, not an oversight.
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_stream_top_mon_gate(request, test_level):
     """Monitors-off build: the MON register window must return an error."""

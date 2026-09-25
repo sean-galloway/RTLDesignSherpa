@@ -111,6 +111,69 @@ for name in $(grep -oE 'async def (cocotb_test_[A-Za-z_0-9]+)' "$f" | awk '{prin
 done
 ```
 
+**Second checklist item swept (2026-09-24): "gate/func/full mean something
+distinct" -- PARTIAL, not closed, with a finding list.**
+
+Only **2 of 8** stream TBs gate work by `TEST_LEVEL`:
+
+| TB | what it does with the level |
+|---|---|
+| `sram_controller_tb.py` | `:130` `self.config = self.test_configs[self.TEST_LEVEL]` -> num_beats / num_channels / beats_per_channel |
+| `stream_latency_bridge_tb.py` | `:184` `_STREAM_BEATS = {'gate':8,'func':20,'full':64}`, `:189` picks num_beats |
+
+The other six -- `datapath_rd_test_tb`, `datapath_wr_test_tb`,
+`descriptor_engine_tb`, `perf_profiler_tb`, `scheduler_tb`, `stream_core_tb` --
+read it, validate it, log it, and branch on it nowhere.
+
+**Nine of 18 tests have NO depth scaling** (neither their TB nor their own body
+gates work). Level only changes how many *cells* run, or nothing at all:
+
+- `fub/test_descriptor_engine.py` -- and `:219` CLAIMS "TEST_LEVEL gates the depth"
+- `fub/test_perf_profiler.py` -- and `:480` claims the same
+- `macro/test_datapath_rd_test.py`, `macro/test_datapath_wr_test.py`
+- `macro/test_stream_core_mon_classes.py`
+- `macro/test_stream_performance_profile.py` -- `:492` only forwards it to `coverage_env`
+- `top/test_stream_top_monbus.py`
+- `top/test_stream_top_perf.py` -- no `parametrize` at all; `:229` reads `REG_LEVEL` from env
+- `top/test_stream_top_mon_gate.py` -- LEGITIMATE: a contract test, now documented as such
+
+Those two CLAIMS are the sharpest find: a documented contract the code does not
+honour reads as working plumbing to the next person.
+
+**A separate, isolated defect: `fub/test_scheduler.py:717` sets
+`'TEST_LEVEL': 'basic'`.** `basic` is not a level -- `scheduler_tb.py:103` and
+the shared contract `bin/TBClasses/shared/test_levels.py:67` both say
+`('gate','func','full')` -- so the TB warns and falls back to `gate`, pinning
+that cell to gate depth whatever `REG_LEVEL` says. It is the ONLY hardcode of
+its kind (1 occurrence; 11 files use `'TEST_LEVEL': test_level`). The fix is two
+parts, because `test_level` is not in scope there: `:670`
+`def test_scheduler_extended(request)` never took it. Add it to the signature
+(the area conftest provides `test_level` as a FIXTURE, so no `parametrize` is
+needed) and replace the literal. Not applied here -- it needs a scheduler run to
+verify.
+
+**Three healthy patterns, for contrast:** TB-gated (`sram_controller`,
+`latency_bridge`); body-gated (`regs:197`, `mon_cfg:262/:277`,
+`scheduler:315`); collection-breadth (`stream_core:310`, `stream_top:173`
+expand the parameter grid via `_params_for_level`). `test_stream_latency_bridge.py`
+does BOTH halves and documents the split at `:255-256` -- use it as the model.
+
+**Why this item is NOT closed.** Everything above is static. It shows the level
+reaches a branch; it cannot show the work differs at runtime. Proving that needs
+per-level op counts or runtimes across 18 files x 3 levels.
+
+**Five traps, all of which produced a WRONG answer before being caught -- read
+the lines, do not grade them:**
+1. `grep 'testcase="..."'` misses variable pins -> scored 11 tests "hidden" that were not.
+2. "Does the TB read TEST_LEVEL?" is the wrong question; `stream_core_tb` reads and only logs it.
+3. An exclusion regex written as `not in (` / `log.info` misses `not in valid_levels` / `log.warning`, so validate+warn+default lines counted as "branches" -- this INVERTED the TB verdict (reported 6 gate / 2 don't; the truth is 2 / 6).
+4. A reference COUNT is not behaviour: `performance_profile` scored 1 ref and is affected; `latency_bridge` scored 2 and is one of the healthiest.
+5. `grep -c ... || echo 0` prints "0\n0" when grep exits 1 on zero matches, which then breaks `[ -n ]`/`-eq` tests.
+
+The method that worked: for each `async def cocotb_test_X`, count `X` in its own
+file (1 = unreachable); and for levels, dump every `TEST_LEVEL` line in the TB
+and the test and read them.
+
 **What "complete" has to mean, at minimum:**
 
 - Every `test_*.py` actually exercises the DUT it names.
