@@ -183,3 +183,27 @@ larger piece of work in a file shared with STREAM.
 
 **Not applied here** -- this entry records the mechanism; the RTL change is
 the owner's call.
+
+### Mapped in the contracts workbook (2026-09-25)
+
+Gap 2 is now a computed K-map in `projects/components/dmas/rapids/docs/rapids_signal_contracts.xlsx`,
+sheets "Contracts snk errors" and "K-maps snk errors" (TASK-002 item 1).
+
+Map 1 mirrors `w_hard_error` on the SINK instance and inverts the usual
+reading of a don't-care: **28 of 32 cells are X**, not because those states
+cannot physically occur but because the instantiation ties inputs to
+constants. `sched_rd_error` and `r_read_error_sticky` are carried as one axis
+and excluded LEGITIMATELY (no AXI read engine on the sink); `sched_wr_error`
+and `r_write_error_sticky` are carried as separate axes and excluded BY THE
+DEFECT -- kept apart so the two kinds of tie-off are not blurred. Of the 4
+surviving cells 3 are green, spanned by `descriptor_error` and `ctrl_err`
+alone, so for a DATA descriptor `w_hard_error` reduces to `descriptor_error`.
+
+Map 2 (`CH_ERROR` entry) surfaced a consequence not recorded above: a SLVERR
+arrives WITH a B response, so it counts as write progress and RESETS the
+timeout counter (`scheduler_beats.sv:920`). Errored traffic therefore looks
+healthy to the error path and the timeout path at the same time -- the
+timeout cannot serve as a backstop for the missing error wiring.
+
+The workbook also carries a stage-by-stage table of where the error is lost,
+from the engine's detection through to the dead scheduler terms.

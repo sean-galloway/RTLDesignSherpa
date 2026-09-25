@@ -131,3 +131,21 @@ This matches the original entry's own assessment -- "an architectural
 simplification rather than a bug... current implementation is functionally
 correct" -- and the Low priority stands. Recorded so the next reader does not
 go looking for missing logic inside the controller.
+
+### Mapped in the contracts workbook (2026-09-25)
+
+Now a computed K-map in `projects/components/dmas/rapids/docs/rapids_signal_contracts.xlsx`,
+sheet "K-maps snk errors", map 3 (TASK-002 item 2).
+
+The map mirrors the decode at `:147-148` with axes `drain_read`, `id_match`,
+`id_in_range` and `ch_has_data`. Two things are visible on sight: the decode
+is INDEPENDENT of `ch_has_data` (a drain is decoded to whichever channel
+`drain_id` names whether or not it holds data -- safety is the consumer's),
+and because `drain_id` is a single index at most one channel's decode can
+assert per cycle. Concurrency is excluded by the port shape, not by anything
+in the expression, which is exactly why there is no guard to find. `id_match`
+implies `id_in_range`, so those cells are marked X with a citation.
+
+Priority is unchanged (Low, architectural simplification). Widening it would
+mean per-channel `drain_read`/`drain_id`/`drain_data` vectors and a consumer
+able to accept more than one beat per cycle.

@@ -1,9 +1,9 @@
 # TASK-002: RAPIDS-beats has NO contracts workbook at all
 > **Was `RAPIDS-KMAP` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** all six targets addressed 2026-09-25 -- items 3, 4, 5 MAPPED;
-items 1, 2 CONFIRMED and mechanised in known_issues but not yet mapped; item 6
-subsumed by item 3. Not closed: 1 and 2 have no K-map yet.  
+**Status:** COMPLETE 2026-09-25. All six targets addressed; items 1, 2, 3, 4
+and 5 are MAPPED in `docs/rapids_signal_contracts.xlsx` (7 sheets, 11 computed
+maps), and item 6's premise was disproved and folded into item 3.  
 **Unblocked:** the shared machinery was promoted to `bin/kmaps/` (TOOLING-KMAP item 5), so the generator builds on it rather than forking a third private copy.
 
 Unlike stream and pumice, RAPIDS has **no**
@@ -124,9 +124,35 @@ sink shares the defect. That overlaps item 5's territory.
   find, only an interface. Low priority stands, per the original entry's own
   assessment.
 
-  Neither has a K-map yet; the mechanisms are recorded in the known issues.
-  Item 1 gap 2 is a one-signal wiring fix mirroring what the source path and
-  STREAM already do, but the RTL change is the owner's call.
+  **Both are now MAPPED** (2026-09-25), in sheets "Contracts snk errors" and
+  "K-maps snk errors": three maps plus a stage-by-stage table of where the
+  sink's write error is lost.
+
+  Map 1 (`w_hard_error` on the sink instance) is the one to read, and it
+  inverts the usual reading of a K-map: **28 of its 32 cells are X**, not
+  because those states are physically impossible -- the normal reason for a
+  don't-care -- but because the instantiation ties inputs to constants. Two of
+  those tie-offs are legitimate (`sched_rd_error` at `rapids_snk_beats.sv:513`;
+  the sink has no AXI read engine) and two are the defect (`sched_wr_error` via
+  the `:680` TODO, and `r_write_error_sticky` which latches only from it).
+  They are carried as SEPARATE axes with separate `relations=` justifications
+  precisely so legitimate and defective tie-offs are not blurred together. Of
+  the 4 surviving cells, 3 are green, and the whole reachable surface is
+  spanned by `descriptor_error` and `ctrl_err` alone -- so for a DATA
+  descriptor `w_hard_error` reduces to `descriptor_error`.
+
+  Map 2 (`CH_ERROR` entry) adds a consequence the prose had missed: a SLVERR
+  arrives WITH a B response, so it counts as write progress and RESETS the
+  timeout counter (`scheduler_beats.sv:920`). Errored traffic therefore looks
+  healthy to the error path and the timeout path simultaneously.
+
+  Map 3 states item 2 exactly: `drain_read` is one bit and `drain_id` one
+  index, so at most one channel decodes per cycle -- concurrency is excluded
+  by the port shape, not by any logic, which is why searching for a guard
+  finds nothing.
+
+  Item 1 gap 2 remains a one-signal wiring fix mirroring what the source path
+  and STREAM already do; RTL unchanged, the owner's call.
 - **Item 4 DONE 2026-09-25.** Sheet "K-maps sched commit": 3 maps + a
   STREAM/RAPIDS comparison. This is the FIRST item whose premise held up --
   `scheduler_beats.sv` really did diverge (1150 lines vs STREAM's 1390),

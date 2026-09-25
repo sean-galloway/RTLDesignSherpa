@@ -37,6 +37,13 @@ DRAIN_B = "projects/components/dmas/rapids/rtl/fub_beats/drain_ctrl_beats.sv"
 ALLOC_B = "projects/components/dmas/rapids/rtl/fub_beats/alloc_ctrl_beats.sv"
 SNK_AXIS = "projects/components/dmas/rapids/rtl/macro_beats/snk_data_path_axis_beats.sv"
 SCHED_B = "projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv"
+WR_ENG_B = "projects/components/dmas/rapids/rtl/fub_beats/axi_write_engine_beats.sv"
+SNK_MACRO = "projects/components/dmas/rapids/rtl/macro_beats/rapids_snk_beats.sv"
+SRC_MACRO = "projects/components/dmas/rapids/rtl/macro_beats/rapids_src_beats.sv"
+SNK_SRAM = "projects/components/dmas/rapids/rtl/macro_beats/snk_sram_controller_beats.sv"
+SG = "projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_beats.sv"
+SG_ARR = "projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_array_beats.sv"
+CTRLRD = "projects/components/dmas/rapids/rtl/fub/ctrlrd_engine.sv"
 LBRIDGE = "projects/components/dmas/rapids/rtl/fub_beats/latency_bridge_beats.sv"
 
 # STREAM, cited as the CONTRAST: same fork, defect already fixed there.
@@ -44,11 +51,16 @@ STR_UNIT = "projects/components/dmas/stream/rtl/fub/sram_controller_unit.sv"
 STR_WENG = "projects/components/dmas/stream/rtl/fub/axi_write_engine.sv"
 STR_RENG = "projects/components/dmas/stream/rtl/fub/axi_read_engine.sv"
 STR_SCHED = "projects/components/dmas/stream/rtl/fub/scheduler.sv"
+STR_CORE = "projects/components/dmas/stream/rtl/macro/stream_core.sv"
 
 KI_DRAIN = ("projects/components/dmas/rapids/known_issues/active/"
             "drain_size_gt1_source_beat_drop.md")
 KI_STALL = ("projects/components/dmas/rapids/known_issues/resolved/"
             "snk_scheduler_write_commit_stall.md")
+KI_SDP = ("projects/components/dmas/rapids/known_issues/active/"
+          "sink_data_path.md")
+KI_SSC = ("projects/components/dmas/rapids/known_issues/active/"
+          "sink_sram_control.md")
 
 # ---------------------------------------------------------------------------
 # Citation registry: (path-relative-to-repo, line, snippet-on-that-line).
@@ -149,6 +161,47 @@ CITES = [
     (STR_SCHED, 902, "assign w_write_issued   = (r_write_beats_remaining == 32'h0);"),
     (STR_SCHED, 909, "assign w_transfer_complete = w_read_complete && w_write_issued;"),
     (STR_SCHED, 1376, "(w_read_complete && w_write_issued);"),
+
+    # --- items 1-2: sink error reporting + drain port --------------------
+    (WR_ENG_B, 144, "sched_wr_error"),
+    (WR_ENG_B, 951, "m_axi_bresp != 2'b00"),
+    (WR_ENG_B, 955, "r_wr_error[ch_id] <= 1'b1;"),
+    (WR_ENG_B, 964, "assign sched_wr_error = r_wr_error;"),
+
+    (SNK_MACRO, 344, "scheduler_group_array_beats #("),
+    (SNK_MACRO, 513, ".sched_rd_error         ('0),"),
+    (SNK_MACRO, 514, ".sched_wr_error         (sched_wr_error),"),
+    (SNK_MACRO, 596, "snk_data_path_axis_beats #("),
+    (SNK_MACRO, 680, "assign sched_wr_error = '0;"),
+
+    (SRC_MACRO, 491, ".sched_rd_error         (sched_rd_error),"),
+    (SRC_MACRO, 492, ".sched_wr_error         ('0),"),
+
+    (SG_ARR, 540, ".sched_rd_error         (sched_rd_error[ch]),"),
+    (SG_ARR, 541, ".sched_wr_error         (sched_wr_error[ch]),"),
+
+    (SG, 264, "descriptor_engine_beats #("),
+    (SG, 289, ".descriptor_error       (desceng_to_sched_error),"),
+    (SG, 411, ".sched_wr_error         (sched_wr_error),"),
+    (SG, 419, ".ctrlrd_error           (sched_ctrlrd_error),"),
+    (CTRLRD, 437, "assign ctrlrd_error = r_ctrlrd_error;"),
+
+    (SCHED_B, 162, "sched_rd_error"),
+    (SCHED_B, 163, "sched_wr_error"),
+    (SCHED_B, 943, "if (sched_rd_error) r_read_error_sticky <= 1'b1;"),
+    (SCHED_B, 944, "if (sched_wr_error) r_write_error_sticky <= 1'b1;"),
+    (SCHED_B, 979, "r_read_error_sticky || r_write_error_sticky ||"),
+    (SCHED_B, 980, "(w_is_ctrlrd && ctrlrd_error) || (w_is_ctrlwr && ctrlwr_error);"),
+    (SCHED_B, 1084, "r_write_error_sticky, r_read_error_sticky"),
+
+    (SNK_SRAM, 145, "drain_read_decoded = '0;"),
+    (SNK_SRAM, 147, "if (drain_read && drain_id < NC) begin"),
+    (SNK_SRAM, 148, "drain_read_decoded[drain_id] = 1'b1;"),
+    (SNK_SRAM, 157, "drain_data = drain_data_per_channel[drain_id];"),
+
+    (STR_CORE, 669, "sched_wr_error;"),
+    (STR_CORE, 1047, ".sched_wr_error"),
+    (STR_CORE, 2130, "obs_flags[11]"),
 ]
 
 
@@ -850,6 +903,279 @@ def build_sched_commit_kmaps(wb):
              "shared.")
 
 
+# ---------------------------------------------------------------------------
+# Items 1-2: sink error reporting, and the shared drain port
+# ---------------------------------------------------------------------------
+def build_snk_error_contract(wb):
+    rows = [
+        ("Sink errors / engine", "sched_wr_error (engine output)", "NC", "out",
+         "axi_write_engine_beats",
+         "Sticky per-channel flag, set on any B beat whose response is not "
+         "OKAY: m_axi_bvalid && m_axi_bready && (m_axi_bresp != 2'b00), "
+         "channel taken from BID.",
+         "A SLVERR or DECERR on a write response must reach the channel FSM "
+         "and fault the channel. It does not, on the sink.",
+         f"{WR_ENG_B}:951 sets it, :955 latches per channel, :964 drives "
+         f"the port declared at :144. The detection is REAL and complete."),
+
+        ("Sink errors / plumbing", "sched_wr_error (macro net)", "NC",
+         "internal", "rapids_snk_beats",
+         "Tied to a constant: `assign sched_wr_error = '0;` with the comment "
+         "\"TODO: Add when write engine supports error reporting\".",
+         "The TODO's stated reason is FALSE -- the engine has supported error "
+         "reporting all along (see the row above). This net is what the "
+         "scheduler actually sees.",
+         f"{SNK_MACRO}:680, consumed at :514 by the "
+         f"scheduler_group_array_beats instantiated at :344."),
+
+        ("Sink errors / plumbing", "sched_rd_error (macro net)", "NC",
+         "internal", "rapids_snk_beats",
+         "Tied to '0 at the instantiation.",
+         "LEGITIMATE: the sink has no AXI read engine, and its read "
+         "done-strobes are tied off in the same block. Listed so a reader "
+         "does not mistake it for the same defect as the row above.",
+         f"{SNK_MACRO}:513. Contrast {SRC_MACRO}:491, where the SOURCE wires "
+         f"a real sched_rd_error, and :492 where the source ties its unused "
+         f"write error off for the mirror-image legitimate reason."),
+
+        ("Sink errors / scheduler", "r_write_error_sticky", "1", "internal",
+         "scheduler_beats",
+         "Latched high on any cycle sched_wr_error is high; cleared on reset "
+         "and channel reset.",
+         "Constant 0 on the sink, because its only source is the tied-off "
+         "net. Feeds w_hard_error AND the MonBus error packet, so the sink's "
+         "error telemetry is dead too.",
+         f"{SCHED_B}:944 latches it, :979 uses it in w_hard_error, :1084 "
+         f"packs it into a monitor packet."),
+
+        ("Sink errors / scheduler", "w_hard_error", "1", "internal",
+         "scheduler_beats",
+         "7-term OR: descriptor_error, sched_rd_error, sched_wr_error, both "
+         "stickies, and the two control-engine error terms. Drives the "
+         "sticky CH_ERROR transition.",
+         "On the sink, 4 of the 7 terms are constant 0. For a DATA "
+         "descriptor it reduces to descriptor_error alone.",
+         f"{SCHED_B}:978-980, consumed at :380. Live terms come from "
+         f"{SG}:264 (descriptor_engine_beats) and {CTRLRD}:437."),
+
+        ("Sink SRAM / drain port", "drain_read / drain_id", "1 / CIW", "in",
+         "snk_sram_controller_beats",
+         "A single read strobe and a single channel index, decoded one-hot "
+         "to select which channel is drained, with one data mux on the same "
+         "index.",
+         "At most one channel can be drained per cycle, by construction. "
+         "This is the interface, not an omission inside the module.",
+         f"{SNK_SRAM}:147-148 decode, :157 mux. See {KI_SSC} -- the "
+         f"limitation is structural, which is why a keyword search for "
+         f"\"single read\" finds nothing."),
+    ]
+    contract_sheet(
+        wb, "Contracts snk errors",
+        "RAPIDS-beats SINK error reporting and drain port -- signal contracts",
+        "TASK-002 items 1 and 2. Item 1: the write engine detects bad B "
+        "responses per channel and the sink throws that detection away, "
+        "leaving two fatal-error terms provably dead. Item 2: the sink SRAM "
+        "drain port serves one channel per cycle by construction. Both were "
+        "filed against retired pre-beats files, so only their anchors were "
+        f"stale; see {KI_SDP} and {KI_SSC}.",
+        rows)
+
+
+def build_snk_error_kmaps(wb):
+    km = new_kmap_sheet(wb, "K-maps snk errors")
+    km.sheet_intro(
+        f"rapids_snk_beats / scheduler_beats - fatal-error entry ({SCHED_B}:978)",
+        ["Computed from a python mirror of the exact RTL expression "
+         "(file:line cited, RTL quoted). Gray order 00 01 11 10; 1-cells "
+         "green, 0-cells grey, unreachable cells X.",
+         "TARGET: TASK-002 items 1 and 2. READ THE X CELLS FIRST. Normally "
+         "a don't-care marks a state that cannot physically occur. Here most "
+         "of map 1 is X because inputs were tied to constants at an "
+         "instantiation -- two legitimately, two by defect. The don't-cares "
+         "ARE the finding."])
+
+    km.kmap(
+        "w_hard_error  (on the SINK instance)", f"{SCHED_B}:978",
+        "w_hard_error = descriptor_error || sched_rd_error || sched_wr_error "
+        "|| r_read_error_sticky || r_write_error_sticky || "
+        "(w_is_ctrlrd && ctrlrd_error) || (w_is_ctrlwr && ctrlwr_error)",
+        [("descriptor_error",
+          "descriptor fetch/validity fault, from descriptor_engine_beats "
+          "inside the scheduler group -- LIVE on the sink",
+          f"{SG}:264, wired :289"),
+         ("wr_error",
+          "sched_wr_error as the scheduler sees it",
+          f"{SCHED_B}:163"),
+         ("wr_sticky",
+          "r_write_error_sticky -- latched from wr_error and nothing else",
+          f"{SCHED_B}:944"),
+         ("rd_path",
+          "sched_rd_error || r_read_error_sticky, folded: both derive from "
+          "the same input",
+          f"{SCHED_B}:162, :943"),
+         ("ctrl_err",
+          "(w_is_ctrlrd && ctrlrd_error) || (w_is_ctrlwr && ctrlwr_error) -- "
+          "LIVE, but only for CTRL descriptors",
+          f"{SCHED_B}:980, driven {CTRLRD}:437")],
+        lambda de, wr, ws, rd, ce: bool(de or wr or ws or rd or ce),
+        "28 of 32 cells are unreachable, and NOT for the usual reason. These "
+        "are not physically impossible states -- they are states the "
+        "instantiation forbids by tying inputs to constants. Of the four "
+        "surviving cells, three are green, and the whole reachable surface "
+        "is spanned by just descriptor_error and ctrl_err. For a DATA "
+        "descriptor ctrl_err is 0 too, so on the sink w_hard_error REDUCES "
+        "TO descriptor_error ALONE. A write response of SLVERR or DECERR on "
+        "every beat of a transfer produces no fatal error, no CH_ERROR "
+        f"({SCHED_B}:380), and no error bit in the MonBus packet "
+        f"({SCHED_B}:1084) -- the channel reports success. The detection "
+        f"itself is real and complete ({WR_ENG_B}:951/:955/:964); only the "
+        "wiring is missing.",
+        depends_only_on=(
+            "these five. The timeout path is a SEPARATE disjunct at the "
+            f"FSM ({SCHED_B}:380) and is mapped below; channel reset "
+            "overrides both."),
+        relations=[
+            ("LEGITIMATE tie-off: the sink has no AXI read engine, so "
+             "sched_rd_error is tied to '0 at the instantiation and "
+             "r_read_error_sticky can never latch. rd_path is therefore "
+             "identically 0 on this instance and every cell with rd_path=1 "
+             "is unreachable. The sink's read done-strobes are tied off in "
+             "the same block, which is what makes this legitimate rather "
+             "than a second defect.",
+             lambda de, wr, ws, rd, ce: not rd,
+             f"{SNK_MACRO}:513"),
+            ("THE DEFECT: sched_wr_error reaches this scheduler from "
+             "rapids_snk_beats, where it is assigned a constant '0 under a "
+             "TODO claiming the write engine does not support error "
+             "reporting -- which is false. So wr_error is identically 0 on "
+             "this instance, and wr_sticky, whose only source is wr_error, "
+             "is identically 0 with it. Every cell with either set is "
+             "unreachable. Unlike the relation above, nothing about the "
+             "sink's architecture requires this.",
+             lambda de, wr, ws, rd, ce: (not wr) and (not ws),
+             f"{SNK_MACRO}:680, path :514 -> {SG_ARR}:541 -> {SG}:411 -> "
+             f"{SCHED_B}:163")],
+        rtl_sop="descriptor_error | wr_error | wr_sticky | rd_path | ctrl_err")
+
+    km.kmap(
+        "CH_ERROR entry  (on the SINK instance)", f"{SCHED_B}:380",
+        "if (w_hard_error || w_timeout_escalate) w_next_state = CH_ERROR",
+        [("descriptor_error",
+          "the one always-live hard-error term on the sink",
+          f"{SG}:289"),
+         ("wr_error",
+          "sched_wr_error -- a bad write response reaching the scheduler",
+          f"{SCHED_B}:163"),
+         ("ctrl_err",
+          "control-engine error; live only for CTRL opcodes",
+          f"{SCHED_B}:980"),
+         ("timeout_escalate",
+          "w_timeout_escalate -- soft timeout promoted after "
+          "cfg_sched_timeout_limit consecutive windows",
+          f"{SCHED_B}:970")],
+        lambda de, wr, ce, esc: bool(de or wr or ce or esc),
+        "With wr_error tied off, the sink's only routes into sticky "
+        "CH_ERROR are a descriptor fault, a control-engine fault on a CTRL "
+        "descriptor, and an escalated timeout. For the DATA descriptors that "
+        "carry all the traffic, that leaves descriptor_error and timeout "
+        "escalation. Note what this costs: a write that is being NAKed by "
+        "the fabric is exactly the case the timeout was meant to catch, but "
+        "a SLVERR arrives WITH a B response, so it counts as write progress "
+        f"and resets the timeout counter ({SCHED_B}:920). Errored traffic "
+        "therefore looks healthy to both mechanisms at once. NOT YET "
+        "ESTABLISHED as a field failure -- no test drives a sink SLVERR "
+        "today; a directed test returning SLVERR on one burst and checking "
+        "the channel faults would settle it.",
+        depends_only_on=(
+            "these four, plus channel reset which takes priority over the "
+            f"whole branch ({SCHED_B}:369-370)."),
+        relations=[
+            ("wr_error is identically 0 on this instance for the reason "
+             "given in map 1, so every cell with it set is unreachable. It "
+             "is carried as an axis precisely so the map shows what the "
+             "sink gives up.",
+             lambda de, wr, ce, esc: not wr,
+             f"{SNK_MACRO}:680")],
+        rtl_sop="descriptor_error | wr_error | ctrl_err | timeout_escalate")
+
+    km.kmap(
+        "drain_read_decoded[ch]  (which channel drains)", f"{SNK_SRAM}:147",
+        "drain_read_decoded = '0; if (drain_read && drain_id < NC) "
+        "drain_read_decoded[drain_id] = 1'b1;",
+        [("drain_read",
+          "the consumer asserts a drain this cycle",
+          f"{SNK_SRAM}:147"),
+         ("id_match",
+          "drain_id selects THIS channel",
+          f"{SNK_SRAM}:148"),
+         ("id_in_range",
+          "drain_id < NC",
+          f"{SNK_SRAM}:147"),
+         ("ch_has_data",
+          "this channel actually holds drainable data -- NOT an input to "
+          "the decode",
+          f"{SNK_SRAM}:157")],
+        lambda dr, im, ir, hd: bool(dr and im and ir),
+        "TASK-002 item 2, and the map states the limitation exactly. Two "
+        "things are visible. (1) The decode is INDEPENDENT of ch_has_data: "
+        "a drain is decoded to whichever channel drain_id names, whether or "
+        "not it holds data -- safety is entirely the consumer's "
+        "responsibility. (2) More importantly, drain_id is a SINGLE index "
+        "and drain_read a SINGLE bit, so at most one channel's decode can "
+        "assert in any cycle. Concurrent drains are excluded by the port "
+        "shape, not by anything in this expression, which is why searching "
+        "the module for a 'single read' guard finds nothing -- there is no "
+        "logic to find. Supporting concurrency would mean widening "
+        "drain_read/drain_id/drain_data to per-channel vectors. The fill "
+        f"side has the identical shape. This is an architectural "
+        f"simplification, not a bug ({KI_SSC} keeps it Low priority).",
+        depends_only_on=(
+            "these four. NC is a parameter; the other channels' state "
+            "cannot influence this channel's decode, which is the whole "
+            "point."),
+        relations=[
+            ("id_match means drain_id equals this channel's index, and a "
+             "channel index is by definition < NC, so id_match implies "
+             "id_in_range. Cells with id_match=1 and id_in_range=0 are "
+             "unreachable and marked X.",
+             lambda dr, im, ir, hd: not (im and not ir),
+             f"{SNK_SRAM}:147")],
+        rtl_sop="drain_read & id_match & id_in_range")
+
+    km.table(
+        "Where the sink's write error is lost, stage by stage",
+        f"{SNK_MACRO}:680",
+        ["Stage", "What happens to the error", "Citation"],
+        [["axi_write_engine_beats",
+          "DETECTED: bad B response latched sticky per channel, port driven",
+          f"{WR_ENG_B}:951 / :955 / :964"],
+         ["snk_data_path_beats",
+          "DISCARDED: connected to an empty port under the comment "
+          "\"Error and Debug (unconnected at this level)\"",
+          "snk_data_path_beats.sv:269"],
+         ["snk_data_path_axis_beats / snk_data_path_beats",
+          "CANNOT PROPAGATE: neither module declares an error output; the "
+          "only such output in RAPIDS is the engine's own",
+          f"{WR_ENG_B}:144"],
+         ["rapids_snk_beats",
+          "TIED OFF: assign sched_wr_error = '0, under a TODO whose stated "
+          "reason is false",
+          f"{SNK_MACRO}:680 -> :514"],
+         ["scheduler_beats",
+          "DEAD TERMS: sched_wr_error and r_write_error_sticky are constant "
+          "0, in both w_hard_error and the MonBus error packet",
+          f"{SCHED_B}:944 / :979 / :1084"],
+         ["STREAM, for comparison",
+          "WIRED: declared, connected, no tie-off, and surfaced for "
+          "observability as obs_flags[11]",
+          f"{STR_CORE}:669 / :1047 / :2130"]],
+        note="The RAPIDS SOURCE path is also correct "
+             f"({SRC_MACRO}:491). The fix is to give the two sink data-path "
+             "modules a sched_wr_error output, connect it, and replace the "
+             "tie-off -- mirroring what the source and STREAM already do. "
+             f"Recorded in {KI_SDP}; the RTL change is the owner's call.")
+
+
 def main():
     verify_citations(CITES, REPO)
     wb = openpyxl.Workbook()
@@ -860,6 +1186,8 @@ def main():
     build_snk_ingress_contract(wb)
     build_snk_ingress_kmaps(wb)
     build_sched_commit_kmaps(wb)
+    build_snk_error_contract(wb)
+    build_snk_error_kmaps(wb)
 
     wb.save(XLSX)
     print(f"wrote {XLSX}")
