@@ -52,5 +52,6 @@ worse than no test, and this area has already produced them:
 - A fix landed with a test has a mutation check recorded: the test was seen
   RED against the unfixed RTL. Without that the test is decoration.
 
-**Related:** [[TASK-077]] documents the doc-side equivalent (examples that
+**Related:** amba TASK-077 (CLOSED 2026-09-25, in `vault/Tasks/amba/closed.md`)
+documented the doc-side equivalent (examples that
 name ports which do not exist). The test-side is this task.

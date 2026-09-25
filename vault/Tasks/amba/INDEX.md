@@ -28,9 +28,9 @@ monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 1 | in progress right now |
-| [open.md](open.md) | 8 | accepted, not started |
+| [open.md](open.md) | 7 | accepted, not started |
 | [deferred.md](deferred.md) | 0 | accepted, parked on a named condition |
-| [closed.md](closed.md) | 65 | done (kept for history) |
+| [closed.md](closed.md) | 66 | done (kept for history) |
 | [dropped.md](dropped.md) | 1 | ended without completing (won't do / superseded) |
 
 *Re-measured again 2026-09-16 and corrected: the table claimed 11 open / 58
@@ -47,7 +47,7 @@ and `###` and any count that assumes one level is wrong. Two separate fixes
 landed the same day: six entries whose bodies said CLOSED were moved OUT of
 `open.md`, and five whose bodies said "open" or "NOT fixed" were moved BACK IN
 from `closed.md` (TASK-078, -083, -084, -085, -095). A scan that only reads `##` misses
-TASK-077, -075, -074, -073, -014, -015, -022, -024 — eight real open items,
+TASK-075, -074, -073, -014, -015, -022, -024 — seven real open items,
 several of them defects. (A ninth, CONV-001, has since moved to the converters
 area as CONV-010, where it belongs.)*
 

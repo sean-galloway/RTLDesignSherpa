@@ -135,7 +135,7 @@ def main() -> int:
     # stopped scanning the component books would have printed the same 241.
     print(f'\n{doc_pages} doc pages + {pages} module pages checked, '
           f'{bad} with a fabricated example')
-    # One known finding in projects/components is tracked as rapids TASK-077 and is
+    # One known finding in projects/components is tracked as amba TASK-077 and is
     # being fixed by hand -- a whole-block regeneration drops the other
     # instantiations in the same block. Was 9; the stream clocks-and-reset page
     # (three findings) was fixed 2026-09-15, and the rest had already been
@@ -155,7 +155,7 @@ def main() -> int:
     # so the ratchet drops 4 -> 1. Measured in a detached worktree at that HEAD,
     # not the working tree, per the warning above.
     #
-    # rapids TASK-077 is FIXED (ff57ee35f), so the ratchet reaches 0. That page
+    # amba TASK-077 is FIXED (ff57ee35f), so the ratchet reaches 0. That page
     # had far more wrong with it than the printed message suggested: the message
     # truncates to five names (sorted(set(miss))[:5]), while the page carried 25
     # fabricated connections out of 43 in its Integration Example AND 42 of 55
@@ -187,7 +187,7 @@ def main() -> int:
     # non-port) -- so no claim is made here either way.
     BASELINE = 0
     if bad > BASELINE:
-        print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} (rapids TASK-077)')
+        print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} -- a doc example\n          names a port its module does not have. The backlog this ratchet\n          tracked (amba TASK-077) is CLOSED and the floor is 0, so any\n          finding here is NEW.')
         return 1
     if bad < BASELINE:
         print(f'  baseline can be lowered to {bad} -- edit BASELINE')

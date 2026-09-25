@@ -4869,3 +4869,98 @@ uses them.
 See [[TASK-073]], which this qualifies: its "inert today because the runtime bit
 ships low" holds on silicon, but in simulation the bit was not low, it was
 undefined.
+
+---
+
+## TASK-077: four instantiation examples in components docs name ports that do not exist
+
+**Priority:** P3. A reader copies the example and it does not compile.
+**Status:** CLOSED 2026-09-25 -- every finding fixed by the owners of the code,
+and `bin/check_doc_examples.py` now ratchets at 0. The three `CLAUDE.md`
+examples went in `d2062a097` (rapids x2, stream x1) and the
+`rapids_core_beats` MAS page was rewritten against the module in `ff57ee35f`
+(321 lines: the fabricated `monbus_pkt_*` / `snk_fill_*` names are gone, the
+real `m_axi_wr_*`, `m_axi_rd_*`, `s_axis_t*`, `m_axis_t*` and
+`mon_valid`/`mon_packet` are in). Gate ratcheted to zero in `545023d3e`.
+Verified at HEAD: 955 doc pages + 241 module pages checked, 0 with a
+fabricated example.
+
+**This task was misfiled for its whole life and that is the lesson worth
+keeping.** It lived in the amba area while every one of its findings was in
+rapids or stream -- filed against the area of the CHECKER rather than the area
+that owns the code, which `vault/Tasks/INDEX.md` ("The AREA is the namespace")
+warns against by name. Anyone working rapids would never have seen it. It is
+closed here rather than moved only because the work finished first; had it
+still been open it belonged in
+`vault/Tasks/projects/components/dmas/rapids/bug/`.
+
+**What the gate still cannot see.** `RE_CONN` matches `^\s*\.(\w+)\s*\(`, so
+it reads instantiations inside fenced code blocks only. Markdown TABLES are
+invisible to it. On the old `rapids_core_beats` page that is where most of the
+damage was -- 42 of 55 table signals fabricated, none of them counted. A page
+can sit at a zero baseline with its reference tables three-quarters wrong.
+
+*Original status when opened:* open 2026-09-02, reduced from 5 pages to 4 findings. Two fixed:
+`pumice_top` (`.BL` -> `.DRAM_BL`, the real parameter) and most of
+`rapids_core_beats` (12 names remapped: `apb_*` -> `src_apb_*`,
+`cfg_channel_enable` -> `src_cfg_channel_enable`, `desc_m_axi_ar*` ->
+`src_m_axi_desc_ar*`, `all_channels_idle` -> `src_system_idle`, and
+`ENABLE_AXIS_WRAPPERS` removed -- no such parameter).
+
+**What is left, and why I stopped:**
+
+| Page | Module | Names | Why not fixed |
+|---|---|---|---|
+| `stream_mas/ch01_overview/03_clocks_and_reset.md` | `apb4_slave_cdc` | `SYNC_STAGES`, `m_paddr`, `m_pclk`, `m_prdata`, `m_presetn` | needs the stream owner: the real APB master-side names differ and the example may be describing a different wrapper |
+| same | `clock_gate_ctrl` | `enable` | trivial but same page |
+| same | `scheduler` | `aclk`, `aresetn` | `scheduler` uses `clk`/`rst_n`; confirm which module the page means |
+| `rapids_beats_mas/ch03_macro_blocks/11_rapids_core_beats.md` | `rapids_core_beats` | `monbus_pkt_*`, `snk_fill_*` | **the module has NO monbus or fill ports at all** -- these belong to a different module, probably `rapids_beats_top`. Cannot be remapped without knowing which. |
+
+**Method.** Get ground truth from the AST, never a regex over source:
+
+    python3 bin/rtl_ast.py <module.sv> rtl/amba/includes rtl/common
+
+Fix names in place. Do NOT regenerate the block: several of these contain more
+than one instantiation and a whole-block rewrite silently drops the others.
+
+`bin/check_doc_examples.py` ratchets, so the count cannot grow.
+
+**RE-MEASURED 2026-09-25 at a clean HEAD: 4 findings, and the ratchet is 4.**
+The "9" above was the figure when this was opened; the burn-down happened and
+the task text never caught up. Every page listed in the table below is CLEAN
+now -- `stream_mas/ch01_overview/03_clocks_and_reset.md`, `02_port_list.md`,
+`ch02_blocks/08_sram_controller.md`,
+`rapids_beats_mas/ch04_interfaces/03_monbus_interface_spec.md` and
+`pit_8254_mas/ch03_interfaces/01_top_level.md` all report zero. Their owners
+fixed them, exactly as the note predicted. Only `rapids_core_beats` survives
+from the original set.
+
+The other three are NEW, surfaced the same day by widening the checker to
+beside-code `CLAUDE.md`, which no page walk had ever reached (it is rooted at
+`docs/` and `<project>/docs/`, and a `CLAUDE.md` is in neither). All three are
+the same `gaxi_fifo_sync` shape that amba BUG-001 fixed in `rtl/amba/CLAUDE.md`
+-- the module takes `axi_aclk`/`axi_aresetn`/`wr_*`/`rd_*`, the docs connect
+`i_clk`/`i_rst_n`/`i_valid`/`i_data`/`i_ready`:
+
+| Page | Module | Names | Owner |
+|---|---|---|---|
+| `rapids_beats_mas/ch03_macro_blocks/11_rapids_core_beats.md` | `rapids_core_beats` | `monbus_pkt_*`, `snk_fill_*` | rapids -- module has no such ports at all |
+| `dmas/rapids/CLAUDE.md` (x2) | `gaxi_fifo_sync` | `i_clk`, `i_rst_n`, `i_valid`, `i_data`, `i_ready`, `o_ready` | rapids |
+| `dmas/stream/CLAUDE.md` | `gaxi_fifo_sync` | `i_clk`, `i_rst_n`, `i_valid`, `i_data`, `i_ready` | stream |
+
+All four are in rapids and stream, which another session owns, so this stays
+open for those owners rather than being fixed here. The fix is mechanical: copy
+the working instantiation out of `apb4_monitor.sv`'s own `monitor_fifo`, which
+also carries the `REGISTERED(0)` mux-read trap worth keeping.
+
+**Measure the baseline at HEAD, not in the working tree.** I first set it to 4,
+which is what my dirty tree showed -- other sessions had uncommitted fixes for
+pages I had not touched. CI, which sees only HEAD, failed at 9. Use:
+
+    git worktree add --detach /tmp/chk HEAD && cd /tmp/chk && python3 bin/check_doc_examples.py
+
+The extra findings at HEAD are in `stream_mas/ch01_overview/02_port_list.md`,
+`stream_mas/ch02_blocks/08_sram_controller.md`,
+`rapids_beats_mas/ch04_interfaces/03_monbus_interface_spec.md` and
+`pit_8254_mas/ch03_interfaces/01_top_level.md`; some already have fixes in
+flight from their owners, so the number should fall on its own.
