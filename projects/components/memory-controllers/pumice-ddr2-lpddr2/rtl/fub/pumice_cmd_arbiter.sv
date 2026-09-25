@@ -328,29 +328,82 @@ module pumice_cmd_arbiter
     // the ONE exception is an auto-precharge column, which does close its bank
     // — see w_ap_col_guard below.
     logic [NUM_BANKS-1:0] w_guarded;
-    logic [NUM_BANKS-1:0] w_prepick_guard;
+    // =====================================================================
+    // IN-FLIGHT SHADOW -- the one answer to "what has this arbiter already
+    // committed that the bank timers have not been told about yet?"
+    // =====================================================================
+    // WHY IT EXISTS. bank_timer is meant to BE the authority: its header says
+    // `safe_*` is a combinational AND of the counters, a single register
+    // stage, "no multi-stage FSM lag". But this arbiter drives the set_*
+    // strobes at FIRE (`evt_act_o = w_fire_out && r_do_act`) while it SELECTS
+    // three to four registered stages earlier. So up to four commands are in
+    // flight that the timers have never seen, and `safe_*` reports safe
+    // because it has not seen them.
+    //
+    // Every bank guard below covers that single gap. They used to be built in
+    // separate always_comb blocks scattered over ~200 lines, which hid the
+    // fact that they are the SAME QUESTION over different stage subsets -- and
+    // made each new hazard arrive as another ad-hoc mask. They now all derive
+    // from the matrix here. The composites keep their names and their exact
+    // subsets, so nothing downstream changes; what changes is that "what is in
+    // flight" has ONE definition instead of nine.
+    //
+    // STAGES:
+    //   SEL  the slot arg_sel is about to latch into the pre-pick flop. The
+    //        mask build reads *_f, still stale this cycle, so the selection
+    //        signal is the only view of the incoming pick.
+    //   PRE  the pre-pick registers (*_f). These are RE-EVALUATED, not a
+    //        commitment: the pre-pick reloads under w_out_ready every ready
+    //        cycle, so a slot here can still be superseded. That is exactly
+    //        why the timers cannot simply be fed at selection instead --
+    //        set_act_i also sets row_valid/open_row, and a spurious ACT would
+    //        mark a row open that was never opened.
+    //   OUT  the output register (r_pick_valid && r_do_*), bank = r_bank.
+    //   POST r_guard0/1, r_preguard0/1/2, r_apguard0/1 -- post-FIRE shifts
+    //        covering the window before the bank timer's own register stage
+    //        reflects the issue. Already single definitions; left in place.
+    //
+    // This RELAXES NOTHING. Each composite below reproduces its previous
+    // expression term for term.
+    logic [NUM_BANKS-1:0] w_if_preact_sel, w_if_preact_pre, w_if_preact_out;
+    logic [NUM_BANKS-1:0] w_if_col_sel,    w_if_col_pre,    w_if_col_out;
     always_comb begin
-        w_prepick_guard = '0;
-        // pre-pick flop (STAGE-1b result, one cycle before output)
-        if (rd_act_f) w_prepick_guard |= (NUM_BANKS'(1) << rd_act_bank);
-        if (wr_act_f) w_prepick_guard |= (NUM_BANKS'(1) << wr_act_bank);
-        if (rd_pre_f) w_prepick_guard |= (NUM_BANKS'(1) << rd_pre_bank);
-        if (wr_pre_f) w_prepick_guard |= (NUM_BANKS'(1) << wr_pre_bank);
-        // SELECTION cycle (STAGE-1b combinational, about to enter the pre-pick
-        // flop): rd_act_f et al are still stale here, so guard the bank of the
-        // slot arg_sel is picking THIS cycle, else the added snapshot stage lets
-        // the same bank be re-ACT'd/re-PRE'd -> double-issue. Bank field is read
-        // live (stable while the entry is valid, and the pick is intersected
-        // with live sch_valid at arg_sel).
+        // ---- ACT / PRE class ----
+        w_if_preact_sel = '0;
         if (w_sel_rd_act_f)
-            w_prepick_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_act_s));
+            w_if_preact_sel |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_act_s));
         if (w_sel_wr_act_f)
-            w_prepick_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_act_s));
+            w_if_preact_sel |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_act_s));
         if (w_sel_rd_pre_f)
-            w_prepick_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_pre_s));
+            w_if_preact_sel |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_pre_s));
         if (w_sel_wr_pre_f)
-            w_prepick_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_pre_s));
+            w_if_preact_sel |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_pre_s));
+
+        w_if_preact_pre = '0;
+        if (rd_act_f) w_if_preact_pre |= (NUM_BANKS'(1) << rd_act_bank);
+        if (wr_act_f) w_if_preact_pre |= (NUM_BANKS'(1) << wr_act_bank);
+        if (rd_pre_f) w_if_preact_pre |= (NUM_BANKS'(1) << rd_pre_bank);
+        if (wr_pre_f) w_if_preact_pre |= (NUM_BANKS'(1) << wr_pre_bank);
+
+        w_if_preact_out = w_inflight_preact ? (NUM_BANKS'(1) << r_bank) : '0;
+
+        // ---- COLUMN class ----
+        w_if_col_sel = '0;
+        if (w_sel_rd_col_f)
+            w_if_col_sel |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_col_s));
+        if (w_sel_wr_col_f)
+            w_if_col_sel |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_col_s));
+
+        w_if_col_pre = '0;
+        if (rd_col_f) w_if_col_pre |= (NUM_BANKS'(1) << rd_col_bank);
+        if (wr_col_f) w_if_col_pre |= (NUM_BANKS'(1) << wr_col_bank);
+
+        w_if_col_out = w_inflight_col ? (NUM_BANKS'(1) << r_bank) : '0;
     end
+
+    // ACT/PRE queued anywhere in the pre-pick pipeline (SEL + PRE).
+    logic [NUM_BANKS-1:0] w_prepick_guard;
+    assign w_prepick_guard = w_if_preact_sel | w_if_preact_pre;
     // Banks with a COLUMN in flight in the pick pipeline (selection / pre-pick).
     // The output-stage column is already covered by w_inflight_col below. This
     // is the SYMMETRIC twin of w_preact_bank_guard (PUMICE-018): it stops any
@@ -362,18 +415,9 @@ module pumice_cmd_arbiter
     // lands on the closed row (adapt_time arm of fixed_open). It feeds ONLY
     // w_guarded (never the column mask / w_preact_bank_guard), so it cannot
     // self-throttle same-bank column streaming.
+    // Columns queued anywhere in the pre-pick pipeline (SEL + PRE).
     logic [NUM_BANKS-1:0] w_col_inflight_guard;
-    always_comb begin
-        w_col_inflight_guard = '0;
-        if (w_sel_rd_col_f)
-            w_col_inflight_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_col_s));
-        if (w_sel_wr_col_f)
-            w_col_inflight_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_col_s));
-        if (rd_col_f)
-            w_col_inflight_guard |= (NUM_BANKS'(1) << rd_col_bank);
-        if (wr_col_f)
-            w_col_inflight_guard |= (NUM_BANKS'(1) << wr_col_bank);
-    end
+    assign w_col_inflight_guard = w_if_col_sel | w_if_col_pre;
 
     // PUMICE-PERF Phase 1: per-entry double-issue mask (blanket -> per-entry;
     // lets different entries pipeline, 1/4 -> ~1/cycle).
@@ -469,9 +513,9 @@ module pumice_cmd_arbiter
     assign w_ap_fire_bank = (w_fire_out && (r_do_rd || r_do_wr) && r_ap_out)
                           ? (NUM_BANKS'(1) << r_bank) : '0;
 
+    // POST (post-fire shifts) + pre-pick pipeline + output stage, all classes.
     assign w_guarded = r_guard0 | r_guard1 | w_prepick_guard | w_col_inflight_guard
-                     | ((w_inflight_preact || w_inflight_col)
-                        ? (NUM_BANKS'(1) << r_bank) : '0);
+                     | w_if_preact_out | w_if_col_out;
 
     // ---- in-flight ACT/PRE bank guard for the COLUMN masks (PUMICE-018) -----
     // A column must NOT be picked to a bank that already has an ACT or PRE in
@@ -490,8 +534,8 @@ module pumice_cmd_arbiter
     // ACT/PRE (never columns) contribute to this mask, so row-buffer-hit bursts
     // to an open bank are unaffected.
     logic [NUM_BANKS-1:0] w_preact_bank_guard;
-    assign w_preact_bank_guard = w_prepick_guard
-                               | (w_inflight_preact ? (NUM_BANKS'(1) << r_bank) : '0);
+    // ACT/PRE only, across the pre-pick pipeline AND the output stage.
+    assign w_preact_bank_guard = w_prepick_guard | w_if_preact_out;
 
     // ---- direction-turnaround guard (tWTR/tRTW staleness) ------------------
     // The global turnaround oks are FLOPPED in global_timers (a fired column's
