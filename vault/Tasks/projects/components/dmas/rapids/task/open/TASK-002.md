@@ -87,8 +87,44 @@ sink shares the defect. That overlaps item 5's territory.
 
 ### Remaining
 
-- Items 1-2 re-filed against the beats RTL on 2026-09-25 (the cited signals no
-  longer exist); they need re-scoping before mapping.
+- **Items 1-2 CONFIRMED 2026-09-25 -- and my earlier note here was wrong.**
+  I recorded that "the cited signals no longer exist" and that both needed
+  re-scoping. Only their ANCHORS were stale (they named retired pre-beats
+  files); both claims are true in the beats RTL. Re-filed with mechanisms.
+
+  **Item 1 is broader than filed, and half of it is a live RAPIDS-only
+  defect.** Two distinct gaps:
+  - *No AXI transaction timeout exists* in `axi_write_engine_beats.sv` at all
+    (only a comment at `:340`). STREAM's engine is byte-identical, so this is
+    shared and fixing it means implementing detection.
+  - *Bad-B-response detection exists and is discarded.* The engine already
+    flags `m_axi_bresp != 2'b00` per channel, sticky (`:951`/`:955`), and
+    exports it (`:144`, `assign sched_wr_error = r_wr_error;` at `:964`). On
+    the sink it dies three times: `snk_data_path_beats.sv:269` connects it to
+    `()`; no sink macro declares an error output, so it cannot propagate; and
+    `rapids_snk_beats.sv:680` ties the scheduler input off with
+    `assign sched_wr_error = '0;  // TODO: Add when write engine supports
+    error reporting` -- **a TODO whose stated reason is false.**
+
+    Consequence: `scheduler_beats.sv:978` includes `sched_wr_error` in
+    `w_hard_error` and `:944` latches it sticky, so both terms are provably
+    dead on the sink -- a SLVERR/DECERR can never drive `CH_ERROR` (`:380`)
+    and the transfer reports success. STREAM does not have this: `stream_core
+    .sv:669/1047/1409` wires it with no tie-off and surfaces it as
+    `obs_flags[11]` (`:2130`). The RAPIDS *source* path is also correct
+    (`src_data_path_beats.sv:79/:203`). Sink-only.
+
+  **Item 2 is structural, not a missing feature.** `snk_sram_controller_beats
+  .sv:143-160` has one `drain_read` bit and one `drain_id` index feeding a
+  one-hot decode and a single data mux, so exactly one channel drains per
+  cycle by construction. The fill side is the same shape (`:122-141`). That is
+  why a keyword search for "single read" finds nothing -- there is no logic to
+  find, only an interface. Low priority stands, per the original entry's own
+  assessment.
+
+  Neither has a K-map yet; the mechanisms are recorded in the known issues.
+  Item 1 gap 2 is a one-signal wiring fix mirroring what the source path and
+  STREAM already do, but the RTL change is the owner's call.
 - **Item 4 DONE 2026-09-25.** Sheet "K-maps sched commit": 3 maps + a
   STREAM/RAPIDS comparison. This is the FIRST item whose premise held up --
   `scheduler_beats.sv` really did diverge (1150 lines vs STREAM's 1390),

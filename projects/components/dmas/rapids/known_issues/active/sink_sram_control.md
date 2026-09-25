@@ -27,7 +27,7 @@
 
 **Severity**: Low
 **Impact**: Concurrent read operations not supported
-**Status**: Simplified implementation - architectural limitation
+**Status**: CONFIRMED structural against the beats RTL 2026-09-25
 **Discovery Date**: During RTL review
 
 ### Description
@@ -89,3 +89,45 @@ This entry asks to "re-verify against the beats controller". Done:
 Whether a concurrency limitation still exists is an open question, but it is NOT
 the one documented here, and the quoted code is gone. Needs re-filing against
 the beats RTL before it can be mapped.
+
+---
+
+## Re-verified against the beats RTL (2026-09-25)
+
+Filed against the retired pre-beats `sink_sram_control.sv:685`, so the anchor
+was stale. The claim holds, and it is **structural** rather than a missing
+feature -- the limitation is visible in the port shape of
+`snk_sram_controller_beats.sv`, which is why a keyword search for
+"single read" finds nothing.
+
+One drain port is shared across all `NC` channels and selected by a single
+`drain_id`:
+
+```systemverilog
+// snk_sram_controller_beats.sv:143-151  -- one-hot read decode
+drain_read_decoded = '0;
+if (drain_read && drain_id < NC) begin
+    drain_read_decoded[drain_id] = 1'b1;
+end
+
+// :153-160  -- single data mux
+if (drain_id < NC) begin
+    drain_data = drain_data_per_channel[drain_id];
+end
+```
+
+`drain_read` is a single bit and `drain_id` a single index, so exactly one
+channel can be drained per cycle by construction. "Concurrent read operations
+not supported" is therefore not an omission that could be patched inside the
+module -- it is the interface. Supporting concurrent drains would mean
+widening `drain_read`/`drain_id`/`drain_data` to per-channel vectors and
+giving the consumer a way to accept more than one beat per cycle.
+
+The fill side has the identical shape (`fill_valid_decoded` /
+`fill_ready` mux on `fill_id`, `:122-141`), so the same statement applies to
+writes.
+
+This matches the original entry's own assessment -- "an architectural
+simplification rather than a bug... current implementation is functionally
+correct" -- and the Low priority stands. Recorded so the next reader does not
+go looking for missing logic inside the controller.
