@@ -2,7 +2,7 @@
 
 # amba — bugs
 
-**Next ID: BUG-001** — never recycle a number, even when its item closed.
+**Next ID: BUG-002** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,9 +14,13 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
 
 - **BUG-000** — reserved template; copy the file, do not file against it.
+
+## Closed
+
+- **BUG-001** — every integration example in `rtl/amba/CLAUDE.md` named ports the modules do not have; 10 examples + 6 table rows corrected.

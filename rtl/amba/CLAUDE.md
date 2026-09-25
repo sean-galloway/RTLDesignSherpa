@@ -154,11 +154,18 @@ axi4_master_rd_mon u_mon (
 );
 
 // Downstream FIFO
-gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
-    .i_valid (mon_valid),
-    .i_data  (mon_data),
-    .o_ready (fifo_ready),
-    // ... connect to consumer
+gaxi_fifo_sync #(.REGISTERED(0), .DATA_WIDTH(128), .DEPTH(256)) u_fifo (
+    .axi_aclk    (aclk),
+    .axi_aresetn (aresetn),
+    .wr_valid    (mon_valid),
+    .wr_data     (mon_data),
+    .wr_ready    (fifo_ready),   // "not full" -- drive monbus_ready with this
+    .rd_valid    (consumer_valid),
+    .rd_ready    (consumer_ready),
+    .rd_data     (consumer_data),
+    /* verilator lint_off PINCONNECTEMPTY */
+    .count       ()
+    /* verilator lint_on PINCONNECTEMPTY */
 );
 ```
 
@@ -170,11 +177,11 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 | Module | Purpose | Key Params | Documentation |
 |--------|---------|------------|---------------|
-| `axi4_master_rd_mon.sv` | Master read monitoring | ID_WIDTH, ADDR_WIDTH, DATA_WIDTH, MAX_TRANSACTIONS | `docs/markdown/rtl-amba/axi4/axi4_master_rd_mon.md` |
+| `axi4_master_rd_mon.sv` | Master read monitoring (inline: `fub_axi_*` in, `m_axi_*` out) | AXI_ID_WIDTH, AXI_ADDR_WIDTH, AXI_DATA_WIDTH, MAX_TRANSACTIONS | `docs/markdown/rtl-amba/axi4/axi4_master_rd_mon.md` |
 | `axi4_master_wr_mon.sv` | Master write monitoring | Same | `docs/markdown/rtl-amba/axi4/axi4_master_wr_mon.md` |
 | `axi4_slave_rd_mon.sv` | Slave read monitoring | Same | `docs/markdown/rtl-amba/axi4/axi4_slave_rd_mon.md` |
 | `axi4_slave_wr_mon.sv` | Slave write monitoring | Same | `docs/markdown/rtl-amba/axi4/axi4_slave_wr_mon.md` |
-| `*_cg.sv` variants | Clock-gated versions | Same + CG_ENABLE | Power optimization |
+| `*_cg.sv` variants | Clock-gated versions | Same + CG_IDLE_COUNT_WIDTH (ports: `cfg_cg_enable`, `cfg_cg_idle_count`, `cg_gating`, `cg_idle`) | Power optimization |
 
 ### APB Monitors
 
@@ -186,18 +193,23 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 | Module | Purpose | Key Params | Documentation |
 |--------|---------|------------|---------------|
-| `axis4_master.sv` | AXIS transmit monitoring | DATA_WIDTH, ID_WIDTH, DEST_WIDTH | `docs/markdown/rtl-amba/axis4/axis4_master.md` |
-| `axis4_slave.sv` | AXIS receive monitoring | Same | `docs/markdown/rtl-amba/axis4/` |
+| `axis_bus_meter.sv` | Stream throughput / backpressure counters. **The only AXIS-side measurement block** | DATA_WIDTH, NUM_CHANNELS | `docs/markdown/rtl-amba/shared/axis_bus_meter.md` |
+
+> **There is no AXIS monbus monitor.** `axis4_master.sv` and `axis4_slave.sv`
+> are skid-buffered stream endpoints (`AXIS_DATA_WIDTH`, `AXIS_ID_WIDTH`,
+> `AXIS_DEST_WIDTH`) and carry zero monbus ports; this table called them
+> "AXIS transmit/receive monitoring" for months. Measured: no module under
+> `rtl/amba/axis4/` declares a monbus port.
 
 ### AXI4-Lite Monitors
 
 | Module | Purpose | Key Params | Documentation |
 |--------|---------|------------|---------------|
-| `axil4_master_rd_mon.sv` | AXIL master read monitoring | ADDR_WIDTH, DATA_WIDTH, MAX_TRANSACTIONS | `rtl/amba/axil4/` |
+| `axil4_master_rd_mon.sv` | AXIL master read monitoring | AXIL_ADDR_WIDTH, AXIL_DATA_WIDTH, MAX_TRANSACTIONS | `rtl/amba/axil4/` |
 | `axil4_master_wr_mon.sv` | AXIL master write monitoring | Same | `rtl/amba/axil4/` |
 | `axil4_slave_rd_mon.sv` | AXIL slave read monitoring | Same | `rtl/amba/axil4/` |
 | `axil4_slave_wr_mon.sv` | AXIL slave write monitoring | Same | `rtl/amba/axil4/` |
-| `*_cg.sv` variants | Clock-gated AXIL versions | Same + CG_ENABLE | Power optimization |
+| `*_cg.sv` variants | Clock-gated AXIL versions | Same + CG_IDLE_COUNT_WIDTH (ports: `cfg_cg_enable`, `cfg_cg_idle_count`, `cg_gating`, `cg_idle`) | Power optimization |
 
 > Dedicated AXIL4 wrappers (not the old `IS_AXI=0` parameter overload). Share `axi_monitor_base` and packet format with the AXI4 wrappers.
 
@@ -278,10 +290,18 @@ axi4_master_rd_mon #(
 );
 
 // Add downstream FIFO
-gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
-    .i_clk(axi_clk), .i_rst_n(axi_rst_n),
-    .i_valid(mon_valid), .i_data(mon_data), .o_ready(mon_ready),
-    // ... connect to your packet consumer
+gaxi_fifo_sync #(.REGISTERED(0), .DATA_WIDTH(128), .DEPTH(256)) u_fifo (
+    .axi_aclk    (aclk),
+    .axi_aresetn (aresetn),
+    .wr_valid    (mon_valid),
+    .wr_data     (mon_data),
+    .wr_ready    (fifo_ready),   // "not full" -- drive monbus_ready with this
+    .rd_valid    (consumer_valid),
+    .rd_ready    (consumer_ready),
+    .rd_data     (consumer_data),
+    /* verilator lint_off PINCONNECTEMPTY */
+    .count       ()
+    /* verilator lint_on PINCONNECTEMPTY */
 );
 ```
 
@@ -347,30 +367,30 @@ logic [63:0] event_data = monbus_packet[63:0];
 
 **A: Use arbiter to aggregate:**
 ```systemverilog
-// Multiple monitors
-wire [N-1:0] mon_valid;
-wire [N-1:0][127:0] mon_data;  // 128-bit monitor packets
-wire [N-1:0] mon_ready;
+// Multiple monitors. monbus_arbiter takes UNPACKED arrays, one entry per
+// client, and the packet is monitor_packet_t -- not a bare [127:0] bus.
+logic              mon_valid     [CLIENTS];
+logic              mon_ready     [CLIENTS];
+monitor_packet_t   mon_packet    [CLIENTS];
+monbus_timestamp_t mon_timestamp [CLIENTS];
 
-// Arbiter aggregates packets
-arbiter_rr_monbus #(
-    .N(N),
-    .DATA_WIDTH(128)
+monbus_arbiter #(
+    .CLIENTS (CLIENTS)
 ) u_mon_arbiter (
-    .i_clk     (clk),
-    .i_rst_n   (rst_n),
-    .i_request (mon_valid),
-    .i_data    (mon_data),
-    .o_grant   (mon_ready),
-    .o_valid   (agg_valid),
-    .o_data    (agg_data)
-);
-
-// Downstream FIFO for aggregated stream
-gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(1024)) u_agg_fifo (
-    .i_valid (agg_valid),
-    .i_data  (agg_data),
-    // ... to system consumer
+    .axi_aclk            (aclk),
+    .axi_aresetn         (aresetn),
+    .block_arb           (1'b0),
+    .monbus_valid_in     (mon_valid),
+    .monbus_ready_in     (mon_ready),
+    .monbus_packet_in    (mon_packet),
+    .monbus_timestamp_in (mon_timestamp),
+    .monbus_valid        (agg_valid),
+    .monbus_ready        (agg_ready),
+    .monbus_packet       (agg_packet),
+    .monbus_timestamp    (agg_timestamp),
+    .grant_valid         (),
+    .grant               (),
+    .grant_id            ()
 );
 ```
 
@@ -435,15 +455,22 @@ axi4_master_rd_mon #(
     .MAX_TRANSACTIONS(16)
 ) u_mon (
     .aclk(clk), .aresetn(rst_n),
-    // AXI AR channel
-    .axi_arid(m_axi_arid), .axi_araddr(m_axi_araddr),
-    .axi_arlen(m_axi_arlen), .axi_arsize(m_axi_arsize),
-    .axi_arburst(m_axi_arburst),
-    .axi_arvalid(m_axi_arvalid), .axi_arready(m_axi_arready),
-    // AXI R channel
-    .axi_rid(m_axi_rid), .axi_rdata(m_axi_rdata),
-    .axi_rresp(m_axi_rresp), .axi_rlast(m_axi_rlast),
-    .axi_rvalid(m_axi_rvalid), .axi_rready(m_axi_rready),
+    // This module sits INLINE: fub_* is the upstream (FUB) side, m_axi_* the
+    // downstream side. It is not a passive snooper on one bus.
+    .fub_axi_arid(fub_arid), .fub_axi_araddr(fub_araddr),
+    .fub_axi_arlen(fub_arlen), .fub_axi_arsize(fub_arsize),
+    .fub_axi_arburst(fub_arburst),
+    .fub_axi_arvalid(fub_arvalid), .fub_axi_arready(fub_arready),
+    .fub_axi_rid(fub_rid), .fub_axi_rdata(fub_rdata),
+    .fub_axi_rresp(fub_rresp), .fub_axi_rlast(fub_rlast),
+    .fub_axi_rvalid(fub_rvalid), .fub_axi_rready(fub_rready),
+    .m_axi_arid(m_axi_arid), .m_axi_araddr(m_axi_araddr),
+    .m_axi_arlen(m_axi_arlen), .m_axi_arsize(m_axi_arsize),
+    .m_axi_arburst(m_axi_arburst),
+    .m_axi_arvalid(m_axi_arvalid), .m_axi_arready(m_axi_arready),
+    .m_axi_rid(m_axi_rid), .m_axi_rdata(m_axi_rdata),
+    .m_axi_rresp(m_axi_rresp), .m_axi_rlast(m_axi_rlast),
+    .m_axi_rvalid(m_axi_rvalid), .m_axi_rready(m_axi_rready),
     // Monitor bus
     .monbus_valid(mon_valid),
     .monbus_ready(mon_ready),
@@ -462,52 +489,70 @@ apb4_monitor #(
     .DATA_WIDTH(32),
     .MAX_TRANSACTIONS(8)
 ) u_apb_mon (
-    .pclk(apb_clk), .presetn(apb_rst_n),
-    .paddr(apb_paddr), .psel(apb_psel),
-    .penable(apb_penable), .pwrite(apb_pwrite),
-    .pwdata(apb_pwdata), .pready(apb_pready),
-    .prdata(apb_prdata), .pslverr(apb_pslverr),
+    // NOT raw APB pins: this monitor watches the converted cmd/rsp interface
+    // in the aclk domain, which is what apb4_slave/apb4_master_stub present.
+    .aclk(aclk), .aresetn(aresetn),
+    .cmd_valid(cmd_valid), .cmd_ready(cmd_ready),
+    .cmd_pwrite(cmd_pwrite), .cmd_paddr(cmd_paddr),
+    .cmd_pwdata(cmd_pwdata), .cmd_pstrb(cmd_pstrb), .cmd_pprot(cmd_pprot),
+    .rsp_valid(rsp_valid), .rsp_ready(rsp_ready),
+    .rsp_prdata(rsp_prdata), .rsp_pslverr(rsp_pslverr),
     .monbus_valid(mon_valid),
     .monbus_ready(mon_ready),
     .monbus_packet(mon_data),
-    .cfg_error_enable(1'b1), .cfg_compl_enable(1'b1)
+    // apb4_monitor has no completion concept; these are its real cfg ports
+    .cfg_error_enable(1'b1), .cfg_slverr_enable(1'b1),
+    .cfg_protocol_enable(1'b1), .cfg_timeout_enable(1'b1)
 );
 ```
 
-### Pattern 3: AXIS Monitor
+### Pattern 3: AXIS measurement (there is NO AXIS monbus monitor)
+
+No module on the stream side emits monbus -- `axis4_master`/`axis4_slave` are
+skid-buffered stream endpoints, not monitors. For throughput and backpressure
+on a stream, snoop it with `axis_bus_meter` and read its counters:
 
 ```systemverilog
-axis4_master #(
-    .DATA_WIDTH(64),
-    .ID_WIDTH(8),
-    .DEST_WIDTH(4)
-) u_axis_mon (
-    .aclk(clk), .aresetn(rst_n),
-    .m_axis_tdata(axis_tdata),
-    .m_axis_tkeep(axis_tkeep),
-    .m_axis_tlast(axis_tlast),
-    .m_axis_tvalid(axis_tvalid),
-    .m_axis_tready(axis_tready),
-    .monbus_valid(mon_valid),
-    .monbus_packet(mon_data)
+axis_bus_meter #(
+    .DATA_WIDTH   (64),
+    .NUM_CHANNELS (8)
+) u_axis_meter (
+    .aclk(aclk), .aresetn(aresetn),
+    .i_clear(meter_clear), .i_freeze(meter_freeze),
+    // snoop only -- the meter never drives the bus
+    .i_tvalid(axis_tvalid), .i_tready(axis_tready),
+    .i_tlast(axis_tlast),   .i_tstrb(axis_tstrb),
+    .i_tid(axis_tid),
+    .o_agg_productive(prod), .o_agg_backpressure(bp),
+    .o_agg_starvation(starv), .o_agg_idle(idle),
+    .o_agg_bytes(bytes), .o_agg_beats(beats), .o_agg_packets(packets),
+    .o_ch_productive(), .o_ch_backpressure(),
+    .o_ch_starvation(), .o_ch_idle(), .o_ch_overflow()
 );
 ```
+
+Worked instance: `rapids_char_harness.sv`. Test: `val/amba/test_axis_bus_meter.py`.
 
 ### Pattern 4: Monitor with Downstream FIFO
 
 ```systemverilog
 // Always add FIFO for robustness
 gaxi_fifo_sync #(
+    .REGISTERED(0),          // mux read; flop mode re-emits the popped entry
     .DATA_WIDTH(64),
     .DEPTH(256)
 ) u_mon_fifo (
-    .i_clk(clk), .i_rst_n(rst_n),
-    .i_data(monbus_pkt_data),
-    .i_valid(monbus_pkt_valid),
-    .o_ready(monbus_pkt_ready),
-    .o_data(fifo_data),
-    .o_valid(fifo_valid),
-    .i_ready(consumer_ready)
+    .axi_aclk    (aclk),
+    .axi_aresetn (aresetn),
+    .wr_valid    (monbus_pkt_valid),
+    .wr_data     (monbus_pkt_data),
+    .wr_ready    (monbus_pkt_ready),
+    .rd_valid    (fifo_valid),
+    .rd_ready    (consumer_ready),
+    .rd_data     (fifo_data),
+    /* verilator lint_off PINCONNECTEMPTY */
+    .count       ()
+    /* verilator lint_on PINCONNECTEMPTY */
 );
 ```
 
@@ -520,7 +565,9 @@ axi4_master_rd_mon_cg #(
     .AXI_DATA_WIDTH(64)
 ) u_mon_cg (
     .aclk(axi_clk), .aresetn(axi_rst_n),
-    .cg_enable(monitor_active),  // Clock gate control
+    .cfg_cg_enable(monitor_active),      // Clock gate control
+    .cfg_cg_idle_count(CG_IDLE),         // Idle cycles before gating
+    .cg_gating(cg_gating), .cg_idle(cg_idle),
     // ... rest of connections same as non-CG variant
 );
 ```
@@ -553,11 +600,11 @@ assign monbus_ready = 1'b1;  // Always ready
 
 CORRECTED:
 "Connect to FIFO or proper consumer:
-gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
-    .i_valid(monbus_valid),
-    .i_data(monbus_packet),
-    .o_ready(monbus_ready),
-    ...
+gaxi_fifo_sync #(.REGISTERED(0), .DATA_WIDTH(128), .DEPTH(256)) u_fifo (
+    .axi_aclk(aclk), .axi_aresetn(aresetn),
+    .wr_valid(monbus_valid), .wr_data(monbus_packet),
+    .wr_ready(monbus_ready),
+    .rd_valid(...), .rd_ready(...), .rd_data(...), .count()
 );
 "
 ```
