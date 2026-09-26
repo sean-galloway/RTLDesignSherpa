@@ -65,7 +65,7 @@ The Beats Scheduler Group wraps a single channel's scheduler and descriptor engi
     |                         |                             |
     +-------------------------|-----------------------------+
                               v
-                       monbus_pkt_valid/data
+                       mon_valid/mon_packet
 ```
 
 ---

@@ -49,7 +49,7 @@ The Beats Drain Control is a "virtual FIFO" that tracks data availability withou
 ```
                 +---------------------------+
     wr_valid -->|                           |--> wr_ready
-                |    BEATS_DRAIN_CTRL       |--> data_avail
+                |    BEATS_DRAIN_CTRL       |--> data_available
     rd_valid -->|                           |
     rd_size  -->|     (Virtual FIFO)        |--> wr_full
                 |                           |--> wr_almost_full
@@ -171,7 +171,7 @@ Empty condition:   wr_ptr == rd_ptr
     rd_valid       _________:_______:_______:_______/‾\_____:_______
     rd_size        X:XXXXXXX:XXXXXXX:XXXXXXX| 4 |XXX:XXXXXXX:XXXXXXX
                     :       :       :       :       :       :
-    data_avail     |== 0 ===|== 1 ==|== 2 ==|== 3 ==|== 4 ==|== 0 ==
+    data_available |== 0 ===|== 1 ==|== 2 ==|== 3 ==|== 4 ==|== 0 ==
                     :       :       :       :       :       :
     rd_empty       ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾/‾‾‾‾‾‾‾
 ```
@@ -215,7 +215,7 @@ drain_ctrl_beats #(
 | **Tracks** | Space reservations | Data availability |
 | **Write port** | Multi-beat allocation | Single-beat arrival |
 | **Read port** | Single-beat release | Multi-beat drain |
-| **Output** | `space_free` | `data_avail` |
+| **Output** | `space_free` | `data_available` |
 | **Use case** | Pre-allocate before fill | Know when to drain |
 
 : Table 2.6.6: alloc_ctrl vs drain_ctrl Comparison

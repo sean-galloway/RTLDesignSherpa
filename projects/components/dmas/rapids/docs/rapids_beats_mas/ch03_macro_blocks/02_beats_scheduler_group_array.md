@@ -73,7 +73,7 @@ The Beats Scheduler Group Array instantiates 8 scheduler groups with a shared de
     |                               |                                  |
     +-------------------------------|----------------------------------+
                                     v
-                          monbus_pkt_valid/data
+                          mon_valid/mon_packet
 ```
 
 ---
@@ -249,7 +249,7 @@ Each scheduler_group provides a single MonBus output that combines both schedule
 ## Integration Context
 
 ```systemverilog
-beats_scheduler_group_array #(
+scheduler_group_array_beats #(
     .NUM_CHANNELS(8),
     .ADDR_WIDTH(64),
     .DATA_WIDTH(512)
@@ -268,12 +268,12 @@ beats_scheduler_group_array #(
     // ... additional config ...
 
     // Shared descriptor AXI
-    .m_axi_arvalid          (desc_axi_arvalid),
-    .m_axi_arready          (desc_axi_arready),
-    .m_axi_araddr           (desc_axi_araddr),
-    .m_axi_rvalid           (desc_axi_rvalid),
-    .m_axi_rready           (desc_axi_rready),
-    .m_axi_rdata            (desc_axi_rdata),
+    .desc_axi_arvalid       (desc_axi_arvalid),
+    .desc_axi_arready       (desc_axi_arready),
+    .desc_axi_araddr        (desc_axi_araddr),
+    .desc_axi_rvalid        (desc_axi_rvalid),
+    .desc_axi_rready        (desc_axi_rready),
+    .desc_axi_rdata         (desc_axi_rdata),
 
     // Per-channel scheduler outputs
     .sched_rd_valid         (sched_rd_valid),
@@ -286,12 +286,12 @@ beats_scheduler_group_array #(
     .sched_wr_done_strobe   (sched_wr_done_strobe),
 
     // Status
-    .all_channels_idle      (all_schedulers_idle),
+    .scheduler_idle         (all_schedulers_idle),
 
     // Unified MonBus
-    .monbus_pkt_valid       (sched_array_monbus_valid),
-    .monbus_pkt_ready       (sched_array_monbus_ready),
-    .monbus_pkt_data        (sched_array_monbus_data)
+    .mon_valid              (sched_array_monbus_valid),
+    .mon_ready              (sched_array_monbus_ready),
+    .mon_packet             (sched_array_monbus_data)
 );
 ```
 
