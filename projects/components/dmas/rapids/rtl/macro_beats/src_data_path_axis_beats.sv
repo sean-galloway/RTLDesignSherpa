@@ -150,6 +150,12 @@ module src_data_path_axis_beats #(
     logic [NC-1:0]               w_ch_grantable;   // Threshold or final-partial
     logic [NC-1:0]               w_no_more_fill;   // No further fill coming
     logic [7:0]                  w_grant_size [NC];// min(cfg_drain_size, avail)
+    // cfg_drain_size is software-writable. At 0 the threshold test
+    // (avail >= 0) is vacuously true, so a channel with avail==0 is granted a
+    // block of 0 beats; the FSM then waits for a beat that can never arrive
+    // (m_axis_tvalid needs real SRAM data) and r_arb_active latches high,
+    // starving every channel. Clamp to the minimum useful quantum.
+    logic [7:0]                  w_eff_drain_size; // cfg_drain_size, 0 -> 1
     // In-flight drain-request pipeline -- closes the stale-avail race.
     // drain_data_avail is flopped once at the SRAM macro boundary
     // (stream sram_controller.sv: unit output is combinational at :307, macro
@@ -205,6 +211,8 @@ module src_data_path_axis_beats #(
         end
     end
 
+    assign w_eff_drain_size = (cfg_drain_size == 8'd0) ? 8'd1 : cfg_drain_size;
+
     // Grant qualification. cfg_drain_size is a THRESHOLD: start draining once
     // this many beats are available, OR drain a short final batch when nothing
     // more is coming for that channel.
@@ -213,23 +221,23 @@ module src_data_path_axis_beats #(
             // Nothing further will arrive: scheduler has no beats left to fetch
             // AND no AXI reads are still outstanding for the channel.
             w_no_more_fill[ch] = (sched_rd_beats[ch] == 32'd0) && dbg_rd_all_complete[ch];
-            w_ch_grantable[ch] = (w_effective_avail[ch] >= SCW'(cfg_drain_size))
+            w_ch_grantable[ch] = (w_effective_avail[ch] >= SCW'(w_eff_drain_size))
                               || ((w_effective_avail[ch] != '0) && w_no_more_fill[ch]);
             // Reserve ONLY what is really present. drain_ctrl advances rd_ptr by
             // the full rd_size in one cycle, so reserving more than is there makes
             // rd_ptr overshoot wr_ptr and corrupts the occupancy permanently.
-            w_grant_size[ch] = (w_effective_avail[ch] >= SCW'(cfg_drain_size))
-                              ? cfg_drain_size : 8'(w_effective_avail[ch]);
+            w_grant_size[ch] = (w_effective_avail[ch] >= SCW'(w_eff_drain_size))
+                              ? w_eff_drain_size : 8'(w_effective_avail[ch]);
             r_arb_request[ch] = w_ch_grantable[ch];
         end
     end
 
     // Round-robin arbiter state machine
-    // Arbiter advances when:
-    // 1. No active grant (!r_arb_active)
-    // 2. Current drain complete (r_drain_remaining == 0 && m_axis_tvalid && m_axis_tready)
-    // 3. Current channel has no more data (r_arb_active && drain_data_avail[r_arb_grant_id] == 0)
-    //    This prevents arbiter from getting stuck waiting for handshake on empty channel
+    // A grant is taken ONCE and held until the reserved beats are drained:
+    //   !r_arb_active            -> pick the next grantable channel, latch its size
+    //   r_arb_active + accepted  -> decrement, retire on the last beat
+    // There is deliberately NO mid-drain availability re-check; the abandon term
+    // that used to live here was removed, for the reason below.
     // STREAM's consumer model (axi_write_engine.sv:655-690): take a grant ONCE,
     // drain exactly the reserved number of beats, retire on the last one, and
     // NEVER re-consult availability mid-drain.

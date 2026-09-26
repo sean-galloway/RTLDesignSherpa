@@ -238,7 +238,7 @@ def test_beat_conservation(request, num_channels, addr_width, data_width, axi_id
 
     Drain granularity comes from TEST_DRAIN_SIZE (default 1). Sweep it over
     1/2/4/8 to exercise the source drain reservation accounting -- see
-    known_issues/active/drain_size_gt1_source_beat_drop.md.
+    known_issues/resolved/drain_size_gt1_source_beat_drop.md.
     """
     _run_source_axis_test(request, "cocotb_test_beat_conservation",
                           num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)

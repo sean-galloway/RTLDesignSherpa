@@ -164,6 +164,15 @@ module snk_data_path_axis_beats #(
 
     // Allocation tracking per channel
     logic [NC-1:0][15:0]         r_pending_alloc;  // Beats allocated but not yet filled
+    // cfg_alloc_size is software-writable. At 0 the space test (space_free >= 0)
+    // is vacuously true and fill_alloc_size is 0, so the same-cycle
+    // allocate-and-consume branch below computes 0 + 0 - 1 and underflows
+    // r_pending_alloc to 16'hFFFF. Ingress then streams 65535 beats while
+    // alloc_ctrl advanced its write pointer by 0. The underflow itself is
+    // OBSERVED (r_pending_alloc reaches 16'hFFFF in simulation); the downstream
+    // consequence of filling past the reservation is NOT demonstrated here, so
+    // this guard is defensive on that point. Clamp to the minimum reservation.
+    logic [7:0]                  w_eff_alloc_size; // cfg_alloc_size, 0 -> 1
     logic [NC-1:0]               r_need_alloc;     // Channel needs allocation
 
     // Statistics
@@ -186,11 +195,12 @@ module snk_data_path_axis_beats #(
 
     // Determine if we need allocation before accepting data
     wire w_channel_needs_alloc = (r_pending_alloc[axis_channel_id] == '0);
-    wire w_channel_has_space = (fill_space_free[axis_channel_id] >= cfg_alloc_size);
+    assign w_eff_alloc_size = (cfg_alloc_size == 8'd0) ? 8'd1 : cfg_alloc_size;
+    wire w_channel_has_space = (fill_space_free[axis_channel_id] >= w_eff_alloc_size);
 
     // Generate allocation request when needed and space available
     assign fill_alloc_req = s_axis_tvalid && w_channel_needs_alloc && w_channel_has_space;
-    assign fill_alloc_size = cfg_alloc_size;
+    assign fill_alloc_size = w_eff_alloc_size;
     assign fill_alloc_id = axis_channel_id;
 
     // Data valid when:

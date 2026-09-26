@@ -1002,9 +1002,10 @@ module descriptor_engine #(
     // Set: When APB transaction is accepted (handshake completes)
     // Clear: On falling edge of channel_idle (busy->idle transition)
     //
-    // Note: We detect falling edge (idle high->low) which indicates the
-    // scheduler has transitioned from idle to busy and back to idle,
-    // meaning all descriptor chain processing is complete.
+    // Note: the falling edge is idle->BUSY, not the completion of the chain.
+    // Clearing here is still safe because the accept condition above also
+    // requires channel_idle, so r_apb_ip only has to cover the window between
+    // the APB accept and the scheduler actually going busy.
 
     // Detect falling edge of channel_idle (1->0 transition)
     wire w_channel_idle_falling = r_channel_idle_prev && !channel_idle;

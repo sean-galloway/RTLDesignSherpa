@@ -8,7 +8,7 @@ package the STREAM generator uses. What lives here is RAPIDS-specific: the RTL
 path constants, the CITES registry, and the build_* sheet builders.
 
 First target (rapids TASK-002 item 3) is the `drain_size_gt1` SOURCE beat drop
-(known_issues/active/drain_size_gt1_source_beat_drop.md). Beat-drop bugs are
+(known_issues/resolved/drain_size_gt1_source_beat_drop.md). Beat-drop bugs are
 adjacency bugs, which is what a K-map is for -- and in this case the map makes
 a MISSING TERM visible: the drain grant is qualified on an availability view
 that counts beats the reservation accounting has already subtracted.

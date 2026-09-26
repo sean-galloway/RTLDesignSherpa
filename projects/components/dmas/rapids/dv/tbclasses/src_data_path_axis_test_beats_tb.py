@@ -145,7 +145,7 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
         # cfg_drain_size: beats reserved per drain grant. The old comment here
         # claimed higher values "cause backpressure when small transfers are
         # queued" and pinned it to 1; that was this bug being read as a tuning
-        # constraint -- see known_issues/active/drain_size_gt1_source_beat_drop.md.
+        # constraint -- see known_issues/resolved/drain_size_gt1_source_beat_drop.md.
         # Driven from TEST_DRAIN_SIZE so the sweep can exercise >1.
         self.dut.cfg_drain_size.value = self.DRAIN_SIZE
 
@@ -800,7 +800,7 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
         the transfer is deliberately NOT a multiple of typical drain sizes
         (1/2/4/8), which is where the original report saw the loss.
 
-        See known_issues/active/drain_size_gt1_source_beat_drop.md.
+        See known_issues/resolved/drain_size_gt1_source_beat_drop.md.
         """
         self.log.info(f"Beat conservation: {num_descriptors} desc x {beats_per_desc} beats, "
                       f"cfg_drain_size={self.DRAIN_SIZE}")

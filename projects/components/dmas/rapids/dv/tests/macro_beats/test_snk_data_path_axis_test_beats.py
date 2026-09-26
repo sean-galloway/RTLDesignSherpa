@@ -308,6 +308,7 @@ def _run_sink_axis_test(request, testcase_name, num_channels, addr_width, data_w
         'TEST_AXI_ID_WIDTH': str(axi_id_width),
         'TEST_NUM_CHANNELS': str(num_channels),
         'TEST_SRAM_DEPTH': str(sram_depth),
+        'TEST_ALLOC_SIZE': os.environ.get('TEST_ALLOC_SIZE', '16'),
     }
 
     # BFM delay-profile sweep: drive the AXI write slave (TIMING_PROFILE) and the

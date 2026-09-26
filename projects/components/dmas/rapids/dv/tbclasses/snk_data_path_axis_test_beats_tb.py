@@ -36,6 +36,7 @@ import os
 import random
 from typing import Dict, Any, Tuple, List
 import time
+import cocotb
 
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
@@ -69,6 +70,9 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
         self.AXI_ID_WIDTH = self.convert_to_int(os.environ.get('TEST_AXI_ID_WIDTH', '8'))
         self.SRAM_DEPTH = self.convert_to_int(os.environ.get('TEST_SRAM_DEPTH', '4096'))
         self.CLK_PERIOD = self.convert_to_int(os.environ.get('TEST_CLK_PERIOD', '10'))
+        # Default 16 == the hardcode this replaces and the RDL reset
+        # (AXI_XFER_CONFIG.ALLOC_SIZE = 8'd16), so existing cells are unchanged.
+        self.ALLOC_SIZE = self.convert_to_int(os.environ.get('TEST_ALLOC_SIZE', '16'))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
 
         # Initialize random generator
@@ -132,7 +136,9 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
 
         # Set configuration signals before reset
         self.dut.cfg_axi_wr_xfer_beats.value = 8
-        self.dut.cfg_alloc_size.value = 16
+        # Driven from TEST_ALLOC_SIZE so the 0 case (clamp guard) is reachable.
+        self.dut.cfg_alloc_size.value = self.ALLOC_SIZE
+        self.pending_alloc_samples = []
 
         # Reset sequence
         await self.assert_reset()
@@ -548,6 +554,13 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
         """
         self.log.info(f"Testing AXIS reception ({num_packets} packets)...")
 
+        # Sample the reservation counter across the whole ingress window. Without
+        # this, the sink tests cannot see an alloc-accounting fault at all: they
+        # score a packet on whether send_axis_packet threw, so ~64 beats pass
+        # cleanly while r_pending_alloc sits underflowed at 16'hFFFF.
+        self.pending_alloc_samples = []
+        _pa_sampler = cocotb.start_soon(self.sample_pending_alloc(cycles=2000))
+
         successful = 0
         failed = 0
 
@@ -584,6 +597,9 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
                 self.test_stats['failed_operations'] += 1
 
         self.test_stats['total_operations'] += num_packets
+
+        _pa_sampler.kill()
+        self.assert_pending_alloc_sane()
 
         stats = {
             'successful': successful,
@@ -857,3 +873,61 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
         }
 
         return failed < (num_operations * 0.1), stats
+
+    def assert_pending_alloc_sane(self):
+        """Reserved beats can never exceed the SRAM that backs them.
+
+        This is the check the existing sink tests do NOT make.
+        test_axis_reception scores a packet on whether send_axis_packet threw --
+        never on the reservation accounting -- so it sends ~64 beats and passes
+        even while r_pending_alloc sits at 16'hFFFF. The alloc path computes
+        pending + alloc_size - 1 when it allocates and consumes in the same
+        cycle, so an alloc_size of 0 underflows 0 -> 16'hFFFF and licenses 65535
+        unreserved beats. Bounding pending by SRAM_DEPTH is what makes that
+        visible.
+
+        Armed: raises if it never sampled, so a silent pass cannot masquerade
+        as a clean one.
+        """
+        if not self.pending_alloc_samples:
+            raise AssertionError(
+                'pending_alloc check never sampled -- the check is not armed')
+        worst = max(self.pending_alloc_samples)
+        # Self-validation: with a non-zero reservation size and traffic sent,
+        # pending MUST have been observed non-zero at some point. An all-zero
+        # trace means the observation point is broken (wrong hierarchy path or
+        # wrong slicing), not that the design is healthy -- and a broken
+        # observation point passes the bound check trivially.
+        if self.ALLOC_SIZE > 0 and worst == 0:
+            raise AssertionError(
+                f'observation point appears broken: {len(self.pending_alloc_samples)} '
+                f'samples of r_pending_alloc were all zero while cfg_alloc_size='
+                f'{self.ALLOC_SIZE} and AXIS traffic was sent. Check the hierarchy '
+                f'path and the packed-array decode before trusting this check.')
+        if worst > self.SRAM_DEPTH:
+            raise AssertionError(
+                f'r_pending_alloc reached {worst} (0x{worst:04x}), which exceeds '
+                f'SRAM_DEPTH={self.SRAM_DEPTH}: beats reserved that the SRAM '
+                f'cannot hold. cfg_alloc_size={self.ALLOC_SIZE}. '
+                f'{len(self.pending_alloc_samples)} samples taken.')
+        self.log.info(
+            f'pending_alloc proof: max {worst} <= SRAM_DEPTH {self.SRAM_DEPTH} '
+            f'over {len(self.pending_alloc_samples)} samples '
+            f'(cfg_alloc_size={self.ALLOC_SIZE})')
+
+    async def sample_pending_alloc(self, cycles: int = 400):
+        """Record r_pending_alloc across the ingress window."""
+        for _ in range(cycles):
+            await self.wait_clocks(self.clk_name, 1)
+            try:
+                # r_pending_alloc is logic [NC-1:0][15:0]. Indexing .value[ch]
+                # selects a single BIT, not a channel word -- that read 'max 0'
+                # at cfg_alloc_size=16 and would have passed on the 0xFFFF
+                # underflow too. Decode the packed value into 16-bit fields.
+                raw = int(self.dut.u_sink_data_path_axis.r_pending_alloc.value)
+                for ch in range(self.NUM_CHANNELS):
+                    self.pending_alloc_samples.append((raw >> (16 * ch)) & 0xFFFF)
+            except Exception:
+                # Single sample failure must not mask the run; an empty sample
+                # list is what assert_pending_alloc_sane treats as unarmed.
+                pass

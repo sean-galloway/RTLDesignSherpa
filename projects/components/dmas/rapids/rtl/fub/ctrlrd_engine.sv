@@ -551,12 +551,18 @@ module ctrlrd_engine #(
     endproperty
     assert property (axi_id_matches_channel);
 
-    // Retry counter never underflows
-    property retry_counter_valid;
+    // Retry counter never underflows.
+    // The previous form asserted (r_retry_counter >= 0) on an unsigned [8:0]
+    // counter, which is vacuously true and could never fail. The real invariant
+    // is that an exhausted counter STAYS exhausted until a new request reloads
+    // it in READ_IDLE -- that is what an unguarded decrement would break, by
+    // wrapping 0 -> 9'h1FF and granting 511 spurious retries.
+    property retry_counter_no_underflow;
         @(posedge clk) disable iff (!rst_n)
-        (r_current_state == READ_COMPARE) && !w_data_match |-> (r_retry_counter >= 0);
+        (r_retry_counter == 9'h0) && (r_current_state != READ_IDLE)
+            |=> (r_retry_counter == 9'h0);
     endproperty
-    assert property (retry_counter_valid);
+    assert property (retry_counter_no_underflow);
 
     // ctrlrd_ready tied to skid buffer (matches ctrlwr_engine pattern)
     // Removed assertions that expected ready only in terminal states

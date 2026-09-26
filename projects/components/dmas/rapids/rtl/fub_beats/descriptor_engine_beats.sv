@@ -579,9 +579,10 @@ module descriptor_engine_beats #(
     //   - next_descriptor_ptr: If != 0 AND last == 0, autonomous chaining occurs
     //   - last: Explicit chain termination flag (overrides next_descriptor_ptr)
     //
-    // Enhanced Control Signals (future use):
+    // Enhanced Control Signals:
     //   - EOS/EOL/EOD: Stream boundary markers (currently unused, set to 0)
-    //   - pkt_type: Descriptor type classification (currently unused, set to 0)
+    //   - pkt_type: descriptor opcode, decoded from DESC_OPCODE_* below and
+    //     exported on descriptor_type; the scheduler routes control descriptors on it
 
     // Extract enhanced control fields from descriptor data
     always_comb begin
@@ -590,7 +591,7 @@ module descriptor_engine_beats #(
         w_desc_eol = 1'b0;   // End of Line (future: 2D transfer support)
         w_desc_eod = 1'b0;   // End of Data (future: segmented transfer support)
         w_desc_last = 1'b0;
-        w_desc_type = 2'b00; // Descriptor type (future: different transfer modes)
+        w_desc_type = 2'b00; // default; overridden from the opcode field below
         w_next_addr = 32'h0;
 
         // Extract active fields from RAPIDS descriptor format
