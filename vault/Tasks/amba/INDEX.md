@@ -2,7 +2,7 @@
 
 # AMBA tasks
 
-**Next ID: TASK-098** — never recycle a number, even when its task closed.
+**Next ID: TASK-099** — never recycle a number, even when its task closed.
 
 ## Lanes
 
