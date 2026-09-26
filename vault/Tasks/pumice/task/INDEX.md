@@ -14,13 +14,12 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 8 | done (kept for history) |
+| [closed/](closed/) | 9 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 
 ## Open
 
 - **TASK-000** — TEMPLATE — copy this file, never file against it
-- **TASK-002** — characterize + tune the advanced modes (all three axes)
 - **TASK-009** — doc + filelist cleanup (push from workstation)
 
 ## Closed
@@ -38,6 +37,8 @@ exactly one state by construction rather than by discipline.
   hardware always allowed it, only the host collapsed N generators to N copies
 - **TASK-011** — RBL measured on the workload built for it: mode 6 is strictly
   worse than mode 7, mode 7 is bit-identical to no predictor; 5,578 LUT unearned
+- **TASK-002** — all three axes on silicon: reordering is worth 3.9x, every
+  predictor is inert, refresh costs 4.7% and tREFI is the only tunable that pays
 
 ## Dropped
 

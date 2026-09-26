@@ -1,7 +1,7 @@
 # TASK-002: characterize + tune the advanced modes (all three axes)
 > **Was `PUMICE-013` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** open 2026-08-27. AXIS 1 SWEPT ON SILICON 2026-09-25 (8/10 sub-policies inert; row_most_pending -19.4%). Axes 2/3 tuning still open. Originally: FIRST CAMPAIGN LANDED 2026-09-23 — all three axes
+**Status:** CLOSED 2026-09-25 — all three axes characterized on silicon. Reordering is worth 3.9x; every predictor is inert; refresh costs 4.7%. Originally: FIRST CAMPAIGN LANDED 2026-09-23 — all three axes
 swept one-at-a-time on the board, results and recommended defaults in
 "TASK-002 RESULTS" below. Four mechanism gaps reported to [[TASK-001]],
 one of them a shipped RTL default that costs 15.8x on streaming. Still open
@@ -349,3 +349,87 @@ cycle.
 family. Axis 3 is measurable for the first time via REF_STATS_REF_BUSY
 ([[TASK-012]]), which reads 8,814 against 2,570,069 free-running on silicon --
 a 292x contamination factor.
+
+
+## 2026-09-25 — ALL THREE AXES CHARACTERIZED ON SILICON. CLOSING.
+
+Current bitstream (lookahead + final-stage authority + REF_STATS_REF_BUSY),
+txn_scale=1000, peak 600 MB/s. 159 board points across 8 profiles, all
+integrity-clean.
+
+### The result in one line
+
+**Reordering is the only thing in this controller that pays. Everything
+layered on top of it is inert or harmful.**
+
+### Axis 1 — scheduling
+
+`order_mode` at EQUAL page policy, which is the comparison that was never
+made before (the `inorder` preset pins CLOSE page, so the axis used to read as
+a ~16x deficit that was mostly page policy):
+
+| config | incremental | col_major |
+|---|---|---|
+| open_page (FR-FCFS) | **561.3** (93.6%) | **195.2** (32.5%) |
+| age_thr | 561.3 | 195.2 |
+| inorder_open | 143.0 (23.8%) | 102.4 (17.1%) |
+
+**FR-FCFS is worth 3.9x on streaming and 1.9x page-hostile.** That confirms
+the "3.9x at equal page policy" figure [[TASK-001]] recorded from the
+host-side analysis, now measured directly. `age_thresh` is inert -- it
+defaults to 0, so age_threshold mode is FR-FCFS by construction.
+
+Sub-policies (`prio_sub` / `row_sel` / `col_sel` / `access_pref` / `qos_en`),
+single-direction so turnaround is not the limiter: **eight of ten land within
++-0.3% of the default.** `row_most_pending` is the only lever with real effect
+and it is a net loss -- +1.1% sequential, **-19.4% page-hostile**, +7,300 ACTs,
+2.4x read latency. The row arbiter's "most pending" heuristic fights the page
+policy: it picks the bank with the most queued work rather than the one whose
+row is already open.
+
+### Axis 2 — paging
+
+| config | incremental | col_major |
+|---|---|---|
+| adapt_time | 561.4 | 195.2 |
+| adapt_access | 561.3 | 195.2 |
+| rbl_static | 560.9 | 195.2 |
+| rbl_dyn | 561.4 | 195.1 |
+
+**All four predictors within +-0.1% of each other AND of plain open page.**
+Combined with [[TASK-011]] -- where RBL was measured on a workload built
+specifically to suit it and mode 6 lost 26% while mode 7 was bit-identical to
+no predictor -- the whole Axis-2 predictor family is unearned area.
+
+### Axis 3 — refresh (on OPEN page, un-confounded)
+
+The `refresh` profile pins CLOSE page (~46 MB/s), which measures refresh in the
+regime where it matters least -- gap 3 of [[TASK-001]]. On open page:
+
+| config | row_major | vs default |
+|---|---|---|
+| open_page (default tREFI) | 572.0 | -- |
+| refresh_credit_open | 575.3 | +0.6% |
+| fast_refresh_open | 536.6 | **-6.2%** |
+| slow_refresh_open | **599.0** | **+4.7%** |
+
+**Refresh costs 4.7% of streaming bandwidth.** Relaxing tREFI recovers it and
+reaches **599.0 MB/s = 99.8% of the 600 ceiling**. Refresh credit is inert.
+This is the ONE tunable on any axis that pays -- and it is a JEDEC timing
+parameter, not a predictor.
+
+### Multi-id / random traffic
+
+`col_major_bl8_multiid` (id_mode=LFSR) is **bit-identical to single-id on
+every config** -- 215.0 / 195.2 / 45.0 in both columns. ID diversity unlocks
+nothing, which follows: FR-FCFS already reorders across the whole CAM
+regardless of ID, so there is no extra opportunity for multiple IDs to expose.
+
+### What this says about the design
+
+pumice spends its area on a reorder engine and a set of predictors. The
+measurement says the reorder engine carries the design (3.9x) and the
+predictors do not register. For a research controller that is a useful
+negative result -- the predictors' mechanisms demonstrably WORK (RBL moves
+thrash% 100% -> 57.8%) and still do not pay, because the precharge they save
+costs more in activates than it returns.
