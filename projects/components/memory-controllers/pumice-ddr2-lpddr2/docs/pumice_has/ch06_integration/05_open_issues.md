@@ -130,7 +130,7 @@ red-to-green model test):
    `age_threshold` -> `most/fewest_pending` -> `ACCESS_PREF` ->
    write-batching -> **QoS** (AxQOS-aware pick, `QOS_EN`).
 3. **Paging (Axis 2)** — `static_open/close` (confirm) -> `fixed_open` ->
-   `adapt_time` -> `rbl_static` -> `rbl_dyn` -> `adapt_access`.
+   `adapt_time` -> `adapt_access`. (`rbl_static`/`rbl_dyn` retired 2026-09-26.)
 4. **Refresh (Axis 3, commodity)** — JEDEC pull-in/postpone sweep ->
    `refpb_rr`.
 

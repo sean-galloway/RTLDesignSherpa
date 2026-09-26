@@ -1713,8 +1713,11 @@ def build_arbiter_sheet(wb):
         "rd_act_m[e] / wr_act_m[e]  (given sch_valid[e])",
         "pumice_cmd_arbiter.sv (classify + tRFC gate)",
         "rd_act_m[e] = !r_bank_row_active[rb] && !w_guarded[rb] && "
-        "r_bank_act_ready[rb] && tfaw_ok_i && trrd_ok_i && !w_rfc_busy   "
-        "[wr_act_m[e] is the same with wb for rb]",
+        "r_bank_act_ready[rb] && w_act_classify_gate && !w_rfc_busy   "
+        "[w_act_classify_gate folds tfaw_ok_i && trrd_ok_i; r_bank_act_ready "
+        "samples the ADVISORY lookahead twin (bank_act_ready_la_i), the live "
+        "set being enforced at the final stage -- see w_out_ready. "
+        "wr_act_m[e] is the same with wb for rb]",
         ["row_active", "guarded", "act_ready", "tfaw_ok",
          "trrd_ok", "rfc_busy"],
         lambda ra, g, ar, tf, tr, rb:
@@ -1761,9 +1764,11 @@ def build_arbiter_sheet(wb):
         "w_guarded[b]",
         "pumice_cmd_arbiter.sv (guard fold)",
         "w_guarded[b] = r_guard0[b] | r_guard1[b] | w_prepick_guard[b] | "
-        "w_col_inflight_guard[b] | ((w_inflight_preact || w_inflight_col) && "
-        "(r_bank == b))   [guards_nz = w_prepick_guard[b] | "
-        "w_col_inflight_guard[b]; bank_match = r_bank==b]",
+        "w_col_inflight_guard[b] | w_if_preact_out[b] | w_if_col_out[b]   "
+        "[guards_nz = w_prepick_guard[b] | w_col_inflight_guard[b]; "
+        "bank_match = w_if_preact_out[b] | w_if_col_out[b], the in-flight "
+        "shadow's OUT stage -- each is (inflight_class ? 1<<r_bank : 0), so "
+        "their OR is the old ((preact||col) && r_bank==b) term by construction]",
         ["guard0", "guard1", "pick_guards_nz", "inflight_rowop_or_col",
          "bank_match"],
         lambda g0, g1, pg, i, m: g0 or g1 or pg or (i and m),
@@ -1793,8 +1798,13 @@ def build_arbiter_sheet(wb):
     km.kmap(
         "w_out_ready / w_fire_out",
         "pumice_cmd_arbiter.sv (output register)",
-        "w_out_ready = !r_pick_valid || cmd_ready_i ; "
-        "w_fire_out = r_pick_valid && cmd_ready_i",
+        "w_out_ready = !r_pick_valid || cmd_ready_i || w_out_reject ; "
+        "w_fire_out = r_pick_valid && cmd_ready_i && w_out_safe   "
+        "[w_out_safe = the LIVE bank readiness for the op in the output "
+        "register; w_out_reject = r_pick_valid && !w_out_safe. A rejected "
+        "pick is DROPPED, not held -- holding freezes w_out_ready and "
+        "head-of-line blocks the pipeline. cmd_ready is folded to "
+        "(cmd_ready_i && w_out_safe) for this map's axes]",
         ["pick_valid", "cmd_ready"],
         lambda p, c: ("rdy+fire" if (p and c) else
                       ("rdy" if not p else "hold")),

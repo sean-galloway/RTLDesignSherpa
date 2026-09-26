@@ -40,10 +40,10 @@ When bring-up software first comes up, recommended order (address map and memtyp
    01 OPEN, 10 CLOSE; 11 reserved).
 4. **Adaptive page policy (optional)** — `PAGE_POLICY_CFG.policy_mode`
    (0 build default, 1 static_open, 2 static_close, 3 fixed_open,
-   4 adapt_time, 5 adapt_access, 6 rbl_static, 7 rbl_dyn). Program the table
+   4 adapt_time, 5 adapt_access; 6/7 retired 2026-09-26). Program the table
    shape **before** the mode select so the predictor starts from a known
    table: `PAGE_POLICY_CFG.ctr_open_max` / `.ctr_init` for mode 5,
-   `PAGE_RBL_CFG` for modes 6/7, `PAGE_TIMEOUT_CFG` for modes 3/4.
+   `PAGE_TIMEOUT_CFG` for modes 3/4.
 5. **Scheduling order** — `SCHED_POLICY.order_mode` (0 FR-FCFS, 1 in_order,
    3 age_threshold) plus `.age_thresh` for mode 3. See the build-tier note
    below.
@@ -83,7 +83,7 @@ RTL clamps `bank_lsb` to `[0, COL_WIDTH]`; keep `log2(BL/DFI_RATE) <= bank_lsb <
 | 1           | `ADDR_MAP.bank_lsb`                     | Largest impact on row-hit / bank parallelism |
 | 2           | `ADDR_MAP.hash_en` / `.hash_seed`       | Defeat power-of-two-stride hot-banking     |
 | 3           | `REFRESH_TUNING.page_policy_or`         | OPEN vs CLOSE for the workload mix         |
-| 4           | `PAGE_POLICY_CFG.policy_mode`           | Adaptive paging: 4 adapt_time, 5 adapt_access, 6/7 RBLA |
+| 4           | `PAGE_POLICY_CFG.policy_mode`           | Adaptive paging: 4 adapt_time, 5 adapt_access (6/7 retired) |
 | 5           | `SCHED_POLICY.access_pref`              | column_first vs row_first vs precharge_first |
 | 6           | `REF_CTRL.postpone_limit` / `.pullin_limit` | Refresh latency vs sustained BW        |
 | 7           | `SCHED_POLICY.order_mode` / `.age_thresh` | Ordering guarantee vs bandwidth          |

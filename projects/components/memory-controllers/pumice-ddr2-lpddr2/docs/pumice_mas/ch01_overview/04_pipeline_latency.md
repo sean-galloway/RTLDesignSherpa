@@ -54,7 +54,6 @@ merged registers (a bit-blasted `r_bank[2:0]` is one), not raw flop cells.
 | `pumice_row_pred_table` | 4 | 8 | 18 |
 | `pumice_rd_return_ring` | 5 | 23 | 41 |
 | `pumice_wr_data_cam` | 5 | 60 | 120 |
-| `pumice_rbl_table` | 6 | 21 | 31 |
 | `pumice_page_policy` | 7 | 39 | 70 |
 | `pumice_wr_intake` | 7 | 31 | 79 |
 

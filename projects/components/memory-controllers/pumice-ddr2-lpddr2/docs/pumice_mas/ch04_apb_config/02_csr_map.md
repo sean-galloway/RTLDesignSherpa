@@ -65,7 +65,7 @@ The register map is a SystemRDL source, `rtl/macro/pumice_csr.rdl`. It is compil
 | 0x070  | `PAGE_POLICY_CFG`         | Axis 2 paging mode select + adapt_access counter shape     |
 | 0x074  | `PAGE_TIMEOUT_CFG`        | fixed_open / adapt_time timeout bounds                     |
 | 0x078  | `PAGE_ADAPT_CFG`          | adapt_time mistake-counter thresholds                      |
-| 0x07C  | `PAGE_RBL_CFG`            | RBLA miss-counter table shape (modes 6/7)                  |
+| 0x07C  | *(retired)*               | was `PAGE_RBL_CFG`; left a HOLE, not reused -- an old host reading it gets nothing rather than another register's meaning |
 | 0x140  | `REF_CTRL`                | Axis 3 refresh mode + JEDEC postpone/pull-in credits       |
 | 0x144  | `REF_TIMING_PB`           | REFpb intervals                                            |
 | 0x050  | `INIT_TUNING`             | ZQ retries + per-step init timeout                        |
@@ -313,7 +313,7 @@ Axis 2 mode select + adapt_access counter shape. 0 = build default.
 
 | Bits  | Field | Default | Access | Notes |
 |-------|-------|---------|--------|-------|
-| 2:0 | `policy_mode` | 0x0 | rw | 0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access, 6=rbl_static, 7=rbl_dyn |
+| 2:0 | `policy_mode` | 0x0 | rw | 0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access, 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn) |
 | 3:3 | `policy_scope` | 0x0 | rw | 0 = per-bank decision state, 1 = global |
 | 5:4 | `RSVD_5_4` | 0x0 | r | Reserved (was ctr_width; the adapt_access counter is the 2-bit saturating counter of the paper, not selectable) |
 | 9:6 | `ctr_open_max` | 0x0 | rw | adapt_access: counter value at/above which the row is CLOSED |
@@ -343,17 +343,10 @@ adapt_time (Happy adaptive-timeout) mistake-counter thresholds.
 | 15:12 | `RSVD` | 0x0 | r | Reserved |
 | 31:16 | `check_interval` | 0x0 | rw | Cycles between MC evaluations |
 
-### PAGE_RBL_CFG @ 0x07C (rw)
+### 0x07C — retired
 
-RBLA/Yoon miss-counter table shape. rbl_dyn hill-climb weights land with that mode.
+Was `PAGE_RBL_CFG` (RBLA miss-counter table shape). Modes 6/7 (`rbl_static`/`rbl_dyn`) were **RETIRED 2026-09-26**: measured on silicon at txn_scale=1000 on a workload built specifically to suit them (TASK-011), mode 6 lost 26% of bandwidth (195.2 -> 144.2 MB/s) by paying +22,827 ACTs to save precharges that never materialised, and mode 7's hill-climb drove its threshold to "never close early", landing bit-identical to plain open page. A write of 6 or 7 now falls through to the build default.
 
-| Bits  | Field | Default | Access | Notes |
-|-------|-------|---------|--------|-------|
-| 7:0 | `miss_thresh` | 0x0 | rw | Miss count above which a row is low-locality (auto-precharge) |
-| 9:8 | `ways` | 0x0 | rw | log2 table ways |
-| 13:10 | `sets` | 0x0 | rw | log2 table sets |
-| 15:14 | `RSVD` | 0x0 | r | Reserved |
-| 31:16 | `reset_interval` | 0x0 | rw | Epoch length: counters reset every N cycles (0=never) |
 
 ### REF_CTRL @ 0x140 (rw)
 

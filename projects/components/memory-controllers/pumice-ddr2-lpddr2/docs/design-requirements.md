@@ -358,9 +358,9 @@ DDR2/LPDDR2 project** and are tracked for the DDR3/DDR4 roadmap in
   (none / load_over_store / age_boost), `ROW_SEL`, `COL_SEL`, `ACCESS_PREF`,
   `AGE_THRESH`, `AUTO_PRECHARGE_EN`, write-drain `WR_HIGH_WM`/`WR_LOW_WM`, `QOS_EN`.
 - **`PAGE_POLICY_CFG`** — `POLICY_MODE` (static_open / static_close / fixed_open /
-  adapt_time / adapt_access / rbl_static / rbl_dyn), `POLICY_SCOPE`, plus `TIMEOUT_CFG`
+  adapt_time / adapt_access; 6/7 retired 2026-09-26), `POLICY_SCOPE`, plus `TIMEOUT_CFG`
   (`TR_INIT/MIN/MAX/STEP`), `ADAPT_CFG` (`MC_HIGH/LOW_THR`, `MC_INIT`, `CHECK_INTERVAL`),
-  `HYBRID_CFG` (`CTR_WIDTH`, `CTR_OPEN_MAX`, `CTR_INIT`), `RBL_CFG` (`MISS_THRESH`,
+  `HYBRID_CFG` (`CTR_WIDTH`, `CTR_OPEN_MAX`, `CTR_INIT`),
   `RESET_INTERVAL`, `WAYS`/`SETS`, dyn hill-climb weights).
 - **`REFRESH_MODE` / `REF_CTRL`** — `MODE` (refab / refpb_rr), `POSTPONE_LIMIT` /
   `PULLIN_LIMIT` (0..8), `TREFI` / `TREFI_PB` / `TRFC_AB` / `TRFC_PB`, capability strap
@@ -425,7 +425,7 @@ field so any policy combination is reachable. All commodity-legal.
   `load_row_open`. Recommended default = `row_closed` + auto-precharge fusion +
   load-over-store.
 
-### Axis 2 — Page policy / auto-precharge (Rixner open/closed + Happy 2015 + RBLA/Yoon 2012)
+### Axis 2 — Page policy / auto-precharge (Rixner open/closed + Happy 2015)
 
 The decision resolves to (a) the column command's auto-precharge bit and (b) a background
 per-bank precharge *request* that still respects tRAS/tRTP/tRP/tRC. All commodity-legal.
@@ -449,15 +449,8 @@ per-bank precharge *request* that still respects tRAS/tRTP/tRP/tRC. All commodit
   replaces the paper's full per-row BRAM — aliasing blends history, acceptable for a
   predictor), learning from accesses-per-activation at explicit PRE closes plus a
   premature-reopen decrement for auto-precharge closes.
-- **`rbl_static` / `rbl_dyn` (RBLA / Yoon; IMPLEMENTED 2026-08-25, `pumice_rbl_table`)** —
-  count row-buffer **misses only, not accesses** (a hit carries no signal). A small
-  set-associative table of saturating **miss** counters (tag = row addr, true-LRU,
-  `PAGE_RBL_CFG` shapes ways/sets/threshold/epoch); miss-count `> MISS_THRESH` ⇒
-  low-locality row → auto-precharge. `rbl_dyn` hill-climbs `MISS_THRESH` per epoch on the
-  measured page-hit fraction (divider-free cross-multiplication, direction memory).
-  Separates hot-but-friendly from hot-and-thrashing rows that frequency-based schemes
-  conflate. (Only the miss-predictor is kept; the paper's DRAM-cache migration machinery
-  is dropped.)
+- **`rbl_static` / `rbl_dyn` (RBLA / Yoon 2012) — IMPLEMENTED 2026-08-25, RETIRED 2026-09-26.** Measured on silicon at txn_scale=1000 on a workload built specifically to give a per-row predictor something to discriminate (TASK-011: three generators confined to a row against one striding rows, same bank). The mechanism WORKED -- thrash fell 100% -> 57.8%, i.e. conflict-ACTs became empty-ACTs -- and it still lost: mode 6 gave up 26% of bandwidth by paying +22,827 ACTs while PRE barely moved, and mode 7's per-epoch hill-climb drove its threshold to "never close early", landing bit-identical to plain open page (32,223 vs 32,224 ACTs). Removing it returned 702 LUTs and 1,521 FFs in-design -- note the standalone OOC figure of 5,578 LUTs over-stated the integrated cost by ~8x, which is worth knowing before sizing any predictor from an isolated synthesis. Streaming bandwidth was unchanged at 572.3 MB/s, confirming it was inert.
+
 
 ### Axis 3 — Refresh (Chang DARP/DSARP 2014–16 + Nair pausing 2014 + JEDEC)
 
@@ -500,8 +493,7 @@ at a time, each with its own red→green model test and OFF-by-default:
    capability straps (no behavior change; defaults bit-identical).
 2. Scheduling: `in_order` → `fr_fcfs` (confirm current) → `age_threshold` → `most/fewest
    pending` → `ACCESS_PREF` → write-batching → QoS.
-3. Paging: `static_open/close` (confirm) → `fixed_open` → `adapt_time` → `rbl_static` →
-   `rbl_dyn` → `adapt_access`.
+3. Paging: `static_open/close` (confirm) → `fixed_open` → `adapt_time` → `adapt_access`.
 4. Refresh (commodity): pull-in/postpone sweep → `refpb_rr`.
 
 ---
