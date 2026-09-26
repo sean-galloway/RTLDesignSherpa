@@ -194,12 +194,20 @@ def highest(ids, prefix: str | None = None) -> int:
     """Highest number in use, counting only IDs with `prefix` when given.
 
     Prefix-scoped because an area may legitimately hold more than one
-    namespace: STREAM's older entries are bare `TASK-` (amba's prefix, and the
-    source of three live cross-area collisions) while new ones are `STREAM-`.
-    Taking the max across ALL of them demanded `Next ID: STREAM-081` purely
-    because a TASK-080 sits in the same directory -- which would invent 80
-    phantom gaps in the STREAM sequence to dodge a collision the prefix
-    already prevents. A number only collides with the same prefix.
+    namespace: STREAM once held bare `TASK-` entries (amba's prefix, and the
+    source of three cross-area collisions) alongside new `STREAM-` ones. Taking
+    the max across ALL of them demanded `Next ID: STREAM-081` purely because a
+    TASK-080 sat in the same directory -- inventing 80 phantom gaps in the
+    STREAM sequence to dodge a collision the prefix already prevents. A number
+    only collides with the same prefix.
+
+    That STREAM example is now HISTORICAL: the stream migration renumbered it,
+    and a census on 2026-09-25 found 0 of 113 lanes holding two prefixes. So
+    both callers currently agree whatever they pass, and the `prefix` argument
+    guards a case that is latent rather than live -- which is exactly why
+    --next's caller could ignore it for so long without anyone noticing. The
+    live-again trigger is an area renumbered mid-flight, which is how STREAM
+    got into that state the first time.
     """
     nums = [int(m.group(2)) for i in ids
             for m in [re.fullmatch(r"([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*?)-(\d+)", i)]
@@ -379,7 +387,27 @@ def main() -> int:
                   f"(no existing item and {a.name!r} is not a known lane).",
                   file=sys.stderr)
             return 2
-        print(f"{prefix}-{highest(ids) + 1:03d}")
+        # The prefix above is the first item in scan order, which in a lane with
+        # more than one namespace is arbitrary -- not a choice anybody made. Say
+        # so rather than answer confidently for a namespace the caller may not
+        # have meant. Scoping the number (below) fixes the arithmetic; it cannot
+        # fix which sequence you wanted.
+        seen = sorted({mm.group(1) for i in ids
+                       for mm in [re.fullmatch(r"([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*?)-(\d+)", i)]
+                       if mm})
+        if len(seen) > 1:
+            print(f"--next {args.next!r}: this lane holds {len(seen)} ID "
+                  f"namespaces ({', '.join(seen)}) -- answering for {prefix}. "
+                  f"Numbers collide only within a prefix, so if you meant "
+                  f"another one, copy the template and name the file yourself.",
+                  file=sys.stderr)
+        # PREFIX-SCOPED, matching check_area above. Unscoped, a lane holding
+        # two namespaces answered from the wrong one: TASK-080 beside STREAM-005
+        # produced "STREAM-081", inventing 75 phantom gaps in the STREAM
+        # sequence to dodge a collision that cannot happen -- a number only
+        # collides within its own prefix. check_area has always scoped its
+        # Next ID check this way, so the two sides disagreed.
+        print(f"{prefix}-{highest(ids, prefix) + 1:03d}")
         return 0
 
     errs, warns = [], []
