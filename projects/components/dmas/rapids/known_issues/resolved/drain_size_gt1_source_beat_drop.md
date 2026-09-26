@@ -21,7 +21,7 @@
 
 ## DRAIN_SIZE > 1 drops SOURCE beats (short delivery + CRC mismatch)
 
-**Status**: Active / mechanism identified 2026-09-25 (fix not yet applied)
+**Status**: RESOLVED 2026-09-26 in bdf4e0dff (verified at DRAIN_SIZE 1, 2, 4 and 8)
 
 ### Description
 
@@ -191,3 +191,80 @@ condition (`rd_size > data_available`), inside `translate_off`. No
 report exists in the tree, but this issue records a `DRAIN_SIZE=8` A/B run in
 sim. Re-running that A/B and grepping the log for `over-drain` would confirm
 or refute the whole mechanism without touching RTL.
+
+
+---
+
+## Resolved 2026-09-26 -- bdf4e0dff
+
+`beat_conservation` now measures **0 beats lost at cfg_drain_size 1, 2, 4 and 8**
+(9/9 cells at each size, 0 over-drain `$error`). The `DRAIN_SIZE=1` workaround is
+no longer needed.
+
+### The candidate fix above was necessary but NOT sufficient
+
+This entry proposed a one-line change (`drain_data_avail = drain_data_available`,
+without `bridge_occupancy`) and left the RTL to the owner. That line is correct
+and is now in place -- RAPIDS wraps STREAM's `sram_controller`, whose unit exposes
+`data_available` only -- but applying it **alone made things worse**, measured:
+at `cfg_drain_size == 1` the source path went from 84-in/84-out to losing 24 of
+84 beats. Three mechanisms were in play, and all three had to be fixed:
+
+1. **The `bridge_occupancy` double-count** -- this entry's mechanism, correct.
+
+2. **A registered-valid dry window.** STREAM's SRAM *registers* `drain_valid` for
+   timing closure. RAPIDS' src previously had neither the register nor the
+   combinational tap, so it was self-consistent; taking STREAM's SRAM without
+   also taking the tap let the unit pop a beat while `m_axis_tvalid` was
+   suppressed -- consumed, never transmitted. STREAM documents this exact failure
+   at `stream/rtl/fub/axi_write_engine.sv:694-702`. Fixed by gating
+   `m_axis_tvalid` on the registered **and** combinational valid.
+
+3. **Stale-availability over-reservation.** `drain_data_avail` is registered at
+   the SRAM boundary, so a reservation fired this cycle is not yet reflected in
+   the view the arbiter sizes against. The arbiter over-reserved;
+   `drain_ctrl_beats` then **silently dropped** the excess `rd_ptr` advance
+   (gated `!r_rd_empty` at `drain_ctrl_beats.sv:101` -- no `$error`, which is why
+   the over-drain check never fired), and the surplus beats were orphaned at the
+   latency-bridge output where `drain_data_avail` can no longer see them. Fixed
+   by porting STREAM's in-flight-reservation compensation
+   (`axi_write_engine.sv:366-410`): arbitrate and size reservations on
+   `w_effective_avail` = availability minus reservations still in flight.
+
+The arbiter also moved to STREAM's consumer model -- take a grant once, reserve
+`min(cfg_drain_size, avail)`, pulse `drain_req` for exactly one cycle
+(`drain_ctrl_beats` has no edge detect), drain that many beats, retire on the
+last, and never re-consult availability mid-drain. The old FSM abandoned a live
+grant on `drain_data_avail[grant] == 0`, which at `cfg_drain_size == 1` fired on
+the first accepted beat, so it dropped and re-arbitrated every beat.
+
+`cfg_drain_size` is honoured as a **threshold**: grant once that many beats are
+available, or drain a short final batch when nothing further is coming for the
+channel. That final-partial path is what the `DRAIN_SIZE=8` result exercises --
+with 7 beats per descriptor the threshold is never reached, so every beat leaves
+via that clause.
+
+### Loss trajectory, measured at cfg_drain_size == 1 (84 beats in)
+
+| tree state | beats lost |
+|---|---|
+| HEAD (before any change) | 0 |
+| wrapper alone | 15..65 |
+| + dry-window valid gate | 13..47 |
+| + STREAM consumer model | 7..28 |
+| + in-flight compensation | **0** |
+
+### Other evidence
+
+- full src datapath suite 63/63 (all 7 testcases 9/9), snk 54/54
+- both SRAM macro tests 15/15 after the filelist change altered their closure
+- the same 27 egress cells measured against HEAD are also 27/27, so this restores
+  HEAD's behaviour rather than merely improving on the broken intermediates
+
+### Still open, and unaffected by this
+
+The SINK AXIS ingress defect candidate is separate and untouched:
+`s_axis_tready` can assert while the channel FIFO backpressures, because the
+`fill_alloc_req` term carries no `fill_ready` conjunct
+(`snk_data_path_axis_beats.sv:204-205`). That is a different path from this issue
+and remains open.
