@@ -234,7 +234,7 @@ The timestamp is carried in parallel with the packet (not within it) through the
 | **0xB** | AXI_ERR_LAST_MISSING | Missing LAST signal |
 | **0xC** | AXI_ERR_STROBE_ERROR | Write strobe error |
 | **0xD** | AXI_ERR_RESERVED_D | Reserved |
-| **0xE** | AXI_ERR_RESERVED_E | Reserved |
+| **0xE** | AXI_ERR_EVENT_DROPPED | monitor-lite: events lost to monbus backpressure (data = count) |
 | **0xF** | AXI_ERR_USER_DEFINED | User-defined error |
 
 : Error Events

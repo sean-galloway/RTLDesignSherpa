@@ -323,3 +323,50 @@ longer select hardware (the lite has no cones). Removing a monitor is
 `use_monitor = false` per port or `use_no_monitors = true` per bridge. The
 `bridge_1x2_rd_mon` fixture that measured the full monitor in section 8 now
 builds the lite; those numbers stand as the 2026-09-25 baseline.
+
+### 11. The address-range checker comes back, as an option (2026-09-26)
+
+Swapping STREAM's data-port monitors exposed that they are the one consumer of
+the address-range checker: `N_ADDR_RANGES` windows from the config,
+`cfg_*_mon_addr_range_low/high` from the register block, `addr_miss_en` into
+the error path, `addr_match_en` into the debug path. The lite as first built
+had none, so the swap would have silently dropped `Error/ADDR_RANGE` and
+`AddrMatch` packets from STREAM's monbus. Sean: "Instantiate the addr checker
+in the monlite blocks." Done inside `axi_monitor_lite` itself: the full
+monitor's `axi_monitor_addr_check` behind `N_ADDR_RANGES` (default 0, zero
+area), its packets muxed onto the monbus with a presented-packet hold, its
+match path on a new `cfg_addr_match_enable` (the bridge generator wires that to
+the adapter's debug-enable connector, which is what gated the full monitor's
+AddrMatch path). All sixteen `_monlite` wrappers carry the knobs; STREAM's
+data monitors connect them, the descriptor monitors tie them off.
+
+### 12. No `_monlite_cg` (2026-09-26)
+
+Asked by the rapids session: the four `axi4_{master,slave}_{rd,wr}_mon_cg`
+clock-gated wrappers instantiate the full `_mon` inside and have no lite twin.
+Decision: none for now -- nothing in `rtl/` or `projects/` instantiates any
+`_mon_cg` wrapper, so a `_monlite_cg` would have no consumer. When one appears,
+building the four is a task in this lane, not a side effect.
+
+Also from that exchange: the Genesys2 `bridge_stream_mon_axil` bridge was
+regenerated onto the lite by the rapids session (Sean's instruction to them),
+uncommitted; `bridge_stream_char_axil` cannot regenerate at all because its
+six AXI-Lite ports still carry `id_width = 8`, which the validator now rejects
+(d83c33971 fixed the `mon` config, never the `char` one) -- fixing it removes
+real id ports from `host_adapter` and touches the live board bitstreams, so it
+is Sean's call, not a session's.
+
+### 13. The latency threshold comes back too (2026-09-26)
+
+STREAM's packet-class test provokes the threshold class with a LOW latency
+threshold against a stalled response channel, not with table occupancy: the
+full monitor's threshold cone has two flavours, ACTIVE_COUNT and LATENCY, and
+STREAM arms the second (`cfg_*_mon_latency_thresh`). The lite had only the
+first, so `test_stream_core_mon_threshold` failed on both data monitors with
+zero threshold packets. Added: `cfg_latency_threshold` on the lite and all
+sixteen wrappers; a clean completion whose 16-bit latency exceeds it emits
+`Threshold/LATENCY` with the address, id and latency, gated by the same
+`cfg_threshold_enable`. STREAM and RAPIDS bind their latency registers; the
+bridge generator wires the adapter's latency connector (now nine lite cfg
+signals). The "dropped" list is down to: perf, debug class, report-time
+address and ID filters, per-phase timers, per-event masks, block_ready.

@@ -46,12 +46,6 @@ Combines **[axil4_slave_rd](../axil4/axil4_slave_rd.md)** with **axi_monitor_fil
 
 > A lite-monitor version of this wrapper exists as [`axil4_slave_rd_monlite`](axil4_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
 
-> A lite-monitor version of this wrapper exists as [`axil4_slave_rd_monlite`](axil4_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
-
-> A lite-monitor version of this wrapper exists as [`axil4_slave_rd_monlite`](axil4_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
-
-> A lite-monitor version of this wrapper exists as [`axil4_slave_rd_monlite`](axil4_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
-
 Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md#additional-parameters)** including `N_ADDR_RANGES`, but typically:
 - `UNIT_ID = 2` (slaves use different unit ID)
 - `AGENT_ID = 20` (slave agent IDs)

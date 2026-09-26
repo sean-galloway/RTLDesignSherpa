@@ -42,6 +42,8 @@ module axil5_slave_wr_monlite
     parameter int          MAX_TRANSACTIONS       = 8,      // table entries; a command finding none is counted, not tracked
     parameter int          ACTIVE_TRANS_THRESHOLD = MAX_TRANSACTIONS / 2,
     parameter int          OUT_DEPTH              = 4,      // monbus output queue, a power of two
+    parameter int          N_ADDR_RANGES          = 0,      // address-range checker windows; 0 = not built
+    parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0,  // per range: 1 = miss is an error, 0 = hit is a match
     parameter int          ACLK_MHZ               = 100,
     parameter int          CFI_MIN_FREQ_MHZ       = ACLK_MHZ,
     parameter int          CFI_MAX_FREQ_MHZ       = ACLK_MHZ,
@@ -174,6 +176,13 @@ module axil5_slave_wr_monlite
     input  logic [15:0]                           cfg_timeout_cycles,  // MICROSECONDS of no progress; 0 = never
     input  logic [3:0]                            cfg_freq_sel,        // counter_freq_invariant LUT index
     input  logic [15:0]                           cfg_axi_pkt_mask,    // drop mask by packet type
+    input  logic [31:0]                           cfg_latency_threshold, // completion latency (cycles) above this -> Threshold/LATENCY
+    // ---- Address-range checker (built when N_ADDR_RANGES > 0) ----
+    input  logic                                  cfg_addr_check_enable,
+    input  logic                                  cfg_addr_match_enable, // hit in a match range -> AddrMatch packet
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]         cfg_addr_range_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
     // ---- Monitor bus ----
     output logic                                  monbus_valid,
@@ -296,6 +305,8 @@ module axil5_slave_wr_monlite
         .AGENT_ID             (AGENT_ID),
         .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
         .OUT_DEPTH (OUT_DEPTH),
+        .N_ADDR_RANGES (N_ADDR_RANGES),
+        .ADDR_RANGE_IS_ERROR (ADDR_RANGE_IS_ERROR),
         .ADDR_WIDTH           (AW),
         .ID_WIDTH             (32'd1),
         .IS_READ              (1'b0),
@@ -329,6 +340,12 @@ module axil5_slave_wr_monlite
         .cfg_threshold_enable       (cfg_threshold_enable),
         .cfg_active_trans_threshold (16'(ACTIVE_TRANS_THRESHOLD)),
         .cfg_axi_pkt_mask           (cfg_axi_pkt_mask),
+        .cfg_latency_threshold (cfg_latency_threshold),
+        .cfg_addr_check_enable (cfg_addr_check_enable),
+        .cfg_addr_match_enable (cfg_addr_match_enable),
+        .cfg_addr_range_enable (cfg_addr_range_enable),
+        .cfg_addr_range_low (cfg_addr_range_low),
+        .cfg_addr_range_high (cfg_addr_range_high),
         .monbus_valid               (monbus_valid),
         .monbus_ready               (monbus_ready),
         .monbus_packet              (monbus_packet),

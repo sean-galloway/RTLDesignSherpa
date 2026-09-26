@@ -221,6 +221,16 @@ async def cocotb_test_mon_class(dut):
                        for p in tb.mon_decoded)
     tb.log.info(f"  captured by (type, agent_id): {dict(by_agent)}")
     pos = _count(tb, mon, mon_class)
+    if mon_class == 'perf':
+        # The lite monitors (2026-09-26) have no perf class: PERF_EN is an
+        # inert register field on these ports. The contract is now that it
+        # produces NOTHING -- a PktTypePerf here would mean a full monitor
+        # came back, or the field aliases another class again.
+        assert pos == 0, (
+            f"perf: {pos} PktTypePerf packets from a lite monitor -- the lite has "
+            f"no perf class. types seen: {tb.mon_types_seen()}")
+        tb.log.info(f"perf on {mon}: lite monitor, PERF_EN inert, 0 packets PASS")
+        return
     assert pos > 0, (
         f"{mon_class}: cone ENABLED via {mon}_ENABLE.{list(_EN_FIELD[mon_class])[0]} "
         f"and armed, but ZERO {_PKT_FOR[mon_class].name} packets. This is the "
@@ -492,6 +502,7 @@ def test_stream_core_mon_compl(request, mon_block, test_level):
 
 @pytest.mark.parametrize("mon_block", _mon_blocks())
 def test_stream_core_mon_perf(request, mon_block, test_level):
-    """PERF_EN must yield PktTypePerf -- and note THRESH_EN used to be wired to
-    this same signal, so the two classes were indistinguishable."""
+    """PERF_EN must yield NOTHING on the lite monitors (no perf class; the data
+    path's perf comes from the always-on bus meters). It used to have to yield
+    PktTypePerf, and THRESH_EN was once wired to this same signal."""
     _run_mon_class(request, 'perf', mon_block, test_level)

@@ -22,7 +22,7 @@ from cocotb.triggers import ClockCycles
 from TBClasses.axi4.axi4_slave_read_tb import AXI4SlaveReadTB
 from TBClasses.axi4.axi4_slave_write_tb import AXI4SlaveWriteTB
 from TBClasses.monbus.monbus_slave import MonbusSlave
-from TBClasses.monbus.monbus_types import PktType, AXIErrorCode, AXITimeoutCode, AXIThresholdCode
+from TBClasses.monbus.monbus_types import PktType, AXIErrorCode, AXITimeoutCode, AXIThresholdCode, AXIAddrMatchCode
 from TBClasses.monbus.monbus_validators import find_packets_by_criteria
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
@@ -39,6 +39,9 @@ ERR_EVENT_DROPPED = AXIErrorCode.AXI_ERR_EVENT_DROPPED
 TMO_DATA = AXITimeoutCode.AXI_TIMEOUT_DATA
 TMO_RESP = AXITimeoutCode.AXI_TIMEOUT_RESP
 THRESH_ACTIVE_COUNT = AXIThresholdCode.AXI_THRESH_ACTIVE_COUNT
+THRESH_LATENCY = AXIThresholdCode.AXI_THRESH_LATENCY
+PKT_ADDRMATCH = PktType.PktTypeAddrMatch
+ERR_ADDR_RANGE = AXIErrorCode.AXI_ERR_ADDR_RANGE
 CHAN_ID_BITS = 6      # channel_id = {3'b0, 6'(id)} in create_monitor_packet()
 
 
@@ -90,8 +93,8 @@ class AxiMonitorLiteTB:
         if hasattr(d, 'cfg_threshold_enable'): d.cfg_threshold_enable.value = 1
         if hasattr(d, 'cfg_debug_enable'): d.cfg_debug_enable.value = 0
         if hasattr(d, 'cfg_timeout_cycles'): d.cfg_timeout_cycles.value = 0          # 0 = never (wrapper maps to 0xFFFF)
+        if hasattr(d, 'cfg_latency_threshold'): d.cfg_latency_threshold.value = 0x0FFF_FFFF   # clocks: high -> latency threshold quiet
         if hasattr(d, 'cfg_freq_sel'): d.cfg_freq_sel.value = 0                # LUT entry 0 = the slowest clock = the shortest tick
-        if hasattr(d, 'cfg_latency_threshold'): d.cfg_latency_threshold.value = 0
         for name in ('cfg_axi_pkt_mask', 'cfg_axi_err_select', 'cfg_axi_error_mask', 'cfg_axi_timeout_mask',
                      'cfg_axi_compl_mask', 'cfg_axi_thresh_mask', 'cfg_axi_perf_mask', 'cfg_axi_addr_mask',
                      'cfg_axi_debug_mask'):
@@ -324,6 +327,82 @@ class AxiMonitorLiteTB:
             self._fail(f"drop: unexpected packets {[ (p.pkt_type, p.event_code) for p in others[:4]]}")
         self.log.info(f"phase drop: {n} issued, {len(compl)} delivered, {reported} reported dropped in {len(drops)} report(s)")
 
+    async def phase_latency(self):
+        """Threshold/LATENCY: a low latency threshold against a slow slave yields one
+        threshold packet per completion, coded LATENCY, naming the address and id
+        and carrying the latency; the completion itself still arrives."""
+        d = self.dut
+        if not hasattr(d, 'cfg_latency_threshold'):
+            return
+        slave = self._slave_bfm()
+        saved = slave.response_delay_cycles
+        slave.response_delay_cycles = 40
+        d.cfg_latency_threshold.value = 10
+        self.take()
+        ok, e = await self.xfer(0x6000, 1, 6)
+        await self.settle()
+        got = self.take()
+        lat = find_packets_by_criteria(got, pkt_type=int(PKT_THRESH), event_code=int(THRESH_LATENCY))
+        if len(lat) != 1:
+            self._fail(f"latency: {len(lat)} Threshold/LATENCY packets for one slow completion ({[(p.pkt_type, p.event_code) for p in got]})")
+        else:
+            p = lat[0]
+            if compl_addr(p) != 0x6000 or p.channel_id != 6 or compl_latency(p) <= 10:
+                self._fail(f"latency: packet names 0x{compl_addr(p):08X}/id {p.channel_id}, latency {compl_latency(p)}")
+        if len(find_packets_by_criteria(got, pkt_type=int(PKT_COMPL))) != 1:
+            self._fail("latency: the slow transaction should still complete once")
+        d.cfg_latency_threshold.value = 0x0FFF_FFFF
+        slave.response_delay_cycles = saved
+        self.log.info("phase latency: one Threshold/LATENCY with address, id and latency, plus the completion")
+
+    async def phase_addr_range(self):
+        """Optional address-range checker (N_ADDR_RANGES > 0): range 0 is an
+        ERROR range (ADDR_RANGE_IS_ERROR[0]=1) -- a read outside it is one
+        Error/ADDR_RANGE packet; range 1 is a MATCH range -- a read inside it is
+        one AddrMatch packet. Both name the address and id. Skipped when the
+        wrapper was built without the checker."""
+        d = self.dut
+        n_ranges = int(os.environ.get('N_ADDR_RANGES', '0'))
+        if n_ranges < 2 or not hasattr(d, 'cfg_addr_check_enable'):
+            self.log.info("phase addr_range: skipped (N_ADDR_RANGES < 2)")
+            return
+        self.take()
+        # range 0 (error flavour): 0x1000..0x1FFF allowed; range 1 (match): 0x8000..0x80FF
+        d.cfg_addr_range_low.value  = (0x8000 << 32) | 0x1000
+        d.cfg_addr_range_high.value = (0x80FF << 32) | 0x1FFF
+        d.cfg_addr_range_enable.value = 0b11
+        d.cfg_addr_check_enable.value = 1
+        d.cfg_addr_match_enable.value = 1
+        await self.settle(4)
+        # in the error range: nothing but the completion
+        ok, e = await self.xfer(0x1200, 1, 2)
+        await self.settle()
+        got = self.take()
+        if find_packets_by_criteria(got, pkt_type=int(PKT_ERROR)) or find_packets_by_criteria(got, pkt_type=int(PKT_ADDRMATCH)):
+            self._fail(f"addr_range: in-range access raised {[(p.pkt_type, p.event_code) for p in got]}")
+        # outside every range: one Error/ADDR_RANGE naming the address and id
+        ok, e = await self.xfer(0x3000, 1, 3)
+        await self.settle()
+        got = self.take()
+        errs = find_packets_by_criteria(got, pkt_type=int(PKT_ERROR), event_code=int(ERR_ADDR_RANGE))
+        if len(errs) != 1:
+            self._fail(f"addr_range: {len(errs)} ADDR_RANGE errors for one out-of-range access ({[(p.pkt_type, p.event_code) for p in got]})")
+        elif compl_addr(errs[0]) != 0x3000 or errs[0].channel_id != 3:
+            self._fail(f"addr_range: error names 0x{compl_addr(errs[0]):08X}/id {errs[0].channel_id}")
+        # inside the match range: one AddrMatch (and, being outside the error range, one ADDR_RANGE error)
+        ok, e = await self.xfer(0x8040, 1, 4)
+        await self.settle()
+        got = self.take()
+        hits = find_packets_by_criteria(got, pkt_type=int(PKT_ADDRMATCH))
+        if len(hits) != 1:
+            self._fail(f"addr_range: {len(hits)} AddrMatch packets for one in-range access ({[(p.pkt_type, p.event_code) for p in got]})")
+        elif compl_addr(hits[0]) != 0x8040 or hits[0].channel_id != 4:
+            self._fail(f"addr_range: match names 0x{compl_addr(hits[0]):08X}/id {hits[0].channel_id}")
+        d.cfg_addr_check_enable.value = 0
+        d.cfg_addr_match_enable.value = 0
+        d.cfg_addr_range_enable.value = 0
+        self.log.info("phase addr_range: one ADDR_RANGE error on a miss, one AddrMatch on a hit, silence in range")
+
     async def phase_after(self):
         """The monitor is healthy after all of that: a clean single still completes."""
         self.take()
@@ -340,6 +419,8 @@ class AxiMonitorLiteTB:
         await self.phase_timeout()
         await self.phase_threshold()
         await self.phase_drop()
+        await self.phase_latency()
+        await self.phase_addr_range()
         await self.phase_after()
         self.log.info(f"axi_monitor_lite {'write' if self.is_write else 'read'} {self.level}: {len(self.errors)} error(s)")
         return not self.errors

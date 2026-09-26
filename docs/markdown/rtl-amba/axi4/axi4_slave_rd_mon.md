@@ -51,12 +51,6 @@ The slave-side counterpart to the master monitors. The AXI4 Slave Read Monitor c
 
 > A lite-monitor version of this wrapper exists as [`axi4_slave_rd_monlite`](axi4_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
 
-> A lite-monitor version of this wrapper exists as [`axi4_slave_rd_monlite`](axi4_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
-
-> A lite-monitor version of this wrapper exists as [`axi4_slave_rd_monlite`](axi4_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
-
-> A lite-monitor version of this wrapper exists as [`axi4_slave_rd_monlite`](axi4_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
-
 ### AXI4 Slave Parameters
 
 | Parameter | Type | Default | Description |

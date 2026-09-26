@@ -537,7 +537,7 @@ class Axi4TimingWrapper:
         PINMISSING if they aren't bound. Until the bridge cfg
         subsystem (PeakRDL regblock) wires these to runtime knobs,
         tie them off explicitly."""
-        if '_mon' not in self.module.module_name or self.is_lite:
+        if '_mon' not in self.module.module_name:
             return
         self._sections.append(("Address-range checker (disabled at N_ADDR_RANGES=0)", [
             ('cfg_addr_check_enable', "1'b0"),
@@ -606,7 +606,7 @@ class Axi4TimingWrapper:
         'cfg_axi_debug_mask',
     )
 
-    # The eight the _monlite wrappers expose: a subset of the fifteen above.
+    # The nine the _monlite wrappers expose: a subset of the fifteen above.
     MONITOR_LITE_CFG_SIGNALS = (
         'cfg_monitor_enable',
         'cfg_error_enable',
@@ -615,6 +615,7 @@ class Axi4TimingWrapper:
         'cfg_threshold_enable',
         'cfg_timeout_cycles',
         'cfg_freq_sel',
+        'cfg_latency_threshold',
         'cfg_axi_pkt_mask',
     )
 
@@ -664,8 +665,11 @@ class Axi4TimingWrapper:
         self._sections.append(("Monitor cfg inputs", pairs))
         if self.is_lite:
             # The adapter still surfaces the full fifteen per port (one bridge
-            # cfg interface for both monitors); the seven the lite has no port
-            # for stay unconnected at the adapter boundary.
+            # cfg interface for both monitors); the six the lite has no port
+            # for stay unconnected at the adapter boundary. The checker's
+            # match enable rides the debug-enable connector, exactly the
+            # signal that gated the full monitor's AddrMatch path.
+            pairs.append(('cfg_addr_match_enable', f"{connector_prefix}debug_enable"))
             self._sections.append(("Monitor table clear (inert)", [('cam_clear', "1'b0")]))
             return
 

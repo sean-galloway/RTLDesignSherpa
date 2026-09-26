@@ -1257,16 +1257,9 @@ module stream_core #(
     )
     // Aggregate bubble buckets come from these gated per-channel meters (below),
     // not the monitor; the monitor's own bucket outputs are left unconnected.
-    logic [31:0] w_rd_mon_prod_nc, w_rd_mon_bp_nc, w_rd_mon_starv_nc, w_rd_mon_idle_nc;
-    logic [31:0] w_wr_mon_prod_nc, w_wr_mon_bp_nc, w_wr_mon_starv_nc, w_wr_mon_idle_nc;
     // The datapath perf-window readback (window/beat/byte/burst) is now sourced
     // from the always-on bus meters + counters below (survives USE_AXI_MONITORS=0),
     // NOT from the heavy axi4_master_*_mon. Its perf outputs are left unconnected.
-    logic        w_rd_mon_winact_nc,  w_wr_mon_winact_nc;
-    logic [31:0] w_rd_mon_wincyc_nc,  w_wr_mon_wincyc_nc;
-    logic [31:0] w_rd_mon_beat_nc,    w_wr_mon_beat_nc;
-    logic [63:0] w_rd_mon_byte_nc,    w_wr_mon_byte_nc;
-    logic [31:0] w_rd_mon_burst_nc,   w_wr_mon_burst_nc;
 
     //=========================================================================
     // Component Instantiation - AXI Read Engine
@@ -1538,168 +1531,96 @@ module stream_core #(
         end
     end
 
-    axi4_master_rd_mon #(
-        .SKID_DEPTH_AR          (SKID_DEPTH_AR),
-        .SKID_DEPTH_R           (SKID_DEPTH_R),
-        .AXI_ID_WIDTH           (IW),
-        .AXI_ADDR_WIDTH         (AW),
-        .AXI_DATA_WIDTH         (DW),
-        .AXI_USER_WIDTH         (UW),
-        .USE_MONITOR            (USE_AXI_MONITORS == 1),
-        .UNIT_ID                (MON_UNIT_ID),
-        .AGENT_ID               (RD_AXI_MON_AGENT_ID),
-        .MAX_TRANSACTIONS       (RD_MON_MAX_TRANS),
-        // Banked CAM -- see MON_NUM_BANKS. Read side needs no wdata order Q.
-        .NUM_BANKS              (MON_NUM_BANKS),
-        .ENABLE_FILTERING       (1),
-        .ENABLE_ERROR_LOGIC     (DATA_MON_ENABLE_ERROR_LOGIC),
-        .ENABLE_TIMEOUT_LOGIC   (DATA_MON_ENABLE_TIMEOUT_LOGIC),
-        .ENABLE_COMPL_LOGIC     (DATA_MON_ENABLE_COMPL_LOGIC),
-        .ENABLE_THRESHOLD_LOGIC (DATA_MON_ENABLE_THRESHOLD_LOGIC),
-        .ENABLE_PERF_LOGIC      (DATA_MON_ENABLE_PERF_LOGIC),
-        .ENABLE_DEBUG_LOGIC     (DATA_MON_ENABLE_DEBUG_LOGIC),
-        .N_ADDR_RANGES          (N_ADDR_RANGES),
-        .ADDR_RANGE_IS_ERROR    (MON_ADDR_RANGE_IS_ERROR)
+    // axi_monitor_lite (amba/monitor-lite TASK-001): the lite monitor on the same taps.
+    // No perf window, debug, address-range checker, ID/address filters or per-event
+    // masks -- those cfg inputs stay on this module's ports for the register block
+    // The lite monitors have no cfg-conflict check; the status bits read 0.
+    assign cfg_sts_rdeng_mon_conflict_error = 1'b0;
+    assign cfg_sts_wreng_mon_conflict_error = 1'b0;
+
+    // but drive nothing here. Drop-and-count instead of block_ready.
+    axi4_master_rd_monlite #(
+        .SKID_DEPTH_AR    (SKID_DEPTH_AR),
+        .SKID_DEPTH_R     (SKID_DEPTH_R),
+        .AXI_ID_WIDTH     (IW),
+        .AXI_ADDR_WIDTH   (AW),
+        .AXI_DATA_WIDTH   (DW),
+        .AXI_USER_WIDTH   (UW),
+        .USE_MONITOR      (USE_AXI_MONITORS == 1),
+        .UNIT_ID          (MON_UNIT_ID),
+        .AGENT_ID         (RD_AXI_MON_AGENT_ID),
+        .MAX_TRANSACTIONS (RD_MON_MAX_TRANS),
+        .N_ADDR_RANGES     (N_ADDR_RANGES),
+        .ADDR_RANGE_IS_ERROR(MON_ADDR_RANGE_IS_ERROR)
     ) u_rd_axi_skid (
-        .aclk                   (clk),
-        .aresetn                (rst_n),
-        // Observability tap added with the port; unused here.
-        .debug_block_ready      (),
-        // ID / address filtering was added to the monitor after this
-        // instantiation was written. The datapath monitors watch a single
-        // engine's traffic and do not filter, so tie the pins off explicitly:
-        // PINMISSING is fatal in any build that does not waive it, and the
-        // perf-profile tests do not waive it.
-        .cfg_id_filter_enable   (1'b0),
-        .cfg_id_match_base      ('0),
-        .cfg_id_match_count     ('0),
-        .cfg_addr_filter_enable (1'b0),
-        .cfg_addr_filter_low    ('0),
-        .cfg_addr_filter_high   ('0),
-        .cam_clear              (cam_clear),
-
-        // FUB side (input from read engine)
-        .fub_axi_arid           (fub_rd_axi_arid),
-        .fub_axi_araddr         (fub_rd_axi_araddr),
-        .fub_axi_arlen          (fub_rd_axi_arlen),
-        .fub_axi_arsize         (fub_rd_axi_arsize),
-        .fub_axi_arburst        (fub_rd_axi_arburst),
-        .fub_axi_arlock         (fub_rd_axi_arlock),
-        .fub_axi_arcache        (fub_rd_axi_arcache),
-        .fub_axi_arprot         (fub_rd_axi_arprot),
-        .fub_axi_arqos          (fub_rd_axi_arqos),
-        .fub_axi_arregion       (fub_rd_axi_arregion),
-        .fub_axi_aruser         (fub_rd_axi_aruser),
-        .fub_axi_arvalid        (fub_rd_axi_arvalid),
-        .fub_axi_arready        (fub_rd_axi_arready),
-
-        .fub_axi_rid            (fub_rd_axi_rid),
-        .fub_axi_rdata          (fub_rd_axi_rdata),
-        .fub_axi_rresp          (fub_rd_axi_rresp),
-        .fub_axi_rlast          (fub_rd_axi_rlast),
-        .fub_axi_ruser          (fub_rd_axi_ruser),
-        .fub_axi_rvalid         (fub_rd_axi_rvalid),
-        .fub_axi_rready         (fub_rd_axi_rready),
-
-        // Master side (output to external AXI)
-        .m_axi_arid             (m_axi_rd_arid),
-        .m_axi_araddr           (m_axi_rd_araddr),
-        .m_axi_arlen            (m_axi_rd_arlen),
-        .m_axi_arsize           (m_axi_rd_arsize),
-        .m_axi_arburst          (m_axi_rd_arburst),
-        .m_axi_arlock           (m_axi_rd_arlock),
-        .m_axi_arcache          (m_axi_rd_arcache),
-        .m_axi_arprot           (m_axi_rd_arprot),
-        .m_axi_arqos            (m_axi_rd_arqos),
-        .m_axi_arregion         (m_axi_rd_arregion),
-        .m_axi_aruser           (m_axi_rd_aruser),
-        .m_axi_arvalid          (m_axi_rd_arvalid),
-        .m_axi_arready          (m_axi_rd_arready),
-
-        .m_axi_rid              (m_axi_rd_rid),
-        .m_axi_rdata            (m_axi_rd_rdata),
-        .m_axi_rresp            (m_axi_rd_rresp),
-        .m_axi_rlast            (m_axi_rd_rlast),
-        .m_axi_ruser            (m_axi_rd_ruser),
-        .m_axi_rvalid           (m_axi_rd_rvalid),
-        .m_axi_rready           (m_axi_rd_rready),
-
-        // Monitor configuration (driven by the now-live RDMON_* CSR hooks).
-        // compl and threshold are REAL per-class controls (RDMON_ENABLE.COMPL_EN
-        // / .THRESH_EN). They used to be aliased onto monitor-enable and perf,
-        // which left COMPL_EN dead in the register map and made THRESHOLD
-        // silently un-armable without PERF_EN.
-        .cfg_monitor_enable     (int_cfg_rdeng_mon_enable),
-        .cfg_error_enable       (int_cfg_rdeng_mon_err_enable | cfg_rdeng_mon_addr_miss_en),
-        .cfg_perf_enable        (int_cfg_rdeng_mon_perf_enable),
-        .cfg_compl_enable       (int_cfg_rdeng_mon_compl_enable),
-        .cfg_threshold_enable   (int_cfg_rdeng_mon_thresh_enable),
-        .cfg_debug_enable       (cfg_rdeng_mon_addr_match_en),
-        .cfg_timeout_enable     (int_cfg_rdeng_mon_timeout_enable),
-        .cfg_timeout_cycles     (16'(int_cfg_rdeng_mon_timeout_cycles)),
-        // ACLK_MHZ is left at its default here, so the CFI LUT is degenerate
-        // (every entry == ACLK_MHZ) and any index gives an exact 1 us tick.
-        // Set ACLK_MHZ + a real CFI_MIN/MAX range and drive this from a CSR
-        // if this block ever needs runtime frequency selection.
-        .cfg_freq_sel(4'b0000),
-        .cfg_latency_threshold  (int_cfg_rdeng_mon_latency_thresh),
-
-        .cfg_axi_pkt_mask       (int_cfg_rdeng_mon_pkt_mask),
-        .cfg_axi_err_select     (int_cfg_rdeng_mon_err_select),
-        .cfg_axi_error_mask     (int_cfg_rdeng_mon_err_mask),
-        .cfg_axi_timeout_mask   (int_cfg_rdeng_mon_timeout_mask),
-        .cfg_axi_compl_mask     (int_cfg_rdeng_mon_compl_mask),
-        .cfg_axi_thresh_mask    (int_cfg_rdeng_mon_thresh_mask),
-        .cfg_axi_perf_mask      (int_cfg_rdeng_mon_perf_mask),
-        .cfg_axi_addr_mask      (int_cfg_rdeng_mon_addr_mask),
-        .cfg_axi_debug_mask     (int_cfg_rdeng_mon_debug_mask),
-
-        // Address-range checker (allowlist) driven by the RDMON_ADDR_RANGE* CSRs;
-        // active only when N_ADDR_RANGES > 0 (else the checker is not built).
-        .cfg_addr_check_enable  (cfg_rdeng_mon_addr_check_en),
-        .cfg_addr_range_enable  (cfg_rdeng_mon_addr_range_en[NAR-1:0]),
-        .cfg_addr_range_low     (w_rdmon_range_low),
-        .cfg_addr_range_high    (w_rdmon_range_high),
-
-        // Perf-window control (RFC Stage E CSR route). Trigger mode driven by
-        // the RDMON_PERF_CTRL.RUN bit; decoupled from cfg_perf_enable so the
-        // window accumulates without emitting PktTypePerf packets.
-        // Hardware-closed window: open on the RUN rising edge, close when the
-        // datapath goes idle after activity (see the perf-window controller).
-        .cfg_start_event_sel    (3'b000),
-        .cfg_end_event_sel      (3'b000),
-        .cfg_start_trigger      (w_perf_clear),
-        .cfg_end_trigger        (w_perf_close),
-        .cfg_window_force_close (1'b0),
-
-        .i_mon_time             (i_mon_time),
-
-        // Monitor bus — aggregated with the scheduler-group stream by the
-        // monbus arbiter (u_mon_arbiter) that drives the top-level mon_valid.
-        .monbus_valid           (rdmon_mon_valid),
-        .monbus_packet          (rdmon_mon_packet),
-        .monbus_timestamp       (rdmon_mon_timestamp),
-        .monbus_ready           (rdmon_mon_ready),
-
-        // Status
-        .busy                   (cfg_sts_rdeng_skid_busy),
-        .active_transactions    (cfg_sts_rdeng_mon_active_txns),
-        .error_count            (cfg_sts_rdeng_mon_error_count),
-        .transaction_count      (cfg_sts_rdeng_mon_txn_count),
-
-        // Perf-window readback is now sourced from the always-on bus meter +
-        // counters (RDMON_PERF_*), so the heavy monitor's perf outputs are all
-        // left unconnected here -- see the always-on perf block below.
-        .window_active          (w_rd_mon_winact_nc),
-        .window_cycles          (w_rd_mon_wincyc_nc),
-        .perf_prod_cycles       (w_rd_mon_prod_nc),
-        .perf_bp_cycles         (w_rd_mon_bp_nc),
-        .perf_starv_cycles      (w_rd_mon_starv_nc),
-        .perf_idle_cycles       (w_rd_mon_idle_nc),
-        .perf_beat_count        (w_rd_mon_beat_nc),
-        .perf_byte_count        (w_rd_mon_byte_nc),
-        .perf_burst_count       (w_rd_mon_burst_nc),
-        .cfg_conflict_error     (cfg_sts_rdeng_mon_conflict_error)
+        .aclk                 (clk),
+        .aresetn              (rst_n),
+        .cam_clear            (cam_clear),
+        .fub_axi_arid         (fub_rd_axi_arid),
+        .fub_axi_araddr       (fub_rd_axi_araddr),
+        .fub_axi_arlen        (fub_rd_axi_arlen),
+        .fub_axi_arsize       (fub_rd_axi_arsize),
+        .fub_axi_arburst      (fub_rd_axi_arburst),
+        .fub_axi_arlock       (fub_rd_axi_arlock),
+        .fub_axi_arcache      (fub_rd_axi_arcache),
+        .fub_axi_arprot       (fub_rd_axi_arprot),
+        .fub_axi_arqos        (fub_rd_axi_arqos),
+        .fub_axi_arregion     (fub_rd_axi_arregion),
+        .fub_axi_aruser       (fub_rd_axi_aruser),
+        .fub_axi_arvalid      (fub_rd_axi_arvalid),
+        .fub_axi_arready      (fub_rd_axi_arready),
+        .fub_axi_rid          (fub_rd_axi_rid),
+        .fub_axi_rdata        (fub_rd_axi_rdata),
+        .fub_axi_rresp        (fub_rd_axi_rresp),
+        .fub_axi_rlast        (fub_rd_axi_rlast),
+        .fub_axi_ruser        (fub_rd_axi_ruser),
+        .fub_axi_rvalid       (fub_rd_axi_rvalid),
+        .fub_axi_rready       (fub_rd_axi_rready),
+        .m_axi_arid           (m_axi_rd_arid),
+        .m_axi_araddr         (m_axi_rd_araddr),
+        .m_axi_arlen          (m_axi_rd_arlen),
+        .m_axi_arsize         (m_axi_rd_arsize),
+        .m_axi_arburst        (m_axi_rd_arburst),
+        .m_axi_arlock         (m_axi_rd_arlock),
+        .m_axi_arcache        (m_axi_rd_arcache),
+        .m_axi_arprot         (m_axi_rd_arprot),
+        .m_axi_arqos          (m_axi_rd_arqos),
+        .m_axi_arregion       (m_axi_rd_arregion),
+        .m_axi_aruser         (m_axi_rd_aruser),
+        .m_axi_arvalid        (m_axi_rd_arvalid),
+        .m_axi_arready        (m_axi_rd_arready),
+        .m_axi_rid            (m_axi_rd_rid),
+        .m_axi_rdata          (m_axi_rd_rdata),
+        .m_axi_rresp          (m_axi_rd_rresp),
+        .m_axi_rlast          (m_axi_rd_rlast),
+        .m_axi_ruser          (m_axi_rd_ruser),
+        .m_axi_rvalid         (m_axi_rd_rvalid),
+        .m_axi_rready         (m_axi_rd_rready),
+        .cfg_monitor_enable   (int_cfg_rdeng_mon_enable),
+        .cfg_error_enable     (int_cfg_rdeng_mon_err_enable | cfg_rdeng_mon_addr_miss_en),
+        .cfg_compl_enable     (int_cfg_rdeng_mon_compl_enable),
+        .cfg_threshold_enable (int_cfg_rdeng_mon_thresh_enable),
+        .cfg_timeout_enable   (int_cfg_rdeng_mon_timeout_enable),
+        .cfg_timeout_cycles   (16'(int_cfg_rdeng_mon_timeout_cycles)),
+        .cfg_freq_sel         (4'b0000),
+        .cfg_axi_pkt_mask     (int_cfg_rdeng_mon_pkt_mask),
+        .cfg_latency_threshold (int_cfg_rdeng_mon_latency_thresh),
+        .cfg_addr_check_enable (cfg_rdeng_mon_addr_check_en),
+        .cfg_addr_match_enable (cfg_rdeng_mon_addr_match_en),
+        .cfg_addr_range_enable (cfg_rdeng_mon_addr_range_en[NAR-1:0]),
+        .cfg_addr_range_low    (w_rdmon_range_low),
+        .cfg_addr_range_high   (w_rdmon_range_high),
+        .i_mon_time           (i_mon_time),
+        .monbus_valid         (rdmon_mon_valid),
+        .monbus_packet        (rdmon_mon_packet),
+        .monbus_timestamp     (rdmon_mon_timestamp),
+        .monbus_ready         (rdmon_mon_ready),
+        .busy                 (cfg_sts_rdeng_skid_busy),
+        .active_transactions  (cfg_sts_rdeng_mon_active_txns),
+        .error_count          (cfg_sts_rdeng_mon_error_count),
+        .transaction_count    (cfg_sts_rdeng_mon_txn_count),
+        .dropped_count        (),  // lite: events lost to monbus backpressure (counted, reported as EVENT_DROPPED)
+        .refused_count        ()  // lite: commands that found no free table entry
     );
 
     // Data write AXI skid buffer
@@ -1722,169 +1643,101 @@ module stream_core #(
     // read-side comment: the bound is per-channel outstanding times channels,
     // read back through WRMON_PERF_* CSRs. W-channel cycle buckets match the
     // legacy write-side axi_bus_meter.
-    axi4_master_wr_mon #(
-        .SKID_DEPTH_AW          (SKID_DEPTH_AW),
-        .SKID_DEPTH_W           (SKID_DEPTH_W),
-        .SKID_DEPTH_B           (SKID_DEPTH_B),
-        .AXI_ID_WIDTH           (IW),
-        .AXI_ADDR_WIDTH         (AW),
-        .AXI_DATA_WIDTH         (DW),
-        .AXI_USER_WIDTH         (UW),
-        .USE_MONITOR            (USE_AXI_MONITORS == 1),
-        .UNIT_ID                (MON_UNIT_ID),
-        .AGENT_ID               (WR_AXI_MON_AGENT_ID),
-        .MAX_TRANSACTIONS       (WR_MON_MAX_TRANS),
-        // Banked CAM -- see MON_NUM_BANKS. The write side additionally needs
-        // USE_WDATA_ORDER_Q once banked, or trans_mgr refuses to elaborate.
-        .NUM_BANKS              (MON_NUM_BANKS),
-        .USE_WDATA_ORDER_Q      (MON_USE_WDATA_ORDER_Q),
-        .ENABLE_FILTERING       (1),
-        .ENABLE_ERROR_LOGIC     (DATA_MON_ENABLE_ERROR_LOGIC),
-        .ENABLE_TIMEOUT_LOGIC   (DATA_MON_ENABLE_TIMEOUT_LOGIC),
-        .ENABLE_COMPL_LOGIC     (DATA_MON_ENABLE_COMPL_LOGIC),
-        .ENABLE_THRESHOLD_LOGIC (DATA_MON_ENABLE_THRESHOLD_LOGIC),
-        .ENABLE_PERF_LOGIC      (DATA_MON_ENABLE_PERF_LOGIC),
-        .ENABLE_DEBUG_LOGIC     (DATA_MON_ENABLE_DEBUG_LOGIC),
-        .N_ADDR_RANGES          (N_ADDR_RANGES),
-        .ADDR_RANGE_IS_ERROR    (MON_ADDR_RANGE_IS_ERROR)
+    // axi_monitor_lite (amba/monitor-lite TASK-001): the lite monitor on the same taps.
+    // No perf window, debug, address-range checker, ID/address filters or per-event
+    // masks -- those cfg inputs stay on this module's ports for the register block
+    // but drive nothing here. Drop-and-count instead of block_ready.
+    axi4_master_wr_monlite #(
+        .SKID_DEPTH_AW    (SKID_DEPTH_AW),
+        .SKID_DEPTH_W     (SKID_DEPTH_W),
+        .SKID_DEPTH_B     (SKID_DEPTH_B),
+        .AXI_ID_WIDTH     (IW),
+        .AXI_ADDR_WIDTH   (AW),
+        .AXI_DATA_WIDTH   (DW),
+        .AXI_USER_WIDTH   (UW),
+        .USE_MONITOR      (USE_AXI_MONITORS == 1),
+        .UNIT_ID          (MON_UNIT_ID),
+        .AGENT_ID         (WR_AXI_MON_AGENT_ID),
+        .MAX_TRANSACTIONS (WR_MON_MAX_TRANS),
+        .N_ADDR_RANGES     (N_ADDR_RANGES),
+        .ADDR_RANGE_IS_ERROR(MON_ADDR_RANGE_IS_ERROR)
     ) u_wr_axi_skid (
-        .aclk                   (clk),
-        .aresetn                (rst_n),
-        // Observability tap added with the port; unused here.
-        .debug_block_ready      (),
-        // ID / address filtering was added to the monitor after this
-        // instantiation was written. The datapath monitors watch a single
-        // engine's traffic and do not filter, so tie the pins off explicitly:
-        // PINMISSING is fatal in any build that does not waive it, and the
-        // perf-profile tests do not waive it.
-        .cfg_id_filter_enable   (1'b0),
-        .cfg_id_match_base      ('0),
-        .cfg_id_match_count     ('0),
-        .cfg_addr_filter_enable (1'b0),
-        .cfg_addr_filter_low    ('0),
-        .cfg_addr_filter_high   ('0),
-        .cam_clear              (cam_clear),
-
-        // FUB side (input from write engine)
-        .fub_axi_awid           (fub_wr_axi_awid),
-        .fub_axi_awaddr         (fub_wr_axi_awaddr),
-        .fub_axi_awlen          (fub_wr_axi_awlen),
-        .fub_axi_awsize         (fub_wr_axi_awsize),
-        .fub_axi_awburst        (fub_wr_axi_awburst),
-        .fub_axi_awlock         (fub_wr_axi_awlock),
-        .fub_axi_awcache        (fub_wr_axi_awcache),
-        .fub_axi_awprot         (fub_wr_axi_awprot),
-        .fub_axi_awqos          (fub_wr_axi_awqos),
-        .fub_axi_awregion       (fub_wr_axi_awregion),
-        .fub_axi_awuser         (fub_wr_axi_awuser),
-        .fub_axi_awvalid        (fub_wr_axi_awvalid),
-        .fub_axi_awready        (fub_wr_axi_awready),
-
-        .fub_axi_wdata          (fub_wr_axi_wdata),
-        .fub_axi_wstrb          (fub_wr_axi_wstrb),
-        .fub_axi_wlast          (fub_wr_axi_wlast),
-        .fub_axi_wuser          (fub_wr_axi_wuser),
-        .fub_axi_wvalid         (fub_wr_axi_wvalid),
-        .fub_axi_wready         (fub_wr_axi_wready),
-
-        .fub_axi_bid            (fub_wr_axi_bid),
-        .fub_axi_bresp          (fub_wr_axi_bresp),
-        .fub_axi_buser          (fub_wr_axi_buser),
-        .fub_axi_bvalid         (fub_wr_axi_bvalid),
-        .fub_axi_bready         (fub_wr_axi_bready),
-
-        // Master side (output to external AXI)
-        .m_axi_awid             (m_axi_wr_awid),
-        .m_axi_awaddr           (m_axi_wr_awaddr),
-        .m_axi_awlen            (m_axi_wr_awlen),
-        .m_axi_awsize           (m_axi_wr_awsize),
-        .m_axi_awburst          (m_axi_wr_awburst),
-        .m_axi_awlock           (m_axi_wr_awlock),
-        .m_axi_awcache          (m_axi_wr_awcache),
-        .m_axi_awprot           (m_axi_wr_awprot),
-        .m_axi_awqos            (m_axi_wr_awqos),
-        .m_axi_awregion         (m_axi_wr_awregion),
-        .m_axi_awuser           (m_axi_wr_awuser),
-        .m_axi_awvalid          (m_axi_wr_awvalid),
-        .m_axi_awready          (m_axi_wr_awready),
-
-        .m_axi_wdata            (m_axi_wr_wdata),
-        .m_axi_wstrb            (m_axi_wr_wstrb),
-        .m_axi_wlast            (m_axi_wr_wlast),
-        .m_axi_wuser            (m_axi_wr_wuser),
-        .m_axi_wvalid           (m_axi_wr_wvalid),
-        .m_axi_wready           (m_axi_wr_wready),
-
-        .m_axi_bid              (m_axi_wr_bid),
-        .m_axi_bresp            (m_axi_wr_bresp),
-        .m_axi_buser            (m_axi_wr_buser),
-        .m_axi_bvalid           (m_axi_wr_bvalid),
-        .m_axi_bready           (m_axi_wr_bready),
-
-        // Monitor configuration (driven by the now-live WRMON_* CSR hooks)
-        .cfg_monitor_enable     (int_cfg_wreng_mon_enable),
-        .cfg_error_enable       (int_cfg_wreng_mon_err_enable | cfg_wreng_mon_addr_miss_en),
-        .cfg_perf_enable        (int_cfg_wreng_mon_perf_enable),
-        .cfg_compl_enable       (int_cfg_wreng_mon_compl_enable),
-        .cfg_threshold_enable   (int_cfg_wreng_mon_thresh_enable),
-        .cfg_debug_enable       (cfg_wreng_mon_addr_match_en),
-        .cfg_timeout_enable     (int_cfg_wreng_mon_timeout_enable),
-        .cfg_timeout_cycles     (16'(int_cfg_wreng_mon_timeout_cycles)),
-        .cfg_freq_sel(4'b0000),
-        .cfg_latency_threshold  (int_cfg_wreng_mon_latency_thresh),
-
-        .cfg_axi_pkt_mask       (int_cfg_wreng_mon_pkt_mask),
-        .cfg_axi_err_select     (int_cfg_wreng_mon_err_select),
-        .cfg_axi_error_mask     (int_cfg_wreng_mon_err_mask),
-        .cfg_axi_timeout_mask   (int_cfg_wreng_mon_timeout_mask),
-        .cfg_axi_compl_mask     (int_cfg_wreng_mon_compl_mask),
-        .cfg_axi_thresh_mask    (int_cfg_wreng_mon_thresh_mask),
-        .cfg_axi_perf_mask      (int_cfg_wreng_mon_perf_mask),
-        .cfg_axi_addr_mask      (int_cfg_wreng_mon_addr_mask),
-        .cfg_axi_debug_mask     (int_cfg_wreng_mon_debug_mask),
-
-        // Address-range checker (allowlist) driven by the WRMON_ADDR_RANGE* CSRs.
-        .cfg_addr_check_enable  (cfg_wreng_mon_addr_check_en),
-        .cfg_addr_range_enable  (cfg_wreng_mon_addr_range_en[NAR-1:0]),
-        .cfg_addr_range_low     (w_wrmon_range_low),
-        .cfg_addr_range_high    (w_wrmon_range_high),
-
-        // Perf-window control (RFC Stage E CSR route, WRMON_PERF_CTRL.RUN)
-        // Hardware-closed window (shared controller; see the read monitor).
-        .cfg_start_event_sel    (3'b000),
-        .cfg_end_event_sel      (3'b000),
-        .cfg_start_trigger      (w_perf_clear),
-        .cfg_end_trigger        (w_perf_close),
-        .cfg_window_force_close (1'b0),
-
-        .i_mon_time             (i_mon_time),
-
-        // Monitor bus — aggregated with the scheduler-group stream by the
-        // monbus arbiter (u_mon_arbiter) that drives the top-level mon_valid.
-        .monbus_valid           (wrmon_mon_valid),
-        .monbus_packet          (wrmon_mon_packet),
-        .monbus_timestamp       (wrmon_mon_timestamp),
-        .monbus_ready           (wrmon_mon_ready),
-
-        // Status
-        .busy                   (cfg_sts_wreng_skid_busy),
-        .active_transactions    (cfg_sts_wreng_mon_active_txns),
-        .error_count            (cfg_sts_wreng_mon_error_count),
-        .transaction_count      (cfg_sts_wreng_mon_txn_count),
-
-        // Perf-window readback is now sourced from the always-on bus meter +
-        // counters (WRMON_PERF_*); the heavy monitor's perf outputs are left
-        // unconnected -- see the always-on perf block below.
-        .window_active          (w_wr_mon_winact_nc),
-        .window_cycles          (w_wr_mon_wincyc_nc),
-        .perf_prod_cycles       (w_wr_mon_prod_nc),
-        .perf_bp_cycles         (w_wr_mon_bp_nc),
-        .perf_starv_cycles      (w_wr_mon_starv_nc),
-        .perf_idle_cycles       (w_wr_mon_idle_nc),
-        .perf_beat_count        (w_wr_mon_beat_nc),
-        .perf_byte_count        (w_wr_mon_byte_nc),
-        .perf_burst_count       (w_wr_mon_burst_nc),
-        .cfg_conflict_error     (cfg_sts_wreng_mon_conflict_error)
+        .aclk                 (clk),
+        .aresetn              (rst_n),
+        .cam_clear            (cam_clear),
+        .fub_axi_awid         (fub_wr_axi_awid),
+        .fub_axi_awaddr       (fub_wr_axi_awaddr),
+        .fub_axi_awlen        (fub_wr_axi_awlen),
+        .fub_axi_awsize       (fub_wr_axi_awsize),
+        .fub_axi_awburst      (fub_wr_axi_awburst),
+        .fub_axi_awlock       (fub_wr_axi_awlock),
+        .fub_axi_awcache      (fub_wr_axi_awcache),
+        .fub_axi_awprot       (fub_wr_axi_awprot),
+        .fub_axi_awqos        (fub_wr_axi_awqos),
+        .fub_axi_awregion     (fub_wr_axi_awregion),
+        .fub_axi_awuser       (fub_wr_axi_awuser),
+        .fub_axi_awvalid      (fub_wr_axi_awvalid),
+        .fub_axi_awready      (fub_wr_axi_awready),
+        .fub_axi_wdata        (fub_wr_axi_wdata),
+        .fub_axi_wstrb        (fub_wr_axi_wstrb),
+        .fub_axi_wlast        (fub_wr_axi_wlast),
+        .fub_axi_wuser        (fub_wr_axi_wuser),
+        .fub_axi_wvalid       (fub_wr_axi_wvalid),
+        .fub_axi_wready       (fub_wr_axi_wready),
+        .fub_axi_bid          (fub_wr_axi_bid),
+        .fub_axi_bresp        (fub_wr_axi_bresp),
+        .fub_axi_buser        (fub_wr_axi_buser),
+        .fub_axi_bvalid       (fub_wr_axi_bvalid),
+        .fub_axi_bready       (fub_wr_axi_bready),
+        .m_axi_awid           (m_axi_wr_awid),
+        .m_axi_awaddr         (m_axi_wr_awaddr),
+        .m_axi_awlen          (m_axi_wr_awlen),
+        .m_axi_awsize         (m_axi_wr_awsize),
+        .m_axi_awburst        (m_axi_wr_awburst),
+        .m_axi_awlock         (m_axi_wr_awlock),
+        .m_axi_awcache        (m_axi_wr_awcache),
+        .m_axi_awprot         (m_axi_wr_awprot),
+        .m_axi_awqos          (m_axi_wr_awqos),
+        .m_axi_awregion       (m_axi_wr_awregion),
+        .m_axi_awuser         (m_axi_wr_awuser),
+        .m_axi_awvalid        (m_axi_wr_awvalid),
+        .m_axi_awready        (m_axi_wr_awready),
+        .m_axi_wdata          (m_axi_wr_wdata),
+        .m_axi_wstrb          (m_axi_wr_wstrb),
+        .m_axi_wlast          (m_axi_wr_wlast),
+        .m_axi_wuser          (m_axi_wr_wuser),
+        .m_axi_wvalid         (m_axi_wr_wvalid),
+        .m_axi_wready         (m_axi_wr_wready),
+        .m_axi_bid            (m_axi_wr_bid),
+        .m_axi_bresp          (m_axi_wr_bresp),
+        .m_axi_buser          (m_axi_wr_buser),
+        .m_axi_bvalid         (m_axi_wr_bvalid),
+        .m_axi_bready         (m_axi_wr_bready),
+        .cfg_monitor_enable   (int_cfg_wreng_mon_enable),
+        .cfg_error_enable     (int_cfg_wreng_mon_err_enable | cfg_wreng_mon_addr_miss_en),
+        .cfg_compl_enable     (int_cfg_wreng_mon_compl_enable),
+        .cfg_threshold_enable (int_cfg_wreng_mon_thresh_enable),
+        .cfg_timeout_enable   (int_cfg_wreng_mon_timeout_enable),
+        .cfg_timeout_cycles   (16'(int_cfg_wreng_mon_timeout_cycles)),
+        .cfg_freq_sel         (4'b0000),
+        .cfg_axi_pkt_mask     (int_cfg_wreng_mon_pkt_mask),
+        .cfg_latency_threshold (int_cfg_wreng_mon_latency_thresh),
+        .cfg_addr_check_enable (cfg_wreng_mon_addr_check_en),
+        .cfg_addr_match_enable (cfg_wreng_mon_addr_match_en),
+        .cfg_addr_range_enable (cfg_wreng_mon_addr_range_en[NAR-1:0]),
+        .cfg_addr_range_low    (w_wrmon_range_low),
+        .cfg_addr_range_high   (w_wrmon_range_high),
+        .i_mon_time           (i_mon_time),
+        .monbus_valid         (wrmon_mon_valid),
+        .monbus_packet        (wrmon_mon_packet),
+        .monbus_timestamp     (wrmon_mon_timestamp),
+        .monbus_ready         (wrmon_mon_ready),
+        .busy                 (cfg_sts_wreng_skid_busy),
+        .active_transactions  (cfg_sts_wreng_mon_active_txns),
+        .error_count          (cfg_sts_wreng_mon_error_count),
+        .transaction_count    (cfg_sts_wreng_mon_txn_count),
+        .dropped_count        (),  // lite: events lost to monbus backpressure (counted, reported as EVENT_DROPPED)
+        .refused_count        ()  // lite: commands that found no free table entry
     );
 
     //=========================================================================

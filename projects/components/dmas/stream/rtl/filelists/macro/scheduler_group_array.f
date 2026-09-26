@@ -28,7 +28,7 @@ $STREAM_ROOT/rtl/includes/stream_pkg.sv
 
 # Dependencies - AMBA Monitors (for descriptor AXI master monitoring)
 # Use -f to include complete monitor infrastructure
--f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_mon.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_monlite.f
 
 # Include macro-level component via -f (automatically pulls in FUB dependencies)
 -f $STREAM_ROOT/rtl/filelists/macro/scheduler_group.f

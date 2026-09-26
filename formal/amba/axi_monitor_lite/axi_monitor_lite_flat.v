@@ -190,6 +190,321 @@ module counter_freq_invariant (
 		end
 	end
 endmodule
+module axi_monitor_addr_check (
+	clk,
+	aresetn,
+	i_mon_time,
+	cmd_addr,
+	cmd_id,
+	cmd_valid,
+	cmd_ready,
+	cfg_addr_check_enable,
+	cfg_debug_enable,
+	cfg_error_enable,
+	cfg_addr_range_enable,
+	cfg_addr_range_low,
+	cfg_addr_range_high,
+	addr_pkt_valid,
+	addr_pkt_ready,
+	addr_pkt_data,
+	addr_pkt_timestamp
+);
+	reg _sv2v_0;
+	parameter signed [31:0] N_ADDR_RANGES = 4;
+	parameter signed [31:0] ADDR_WIDTH = 32;
+	parameter signed [31:0] ID_WIDTH = 6;
+	parameter [7:0] UNIT_ID = 8'h00;
+	parameter [15:0] AGENT_ID = 16'h0000;
+	parameter [0:0] IS_READ = 1'b1;
+	parameter [N_ADDR_RANGES - 1:0] ADDR_RANGE_IS_ERROR = 1'sb0;
+	parameter signed [31:0] M = ADDR_WIDTH;
+	parameter signed [31:0] IW = ID_WIDTH;
+	input wire clk;
+	input wire aresetn;
+	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	input wire [63:0] i_mon_time;
+	input wire [M - 1:0] cmd_addr;
+	input wire [IW - 1:0] cmd_id;
+	input wire cmd_valid;
+	input wire cmd_ready;
+	input wire cfg_addr_check_enable;
+	input wire cfg_debug_enable;
+	input wire cfg_error_enable;
+	input wire [N_ADDR_RANGES - 1:0] cfg_addr_range_enable;
+	input wire [(N_ADDR_RANGES * M) - 1:0] cfg_addr_range_low;
+	input wire [(N_ADDR_RANGES * M) - 1:0] cfg_addr_range_high;
+	output wire addr_pkt_valid;
+	input wire addr_pkt_ready;
+	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	output wire [127:0] addr_pkt_data;
+	output wire [63:0] addr_pkt_timestamp;
+	wire cmd_fire;
+	reg [N_ADDR_RANGES - 1:0] raw_hit;
+	assign cmd_fire = (cmd_valid && cmd_ready) && cfg_addr_check_enable;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				raw_hit[i] = (cfg_addr_range_enable[i] && (cmd_addr >= cfg_addr_range_low[i * M+:M])) && (cmd_addr <= cfg_addr_range_high[i * M+:M]);
+		end
+	end
+	reg [N_ADDR_RANGES - 1:0] debug_hit;
+	reg [N_ADDR_RANGES - 1:0] err_range_en;
+	wire err_hit;
+	wire err_ranges_exist;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_2
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				begin
+					debug_hit[i] = raw_hit[i] && !ADDR_RANGE_IS_ERROR[i];
+					err_range_en[i] = cfg_addr_range_enable[i] && ADDR_RANGE_IS_ERROR[i];
+				end
+		end
+	end
+	assign err_hit = |(raw_hit & ADDR_RANGE_IS_ERROR);
+	assign err_ranges_exist = |err_range_en;
+	reg [N_ADDR_RANGES - 1:0] match_set;
+	wire miss_set;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_3
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				match_set[i] = (cmd_fire && cfg_debug_enable) && debug_hit[i];
+		end
+	end
+	assign miss_set = ((cmd_fire && cfg_error_enable) && err_ranges_exist) && !err_hit;
+	reg [N_ADDR_RANGES - 1:0] r_match_pending;
+	reg [(N_ADDR_RANGES * M) - 1:0] r_match_addr;
+	reg [(N_ADDR_RANGES * IW) - 1:0] r_match_id;
+	reg r_miss_pending;
+	reg [M - 1:0] r_miss_addr;
+	reg [IW - 1:0] r_miss_id;
+	wire [N_ADDR_RANGES - 1:0] match_emit_oh;
+	wire match_emit_any;
+	reg [3:0] match_emit_idx;
+	assign match_emit_any = |r_match_pending;
+	reg [N_ADDR_RANGES - 1:0] w_match_pick;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_match_pick = 1'sb0;
+		begin : sv2v_autoblock_4
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				if (r_match_pending[i] && (w_match_pick == {N_ADDR_RANGES {1'sb0}}))
+					w_match_pick[i] = 1'b1;
+		end
+	end
+	reg [N_ADDR_RANGES - 1:0] r_emit_hold;
+	reg r_emit_hold_miss;
+	reg r_emit_held;
+	assign match_emit_oh = (r_emit_held ? r_emit_hold : w_match_pick);
+	function automatic signed [3:0] sv2v_cast_4_signed;
+		input reg signed [3:0] inp;
+		sv2v_cast_4_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		match_emit_idx = 4'h0;
+		begin : sv2v_autoblock_5
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				if (match_emit_oh[i])
+					match_emit_idx = sv2v_cast_4_signed(i);
+		end
+	end
+	reg [N_ADDR_RANGES - 1:0] r_shadow_valid;
+	reg [(N_ADDR_RANGES * M) - 1:0] r_shadow_addr;
+	reg [(N_ADDR_RANGES * IW) - 1:0] r_shadow_id;
+	reg r_miss_shadow_valid;
+	reg [M - 1:0] r_miss_shadow_addr;
+	reg [IW - 1:0] r_miss_shadow_id;
+	wire emit_is_miss;
+	assign emit_is_miss = (r_emit_held ? r_emit_hold_miss : r_miss_pending);
+	assign addr_pkt_valid = (r_miss_pending || match_emit_any) && cfg_addr_check_enable;
+	wire accept;
+	assign accept = addr_pkt_valid && addr_pkt_ready;
+	wire w_miss_presented;
+	wire w_miss_accept;
+	assign w_miss_presented = addr_pkt_valid && emit_is_miss;
+	assign w_miss_accept = accept && emit_is_miss;
+	reg [N_ADDR_RANGES - 1:0] w_presented;
+	reg [N_ADDR_RANGES - 1:0] w_range_accept;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_6
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				begin
+					w_presented[i] = (addr_pkt_valid && !emit_is_miss) && match_emit_oh[i];
+					w_range_accept[i] = (accept && !emit_is_miss) && match_emit_oh[i];
+				end
+		end
+	end
+	always @(posedge clk or negedge aresetn)
+		if (!aresetn) begin
+			r_match_pending <= 1'sb0;
+			r_emit_hold <= 1'sb0;
+			r_emit_hold_miss <= 1'b0;
+			r_emit_held <= 1'b0;
+			r_shadow_valid <= 1'sb0;
+			r_shadow_addr <= 1'sb0;
+			r_shadow_id <= 1'sb0;
+			r_match_addr <= 1'sb0;
+			r_match_id <= 1'sb0;
+			r_miss_pending <= 1'b0;
+			r_miss_addr <= 1'sb0;
+			r_miss_id <= 1'sb0;
+			r_miss_shadow_valid <= 1'b0;
+			r_miss_shadow_addr <= 1'sb0;
+			r_miss_shadow_id <= 1'sb0;
+		end
+		else begin
+			if (accept)
+				r_emit_held <= 1'b0;
+			else if (addr_pkt_valid && !addr_pkt_ready) begin
+				r_emit_held <= 1'b1;
+				r_emit_hold <= match_emit_oh;
+				r_emit_hold_miss <= emit_is_miss;
+			end
+			begin : sv2v_autoblock_7
+				reg signed [31:0] i;
+				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+					if (w_range_accept[i]) begin
+						if (match_set[i]) begin
+							r_match_addr[i * M+:M] <= cmd_addr;
+							r_match_id[i * IW+:IW] <= cmd_id;
+						end
+						else if (r_shadow_valid[i]) begin
+							r_match_addr[i * M+:M] <= r_shadow_addr[i * M+:M];
+							r_match_id[i * IW+:IW] <= r_shadow_id[i * IW+:IW];
+						end
+					end
+					else if (match_set[i] && !w_presented[i]) begin
+						r_match_addr[i * M+:M] <= cmd_addr;
+						r_match_id[i * IW+:IW] <= cmd_id;
+					end
+			end
+			begin : sv2v_autoblock_8
+				reg signed [31:0] i;
+				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+					if (w_range_accept[i])
+						r_shadow_valid[i] <= 1'b0;
+					else if (match_set[i] && w_presented[i]) begin
+						r_shadow_valid[i] <= 1'b1;
+						r_shadow_addr[i * M+:M] <= cmd_addr;
+						r_shadow_id[i * IW+:IW] <= cmd_id;
+					end
+			end
+			begin : sv2v_autoblock_9
+				reg signed [31:0] i;
+				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+					if (match_set[i])
+						r_match_pending[i] <= 1'b1;
+					else if (w_range_accept[i])
+						r_match_pending[i] <= r_shadow_valid[i];
+			end
+			if (w_miss_accept) begin
+				if (miss_set) begin
+					r_miss_addr <= cmd_addr;
+					r_miss_id <= cmd_id;
+				end
+				else if (r_miss_shadow_valid) begin
+					r_miss_addr <= r_miss_shadow_addr;
+					r_miss_id <= r_miss_shadow_id;
+				end
+			end
+			else if (miss_set && !w_miss_presented) begin
+				r_miss_addr <= cmd_addr;
+				r_miss_id <= cmd_id;
+			end
+			if (w_miss_accept)
+				r_miss_shadow_valid <= 1'b0;
+			else if (miss_set && w_miss_presented) begin
+				r_miss_shadow_valid <= 1'b1;
+				r_miss_shadow_addr <= cmd_addr;
+				r_miss_shadow_id <= cmd_id;
+			end
+			if (miss_set)
+				r_miss_pending <= 1'b1;
+			else if (w_miss_accept && !r_miss_shadow_valid)
+				r_miss_pending <= 1'b0;
+		end
+	localparam [3:0] MISS_RANGE_SENTINEL = 4'hf;
+	reg [3:0] pkt_type_field;
+	reg [7:0] event_code_field;
+	reg [3:0] emit_idx;
+	reg [M - 1:0] emit_addr;
+	reg [IW - 1:0] emit_id;
+	wire [8:0] channel_id_field;
+	wire [63:0] event_data_field;
+	wire [59:0] addr_payload;
+	localparam [3:0] monitor_common_pkg_PktTypeAddrMatch = 4'h8;
+	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (emit_is_miss) begin
+			pkt_type_field = monitor_common_pkg_PktTypeError;
+			event_code_field = 8'h0d;
+			emit_idx = MISS_RANGE_SENTINEL;
+			emit_addr = r_miss_addr;
+			emit_id = r_miss_id;
+		end
+		else begin
+			pkt_type_field = monitor_common_pkg_PktTypeAddrMatch;
+			event_code_field = 8'h01;
+			emit_idx = match_emit_idx;
+			emit_addr = 1'sb0;
+			emit_id = 1'sb0;
+			begin : sv2v_autoblock_10
+				reg signed [31:0] i;
+				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+					if (match_emit_oh[i]) begin
+						emit_addr = r_match_addr[i * M+:M];
+						emit_id = r_match_id[i * IW+:IW];
+					end
+			end
+		end
+	end
+	generate
+		if (IW >= 9) begin : g_chan_id_wide
+			assign channel_id_field = emit_id[8:0];
+		end
+		else begin : g_chan_id_narrow
+			assign channel_id_field = {{9 - IW {1'b0}}, emit_id};
+		end
+		if (M >= 60) begin : g_addr_wide
+			assign addr_payload = emit_addr[59:0];
+		end
+		else begin : g_addr_narrow
+			assign addr_payload = {{60 - M {1'b0}}, emit_addr};
+		end
+	endgenerate
+	assign event_data_field = {emit_idx[3:0], addr_payload};
+	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+		input reg [3:0] packet_type;
+		input reg [3:0] protocol;
+		input reg [7:0] event_code;
+		input reg [8:0] channel_id;
+		input reg [7:0] unit_id;
+		input reg [15:0] agent_id;
+		input reg [63:0] event_data;
+		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+	endfunction
+	assign addr_pkt_data = monitor_common_pkg_create_monitor_packet(pkt_type_field, 4'h0, event_code_field, channel_id_field, UNIT_ID, AGENT_ID, event_data_field);
+	assign addr_pkt_timestamp = i_mon_time;
+	initial _sv2v_0 = 0;
+endmodule
 module axi_monitor_lite (
 	aclk,
 	aresetn,
@@ -216,7 +531,13 @@ module axi_monitor_lite (
 	cfg_timeout_enable,
 	cfg_threshold_enable,
 	cfg_active_trans_threshold,
+	cfg_latency_threshold,
 	cfg_axi_pkt_mask,
+	cfg_addr_check_enable,
+	cfg_addr_match_enable,
+	cfg_addr_range_enable,
+	cfg_addr_range_low,
+	cfg_addr_range_high,
 	monbus_valid,
 	monbus_ready,
 	monbus_packet,
@@ -239,6 +560,8 @@ module axi_monitor_lite (
 	parameter signed [31:0] TS_WIDTH = 16;
 	parameter signed [31:0] AGE_WIDTH = 16;
 	parameter signed [31:0] OUT_DEPTH = 4;
+	parameter signed [31:0] N_ADDR_RANGES = 0;
+	parameter [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) - 1:0] ADDR_RANGE_IS_ERROR = 1'sb0;
 	parameter signed [31:0] CFI_MIN_FREQ_MHZ = 5;
 	parameter signed [31:0] CFI_MAX_FREQ_MHZ = 220;
 	parameter signed [31:0] CFI_NUM_FREQ_ENTRIES = 16;
@@ -249,6 +572,7 @@ module axi_monitor_lite (
 	parameter signed [31:0] SW = (N > 1 ? $clog2(N) : 1);
 	parameter signed [31:0] CW = $clog2(N + 1);
 	parameter signed [31:0] SELW = (CFI_NUM_FREQ_ENTRIES > 1 ? $clog2(CFI_NUM_FREQ_ENTRIES) : 1);
+	parameter signed [31:0] NAR = (N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1);
 	input wire aclk;
 	input wire aresetn;
 	input wire clear;
@@ -275,7 +599,13 @@ module axi_monitor_lite (
 	input wire cfg_timeout_enable;
 	input wire cfg_threshold_enable;
 	input wire [15:0] cfg_active_trans_threshold;
+	input wire [31:0] cfg_latency_threshold;
 	input wire [15:0] cfg_axi_pkt_mask;
+	input wire cfg_addr_check_enable;
+	input wire cfg_addr_match_enable;
+	input wire [NAR - 1:0] cfg_addr_range_enable;
+	input wire [(NAR * AW) - 1:0] cfg_addr_range_low;
+	input wire [(NAR * AW) - 1:0] cfg_addr_range_high;
 	output wire monbus_valid;
 	input wire monbus_ready;
 	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
@@ -434,6 +764,7 @@ module axi_monitor_lite (
 	wire [SW - 1:0] w_compl_slot = (IS_READ ? w_dslot : w_bslot);
 	wire w_compl_clean = (w_compl && !r_err[w_compl_slot]) && !(IS_READ ? data_resp[1] || w_last_early : resp_code[1]);
 	wire [TS_WIDTH - 1:0] w_latency = r_now - r_ts0[w_compl_slot * TS_WIDTH+:TS_WIDTH];
+	wire w_lat_evt = (w_compl_clean && cfg_threshold_enable) && ({{32 - TS_WIDTH {1'b0}}, w_latency} > cfg_latency_threshold);
 	wire w_free_has_next = r_has_next[w_compl_slot];
 	wire [SW - 1:0] w_free_next = r_next[w_compl_slot * SW+:SW];
 	reg [SW - 1:0] r_scan;
@@ -615,6 +946,10 @@ module axi_monitor_lite (
 	reg r_e_cmd_tmo;
 	reg r_e_compl;
 	reg r_e_thresh;
+	reg r_lat_pend;
+	reg [SW - 1:0] r_lat_slot;
+	reg [15:0] r_lat_latency;
+	wire w_lat_take;
 	reg r_e_scan_phase;
 	reg r_e_data_decerr;
 	reg r_e_resp_decerr;
@@ -641,6 +976,9 @@ module axi_monitor_lite (
 			r_e_cmd_tmo <= 1'b0;
 			r_e_compl <= 1'b0;
 			r_e_thresh <= 1'b0;
+			r_lat_pend <= 1'b0;
+			r_lat_slot <= 1'sb0;
+			r_lat_latency <= 1'sb0;
 			r_e_scan_phase <= 1'b0;
 			r_e_data_decerr <= 1'b0;
 			r_e_resp_decerr <= 1'b0;
@@ -667,6 +1005,15 @@ module axi_monitor_lite (
 			r_e_cmd_tmo <= w_cmd_tmo && !clear;
 			r_e_compl <= w_compl_clean && !clear;
 			r_e_thresh <= w_thresh_evt && !clear;
+			if (clear)
+				r_lat_pend <= 1'b0;
+			else if (w_lat_evt && (!r_lat_pend || w_lat_take)) begin
+				r_lat_pend <= 1'b1;
+				r_lat_slot <= w_compl_slot;
+				r_lat_latency <= sv2v_cast_16(w_latency);
+			end
+			else if (w_lat_take)
+				r_lat_pend <= 1'b0;
 			r_e_scan_phase <= r_phase[r_scan];
 			r_e_data_decerr <= data_resp[0];
 			r_e_resp_decerr <= resp_code[0];
@@ -766,7 +1113,8 @@ module axi_monitor_lite (
 	endfunction
 	wire [1:0] w_tmo_fired = (w_tmo_en ? sv2v_cast_2(r_e_scan_hit) + sv2v_cast_2(r_e_cmd_tmo) : 2'd0);
 	wire w_cmp_v = r_e_compl && w_cmp_en;
-	wire w_thr_v = r_e_thresh && w_thr_en;
+	wire w_thr_v = (r_e_thresh || r_lat_pend) && w_thr_en;
+	wire [1:0] w_thr_fired = (w_thr_en ? sv2v_cast_2(r_e_thresh) : 2'd0);
 	reg w_evt_v;
 	reg [3:0] w_evt_type;
 	reg [7:0] w_evt_code;
@@ -818,16 +1166,26 @@ module axi_monitor_lite (
 		else if (w_thr_v) begin
 			w_evt_v = 1'b1;
 			w_evt_type = monitor_common_pkg_PktTypeThreshold;
-			w_evt_code = 8'h00;
-			w_evt_addr_alt = sv2v_cast_DE851(r_e_occupancy);
+			if (r_e_thresh) begin
+				w_evt_code = 8'h00;
+				w_evt_addr_alt = sv2v_cast_DE851(r_e_occupancy);
+			end
+			else begin
+				w_evt_code = 8'h01;
+				w_evt_from_slot = 1'b1;
+				w_evt_slot = r_lat_slot;
+				w_evt_hi = r_lat_latency;
+			end
 		end
 	end
 	wire [IW - 1:0] w_evt_id = (w_evt_from_slot ? r_id[w_evt_slot * IW+:IW] : w_evt_id_alt);
 	wire [AW - 1:0] w_evt_addr = (w_evt_from_slot ? r_addr[w_evt_slot * AW+:AW] : w_evt_addr_alt);
 	wire w_wr_ready;
-	wire [3:0] w_offered = ((w_err_fired + sv2v_cast_4(w_tmo_fired)) + sv2v_cast_4(w_cmp_v)) + sv2v_cast_4(w_thr_v);
+	wire [3:0] w_offered = ((w_err_fired + sv2v_cast_4(w_tmo_fired)) + sv2v_cast_4(w_cmp_v)) + sv2v_cast_4(w_thr_fired);
 	wire w_take = w_evt_v && w_wr_ready;
-	wire [3:0] w_lost = w_offered - sv2v_cast_4(w_take);
+	assign w_lat_take = ((((w_take && w_thr_v) && !w_err_v) && !w_tmo_v) && !w_cmp_v) && !r_e_thresh;
+	wire w_lat_lost = ((w_lat_evt && cfg_threshold_enable) && r_lat_pend) && !w_lat_take;
+	wire [3:0] w_lost = (w_offered - sv2v_cast_4(w_take)) + sv2v_cast_4(w_lat_lost);
 	reg [15:0] r_dropped;
 	reg [15:0] r_refused;
 	reg [15:0] r_completed;
@@ -889,10 +1247,12 @@ module axi_monitor_lite (
 	wire w_q_empty = r_q_wp == r_q_rp;
 	wire w_q_full = (r_q_wp[OQW - 1:0] == r_q_rp[OQW - 1:0]) && (r_q_wp[OQW] != r_q_rp[OQW]);
 	wire w_q_push = w_take || w_drop_rpt;
-	wire w_q_pop = monbus_valid && monbus_ready;
+	wire w_q_ready;
+	wire w_q_valid;
+	wire w_q_pop = w_q_valid && w_q_ready;
 	assign w_wr_ready = !w_q_full;
-	assign monbus_valid = !w_q_empty;
 	assign w_entry_out = r_q[r_q_rp[OQW - 1:0]];
+	assign w_q_valid = !w_q_empty;
 	always @(posedge aclk)
 		if (w_q_push)
 			r_q[r_q_wp[OQW - 1:0]] <= w_entry_in;
@@ -907,6 +1267,7 @@ module axi_monitor_lite (
 			if (w_q_pop)
 				r_q_rp <= r_q_rp + 1'b1;
 		end
+	wire [127:0] w_q_packet;
 	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
@@ -917,14 +1278,72 @@ module axi_monitor_lite (
 		input reg [63:0] event_data;
 		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
-	assign monbus_packet = monitor_common_pkg_create_monitor_packet(w_entry_out[12 + (AW + 21)-:((12 + (AW + 21)) >= (30 + (AW + 0)) ? ((12 + (AW + 21)) - (30 + (AW + 0))) + 1 : ((30 + (AW + 0)) - (12 + (AW + 21))) + 1)], 4'h0, w_entry_out[14 + (AW + 15)-:((14 + (AW + 15)) >= (22 + (AW + 0)) ? ((14 + (AW + 15)) - (22 + (AW + 0))) + 1 : ((22 + (AW + 0)) - (14 + (AW + 15))) + 1)], {3'b000, w_entry_out[AW + 21-:((AW + 21) >= (16 + (AW + 0)) ? ((AW + 21) - (16 + (AW + 0))) + 1 : ((16 + (AW + 0)) - (AW + 21)) + 1)]}, UNIT_ID, AGENT_ID, w_out_data);
-	assign monbus_timestamp = i_mon_time;
+	assign w_q_packet = monitor_common_pkg_create_monitor_packet(w_entry_out[12 + (AW + 21)-:((12 + (AW + 21)) >= (30 + (AW + 0)) ? ((12 + (AW + 21)) - (30 + (AW + 0))) + 1 : ((30 + (AW + 0)) - (12 + (AW + 21))) + 1)], 4'h0, w_entry_out[14 + (AW + 15)-:((14 + (AW + 15)) >= (22 + (AW + 0)) ? ((14 + (AW + 15)) - (22 + (AW + 0))) + 1 : ((22 + (AW + 0)) - (14 + (AW + 15))) + 1)], {3'b000, w_entry_out[AW + 21-:((AW + 21) >= (16 + (AW + 0)) ? ((AW + 21) - (16 + (AW + 0))) + 1 : ((16 + (AW + 0)) - (AW + 21)) + 1)]}, UNIT_ID, AGENT_ID, w_out_data);
+	wire w_addr_valid;
+	wire w_addr_ready;
+	wire [127:0] w_addr_packet;
+	wire [63:0] w_addr_ts;
+	generate
+		if (N_ADDR_RANGES > 0) begin : gen_addr_check
+			axi_monitor_addr_check #(
+				.N_ADDR_RANGES(N_ADDR_RANGES),
+				.ADDR_WIDTH(AW),
+				.ID_WIDTH(IW),
+				.UNIT_ID(UNIT_ID),
+				.AGENT_ID(AGENT_ID),
+				.IS_READ(IS_READ),
+				.ADDR_RANGE_IS_ERROR(ADDR_RANGE_IS_ERROR)
+			) u_addr_check(
+				.clk(aclk),
+				.aresetn(aresetn),
+				.i_mon_time(i_mon_time),
+				.cmd_addr(cmd_addr),
+				.cmd_id(cmd_id),
+				.cmd_valid(cmd_valid),
+				.cmd_ready(cmd_ready),
+				.cfg_addr_check_enable(cfg_addr_check_enable),
+				.cfg_debug_enable(cfg_addr_match_enable),
+				.cfg_error_enable(cfg_error_enable),
+				.cfg_addr_range_enable(cfg_addr_range_enable),
+				.cfg_addr_range_low(cfg_addr_range_low),
+				.cfg_addr_range_high(cfg_addr_range_high),
+				.addr_pkt_valid(w_addr_valid),
+				.addr_pkt_ready(w_addr_ready),
+				.addr_pkt_data(w_addr_packet),
+				.addr_pkt_timestamp(w_addr_ts)
+			);
+		end
+		else begin : gen_no_addr_check
+			assign w_addr_valid = 1'b0;
+			assign w_addr_packet = 1'sb0;
+			assign w_addr_ts = 1'sb0;
+		end
+	endgenerate
+	reg r_presented;
+	reg r_src_addr;
+	wire w_sel_addr = (r_presented ? r_src_addr : w_addr_valid);
+	assign monbus_valid = (w_sel_addr ? w_addr_valid : w_q_valid);
+	assign monbus_packet = (w_sel_addr ? w_addr_packet : w_q_packet);
+	assign monbus_timestamp = (w_sel_addr ? w_addr_ts : i_mon_time);
+	assign w_addr_ready = w_sel_addr && monbus_ready;
+	assign w_q_ready = !w_sel_addr && monbus_ready;
+	always @(posedge aclk or negedge aresetn)
+		if (!aresetn) begin
+			r_presented <= 1'b0;
+			r_src_addr <= 1'b0;
+		end
+		else if (monbus_valid && monbus_ready)
+			r_presented <= 1'b0;
+		else if (monbus_valid && !r_presented) begin
+			r_presented <= 1'b1;
+			r_src_addr <= w_sel_addr;
+		end
 	function automatic [7:0] sv2v_cast_8;
 		input reg [7:0] inp;
 		sv2v_cast_8 = inp;
 	endfunction
 	assign active_count = sv2v_cast_8(w_occupancy);
-	assign busy = |r_valid || monbus_valid;
+	assign busy = (|r_valid || monbus_valid) || w_addr_valid;
 	assign perf_completed_count = r_completed;
 	assign perf_error_count = r_errors;
 	assign dropped_count = r_dropped;

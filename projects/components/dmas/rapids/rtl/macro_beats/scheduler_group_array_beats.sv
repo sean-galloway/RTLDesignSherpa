@@ -826,157 +826,91 @@ module scheduler_group_array_beats #(
     // Descriptor AXI Master Monitor
     //=========================================================================
 
-    axi4_master_rd_mon #(
-        .AXI_ID_WIDTH           (AXI_ID_WIDTH),
-        .AXI_ADDR_WIDTH         (ADDR_WIDTH),
-        .AXI_DATA_WIDTH         (256),  // FIXED 256-bit for descriptor size
-        .AXI_USER_WIDTH         (1),
-        .UNIT_ID                (8'(MON_UNIT_ID)),
-        .AGENT_ID               (16'(DESC_AXI_MON_AGENT_ID)),
-        .MAX_TRANSACTIONS       (MON_MAX_TRANSACTIONS),
-        .ENABLE_FILTERING       (1),
-        // Synthesis gate: 0 omits base+CAM+reporters, keeps AR/R pass-through,
-        // ties monbus_valid/status to 0 (see axi4_master_rd_mon USE_MONITOR).
-        .USE_MONITOR            (USE_AXI_MONITORS == 1)
+    // axi_monitor_lite (amba/monitor-lite TASK-001): the lite monitor on the same taps.
+    // No perf window, debug, address-range checker, ID/address filters or per-event
+    // masks -- those cfg inputs stay on this module's ports for the register block
+    // The lite descriptor monitor has no cfg-conflict check; the status bit reads 0.
+    assign cfg_sts_desc_mon_conflict_error = 1'b0;
+
+    // but drive nothing here. Drop-and-count instead of block_ready.
+    axi4_master_rd_monlite #(
+        .AXI_ID_WIDTH     (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH   (ADDR_WIDTH),
+        .AXI_DATA_WIDTH   (256),  // FIXED 256-bit for descriptor size
+        .AXI_USER_WIDTH   (1),
+        .UNIT_ID          (8'(MON_UNIT_ID)),
+        .AGENT_ID         (16'(DESC_AXI_MON_AGENT_ID)),
+        .MAX_TRANSACTIONS (MON_MAX_TRANSACTIONS),
+        .USE_MONITOR      (USE_AXI_MONITORS == 1)
     ) u_desc_axi_monitor (
-        .aclk                   (clk),
-        .aresetn                (rst_n),
-
-        // ID / address filtering, and the block-ready debug output. These
-        // ports were added to the shared axi4_master_rd_mon after this
-        // instantiation was written, so all seven sat unconnected: Verilator
-        // treats warnings as fatal by default, and PINMISSING x7 became
-        // "%Error: Exiting due to 7 warning(s)" -- the whole macro_beats
-        // scheduler-group-array suite and both top_beats core tests never
-        // elaborated. Filtering is tied OFF, which the monitor documents as
-        // bit-identical to the unfiltered behaviour this design has always
-        // had; debug_block_ready is left open like STREAM's instantiation.
-        .cfg_id_filter_enable   (1'b0),
-        .cfg_id_match_base      ('0),
-        .cfg_id_match_count     ('0),
-        .cfg_addr_filter_enable (1'b0),
-        .cfg_addr_filter_low    ('0),
-        .cfg_addr_filter_high   ('0),
-        .debug_block_ready      (),
-
-        // FUB side (input to monitor) - AR Channel
-        .fub_axi_arid           (desc_axi_int_arid),
-        .fub_axi_araddr         (desc_axi_int_araddr),
-        .fub_axi_arlen          (desc_axi_int_arlen),
-        .fub_axi_arsize         (desc_axi_int_arsize),
-        .fub_axi_arburst        (desc_axi_int_arburst),
-        .fub_axi_arlock         (desc_axi_int_arlock),
-        .fub_axi_arcache        (desc_axi_int_arcache),
-        .fub_axi_arprot         (desc_axi_int_arprot),
-        .fub_axi_arqos          (desc_axi_int_arqos),
-        .fub_axi_arregion       (desc_axi_int_arregion),
-        .fub_axi_aruser         (1'b0),
-        .fub_axi_arvalid        (desc_axi_int_arvalid),
-        .fub_axi_arready        (desc_axi_int_arready),
-
-        // FUB side (input to monitor) - R Channel
-        .fub_axi_rid            (desc_axi_int_rid),
-        .fub_axi_rdata          (desc_axi_int_rdata),
-        .fub_axi_rresp          (desc_axi_int_rresp),
-        .fub_axi_rlast          (desc_axi_int_rlast),
-        .fub_axi_ruser          (),  // Unused, leave floating
-        .fub_axi_rvalid         (desc_axi_int_rvalid),
-        .fub_axi_rready         (desc_axi_int_rready),
-
-        // Master side (output from monitor) - connect to external AXI for pass-through
-        .m_axi_arid             (desc_axi_arid),
-        .m_axi_araddr           (desc_axi_araddr),
-        .m_axi_arlen            (desc_axi_arlen),
-        .m_axi_arsize           (desc_axi_arsize),
-        .m_axi_arburst          (desc_axi_arburst),
-        .m_axi_arlock           (desc_axi_arlock),
-        .m_axi_arcache          (desc_axi_arcache),
-        .m_axi_arprot           (desc_axi_arprot),
-        .m_axi_arqos            (desc_axi_arqos),
-        .m_axi_arregion         (desc_axi_arregion),
-        .m_axi_aruser           (),  // Unused
-        .m_axi_arvalid          (desc_axi_arvalid),
-        .m_axi_arready          (desc_axi_arready),
-        .m_axi_rid              (desc_axi_rid),
-        .m_axi_rdata            (desc_axi_rdata),
-        .m_axi_rresp            (desc_axi_rresp),
-        .m_axi_rlast            (desc_axi_rlast),
-        .m_axi_ruser            (1'b0),  // Input, tie to constant
-        .m_axi_rvalid           (desc_axi_rvalid),
-        .m_axi_rready           (desc_axi_rready),
-
-        // Monitor Configuration
-        .cfg_monitor_enable     (cfg_desc_mon_enable),
-        .cfg_error_enable       (cfg_desc_mon_err_enable),
-        .cfg_perf_enable        (cfg_desc_mon_perf_enable),
-        .cfg_timeout_enable     (cfg_desc_mon_timeout_enable),
-        .cfg_timeout_cycles     (cfg_desc_mon_timeout_cycles),
-        // ACLK_MHZ is left at its default here, so the CFI LUT is degenerate
-        // (every entry == ACLK_MHZ) and any index gives an exact 1 us tick.
-        // Set ACLK_MHZ + a real CFI_MIN/MAX range and drive this from a CSR
-        // if this block ever needs runtime frequency selection.
-        .cfg_freq_sel(4'b0000),
-        .cfg_latency_threshold  (cfg_desc_mon_latency_thresh),
-
-        // AXI Protocol Filtering Configuration
-        .cfg_axi_pkt_mask       (cfg_desc_mon_pkt_mask),
-        .cfg_axi_err_select     (cfg_desc_mon_err_select),
-        .cfg_axi_error_mask     (cfg_desc_mon_err_mask),
-        .cfg_axi_timeout_mask   (cfg_desc_mon_timeout_mask),
-        .cfg_axi_compl_mask     (cfg_desc_mon_compl_mask),
-        .cfg_axi_thresh_mask    (cfg_desc_mon_thresh_mask),
-        .cfg_axi_perf_mask      (cfg_desc_mon_perf_mask),
-        .cfg_axi_addr_mask      (cfg_desc_mon_addr_mask),
-        .cfg_axi_debug_mask     (cfg_desc_mon_debug_mask),
-
-        // Address-range checker — disabled (default N_ADDR_RANGES=0).
-        // The wrapper exposes these even when disabled, so tie them off.
-        .cfg_addr_check_enable  (1'b0),
-        .cfg_addr_range_enable  (1'b0),
-        .cfg_addr_range_low     ('0),
-        .cfg_addr_range_high    ('0),
-
-        // Perf-window instrumentation + extra packet-type enables (this monitor
-        // predates them; disabled here). cfg_compl_enable stays 0 to avoid
-        // monbus congestion when perf packets are enabled elsewhere.
-        .cam_clear              (1'b0),
-        .cfg_compl_enable       (1'b0),
-        .cfg_threshold_enable   (1'b0),
-        .cfg_debug_enable       (1'b0),
-        .cfg_start_event_sel    (3'b0),
-        .cfg_end_event_sel      (3'b0),
-        .cfg_start_trigger      (cfg_desc_mon_perf_run),
-        .cfg_end_trigger        (~cfg_desc_mon_perf_run),
-        .cfg_window_force_close (1'b0),
-
-        // Free-running monitor time broadcast
-        .i_mon_time             (i_mon_time),
-
-        // Monitor bus (with side-band timestamp)
-        .monbus_valid           (desc_axi_mon_valid),
-        .monbus_ready           (desc_axi_mon_ready),
-        .monbus_packet          (desc_axi_mon_packet),
-        .monbus_timestamp       (desc_axi_mon_timestamp),
-
-        // Status outputs
-        .busy                   (cfg_sts_desc_mon_busy),
-        .active_transactions    (cfg_sts_desc_mon_active_txns),
-        .error_count            (cfg_sts_desc_mon_error_count),
-        .transaction_count      (cfg_sts_desc_mon_txn_count),
-        .cfg_conflict_error     (cfg_sts_desc_mon_conflict_error),
-
-        // Perf-window measurement outputs (unused at this level)
-        /* verilator lint_off PINCONNECTEMPTY */
-        .window_active          (sts_desc_mon_win_active),
-        .window_cycles          (sts_desc_mon_win_cycles),
-        .perf_prod_cycles       (sts_desc_mon_prod_cycles),
-        .perf_bp_cycles         (sts_desc_mon_bp_cycles),
-        .perf_starv_cycles      (sts_desc_mon_starv_cycles),
-        .perf_idle_cycles       (sts_desc_mon_idle_cycles),
-        .perf_beat_count        (sts_desc_mon_beat_count),
-        .perf_byte_count        (sts_desc_mon_byte_count),
-        .perf_burst_count       (sts_desc_mon_burst_count)
-        /* verilator lint_on PINCONNECTEMPTY */
+        .aclk                 (clk),
+        .aresetn              (rst_n),
+        .fub_axi_arid         (desc_axi_int_arid),
+        .fub_axi_araddr       (desc_axi_int_araddr),
+        .fub_axi_arlen        (desc_axi_int_arlen),
+        .fub_axi_arsize       (desc_axi_int_arsize),
+        .fub_axi_arburst      (desc_axi_int_arburst),
+        .fub_axi_arlock       (desc_axi_int_arlock),
+        .fub_axi_arcache      (desc_axi_int_arcache),
+        .fub_axi_arprot       (desc_axi_int_arprot),
+        .fub_axi_arqos        (desc_axi_int_arqos),
+        .fub_axi_arregion     (desc_axi_int_arregion),
+        .fub_axi_aruser       (1'b0),
+        .fub_axi_arvalid      (desc_axi_int_arvalid),
+        .fub_axi_arready      (desc_axi_int_arready),
+        .fub_axi_rid          (desc_axi_int_rid),
+        .fub_axi_rdata        (desc_axi_int_rdata),
+        .fub_axi_rresp        (desc_axi_int_rresp),
+        .fub_axi_rlast        (desc_axi_int_rlast),
+        .fub_axi_ruser        (),  // Unused, leave floating
+        .fub_axi_rvalid       (desc_axi_int_rvalid),
+        .fub_axi_rready       (desc_axi_int_rready),
+        .m_axi_arid           (desc_axi_arid),
+        .m_axi_araddr         (desc_axi_araddr),
+        .m_axi_arlen          (desc_axi_arlen),
+        .m_axi_arsize         (desc_axi_arsize),
+        .m_axi_arburst        (desc_axi_arburst),
+        .m_axi_arlock         (desc_axi_arlock),
+        .m_axi_arcache        (desc_axi_arcache),
+        .m_axi_arprot         (desc_axi_arprot),
+        .m_axi_arqos          (desc_axi_arqos),
+        .m_axi_arregion       (desc_axi_arregion),
+        .m_axi_aruser         (),  // Unused
+        .m_axi_arvalid        (desc_axi_arvalid),
+        .m_axi_arready        (desc_axi_arready),
+        .m_axi_rid            (desc_axi_rid),
+        .m_axi_rdata          (desc_axi_rdata),
+        .m_axi_rresp          (desc_axi_rresp),
+        .m_axi_rlast          (desc_axi_rlast),
+        .m_axi_ruser          (1'b0),  // Input, tie to constant
+        .m_axi_rvalid         (desc_axi_rvalid),
+        .m_axi_rready         (desc_axi_rready),
+        .cfg_monitor_enable   (cfg_desc_mon_enable),
+        .cfg_error_enable     (cfg_desc_mon_err_enable),
+        .cfg_timeout_enable   (cfg_desc_mon_timeout_enable),
+        .cfg_timeout_cycles   (cfg_desc_mon_timeout_cycles),
+        .cfg_freq_sel         (4'b0000),
+        .cfg_axi_pkt_mask     (cfg_desc_mon_pkt_mask),
+        .cfg_latency_threshold (cfg_desc_mon_latency_thresh),
+        .cfg_addr_check_enable (1'b0),
+        .cfg_addr_match_enable (1'b0),
+        .cfg_addr_range_enable ('0),
+        .cfg_addr_range_low    ('0),
+        .cfg_addr_range_high   ('0),
+        .cam_clear            (1'b0),
+        .cfg_compl_enable     (1'b0),
+        .cfg_threshold_enable (1'b0),
+        .i_mon_time           (i_mon_time),
+        .monbus_valid         (desc_axi_mon_valid),
+        .monbus_ready         (desc_axi_mon_ready),
+        .monbus_packet        (desc_axi_mon_packet),
+        .monbus_timestamp     (desc_axi_mon_timestamp),
+        .busy                 (cfg_sts_desc_mon_busy),
+        .active_transactions  (cfg_sts_desc_mon_active_txns),
+        .error_count          (cfg_sts_desc_mon_error_count),
+        .transaction_count    (cfg_sts_desc_mon_txn_count),
+        .dropped_count        (),  // lite: events lost to monbus backpressure (counted, reported as EVENT_DROPPED)
+        .refused_count        ()  // lite: commands that found no free table entry
     );
 
     //=========================================================================

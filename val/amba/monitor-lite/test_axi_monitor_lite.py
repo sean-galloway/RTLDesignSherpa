@@ -46,12 +46,14 @@ def test_axi_monitor_lite(request, channel, id_width, max_trans, test_level):
     rtl_parameters = {
         'AXI_ID_WIDTH': str(id_width), 'AXI_ADDR_WIDTH': '32', 'AXI_DATA_WIDTH': '32', 'AXI_USER_WIDTH': '1',
         'MAX_TRANSACTIONS': str(max_trans),
+        # the optional address-range checker, built in every cell: range 0 an error range, range 1 a match range
+        'N_ADDR_RANGES': '2', 'ADDR_RANGE_IS_ERROR': "2'b01",
     }
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.fst", 'VERILATOR_TRACE': '1', 'DUT': dut_name,
         'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO', 'COCOTB_RESULTS_FILE': results_path,
         'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
-        'TEST_LEVEL': test_level, 'MON_CHANNEL': channel, 'MAX_TRANSACTIONS': str(max_trans),
+        'TEST_LEVEL': test_level, 'MON_CHANNEL': channel, 'MAX_TRANSACTIONS': str(max_trans), 'N_ADDR_RANGES': '2',
         'TEST_ID_WIDTH': str(id_width), 'TEST_ADDR_WIDTH': '32', 'TEST_DATA_WIDTH': '32', 'TEST_USER_WIDTH': '1',
         'TEST_CLK_PERIOD': '10',
     }

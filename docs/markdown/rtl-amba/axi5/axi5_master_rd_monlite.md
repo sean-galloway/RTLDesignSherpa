@@ -79,6 +79,8 @@ counted (`refused_count`) and left untracked, so its beats report as orphans.
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
+| `N_ADDR_RANGES` | int | `0` | address-range checker windows; 0 = not built |
+| `ADDR_RANGE_IS_ERROR` | logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] | `'0` | per range: 1 = miss is an error, 0 = hit is a match |
 | `SKID_DEPTH_AR` | int | `2` | as on `axi5_master_rd` |
 | `SKID_DEPTH_R` | int | `4` | as on `axi5_master_rd` |
 | `AXI_ID_WIDTH` | int | `8` | as on `axi5_master_rd` |
@@ -212,6 +214,12 @@ counted (`refused_count`) and left untracked, so its beats report as orphans.
 | `m_axi_rtag` | input | `logic [TW-1:0]` |  |
 | `m_axi_rtagmatch` | input | `logic` |  |
 | `busy` | output | `logic` |  |
+| `cfg_latency_threshold` | input | `logic [31:0]` | completion latency (cycles) above this -> Threshold/LATENCY |
+| `cfg_addr_check_enable` | input | `logic` |  |
+| `cfg_addr_match_enable` | input | `logic` | hit in a match range -> AddrMatch packet |
+| `cfg_addr_range_enable` | input | `logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]` |  |
+| `cfg_addr_range_low` | input | `logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]` |  |
+| `cfg_addr_range_high` | input | `logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]` |  |
 
 ---
 
@@ -244,10 +252,10 @@ then packet formatting) and met 10 ns on an Artix-7 100T -1 with margin inside
 
 ```systemverilog
 axi5_master_rd_monlite #(
+    .N_ADDR_RANGES         (0),
+    .ADDR_RANGE_IS_ERROR   ('0),
     .SKID_DEPTH_AR         (2),
     .SKID_DEPTH_R          (4),
-    .AXI_ID_WIDTH          (8),
-    .AXI_ADDR_WIDTH        (32),
     .UNIT_ID              (8'h02),
     .AGENT_ID             (16'h0014),
     .MAX_TRANSACTIONS     (8)

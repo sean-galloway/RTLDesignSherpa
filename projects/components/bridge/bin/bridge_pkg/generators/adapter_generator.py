@@ -1209,7 +1209,7 @@ class AdapterGenerator:
                 wrapper.add_addr_range_tieoff()
                 wrapper.add_perfmon_tieoff()
             lines.append("    // ================================================================")
-            lines.append(f"    // Timing isolation wrapper ({wrapper_protocol}_slave_wr{'_mon' if self.enable_monitoring else ''})")
+            lines.append(f"    // Timing isolation wrapper ({wrapper_protocol}_slave_wr{'_monlite' if self.enable_monitoring else ''})")
             lines.append("    // ================================================================")
             lines.extend(wrapper.generate_lines())
             if 'atomic' in self.sb_own and not self.rr_atomic:
@@ -1252,7 +1252,7 @@ class AdapterGenerator:
                 wrapper.add_addr_range_tieoff()
                 wrapper.add_perfmon_tieoff()
             lines.append("    // ================================================================")
-            lines.append(f"    // Timing isolation wrapper ({wrapper_protocol}_slave_rd{'_mon' if self.enable_monitoring else ''})")
+            lines.append(f"    // Timing isolation wrapper ({wrapper_protocol}_slave_rd{'_monlite' if self.enable_monitoring else ''})")
             lines.append("    // ================================================================")
             lines.extend(wrapper.generate_lines())
 

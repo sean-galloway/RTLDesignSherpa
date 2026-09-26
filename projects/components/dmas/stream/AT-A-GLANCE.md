@@ -86,7 +86,9 @@ data path:
   counters run regardless of `USE_AXI_MONITORS` — the RTL says so at
   `stream_core.sv:1881` ("MUST survive USE_AXI_MONITORS=0"). Over-gating
   these was a real cause of zero perf readings.
-* **Gated heavy monitors.** `axi4_master_rd_mon` / `axi4_master_wr_mon` and
+* **Gated monitors.** `axi4_master_rd_monlite` / `axi4_master_wr_monlite`
+  (axi_monitor_lite since 2026-09-26: error, timeout, completion, threshold and
+  the address-range checker; no perf or debug class, no block_ready) and
   `axi_perf_latency_hist` sit behind `USE_AXI_MONITORS`; their packets are
   arbitrated onto the monitor bus by `monbus_arbiter`.
 * **`perf_profiler`** per channel, and `monbus_axil4_axil4_group` at the top

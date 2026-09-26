@@ -190,7 +190,7 @@ At the top level (`rapids_beats_top`), the internal MonBus is not exposed as a
 raw 64-bit port. Instead, when `USE_AXI_MONITORS = 1`, packets are combined and
 delivered through a `monbus_axil4_axil4_group`:
 
-1. **AXI monitors:** `axi4_master_rd_mon` and `axi4_master_wr_mon` observe the
+1. **AXI monitors:** `axi4_master_rd_monlite` and `axi4_master_wr_monlite` (axi_monitor_lite: error, timeout, completion, threshold and the optional address-range checker; no perf or debug class) observe the
    read (`m_axi_rd`) and write (`m_axi_wr`) data masters and emit monitor
    packets. When `USE_AXI_MONITORS = 0`, these taps are bypassed and the
    MonBus outputs below are tied off (`mon_irq = 0`).

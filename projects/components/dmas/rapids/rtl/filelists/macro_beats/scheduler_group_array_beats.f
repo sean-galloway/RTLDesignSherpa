@@ -13,7 +13,7 @@
 -f $REPO_ROOT/rtl/common/filelists/counter_freq_invariant.f
 
 # AXI4 Master Read Monitor and all its dependencies
--f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_mon.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_monlite.f
 
 # DUT module
 $REPO_ROOT/projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_array_beats.sv

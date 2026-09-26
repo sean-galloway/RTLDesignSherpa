@@ -36,3 +36,29 @@ cheap form of oldest-first attribution whenever the protocol returns
 same-ID responses in order, which AXI does. An allocation sequence stamp is
 not: it wraps for an entry that outlives 2^W allocations, and the slot
 count bounds live entries, not how many come and go while one waits.
+
+## Subsetting a block: the "dropped" list comes from the consumers, not the block (2026-09-26)
+
+The lite's "25% dropped" list was written by reading the full monitor and
+judging which features were heavy: perf window, debug class, address-range
+checker, ID/address filters, latency threshold, per-phase timers, block_ready.
+Two of those came straight back the same day, each found only when a consumer
+was actually swapped:
+
+- STREAM's data ports are the one user of the **address-range checker** --
+  `N_ADDR_RANGES` from the config, ranges from the register block, miss into the
+  error enable, match into the debug enable. The swap would have silently
+  dropped `Error/ADDR_RANGE` and `AddrMatch` from STREAM's monbus.
+- STREAM's packet-class test provokes the threshold class through the
+  **latency threshold**, not table occupancy; the lite had only the occupancy
+  flavour and the test failed with zero packets on both data monitors.
+
+Before writing a subset's drop list, grep every consumer's INSTANTIATION of
+the full block for the ports and parameters that carry each candidate feature
+(`grep -rn "cfg_addr_range\|latency_thresh" projects/`). A feature with a
+live consumer binding is not a candidate; a feature bound only to `'0` or an
+open port everywhere is. The synthesis reports say what a feature costs; only
+the consumers say whether it can go. Both features came back as options
+(`N_ADDR_RANGES`, default 0) or as a single compare on a value the lite already
+had (the latency subtract), so the area case survived -- but a day of
+regressions would have been saved by the grep.

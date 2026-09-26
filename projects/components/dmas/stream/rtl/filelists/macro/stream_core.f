@@ -20,7 +20,7 @@
 # sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
 # filelist below declares its own complete closure.
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f
--f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_mon.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_monlite.f
 -f $REPO_ROOT/rtl/amba/filelists/axi_bus_meter.f
 -f $REPO_ROOT/rtl/amba/filelists/axi_perf_latency_hist.f
 

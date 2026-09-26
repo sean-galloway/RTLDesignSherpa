@@ -110,8 +110,8 @@ graph TB
     REGS --> CFG["rapids_config_block<br/>(hwif_out -> cfg_*)"]
     CFG --> CORE["rapids_core_beats"]
 
-    CORE -->|"m_axi_rd"| RDMON["axi4_master_rd_mon"]
-    CORE -->|"m_axi_wr"| WRMON["axi4_master_wr_mon"]
+    CORE -->|"m_axi_rd"| RDMON["axi4_master_rd_monlite"]
+    CORE -->|"m_axi_wr"| WRMON["axi4_master_wr_monlite"]
     RDMON --> MRD["m_axi_rd"]
     WRMON --> MWR["m_axi_wr"]
 

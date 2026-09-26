@@ -66,7 +66,7 @@ and interrupt).
                         |
         core AXI rd/wr, descriptor-monitor packet
                         |
-   USE_AXI_MONITORS ? insert axi4_master_rd_mon / axi4_master_wr_mon
+   USE_AXI_MONITORS ? insert axi4_master_rd_monlite / axi4_master_wr_monlite
                         |
      +------------------+------------------+
      | m_axi_rd    m_axi_wr   rd/wr mon packets + core mon packet
@@ -97,8 +97,8 @@ Because the monitor regfile is at `0x1000`, the APB address bus must be at least
 
 ## AXI Monitors (USE_AXI_MONITORS)
 
-When `USE_AXI_MONITORS = 1`, an `axi4_master_rd_mon` is inserted on the read
-master (`m_axi_rd`) and an `axi4_master_wr_mon` on the write master
+When `USE_AXI_MONITORS = 1`, an `axi4_master_rd_monlite` is inserted on the read
+master (`m_axi_rd`) and an `axi4_master_wr_monlite` on the write master
 (`m_axi_wr`). Their `monitor_packet_t` outputs are combined with the core's
 descriptor-monitor packet (zero-extended to 128 bits) by a 3-input
 `monbus_arbiter` (round-robin, with input/output skid buffers). The combined

@@ -303,10 +303,18 @@ module sram_rd_adapter
         .cfg_threshold_enable(cfg_rd_threshold_enable),
         .cfg_timeout_cycles(cfg_rd_timeout_cycles),
         .cfg_freq_sel(cfg_rd_freq_sel),
+        .cfg_latency_threshold(cfg_rd_latency_threshold),
         .cfg_axi_pkt_mask(cfg_rd_axi_pkt_mask),
+        .cfg_addr_match_enable(cfg_rd_debug_enable),
 
         // Monitor table clear (inert)
-        .cam_clear(1'b0)
+        .cam_clear(1'b0),
+
+        // Address-range checker (disabled at N_ADDR_RANGES=0)
+        .cfg_addr_check_enable(1'b0),
+        .cfg_addr_range_enable(1'b0),
+        .cfg_addr_range_low({32{1'b0}}),
+        .cfg_addr_range_high({32{1'b0}})
     );
 
 endmodule : sram_rd_adapter

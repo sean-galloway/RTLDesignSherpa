@@ -49,12 +49,6 @@ Combines **[axil4_master_rd](../axil4/axil4_master_rd.md)** with the core **axi_
 
 > A lite-monitor version of this wrapper exists as [`axil4_master_rd_monlite`](axil4_master_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
 
-> A lite-monitor version of this wrapper exists as [`axil4_master_rd_monlite`](axil4_master_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
-
-> A lite-monitor version of this wrapper exists as [`axil4_master_rd_monlite`](axil4_master_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
-
-> A lite-monitor version of this wrapper exists as [`axil4_master_rd_monlite`](axil4_master_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
-
 ### Additional Parameters
 
 Beyond the base module's parameters:

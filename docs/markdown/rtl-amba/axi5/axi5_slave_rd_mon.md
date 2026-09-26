@@ -97,12 +97,6 @@ flowchart TB
 
 > A lite-monitor version of this wrapper exists as [`axi5_slave_rd_monlite`](axi5_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
 
-> A lite-monitor version of this wrapper exists as [`axi5_slave_rd_monlite`](axi5_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
-
-> A lite-monitor version of this wrapper exists as [`axi5_slave_rd_monlite`](axi5_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
-
-> A lite-monitor version of this wrapper exists as [`axi5_slave_rd_monlite`](axi5_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
-
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | SKID_DEPTH_AR | int | 2 | AR channel SKID buffer depth |

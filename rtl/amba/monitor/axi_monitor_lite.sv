@@ -17,22 +17,24 @@
 // What it keeps of axi_monitor_base (the "75%"): error packets for response
 // errors, orphan beats and burst-length violations, each with the
 // transaction's ID and address; completion packets with latency; timeout
-// packets naming the stuck phase; the active-count threshold; the same
+// packets naming the stuck phase; the active-count and latency thresholds; the same
 // 128-bit monitor_packet_t + 64-bit side-band timestamp on the same monbus
 // handshake, with the same UNIT/AGENT ids, so the arbiter, group, tally and
 // host tooling do not know the difference.
 //
 // What it drops (the "25%"): performance packets and windows (axi_bus_meter
-// is the perf path), debug state-change packets, the address-range checker
-// and report-time address filter, the ID-range filter, the latency
-// threshold, three independent per-phase timers (one "no progress"
+// is the perf path), debug state-change packets, the report-time address
+// filter, the ID-range filter, three independent per-phase timers (one "no progress"
 // threshold; the phase is in the event code), the block_ready admission
 // stall (the lite never touches the traffic it watches: an event it cannot
 // deliver is dropped and COUNTED, and the count is reported; a command that
 // finds no free slot is counted too, and its beats then surface as ORPHAN
 // errors, which name it), and a table
 // of data-before-address transactions (ONE early write burst is buffered
-// as a beat count).
+// as a beat count). The address-range checker is KEPT as an option: the full
+// monitor's axi_monitor_addr_check, built only when N_ADDR_RANGES > 0, its
+// Error/ADDR_RANGE and AddrMatch packets muxed onto the same monbus
+// (Sean, 2026-09-26: STREAM's data ports use it).
 //
 // Why it is small: nothing is scanned. There is one allocation port (the
 // command handshake), one lookup (R or B by ID, the head of that ID's list
@@ -72,6 +74,11 @@ module axi_monitor_lite
     parameter int          TS_WIDTH         = 16,    // cycle timestamp: ordering + latency
     parameter int          AGE_WIDTH        = 16,    // microsecond age: timeout (cfg is 16 bits)
     parameter int          OUT_DEPTH        = 4,     // output queue of event entries, a power of two; deeper absorbs longer stalls
+    // Address-range checker (axi_monitor_addr_check, the full monitor's): built
+    // when N_ADDR_RANGES > 0, zero area otherwise. Per range, ADDR_RANGE_IS_ERROR
+    // = 1 makes a MISS an Error/ADDR_RANGE packet, 0 makes a HIT an AddrMatch packet.
+    parameter int          N_ADDR_RANGES    = 0,
+    parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0,
     // Frequency-invariant microsecond tick (same knobs as axi_monitor_timer)
     parameter int          CFI_MIN_FREQ_MHZ     = 5,
     parameter int          CFI_MAX_FREQ_MHZ     = 220,
@@ -83,7 +90,8 @@ module axi_monitor_lite
     parameter int          IW  = (ID_WIDTH > 0) ? ID_WIDTH : 1,
     parameter int          SW  = (N > 1) ? $clog2(N) : 1,
     parameter int          CW  = $clog2(N + 1),
-    parameter int          SELW = (CFI_NUM_FREQ_ENTRIES > 1) ? $clog2(CFI_NUM_FREQ_ENTRIES) : 1
+    parameter int          SELW = (CFI_NUM_FREQ_ENTRIES > 1) ? $clog2(CFI_NUM_FREQ_ENTRIES) : 1,
+    parameter int          NAR  = (N_ADDR_RANGES > 0) ? N_ADDR_RANGES : 1
 ) (
     input  logic                  aclk,
     input  logic                  aresetn,
@@ -121,7 +129,14 @@ module axi_monitor_lite
     input  logic                  cfg_timeout_enable,
     input  logic                  cfg_threshold_enable,
     input  logic [15:0]           cfg_active_trans_threshold,
+    input  logic [31:0]           cfg_latency_threshold,   // completion latency (cycles) above this -> Threshold/LATENCY; the full monitor's knob
     input  logic [15:0]           cfg_axi_pkt_mask,   // bit[type] = 1 drops that packet type
+    // Address-range checker config (used only when N_ADDR_RANGES > 0)
+    input  logic                  cfg_addr_check_enable,
+    input  logic                  cfg_addr_match_enable,   // a hit in a match range emits AddrMatch
+    input  logic [NAR-1:0]        cfg_addr_range_enable,
+    input  logic [NAR-1:0][AW-1:0] cfg_addr_range_low,
+    input  logic [NAR-1:0][AW-1:0] cfg_addr_range_high,
 
     // Monitor bus
     output logic                  monbus_valid,
@@ -324,6 +339,11 @@ module axi_monitor_lite
     wire           w_compl_clean = w_compl && !r_err[w_compl_slot] &&
                                    !(IS_READ ? (data_resp[1] || w_last_early) : resp_code[1]);
     wire [TS_WIDTH-1:0] w_latency = r_now - r_ts0[w_compl_slot];   // the one latency subtractor
+    // Latency threshold (the full monitor's second Threshold flavour): a clean
+    // completion whose latency crossed cfg_latency_threshold. Gated by the same
+    // runtime enable as the active-count threshold; STREAM arms it per port.
+    wire w_lat_evt = w_compl_clean && cfg_threshold_enable &&
+                     ({{(32-TS_WIDTH){1'b0}}, w_latency} > cfg_latency_threshold);
     // the freed head hands its flag to the next entry of its ID, if any
     wire           w_free_has_next = r_has_next[w_compl_slot];
     wire [SW-1:0]  w_free_next     = r_next[w_compl_slot];
@@ -483,6 +503,14 @@ module axi_monitor_lite
     logic               r_e_resp_err, r_e_data_err, r_e_last_early, r_e_last_late;
     logic               r_e_resp_orph, r_e_data_orph, r_e_early_ovf;
     logic               r_e_scan_hit, r_e_cmd_tmo, r_e_compl, r_e_thresh;
+    // The latency-threshold event always coincides with its completion, and the
+    // pick takes one event a cycle: so it is HELD here (slot + latency) and offered
+    // on the following cycles. A second one arriving while one waits is lost and
+    // counted, like any event the queue could not take.
+    logic               r_lat_pend;
+    logic [SW-1:0]      r_lat_slot;
+    logic [15:0]        r_lat_latency;
+    logic               w_lat_take;   // the pick queued the held latency event this cycle
     logic               r_e_scan_phase, r_e_data_decerr, r_e_resp_decerr;
     logic [SW-1:0]      r_e_dslot, r_e_bslot, r_e_tslot, r_e_cslot;
     logic [IW-1:0]      r_e_data_id, r_e_resp_id, r_e_cmd_id;
@@ -495,6 +523,7 @@ module axi_monitor_lite
             r_e_resp_err <= 1'b0; r_e_data_err <= 1'b0; r_e_last_early <= 1'b0; r_e_last_late <= 1'b0;
             r_e_resp_orph <= 1'b0; r_e_data_orph <= 1'b0; r_e_early_ovf <= 1'b0;
             r_e_scan_hit <= 1'b0; r_e_cmd_tmo <= 1'b0; r_e_compl <= 1'b0; r_e_thresh <= 1'b0;
+            r_lat_pend <= 1'b0; r_lat_slot <= '0; r_lat_latency <= '0;
             r_e_scan_phase <= 1'b0; r_e_data_decerr <= 1'b0; r_e_resp_decerr <= 1'b0;
             r_e_dslot <= '0; r_e_bslot <= '0; r_e_tslot <= '0; r_e_cslot <= '0;
             r_e_data_id <= '0; r_e_resp_id <= '0; r_e_cmd_id <= '0; r_e_cmd_addr <= '0;
@@ -511,6 +540,10 @@ module axi_monitor_lite
             r_e_cmd_tmo    <= w_cmd_tmo    && !clear;
             r_e_compl      <= w_compl_clean && !clear;
             r_e_thresh     <= w_thresh_evt && !clear;
+            if (clear)                          r_lat_pend <= 1'b0;
+            else if (w_lat_evt && (!r_lat_pend || w_lat_take)) begin   // take the new one (the held one leaves or none held)
+                r_lat_pend <= 1'b1; r_lat_slot <= w_compl_slot; r_lat_latency <= 16'(w_latency);
+            end else if (w_lat_take)            r_lat_pend <= 1'b0;
             r_e_scan_phase <= r_phase[r_scan];
             r_e_data_decerr <= data_resp[0];
             r_e_resp_decerr <= resp_code[0];
@@ -572,7 +605,8 @@ module axi_monitor_lite
     wire [7:0] w_tmo_code = r_e_scan_hit ? (r_e_scan_phase ? AXI_TIMEOUT_RESP : AXI_TIMEOUT_DATA) : AXI_TIMEOUT_CMD;
     wire [1:0] w_tmo_fired = w_tmo_en ? (2'(r_e_scan_hit) + 2'(r_e_cmd_tmo)) : 2'd0;
     wire       w_cmp_v = r_e_compl  && w_cmp_en;
-    wire       w_thr_v = r_e_thresh && w_thr_en;
+    wire       w_thr_v = (r_e_thresh || r_lat_pend) && w_thr_en;
+    wire [1:0] w_thr_fired = w_thr_en ? 2'(r_e_thresh) : 2'd0;   // the held latency event is offered, not fired, each cycle
 
     // the winner: class, code, and where its id/address come from
     logic          w_evt_v;
@@ -597,8 +631,15 @@ module axi_monitor_lite
             w_evt_v = 1'b1; w_evt_type = PktTypeCompletion; w_evt_code = AXI_COMPL_TRANS_COMPLETE;
             w_evt_from_slot = 1'b1; w_evt_slot = r_e_cslot; w_evt_hi = r_e_latency;
         end else if (w_thr_v) begin
-            w_evt_v = 1'b1; w_evt_type = PktTypeThreshold; w_evt_code = AXI_THRESH_ACTIVE_COUNT;
-            w_evt_addr_alt = AW'(r_e_occupancy);
+            w_evt_v = 1'b1; w_evt_type = PktTypeThreshold;
+            if (r_e_thresh) begin
+                w_evt_code = AXI_THRESH_ACTIVE_COUNT;
+                w_evt_addr_alt = AW'(r_e_occupancy);
+            end else begin
+                // held latency event: the completed entry's address, its latency above
+                w_evt_code = AXI_THRESH_LATENCY;
+                w_evt_from_slot = 1'b1; w_evt_slot = r_lat_slot; w_evt_hi = r_lat_latency;
+            end
         end
     end
     // the one table read for the payload
@@ -607,9 +648,13 @@ module axi_monitor_lite
 
     // events offered this cycle vs the one that can go out
     logic            w_wr_ready;
-    wire [3:0] w_offered = w_err_fired + 4'(w_tmo_fired) + 4'(w_cmp_v) + 4'(w_thr_v);
+    wire [3:0] w_offered = w_err_fired + 4'(w_tmo_fired) + 4'(w_cmp_v) + 4'(w_thr_fired);
     wire       w_take    = w_evt_v && w_wr_ready;
-    wire [3:0] w_lost    = w_offered - 4'(w_take);
+    assign     w_lat_take = w_take && w_thr_v && !w_err_v && !w_tmo_v && !w_cmp_v && !r_e_thresh;   // the winner was the held latency event
+    // lost: every fired event the pick could not queue this cycle, plus a latency
+    // event that arrived while one was already held and not leaving
+    wire       w_lat_lost = w_lat_evt && cfg_threshold_enable && r_lat_pend && !w_lat_take;
+    wire [3:0] w_lost    = w_offered - 4'(w_take) + 4'(w_lat_lost);
 
     logic [15:0] r_dropped, r_refused, r_completed, r_errors;
     // pending drop report: emitted when the queue has room and nothing else wants it
@@ -670,10 +715,11 @@ module axi_monitor_lite
     wire          w_q_empty = (r_q_wp == r_q_rp);
     wire          w_q_full  = (r_q_wp[OQW-1:0] == r_q_rp[OQW-1:0]) && (r_q_wp[OQW] != r_q_rp[OQW]);
     wire          w_q_push  = (w_take || w_drop_rpt);
-    wire          w_q_pop   = monbus_valid && monbus_ready;
+    wire          w_q_pop   = w_q_valid && w_q_ready;           // w_q_ready from the monbus mux below
     assign w_wr_ready  = !w_q_full;
-    assign monbus_valid = !w_q_empty;
     assign w_entry_out  = r_q[r_q_rp[OQW-1:0]];
+    logic w_q_valid;
+    assign w_q_valid    = !w_q_empty;
 
     always_ff @(posedge aclk) begin
         if (w_q_push) r_q[r_q_wp[OQW-1:0]] <= w_entry_in;
@@ -687,12 +733,80 @@ module axi_monitor_lite
         end
     )
 
-    assign monbus_packet    = create_monitor_packet(w_entry_out.ptype, PROTOCOL_AXI, w_entry_out.code,
-                                                    {3'b0, w_entry_out.chan}, UNIT_ID, AGENT_ID, w_out_data);
-    assign monbus_timestamp = i_mon_time;   // side-band time, sampled by the consumer at the handshake
+    monitor_packet_t w_q_packet;
+    assign w_q_packet = create_monitor_packet(w_entry_out.ptype, PROTOCOL_AXI, w_entry_out.code,
+                                              {3'b0, w_entry_out.chan}, UNIT_ID, AGENT_ID, w_out_data);
+
+    // ------------------------------------------------------------------
+    // Address-range checker and the monbus mux. The checker is the full
+    // monitor's axi_monitor_addr_check, unchanged: it snoops the command
+    // handshake and builds its own Error/ADDR_RANGE or AddrMatch packets
+    // (same UNIT/AGENT ids). Two sources share the monbus; whichever is
+    // presented first holds the bus until taken, so a presented packet never
+    // changes under the consumer (the same rule axi_monitor_base applies).
+    // ------------------------------------------------------------------
+    logic              w_q_ready;
+    logic              w_addr_valid, w_addr_ready;
+    monitor_packet_t   w_addr_packet;
+    monbus_timestamp_t w_addr_ts;
+
+    if (N_ADDR_RANGES > 0) begin : gen_addr_check
+        axi_monitor_addr_check #(
+            .N_ADDR_RANGES       (N_ADDR_RANGES),
+            .ADDR_WIDTH          (AW),
+            .ID_WIDTH            (IW),
+            .UNIT_ID             (UNIT_ID),
+            .AGENT_ID            (AGENT_ID),
+            .IS_READ             (IS_READ),
+            .ADDR_RANGE_IS_ERROR (ADDR_RANGE_IS_ERROR)
+        ) u_addr_check (
+            .clk                   (aclk),
+            .aresetn               (aresetn),
+            .i_mon_time            (i_mon_time),
+            .cmd_addr              (cmd_addr),
+            .cmd_id                (cmd_id),
+            .cmd_valid             (cmd_valid),
+            .cmd_ready             (cmd_ready),
+            .cfg_addr_check_enable (cfg_addr_check_enable),
+            .cfg_debug_enable      (cfg_addr_match_enable),
+            .cfg_error_enable      (cfg_error_enable),
+            .cfg_addr_range_enable (cfg_addr_range_enable),
+            .cfg_addr_range_low    (cfg_addr_range_low),
+            .cfg_addr_range_high   (cfg_addr_range_high),
+            .addr_pkt_valid        (w_addr_valid),
+            .addr_pkt_ready        (w_addr_ready),
+            .addr_pkt_data         (w_addr_packet),
+            .addr_pkt_timestamp    (w_addr_ts)
+        );
+    end else begin : gen_no_addr_check
+        assign w_addr_valid  = 1'b0;
+        assign w_addr_packet = '0;
+        assign w_addr_ts     = '0;
+    end
+
+    // Source hold: r_src_addr says the checker's packet is the one on the bus.
+    // A new selection is made only while nothing is presented.
+    logic r_presented, r_src_addr;
+    wire  w_sel_addr = r_presented ? r_src_addr : w_addr_valid;   // idle: the checker wins the tie
+    assign monbus_valid     = w_sel_addr ? w_addr_valid  : w_q_valid;
+    assign monbus_packet    = w_sel_addr ? w_addr_packet : w_q_packet;
+    assign monbus_timestamp = w_sel_addr ? w_addr_ts     : i_mon_time;   // side-band time, sampled by the consumer at the handshake
+    assign w_addr_ready     =  w_sel_addr && monbus_ready;
+    assign w_q_ready        = !w_sel_addr && monbus_ready;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_presented <= 1'b0; r_src_addr <= 1'b0;
+        end else begin
+            if (monbus_valid && monbus_ready)      r_presented <= 1'b0;   // taken: free to reselect
+            else if (monbus_valid && !r_presented) begin                  // first cycle on the bus: lock the source
+                r_presented <= 1'b1; r_src_addr <= w_sel_addr;
+            end
+        end
+    )
 
     assign active_count         = 8'(w_occupancy);
-    assign busy                 = (|r_valid) || monbus_valid;
+    assign busy                 = (|r_valid) || monbus_valid || w_addr_valid;
     assign perf_completed_count = r_completed;
     assign perf_error_count     = r_errors;
     assign dropped_count        = r_dropped;

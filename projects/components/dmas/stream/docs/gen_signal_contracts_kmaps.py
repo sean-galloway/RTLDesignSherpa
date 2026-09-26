@@ -64,12 +64,10 @@ DRAIN = "projects/components/dmas/stream/rtl/fub/stream_drain_ctrl.sv"
 CORE = "projects/components/dmas/stream/rtl/macro/stream_core.sv"
 # Shared with RAPIDS since 4aeaf3e63 -- an RTL change here has two consumers.
 ADDRGEN = "projects/components/misc/rtl/stream_run_addr_gen.sv"
-RD_MON = "rtl/amba/axi4/axi4_master_rd_mon.sv"
-WR_MON = "rtl/amba/axi4/axi4_master_wr_mon.sv"
-MON_BASE = "rtl/amba/monitor/axi_monitor_base.sv"
+RD_MON = "rtl/amba/axi4/axi4_master_rd_monlite.sv"
+WR_MON = "rtl/amba/axi4/axi4_master_wr_monlite.sv"
+MON_LITE = "rtl/amba/monitor/axi_monitor_lite.sv"
 MON_PKG = "rtl/amba/includes/monitor_common_pkg.sv"
-MON_RPT = "rtl/amba/monitor/axi_monitor_reporter.sv"
-MON_RPT_COMPL = "rtl/amba/monitor/axi_monitor_reporter_compl.sv"
 
 KI_WLAST = ("projects/components/dmas/stream/known_issues/resolved/"
             "axi_write_engine_wlast_drain.md")
@@ -132,7 +130,7 @@ CITES = [
     (DESC_ENG, 485, "w_pending_push_fire = r_chain_pending && w_prefetch_allows"),
     (DESC_ENG, 642, "r_ready = ((r_current_state == RD_WAIT_DATA)"),
     (DESC_ENG, 920, "ar_valid = ((r_current_state == RD_ISSUE_ADDR)"),
-    (DESC_ENG, 1037, "descriptor_valid = w_desc_fifo_rd_valid && !r_descriptor_error"),
+    (DESC_ENG, 1038, "descriptor_valid = w_desc_fifo_rd_valid && !r_descriptor_error"),
     (SRAM_UNIT, 141, "rd_valid           (axi_wr_sram_valid && axi_wr_sram_ready)"),
     (SRAM_UNIT, 184, "wr_valid           (axi_rd_sram_valid && axi_rd_sram_ready)"),
     (SRAM_UNIT, 189, "rd_valid           (axi_wr_drain_req)"),
@@ -146,10 +144,13 @@ CITES = [
     (CORE, 126, "parameter int RD_MON_MAX_TRANS = ((NUM_CHANNELS * AR_MAX_OUTSTANDING + MON_TRANS_MARGIN) < 16)"),
     (CORE, 805, "int_cfg_rdeng_mon_enable = cfg_rdeng_mon_enable"),
     (CORE, 866, "int_cfg_rdeng_mon_enable = 1'b0"),
-    (RD_MON, 577, "fub_axi_arready = w_core_fub_axi_arready &"),
-    (WR_MON, 582, "fub_axi_awready = w_core_fub_axi_awready &"),
-    (MON_BASE, 699, "block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)"),
-    (MON_PKG, 131, "return (max_transactions >= 16) ? 4 : 0"),
+    (RD_MON, 190, ".fub_axi_arready             (fub_axi_arready),"),
+    (WR_MON, 206, ".fub_axi_awready             (fub_axi_awready),"),
+    (MON_LITE, 334, "wire w_refused    = cmd_hs  && !w_have_free;"),
+    (MON_LITE, 627, "wire [3:0] w_lost    = w_offered - 4'(w_take);"),
+    (MON_LITE, 642, "else                          r_dropped <= r_dropped + 16'(w_lost);"),
+    (MON_LITE, 782, "assign dropped_count        = r_dropped;"),
+    (MON_LITE, 783, "assign refused_count        = r_refused;"),
     (SCHED, 440, "r_channel_reset_active <= cfg_channel_reset;"),
     (SCHED, 468, "if (r_channel_reset_active) begin"),
     (SCHED, 1025, ".FIFO_DEPTH   (4),"),
@@ -162,19 +163,13 @@ CITES = [
     (ADDRGEN, 217, ".rd_valid    (o_base_valid),"),
 
     # --- TASK-001 #1: monitor cfg -> packet-class qualification -------------
-    (CORE, 202, "parameter bit DATA_MON_ENABLE_COMPL_LOGIC"),
     (CORE, 784, "if (USE_AXI_MONITORS == 1) begin : g_monitors_enabled"),
     (CORE, 808, "int_cfg_rdeng_mon_compl_enable = cfg_rdeng_mon_compl_enable"),
     (CORE, 869, "int_cfg_rdeng_mon_compl_enable = 1'b0"),
     (CORE, 883, "int_cfg_rdeng_mon_perf_run = cfg_rdeng_mon_perf_run"),
-    (CORE, 1557, ".ENABLE_COMPL_LOGIC     (DATA_MON_ENABLE_COMPL_LOGIC),"),
-    (CORE, 1635, ".cfg_compl_enable       (int_cfg_rdeng_mon_compl_enable),"),
-    (MON_RPT, 230, "if (ENABLE_COMPL_LOGIC) begin : g_compl"),
-    (MON_RPT, 246, "assign compl_valid = 1'b0;"),
-    (MON_RPT, 496, "w_auto_retire[idx] = !ENABLE_COMPL_LOGIC"),
-    (MON_RPT, 497, "!cfg_compl_enable;"),
-    (MON_RPT_COMPL, 51, "trans_table[idx].valid && !event_reported[idx]"),
-    (MON_RPT_COMPL, 52, "state == TRANS_COMPLETE && cfg_compl_enable"),
+    (CORE, 1601, ".cfg_compl_enable     (int_cfg_rdeng_mon_compl_enable),"),
+    (MON_LITE, 559, "wire w_cmp_en = cfg_compl_enable && type_allowed(PktTypeCompletion);"),
+    (MON_LITE, 589, "wire       w_cmp_v = r_e_compl  && w_cmp_en;"),
 
     # --- relations converted from prose claims (criterion 5) ----------------
     (WR_ENG, 720, "assign m_axi_wvalid = r_w_active"),
@@ -277,8 +272,8 @@ def build_desc_axi_contract(wb):
         ("R", "m_axi_desc_rlast", "1", "in", "fabric",
          "Single-beat reads: rlast must be 1 on the (only) data beat.",
          "rvalid && our-id |-> rlast", ""),
-        ("Monitor", "(desc AXI monitor)", "-", "-", "axi4_master_rd_mon",
-         "The descriptor master is wrapped by an axi4_master_rd_mon inside "
+        ("Monitor", "(desc AXI monitor)", "-", "-", "axi4_master_rd_monlite",
+         "The descriptor master is wrapped by an axi4_master_rd_monlite inside "
          "scheduler_group_array; stream_core defaults its error/timeout/"
          "compl/threshold/debug cones OFF (perf-only) for FPGA fit.",
          "DESC_MON_ENABLE_* params default 0 except perf",
@@ -389,7 +384,7 @@ def build_data_axi_contract(wb):
          "entry)",
          f"{WR_ENG}:941, :951"),
         ("Both", "(monitor wrapper)", "-", "-",
-         "axi4_master_rd_mon / axi4_master_wr_mon",
+         "axi4_master_rd_monlite / axi4_master_wr_monlite",
          "Both data masters pass through skid+monitor wrappers in "
          "stream_core; the monitor can stall AR/AW via block_ready (see "
          "K-maps core monitors sheet). Sized so this never happens in "
@@ -1395,156 +1390,155 @@ def build_sram_kmaps(wb):
 def build_core_monitor_kmaps(wb):
     km = new_kmap_sheet(wb, "K-maps core monitors")
     km.sheet_intro(
-        f"stream_core monitor gating + block_ready ({CORE}, {RD_MON}, "
-        f"{WR_MON}, {MON_BASE})",
-        ["The data-path AXI masters run through axi4_master_rd_mon / "
-         "axi4_master_wr_mon wrappers. The monitor's block_ready is ANDed "
-         "into the fub-side AR/AW ready, so a saturated monitor table "
-         "THROTTLES the engines instead of losing transactions - and the "
-         "saturation-recovery contract guarantees it un-throttles."])
+        f"stream_core monitors: no gating, drop-and-count ({CORE}, {RD_MON}, "
+        f"{WR_MON}, {MON_LITE})",
+        ["The data-path AXI masters run through axi4_master_rd_monlite / "
+         "axi4_master_wr_monlite (axi_monitor_lite, since 2026-09-26). The lite "
+         "never touches the traffic it watches: there is no block_ready and the "
+         "core's fub-side ready is the wrapper's ready, verbatim. Capacity "
+         "pressure is COUNTED instead of applied -- a command that finds no "
+         "free table entry is refused (counted, its beats then report as "
+         "orphans) and an event the monbus cannot take is dropped (counted, "
+         "the count reported as Error/EVENT_DROPPED). The full monitor's "
+         "block_ready contract and its saturation-recovery margin no longer "
+         "exist in this design; they are on the axi_monitor_base page."])
 
     km.kmap(
-        "fub_axi_arready gate  (read datapath)", f"{RD_MON}:496-480",
-        "fub_axi_arready = w_core_fub_axi_arready & (w_block_ready | "
-        "~cfg_monitor_enable)   [identical shape for AW: "
-        f"{WR_MON}:482-483]",
-        ["core_ready", "block_ready", "mon_enable"],
-        lambda c, b, e: c and (b or (not e)),
-        "Zero only where core_ready=0 or (block_ready=0 AND "
-        "mon_enable=1). The mon_enable=0 column must equal core_ready "
-        "verbatim - a DISABLED monitor never stalls the datapath. A 0 at "
-        "(1,1,1) would be a monitor stalling while claiming capacity.",
+        "fub_axi_arready pass-through  (read datapath)", f"{RD_MON}:190",
+        ".fub_axi_arready (fub_axi_arready)   -- the core's ready is the "
+        f"port's ready, no monitor term [identical for AW: {WR_MON}:206]",
+        ["core_ready", "mon_enable"],
+        lambda c, e: c,
+        "Equals core_ready in every cell. The mon_enable column is drawn to "
+        "make the point: nothing the monitor knows (enable, table state, "
+        "monbus backpressure) reaches this handshake. The old full-monitor "
+        "map had a third axis, block_ready, and a 0 at (core_ready=1, "
+        "block_ready=0, mon_enable=1); that cell is gone with the term.",
         depends_only_on=(
-            "these three. The AR payload (addr/len/id/user) rides the same "
-            "handshake but cannot affect whether it completes; the monitor's "
-            "table contents reach this cone only through block_ready, which "
-            "is already an axis."),
-        rtl_sop="core_ready & block_ready  |  core_ready & !mon_enable")
+            "core_ready alone. The lite has no path from its table or its "
+            "output queue to any AXI handshake -- that is the design rule "
+            "(vault/handbook/design/observers-do-not-drive.md)."),
+        rtl_sop="core_ready")
 
     km.kmap(
-        "w_block_ready  (monitor capacity)", f"{MON_BASE}:697-701",
-        "block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN) ? (active_count "
-        "< MAX_TRANSACTIONS - BLOCK_MARGIN) : 1'b1   [vars: max_gt_margin "
-        "(param, compile-time), count_below (comparator)]",
-        ["max_gt_margin", "count_below"],
-        lambda m, c: (c if m else True),
-        "block_ready follows count_below whenever the table is big "
-        "enough to carry a margin; degenerate tables never block. "
-        "POLARITY is the loaded gun here: 1 = proceed. The inverted "
-        "pre-fix polarity deadlocked every upstream handshake at reset.",
+        "table refusal  (lite capacity)", f"{MON_LITE}:334",
+        "w_refused = cmd_hs && !w_have_free   [a command that finds no free "
+        "entry is counted in refused_count and NOT tracked; its data/response "
+        "beats then surface as DATA_ORPHAN / RESP_ORPHAN errors naming it]",
+        ["cmd_hs", "have_free"],
+        lambda h, f: h and not f,
+        "One cell: a handshake with a full table. The command still completes "
+        "on the bus (nothing gates it); the monitor loses the entry, says so "
+        f"({MON_LITE}:783), and the orphan errors that follow name the id.",
         depends_only_on=(
-            "these two. max_gt_margin is a compile-time comparison of two "
-            "localparams and count_below folds the whole active_count vs "
-            "MAX_TRANSACTIONS-BLOCK_MARGIN comparison into one term; nothing "
-            "else in the monitor reaches this assign."),
-        rtl_sop="!max_gt_margin  |  count_below")
+            "these two. have_free is the OR of the free-slot mask; the id, "
+            "address and length of the command do not enter the decision."),
+        rtl_sop="cmd_hs & !have_free")
+
+    km.kmap(
+        "event loss  (lite monbus backpressure)", f"{MON_LITE}:627",
+        "w_lost = w_offered - w_take; r_dropped += w_lost   [w_offered = events "
+        "fired this cycle, w_take = the one the pick could queue; the count is "
+        "reported as Error/EVENT_DROPPED when the queue next has room and "
+        "nothing else wants it]",
+        ["event_fired", "queue_room"],
+        lambda e, q: e and not q,
+        "A fired event with no queue room is lost and counted. Two events in one "
+        "cycle lose one even with room (the pick takes one), which this two-axis "
+        "map folds into event_fired; the arithmetic at :627 is exact.",
+        depends_only_on=(
+            "these two plus the per-cycle event count. Which class won the "
+            "pick (error > timeout > completion > threshold) decides WHICH "
+            "event was lost, never whether one was."),
+        rtl_sop="event_fired & !queue_room")
 
     # ---- monitor cfg -> packet-class qualification (STREAM TASK-001 #1) -----
     # The defect this commemorates: cfg_compl_enable was once aliased to
     # int_cfg_*_mon_enable and cfg_threshold_enable to *_mon_perf_enable. A map
     # whose axes carry their DEFINING EXPRESSIONS shows two axes resolving to
-    # one signal immediately; a map with bare string axes cannot. Nothing in the
-    # test suite could see it -- the FUB tests drive the ports directly and the
-    # board only sees packets.
+    # one signal immediately; a map with bare string axes cannot. The lite has
+    # no synthesis cone for completions (ENABLE_COMPL_LOGIC is gone), so the map
+    # lost its build axis; the runtime chain is what remains to protect.
     km.kmap(
         "COMPL packet emission  (monitor cfg -> packet class)",
-        f"{MON_RPT_COMPL}:52",
-        "w_events[idx] = trans_table[idx].valid && !event_reported[idx] && "
-        "(state == TRANS_COMPLETE) && cfg_compl_enable   "
-        "[inside generate if (ENABLE_COMPL_LOGIC); else compl_valid = 1'b0]",
-        [("build_compl",
-          "ENABLE_COMPL_LOGIC <- DATA_MON_ENABLE_COMPL_LOGIC (stream_core "
-          "parameter, default 1'b0)",
-          f"{CORE}:202, :1557"),
-         ("use_mon",
+        f"{MON_LITE}:589",
+        "w_cmp_v = r_e_compl && w_cmp_en;  w_cmp_en = cfg_compl_enable && "
+        "type_allowed(PktTypeCompletion)   [r_e_compl: a clean completion "
+        "registered from the attribution cycle]",
+        [("use_mon",
           "USE_AXI_MONITORS: selects the g_monitors_enabled generate that "
           "feeds every int_cfg_*",
           f"{CORE}:784"),
          ("cfg_compl",
           "cfg_compl_enable <- int_cfg_rdeng_mon_compl_enable "
           "(= cfg_rdeng_mon_compl_enable when monitors are built)",
-          f"{CORE}:808, :1635"),
+          f"{CORE}:808, :1601"),
+         ("type_allowed",
+          "!cfg_axi_pkt_mask[PktTypeCompletion]",
+          f"{MON_LITE}:559"),
          ("is_complete",
-          "trans_table[idx].state == TRANS_COMPLETE",
-          f"{MON_RPT_COMPL}:52")],
-        lambda b, u, c, t: b and u and c and t,
+          "r_e_compl: last beat (read) or B (write) on a tracked entry with no "
+          "error recorded",
+          f"{MON_LITE}:589")],
+        lambda u, c, t, k: u and c and t and k,
         "Single 1-cell at all-ones. Each axis is ONE term with its own "
-        "equation -- that is the point: two axes resolving to the same "
-        "signal would be visible here, which is exactly the aliasing "
-        "defect that shipped. The complement is the slot-leak guard: "
-        "w_auto_retire = !ENABLE_COMPL_LOGIC || !cfg_compl_enable retires "
-        "a terminal entry when no packet can ever be emitted, so a "
-        "runtime-disabled class frees its slot instead of wedging the "
-        f"table ({MON_RPT}:496-497). "
-        "VERDICT READS 'DIFFERS' ON PURPOSE -- and it is the finding. The "
-        "derived cover drops use_mon: the invariant below makes cfg_compl=1 "
-        "imply use_mon=1, so the four use_mon=0 && cfg_compl=1 cells are X "
-        "and Quine-McCluskey absorbs them. The RTL's use_mon term is "
-        "therefore REDUNDANT GIVEN THE INVARIANT -- defence in depth, not "
-        "logic. It is worth keeping (it makes the monitors-off build "
-        "independent of the CSR plumbing being correct), but this map is "
-        "what says so, and if the tie-off at CORE:869 were ever removed the "
-        "term would stop being redundant and start being load-bearing.",
+        "equation -- two axes resolving to the same signal would be visible "
+        "here, which is exactly the aliasing defect that shipped. "
+        "VERDICT READS 'DIFFERS' ON PURPOSE -- and it is the finding: the "
+        "derived cover drops use_mon, because the invariant below makes "
+        "cfg_compl=1 imply use_mon=1, so the use_mon=0 && cfg_compl=1 cells "
+        "are X and Quine-McCluskey absorbs them. The RTL's use_mon term is "
+        "REDUNDANT GIVEN THE INVARIANT -- defence in depth, not logic; if the "
+        "tie-off at CORE:869 were ever removed it would become load-bearing.",
         depends_only_on=(
-            "these four. valid && !event_reported are per-slot bookkeeping "
-            "orthogonal to the cfg chain (same expression, "
-            f"{MON_RPT_COMPL}:51), and the address-filter path retires "
-            f"separately before this cone ({MON_RPT}:483-489). The other "
-            "class enables (error/timeout/perf/threshold) drive their own "
-            "sub-reporters and cannot change COMPL emission. Per-index i is "
-            "a loop replication, not a variable of the decision."),
+            "these four. The other class enables (error/timeout/threshold) "
+            "gate their own events in the same registered stage and cannot "
+            "change COMPL emission. There is no per-slot retire guard any "
+            "more: the lite frees an entry on its last beat whether or not a "
+            "packet was emitted, so a runtime-disabled class cannot wedge the "
+            "table."),
         relations=[
             ("use_mon=0 forces cfg_compl to 0: the g_monitors_disabled arm "
              "ties every int_cfg_*_enable to 1'b0, so (use_mon=0, cfg_compl=1) "
              "is unreachable, not a 0.",
-             lambda b, u, c, t: not (c and not u),
+             lambda u, c, t, k: not (c and not u),
              f"{CORE}:869"),
-            ("build_compl and cfg_compl are INDEPENDENT -- one is a synthesis "
-             "parameter, the other a runtime CSR bit, and no RTL relates "
-             "them. Stated because an aliasing defect would show up here as a "
-             "relation that HAD to exist.",
-             None,
-             f"{CORE}:202, :808"),
             ("perf_run is the deliberate exception to the monitors-off "
              "tie-off: it passes through to drive the always-on datapath perf "
              "window, so monitors-off does NOT zero every cfg signal.",
              None,
              f"{CORE}:883")],
-        rtl_sop="build_compl & use_mon & cfg_compl & is_complete")
+        rtl_sop="use_mon & cfg_compl & type_allowed & is_complete")
 
     km.table(
-        "saturation-recovery contract (stream default sizing)",
-        f"{MON_BASE}:656-701, {MON_PKG}:115-132, {CORE}:125-129",
+        "capacity contract (stream default sizing, lite)",
+        f"{MON_LITE}:334, :627, :782-783, {CORE}:125-129",
         ["quantity", "expression", "8ch default value"],
         [("MAX_TRANSACTIONS",
           "max(16, NUM_CHANNELS * AR_MAX_OUTSTANDING + MON_TRANS_MARGIN)",
           "72"),
-         ("cmd_entry_reserve(MAX)", "(MAX >= 16) ? 4 : 0", "4"),
-         ("command-entry cap (trans_mgr)", "MAX - reserve", "68"),
-         ("BLOCK_MARGIN", "reserve - 1 (or flat 3 if reserve==0)", "3"),
-         ("block threshold", "block when active_count >= MAX - margin",
-          ">= 69"),
-         ("reopen threshold", "re-assert when active_count < MAX - margin",
-          "< 69")],
-        note="The reopen threshold sits STRICTLY ABOVE the command cap "
-             "(69 > 68): even a table whose command entries are all "
-             "permanently in flight recovers block_ready as soon as "
-             "orphan entries drain. The old flat MAX-3 margin parked the "
-             "table exactly AT the threshold and never re-asserted "
-             "(stream_core multi-channel wedge). Undersizing "
-             "MAX_TRANSACTIONS on purpose (mon_small config) therefore "
-             "throttles-and-recovers, never deadlocks.")
+         ("table entries", "MAX_TRANSACTIONS (no command-entry reserve)", "72"),
+         ("on a full table", "refuse the command: refused_count += 1, no stall",
+          "counted"),
+         ("on a full monbus queue", "drop the event: dropped_count += lost, "
+          "reported as EVENT_DROPPED", "counted")],
+        note="The full monitor gated AR/AW through block_ready with a "
+             "saturation-recovery margin (the stream_core multi-channel wedge "
+             "was a margin defect). The lite has neither: it never applies "
+             "pressure, so there is nothing to recover from, and the cost of "
+             "undersizing MAX_TRANSACTIONS is refused entries whose beats "
+             "report as orphans -- visible, counted, and never a stall.")
 
     km.table(
         "monitor enable tie-off (build-level gate)", f"{CORE}:641-732",
         ["USE_AXI_MONITORS", "int_cfg_*_mon_enable", "effect"],
         [("1", "= cfg_*_mon_enable (CSR)", "runtime on/off; wrapper "
-          "instantiates the monitor (USE_MONITOR=1)"),
-         ("0", "= 1'b0 (tied)", "monitor logic absent, w_block_ready "
-          "tied 1: bare skid, zero datapath interference")],
+          "instantiates the lite (USE_MONITOR=1)"),
+         ("0", "= 1'b0 (tied)", "monitor logic absent: bare skid, zero "
+          "datapath interference (the lite has none even when built)")],
         note=f"e.g. {CORE}:660 (enabled branch) vs :715 (tied-off "
              "branch). The always-on axi_bus_meter perf buckets survive "
-             "USE_AXI_MONITORS=0 by design - only the heavy monitors and "
+             "USE_AXI_MONITORS=0 by design - only the monitors and "
              "histograms are gated.")
 
 

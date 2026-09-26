@@ -55,6 +55,8 @@ module formal_axi_monitor_lite (
         .cfg_freq_sel (cfg_freq_sel[1:0]), .cfg_timeout_cnt (cfg_timeout_cnt),
         .cfg_error_enable (1'b1), .cfg_compl_enable (1'b1), .cfg_timeout_enable (1'b1), .cfg_threshold_enable (1'b1),
         .cfg_active_trans_threshold (16'd2), .cfg_axi_pkt_mask (16'h0),
+        .cfg_addr_check_enable (1'b0), .cfg_addr_match_enable (1'b0), .cfg_addr_range_enable ('0),
+        .cfg_addr_range_low ('0), .cfg_addr_range_high ('0),
         .monbus_valid (monbus_valid), .monbus_ready (monbus_ready), .monbus_packet (monbus_packet), .monbus_timestamp (monbus_timestamp),
         .active_count (active_count), .busy (busy),
         .perf_completed_count (perf_completed_count), .perf_error_count (perf_error_count),
