@@ -427,6 +427,52 @@ The fix was proved by MUTATION, not by the new count: breaking an H1 under
 "2 area(s)" alone would only have shown that selection changed, not that
 anything was read -- which is the whole distinction this note is about.
 
+### 20. Establish the SUBJECT before comparing anything against it
+
+Extending `bin/check_doc_examples.py` to read port TABLES (2026-09-25) meant
+deciding which module a table describes. A fence carries its own answer -- the
+instantiation names the module. A table carries none, and chaptered HAS/MAS books
+describe several modules per page. Three ways to guess were tried. Each looked
+reasonable. Each produced confident, specific, wrong findings:
+
+1. **"The one module the page mentions."** It blames every table on whatever
+   module happens to appear in an instantiation example. A rapids scheduler
+   config table and a STREAM port list were both reported against
+   `gaxi_fifo_sync`. 153 findings, nearly all misattribution.
+2. **Any `startswith()` sibling as a "family".** `math_multiplier_basic.md` was
+   compared against `math_multiplier_basic_cell` -- a sub-cell whose ports are
+   `i_i/i_j/i_c/i_p` -- and its three real ports were called fabricated. They
+   exist in 32+ files.
+3. **A restricted family arm**, siblings only where every suffix is `wr`/`rd`/
+   `NNN`. This one looked safe. Its single finding across five pages was
+   `axi4_dwidth_converter.md`, and I had already written the "fix" and started
+   rewriting the page before reading its own header: **"Location: Not
+   implemented. Status: Planned - no RTL in this repository."** The page names
+   `AW_/W_/B_/AR_/R_FIFO_DEPTH` and states in a blockquote that none of them
+   exist in RTL yet. Its `_wr`/`_rd` siblings are two different shipping modules
+   with `SKID_DEPTH_*` parameters, not variants of a bidirectional parent.
+
+The third is the one worth remembering, because the gate was right that the
+names are absent from RTL and still completely wrong about what that meant:
+
+**A page documenting a module that does not exist is not a page with fabricated
+ports.** "Name absent from the RTL" only implies a defect once you have
+established that the page and the module are the same subject. Skip that step
+and a gate turns an honest design document into a finding -- and the remedy it
+suggests is to delete the design.
+
+Two practices follow. Compare against RTL only where the subject is evidenced,
+not inferred; a filename that equals a module name is such evidence, a nearby
+instantiation is not. And when a checker reports a finding on a page you did not
+write, READ THE PAGE'S OWN STATUS before editing it -- this one announced its
+answer three times above the table in question.
+
+The coverage cost of refusing to guess is real and is recorded rather than
+hidden: 119 of 367 table-bearing pages have no attributable module and go
+unchecked, including the book page that carried 42 of 55 fabricated table
+signals. That is a smaller error than the alternative, and closing it needs an
+explicit per-page `Module:` declaration, not a better heuristic.
+
 ## The single question
 
 Before believing any zero, ask: **if the thing I am looking for were happening,

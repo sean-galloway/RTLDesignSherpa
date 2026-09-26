@@ -33,6 +33,54 @@ import sys
 
 RE_CONN = re.compile(r'^\s*\.(\w+)\s*\(', re.M)
 
+# A port/signal reference TABLE, outside any fence. The header decides: a table
+# whose first column is Port/Signal/Signal Name lists interface names.
+RE_TBL_HDR = re.compile(r'^\|\s*(Port|Signal Name|Signal)\s*\|', re.I)
+RE_TBL_ROW = re.compile(r'^\|\s*`?([A-Za-z_]\w*)`?\s*\|')
+def name_in_src(name, src_low):
+    """Is `name` an interface name of this module?
+
+    Deliberately permissive about prefix and case, because a correct page may
+    cite the PROTOCOL name: an AXI-Stream table says TDATA where the port is
+    m_axis_tdata, an APB table says PRESETn where the port is presetn. Treating
+    those as defects would mean editing correct documentation to satisfy a
+    defect in this script. The suffix arm needs >= 3 characters -- at 4 it
+    called axis4_master's TID fabricated while absolving TDATA, which is a fact
+    about the threshold and not about the page.
+    """
+    n = name.lower()
+    if re.search(rf'\b{re.escape(n)}\b', src_low):
+        return True
+    return len(n) >= 3 and bool(re.search(rf'\b\w*{re.escape(n)}\b', src_low))
+
+
+def table_names(text):
+    """[(lineno, name)] from port tables, skipping fenced blocks.
+
+    Fences matter: an ASCII block diagram draws rows like `|   pclk   |-----+`
+    that match the row pattern exactly.
+    """
+    out, fence, intbl = [], False, False
+    for i, line in enumerate(text.split('\n'), 1):
+        if line.lstrip().startswith('```'):
+            fence, intbl = not fence, False
+            continue
+        if fence:
+            continue
+        if RE_TBL_HDR.match(line):
+            intbl = True
+            continue
+        if intbl:
+            if not line.startswith('|'):
+                intbl = False
+                continue
+            if set(line.replace('|', '').strip()) <= set('-: '):
+                continue          # the |---|---| separator row
+            m = RE_TBL_ROW.match(line)
+            if m:
+                out.append((i, m.group(1)))
+    return out
+
 
 def module_src(root, stem):
     for base in ('rtl', 'projects'):
@@ -49,6 +97,7 @@ def main() -> int:
     bad = 0
     pages = 0
     doc_pages = 0
+    tbl_rows_seen = [0]
     # Index every module once, so a page can be checked against whatever module
     # its example actually instantiates rather than one guessed from the page
     # name. This is what lets the check reach projects/components, whose docs
@@ -130,11 +179,24 @@ def main() -> int:
                 bad += 1
                 names = ', '.join(sorted(set(missing))[:6])
                 print(f'  {path}: example names ports the module lacks -- {names}')
+            # ...and the PORT TABLES on the same page, which used to be invisible.
+            src_low = src.lower()
+            tbl_rows_seen[0] += len(tbl := table_names(text))
+            tmiss = sorted({n for _ln, n in tbl if not name_in_src(n, src_low)})
+            if tmiss:
+                bad += 1
+                print(f'  {path}: port TABLE names ports the module lacks -- '
+                      f'{", ".join(tmiss[:6])}')
     # BOTH walks, because the old line counted only the per-module pages: it
     # read 241 while the first walk was silently covering 939 more. A gate that
     # stopped scanning the component books would have printed the same 241.
-    print(f'\n{doc_pages} doc pages + {pages} module pages checked, '
+    print(f'\n{doc_pages} doc pages + {pages} module pages checked '
+          f'({tbl_rows_seen[0]} port-table rows), '
           f'{bad} with a fabricated example')
+    if tbl_rows_seen[0] == 0:
+        print('  FAILED: read no port-table rows at all -- the table scan is '
+              'broken, not the tree', file=sys.stderr)
+        return 1
     # One known finding in projects/components is tracked as amba TASK-077 and is
     # being fixed by hand -- a whole-block regeneration drops the other
     # instantiations in the same block. Was 9; the stream clocks-and-reset page
@@ -168,23 +230,46 @@ def main() -> int:
     # AT ZERO NOW. Any new finding fails the gate immediately, which is the
     # point: there is no longer a backlog to hide in.
     #
-    # What this gate does NOT see: RE_CONN is ^\s*\.(\w+)\s*\( , so it reads
-    # connections (and, incidentally, parameter overrides -- 1342 of those
-    # across 224 pages) inside CODE BLOCKS only. Markdown TABLES are invisible
-    # to it, and on the rapids_core_beats page that is where most of the damage
-    # is: 42 of 55 table signals are fabricated and none are counted. A page can
-    # therefore sit at the baseline with its reference tables three-quarters
-    # wrong.
+    # Port TABLES are read now (2026-09-25), on per-module pages ONLY -- the page
+    # filename names the module, so attribution is certain. 5515 rows across 241
+    # pages, zero findings: the port tables on module pages were already clean,
+    # which is worth stating because the comment this replaces implied otherwise.
+    # The tbl_rows_seen guard above exists so "zero findings" can never mean
+    # "read no tables".
     #
-    # An earlier version of this comment claimed the whole-source (rather than
-    # port-list) match lets an internal wire mask a fabricated port name, citing
-    # all_channels_idle and scheduler_idle. That was WRONG and is retracted:
-    # both are absent from the module text entirely and appear only in tables,
-    # so they are never checked rather than wrongly passing. Whether the
-    # whole-source match hides anything real is UNMEASURED -- two attempts to
-    # quantify it returned only artifacts (first 1569 parameter overrides, then
-    # 227 hits from a port-list regex broken enough to call counter's rst_n a
-    # non-port) -- so no claim is made here either way.
+    # THREE attribution arms were tried and REJECTED. All three are recorded
+    # because each looked reasonable and each produced confident false findings:
+    #
+    # 1. "The one module the page mentions", when the filename does not resolve.
+    #    It blames every table on whatever module appears in some instantiation
+    #    example: rapids/CLAUDE.md's scheduler config table and stream's
+    #    02_port_list.md were both blamed on gaxi_fifo_sync. 153 findings,
+    #    almost entirely misattribution.
+    # 2. Any startswith() sibling as a module "family". It blamed
+    #    math_multiplier_basic.md against math_multiplier_basic_cell (a sub-cell,
+    #    ports i_i/i_j/i_c/i_p) and called i_multiplier/i_multiplicand/ow_product
+    #    fabricated; they exist in 32+ files.
+    # 3. A RESTRICTED family arm -- siblings only if every suffix is wr/rd/NNN.
+    #    This looked safe and was not. Its single finding across five pages was
+    #    axi4_dwidth_converter.md, which is a PLANNED-DESIGN page: it states
+    #    "Location: Not implemented", "Status: Planned - no RTL in this
+    #    repository", and names AW_/W_/B_/AR_/R_FIFO_DEPTH while explicitly
+    #    saying none of them exist in RTL yet. Its _wr and _rd siblings are two
+    #    different shipping modules with SKID_DEPTH_* parameters, not variants of
+    #    a bidirectional parent. Acting on that finding meant rewriting a
+    #    deliberate design document to satisfy this script -- the exact failure
+    #    the module docstring warns about. axi4_cdc.md has the same shape.
+    #
+    # The lesson is narrow and worth keeping: a page documenting a module that
+    # does not exist is not a page with fabricated ports. Only compare a table
+    # against RTL when the page and the module are the SAME subject, and the
+    # filename is currently the only evidence of that strong enough to gate on.
+    #
+    # So the CHAPTERED BOOKS (projects/**/docs/**) still have their tables
+    # unchecked: 119 of 367 table-bearing pages have no attributable module, and
+    # that is where the known damage is -- amba TASK-077's page carried 42 of 55
+    # table signals fabricated. Closing that needs an explicit per-page module
+    # declaration (a `Module:` field), not a cleverer guess from this side.
     BASELINE = 0
     if bad > BASELINE:
         print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} -- a doc example\n          names a port its module does not have. The backlog this ratchet\n          tracked (amba TASK-077) is CLOSED and the floor is 0, so any\n          finding here is NEW.')
