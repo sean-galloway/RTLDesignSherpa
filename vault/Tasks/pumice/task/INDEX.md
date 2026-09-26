@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-013** — never recycle a number, even when its item closed.
+**Next ID: TASK-014** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -21,6 +21,8 @@ exactly one state by construction rather than by discipline.
 
 - **TASK-000** — TEMPLATE — copy this file, never file against it
 - **TASK-009** — doc + filelist cleanup (push from workstation)
+- **TASK-013** — adapt predictors (modes 4/5) are inert on everything measured,
+  but their triggers may never have fired; test before retiring
 
 ## Closed
 

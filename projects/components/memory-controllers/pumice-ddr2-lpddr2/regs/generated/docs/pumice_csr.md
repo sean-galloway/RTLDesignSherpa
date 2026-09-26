@@ -42,7 +42,6 @@ Don't override. Generated from: $root
 | 0x070|     PAGE_POLICY_CFG    |           Page Policy Config           |
 | 0x074|    PAGE_TIMEOUT_CFG    |           Page Timeout Config          |
 | 0x078|     PAGE_ADAPT_CFG     |          Page Adaptive Config          |
-| 0x07C|      PAGE_RBL_CFG      |             Page RBL Config            |
 | 0x080|     OBS_ROW_HIT[0]     |      Per-Bank Row Hit Observation      |
 | 0x084|     OBS_ROW_HIT[1]     |      Per-Bank Row Hit Observation      |
 | 0x088|     OBS_ROW_HIT[2]     |      Per-Bank Row Hit Observation      |
@@ -920,7 +919,7 @@ further amortisation while costing read forward progress.</p>
 
 #### policy_mode field
 
-<p>0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access, 6=rbl_static, 7=rbl_dyn</p>
+<p>0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access. 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn; measured inert or harmful, see TASK-011) -- a write of 6 or 7 falls through to the build default.</p>
 
 #### policy_scope field
 
@@ -1008,42 +1007,6 @@ further amortisation while costing read forward progress.</p>
 #### check_interval field
 
 <p>Cycles between MC evaluations</p>
-
-### PAGE_RBL_CFG register
-
-- Absolute Address: 0x7C
-- Base Offset: 0x7C
-- Size: 0x4
-
-<p>RBLA/Yoon miss-counter table shape. rbl_dyn hill-climb weights land with that mode.</p>
-
-| Bits|  Identifier  |Access|Reset|Name|
-|-----|--------------|------|-----|----|
-| 7:0 |  miss_thresh |  rw  | 0x0 |  — |
-| 9:8 |     ways     |  rw  | 0x0 |  — |
-|13:10|     sets     |  rw  | 0x0 |  — |
-|15:14|     RSVD     |   r  | 0x0 |  — |
-|31:16|reset_interval|  rw  |0x100|  — |
-
-#### miss_thresh field
-
-<p>Miss count above which a row is low-locality (auto-precharge)</p>
-
-#### ways field
-
-<p>log2 table ways</p>
-
-#### sets field
-
-<p>log2 table sets</p>
-
-#### RSVD field
-
-<p>Reserved</p>
-
-#### reset_interval field
-
-<p>Epoch length: counters reset every N cycles. 0 = never, which DISABLES the only decay path and latches modes 6/7 permanently closed -- do not use (see the note above).</p>
 
 ## OBS_ROW_HIT register file
 

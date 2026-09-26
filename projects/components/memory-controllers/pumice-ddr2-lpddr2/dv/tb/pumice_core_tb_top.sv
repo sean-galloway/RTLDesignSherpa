@@ -82,10 +82,6 @@ module pumice_core_tb_top
     input  logic [7:0]       sched_age_thresh_i,
     input  logic [3:0]       page_ctr_thresh_i,
     input  logic [3:0]       page_ctr_init_i,
-    input  logic [7:0]       page_rbl_thresh_i,
-    input  logic [1:0]       page_rbl_ways_i,
-    input  logic [3:0]       page_rbl_sets_i,
-    input  logic [15:0]      page_rbl_ivl_i,
     input  logic [4:0]       bank_lsb_i,
     input  logic             hash_en_i,
     input  logic [7:0]       hash_seed_i,
@@ -201,8 +197,6 @@ module pumice_core_tb_top
         .sched_prio_sub_i(sched_prio_sub_i), .sched_qos_en_i(sched_qos_en_i),
         .sched_age_thresh_i(sched_age_thresh_i),
         .page_ctr_thresh_i(page_ctr_thresh_i), .page_ctr_init_i(page_ctr_init_i),
-        .page_rbl_thresh_i(page_rbl_thresh_i), .page_rbl_ways_i(page_rbl_ways_i),
-        .page_rbl_sets_i(page_rbl_sets_i), .page_rbl_ivl_i(page_rbl_ivl_i),
         // TASK-006 stall attribution. These used to be left open here on the
         // grounds that the core TB scores the datapath and the counters are
         // read over the CSR bus -- but the core TB is where the paging sweep

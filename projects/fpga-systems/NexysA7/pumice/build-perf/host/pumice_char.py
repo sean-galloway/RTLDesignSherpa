@@ -298,7 +298,6 @@ class ControllerConfig:
     page_mode:     Optional[int] = None     # PAGE_POLICY_CFG.policy_mode (0=legacy)
     page_tr_init:  Optional[int] = None     # PAGE_TIMEOUT_CFG.tr_init
     page_access:   Optional[Dict[str, int]] = None  # mode 5 table (set_page_access_cfg kw)
-    page_rbl:      Optional[Dict[str, int]] = None  # modes 6/7 table (set_page_rbl_cfg kw)
     # WRITE BATCHING (SCHED_WR_WM) -- TASK-007. Once the write CAM's
     # schedulable occupancy crosses wr_high_wm, writes outrank reads until it
     # falls to wr_low_wm, so a run of writes drains back-to-back and the
@@ -450,9 +449,6 @@ class ControllerConfig:
         # at entry -- see Pumice.set_page_mode)
         drv.set_page_access_cfg(**(self.page_access if self.page_access is not None
                                    else {"ctr_open_max": 0, "ctr_init": 0}))
-        drv.set_page_rbl_cfg(**(self.page_rbl if self.page_rbl is not None
-                                else {"miss_thresh": 0, "ways_log2": 0,
-                                      "sets_log2": 0, "reset_interval": 0}))
         drv.set_page_mode(self.page_mode if self.page_mode is not None else 0,
                           tr_init=self.page_tr_init)
         # Write batching (TASK-007). Programmed on EVERY config for the same
@@ -481,7 +477,7 @@ class ControllerConfig:
 # Levers, one per axis:
 #   scheme       ADDR_MAP.bank_lsb        ROW_MAJOR | BANK_INTERLEAVE
 #   page_policy  REFRESH_TUNING.policy_or CLOSE | OPEN   (static policies)
-#   page_mode    PAGE_POLICY_CFG.mode     4 adapt_time, 5 adapt_access, 6 rbl_static, 7 rbl_dyn
+#   page_mode    PAGE_POLICY_CFG.mode     4 adapt_time, 5 adapt_access
 #   order_mode   SCHED_POLICY.order_mode  0 FR-FCFS | 1 in_order | 3 age_threshold
 #   t_refi       TIMINGS_RFC_REFI.tREFI   refresh-bandwidth stress
 #   refresh      REF_CTRL                 mode / postpone / pullin credits
@@ -591,32 +587,11 @@ CONFIGS: Dict[str, ControllerConfig] = {
         "adapt_time", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=24,
         order_mode=0, rd_in_order=True),
-    # Sim-validated shapes: acc ctr_open_max=2/ctr_init=0 (test_pumice_core_acc),
-    # rbl miss_thresh=2 (test_pumice_core_rbl).
-    #
-    # BOTH rbl configs carry a NONZERO epoch. "static" here means mode 6's
-    # STATIC THRESHOLD (no hill-climb) -- it does not mean "no epochs", and
-    # running it without one is not a valid operating point: the epoch is the
-    # only decay path for the saturating miss counters, so reset_interval=0
-    # latches the predictor permanently closed. This config used to pin 0 and
-    # measured 34.9 MB/s against 553.8 on streaming, a 15.8x cliff
-    # (TASK-002; bin/seq_rbl_epoch.py sweeps it). 256 is the longest epoch
-    # measured at full bandwidth -- 1024 already degrades -- so it gives the
-    # predictor the widest evidence window that is still safe.
+    # Sim-validated shape: acc ctr_open_max=2/ctr_init=0 (test_pumice_core_acc).
     "adapt_access": ControllerConfig(
         "adapt_access", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=5,
         page_access={"ctr_open_max": 2, "ctr_init": 0},
-        order_mode=0, rd_in_order=True),
-    "rbl_static": ControllerConfig(
-        "rbl_static", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=6,
-        page_rbl={"miss_thresh": 2, "ways_log2": 0, "sets_log2": 0, "reset_interval": 256},
-        order_mode=0, rd_in_order=True),
-    "rbl_dyn": ControllerConfig(
-        "rbl_dyn", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=7,
-        page_rbl={"miss_thresh": 2, "ways_log2": 0, "sets_log2": 0, "reset_interval": 256},
         order_mode=0, rd_in_order=True),
     # ---- axis: refresh ----------------------------------------------------
     "fast_refresh": ControllerConfig(
@@ -1476,7 +1451,7 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
     _ps_cc0 = _try_page_stats(drv)
     # Stall attribution over the SAME window (TASK-006). measure() has always
     # captured this and measure_concurrent never did, so every concurrent
-    # profile -- sched_sub, rbl_hotcold, concurrent, multigen, both pair
+    # profile -- sched_sub, hotcold, concurrent, multigen, both pair
     # sweeps -- ran blind to its own limiter. That is how a sched_sub table
     # came back flat across ten arbiter sub-policies while the controller sat
     # at 99.4% STALL_NOREQ: the run was starved, not indifferent, and nothing
@@ -1715,7 +1690,7 @@ RUN_PROFILES: Dict[str, dict] = {
     # timing. Sim proves the mechanism; the board supplies the MB/s.
     "paging_grade": dict(configs=["open_page", "close_page"], level="basic",
                          families=None),
-    "paging": dict(configs=["adapt_time", "adapt_access", "rbl_static", "rbl_dyn"],
+    "paging": dict(configs=["adapt_time", "adapt_access"],
                    level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
     # Axis-1 order modes on the base build: per-channel in_order vs
     # age_threshold vs plain reorder, streaming vs page-thrash.
@@ -1738,7 +1713,7 @@ RUN_PROFILES: Dict[str, dict] = {
     # and the row a reader wants is not the row the writer just opened. If the
     # predictors are ever worth their 5,578 LUT ([[TASK-005]]), it is here.
     "pairs_paging_mix": dict(configs=["open_page", "adapt_time", "adapt_access",
-                                      "rbl_static", "rbl_dyn"],
+                                      ],
                              level="basic", families=None, concurrent=(1, 1)),
     # PAIR SWEEP 2 -- refresh x paging. Axis 3 has only ever been measured on
     # CLOSE page, at ~34 MB/s, where refresh is a small fraction of a slow run.
@@ -1746,7 +1721,14 @@ RUN_PROFILES: Dict[str, dict] = {
     "pairs_refresh_open": dict(configs=["open_page", "refresh_credit_open",
                                         "fast_refresh_open", "slow_refresh_open"],
                                level="basic", families=None),
-    # TASK-011: the workload RBL was built for. N-1 generators streaming
+    # Per-row locality VARIATION: N-1 generators streaming INSIDE a row
+    # against 1 walking ACROSS rows, all on the SAME bank. Built for
+    # TASK-011 to give RBL something it could discriminate; RBL was
+    # retired 2026-09-26 after measuring inert/harmful on exactly this
+    # workload, but the STIMULUS is the general thing TASK-010 enabled
+    # and is the only profile here with non-uniform per-generator
+    # locality, so it stays.
+    # (was: the workload RBL was built for) N-1 generators streaming
     # INSIDE a row against 1 walking ACROSS rows, all on the SAME bank -- the
     # per-row locality VARIATION a per-row predictor needs and that no uniform
     # pattern can provide. All four in ONE direction: mixing read and write
@@ -1794,7 +1776,7 @@ RUN_PROFILES: Dict[str, dict] = {
                       # the pick actually matter. (max_outstanding is left
                       # alone: 0 already means "as built" = 32, the ceiling.)
                       concurrent=(0, 4)),
-    "rbl_hotcold": dict(configs=["open_page", "rbl_static", "rbl_dyn"],
+    "hotcold": dict(configs=["open_page"],
                         level="basic", families=(FAM_INCREMENTAL,),
                         # READERS, not writers. One direction either way, but
                         # measure_concurrent validates through the read engines

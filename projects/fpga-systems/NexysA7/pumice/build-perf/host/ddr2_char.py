@@ -506,8 +506,6 @@ class DDR2CharDriver:
     def set_page_access_cfg(self, **kw: int) -> None:
         self.pumice.set_page_access_cfg(**kw)
 
-    def set_page_rbl_cfg(self, **kw: int) -> None:
-        self.pumice.set_page_rbl_cfg(**kw)
 
     def set_sched_policy(self, **kw) -> None:
         """SCHED_POLICY: order_mode / age_thresh / row_sel / col_sel /

@@ -19,16 +19,16 @@
 //                        vs held-too-long, TR += / -= step each check interval)
 //        5 adapt_access  ap = per-row 2-bit close predictor (Happy "Hybrid",
 //                        pumice_row_pred_table; knob-free)
-//        6 rbl_static    ap = per-bank low-locality verdict from the RBLA
-//                        miss-counter table (pumice_rbl_table)
-//        7 rbl_dyn       rbl_static + per-epoch hill-climb
+//        6,7            RETIRED 2026-09-26 (were rbl_static / rbl_dyn) --
+//                        measured inert or harmful on silicon, see TASK-011.
+//                        A write here falls through to the build default.
 //
 //   Modes 5/6/7 drive per-bank auto-precharge from a paging predictor
-//   (pumice_row_pred_table / pumice_rbl_table). Each computes its verdict at
+//   (pumice_row_pred_table). It computes its verdict at
 //   ACT time and holds it registered while the row is open; their table
 //   update is PIPELINED (PUMICE-017) so the update cone stays < 25 mux-levels
 //   and the pick path (which reads ap_close_o as a registered input) is
-//   untouched. Shaped by PAGE_POLICY_CFG (mode 5) / PAGE_RBL_CFG (modes 6/7).
+//   untouched. Shaped by PAGE_POLICY_CFG (mode 5).
 //
 //   2. A background precharge REQUEST (`timeout_pre_req_o` / bank) for a row
 //      whose idle timer expired. The ARBITER issues the actual PRE as its
@@ -80,10 +80,6 @@ module pumice_page_policy
     input  logic [3:0]                 mc_low_thr_i,
     input  logic [3:0]                 mc_init_i,
     input  logic [15:0]                check_interval_i,
-    input  logic [7:0]                 rbl_miss_thresh_i, // PAGE_RBL_CFG
-    input  logic [1:0]                 rbl_ways_i,
-    input  logic [3:0]                 rbl_sets_i,
-    input  logic [15:0]                rbl_reset_ivl_i,
 
     // ---- issued command stream (arbiter output, single-issue) --------------
     input  logic                       cmd_valid_i,       // cmd_valid && cmd_ready
@@ -131,35 +127,37 @@ module pumice_page_policy
     localparam logic [2:0] MODE_FIXED_OPEN   = 3'd3;
     localparam logic [2:0] MODE_ADAPT_TIME   = 3'd4;
     localparam logic [2:0] MODE_ADAPT_ACCESS = 3'd5;
-    localparam logic [2:0] MODE_RBL_STATIC   = 3'd6;
-    localparam logic [2:0] MODE_RBL_DYN      = 3'd7;
+    // 6 (rbl_static) and 7 (rbl_dyn) RETIRED 2026-09-26. Measured on silicon
+    // at txn_scale=1000 on a workload built specifically to suit them
+    // ([[TASK-011]]): mode 6 lost 26% of bandwidth (195.2 -> 144.2 MB/s) by
+    // paying +22,827 ACTs to save precharges that never materialised, and
+    // mode 7's hill-climb drove its threshold to "never close early", making
+    // it bit-identical to plain open page (32,223 vs 32,224 ACTs). The
+    // mechanism demonstrably worked -- thrash% fell 100% -> 57.8% -- and still
+    // did not pay. A write to policy_mode 6/7 now falls through to the build
+    // default, which is what mode 7 measured as anyway.
 
     // Modes 5/6/7 drive per-bank auto-precharge from a paging PREDICTOR
-    // (pumice_row_pred_table / pumice_rbl_table). Both compute their verdict at
+    // (pumice_row_pred_table). It computes its verdict at
     // ACT time and hold it, registered, while the row is open -- the consumer
     // (pumice_bank_cmd_picker) reads ap_close_o as a registered input, so the
     // predictors' pipelined update cones (PUMICE-017) never touch the pick.
-    logic w_mode_on, w_timeout_on, w_adapt_on, w_acc_on, w_rbl_on;
+    logic w_mode_on, w_timeout_on, w_adapt_on, w_acc_on;
     assign w_mode_on    = (policy_mode_i == MODE_STATIC_OPEN)
                        || (policy_mode_i == MODE_STATIC_CLOSE)
                        || (policy_mode_i == MODE_FIXED_OPEN)
                        || (policy_mode_i == MODE_ADAPT_TIME)
-                       || (policy_mode_i == MODE_ADAPT_ACCESS)
-                       || (policy_mode_i == MODE_RBL_STATIC)
-                       || (policy_mode_i == MODE_RBL_DYN);
+                       || (policy_mode_i == MODE_ADAPT_ACCESS);
     assign w_timeout_on = (policy_mode_i == MODE_FIXED_OPEN)
                        || (policy_mode_i == MODE_ADAPT_TIME);
     assign w_adapt_on   = (policy_mode_i == MODE_ADAPT_TIME);
     assign w_acc_on     = (policy_mode_i == MODE_ADAPT_ACCESS);
-    assign w_rbl_on     = (policy_mode_i == MODE_RBL_STATIC)
-                       || (policy_mode_i == MODE_RBL_DYN);
 
     // ---- auto-precharge decision -------------------------------------------
-    logic [NUM_BANKS-1:0] w_rbl_low_loc, w_acc_close;
+    logic [NUM_BANKS-1:0] w_acc_close;
     assign ap_mode_en_o = w_mode_on;
     assign ap_close_o   = (policy_mode_i == MODE_STATIC_CLOSE) ? {NUM_BANKS{1'b1}}
                         : w_acc_on                              ? w_acc_close
-                        : w_rbl_on                              ? w_rbl_low_loc
                                                                 : '0;
 
     // Per-row open/close predictor (mode 5, adapt_access): 2-bit saturating
@@ -180,27 +178,6 @@ module pumice_page_policy
         .bank_row_active_i(bank_row_active_i),
         .bank_open_row_i  (bank_open_row_i),
         .close_pred_o     (w_acc_close)
-    );
-
-    // RBLA miss-counter table (modes 6/7): classifies each open row as
-    // low-locality (thrashing -> auto-precharge) at ACT time.
-    pumice_rbl_table #(
-        .NUM_BANKS(NUM_BANKS),
-        .ROW_WIDTH(ROW_WIDTH)
-    ) u_rbl (
-        .aclk            (aclk),
-        .aresetn         (aresetn),
-        .enable_i        (w_rbl_on),
-        .dyn_en_i        (policy_mode_i == MODE_RBL_DYN),
-        .miss_thresh_i   (rbl_miss_thresh_i),
-        .ways_log2_i     (rbl_ways_i),
-        .sets_log2_i     (rbl_sets_i),
-        .reset_interval_i(rbl_reset_ivl_i),
-        .cmd_valid_i     (cmd_valid_i),
-        .cmd_op_i        (cmd_op_i),
-        .cmd_bank_i      (cmd_bank_i),
-        .cmd_row_i       (cmd_row_i),
-        .low_locality_o  (w_rbl_low_loc)
     );
 
 

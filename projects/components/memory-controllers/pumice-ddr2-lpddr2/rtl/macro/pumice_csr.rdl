@@ -536,7 +536,7 @@ addrmap pumice_csr {
     } OBS_WORDS[9] @ 0x1C0 += 0x4;
 
     //=========================================================================
-    // Advanced-mode select CSRs (0x068 – 0x07C, 0x140 – 0x15C) — TASK-001
+    // Advanced-mode select CSRs (0x068 – 0x078, 0x140 – 0x15C) — TASK-001
     //
     // The characterization surface from design-requirements.md "Advanced
     // modes": every mechanism is a config-bit-selectable MODE, added serially
@@ -658,7 +658,7 @@ addrmap pumice_csr {
 
         field {
             sw = rw; hw = r;
-            desc = "0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access, 6=rbl_static, 7=rbl_dyn";
+            desc = "0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access. 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn; measured inert or harmful, see TASK-011) -- a write of 6 or 7 falls through to the build default.";
         } policy_mode[2:0] = 3'h0;
 
         field {
@@ -705,34 +705,15 @@ addrmap pumice_csr {
 
     } PAGE_ADAPT_CFG @ 0x078;
 
-    reg {
-        name = "Page RBL Config";
-        desc = "RBLA/Yoon miss-counter table shape. rbl_dyn hill-climb weights land with that mode.";
-
-        field { sw = rw; hw = r; desc = "Miss count above which a row is low-locality (auto-precharge)"; } miss_thresh[7:0] = 8'h0;
-        field { sw = rw; hw = r; desc = "log2 table ways";                        } ways[9:8]   = 2'h0;
-        field { sw = rw; hw = r; desc = "log2 table sets";                        } sets[13:10] = 4'h0;
-        field { sw = r; hw = na; desc = "Reserved";                               } RSVD[15:14] = 2'h0;
-        // DEFAULT 256, NOT 0. The epoch is the ONLY path that clears the
-        // saturating miss counters (pumice_rbl_table.sv: r_cnt <= '0 on
-        // w_epoch_tick; tags deliberately survive so a row stays resident).
-        // With 0 = "never" there is no decay at all, which makes modes 6/7 a
-        // ONE-WAY RATCHET: once a row's counter passes miss_thresh it latches
-        // closed, the next access re-ACTs that same row, that ACT is now a tag
-        // HIT so the counter climbs further, and the row can never reopen. A
-        // single refresh-driven close is enough to seed it and streaming
-        // traffic then catches every row in turn. Measured on the board
-        // (TASK-002, bin/seq_rbl_epoch.py): rbl_static on incremental read
-        // 34.9 MB/s at epoch 0 -- 0.0% row-hit rate and 8.17 ACT per AXI
-        // transaction, i.e. byte-for-byte close-page behaviour -- against
-        // 553.8 MB/s for any nonzero epoch. 15.8x, and it was the SHIPPED
-        // default. 256 is the longest epoch measured at full streaming
-        // bandwidth (16/64/256 all clean; 1024 already degrades to 207 MB/s
-        // because the decay can no longer outpace the saturation), so it
-        // leaves the predictor the widest evidence window that is still safe.
-        field { sw = rw; hw = r; desc = "Epoch length: counters reset every N cycles. 0 = never, which DISABLES the only decay path and latches modes 6/7 permanently closed -- do not use (see the note above)."; } reset_interval[31:16] = 16'd256;
-
-    } PAGE_RBL_CFG @ 0x07C;
+    // 0x07C was PAGE_RBL_CFG (the RBLA/Yoon miss-counter table shape for
+    // paging modes 6/7). RETIRED 2026-09-26 with the modes themselves --
+    // measured on silicon at txn_scale=1000 on a workload built specifically
+    // to suit them (TASK-011): mode 6 lost 26% of bandwidth by paying +22,827
+    // ACTs to save precharges that never materialised, and mode 7 hill-climbed
+    // its threshold to "never close early", landing bit-identical to plain
+    // open page. The address is left a hole rather than reused so the rest of
+    // the map does not shift and an old host reading 0x07C gets nothing
+    // instead of something else's meaning.
 
     reg {
         name = "Refresh Mode Control";

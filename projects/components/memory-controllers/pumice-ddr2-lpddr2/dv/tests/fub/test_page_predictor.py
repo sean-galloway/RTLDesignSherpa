@@ -8,13 +8,11 @@ per-bank auto-precharge verdict versus the default policy:
 
   * mode 0 (build_default): ap_mode_en_o stays 0 -- no auto-precharge, whatever
     the command stream (this is the RED baseline the predictors must beat).
-  * mode 6 (rbl_static): hammering ACTs at ONE row drives the miss counter past
-    the threshold -> u_rbl.low_locality_o -> ap_close_o asserts (GREEN).
   * mode 5 (adapt_access): a row that sees <=1 column per activation is voted
     closed after a few ACT/PRE cycles -> u_row_pred.close_pred_o -> ap_close_o
     asserts (GREEN).
 
-The verdict flops are latched at ACT time (rbl is pipelined +1 cycle, PUMICE-017)
+The verdict flops are latched at ACT time (pipelined +1 cycle, PUMICE-017)
 and held while the row is open, so the checks settle a few cycles after the ACT.
 Assertions use only the top ports, so no --public access is required.
 """
@@ -56,10 +54,6 @@ class PredTB(TBBase):
         d.mc_low_thr_i.value    = 0
         d.mc_init_i.value       = 0
         d.check_interval_i.value = 0xFFFF
-        d.rbl_miss_thresh_i.value = 2    # mode 6: low-locality when cnt > 2
-        d.rbl_ways_i.value      = 0
-        d.rbl_sets_i.value      = 0
-        d.rbl_reset_ivl_i.value = 0      # no epoch -> counters never auto-clear
         d.cmd_valid_i.value     = 0
         d.cmd_op_i.value        = OP_NOP
         d.cmd_bank_i.value      = 0
@@ -112,20 +106,6 @@ async def cocotb_test_page_predictor(dut):
     assert tb.ap_active() == 0, "mode 0 produced an auto-precharge verdict"
     dut._log.info("mode 0: ap_mode_en=0, ap_close=0 (RED baseline confirmed)")
 
-    # ---- mode 6: rbl_static -> hammer one row past the miss threshold ------
-    await tb.setup(mode=6)
-    assert int(dut.ap_mode_en_o.value) == 1, "mode 6 must enable ap_mode_en_o"
-    for _ in range(6):
-        await tb.cmd(OP_ACT, bank=BANK, row=ROW, active_mask=(1 << BANK),
-                     open_row=(ROW << (BANK * 14)))
-        await tb.wait_clocks('aclk', 2)
-    await tb.wait_clocks('aclk', 4)
-    ap6 = tb.ap_active()
-    assert (ap6 >> BANK) & 1, (
-        f"mode 6 (rbl_static) did not auto-precharge the hammered bank: "
-        f"ap_close=0b{ap6:08b} (expected bit {BANK} set)")
-    dut._log.info(f"mode 6: ap_close=0b{ap6:08b} bit {BANK} SET (GREEN)")
-
     # ---- mode 5: adapt_access -> a single-access row is voted closed -------
     await tb.setup(mode=5)
     assert int(dut.ap_mode_en_o.value) == 1, "mode 5 must enable ap_mode_en_o"
@@ -147,7 +127,7 @@ async def cocotb_test_page_predictor(dut):
         f"ap_close=0b{ap5:08b} (expected bit {BANK} set)")
     dut._log.info(f"mode 5: ap_close=0b{ap5:08b} bit {BANK} SET (GREEN)")
     dut._log.info("PASS: predictors produce DISTINCT per-bank auto-precharge "
-                  "(mode 0 none; modes 5 and 6 close the target bank)")
+                  "(mode 0 none; mode 5 closes the target bank)")
 
 
 @pytest.mark.parametrize("test_type", ["directed"])

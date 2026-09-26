@@ -81,10 +81,6 @@ module pumice_mem_cmd_scheduler
     input  logic [15:0]               page_check_ivl_i,
     input  logic [3:0]                page_ctr_thresh_i,
     input  logic [3:0]                page_ctr_init_i,
-    input  logic [7:0]                page_rbl_thresh_i,
-    input  logic [1:0]                page_rbl_ways_i,
-    input  logic [3:0]                page_rbl_sets_i,
-    input  logic [15:0]               page_rbl_ivl_i,
     // stall-cause attribution from the arbiter (TASK-006)
     output logic [31:0]               stall_bp_o,
     output logic [31:0]               stall_refresh_o,
@@ -432,10 +428,6 @@ module pumice_mem_cmd_scheduler
         .check_interval_i  (page_check_ivl_i),
         .ctr_thresh_i      (page_ctr_thresh_i),
         .ctr_init_i        (page_ctr_init_i),
-        .rbl_miss_thresh_i (page_rbl_thresh_i),
-        .rbl_ways_i        (page_rbl_ways_i),
-        .rbl_sets_i        (page_rbl_sets_i),
-        .rbl_reset_ivl_i   (page_rbl_ivl_i),
         // Taps the ARBITER's accept (pre-FIFO), not the FIFO output: the
         // predictors correlate each command with the LIVE bank image, and the
         // cmd FIFO now releases CMD_DELAY cycles later -- a command seen that

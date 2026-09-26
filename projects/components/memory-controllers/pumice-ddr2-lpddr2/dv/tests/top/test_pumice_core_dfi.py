@@ -1437,8 +1437,9 @@ async def cocotb_test_pumice_core_perf_refresh_bubbles(dut):
 
 # Axis-2 paging modes (pumice_page_policy.sv:106-113).
 _PAGE_MODES = [(0, "build_default"), (1, "static_open"), (2, "static_close"),
-               (3, "fixed_open"),    (4, "adapt_time"),  (5, "adapt_access"),
-               (6, "rbl_static"),    (7, "rbl_dyn")]
+               (3, "fixed_open"),    (4, "adapt_time"),  (5, "adapt_access")]
+# 6 (rbl_static) / 7 (rbl_dyn) retired 2026-09-26 -- measured inert or harmful
+# on silicon, see TASK-011. A write of 6/7 falls through to the build default.
 
 
 # TASK-006 stall attribution, read straight off the DUT. The seven counters are
@@ -1732,7 +1733,9 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     # ACT + column per access, so at one beat per access there is no stream to
     # be contiguous -- they measure 31/192, and a fraction that admitted that
     # would admit anything.
-    AP_MODES = {"static_close", "rbl_static", "rbl_dyn"}
+    # rbl_static/rbl_dyn retired 2026-09-26; static_close is the only
+    # auto-precharge-every-access mode left.
+    AP_MODES = {"static_close"}
     RUN_FRAC = 1.0 if GEOM_UTIL_SCALE >= 1.0 else 0.70
     chopped = [(n, run, beats) for _, n, _, _, _, _, _, run, beats in rows
                if run < RUN_FRAC * beats
@@ -1916,7 +1919,9 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
     # note predate the pipelined arbiter, which is why every AP mode sat just
     # under it. Shortening the col->ACT head-advance would lift these numbers
     # and is a performance item, not a correctness one.
-    AP_PAGING = {"static_close", "rbl_static", "rbl_dyn"}
+    # rbl_static/rbl_dyn retired 2026-09-26 (TASK-011); static_close is the
+    # only mode left that auto-precharges every access.
+    AP_PAGING = {"static_close"}
     # Geometry-scaled for the same reason as the single-bank floor: these are
     # beats-per-access numbers. Board (BL_WORDS=1) measures 23.47% against the
     # 0.75 tuned at BL_WORDS=4, and 11.64% against the 0.30 -- both comfortably
@@ -2051,83 +2056,6 @@ def test_pumice_core_perf_paging_sched_cross(request):
 # timing re-gated on the write-lead tree). The two directed tests below are
 # the ones retired on 2026-09-01, verbatim.
 # ---------------------------------------------------------------------------
-@cocotb.test(timeout_time=60, timeout_unit="ms")
-async def cocotb_test_pumice_core_rbl(dut):
-    """TASK-001 Axis 2: rbl_static / rbl_dyn -- RBLA miss-counter table.
-
-    A thrashing pattern (alternating rows A/B in ONE bank) makes every access
-    a row-buffer miss. Under OPEN (mode 0) each turn needs a conflict PRE +
-    ACT: PREs ~= turns. Under rbl_static, once a row's miss counter crosses
-    the threshold its columns auto-precharge, so the explicit-PRE path goes
-    quiet while ACT-per-turn continues. The contrast is the assertion:
-
-      arm A (mode 0 baseline): thrash N turns -> count PREs (expect ~N).
-      arm B (rbl_static, thresh=2): warm 4 turns, then thrash N turns ->
-        PREs must be < half the arm-A count, data golden throughout, and a
-        FRIENDLY row (a different bank, repeated hits) must stay open --
-        zero ACTs between its consecutive accesses.
-      arm C (rbl_dyn smoke): mode 7 with a short epoch; integrity holds and
-        the mode disarms cleanly (threshold adaptation quality gets its own
-        characterization on the board profiles).
-    """
-    from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
-    _memory, slave = await _bring_up(dut, page_policy=0)   # OPEN base
-
-    BANK, ROW_A, ROW_B = 3, 5, 9
-    FR_BANK, FR_ROW = 6, 4                      # friendly-row control
-    rng = random.Random(int(os.environ.get("SEED", "7")))
-
-    async def _one(bank, row, col, rid):
-        addr = _mkaddr(bank, row, col * BL)
-        data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
-        await _write(dut, addr, data, rid & 0xF)
-        got = await _read(dut, addr, rid & 0xF)
-        assert got[:BL_WORDS] == data, f"data mismatch bank{bank} row{row}"
-
-    async def _thrash(n, col0):
-        before = slave.cmd_counts.get(_DC.PRE, 0)
-        for t in range(n):
-            await _one(BANK, ROW_A if (t & 1) == 0 else ROW_B, col0 + t, t)
-        return slave.cmd_counts.get(_DC.PRE, 0) - before
-
-    N = 12
-
-    # ---- arm A: OPEN baseline -- thrash costs a PRE per turn ---------------
-    dut.page_mode_i.value = 0
-    pres_open = await _thrash(N, 0)
-    assert pres_open >= N - 2, (f"baseline thrash produced only {pres_open} "
-                                f"PREs for {N} turns -- pattern not thrashing")
-
-    # ---- arm B: rbl_static -----------------------------------------------
-    dut.page_mode_i.value = 6
-    dut.page_rbl_thresh_i.value = 2
-    dut.page_rbl_ivl_i.value = 0                # no epochs: evidence persists
-    _ = await _thrash(4, 32)                    # warm the miss counters
-    pres_rbl = await _thrash(N, 48)
-    assert pres_rbl < pres_open // 2, (
-        f"rbl_static did not suppress conflict PREs: {pres_rbl} vs baseline "
-        f"{pres_open} -- low-locality rows are not auto-precharging")
-
-    # friendly row: repeated hits in another bank must NOT be closed.
-    await _one(FR_BANK, FR_ROW, 0, 8)           # opens the row (1 ACT)
-    acts_before = slave.cmd_counts.get(_DC.ACT, 0)
-    for k in range(4):
-        await _one(FR_BANK, FR_ROW, 1 + k, 9 + k)
-    acts_delta = slave.cmd_counts.get(_DC.ACT, 0) - acts_before
-    assert acts_delta == 0, (
-        f"friendly row re-activated {acts_delta}x under rbl -- a hit-served "
-        f"row accumulated miss evidence it should not have")
-
-    # ---- arm C: rbl_dyn smoke ---------------------------------------------
-    dut.page_mode_i.value = 7
-    dut.page_rbl_ivl_i.value = 256              # epochs on for the hill-climb
-    _ = await _thrash(8, 96)
-    dut.page_mode_i.value = 0
-    pres_off = await _thrash(4, 120)
-    assert pres_off >= 2, "mode 0 after rbl: auto-precharge failed to disarm"
-    dut._log.info(f"PASS rbl: baseline {pres_open} PREs/{N} turns, "
-                  f"rbl_static {pres_rbl}, friendly row stayed open, dyn+disarm ok")
-
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_pumice_core_acc(dut):
@@ -2231,7 +2159,5 @@ async def cocotb_test_pumice_core_acc(dut):
 
 
 
-def test_pumice_core_rbl(request):
-    _run(request, "cocotb_test_pumice_core_rbl")
 def test_pumice_core_acc(request):
     _run(request, "cocotb_test_pumice_core_acc")
