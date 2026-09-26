@@ -136,11 +136,19 @@ Contrast a **grouping** directory, which carries no INDEX and no items of its
 own: `projects/`, `projects/components/`, `projects/components/dmas/`, and
 `memory-controllers/`. A grouping is a path; a sub-area is an area.
 
-**Create sub-areas on demand, never scaffold them.** Nine RLB blocks x three
-lanes x four state directories is ~100 files holding nothing, and an empty lane
-is indistinguishable from one the checker cannot parse in a passing run -- a
-failure this repo has already shipped. Add `RLB/<block>/` when that block gets
-its first item.
+**SCAFFOLD a sub-area set when the blocks are known (Sean, 2026-09-25).** All
+nine RLB blocks have `RLB/<block>/` with task/bug/issue lanes, whether or not
+they hold an item yet. This reverses an earlier create-on-demand rule recorded
+here: the argument against scaffolding was that ~100 files holding nothing is
+noise, and that an empty lane is indistinguishable from one the checker cannot
+parse. The second half is answered by the reserved `-000` template, which every
+lane carries from creation -- so an empty lane still holds a recognised ID and a
+parse failure still shows up. The first half was the wrong trade: an agent
+opening a block should find its lane already correct, rather than create one and
+have to get the convention right from scratch.
+
+On demand still applies where the block set is NOT known up front. Scaffolding
+presumes you can enumerate the members, as `retro_legacy_blocks` can.
 
 ## The AREA is the namespace — a task lives in its own component's files (Sean, 2026-09-14)
 

@@ -25,6 +25,14 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 `projects/components/retro_legacy_blocks/docs/<block>_mas/`; RTL under
 `rtl/<block>/`. Kimi review pipeline + reports: `/mnt/data/github/rlb-doc-review/`.
 
+**Each block has its own sub-area** at `RLB/<block>/`, with task/bug/issue
+lanes: [gpio](gpio/INDEX.md), [hpet](hpet/INDEX.md), [ioapic](ioapic/INDEX.md),
+[pic_8259](pic_8259/INDEX.md), [pit_8254](pit_8254/INDEX.md),
+[pm_acpi](pm_acpi/INDEX.md), [rtc](rtc/INDEX.md), [smbus](smbus/INDEX.md),
+[uart_16550](uart_16550/INDEX.md). All nine were scaffolded 2026-09-25 (Sean).
+A block's own defects and features go there; THIS area's lanes are for
+cross-block work. The `RLB-0NN` pages below are the frozen legacy lane.
+
 | State | Count | Tasks |
 |---|---|---|
 | active | 0 | — |
