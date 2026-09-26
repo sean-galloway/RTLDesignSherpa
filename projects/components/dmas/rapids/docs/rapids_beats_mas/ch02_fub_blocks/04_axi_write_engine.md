@@ -23,7 +23,7 @@
 
 # AXI Write Engine Specification
 
-**Module:** `axi_write_engine.sv`
+**Module:** `axi_write_engine_beats.sv`
 **Location:** `projects/components/dmas/rapids/rtl/fub_beats/`
 **Status:** Implemented
 **Last Updated:** 2025-01-10

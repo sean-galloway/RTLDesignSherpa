@@ -23,7 +23,7 @@
 
 # Source Data Path AXIS Wrapper Specification
 
-**Module:** `source_data_path_axis.sv`
+**Module:** `src_data_path_axis_beats.sv`
 **Location:** `projects/components/dmas/rapids/rtl/macro_beats/`
 **Status:** Implemented
 **Last Updated:** 2025-01-10

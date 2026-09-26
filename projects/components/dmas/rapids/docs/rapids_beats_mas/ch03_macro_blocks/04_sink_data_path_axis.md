@@ -23,7 +23,7 @@
 
 # Sink Data Path AXIS Wrapper Specification
 
-**Module:** `sink_data_path_axis.sv`
+**Module:** `snk_data_path_axis_beats.sv`
 **Location:** `projects/components/dmas/rapids/rtl/macro_beats/`
 **Status:** Implemented
 **Last Updated:** 2025-01-10

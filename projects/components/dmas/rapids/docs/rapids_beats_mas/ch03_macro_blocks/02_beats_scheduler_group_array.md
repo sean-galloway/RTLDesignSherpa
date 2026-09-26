@@ -23,7 +23,7 @@
 
 # Beats Scheduler Group Array Specification
 
-**Module:** `beats_scheduler_group_array.sv`
+**Module:** `scheduler_group_array_beats.sv`
 **Location:** `projects/components/dmas/rapids/rtl/macro_beats/`
 **Status:** Implemented
 **Last Updated:** 2025-01-10

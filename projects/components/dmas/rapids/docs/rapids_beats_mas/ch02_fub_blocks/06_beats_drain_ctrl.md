@@ -23,7 +23,7 @@
 
 # Beats Drain Control Specification
 
-**Module:** `beats_drain_ctrl.sv`
+**Module:** `drain_ctrl_beats.sv`
 **Location:** `projects/components/dmas/rapids/rtl/fub_beats/`
 **Status:** Implemented
 **Last Updated:** 2025-01-10

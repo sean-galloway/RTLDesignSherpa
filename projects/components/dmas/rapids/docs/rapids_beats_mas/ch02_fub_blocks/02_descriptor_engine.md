@@ -23,7 +23,7 @@
 
 # Descriptor Engine Specification
 
-**Module:** `descriptor_engine.sv`
+**Module:** `descriptor_engine_beats.sv`
 **Location:** `projects/components/dmas/rapids/rtl/fub_beats/`
 **Status:** Implemented
 **Last Updated:** 2025-01-10

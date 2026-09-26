@@ -23,7 +23,7 @@
 
 # Beats Latency Bridge Specification
 
-**Module:** `beats_latency_bridge.sv`
+**Module:** `latency_bridge_beats.sv`
 **Location:** `projects/components/dmas/rapids/rtl/fub_beats/`
 **Status:** Implemented
 **Last Updated:** 2025-01-10

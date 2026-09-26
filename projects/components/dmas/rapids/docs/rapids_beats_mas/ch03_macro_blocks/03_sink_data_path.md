@@ -23,7 +23,7 @@
 
 # Sink Data Path Specification
 
-**Module:** `sink_data_path.sv`
+**Module:** `snk_data_path_beats.sv`
 **Location:** `projects/components/dmas/rapids/rtl/macro_beats/`
 **Status:** Implemented
 **Last Updated:** 2025-01-10

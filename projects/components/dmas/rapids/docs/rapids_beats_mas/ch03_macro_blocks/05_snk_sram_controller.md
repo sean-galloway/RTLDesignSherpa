@@ -23,7 +23,7 @@
 
 # Sink SRAM Controller Specification
 
-**Module:** `snk_sram_controller.sv`
+**Module:** `snk_sram_controller_beats.sv`
 **Location:** `projects/components/dmas/rapids/rtl/macro_beats/`
 **Status:** Implemented
 **Last Updated:** 2025-01-10
