@@ -151,6 +151,20 @@ def load_test_areas(repo_root: Path) -> list[AreaConfig]:
         sub_areas = env_cfg.get("sub_areas")
 
         if sub_areas:
+            # A sub_areas list is a CLAIM about the directory. rapids grew
+            # top_beats on 2026-07-17 and nobody added it here, so every
+            # "RAPIDS FULL green" this tool printed for two months omitted the
+            # 10 top-level cells -- including the one that caught the
+            # monitor-lite perf-window regression. Name what the list misses.
+            listed = set(sub_areas)
+            env_dir = repo_root / directory
+            for cand in sorted(d for d in env_dir.iterdir() if d.is_dir()) if env_dir.is_dir() else []:
+                if cand.name in listed or cand.name.startswith((".", "_")):
+                    continue
+                if (cand / "Makefile").exists() and any(cand.glob("test_*.py")):
+                    print(f"WARNING: {env_name}: {cand.relative_to(repo_root)} has a Makefile "
+                          f"and test_*.py but is not in sub_areas -- its cells are NOT "
+                          f"in this report", file=sys.stderr)
             for sub in sub_areas:
                 sub_dir = f"{directory}/{sub}"
                 areas.append(AreaConfig(

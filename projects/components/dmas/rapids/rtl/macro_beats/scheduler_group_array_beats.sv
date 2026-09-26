@@ -826,13 +826,96 @@ module scheduler_group_array_beats #(
     // Descriptor AXI Master Monitor
     //=========================================================================
 
-    // axi_monitor_lite (amba/monitor-lite TASK-001): the lite monitor on the same taps.
-    // No perf window, debug, address-range checker, ID/address filters or per-event
-    // masks -- those cfg inputs stay on this module's ports for the register block
-    // The lite descriptor monitor has no cfg-conflict check; the status bit reads 0.
+    // axi_monitor_lite (amba/monitor-lite TASK-001): the lite monitor on the same
+    // taps. No debug, address-range checker, ID/address filters or per-event masks
+    // -- those cfg inputs stay on this module's ports for the register block but
+    // drive nothing here. Drop-and-count instead of block_ready. The lite has no
+    // cfg-conflict check either; the status bit reads 0.
     assign cfg_sts_desc_mon_conflict_error = 1'b0;
 
-    // but drive nothing here. Drop-and-count instead of block_ready.
+    //-------------------------------------------------------------------------
+    // Descriptor-AXI perf window (DAXMON_PERF_* CSRs).
+    //
+    // The full monitor computed this window inside itself; the lite does not
+    // (it has no perf cone), and the first lite swap left these outputs
+    // undriven, so DAXMON_PERF_STATUS.WIN_ACTIVE read 0 with RUN set and
+    // top_beats' test_rapids_beats_top_perf_window failed. The window is
+    // now the same always-on meter the top uses for RDMON/WRMON
+    // (rapids_beats_top.sv u_rd_bus_meter): axi_bus_meter on the R channel
+    // for the four cycle buckets, plus beat/byte/burst accumulators. Window
+    // control is DAXMON_PERF_CTRL.RUN: clear on its rising edge, count while
+    // high, freeze while low. WIN_ACTIVE is RUN itself; WINDOW_CYCLES is
+    // LIVE-only per the RDL ("valid only while WIN_ACTIVE=1"), so it reads 0
+    // after close while the buckets hold. Deliberately NOT gated by
+    // USE_AXI_MONITORS, for the reason the top gives: over-gating the cheap
+    // meters was a real cause of zero perf readings on monitors-off builds.
+    //-------------------------------------------------------------------------
+    logic        r_desc_perf_run_d;
+    logic        w_desc_perf_start;
+    logic [31:0] r_desc_win_cycles;
+    logic [31:0] r_desc_beats;
+    logic [63:0] r_desc_bytes;
+    logic [31:0] r_desc_bursts;
+
+    assign w_desc_perf_start = cfg_desc_mon_perf_run && !r_desc_perf_run_d;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_desc_perf_run_d <= 1'b0;
+            r_desc_win_cycles <= '0;
+            r_desc_beats      <= '0;
+            r_desc_bytes      <= '0;
+            r_desc_bursts     <= '0;
+        end else begin
+            r_desc_perf_run_d <= cfg_desc_mon_perf_run;
+            if (w_desc_perf_start) begin
+                r_desc_win_cycles <= '0;
+                r_desc_beats      <= '0;
+                r_desc_bytes      <= '0;
+                r_desc_bursts     <= '0;
+            end else if (cfg_desc_mon_perf_run) begin
+                r_desc_win_cycles <= r_desc_win_cycles + 32'd1;
+                if (desc_axi_int_rvalid && desc_axi_int_rready) begin
+                    r_desc_beats <= r_desc_beats + 32'd1;
+                    // Descriptor fetches are fixed 256-bit beats (the port
+                    // width above), so a beat is 32 bytes.
+                    r_desc_bytes <= r_desc_bytes + 64'd32;
+                end
+                if (desc_axi_int_arvalid && desc_axi_int_arready) begin
+                    r_desc_bursts <= r_desc_bursts + 32'd1;
+                end
+            end
+        end
+    )
+
+    /* verilator lint_off PINCONNECTEMPTY */
+    axi_bus_meter #(.NUM_CHANNELS(1)) u_desc_bus_meter (
+        .aclk               (clk),
+        .aresetn            (rst_n),
+        .i_clear            (w_desc_perf_start),
+        .i_freeze           (~cfg_desc_mon_perf_run),
+        .i_valid            (desc_axi_int_rvalid),
+        .i_ready            (desc_axi_int_rready),
+        .i_channel_id       (1'b0),
+        .i_channel_valid    (1'b0),   // one shared descriptor port: aggregate only
+        .o_agg_productive   (sts_desc_mon_prod_cycles),
+        .o_agg_backpressure (sts_desc_mon_bp_cycles),
+        .o_agg_starvation   (sts_desc_mon_starv_cycles),
+        .o_agg_idle         (sts_desc_mon_idle_cycles),
+        .o_ch_productive    (),
+        .o_ch_backpressure  (),
+        .o_ch_starvation    (),
+        .o_ch_idle          (),
+        .o_ch_overflow      ()
+    );
+    /* verilator lint_on PINCONNECTEMPTY */
+
+    assign sts_desc_mon_win_active  = cfg_desc_mon_perf_run;
+    assign sts_desc_mon_win_cycles  = cfg_desc_mon_perf_run ? r_desc_win_cycles : 32'd0;
+    assign sts_desc_mon_beat_count  = r_desc_beats;
+    assign sts_desc_mon_byte_count  = r_desc_bytes;
+    assign sts_desc_mon_burst_count = r_desc_bursts;
+
     axi4_master_rd_monlite #(
         .AXI_ID_WIDTH     (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH   (ADDR_WIDTH),

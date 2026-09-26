@@ -198,6 +198,31 @@ parameter int MON_UNIT_ID = 1;                   // Unit ID for MonBus
 
 : Table 3.2.8: Unified MonBus Interface
 
+### Descriptor-AXI Perf Window
+
+The descriptor monitor is `axi_monitor_lite`, which has no performance cone.
+The DAXMON_PERF_* CSRs are fed instead by an always-on `axi_bus_meter` on the
+descriptor R channel plus window/beat/byte/burst accumulators beside it, the
+same meter `rapids_beats_top` uses for RDMON/WRMON. `cfg_desc_mon_perf_run`
+(DAXMON_PERF_CTRL.RUN) opens the window: counters clear on its rising edge,
+count while it is high and hold while it is low. The meter is not gated by
+`USE_AXI_MONITORS`.
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `cfg_desc_mon_perf_run` | input | 1 | Window control (DAXMON_PERF_CTRL.RUN) |
+| `sts_desc_mon_win_active` | output | 1 | Window open (equals RUN) |
+| `sts_desc_mon_win_cycles` | output | 32 | Live cycle count; reads 0 while the window is closed |
+| `sts_desc_mon_prod_cycles` | output | 32 | R valid and ready |
+| `sts_desc_mon_bp_cycles` | output | 32 | R valid, not ready (backpressure) |
+| `sts_desc_mon_starv_cycles` | output | 32 | R ready, not valid (starvation) |
+| `sts_desc_mon_idle_cycles` | output | 32 | R neither valid nor ready |
+| `sts_desc_mon_beat_count` | output | 32 | R handshakes in the window |
+| `sts_desc_mon_byte_count` | output | 64 | 32 bytes per 256-bit descriptor beat |
+| `sts_desc_mon_burst_count` | output | 32 | AR handshakes in the window |
+
+: Table 3.2.9: Descriptor-AXI Perf Window
+
 ---
 
 ## AXI Arbitration
@@ -240,7 +265,7 @@ The unified MonBus output aggregates 9 sources using round-robin arbitration:
 | 0-7 | scheduler_group[0:7] | Per-channel aggregated MonBus |
 | 8 | AXI Arbiter | Arbitration events |
 
-: Table 3.2.9: MonBus Source Assignment
+: Table 3.2.10: MonBus Source Assignment
 
 Each scheduler_group provides a single MonBus output that combines both scheduler and descriptor engine packets (2:1 internal arbitration).
 

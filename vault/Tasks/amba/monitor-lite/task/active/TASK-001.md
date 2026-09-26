@@ -370,3 +370,23 @@ sixteen wrappers; a clean completion whose 16-bit latency exceeds it emits
 bridge generator wires the adapter's latency connector (now nine lite cfg
 signals). The "dropped" list is down to: perf, debug class, report-time
 address and ID filters, per-phase timers, per-event masks, block_ready.
+
+### 14. RAPIDS lost its descriptor perf window; the regression that would have said so was not in the aggregate (2026-09-26)
+
+After 8cce2ecce landed, the rapids session ran `top_beats` and
+`test_rapids_beats_top_perf_window` failed: `DAXMON_PERF_STATUS.WIN_ACTIVE`
+read 0 with RUN set. The full monitor computed the DAXMON window inside
+itself (start trigger = RUN, end = ~RUN); the lite has no perf cone, and the
+swap left `sts_desc_mon_*` in `scheduler_group_array_beats` undriven. My
+"RAPIDS FULL 579/579" did not include `top_beats` -- `test_environments.toml`
+listed four sub-areas and that directory was never added (handbook
+`dv/running-regressions.md`, "The aggregator's area list is a claim").
+
+Fix, matching what the top already does for RDMON/WRMON: an always-on
+`axi_bus_meter` on the descriptor R channel plus RUN-edge-cleared
+window/beat/byte/burst accumulators beside the lite, driving the nine
+`sts_desc_mon_*` outputs. WIN_ACTIVE is RUN; WINDOW_CYCLES is live-only per
+the RDL. Not gated by USE_AXI_MONITORS (STREAM's over-gating lesson). The
+lite itself is unchanged: perf stays a consumer-side meter, as on STREAM.
+`top_beats` added to the rapids `sub_areas`; the aggregator warns about
+unlisted test directories.

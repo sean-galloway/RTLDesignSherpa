@@ -15,5 +15,8 @@
 # AXI4 Master Read Monitor and all its dependencies
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_monlite.f
 
+# Descriptor-AXI perf window meter (DAXMON_PERF_* buckets), the same meter the top uses for RDMON/WRMON
+-f $REPO_ROOT/rtl/amba/filelists/axi_bus_meter.f
+
 # DUT module
 $REPO_ROOT/projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_array_beats.sv

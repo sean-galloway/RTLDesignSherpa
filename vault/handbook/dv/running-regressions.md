@@ -85,6 +85,34 @@ This is the [[silent-fallbacks]] pattern applied to your own tooling: the
 step that was supposed to protect the result is itself capable of failing
 quietly.
 
+## The aggregator's area list is a claim, not a measurement
+
+`bin/aggregate_test_results.py` runs what `test_environments.toml` names in
+`sub_areas`, and prints PASS over the total. The total is only the areas it was
+told about. rapids' list read `["fub", "fub_beats", "macro", "macro_beats"]`
+from 2026-03-31; `top_beats` was created on 2026-07-17 (a1760aaf6) and never
+added. So on 2026-09-26 "RAPIDS FULL 579/579 PASS" was true and useless: the
+ten top-level cells were not in it, and one of them
+(`test_rapids_beats_top_perf_window`) was red at HEAD because the monitor-lite
+swap had removed the descriptor monitor's perf window. A peer session running
+the area Makefile directly (`AREAS="macro macro_beats top_beats"`) found it in
+one pass.
+
+Two habits, one guard:
+
+- **Name the areas in the claim.** "RAPIDS FULL green" is not a result;
+  "rapids fub 15, fub_beats 303, macro 12, macro_beats 249, top_beats 10" is.
+  If you cannot list them you do not know what ran. The same rule already
+  applies to repositories ([[feedback_ci_green_name_the_repo]]).
+- **Count the directories, not the list.** Before trusting a component
+  total, `ls -d <component>/dv/tests/*/` and compare with `sub_areas`. The
+  component Makefile's own `AREAS ?=` default is the second source of truth
+  and was correct here; the aggregator's copy was the stale one.
+- The aggregator now prints `WARNING: <env>: <dir> has a Makefile and
+  test_*.py but is not in sub_areas` for every directory the list misses. A
+  warning on stderr is a weak gate; the fix is to add the area, which is what
+  the warning tells you to do.
+
 ## Levels
 
 | Level | Env | Scope | Use |

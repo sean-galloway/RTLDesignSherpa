@@ -68,7 +68,7 @@ description = "AMBA protocol modules (AXI4, APB, AXIS monitors)"
 directory = "val/amba"
 coverage = true
 
-# rtl/amba/monitor-lite has its own test area (Sean, 2026-09-25): own Makefile
+# rtl/amba/monitor/axi_monitor_lite.sv has its own test area (Sean, 2026-09-25): own Makefile
 # on make/tests.mk, own conftest, own TB package. Not a sub_area of val-amba --
 # sub_areas REPLACE the root entry, and val/amba's own tests must keep running.
 [env.val-amba-monitor-lite]
@@ -105,7 +105,9 @@ coverage = true
 coverage_extra_env = { COVERAGE_LEGAL = "1" }
 coverage_target = "coverage-full-report"
 coverage_report_target = "coverage-report"
-sub_areas = ["fub", "fub_beats", "macro", "macro_beats"]
+# top_beats was added 2026-07-17 (a1760aaf6) and never listed here, so every
+# "RAPIDS FULL green" from this aggregator omitted the 10 top-level cells.
+sub_areas = ["fub", "fub_beats", "macro", "macro_beats", "top_beats"]
 
 # --- Bridge ---
 [env.bridge]
