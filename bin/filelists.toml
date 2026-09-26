@@ -154,7 +154,7 @@ rtl_roots = ["projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl"]
 filelist_dirs = [
     "projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists",
     # DV tb_top assemblies (consumer-only: -f the component filelists + tb files)
-    "projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tb",
+    "projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/filelists",
 ]
 
 # ---------------------------------------------------------------------------

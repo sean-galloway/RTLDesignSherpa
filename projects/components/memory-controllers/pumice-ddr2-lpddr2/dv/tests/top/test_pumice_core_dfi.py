@@ -51,7 +51,7 @@ _LEVEL = {"GATE": "gate", "BASIC": "gate",
      or "FUNC").upper(), "func")
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
-             "dv/tb/pumice_core_tb_top.f")
+             "dv/filelists/pumice_core_tb_top.f")
 
 # dv/ on sys.path so `tbclasses.*` resolves (trackers + the shared AXI BFM).
 # This runs BELOW the import block, so anything under `tbclasses` has to be

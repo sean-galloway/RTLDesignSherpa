@@ -100,7 +100,7 @@ async def cocotb_test_pumice_top_geared(dut):
 import pytest  # noqa: E402
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
-             "dv/tb/pumice_top_geared_tb_top.f")
+             "dv/filelists/pumice_top_geared_tb_top.f")
 
 
 # host widths: 64 = down-gear (2:1), 128 = GEAR-1 (converters bypassed),

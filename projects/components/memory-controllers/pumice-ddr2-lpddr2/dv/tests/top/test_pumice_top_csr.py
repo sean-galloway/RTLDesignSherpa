@@ -43,7 +43,7 @@ _LEVEL = {"GATE": "gate", "BASIC": "gate",
      or "FUNC").upper(), "func")
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
-             "dv/tb/pumice_top_csr_tb_top.f")
+             "dv/filelists/pumice_top_csr_tb_top.f")
 
 # dv/ on sys.path so `tbclasses.*` resolves; import AFTER the insert.
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))

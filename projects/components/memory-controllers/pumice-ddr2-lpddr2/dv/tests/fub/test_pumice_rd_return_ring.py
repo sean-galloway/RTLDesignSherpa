@@ -23,7 +23,7 @@ from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa:
 from tbclasses.pumice_rd_return_ring_tb import PumiceRdReturnRingTB  # noqa: E402
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
-             "dv/tb/pumice_rd_return_ring_tb_top.f")
+             "dv/filelists/pumice_rd_return_ring_tb_top.f")
 
 
 def _burst(tb, tag):

@@ -18,7 +18,7 @@ state (`open/`, `active/`, `closed/`, `dropped/`). Pick the lane before filing:
 
 | Lane | For | Open |
 |---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | 2 |
+| [task/](task/INDEX.md) | planned work we decided to do | 1 |
 | [bug/](bug/INDEX.md) | a defect with a reproduction | 0 |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 0 |
 
@@ -37,7 +37,7 @@ commit message before that date, use the old `PUMICE-NNN` names.
 | PUMICE-035 | [TASK-006](task/closed/TASK-006.md) | | | |
 | PUMICE-039 | [TASK-007](task/closed/TASK-007.md) | | | |
 | PUMICE-049 | [TASK-008](task/closed/TASK-008.md) | | | |
-| PUMICE-CLEANUP | [TASK-009](task/open/TASK-009.md) | | | |
+| PUMICE-CLEANUP | [TASK-009](task/closed/TASK-009.md) | | | |
 
 `PUMICE-NNN` numbers that are NOT in this table were already closed or dropped
 and stay where they are, in the flat `closed.md` / `dropped.md` -- so an old

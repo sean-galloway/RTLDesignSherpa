@@ -14,13 +14,12 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 9 | done (kept for history) |
+| [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 
 ## Open
 
 - **TASK-000** — TEMPLATE — copy this file, never file against it
-- **TASK-009** — doc + filelist cleanup (push from workstation)
 - **TASK-013** — adapt predictors (modes 4/5) are inert on everything measured,
   but their triggers may never have fired; test before retiring
 
@@ -41,6 +40,8 @@ exactly one state by construction rather than by discipline.
   worse than mode 7, mode 7 is bit-identical to no predictor; 5,578 LUT unearned
 - **TASK-002** — all three axes on silicon: reordering is worth 3.9x, every
   predictor is inert, refresh costs 4.7% and tREFI is the only tunable that pays
+- **TASK-009** — tb filelists moved to dv/filelists/; doc placement was already
+  compliant, and the gate it was deferred behind no longer applied
 
 ## Dropped
 

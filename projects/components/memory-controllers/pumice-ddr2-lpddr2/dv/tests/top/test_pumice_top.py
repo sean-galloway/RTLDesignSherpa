@@ -54,7 +54,7 @@ _LEVEL = {"GATE": "gate", "BASIC": "gate",
      or "FUNC").upper(), "func")
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
-             "dv/tb/pumice_top_csr_tb_top.f")
+             "dv/filelists/pumice_top_csr_tb_top.f")
 
 # ---- geometry -------------------------------------------------------------
 # Selected per TEST by the wrapper (see GEOMETRIES), not by a global env knob
