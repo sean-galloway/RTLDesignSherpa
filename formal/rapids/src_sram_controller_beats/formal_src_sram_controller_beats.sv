@@ -143,12 +143,31 @@ module formal_src_sram_controller_beats #(
     // Safety properties
     // =========================================================================
 
-    // P1: After reset, all channels have space_free == SRAM_DEPTH
+    // P1: the registered space_free output holds its RESET VALUE ('0) in the
+    // cycle after reset, NOT SRAM_DEPTH.
+    //
+    // This module registers space_free at its boundary for timing closure, and
+    // that register resets to zero on purpose: under reset the downstream
+    // engines must see "no free space" so they cannot attempt an arbitration
+    // grant before the first post-reset cycle latches the real value
+    // (stream/rtl/fub/sram_controller.sv, output register block).
+    //
+    // The property was previously written as == SD, which is the behaviour of
+    // an UNREGISTERED boundary. It is unprovable against a registered one and
+    // failed at step 2 here; STREAM's own macro harness carries the identical
+    // mis-statement (formal/stream/sram_controller/formal_sram_controller.sv:145)
+    // and fails the same way. The "starts full" property genuinely belongs one
+    // level down, where space_free really does reset to SD, and STREAM already
+    // proves it there as ap_reset_space_free
+    // (formal/stream/sram_controller_unit/formal_sram_controller_unit.sv:115).
+    //
+    // Asserting == 0 is not a weakening: fill_alloc_req is unconstrained in
+    // this harness, so after that cycle SD is not implied anyway.
     generate
         for (gi = 0; gi < NC; gi = gi + 1) begin : gen_p1
             always @(posedge clk) begin
                 if (f_past_valid > 0 && $past(!rst_n))
-                    assert (fill_space_free[gi] == SD);
+                    assert (fill_space_free[gi] == '0);
             end
         end
     endgenerate

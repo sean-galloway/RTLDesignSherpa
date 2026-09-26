@@ -31,7 +31,7 @@ module counter_bin (
 		else
 			counter_bin_next = counter_bin_curr;
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			counter_bin_curr <= 'b0;
 		else
@@ -54,7 +54,7 @@ module fifo_control (
 	rd_almost_empty
 );
 	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 16;
+	parameter signed [31:0] DEPTH = 8;
 	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
 	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
 	parameter signed [31:0] REGISTERED = 0;
@@ -108,7 +108,7 @@ module fifo_control (
 	generate
 		if (REGISTERED == 1) begin : gen_flop_mode
 			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk)
+			always @(posedge rd_clk or negedge rd_rst_n)
 				if (!rd_rst_n)
 					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
@@ -150,7 +150,6 @@ module gaxi_fifo_sync (
 	rd_valid,
 	rd_data
 );
-	reg _sv2v_0;
 	parameter signed [31:0] MEM_STYLE = 32'sd0;
 	parameter signed [31:0] REGISTERED = 0;
 	parameter signed [31:0] DATA_WIDTH = 4;
@@ -179,7 +178,6 @@ module gaxi_fifo_sync (
 	wire r_wr_almost_full;
 	wire r_rd_empty;
 	wire r_rd_almost_empty;
-	reg [DW - 1:0] w_rd_data;
 	wire w_write;
 	wire w_read;
 	assign w_write = wr_valid && wr_ready;
@@ -236,18 +234,16 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 		else if (MEM_STYLE == 32'sd2) begin : gen_bram
@@ -255,11 +251,13 @@ module gaxi_fifo_sync (
 			always @(posedge axi_aclk)
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
-			always @(posedge axi_aclk)
+			reg [DATA_WIDTH - 1:0] r_rd_data;
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
-					w_rd_data <= 1'sb0;
+					r_rd_data <= 1'sb0;
 				else
-					w_rd_data <= mem[r_rd_addr];
+					r_rd_data <= mem[r_rd_addr];
+			assign rd_data = r_rd_data;
 		end
 		else begin : gen_auto
 			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
@@ -267,31 +265,27 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 	endgenerate
-	assign rd_data = w_rd_data;
 	always @(posedge axi_aclk) begin
 		if (w_write && r_wr_full)
 			;
 		if (w_read && r_rd_empty)
 			;
 	end
-	initial _sv2v_0 = 0;
 endmodule
-module alloc_ctrl_beats (
+module stream_alloc_ctrl (
 	axi_aclk,
 	axi_aresetn,
 	wr_valid,
@@ -340,7 +334,7 @@ module alloc_ctrl_beats (
 		input reg [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
 		sv2v_cast_2BB65 = inp;
 	endfunction
-	always @(posedge axi_aclk)
+	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn)
 			r_wr_ptr_bin <= 1'sb0;
 		else if (w_write && !r_wr_full)
@@ -389,7 +383,7 @@ module alloc_ctrl_beats (
 	assign rd_empty = r_rd_empty;
 	assign rd_almost_empty = r_rd_almost_empty;
 endmodule
-module drain_ctrl_beats (
+module stream_drain_ctrl (
 	axi_aclk,
 	axi_aresetn,
 	wr_valid,
@@ -449,7 +443,7 @@ module drain_ctrl_beats (
 		input reg [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
 		sv2v_cast_2BB65 = inp;
 	endfunction
-	always @(posedge axi_aclk)
+	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn)
 			r_rd_ptr_bin <= 1'sb0;
 		else if (w_read && !r_rd_empty)
@@ -483,8 +477,11 @@ module drain_ctrl_beats (
 	assign wr_almost_full = r_wr_almost_full;
 	assign rd_empty = r_rd_empty;
 	assign rd_almost_empty = r_rd_almost_empty;
+	always @(posedge axi_aclk)
+		if (((axi_aresetn && rd_valid) && !r_rd_empty) && (sv2v_cast_2BB65(rd_size) > data_available))
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/stream/rtl/fub/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
 endmodule
-module latency_bridge_beats (
+module stream_latency_bridge (
 	clk,
 	rst_n,
 	s_valid,
@@ -526,7 +523,7 @@ module latency_bridge_beats (
 	wire w_room_available = pending_count < sv2v_cast_3_signed(SKID_DEPTH);
 	assign s_ready = w_room_available || w_draining_now;
 	wire w_drain_fifo = s_valid && s_ready;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_drain_ip <= 1'b0;
 		else
@@ -553,21 +550,21 @@ module latency_bridge_beats (
 	assign dbg_r_pending = r_drain_ip;
 	assign dbg_r_out_valid = m_valid;
 endmodule
-module src_sram_controller_unit_beats (
+module sram_controller_unit (
 	clk,
 	rst_n,
-	fill_alloc_req,
-	fill_alloc_size,
-	fill_space_free,
-	fill_valid,
-	fill_ready,
-	fill_data,
-	drain_data_avail,
-	drain_req,
-	drain_size,
-	drain_valid,
-	drain_ready,
-	drain_data,
+	axi_rd_alloc_req,
+	axi_rd_alloc_size,
+	axi_rd_alloc_space_free,
+	axi_rd_sram_valid,
+	axi_rd_sram_ready,
+	axi_rd_sram_data,
+	axi_wr_drain_data_avail,
+	axi_wr_drain_req,
+	axi_wr_drain_size,
+	axi_wr_sram_valid,
+	axi_wr_sram_ready,
+	axi_wr_sram_data,
 	dbg_bridge_pending,
 	dbg_bridge_out_valid
 );
@@ -579,18 +576,18 @@ module src_sram_controller_unit_beats (
 	parameter signed [31:0] SCW = SEG_COUNT_WIDTH;
 	input wire clk;
 	input wire rst_n;
-	input wire fill_alloc_req;
-	input wire [7:0] fill_alloc_size;
-	output reg [SCW - 1:0] fill_space_free;
-	input wire fill_valid;
-	output wire fill_ready;
-	input wire [DW - 1:0] fill_data;
-	output wire [SCW - 1:0] drain_data_avail;
-	input wire drain_req;
-	input wire [7:0] drain_size;
-	output wire drain_valid;
-	input wire drain_ready;
-	output wire [DW - 1:0] drain_data;
+	input wire axi_rd_alloc_req;
+	input wire [7:0] axi_rd_alloc_size;
+	output reg [SCW - 1:0] axi_rd_alloc_space_free;
+	input wire axi_rd_sram_valid;
+	output wire axi_rd_sram_ready;
+	input wire [DW - 1:0] axi_rd_sram_data;
+	output wire [SCW - 1:0] axi_wr_drain_data_avail;
+	input wire axi_wr_drain_req;
+	input wire [7:0] axi_wr_drain_size;
+	output wire axi_wr_sram_valid;
+	input wire axi_wr_sram_ready;
+	output wire [DW - 1:0] axi_wr_sram_data;
 	output wire dbg_bridge_pending;
 	output wire dbg_bridge_out_valid;
 	localparam signed [31:0] ADDR_WIDTH = $clog2(SD);
@@ -600,17 +597,19 @@ module src_sram_controller_unit_beats (
 	wire fifo_rd_ready_internal;
 	wire [DW - 1:0] fifo_rd_data_internal;
 	wire [ADDR_WIDTH:0] fifo_count;
+	wire fifo_empty;
+	wire fifo_full;
 	wire [2:0] bridge_occupancy;
-	alloc_ctrl_beats #(
+	stream_alloc_ctrl #(
 		.DEPTH(SD),
 		.REGISTERED(1)
 	) u_alloc_ctrl(
 		.axi_aclk(clk),
 		.axi_aresetn(rst_n),
-		.wr_valid(fill_alloc_req),
-		.wr_size(fill_alloc_size),
+		.wr_valid(axi_rd_alloc_req),
+		.wr_size(axi_rd_alloc_size),
 		.wr_ready(),
-		.rd_valid(drain_valid && drain_ready),
+		.rd_valid(axi_wr_sram_valid && axi_wr_sram_ready),
 		.rd_ready(),
 		.space_free(alloc_space_free),
 		.wr_full(),
@@ -618,16 +617,16 @@ module src_sram_controller_unit_beats (
 		.rd_empty(),
 		.rd_almost_empty()
 	);
-	drain_ctrl_beats #(
+	stream_drain_ctrl #(
 		.DEPTH(SD),
 		.REGISTERED(1)
 	) u_drain_ctrl(
 		.axi_aclk(clk),
 		.axi_aresetn(rst_n),
-		.wr_valid(fill_valid && fill_ready),
+		.wr_valid(axi_rd_sram_valid && axi_rd_sram_ready),
 		.wr_ready(),
-		.rd_valid(drain_req),
-		.rd_size(drain_size),
+		.rd_valid(axi_wr_drain_req),
+		.rd_size(axi_wr_drain_size),
 		.rd_ready(),
 		.data_available(drain_data_available),
 		.wr_full(),
@@ -636,48 +635,181 @@ module src_sram_controller_unit_beats (
 		.rd_almost_empty()
 	);
 	gaxi_fifo_sync #(
-		.MEM_STYLE(32'sd0),
+		.MEM_STYLE(32'sd2),
 		.REGISTERED(1),
 		.DATA_WIDTH(DW),
 		.DEPTH(SD)
 	) u_channel_fifo(
 		.axi_aclk(clk),
 		.axi_aresetn(rst_n),
-		.wr_valid(fill_valid),
-		.wr_ready(fill_ready),
-		.wr_data(fill_data),
+		.wr_valid(axi_rd_sram_valid),
+		.wr_ready(axi_rd_sram_ready),
+		.wr_data(axi_rd_sram_data),
 		.rd_valid(fifo_rd_valid_internal),
 		.rd_ready(fifo_rd_ready_internal),
 		.rd_data(fifo_rd_data_internal),
 		.count(fifo_count)
 	);
-	latency_bridge_beats #(.DATA_WIDTH(DW)) u_latency_bridge(
+	stream_latency_bridge #(.DATA_WIDTH(DW)) u_latency_bridge(
 		.clk(clk),
 		.rst_n(rst_n),
 		.s_data(fifo_rd_data_internal),
 		.s_valid(fifo_rd_valid_internal),
 		.s_ready(fifo_rd_ready_internal),
-		.m_data(drain_data),
-		.m_valid(drain_valid),
-		.m_ready(drain_ready),
+		.m_data(axi_wr_sram_data),
+		.m_valid(axi_wr_sram_valid),
+		.m_ready(axi_wr_sram_ready),
 		.occupancy(bridge_occupancy),
 		.dbg_r_pending(dbg_bridge_pending),
 		.dbg_r_out_valid(dbg_bridge_out_valid)
 	);
-	function automatic [SCW - 1:0] sv2v_cast_14961;
-		input reg [SCW - 1:0] inp;
-		sv2v_cast_14961 = inp;
-	endfunction
-	assign drain_data_avail = drain_data_available + sv2v_cast_14961(bridge_occupancy);
+	assign axi_wr_drain_data_avail = drain_data_available;
 	function automatic signed [SCW - 1:0] sv2v_cast_14961_signed;
 		input reg signed [SCW - 1:0] inp;
 		sv2v_cast_14961_signed = inp;
 	endfunction
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
-			fill_space_free <= sv2v_cast_14961_signed(SD);
+			axi_rd_alloc_space_free <= sv2v_cast_14961_signed(SD);
 		else
-			fill_space_free <= alloc_space_free;
+			axi_rd_alloc_space_free <= alloc_space_free;
+endmodule
+module sram_controller (
+	clk,
+	rst_n,
+	axi_rd_alloc_req,
+	axi_rd_alloc_size,
+	axi_rd_alloc_id,
+	axi_rd_alloc_space_free,
+	axi_rd_sram_valid,
+	axi_rd_sram_ready,
+	axi_rd_sram_id,
+	axi_rd_sram_data,
+	axi_wr_drain_data_avail,
+	axi_wr_drain_req,
+	axi_wr_drain_size,
+	axi_wr_sram_valid,
+	axi_wr_sram_valid_comb,
+	axi_wr_sram_drain,
+	axi_wr_sram_id,
+	axi_wr_sram_data,
+	dbg_bridge_pending,
+	dbg_bridge_out_valid
+);
+	reg _sv2v_0;
+	parameter signed [31:0] NUM_CHANNELS = 8;
+	parameter signed [31:0] DATA_WIDTH = 512;
+	parameter signed [31:0] SRAM_DEPTH = 512;
+	parameter signed [31:0] SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1;
+	parameter signed [31:0] NC = NUM_CHANNELS;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	parameter signed [31:0] SD = SRAM_DEPTH;
+	parameter signed [31:0] SCW = SEG_COUNT_WIDTH;
+	parameter signed [31:0] CIW = (NC > 1 ? $clog2(NC) : 1);
+	input wire clk;
+	input wire rst_n;
+	input wire axi_rd_alloc_req;
+	input wire [7:0] axi_rd_alloc_size;
+	input wire [CIW - 1:0] axi_rd_alloc_id;
+	output reg [(NC * SCW) - 1:0] axi_rd_alloc_space_free;
+	input wire axi_rd_sram_valid;
+	output reg axi_rd_sram_ready;
+	input wire [CIW - 1:0] axi_rd_sram_id;
+	input wire [DW - 1:0] axi_rd_sram_data;
+	output reg [(NC * SCW) - 1:0] axi_wr_drain_data_avail;
+	input wire [NC - 1:0] axi_wr_drain_req;
+	input wire [(NC * 8) - 1:0] axi_wr_drain_size;
+	output reg [NC - 1:0] axi_wr_sram_valid;
+	output wire [NC - 1:0] axi_wr_sram_valid_comb;
+	input wire axi_wr_sram_drain;
+	input wire [CIW - 1:0] axi_wr_sram_id;
+	output reg [DW - 1:0] axi_wr_sram_data;
+	output wire [NC - 1:0] dbg_bridge_pending;
+	output wire [NC - 1:0] dbg_bridge_out_valid;
+	reg [NC - 1:0] axi_rd_sram_valid_decoded;
+	wire [NC - 1:0] axi_rd_sram_ready_per_channel;
+	reg [NC - 1:0] axi_wr_sram_drain_decoded;
+	wire [(NC * DW) - 1:0] axi_wr_sram_data_per_channel;
+	reg [NC - 1:0] axi_rd_alloc_req_decoded;
+	wire [(NC * SCW) - 1:0] axi_rd_alloc_space_free_comb;
+	wire [(NC * SCW) - 1:0] axi_wr_drain_data_avail_comb;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		axi_rd_sram_valid_decoded = 1'sb0;
+		if (axi_rd_sram_valid && (axi_rd_sram_id < NC))
+			axi_rd_sram_valid_decoded[axi_rd_sram_id] = 1'b1;
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (axi_rd_sram_id < NC)
+			axi_rd_sram_ready = axi_rd_sram_ready_per_channel[axi_rd_sram_id];
+		else
+			axi_rd_sram_ready = 1'b0;
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		axi_wr_sram_drain_decoded = 1'sb0;
+		if (axi_wr_sram_drain && (axi_wr_sram_id < NC))
+			axi_wr_sram_drain_decoded[axi_wr_sram_id] = 1'b1;
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (axi_wr_sram_id < NC)
+			axi_wr_sram_data = axi_wr_sram_data_per_channel[axi_wr_sram_id * DW+:DW];
+		else
+			axi_wr_sram_data = 1'sb0;
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		axi_rd_alloc_req_decoded = 1'sb0;
+		if (axi_rd_alloc_req && (axi_rd_alloc_id < NC))
+			axi_rd_alloc_req_decoded[axi_rd_alloc_id] = 1'b1;
+	end
+	genvar _gv_i_1;
+	generate
+		for (_gv_i_1 = 0; _gv_i_1 < NC; _gv_i_1 = _gv_i_1 + 1) begin : gen_channel_units
+			localparam i = _gv_i_1;
+			sram_controller_unit #(
+				.DATA_WIDTH(DW),
+				.SRAM_DEPTH(SRAM_DEPTH),
+				.SEG_COUNT_WIDTH(SEG_COUNT_WIDTH)
+			) u_channel_unit(
+				.clk(clk),
+				.rst_n(rst_n),
+				.axi_rd_sram_valid(axi_rd_sram_valid_decoded[i]),
+				.axi_rd_sram_ready(axi_rd_sram_ready_per_channel[i]),
+				.axi_rd_sram_data(axi_rd_sram_data),
+				.axi_wr_sram_valid(axi_wr_sram_valid_comb[i]),
+				.axi_wr_sram_ready(axi_wr_sram_drain_decoded[i]),
+				.axi_wr_sram_data(axi_wr_sram_data_per_channel[i * DW+:DW]),
+				.axi_rd_alloc_req(axi_rd_alloc_req_decoded[i]),
+				.axi_rd_alloc_size(axi_rd_alloc_size),
+				.axi_rd_alloc_space_free(axi_rd_alloc_space_free_comb[i * SCW+:SCW]),
+				.axi_wr_drain_req(axi_wr_drain_req[i]),
+				.axi_wr_drain_size(axi_wr_drain_size[i * 8+:8]),
+				.axi_wr_drain_data_avail(axi_wr_drain_data_avail_comb[i * SCW+:SCW]),
+				.dbg_bridge_pending(dbg_bridge_pending[i]),
+				.dbg_bridge_out_valid(dbg_bridge_out_valid[i])
+			);
+		end
+	endgenerate
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			axi_rd_alloc_space_free <= 1'sb0;
+			axi_wr_drain_data_avail <= 1'sb0;
+			axi_wr_sram_valid <= 1'sb0;
+		end
+		else begin
+			axi_rd_alloc_space_free <= axi_rd_alloc_space_free_comb;
+			axi_wr_drain_data_avail <= axi_wr_drain_data_avail_comb;
+			axi_wr_sram_valid <= axi_wr_sram_valid_comb;
+		end
+	initial _sv2v_0 = 0;
 endmodule
 module src_sram_controller_beats (
 	clk,
@@ -694,13 +826,13 @@ module src_sram_controller_beats (
 	drain_req,
 	drain_size,
 	drain_valid,
+	drain_valid_comb,
 	drain_read,
 	drain_id,
 	drain_data,
 	dbg_bridge_pending,
 	dbg_bridge_out_valid
 );
-	reg _sv2v_0;
 	parameter signed [31:0] NUM_CHANNELS = 8;
 	parameter signed [31:0] DATA_WIDTH = 512;
 	parameter signed [31:0] SRAM_DEPTH = 512;
@@ -717,91 +849,48 @@ module src_sram_controller_beats (
 	input wire [CIW - 1:0] fill_alloc_id;
 	output wire [(NC * SCW) - 1:0] fill_space_free;
 	input wire fill_valid;
-	output reg fill_ready;
+	output wire fill_ready;
 	input wire [CIW - 1:0] fill_id;
 	input wire [DW - 1:0] fill_data;
 	output wire [(NC * SCW) - 1:0] drain_data_avail;
 	input wire [NC - 1:0] drain_req;
 	input wire [(NC * 8) - 1:0] drain_size;
 	output wire [NC - 1:0] drain_valid;
+	output wire [NC - 1:0] drain_valid_comb;
 	input wire drain_read;
 	input wire [CIW - 1:0] drain_id;
-	output reg [DW - 1:0] drain_data;
+	output wire [DW - 1:0] drain_data;
 	output wire [NC - 1:0] dbg_bridge_pending;
 	output wire [NC - 1:0] dbg_bridge_out_valid;
 	initial if (NC > 128) begin
-		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/rapids/rtl/macro_beats/src_sram_controller_beats.sv:99:13 - src_sram_controller_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "src_sram_controller: NUM_CHANNELS=%0d exceeds maximum of 128", NC);
+		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/rapids/rtl/macro_beats/src_sram_controller_beats.sv:116:13 - src_sram_controller_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "src_sram_controller_beats: NUM_CHANNELS=%0d exceeds maximum of 128", NC);
 		$finish(1);
 	end
-	reg [NC - 1:0] fill_valid_decoded;
-	wire [NC - 1:0] fill_ready_per_channel;
-	reg [NC - 1:0] drain_read_decoded;
-	wire [(NC * DW) - 1:0] drain_data_per_channel;
-	reg [NC - 1:0] fill_alloc_req_decoded;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		fill_valid_decoded = 1'sb0;
-		if (fill_valid && (fill_id < NC))
-			fill_valid_decoded[fill_id] = 1'b1;
-	end
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (fill_id < NC)
-			fill_ready = fill_ready_per_channel[fill_id];
-		else
-			fill_ready = 1'b0;
-	end
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		drain_read_decoded = 1'sb0;
-		if (drain_read && (drain_id < NC))
-			drain_read_decoded[drain_id] = 1'b1;
-	end
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (drain_id < NC)
-			drain_data = drain_data_per_channel[drain_id * DW+:DW];
-		else
-			drain_data = 1'sb0;
-	end
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		fill_alloc_req_decoded = 1'sb0;
-		if (fill_alloc_req && (fill_alloc_id < NC))
-			fill_alloc_req_decoded[fill_alloc_id] = 1'b1;
-	end
-	genvar _gv_i_1;
-	generate
-		for (_gv_i_1 = 0; _gv_i_1 < NC; _gv_i_1 = _gv_i_1 + 1) begin : gen_src_channel_units
-			localparam i = _gv_i_1;
-			src_sram_controller_unit_beats #(
-				.DATA_WIDTH(DW),
-				.SRAM_DEPTH(SD),
-				.SEG_COUNT_WIDTH(SCW)
-			) u_src_channel_unit(
-				.clk(clk),
-				.rst_n(rst_n),
-				.fill_valid(fill_valid_decoded[i]),
-				.fill_ready(fill_ready_per_channel[i]),
-				.fill_data(fill_data),
-				.drain_valid(drain_valid[i]),
-				.drain_ready(drain_read_decoded[i]),
-				.drain_data(drain_data_per_channel[i * DW+:DW]),
-				.fill_alloc_req(fill_alloc_req_decoded[i]),
-				.fill_alloc_size(fill_alloc_size),
-				.fill_space_free(fill_space_free[i * SCW+:SCW]),
-				.drain_req(drain_req[i]),
-				.drain_size(drain_size[i * 8+:8]),
-				.drain_data_avail(drain_data_avail[i * SCW+:SCW]),
-				.dbg_bridge_pending(dbg_bridge_pending[i]),
-				.dbg_bridge_out_valid(dbg_bridge_out_valid[i])
-			);
-		end
-	endgenerate
-	initial _sv2v_0 = 0;
+	sram_controller #(
+		.NUM_CHANNELS(NC),
+		.DATA_WIDTH(DW),
+		.SRAM_DEPTH(SD),
+		.SEG_COUNT_WIDTH(SCW)
+	) u_sram_controller(
+		.clk(clk),
+		.rst_n(rst_n),
+		.axi_rd_alloc_req(fill_alloc_req),
+		.axi_rd_alloc_size(fill_alloc_size),
+		.axi_rd_alloc_id(fill_alloc_id),
+		.axi_rd_alloc_space_free(fill_space_free),
+		.axi_rd_sram_valid(fill_valid),
+		.axi_rd_sram_ready(fill_ready),
+		.axi_rd_sram_id(fill_id),
+		.axi_rd_sram_data(fill_data),
+		.axi_wr_drain_data_avail(drain_data_avail),
+		.axi_wr_drain_req(drain_req),
+		.axi_wr_drain_size(drain_size),
+		.axi_wr_sram_valid(drain_valid),
+		.axi_wr_sram_valid_comb(drain_valid_comb),
+		.axi_wr_sram_drain(drain_read),
+		.axi_wr_sram_id(drain_id),
+		.axi_wr_sram_data(drain_data),
+		.dbg_bridge_pending(dbg_bridge_pending),
+		.dbg_bridge_out_valid(dbg_bridge_out_valid)
+	);
 endmodule

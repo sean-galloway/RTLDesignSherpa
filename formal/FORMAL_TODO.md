@@ -533,7 +533,14 @@ axi_monitor_timer, amba_clock_gate_ctrl
 
 **FUB (11 PASS):** stream_alloc_ctrl, stream_drain_ctrl, stream_latency_bridge,
 axi_read_engine (prove), axi_write_engine (prove), descriptor_engine,
-scheduler (prove), sram_controller_unit, sram_controller, perf_profiler
+scheduler (prove), sram_controller_unit, sram_controller [see note], perf_profiler
+
+> Note (measured 2026-09-26): formal/stream/sram_controller prove FAILS at
+> formal_sram_controller.sv:145, the same mis-stated reset property described
+> under RAPIDS above -- it asserts axi_rd_alloc_space_free == SD one cycle
+> after reset while sram_controller deliberately resets that register to '0.
+> Verified on a scratch copy that changing == SD to == '0 makes it PASS.
+> Not fixed here: that is STREAM's area, not RAPIDS'.
 
 **FUB_beats (7 PASS):** axi_read_engine_beats (prove), axi_write_engine_beats (prove),
 descriptor_engine_beats (prove), scheduler_beats (prove), alloc_ctrl_beats,
@@ -542,8 +549,19 @@ drain_ctrl_beats, latency_bridge_beats
 **Macro (3 PASS):** scheduler_group, datapath_rd_test (prove), datapath_wr_test (prove),
 scheduler_group_array (prove), monbus_axil_group, cmdrsp_router, stream_config_block
 
-**RAPIDS fub_beats SRAM (4 PASS):** snk_sram_controller_beats, snk_sram_controller_unit_beats,
-src_sram_controller_beats, src_sram_controller_unit_beats
+**RAPIDS fub_beats SRAM (2 dirs, measured 2026-09-26):** src_sram_controller_beats
+and snk_sram_controller_beats -- prove PASS, cover PASS (depth 40, 0 unreached).
+The two *_sram_controller_unit_beats dirs were RETIRED: RAPIDS now wraps STREAM's
+sram_controller, so those modules no longer exist, and their four checks
+(ap_data_avail_width, ap_reset_space_free, ap_space_free_width,
+ap_wr_handshake_ready) duplicated formal/stream/sram_controller_unit exactly.
+
+Corrected while retiring them: the previous "(4 PASS)" was stale. Measured at the
+old HEAD, snk_sram_controller_beats prove FAILED -- its P1 asserted
+space_free == SRAM_DEPTH one cycle after reset, which describes an UNREGISTERED
+boundary, while the macro registers that output and resets it to '0 on purpose.
+P1 now asserts the reset value; the "starts full" property properly lives at the
+unit level, where STREAM already proves it as ap_reset_space_free.
 
 ### projects/components/converters/ -- 16 of 16 PASS
 

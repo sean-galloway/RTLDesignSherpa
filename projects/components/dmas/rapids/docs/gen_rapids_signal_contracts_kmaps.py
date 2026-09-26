@@ -49,6 +49,7 @@ LBRIDGE = "projects/components/dmas/rapids/rtl/fub_beats/latency_bridge_beats.sv
 
 # STREAM, cited as the CONTRAST: same fork, defect already fixed there.
 STR_UNIT = "projects/components/dmas/stream/rtl/fub/sram_controller_unit.sv"
+STR_MACRO = "projects/components/dmas/stream/rtl/fub/sram_controller.sv"
 STR_WENG = "projects/components/dmas/stream/rtl/fub/axi_write_engine.sv"
 STR_RENG = "projects/components/dmas/stream/rtl/fub/axi_read_engine.sv"
 STR_SCHED = "projects/components/dmas/stream/rtl/fub/scheduler.sv"
@@ -68,25 +69,19 @@ KI_SSC = ("projects/components/dmas/rapids/known_issues/active/"
 # Verified against the RTL before the workbook is written.
 # ---------------------------------------------------------------------------
 CITES = [
-    (SRC_AXIS, 169, "r_arb_request[ch] = (drain_data_avail[ch] > 0)"),
-    (SRC_AXIS, 180, "assign w_arb_should_advance = !r_arb_active ||"),
-    (SRC_AXIS, 181, "(r_drain_remaining == 0 && m_axis_tvalid && m_axis_tready) ||"),
-    (SRC_AXIS, 182, "(r_arb_active && drain_data_avail[r_arb_grant_id] == 0);"),
-    (SRC_AXIS, 197, "if (drain_data_avail[check_ch] >= cfg_drain_size) begin"),
-    (SRC_AXIS, 200, "r_drain_remaining <= cfg_drain_size;"),
-    (SRC_AXIS, 204, "end else if (drain_read && drain_valid[r_arb_grant_id]) begin"),
-    (SRC_AXIS, 222, "drain_req[r_arb_grant_id] = 1'b1;"),
-    (SRC_AXIS, 223, "drain_size[r_arb_grant_id] = cfg_drain_size;"),
-    (SRC_AXIS, 229, "assign drain_read = m_axis_tvalid && m_axis_tready && r_arb_active;"),
-    (SRC_AXIS, 251, "assign m_axis_tvalid = r_arb_active && drain_valid[r_arb_grant_id];"),
+    (SRC_AXIS, 216, "w_ch_grantable[ch] = (w_effective_avail[ch] >= SCW'(cfg_drain_size))"),
+    (SRC_AXIS, 292, "drain_req[r_arb_grant_id] = 1'b1;"),
+    (SRC_AXIS, 293, "drain_size[r_arb_grant_id] = r_drain_remaining;"),
+    (SRC_AXIS, 299, "assign drain_read = w_beat_accepted;"),
+    (SRC_AXIS, 329, "assign m_axis_tvalid = r_arb_active"),
 
-    (SRC_UNIT, 129, ".rd_valid           (drain_valid && drain_ready),"),
-    (SRC_UNIT, 157, ".rd_valid           (drain_req),"),
-    (SRC_UNIT, 158, ".rd_size            (drain_size),"),
-    (SRC_UNIT, 159, ".rd_ready           ()"),
-    (SRC_UNIT, 162, ".data_available     (drain_data_available),"),
-    (SRC_UNIT, 229, "assign drain_data_avail = drain_data_available + SCW'(bridge_occupancy);"),
-    (SNK_UNIT, 229, "assign drain_data_avail = drain_data_available + SCW'(bridge_occupancy);"),
+    (STR_UNIT, 141, ".rd_valid           (axi_wr_sram_valid && axi_wr_sram_ready),"),
+    (STR_UNIT, 189, ".rd_valid           (axi_wr_drain_req),"),
+    (STR_UNIT, 190, ".rd_size            (axi_wr_drain_size),"),
+    (STR_UNIT, 191, ".rd_ready           ()"),
+    (STR_UNIT, 194, ".data_available     (drain_data_available),"),
+    (STR_UNIT, 307, "assign axi_wr_drain_data_avail = drain_data_available;"),
+    (STR_UNIT, 307, "assign axi_wr_drain_data_avail = drain_data_available;"),
 
     (DRAIN_B, 78, "assign w_read  = rd_valid && rd_ready;"),
     (DRAIN_B, 101, "if (w_read && !r_rd_empty) begin"),
@@ -120,12 +115,12 @@ CITES = [
     (SNK_AXIS, 232, "r_pending_alloc[ch] <= r_pending_alloc[ch] - 1'b1;"),
     (SNK_AXIS, 237, "if (s_axis_tvalid && s_axis_tready) begin"),
 
-    (SNK_UNIT, 124, ".wr_valid           (fill_alloc_req),"),
-    (SNK_UNIT, 126, ".wr_ready           ()"),
-    (SNK_UNIT, 153, ".wr_valid           (fill_valid && fill_ready),"),
-    (SNK_UNIT, 184, ".wr_valid       (fill_valid),"),
-    (SNK_UNIT, 185, ".wr_ready       (fill_ready),"),
-    (SNK_UNIT, 236, "fill_space_free <= alloc_space_free;"),
+    (STR_UNIT, 134, ".wr_valid           (axi_rd_alloc_req),"),
+    (STR_UNIT, 136, ".wr_ready           ()"),
+    (STR_UNIT, 184, ".wr_valid           (axi_rd_sram_valid && axi_rd_sram_ready),"),
+    (STR_UNIT, 225, ".wr_valid       (axi_rd_sram_valid),"),
+    (STR_UNIT, 226, ".wr_ready       (axi_rd_sram_ready),"),
+    (STR_UNIT, 314, "axi_rd_alloc_space_free <= alloc_space_free;"),
 
     (ALLOC_B, 76, "assign w_write = wr_valid && wr_ready;"),
     (ALLOC_B, 86, "if (w_write && !r_wr_full) begin"),
@@ -196,10 +191,10 @@ CITES = [
     (SCHED_B, 980, "(w_is_ctrlrd && ctrlrd_error) || (w_is_ctrlwr && ctrlwr_error);"),
     (SCHED_B, 1084, "r_write_error_sticky, r_read_error_sticky"),
 
-    (SNK_SRAM, 145, "drain_read_decoded = '0;"),
-    (SNK_SRAM, 147, "if (drain_read && drain_id < NC) begin"),
-    (SNK_SRAM, 148, "drain_read_decoded[drain_id] = 1'b1;"),
-    (SNK_SRAM, 157, "drain_data = drain_data_per_channel[drain_id];"),
+    (STR_MACRO, 149, "axi_wr_sram_drain_decoded = '0;"),
+    (STR_MACRO, 151, "if (axi_wr_sram_drain && axi_wr_sram_id < NC) begin"),
+    (STR_MACRO, 152, "axi_wr_sram_drain_decoded[axi_wr_sram_id] = 1'b1;"),
+    (STR_MACRO, 161, "axi_wr_sram_data = axi_wr_sram_data_per_channel[axi_wr_sram_id];"),
 
     (STR_CORE, 669, "sched_wr_error;"),
     (STR_CORE, 1047, ".sched_wr_error"),
@@ -209,6 +204,31 @@ CITES = [
 
 # ---------------------------------------------------------------------------
 # Contract sheet: the SOURCE drain interface
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# SUPERSEDED, pending re-derivation.
+#
+# build_src_drain_contract() and build_src_drain_kmaps() below describe the
+# PRE-FIX source drain path. The defects they document are fixed:
+#   * drain_data_avail no longer adds bridge_occupancy (RAPIDS now wraps
+#     STREAM's sram_controller, whose unit exposes data_available only)
+#   * the arbiter no longer re-consults availability mid-drain, reserves
+#     min(cfg_drain_size, avail), pulses drain_req once, retires on the last
+#     beat, and subtracts in-flight reservations (w_effective_avail)
+# Measured after the fix: beat_conservation 0 beats lost at cfg_drain_size
+# 1, 2, 4 and 8; 0 over-drain; 63/63 src and 54/54 snk datapath cells.
+#
+# These two sheets are NOT repairable by retargeting citations: one K-map axis
+# is w_arb_should_advance (a signal that no longer exists), the exclusion
+# lambda is justified by "avail = data_available + bridge_occupancy so
+# avail >= fifo ALWAYS" (a premise that is now false), and rtl_sop is the
+# Boolean form of the deleted FSM. They need re-deriving against the new
+# arbiter (axes: w_effective_avail, w_ch_grantable, w_grant_size,
+# r_grant_pulse, retire-on-last). Tracked as follow-up work.
+#
+# The snk ingress / snk error sheets are NOT superseded: that tready vs
+# fill_ready defect candidate is still open and snk_data_path_axis_beats.sv
+# is untouched.
 # ---------------------------------------------------------------------------
 def build_src_drain_contract(wb):
     rows = [
@@ -485,7 +505,7 @@ def build_snk_ingress_contract(wb):
          "second term carries NO fill_ready conjunct, so tready can assert "
          "while the channel FIFO is backpressuring.",
          "A beat accepted on AXIS must be stored. The only real store is "
-         f"fill_valid && fill_ready ({SNK_UNIT}:184-185, the FIFO's own "
+         f"fill_valid && fill_ready ({STR_UNIT}:225-226, the FIFO's own "
          "wr_ready), so any accepted beat for which fill_ready was low is "
          "consumed off the network and lost.",
          f"{SNK_AXIS}:204-205 -- THE DEFECT CANDIDATE. See the K-map sheet "
@@ -501,7 +521,7 @@ def build_snk_ingress_contract(wb):
          "granted. alloc_ctrl advances its pointer only on "
          "w_write && !r_wr_full, so a request arriving while full is "
          "silently dropped -- but r_pending_alloc increments anyway.",
-         f"{SNK_AXIS}:189; discarded ready at {SNK_UNIT}:126; "
+         f"{SNK_AXIS}:189; discarded ready at {STR_UNIT}:136; "
          f"allocator gating at {ALLOC_B}:76 and {ALLOC_B}:86."),
 
         ("Sink ingress / accounting", "r_pending_alloc[ch]", "16", "internal",
@@ -524,7 +544,7 @@ def build_snk_ingress_contract(wb):
          "The space test is therefore one cycle stale. At cfg_alloc_size==1 "
          "line :222 leaves r_pending_alloc at 0, re-arming fill_alloc_req "
          "every cycle against that stale value.",
-         f"{SNK_UNIT}:236. ALLOC_SIZE is an 8-bit rw CSR field defaulting "
+         f"{STR_UNIT}:314. ALLOC_SIZE is an 8-bit rw CSR field defaulting "
          "to 0x10, so 1 is a writable value."),
 
         ("Sink ingress / stats", "dbg_axis_beats_received", "32", "out",
@@ -567,7 +587,7 @@ def build_snk_ingress_kmaps(wb):
         [("fill_ready",
           "the channel FIFO's own wr_ready, muxed per channel -- the ONLY "
           "signal that says the beat can actually be stored",
-          f"{SNK_UNIT}:185"),
+          f"{STR_UNIT}:226"),
          ("pending_gt0",
           "r_pending_alloc[axis_channel_id] > 0 -- this channel already "
           "holds a reservation",
@@ -579,7 +599,7 @@ def build_snk_ingress_kmaps(wb):
         lambda fr, p, ar: bool((fr and p) or ar),
         "HEALTHY: every green cell would sit at fill_ready=1, because the "
         "only actual store is fill_valid && fill_ready "
-        f"({SNK_UNIT}:184-185). ACTUAL: the single green cell at "
+        f"({STR_UNIT}:225-226). ACTUAL: the single green cell at "
         "fill_ready=0 (alloc_req=1, pending_gt0=0) accepts an AXIS beat "
         "while the FIFO is backpressuring. The handshake completes, the "
         "beat is consumed off the network, and nothing stores it -- and "
@@ -656,7 +676,7 @@ def build_snk_ingress_kmaps(wb):
           "alloc_ctrl's wr_ready = !r_wr_full -- whether the allocator "
           "ACTUALLY took the reservation. NOT AN INPUT: this wire is "
           "discarded at the instantiation",
-          f"{ALLOC_B}:137, discarded at {SNK_UNIT}:126")],
+          f"{ALLOC_B}:137, discarded at {STR_UNIT}:136")],
         lambda areq, cons, granted: bool(areq),
         "The map is INDEPENDENT of alloc_granted, which is the finding. "
         f"alloc_ctrl advances its pointer only on w_write && !r_wr_full "
@@ -678,7 +698,7 @@ def build_snk_ingress_kmaps(wb):
              "the independence IS the defect: an input that should "
              "constrain the decision has been made unable to.",
              None,
-             f"{SNK_UNIT}:126")],
+             f"{STR_UNIT}:136")],
         rtl_sop="alloc_req_ch")
 
     km.table(

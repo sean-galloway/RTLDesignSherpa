@@ -25,9 +25,7 @@ MODULES := \
 	latency_bridge_beats \
 	scheduler_beats \
 	snk_sram_controller_beats \
-	snk_sram_controller_unit_beats \
 	src_sram_controller_beats \
-	src_sram_controller_unit_beats
 
 .PHONY: help all prove-all cover-all clean \
 	$(addprefix prove-,$(MODULES)) $(addprefix cover-,$(MODULES))

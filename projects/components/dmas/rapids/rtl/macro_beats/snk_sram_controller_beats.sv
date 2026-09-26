@@ -4,42 +4,60 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: snk_sram_controller
-// Purpose: Multi-channel Sink SRAM Controller
+// Module: snk_sram_controller_beats
+// Purpose: SINK-side naming wrapper around STREAM's sram_controller
 //
 // Description:
-//   Multi-channel SRAM controller for the SINK path using per-channel FIFOs
-//   with latency bridge. Supports up to 128 channels.
+//   This module contains NO logic. It is a pure naming adapter that maps the
+//   RAPIDS sink-path signal names (fill_*/drain_*) onto STREAM's
+//   sram_controller port names (axi_rd_*/axi_wr_*), which is the single
+//   canonical implementation of the per-channel SRAM for both areas.
 //
-//   Data flow: Network Slave (fill) -> SRAM -> AXI Write Engine (drain)
+//   Read STREAM's naming this way -- it is counterintuitive and has already
+//   caused one misunderstanding:
 //
-// Architecture:
-//   - Fill Path: Network Slave -> Allocation Controller -> FIFO
-//   - Drain Path: FIFO -> Latency Bridge -> AXI Write Engine
-//   - Per-channel space tracking and data counting
-//   - ID-based channel routing (supports up to 128 channels)
+//     axi_rd_*  belongs to the AXI READ engine, and WRITES INTO the SRAM (fill)
+//     axi_wr_*  belongs to the AXI WRITE engine, and READS OUT OF the SRAM (drain)
 //
-// Key Features:
-//   - Independent FIFO per channel (no segmentation complexity)
-//   - Allocation controller tracks reserved vs. committed space
-//   - Latency bridge aligns FIFO read latency (registered output)
-//   - Saturating segment count reporting
+//   Both groups are live here: the sink path fills from the AXIS slave
+//   and drains to the AXI write engine.
+//
+// Why a wrapper instead of a RAPIDS copy:
+//   RAPIDS previously carried its own src/snk macro + unit (4 files) that were
+//   byte-identical to STREAM's apart from renames and two divergences, one of
+//   which was a real defect:
+//
+//     1. The unit added `+ SCW'(bridge_occupancy)` to drain_data_avail. STREAM
+//        removed exactly that line and left a measured writeup at
+//        sram_controller_unit.sv:282-305 explaining why it double-counts: a
+//        beat sitting in the latency bridge's skid is STILL counted in
+//        drain_data_available, so adding the occupancy lets a consumer size a
+//        request against beats that do not exist, rd_ptr overshoots wr_ptr and
+//        the occupancy count is permanently corrupted. That is the over-drain
+//        that drain_ctrl_beats.sv's $error reports on the sink path.
+//     2. MEM_STYLE was FIFO_AUTO rather than STREAM's FIFO_BRAM, which costs
+//        ~9.9K LUTs of distributed RAM on the xc7a100t-1.
+//
+//   Duplicated RTL means a fix landed in one area silently misses the other,
+//   which is precisely what happened. One implementation, two naming wrappers.
+//
+// Note on drain_valid vs drain_valid_comb:
+//   drain_valid is REGISTERED at the SRAM boundary for timing closure and is
+//   what arbitration should consume. drain_valid_comb is the unregistered tap
+//   and exists ONLY to gate the outgoing data beat, so a 1-cycle-stale
+//   registered valid cannot pull a beat that is not there. A consumer that
+//   samples only the registered valid can pop a beat it never transmits -- see
+//   STREAM axi_write_engine.sv:694-702.
 //
 // Subsystem: rapids_macro_beats
-//
-// Author: RTL Design Sherpa
-// Created: 2026-01-10
 
 `timescale 1ns / 1ps
-
-`include "fifo_defs.svh"
-`include "reset_defs.svh"
 
 module snk_sram_controller_beats #(
     // Primary parameters
     parameter int NUM_CHANNELS = 8,
     parameter int DATA_WIDTH = 512,
-    parameter int SRAM_DEPTH = 512,
+    parameter int SRAM_DEPTH = 512,                  // Depth PER CHANNEL
     parameter int SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1,
 
     // Short aliases
@@ -54,17 +72,15 @@ module snk_sram_controller_beats #(
     input  logic                        rst_n,
 
     //=========================================================================
-    // Fill Allocation Interface (Network Slave -> SRAM)
-    // Single request with ID - ID selects which channel's space to check
+    // Fill Allocation Interface (AXI Read Engine -> SRAM)
     //=========================================================================
     input  logic                        fill_alloc_req,
     input  logic [7:0]                  fill_alloc_size,
     input  logic [CIW-1:0]              fill_alloc_id,
-    output logic [NC-1:0][SCW-1:0]      fill_space_free,
+    output logic [NC-1:0][SCW-1:0]      fill_space_free,   // Registered
 
     //=========================================================================
-    // Fill Data Interface (Network Slave -> FIFO)
-    // Transaction ID-based: single valid + ID selects channel
+    // Fill Data Interface (AXI Read Engine -> FIFO)
     //=========================================================================
     input  logic                        fill_valid,
     output logic                        fill_ready,
@@ -74,7 +90,7 @@ module snk_sram_controller_beats #(
     //=========================================================================
     // Drain Flow Control Interface (AXI Write Engine)
     //=========================================================================
-    output logic [NC-1:0][SCW-1:0]      drain_data_avail,
+    output logic [NC-1:0][SCW-1:0]      drain_data_avail,  // Registered
     input  logic [NC-1:0]               drain_req,
     input  logic [NC-1:0][7:0]          drain_size,
 
@@ -82,7 +98,7 @@ module snk_sram_controller_beats #(
     // Drain Data Interface (FIFO -> AXI Write Engine)
     //=========================================================================
     output logic [NC-1:0]               drain_valid,       // Registered (arbitration)
-    output logic [NC-1:0]               drain_valid_comb,  // Combinational (wvalid gate)
+    output logic [NC-1:0]               drain_valid_comb,  // Combinational (beat gate)
     input  logic                        drain_read,
     input  logic [CIW-1:0]              drain_id,
     output logic [DW-1:0]               drain_data,
@@ -97,141 +113,46 @@ module snk_sram_controller_beats #(
     // Validate NUM_CHANNELS at elaboration time
     initial begin
         if (NC > 128) begin
-            $fatal(1, "snk_sram_controller: NUM_CHANNELS=%0d exceeds maximum of 128", NC);
+            $fatal(1, "snk_sram_controller_beats: NUM_CHANNELS=%0d exceeds maximum of 128", NC);
         end
     end
 
     //=========================================================================
-    // ID-to-Channel Decode Logic
+    // STREAM sram_controller -- the canonical implementation.
+    // Names only; no logic is added on either side of this instance.
     //=========================================================================
+    sram_controller #(
+        .NUM_CHANNELS       (NC),
+        .DATA_WIDTH         (DW),
+        .SRAM_DEPTH         (SD),
+        .SEG_COUNT_WIDTH    (SCW)
+    ) u_sram_controller (
+        .clk                        (clk),
+        .rst_n                      (rst_n),
 
-    logic [NC-1:0] fill_valid_decoded;
-    logic [NC-1:0] fill_ready_per_channel;
-    logic [NC-1:0] drain_read_decoded;
-    logic [NC-1:0][DW-1:0] drain_data_per_channel;
-    logic [NC-1:0] fill_alloc_req_decoded;
+        // FILL: the AXI read engine writes INTO the SRAM
+        .axi_rd_alloc_req           (fill_alloc_req),
+        .axi_rd_alloc_size          (fill_alloc_size),
+        .axi_rd_alloc_id            (fill_alloc_id),
+        .axi_rd_alloc_space_free    (fill_space_free),
+        .axi_rd_sram_valid          (fill_valid),
+        .axi_rd_sram_ready          (fill_ready),
+        .axi_rd_sram_id             (fill_id),
+        .axi_rd_sram_data           (fill_data),
 
-    // Combinational per-channel unit outputs. The avail/space/valid signals are
-    // registered at this module boundary (mirrors STREAM sram_controller.sv) to
-    // break the long combinational path from FIFO pointers to the engine
-    // arbitration grant (Artix-7 100 MHz closure). drain_valid_comb is exposed
-    // as a passthrough so the write engine can AND it into m_axi_wvalid.
-    logic [NC-1:0][SCW-1:0] fill_space_free_comb;
-    logic [NC-1:0][SCW-1:0] drain_data_avail_comb;
+        // DRAIN: the consumer reads OUT OF the SRAM
+        .axi_wr_drain_data_avail    (drain_data_avail),
+        .axi_wr_drain_req           (drain_req),
+        .axi_wr_drain_size          (drain_size),
+        .axi_wr_sram_valid          (drain_valid),
+        .axi_wr_sram_valid_comb     (drain_valid_comb),
+        .axi_wr_sram_drain          (drain_read),
+        .axi_wr_sram_id             (drain_id),
+        .axi_wr_sram_data           (drain_data),
 
-    // Fill valid decode: fill_id selects which channel
-    always_comb begin
-        fill_valid_decoded = '0;
-        /* verilator lint_off WIDTHEXPAND */
-        if (fill_valid && fill_id < NC) begin
-            fill_valid_decoded[fill_id] = 1'b1;
-        end
-        /* verilator lint_on WIDTHEXPAND */
-    end
-
-    // Fill ready mux: select ready from channel indicated by fill_id
-    always_comb begin
-        /* verilator lint_off WIDTHEXPAND */
-        if (fill_id < NC) begin
-            fill_ready = fill_ready_per_channel[fill_id];
-        end else begin
-            fill_ready = 1'b0;
-        end
-        /* verilator lint_on WIDTHEXPAND */
-    end
-
-    // Drain read decode: drain_id selects which channel to drain
-    always_comb begin
-        drain_read_decoded = '0;
-        /* verilator lint_off WIDTHEXPAND */
-        if (drain_read && drain_id < NC) begin
-            drain_read_decoded[drain_id] = 1'b1;
-        end
-        /* verilator lint_on WIDTHEXPAND */
-    end
-
-    // Drain data mux: select data from channel indicated by drain_id
-    always_comb begin
-        /* verilator lint_off WIDTHEXPAND */
-        if (drain_id < NC) begin
-            drain_data = drain_data_per_channel[drain_id];
-        end else begin
-            drain_data = '0;
-        end
-        /* verilator lint_on WIDTHEXPAND */
-    end
-
-    // Fill allocation decode: fill_alloc_id selects which channel
-    always_comb begin
-        fill_alloc_req_decoded = '0;
-        /* verilator lint_off WIDTHEXPAND */
-        if (fill_alloc_req && fill_alloc_id < NC) begin
-            fill_alloc_req_decoded[fill_alloc_id] = 1'b1;
-        end
-        /* verilator lint_on WIDTHEXPAND */
-    end
-
-    //=========================================================================
-    // Per-Channel Unit Instantiation
-    //=========================================================================
-
-    generate
-        for (genvar i = 0; i < NC; i++) begin : gen_snk_channel_units
-            snk_sram_controller_unit_beats #(
-                .DATA_WIDTH(DW),
-                .SRAM_DEPTH(SD),
-                .SEG_COUNT_WIDTH(SCW)
-            ) u_snk_channel_unit (
-                .clk                (clk),
-                .rst_n              (rst_n),
-
-                // Fill interface (Network Slave -> FIFO)
-                .fill_valid         (fill_valid_decoded[i]),
-                .fill_ready         (fill_ready_per_channel[i]),
-                .fill_data          (fill_data),
-
-                // Drain interface (FIFO -> AXI Write Engine).
-                // Unit valid is combinational; expose it on drain_valid_comb and
-                // register it into drain_valid below.
-                .drain_valid        (drain_valid_comb[i]),
-                .drain_ready        (drain_read_decoded[i]),
-                .drain_data         (drain_data_per_channel[i]),
-
-                // Fill allocation interface (registered at wrapper boundary)
-                .fill_alloc_req     (fill_alloc_req_decoded[i]),
-                .fill_alloc_size    (fill_alloc_size),
-                .fill_space_free    (fill_space_free_comb[i]),
-
-                // Drain flow control interface (registered at wrapper boundary)
-                .drain_req          (drain_req[i]),
-                .drain_size         (drain_size[i]),
-                .drain_data_avail   (drain_data_avail_comb[i]),
-
-                // Debug
-                .dbg_bridge_pending   (dbg_bridge_pending[i]),
-                .dbg_bridge_out_valid (dbg_bridge_out_valid[i])
-            );
-        end
-    endgenerate
-
-    //=========================================================================
-    // Register avail/space/valid at the module boundary (timing closure).
-    // Reset to "no space / no data / not valid" so downstream engines do not
-    // attempt an arbitration grant before the first post-reset cycle latches
-    // the real combinational values. Mirrors STREAM sram_controller.sv.
-    // drain_valid_comb stays combinational (driven by the generate above) for
-    // the write engine's m_axi_wvalid gate.
-    //=========================================================================
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            fill_space_free  <= '0;
-            drain_data_avail <= '0;
-            drain_valid      <= '0;
-        end else begin
-            fill_space_free  <= fill_space_free_comb;
-            drain_data_avail <= drain_data_avail_comb;
-            drain_valid      <= drain_valid_comb;
-        end
-    )
+        // Debug
+        .dbg_bridge_pending         (dbg_bridge_pending),
+        .dbg_bridge_out_valid       (dbg_bridge_out_valid)
+    );
 
 endmodule : snk_sram_controller_beats

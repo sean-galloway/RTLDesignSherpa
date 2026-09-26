@@ -91,6 +91,7 @@ module src_data_path_beats #(
     // External consumer reads data from per-channel FIFO
     //=========================================================================
     output logic [NC-1:0]               drain_valid,
+    output logic [NC-1:0]               drain_valid_comb,
     input  logic                        drain_read,
     input  logic [CIW-1:0]              drain_id,
     output logic [DW-1:0]               drain_data,
@@ -241,6 +242,7 @@ module src_data_path_beats #(
 
         // Drain Data Interface (to External Consumer)
         .drain_valid        (drain_valid),
+        .drain_valid_comb   (drain_valid_comb),
         .drain_read         (drain_read),
         .drain_id           (drain_id),
         .drain_data         (drain_data),
