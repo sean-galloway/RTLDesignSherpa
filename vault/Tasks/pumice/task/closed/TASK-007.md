@@ -535,6 +535,30 @@ receives. (b) is simpler and should be tried first.
 
 ## 2026-09-25 — items 2 and 4 CLOSED. Nothing outstanding.
 
+**CORRECTION 2026-09-26 — the "10 taps is the 75 MHz value" conclusion below
+is WRONG, and the number was an artifact of the knob, not the silicon.**
+
+Measured directly: at `rddata_delay=6` (t_rddata_en=5) the eye is **taps 13..31,
+width 19, centred at tap 22** — 16 MB memtest clean. At the shipping
+`rddata_delay=7` it is taps 0..9, width 10, "centred" at tap 4.
+
+IDELAY only ADDS delay, so at delay=7 the window is clipped at the tap FLOOR:
+everything left of tap 0 is unreachable and what you see is whichever fragment
+lands above it. Centring on that fragment is not centring on the eye. The 36
+recorded instances of `0..9` below are 36 instances of the same clipped view,
+not 36 confirmations of a 10-tap eye.
+
+So the shipping tuple parks the read capture near an eye edge with roughly half
+the margin invisible. `rddata_delay=6` shows ~1.9x the width and passes 16 MB
+clean, though it is then clipped at the tap CEILING (31), so even 19 may be a
+floor — the knob is whole sys cycles and no setting centres it fully.
+
+**No further eye work is planned** (Sean, 2026-09-26: this has been filed and
+closed before). Recorded here so the wrong conclusion does not get re-derived
+from the text below, which stands only as what was believed on 2026-09-25.
+
+---
+
 **Item 2 (read eye 10 taps vs the recorded tuple's 17) — NOT A DEVIATION.**
 It was a comparison across two different operating points. The bring-up tuple
 (bitslip 0, tap 8, eye 0..16) was measured on the **66.67 MHz** profile; this
