@@ -29,6 +29,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
@@ -196,7 +197,33 @@ class CfgRdlGenerator:
         out_sv = output_dir / f'{base}.sv'
         out_pkg = output_dir / f'{base}_pkg.sv'
         self._patch_resp_buffer_reset(out_sv)
+        self._emit_regmap(rdl_abs, out_abs / f'{base}_regmap.py')
         return [out_pkg, out_sv]
+
+    def _emit_regmap(self, rdl_abs: Path, regmap_path: Path) -> None:
+        """Emit the by-name register map beside the regblock, through the
+        repo's own PeakRDL wrapper (bin/peakrdl_generate.py --regmap), so the
+        tests resolve MON_GROUP_* and the per-port cfg registers by NAME.
+
+        The stress flow used to carry the group window offsets as constants
+        (0x90/0x94/0x98). Dropping the perf-window registers for the lite
+        monitors moved every register below them, the constants wrote the
+        wrong registers, and the regblock fixture's monitor test failed with
+        an empty trace path (2026-09-26). vault/handbook/dv/registers-by-name.md
+        already forbade that; this is the generator holding up its half.
+        """
+        import tempfile
+        repo_root = Path(__file__).resolve().parents[6]
+        tool = repo_root / 'bin' / 'peakrdl_generate.py'
+        with tempfile.TemporaryDirectory() as tmp:
+            cmd = [sys.executable, str(tool), str(rdl_abs),
+                   '--docs-only', '--no-html', '--no-markdown',
+                   '--regmap', '--regmap-output', str(regmap_path), '-o', tmp]
+            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if result.returncode != 0 or not regmap_path.exists():
+            raise RuntimeError(
+                f"peakrdl_generate.py --regmap failed ({result.returncode}) for {rdl_abs}:\n"
+                f"{result.stdout}\n{result.stderr}")
 
     # Reset loop PeakRDL's axi4-lite CPUIF emits for its response buffer. It is
     # an unpacked array of a struct, reset element-by-element inside a for.

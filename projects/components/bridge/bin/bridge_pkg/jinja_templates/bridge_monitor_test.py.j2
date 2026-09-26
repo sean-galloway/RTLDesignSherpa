@@ -33,6 +33,7 @@ BLOCK_READY_PATH = "{{ block_ready_path }}"
 REACHABLE_SLAVES = {{ reachable_slaves }}
 HAS_COMPL = {{ 'True' if has_compl else 'False' }}
 IS_REGBLOCK = {{ 'True' if is_regblock else 'False' }}
+CFG_REGMAP = "{{ cfg_regmap }}"      # by-name register map of the cfg regblock ("" when pin-driven)
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -46,6 +47,7 @@ async def cocotb_test_{{ rtl_module_name }}_monitor(dut):
         reachable_slaves=REACHABLE_SLAVES,
         has_compl=HAS_COMPL,
         is_regblock=IS_REGBLOCK,
+        cfg_regmap=CFG_REGMAP,
     )
     tb.assert_compliance()
 

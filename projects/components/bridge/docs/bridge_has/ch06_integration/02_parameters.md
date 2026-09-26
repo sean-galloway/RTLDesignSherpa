@@ -60,7 +60,7 @@ Every bridge the generator emits starts here: port counts, bus widths, per-port 
 
 | TOML key (`[bridge]`) | Type | Default | Effect |
 |---|---|---|---|
-| `mon_preset` | `"error_only"` / `"functional"` / `"all"` / `"none"` / `"lite"` | `"error_only"` | Which reporter cones every monitored port builds (`ENABLE_*_LOGIC`): error only; error + timeout + completion; all six; none. `"lite"` (amba/monitor-lite TASK-001) instantiates the `*_monlite` wrapper for every monitored port (`axi_monitor_lite` inside the same core wrapper; the cone parameters do not apply): error, timeout, completion and active-count threshold packets, same monbus, about a fifth of the monitor's LUTs. Per-port `mon_add` / `mon_remove` adjust cones on top of a preset. |
+| `mon_preset` | `"lite"` (also accepted: `"error_only"` / `"functional"` / `"all"` / `"none"`) | `"error_only"` | Accepted for compatibility; since 2026-09-26 every monitored port builds `axi_monitor_lite` through the `*_monlite` wrapper (error, timeout, completion and active-count threshold packets, same monbus, about a fifth of the full monitor's LUTs), so the cone presets no longer select hardware. Which packets a port emits is the runtime `cfg_*_enable` pins. To remove a monitor use `use_monitor = false` on the port or `use_no_monitors = true` on the bridge. `mon_add` / `mon_remove` are validated and ignored. |
 
 : Table 6.8c: Monitor preset
 
@@ -159,8 +159,8 @@ Each monitored port gets a unique `(UNIT_ID, AGENT_ID)` pair for identification 
 
 ```
 UNIT_ID Assignment:
-  - UNIT_ID = 1: Master-side monitor wrappers (axi4_master_{rd,wr}_mon)
-  - UNIT_ID = 2: Slave-side monitor wrappers (axi4_slave_{rd,wr}_mon)
+  - UNIT_ID = 1: Master-side monitor wrappers (axi4_master_{rd,wr}_monlite)
+  - UNIT_ID = 2: Slave-side monitor wrappers (axi4_slave_{rd,wr}_monlite)
 
 AGENT_ID Assignment (per port):
   - AGENT_ID = (port_index << 4) | channel_bit

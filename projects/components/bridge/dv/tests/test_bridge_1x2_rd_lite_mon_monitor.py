@@ -33,6 +33,7 @@ BLOCK_READY_PATH = ""
 REACHABLE_SLAVES = [0, 1]
 HAS_COMPL = True
 IS_REGBLOCK = False
+CFG_REGMAP = ""      # by-name register map of the cfg regblock ("" when pin-driven)
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -46,6 +47,7 @@ async def cocotb_test_bridge_1x2_rd_lite_mon_monitor(dut):
         reachable_slaves=REACHABLE_SLAVES,
         has_compl=HAS_COMPL,
         is_regblock=IS_REGBLOCK,
+        cfg_regmap=CFG_REGMAP,
     )
     tb.assert_compliance()
 

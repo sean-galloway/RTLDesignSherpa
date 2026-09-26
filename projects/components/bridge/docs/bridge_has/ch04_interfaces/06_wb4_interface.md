@@ -101,7 +101,7 @@ beat, and `axil4_to_wb4` turns those into Wishbone transfers, in order.
 
 : Table 4.8: Wishbone termination to AXI4 response
 
-The monitored (`mon`) variant places the `axi4_master_*_mon` wrappers
+The monitored (`mon`) variant places the `axi4_master_*_monlite` wrappers
 between the crossbar and the converter, exactly as for APB slave ports.
 
 ### Master port: Wishbone to AXI4

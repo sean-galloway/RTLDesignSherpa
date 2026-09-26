@@ -5,7 +5,7 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
 
     localparam BRIDGE_1X2_RD_REGBLOCK_MON_CFG_DATA_WIDTH = 32;
     localparam BRIDGE_1X2_RD_REGBLOCK_MON_CFG_MIN_ADDR_WIDTH = 8;
-    localparam BRIDGE_1X2_RD_REGBLOCK_MON_CFG_SIZE = 'hd8;
+    localparam BRIDGE_1X2_RD_REGBLOCK_MON_CFG_SIZE = 'hd4;
 
     typedef struct {
         logic next;
@@ -148,34 +148,6 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
     typedef struct {
         bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_MASKS_E__axi_debug_mask__out_t axi_debug_mask;
     } bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_MASKS_E__out_t;
-
-    typedef struct {
-        logic [2:0] value;
-    } bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_WINDOW_CTRL__start_event_sel__out_t;
-
-    typedef struct {
-        logic [2:0] value;
-    } bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_WINDOW_CTRL__end_event_sel__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_WINDOW_CTRL__start_trigger__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_WINDOW_CTRL__end_trigger__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_WINDOW_CTRL__window_force_close__out_t;
-
-    typedef struct {
-        bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_WINDOW_CTRL__start_event_sel__out_t start_event_sel;
-        bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_WINDOW_CTRL__end_event_sel__out_t end_event_sel;
-        bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_WINDOW_CTRL__start_trigger__out_t start_trigger;
-        bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_WINDOW_CTRL__end_trigger__out_t end_trigger;
-        bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_WINDOW_CTRL__window_force_close__out_t window_force_close;
-    } bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_WINDOW_CTRL__out_t;
 
     typedef struct {
         logic value;
@@ -850,7 +822,6 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
         bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_MASKS_C__out_t CPU_RD_0_RD_MASKS_C;
         bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_MASKS_D__out_t CPU_RD_0_RD_MASKS_D;
         bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_MASKS_E__out_t CPU_RD_0_RD_MASKS_E;
-        bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_WINDOW_CTRL__out_t CPU_RD_0_RD_WINDOW_CTRL;
         bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_WR_CTRL__out_t DDR_RD_0_WR_CTRL;
         bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_WR_LATENCY__out_t DDR_RD_0_WR_LATENCY;
         bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_WR_MASKS_A__out_t DDR_RD_0_WR_MASKS_A;

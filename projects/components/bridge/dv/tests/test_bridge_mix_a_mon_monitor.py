@@ -29,10 +29,11 @@ from projects.components.bridge.dv.tbclasses.bridge_mix_a_mon_tb import BridgeMi
 from monitor_stress_common import run_comprehensive, run_monitor_sim
 
 CFG_PREFIXES = ['cpu_axi4_0_rd', 'cpu_axi4_0_wr', 'host_axil_1_rd', 'host_axil_1_wr', 'ddr_0_rd', 'ddr_0_wr', 'axil_periph_1_rd', 'axil_periph_1_wr', 'apb_periph_2_rd', 'apb_periph_2_wr']
-BLOCK_READY_PATH = "u_cpu_axi4_adapter.u_timing_wrapper_rd"
+BLOCK_READY_PATH = ""
 REACHABLE_SLAVES = [0]
-HAS_COMPL = False
+HAS_COMPL = True
 IS_REGBLOCK = False
+CFG_REGMAP = ""      # by-name register map of the cfg regblock ("" when pin-driven)
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -46,6 +47,7 @@ async def cocotb_test_bridge_mix_a_mon_monitor(dut):
         reachable_slaves=REACHABLE_SLAVES,
         has_compl=HAS_COMPL,
         is_regblock=IS_REGBLOCK,
+        cfg_regmap=CFG_REGMAP,
     )
     tb.assert_compliance()
 

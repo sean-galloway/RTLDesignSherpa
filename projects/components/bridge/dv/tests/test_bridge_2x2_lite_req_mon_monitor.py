@@ -29,10 +29,11 @@ from projects.components.bridge.dv.tbclasses.bridge2x2_lite_req_mon_tb import Br
 from monitor_stress_common import run_comprehensive, run_monitor_sim
 
 CFG_PREFIXES = ['lite4_0_rd', 'lite4_0_wr', 'lite5_1_rd', 'lite5_1_wr', 'mem_0_rd', 'mem_0_wr', 'regs_1_rd', 'regs_1_wr']
-BLOCK_READY_PATH = "u_lite4_adapter.u_timing_wrapper_rd"
+BLOCK_READY_PATH = ""
 REACHABLE_SLAVES = [0]
-HAS_COMPL = False
+HAS_COMPL = True
 IS_REGBLOCK = False
+CFG_REGMAP = ""      # by-name register map of the cfg regblock ("" when pin-driven)
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -46,6 +47,7 @@ async def cocotb_test_bridge_2x2_lite_req_mon_monitor(dut):
         reachable_slaves=REACHABLE_SLAVES,
         has_compl=HAS_COMPL,
         is_regblock=IS_REGBLOCK,
+        cfg_regmap=CFG_REGMAP,
     )
     tb.assert_compliance()
 

@@ -14,9 +14,10 @@ and what each would give up:
   by design. They also relied on `block_ready` to bound the table at 64
   slots; the lite gives drop-and-count instead, a behaviour change to state
   on the observers' page.
-- **Bridge fixtures with `error_only`**: the lite emits the same four
-  classes the preset keeps; the only loss is the address-range checker and
-  the ID/latency filters.
+- **Generated bridges**: DECIDED 2026-09-26 (Sean) -- every monitored port
+  in a generated bridge is the lite; the full monitor is no longer instantiated
+  by the bridge generator. Only STREAM's in-core ports, the observers and the
+  board-validation builds remain to decide.
 - **Board monitor-validation builds**: coverage of the full monitor's
   classes is the point of those builds; not candidates.
 

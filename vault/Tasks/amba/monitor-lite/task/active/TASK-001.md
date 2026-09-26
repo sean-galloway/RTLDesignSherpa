@@ -312,3 +312,14 @@ The lite's own TB (`AxiMonitorLiteTB`, the SLVERR / timeout / threshold /
 drop-and-count scenarios) stays; its packet constants and inline field slices
 were replaced with the shared monbus_types enums, MonbusPacket predicates and
 monbus_validators finders (Sean, 2026-09-26: "follow the methodology").
+
+### 10. The bridge swaps to the lite wholesale (2026-09-26)
+
+Sean: "On the bridge my intent is to swap out the old monitors entirely for
+the lite versions." The generator now instantiates the `_monlite` wrapper on
+every monitored port regardless of `mon_preset`; the preset names, `mon_add`
+and `mon_remove` are accepted and validated so existing configs load, but no
+longer select hardware (the lite has no cones). Removing a monitor is
+`use_monitor = false` per port or `use_no_monitors = true` per bridge. The
+`bridge_1x2_rd_mon` fixture that measured the full monitor in section 8 now
+builds the lite; those numbers stand as the 2026-09-25 baseline.

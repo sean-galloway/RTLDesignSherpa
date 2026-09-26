@@ -29,10 +29,11 @@ from projects.components.bridge.dv.tbclasses.bridge1x2_rw_apb5_mon_tb import Bri
 from monitor_stress_common import run_comprehensive, run_monitor_sim
 
 CFG_PREFIXES = ['cpu_0_rd', 'cpu_0_wr', 'sram_0_rd', 'sram_0_wr', 'periph5_1_rd', 'periph5_1_wr']
-BLOCK_READY_PATH = "u_cpu_adapter.u_timing_wrapper_rd"
+BLOCK_READY_PATH = ""
 REACHABLE_SLAVES = [0]
 HAS_COMPL = True
 IS_REGBLOCK = False
+CFG_REGMAP = ""      # by-name register map of the cfg regblock ("" when pin-driven)
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -46,6 +47,7 @@ async def cocotb_test_bridge_1x2_rw_apb5_mon_monitor(dut):
         reachable_slaves=REACHABLE_SLAVES,
         has_compl=HAS_COMPL,
         is_regblock=IS_REGBLOCK,
+        cfg_regmap=CFG_REGMAP,
     )
     tb.assert_compliance()
 

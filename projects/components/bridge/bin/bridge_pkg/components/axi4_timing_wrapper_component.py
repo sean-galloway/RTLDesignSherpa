@@ -282,10 +282,12 @@ class Axi4TimingWrapper:
         self.data_width = data_width
         self.user_width = user_width
 
-        # mon_preset = "lite" (mon_enables['lite']) selects the _monlite sibling:
-        # the same core and taps with axi_monitor_lite, and only the cfg/status
-        # ports the lite honours (amba/monitor-lite TASK-001, 2026-09-26).
-        self.is_lite = bool(mon and mon_enables is not None and mon_enables.get('lite', False))
+        # Every monitored wrapper is the _monlite sibling (Sean, 2026-09-26: the
+        # bridge swaps the old monitors out entirely): the same core and taps
+        # with axi_monitor_lite, and only the cfg/status ports the lite honours
+        # (amba/monitor-lite TASK-001). The full _mon wrappers remain for
+        # consumers outside the bridge generator.
+        self.is_lite = bool(mon)
         suffix = '_monlite' if self.is_lite else ('_mon' if mon else '')
         module_name = f"{protocol}_{side}_{channel}{suffix}"
         self.module = Module(module_name=module_name,

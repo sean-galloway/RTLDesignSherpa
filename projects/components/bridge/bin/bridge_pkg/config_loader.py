@@ -400,7 +400,11 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             f"{config_path}: [bridge].mon_preset = {mon_preset!r} is "
             f"not one of {sorted(MON_PRESETS.keys())}"
         )
-    print(f"  mon_preset: {mon_preset}")
+    if mon_preset == 'lite':
+        print("  mon_preset: lite (axi_monitor_lite on every monitored port)")
+    else:
+        print(f"  mon_preset: {mon_preset} -- accepted alias; every monitored port builds "
+              "axi_monitor_lite (the _monlite wrappers), cone presets no longer select hardware")
     return (masters, slaves, defaults, connectivity_data, bridge_name,
             variants, internal_axil_group, use_all_monitors,
             use_no_monitors, mon_preset, use_cfg_regblock, mon_group,

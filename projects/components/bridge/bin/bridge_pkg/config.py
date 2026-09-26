@@ -17,6 +17,8 @@ MON_PRESETS = {
     "functional": {"error": True,  "timeout": True,  "compl": True,  "threshold": False, "perf": False, "debug": False},
     "none":       {"error": False, "timeout": False, "compl": False, "threshold": False, "perf": False, "debug": False},
     # amba/monitor-lite TASK-001: the _monlite wrappers (axi_monitor_lite inside the same core wrappers).
+    # Since 2026-09-26 this is what EVERY preset resolves to (see get_mon_enables);
+    # the other names are accepted aliases so existing configs keep loading.
     # Error, timeout, completion and the active-count threshold are what the
     # lite has; perf and debug do not exist in it. The `lite` key is not a
     # cone -- it selects the module.
@@ -155,30 +157,27 @@ class PortSpec:
     internal: bool = False
 
     def get_mon_enables(self, preset: str) -> Dict[str, bool]:
-        """Compute the 5 ENABLE_*_LOGIC values for this port: preset
-        baseline + mon_add - mon_remove. Returns a dict keyed by cone
-        name (error/timeout/compl/threshold/perf)."""
+        """What this port's monitor can emit. Since 2026-09-26 (Sean: "on the
+        bridge my intent is to swap out the old monitors entirely for the lite
+        versions") every monitored port builds axi_monitor_lite through the
+        `_monlite` wrapper, which has no synthesis cones: error, timeout,
+        completion and threshold are always present, perf and debug never.
+        `mon_preset`, `mon_add` and `mon_remove` are still validated so old
+        configs load, but they no longer select hardware -- runtime
+        cfg_*_enable pins do that. Removing a monitor is `use_monitor = false`
+        on the port or `use_no_monitors = true` on the bridge."""
         if preset not in MON_PRESETS:
             raise ValueError(
                 f"unknown mon_preset {preset!r}; expected one of "
                 f"{sorted(MON_PRESETS.keys())}"
             )
-        enables = dict(MON_PRESETS[preset])
-        for c in self.mon_add:
+        for c in list(self.mon_add) + list(self.mon_remove):
             if c not in MON_CONES:
                 raise ValueError(
-                    f"port {self.port_name!r}: mon_add entry {c!r} not "
+                    f"port {self.port_name!r}: mon_add/mon_remove entry {c!r} not "
                     f"in {list(MON_CONES)}"
                 )
-            enables[c] = True
-        for c in self.mon_remove:
-            if c not in MON_CONES:
-                raise ValueError(
-                    f"port {self.port_name!r}: mon_remove entry {c!r} not "
-                    f"in {list(MON_CONES)}"
-                )
-            enables[c] = False
-        return enables
+        return dict(MON_PRESETS["lite"])
 
     def has_write_channels(self) -> bool:
         """Returns True if this port has write channels (AW, W, B)"""

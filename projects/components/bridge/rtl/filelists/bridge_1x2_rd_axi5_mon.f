@@ -65,14 +65,14 @@ $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_axi5_mon/subtr
 # instead would mean tracking another component's guts -- exactly the
 # coupling that let the reporter sub-blocks and monitor_trans_cam go
 # missing from consumer filelists in the first place.
-# _mon wrapper variants (instantiated by adapters when use_monitor=true)
--f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_mon.f
--f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_mon.f
--f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_mon.f
--f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_mon.f
-# AXI5 _mon wrappers (masters with protocol=axi5)
--f $REPO_ROOT/rtl/amba/filelists/axi5_slave_wr_mon.f
--f $REPO_ROOT/rtl/amba/filelists/axi5_slave_rd_mon.f
+# _monlite wrapper variants (instantiated by adapters when use_monitor=true)
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_monlite.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_monlite.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_monlite.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_monlite.f
+# AXI5 _monlite wrappers (masters with protocol=axi5)
+-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_wr_monlite.f
+-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_rd_monlite.f
 # Monbus arbiter (always present in mon variant)
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
 # Monbus group (monbus_axil4_axil4_group)

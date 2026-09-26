@@ -143,7 +143,7 @@ When monitor collection is enabled (via the bridge TOML `variants` list includin
 | `m_axil_mon_*` | AXIL Master | 32-bit addr, 64-bit data | Output | Monitor packet write interface for bulk trace capture |
 | `stream_irq` | logic | 1-bit | Output | Interrupt signal (asserted when error FIFO has records) |
 
-Per-port collection comes from the `axi4_master_{rd,wr}_mon` and `axi4_slave_{rd,wr}_mon` wrappers; a tree of `monbus_arbiter` instances funnels them into a single `monbus_axil4_axil4_group` at the bridge top. The group provides a 64-bit free-running timestamp counter, sampled at each packet arrival, and exposes both a slave interface (CPU read access) and a master interface (bulk DMA writes to system memory).
+Per-port collection comes from the `axi4_master_{rd,wr}_monlite` and `axi4_slave_{rd,wr}_monlite` wrappers (`axi_monitor_lite`; the full `_mon` wrappers are no longer used in generated bridges, 2026-09-26).
 
 **Packet Format:** the canonical 128-bit packet layout and field definitions live in `docs/markdown/rtl-amba/includes/monitor_package_spec.md` — see that reference for bit-field descriptions, protocol-type enumerations, and packet-type codes.
 

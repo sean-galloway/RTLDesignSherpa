@@ -476,11 +476,10 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
         blk_chan = 'rd' if (blk_master and blk_master.has_read_channels()) else 'wr'
         block_ready_path = (f"u_{blk_master.port_name}_adapter.u_timing_wrapper_{blk_chan}"
                             if blk_master else "")
-        # The _monlite wrappers (mon_preset = "lite") have no block_ready: the
-        # lite never stalls the port, it drops and counts. An empty path tells
-        # the stress flow there is nothing to probe (amba/monitor-lite TASK-001).
-        if getattr(config, 'mon_preset', 'error_only') == 'lite':
-            block_ready_path = ""
+        # Every monitored port is a _monlite wrapper (2026-09-26), and the lite
+        # has no block_ready: it never stalls the port, it drops and counts. An
+        # empty path tells the stress flow there is nothing to probe.
+        block_ready_path = ""
 
         # Monitor stress reads only slaves needing NO conversion from master 0
         # -- same protocol (axi4) AND same data width. Cross-width (dwidth
@@ -548,6 +547,10 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
             'reachable_slaves': reachable_slaves,
             'has_compl': has_compl,
             'is_regblock': is_regblock,
+            # The by-name register map the cfg_rdl_generator emits beside the
+            # regblock; the stress flow resolves MON_GROUP_* through it.
+            'cfg_regmap': (f"projects/components/bridge/rtl/generated/{bridge_name}/"
+                           f"{bridge_name}_cfg_regmap.py" if is_regblock else ""),
             'extra_no_warn': extra_no_warn,
         }
 
@@ -1223,9 +1226,9 @@ def _emit_bridge_variant(
         filelist_lines.append("# instead would mean tracking another component's guts -- exactly the")
         filelist_lines.append("# coupling that let the reporter sub-blocks and monitor_trans_cam go")
         filelist_lines.append("# missing from consumer filelists in the first place.")
-        # mon_preset = "lite" instantiates the _monlite siblings (amba/monitor-lite
-        # TASK-001): same closure shape, the lite monitor instead of the family.
-        msfx = '_monlite' if getattr(config, 'mon_preset', 'error_only') == 'lite' else '_mon'
+        # Every monitored port is a _monlite wrapper (amba/monitor-lite TASK-001;
+        # Sean 2026-09-26: the bridge swaps the old monitors out entirely).
+        msfx = '_monlite'
         filelist_lines.append(f"# {msfx} wrapper variants (instantiated by adapters when use_monitor=true)")
         filelist_lines.append(f"-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr{msfx}.f")
         filelist_lines.append(f"-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd{msfx}.f")

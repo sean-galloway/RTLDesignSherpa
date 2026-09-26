@@ -26,6 +26,7 @@
 # from the reused base TB class's slave_info.
 
 import os
+from pathlib import Path
 import random
 
 import cocotb
@@ -40,6 +41,8 @@ from projects.components.bridge.dv.tbclasses.bridge_levels import (
 
 from TBClasses.monbus import PktType, ProtocolType
 from TBClasses.monbus.monbus_types import AXIErrorCode
+from TBClasses.apb.register_map import RegisterMap
+from CocoTBFramework.components.axil4.axil4_factories import create_axil4_master_wr
 from TBClasses.scoreboards.monbus_group import (
     MonbusGroupHarness, BeatLayout, BeatOrder,
 )
@@ -358,7 +361,7 @@ async def run_err_bp_phase(dut, tb, cfg_prefixes, block_node, *, mode, n,
 
 async def run_comprehensive(dut, tb, *, cfg_prefixes, block_ready_path,
                             reachable_slaves=None, has_compl=True,
-                            is_regblock=False, n=None):
+                            is_regblock=False, n=None, cfg_regmap=""):
     """Sequence the stress phases against the _mon top in one build. Configs
     whose mon_preset omits the completion cone (has_compl=False) can only emit
     error packets, so they run the SLVERR error-path stress only."""
@@ -389,7 +392,7 @@ async def run_comprehensive(dut, tb, *, cfg_prefixes, block_ready_path,
         # (not the err FIFO). Stress that path: SLVERR flood + wready throttle
         # saturates the write FIFO with PktTypeError records, then recovers.
         tb.log.info("regblock: reset-default cfg (monitor+error enabled), SLVERR trace phase")
-        await program_regblock_group_window(dut, tb)
+        await program_regblock_group_window(dut, tb, cfg_regmap)
         await run_write_bp_phase(dut, tb, cfg_prefixes, block_node, n=n,
                                  reachable=reachable, inject_slverr=True,
                                  want_type=PktType.PktTypeError,
@@ -421,59 +424,49 @@ async def run_comprehensive(dut, tb, *, cfg_prefixes, block_ready_path,
 # --------------------------------------------------------------------------- #
 # regblock cfg programming (s_cfg_axil register writes)
 # --------------------------------------------------------------------------- #
-# PeakRDL MON_GROUP register offsets for the (sole) regblock bridge variant
-# (bridge_1x2_rd_regblock_mon_cfg). MON_GROUP sits after the per-port register
-# blocks; offsets are fixed by the generator's RDL layout. If more regblock
-# variants with different port counts are added, bake these per-config.
-_RB_MON_GROUP_BASE_ADDR = 0x90      # base_addr[31:0]
-_RB_MON_GROUP_LIMIT_ADDR = 0x94     # limit_addr[31:0]
-_RB_MON_GROUP_PACK_0 = 0x98         # flush_watermark[15:0] (+ axi_pkt_mask[31:16])
+# Registers by NAME through the fixture's generated regmap, written through
+# the AXI-Lite master BFM. This block used to carry three offsets as constants
+# (0x90/0x94/0x98) and poke s_cfg_axil_* by hand; when the lite monitors
+# dropped the perf-window registers the group registers moved to 0x8C/0x90/0x94,
+# the constants wrote the wrong registers, and the regblock fixture's monitor
+# test failed with an empty trace path (2026-09-26). handbook: registers-by-name.
+def _repo_root():
+    return os.environ.get('REPO_ROOT') or str(Path(__file__).resolve().parents[5])
 
 
-async def _axil_write32(dut, clk, addr, data, timeout=300):
-    """Single 32-bit AXIL write on the regblock s_cfg_axil_* port."""
-    dut.s_cfg_axil_awvalid.value = 1
-    dut.s_cfg_axil_awaddr.value = addr
-    dut.s_cfg_axil_awprot.value = 0
-    dut.s_cfg_axil_wvalid.value = 1
-    dut.s_cfg_axil_wdata.value = data
-    dut.s_cfg_axil_wstrb.value = 0xF
-    dut.s_cfg_axil_bready.value = 1
-    aw = w = False
-    for _ in range(timeout):
-        await RisingEdge(clk)
-        if not aw and int(dut.s_cfg_axil_awready.value) == 1:
-            aw = True
-            dut.s_cfg_axil_awvalid.value = 0
-        if not w and int(dut.s_cfg_axil_wready.value) == 1:
-            w = True
-            dut.s_cfg_axil_wvalid.value = 0
-        if aw and w:
-            break
-    else:
-        raise TimeoutError(f"s_cfg_axil aw/w handshake timeout @0x{addr:02x}")
-    for _ in range(timeout):
-        if int(dut.s_cfg_axil_bvalid.value) == 1:
-            break
-        await RisingEdge(clk)
-    await RisingEdge(clk)
-    dut.s_cfg_axil_bready.value = 0
+def load_cfg_regmap(tb, cfg_regmap):
+    """The regblock's by-name register map (RegisterMap over the generated
+    <bridge>_cfg_regmap.py that cfg_rdl_generator emits beside the regblock)."""
+    assert cfg_regmap, ("regblock fixture without a cfg regmap: regenerate the bridge "
+                        "(cfg_rdl_generator emits <bridge>_cfg_regmap.py beside the regblock)")
+    path = cfg_regmap if os.path.isabs(cfg_regmap) else os.path.join(_repo_root(), cfg_regmap)
+    return RegisterMap(path, apb_data_width=32, apb_addr_width=32, start_address=0, log=tb.log)
 
 
-async def program_regblock_group_window(dut, tb,
+def cfg_axil_master(dut, tb):
+    """AXI-Lite write master BFM on the regblock's s_cfg_axil_* port."""
+    # multi_sig: the regblock's cpuif is the flat axi4-lite port set
+    # (s_cfg_axil_awaddr/awvalid/... as separate signals), as the AXIL4 TBs use.
+    return create_axil4_master_wr(dut, dut.aclk, prefix='s_cfg_axil_', log=tb.log,
+                                  addr_width=32, data_width=32, multi_sig=True)
+
+
+async def program_regblock_group_window(dut, tb, cfg_regmap,
                                         base=_GROUP_BASE, limit=_GROUP_LIMIT,
                                         watermark=_GROUP_WATERMARK):
     """Program the regblock MON_GROUP flush window via s_cfg_axil so the
     master-write (trace) path actually flushes (reset defaults are 0 ->
     degenerate window -> writer stalls). Per-port monitor/error enables are
     left at their reset defaults (monitor_enable=1, error_enable=1)."""
-    clk = dut.aclk
-    await _axil_write32(dut, clk, _RB_MON_GROUP_BASE_ADDR, base)
-    await _axil_write32(dut, clk, _RB_MON_GROUP_LIMIT_ADDR, limit)
-    await _axil_write32(dut, clk, _RB_MON_GROUP_PACK_0, watermark & 0xFFFF)
-    await ClockCycles(clk, 5)
-    tb.log.info(f"regblock: programmed MON_GROUP window base=0x{base:x} "
-                f"limit=0x{limit:x} watermark={watermark}")
+    offs = load_cfg_regmap(tb, cfg_regmap).get_register_offset_map()
+    wr = cfg_axil_master(dut, tb)['write_register']
+    await wr(offs['MON_GROUP_BASE_ADDR'], base)
+    await wr(offs['MON_GROUP_LIMIT_ADDR'], limit)
+    await wr(offs['MON_GROUP_PACK_0'], watermark & 0xFFFF)
+    await ClockCycles(dut.aclk, 5)
+    tb.log.info(f"regblock: programmed MON_GROUP window base=0x{base:x} limit=0x{limit:x} "
+                f"watermark={watermark} at 0x{offs['MON_GROUP_BASE_ADDR']:03x}/"
+                f"0x{offs['MON_GROUP_LIMIT_ADDR']:03x}/0x{offs['MON_GROUP_PACK_0']:03x}")
 
 
 # --------------------------------------------------------------------------- #

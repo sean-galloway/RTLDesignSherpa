@@ -376,7 +376,7 @@ module periph5_adapter
     logic        periph5_mon_axi_rready;
 
     // AXI4 Master Write Timing Wrapper
-    axi4_master_wr_mon #(
+    axi4_master_wr_monlite #(
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
         .SKID_DEPTH_B(2),
@@ -386,13 +386,7 @@ module periph5_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(17),
-        .USE_MONITOR(USE_MONITOR_WR),
-        .ENABLE_ERROR_LOGIC(1'b1),
-        .ENABLE_TIMEOUT_LOGIC(1'b0),
-        .ENABLE_COMPL_LOGIC(1'b1),
-        .ENABLE_THRESHOLD_LOGIC(1'b0),
-        .ENABLE_PERF_LOGIC(1'b0),
-        .ENABLE_DEBUG_LOGIC(1'b0)
+        .USE_MONITOR(USE_MONITOR_WR)
     ) u_master_wr (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -454,7 +448,8 @@ module periph5_adapter
         .active_transactions(),
         .error_count(),
         .transaction_count(),
-        .cfg_conflict_error(),
+        .dropped_count(),
+        .refused_count(),
 
         // Monitor bus output
         .i_mon_time(i_mon_time),
@@ -467,58 +462,18 @@ module periph5_adapter
         .cfg_monitor_enable(cfg_wr_monitor_enable),
         .cfg_error_enable(cfg_wr_error_enable),
         .cfg_timeout_enable(cfg_wr_timeout_enable),
-        .cfg_perf_enable(cfg_wr_perf_enable),
         .cfg_compl_enable(cfg_wr_compl_enable),
         .cfg_threshold_enable(cfg_wr_threshold_enable),
-        .cfg_debug_enable(cfg_wr_debug_enable),
         .cfg_timeout_cycles(cfg_wr_timeout_cycles),
         .cfg_freq_sel(cfg_wr_freq_sel),
-        .cfg_latency_threshold(cfg_wr_latency_threshold),
         .cfg_axi_pkt_mask(cfg_wr_axi_pkt_mask),
-        .cfg_axi_err_select(cfg_wr_axi_err_select),
-        .cfg_axi_error_mask(cfg_wr_axi_error_mask),
-        .cfg_axi_timeout_mask(cfg_wr_axi_timeout_mask),
-        .cfg_axi_compl_mask(cfg_wr_axi_compl_mask),
-        .cfg_axi_thresh_mask(cfg_wr_axi_thresh_mask),
-        .cfg_axi_perf_mask(cfg_wr_axi_perf_mask),
-        .cfg_axi_addr_mask(cfg_wr_axi_addr_mask),
-        .cfg_axi_debug_mask(cfg_wr_axi_debug_mask),
 
-        // Monitor filter/CAM inputs (inert)
-        .cam_clear(1'b0),
-        .cfg_addr_filter_enable(1'b0),
-        .cfg_addr_filter_low('0),
-        .cfg_addr_filter_high('0),
-        .cfg_id_filter_enable(1'b0),
-        .cfg_id_match_base('0),
-        .cfg_id_match_count('0),
-        .debug_block_ready(),
-
-        // Address-range checker (disabled at N_ADDR_RANGES=0)
-        .cfg_addr_check_enable(1'b0),
-        .cfg_addr_range_enable(1'b0),
-        .cfg_addr_range_low({32{1'b0}}),
-        .cfg_addr_range_high({32{1'b0}}),
-
-        // Perfmon Stage A/B (tied off -- no window driven)
-        .cfg_start_event_sel(3'b111),
-        .cfg_end_event_sel(3'b111),
-        .cfg_start_trigger(1'b0),
-        .cfg_end_trigger(1'b0),
-        .cfg_window_force_close(1'b0),
-        .window_active(),
-        .window_cycles(),
-        .perf_prod_cycles(),
-        .perf_bp_cycles(),
-        .perf_starv_cycles(),
-        .perf_idle_cycles(),
-        .perf_beat_count(),
-        .perf_byte_count(),
-        .perf_burst_count()
+        // Monitor table clear (inert)
+        .cam_clear(1'b0)
     );
 
     // AXI4 Master Read Timing Wrapper
-    axi4_master_rd_mon #(
+    axi4_master_rd_monlite #(
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2),
         .AXI_ID_WIDTH(4),
@@ -527,13 +482,7 @@ module periph5_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(16),
-        .USE_MONITOR(USE_MONITOR_RD),
-        .ENABLE_ERROR_LOGIC(1'b1),
-        .ENABLE_TIMEOUT_LOGIC(1'b0),
-        .ENABLE_COMPL_LOGIC(1'b1),
-        .ENABLE_THRESHOLD_LOGIC(1'b0),
-        .ENABLE_PERF_LOGIC(1'b0),
-        .ENABLE_DEBUG_LOGIC(1'b0)
+        .USE_MONITOR(USE_MONITOR_RD)
     ) u_master_rd (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -587,7 +536,8 @@ module periph5_adapter
         .active_transactions(),
         .error_count(),
         .transaction_count(),
-        .cfg_conflict_error(),
+        .dropped_count(),
+        .refused_count(),
 
         // Monitor bus output
         .i_mon_time(i_mon_time),
@@ -600,54 +550,14 @@ module periph5_adapter
         .cfg_monitor_enable(cfg_rd_monitor_enable),
         .cfg_error_enable(cfg_rd_error_enable),
         .cfg_timeout_enable(cfg_rd_timeout_enable),
-        .cfg_perf_enable(cfg_rd_perf_enable),
         .cfg_compl_enable(cfg_rd_compl_enable),
         .cfg_threshold_enable(cfg_rd_threshold_enable),
-        .cfg_debug_enable(cfg_rd_debug_enable),
         .cfg_timeout_cycles(cfg_rd_timeout_cycles),
         .cfg_freq_sel(cfg_rd_freq_sel),
-        .cfg_latency_threshold(cfg_rd_latency_threshold),
         .cfg_axi_pkt_mask(cfg_rd_axi_pkt_mask),
-        .cfg_axi_err_select(cfg_rd_axi_err_select),
-        .cfg_axi_error_mask(cfg_rd_axi_error_mask),
-        .cfg_axi_timeout_mask(cfg_rd_axi_timeout_mask),
-        .cfg_axi_compl_mask(cfg_rd_axi_compl_mask),
-        .cfg_axi_thresh_mask(cfg_rd_axi_thresh_mask),
-        .cfg_axi_perf_mask(cfg_rd_axi_perf_mask),
-        .cfg_axi_addr_mask(cfg_rd_axi_addr_mask),
-        .cfg_axi_debug_mask(cfg_rd_axi_debug_mask),
 
-        // Monitor filter/CAM inputs (inert)
-        .cam_clear(1'b0),
-        .cfg_addr_filter_enable(1'b0),
-        .cfg_addr_filter_low('0),
-        .cfg_addr_filter_high('0),
-        .cfg_id_filter_enable(1'b0),
-        .cfg_id_match_base('0),
-        .cfg_id_match_count('0),
-        .debug_block_ready(),
-
-        // Address-range checker (disabled at N_ADDR_RANGES=0)
-        .cfg_addr_check_enable(1'b0),
-        .cfg_addr_range_enable(1'b0),
-        .cfg_addr_range_low({32{1'b0}}),
-        .cfg_addr_range_high({32{1'b0}}),
-
-        // Perfmon Stage A/B (tied off -- no window driven)
-        .cfg_start_event_sel(3'b111),
-        .cfg_end_event_sel(3'b111),
-        .cfg_start_trigger(1'b0),
-        .cfg_end_trigger(1'b0),
-        .cfg_window_force_close(1'b0),
-        .window_active(),
-        .window_cycles(),
-        .perf_prod_cycles(),
-        .perf_bp_cycles(),
-        .perf_starv_cycles(),
-        .perf_idle_cycles(),
-        .perf_beat_count(),
-        .perf_byte_count(),
-        .perf_burst_count()
+        // Monitor table clear (inert)
+        .cam_clear(1'b0)
     );
 
     // AXI4-to-APB converter shim
