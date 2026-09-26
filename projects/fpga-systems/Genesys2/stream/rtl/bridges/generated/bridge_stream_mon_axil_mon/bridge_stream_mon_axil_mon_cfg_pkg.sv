@@ -5,7 +5,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
 
     localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_DATA_WIDTH = 32;
     localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_MIN_ADDR_WIDTH = 10;
-    localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_SIZE = 'h3c0;
+    localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_SIZE = 'h3ac;
 
     typedef struct {
         logic next;
@@ -150,34 +150,6 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__HOST_0_WR_MASKS_E__out_t;
 
     typedef struct {
-        logic [2:0] value;
-    } bridge_stream_mon_axil_mon_cfg__HOST_0_WR_WINDOW_CTRL__start_event_sel__out_t;
-
-    typedef struct {
-        logic [2:0] value;
-    } bridge_stream_mon_axil_mon_cfg__HOST_0_WR_WINDOW_CTRL__end_event_sel__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__HOST_0_WR_WINDOW_CTRL__start_trigger__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__HOST_0_WR_WINDOW_CTRL__end_trigger__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__HOST_0_WR_WINDOW_CTRL__window_force_close__out_t;
-
-    typedef struct {
-        bridge_stream_mon_axil_mon_cfg__HOST_0_WR_WINDOW_CTRL__start_event_sel__out_t start_event_sel;
-        bridge_stream_mon_axil_mon_cfg__HOST_0_WR_WINDOW_CTRL__end_event_sel__out_t end_event_sel;
-        bridge_stream_mon_axil_mon_cfg__HOST_0_WR_WINDOW_CTRL__start_trigger__out_t start_trigger;
-        bridge_stream_mon_axil_mon_cfg__HOST_0_WR_WINDOW_CTRL__end_trigger__out_t end_trigger;
-        bridge_stream_mon_axil_mon_cfg__HOST_0_WR_WINDOW_CTRL__window_force_close__out_t window_force_close;
-    } bridge_stream_mon_axil_mon_cfg__HOST_0_WR_WINDOW_CTRL__out_t;
-
-    typedef struct {
         logic value;
     } bridge_stream_mon_axil_mon_cfg__HOST_0_RD_CTRL__monitor_enable__out_t;
 
@@ -292,34 +264,6 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     typedef struct {
         bridge_stream_mon_axil_mon_cfg__HOST_0_RD_MASKS_E__axi_debug_mask__out_t axi_debug_mask;
     } bridge_stream_mon_axil_mon_cfg__HOST_0_RD_MASKS_E__out_t;
-
-    typedef struct {
-        logic [2:0] value;
-    } bridge_stream_mon_axil_mon_cfg__HOST_0_RD_WINDOW_CTRL__start_event_sel__out_t;
-
-    typedef struct {
-        logic [2:0] value;
-    } bridge_stream_mon_axil_mon_cfg__HOST_0_RD_WINDOW_CTRL__end_event_sel__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__HOST_0_RD_WINDOW_CTRL__start_trigger__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__HOST_0_RD_WINDOW_CTRL__end_trigger__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__HOST_0_RD_WINDOW_CTRL__window_force_close__out_t;
-
-    typedef struct {
-        bridge_stream_mon_axil_mon_cfg__HOST_0_RD_WINDOW_CTRL__start_event_sel__out_t start_event_sel;
-        bridge_stream_mon_axil_mon_cfg__HOST_0_RD_WINDOW_CTRL__end_event_sel__out_t end_event_sel;
-        bridge_stream_mon_axil_mon_cfg__HOST_0_RD_WINDOW_CTRL__start_trigger__out_t start_trigger;
-        bridge_stream_mon_axil_mon_cfg__HOST_0_RD_WINDOW_CTRL__end_trigger__out_t end_trigger;
-        bridge_stream_mon_axil_mon_cfg__HOST_0_RD_WINDOW_CTRL__window_force_close__out_t window_force_close;
-    } bridge_stream_mon_axil_mon_cfg__HOST_0_RD_WINDOW_CTRL__out_t;
 
     typedef struct {
         logic value;
@@ -438,34 +382,6 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_MASKS_E__out_t;
 
     typedef struct {
-        logic [2:0] value;
-    } bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_WINDOW_CTRL__start_event_sel__out_t;
-
-    typedef struct {
-        logic [2:0] value;
-    } bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_WINDOW_CTRL__end_event_sel__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_WINDOW_CTRL__start_trigger__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_WINDOW_CTRL__end_trigger__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_WINDOW_CTRL__window_force_close__out_t;
-
-    typedef struct {
-        bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_WINDOW_CTRL__start_event_sel__out_t start_event_sel;
-        bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_WINDOW_CTRL__end_event_sel__out_t end_event_sel;
-        bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_WINDOW_CTRL__start_trigger__out_t start_trigger;
-        bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_WINDOW_CTRL__end_trigger__out_t end_trigger;
-        bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_WINDOW_CTRL__window_force_close__out_t window_force_close;
-    } bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_WINDOW_CTRL__out_t;
-
-    typedef struct {
         logic value;
     } bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_CTRL__monitor_enable__out_t;
 
@@ -582,34 +498,6 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_MASKS_E__out_t;
 
     typedef struct {
-        logic [2:0] value;
-    } bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_WINDOW_CTRL__start_event_sel__out_t;
-
-    typedef struct {
-        logic [2:0] value;
-    } bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_WINDOW_CTRL__end_event_sel__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_WINDOW_CTRL__start_trigger__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_WINDOW_CTRL__end_trigger__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_WINDOW_CTRL__window_force_close__out_t;
-
-    typedef struct {
-        bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_WINDOW_CTRL__start_event_sel__out_t start_event_sel;
-        bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_WINDOW_CTRL__end_event_sel__out_t end_event_sel;
-        bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_WINDOW_CTRL__start_trigger__out_t start_trigger;
-        bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_WINDOW_CTRL__end_trigger__out_t end_trigger;
-        bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_WINDOW_CTRL__window_force_close__out_t window_force_close;
-    } bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_WINDOW_CTRL__out_t;
-
-    typedef struct {
         logic value;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_CTRL__monitor_enable__out_t;
 
@@ -724,34 +612,6 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     typedef struct {
         bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_MASKS_E__axi_debug_mask__out_t axi_debug_mask;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_MASKS_E__out_t;
-
-    typedef struct {
-        logic [2:0] value;
-    } bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL__start_event_sel__out_t;
-
-    typedef struct {
-        logic [2:0] value;
-    } bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL__end_event_sel__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL__start_trigger__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL__end_trigger__out_t;
-
-    typedef struct {
-        logic value;
-    } bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL__window_force_close__out_t;
-
-    typedef struct {
-        bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL__start_event_sel__out_t start_event_sel;
-        bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL__end_event_sel__out_t end_event_sel;
-        bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL__start_trigger__out_t start_trigger;
-        bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL__end_trigger__out_t end_trigger;
-        bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL__window_force_close__out_t window_force_close;
-    } bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL__out_t;
 
     typedef struct {
         logic value;
@@ -3978,7 +3838,6 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__HOST_0_WR_MASKS_C__out_t HOST_0_WR_MASKS_C;
         bridge_stream_mon_axil_mon_cfg__HOST_0_WR_MASKS_D__out_t HOST_0_WR_MASKS_D;
         bridge_stream_mon_axil_mon_cfg__HOST_0_WR_MASKS_E__out_t HOST_0_WR_MASKS_E;
-        bridge_stream_mon_axil_mon_cfg__HOST_0_WR_WINDOW_CTRL__out_t HOST_0_WR_WINDOW_CTRL;
         bridge_stream_mon_axil_mon_cfg__HOST_0_RD_CTRL__out_t HOST_0_RD_CTRL;
         bridge_stream_mon_axil_mon_cfg__HOST_0_RD_LATENCY__out_t HOST_0_RD_LATENCY;
         bridge_stream_mon_axil_mon_cfg__HOST_0_RD_MASKS_A__out_t HOST_0_RD_MASKS_A;
@@ -3986,7 +3845,6 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__HOST_0_RD_MASKS_C__out_t HOST_0_RD_MASKS_C;
         bridge_stream_mon_axil_mon_cfg__HOST_0_RD_MASKS_D__out_t HOST_0_RD_MASKS_D;
         bridge_stream_mon_axil_mon_cfg__HOST_0_RD_MASKS_E__out_t HOST_0_RD_MASKS_E;
-        bridge_stream_mon_axil_mon_cfg__HOST_0_RD_WINDOW_CTRL__out_t HOST_0_RD_WINDOW_CTRL;
         bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_CTRL__out_t STREAM_DESC_1_RD_CTRL;
         bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_LATENCY__out_t STREAM_DESC_1_RD_LATENCY;
         bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_MASKS_A__out_t STREAM_DESC_1_RD_MASKS_A;
@@ -3994,7 +3852,6 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_MASKS_C__out_t STREAM_DESC_1_RD_MASKS_C;
         bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_MASKS_D__out_t STREAM_DESC_1_RD_MASKS_D;
         bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_MASKS_E__out_t STREAM_DESC_1_RD_MASKS_E;
-        bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_WINDOW_CTRL__out_t STREAM_DESC_1_RD_WINDOW_CTRL;
         bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_CTRL__out_t MONBUS_WR_2_WR_CTRL;
         bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_LATENCY__out_t MONBUS_WR_2_WR_LATENCY;
         bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_MASKS_A__out_t MONBUS_WR_2_WR_MASKS_A;
@@ -4002,7 +3859,6 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_MASKS_C__out_t MONBUS_WR_2_WR_MASKS_C;
         bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_MASKS_D__out_t MONBUS_WR_2_WR_MASKS_D;
         bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_MASKS_E__out_t MONBUS_WR_2_WR_MASKS_E;
-        bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_WINDOW_CTRL__out_t MONBUS_WR_2_WR_WINDOW_CTRL;
         bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_CTRL__out_t SLAVE_MONBUS_WR_3_WR_CTRL;
         bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_LATENCY__out_t SLAVE_MONBUS_WR_3_WR_LATENCY;
         bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_MASKS_A__out_t SLAVE_MONBUS_WR_3_WR_MASKS_A;
@@ -4010,7 +3866,6 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_MASKS_C__out_t SLAVE_MONBUS_WR_3_WR_MASKS_C;
         bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_MASKS_D__out_t SLAVE_MONBUS_WR_3_WR_MASKS_D;
         bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_MASKS_E__out_t SLAVE_MONBUS_WR_3_WR_MASKS_E;
-        bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL__out_t SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL;
         bridge_stream_mon_axil_mon_cfg__OBS_APB_0_WR_CTRL__out_t OBS_APB_0_WR_CTRL;
         bridge_stream_mon_axil_mon_cfg__OBS_APB_0_WR_LATENCY__out_t OBS_APB_0_WR_LATENCY;
         bridge_stream_mon_axil_mon_cfg__OBS_APB_0_WR_MASKS_A__out_t OBS_APB_0_WR_MASKS_A;
