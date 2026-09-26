@@ -3,7 +3,8 @@
 Every number in this chapter is from the Nexys A7, not simulation: 75 MHz
 controller clock, DDR2-300, BL4 on the x16 MT47H64M16, `open_page` policy, the
 4+4 generator bitstream. **Peak is 600 MB/s** — 8 bytes per controller cycle.
-Measured 2026-09-14.
+Measured 2026-09-14; sections 8.2 and 8.5 re-measured 2026-09-26 on the
+post-RBL-removal bitstream.
 
 The figures and the raw records are in the repository, so nothing here has to
 be taken on trust: `build-perf/reports/bank_gap_sweep.json` (192 records),
@@ -93,14 +94,35 @@ gap-0 value.
 
 | address order | 4+4 | 3+3 | 2+2 | 1+1 |
 |---|---|---|---|---|
-| cacheline | 15 | 15 | 9 | 0 |
-| row-major | 15 | 15 | 9 | 0 |
-| col-major | 15 | 15 | 15 | 15 |
+| cacheline | 15 | 15 | 10 | 1 |
+| row-major | 15 | 15 | 10 | 0 |
+| col-major | 15 | 15 | 10 | 1 |
 
-: Gap knee by address order and generator count
+: Gap knee by address order and generator count (re-measured 2026-09-26)
 
-Read bandwidth from gap 0 to gap 15: 1+1 row-major 574 -> 206 MB/s (36%
-retained), 2+2 575 -> 417 (73%), 3+3 565 -> 565, 4+4 559 -> 559.
+Bus bandwidth from gap 0 to gap 15, all three address orders agreeing within
+2 MB/s: 1+1 570.5 -> 237.2 (42% retained), 2+2 564.8 -> 442.7 (78%), 3+3
+560.7 -> 560.8 (100%), 4+4 549.9 -> 549.8 (100%).
+
+> **Two corrections to the 2026-09-14 version of this table.**
+>
+> **col-major is no longer flat.** It previously read 15 at every generator
+> count — insensitive to injected idle — and now tracks the other two orders
+> exactly. Nothing about the gap changed; col-major got FASTER. It used to be
+> DRAM-bound, slow enough that idle cycles inserted between bursts were
+> absorbed by work the controller was already behind on. The read-ceiling fix
+> and the bank-timer lookahead removed that slack, so col-major now runs close
+> enough to the bus limit to feel a gap like anything else. A knee that
+> *appears* when a controller improves is the normal direction of travel, not a
+> regression.
+>
+> **The figures quoted below the table were labelled "read bandwidth" and are
+> BUS bandwidth** — both directions' bytes over the measurement window. The
+> distinction matters because `rd` and `wr` in the JSON are each measured over
+> their OWN active cycles, so `bus` is NOT `rd + wr`: at 1+1 gap 15 the read
+> engine finishes in 46,034 cycles while the write engine needs 80,989, and
+> subtracting the two per-direction figures to "recover" the other invents an
+> asymmetry that is not there.
 
 ### Figure 8.1: Read Bandwidth vs Gap, Row-Major
 
@@ -226,7 +248,104 @@ simulated**.
 
 ---
 
-## 8.5 Reproducing these numbers
+## 8.5 What the three runtime modes are worth (2026-09-26)
+
+Chapters 8.1-8.4 measure the controller at its default settings. This section
+measures the **runtime surface itself** — the three orthogonal axes that exist
+so a scheduling policy can be switched on and compared on real hardware. 169
+points, txn_scale=1000, all integrity-clean.
+
+The headline is a negative result, and it is worth more than a positive one
+would be: **reordering is the only thing in this controller that pays.
+Everything layered on top of it is inert or harmful.**
+
+### Axis 1 — scheduling order
+
+Measured at **equal page policy**, which had never been done. The stock
+`inorder` preset also pins CLOSE page, so the axis used to read as a ~16x
+deficit that was mostly the page policy rather than the ordering.
+
+| config | cacheline | col-major |
+|---|---|---|
+| `open_page` (FR-FCFS) | **561.3** | **195.2** |
+| `inorder_open` | 143.0 | 102.4 |
+
+: Read MB/s against 600 MB/s peak, order_mode at equal page policy
+
+**FR-FCFS is worth 3.9x on streaming and 1.9x page-hostile.** That is the
+reorder CAM earning its area, and it is the largest single effect in the
+design.
+
+The axis-1 *sub*-policies are a different matter. Measured single-direction so
+that read/write turnaround is not the limiter, **eight of ten land within
+±0.3% of the default**. `row_most_pending` is the only lever with a real
+effect and it is a net loss: +1.1% on sequential traffic, **−19.4%** on
+page-hostile, +7,300 activates, and 2.4x read latency in the concurrent run.
+It selects the bank with the most queued work rather than the one whose row is
+already open, so it works against the page policy. The default oldest-first
+wins on both families.
+
+> **Why the first attempt at this measured nothing.** Run concurrently at
+> 4w+4r, all ten sub-policies returned identical bandwidth. The stall counters
+> showed why: `limiter = turnaround` at 84% blocked. An arbiter sub-policy
+> chooses WHICH COMMAND, not which direction, so no tie-break can move a
+> workload bound by a global DQ constraint. The sweep was flat for a reason
+> that had nothing to do with the knobs. **A policy sweep on a workload that
+> cannot express the policy measures nothing, and looks exactly like a policy
+> that does nothing.**
+
+### Axis 2 — page policy
+
+Every predictor lands within ±0.1% of plain open page, on all four address
+families, sequential and concurrent.
+
+Modes 6/7 (`rbl_static` / `rbl_dyn`) were **retired 2026-09-26** after being
+measured on a workload built specifically to suit them: three generators
+confined inside a row against one striding across rows, all on the same bank,
+which is the per-row locality variation a per-row predictor needs and which no
+uniform pattern provides. The mechanism **worked** — thrash fell 100% ->
+57.8%, conflict-activates becoming empty-activates — and it still lost, because
+mode 6 paid +22,827 activates to save precharges that never materialised
+(−26% bandwidth) and mode 7's hill-climb drove its threshold to "never close
+early", landing bit-identical to plain open page.
+
+Modes 4/5 (`adapt_time`, `adapt_access`) are **kept but unproven**. They show
+no benefit, but that is not the same finding: their triggers may never have
+fired. `adapt_time` closes on an idle timeout and every workload here saturates
+the generators; `adapt_access` needs its 2-bit counters to learn. Retiring them
+on absence-of-benefit would repeat the error that made RBL unmeasurable for
+months.
+
+### Axis 3 — refresh
+
+Measured on **open** page. The stock `refresh` profile pins close page (~46
+MB/s), which measures refresh in the regime where it matters least.
+
+| config | row-major | vs default |
+|---|---|---|
+| default tREFI | 572.0 | — |
+| `refresh_credit_open` | 575.3 | +0.6% |
+| `fast_refresh_open` | 536.6 | **−6.2%** |
+| `slow_refresh_open` | **599.0** | **+4.7%** |
+
+: Read MB/s against 600 MB/s peak
+
+**Refresh costs 4.7% of streaming bandwidth.** Relaxing tREFI recovers it and
+reaches **599.0 MB/s — 99.8% of the 600 MB/s ceiling**, the highest number this
+controller has produced on hardware. Refresh credit is inert.
+
+This is the one tunable on any axis that pays, and it is a JEDEC timing
+parameter rather than a scheduling policy.
+
+### Multi-ID traffic
+
+`col_major_bl8_multiid` (LFSR-driven IDs) is **bit-identical to single-ID** on
+every controller config. FR-FCFS already reorders across the whole CAM
+regardless of ID, so ID diversity exposes no additional opportunity.
+
+---
+
+## 8.6 Reproducing these numbers
 
 ```bash
 cd build-perf
@@ -235,7 +354,25 @@ python3 bin/axlen_sweep.py                 # 8.1, first table
 python3 bin/outstanding_sweep.py           # 8.1, second table
 python3 bin/bank_gap_sweep.py              # 8.2-8.4, ~12 minutes
 python3 bin/plot_bank_gap.py reports/bank_gap_sweep.json
+
+# 8.5, the runtime axes -- pass the clock EXPLICITLY, see the warning below
+cd host
+for p in order sched_sub paging pairs_refresh_open matrix; do
+  python3 pumice_master.py --char --char-scale 1000 --char-profile $p \
+      --no-level --clk-mhz 75 --csv ../reports/axis_$p.csv
+done
 ```
+
+> **`--clk-mhz` defaults to 66.667 and this build runs at 75.** Bandwidth is
+> computed as `(bytes / cycles) * clk_mhz`, so the default silently scales
+> every number by 0.889 and mis-states the ceiling as 533 MB/s. Pass it, or let
+> `pumice_char.resolve_clk_mhz()` read `clk_hz` out of the bitstream. The same
+> class of error in the other direction once reported open-page reads at 123%
+> of what the port can physically carry.
+>
+> Read section 8.5 with the `limiter` column, not only the bandwidth column. A
+> policy sweep on a workload that cannot express the policy returns a flat
+> table that is indistinguishable from a policy with no effect.
 
 Leave `PREFILL` at its default (`point`). It re-fills the whole device before
 every measurement so that points are independent; without it, a point that
