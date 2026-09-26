@@ -46,8 +46,21 @@ make_target = "run-all-{level}-parallel"  # default make target for aggregation
 # ==============================================================================
 
 [env.val-common]
-description = "RTL common modules (counters, arbiters, FIFOs, math, etc.)"
+description = "RTL common modules (counters, arbiters, FIFOs, data integrity, etc.)"
 directory = "val/common"
+coverage = true
+
+# val/cdc and val/math were split out of val/common and given their own areas
+# (see val/Makefile), but this table never followed, so the aggregator-driven
+# gate/func/full-parallel targets skipped 135 test roots (2026-09-25).
+[env.val-cdc]
+description = "Clock domain crossing primitives (rtl/cdc: gray/johnson counters, async FIFOs, handshakes)"
+directory = "val/cdc"
+coverage = true
+
+[env.val-math]
+description = "Arithmetic modules (rtl/math: adders, multipliers, dividers, encoders)"
+directory = "val/math"
 coverage = true
 
 [env.val-amba]
