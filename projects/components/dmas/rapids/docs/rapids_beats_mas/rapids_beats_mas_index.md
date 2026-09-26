@@ -72,19 +72,17 @@
 - [Sink Data Path](ch03_macro_blocks/03_sink_data_path.md)
 - [Sink Data Path AXIS](ch03_macro_blocks/04_sink_data_path_axis.md)
 - [Sink SRAM Controller](ch03_macro_blocks/05_snk_sram_controller.md)
-- [Sink SRAM Controller Unit](ch03_macro_blocks/06_snk_sram_controller_unit.md)
 
 **Source Data Path (Memory to Network):**
-- [Source Data Path](ch03_macro_blocks/07_source_data_path.md)
-- [Source Data Path AXIS](ch03_macro_blocks/08_source_data_path_axis.md)
-- [Source SRAM Controller](ch03_macro_blocks/09_src_sram_controller.md)
-- [Source SRAM Controller Unit](ch03_macro_blocks/10_src_sram_controller_unit.md)
+- [Source Data Path](ch03_macro_blocks/06_source_data_path.md)
+- [Source Data Path AXIS](ch03_macro_blocks/07_source_data_path_axis.md)
+- [Source SRAM Controller](ch03_macro_blocks/08_src_sram_controller.md)
 
 **Top-Level Integration:**
-- [RAPIDS Core Beats](ch03_macro_blocks/11_rapids_core_beats.md)
-- [RAPIDS Registers](ch03_macro_blocks/12_rapids_regs.md)
-- [RAPIDS Config Block](ch03_macro_blocks/13_rapids_config_block.md)
-- [RAPIDS Beats Top](ch03_macro_blocks/14_rapids_beats_top.md)
+- [RAPIDS Core Beats](ch03_macro_blocks/09_rapids_core_beats.md)
+- [RAPIDS Registers](ch03_macro_blocks/10_rapids_regs.md)
+- [RAPIDS Config Block](ch03_macro_blocks/11_rapids_config_block.md)
+- [RAPIDS Beats Top](ch03_macro_blocks/12_rapids_beats_top.md)
 
 ### Chapter 4: Interfaces
 

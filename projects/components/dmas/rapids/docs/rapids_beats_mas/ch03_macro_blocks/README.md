@@ -61,13 +61,14 @@ rapids_core_beats (Top Level)
 | `beats_scheduler_group_array` | 3.2 | 8-channel scheduler array with shared AXI |
 | `sink_data_path` | 3.3 | Network-to-memory transfer path |
 | `sink_data_path_axis` | 3.4 | Sink path with AXIS interface |
-| `snk_sram_controller` | 3.5 | 8-channel sink SRAM management |
-| `snk_sram_controller_unit` | 3.6 | Single-channel sink SRAM unit |
-| `source_data_path` | 3.7 | Memory-to-network transfer path |
-| `source_data_path_axis` | 3.8 | Source path with AXIS interface |
-| `src_sram_controller` | 3.9 | 8-channel source SRAM management |
-| `src_sram_controller_unit` | 3.10 | Single-channel source SRAM unit |
-| `rapids_core_beats` | 3.11 | Complete RAPIDS core integration |
+| `snk_sram_controller_beats` | 3.5 | Sink SRAM wrapper over STREAM's sram_controller |
+| `src_data_path_beats` | 3.6 | Memory-to-network transfer path |
+| `src_data_path_axis_beats` | 3.7 | Source path with AXIS interface |
+| `src_sram_controller_beats` | 3.8 | Source SRAM wrapper over STREAM's sram_controller |
+| `rapids_core_beats` | 3.9 | Complete RAPIDS core integration |
+| `rapids_regs` | 3.10 | Generated register block |
+| `rapids_config_block` | 3.11 | Configuration distribution |
+| `rapids_beats_top` | 3.12 | Top-level integration |
 
 : Table 3.0.1: Macro Block Reference
 
@@ -80,12 +81,13 @@ rapids_core_beats (Top Level)
 - [Sink Data Path](03_sink_data_path.md)
 - [Sink Data Path AXIS](04_sink_data_path_axis.md)
 - [Sink SRAM Controller](05_snk_sram_controller.md)
-- [Sink SRAM Controller Unit](06_snk_sram_controller_unit.md)
-- [Source Data Path](07_source_data_path.md)
-- [Source Data Path AXIS](08_source_data_path_axis.md)
-- [Source SRAM Controller](09_src_sram_controller.md)
-- [Source SRAM Controller Unit](10_src_sram_controller_unit.md)
-- [RAPIDS Core Beats](11_rapids_core_beats.md)
+- [Source Data Path](06_source_data_path.md)
+- [Source Data Path AXIS](07_source_data_path_axis.md)
+- [Source SRAM Controller](08_src_sram_controller.md)
+- [RAPIDS Core Beats](09_rapids_core_beats.md)
+- [RAPIDS Registers](10_rapids_regs.md)
+- [RAPIDS Config Block](11_rapids_config_block.md)
+- [RAPIDS Beats Top](12_rapids_beats_top.md)
 
 ---
 

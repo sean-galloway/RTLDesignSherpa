@@ -43,7 +43,7 @@ The Source Data Path AXIS wrapper adds an AXI-Stream master interface to the sou
 
 ### Block Diagram
 
-### Figure 3.8.1: Source Data Path AXIS Block Diagram
+### Figure 3.7.1: Source Data Path AXIS Block Diagram
 
 ```
                         source_data_path_axis
@@ -91,7 +91,7 @@ parameter int TDEST_WIDTH = 1;
 parameter int TUSER_WIDTH = 1;
 ```
 
-: Table 3.8.1: Source Data Path AXIS Parameters
+: Table 3.7.1: Source Data Path AXIS Parameters
 
 ---
 
@@ -104,7 +104,16 @@ parameter int TUSER_WIDTH = 1;
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low reset |
 
-: Table 3.8.2: Clock and Reset
+: Table 3.7.2: Clock and Reset
+
+### Configuration
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `cfg_axi_rd_xfer_beats` | input | 8 | AXI read transfer size in beats (all channels) |
+| `cfg_drain_size` | input | 8 | Beats to drain per request |
+
+: Table 3.7.3: Configuration
 
 ### Scheduler Interface
 
@@ -117,7 +126,7 @@ parameter int TUSER_WIDTH = 1;
 | `sched_rd_beats_done` | output | NC x 32 | Beats completed in burst |
 | `sched_rd_error` | output | NC | Sticky error flag per channel |
 
-: Table 3.8.3: Scheduler Interface
+: Table 3.7.4: Scheduler Interface
 
 ### AXI Read Master Interface
 
@@ -137,7 +146,7 @@ parameter int TUSER_WIDTH = 1;
 | `m_axi_rid` | input | ID_W | Response ID |
 | `m_axi_rlast` | input | 1 | Last beat |
 
-: Table 3.8.4: AXI Read Master Interface
+: Table 3.7.5: AXI Read Master Interface
 
 ### AXI-Stream Master Interface
 
@@ -152,13 +161,13 @@ parameter int TUSER_WIDTH = 1;
 | `m_axis_tdest` | output | AXIS_DEST_WIDTH | Destination |
 | `m_axis_tuser` | output | AXIS_USER_WIDTH | User sideband |
 
-: Table 3.8.5: AXI-Stream Master Interface
+: Table 3.7.6: AXI-Stream Master Interface
 
 ---
 
 ## Signal Mapping
 
-### Figure 3.8.2: Drain to AXIS Interface Mapping
+### Figure 3.7.2: Drain to AXIS Interface Mapping
 
 ```
     Drain Interface               AXIS Master
@@ -176,7 +185,7 @@ parameter int TUSER_WIDTH = 1;
 
 ## Timing Diagram
 
-### Figure 3.8.3: AXIS Egress Timing
+### Figure 3.7.3: AXIS Egress Timing
 
 ```
               ____    ____    ____    ____    ____    ____    ____

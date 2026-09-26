@@ -93,8 +93,8 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 **Macro blocks (`docs/rapids_beats_mas/ch03_macro_blocks/`):**
 - [Scheduler Group](docs/rapids_beats_mas/ch03_macro_blocks/01_beats_scheduler_group.md) / [Scheduler Group Array](docs/rapids_beats_mas/ch03_macro_blocks/02_beats_scheduler_group_array.md)
 - [Sink Data Path](docs/rapids_beats_mas/ch03_macro_blocks/03_sink_data_path.md) + AXIS wrapper, SRAM controllers
-- [Source Data Path](docs/rapids_beats_mas/ch03_macro_blocks/07_source_data_path.md) + AXIS wrapper, SRAM controllers
-- [RAPIDS Core](docs/rapids_beats_mas/ch03_macro_blocks/11_rapids_core_beats.md) / [Registers](docs/rapids_beats_mas/ch03_macro_blocks/12_rapids_regs.md) / [Top](docs/rapids_beats_mas/ch03_macro_blocks/14_rapids_beats_top.md)
+- [Source Data Path](docs/rapids_beats_mas/ch03_macro_blocks/06_source_data_path.md) + AXIS wrapper, SRAM controllers
+- [RAPIDS Core](docs/rapids_beats_mas/ch03_macro_blocks/09_rapids_core_beats.md) / [Registers](docs/rapids_beats_mas/ch03_macro_blocks/10_rapids_regs.md) / [Top](docs/rapids_beats_mas/ch03_macro_blocks/12_rapids_beats_top.md)
 
 **Interfaces (`docs/rapids_beats_mas/ch04_interfaces/`):**
 - [AXI4 Interface](docs/rapids_beats_mas/ch04_interfaces/01_axi4_interface_spec.md)

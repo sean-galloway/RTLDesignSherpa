@@ -43,7 +43,7 @@ The Source SRAM Controller manages 8 SRAM controller units for the source data p
 
 ### Block Diagram
 
-### Figure 3.9.1: Source SRAM Controller Block Diagram
+### Figure 3.8.1: Source SRAM Controller Block Diagram
 
 ```
                     src_sram_controller
@@ -82,7 +82,7 @@ parameter int SRAM_DEPTH = 512;                  // Per-channel depth
 parameter int ADDR_WIDTH = $clog2(SRAM_DEPTH);
 ```
 
-: Table 3.9.1: Source SRAM Controller Parameters
+: Table 3.8.1: Source SRAM Controller Parameters
 
 ---
 
@@ -95,7 +95,7 @@ parameter int ADDR_WIDTH = $clog2(SRAM_DEPTH);
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low reset |
 
-: Table 3.9.2: Clock and Reset
+: Table 3.8.2: Clock and Reset
 
 ### Fill Interface (ID-Selected, from AXI Read Engine)
 
@@ -110,7 +110,7 @@ parameter int ADDR_WIDTH = $clog2(SRAM_DEPTH);
 | `fill_id` | input | CIW | Transaction ID selects the channel |
 | `fill_data` | input | DW | Fill data |
 
-: Table 3.9.3: Fill Interface (ID-Selected)
+: Table 3.8.3: Fill Interface (ID-Selected)
 
 ### Arbitrated Drain Interface (to Network)
 
@@ -120,11 +120,12 @@ parameter int ADDR_WIDTH = $clog2(SRAM_DEPTH);
 | `drain_req` | input | NC | Drain reservation request per channel |
 | `drain_size` | input | NC x 8 | Beats to reserve |
 | `drain_valid` | output | NC | Drain data valid per channel |
+| `drain_valid_comb` | output | NC | Combinational per-channel valid (beat gate) |
 | `drain_read` | input | 1 | Consumer read strobe |
 | `drain_id` | input | CIW | Channel ID select for drain |
 | `drain_data` | output | DW | Drain data (muxed from selected channel) |
 
-: Table 3.9.4: Arbitrated Drain Interface
+: Table 3.8.4: Arbitrated Drain Interface
 
 ### Debug Interface
 
@@ -133,13 +134,13 @@ parameter int ADDR_WIDTH = $clog2(SRAM_DEPTH);
 | `dbg_bridge_pending` | output | NC | Bridge has a pending beat per channel |
 | `dbg_bridge_out_valid` | output | NC | Bridge output valid per channel |
 
-: Table 3.9.5: Debug Interface
+: Table 3.8.5: Debug Interface
 
 ---
 
 ## Arbitration Logic
 
-### Figure 3.9.2: Source Channel Arbitration
+### Figure 3.8.2: Source Channel Arbitration
 
 ```
               ____    ____    ____    ____    ____    ____    ____
@@ -168,7 +169,7 @@ parameter int ADDR_WIDTH = $clog2(SRAM_DEPTH);
 | Drain Interface | Arbitrated SRAM read | Arbitrated drain to network |
 | Primary Use | Network -> Memory | Memory -> Network |
 
-: Table 3.9.6: Sink vs Source Controller Comparison
+: Table 3.8.6: Sink vs Source Controller Comparison
 
 ---
 

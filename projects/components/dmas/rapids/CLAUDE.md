@@ -261,9 +261,9 @@ RAPIDS Beats Architecture (rtl/)
 | **drain_ctrl_beats.sv** | `fub_beats/` | SRAM drain control | `ch02_fub_blocks/06_beats_drain_ctrl.md` |
 | **latency_bridge_beats.sv** | `fub_beats/` | Latency-hiding bridge | `ch02_fub_blocks/07_beats_latency_bridge.md` |
 | **snk_data_path_beats.sv** | `macro_beats/` | Sink data path | `ch03_macro_blocks/03_sink_data_path.md` |
-| **src_data_path_beats.sv** | `macro_beats/` | Source data path | `ch03_macro_blocks/07_source_data_path.md` |
-| **rapids_core_beats.sv** | `macro_beats/` | Core integration | `ch03_macro_blocks/11_rapids_core_beats.md` |
-| **rapids_beats_top.sv** | `top_beats/` | Top-level integration | `ch03_macro_blocks/14_rapids_beats_top.md` |
+| **src_data_path_beats.sv** | `macro_beats/` | Source data path | `ch03_macro_blocks/06_source_data_path.md` |
+| **rapids_core_beats.sv** | `macro_beats/` | Core integration | `ch03_macro_blocks/09_rapids_core_beats.md` |
+| **rapids_beats_top.sv** | `top_beats/` | Top-level integration | `ch03_macro_blocks/12_rapids_beats_top.md` |
 
 ### Interface Summary
 

@@ -87,7 +87,7 @@ RTL). The APB address bus feeding the block (`APB_ADDR_WIDTH`) must therefore be
 | 0x37C | `HIST_DATA` | RO | Histogram bucket data |
 | 0x380 | `HIST_TOTAL` | RO | Histogram total count |
 
-: Table 3.12.1: Base Register Map
+: Table 3.10.1: Base Register Map
 
 ### Key Register Fields
 
@@ -137,7 +137,7 @@ per-monitor performance counters.
 | 0x11F0 | `MON.RDMON_PERF_CH_OVERFLOW` | RO | Read-monitor per-channel overflow |
 | 0x11F4 | `MON.WRMON_PERF_CH_OVERFLOW` | RO | Write-monitor per-channel overflow |
 
-: Table 3.12.2: Monitor Register Map (base 0x1000)
+: Table 3.10.2: Monitor Register Map (base 0x1000)
 
 Each `*_ENABLE` register carries `MON_EN`, `ERR_EN`, `COMPL_EN`, `TIMEOUT_EN`
 (and `COMPRESS_EN` on the write monitor); each `*_PERF_*` group provides window,

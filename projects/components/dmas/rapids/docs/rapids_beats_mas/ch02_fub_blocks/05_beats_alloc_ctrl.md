@@ -28,6 +28,14 @@
 **Status:** Implemented
 **Last Updated:** 2025-01-10
 
+> **No longer in the SRAM datapath (2026-09-26).** RAPIDS' SRAM path now uses
+> STREAM's `stream_alloc_ctrl` / `stream_drain_ctrl` / `stream_latency_bridge`,
+> reached through the `snk_`/`src_sram_controller_beats` naming wrappers
+> (`bdf4e0dff`). This FUB is still built and still verified -- it keeps its own
+> test, its own filelist and its `rapids_all.f` entry -- it simply is not
+> instantiated by the SRAM controllers any more. Treat this page as the FUB's
+> own specification, not as a description of the current SRAM path.
+
 ---
 
 ## Overview

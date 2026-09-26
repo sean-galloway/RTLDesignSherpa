@@ -44,14 +44,20 @@
 ### Figure 1.1.4: Basic Sink Path Transfer Timing
 
 **File:** `ch01_overview/01_architecture.md`
-**Test Source:** `test_sink_data_path.py::test_basic_transfer`
+**Test Source:** `test_snk_sram_controller_beats.py::test_basic_transfer`
 **Signals to Capture:**
 - `clk`
-- `snk_fill_valid`
-- `snk_fill_ready`
-- `snk_fill_data`
-- `sram_wr_en`
-- `data_avail`
+- `snk_apb_valid`
+- `snk_apb_ready`
+- `snk_scheduler_idle`
+- `snk_system_idle`
+
+**Note (2026-09-26):** this figure previously listed `snk_fill_*`, `sram_wr_en` and
+`data_avail`. `rapids_core_beats` exposes NO fill-side ports -- the fill interface
+is internal to it -- and since `bdf4e0dff` the SRAM is STREAM's `sram_controller`,
+which has no write-enable port at all. Those signals are not observable at this
+module's boundary, so the figure is re-scoped to the APB kick and idle status that
+are. For the fill handshake itself, capture Figure 3.3.3 instead.
 
 **Expected Behavior:** Show 4-beat fill operation with SRAM write and data availability tracking.
 
@@ -60,7 +66,7 @@
 ### Figure 1.3.1: Reset Timing
 
 **File:** `ch01_overview/03_clocks_and_reset.md`
-**Test Source:** `test_scheduler.py::test_reset_sequence`
+**Test Source:** `test_scheduler_beats.py::test_reset_sequence`
 **Signals to Capture:**
 - `clk`
 - `rst_n`
@@ -76,7 +82,7 @@
 ### Figure 2.1.3: Basic Transfer Timing
 
 **File:** `ch02_fub_blocks/01_scheduler.md`
-**Test Source:** `test_scheduler.py::test_basic_transfer`
+**Test Source:** `test_scheduler_beats.py::test_basic_transfer`
 **Signals to Capture:**
 - `clk`
 - `scheduler_state` (one-hot decode to name)
@@ -93,7 +99,7 @@
 ### Figure 2.2.3: Descriptor Chain Timing
 
 **File:** `ch02_fub_blocks/02_descriptor_engine.md`
-**Test Source:** `test_descriptor_engine.py::test_chain_fetch`
+**Test Source:** `test_descriptor_engine_beats.py::test_chain_fetch`
 **Signals to Capture:**
 - `clk`
 - `apb_valid`
@@ -109,7 +115,10 @@
 ### Figure 2.3.2: AXI Read Burst Timing
 
 **File:** `ch02_fub_blocks/03_axi_read_engine.md`
-**Test Source:** `test_axi_read_engine.py::test_basic_burst`
+**Test Source:** NONE YET -- no test exercises `axi_read_engine_beats` directly
+(verified 2026-09-26: nothing under `dv/tests/` instantiates it; only the
+testplans and coverage config name it). This figure cannot be generated until
+such a test exists.
 **Signals to Capture:**
 - `clk`
 - `sched_rd_valid`
@@ -119,7 +128,7 @@
 - `m_axi_rvalid`
 - `m_axi_rdata` (first/last beat indicator)
 - `m_axi_rlast`
-- `sram_wr_en`
+- `axi_rd_sram_valid`
 - `sched_rd_done_strobe`
 
 **Expected Behavior:** Show 8-beat read burst with SRAM writes.
@@ -129,14 +138,16 @@
 ### Figure 2.4.2: AXI Write Burst Timing
 
 **File:** `ch02_fub_blocks/04_axi_write_engine.md`
-**Test Source:** `test_axi_write_engine.py::test_basic_burst`
+**Test Source:** NONE YET -- no test exercises `axi_write_engine_beats` directly
+(verified 2026-09-26, same as Figure 2.3.2). This figure cannot be generated
+until such a test exists.
 **Signals to Capture:**
 - `clk`
 - `sched_wr_valid`
 - `sched_wr_beats`
 - `m_axi_awvalid`
 - `m_axi_awlen`
-- `sram_rd_en`
+- `axi_wr_sram_drain`
 - `m_axi_wvalid`
 - `m_axi_wdata` (first/last indicator)
 - `m_axi_wlast`
@@ -151,7 +162,7 @@
 ### Figure 2.5.2: Allocation and Release Timing
 
 **File:** `ch02_fub_blocks/05_beats_alloc_ctrl.md`
-**Test Source:** `test_beats_alloc_ctrl.py::test_basic_alloc_drain`
+**Test Source:** `test_alloc_ctrl_beats.py::test_basic_alloc_drain`
 **Signals to Capture:**
 - `clk`
 - `wr_valid`
@@ -168,13 +179,13 @@
 ### Figure 2.6.2: Data Arrival and Drain Timing
 
 **File:** `ch02_fub_blocks/06_beats_drain_ctrl.md`
-**Test Source:** `test_beats_drain_ctrl.py::test_basic_write_drain`
+**Test Source:** `test_drain_ctrl_beats.py::test_basic_write_drain`
 **Signals to Capture:**
 - `clk`
 - `wr_valid`
 - `rd_valid`
 - `rd_size`
-- `data_avail`
+- `data_available`
 - `rd_empty`
 
 **Expected Behavior:** Show single-beat arrivals followed by 4-beat drain.
@@ -184,13 +195,13 @@
 ### Figure 2.7.2: Latency Bridge Timing
 
 **File:** `ch02_fub_blocks/07_beats_latency_bridge.md`
-**Test Source:** `test_beats_latency_bridge.py::test_basic_latency`
+**Test Source:** `test_latency_bridge_beats.py::test_basic_latency`
 **Signals to Capture:**
 - `clk`
-- `in_valid`
-- `in_beats`
-- `out_valid`
-- `out_beats`
+- `s_valid`
+- `s_data` (beat payload)
+- `m_valid`
+- `m_data` (beat payload)
 
 **Expected Behavior:** Show 2-cycle latency between input and output.
 
@@ -201,13 +212,14 @@
 ### Figure 3.3.3: Sink Path Transfer Timing
 
 **File:** `ch03_macro_blocks/03_sink_data_path.md`
-**Test Source:** `test_sink_data_path.py::test_complete_transfer`
+**Test Source:** `test_snk_sram_controller_beats.py::test_complete_transfer`
 **Signals to Capture:**
 - `clk`
-- `snk_fill_alloc_req`
-- `snk_fill_alloc_size`
-- `snk_fill_valid`
-- `snk_fill_data`
+- `fill_alloc_req`
+- `fill_alloc_size`
+- `fill_valid`
+- `fill_ready`
+- `fill_data`
 - `sched_wr_valid`
 - `sched_wr_beats`
 - `m_axi_awvalid`
@@ -263,16 +275,16 @@ assets/wavedrom/
 
 | Figure | File | Status | Test Coverage |
 |--------|------|--------|---------------|
-| 1.1.4 | ch01_overview/01_architecture.md | TODO | test_sink_data_path.py |
-| 1.3.1 | ch01_overview/03_clocks_and_reset.md | TODO | test_scheduler.py |
-| 2.1.3 | ch02_fub_blocks/01_scheduler.md | TODO | test_scheduler.py |
-| 2.2.3 | ch02_fub_blocks/02_descriptor_engine.md | TODO | test_descriptor_engine.py |
-| 2.3.2 | ch02_fub_blocks/03_axi_read_engine.md | TODO | test_axi_read_engine.py |
-| 2.4.2 | ch02_fub_blocks/04_axi_write_engine.md | TODO | test_axi_write_engine.py |
-| 2.5.2 | ch02_fub_blocks/05_beats_alloc_ctrl.md | TODO | test_beats_alloc_ctrl.py |
-| 2.6.2 | ch02_fub_blocks/06_beats_drain_ctrl.md | TODO | test_beats_drain_ctrl.py |
-| 2.7.2 | ch02_fub_blocks/07_beats_latency_bridge.md | TODO | test_beats_latency_bridge.py |
-| 3.3.3 | ch03_macro_blocks/03_sink_data_path.md | TODO | test_sink_data_path.py |
+| 1.1.4 | ch01_overview/01_architecture.md | TODO | test_snk_sram_controller_beats.py |
+| 1.3.1 | ch01_overview/03_clocks_and_reset.md | TODO | test_scheduler_beats.py |
+| 2.1.3 | ch02_fub_blocks/01_scheduler.md | TODO | test_scheduler_beats.py |
+| 2.2.3 | ch02_fub_blocks/02_descriptor_engine.md | TODO | test_descriptor_engine_beats.py |
+| 2.3.2 | ch02_fub_blocks/03_axi_read_engine.md | TODO | test_src_sram_controller_beats.py |
+| 2.4.2 | ch02_fub_blocks/04_axi_write_engine.md | TODO | test_snk_sram_controller_beats.py |
+| 2.5.2 | ch02_fub_blocks/05_beats_alloc_ctrl.md | TODO | test_alloc_ctrl_beats.py |
+| 2.6.2 | ch02_fub_blocks/06_beats_drain_ctrl.md | TODO | test_drain_ctrl_beats.py |
+| 2.7.2 | ch02_fub_blocks/07_beats_latency_bridge.md | TODO | test_latency_bridge_beats.py |
+| 3.3.3 | ch03_macro_blocks/03_sink_data_path.md | TODO | test_snk_sram_controller_beats.py |
 
 : Waveform Progress Tracking
 

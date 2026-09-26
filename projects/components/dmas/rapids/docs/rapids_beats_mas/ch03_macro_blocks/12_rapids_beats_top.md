@@ -42,7 +42,7 @@ and interrupt).
 
 ## Integration Datapath
 
-### Figure 3.14.1: RAPIDS Beats Top Integration
+### Figure 3.12.1: RAPIDS Beats Top Integration
 
 ```
    s_apb_* (APB4 slave)
@@ -88,7 +88,7 @@ and interrupt).
 | 0x100-0x3FF | `rapids_regs` (base) | Configuration / status registers |
 | 0x1000+ | `rapids_regs` (MON regfile) | Monitor configuration / performance |
 
-: Table 3.14.1: Top-Level Address Decode
+: Table 3.12.1: Top-Level Address Decode
 
 Because the monitor regfile is at `0x1000`, the APB address bus must be at least
 13 bits wide (`APB_ADDR_WIDTH >= 13`) to reach it.
@@ -133,7 +133,7 @@ parameter int AR_MAX_OUTSTANDING  = 8;
 parameter int AW_MAX_OUTSTANDING  = 8;
 ```
 
-: Table 3.14.2: RAPIDS Beats Top Parameters
+: Table 3.12.2: RAPIDS Beats Top Parameters
 
 ---
 
@@ -154,7 +154,7 @@ parameter int AW_MAX_OUTSTANDING  = 8;
 | MonBus config | `cfg_mon_base_addr`, `cfg_mon_limit_addr`, `cfg_mon_flush_watermark` | Capture region + flush watermark |
 | Status | `system_idle`, `sched_error[NC-1:0]` | Aggregate status |
 
-: Table 3.14.3: Top-Level Interfaces
+: Table 3.12.3: Top-Level Interfaces
 
 ---
 

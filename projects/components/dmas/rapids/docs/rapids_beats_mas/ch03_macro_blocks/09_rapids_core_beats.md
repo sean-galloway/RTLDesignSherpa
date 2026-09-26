@@ -43,7 +43,7 @@ The RAPIDS Core Beats module is the top-level integration of the "beats" archite
 
 ### Block Diagram
 
-### Figure 3.11.1: RAPIDS Core Beats Block Diagram
+### Figure 3.9.1: RAPIDS Core Beats Block Diagram
 
 ```
                          rapids_core_beats
@@ -105,7 +105,7 @@ parameter int MON_UNIT_ID = 1;
 parameter bit ENABLE_AXIS_WRAPPERS = 0;          // Use AXIS interfaces
 ```
 
-: Table 3.11.1: RAPIDS Core Beats Parameters
+: Table 3.9.1: RAPIDS Core Beats Parameters
 
 ---
 
@@ -118,7 +118,7 @@ parameter bit ENABLE_AXIS_WRAPPERS = 0;          // Use AXIS interfaces
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low reset |
 
-: Table 3.11.2: Clock and Reset
+: Table 3.9.2: Clock and Reset
 
 ### Per-Channel APB Programming
 
@@ -134,7 +134,7 @@ shared `apb_*` port.
 | `snk_apb_ready` | output | NC | Sink ready for kick-off |
 | `snk_apb_addr` | input | NC x AW | Sink first descriptor address |
 
-: Table 3.11.3: APB Programming Interface
+: Table 3.9.3: APB Programming Interface
 
 ### Per-Channel Configuration
 
@@ -155,7 +155,7 @@ monitor masks). The scheduler-facing ones are:
 | `cfg_alloc_size` | input | 8 | Beats allocated per sink fill request |
 | `cfg_drain_size` | input | 8 | Beats drained per source AXIS packet |
 
-: Table 3.11.4: Per-Channel Configuration
+: Table 3.9.4: Per-Channel Configuration
 
 `*_cfg_sched_timeout_limit` is passed straight through to the
 `scheduler_group_array_beats` instance (recoverable-timeout escalation, see the
@@ -185,7 +185,7 @@ read-only, 256-bit.
 | `src_m_axi_desc_rlast` / `snk_m_axi_desc_rlast` | input | 1 | R last |
 | `src_m_axi_desc_rid` / `snk_m_axi_desc_rid` | input | IW | R id |
 
-: Table 3.11.5: Descriptor AXI Master Interfaces (src and snk)
+: Table 3.9.5: Descriptor AXI Master Interfaces (src and snk)
 
 The AR sideband (`arlock`, `arcache`, `arprot`, `arqos`, `arregion`) is present
 on both masters and driven to AXI defaults.
@@ -211,7 +211,7 @@ on both masters and driven to AXI defaults.
 | `m_axi_wr_bid` | input | IW | B id (routes the commit to a channel) |
 | `m_axi_wr_bresp` | input | 2 | Write response |
 
-: Table 3.11.6: Sink AXI Write Master Interface
+: Table 3.9.6: Sink AXI Write Master Interface
 
 The AW sideband (`awlock`, `awcache`, `awprot`, `awqos`, `awregion`) is present
 and driven to AXI defaults. 21 ports in total.
@@ -234,7 +234,7 @@ and driven to AXI defaults. 21 ports in total.
 | `m_axi_rd_rresp` | input | 2 | Read response |
 | `m_axi_rd_rlast` | input | 1 | Last beat |
 
-: Table 3.11.7: Source AXI Read Master Interface
+: Table 3.9.7: Source AXI Read Master Interface
 
 ### Sink Ingress -- AXIS Slave
 
@@ -253,7 +253,7 @@ The sink takes network traffic on a standard AXI-Stream slave port. There is no
 | `s_axis_tdest` | input | AXIS_DEST_WIDTH | Destination |
 | `s_axis_tuser` | input | AXIS_USER_WIDTH | User sideband |
 
-: Table 3.11.8: Sink Ingress AXIS Slave
+: Table 3.9.8: Sink Ingress AXIS Slave
 
 ### Source Egress -- AXIS Master
 
@@ -271,7 +271,7 @@ internal to `src_data_path_axis_beats`.
 | `m_axis_tdest` | output | AXIS_DEST_WIDTH | Destination |
 | `m_axis_tuser` | output | AXIS_USER_WIDTH | User sideband |
 
-: Table 3.11.9: Source Egress AXIS Master
+: Table 3.9.9: Source Egress AXIS Master
 
 ### Unified MonBus Interface
 
@@ -284,7 +284,7 @@ One packet port, carrying a struct rather than a flat 64-bit bus.
 | `mon_packet` | output | `monitor_common_pkg::monitor_packet_t` | Packet payload |
 | `mon_timestamp` | output | `monitor_common_pkg::monbus_timestamp_t` | Packet timestamp |
 
-: Table 3.11.10: Unified MonBus Interface
+: Table 3.9.10: Unified MonBus Interface
 
 ### Aggregate Status
 
@@ -300,13 +300,13 @@ Status is reported per half. There is no `all_channels_idle`, `sink_idle`,
 | `src_descriptor_engine_idle` / `snk_descriptor_engine_idle` | output | NC | Per-channel descriptor engine idle |
 | `src_sched_error` / `snk_sched_error` | output | NC | Per-channel sticky scheduler error |
 
-: Table 3.11.11: Aggregate Status
+: Table 3.9.11: Aggregate Status
 
 ---
 
 ## Data Flow
 
-### Figure 3.11.2: RAPIDS Core Complete Data Flow
+### Figure 3.9.2: RAPIDS Core Complete Data Flow
 
 ```
                     SOFTWARE
@@ -356,7 +356,7 @@ The unified MonBus output aggregates sources from all subsystems:
 | 32 | AXI Write Engine | Write completions |
 | 33 | AXI Read Engine | Read completions |
 
-: Table 3.11.12: MonBus Source Assignment
+: Table 3.9.12: MonBus Source Assignment
 
 ---
 
@@ -457,8 +457,8 @@ rapids_core_beats #(
 configuration mapping, and top-level integration (APB slave, descriptor
 kick-off, AXI monitors, and the MonBus AXI-Lite group) are provided by the
 `rapids_regs`, `rapids_config_block`, and `rapids_beats_top` modules -- see
-[RAPIDS Registers](12_rapids_regs.md), [RAPIDS Config Block](13_rapids_config_block.md),
-and [RAPIDS Beats Top](14_rapids_beats_top.md).
+[RAPIDS Registers](10_rapids_regs.md), [RAPIDS Config Block](11_rapids_config_block.md),
+and [RAPIDS Beats Top](12_rapids_beats_top.md).
 
 ---
 

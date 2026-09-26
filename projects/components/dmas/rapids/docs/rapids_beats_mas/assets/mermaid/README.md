@@ -40,7 +40,7 @@ done
 | `01_rapids_beats_architecture.mmd` | Top-level architecture | ch01_overview/01_architecture.md |
 | `02_scheduler_fsm.mmd` | Scheduler state machine | ch02_fub_blocks/01_scheduler.md |
 | `03_sink_data_path_block.mmd` | Sink path block diagram | ch03_macro_blocks/03_sink_data_path.md |
-| `04_source_data_path_block.mmd` | Source path block diagram | ch03_macro_blocks/07_source_data_path.md |
+| `04_source_data_path_block.mmd` | Source path block diagram | ch03_macro_blocks/06_source_data_path.md |
 | `05_virtual_fifo_concept.mmd` | Virtual FIFO explanation | ch02_fub_blocks/05_beats_alloc_ctrl.md |
 | `06_monbus_aggregation.mmd` | MonBus aggregation tree | ch04_interfaces/03_monbus_interface_spec.md |
 

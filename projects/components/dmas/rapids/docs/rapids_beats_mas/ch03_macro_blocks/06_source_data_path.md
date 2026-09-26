@@ -43,7 +43,7 @@ The Source Data Path integrates the AXI read engine and SRAM controller for memo
 
 ### Block Diagram
 
-### Figure 3.7.1: Source Data Path Block Diagram
+### Figure 3.6.1: Source Data Path Block Diagram
 
 ```
                         source_data_path
@@ -89,13 +89,13 @@ parameter int AR_MAX_OUTSTANDING = 8;
 parameter int R_PHASE_FIFO_DEPTH = 64;
 ```
 
-: Table 3.7.1: Source Data Path Parameters
+: Table 3.6.1: Source Data Path Parameters
 
 ---
 
 ## Data Flow
 
-### Figure 3.7.2: Source Path Data Flow Sequence
+### Figure 3.6.2: Source Path Data Flow Sequence
 
 ```
 1. Scheduler Read Request
@@ -147,7 +147,15 @@ parameter int R_PHASE_FIFO_DEPTH = 64;
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low reset |
 
-: Table 3.7.2: Clock and Reset
+: Table 3.6.2: Clock and Reset
+
+### Configuration
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `cfg_axi_rd_xfer_beats` | input | 8 | AXI read transfer size in beats (all channels) |
+
+: Table 3.6.3: Configuration
 
 ### Scheduler Interface
 
@@ -160,7 +168,7 @@ parameter int R_PHASE_FIFO_DEPTH = 64;
 | `sched_rd_beats_done` | output | NC x 32 | Beats completed in burst |
 | `sched_rd_error` | output | NC | Sticky error flag per channel |
 
-: Table 3.7.3: Scheduler Interface
+: Table 3.6.4: Scheduler Interface
 
 ### AXI Read Master Interface
 
@@ -180,7 +188,7 @@ parameter int R_PHASE_FIFO_DEPTH = 64;
 | `m_axi_rid` | input | ID_W | Response ID |
 | `m_axi_rlast` | input | 1 | Last beat |
 
-: Table 3.7.4: AXI Read Master Interface
+: Table 3.6.5: AXI Read Master Interface
 
 ### Drain Interface (Output to Network)
 
@@ -190,17 +198,18 @@ parameter int R_PHASE_FIFO_DEPTH = 64;
 | `drain_req` | input | NC | Drain reservation request per channel |
 | `drain_size` | input | NC x 8 | Beats to reserve |
 | `drain_valid` | output | NC | Drain data valid per channel |
+| `drain_valid_comb` | output | NC | Combinational per-channel valid (beat gate) |
 | `drain_read` | input | 1 | Consumer read strobe |
 | `drain_id` | input | CIW | Channel ID select for drain |
 | `drain_data` | output | DW | Drain data (muxed from selected channel) |
 
-: Table 3.7.5: Drain Interface
+: Table 3.6.6: Drain Interface
 
 ---
 
 ## Timing Diagram
 
-### Figure 3.7.3: Source Path Transfer Timing
+### Figure 3.6.3: Source Path Transfer Timing
 
 ```
               ____    ____    ____    ____    ____    ____    ____

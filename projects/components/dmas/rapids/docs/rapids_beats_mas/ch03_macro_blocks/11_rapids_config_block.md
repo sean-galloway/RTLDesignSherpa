@@ -66,7 +66,7 @@ Three parallel groups map to the descriptor, read, and write AXI monitors:
 | `MON.RDMON_*`  | `cfg_rdeng_mon_*` (read monitor) |
 | `MON.WRMON_*`  | `cfg_wreng_mon_*` (write monitor) |
 
-: Table 3.13.1: Monitor Register-to-Config Mapping
+: Table 3.11.1: Monitor Register-to-Config Mapping
 
 Within each group the enable/timeout/latency/mask fields map 1:1, e.g.
 `cfg_desc_mon_enable = MON.DAXMON_ENABLE.MON_EN & GLOBAL_CTRL.GLOBAL_EN`,
