@@ -295,6 +295,42 @@ not tested by the 30 fixtures that pass, it is merely not exercised by them.
 When adding a protocol value, add the fixture in the same commit and let the
 `--bulk` regeneration, the lint sweep and the gate run be the proof.
 
+## A config outside the batch is an ungated config
+
+The inverse of the dead-branch rule. A generator's own fixtures are its
+regression, but the configs that MATTER live with their consumers:
+`projects/fpga-systems/Genesys2/stream/rtl/bridges/configs/`,
+`projects/fpga-systems/NexysA7/pumice/.../rtl/bridges/configs/`. Nothing in
+the generator's `make test` reads them, and a board flow regenerates only
+the bridge it builds. So a validator rule can land and silently break a
+consumer config that no build touches.
+
+That is what happened to `bridge_stream_char_axil.toml`. BRIDGE-014 added
+"an AXI-Lite MASTER has `id_width = 0`" on 2026-09-11 (`9baaa9d65`); the mon
+config was fixed on the 19th (`d83c33971`) because a bitstream build tripped
+over it; the char config, which no build regenerates, kept `id_width = 8`
+on two AXI-Lite masters. For two weeks every agent that ran the generator
+on it got a `ValidationError` and concluded the generator was broken --
+including one who attributed it to a bridge-wide change from the day before.
+Running the generator on the same config at two commits before that change
+showed the identical error, which is the whole diagnosis: a failing config
+has a HISTORY, and `git log` on the config against `git log` on the
+validator says which one moved. Do that before believing "you broke it".
+
+The rule: every hand-written bridge config in the repo must load and
+validate against the generator in the repo, and the check must live in the
+generator's own suite so a validator change runs it.
+`projects/components/bridge/bin/tests/test_generator_pkg.py::test_every_consumer_config_loads_and_validates`
+globs `projects/fpga-systems/**/rtl/bridges/configs/*.toml` plus the
+`test_configs/` fixtures the batch does not reference, and a companion test
+asserts the glob actually reached both board areas (an empty glob passes
+forever). Mutation-checked against the HEAD config on the day it was added:
+it rejects it with the same message the agents saw.
+
+A generator config is a source file with a compiler. When the compiler
+changes, every source it accepts must still compile, not just the ones in
+the compiler's own test directory.
+
 ## A generated bridge is an address decode, not an N:1 merge
 
 *Naming warning up front, because it misled the first write-up of this note:*

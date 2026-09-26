@@ -87,6 +87,64 @@ def test_every_batch_config_loads_and_validates(name, ports, conn):
 
 
 # ---------------------------------------------------------------------
+# Positive coverage -- every CONSUMER config in the repo, not just the
+# batch. bridge_stream_char_axil.toml (Genesys 2) carried id_width=8 on
+# two AXI-Lite masters from 2026-09-11, when BRIDGE-014 added the rule
+# forbidding it, until 2026-09-26. Nothing exercised the file: the batch
+# test above only sees bridge_batch.csv, and the board flow regenerates
+# only the bridge it builds. Every agent that tried it in those two weeks
+# concluded the generator was broken. A config that lives in the repo
+# must load and validate against the generator that lives in the repo.
+# ---------------------------------------------------------------------
+
+
+def _consumer_configs():
+    """(id, toml, csv-or-None) for every hand-written bridge config.
+
+    Covers projects/fpga-systems/**/rtl/bridges/configs/ and the
+    test_configs/ fixtures the batch does not reference. Generated
+    copies (under a generated/ directory) and the deliberately illegal
+    fixtures are excluded. The CSV is optional: a TOML may carry an
+    inline [connectivity] table instead (bridge_2x2_simple.toml does).
+    """
+    in_batch = {r[1] for r in _batch_rows()}
+    found = []
+    for t in sorted(REPO_ROOT.glob(
+            "projects/fpga-systems/**/rtl/bridges/configs/*.toml")):
+        if "generated" in t.parts or t.name.endswith("_connectivity.toml"):
+            continue
+        found.append(t)
+    for t in sorted((BIN_DIR / "test_configs").glob("*.toml")):
+        rel = t.relative_to(BIN_DIR).as_posix()
+        if rel in in_batch or t.name.startswith("test_illegal_"):
+            continue
+        found.append(t)
+    rows = []
+    for t in found:
+        csv_path = t.with_name(t.stem + "_connectivity.csv")
+        rows.append((t.relative_to(REPO_ROOT).as_posix(), str(t),
+                     str(csv_path) if csv_path.exists() else None))
+    return rows
+
+
+@pytest.mark.parametrize("rel,ports,conn",
+                         _consumer_configs(),
+                         ids=[Path(r[0]).stem for r in _consumer_configs()])
+def test_every_consumer_config_loads_and_validates(rel, ports, conn):
+    cfg = load_config(ports, conn)
+    assert cfg.masters, f"{rel}: no masters parsed"
+    assert cfg.slaves, f"{rel}: no slaves parsed"
+
+
+def test_consumer_config_sweep_found_the_board_configs():
+    # The sweep above is only a gate if it actually reaches the board
+    # areas; an empty glob would pass forever.
+    rels = {r[0] for r in _consumer_configs()}
+    assert any("Genesys2/stream" in r for r in rels), sorted(rels)
+    assert any("NexysA7" in r for r in rels), sorted(rels)
+
+
+# ---------------------------------------------------------------------
 # Golden generation smoke
 # ---------------------------------------------------------------------
 

@@ -87,7 +87,10 @@ module monbus_wr_adapter
 
     // ================================================================
     // Internal signals after wrapper (timing isolation)
-    // Note: ID width matches external (8-bit)
+    // Note: 8-bit ID placeholder. This port is AXI4-Lite and
+    // has no external ID; the width matches the crossbar's struct
+    // field so every connection to it is width-exact. The value is
+    // tied to zero end to end.
     // ================================================================
     logic [7:0]   fub_axi_awid;
     logic [31:0]  fub_axi_awaddr;

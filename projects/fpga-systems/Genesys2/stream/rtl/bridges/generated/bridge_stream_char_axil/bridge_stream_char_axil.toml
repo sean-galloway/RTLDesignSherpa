@@ -70,14 +70,15 @@ name        = "host"
 prefix      = "host_axi_"
 protocol    = "axil"
 channels    = "rw"
-# id_width=8 across the bridge so master-side and slave-side ID widths
-# match end-to-end with STREAM's native 8-bit AXI_ID_WIDTH. ASIC-style
-# convention: every non-APB port uses the same 8-bit id field, so the
-# bridge's xbar id-routing and STREAM's per-channel id-routing
-# (CHANNEL_ID at low CHAN_WIDTH bits) never have to truncate or alias.
-# AXIL has no transaction IDs in its protocol; the host port ties its
-# 8 id bits to 0 at the wiring boundary.
-id_width    = 8
+# id_width MUST be 0 on an AXI-Lite MASTER (config_validator, BRIDGE-014,
+# 2026-09-11): a Lite requester has no boundary ID ports, so a non-zero
+# width here sizes ports that do not exist. The adapter's internal face
+# uses a placeholder sized by the bridge (fub_id_width) and the fabric
+# prepends the master index, so the slave-side widths below (8 on the
+# AXI-Lite slaves, 10 on desc_ram) are unaffected. This file carried
+# id_width = 8 from before the rule landed and stopped generating that
+# day; d83c33971 fixed bridge_stream_mon_axil.toml the same way.
+id_width    = 0
 addr_width  = 32
 data_width  = 32
 user_width  = 0
@@ -110,7 +111,7 @@ name        = "monbus_wr"
 prefix      = "monbus_wr_"
 protocol    = "axil"
 channels    = "wr"
-id_width    = 8
+id_width    = 0       # AXI-Lite master: no ID ports (see host above)
 addr_width  = 32
 data_width  = 64
 user_width  = 0

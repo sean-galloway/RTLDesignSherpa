@@ -47,10 +47,11 @@ import stream_levels  # noqa: E402
 
 
 CFG_PREFIXES = ['host_0_rd', 'host_0_wr', 'stream_desc_1_rd', 'monbus_wr_2_wr', 'obs_apb_0_rd', 'obs_apb_0_wr', 'slvmon_apb_1_rd', 'slvmon_apb_1_wr', 'stream_apb_2_rd', 'stream_apb_2_wr', 'harness_csr_3_rd', 'harness_csr_3_wr', 'desc_ram_4_rd', 'desc_ram_4_wr', 'stream_err_5_rd', 'stream_err_5_wr', 'stream_tally_6_rd', 'stream_tally_6_wr', 'dma_axil_7_rd', 'dma_axil_7_wr', 'slave_err_8_rd', 'slave_err_8_wr', 'slave_tally_9_rd', 'slave_tally_9_wr', 'comp_sram_10_rd', 'comp_sram_10_wr', 'stream_tally_cfg_11_rd', 'stream_tally_cfg_11_wr', 'slave_tally_cfg_12_rd', 'slave_tally_cfg_12_wr']
-BLOCK_READY_PATH = "u_host_adapter.u_timing_wrapper_rd"
+BLOCK_READY_PATH = ""   # _monlite wrappers have no block_ready (drop-and-count)
 REACHABLE_SLAVES = [4]
 HAS_COMPL = True
-IS_REGBLOCK = False
+IS_REGBLOCK = True   # use_cfg_regblock = true: no cfg_* pins, cfg via s_cfg_axil_*
+CFG_REGMAP = "projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil_mon/bridge_stream_mon_axil_mon_cfg_regmap.py"      # by-name register map of the cfg regblock
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -64,6 +65,7 @@ async def cocotb_test_bridge_stream_mon_axil_mon_monitor(dut):
         reachable_slaves=REACHABLE_SLAVES,
         has_compl=HAS_COMPL,
         is_regblock=IS_REGBLOCK,
+        cfg_regmap=CFG_REGMAP,
         # gate/func/full. stress_count() -- the helper's own default -- is 256
         # at both gate and func and only rises at FULL, so a smoke run paid the
         # full 256-read stress. Pass n explicitly instead of changing

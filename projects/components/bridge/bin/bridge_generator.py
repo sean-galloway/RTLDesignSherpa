@@ -451,10 +451,16 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
                 repo_root_abs = Path(get_repo_root_for_path(bridge_dir_abs))
                 filelist_abs = bridge_dir_abs.parent.parent / 'filelists' / f'{bridge_name}.f'
                 filelist_path = str(filelist_abs.relative_to(repo_root_abs))
+                cfg_regmap_path = str((bridge_dir_abs / f'{bridge_name}_cfg_regmap.py')
+                                      .relative_to(repo_root_abs))
             except (ValueError, RuntimeError):
                 filelist_path = f'projects/components/bridge/rtl/filelists/{bridge_name}.f'
+                cfg_regmap_path = (f'projects/components/bridge/rtl/generated/{bridge_name}/'
+                                   f'{bridge_name}_cfg_regmap.py')
         else:
             filelist_path = f'projects/components/bridge/rtl/filelists/{bridge_name}.f'
+            cfg_regmap_path = (f'projects/components/bridge/rtl/generated/{bridge_name}/'
+                               f'{bridge_name}_cfg_regmap.py')
 
         # Per-port cfg prefixes, matching the RTL cfg_<port>_<idx>_<chan>_ naming
         # (masters and slaves index independently).
@@ -514,7 +520,14 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
         except Exception:
             has_compl = True
 
-        is_regblock = 'regblock' in bridge_name
+        # The regblock is a property of the CONFIG (use_cfg_regblock), not of
+        # the name. This used to sniff 'regblock' in bridge_name, which is
+        # true of exactly one batch fixture and of no consumer bridge: the
+        # Genesys 2 stream bridges (use_cfg_regblock = true, no cfg_* pins,
+        # s_cfg_axil_* on the top) were handed IS_REGBLOCK = False and a
+        # pin-driven stress flow whose cfg helpers no-op against pins that
+        # do not exist -- a test that passes while programming nothing.
+        is_regblock = bool(getattr(config, 'use_cfg_regblock', False))
         # The regblock variant narrows the bridge top's 32-bit s_cfg_axil_*addr
         # into the PeakRDL regblock's 8-bit s_axil_*addr (benign truncation) and
         # has benign multidriven cfg fan-out; silence those for that variant.
@@ -549,8 +562,7 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
             'is_regblock': is_regblock,
             # The by-name register map the cfg_rdl_generator emits beside the
             # regblock; the stress flow resolves MON_GROUP_* through it.
-            'cfg_regmap': (f"projects/components/bridge/rtl/generated/{bridge_name}/"
-                           f"{bridge_name}_cfg_regmap.py" if is_regblock else ""),
+            'cfg_regmap': cfg_regmap_path if is_regblock else "",
             'extra_no_warn': extra_no_warn,
         }
 
