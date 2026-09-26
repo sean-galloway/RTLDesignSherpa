@@ -13,7 +13,7 @@ is `git mv`, so an item is in exactly one state by construction.
 
 | Lane | For | Open | Active | Closed | Dropped |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | 2 | 0 | 5 | 0 |
+| [task/](task/INDEX.md) | planned work we decided to do | 7 | 0 | 5 | 0 |
 | [bug/](bug/INDEX.md) | a defect with a reproduction | 1 | 0 | 2 | 0 |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 2 | 0 | 1 | 0 |
 

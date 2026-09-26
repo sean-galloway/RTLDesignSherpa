@@ -2,7 +2,7 @@
 
 # projects/components/dmas/rapids — tasks
 
-**Next ID: TASK-007** — never recycle a number, even when its item closed.
+**Next ID: TASK-012** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 7 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -21,6 +21,11 @@ by construction rather than by discipline.
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
 - **TASK-003** — scrub the tests for completeness (rapids)
+- **TASK-007** — the MAS/HAS trees and index table describe the pre-wrapper SRAM architecture
+- **TASK-008** — ch01_overview/02_port_list.md documents 86 of 300 ports, mis-structured
+- **TASK-009** — 07_beats_latency_bridge.md documents the wrong CONCEPT
+- **TASK-010** — 26 ASCII placeholder figures name dead signals; 2 figures have no test to capture from
+- **TASK-011** — 15 rapids .sv files carry a `// Module:` header that contradicts their own filename
 
 ## Closed
 

@@ -13,7 +13,7 @@ Pick the lane before filing:
 |---|---|---|
 | [task/](task/INDEX.md) | planned work we decided to do | `TASK-001` |
 | [bug/](bug/INDEX.md) | a defect with a reproduction | `BUG-001` |
-| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | `ISSUE-001` |
+| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | `ISSUE-002` |
 
 **The pages at this level are the LEGACY task lane.** They are frozen: close
 them out where they stand, and do not add to them. New work of any kind goes in
