@@ -24,7 +24,6 @@ user_width = 1
 channels = "rd"
 protocol = "axi5"
 axi5_features = ["nsaid", "trace", "unique"]
-mon_add = ["compl"]
 
 [[bridge.slaves]]
 name = "ddr_rd"  # stays AXI4: the sideband drop path
@@ -34,7 +33,6 @@ addr_width = 32
 data_width = 32
 user_width = 1
 channels = "rd"
-mon_add = ["compl"]
 base_addr = "0x00000000"
 addr_range = "0x80000000"
 
@@ -48,6 +46,5 @@ user_width = 1
 channels = "rd"
 protocol = "axi5"
 axi5_features = ["nsaid", "trace", "unique"]
-mon_add = ["compl"]
 base_addr = "0x80000000"
 addr_range = "0x80000000"

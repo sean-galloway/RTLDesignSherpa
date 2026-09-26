@@ -23,7 +23,6 @@ user_width = 1
 channels = "wr"
 protocol = "axi5"
 axi5_features = ["trace", "atomic"]
-mon_add = ["compl"]
 
 [[bridge.slaves]]
 name = "ddr_wr"
@@ -35,7 +34,6 @@ user_width = 1
 channels = "wr"
 protocol = "axi5"
 axi5_features = ["trace", "atomic"]
-mon_add = ["compl"]
 base_addr = "0x00000000"
 addr_range = "0x80000000"
 
@@ -49,6 +47,5 @@ user_width = 1
 channels = "wr"
 protocol = "axi5"
 axi5_features = ["atomic"]
-mon_add = ["compl"]
 base_addr = "0x80000000"
 addr_range = "0x80000000"

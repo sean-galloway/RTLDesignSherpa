@@ -3,18 +3,20 @@
 #==============================================================================
 #
 # 2 masters (1 axi4 + 1 axil) → 3 slaves (1 axi4 + 1 axil + 1 apb).
-# Preset disables every cone. The bridge starts as a "monitor surface only"
 # (monbus arbitration/AXIL group still emitted), then specific ports opt
-# back in via `mon_add`. This is the area-absolute-minimum starting point
 # for a board that doesn't need observability at all but wants the option
 # to enable individual ports later via regen.
 #==============================================================================
 
 [bridge]
 name = "bridge_mix_d"
-description = "mixed axi4/axil masters → axi4/axil/apb slaves, mon_preset=none + selective add"
+description = "mixed axi4/axil masters → axi4/axil/apb slaves + selective add"
 variants = ["no", "mon"]
-mon_preset = "none"
+# Monitors: every monitored port builds axi_monitor_lite through the _monlite
+# wrapper (2026-09-26). The cone presets and per-port mon_add/mon_remove this
+# file once carried no longer select hardware; which packets a port emits is
+# the runtime cfg_*_enable pins. use_monitor = false removes a port's monitor.
+mon_preset = "lite"
 
 [bridge.clock]
 name = "aclk"
@@ -32,9 +34,7 @@ id_width  = 4
 addr_width = 32
 data_width = 64
 user_width = 1
-mon_add   = ["error"]
 
-# Trace AXIL — fully silent (no cones enabled). Reports nothing on monbus.
 [[bridge.masters]]
 name      = "trace_axil"
 prefix    = "trace_axil_"
@@ -47,7 +47,6 @@ user_width = 1
 
 # ---------------------------------------------------------------- slaves ----
 
-# DDR — full observability (every cone).
 [[bridge.slaves]]
 name      = "ddr"
 prefix    = "ddr_s_axi_"
@@ -59,7 +58,6 @@ data_width = 64
 user_width = 1
 base_addr  = "0x00000000"
 addr_range = "0x40000000"
-mon_add    = ["error", "compl", "timeout", "threshold", "perf"]
 
 # AXIL doorbell — silent.
 [[bridge.slaves]]
@@ -86,4 +84,3 @@ data_width = 32
 user_width = 0
 base_addr  = "0x40001000"
 addr_range = "0x00010000"
-mon_add    = ["error", "timeout"]

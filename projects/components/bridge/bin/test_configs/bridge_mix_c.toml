@@ -1,19 +1,20 @@
 #==============================================================================
-# bridge_mix_c.toml — mixed-protocol bridge, "all" preset + per-port mon_remove
 #==============================================================================
 #
 # 2 masters (1 axi4 + 1 axil) → 3 slaves (1 axi4 + 1 axil + 1 apb).
 # Bridge preset turns ON every reporter sub-block at every port (worst-case
-# area; useful for early bring-up). Two ports then opt OUT specific cones
-# via `mon_remove`, exercising the subtractive path through
 # PortSpec.get_mon_enables().
 #==============================================================================
 
 [bridge]
 name = "bridge_mix_c"
-description = "mixed axi4/axil masters → axi4/axil/apb slaves, mon_preset=all + mon_remove"
+description = "mixed axi4/axil masters → axi4/axil/apb slaves"
 variants = ["no", "mon"]
-mon_preset = "all"
+# Monitors: every monitored port builds axi_monitor_lite through the _monlite
+# wrapper (2026-09-26). The cone presets and per-port mon_add/mon_remove this
+# file once carried no longer select hardware; which packets a port emits is
+# the runtime cfg_*_enable pins. use_monitor = false removes a port's monitor.
+mon_preset = "lite"
 
 [bridge.clock]
 name = "aclk"
@@ -42,7 +43,6 @@ id_width  = 0
 addr_width = 32
 data_width = 32
 user_width = 1
-mon_remove = ["perf", "threshold"]
 
 # ---------------------------------------------------------------- slaves ----
 
@@ -59,7 +59,6 @@ user_width = 1
 base_addr  = "0x00000000"
 addr_range = "0x40000000"
 
-# AXIL config registers — drop the heavy cones (perf + threshold + timeout).
 [[bridge.slaves]]
 name      = "cfg_regs"
 prefix    = "cfg_regs_"
@@ -71,7 +70,6 @@ data_width = 32
 user_width = 1
 base_addr  = "0x40000000"
 addr_range = "0x00010000"
-mon_remove = ["perf", "threshold", "timeout"]
 
 # APB peripheral — keep everything (small block, area cost is tiny).
 [[bridge.slaves]]

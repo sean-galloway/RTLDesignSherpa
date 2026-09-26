@@ -20,7 +20,6 @@ addr_width = 32
 data_width = 32
 user_width = 1
 channels = "rw"
-mon_add = ["compl"]
 
 [[bridge.slaves]]
 name = "sram"
@@ -30,7 +29,6 @@ addr_width = 32
 data_width = 32
 user_width = 1
 channels = "rw"
-mon_add = ["compl"]
 base_addr = "0x00000000"
 addr_range = "0x80000000"
 
@@ -43,6 +41,5 @@ id_width = 0  # APB has no transaction IDs
 addr_width = 32
 data_width = 32
 user_width = 0
-mon_add = ["compl"]
 base_addr = "0x80000000"
 addr_range = "0x00010000"  # 64KB

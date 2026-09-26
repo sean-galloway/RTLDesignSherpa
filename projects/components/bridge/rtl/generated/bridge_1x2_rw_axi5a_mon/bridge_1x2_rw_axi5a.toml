@@ -24,7 +24,6 @@ user_width = 1
 channels = "rw"
 protocol = "axi5"
 axi5_features = ["trace", "atomic"]
-mon_add = ["compl"]
 
 [[bridge.slaves]]
 name = "ddr"
@@ -36,7 +35,6 @@ user_width = 1
 channels = "rw"
 protocol = "axi5"
 axi5_features = ["trace", "atomic"]
-mon_add = ["compl"]
 base_addr = "0x00000000"
 addr_range = "0x80000000"
 
@@ -50,7 +48,6 @@ user_width = 1
 channels = "rw"
 protocol = "axi5"
 axi5_features = ["atomic"]
-mon_add = ["compl"]
 base_addr = "0x80000000"
 # Half the upper space, deliberately: 0xC000_0000 and above decodes to the
 # subtractive slave, so the sign-off test can send a read-return atomic to

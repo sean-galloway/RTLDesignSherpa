@@ -282,7 +282,7 @@ class BridgeConfig:
     # port gets "perf", the rest stay error-only).
     #
     # Valid: "all", "error_only", "functional", "none". See MON_PRESETS.
-    mon_preset: str = "error_only"
+    mon_preset: str = "lite"
 
     def num_masters(self) -> int:
         return len(self.masters)

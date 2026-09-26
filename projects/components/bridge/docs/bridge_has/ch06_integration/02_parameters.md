@@ -60,7 +60,7 @@ Every bridge the generator emits starts here: port counts, bus widths, per-port 
 
 | TOML key (`[bridge]`) | Type | Default | Effect |
 |---|---|---|---|
-| `mon_preset` | `"lite"` (also accepted: `"error_only"` / `"functional"` / `"all"` / `"none"`) | `"error_only"` | Accepted for compatibility; since 2026-09-26 every monitored port builds `axi_monitor_lite` through the `*_monlite` wrapper (error, timeout, completion and active-count threshold packets, same monbus, about a fifth of the full monitor's LUTs), so the cone presets no longer select hardware. Which packets a port emits is the runtime `cfg_*_enable` pins. To remove a monitor use `use_monitor = false` on the port or `use_no_monitors = true` on the bridge. `mon_add` / `mon_remove` are validated and ignored. |
+| `mon_preset` | `"lite"` (also accepted: `"error_only"` / `"functional"` / `"all"` / `"none"`) | `"lite"` | Accepted for compatibility; since 2026-09-26 every monitored port builds `axi_monitor_lite` through the `*_monlite` wrapper (error, timeout, completion and active-count threshold packets, same monbus, about a fifth of the full monitor's LUTs), so the cone presets no longer select hardware. Which packets a port emits is the runtime `cfg_*_enable` pins. To remove a monitor use `use_monitor = false` on the port or `use_no_monitors = true` on the bridge. `mon_add` / `mon_remove` are validated and ignored. |
 
 : Table 6.8c: Monitor preset
 

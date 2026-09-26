@@ -24,7 +24,6 @@ user_width = 1
 channels = "wr"
 protocol = "axi5"
 axi5_features = ["trace", "poison"]
-mon_add = ["compl"]
 
 [[bridge.slaves]]
 name = "ddr_wr"  # AXI5 with both features: full native path
@@ -36,7 +35,6 @@ user_width = 1
 channels = "wr"
 protocol = "axi5"
 axi5_features = ["trace", "poison"]
-mon_add = ["compl"]
 base_addr = "0x00000000"
 addr_range = "0x80000000"
 
@@ -50,6 +48,5 @@ user_width = 1
 channels = "wr"
 protocol = "axi5"
 axi5_features = ["poison"]
-mon_add = ["compl"]
 base_addr = "0x80000000"
 addr_range = "0x80000000"

@@ -394,7 +394,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
 
     # Bridge-level mon_preset baseline (post-Stage-A.5 / 0.9 monitor).
     from .config import MON_PRESETS
-    mon_preset = bridge_data.get('mon_preset', 'error_only')
+    mon_preset = bridge_data.get('mon_preset', 'lite')   # every monitored port builds the lite (2026-09-26)
     if mon_preset not in MON_PRESETS:
         raise ValueError(
             f"{config_path}: [bridge].mon_preset = {mon_preset!r} is "

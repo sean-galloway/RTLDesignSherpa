@@ -22,7 +22,11 @@ name = "bridge_1x2_rd_regblock"
 variants = ["mon"]
 description = "1x2 read-only bridge exercising PeakRDL regblock cfg path"
 use_cfg_regblock = true
-mon_preset = "all"
+# Monitors: every monitored port builds axi_monitor_lite through the _monlite
+# wrapper (2026-09-26). The cone presets and per-port mon_add/mon_remove this
+# file once carried no longer select hardware; which packets a port emits is
+# the runtime cfg_*_enable pins. use_monitor = false removes a port's monitor.
+mon_preset = "lite"
 
 [[bridge.masters]]
 name = "cpu_rd"
