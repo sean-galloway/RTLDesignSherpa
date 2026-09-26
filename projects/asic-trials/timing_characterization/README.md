@@ -334,7 +334,7 @@ projects/asic-trials/timing_characterization/
 ├── README.md                    <-- this file
 ├── CLAUDE.md                    AI assistance guide
 ├── PRD.md                       Product Requirements
-├── TASKS.md                     Task tracking
+│                                 (task tracking moved to the vault, 2026-09-25)
 ├── assets/                      diagram sources + rendered PNGs
 │   ├── Makefile                 `make` to re-render every *.mmd -> *.png
 │   ├── puppeteer.json           mmdc no-sandbox config
@@ -631,7 +631,7 @@ the workflow is a spreadsheet.
 
 - AI assistance guide: [`CLAUDE.md`](CLAUDE.md)
 - Product requirements: [`PRD.md`](PRD.md)
-- Task tracking: [`TASKS.md`](TASKS.md)
+- Task tracking: [`vault/Tasks/projects/asic-trials/timing_characterization/`](../../../vault/Tasks/projects/asic-trials/timing_characterization/INDEX.md)
 - Per-FUB synthesis recipes: [`rtl/syn/SYNTHESIS_GUIDE.md`](rtl/syn/SYNTHESIS_GUIDE.md)
 - Multi-flow constraint file: [`rtl/syn/char_top.sdc`](rtl/syn/char_top.sdc)
 - Constraint file: [`rtl/syn/char_top.sdc`](rtl/syn/char_top.sdc)

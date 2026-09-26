@@ -83,7 +83,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 ### Other Documentation
 - **README** - Quick start and integration guide (to be created)
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
-- **[TASKS](TASKS.md)** - Current work items (to be created)
+- **[Tasks](../../../vault/Tasks/projects/components/hive/INDEX.md)** - Current work items (migrated to the vault 2026-09-25)
 
 ---
 
@@ -341,7 +341,7 @@ endmodule
 - Chapter 4 (Programming) pending
 - Chapter 5 (Performance) pending
 
-**See:** `TASKS.md` for detailed work items (to be created)
+**See:** `vault/Tasks/projects/components/hive/` for detailed work items
 
 ### 10.2 Roadmap
 
@@ -510,4 +510,4 @@ The shell script will automatically:
 - **Complete Specification:** `docs/hive_spec/hive_index.md`
 - **Quick Start:** `README.md` (to be created)
 - **AI Guidance:** `CLAUDE.md`
-- **Tasks:** `TASKS.md` (to be created)
+- **Tasks:** `vault/Tasks/projects/components/hive/`

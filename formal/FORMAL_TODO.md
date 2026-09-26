@@ -111,13 +111,37 @@ the day they were written (TASK-093).
 
 ### TODO
 
-- [ ] Create formal/stream/Makefile for STREAM proofs
-- [ ] TASK-090: the four axi4 *_mon_cg proofs -- unblocked since the trans-mgr
-      multi-driver fix, still unwritten
-- [ ] TASK-091: apb4/apb5_master_cg fail a wake-latency property; decide the
-      contract before touching the property
-- [ ] TASK-092: fifteen harnesses still pin a DUT input at a constant
-- [ ] TASK-093: the four axi4 *_mon covers have never been reachable
+**Nothing here is open. All five were stale, verified 2026-09-25 (tooling
+TOOL-001).** This list was the reason `formal` sat on the TOOL-001 migration
+checklist; the migration found zero open items, so no `vault/Tasks/formal/` area
+was created. An empty area would be worse than none -- it asserts a backlog that
+does not exist.
+
+- [x] Create formal/stream/Makefile for STREAM proofs -- EXISTS since 2026-09-18
+      (`formal/stream/Makefile`, alongside six proof directories).
+- [x] TASK-090: the four axi4 *_mon_cg proofs -- CLOSED 2026-09-11, all four
+      written, proved and mutation-tested. See `vault/Tasks/amba/closed.md`;
+      `FORMAL_PRIORITY.md` records the same.
+- [x] TASK-091: apb4/apb5_master_cg wake-latency property -- CLOSED 2026-09-11.
+      A HARNESS bug: the property checked one clock too early against two
+      registered stages. The RTL was correct throughout.
+- [x] TASK-092: harnesses pinning a DUT input at a constant -- CLOSED 2026-09-11
+      by fixing SCRIPT ORDER in 25 tasks. The filed premise ("fifteen harnesses
+      pin an input") was partly wrong.
+- [x] TASK-093: the four axi4 *_mon covers never reachable -- CLOSED 2026-09-11,
+      same root cause as TASK-092 (`opt -full` before `setundef` folded sixteen
+      unconnected monitor inputs to constants).
+
+Those four IDs belong to the **amba** area and are closed there; they are cited
+from this file, from the formal harness sources, and from stream BUG-002/003/004.
+Cite them as "amba TASK-090", not bare.
+
+This file STAYS where it is. It is a cited reference document -- eleven vault and
+handbook pages link it by full path -- and its content is measured status,
+findings history and per-area pass lists, not a task list. The `## Measured
+status` table is generated: regenerate with
+`python3 bin/formal_status.py --areas amba cdc common integ_common --markdown`
+and paste; never hand-type it.
 
 **Corrected 2026-09-11:** this list claimed "CI workflow includes formal (make
 formal-common in coverage.yml)". There is no coverage.yml; `.github/workflows/`

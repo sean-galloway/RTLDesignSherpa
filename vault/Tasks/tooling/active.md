@@ -19,16 +19,27 @@ procedure for each so they all come out identical.
 - [ ] stream — dmas/stream/TASKS.md + TODO_RFC_StageE_datapath_perfmon.md
 - [ ] rapids — dmas/rapids/TASKS.md + docs/rapids_beats_mas/TODO.md
 - [x] bridge — bridge/TASKS.md (DONE -> vault/Tasks/bridge/; source gone)
-- [ ] delta — delta/TASKS.md
-- [ ] hive — hive/TASKS.md
+- [x] delta — DONE 2026-09-25 -> vault/Tasks/projects/components/delta/ (16 items;
+      TASK-001/002 closed on migration -- their acceptance criteria are met in
+      ch02_blocks/ while the ch04_routing/ and ch05_flow_control/ paths they name
+      do not exist; real TASK-000 renumbered TASK-016). File deleted.
+- [x] hive — DONE 2026-09-25 -> vault/Tasks/projects/components/hive/ (25 items, all
+      open but TASK-025; zero .sv, zero tests, only ch01 + ch02/00 written, so every
+      Related Files path is still unwritten). File deleted.
 - [x] retro-legacy — DONE 2026-09-25 -> vault/Tasks/RLB/hpet/ (all six items were
       HPET; TASK-001 closed, TASK-002 filed as BUG-001, the rest as TASK-002..005).
       The rtl/{ioapic,pm_acpi,smbus}/TODO.md files named here no longer exist.
-- [ ] memory-controllers — ddr3-lpddr3 / ddr4-lpddr4 TASKS.md (pumice DONE 2026-07-23 -> vault/Tasks/pumice/)
+- [x] memory-controllers — DONE 2026-09-25 (pumice DONE 2026-07-23 -> vault/Tasks/pumice/).
+      This row contradicted the two [x] entries below it for four days; corrected.
 - [x] nexysa7 — DONE -> vault/Tasks/nexysa7/. NOTE: the timing_characterization
       TASKS.md named here was not migrated with it -- the area moved to
       projects/asic-trials/ and its file is still live (see below).
-- [ ] formal — formal/FORMAL_TODO.md
+- [x] formal — DONE 2026-09-25, and the answer is NO AREA. All five open items were
+      stale: amba TASK-090/091/092/093 closed 2026-09-11 (see vault/Tasks/amba/closed.md)
+      and formal/stream/Makefile has existed since 2026-09-18. Zero open items, so
+      creating vault/Tasks/formal/ would assert a backlog that does not exist. The five
+      boxes were corrected in place; the file STAYS -- eleven vault/handbook pages cite
+      it by full path and its content is measured status + findings history, not tasks.
 - [x] coverage — val/COVERAGE_TODO.md — DONE 2026-08-09: classified against
       the tree (most had landed via the tests.mk/cov_utils consolidation);
       vault/Tasks/coverage/ created with COV-000 (closed, the record) and
@@ -41,8 +52,11 @@ procedure for each so they all come out identical.
 
 **Files this checklist never listed** (found 2026-09-18 by sweeping the tree
 for stray TASKS.md / TODO*.md, which is how the list should have been built):
-- [ ] asic-trials/timing_characterization/TASKS.md — 9 task blocks, live
-      2026-09-08. Formerly under NexysA7; the area moved, the file did not.
+- [x] asic-trials/timing_characterization/TASKS.md — DONE 2026-09-25 ->
+      vault/Tasks/projects/asic-trials/timing_characterization/. It held FOUR task
+      blocks, not the 9 recorded here. TASK-001 filed with its PARTIAL state
+      measured (Vivado sweep + parser + CSV exist under different names; Quartus
+      Tcl and the example config do not). File deleted, referrers repointed.
 - [x] memory-controllers/ddr3-lpddr3/TASKS.md — DONE 2026-09-25 (1 block; it was a
       stub) -> vault/Tasks/memory-controllers/ddr3-lpddr3/
 - [x] memory-controllers/ddr4-lpddr4/TASKS.md — DONE 2026-09-25 ->
