@@ -111,37 +111,37 @@ parameter int TUSER_WIDTH = 1;
 |--------|-----------|-------|-------------|
 | `s_axis_tvalid` | input | 1 | Data valid |
 | `s_axis_tready` | output | 1 | Ready for data |
-| `s_axis_tdata` | input | DATA_WIDTH | Data payload |
-| `s_axis_tkeep` | input | DATA_WIDTH/8 | Byte enables |
+| `s_axis_tdata` | input | DW | Data payload |
+| `s_axis_tstrb` | input | SW | Byte strobes |
 | `s_axis_tlast` | input | 1 | Last beat of packet |
-| `s_axis_tid` | input | TID_WIDTH | Stream ID (channel) |
-| `s_axis_tdest` | input | TDEST_WIDTH | Destination |
-| `s_axis_tuser` | input | TUSER_WIDTH | User sideband |
+| `s_axis_tid` | input | AXIS_ID_WIDTH | Stream ID (channel) |
+| `s_axis_tdest` | input | AXIS_DEST_WIDTH | Destination |
+| `s_axis_tuser` | input | AXIS_USER_WIDTH | User sideband |
 
 : Table 3.4.3: AXI-Stream Slave Interface
 
-### Space Allocation Interface
+### Allocation Configuration
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `snk_alloc_req` | input | 1 | Allocation request |
-| `snk_alloc_size` | input | 16 | Beats to allocate |
-| `snk_alloc_id` | input | 3 | Channel ID |
-| `snk_space_free` | output | NC*16 | Available space per channel |
+| `cfg_alloc_size` | input | 8 | Default allocation size per request (beats) |
 
-: Table 3.4.4: Space Allocation Interface
+: Table 3.4.4: Allocation Configuration
 
 ### Scheduler Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `sched_wr_valid` | input | 1 | Write request |
-| `sched_wr_addr` | input | AW | Destination address |
-| `sched_wr_beats` | input | 32 | Beats to write |
-| `sched_wr_id` | input | 3 | Channel ID |
-| `sched_wr_done_strobe` | output | 1 | Write complete |
-| `sched_wr_beats_done` | output | 32 | Beats completed |
-| `sched_wr_error` | output | 1 | Error flag |
+| `sched_wr_valid` | input | NC | Channel requests write |
+| `sched_wr_ready` | output | NC | Path ready for channel |
+| `sched_wr_addr` | input | NC x AW | Destination addresses |
+| `sched_wr_beats` | input | NC x 32 | Beats remaining to write |
+| `sched_wr_burst_len` | input | NC x 8 | Requested burst length |
+| `sched_wr_done_strobe` | output | NC | Burst ISSUED on AW handshake |
+| `sched_wr_beats_done` | output | NC x 32 | Beats issued in burst |
+| `sched_wr_commit_strobe` | output | NC | Burst COMMITTED on B response |
+| `sched_wr_commit_beats` | output | NC x 32 | Beats committed in burst |
+| `sched_wr_error` | output | NC | Sticky error flag per channel |
 
 : Table 3.4.5: Scheduler Interface
 

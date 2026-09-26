@@ -109,12 +109,11 @@ parameter int LATENCY_BRIDGE_DEPTH = 4;
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `fill_alloc_req` | input | 1 | Allocate space |
-| `fill_alloc_size` | input | 16 | Beats to allocate |
-| `fill_space_free` | output | 16 | Available space |
+| `fill_alloc_size` | input | 8 | Beats to allocate |
+| `fill_space_free` | output | SCW | Available space |
 | `fill_valid` | input | 1 | Fill data valid |
 | `fill_ready` | output | 1 | Ready for fill data |
 | `fill_data` | input | DW | Fill data |
-| `fill_last` | input | 1 | Last beat marker |
 
 : Table 3.10.3: Fill Interface
 
@@ -122,25 +121,23 @@ parameter int LATENCY_BRIDGE_DEPTH = 4;
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `drain_req` | output | 1 | Data available to drain |
-| `drain_gnt` | input | 1 | Drain grant from arbiter |
-| `drain_beats` | output | 16 | Beats available |
+| `drain_data_avail` | output | SCW | Data available to drain |
+| `drain_req` | input | 1 | Drain reservation request |
+| `drain_size` | input | 8 | Beats to reserve |
 | `drain_valid` | output | 1 | Drain data valid |
-| `drain_ready` | input | 1 | Network ready |
+| `drain_ready` | input | 1 | Consumer ready |
 | `drain_data` | output | DW | Drain data |
-| `drain_last` | output | 1 | Last beat marker |
 
 : Table 3.10.4: Drain Interface
 
-### Status
+### Debug Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `data_avail` | output | 16 | Data available count |
-| `empty` | output | 1 | Buffer empty |
-| `full` | output | 1 | Buffer full |
+| `dbg_bridge_pending` | output | 1 | Bridge has a pending beat |
+| `dbg_bridge_out_valid` | output | 1 | Bridge output valid |
 
-: Table 3.10.5: Status Interface
+: Table 3.10.5: Debug Interface
 
 ---
 

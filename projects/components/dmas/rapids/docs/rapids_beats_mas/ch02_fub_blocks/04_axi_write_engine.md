@@ -104,15 +104,16 @@ parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS);
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `sched_wr_valid` | input | 1 | Write request valid |
-| `sched_wr_addr` | input | AW | Destination address |
-| `sched_wr_beats` | input | 32 | Total beats to write |
-| `sched_wr_id` | input | CW | Channel ID |
-| `sched_wr_done_strobe` | output | NC | AW-issue strobe (pulses on AW handshake) |
-| `sched_wr_beats_done` | output | NC*32 | Beats issued this strobe (`awlen + 1`) |
-| `sched_wr_commit_strobe` | output | NC | COMMIT strobe (pulses on B response) |
-| `sched_wr_commit_beats` | output | NC*32 | Beats committed this strobe |
-| `sched_wr_error` | output | 1 | Error flag |
+| `sched_wr_valid` | input | NC | Channel requests write |
+| `sched_wr_ready` | output | NC | Engine ready for channel |
+| `sched_wr_addr` | input | NC x AW | Destination addresses |
+| `sched_wr_beats` | input | NC x 32 | Beats remaining to write |
+| `sched_wr_burst_len` | input | NC x 8 | Requested burst length |
+| `sched_wr_done_strobe` | output | NC | Burst ISSUED on AW handshake (pulsed 1 cycle) |
+| `sched_wr_beats_done` | output | NC x 32 | Beats issued in burst (`awlen + 1`) |
+| `sched_wr_commit_strobe` | output | NC | Burst COMMITTED on B response (pulsed 1 cycle) |
+| `sched_wr_commit_beats` | output | NC x 32 | Beats committed in burst |
+| `sched_wr_error` | output | NC | Sticky error flag per channel (bad B response) |
 
 : Table 2.4.3: Scheduler Interface
 
@@ -143,6 +144,7 @@ landing in memory:
 | `m_axi_wdata` | output | DW | Write data |
 | `m_axi_wstrb` | output | DW/8 | Write strobes |
 | `m_axi_wlast` | output | 1 | Last beat |
+| `m_axi_wuser` | output | UW | Channel ID for transaction tracking |
 | `m_axi_wvalid` | output | 1 | Data valid |
 | `m_axi_wready` | input | 1 | Data ready |
 | `m_axi_bid` | input | IW | Response ID |
@@ -152,14 +154,18 @@ landing in memory:
 
 : Table 2.4.4: AXI4 Write Master Interface
 
-### SRAM Read Interface
+### SRAM Reservation and Drain Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `sram_rd_en` | output | 1 | SRAM read enable |
-| `sram_rd_addr` | output | AW | SRAM read address |
-| `sram_rd_data` | input | DW | SRAM read data |
-| `sram_rd_id` | output | CW | Channel ID for read |
+| `axi_wr_drain_req` | output | NC | Channel requests to reserve data |
+| `axi_wr_drain_size` | output | NC x 8 | Beats to reserve |
+| `axi_wr_drain_data_avail` | input | NC x SCW | Data available after reservations |
+| `axi_wr_sram_valid` | input | NC | Per-channel valid (registered, for arbitration) |
+| `axi_wr_sram_valid_comb` | input | NC | Per-channel valid (combinational, gates `m_axi_wvalid`) |
+| `axi_wr_sram_drain` | output | 1 | Drain request (consumer ready) |
+| `axi_wr_sram_id` | output | CIW | Channel ID select for drain |
+| `axi_wr_sram_data` | input | DW | Data from the selected channel (muxed) |
 
 : Table 2.4.5: SRAM Read Interface
 

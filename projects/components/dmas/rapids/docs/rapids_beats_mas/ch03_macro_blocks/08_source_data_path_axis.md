@@ -110,13 +110,12 @@ parameter int TUSER_WIDTH = 1;
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `sched_rd_valid` | input | 1 | Read request |
-| `sched_rd_addr` | input | AW | Source address |
-| `sched_rd_beats` | input | 32 | Beats to read |
-| `sched_rd_id` | input | 3 | Channel ID |
-| `sched_rd_done_strobe` | output | 1 | Read complete |
-| `sched_rd_beats_done` | output | 32 | Beats completed |
-| `sched_rd_error` | output | 1 | Error flag |
+| `sched_rd_valid` | input | NC | Channel requests read |
+| `sched_rd_addr` | input | NC x AW | Source addresses |
+| `sched_rd_beats` | input | NC x 32 | Beats remaining to read |
+| `sched_rd_done_strobe` | output | NC | Burst completed (pulsed 1 cycle) |
+| `sched_rd_beats_done` | output | NC x 32 | Beats completed in burst |
+| `sched_rd_error` | output | NC | Sticky error flag per channel |
 
 : Table 3.8.3: Scheduler Interface
 
@@ -145,13 +144,13 @@ parameter int TUSER_WIDTH = 1;
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `m_axis_tvalid` | output | 1 | Data valid |
-| `m_axis_tready` | input | 1 | Ready for data |
-| `m_axis_tdata` | output | DATA_WIDTH | Data payload |
-| `m_axis_tkeep` | output | DATA_WIDTH/8 | Byte enables |
+| `m_axis_tready` | input | 1 | Consumer ready |
+| `m_axis_tdata` | output | DW | Data payload |
+| `m_axis_tstrb` | output | SW | Byte strobes |
 | `m_axis_tlast` | output | 1 | Last beat of packet |
-| `m_axis_tid` | output | TID_WIDTH | Stream ID (channel) |
-| `m_axis_tdest` | output | TDEST_WIDTH | Destination |
-| `m_axis_tuser` | output | TUSER_WIDTH | User sideband |
+| `m_axis_tid` | output | AXIS_ID_WIDTH | Stream ID (channel) |
+| `m_axis_tdest` | output | AXIS_DEST_WIDTH | Destination |
+| `m_axis_tuser` | output | AXIS_USER_WIDTH | User sideband |
 
 : Table 3.8.5: AXI-Stream Master Interface
 

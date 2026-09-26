@@ -101,13 +101,12 @@ parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS);
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `sched_rd_valid` | input | 1 | Read request valid |
-| `sched_rd_addr` | input | AW | Source address |
-| `sched_rd_beats` | input | 32 | Total beats to read |
-| `sched_rd_id` | input | CW | Channel ID |
-| `sched_rd_done_strobe` | output | 1 | Burst complete strobe |
-| `sched_rd_beats_done` | output | 32 | Beats completed |
-| `sched_rd_error` | output | 1 | Error flag |
+| `sched_rd_valid` | input | NC | Channel requests read |
+| `sched_rd_addr` | input | NC x AW | Source addresses |
+| `sched_rd_beats` | input | NC x 32 | Beats remaining to read |
+| `sched_rd_done_strobe` | output | NC | Burst completed (pulsed 1 cycle) |
+| `sched_rd_beats_done` | output | NC x 32 | Beats completed in burst |
+| `sched_rd_error` | output | NC | Sticky error flag per channel (bad R response) |
 
 : Table 2.3.3: Scheduler Interface
 
@@ -131,14 +130,18 @@ parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS);
 
 : Table 2.3.4: AXI4 Read Master Interface
 
-### SRAM Write Interface
+### SRAM Allocation and Fill Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `sram_wr_en` | output | 1 | SRAM write enable |
-| `sram_wr_addr` | output | AW | SRAM write address |
-| `sram_wr_data` | output | DW | SRAM write data |
-| `sram_wr_id` | output | CW | Channel ID for data |
+| `axi_rd_alloc_req` | output | 1 | Channel requests space |
+| `axi_rd_alloc_size` | output | 8 | Beats to reserve |
+| `axi_rd_alloc_id` | output | IW | Transaction ID selects the channel |
+| `axi_rd_alloc_space_free` | input | NC x SCW | Free space (beats available) per channel |
+| `axi_rd_sram_valid` | output | 1 | Read data valid |
+| `axi_rd_sram_ready` | input | 1 | SRAM ready to accept data |
+| `axi_rd_sram_id` | output | IW | Transaction ID selects the channel |
+| `axi_rd_sram_data` | output | DW | Read data payload |
 
 : Table 2.3.5: SRAM Write Interface
 

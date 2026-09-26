@@ -178,15 +178,14 @@ parameter int B_PHASE_FIFO_DEPTH = 16;
 
 | Signal | Direction | Description |
 |--------|-----------|-------------|
-| `snk_fill_alloc_req` | input | Allocation request |
-| `snk_fill_alloc_size` | input | Beats to allocate |
-| `snk_fill_alloc_id` | input | Channel ID |
-| `snk_fill_space_free` | output | Available space per channel |
-| `snk_fill_valid` | input | Data valid |
-| `snk_fill_ready` | output | Ready for data |
-| `snk_fill_data` | input | Fill data |
-| `snk_fill_last` | input | Last beat |
-| `snk_fill_id` | input | Channel ID |
+| `fill_alloc_req` | input | Allocation request (single, ID-selected) |
+| `fill_alloc_size` | input | Beats to allocate |
+| `fill_alloc_id` | input | Transaction ID selects the channel |
+| `fill_space_free` | output | Available space per channel |
+| `fill_valid` | input | Fill data valid |
+| `fill_ready` | output | Ready for fill data |
+| `fill_id` | input | Transaction ID selects the channel |
+| `fill_data` | input | Fill data |
 
 : Table 3.3.2: Fill Interface
 
@@ -194,13 +193,16 @@ parameter int B_PHASE_FIFO_DEPTH = 16;
 
 | Signal | Direction | Description |
 |--------|-----------|-------------|
-| `sched_wr_valid` | input | Write request |
-| `sched_wr_addr` | input | Destination address |
-| `sched_wr_beats` | input | Beats to write |
-| `sched_wr_id` | input | Channel ID |
-| `sched_wr_done_strobe` | output | Write complete |
-| `sched_wr_beats_done` | output | Beats completed |
-| `sched_wr_error` | output | Error flag |
+| `sched_wr_valid` | input | Channel requests write |
+| `sched_wr_ready` | output | Path ready for channel |
+| `sched_wr_addr` | input | Destination addresses |
+| `sched_wr_beats` | input | Beats remaining to write |
+| `sched_wr_burst_len` | input | Requested burst length |
+| `sched_wr_done_strobe` | output | Burst ISSUED on AW handshake |
+| `sched_wr_beats_done` | output | Beats issued in burst |
+| `sched_wr_commit_strobe` | output | Burst COMMITTED on B response |
+| `sched_wr_commit_beats` | output | Beats committed in burst |
+| `sched_wr_error` | output | Sticky error flag per channel |
 
 : Table 3.3.3: Scheduler Interface
 

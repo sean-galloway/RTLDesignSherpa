@@ -153,13 +153,12 @@ parameter int R_PHASE_FIFO_DEPTH = 64;
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `sched_rd_valid` | input | 1 | Read request |
-| `sched_rd_addr` | input | AW | Source address |
-| `sched_rd_beats` | input | 32 | Beats to read |
-| `sched_rd_id` | input | 3 | Channel ID |
-| `sched_rd_done_strobe` | output | 1 | Read complete |
-| `sched_rd_beats_done` | output | 32 | Beats completed |
-| `sched_rd_error` | output | 1 | Error flag |
+| `sched_rd_valid` | input | NC | Channel requests read |
+| `sched_rd_addr` | input | NC x AW | Source addresses |
+| `sched_rd_beats` | input | NC x 32 | Beats remaining to read |
+| `sched_rd_done_strobe` | output | NC | Burst completed (pulsed 1 cycle) |
+| `sched_rd_beats_done` | output | NC x 32 | Beats completed in burst |
+| `sched_rd_error` | output | NC | Sticky error flag per channel |
 
 : Table 3.7.3: Scheduler Interface
 
@@ -187,12 +186,13 @@ parameter int R_PHASE_FIFO_DEPTH = 64;
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `src_drain_valid` | output | 1 | Drain data valid |
-| `src_drain_ready` | input | 1 | Ready for drain data |
-| `src_drain_data` | output | DW | Drain data |
-| `src_drain_last` | output | 1 | Last beat marker |
-| `src_drain_id` | output | 3 | Channel ID |
-| `src_drain_data_avail` | output | NC*16 | Available data per channel |
+| `drain_data_avail` | output | NC x SCW | Data available per channel |
+| `drain_req` | input | NC | Drain reservation request per channel |
+| `drain_size` | input | NC x 8 | Beats to reserve |
+| `drain_valid` | output | NC | Drain data valid per channel |
+| `drain_read` | input | 1 | Consumer read strobe |
+| `drain_id` | input | CIW | Channel ID select for drain |
+| `drain_data` | output | DW | Drain data (muxed from selected channel) |
 
 : Table 3.7.5: Drain Interface
 

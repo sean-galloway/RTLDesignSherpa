@@ -122,13 +122,24 @@ parameter logic [3:0] MON_UNIT_ID = 4'h1;        // Unit identifier
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `m_axi_araddr` | output | AW | Read address |
-| `m_axi_arvalid` | output | 1 | Address valid |
-| `m_axi_arready` | input | 1 | Address ready |
-| `m_axi_rdata` | input | 256 | Read data (descriptor) |
-| `m_axi_rvalid` | input | 1 | Data valid |
-| `m_axi_rready` | output | 1 | Data ready |
-| `m_axi_rresp` | input | 2 | Read response |
+| `ar_valid` | output | 1 | Address valid |
+| `ar_ready` | input | 1 | Address ready |
+| `ar_addr` | output | ADDR_WIDTH | Descriptor fetch address |
+| `ar_len` | output | 8 | Burst length - 1 |
+| `ar_size` | output | 3 | Burst size (log2 bytes) |
+| `ar_burst` | output | 2 | Burst type (INCR) |
+| `ar_id` | output | AXI_ID_WIDTH | Transaction ID |
+| `ar_lock` | output | 1 | Lock type |
+| `ar_cache` | output | 4 | Cache attributes |
+| `ar_prot` | output | 3 | Protection attributes |
+| `ar_qos` | output | 4 | Quality of service |
+| `ar_region` | output | 4 | Region identifier |
+| `r_valid` | input | 1 | Data valid |
+| `r_ready` | output | 1 | Data ready |
+| `r_data` | input | 256 | Descriptor payload (fixed 256-bit) |
+| `r_resp` | input | 2 | Read response |
+| `r_last` | input | 1 | Last beat |
+| `r_id` | input | AXI_ID_WIDTH | Response ID |
 
 : Table 2.2.5: AXI4 Read Master Interface
 
@@ -138,8 +149,15 @@ parameter logic [3:0] MON_UNIT_ID = 4'h1;        // Unit identifier
 |--------|-----------|-------|-------------|
 | `descriptor_valid` | output | 1 | Descriptor valid |
 | `descriptor_ready` | input | 1 | Scheduler ready |
-| `descriptor_packet` | output | 256 | Parsed descriptor |
+| `descriptor_packet` | output | 256 | Parsed descriptor (fixed 256-bit) |
+| `descriptor_ext_packet` | output | 256 | Extended chunk 1 (0 when unused) |
 | `descriptor_error` | output | 1 | Error flag |
+| `descriptor_eos` | output | 1 | End of Stream |
+| `descriptor_eol` | output | 1 | End of Line |
+| `descriptor_eod` | output | 1 | End of Data |
+| `descriptor_type` | output | 2 | Packet type |
+| `channel_idle` | input | 1 | Scheduler idle (enables APB kick-off) |
+| `descriptor_engine_idle` | output | 1 | Engine idle |
 
 : Table 2.2.6: Scheduler Interface
 

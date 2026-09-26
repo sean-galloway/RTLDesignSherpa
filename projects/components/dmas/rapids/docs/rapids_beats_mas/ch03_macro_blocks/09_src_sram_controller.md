@@ -97,41 +97,43 @@ parameter int ADDR_WIDTH = $clog2(SRAM_DEPTH);
 
 : Table 3.9.2: Clock and Reset
 
-### Per-Channel Fill Interface (from AXI Read Engine)
+### Fill Interface (ID-Selected, from AXI Read Engine)
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `src_fill_alloc_req` | input | NC | Allocation request per channel |
-| `src_fill_alloc_size` | input | NC*16 | Beats to allocate |
-| `src_fill_space_free` | output | NC*16 | Available space per channel |
-| `src_fill_valid` | input | NC | Fill data valid |
-| `src_fill_ready` | output | NC | Ready for fill data |
-| `src_fill_data` | input | NC*DW | Fill data |
-| `src_fill_last` | input | NC | Last beat marker |
+| `fill_alloc_req` | input | 1 | Allocation request (single, ID-selected) |
+| `fill_alloc_size` | input | 8 | Beats to allocate |
+| `fill_alloc_id` | input | CIW | Transaction ID selects the channel |
+| `fill_space_free` | output | NC x SCW | Available space per channel |
+| `fill_valid` | input | 1 | Fill data valid |
+| `fill_ready` | output | 1 | Ready for fill data |
+| `fill_id` | input | CIW | Transaction ID selects the channel |
+| `fill_data` | input | DW | Fill data |
 
-: Table 3.9.3: Per-Channel Fill Interface
+: Table 3.9.3: Fill Interface (ID-Selected)
 
 ### Arbitrated Drain Interface (to Network)
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `drain_valid` | output | 1 | Drain data valid |
-| `drain_ready` | input | 1 | Ready for drain |
-| `drain_data` | output | DW | Drain data |
-| `drain_id` | output | 3 | Source channel ID |
-| `drain_last` | output | 1 | Last beat of transfer |
+| `drain_data_avail` | output | NC x SCW | Data available per channel |
+| `drain_req` | input | NC | Drain reservation request per channel |
+| `drain_size` | input | NC x 8 | Beats to reserve |
+| `drain_valid` | output | NC | Drain data valid per channel |
+| `drain_read` | input | 1 | Consumer read strobe |
+| `drain_id` | input | CIW | Channel ID select for drain |
+| `drain_data` | output | DW | Drain data (muxed from selected channel) |
 
 : Table 3.9.4: Arbitrated Drain Interface
 
-### Per-Channel Status
+### Debug Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `channel_data_avail` | output | NC*16 | Data available per channel |
-| `channel_empty` | output | NC | Channel empty flags |
-| `channel_full` | output | NC | Channel full flags |
+| `dbg_bridge_pending` | output | NC | Bridge has a pending beat per channel |
+| `dbg_bridge_out_valid` | output | NC | Bridge output valid per channel |
 
-: Table 3.9.5: Per-Channel Status
+: Table 3.9.5: Debug Interface
 
 ---
 
