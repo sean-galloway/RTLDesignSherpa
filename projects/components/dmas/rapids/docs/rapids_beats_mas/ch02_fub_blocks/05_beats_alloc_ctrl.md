@@ -188,7 +188,7 @@ Empty condition:   wr_ptr == rd_ptr
 
 ```systemverilog
 // Source path: Pre-allocate SRAM space before AXI read
-beats_alloc_ctrl #(
+alloc_ctrl_beats #(
     .DEPTH(SRAM_DEPTH),
     .ALMOST_WR_MARGIN(8)
 ) u_src_alloc (

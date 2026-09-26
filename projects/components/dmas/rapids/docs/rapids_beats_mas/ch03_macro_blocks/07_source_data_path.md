@@ -230,7 +230,7 @@ parameter int R_PHASE_FIFO_DEPTH = 64;
 ## Integration Example
 
 ```systemverilog
-source_data_path #(
+src_data_path_beats #(
     .NUM_CHANNELS(8),
     .ADDR_WIDTH(64),
     .DATA_WIDTH(512),
@@ -243,7 +243,6 @@ source_data_path #(
     .sched_rd_valid         (sched_rd_valid),
     .sched_rd_addr          (sched_rd_addr),
     .sched_rd_beats         (sched_rd_beats),
-    .sched_rd_id            (sched_rd_id),
     .sched_rd_done_strobe   (sched_rd_done_strobe),
     .sched_rd_beats_done    (sched_rd_beats_done),
     .sched_rd_error         (sched_rd_error),
@@ -259,12 +258,10 @@ source_data_path #(
     .m_axi_rlast            (src_axi_rlast),
 
     // Drain interface
-    .src_drain_valid        (src_drain_valid),
-    .src_drain_ready        (src_drain_ready),
-    .src_drain_data         (src_drain_data),
-    .src_drain_last         (src_drain_last),
-    .src_drain_id           (src_drain_id),
-    .src_drain_data_avail   (src_data_avail)
+    .drain_valid            (src_drain_valid),
+    .drain_data             (src_drain_data),
+    .drain_id               (src_drain_id),
+    .drain_data_avail       (src_data_avail)
 );
 ```
 

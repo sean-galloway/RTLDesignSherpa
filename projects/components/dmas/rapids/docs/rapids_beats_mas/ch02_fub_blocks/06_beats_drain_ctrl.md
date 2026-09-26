@@ -184,7 +184,7 @@ Empty condition:   wr_ptr == rd_ptr
 
 ```systemverilog
 // Sink path: Track data availability for AXI write engine
-beats_drain_ctrl #(
+drain_ctrl_beats #(
     .DEPTH(SRAM_DEPTH),
     .ALMOST_RD_MARGIN(8)
 ) u_snk_drain (
@@ -201,7 +201,7 @@ beats_drain_ctrl #(
     .rd_ready       (data_ready_for_drain),
 
     // Status
-    .data_avail     (beats_to_write),
+    .data_available (beats_to_write),
     .rd_empty       (no_data_to_write)
 );
 ```

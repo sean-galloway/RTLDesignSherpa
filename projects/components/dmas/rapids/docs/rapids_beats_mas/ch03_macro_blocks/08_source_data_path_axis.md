@@ -212,11 +212,11 @@ parameter int TUSER_WIDTH = 1;
 ## Integration Example
 
 ```systemverilog
-source_data_path_axis #(
+src_data_path_axis_beats #(
     .NUM_CHANNELS(8),
     .ADDR_WIDTH(64),
     .DATA_WIDTH(512),
-    .TID_WIDTH(3)
+    .AXIS_ID_WIDTH (3)
 ) u_source_axis (
     .clk                    (clk),
     .rst_n                  (rst_n),
@@ -225,7 +225,6 @@ source_data_path_axis #(
     .sched_rd_valid         (sched_rd_valid),
     .sched_rd_addr          (sched_rd_addr),
     .sched_rd_beats         (sched_rd_beats),
-    .sched_rd_id            (sched_rd_id),
     .sched_rd_done_strobe   (sched_rd_done_strobe),
 
     // AXI read master

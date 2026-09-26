@@ -175,7 +175,7 @@ parameter int ADDR_WIDTH = $clog2(SRAM_DEPTH);
 ## Integration Example
 
 ```systemverilog
-src_sram_controller #(
+src_sram_controller_beats #(
     .NUM_CHANNELS(8),
     .DATA_WIDTH(512),
     .SRAM_DEPTH(512)
@@ -184,25 +184,22 @@ src_sram_controller #(
     .rst_n                  (rst_n),
 
     // Per-channel fill interface (from AXI read engine)
-    .src_fill_alloc_req     (fill_alloc_req),
-    .src_fill_alloc_size    (fill_alloc_size),
-    .src_fill_space_free    (fill_space_free),
-    .src_fill_valid         (fill_valid),
-    .src_fill_ready         (fill_ready),
-    .src_fill_data          (fill_data),
-    .src_fill_last          (fill_last),
+    .fill_alloc_req         (fill_alloc_req),
+    .fill_alloc_size        (fill_alloc_size),
+    .fill_space_free        (fill_space_free),
+    .fill_valid             (fill_valid),
+    .fill_ready             (fill_ready),
+    .fill_data              (fill_data),
 
     // Arbitrated drain interface (to network)
     .drain_valid            (src_drain_valid),
-    .drain_ready            (src_drain_ready),
     .drain_data             (src_drain_data),
     .drain_id               (src_drain_id),
-    .drain_last             (src_drain_last),
 
     // Status
-    .channel_data_avail     (channel_data_avail),
-    .channel_empty          (channel_empty),
-    .channel_full           (channel_full)
+    .drain_data_avail       (channel_data_avail),
+    .dbg_bridge_pending     (channel_empty),
+    .dbg_bridge_out_valid   (channel_full)
 );
 ```
 

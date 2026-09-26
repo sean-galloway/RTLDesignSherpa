@@ -162,7 +162,7 @@ parameter int ADDR_WIDTH = $clog2(SRAM_DEPTH);
 ## Integration with AXI Write Engine
 
 ```systemverilog
-snk_sram_controller #(
+snk_sram_controller_beats #(
     .NUM_CHANNELS(8),
     .DATA_WIDTH(512),
     .SRAM_DEPTH(512)
@@ -171,27 +171,22 @@ snk_sram_controller #(
     .rst_n                  (rst_n),
 
     // Per-channel fill interface
-    .snk_fill_alloc_req     (fill_alloc_req),
-    .snk_fill_alloc_size    (fill_alloc_size),
-    .snk_fill_space_free    (fill_space_free),
-    .snk_fill_valid         (fill_valid),
-    .snk_fill_ready         (fill_ready),
-    .snk_fill_data          (fill_data),
-    .snk_fill_last          (fill_last),
+    .fill_alloc_req         (fill_alloc_req),
+    .fill_alloc_size        (fill_alloc_size),
+    .fill_space_free        (fill_space_free),
+    .fill_valid             (fill_valid),
+    .fill_ready             (fill_ready),
+    .fill_data              (fill_data),
 
     // Arbitrated drain interface
     .drain_req              (sram_drain_req),
-    .drain_gnt              (sram_drain_gnt),
     .drain_id               (sram_drain_id),
-    .drain_beats            (sram_drain_beats),
-    .sram_rd_en             (sram_rd_en),
-    .sram_rd_addr           (sram_rd_addr),
-    .sram_rd_data           (sram_rd_data),
+    .drain_size             (sram_drain_beats),
 
     // Status
-    .channel_data_avail     (channel_data_avail),
-    .channel_empty          (channel_empty),
-    .channel_full           (channel_full)
+    .drain_data_avail       (channel_data_avail),
+    .dbg_bridge_pending     (channel_empty),
+    .dbg_bridge_out_valid   (channel_full)
 );
 ```
 
