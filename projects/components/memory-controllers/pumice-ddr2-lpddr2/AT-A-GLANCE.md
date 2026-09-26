@@ -268,8 +268,26 @@ nonzero mode takes over:
 | 3 `fixed_open` | open, but rows close on an **idle timeout** |
 | 4 `adapt_time` | **adaptive timeout** — a per-bank timeout register adapts up/down from a mistake counter (premature-close vs held-too-long) each interval |
 | 5 `adapt_access` | **per-row 2-bit close predictor** — knob-free; predicts whether this row will be hit again |
-| 6 `rbl_static` | close on a per-bank **row-buffer-locality** verdict from a miss-counter table |
-| 7 `rbl_dyn` | `rbl_static` plus a per-epoch threshold hill-climb |
+
+> **6/7 (`rbl_static` / `rbl_dyn`) were RETIRED 2026-09-26.** Measured on
+> silicon at txn_scale=1000 on a workload built specifically to give a per-row
+> predictor something to discriminate: the mechanism **worked** — thrash fell
+> 100% -> 57.8%, i.e. conflict-ACTs became empty-ACTs — and it still lost.
+> Mode 6 gave up 26% of bandwidth (195.2 -> 144.2 MB/s) by paying +22,827 ACTs
+> while PRE barely moved; mode 7's hill-climb drove its threshold to "never
+> close early", landing bit-identical to plain open page. Removing it returned
+> **702 LUT / 1,521 FF** in-design and streaming was unchanged at 572.3 MB/s,
+> confirming it had been inert. A write of 6 or 7 now falls through to the
+> build default. See `vault/Tasks/pumice/task/closed/TASK-011.md`.
+>
+> **Modes 4/5 are KEPT but unproven.** They measure identical to plain open
+> page on every board scenario (±0.2 MB/s, sequential and concurrent) — but
+> that is an absence of *benefit*, not a demonstrated *cost*, and their
+> triggers may never have fired: `adapt_time` closes on an idle timeout and
+> every workload measured saturates the generators, while `adapt_access` needs
+> its 2-bit counters to learn. Retiring them on that evidence would repeat the
+> error that made RBL unmeasurable for months — concluding from a workload
+> that could not discriminate. Open as TASK-013.
 
 The block never drives a PRE itself: it raises a request and the arbiter
 issues it as its lowest-priority pick, so demand traffic, refresh drain and
@@ -388,9 +406,18 @@ controller cycle).
 | streaming read (row_major bl8) | **571.3** | 95.2% |
 | concurrent read+write, one window | **570.1 total** | 95.0% |
 
-14 of 14 characterization points integrity-clean. Timing closes at
-WNS **+0.285 ns**, 0 failing of 94 060 endpoints. Simulation is green: 219
-controller tests at FULL plus the DDR2 characterization harness (31 passed).
+Timing closes at WNS **+0.060 ns**, 0 failing of 97 353 endpoints
+(2026-09-26, after the RBL removal returned 702 LUT / 1 521 FF; the build
+before it closed at exactly 0.000 — met, but with no headroom). Simulation is
+green: **187** controller tests at BOTH geometries plus the DDR2
+characterization harness (**216 passed, 2 xfailed**). The board campaign behind
+the tables below is **169 points across 11 profiles, all integrity-clean**.
+
+> Timing on this part slides run to run and each figure above is a single
+> sample of a single netlist, so treat a few tens of picoseconds between builds
+> as noise rather than as a trend. What matters is the sign: a thin POSITIVE
+> WNS is the intended operating point (see `vault/handbook`), and 0.000 was the
+> last value before negative.
 
 **Re-validated 2026-09-14 after the harness rewrite (PUMICE-036).** The figures
 above were taken before the data bridges were removed, the generator data
@@ -784,6 +811,69 @@ The `col_major` rows are deliberately absent from the concurrent table: those
 families walk the whole device, so concurrent generators cannot be placed on
 disjoint regions and the integrity check does not hold. They are reported as
 not-measurable rather than quoted.
+
+### What the three runtime axes are actually worth (2026-09-26)
+
+The whole point of the research surface is that a policy can be switched on and
+measured. It has now been measured, on silicon, 169 points at txn_scale=1000.
+**Reordering is the only thing in this controller that pays; everything layered
+on top of it is inert or harmful.**
+
+**Axis 1 — scheduling.** `order_mode` at EQUAL page policy, which is the
+comparison that had never been made (the `inorder` preset pins CLOSE page, so
+the axis used to read as a ~16x deficit that was mostly page policy):
+
+| config | incremental | col_major |
+|---|---|---|
+| `open_page` (FR-FCFS) | **561.3** | **195.2** |
+| `inorder_open` | 143.0 | 102.4 |
+
+**FR-FCFS is worth 3.9x on streaming, 1.9x page-hostile.** That is the reorder
+window earning its CAMs, and it is the single biggest number on this page.
+
+The axis-1 *sub*-policies are a different story: measured single-direction so
+turnaround is not the limiter, **eight of ten land within ±0.3% of the
+default**. `row_most_pending` is the only lever with real effect and it is a
+net loss — +1.1% sequential, **−19.4% page-hostile**, +7,300 ACTs, 2.4x read
+latency. It picks the bank with the most queued work rather than the one whose
+row is already open, so it fights the page policy. Default oldest-first wins.
+
+**Axis 2 — paging.** Every predictor within ±0.1% of plain open page. RBL was
+retired on this evidence plus a workload built to suit it (see the Axis 2
+table above); modes 4/5 are kept pending TASK-013.
+
+**Axis 3 — refresh**, measured on OPEN page because the stock `refresh` profile
+pins CLOSE (~46 MB/s) and measures refresh where it matters least:
+
+| config | row_major | vs default |
+|---|---|---|
+| default tREFI | 572.0 | — |
+| `refresh_credit_open` | 575.3 | +0.6% |
+| `fast_refresh_open` | 536.6 | **−6.2%** |
+| `slow_refresh_open` | **599.0** | **+4.7%** |
+
+**Refresh costs 4.7% of streaming bandwidth**, and relaxing tREFI reaches
+**599.0 MB/s = 99.8% of the 600 ceiling**. This is the ONE tunable on any axis
+that pays — and it is a JEDEC timing parameter, not a predictor.
+
+**Multi-ID traffic is bit-identical to single-ID** on every config. FR-FCFS
+already reorders across the whole CAM regardless of ID, so ID diversity exposes
+no new opportunity.
+
+For a research controller this is a useful negative result, not an empty one:
+the predictors' mechanisms demonstrably WORK — RBL moved thrash 100% -> 57.8% —
+and still do not pay, because the precharge they save costs more in activates
+than it returns.
+
+> **One methodological warning, learned the expensive way.** RBL's area was
+> recorded as 5,578 LUT from a standalone OOC synthesis of the table. Removing
+> it from the integrated design returned **702 LUT** — the isolated figure
+> over-stated the in-design cost by ~8x, because integrated logic shares and
+> optimises across boundaries. Registers told the truer story (−1,521 FF, real
+> state that cannot be shared away). Do not size a block from OOC synthesis and
+> expect the design to give that back.
+
+---
 
 ### What this establishes
 

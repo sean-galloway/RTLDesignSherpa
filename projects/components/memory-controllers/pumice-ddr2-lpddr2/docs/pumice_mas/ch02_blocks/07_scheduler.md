@@ -200,6 +200,60 @@ request idle-timeout closes as the arbiter's lowest-priority pick — see
 [ch02/08](08_page_policy.md). (`PAGE_POLICY_HAPPY_HYBRID` was retired
 2026-08-25; the enum encoding maps to build default.)
 
+## The in-flight shadow, and where timing is actually enforced
+
+Reworked 2026-09-25. The two paragraphs below describe **one** mechanism; they
+used to be nine ad-hoc masks.
+
+### Why any guard exists at all
+
+`bank_timer` is meant to BE the authority — its `safe_*` outputs are a
+combinational AND of the counters, a single register stage, no FSM lag. But the
+arbiter drives the `set_*` strobes at **FIRE** (`evt_act_o = w_fire_out &&
+r_do_act`) while it **SELECTS** three to four registered stages earlier. So up
+to four commands are in flight that the timers have never been told about, and
+`safe_*` reports safe because it has not seen them. Every bank guard in this
+block covers that single gap.
+
+They were built in separate `always_comb` blocks spread over ~200 lines, which
+hid the fact that they are the SAME QUESTION asked over different stage
+subsets. They now derive from one matrix —
+`w_if_{preact,col}_{sel,pre,out}` over the SEL / PRE / OUT stages — and the
+composites (`w_prepick_guard`, `w_col_inflight_guard`, `w_preact_bank_guard`,
+`w_guarded`) keep their exact previous subsets. Nothing downstream changed;
+what changed is that "what is in flight" has ONE definition instead of nine.
+
+### Final-stage timing authority
+
+The op sitting in the output register is re-checked against the **LIVE**
+`bank_*_ready_i`, and may not fire until that says safe:
+
+```
+w_out_safe   = live bank readiness for the op in the output register
+w_out_reject = r_pick_valid && !w_out_safe
+w_out_ready  = !r_pick_valid || cmd_ready_i || w_out_reject
+w_fire_out   = r_pick_valid && cmd_ready_i && w_out_safe
+```
+
+A rejected pick is **DROPPED, never held.** Holding freezes `w_out_ready` and
+head-of-line blocks the whole pipeline behind one bank — measured as a
+regression (close-page 30.77% -> 28.57%) when an earlier speculative-column
+attempt did exactly that. Dropping is lossless: every CAM commit is qualified
+by `w_fire_out` (`wr_commit_valid_o` / `rd_issue_valid_o`), so an unfired entry
+stays schedulable and is simply re-picked. Refresh and init carry no bank and
+are never gated here.
+
+This is what makes the bank timers' **advisory lookahead** safe to act on (see
+`10_xbank_timers.md`): the pick pipeline may decide optimistically on
+`safe_*_la`, because the last stage enforces the truth. Rejects are attributed
+to `stall_banktimer_o`, not `stall_bp_o`.
+
+In practice the gate never rejects — the front end is conservative enough that
+it measures zero on every workload run. That is the correct outcome, not a dead
+path: it is what allows the front end to be relaxed at all.
+
+---
+
 ## Per-bank ACT/PRE re-issue guard
 
 Because `pumice_bank_timers` register their readiness outputs (a 2-cycle latency

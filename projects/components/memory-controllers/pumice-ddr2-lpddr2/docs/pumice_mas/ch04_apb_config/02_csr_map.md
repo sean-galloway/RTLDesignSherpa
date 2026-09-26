@@ -387,6 +387,57 @@ REFpb intervals (MC cycles). All-bank tREFI/tRFCab stay in TIMINGS_RFC_REFI.
 | 0x134        | `OBS_AXI_R_LATENCY_P99`  | `VAL`    | 99th-pct AXI read latency          |
 | 0x138        | `OBS_AXI_W_LATENCY_AVG`  | `VAL`    | Avg AXI write latency              |
 | 0x1C0..0x1E0 | `OBS_WORDS[9]`         | `VAL`       | Packed obs_* harvest words         |
+| 0x148        | `PAGE_STATS_HIT`         | `VAL`    | EVERY column op issued — **not** a hit count despite the name; row hits are DERIVED as `PAGE_STATS_HIT - SCHED_STATS_ACT` |
+| 0x14C        | `PAGE_STATS_MISS`        | `VAL`    | ACT after a conflict PRE (row thrash) |
+| 0x150        | `PAGE_STATS_EMPTY`       | `VAL`    | ACT to an idle bank (cold open)    |
+| 0x154        | `SCHED_STATS_ACT`        | `VAL`    | ACT commands issued                |
+| 0x158        | `SCHED_STATS_PRE`        | `VAL`    | PRE + PREA commands issued         |
+| 0x15C        | `REF_STATS_REF`          | `VAL`    | REF commands issued — **FREE-RUNNING**, see the note below |
+| 0x160        | `STALL_BP`               | `VAL`    | picked, DFI said no                |
+| 0x164        | `STALL_REFRESH`          | `VAL`    | blocked by a refresh request/drain |
+| 0x168        | `STALL_TURNAROUND`       | `VAL`    | blocked by tWTR / tRTW             |
+| 0x16C        | `STALL_TCCD`             | `VAL`    | blocked by tCCD                    |
+| 0x170        | `STALL_ACTLIMIT`         | `VAL`    | blocked by tFAW / tRRD             |
+| 0x174        | `STALL_BANKTIMER`        | `VAL`    | blocked by per-bank tRCD/tRP/tRAS, incl. final-stage rejects |
+| 0x178        | `STALL_NOREQ`            | `VAL`    | nothing to issue — **contaminated by host idle**, see below |
+| 0x17C        | *(retired)*              | —        | was `PAGE_RBL_CFG` |
+| 0x180        | `REF_STATS_REF_BUSY`     | `VAL`    | REF commands issued **with work pending** |
+
+#### Reading the stall counters
+
+The seven `STALL_*` registers are a **priority classification** of every cycle
+the arbiter did not fire: each stalled cycle is charged to exactly one cause,
+tested in the order listed. Two consequences that have both produced wrong
+conclusions:
+
+- **`STALL_NOREQ` advances during host idle.** It ticks whenever the arbiter
+  has nothing to do, which includes all the UART round-trip time between two
+  host reads. A host-bracketed delta therefore reads ~99% idle regardless of
+  what the workload did. The other six sit after the `!w_any_pending` branch
+  and can only tick with work pending, so they are clean and comparable;
+  **rank those six and leave noreq out.**
+- **A high share proves a term was UNSATISFIED, never that relieving it would
+  help.** `static_close` reads `actlimit` at 70% of stalls, yet relaxing
+  tFAW/tRRD from 6/2 to 1/1 leaves both throughput and the counter
+  bit-identical. The classifier has no category for pipeline serialisation, so
+  those cycles fall through to whichever timing term happens to be unsatisfied.
+  **Confirm every stall verdict by moving the knob.**
+
+#### `REF_STATS_REF` vs `REF_STATS_REF_BUSY`
+
+Refresh is autonomous, so `REF_STATS_REF` free-runs and a host-bracketed delta
+times the UART round trips rather than the workload — measured on the board, a
+186 us window carried a delta implying 479 ms, a **2584x** overstatement, and
+the number was near-identical across every config precisely because it was
+timing the HOST.
+
+`REF_STATS_REF_BUSY` @ 0x180 counts only refreshes that issued **with at least
+one CAM entry schedulable**. That is contamination-free by construction — the
+CAMs are empty while the host is idle — and it is also the number worth having:
+a refresh during idle costs the workload nothing, one during traffic costs
+bandwidth. On silicon the two read **8,814 vs 2,570,069**, a 292x ratio. Use
+BUSY to attribute refresh cost; use the free-running one for absolute
+accounting only.
 
 ### ID @ 0xFF0 (RO) — reset 0xD2020001
 

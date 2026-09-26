@@ -202,6 +202,47 @@ readiness latency across both timer FUBs.
 
 ---
 
+## Advisory lookahead — `safe_{act,rdwr,pre}_la_o`
+
+Added 2026-09-25. The pick pipeline decides on a **registered** bank image and
+the command fires four register stages later (`r_bank_*_ready` -> STAGE-1a ->
+pre-pick -> output), so a bank inside a tRCD/tRP/tRAS window read as not-ready
+even when that window would have closed before the command reached the DRAM.
+The arbiter idled through the latency instead of pipelining into it.
+
+Every constraint here is a **saturating down-counter** that decrements once per
+cycle, so `r_X <= LA` is exactly "reaches 0 within LA cycles" — the lookahead
+is the same AND tree with a different comparator threshold, not a second timer.
+`BANK_LA` (default 4) is the select-to-fire stage count.
+
+These outputs are **ADVISORY**. A reload can only come from a command the
+scheduler itself issues, so the prediction can be wrong; the scheduler's final
+stage re-checks the LIVE `safe_*` before anything leaves (see
+`07_scheduler.md`). A lookahead that guessed wrong therefore costs one dropped
+pick, never a JEDEC violation.
+
+Two terms are deliberately **not** extrapolated, and both omissions are
+conservative — they can only under-report safety:
+
+- `r_row_valid` is set by an ACT and cleared by a PRE that the scheduler
+  itself issues. Predicting it would mean predicting the scheduler from inside
+  the timer.
+- The auto-precharge self-close **is** autonomous, but it RELOADS tRP when it
+  fires, so `r_rp <= LA` is wrong for an AP-pending bank — the true condition
+  is `max(preblk, ras) + 1 + t_rp <= LA`. An arm for this was built and
+  measured: it changed nothing at any LA, because that ETA (5–7 cycles) exceeds
+  the select-to-fire distance (3–4), so it predicts readiness LATER than the
+  command arrives and the pick is dropped. Reverted, not shipped.
+
+`LA=0` collapses each term to its `safe_*_o` twin exactly, which is how the
+plumbing was gated before the depth was turned up.
+
+**Measured on silicon** (isolated A/B, same bitstream, only `BANK_LA` 0 -> 4):
+close-page reads +32.8%, page-hostile col_major +19.2%, streaming +0.5%. The
+gain lands where bank timers bind and nowhere else, which is the mechanism.
+
+---
+
 ## Observability
 
 All observability outputs are combinational "counter non-zero" flags:
