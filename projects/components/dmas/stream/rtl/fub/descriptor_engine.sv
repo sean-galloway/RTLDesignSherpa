@@ -922,7 +922,7 @@ module descriptor_engine #(
     assign ar_addr = (r_current_state == RD_ISSUE_ADDR2) ?
                         (r_axi_read_addr + ADDR_WIDTH'(32)) : r_axi_read_addr;
     assign ar_len = 8'h00;           // Single beat transfer
-    assign ar_size = 3'b110;         // 64 bytes (512-bit)
+    assign ar_size = 3'b101;         // 32 bytes (256-bit descriptor)
     assign ar_burst = 2'b01;         // INCR burst type
     assign ar_id = {{(AXI_ID_WIDTH-CHAN_WIDTH){1'b0}}, CHANNEL_ID[CHAN_WIDTH-1:0]};
     assign ar_lock = 1'b0;           // Normal access

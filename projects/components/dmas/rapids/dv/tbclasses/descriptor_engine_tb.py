@@ -102,6 +102,11 @@ class DescriptorEngineTB(TBBase):
         # Monitor bus tracking
         self.mon_packets_received = 0
 
+        # Every descriptor AR the engine issues, as (addr, size). ARSIZE must
+        # encode the 256-bit descriptor bus (32 bytes -> 5); anything larger
+        # asks the slave for more bytes than a beat can carry.
+        self.desc_ar_seen = []
+
     async def setup_clocks_and_reset(self):
         """Complete initialization - starts clocks AND performs reset sequence"""
         # Start clock
@@ -112,6 +117,55 @@ class DescriptorEngineTB(TBBase):
         await self.wait_clocks(self.clk_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.clk_name, 10)
+
+    DESC_BUS_BYTES = 32           # descriptor bus is FIXED 256-bit
+    EXPECTED_AR_SIZE = 5          # $clog2(32)
+
+    def _on_ar(self, transaction):
+        """AR-monitor callback: record (addr, size) for every descriptor read."""
+        def fld(*names):
+            for n in names:
+                v = getattr(transaction, n, None)
+                if v is not None:
+                    return v
+            if isinstance(transaction, dict):
+                for n in names:
+                    if transaction.get(n) is not None:
+                        return transaction[n]
+            return None
+        addr, size = fld('araddr', 'addr'), fld('arsize', 'size')
+        if size is not None:
+            try:
+                self.desc_ar_seen.append((int(addr) if addr is not None else None, int(size)))
+            except (TypeError, ValueError):
+                pass
+
+    def assert_descriptor_ar_size(self):
+        """MUST: the AXI read side never over-reads a descriptor.
+
+        ARSIZE larger than the data bus asks the slave for more bytes than one
+        beat can carry. On the EXT chunk-1 fetch (descriptor_addr + 0x20) it also
+        leaves the address unaligned to its own declared container, so a slave
+        entitled to align down would return chunk 0 instead of chunk 1.
+
+        Armed: raises if no AR was observed, so it cannot pass vacuously.
+        """
+        if not self.desc_ar_seen:
+            raise AssertionError(
+                'descriptor ARSIZE check ran with ZERO ARs observed -- it would '
+                'pass vacuously; submit a descriptor before asserting')
+        bad = [(a, s) for a, s in self.desc_ar_seen if s != self.EXPECTED_AR_SIZE]
+        if bad:
+            raise AssertionError(
+                f'descriptor AR over-reads the {self.DESC_BUS_BYTES}-byte bus: '
+                f'expected ARSIZE={self.EXPECTED_AR_SIZE} '
+                f'({self.DESC_BUS_BYTES}B), saw '
+                + ', '.join(f'addr={hex(a) if a is not None else "?"} size={s} '
+                            f'({1 << s}B)' for a, s in bad[:6])
+                + f'; {len(bad)} of {len(self.desc_ar_seen)} ARs bad')
+        self.log.info(
+            f'descriptor ARSIZE proof: all {len(self.desc_ar_seen)} ARs at '
+            f'size={self.EXPECTED_AR_SIZE} ({self.DESC_BUS_BYTES}B)')
 
     async def assert_reset(self):
         """Assert reset signal and reset AXI slave bus"""
@@ -167,6 +221,10 @@ class DescriptorEngineTB(TBBase):
             )
 
             self.r_slave = self.axi_slave['R']
+
+            # AR monitor: capture size on every descriptor fetch.
+            if 'AR' in self.axi_slave:
+                self.axi_slave['AR'].add_callback(self._on_ar)
             self.log.info("✓ AXI4 slave read responder initialized")
 
             # Create GAXI Master for APB interface
@@ -483,6 +541,9 @@ class DescriptorEngineTB(TBBase):
 
         passed = sum(results)
         self.log.info(f"Basic flow test: {passed}/{num_descriptors} passed")
+        # The AXI read side must never over-read a descriptor.
+        self.assert_descriptor_ar_size()
+
         return passed == num_descriptors
 
     async def test_control_descriptor_decode(self):

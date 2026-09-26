@@ -52,7 +52,7 @@
 module descriptor_engine_beats #(
     parameter int CHANNEL_ID = 0,
     parameter int NUM_CHANNELS = 32,
-    parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS),
+    parameter int CHAN_WIDTH = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     parameter int ADDR_WIDTH = 64,
     // DESCRIPTOR_WIDTH is FIXED at 256 bits (removed DATA_WIDTH parameter)
     parameter int AXI_ID_WIDTH = 8,
@@ -236,6 +236,7 @@ module descriptor_engine_beats #(
     // on => up to cfg_fifo_threshold. A chain fetch blocked by the throttle is
     // deferred (r_chain_pending) and issued once the FIFO drains below the limit.
     localparam int DFC_W = $clog2(FIFO_DEPTH) + 1;   // output-FIFO count width
+
     logic [DFC_W-1:0]      w_desc_fifo_count;         // output FIFO occupancy
     logic [DFC_W-1:0]      w_prefetch_limit;          // max descriptors buffered ahead
     logic                  w_prefetch_allows;         // room to fetch another
@@ -922,7 +923,12 @@ module descriptor_engine_beats #(
     assign ar_addr = (r_current_state == rapids_pkg::RD_ISSUE_ADDR2) ?
                         (r_axi_read_addr + ADDR_WIDTH'(32)) : r_axi_read_addr;
     assign ar_len = 8'h00;           // Single beat transfer
-    assign ar_size = 3'b110;         // 64 bytes (512-bit)
+    // ARSIZE must never exceed the data bus width: a larger value asks the
+    // slave for more bytes than a beat can carry, and on the EXT chunk-1
+    // fetch (descriptor_addr + 0x20) it also makes the address unaligned to
+    // its own declared container -- a slave entitled to align down would
+    // return chunk 0 instead of chunk 1.
+    assign ar_size = 3'b101;         // 32 bytes (256-bit descriptor)
     assign ar_burst = 2'b01;         // INCR burst type
     assign ar_id = {{(AXI_ID_WIDTH-CHAN_WIDTH){1'b0}}, CHANNEL_ID[CHAN_WIDTH-1:0]};
     assign ar_lock = 1'b0;           // Normal access
