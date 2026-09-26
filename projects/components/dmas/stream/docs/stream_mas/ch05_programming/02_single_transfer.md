@@ -91,31 +91,39 @@ Each channel has two APB registers for the 64-bit descriptor address:
 
 ---
 
-## Kick-Burst Fast Path
+## Launching Channels Together (KICK_ENABLE)
 
-The two-register APB kick above is the portable path — it works on any system
-that can reach the APB slave. On platforms where the APB slave is behind a slow
-transport (for example a UART-to-APB bridge on an FPGA), each kick is several
-transport transactions, and starting several channels serializes badly.
+The two-register APB kick above stages an address; it does not start anything.
+Launch is a **separate write to `KICK_ENABLE` (0x128)**, one bit per channel.
 
-For those cases STREAM exposes a **kick-burst** interface (top-level ports
-`i_kick_burst_mask` / `i_kick_burst_addr`, see the HAS APB-slave chapter) that
-starts any subset of channels on a single clock cycle. The programming model is:
+1. **Stage** each channel's descriptor address in `CHn_CTRL_{LOW,HIGH}`
+   (0x000-0x03F). These are ordinary stored registers -- writing one no longer
+   kicks the channel.
+2. **Launch** with ONE write to `KICK_ENABLE` carrying a bitmask of the channels
+   to start. Each `KICKn` field is a single-pulse: the write emits a one-cycle
+   request and self-clears.
 
-1. **Program a per-channel address register** for each channel to start.
-2. **Write a "go" register** with a bitmask of those channels — one write fires
-   every selected channel's kick back-to-back within one clock cycle.
+Every selected channel launches on the same `aclk` cycle, so a multi-channel run
+measures real concurrency rather than a staggered start. This matters most when
+the APB slave sits behind a slow transport -- over UART at 115200 baud, N
+separate kicks cost N round trips and the channels start milliseconds apart.
 
-The address registers and the go register are provided by the integrator's logic
-that drives `i_kick_burst_*`; they are not part of STREAM's APB map. The NexysA7
-characterization harness is the reference implementation: it exposes eight
-per-channel `CH_KICK_ADDR` shadow registers and a single `KICK_GO` bitmask CSR,
-and its host driver programs the addresses then writes `KICK_GO` (see
-`projects/NexysA7/stream_characterization/flows-stream-bridge/host/harness_kick.py::batch_kick`). Unlike the APB `CHn_CTRL` path there is no
-separate HIGH word — the address register is `ADDR_WIDTH` wide.
+Unlike the staged address there is no separate HIGH word for the launch:
+`KICK_ENABLE` is a single 32-bit write regardless of how many channels it starts.
 
-Use this path whenever start latency or multi-channel start alignment matters;
-use the APB `CHn_CTRL` path for portability when neither does.
+**Reference host implementation.**
+`projects/fpga-systems/Genesys2/stream/bin/harness_kick.py::batch_kick` does
+exactly stage-then-launch, and the other host scripts import it rather than
+re-implementing the sequence.
+
+**Historical note.** Two earlier mechanisms are gone. A kick block once snooped
+the raw APB command stream so that the address write ITSELF kicked, which meant
+the address was never readable state. The char harness then shadowed descriptor
+addresses in its own `CH_KICK_ADDR` registers (0xB0-0xD0, around a `KICK_GO` slot
+at 0xC0) and pulsed STREAM's top-level `i_kick_burst_mask` / `i_kick_burst_addr`
+ports, purely to avoid that per-channel UART round trip. STREAM owns both halves
+now: **the `i_kick_burst_*` ports do not exist**, and the harness carries no kick
+state. This page documented them as a live interface until 2026-09-26.
 
 ---
 
@@ -211,7 +219,7 @@ void stream_kick_off(int channel, uint64_t desc_addr) {
 ### Step 4: Wait for Completion
 
 ```c
-#define REG_CHANNEL_IDLE     0x128
+#define REG_CHANNEL_IDLE     0x140   // 0x128 is KICK_ENABLE, not idle status
 #define REG_SCHED_ERROR      0x170
 #define REG_AXI_RD_COMPLETE  0x174
 #define REG_AXI_WR_COMPLETE  0x178

@@ -149,28 +149,35 @@ The loop above issues the kicks **serially** — each channel takes a separate A
 kick sequence. That is fine when the APB slave is local, but when it sits behind a
 slow transport the channels no longer start together.
 
-### Starting Channels Back-to-Back (Kick-Burst)
+### Starting Channels Together (KICK_ENABLE)
 
-For synchronized, low-latency multi-channel starts, use the **kick-burst** fast
-path (top-level `i_kick_burst_mask` / `i_kick_burst_addr`; see
-[Single Transfer](02_single_transfer.md#kick-burst-fast-path)). Program each
-channel's descriptor address into its address register, then write a single "go"
-register with the channel bitmask — every selected channel is kicked back-to-back
-on one clock cycle rather than serialized over the transport.
+The loop above issues one `KICK_ENABLE` write per channel, so over a slow
+transport the channels start milliseconds apart. To start them on the SAME clock
+cycle, stage every address first and then launch once -- see
+[Single Transfer](02_single_transfer.md#launching-channels-together-kick_enable).
 
 ```c
-// Pseudocode against the integrator's kick-burst registers
-// (the NexysA7 char harness exposes CH_KICK_ADDR[ch] + a KICK_GO bitmask CSR)
-void start_channels_burst(uint64_t *desc_addrs, uint8_t channel_mask) {
-    for (int ch = 0; ch < 8; ch++)
-        if (channel_mask & (1 << ch))
-            write_kick_addr(ch, (uint32_t)desc_addrs[ch]);  // program address regs
-    write_kick_go(channel_mask);                             // one go bit -> N kicks
+// Stage all addresses, then ONE launch write.
+// CHn_CTRL_{LOW,HIGH} are ordinary stored registers: writing them starts nothing.
+#define CH_CTRL_LOW(ch)   (0x000 + (ch) * 0x08)   // CH0 0x000 .. CH7 0x038
+#define CH_CTRL_HIGH(ch)  (0x004 + (ch) * 0x08)   // CH0 0x004 .. CH7 0x03C
+#define KICK_ENABLE       0x128
+
+void start_channels_together(uint64_t *desc_addrs, uint8_t channel_mask) {
+    for (int ch = 0; ch < 8; ch++) {
+        if (channel_mask & (1u << ch)) {
+            write_reg(CH_CTRL_LOW(ch),  (uint32_t)(desc_addrs[ch]));
+            write_reg(CH_CTRL_HIGH(ch), (uint32_t)(desc_addrs[ch] >> 32));
+        }
+    }
+    write_reg(KICK_ENABLE, channel_mask);   // one write -> every channel on one cycle
 }
 ```
 
-This is the path the STREAM characterization host uses so a multi-channel run's
-channels actually pipeline instead of stretching the start window over the UART.
+Each `KICKn` field is a single-pulse and self-clears, so the mask does not need
+clearing afterwards. The characterization host uses this path
+(`harness_kick.py::batch_kick`) so a multi-channel run pipelines instead of
+stretching its start window over the UART.
 
 ### Waiting for Multiple Channels
 

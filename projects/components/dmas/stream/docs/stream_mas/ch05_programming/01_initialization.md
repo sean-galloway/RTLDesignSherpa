@@ -225,7 +225,7 @@ int stream_verify_init(uintptr_t base) {
     }
 
     // Check all enabled channels are idle
-    uint32_t ch_idle = r[0x128/4];  // CHANNEL_IDLE
+    uint32_t ch_idle = r[0x140/4];  // CHANNEL_IDLE (0x128 is KICK_ENABLE)
     uint32_t ch_enable = r[0x120/4];
     if ((ch_idle & ch_enable) != ch_enable) {
         printf("WARNING: Not all channels idle\n");
