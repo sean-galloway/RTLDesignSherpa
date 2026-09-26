@@ -115,6 +115,20 @@ async def cocotb_test_axis_transmission(dut):
 
 
 @cocotb.test(timeout_time=800, timeout_unit="ms")
+async def cocotb_test_beat_conservation(dut):
+    """Every beat read from AXI must leave on AXIS (rapids drain_size>1 drop)."""
+    from projects.components.dmas.rapids.dv.tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
+
+    tb = SrcDataPathAxisTestBeatsTB(dut, clk=dut.clk, rst_n=dut.rst_n)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+
+    result, stats = await tb.test_beat_conservation(num_descriptors=12, beats_per_desc=7)
+    tb.log.info(f"Beat conservation: {stats}")
+    assert result, f"beat conservation FAILED: {stats}"
+
+
+@cocotb.test(timeout_time=800, timeout_unit="ms")
 async def cocotb_test_end_to_end(dut):
     """Test end-to-end data flow: Descriptor -> AXI Read -> AXIS Master"""
     from projects.components.dmas.rapids.dv.tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
@@ -219,6 +233,20 @@ def test_axis_transmission(request, num_channels, addr_width, data_width, axi_id
 @pytest.mark.macro_beats
 @pytest.mark.source_data_path_axis_test
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", source_axis_test_params)
+def test_beat_conservation(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
+    """Pytest: no beat read from AXI may be dropped before AXIS.
+
+    Drain granularity comes from TEST_DRAIN_SIZE (default 1). Sweep it over
+    1/2/4/8 to exercise the source drain reservation accounting -- see
+    known_issues/active/drain_size_gt1_source_beat_drop.md.
+    """
+    _run_source_axis_test(request, "cocotb_test_beat_conservation",
+                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
+
+
+@pytest.mark.macro_beats
+@pytest.mark.source_data_path_axis_test
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", source_axis_test_params)
 def test_end_to_end(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
     """Pytest: Test end-to-end flow"""
     _run_source_axis_test(request, "cocotb_test_end_to_end",
@@ -309,6 +337,7 @@ def _run_source_axis_test(request, testcase_name, num_channels, addr_width, data
         'TEST_AXI_ID_WIDTH': str(axi_id_width),
         'TEST_NUM_CHANNELS': str(num_channels),
         'TEST_SRAM_DEPTH': str(sram_depth),
+        'TEST_DRAIN_SIZE': os.environ.get('TEST_DRAIN_SIZE', '1'),
     }
 
     # BFM delay-profile sweep: drive the AXI read slave (TIMING_PROFILE) and the

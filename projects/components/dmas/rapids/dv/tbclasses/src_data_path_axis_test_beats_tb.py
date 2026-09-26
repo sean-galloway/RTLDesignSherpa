@@ -72,6 +72,9 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
         self.SRAM_DEPTH = self.convert_to_int(os.environ.get('TEST_SRAM_DEPTH', '4096'))
         self.CLK_PERIOD = self.convert_to_int(os.environ.get('TEST_CLK_PERIOD', '10'))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        # Drain granularity under test. Default 1 matches the historical TB
+        # setting; >1 is what exposed the source beat drop.
+        self.DRAIN_SIZE = self.convert_to_int(os.environ.get('TEST_DRAIN_SIZE', '1'))
 
         # Initialize random generator
         random.seed(self.SEED)
@@ -139,10 +142,12 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
 
         # Set configuration signals before reset
         self.dut.cfg_axi_rd_xfer_beats.value = 8
-        # cfg_drain_size: minimum beats in SRAM before arbiter activates
-        # Set to 1 so arbiter activates as soon as any data is available
-        # (Higher values cause backpressure when small transfers are queued)
-        self.dut.cfg_drain_size.value = 1
+        # cfg_drain_size: beats reserved per drain grant. The old comment here
+        # claimed higher values "cause backpressure when small transfers are
+        # queued" and pinned it to 1; that was this bug being read as a tuning
+        # constraint -- see known_issues/active/drain_size_gt1_source_beat_drop.md.
+        # Driven from TEST_DRAIN_SIZE so the sweep can exercise >1.
+        self.dut.cfg_drain_size.value = self.DRAIN_SIZE
 
         # Reset sequence
         await self.assert_reset()
@@ -779,3 +784,79 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
         }
 
         return failed < (num_operations * 0.1), stats
+
+    async def test_beat_conservation(self, num_descriptors: int = 12,
+                                     beats_per_desc: int = 7) -> Tuple[bool, Dict[str, Any]]:
+        """Every beat read from AXI must leave on AXIS. No beat may be dropped.
+
+        This is the check the existing source tests do NOT make. They score a
+        packet successful on `dbg_axis_beats_sent > 0` (test_axis_transmission)
+        or `current > initial` (test_end_to_end_flow) -- "did anything come
+        out", never "did everything come out". A partial drop passes both.
+
+        The drain path reserves beats in whole blocks of cfg_drain_size while
+        emitting them one at a time, so a mismatch between reservation and
+        emission shows up here and nowhere else. beats_per_desc defaults to 7 so
+        the transfer is deliberately NOT a multiple of typical drain sizes
+        (1/2/4/8), which is where the original report saw the loss.
+
+        See known_issues/active/drain_size_gt1_source_beat_drop.md.
+        """
+        self.log.info(f"Beat conservation: {num_descriptors} desc x {beats_per_desc} beats, "
+                      f"cfg_drain_size={self.DRAIN_SIZE}")
+
+        r_in0 = int(self.dut.dbg_r_beats_rcvd.value)
+        axis0 = int(self.dut.dbg_axis_beats_sent.value)
+
+        for i in range(num_descriptors):
+            channel = i % self.NUM_CHANNELS
+            addr = self.BASE_ADDRESS + channel * self.CHANNEL_OFFSET \
+                   + (i % 64) * (self.DATA_WIDTH // 8)
+            await self.send_descriptor(channel, addr, beats_per_desc,
+                                       eos=(i == num_descriptors - 1))
+            await self.wait_clocks(self.clk_name, 40)
+
+        # Quiesce on EVIDENCE, not on a guess: poll until the AXIS beat counter
+        # stops advancing. A fixed delay reads a still-draining pipeline as loss
+        # -- the first version of this check used 1500 cycles and reported 25%
+        # "loss" at cfg_drain_size=1, which is the shipped, known-good setting.
+        settled_for = 0
+        waited = 0
+        last = int(self.dut.dbg_axis_beats_sent.value)
+        while settled_for < 600 and waited < 20000:
+            await self.wait_clocks(self.clk_name, 50)
+            waited += 50
+            now = int(self.dut.dbg_axis_beats_sent.value)
+            settled_for = settled_for + 50 if now == last else 0
+            last = now
+        self.log.info(f"quiesced after {waited} clocks "
+                      f"(stable for {settled_for}); axis_beats_sent={last}")
+        if waited >= 20000:
+            self.log.warning("quiesce bound hit -- counters may still be moving")
+
+        r_in = int(self.dut.dbg_r_beats_rcvd.value) - r_in0
+        axis = int(self.dut.dbg_axis_beats_sent.value) - axis0
+        lost = r_in - axis
+
+        stats = {
+            'cfg_drain_size': self.DRAIN_SIZE,
+            'beats_per_desc': beats_per_desc,
+            'descriptors': num_descriptors,
+            'beats_read_from_axi': r_in,
+            'beats_sent_on_axis': axis,
+            'beats_lost': lost,
+            'loss_pct': round(100.0 * lost / r_in, 2) if r_in else 0.0,
+        }
+        self.log.info(f"Beat conservation: {stats}")
+        if lost:
+            self.log.error(f"BEAT LOSS: {lost} of {r_in} beats read from AXI never "
+                           f"reached AXIS ({stats['loss_pct']}%) at "
+                           f"cfg_drain_size={self.DRAIN_SIZE}")
+
+        # r_in must be non-zero, or the test proved nothing (the failure mode
+        # the existing tests fall into).
+        if r_in == 0:
+            self.log.error("no beats were read from AXI -- test is vacuous")
+            return False, stats
+
+        return lost == 0, stats
