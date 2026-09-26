@@ -6,7 +6,7 @@
 
 PYTEST ?= python3 -m pytest
 
-# --- val-common: RTL common modules (counters, arbiters, FIFOs, math, etc.) ---
+# --- val-common: RTL common modules (counters, arbiters, FIFOs, data integrity, etc.) ---
 
 .PHONY: test-val-common
 test-val-common:
@@ -62,6 +62,120 @@ test-val-common-full-serial:
 coverage-val-common:
 	@echo "=== val-common FUNC (parallel + coverage) ==="
 	@COVERAGE=1 $(MAKE) -C val/common run-all-func-parallel
+
+# --- val-cdc: Clock domain crossing primitives (rtl/cdc: gray/johnson counters, async FIFOs, handshakes) ---
+
+.PHONY: test-val-cdc
+test-val-cdc:
+	@echo "=== val-cdc FUNC (parallel) ==="
+	@$(MAKE) -C val/cdc run-all-func-parallel
+
+.PHONY: test-val-cdc-gate
+test-val-cdc-gate:
+	@echo "=== val-cdc GATE (parallel) ==="
+	@$(MAKE) -C val/cdc run-all-gate-parallel
+
+.PHONY: test-val-cdc-func
+test-val-cdc-func:
+	@echo "=== val-cdc FUNC (parallel) ==="
+	@$(MAKE) -C val/cdc run-all-func-parallel
+
+.PHONY: test-val-cdc-full
+test-val-cdc-full:
+	@echo "=== val-cdc FULL (parallel) ==="
+	@$(MAKE) -C val/cdc run-all-full-parallel
+
+.PHONY: test-val-cdc-gate-waves
+test-val-cdc-gate-waves:
+	@echo "=== val-cdc GATE (parallel + waves) ==="
+	@$(MAKE) -C val/cdc run-all-gate-parallel-waves
+
+.PHONY: test-val-cdc-func-waves
+test-val-cdc-func-waves:
+	@echo "=== val-cdc FUNC (parallel + waves) ==="
+	@$(MAKE) -C val/cdc run-all-func-parallel-waves
+
+.PHONY: test-val-cdc-full-waves
+test-val-cdc-full-waves:
+	@echo "=== val-cdc FULL (parallel + waves) ==="
+	@$(MAKE) -C val/cdc run-all-full-parallel-waves
+
+.PHONY: test-val-cdc-gate-serial
+test-val-cdc-gate-serial:
+	@echo "=== val-cdc GATE (serial) ==="
+	@$(MAKE) -C val/cdc run-all-gate-serial
+
+.PHONY: test-val-cdc-func-serial
+test-val-cdc-func-serial:
+	@echo "=== val-cdc FUNC (serial) ==="
+	@$(MAKE) -C val/cdc run-all-func-serial
+
+.PHONY: test-val-cdc-full-serial
+test-val-cdc-full-serial:
+	@echo "=== val-cdc FULL (serial) ==="
+	@$(MAKE) -C val/cdc run-all-full-serial
+
+.PHONY: coverage-val-cdc
+coverage-val-cdc:
+	@echo "=== val-cdc FUNC (parallel + coverage) ==="
+	@COVERAGE=1 $(MAKE) -C val/cdc run-all-func-parallel
+
+# --- val-math: Arithmetic modules (rtl/math: adders, multipliers, dividers, encoders) ---
+
+.PHONY: test-val-math
+test-val-math:
+	@echo "=== val-math FUNC (parallel) ==="
+	@$(MAKE) -C val/math run-all-func-parallel
+
+.PHONY: test-val-math-gate
+test-val-math-gate:
+	@echo "=== val-math GATE (parallel) ==="
+	@$(MAKE) -C val/math run-all-gate-parallel
+
+.PHONY: test-val-math-func
+test-val-math-func:
+	@echo "=== val-math FUNC (parallel) ==="
+	@$(MAKE) -C val/math run-all-func-parallel
+
+.PHONY: test-val-math-full
+test-val-math-full:
+	@echo "=== val-math FULL (parallel) ==="
+	@$(MAKE) -C val/math run-all-full-parallel
+
+.PHONY: test-val-math-gate-waves
+test-val-math-gate-waves:
+	@echo "=== val-math GATE (parallel + waves) ==="
+	@$(MAKE) -C val/math run-all-gate-parallel-waves
+
+.PHONY: test-val-math-func-waves
+test-val-math-func-waves:
+	@echo "=== val-math FUNC (parallel + waves) ==="
+	@$(MAKE) -C val/math run-all-func-parallel-waves
+
+.PHONY: test-val-math-full-waves
+test-val-math-full-waves:
+	@echo "=== val-math FULL (parallel + waves) ==="
+	@$(MAKE) -C val/math run-all-full-parallel-waves
+
+.PHONY: test-val-math-gate-serial
+test-val-math-gate-serial:
+	@echo "=== val-math GATE (serial) ==="
+	@$(MAKE) -C val/math run-all-gate-serial
+
+.PHONY: test-val-math-func-serial
+test-val-math-func-serial:
+	@echo "=== val-math FUNC (serial) ==="
+	@$(MAKE) -C val/math run-all-func-serial
+
+.PHONY: test-val-math-full-serial
+test-val-math-full-serial:
+	@echo "=== val-math FULL (serial) ==="
+	@$(MAKE) -C val/math run-all-full-serial
+
+.PHONY: coverage-val-math
+coverage-val-math:
+	@echo "=== val-math FUNC (parallel + coverage) ==="
+	@COVERAGE=1 $(MAKE) -C val/math run-all-func-parallel
 
 # --- val-amba: AMBA protocol modules (AXI4, APB, AXIS monitors) ---
 
@@ -119,6 +233,63 @@ test-val-amba-full-serial:
 coverage-val-amba:
 	@echo "=== val-amba FUNC (parallel + coverage) ==="
 	@COVERAGE=1 $(MAKE) -C val/amba run-all-func-parallel
+
+# --- val-amba-monitor-lite: AXI monitor-lite (axi_monitor_lite through the monitored wrappers) ---
+
+.PHONY: test-val-amba-monitor-lite
+test-val-amba-monitor-lite:
+	@echo "=== val-amba-monitor-lite FUNC (parallel) ==="
+	@$(MAKE) -C val/amba/monitor-lite run-all-func-parallel
+
+.PHONY: test-val-amba-monitor-lite-gate
+test-val-amba-monitor-lite-gate:
+	@echo "=== val-amba-monitor-lite GATE (parallel) ==="
+	@$(MAKE) -C val/amba/monitor-lite run-all-gate-parallel
+
+.PHONY: test-val-amba-monitor-lite-func
+test-val-amba-monitor-lite-func:
+	@echo "=== val-amba-monitor-lite FUNC (parallel) ==="
+	@$(MAKE) -C val/amba/monitor-lite run-all-func-parallel
+
+.PHONY: test-val-amba-monitor-lite-full
+test-val-amba-monitor-lite-full:
+	@echo "=== val-amba-monitor-lite FULL (parallel) ==="
+	@$(MAKE) -C val/amba/monitor-lite run-all-full-parallel
+
+.PHONY: test-val-amba-monitor-lite-gate-waves
+test-val-amba-monitor-lite-gate-waves:
+	@echo "=== val-amba-monitor-lite GATE (parallel + waves) ==="
+	@$(MAKE) -C val/amba/monitor-lite run-all-gate-parallel-waves
+
+.PHONY: test-val-amba-monitor-lite-func-waves
+test-val-amba-monitor-lite-func-waves:
+	@echo "=== val-amba-monitor-lite FUNC (parallel + waves) ==="
+	@$(MAKE) -C val/amba/monitor-lite run-all-func-parallel-waves
+
+.PHONY: test-val-amba-monitor-lite-full-waves
+test-val-amba-monitor-lite-full-waves:
+	@echo "=== val-amba-monitor-lite FULL (parallel + waves) ==="
+	@$(MAKE) -C val/amba/monitor-lite run-all-full-parallel-waves
+
+.PHONY: test-val-amba-monitor-lite-gate-serial
+test-val-amba-monitor-lite-gate-serial:
+	@echo "=== val-amba-monitor-lite GATE (serial) ==="
+	@$(MAKE) -C val/amba/monitor-lite run-all-gate-serial
+
+.PHONY: test-val-amba-monitor-lite-func-serial
+test-val-amba-monitor-lite-func-serial:
+	@echo "=== val-amba-monitor-lite FUNC (serial) ==="
+	@$(MAKE) -C val/amba/monitor-lite run-all-func-serial
+
+.PHONY: test-val-amba-monitor-lite-full-serial
+test-val-amba-monitor-lite-full-serial:
+	@echo "=== val-amba-monitor-lite FULL (serial) ==="
+	@$(MAKE) -C val/amba/monitor-lite run-all-full-serial
+
+.PHONY: coverage-val-amba-monitor-lite
+coverage-val-amba-monitor-lite:
+	@echo "=== val-amba-monitor-lite FUNC (parallel + coverage) ==="
+	@COVERAGE=1 $(MAKE) -C val/amba/monitor-lite run-all-func-parallel
 
 # --- stream: STREAM scatter-gather DMA engine ---
 
@@ -534,34 +705,34 @@ test-timing-char-full-serial:
 # ==============================================================================
 
 .PHONY: test-all-gate
-test-all-gate: test-val-common-gate test-val-amba-gate test-stream-gate test-rapids-gate test-bridge-gate test-converters-gate test-apb-xbar-gate test-retro-legacy-gate test-timing-char-gate
+test-all-gate: test-val-common-gate test-val-cdc-gate test-val-math-gate test-val-amba-gate test-val-amba-monitor-lite-gate test-stream-gate test-rapids-gate test-bridge-gate test-converters-gate test-apb-xbar-gate test-retro-legacy-gate test-timing-char-gate
 
 .PHONY: test-all-func
-test-all-func: test-val-common-func test-val-amba-func test-stream-func test-rapids-func test-bridge-func test-converters-func test-apb-xbar-func test-retro-legacy-func test-timing-char-func
+test-all-func: test-val-common-func test-val-cdc-func test-val-math-func test-val-amba-func test-val-amba-monitor-lite-func test-stream-func test-rapids-func test-bridge-func test-converters-func test-apb-xbar-func test-retro-legacy-func test-timing-char-func
 
 .PHONY: test-all-full
-test-all-full: test-val-common-full test-val-amba-full test-stream-full test-rapids-full test-bridge-full test-converters-full test-apb-xbar-full test-retro-legacy-full test-timing-char-full
+test-all-full: test-val-common-full test-val-cdc-full test-val-math-full test-val-amba-full test-val-amba-monitor-lite-full test-stream-full test-rapids-full test-bridge-full test-converters-full test-apb-xbar-full test-retro-legacy-full test-timing-char-full
 
 .PHONY: test-all-gate-serial
-test-all-gate-serial: test-val-common-gate-serial test-val-amba-gate-serial test-stream-gate-serial test-rapids-gate-serial test-bridge-gate-serial test-converters-gate-serial test-apb-xbar-gate-serial test-retro-legacy-gate-serial test-timing-char-gate-serial
+test-all-gate-serial: test-val-common-gate-serial test-val-cdc-gate-serial test-val-math-gate-serial test-val-amba-gate-serial test-val-amba-monitor-lite-gate-serial test-stream-gate-serial test-rapids-gate-serial test-bridge-gate-serial test-converters-gate-serial test-apb-xbar-gate-serial test-retro-legacy-gate-serial test-timing-char-gate-serial
 
 .PHONY: test-all-func-serial
-test-all-func-serial: test-val-common-func-serial test-val-amba-func-serial test-stream-func-serial test-rapids-func-serial test-bridge-func-serial test-converters-func-serial test-apb-xbar-func-serial test-retro-legacy-func-serial test-timing-char-func-serial
+test-all-func-serial: test-val-common-func-serial test-val-cdc-func-serial test-val-math-func-serial test-val-amba-func-serial test-val-amba-monitor-lite-func-serial test-stream-func-serial test-rapids-func-serial test-bridge-func-serial test-converters-func-serial test-apb-xbar-func-serial test-retro-legacy-func-serial test-timing-char-func-serial
 
 .PHONY: test-all-full-serial
-test-all-full-serial: test-val-common-full-serial test-val-amba-full-serial test-stream-full-serial test-rapids-full-serial test-bridge-full-serial test-converters-full-serial test-apb-xbar-full-serial test-retro-legacy-full-serial test-timing-char-full-serial
+test-all-full-serial: test-val-common-full-serial test-val-cdc-full-serial test-val-math-full-serial test-val-amba-full-serial test-val-amba-monitor-lite-full-serial test-stream-full-serial test-rapids-full-serial test-bridge-full-serial test-converters-full-serial test-apb-xbar-full-serial test-retro-legacy-full-serial test-timing-char-full-serial
 
 .PHONY: test-all-gate-waves
-test-all-gate-waves: test-val-common-gate-waves test-val-amba-gate-waves test-stream-gate-waves test-rapids-gate-waves test-bridge-gate-waves test-converters-gate-waves test-apb-xbar-gate-waves test-retro-legacy-gate-waves test-timing-char-gate-waves
+test-all-gate-waves: test-val-common-gate-waves test-val-cdc-gate-waves test-val-math-gate-waves test-val-amba-gate-waves test-val-amba-monitor-lite-gate-waves test-stream-gate-waves test-rapids-gate-waves test-bridge-gate-waves test-converters-gate-waves test-apb-xbar-gate-waves test-retro-legacy-gate-waves test-timing-char-gate-waves
 
 .PHONY: test-all-func-waves
-test-all-func-waves: test-val-common-func-waves test-val-amba-func-waves test-stream-func-waves test-rapids-func-waves test-bridge-func-waves test-converters-func-waves test-apb-xbar-func-waves test-retro-legacy-func-waves test-timing-char-func-waves
+test-all-func-waves: test-val-common-func-waves test-val-cdc-func-waves test-val-math-func-waves test-val-amba-func-waves test-val-amba-monitor-lite-func-waves test-stream-func-waves test-rapids-func-waves test-bridge-func-waves test-converters-func-waves test-apb-xbar-func-waves test-retro-legacy-func-waves test-timing-char-func-waves
 
 .PHONY: test-all-full-waves
-test-all-full-waves: test-val-common-full-waves test-val-amba-full-waves test-stream-full-waves test-rapids-full-waves test-bridge-full-waves test-converters-full-waves test-apb-xbar-full-waves test-retro-legacy-full-waves test-timing-char-full-waves
+test-all-full-waves: test-val-common-full-waves test-val-cdc-full-waves test-val-math-full-waves test-val-amba-full-waves test-val-amba-monitor-lite-full-waves test-stream-full-waves test-rapids-full-waves test-bridge-full-waves test-converters-full-waves test-apb-xbar-full-waves test-retro-legacy-full-waves test-timing-char-full-waves
 
 .PHONY: coverage-all
-coverage-all: coverage-val-common coverage-val-amba coverage-stream coverage-rapids coverage-bridge coverage-converters coverage-apb-xbar
+coverage-all: coverage-val-common coverage-val-cdc coverage-val-math coverage-val-amba coverage-val-amba-monitor-lite coverage-stream coverage-rapids coverage-bridge coverage-converters coverage-apb-xbar
 
 .PHONY: coverage-report-all
 coverage-report-all: coverage-report-stream coverage-report-rapids coverage-report-bridge coverage-report-converters
@@ -577,8 +748,11 @@ help-envs:
 	@echo "================================================================================"
 	@echo ""
 	@echo "DEFAULT (FUNC, parallel):"
-	@echo "  make test-val-common                   RTL common modules (counters, arbiters, FIFOs, math, etc.) (parallel)"
+	@echo "  make test-val-common                   RTL common modules (counters, arbiters, FIFOs, data integrity, etc.) (parallel)"
+	@echo "  make test-val-cdc                      Clock domain crossing primitives (rtl/cdc: gray/johnson counters, async FIFOs, handshakes) (parallel)"
+	@echo "  make test-val-math                     Arithmetic modules (rtl/math: adders, multipliers, dividers, encoders) (parallel)"
 	@echo "  make test-val-amba                     AMBA protocol modules (AXI4, APB, AXIS monitors) (parallel)"
+	@echo "  make test-val-amba-monitor-lite        AXI monitor-lite (axi_monitor_lite through the monitored wrappers) (parallel)"
 	@echo "  make test-stream                       STREAM scatter-gather DMA engine (parallel)"
 	@echo "  make test-rapids                       RAPIDS descriptor-driven accelerator (parallel)"
 	@echo "  make test-bridge                       AXI4 crossbar bridge (sequential only — ~1GB per test) (serial)"
@@ -605,7 +779,10 @@ help-envs:
 	@echo ""
 	@echo "COVERAGE:"
 	@echo "  make coverage-val-common"
+	@echo "  make coverage-val-cdc"
+	@echo "  make coverage-val-math"
 	@echo "  make coverage-val-amba"
+	@echo "  make coverage-val-amba-monitor-lite"
 	@echo "  make coverage-stream"
 	@echo "  make coverage-rapids"
 	@echo "  make coverage-bridge"
