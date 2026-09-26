@@ -55,6 +55,14 @@ description = "AMBA protocol modules (AXI4, APB, AXIS monitors)"
 directory = "val/amba"
 coverage = true
 
+# rtl/amba/monitor-lite has its own test area (Sean, 2026-09-25): own Makefile
+# on make/tests.mk, own conftest, own TB package. Not a sub_area of val-amba --
+# sub_areas REPLACE the root entry, and val/amba's own tests must keep running.
+[env.val-amba-monitor-lite]
+description = "AXI monitor-lite (axi_monitor_lite through the monitored wrappers)"
+directory = "val/amba/monitor-lite"
+coverage = true
+
 # ==============================================================================
 # projects/components/ environments
 # ==============================================================================

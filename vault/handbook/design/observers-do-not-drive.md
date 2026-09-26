@@ -98,7 +98,7 @@ Related: [[valid-ready-contracts]], [[sizing-invariants]].
 
 An observer that cannot deliver an event has two choices: hold the traffic
 it watches until it can (the full AXI monitor's `block_ready`), or lose the
-event and say so. The lite monitor (TASK-098) takes the second: a small skid
+event and say so. The lite monitor (amba/monitor-lite TASK-001) takes the second: a small skid
 of events, and when it is full the event is dropped, counted, and the count
 reported on the bus as one `EVENT_DROPPED` packet the next time there is
 room. The consumer always knows how many events it did not see; the design

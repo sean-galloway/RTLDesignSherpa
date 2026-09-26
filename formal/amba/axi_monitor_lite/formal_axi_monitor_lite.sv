@@ -1,4 +1,4 @@
-// Formal harness for axi_monitor_lite (TASK-098): a read monitor with a
+// Formal harness for axi_monitor_lite (amba/monitor-lite TASK-001): a read monitor with a
 // 4-slot table under UNCONSTRAINED taps. The monitor watches traffic it does
 // not control, so the properties are about the monitor's own promises, not
 // about the bus being well-behaved:

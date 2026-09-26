@@ -1,6 +1,6 @@
 <!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. -->
 
-# amba — issues
+# amba/monitor-lite — issues
 
 **Next ID: ISSUE-002** — never recycle a number, even when its item closed.
 
@@ -20,4 +20,4 @@ by construction rather than by discipline.
 ## Open
 
 - **ISSUE-000** — reserved template; copy the file, do not file against it.
-- **ISSUE-001** — monbus_axil4_axil4_group misses 10 ns on Artix-7 through the s1_beats_to_limit CARRY4 chain (found synthesizing the amba/monitor-lite TASK-001 lite fixture)
+- **ISSUE-001** — which monitored instances should switch to the lite

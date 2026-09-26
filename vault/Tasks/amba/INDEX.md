@@ -17,6 +17,12 @@ Pick the lane before filing:
 | [bug/](bug/INDEX.md) | a defect with a reproduction | `BUG-001` |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | `ISSUE-001` |
 
+**Sub-area:** [monitor-lite](monitor-lite/INDEX.md) -- `rtl/amba/monitor-lite/`
+has its own task/bug/issue lanes (Sean, 2026-09-25), the way each RLB block
+does under RLB. The block's own work files there; the monbus, the full monitor
+family and the wrappers file here. Cite its items as "amba/monitor-lite
+TASK-001".
+
 **The pages at this level are the LEGACY task lane.** They are frozen: close
 them out where they stand, and do not add to them. New work of any kind goes in
 a lane above. See [the convention](../INDEX.md) for the full definitions.
@@ -27,10 +33,10 @@ monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
 
 | Page | Count | What |
 |---|---|---|
-| [active.md](active.md) | 2 | in progress right now |
+| [active.md](active.md) | 1 | in progress right now |
 | [open.md](open.md) | 7 | accepted, not started |
 | [deferred.md](deferred.md) | 0 | accepted, parked on a named condition |
-| [closed.md](closed.md) | 66 | done (kept for history) |
+| [closed.md](closed.md) | 67 | done (kept for history) |
 | [dropped.md](dropped.md) | 1 | ended without completing (won't do / superseded) |
 
 *Re-measured again 2026-09-16 and corrected: the table claimed 11 open / 58

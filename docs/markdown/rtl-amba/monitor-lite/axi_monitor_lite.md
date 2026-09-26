@@ -25,7 +25,7 @@
 **Module:** `axi_monitor_lite.sv`
 **Location:** `rtl/amba/monitor-lite/`
 **Category:** Monitor Infrastructure
-**Status:** Production Ready (TASK-098, 2026-09-25)
+**Status:** Production Ready (amba/monitor-lite TASK-001, 2026-09-25)
 
 ---
 
@@ -217,7 +217,7 @@ many events it did not see.
 
 ## Verification
 
-- `val/amba/test_axi_monitor_lite.py` through `axi4_slave_{rd,wr}_mon` with
+- `val/amba/monitor-lite/test_axi_monitor_lite.py` through `axi4_slave_{rd,wr}_mon` with
   `MONITOR_LITE=1`: exact packets for singles and bursts (address, id, non-zero
   latency), one `RESP_SLVERR` and no completion for an out-of-range access,
   one `Timeout/DATA` (read) or `Timeout/RESP` (write) for a stalled slave
@@ -235,4 +235,4 @@ many events it did not see.
 
 `axi_monitor_base` (the full monitor), the `*_mon` wrappers'
 `MONITOR_LITE` parameter, `monbus_arbiter` and `monbus_group` (unchanged
-consumers), `vault/Tasks/amba` TASK-098 (the review that sized this).
+consumers), `vault/Tasks/amba` amba/monitor-lite TASK-001 (the review that sized this).

@@ -1,4 +1,4 @@
-# Bridge Configuration: bridge_1x2_rd with the LITE monitors (TASK-098).
+# Bridge Configuration: bridge_1x2_rd with the LITE monitors (amba/monitor-lite TASK-001).
 #
 # Same fabric as bridge_1x2_rd; `mon_preset = "lite"` makes the `_mon`
 # variant instantiate axi_monitor_lite inside every axi4_*_rd_mon wrapper
@@ -10,7 +10,7 @@
 [bridge]
 name = "bridge_1x2_rd_lite"
 variants = ["no", "mon"]
-description = "1 master x 2 slave read-only bridge, monitors are axi_monitor_lite (mon_preset = lite, TASK-098)"
+description = "1 master x 2 slave read-only bridge, monitors are axi_monitor_lite (mon_preset = lite, amba/monitor-lite TASK-001)"
 mon_preset = "lite"
 
 [[bridge.masters]]

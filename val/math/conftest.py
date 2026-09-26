@@ -18,8 +18,27 @@ import os
 import sys
 
 _AREA_DIR = os.path.dirname(os.path.abspath(__file__))
-AREA = os.path.basename(_AREA_DIR)   # 'common' / 'cdc' / 'amba' / 'math' — derived
-sys.path.insert(0, os.path.abspath(os.path.join(_AREA_DIR, '../../bin')))
+AREA = os.path.basename(_AREA_DIR)   # 'common' / 'cdc' / 'amba' / 'monitor-lite' — derived
+
+
+def _repo_bin(start):
+    """The repo's bin/, found by walking up -- not a fixed '../../bin'.
+
+    A sub-area (val/amba/monitor-lite, 2026-09-25) sits one level deeper than
+    the four original areas, and a hard-coded depth pointed it at val/bin.
+    """
+    d = start
+    while True:
+        cand = os.path.join(d, 'bin', 'cov_utils')
+        if os.path.isdir(cand):
+            return os.path.join(d, 'bin')
+        parent = os.path.dirname(d)
+        if parent == d:
+            raise RuntimeError(f'no bin/cov_utils above {start}')
+        d = parent
+
+
+sys.path.insert(0, _repo_bin(_AREA_DIR))
 
 import pytest  # noqa: E402
 from cov_utils.conftest_base import configure, sessionfinish, ignore_collect  # noqa: E402

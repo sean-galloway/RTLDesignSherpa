@@ -60,7 +60,7 @@ Every bridge the generator emits starts here: port counts, bus widths, per-port 
 
 | TOML key (`[bridge]`) | Type | Default | Effect |
 |---|---|---|---|
-| `mon_preset` | `"error_only"` / `"functional"` / `"all"` / `"none"` / `"lite"` | `"error_only"` | Which reporter cones every monitored port builds (`ENABLE_*_LOGIC`): error only; error + timeout + completion; all six; none. `"lite"` (TASK-098) instantiates `axi_monitor_lite` in every `*_mon` wrapper (`MONITOR_LITE = 1`): error, timeout, completion and active-count threshold packets, same monbus, about a fifth of the monitor's LUTs. Per-port `mon_add` / `mon_remove` adjust cones on top of a preset. |
+| `mon_preset` | `"error_only"` / `"functional"` / `"all"` / `"none"` / `"lite"` | `"error_only"` | Which reporter cones every monitored port builds (`ENABLE_*_LOGIC`): error only; error + timeout + completion; all six; none. `"lite"` (amba/monitor-lite TASK-001) instantiates `axi_monitor_lite` in every `*_mon` wrapper (`MONITOR_LITE = 1`): error, timeout, completion and active-count threshold packets, same monbus, about a fifth of the monitor's LUTs. Per-port `mon_add` / `mon_remove` adjust cones on top of a preset. |
 
 : Table 6.8c: Monitor preset
 

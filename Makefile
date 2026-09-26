@@ -343,6 +343,7 @@ run-amba-gate-parallel:
 	@echo "Running AMBA Tests - GATE level PARALLEL (~2-3 min)"
 	@echo "================================================================================"
 	@$(MAKE) -C $(VAL_DIR)/amba run-all-gate-parallel
+	@$(MAKE) -C $(VAL_DIR)/amba/monitor-lite run-all-gate-parallel
 
 .PHONY: run-amba-func-parallel
 run-amba-func-parallel:
@@ -350,6 +351,7 @@ run-amba-func-parallel:
 	@echo "Running AMBA Tests - FUNC level PARALLEL (~10-20 min)"
 	@echo "================================================================================"
 	@$(MAKE) -C $(VAL_DIR)/amba run-all-func-parallel
+	@$(MAKE) -C $(VAL_DIR)/amba/monitor-lite run-all-func-parallel
 
 .PHONY: run-amba-full-parallel
 run-amba-full-parallel:
@@ -357,6 +359,7 @@ run-amba-full-parallel:
 	@echo "Running AMBA Tests - FULL level PARALLEL (~30-60 min)"
 	@echo "================================================================================"
 	@$(MAKE) -C $(VAL_DIR)/amba run-all-full-parallel
+	@$(MAKE) -C $(VAL_DIR)/amba/monitor-lite run-all-full-parallel
 
 # Combined RTL (COMMON + AMBA) REG_LEVEL targets
 .PHONY: run-rtl-all-gate-parallel
@@ -426,6 +429,7 @@ gate-serial:
 	@echo "================================================================================"
 	@$(MAKE) -C $(VAL_DIR)/common run-all-gate
 	@$(MAKE) -C $(VAL_DIR)/amba run-all-gate
+	@$(MAKE) -C $(VAL_DIR)/amba/monitor-lite run-all-gate
 	@$(MAKE) -C $(VAL_DIR)/integ_common run-all 2>/dev/null || true
 	@$(MAKE) -C $(VAL_DIR)/integ_amba run-all 2>/dev/null || true
 	@$(MAKE) -C $(PROJECTS_DIR) test-all-gate
@@ -440,6 +444,7 @@ func-serial:
 	@echo "================================================================================"
 	@$(MAKE) -C $(VAL_DIR)/common run-all-func
 	@$(MAKE) -C $(VAL_DIR)/amba run-all-func
+	@$(MAKE) -C $(VAL_DIR)/amba/monitor-lite run-all-func
 	@$(MAKE) -C $(VAL_DIR)/integ_common run-all 2>/dev/null || true
 	@$(MAKE) -C $(VAL_DIR)/integ_amba run-all 2>/dev/null || true
 	@$(MAKE) -C $(PROJECTS_DIR) test-all-func
@@ -454,6 +459,7 @@ full-serial:
 	@echo "================================================================================"
 	@$(MAKE) -C $(VAL_DIR)/common run-all-full
 	@$(MAKE) -C $(VAL_DIR)/amba run-all-full
+	@$(MAKE) -C $(VAL_DIR)/amba/monitor-lite run-all-full
 	@$(MAKE) -C $(VAL_DIR)/integ_common run-all 2>/dev/null || true
 	@$(MAKE) -C $(VAL_DIR)/integ_amba run-all 2>/dev/null || true
 	@$(MAKE) -C $(PROJECTS_DIR) test-all-full

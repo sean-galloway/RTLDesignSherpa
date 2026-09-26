@@ -10,7 +10,7 @@ chosen from two reports and nothing else: `report_utilization
 -hierarchical` deep enough to see the sub-blocks, and the worst
 register-to-register path. Guessing from the RTL picks the wrong target.
 
-**The case.** `axi_monitor_lite` (amba TASK-098) was written to be a fifth
+**The case.** `axi_monitor_lite` (amba/monitor-lite TASK-001) was written to be a fifth
 of `axi_monitor_base`. It took five synthesis passes on the same bridge
 fixture (`projects/components/bridge/fpga/`, minutes each), and every pass
 fixed something the previous report named that the RTL did not suggest:

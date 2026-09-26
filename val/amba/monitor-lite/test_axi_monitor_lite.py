@@ -1,6 +1,6 @@
-"""axi_monitor_lite through axi4_slave_{rd,wr}_mon with MONITOR_LITE=1 (TASK-098).
+"""axi_monitor_lite through axi4_slave_{rd,wr}_mon with MONITOR_LITE=1 (amba/monitor-lite TASK-001).
 Exact packets for completions, a SLVERR, a stalled slave, an active-count
-threshold and a held monbus. See bin/TBClasses/amba/axi_monitor_lite_tb.py."""
+threshold and a held monbus. See bin/TBClasses/amba/monitor_lite/axi_monitor_lite_tb.py."""
 import os
 import random
 import cocotb
@@ -8,7 +8,7 @@ import pytest
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
-from TBClasses.amba.axi_monitor_lite_tb import AxiMonitorLiteTB
+from TBClasses.amba.monitor_lite.axi_monitor_lite_tb import AxiMonitorLiteTB
 
 
 @cocotb.test(timeout_time=400, timeout_unit="ms")

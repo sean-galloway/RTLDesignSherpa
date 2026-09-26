@@ -141,13 +141,15 @@
 //==============================================================================
 module dataint_ecc_hamming_encode_secded #(
     parameter int WIDTH = 4,
-    parameter int DEBUG = 0
+    parameter int DEBUG = 0,
+    // Derived - do not override (declared here so the port list can use
+    // them; strict front ends reject body localparams in port ranges)
+    parameter int ParityBits = $clog2(WIDTH + $clog2(WIDTH) + 1),
+    parameter int TotalWidth = WIDTH + ParityBits + 1   // including the SECDED bit
 ) (
     input  logic [     WIDTH-1:0] data,
     output logic [TotalWidth-1:0] encoded_data
 );
-    localparam int ParityBits = $clog2(WIDTH + $clog2(WIDTH) + 1);
-    localparam int TotalWidth = WIDTH + ParityBits + 1;  // Including the SECDED bit
 
     // local wires
     logic [TotalWidth-1:0] w_data_with_parity;

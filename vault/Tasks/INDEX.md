@@ -312,7 +312,7 @@ reviewed tree starts until the review is back and integrated.
 
 | Area | Status | Covers | Source (pre-migration) |
 |---|---|---|---|
-| [amba](amba/INDEX.md) | **migrated** | AXI/APB/AXIS, monitors, monbus | — |
+| [amba](amba/INDEX.md) | **migrated** | AXI/APB/AXIS, monitors, monbus. Sub-area [amba/monitor-lite](amba/monitor-lite/INDEX.md) for `rtl/amba/monitor-lite` (2026-09-25) | — |
 | [common](common/INDEX.md) | **migrated** | rtl/common building blocks | — |
 | [math](math/INDEX.md) | **native** | rtl/math arithmetic library (MATH-001: bf16 rounding decision) | — (new 2026-07-29) |
 | [cdc](cdc/INDEX.md) | **native** | rtl/cdc clock-domain crossing (gray/binary converters, async FIFOs, pointer synchronisers) | — (new 2026-09-04) |

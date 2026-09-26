@@ -2,6 +2,17 @@
 
 # AMBA tasks — closed (complete)
 
+## TASK-098: monitor-lite -- three quarters of the AXI monitor for a fifth of the gates
+
+**Status:** closed 2026-09-25 -- RE-FILED as [amba/monitor-lite TASK-001](monitor-lite/task/active/TASK-001.md)
+(Sean: monitor-lite gets its own sub-area with task/bug/issue lanes). This
+entry was filed and committed in the frozen legacy lane earlier the same day,
+before the sub-area existed; the review, the design, the five synthesis passes
+and the built-and-measured result all live in the new file. Nothing is
+recorded here that is not there.
+
+---
+
 ## TASK-095: axi_split_combi's next-boundary arithmetic overflows in the top alignment window
 
 **Priority:** P3. A latent hazard the design DOCUMENTS as out of scope, found

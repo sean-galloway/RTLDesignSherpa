@@ -62,7 +62,7 @@ module axi4_master_wr_mon
     parameter int CFI_MIN_FREQ_MHZ  = ACLK_MHZ,
     parameter int CFI_MAX_FREQ_MHZ  = ACLK_MHZ,
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
-    parameter bit MONITOR_LITE      = 1'b0,  // 1 = axi_monitor_lite instead of axi_monitor_filtered (TASK-098)
+    parameter bit MONITOR_LITE      = 1'b0,  // 1 = axi_monitor_lite instead of axi_monitor_filtered (amba/monitor-lite TASK-001)
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
     parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0,  // per-range flavor: 0=debug/match, 1=error/allowlist-miss
     parameter logic [7:0]  UNIT_ID  = 8'h01,     // 8-bit Unit ID for monitor packets
@@ -418,7 +418,7 @@ module axi4_master_wr_mon
                             : cfg_timeout_cycles;
 
     if (USE_MONITOR && MONITOR_LITE) begin : gen_monitor_lite
-        // TASK-098: the lite monitor. Same taps, same monbus, same ids; no
+        // amba/monitor-lite TASK-001: the lite monitor. Same taps, same monbus, same ids; no
         // perf window, no debug, no address/id filtering, no admission stall
         // (block_ready held high). Everything the full monitor exposes that
         // the lite does not have is tied as gen_no_monitor ties it.

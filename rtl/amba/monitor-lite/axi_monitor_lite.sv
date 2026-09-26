@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi_monitor_lite
-// Purpose: the AXI transaction monitor at a fifth of the gates (TASK-098).
+// Purpose: the AXI transaction monitor at a fifth of the gates (amba/monitor-lite TASK-001).
 //
 // Documentation: docs/markdown/rtl-amba/monitor-lite/axi_monitor_lite.md
 // Subsystem: amba

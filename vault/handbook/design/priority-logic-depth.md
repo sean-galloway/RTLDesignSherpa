@@ -47,7 +47,7 @@ and its data are OR-reductions, not a last-match-wins priority chain.
 
 ## Third case, same week: the author of the second case wrote a fourth chain
 
-`axi_monitor_lite` (TASK-098, 2026-09-25) needed "the oldest entry whose ID
+`axi_monitor_lite` (amba/monitor-lite TASK-001, 2026-09-25) needed "the oldest entry whose ID
 matches". The first draft was `for (i) if (match[i] && age[i] > best) best =
 age[i]` -- a running max, written the day after the bridge_cam entry above
 was added to this note. It simulated, proved, and synthesized to **89 LUT
