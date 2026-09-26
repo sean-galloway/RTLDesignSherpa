@@ -68,12 +68,10 @@ relative to `../tests/` (i.e. `fub/test_ctrlrd_engine.py` = `dv/tests/fub/test_c
 | snk_data_path_axis_test_beats.sv | data_path_beats_testplan.yaml | macro_beats/test_snk_data_path_axis_test_beats.py | 100% |
 | snk_data_path_beats.sv | (integration-tested) | (system-level) | 100% |
 | snk_sram_controller_beats.sv | data_path_beats_testplan.yaml | macro_beats/test_snk_sram_controller_beats.py | 100% |
-| snk_sram_controller_unit_beats.sv | data_path_beats_testplan.yaml | (via snk_sram_controller) | 100% |
 | src_data_path_axis_test_beats.sv | data_path_beats_testplan.yaml | macro_beats/test_src_data_path_axis_test_beats.py | 100% |
 | src_data_path_beats.sv | (integration-tested) | (system-level) | 100% |
 | src_data_path_axis_beats.sv | data_path_beats_testplan.yaml | macro_beats/test_src_data_path_axis_test_beats.py | 100% |
 | src_sram_controller_beats.sv | data_path_beats_testplan.yaml | macro_beats/test_src_sram_controller_beats.py | 100% |
-| src_sram_controller_unit_beats.sv | data_path_beats_testplan.yaml | (via src_sram_controller) | 100% |
 
 ---
 
