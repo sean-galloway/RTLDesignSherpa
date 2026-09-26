@@ -40,3 +40,4 @@ bridge_2x2_rw_cdc,test_configs/bridge_2x2_rw_cdc.toml,test_configs/bridge_2x2_rw
 bridge_2x2_rw_qos_pipe,test_configs/bridge_2x2_rw_qos_pipe.toml,test_configs/bridge_2x2_rw_qos_pipe_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_2x2_axi5_native,test_configs/bridge_2x2_axi5_native.toml,test_configs/bridge_2x2_axi5_native_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_1x2_rd_axi5c,test_configs/bridge_1x2_rd_axi5c.toml,test_configs/bridge_1x2_rd_axi5c_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_1x2_rd_lite,test_configs/bridge_1x2_rd_lite.toml,test_configs/bridge_1x2_rd_lite_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests

@@ -24,6 +24,8 @@
 - [AXI Monitor Timeout](monitor/axi_monitor_timeout.md)
 - [AXI Monitor Timer](monitor/axi_monitor_timer.md)
 - [AXI Monitor Transaction Manager](monitor/axi_monitor_trans_mgr.md)
+- [AXI Monitor Lite](monitor-lite/axi_monitor_lite.md)
+- [rtl/amba/monitor-lite](monitor-lite/README.md)
 - [Monitor Bus Round-Robin Arbiter](monitor/monbus_arbiter.md)
 - [MonBus Group — AXI4 / AXI4](monitor/monbus_axi4_axi4_group.md)
 - [MonBus Group — AXI4 / AXIL](monitor/monbus_axi4_axil4_group.md)

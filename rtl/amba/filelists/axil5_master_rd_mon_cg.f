@@ -35,5 +35,6 @@ $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_addr_check.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_base.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_filtered.sv
+$REPO_ROOT/rtl/amba/monitor-lite/axi_monitor_lite.sv
 $REPO_ROOT/rtl/amba/axil5/axil5_master_rd_mon.sv
 $REPO_ROOT/rtl/amba/axil5/axil5_master_rd_mon_cg.sv

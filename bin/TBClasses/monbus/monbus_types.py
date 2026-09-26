@@ -236,7 +236,7 @@ class AXIErrorCode(IntEnum):
     AXI_ERR_LAST_MISSING           = 0xB  # Missing LAST signal
     AXI_ERR_STROBE_ERROR           = 0xC  # Write strobe error
     AXI_ERR_ADDR_RANGE             = 0xD  # Address-range violation (from axi_monitor_addr_check)
-    AXI_ERR_RESERVED_E             = 0xE  # Reserved
+    AXI_ERR_EVENT_DROPPED          = 0xE  # monitor-lite: events lost to monbus backpressure (data = count)
     AXI_ERR_USER_DEFINED           = 0xF  # User-defined error
 
 

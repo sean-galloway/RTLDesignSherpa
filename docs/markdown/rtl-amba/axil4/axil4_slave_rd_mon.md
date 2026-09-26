@@ -49,6 +49,7 @@ Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md#additional-parameter
 - `AGENT_ID = 20` (slave agent IDs)
 - `USE_MONITOR` (synthesis-time monitor enable)
 - `ACTIVE_TRANS_THRESHOLD` (default `MAX_TRANSACTIONS/2`): threshold-packet trip point, replaces the former hardwired value
+- `MONITOR_LITE` (default 0): 1 instantiates `axi_monitor_lite` (rtl/amba/monitor-lite) in place of `axi_monitor_filtered` -- same taps, monbus and ids; error, timeout, completion and active-count threshold packets only; no perf window, debug, address/id filtering or admission stall. About a fifth of the monitor's LUTs; see the monitor-lite page.
 - `ENABLE_FILTERING` (default 1) and `ADD_PIPELINE_STAGE` (default 0)
 - `ACLK_MHZ` (default 100) and `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` (default `ACLK_MHZ`) -- the microsecond tick LUT. **Leave `ACLK_MHZ` at 100 on a 90 MHz part and every us-denominated timeout is wrong, silently**
 - `USE_WDATA_ORDER_Q` (default 0) and `NUM_BANKS` (default 1) -- **`NUM_BANKS` > 1 on a WRITE monitor requires `USE_WDATA_ORDER_Q=1`**, or `axi_monitor_trans_mgr` fails elaboration

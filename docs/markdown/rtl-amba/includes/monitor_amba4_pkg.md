@@ -91,7 +91,7 @@ package for the full perf-window / perf-histogram value tables. The
 | 8'hB | `AXI_ERR_LAST_MISSING`      | Missing LAST signal |
 | 8'hC | `AXI_ERR_STROBE_ERROR`      | Write strobe error |
 | 8'hD | `AXI_ERR_ADDR_RANGE`        | Address-range violation (from `axi_monitor_addr_check`) |
-| 8'hE | _(reserved)_                | _Reserved for future use_ |
+| 8'hE | `AXI_ERR_EVENT_DROPPED`     | monitor-lite: events lost to monbus backpressure; `event_data` is the count |
 | 8'hF | `AXI_ERR_USER_DEFINED`      | User-defined error |
 
 ### `axi_timeout_code_t`

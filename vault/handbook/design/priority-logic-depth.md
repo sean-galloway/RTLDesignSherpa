@@ -44,3 +44,27 @@ and its data are OR-reductions, not a last-match-wins priority chain.
   it is called done.** `projects/components/bridge/fpga/` runs a whole
   bridge out of context in minutes; a component without such a flow has no
   timing gate at all.
+
+## Third case, same week: the author of the second case wrote a fourth chain
+
+`axi_monitor_lite` (TASK-098, 2026-09-25) needed "the oldest entry whose ID
+matches". The first draft was `for (i) if (match[i] && age[i] > best) best =
+age[i]` -- a running max, written the day after the bridge_cam entry above
+was added to this note. It simulated, proved, and synthesized to **89 LUT
+levels and -51 ns** at sixteen slots. The tournament rewrite (pair up
+neighbours span 1, 2, 4, 8; each level independent of the last) is log2(N)
+compares deep and identical in function.
+
+Knowing the rule is not the check. The check is the synthesis run, and
+`projects/components/bridge/fpga` makes one cost minutes: anything with a
+`for` whose body reads what an earlier iteration wrote goes through it
+before it is called done -- the comment in the RTL now says so at the
+function that had the chain.
+
+The tournament was not the end of it either. The same block went through
+three more synthesis passes (per-slot arithmetic, then a subtract in front
+of every compare, then the whole event tail in the attribution cycle) before
+the ordering compare disappeared altogether: same-ID entries keep a linked
+list, and "the oldest with this ID" is the one flagged as that list's head.
+The cheapest max is the one you never compute -- see
+[[area-measure-by-hierarchy]] for how the reports steered each pass.

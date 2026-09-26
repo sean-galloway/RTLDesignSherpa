@@ -4,6 +4,7 @@
 
 - [AXI5 (Advanced eXtensible Interface - AMBA 5) Modules](axi5/README.md)
 - [AXI5 Atomic Filter](axi5/axi5_atomic_filter.md)
+- [AXI5 Atomic Read-Return Tracker](axi5/axi5_atomic_rr_tracker.md)
 - [AXI5 Master Read](axi5/axi5_master_rd.md)
 - [AXI5 Master Read with Clock Gating](axi5/axi5_master_rd_cg.md)
 - [AXI5 Master Read with Monitor](axi5/axi5_master_rd_mon.md)

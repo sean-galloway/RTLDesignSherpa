@@ -1,0 +1,40 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Fri Sep 25 17:32:50 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/projects/components/bridge/fpga/reports/bridge_mix_a_mon__xc7a100tcsg324-1/utilization_hier.txt
+| Design       : bridge_mix_a_mon
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-------------------------+--------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+|         Instance        |          Module          | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs  | RAMB36 | RAMB18 | DSP Blocks |
++-------------------------+--------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+| bridge_mix_a_mon        |                    (top) |      42539 |      41895 |     644 |    0 | 25426 |      0 |      0 |          0 |
+|   (bridge_mix_a_mon)    |                    (top) |          0 |          0 |       0 |    0 |     0 |      0 |      0 |          0 |
+|   u_apb_periph_adapter  |       apb_periph_adapter |       7737 |       7617 |     120 |    0 |  4178 |      0 |      0 |          0 |
+|   u_axil_periph_adapter |      axil_periph_adapter |       7140 |       7100 |      40 |    0 |  3291 |      0 |      0 |          0 |
+|   u_cpu_axi4_adapter    |         cpu_axi4_adapter |       9063 |       9007 |      56 |    0 |  5696 |      0 |      0 |          0 |
+|   u_ddr_adapter         |              ddr_adapter |       8175 |       8119 |      56 |    0 |  4592 |      0 |      0 |          0 |
+|   u_host_axil_adapter   |        host_axil_adapter |       6997 |       6941 |      56 |    0 |  3967 |      0 |      0 |          0 |
+|   u_mon_arbiter         |           monbus_arbiter |       1322 |       1322 |       0 |    0 |  2236 |      0 |      0 |          0 |
+|   u_mon_axil_group      | monbus_axil4_axil4_group |       1382 |       1066 |     316 |    0 |   951 |      0 |      0 |          0 |
+|   u_subtractive         |   axi4_subtractive_slave |         39 |         39 |       0 |    0 |    63 |      0 |      0 |          0 |
+|   u_subtractive_adapter |      subtractive_adapter |        312 |        312 |       0 |    0 |   268 |      0 |      0 |          0 |
+|   u_xbar                |    bridge_mix_a_mon_xbar |        380 |        380 |       0 |    0 |   184 |      0 |      0 |          0 |
++-------------------------+--------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

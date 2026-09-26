@@ -359,6 +359,12 @@ class Axi4TimingWrapper:
                 for cone, param in cone_to_param:
                     val = "1'b1" if mon_enables.get(cone, True) else "1'b0"
                     param_str += f", parameter bit {param} = {val}"
+                # TASK-098: mon_preset = "lite" swaps axi_monitor_filtered for
+                # axi_monitor_lite inside the same wrapper.
+                if mon_enables.get('lite', False):
+                    param_str += ", parameter bit MONITOR_LITE = 1'b1"
+                    # the lite's own default table depth; the wrapper's is 16
+                    param_str += ", parameter int MAX_TRANSACTIONS = 8"
         self.module.params.add_param_string(param_str)
         self._sections: List[tuple] = []
 

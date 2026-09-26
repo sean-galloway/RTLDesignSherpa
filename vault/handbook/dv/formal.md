@@ -332,3 +332,15 @@ When you add an sby task, add its make target in the same edit (see
 `formal/amba/wb4_slave` and `wb4_retry` for the shape), and put a
 deliberately-red task LAST in `all` -- make stops at the first failure, so
 anything after it never runs.
+
+## Unpacked arrays and the flat build: name nothing whole
+
+yosys rejects an unpacked array that appears without an index -- and sv2v
+puts one there for you the moment an `always_comb` reads `arr[variable]`,
+because it names the whole array in the sensitivity list it synthesizes
+(`Insufficient number of array indices for r_phase`, axi_monitor_lite, 2026-09-25;
+the trans_mgr's `w_age_flat` exists for the same reason). Verilator and the
+simulators never complain, so the formal build is where it surfaces. Rule:
+per-slot storage that is read with a variable index is a PACKED array
+(`logic [N-1:0][W-1:0]`), and a function that needs a whole table takes it
+packed. The RTL is identical hardware; only the flat file changes.

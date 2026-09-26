@@ -93,3 +93,20 @@ transactions get a table entry and never what flows on the bus. That is the
 difference between an observer that scales and one that participates.
 
 Related: [[valid-ready-contracts]], [[sizing-invariants]].
+
+## The corollary for a monitor's own output: drop and count, never stall
+
+An observer that cannot deliver an event has two choices: hold the traffic
+it watches until it can (the full AXI monitor's `block_ready`), or lose the
+event and say so. The lite monitor (TASK-098) takes the second: a small skid
+of events, and when it is full the event is dropped, counted, and the count
+reported on the bus as one `EVENT_DROPPED` packet the next time there is
+room. The consumer always knows how many events it did not see; the design
+under observation never knows the monitor exists.
+
+Size the skid to the CONSUMER's ready gaps, not to the producer's burst: the
+first lite build had a single output register and lost a completion under the
+monbus slave's default profile, which inserts one or two idle cycles per
+packet -- back-to-back completions from a burst of B responses arrive faster
+than that. Four 85-bit entries absorb it; the measured drop phase then loses
+events only when the bus is deliberately held.

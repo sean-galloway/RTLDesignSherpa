@@ -71,6 +71,7 @@ module axil5_slave_rd_mon
     parameter int CFI_MIN_FREQ_MHZ  = ACLK_MHZ,
     parameter int CFI_MAX_FREQ_MHZ  = ACLK_MHZ,
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
+    parameter bit MONITOR_LITE      = 1'b0,  // 1 = axi_monitor_lite instead of axi_monitor_filtered (TASK-098)
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
     parameter logic [7:0]  UNIT_ID  = 8'h02,     // 8-bit Unit ID for monitor packets
     parameter logic [15:0] AGENT_ID = 16'h0014,    // 16-bit Agent ID for monitor packets
@@ -422,7 +423,73 @@ module axil5_slave_rd_mon
     assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF
                             : cfg_timeout_cycles;
 
-    if (USE_MONITOR) begin : gen_monitor
+    if (USE_MONITOR && MONITOR_LITE) begin : gen_monitor_lite
+        // TASK-098: the lite monitor. Same taps, same monbus, same ids; no
+        // perf window, no debug, no address/id filtering, no admission stall
+        // (block_ready held high). Everything the full monitor exposes that
+        // the lite does not have is tied as gen_no_monitor ties it.
+        axi_monitor_lite #(
+            .UNIT_ID              (UNIT_ID),
+            .AGENT_ID             (AGENT_ID),
+            .MAX_TRANSACTIONS     (MAX_TRANSACTIONS),
+            .ADDR_WIDTH           (AW),
+            .ID_WIDTH             (32'd1),
+            .IS_READ              (1'b1),
+            .IS_AXI               (1'b1),
+            .CFI_MIN_FREQ_MHZ     (CFI_MIN_FREQ_MHZ),
+            .CFI_MAX_FREQ_MHZ     (CFI_MAX_FREQ_MHZ)
+        ) axi_monitor_lite_inst (
+            .aclk                       (aclk),
+            .aresetn                    (aresetn),
+            .clear                      (cam_clear | ~cfg_monitor_enable),
+            .i_mon_time                 (i_mon_time),
+            .cmd_addr                   (s_axil_araddr),
+            .cmd_id                     (1'b0),
+            .cmd_len                    (8'h00),
+            .cmd_valid                  (w_mon_cmd_valid),
+            .cmd_ready                  (s_axil_arready),
+            .data_id                    (1'b0),
+            .data_last                  (1'b1),
+            .data_resp                  (s_axil_rresp),
+            .data_valid                 (w_mon_data_valid),
+            .data_ready                 (s_axil_rready),
+            .resp_id                    (1'b0),
+            .resp_code                  (s_axil_rresp),
+            .resp_valid                 (w_mon_resp_valid),
+            .resp_ready                 (s_axil_rready),
+            .cfg_freq_sel               (cfg_freq_sel),
+            .cfg_timeout_cnt            (w_timeout_cnt),
+            .cfg_error_enable           (cfg_error_enable),
+            .cfg_compl_enable           (cfg_compl_enable),
+            .cfg_timeout_enable         (cfg_timeout_enable),
+            .cfg_threshold_enable       (cfg_threshold_enable),
+            .cfg_active_trans_threshold (16'(ACTIVE_TRANS_THRESHOLD)),
+            .cfg_axi_pkt_mask           (cfg_axi_pkt_mask),
+            .monbus_valid               (monbus_valid),
+            .monbus_ready               (monbus_ready),
+            .monbus_packet              (monbus_packet),
+            .monbus_timestamp           (monbus_timestamp),
+            .active_count               (active_transactions),
+            /* verilator lint_off PINCONNECTEMPTY */
+            .busy                       (),
+            .dropped_count              (),
+            .refused_count              (),
+            /* verilator lint_on PINCONNECTEMPTY */
+            .perf_completed_count       (w_perf_completed_count),
+            .perf_error_count           (w_perf_error_count)
+        );
+        assign cfg_conflict_error  = 1'b0;
+        assign w_block_ready       = 1'b1;
+        assign window_active       = 1'b0;
+        assign window_cycles       = 32'h0;
+        assign perf_prod_cycles    = 32'h0;
+        assign perf_bp_cycles      = 32'h0;
+        assign perf_starv_cycles   = 32'h0;
+        assign perf_idle_cycles    = 32'h0;
+        assign perf_beat_count     = 32'h0;
+        assign perf_byte_count     = 64'h0;
+        assign perf_burst_count    = 32'h0;
+    end else if (USE_MONITOR) begin : gen_monitor
         axi_monitor_filtered #(
             .CFI_MIN_FREQ_MHZ        (CFI_MIN_FREQ_MHZ),
             .CFI_MAX_FREQ_MHZ        (CFI_MAX_FREQ_MHZ),

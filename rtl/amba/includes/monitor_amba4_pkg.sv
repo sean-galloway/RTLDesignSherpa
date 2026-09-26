@@ -49,7 +49,7 @@ package monitor_amba4_pkg;
         AXI_ERR_LAST_MISSING        = 8'hB,  // Missing LAST signal
         AXI_ERR_STROBE_ERROR        = 8'hC,  // Write strobe error
         AXI_ERR_ADDR_RANGE          = 8'hD,  // Address-range violation (from axi_monitor_addr_check)
-        AXI_ERR_RESERVED_E          = 8'hE,  // Reserved
+        AXI_ERR_EVENT_DROPPED       = 8'hE,  // monitor-lite: events lost to monbus backpressure (event_data = count)
         AXI_ERR_USER_DEFINED        = 8'hF   // User-defined error
     } axi_error_code_t;
 
@@ -716,7 +716,7 @@ package monitor_amba4_pkg;
             AXI_ERR_LAST_MISSING       : return "LAST_MISSING";
             AXI_ERR_STROBE_ERROR       : return "STROBE_ERROR";
             AXI_ERR_ADDR_RANGE         : return "ADDR_RANGE";
-            AXI_ERR_RESERVED_E         : return "RESERVED_E";
+            AXI_ERR_EVENT_DROPPED      : return "EVENT_DROPPED";
             AXI_ERR_USER_DEFINED       : return "USER_DEFINED";
             default                    : return "UNKNOWN_AXI_ERROR";
         endcase

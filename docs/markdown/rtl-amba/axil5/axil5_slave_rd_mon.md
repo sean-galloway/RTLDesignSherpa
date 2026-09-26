@@ -56,6 +56,7 @@ AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's hand
 | `CFI_MIN_FREQ_MHZ` | int | `ACLK_MHZ` |  |
 | `CFI_MAX_FREQ_MHZ` | int | `ACLK_MHZ` |  |
 | `USE_MONITOR` | bit | `1'b1` | 0 = omit monitor, tie outputs |
+| `MONITOR_LITE` | bit | 0 | 1 = instantiate `axi_monitor_lite` (rtl/amba/monitor-lite) in place of `axi_monitor_filtered`: same taps, monbus and ids; error, timeout, completion and active-count threshold packets only; no perf window, debug, address/id filtering or admission stall (`block_ready` held high). About a fifth of the monitor's LUTs -- see the monitor-lite page. |
 | `N_ADDR_RANGES` | int | `0` | 0 = address-range checker disabled |
 | `MAX_TRANSACTIONS` | int | `8` | Maximum outstanding transactions (reduced for AXIL) |
 | `USE_WDATA_ORDER_Q` | bit | `1'b0` |  |

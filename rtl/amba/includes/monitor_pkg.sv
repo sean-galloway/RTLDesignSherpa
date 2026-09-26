@@ -431,6 +431,7 @@ package monitor_pkg;
                             monitor_amba4_pkg::AXI_ERR_RESP_BEFORE_DATA  : base_name = "RESP_BEFORE_DATA";
                             monitor_amba4_pkg::AXI_ERR_LAST_MISSING      : base_name = "LAST_MISSING";
                             monitor_amba4_pkg::AXI_ERR_STROBE_ERROR      : base_name = "STROBE_ERROR";
+                            monitor_amba4_pkg::AXI_ERR_EVENT_DROPPED     : base_name = "EVENT_DROPPED";
                             monitor_amba4_pkg::AXI_ERR_USER_DEFINED      : base_name = "USER_DEFINED";
                             default                                      : base_name = $sformatf("UNKNOWN_ERR_%0X", event_code);
                         endcase

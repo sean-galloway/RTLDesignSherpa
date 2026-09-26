@@ -51,6 +51,7 @@ In addition to all [axil4_slave_wr](../axil4/axil4_slave_wr.md) parameters:
 | `UNIT_ID` | int | 2 | Unit ID (2 = slaves) |
 | `AGENT_ID` | int | 21 | Agent ID (slave write agent) |
 | `USE_MONITOR` | bit | — | Synthesis-time monitor enable |
+| `MONITOR_LITE` | bit | 0 | 1 = instantiate `axi_monitor_lite` (rtl/amba/monitor-lite) in place of `axi_monitor_filtered`: same taps, monbus and ids; error, timeout, completion and active-count threshold packets only; no perf window, debug, address/id filtering or admission stall (`block_ready` held high). About a fifth of the monitor's LUTs -- see the monitor-lite page. |
 | `ACTIVE_TRANS_THRESHOLD` | int | `MAX_TRANSACTIONS/2` | Threshold-packet trip point; replaces the former hardwired value |
 | `ENABLE_FILTERING` | bit | 1 | Enable packet filtering: two active drop levels (packet-type masks, then per-event-code masks) |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Insert a register stage for timing closure. Costs a cycle of latency. |

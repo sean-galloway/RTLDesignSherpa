@@ -1,0 +1,35 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Fri Sep 25 20:39:27 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/projects/components/bridge/fpga/reports/bridge_1x2_rd_lite_mon__xc7a100tcsg324-1/utilization_hier.txt
+| Design       : bridge_1x2_rd_lite_mon
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++----------------------------+--------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|          Instance          |          Module          | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++----------------------------+--------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| bridge_1x2_rd_lite_mon     |                    (top) |       5339 |       4879 |     460 |    0 | 5270 |      0 |      0 |          0 |
+|   (bridge_1x2_rd_lite_mon) |                    (top) |        120 |          0 |     120 |    0 |    0 |      0 |      0 |          0 |
+|   u_cpu_rd_adapter         |           cpu_rd_adapter |       1010 |       1010 |       0 |    0 | 1114 |      0 |      0 |          0 |
+|   u_ddr_rd_adapter         |           ddr_rd_adapter |        864 |        864 |       0 |    0 | 1066 |      0 |      0 |          0 |
+|   u_mon_arbiter            |           monbus_arbiter |        968 |        968 |       0 |    0 |  992 |      0 |      0 |          0 |
+|   u_mon_axil_group         | monbus_axil4_axil4_group |       1431 |       1091 |     340 |    0 |  983 |      0 |      0 |          0 |
+|   u_sram_rd_adapter        |          sram_rd_adapter |        908 |        908 |       0 |    0 | 1077 |      0 |      0 |          0 |
++----------------------------+--------------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

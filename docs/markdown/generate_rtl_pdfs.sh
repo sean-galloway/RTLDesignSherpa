@@ -132,7 +132,8 @@ fi
 
 # ---- Monitor subsystem (dedicated: all rtl/amba/monitor docs + monitor pkg docs) ----
 if want monitor; then
-  mapfile -t MON < <(ls rtl-amba/monitor/*.md rtl-amba/includes/monitor_*.md 2>/dev/null | grep -vE '_book_')
+  # monitor-lite/ is the same subsystem at a fifth of the gates (TASK-098); it books with the monitors.
+  mapfile -t MON < <(ls rtl-amba/monitor/*.md rtl-amba/monitor-lite/*.md rtl-amba/includes/monitor_*.md 2>/dev/null | grep -vE '_book_')
   gen_index rtl-amba/_book_monitor_index.md "RTL AMBA Monitor Subsystem" "${MON[@]}"
   build_book "RTL AMBA Monitor Subsystem" "${SUB}" rtl-amba/_book_monitor_index.md RTL_AMBA_Monitor
 fi
