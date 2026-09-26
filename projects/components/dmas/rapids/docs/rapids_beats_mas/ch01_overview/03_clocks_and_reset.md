@@ -145,8 +145,8 @@ Some configuration signals MUST be stable before reset deassertion:
 
 | Signal | Requirement |
 |--------|-------------|
-| `cfg_channel_enable` | Stable before rst_n=1 |
-| `cfg_sched_timeout_cycles` | Stable before rst_n=1 |
+| `src_cfg_channel_enable` / `snk_cfg_channel_enable` | Stable before rst_n=1 (one per half) |
+| `src_cfg_sched_timeout_cycles` / `snk_cfg_sched_timeout_cycles` | Stable before rst_n=1 (one per half) |
 | `cfg_axi_rd_xfer_beats` | Stable before rst_n=1 |
 | `cfg_axi_wr_xfer_beats` | Stable before rst_n=1 |
 

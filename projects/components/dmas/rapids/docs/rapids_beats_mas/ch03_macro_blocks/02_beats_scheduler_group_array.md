@@ -139,19 +139,24 @@ parameter int MON_UNIT_ID = 1;                   // Unit ID for MonBus
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `m_axi_arvalid` | output | 1 | AR channel valid |
-| `m_axi_arready` | input | 1 | AR channel ready |
-| `m_axi_araddr` | output | AW | AR address |
-| `m_axi_arid` | output | ID_W | Transaction ID |
-| `m_axi_arlen` | output | 8 | Burst length |
-| `m_axi_arsize` | output | 3 | Burst size |
-| `m_axi_arburst` | output | 2 | Burst type |
-| `m_axi_rvalid` | input | 1 | R channel valid |
-| `m_axi_rready` | output | 1 | R channel ready |
-| `m_axi_rdata` | input | 256 | R data |
-| `m_axi_rid` | input | ID_W | Response ID |
-| `m_axi_rresp` | input | 2 | R response |
-| `m_axi_rlast` | input | 1 | Last beat |
+| `desc_axi_arvalid` | output | 1 | AR valid |
+| `desc_axi_arready` | input | 1 | AR ready |
+| `desc_axi_araddr` | output | ADDR_WIDTH | Descriptor fetch address |
+| `desc_axi_arlen` | output | 8 | Burst length - 1 |
+| `desc_axi_arsize` | output | 3 | Burst size |
+| `desc_axi_arburst` | output | 2 | Burst type |
+| `desc_axi_arid` | output | AXI_ID_WIDTH | Transaction ID |
+| `desc_axi_arlock` | output | 1 | Lock type |
+| `desc_axi_arcache` | output | 4 | Cache attributes |
+| `desc_axi_arprot` | output | 3 | Protection attributes |
+| `desc_axi_arqos` | output | 4 | Quality of service |
+| `desc_axi_arregion` | output | 4 | Region identifier |
+| `desc_axi_rvalid` | input | 1 | R valid |
+| `desc_axi_rready` | output | 1 | R ready |
+| `desc_axi_rdata` | input | 256 | Descriptor payload (fixed 256-bit) |
+| `desc_axi_rresp` | input | 2 | Read response |
+| `desc_axi_rlast` | input | 1 | Last beat |
+| `desc_axi_rid` | input | AXI_ID_WIDTH | Response ID |
 
 : Table 3.2.5: Shared Descriptor AXI Master Interface
 
@@ -174,11 +179,10 @@ parameter int MON_UNIT_ID = 1;                   // Unit ID for MonBus
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `all_channels_idle` | output | 1 | All channels idle |
+| `descriptor_engine_idle` | output | NC | Per-channel descriptor engine idle |
 | `scheduler_idle` | output | NC | Per-channel scheduler idle |
-| `descriptor_engine_idle` | output | NC | Per-channel desc eng idle |
-| `scheduler_state` | output | NC*7 | FSM states |
-| `sched_error` | output | NC | Error flags |
+| `scheduler_state` | output | NC x 7 | Per-channel FSM state (one-hot) |
+| `sched_error` | output | NC | Per-channel scheduler error (sticky) |
 
 : Table 3.2.7: Aggregate Status
 
@@ -186,9 +190,11 @@ parameter int MON_UNIT_ID = 1;                   // Unit ID for MonBus
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `monbus_pkt_valid` | output | 1 | Packet valid |
-| `monbus_pkt_ready` | input | 1 | Consumer ready |
-| `monbus_pkt_data` | output | 64 | Packet data |
+| `i_mon_time` | input | monbus_timestamp_t | Shared monitor timebase |
+| `mon_valid` | output | 1 | Monitor packet valid |
+| `mon_ready` | input | 1 | Consumer ready |
+| `mon_packet` | output | monitor_packet_t | Monitor packet |
+| `mon_timestamp` | output | monbus_timestamp_t | Packet timestamp |
 
 : Table 3.2.8: Unified MonBus Interface
 

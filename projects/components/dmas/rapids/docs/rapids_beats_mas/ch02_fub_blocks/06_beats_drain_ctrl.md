@@ -137,7 +137,7 @@ parameter int AW = $clog2(DEPTH);               // Address width
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `data_avail` | output | AW+1 | Beats available to drain |
+| `data_available` | output | AW+1 | Beats available to drain |
 | `wr_full` | output | 1 | Tracking full |
 | `wr_almost_full` | output | 1 | Near full |
 | `rd_empty` | output | 1 | No data to drain |

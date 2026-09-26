@@ -113,16 +113,22 @@ parameter int MON_UNIT_ID = 1;
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `cfg_channel_enable` | input | 1 | Enable channel |
-| `cfg_channel_reset` | input | 1 | Soft reset |
+| `cfg_channel_enable` | input | 1 | Enable this channel |
+| `cfg_channel_reset` | input | 1 | Per-channel soft reset |
 | `cfg_sched_timeout_cycles` | input | 32 | Write-progress timeout window (cycles) |
 | `cfg_sched_timeout_limit` | input | 8 | Consecutive-timeout windows before fatal escalation (0 = never) |
-| `cfg_sched_timeout_enable` | input | 1 | Enable timeout |
-| `cfg_desceng_enable` | input | 1 | Enable descriptor engine |
-| `cfg_desceng_prefetch` | input | 1 | Enable prefetch chaining |
-| `cfg_desceng_fifo_thresh` | input | 4 | Prefetch threshold |
-| `cfg_desceng_addr0_base` | input | AW | Address range 0 base |
-| `cfg_desceng_addr0_limit` | input | AW | Address range 0 limit |
+| `cfg_sched_timeout_enable` | input | 1 | Enable timeout detection |
+| `cfg_sched_err_enable` | input | 1 | Enable error reporting |
+| `cfg_sched_compl_enable` | input | 1 | Enable completion reporting |
+| `cfg_sched_perf_enable` | input | 1 | Enable performance monitoring |
+| `cfg_desceng_prefetch` | input | 1 | Enable descriptor prefetch chaining |
+| `cfg_desceng_fifo_thresh` | input | 4 | Prefetch threshold (descriptors buffered ahead) |
+| `cfg_desceng_addr0_base` | input | ADDR_WIDTH | Valid address range 0 base |
+| `cfg_desceng_addr0_limit` | input | ADDR_WIDTH | Valid address range 0 limit |
+| `cfg_desceng_addr1_base` | input | ADDR_WIDTH | Valid address range 1 base |
+| `cfg_desceng_addr1_limit` | input | ADDR_WIDTH | Valid address range 1 limit |
+| `cfg_ctrlrd_max_try` | input | 9 | ctrlrd poll retry budget (0-511) |
+| `tick_1us` | input | 1 | 1 us tick for ctrlrd retry spacing |
 
 : Table 3.1.4: Configuration Interface
 
@@ -130,13 +136,24 @@ parameter int MON_UNIT_ID = 1;
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `m_axi_arvalid` | output | 1 | AR channel valid |
-| `m_axi_arready` | input | 1 | AR channel ready |
-| `m_axi_araddr` | output | AW | AR address |
-| `m_axi_rvalid` | input | 1 | R channel valid |
-| `m_axi_rready` | output | 1 | R channel ready |
-| `m_axi_rdata` | input | 256 | R data (descriptor) |
-| `m_axi_rresp` | input | 2 | R response |
+| `desc_ar_valid` | output | 1 | AR valid |
+| `desc_ar_ready` | input | 1 | AR ready |
+| `desc_ar_addr` | output | ADDR_WIDTH | Descriptor fetch address |
+| `desc_ar_len` | output | 8 | Burst length - 1 |
+| `desc_ar_size` | output | 3 | Burst size (log2 bytes) |
+| `desc_ar_burst` | output | 2 | Burst type |
+| `desc_ar_id` | output | AXI_ID_WIDTH | Transaction ID |
+| `desc_ar_lock` | output | 1 | Lock type |
+| `desc_ar_cache` | output | 4 | Cache attributes |
+| `desc_ar_prot` | output | 3 | Protection attributes |
+| `desc_ar_qos` | output | 4 | Quality of service |
+| `desc_ar_region` | output | 4 | Region identifier |
+| `desc_r_valid` | input | 1 | R valid |
+| `desc_r_ready` | output | 1 | R ready |
+| `desc_r_data` | input | 256 | Descriptor payload (fixed 256-bit) |
+| `desc_r_resp` | input | 2 | Read response |
+| `desc_r_last` | input | 1 | Last beat |
+| `desc_r_id` | input | AXI_ID_WIDTH | Response ID |
 
 : Table 3.1.5: Descriptor AXI Master Interface
 
@@ -172,9 +189,11 @@ parameter int MON_UNIT_ID = 1;
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `monbus_pkt_valid` | output | 1 | Packet valid |
-| `monbus_pkt_ready` | input | 1 | Consumer ready |
-| `monbus_pkt_data` | output | 64 | Packet data |
+| `i_mon_time` | input | monbus_timestamp_t | Shared monitor timebase |
+| `mon_valid` | output | 1 | Monitor packet valid |
+| `mon_ready` | input | 1 | Consumer ready |
+| `mon_packet` | output | monitor_packet_t | Monitor packet |
+| `mon_timestamp` | output | monbus_timestamp_t | Packet timestamp |
 
 : Table 3.1.8: MonBus Interface
 
