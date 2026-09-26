@@ -54,7 +54,7 @@ class WrBatch(Sequence):
                          burst_len=8, txn_count=txn, gap=gap)
         return pc.measure_concurrent(drv, sc, cfg=cfg,
                                      geom=geom, n_wr=n_gen, n_rd=n_gen,
-                                     clk_mhz=75.0, timeout_s=120.0)
+                                     timeout_s=120.0)
 
     def run(self, ctx):
         drv  = ctx.bus
@@ -128,7 +128,7 @@ class WrBatch(Sequence):
                             drv,
                             pc.Scenario(name="audit", family=pc.FAM_INCREMENTAL,
                                         burst_len=8, txn_count=txn, gap=0),
-                            cfg=cfg, geom=geom, clk_mhz=75.0, timeout_s=120.0)
+                            cfg=cfg, geom=geom, timeout_s=120.0)
                         ctx.say(f"[wr_batch]   AUDIT after failure: "
                                 f"mism={audit.mismatched} "
                                 f"({'PERSISTENT - cells damaged' if audit.mismatched else 'TRANSIENT - cells intact, read return was wrong'})")

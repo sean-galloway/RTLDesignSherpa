@@ -48,7 +48,7 @@ for blen in (1, 2, 4, 8, 16):
     sc = pc.Scenario(name=f"row_major_bl{blen}", family=pc.FAM_ROW_MAJOR,
                      burst_len=blen, txn_count=4000, gap=0,
                      max_outstanding=OS)
-    r = pc.measure(drv, sc, cfg=cfg, geom=geom, base_addr=0, clk_mhz=75.0, timeout_s=40.0)
+    r = pc.measure(drv, sc, cfg=cfg, geom=geom, base_addr=0, timeout_s=40.0)
     lat = r.rd_avg_latency_cyc
     bpc = r.rd_bytes_per_cycle / 8.0
     pred = min((OS*blen)/(lat+blen), 0.95) * 8 * 75

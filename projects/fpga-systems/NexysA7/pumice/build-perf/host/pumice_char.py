@@ -1122,7 +1122,7 @@ def _read_meter(drv: DDR2CharDriver, which: str) -> Meter:
 
 def measure(drv: DDR2CharDriver, sc: Scenario, *,
             cfg: ControllerConfig = CLOSE_PAGE, geom: Geometry = DEFAULT_GEOM,
-            base_addr: int = 0x0, clk_mhz: float = 100.0,
+            base_addr: int = 0x0, clk_mhz: "Optional[float]" = None,
             timeout_s: float = 20.0) -> CharRecord:
     """Run one (config, scenario) point (write phase then read phase) + perf.
 
@@ -1133,6 +1133,11 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     overlapping writes store identical f(addr) values, so the read of any
     address gets its expected value regardless of write/return order.
     """
+    # clk_mhz=None means READ IT FROM THE BITSTREAM (BUILD_CLK_HZ).
+    # Never default to a constant: bandwidth is (bytes/cycles)*clk_mhz,
+    # so a wrong frequency silently rescales every number in the run.
+    clk_mhz = resolve_clk_mhz(drv, clk_mhz)
+
     stride, wrap = strides_for(sc, geom)
     seed = _stable_seed(sc.name)
     beat_bytes = 1 << sc.axi_size
@@ -1266,7 +1271,7 @@ def hotcold_scenarios(sc: Scenario, n_gen: int) -> List[Scenario]:
 
 def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
                       cfg: ControllerConfig = CLOSE_PAGE, geom: Geometry = DEFAULT_GEOM,
-                      base_addr: int = 0x0, clk_mhz: float = 100.0,
+                      base_addr: int = 0x0, clk_mhz: "Optional[float]" = None,
                       timeout_s: float = 40.0, n_wr: int = 1, n_rd: int = 1,
                       placement: str = "regions",
                       scenarios: "Optional[Sequence[Scenario]]" = None
@@ -1293,6 +1298,11 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
     wr_bw_mb_s and rd_bw_mb_s are each direction's share of it and their sum is
     the total throughput the controller sustained.
     """
+    # clk_mhz=None means READ IT FROM THE BITSTREAM (BUILD_CLK_HZ).
+    # Never default to a constant: bandwidth is (bytes/cycles)*clk_mhz,
+    # so a wrong frequency silently rescales every number in the run.
+    clk_mhz = resolve_clk_mhz(drv, clk_mhz)
+
     # Never program more generators than the bitstream has. The driver's
     # num_gen is only a default; the board is the authority.
     hw = drv.sync_gen_config()
@@ -1585,7 +1595,7 @@ def build_suite(level: str = "medium", txn_scale: int = 1,
 def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
                txn_scale: int = 1, families: Optional[Tuple[str, ...]] = None,
                base_addr: int = 0x0, timeout_s: float = 20.0,
-               geom: Geometry = DEFAULT_GEOM, clk_mhz: float = 100.0,
+               geom: Geometry = DEFAULT_GEOM, clk_mhz: "Optional[float]" = None,
                progress: Optional[Callable[[str, int, int], None]] = None,
                concurrent: Optional[Tuple[int, int]] = None,
                gen_mix: Optional[str] = None,
@@ -1599,6 +1609,11 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
 
     `txn_scale` multiplies every scenario's workload (cycles): 1 for a quick
     sim-sized pass, ~1000 for a long FPGA soak (see build_suite)."""
+    # clk_mhz=None means READ IT FROM THE BITSTREAM (BUILD_CLK_HZ).
+    # Never default to a constant: bandwidth is (bytes/cycles)*clk_mhz,
+    # so a wrong frequency silently rescales every number in the run.
+    clk_mhz = resolve_clk_mhz(drv, clk_mhz)
+
     cfgs = resolve_configs(configs if configs is not None else [CLOSE_PAGE])
     suite = build_suite(level, txn_scale=txn_scale, families=families)
     # Profile-level Scenario override. The suite builds with library defaults
@@ -1637,7 +1652,7 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
 
 def run_suite(drv: DDR2CharDriver, *, level: str = "medium", txn_scale: int = 1,
               base_addr: int = 0x0, geom: Geometry = DEFAULT_GEOM,
-              clk_mhz: float = 100.0,
+              clk_mhz: "Optional[float]" = None,
               progress: Optional[Callable[[str, int, int], None]] = None,
               ) -> List[CharRecord]:
     """Single-config (baseline) sweep -- run_matrix with just the baseline."""
@@ -1800,7 +1815,7 @@ RUN_PROFILES: Dict[str, dict] = {
 
 def run_profile(drv: DDR2CharDriver, profile: str = "smoke", *,
                 txn_scale: int = 1, base_addr: int = 0x0, timeout_s: float = 20.0,
-                geom: Geometry = DEFAULT_GEOM, clk_mhz: float = 100.0,
+                geom: Geometry = DEFAULT_GEOM, clk_mhz: "Optional[float]" = None,
                 progress: Optional[Callable[[str, int, int], None]] = None,
                 ) -> List[CharRecord]:
     """Run a named RUN_PROFILES matrix. This is the entry both the sim test and

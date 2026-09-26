@@ -74,7 +74,7 @@ def main() -> int:
                              burst_len=blen, txn_count=4000, gap=0,
                              max_outstanding=n)
             r = pc.measure(drv, sc, cfg=cfg, geom=geom, base_addr=0,
-                           clk_mhz=CLK_MHZ, timeout_s=40.0)
+                           timeout_s=40.0)
             lat  = r.rd_avg_latency_cyc
             pred = min((n * blen) / (lat + blen), 0.95) * PEAK_MBS
             err  = (r.rd_bw_mb_s - pred) / pred * 100 if pred else 0.0

@@ -831,9 +831,12 @@ def main() -> int:
                          "file exists it is RESTORED (apply + verify, no ~256-"
                          "iter sweep); a failed verify re-levels + re-saves. "
                          "Board+PHY specific; delete it after a bitstream change.")
-    ap.add_argument("--clk-mhz", type=float, default=66.667,
-                    help="controller clock for bandwidth (MB/s) derivation "
-                         "(rate-2 board build sys clock = 66.67 MHz)")
+    ap.add_argument("--clk-mhz", type=float, default=None,
+                    help="controller clock in MHz. DEFAULT: read from the "
+                         "bitstream (BUILD_CLK_HZ). Only pass this to "
+                         "override a board that cannot report it -- a wrong "
+                         "value silently rescales EVERY bandwidth number, "
+                         "since bw = (bytes/cycles)*clk_mhz.")
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--level-only", action="store_true",
                       help="run leveling and report the eye, nothing else")
