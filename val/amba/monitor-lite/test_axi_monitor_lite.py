@@ -1,4 +1,4 @@
-"""axi_monitor_lite through axi4_slave_{rd,wr}_mon with MONITOR_LITE=1 (amba/monitor-lite TASK-001).
+"""axi_monitor_lite through the axi4_slave_{rd,wr}_monlite wrappers (amba/monitor-lite TASK-001).
 Exact packets for completions, a SLVERR, a stalled slave, an active-count
 threshold and a held monbus. See bin/TBClasses/amba/monitor_lite/axi_monitor_lite_tb.py."""
 import os
@@ -34,7 +34,7 @@ def test_axi_monitor_lite(request, channel, id_width, max_trans, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amba': 'rtl/amba', 'rtl_amba_includes': 'rtl/amba/includes',
     })
-    dut_name = f"axi4_slave_{channel}_mon"
+    dut_name = f"axi4_slave_{channel}_monlite"
     test_name_plus_params = f"test_axi_monitor_lite_{channel}_iw{id_width}_mt{max_trans}_{test_level}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
@@ -45,7 +45,7 @@ def test_axi_monitor_lite(request, channel, id_width, max_trans, test_level):
         repo_root=repo_root, filelist_path=f'rtl/amba/filelists/{dut_name}.f')
     rtl_parameters = {
         'AXI_ID_WIDTH': str(id_width), 'AXI_ADDR_WIDTH': '32', 'AXI_DATA_WIDTH': '32', 'AXI_USER_WIDTH': '1',
-        'MAX_TRANSACTIONS': str(max_trans), 'MONITOR_LITE': '1',
+        'MAX_TRANSACTIONS': str(max_trans),
     }
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.fst", 'VERILATOR_TRACE': '1', 'DUT': dut_name,
@@ -56,7 +56,7 @@ def test_axi_monitor_lite(request, channel, id_width, max_trans, test_level):
         'TEST_CLK_PERIOD': '10',
     }
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
-    print(f"\n{'='*80}\n{dut_name} MONITOR_LITE=1: {test_level.upper()} IW={id_width} MAX={max_trans}\n{'='*80}")
+    print(f"\n{'='*80}\n{dut_name} monlite: {test_level.upper()} IW={id_width} MAX={max_trans}\n{'='*80}")
     try:
         run(
             python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,

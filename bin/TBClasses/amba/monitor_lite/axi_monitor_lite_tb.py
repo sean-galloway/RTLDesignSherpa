@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 """axi_monitor_lite through its wrapper (amba/monitor-lite TASK-001).
 
-The DUT is axi4_slave_rd_mon or axi4_slave_wr_mon with MONITOR_LITE=1: an
+The DUT is axi4_slave_rd_monlite or axi4_slave_wr_monlite: an
 AXI4 master BFM drives the s_axi side, a memory-backed AXI4 slave BFM answers
 on the fub side, and a MonbusSlave collects every packet. Each phase asserts
 exact packets -- type, event code, channel (the ID), event data (the address,
@@ -22,13 +22,34 @@ from cocotb.triggers import ClockCycles
 from TBClasses.axi4.axi4_slave_read_tb import AXI4SlaveReadTB
 from TBClasses.axi4.axi4_slave_write_tb import AXI4SlaveWriteTB
 from TBClasses.monbus.monbus_slave import MonbusSlave
+from TBClasses.monbus.monbus_types import PktType, AXIErrorCode, AXITimeoutCode, AXIThresholdCode
+from TBClasses.monbus.monbus_validators import find_packets_by_criteria
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
-PKT_ERROR, PKT_COMPL, PKT_THRESH, PKT_TIMEOUT = 0, 1, 2, 3
-ERR_SLVERR, ERR_DECERR, ERR_DATA_ORPHAN, ERR_RESP_ORPHAN = 0, 1, 2, 3
-ERR_EVENT_DROPPED = 0xE
-TMO_CMD, TMO_DATA, TMO_RESP = 0, 1, 2
-THRESH_ACTIVE_COUNT = 0
+# Packet vocabulary comes from the shared monbus types (mirrors monitor_pkg.sv);
+# nothing is redefined here. Completion payload layout is the lite's, matching
+# the full monitor's compl reporter: event_data[AW-1:0] = address,
+# event_data[63:48] = latency in cycles (docs/markdown/rtl-amba/monitor/axi_monitor_lite.md).
+PKT_ERROR   = PktType.PktTypeError
+PKT_COMPL   = PktType.PktTypeCompletion
+PKT_THRESH  = PktType.PktTypeThreshold
+PKT_TIMEOUT = PktType.PktTypeTimeout
+ERR_SLVERR        = AXIErrorCode.AXI_ERR_RESP_SLVERR
+ERR_EVENT_DROPPED = AXIErrorCode.AXI_ERR_EVENT_DROPPED
+TMO_DATA = AXITimeoutCode.AXI_TIMEOUT_DATA
+TMO_RESP = AXITimeoutCode.AXI_TIMEOUT_RESP
+THRESH_ACTIVE_COUNT = AXIThresholdCode.AXI_THRESH_ACTIVE_COUNT
+CHAN_ID_BITS = 6      # channel_id = {3'b0, 6'(id)} in create_monitor_packet()
+
+
+def compl_addr(p):
+    """Address carried in a completion/error/timeout payload (low 32 bits)."""
+    return p.data & 0xFFFF_FFFF
+
+
+def compl_latency(p):
+    """Latency in cycles carried in a completion payload (bits 63:48)."""
+    return p.data >> 48
 
 PROFILE = {
     'gate': dict(singles=4,  bursts=(2, 4),        pile=6,  held=8),
@@ -61,20 +82,20 @@ class AxiMonitorLiteTB:
     async def setup_clocks_and_reset(self):
         await self.base.start_clock('aclk', self.base.TEST_CLK_PERIOD, 'ns')
         d = self.dut
-        d.cfg_monitor_enable.value = 1
-        d.cfg_error_enable.value = 1
-        d.cfg_timeout_enable.value = 1
-        d.cfg_perf_enable.value = 0
-        d.cfg_compl_enable.value = 1
-        d.cfg_threshold_enable.value = 1
-        d.cfg_debug_enable.value = 0
-        d.cfg_timeout_cycles.value = 0          # 0 = never (wrapper maps to 0xFFFF)
-        d.cfg_freq_sel.value = 0                # LUT entry 0 = the slowest clock = the shortest tick
-        d.cfg_latency_threshold.value = 0
+        if hasattr(d, 'cfg_monitor_enable'): d.cfg_monitor_enable.value = 1
+        if hasattr(d, 'cfg_error_enable'): d.cfg_error_enable.value = 1
+        if hasattr(d, 'cfg_timeout_enable'): d.cfg_timeout_enable.value = 1
+        if hasattr(d, 'cfg_perf_enable'): d.cfg_perf_enable.value = 0
+        if hasattr(d, 'cfg_compl_enable'): d.cfg_compl_enable.value = 1
+        if hasattr(d, 'cfg_threshold_enable'): d.cfg_threshold_enable.value = 1
+        if hasattr(d, 'cfg_debug_enable'): d.cfg_debug_enable.value = 0
+        if hasattr(d, 'cfg_timeout_cycles'): d.cfg_timeout_cycles.value = 0          # 0 = never (wrapper maps to 0xFFFF)
+        if hasattr(d, 'cfg_freq_sel'): d.cfg_freq_sel.value = 0                # LUT entry 0 = the slowest clock = the shortest tick
+        if hasattr(d, 'cfg_latency_threshold'): d.cfg_latency_threshold.value = 0
         for name in ('cfg_axi_pkt_mask', 'cfg_axi_err_select', 'cfg_axi_error_mask', 'cfg_axi_timeout_mask',
                      'cfg_axi_compl_mask', 'cfg_axi_thresh_mask', 'cfg_axi_perf_mask', 'cfg_axi_addr_mask',
                      'cfg_axi_debug_mask'):
-            getattr(d, name).value = 0
+            if hasattr(d, name): getattr(d, name).value = 0
         for name in ('cfg_id_filter_enable', 'cfg_id_match_base', 'cfg_id_match_count', 'cfg_addr_filter_enable',
                      'cfg_addr_filter_low', 'cfg_addr_filter_high', 'cfg_addr_check_enable',
                      'cfg_addr_range_enable', 'cfg_addr_range_low', 'cfg_addr_range_high',
@@ -110,14 +131,10 @@ class AxiMonitorLiteTB:
         self.errors.append(msg)
 
     def pkts(self, ptype=None, code=None):
-        out = []
-        for p in self.mon.received_packets:
-            if ptype is not None and p.pkt_type != ptype:
-                continue
-            if code is not None and p.event_code != code:
-                continue
-            out.append(p)
-        return out
+        crit = {}
+        if ptype is not None: crit['pkt_type'] = int(ptype)
+        if code is not None: crit['event_code'] = int(code)
+        return find_packets_by_criteria(self.mon.received_packets, **crit)
 
     def take(self):
         """Snapshot and clear the received list."""
@@ -143,11 +160,11 @@ class AxiMonitorLiteTB:
             return False, e
 
     def _check_compl(self, pkt, addr, txn_id, where):
-        if (pkt.data & 0xFFFFFFFF) != addr:
-            self._fail(f"{where}: completion address 0x{pkt.data & 0xFFFFFFFF:08X} != 0x{addr:08X}")
-        if pkt.channel_id != (txn_id & 0x3F):
-            self._fail(f"{where}: completion channel {pkt.channel_id} != id {txn_id & 0x3F}")
-        if (pkt.data >> 48) == 0:
+        if compl_addr(pkt) != addr:
+            self._fail(f"{where}: completion address 0x{compl_addr(pkt):08X} != 0x{addr:08X}")
+        if pkt.channel_id != (txn_id & ((1 << CHAN_ID_BITS) - 1)):
+            self._fail(f"{where}: completion channel {pkt.channel_id} != id {txn_id & ((1 << CHAN_ID_BITS) - 1)}")
+        if compl_latency(pkt) == 0:
             self._fail(f"{where}: completion latency is 0 cycles")
 
     # ---- phases ---------------------------------------------------------
@@ -165,18 +182,18 @@ class AxiMonitorLiteTB:
             issued.append((addr, tid))
         await self.settle()
         got = self.take()
-        compl = [p for p in got if p.pkt_type == PKT_COMPL]
-        others = [p for p in got if p.pkt_type != PKT_COMPL]
+        compl = find_packets_by_criteria(got, pkt_type=int(PKT_COMPL))
+        others = [p for p in got if not p.is_completion_packet()]
         if len(compl) != n:
             self._fail(f"singles: {len(compl)} completion packets for {n} transactions")
         if others:
             self._fail(f"singles: {len(others)} unexpected packets: {[ (p.pkt_type, p.event_code) for p in others[:4]]}")
-        seen = {(p.data & 0xFFFFFFFF, p.channel_id) for p in compl}
+        seen = {(compl_addr(p), p.channel_id) for p in compl}
         for addr, tid in issued:
-            if (addr, tid & 0x3F) not in seen:
+            if (addr, tid & ((1 << CHAN_ID_BITS) - 1)) not in seen:
                 self._fail(f"singles: no completion for 0x{addr:08X} id {tid}")
         for p in compl:
-            if (p.data >> 48) == 0:
+            if compl_latency(p) == 0:
                 self._fail("singles: a completion carries zero latency")
         self.log.info(f"phase singles: {n} transactions, {len(compl)} completions, addresses and ids all matched")
 
@@ -189,12 +206,12 @@ class AxiMonitorLiteTB:
                 self._fail(f"bursts: {beats}-beat transaction failed: {e}")
             await self.settle(80)
             got = self.take()
-            compl = [p for p in got if p.pkt_type == PKT_COMPL]
+            compl = find_packets_by_criteria(got, pkt_type=int(PKT_COMPL))
             if len(compl) != 1:
                 self._fail(f"bursts: {len(compl)} completions for one {beats}-beat burst")
             else:
                 self._check_compl(compl[0], addr, k + 1, f"bursts[{beats}]")
-            if [p for p in got if p.pkt_type == PKT_ERROR]:
+            if find_packets_by_criteria(got, pkt_type=int(PKT_ERROR)):
                 self._fail(f"bursts[{beats}]: error packet on a clean burst")
         self.log.info(f"phase bursts: {self.cfg['bursts']} beats, one completion each")
 
@@ -203,16 +220,16 @@ class AxiMonitorLiteTB:
         ok, e = await self.xfer(self.OOR_ADDR, 1, 3)
         await self.settle()
         got = self.take()
-        errs = [p for p in got if p.pkt_type == PKT_ERROR]
-        compl = [p for p in got if p.pkt_type == PKT_COMPL]
+        errs = find_packets_by_criteria(got, pkt_type=int(PKT_ERROR))
+        compl = find_packets_by_criteria(got, pkt_type=int(PKT_COMPL))
         if len(errs) != 1:
             self._fail(f"slverr: {len(errs)} error packets for one out-of-range access")
         else:
             p = errs[0]
             if p.event_code != ERR_SLVERR:
                 self._fail(f"slverr: error code {p.event_code}, expected RESP_SLVERR")
-            if (p.data & 0xFFFFFFFF) != self.OOR_ADDR or p.channel_id != 3:
-                self._fail(f"slverr: packet names 0x{p.data & 0xFFFFFFFF:08X}/id {p.channel_id}, expected 0x{self.OOR_ADDR:08X}/3")
+            if compl_addr(p) != self.OOR_ADDR or p.channel_id != 3:
+                self._fail(f"slverr: packet names 0x{compl_addr(p):08X}/id {p.channel_id}, expected 0x{self.OOR_ADDR:08X}/3")
         if compl:
             self._fail(f"slverr: {len(compl)} completion packets for an errored transaction")
         self.log.info("phase slverr: one Error/RESP_SLVERR with the address and id, no completion")
@@ -221,12 +238,12 @@ class AxiMonitorLiteTB:
         slave = self._slave_bfm()
         saved = slave.response_delay_cycles
         slave.response_delay_cycles = 400
-        self.dut.cfg_timeout_cycles.value = 2          # 2 ticks of the LUT-0 tick
+        if hasattr(self.dut, 'cfg_timeout_cycles'): self.dut.cfg_timeout_cycles.value = 2          # 2 ticks of the LUT-0 tick
         self.take()
         ok, e = await self.xfer(0x2000, 1, 5)
         await self.settle()
         got = self.take()
-        tmo = [p for p in got if p.pkt_type == PKT_TIMEOUT]
+        tmo = find_packets_by_criteria(got, pkt_type=int(PKT_TIMEOUT))
         want = TMO_RESP if self.is_write else TMO_DATA
         if len(tmo) != 1:
             self._fail(f"timeout: {len(tmo)} timeout packets for one stalled transaction")
@@ -234,12 +251,12 @@ class AxiMonitorLiteTB:
             p = tmo[0]
             if p.event_code != want:
                 self._fail(f"timeout: code {p.event_code}, expected {want} ({'RESP' if self.is_write else 'DATA'})")
-            if (p.data & 0xFFFFFFFF) != 0x2000 or p.channel_id != 5:
-                self._fail(f"timeout: packet names 0x{p.data & 0xFFFFFFFF:08X}/id {p.channel_id}")
-        if len([p for p in got if p.pkt_type == PKT_COMPL]) != 1:
+            if compl_addr(p) != 0x2000 or p.channel_id != 5:
+                self._fail(f"timeout: packet names 0x{compl_addr(p):08X}/id {p.channel_id}")
+        if len(find_packets_by_criteria(got, pkt_type=int(PKT_COMPL))) != 1:
             self._fail("timeout: the stalled transaction should still complete once")
         slave.response_delay_cycles = saved
-        self.dut.cfg_timeout_cycles.value = 0
+        if hasattr(self.dut, 'cfg_timeout_cycles'): self.dut.cfg_timeout_cycles.value = 0
         self.log.info(f"phase timeout: one Timeout/{'RESP' if self.is_write else 'DATA'} packet, then the completion")
 
     async def phase_threshold(self):
@@ -263,14 +280,14 @@ class AxiMonitorLiteTB:
             await ClockCycles(self.dut.aclk, 10)
         await self.settle()
         got = self.take()
-        thr = [p for p in got if p.pkt_type == PKT_THRESH]
+        thr = find_packets_by_criteria(got, pkt_type=int(PKT_THRESH))
         if not thr:
             self._fail(f"threshold: no threshold packet with {n} transactions outstanding (threshold {self.max_trans // 2})")
         else:
             if thr[0].event_code != THRESH_ACTIVE_COUNT or thr[0].data < self.max_trans // 2:
                 self._fail(f"threshold: code {thr[0].event_code} data {thr[0].data}, expected ACTIVE_COUNT >= {self.max_trans // 2}")
-        if len([p for p in got if p.pkt_type == PKT_COMPL]) != n:
-            self._fail(f"threshold: {len([p for p in got if p.pkt_type == PKT_COMPL])} completions for {n} transactions")
+        if len(find_packets_by_criteria(got, pkt_type=int(PKT_COMPL))) != n:
+            self._fail(f"threshold: {len(find_packets_by_criteria(got, pkt_type=int(PKT_COMPL)))} completions for {n} transactions")
         slave.response_delay_cycles = saved
         self.log.info(f"phase threshold: {n} outstanding, {len(thr)} threshold packet(s), count {thr[0].data if thr else '-'}")
 
@@ -289,8 +306,8 @@ class AxiMonitorLiteTB:
         await self.settle(900)
         self.base.set_timing_profile('normal')
         got = self.take()
-        compl = [p for p in got if p.pkt_type == PKT_COMPL]
-        drops = [p for p in got if p.pkt_type == PKT_ERROR and p.event_code == ERR_EVENT_DROPPED]
+        compl = find_packets_by_criteria(got, pkt_type=int(PKT_COMPL))
+        drops = find_packets_by_criteria(got, pkt_type=int(PKT_ERROR), event_code=int(ERR_EVENT_DROPPED))
         # One report per stretch of loss: the bus may stall again while the
         # first report waits, so more than one is legal -- the counts must sum.
         reported = sum(p.data for p in drops)
@@ -302,7 +319,7 @@ class AxiMonitorLiteTB:
             self._fail("drop: the held bus lost nothing?")
         if len(compl) < 4:
             self._fail(f"drop: only {len(compl)} delivered -- the output skid should hold four events through a stall")
-        others = [p for p in got if p.pkt_type not in (PKT_COMPL, PKT_ERROR)]
+        others = [p for p in got if not (p.is_completion_packet() or p.is_error_packet())]
         if others:
             self._fail(f"drop: unexpected packets {[ (p.pkt_type, p.event_code) for p in others[:4]]}")
         self.log.info(f"phase drop: {n} issued, {len(compl)} delivered, {reported} reported dropped in {len(drops)} report(s)")
@@ -313,7 +330,7 @@ class AxiMonitorLiteTB:
         ok, e = await self.xfer(0x5000, 1, 1)
         await self.settle()
         got = self.take()
-        if len([p for p in got if p.pkt_type == PKT_COMPL]) != 1 or [p for p in got if p.pkt_type != PKT_COMPL]:
+        if len(find_packets_by_criteria(got, pkt_type=int(PKT_COMPL))) != 1 or [p for p in got if not p.is_completion_packet()]:
             self._fail(f"after: expected exactly one completion, got {[(p.pkt_type, p.event_code) for p in got]}")
 
     async def run_suite(self):

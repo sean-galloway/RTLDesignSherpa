@@ -5,7 +5,7 @@
 **Owner:** TBD
 **Related:** amba/monitor-lite TASK-001 (built and measured); amba ISSUE-001 (the monbus group's own timing chain, which the switch does not touch)
 
-The lite exists and is selectable per wrapper instance (`MONITOR_LITE=1`) and
+The lite exists as the `_monlite` sibling of every monitored wrapper and
 per bridge (`mon_preset = "lite"`). Nothing has been switched. The candidates
 and what each would give up:
 

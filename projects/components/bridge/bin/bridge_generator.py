@@ -476,6 +476,11 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
         blk_chan = 'rd' if (blk_master and blk_master.has_read_channels()) else 'wr'
         block_ready_path = (f"u_{blk_master.port_name}_adapter.u_timing_wrapper_{blk_chan}"
                             if blk_master else "")
+        # The _monlite wrappers (mon_preset = "lite") have no block_ready: the
+        # lite never stalls the port, it drops and counts. An empty path tells
+        # the stress flow there is nothing to probe (amba/monitor-lite TASK-001).
+        if getattr(config, 'mon_preset', 'error_only') == 'lite':
+            block_ready_path = ""
 
         # Monitor stress reads only slaves needing NO conversion from master 0
         # -- same protocol (axi4) AND same data width. Cross-width (dwidth
@@ -1218,19 +1223,22 @@ def _emit_bridge_variant(
         filelist_lines.append("# instead would mean tracking another component's guts -- exactly the")
         filelist_lines.append("# coupling that let the reporter sub-blocks and monitor_trans_cam go")
         filelist_lines.append("# missing from consumer filelists in the first place.")
-        filelist_lines.append("# _mon wrapper variants (instantiated by adapters when use_monitor=true)")
-        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_mon.f")
-        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_mon.f")
-        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_mon.f")
-        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_mon.f")
+        # mon_preset = "lite" instantiates the _monlite siblings (amba/monitor-lite
+        # TASK-001): same closure shape, the lite monitor instead of the family.
+        msfx = '_monlite' if getattr(config, 'mon_preset', 'error_only') == 'lite' else '_mon'
+        filelist_lines.append(f"# {msfx} wrapper variants (instantiated by adapters when use_monitor=true)")
+        filelist_lines.append(f"-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr{msfx}.f")
+        filelist_lines.append(f"-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd{msfx}.f")
+        filelist_lines.append(f"-f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr{msfx}.f")
+        filelist_lines.append(f"-f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd{msfx}.f")
         if has_axi5_master:
-            filelist_lines.append("# AXI5 _mon wrappers (masters with protocol=axi5)")
-            filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_wr_mon.f")
-            filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_rd_mon.f")
+            filelist_lines.append(f"# AXI5 {msfx} wrappers (masters with protocol=axi5)")
+            filelist_lines.append(f"-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_wr{msfx}.f")
+            filelist_lines.append(f"-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_rd{msfx}.f")
         if has_axi5_slave:
-            filelist_lines.append("# AXI5 _mon wrappers (slaves with protocol=axi5)")
-            filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_master_wr_mon.f")
-            filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_master_rd_mon.f")
+            filelist_lines.append(f"# AXI5 {msfx} wrappers (slaves with protocol=axi5)")
+            filelist_lines.append(f"-f $REPO_ROOT/rtl/amba/filelists/axi5_master_wr{msfx}.f")
+            filelist_lines.append(f"-f $REPO_ROOT/rtl/amba/filelists/axi5_master_rd{msfx}.f")
         # Monbus aggregator. The arbiter (+ its sync FIFO) is always
         # instantiated; the monbus_<p1>_<p2>_group family + its leaf skids
         # are only pulled in when the bridge owns an internal group

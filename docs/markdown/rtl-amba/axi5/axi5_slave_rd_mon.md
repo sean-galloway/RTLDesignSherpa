@@ -95,6 +95,14 @@ flowchart TB
 
 ## Parameters
 
+> A lite-monitor version of this wrapper exists as [`axi5_slave_rd_monlite`](axi5_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+
+> A lite-monitor version of this wrapper exists as [`axi5_slave_rd_monlite`](axi5_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+
+> A lite-monitor version of this wrapper exists as [`axi5_slave_rd_monlite`](axi5_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+
+> A lite-monitor version of this wrapper exists as [`axi5_slave_rd_monlite`](axi5_slave_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | SKID_DEPTH_AR | int | 2 | AR channel SKID buffer depth |
@@ -131,7 +139,6 @@ flowchart TB
 | ENABLE_FILTERING | bit | 1 | Enable packet filtering: two active drop levels (packet type, then event code). Level 2 is reserved and routes nothing |
 | ADD_PIPELINE_STAGE | bit | 0 | Add pipeline stage for timing |
 | USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
-| MONITOR_LITE | bit | 0 | 1 = instantiate `axi_monitor_lite` (rtl/amba/monitor/axi_monitor_lite.sv) in place of `axi_monitor_filtered`: same taps, monbus and ids; error, timeout, completion and active-count threshold packets only; no perf window, debug, address/id filtering or admission stall (`block_ready` held high). About a fifth of the monitor's LUTs -- see the monitor-lite page. |
 | N_ADDR_RANGES | int | 0 | Number of address-range comparators. 0 = checker omitted (zero area). >0 = N independent [low, high] ranges; feeds the shared allowlist checker: a debug-range hit -> AddrMatch, an error-allowlist miss -> Error/ADDR_RANGE (see axi_monitor_addr_check.md). |
 | ENABLE_ERROR_LOGIC | bit | 1 | Compile-in the error-detection cone (0 drops it for area). |
 | ENABLE_TIMEOUT_LOGIC | bit | 1 | Compile-in the timeout cone and the `axi_monitor_timeout` instance. |

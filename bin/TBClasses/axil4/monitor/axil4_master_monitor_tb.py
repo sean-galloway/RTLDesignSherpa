@@ -16,7 +16,10 @@
 """
 AXIL4 Master Monitor Integration Testbench
 
-Reusable testbench class for testing AXIL4 master modules with integrated monitors.
+Reusable testbench # The lite-monitor wrappers (*_monlite, amba/monitor-lite TASK-001) carry only
+# the cfg ports the lite honours; every cfg write below is guarded by hasattr so
+# one TB drives both the _mon and the _monlite wrapper (2026-09-26).
+class for testing AXIL4 master modules with integrated monitors.
 Directly instantiates BFMs with correct signal naming for monitor modules.
 
 Key Simplifications vs AXI4:
@@ -177,30 +180,30 @@ class AXIL4MasterMonitorTB(TBBase):
             raise
 
         # Configure monitor (all features enabled, minimal filtering)
-        self.dut.cfg_monitor_enable.value = 1
-        self.dut.cfg_error_enable.value = 1
-        self.dut.cfg_timeout_enable.value = 1
-        self.dut.cfg_perf_enable.value = 0  # Disable perf (can cause packet congestion)
+        if hasattr(self.dut, 'cfg_monitor_enable'): self.dut.cfg_monitor_enable.value = 1
+        if hasattr(self.dut, 'cfg_error_enable'): self.dut.cfg_error_enable.value = 1
+        if hasattr(self.dut, 'cfg_timeout_enable'): self.dut.cfg_timeout_enable.value = 1
+        if hasattr(self.dut, 'cfg_perf_enable'): self.dut.cfg_perf_enable.value = 0  # Disable perf (can cause packet congestion)
         # Post-#114: dedicated wrapper inputs for the completion /
         # threshold / debug reporter sub-blocks. Must be driven or the
         # sub-blocks stay gated off and the basic-connectivity guard
         # (`if packets == 0`) trips. Matches the AXI4 master TB.
-        self.dut.cfg_compl_enable.value = 1
-        self.dut.cfg_threshold_enable.value = 0
-        self.dut.cfg_debug_enable.value = 0
-        self.dut.cfg_timeout_cycles.value = 1000
-        self.dut.cfg_latency_threshold.value = 500
+        if hasattr(self.dut, 'cfg_compl_enable'): self.dut.cfg_compl_enable.value = 1
+        if hasattr(self.dut, 'cfg_threshold_enable'): self.dut.cfg_threshold_enable.value = 0
+        if hasattr(self.dut, 'cfg_debug_enable'): self.dut.cfg_debug_enable.value = 0
+        if hasattr(self.dut, 'cfg_timeout_cycles'): self.dut.cfg_timeout_cycles.value = 1000
+        if hasattr(self.dut, 'cfg_latency_threshold'): self.dut.cfg_latency_threshold.value = 500
 
         # Disable all filtering (pass everything through)
-        self.dut.cfg_axi_pkt_mask.value = 0x0000
-        self.dut.cfg_axi_err_select.value = 0x0000
-        self.dut.cfg_axi_error_mask.value = 0x0000
-        self.dut.cfg_axi_timeout_mask.value = 0x0000
-        self.dut.cfg_axi_compl_mask.value = 0x0000
-        self.dut.cfg_axi_thresh_mask.value = 0x0000
-        self.dut.cfg_axi_perf_mask.value = 0x0000
-        self.dut.cfg_axi_addr_mask.value = 0x0000
-        self.dut.cfg_axi_debug_mask.value = 0x0000
+        if hasattr(self.dut, 'cfg_axi_pkt_mask'): self.dut.cfg_axi_pkt_mask.value = 0x0000
+        if hasattr(self.dut, 'cfg_axi_err_select'): self.dut.cfg_axi_err_select.value = 0x0000
+        if hasattr(self.dut, 'cfg_axi_error_mask'): self.dut.cfg_axi_error_mask.value = 0x0000
+        if hasattr(self.dut, 'cfg_axi_timeout_mask'): self.dut.cfg_axi_timeout_mask.value = 0x0000
+        if hasattr(self.dut, 'cfg_axi_compl_mask'): self.dut.cfg_axi_compl_mask.value = 0x0000
+        if hasattr(self.dut, 'cfg_axi_thresh_mask'): self.dut.cfg_axi_thresh_mask.value = 0x0000
+        if hasattr(self.dut, 'cfg_axi_perf_mask'): self.dut.cfg_axi_perf_mask.value = 0x0000
+        if hasattr(self.dut, 'cfg_axi_addr_mask'): self.dut.cfg_axi_addr_mask.value = 0x0000
+        if hasattr(self.dut, 'cfg_axi_debug_mask'): self.dut.cfg_axi_debug_mask.value = 0x0000
 
         # Reset sequence
         self.aresetn.value = 0

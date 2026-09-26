@@ -124,10 +124,12 @@ LUTs a slot.
 
 `rtl/amba/monitor/axi_monitor_lite.sv` (+ `_pkg` reuse from
 `rtl/amba/includes/monitor_*_pkg.sv`; same packet builder). One module per
-direction, selected inside the existing `axi4/axi5/axil*_{master,slave}_{rd,wr}_mon`
-wrappers by a `MONITOR_LITE` parameter (generate-select between
-`axi_monitor_filtered` and the lite), so no consumer changes a port. Bridge
-generator: `mon_preset = "lite"`.
+direction. As proposed it was selected inside the existing
+`axi4/axi5/axil*_{master,slave}_{rd,wr}_mon` wrappers by a `MONITOR_LITE`
+parameter; as built (2026-09-26, Sean: "make monlite versions of the various
+axi wrappers") each `_mon` wrapper has a `_monlite` sibling instead, with only
+the lite's cfg/status ports, and the `MONITOR_LITE` parameter is gone. Bridge
+generator: `mon_preset = "lite"` selects the `_monlite` wrappers.
 
 Entry (N slots, default 8): `valid, id[IW], addr[PKT_ADDR_BITS], beats_left[8],
 phase[1:0], ts[16]` -- 63 bits at IW=4/AW=32.
@@ -188,7 +190,7 @@ doing for ASIC honesty under TASK-072 and changes nothing here.
 ### 6. Verification contract
 
 The lite is not a new protocol; it is a subset. The existing tests are the
-contract, run against the same wrappers with `MONITOR_LITE=1`:
+contract, run against the `_monlite` wrappers:
 `test_axi4_monitor` (the stress sweep -- the modes that drive perf/debug/
 addr-check skip by parameter), `test_axi_monitor_runtime_disable`,
 `test_axi_monitor_soak`, `test_axi_monitor_wr_same_cycle`,
@@ -247,7 +249,10 @@ filed separately; no `axi_monitor_lite` path is among the twenty worst.
 
 Verification as built: `val/amba/monitor-lite/test_axi_monitor_lite.py` 8/8 at full
 (read and write, id widths 4 and 8, 4 and 16 slots) through the real
-`axi4_slave_{rd,wr}_mon` wrappers with `MONITOR_LITE=1`;
+`axi4_slave_{rd,wr}_monlite` wrappers -- its TB is a thin layer on the slave TBs,
+MonbusSlave, the monbus_types enums and the monbus_validators finders (Sean,
+2026-09-26: follow the methodology; the first cut carried its own packet
+constants and inline field slices, which were replaced, not the test);
 `formal/amba/axi_monitor_lite` prove PASS (count bounded, clear empties,
 output hold) and all five covers reached; the 16 wrappers' own regression
 112/112 at full on the default path; bridge lint 55/55; the bridge suite at
@@ -256,7 +261,7 @@ the lite's default of 8).
 
 Not done from section 6's contract, deliberately: the inherited monitor
 suites (`test_axi4_monitor`, soak, runtime-disable, pktgen) were not re-run
-with `MONITOR_LITE=1` -- they assert on perf/debug/addr-check packets the
+against the `_monlite` wrappers -- they assert on perf/debug/addr-check packets the
 lite does not emit and on `block_ready`, and would need per-class skips
 first: that is amba/monitor-lite TASK-002. The lite's own suite covers the
 four classes it emits, the drop count and the refused count. The observers
@@ -268,3 +273,42 @@ make/tests.mk, own conftest), and its own TB package,
 `bin/TBClasses/amba/monitor_lite/`, wired into `val/Makefile` AREAS and the
 root gate/func/full targets (Sean, 2026-09-25).
 
+### 9. The `_monlite` wrappers (2026-09-26)
+
+Sean: "if it is only one file it doesn't need its own directory" (the lite
+moved to `rtl/amba/monitor/axi_monitor_lite.sv`), then "make monlite versions
+of the various axi wrappers". Sixteen new wrappers,
+`{axi4,axi5,axil4,axil5}_{slave,master}_{rd,wr}_monlite`, each derived from its
+core module's own parameter and port block (declared verbatim, passed through
+by name) plus the lite tap wiring the `_mon` sibling already carried. The
+interface is the lite's: eight cfg inputs, `cam_clear` (name kept for
+pin-compatibility), the monbus, and five status outputs of which
+`dropped_count` and `refused_count` are new. No `block_ready`, no gating of any
+handshake. `MAX_TRANSACTIONS` defaults to 8. One trap the derivation hit: the
+AXI-Lite cores name their fabric side `fub_*` while their `_mon` wrappers expose
+it as `fub_axil_*`; the monlite follows the `_mon` (pin-compatible), connecting
+the core by its own names underneath -- the first cut copied the core's names
+and all eight AXI-Lite tests failed to find their signals.
+
+The `MONITOR_LITE` parameter and the lite branch were removed from the sixteen
+`_mon` wrappers (one path, not two); their 32 filelists no longer pull the lite
+source. The bridge generator's `mon_preset = "lite"` now instantiates the
+`_monlite` wrapper (`Axi4TimingWrapper.is_lite`): no cone parameters, the
+lite's eight cfg signals wired, the seven others left at the adapter boundary,
+`cam_clear` tied, `dropped_count`/`refused_count` open. Fixtures regenerated;
+only the two lite fixtures changed.
+
+The bridge's generated monitor stress test asserted on a `w_block_ready` probe
+inside the first read wrapper; the lite has none. The generator now hands the
+stress flow an empty probe path for `mon_preset = "lite"`, and the flow runs
+its phases without the gating probe (they already treated both monbus paths
+as best-effort; block_ready was an informational stat).
+
+Collateral: 16 filelists, 16 doc pages (generated from the RTL, with a pointer
+note on each `_mon` page), 16 tests in `val/amba/monitor-lite/` derived from
+the `_mon` tests with the DUT swapped (the eight monitor TBs now guard every
+cfg write with hasattr so one TB drives both wrappers), books re-rendered.
+The lite's own TB (`AxiMonitorLiteTB`, the SLVERR / timeout / threshold /
+drop-and-count scenarios) stays; its packet constants and inline field slices
+were replaced with the shared monbus_types enums, MonbusPacket predicates and
+monbus_validators finders (Sean, 2026-09-26: "follow the methodology").

@@ -219,5 +219,19 @@ and grep the module for `generate`/`if (` around instantiations to learn which
 parameters those are. The same applies to a block whose egress or protocol
 variant is parameter-selected: build BOTH arms.
 
+## A new module VARIANT is three places, not one (2026-09-26)
+
+The `_monlite` wrappers (amba/monitor-lite TASK-001) were a suffix variant of
+sixteen existing `_mon` modules. Each got its RTL and its `.f`, the registry
+audit passed (193/193 covered), every wrapper linted clean -- and the first
+bridge built with them failed with MODMISSING, because the bridge generator
+emits the per-fixture filelist from a hard-coded list of `*_mon.f` lines.
+A generator that chooses a module by suffix also chooses its filelist by
+suffix, and nothing checks the two agree until a consumer elaborates. So a
+suffix variant is: the RTL, its own filelist, AND every emitter that builds
+filelist lines from module names (`grep -rn "_mon.f" bin/ projects/` finds
+them). The registry audit cannot see the third; only the consumer's lint can.
+
 Related: [[naming-and-style]] (module/file naming), [[test-runner]] (tests
-consume filelists via `get_sources_from_filelist`, never a hand-listed array).
+consume filelists via `get_sources_from_filelist`, never a hand-listed array),
+[[generated-rtl-discipline]] (regenerate every fixture after a generator change).

@@ -29,7 +29,7 @@ from projects.components.bridge.dv.tbclasses.bridge1x2_rd_lite_mon_tb import Bri
 from monitor_stress_common import run_comprehensive, run_monitor_sim
 
 CFG_PREFIXES = ['cpu_rd_0_rd', 'ddr_rd_0_rd', 'sram_rd_1_rd']
-BLOCK_READY_PATH = "u_cpu_rd_adapter.u_timing_wrapper_rd"
+BLOCK_READY_PATH = ""
 REACHABLE_SLAVES = [0, 1]
 HAS_COMPL = True
 IS_REGBLOCK = False

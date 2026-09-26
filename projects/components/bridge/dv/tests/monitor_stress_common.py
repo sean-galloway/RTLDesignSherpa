@@ -364,11 +364,19 @@ async def run_comprehensive(dut, tb, *, cfg_prefixes, block_ready_path,
     error packets, so they run the SLVERR error-path stress only."""
     n = n or stress_count()
     reachable = list(reachable_slaves) if reachable_slaves else sorted(tb.slave_info.keys())
-    block_node = _resolve(dut, block_ready_path)
-    has_br = getattr(block_node, "w_block_ready", None) is not None
-    tb.log.info(f"block_ready probe '{block_ready_path}.w_block_ready' resolved={has_br}; "
-                f"reachable_slaves={reachable}")
-    assert has_br, f"block_ready signal not found at {block_ready_path}.w_block_ready"
+    if block_ready_path:
+        block_node = _resolve(dut, block_ready_path)
+        has_br = getattr(block_node, "w_block_ready", None) is not None
+        tb.log.info(f"block_ready probe '{block_ready_path}.w_block_ready' resolved={has_br}; "
+                    f"reachable_slaves={reachable}")
+        assert has_br, f"block_ready signal not found at {block_ready_path}.w_block_ready"
+    else:
+        # mon_preset = "lite": the _monlite wrappers have no block_ready (the
+        # lite drops and counts instead of stalling), so the generator hands
+        # over an empty path and the harness runs without the gating probe.
+        # Every phase below already treats both monbus paths as best-effort.
+        block_node = None
+        tb.log.info(f"no block_ready probe (lite monitors: drop-and-count); reachable_slaves={reachable}")
     if is_regblock:
         # The regblock variant has no cfg_* pins; cfg comes from the PeakRDL
         # regblock, whose reset defaults are monitor_enable=1 / error_enable=1

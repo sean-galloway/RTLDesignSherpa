@@ -245,7 +245,7 @@ axi4_slave_rd_pattern_gen #(
 ### Used By
 - `axi4_dma_slaves` — bundles this read source with `axi4_slave_wr_crc_check` into a single source/sink slave pair
 - `projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/stream_char_harness.sv` — on-chip read stimulus
-- `projects/NexysA7/rapids_characterization/flows-rapids-beats/rtl/rapids_char_harness.sv` — on-chip read stimulus
+- `projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/rtl/rapids_char_harness.sv` — on-chip read stimulus
 
 ### Uses
 - **axi4_slave_rd.sv** — standard AXI4 read slave protocol handler (AR/R skid + compliance)
@@ -274,7 +274,7 @@ Covered from `val/amba/` with the rest of the shared area — run everything wit
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Index: `docs/markdown/rtl-amba/index.md`
-- Harness: `projects/NexysA7/ddr2-characterization/README.md`
+- Harness: `projects/fpga-systems/NexysA7/pumice/ddr2-characterization/README.md`
 
 ---
 

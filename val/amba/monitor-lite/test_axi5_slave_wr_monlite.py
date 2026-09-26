@@ -1,0 +1,201 @@
+"""axi5_slave_wr_monlite: the lite-monitor sibling of axi5_slave_wr_mon (amba/monitor-lite TASK-001).
+
+Derived 2026-09-26 from val/amba/test_axi5_slave_wr_mon.py: same TB, same scenarios,
+the DUT swapped for the _monlite wrapper and the full-monitor-only parameters
+(NUM_BANKS, USE_WDATA_ORDER_Q, ENABLE_FILTERING) removed. The TB guards every cfg write with
+hasattr, so the lite's smaller cfg set is driven and nothing else is touched.
+"""
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: test_axi5_slave_wr_mon
+# Purpose: AXI5 Slave Write Monitor Integration Test
+#
+# Documentation: PRD.md
+# Subsystem: tests
+#
+# Author: sean galloway
+# Created: 2025-12-20
+
+"""
+AXI5 Slave Write Monitor Integration Test
+
+Thin wrapper that uses the reusable AXI5SlaveMonitorTB testbench class.
+All test logic is in bin/TBClasses/axi5/monitor/axi5_slave_monitor_tb.py
+"""
+
+import os
+import random
+import pytest
+import cocotb
+from cocotb_test.simulator import run
+
+from TBClasses.axi5.monitor.axi5_slave_monitor_tb import AXI5SlaveMonitorTB
+from TBClasses.shared.utilities import get_paths, sim_build_path
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+
+
+@cocotb.test(timeout_time=30, timeout_unit="sec")
+async def axi5_slave_wr_mon_test(dut):
+    """AXI5 slave write monitor integration test"""
+
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+
+    # Create testbench (is_write=True for write slave)
+    tb = AXI5SlaveMonitorTB(dut, is_write=True, aclk=dut.aclk, aresetn=dut.aresetn)
+
+    await tb.initialize()
+    await tb.run_integration_tests(test_level=test_level)
+
+
+def generate_axi5_monitor_params():
+    """Generate AXI5 monitor parameter combinations based on REG_LEVEL."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        params = [
+            (8, 32, 32, 1, 16, 2, 4, 2, 'gate'),
+        ]
+    elif reg_level == 'FUNC':
+        params = [
+            (8, 32, 32, 1, 16, 2, 4, 2, 'gate'),
+            (8, 32, 32, 1, 16, 4, 8, 4, 'func'),
+            (8, 32, 32, 1, 32, 2, 4, 2, 'func'),
+        ]
+    else:  # FULL
+        test_levels = ['gate', 'func', 'full']
+        configs = [
+            (8, 32, 32, 1, 16, 2, 4, 2),
+            (8, 32, 32, 1, 16, 4, 8, 4),
+            (8, 32, 32, 1, 32, 2, 4, 2),
+        ]
+        params = [
+            (id_w, addr_w, data_w, user_w, max_t, skid_aw, skid_w, skid_b, level)
+            for (id_w, addr_w, data_w, user_w, max_t, skid_aw, skid_w, skid_b) in configs
+            for level in test_levels
+        ]
+
+    return params
+
+
+@pytest.mark.parametrize(
+    "id_width, addr_width, data_width, user_width, max_trans, skid_aw, skid_w, skid_b, test_level",
+    generate_axi5_monitor_params()
+)
+def test_axi5_slave_wr_mon(id_width, addr_width, data_width, user_width, max_trans, skid_aw, skid_w, skid_b, test_level):
+    """
+    Integration test runner for AXI5 slave write monitor.
+
+    Controlled by REG_LEVEL environment variable:
+        GATE: 1 test  - Quick smoke test
+        FUNC: 3 tests - Functional validation (default)
+        FULL: 9 tests - Comprehensive testing
+    """
+
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_axi5': 'rtl/amba/axi5/',
+        'rtl_gaxi': 'rtl/amba/gaxi',
+        'rtl_includes': 'rtl/amba/includes',
+        'rtl_common': 'rtl/common',
+        'rtl_shared': 'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
+    })
+
+    dut_name = "axi5_slave_wr_monlite"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    # Transaction-table shaping, overridable from the environment. Defaults are
+    # the RTL defaults, so the standing sweep is unchanged. These exist on EVERY
+    # write monitor because the defect they gate is on the write path: the
+    # WID-less select is not ID-matched, so a banked table advanced one
+    # transaction PER BANK on a single W beat. Testing that on axi4 alone would
+    # leave the same parameter unexercised on five other wrappers that share
+    # the mechanism. Both values go in the build directory name -- they change
+    # the elaborated design, and a shared sim_build silently reuses the wrong
+    # binary.
+    num_banks = int(os.environ.get('NUM_BANKS', '1'))
+    use_wq = int(os.environ.get('USE_WDATA_ORDER_Q', '0'))
+
+    test_name = f"test_{worker_id}_{dut_name}_iw{id_width}_aw{addr_width}_dw{data_width}_mt{max_trans}_sk{skid_aw}x{skid_w}x{skid_b}_nb{num_banks}_wq{use_wq}_{test_level}_{reg_level}"
+
+    log_path = os.path.join(log_dir, f'{test_name}.log')
+    sim_build = sim_build_path(tests_dir, test_name)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi5_slave_wr_monlite.f")
+
+    for src in verilog_sources:
+        if not os.path.exists(src):
+            raise FileNotFoundError(f"RTL source not found: {src}")
+
+    rtl_parameters = {
+        'AXI_ID_WIDTH': str(id_width),
+        'AXI_ADDR_WIDTH': str(addr_width),
+        'AXI_DATA_WIDTH': str(data_width),
+        'AXI_USER_WIDTH': str(user_width),
+        'UNIT_ID': '1',
+        'AGENT_ID': '10',
+        'MAX_TRANSACTIONS': str(max_trans),
+        'SKID_DEPTH_AW': str(skid_aw),
+        'SKID_DEPTH_W': str(skid_w),
+        'SKID_DEPTH_B': str(skid_b),
+    }
+
+    extra_env = {
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'TEST_LEVEL': test_level,
+        'TEST_ID_WIDTH': str(id_width),
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': str(data_width),
+        'TEST_STUB': '0',
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_CLK_PERIOD': '10',
+    }
+
+    compile_args = [
+        "--trace-fst",
+        "--trace-structs",
+        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-PINMISSING",
+        "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
+        "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
+    ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend([])
+
+    print(f"\n{'='*80}")
+    print(f"AXI5 Slave Write Monitor Integration Test")
+    print(f"Test Level: {test_level}")
+    print(f"{'='*80}")
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes + [rtl_dict['rtl_common'], sim_build],
+            toplevel=dut_name,
+            module="test_axi5_slave_wr_mon",
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
+            keep_files=True,
+            compile_args=compile_args,
+            simulator="verilator",
+        )
+        print(f"PASSED: {test_name}")
+    except Exception as e:
+        print(f"FAILED: {test_name}")
+        print(f"Error: {str(e)}")
+        raise

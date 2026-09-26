@@ -282,7 +282,12 @@ class Axi4TimingWrapper:
         self.data_width = data_width
         self.user_width = user_width
 
-        module_name = f"{protocol}_{side}_{channel}{'_mon' if mon else ''}"
+        # mon_preset = "lite" (mon_enables['lite']) selects the _monlite sibling:
+        # the same core and taps with axi_monitor_lite, and only the cfg/status
+        # ports the lite honours (amba/monitor-lite TASK-001, 2026-09-26).
+        self.is_lite = bool(mon and mon_enables is not None and mon_enables.get('lite', False))
+        suffix = '_monlite' if self.is_lite else ('_mon' if mon else '')
+        module_name = f"{protocol}_{side}_{channel}{suffix}"
         self.module = Module(module_name=module_name,
                              instance_name=instance_name)
         if channel == 'wr':
@@ -347,7 +352,7 @@ class Axi4TimingWrapper:
             # Reporter sub-block ENABLE_*_LOGIC overrides. Drives the
             # genvar-if inside axi_monitor_reporter (committed in
             # 657e00b3) so the unused cones are gone at synthesis.
-            if mon_enables is not None:
+            if mon_enables is not None and not self.is_lite:
                 cone_to_param = (
                     ('error',     'ENABLE_ERROR_LOGIC'),
                     ('timeout',   'ENABLE_TIMEOUT_LOGIC'),
@@ -359,12 +364,8 @@ class Axi4TimingWrapper:
                 for cone, param in cone_to_param:
                     val = "1'b1" if mon_enables.get(cone, True) else "1'b0"
                     param_str += f", parameter bit {param} = {val}"
-                # amba/monitor-lite TASK-001: mon_preset = "lite" swaps axi_monitor_filtered for
-                # axi_monitor_lite inside the same wrapper.
-                if mon_enables.get('lite', False):
-                    param_str += ", parameter bit MONITOR_LITE = 1'b1"
-                    # the lite's own default table depth; the wrapper's is 16
-                    param_str += ", parameter int MAX_TRANSACTIONS = 8"
+            # The _monlite wrapper has no cone parameters: the lite has no
+            # perf or debug cone, and its table defaults to 8 on its own.
         self.module.params.add_param_string(param_str)
         self._sections: List[tuple] = []
 
@@ -509,7 +510,15 @@ class Axi4TimingWrapper:
         full bitstream cycle once)."""
         pairs = [('busy', busy_connector)]
         # Monitor-only status outputs (only present on _mon variants).
-        if '_mon' in self.module.module_name:
+        if self.is_lite:
+            pairs.extend([
+                ('active_transactions', ''),
+                ('error_count',         ''),
+                ('transaction_count',   ''),
+                ('dropped_count',       ''),
+                ('refused_count',       ''),
+            ])
+        elif '_mon' in self.module.module_name:
             pairs.extend([
                 ('active_transactions', ''),
                 ('error_count',         ''),
@@ -526,7 +535,7 @@ class Axi4TimingWrapper:
         PINMISSING if they aren't bound. Until the bridge cfg
         subsystem (PeakRDL regblock) wires these to runtime knobs,
         tie them off explicitly."""
-        if '_mon' not in self.module.module_name:
+        if '_mon' not in self.module.module_name or self.is_lite:
             return
         self._sections.append(("Address-range checker (disabled at N_ADDR_RANGES=0)", [
             ('cfg_addr_check_enable', "1'b0"),
@@ -543,7 +552,7 @@ class Axi4TimingWrapper:
         cfg subsystem (PeakRDL regblock) lands, replace this tie-off
         with real per-port cfg routing -- but only when the integrator
         actually plans to drive a window. Until then, PINMISSING-safe."""
-        if '_mon' not in self.module.module_name:
+        if '_mon' not in self.module.module_name or self.is_lite:
             return
         self._sections.append(("Perfmon Stage A/B (tied off -- no window driven)", [
             ('cfg_start_event_sel',    "3'b111"),  # never-fire
@@ -595,6 +604,18 @@ class Axi4TimingWrapper:
         'cfg_axi_debug_mask',
     )
 
+    # The eight the _monlite wrappers expose: a subset of the fifteen above.
+    MONITOR_LITE_CFG_SIGNALS = (
+        'cfg_monitor_enable',
+        'cfg_error_enable',
+        'cfg_timeout_enable',
+        'cfg_compl_enable',
+        'cfg_threshold_enable',
+        'cfg_timeout_cycles',
+        'cfg_freq_sel',
+        'cfg_axi_pkt_mask',
+    )
+
     def connect_monbus(self, valid: str, ready: str, packet: str,
                        timestamp: str, mon_time: str = 'mon_time_w') -> None:
         """Wire the wrapper's monitor-bus output set. Only meaningful
@@ -631,13 +652,20 @@ class Axi4TimingWrapper:
                 f"{self.module.module_name!r}; caller must gate on mon=True."
             )
         pairs = []
-        for sig in self.MONITOR_CFG_SIGNALS:
+        sigs = self.MONITOR_LITE_CFG_SIGNALS if self.is_lite else self.MONITOR_CFG_SIGNALS
+        for sig in sigs:
             # The SV module's port name is the bare cfg_* signal; the
             # adapter-level connector is f"{prefix}{stripped}" where we
             # strip the leading 'cfg_' to avoid 'cfg_wr_cfg_monitor_...'.
             base = sig[len('cfg_'):]
             pairs.append((sig, f"{connector_prefix}{base}"))
         self._sections.append(("Monitor cfg inputs", pairs))
+        if self.is_lite:
+            # The adapter still surfaces the full fifteen per port (one bridge
+            # cfg interface for both monitors); the seven the lite has no port
+            # for stay unconnected at the adapter boundary.
+            self._sections.append(("Monitor table clear (inert)", [('cam_clear', "1'b0")]))
+            return
 
         # The filter/CAM inputs are NOT in MONITOR_CFG_SIGNALS and were
         # therefore left unconnected -- 517 floating inputs across the 35

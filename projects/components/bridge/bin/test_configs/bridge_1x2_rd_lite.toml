@@ -2,7 +2,7 @@
 #
 # Same fabric as bridge_1x2_rd; `mon_preset = "lite"` makes the `_mon`
 # variant instantiate axi_monitor_lite inside every axi4_*_rd_mon wrapper
-# (MONITOR_LITE=1) instead of axi_monitor_filtered. The generated monitor
+# (the _monlite wrappers) instead of axi_monitor_filtered. The generated monitor
 # tests run unchanged against it, and `projects/components/bridge/fpga`
 # measures it against bridge_1x2_rd_mon: same ports, a fifth of the gates.
 # Connectivity comes from bridge_1x2_rd_lite_connectivity.csv.

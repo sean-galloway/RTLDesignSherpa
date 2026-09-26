@@ -46,6 +46,14 @@ AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's hand
 
 ## Parameters
 
+> A lite-monitor version of this wrapper exists as [`axil5_master_rd_monlite`](axil5_master_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+
+> A lite-monitor version of this wrapper exists as [`axil5_master_rd_monlite`](axil5_master_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+
+> A lite-monitor version of this wrapper exists as [`axil5_master_rd_monlite`](axil5_master_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+
+> A lite-monitor version of this wrapper exists as [`axil5_master_rd_monlite`](axil5_master_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `SKID_DEPTH_AR` | int | `2` |  |
@@ -56,7 +64,6 @@ AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's hand
 | `CFI_MIN_FREQ_MHZ` | int | `ACLK_MHZ` |  |
 | `CFI_MAX_FREQ_MHZ` | int | `ACLK_MHZ` |  |
 | `USE_MONITOR` | bit | `1'b1` | 0 = omit monitor, tie outputs |
-| `MONITOR_LITE` | bit | 0 | 1 = instantiate `axi_monitor_lite` (rtl/amba/monitor/axi_monitor_lite.sv) in place of `axi_monitor_filtered`: same taps, monbus and ids; error, timeout, completion and active-count threshold packets only; no perf window, debug, address/id filtering or admission stall (`block_ready` held high). About a fifth of the monitor's LUTs -- see the monitor-lite page. |
 | `N_ADDR_RANGES` | int | `0` | 0 = address-range checker disabled |
 | `MAX_TRANSACTIONS` | int | `8` | Maximum outstanding transactions (reduced for AXIL) |
 | `USE_WDATA_ORDER_Q` | bit | `1'b0` |  |

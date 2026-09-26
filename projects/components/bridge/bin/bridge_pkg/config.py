@@ -16,7 +16,7 @@ MON_PRESETS = {
     "error_only": {"error": True,  "timeout": False, "compl": False, "threshold": False, "perf": False, "debug": False},
     "functional": {"error": True,  "timeout": True,  "compl": True,  "threshold": False, "perf": False, "debug": False},
     "none":       {"error": False, "timeout": False, "compl": False, "threshold": False, "perf": False, "debug": False},
-    # amba/monitor-lite TASK-001: axi_monitor_lite behind the same wrappers (MONITOR_LITE=1).
+    # amba/monitor-lite TASK-001: the _monlite wrappers (axi_monitor_lite inside the same core wrappers).
     # Error, timeout, completion and the active-count threshold are what the
     # lite has; perf and debug do not exist in it. The `lite` key is not a
     # cone -- it selects the module.

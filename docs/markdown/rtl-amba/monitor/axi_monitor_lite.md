@@ -34,7 +34,7 @@
 `axi_monitor_lite` is the AXI transaction monitor rebuilt for gate count and
 timing: three quarters of what `axi_monitor_base` reports, for about a fifth
 of its LUTs. It sits behind the same `axi4/axi5/axil4/axil5_{master,slave}_{rd,wr}_mon`
-wrappers, selected by the wrapper parameter `MONITOR_LITE = 1`, and emits
+wrappers as their `_monlite` siblings (`axi4_slave_rd_monlite` and fifteen more), and emits
 the same 128-bit `monitor_packet_t` with the same `UNIT_ID`/`AGENT_ID` on
 the same monbus handshake -- the arbiter, the group, the tally and the host
 tooling cannot tell which monitor produced a packet.
@@ -217,13 +217,14 @@ many events it did not see.
 
 ## Verification
 
-- `val/amba/monitor-lite/test_axi_monitor_lite.py` through `axi4_slave_{rd,wr}_mon` with
-  `MONITOR_LITE=1`: exact packets for singles and bursts (address, id, non-zero
-  latency), one `RESP_SLVERR` and no completion for an out-of-range access,
-  one `Timeout/DATA` (read) or `Timeout/RESP` (write) for a stalled slave
-  followed by the completion, one threshold packet for a pile of outstanding
-  transactions, and a held monbus whose dropped events sum with the delivered
-  ones to the number issued. Three levels, ID widths 4 and 8, 8 and 16 slots.
+- `val/amba/monitor-lite/test_axi_monitor_lite.py` through `axi4_slave_{rd,wr}_monlite`:
+  exact packets for singles and bursts (address, id, non-zero latency), one
+  `RESP_SLVERR` and no completion for an out-of-range access, one timeout naming
+  the stuck phase, one active-count threshold, and a held monbus that drops
+  events and then reports the count. 8 cells at full.
+- `val/amba/monitor-lite/test_<wrapper>_monlite.py`, sixteen tests derived from
+  the `_mon` wrapper tests on the existing monitor TB classes: the same
+  scenarios with the `_monlite` DUT. 105 cells at full with the above.
 - `formal/amba/axi_monitor_lite`: under unconstrained taps, `active_count`
   never exceeds the table, `clear` empties it, and an offered packet is held
   unchanged until taken; covers reach a completion, an error, a timeout, a
@@ -233,6 +234,6 @@ many events it did not see.
 
 ## Related
 
-`axi_monitor_base` (the full monitor), the `*_mon` wrappers'
-`MONITOR_LITE` parameter, `monbus_arbiter` and `monbus_group` (unchanged
+`axi_monitor_base` (the full monitor), the sixteen `*_monlite` wrappers
+(one per `*_mon`, e.g. `axi4_slave_rd_monlite`), `monbus_arbiter` and `monbus_group` (unchanged
 consumers), `vault/Tasks/amba` amba/monitor-lite TASK-001 (the review that sized this).

@@ -26,8 +26,8 @@ is a sub-area of RLB: the block's own features, defects and questions file
 here; work on the monbus, the full monitor family or the wrappers files under
 `amba/`. Its collateral is likewise its own: tests in `val/amba/monitor-lite/`
 (own Makefile and conftest, an entry in `val/Makefile` AREAS and in the root
-gate/func/full targets), TB classes in `bin/TBClasses/amba/monitor_lite/`,
-formal in `formal/amba/axi_monitor_lite/`, pages in
+gate/func/full targets), TB classes in `bin/TBClasses/amba/monitor_lite/` on the
+shared monbus types and validators, formal in `formal/amba/axi_monitor_lite/`, pages in
 `docs/markdown/rtl-amba/monitor/` booked with the monitor subsystem.
 
 IDs are scoped to this sub-area and its lane; cite one from outside as
