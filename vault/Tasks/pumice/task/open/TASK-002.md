@@ -1,7 +1,7 @@
 # TASK-002: characterize + tune the advanced modes (all three axes)
 > **Was `PUMICE-013` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** open 2026-08-27, FIRST CAMPAIGN LANDED 2026-09-23 — all three axes
+**Status:** open 2026-08-27. AXIS 1 SWEPT ON SILICON 2026-09-25 (8/10 sub-policies inert; row_most_pending -19.4%). Axes 2/3 tuning still open. Originally: FIRST CAMPAIGN LANDED 2026-09-23 — all three axes
 swept one-at-a-time on the board, results and recommended defaults in
 "TASK-002 RESULTS" below. Four mechanism gaps reported to [[TASK-001]],
 one of them a shipped RTL default that costs 15.8x on streaming. Still open
@@ -279,3 +279,73 @@ Two things worth keeping:
 
 `refresh_credit` is +0.4-0.6%, which is within run-to-run noise: still no
 measured effect, now established on the policy where one was plausible.
+
+
+## 2026-09-25 — AXIS 1 SUB-POLICIES MEASURED ON SILICON. Eight of ten are inert.
+
+The axis was never swept because `ControllerConfig` did not expose it:
+`prio_sub` / `row_sel` / `col_sel` / `access_pref` / `qos_en` are SCHED_POLICY
+fields the driver has always accepted and `apply()` never programmed -- so they
+INHERITED across the matrix, the same order-dependence hazard recorded here for
+`refresh_credit` (574 MB/s purely because it ran after `rbl_dyn`). Now
+programmed on EVERY config, with 9 single-lever configs and a `sched_sub`
+profile.
+
+**Board, txn_scale=1000, single direction (0w+4r), peak 600 MB/s:**
+
+| config | incremental | col_major |
+|---|---|---|
+| open_page (default) | 194.5 | 195.2 |
+| **row_most_pending** | **196.6 (+1.1%)** | **157.4 (-19.4%)** |
+| pref_row_first | 195.1 (+0.3%) | 195.2 (0.0%) |
+| row_fewest_pending | 193.9 (-0.3%) | 195.2 (0.0%) |
+| prio_load_over_store, prio_age_boost, col_most_pending, col_fewest_pending, qos_on, pref_column_first | 194.5 (0.0%) | 195.2 (0.0%) |
+
+**Eight of ten sub-policies are within +-0.3% of the default -- inert on this
+traffic.** `row_most_pending` is the only lever with real effect and it is a
+net LOSS: +1.1% on sequential, **-19.4% on page-hostile**, where it also costs
++7,300 ACTs (78,213 -> 85,552). Its 2+2 run showed rd_lat 244.8 -> 593.7, a
+2.4x latency penalty.
+
+Provisional read: the default (oldest-first) is the right choice on both
+families, and the row arbiter's "most pending" heuristic actively fights the
+page policy -- it picks the bank with the most queued work rather than the one
+whose row is already open.
+
+### Getting a measurable workload took two corrections
+
+**1. The first sweep was turnaround-bound, not arbiter-bound.** At concurrent
+4w+4r the board reports `limiter=turnaround`: traffic switches direction
+constantly and tWTR/tRTW dominates. An arbiter sub-policy chooses WHICH
+COMMAND, not which direction, so nothing it does can move a workload bound by a
+global DQ constraint -- the sweep read flat for a reason that was not about the
+knobs. `sched_sub` is single-direction now.
+
+**2. `max_outstanding=32` was a no-op.** 0 already means "as built" =
+GEN_MAX_OUTSTANDING = 32, the ceiling. The engines were always saturated on
+that axis; the ACT rise 32k -> 79k came from 4w+4r alone.
+
+### Instrumentation added, and one column that was wrong
+
+`measure_concurrent` never captured stall attribution -- only `measure()` did
+-- so EVERY concurrent profile (sched_sub, rbl_hotcold, concurrent, multigen,
+both pair sweeps) has been blind to its own limiter since it was written. Now
+captured, with `limiter` and `blk_cyc` columns.
+
+`limiter` ranks the SIX trustworthy counters and deliberately excludes
+STALL_NOREQ, which advances during host UART time exactly as REF_STATS_REF did
+before [[TASK-012]]. A first cut ranked noreq with the rest and printed
+`starved / 98.8%` for every cell -- that number was timing the HOST, and
+presenting it as a property of the run would have retired this axis on an
+artifact. The second cut divided blocked cycles by `rd_cycles` and printed
+**109.6%**, visibly impossible, which is the only reason it was caught: the
+pumice counters are cleared only by aresetn (harness `clear_stats` touches the
+bus meters, not these), so a host-bracketed delta spans the window plus
+trailing UART time, and `rd_cycles` counts one direction. `blk_cyc` is now an
+absolute count -- comparable ACROSS ROWS of one sweep, not readable as a duty
+cycle.
+
+**Still open:** axis 2 (paging) and axis 3 (refresh) tuning, and the random
+family. Axis 3 is measurable for the first time via REF_STATS_REF_BUSY
+([[TASK-012]]), which reads 8,814 against 2,570,069 free-running on silicon --
+a 292x contamination factor.

@@ -1474,6 +1474,14 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
     # Bracket the whole concurrent window -- see the rd_stats note below for
     # why this cannot be attributed per direction.
     _ps_cc0 = _try_page_stats(drv)
+    # Stall attribution over the SAME window (TASK-006). measure() has always
+    # captured this and measure_concurrent never did, so every concurrent
+    # profile -- sched_sub, rbl_hotcold, concurrent, multigen, both pair
+    # sweeps -- ran blind to its own limiter. That is how a sched_sub table
+    # came back flat across ten arbiter sub-policies while the controller sat
+    # at 99.4% STALL_NOREQ: the run was starved, not indifferent, and nothing
+    # in the record said so.
+    _st_cc0 = _try_stalls(drv)
     drv.timer_clear()
     drv.freeze_trace(False)
     drv.start_both(wr_mask=(1 << n_wr) - 1, rd_mask=(1 << n_rd) - 1)
@@ -1528,6 +1536,7 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
         wr_window_cyc=wr_window, rd_window_cyc=rd_window,
         rd_stats=rd_stats,
         n_rd_gen=n_rd, n_wr_gen=n_wr,
+        rd_stalls=_delta_stalls(_st_cc0, _try_stalls(drv)),
         notes=tuple(notes))
 
 
@@ -1605,6 +1614,7 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
                progress: Optional[Callable[[str, int, int], None]] = None,
                concurrent: Optional[Tuple[int, int]] = None,
                gen_mix: Optional[str] = None,
+               sc_over: Optional[Dict[str, object]] = None,
                ) -> List[CharRecord]:
     """Run the scenario suite under EACH controller config -- the full
     (config x generator) matrix. Returns a flat list, each record tagged with
@@ -1616,6 +1626,15 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
     sim-sized pass, ~1000 for a long FPGA soak (see build_suite)."""
     cfgs = resolve_configs(configs if configs is not None else [CLOSE_PAGE])
     suite = build_suite(level, txn_scale=txn_scale, families=families)
+    # Profile-level Scenario override. The suite builds with library defaults
+    # (max_outstanding=0, i.e. whatever the engine comes up with), which is
+    # right for a bandwidth matrix and WRONG for anything measuring the
+    # arbiter: with near-zero CAM occupancy there are 0 or 1 eligible
+    # candidates, every sub-policy picks the same command, and the sweep reads
+    # flat no matter what the knobs do. A profile that needs the controller
+    # SATURATED says so here.
+    if sc_over:
+        suite = [replace(sc, **sc_over) for sc in suite]
     recs: List[CharRecord] = []
     total = len(cfgs) * len(suite)
     i = 0
@@ -1756,7 +1775,25 @@ RUN_PROFILES: Dict[str, dict] = {
                                "col_fewest_pending", "qos_on",
                                "pref_column_first", "pref_row_first"],
                       level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR),
-                      concurrent=(2, 2)),
+                      # SATURATE, or this measures nothing. The first board run
+                      # of this profile came back flat across all ten configs
+                      # at 0.8% util with 99.4% STALL_NOREQ -- starved, not
+                      # indifferent. 4w+4r loads every built engine and
+                      # max_outstanding=32 (the dial's ceiling) keeps the CAMs
+                      # occupied so the arbiter actually has candidates to
+                      # choose between. Check the `limiter` column: if it still
+                      # says `starved`, the result is not about the knobs.
+                      # SINGLE DIRECTION (0w+4r), and this is the whole
+                      # point. At 4w+4r the board reads `turnaround` at 84%
+                      # blocked: the traffic switches direction constantly and
+                      # tWTR/tRTW dominates. An arbiter sub-policy chooses
+                      # WHICH COMMAND, not which direction, so nothing it does
+                      # can move a workload bound by a global DQ constraint --
+                      # the sweep reads flat for a reason that is not about the
+                      # knobs. Readers only removes that constraint and lets
+                      # the pick actually matter. (max_outstanding is left
+                      # alone: 0 already means "as built" = 32, the ceiling.)
+                      concurrent=(0, 4)),
     "rbl_hotcold": dict(configs=["open_page", "rbl_static", "rbl_dyn"],
                         level="basic", families=(FAM_INCREMENTAL,),
                         # READERS, not writers. One direction either way, but
@@ -1796,7 +1833,7 @@ def run_profile(drv: DDR2CharDriver, profile: str = "smoke", *,
                       base_addr=base_addr, timeout_s=timeout_s, geom=geom,
                       clk_mhz=clk_mhz, progress=progress,
                       concurrent=p.get("concurrent"),
-                      gen_mix=p.get("gen_mix"))
+                      gen_mix=p.get("gen_mix"), sc_over=p.get("sc_over"))
 
 
 # =============================================================================
@@ -1990,6 +2027,59 @@ def summarize(recs: List[CharRecord]) -> List[str]:
     return lines
 
 
+def _limiter_str(st: "Optional[StallStats]") -> str:
+    """The biggest stall cause the controller actually hit, ranked over the
+    SIX TRUSTWORTHY counters only.
+
+    **STALL_NOREQ is deliberately excluded, and this is not a style choice.**
+    It advances every cycle the arbiter has nothing to do -- which includes all
+    the host UART round-trip time between the two bracketing reads. That is the
+    exact contamination REF_STATS_REF had before [[TASK-012]], one layer up: a
+    186us workload bracketed by millisecond round trips reads as ~99% idle no
+    matter what the workload did. The other six sit after the `!w_any_pending`
+    branch in the arbiter and can ONLY tick with work pending, so they are
+    clean and comparable.
+
+    A first cut of this function ranked noreq with the rest and printed
+    "starved / 98.8%" for every cell of a board sweep. That number was timing
+    the host, and presenting it as a property of the run would have retired a
+    whole characterization axis on an artifact.
+    """
+    if st is None:
+        return "-"
+    rest = {k: v for k, v in st.split().items() if k != "noreq"}
+    tot = sum(rest.values())
+    if tot <= 0:
+        return "no-block"
+    return max(rest, key=rest.get)
+
+
+def _blocked_str(st: "Optional[StallStats]", cycles: int) -> str:
+    """ABSOLUTE cycles where the controller had work and could not issue.
+
+    A count, not a percentage, and deliberately so. The numerator is sound --
+    the six non-noreq counters only tick with work pending, so no host idle
+    time can enter them. There is no equally sound DENOMINATOR available: the
+    pumice stall counters are cleared only by aresetn (harness clear_stats
+    touches the bus meters, not these), so a host-bracketed delta spans the
+    window PLUS whatever UART time followed it, and the harness meter's
+    rd_cycles counts one direction rather than the window.
+
+    A first cut divided by rd_cycles and printed 109.6% -- visibly impossible,
+    which is the only reason it was caught. Comparing counts ACROSS ROWS of one
+    sweep is valid (same window shape); reading one row as a duty cycle is not.
+    """
+    if st is None:
+        return "-"
+    blocked = st.total - st.noreq
+    if blocked <= 0:
+        return "0"
+    for unit, div in (("M", 1_000_000), ("k", 1_000)):
+        if blocked >= div:
+            return f"{blocked/div:.1f}{unit}"
+    return str(blocked)
+
+
 def format_table(recs: List[CharRecord]) -> str:
     """Render the per-(config, scenario) metrics table."""
     buf = io.StringIO()
@@ -1999,7 +2089,8 @@ def format_table(recs: List[CharRecord]) -> str:
     hdr = (f"{'config':<16} {'scenario':<24} {'ok':>3} {'blen':>4} {'gap':>3} "
            f"{'id':>4} {'wr_MB/s':>9} {'rd_MB/s':>9} {'peak':>7} {'rd%pk':>6} "
            f"{'wr_util':>7} {'rd_util':>7} {'rd_lat':>7} {'hit%':>6} {'ACT/txn':>8} "
-           f"{'ACT':>7} {'PRE':>7} {'REF~win':>8} {'thrash':>7}")
+           f"{'ACT':>7} {'PRE':>7} {'REF~win':>8} {'thrash':>7} "
+           f"{'limiter':>10} {'blk_cyc':>8}")
     print(hdr, file=buf)
     print("-" * len(hdr), file=buf)
     id_name = {dc.ID_MODE_FIXED: "fix", dc.ID_MODE_COUNTER: "cnt",
@@ -2019,7 +2110,10 @@ def format_table(recs: List[CharRecord]) -> str:
               f"{(f'{r.rd_acts_per_txn:>8.2f}' if r.rd_acts_per_txn is not None else f'{chr(45):>8}')} "
               f"{num(st.acts if st else 0, 7)} {num(st.pres if st else 0, 7)} "
               f"{(f'{st.refs_in_window(r.rd_cycles):>8.1f}' if st is not None and st.refs_in_window(r.rd_cycles) is not None else f'{chr(45):>8}')} "
-              f"{pct(st.miss_frac if st else None)}", file=buf)
+              f"{pct(st.miss_frac if st else None)} "
+              f"{_limiter_str(r.rd_stalls):>10} "
+              f"{_blocked_str(r.rd_stalls, r.rd_cycles):>8}",
+              file=buf)
     return buf.getvalue()
 
 

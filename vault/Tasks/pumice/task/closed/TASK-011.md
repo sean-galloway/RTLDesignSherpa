@@ -1,6 +1,6 @@
 # TASK-011: build generator patterns that can show RBL a win
 
-**Status:** BUILT 2026-09-25, board run owed — workload discriminates (thrash 100%->63%), RBL loses the trade in sim. **Priority:** P3 — research capability; no
+**Status:** CLOSED 2026-09-25 — board run done. mode 6 is strictly worse than mode 7; mode 7 is bit-identical to no predictor. RBL does not earn its 5,578 LUT. **Priority:** P3 — research capability; no
 correctness impact and nothing on the board depends on it
 
 Sean 2026-09-24: *"I believe this could be done across 4 generators, that are
@@ -143,3 +143,52 @@ Verified: component gate COMP_RC=0 at BOTH geometries; char board gate
 CHAR_RC=0, 216 passed 2 xfailed.
 
 **Board run still owed** -- that is what decides mode 6 vs mode 7.
+
+
+## 2026-09-25 — BOARD RESULT. RBL does not earn its area. CLOSING.
+
+**Silicon, txn_scale=1000 (32k ACTs -- real statistics), peak 600 MB/s:**
+
+| config | rd MB/s | % peak | hit% | ACT/txn | ACT | PRE | thrash% |
+|---|---|---|---|---|---|---|---|
+| open_page | 195.2 | 32.5% | 87.4% | 4.03 | 32,224 | 32,224 | 100.0% |
+| **rbl_static** | **144.2** | 24.0% | 78.5% | **6.88** | **55,051** | 32,076 | 57.8% |
+| **rbl_dyn** | 195.2 | 32.5% | 87.4% | 4.03 | 32,223 | 32,223 | 100.0% |
+
+**`rbl_dyn` is bit-identical to plain open page** -- same bandwidth, same hit
+rate, 32,223 vs 32,224 ACTs. Its per-epoch hill-climb has driven the threshold
+to "never close early": **the adaptive mode adapts itself into a no-op.** That
+is the mechanism working correctly -- it detected that early precharge was
+hurting and backed all the way off -- but the result is that mode 7 is
+indistinguishable from not having the predictor at all.
+
+**`rbl_static` actively hurts: -26% bandwidth.** The mechanism is visible and
+behaves exactly as this task predicted -- thrash falls 100% -> 57.8%, i.e.
+conflict-ACTs become empty-ACTs -- but it pays **+22,827 ACTs** (32,224 ->
+55,051) to do it while PRE barely moves (32,224 -> 32,076). The precharge
+saving never materialises; the activate cost does.
+
+### The verdict this task existed to reach
+
+On the workload built specifically to suit it, with per-row locality variation
+no uniform pattern could provide:
+
+* **mode 6 is strictly worse than mode 7** -- the "cheap question" this task
+  said to answer first, answered.
+* **mode 7 is indistinguishable from no predictor.**
+* RBL's **5,578 LUT** ([[TASK-005]]) buys nothing here, and mode 6 buys
+  negative.
+
+That is a real research result, not a null one: the predictor's mechanism
+demonstrably works (thrash moves), and it still loses because the ACT it spends
+exceeds the PRE it saves. A per-row predictor on this controller needs the
+precharge it avoids to be worth more than the activate it forces, and at BL4
+x16 on a bank with one open row, it is not.
+
+**Recommendation for [[TASK-005]]:** mode 6 should be considered for removal --
+it is dominated by mode 7 on every workload measured, including this one.
+Mode 7 is defensible as a safety property (it cannot hurt) but has yet to show
+a win on any traffic.
+
+Verified: 3/3 points passed integrity; component gate COMP_RC=0 at BOTH
+geometries; char board gate CHAR_RC=0.

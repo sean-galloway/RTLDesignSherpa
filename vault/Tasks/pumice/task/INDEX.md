@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 7 | done (kept for history) |
+| [closed/](closed/) | 8 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 
 ## Open
@@ -22,7 +22,6 @@ exactly one state by construction rather than by discipline.
 - **TASK-000** — TEMPLATE — copy this file, never file against it
 - **TASK-002** — characterize + tune the advanced modes (all three axes)
 - **TASK-009** — doc + filelist cleanup (push from workstation)
-- **TASK-011** — build generator patterns that can show RBL a win
 
 ## Closed
 
@@ -37,6 +36,8 @@ exactly one state by construction rather than by discipline.
   that fired with work pending, so host idle time cannot contaminate it
 - **TASK-010** — per-generator Scenario override in measure_concurrent; the
   hardware always allowed it, only the host collapsed N generators to N copies
+- **TASK-011** — RBL measured on the workload built for it: mode 6 is strictly
+  worse than mode 7, mode 7 is bit-identical to no predictor; 5,578 LUT unearned
 
 ## Dropped
 
