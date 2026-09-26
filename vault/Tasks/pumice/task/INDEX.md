@@ -12,9 +12,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 5 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 6 | done (kept for history) |
+| [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 
 ## Open
@@ -22,7 +22,6 @@ exactly one state by construction rather than by discipline.
 - **TASK-000** — TEMPLATE — copy this file, never file against it
 - **TASK-002** — characterize + tune the advanced modes (all three axes)
 - **TASK-009** — doc + filelist cleanup (push from workstation)
-- **TASK-010** — no generator config can show RBL a win, and the harness is what blocks it
 - **TASK-011** — build generator patterns that can show RBL a win
 
 ## Closed
@@ -36,6 +35,8 @@ exactly one state by construction rather than by discipline.
   runs, +12.2% bus); wire-level JEDEC audit now gates the spacing
 - **TASK-012** — axis 3 is MEASURED now: REF_STATS_REF_BUSY counts refreshes
   that fired with work pending, so host idle time cannot contaminate it
+- **TASK-010** — per-generator Scenario override in measure_concurrent; the
+  hardware always allowed it, only the host collapsed N generators to N copies
 
 ## Dropped
 

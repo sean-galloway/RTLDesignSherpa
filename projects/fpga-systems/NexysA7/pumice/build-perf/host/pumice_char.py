@@ -63,8 +63,8 @@ import csv as _csv
 import os
 import io
 import sys
-from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Tuple
+from dataclasses import dataclass, replace
+from typing import Callable, Dict, List, Optional, Tuple, Sequence
 
 import ddr2_char as dc
 from ddr2_char import DDR2CharDriver
@@ -279,6 +279,21 @@ class ControllerConfig:
     scheme:        Optional[int] = None     # dc.SCHEME_* (paging)
     page_policy:   Optional[int] = None     # dc.PAGE_POLICY_*
     order_mode:    Optional[int] = None     # SCHED_POLICY.order_mode (0=FR-FCFS, 1=in_order, 3=age_threshold)
+    # TASK-002 axis-1 knobs. These are SCHED_POLICY fields the driver has always
+    # accepted and apply() never programmed -- so they INHERITED whatever the
+    # previous config left, the exact order-dependence the write-batching
+    # comment in apply() warns about. They now go out on every config, default
+    # 0 = build default, which is also what makes them sweepable.
+    #   prio_sub    0=default 1=none 2=load_over_store 3=age_boost
+    #   row_sel     0=oldest  1=most_pending 2=fewest_pending
+    #   col_sel     0=oldest  1=most_pending 2=fewest_pending
+    #   access_pref 0=default 1=column_first 2=row_first 3=precharge_first
+    #   qos_en      1 = factor AxQOS into the pick (age tie-break)
+    prio_sub:      Optional[int] = None
+    row_sel:       Optional[int] = None
+    col_sel:       Optional[int] = None
+    access_pref:   Optional[int] = None
+    qos_en:        Optional[bool] = None
     age_thresh:    Optional[int] = None     # SCHED_POLICY.age_thresh (MC cycles/16)
     page_mode:     Optional[int] = None     # PAGE_POLICY_CFG.policy_mode (0=legacy)
     page_tr_init:  Optional[int] = None     # PAGE_TIMEOUT_CFG.tr_init
@@ -444,9 +459,18 @@ class ControllerConfig:
         # reason the other mode axes are: leaving it to inherit whatever the
         # previous config set makes the matrix order-dependent.
         drv.set_sched_wr_wm(self.wr_high_wm, self.wr_low_wm)
+        # EVERY axis-1 field, every config -- same rule as the mode axes above.
+        # Leaving one unprogrammed makes the matrix order-dependent: a config
+        # measured after one that set row_sel would silently inherit it, and
+        # the result would depend on suite order rather than on the config.
         drv.set_sched_policy(
             order_mode=self.order_mode if self.order_mode is not None else 0,
-            age_thresh=self.age_thresh if self.age_thresh is not None else 0)
+            age_thresh=self.age_thresh if self.age_thresh is not None else 0,
+            prio_sub=self.prio_sub if self.prio_sub is not None else 0,
+            row_sel=self.row_sel if self.row_sel is not None else 0,
+            col_sel=self.col_sel if self.col_sel is not None else 0,
+            access_pref=self.access_pref if self.access_pref is not None else 0,
+            qos_en=bool(self.qos_en) if self.qos_en is not None else False)
 
 
 # Presets. Every knob here is a CSR the CURRENT controller reads (2026-09-09
@@ -514,6 +538,46 @@ CONFIGS: Dict[str, ControllerConfig] = {
     "inorder": ControllerConfig(
         "inorder", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_CLOSE,
         order_mode=1, rd_in_order=True),
+    # ---- axis 1 sub-policies (TASK-002) ---------------------------------
+    # All on OPEN page, because that is what the board ships and because the
+    # close-page corner is command-bus bound (~49% ceiling) -- an arbiter
+    # tie-break cannot show through a limit set elsewhere. Each changes ONE
+    # field from `open_page` so the delta is attributable.
+    "prio_load_over_store": ControllerConfig(
+        "prio_load_over_store", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, order_mode=0, prio_sub=2,
+        rd_in_order=True),
+    "prio_age_boost": ControllerConfig(
+        "prio_age_boost", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, order_mode=0, prio_sub=3,
+        rd_in_order=True),
+    "row_most_pending": ControllerConfig(
+        "row_most_pending", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, order_mode=0, row_sel=1,
+        rd_in_order=True),
+    "row_fewest_pending": ControllerConfig(
+        "row_fewest_pending", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, order_mode=0, row_sel=2,
+        rd_in_order=True),
+    "col_most_pending": ControllerConfig(
+        "col_most_pending", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, order_mode=0, col_sel=1,
+        rd_in_order=True),
+    "col_fewest_pending": ControllerConfig(
+        "col_fewest_pending", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, order_mode=0, col_sel=2,
+        rd_in_order=True),
+    "qos_on": ControllerConfig(
+        "qos_on", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
+        order_mode=0, qos_en=True, rd_in_order=True),
+    "pref_column_first": ControllerConfig(
+        "pref_column_first", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, order_mode=0, access_pref=1,
+        rd_in_order=True),
+    "pref_row_first": ControllerConfig(
+        "pref_row_first", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, order_mode=0, access_pref=2,
+        rd_in_order=True),
     "inorder_open": ControllerConfig(
         "inorder_open", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
         order_mode=1, rd_in_order=True),
@@ -881,6 +945,12 @@ class CharRecord:
     bytes_moved: int                 # per phase (wr == rd == txn*blen*beat)
     clk_mhz:     float
     notes:       Tuple[str, ...] = ()
+    # Generators actually programmed. 1/1 on the single-engine path;
+    # measure_concurrent fills in the real counts so a caller can scale a
+    # per-generator invariant -- the latency histogram holds ONE entry per
+    # read command, so its total is txn_count x n_rd_gen, not txn_count.
+    n_rd_gen:    int = 1
+    n_wr_gen:    int = 1
     # Write-side byte count when it differs from bytes_moved. Sequential
     # phases move the same bytes both ways, so this stays None; a concurrent
     # run with an uneven generator mix (say one writer against two readers)
@@ -1178,11 +1248,53 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
         notes=tuple(notes))
 
 
+def hotcold_scenarios(sc: Scenario, n_gen: int) -> List[Scenario]:
+    """TASK-011: N-1 HOT generators against 1 COLD one, for RBL.
+
+    Sean 2026-09-24: *"4 generators, offset from each other but hitting the
+    same bank. 3 could be 'hot' and one could be 'not'."*
+
+    A DRAM bank holds ONE open row. Put a cold generator walking rows in the
+    same bank as several hot ones and every hot access after a cold access
+    finds the bank open on the WRONG row -- a conflict, costing PRE + ACT. If
+    RBL classifies the cold rows as low-locality and auto-precharges them, that
+    hot access finds the bank CLOSED instead: an empty, costing ACT only.
+
+    So the predicted benefit is ONE PRECHARGE PER COLD ACCESS, and it is
+    directly observable rather than inferred -- PAGE_STATS_MISS counts
+    conflict-ACTs and PAGE_STATS_EMPTY counts cold-ACTs. **RBL winning looks
+    like thrash% falling while ACT/txn holds**, not merely a bandwidth number
+    moving.
+
+    hot  = row_major, which strides_for() defines as "contiguous, but wrapped
+           inside one page -> every burst a page HIT". That is the definition
+           of a row worth holding open.
+    cold = col_major, whose stride IS one row in the same bank, so every one
+           of its bursts is a page MISS by construction.
+
+    The families are FORCED, not inherited from the caller. incremental looks
+    like the obvious "hot" choice and is wrong: strides_for gives it wrap 0,
+    meaning NO wrap -- a contiguous march across the whole space. Intersected
+    with the placement mask that becomes a walk over the entire BANK, so every
+    row gets touched once and the generator is not hot at all. It is the exact
+    uniformity this workload exists to break.
+
+    This is the first workload on which RBL *could* beat plain open page, and
+    therefore the first on which its failure means anything.
+    """
+    hot = max(1, n_gen - 1)
+    out = [replace(sc, name=f"{sc.name}__hot{i}", family=FAM_ROW_MAJOR)
+           for i in range(hot)]
+    out.append(replace(sc, name=f"{sc.name}__cold", family=FAM_COL_MAJOR))
+    return out
+
+
 def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
                       cfg: ControllerConfig = CLOSE_PAGE, geom: Geometry = DEFAULT_GEOM,
                       base_addr: int = 0x0, clk_mhz: float = 100.0,
                       timeout_s: float = 40.0, n_wr: int = 1, n_rd: int = 1,
-                      placement: str = "regions"
+                      placement: str = "regions",
+                      scenarios: "Optional[Sequence[Scenario]]" = None
                       ) -> CharRecord:
     """Run writers and readers in ONE window instead of back to back.
 
@@ -1269,18 +1381,77 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
         # branch uses.
         bank_wrap = geom.bank_stride - 1
         wrap = (fam_wrap & bank_wrap) if fam_wrap else bank_wrap
+    elif placement == "same_bank":
+        # TASK-011. Every generator on ONE bank, offset from each other -- the
+        # opposite of "banks", which gives each its own. A bank holds one open
+        # row, so this is the only placement where a cold generator's row walk
+        # can evict the row a hot generator is streaming. Spread the starts
+        # across DIFFERENT ROWS of that bank so the hot engines are not merely
+        # re-reading one row between them.
+        #
+        # STEP BY row_stride_same_bank, NOT page_bytes. On this geometry
+        # bank_stride == page_bytes == 0x800, so stepping a page steps a BANK:
+        # four generators at idx*page_bytes land on banks 0,1,2,3 -- separate
+        # banks, no shared open row, and the cold engine can never evict a hot
+        # one. That is the exact opposite of the workload, and it would have
+        # read as "RBL does nothing" for a reason having nothing to do with RBL.
+        # row_stride_same_bank (0x4000 here = bank_stride << bank_width) holds
+        # the bank and advances the row, which is what col_major strides by.
+        bank_wrap = geom.bank_stride - 1
+        wrap = (fam_wrap & bank_wrap) if fam_wrap else bank_wrap
+        _addr = lambda idx: base_addr + idx * geom.row_stride_same_bank
     elif placement == "regions":
         _addr = lambda idx: base_addr + idx * region
     else:
-        raise ValueError(f"placement must be 'regions' or 'banks', got {placement!r}")
+        raise ValueError(
+            f"placement must be 'regions', 'banks' or 'same_bank', got {placement!r}")
+
+    # PER-GENERATOR SCENARIOS (TASK-010). `_prog` used to derive everything
+    # from the single `sc`, so N generators were N COPIES at different offsets
+    # -- more traffic, not more VARIETY. That is why no workload could ever
+    # show RBL a win: a per-row predictor needs some rows hot and others
+    # one-shot, and `dma_address_gen` is 2D affine, which is uniform across
+    # rows BY CONSTRUCTION. No setting of its four knobs produces the
+    # variation; it has to come from generators programmed DIFFERENTLY.
+    #
+    # The hardware always allowed it -- program_wr_engine/program_rd_engine
+    # take gen=N with a full per-generator stride/wrap, and chargen_regs
+    # carries sixteen independent config blocks. Only the host collapsed it.
+    #
+    # `scenarios[idx]` overrides `sc` for that generator; None (the default)
+    # reproduces the old behaviour exactly, so every existing profile is
+    # unaffected. Indices are writers 0..n_wr-1 then readers, matching _addr().
+    def _sc_for(idx: int) -> Scenario:
+        if scenarios and idx < len(scenarios) and scenarios[idx] is not None:
+            return scenarios[idx]
+        return sc
+
+    def _walk_for(idx: int):
+        """stride/wrap for this generator's OWN family, intersected with the
+        same placement mask the shared path uses -- so per-generator variety
+        changes the access PATTERN without letting an engine escape its
+        region or bank."""
+        sc_i = _sc_for(idx)
+        if sc_i is sc:
+            return stride, wrap
+        stride_i, fam_wrap_i = strides_for(sc_i, geom)
+        # `wrap` already carries the placement confinement (region mask, or
+        # bank mask under placement="banks"). Intersecting preserves it.
+        wrap_i = (fam_wrap_i & wrap) if fam_wrap_i else wrap
+        return stride_i, wrap_i
 
     def _prog(idx: int) -> dict:
-        return dict(start_addr=_addr(idx), burst_len=sc.burst_len,
-                    txn_count=sc.txn_count, stride_0=stride, wrap_mask_0=wrap,
-                    gap=sc.gap, id_mode=sc.id_mode, axi_size=sc.axi_size,
-                    data_mode=True, lfsr_seed=seed, hash_seed0=seed,
-                    hash_seed1=seed ^ 0x9E37_79B9, hash_seed2=seed ^ 0x85EB_CA6B,
-                    max_outstanding=sc.max_outstanding)
+        sc_i = _sc_for(idx)
+        stride_i, wrap_i = _walk_for(idx)
+        # Seed per SCENARIO NAME, not per call: a reader must validate what the
+        # pre-fill wrote, and the pre-fill programs the reader's own index.
+        seed_i = _stable_seed(sc_i.name)
+        return dict(start_addr=_addr(idx), burst_len=sc_i.burst_len,
+                    txn_count=sc_i.txn_count, stride_0=stride_i, wrap_mask_0=wrap_i,
+                    gap=sc_i.gap, id_mode=sc_i.id_mode, axi_size=sc_i.axi_size,
+                    data_mode=True, lfsr_seed=seed_i, hash_seed0=seed_i,
+                    hash_seed1=seed_i ^ 0x9E37_79B9, hash_seed2=seed_i ^ 0x85EB_CA6B,
+                    max_outstanding=sc_i.max_outstanding)
 
     cfg.apply(drv)
 
@@ -1356,6 +1527,7 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
         wr_bytes=per_gen_bytes * max(n_wr, 1), clk_mhz=clk_mhz,
         wr_window_cyc=wr_window, rd_window_cyc=rd_window,
         rd_stats=rd_stats,
+        n_rd_gen=n_rd, n_wr_gen=n_wr,
         notes=tuple(notes))
 
 
@@ -1432,6 +1604,7 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
                geom: Geometry = DEFAULT_GEOM, clk_mhz: float = 100.0,
                progress: Optional[Callable[[str, int, int], None]] = None,
                concurrent: Optional[Tuple[int, int]] = None,
+               gen_mix: Optional[str] = None,
                ) -> List[CharRecord]:
     """Run the scenario suite under EACH controller config -- the full
     (config x generator) matrix. Returns a flat list, each record tagged with
@@ -1453,10 +1626,14 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
                 progress(f"{cfg.name}/{sc.name}", i, total)
             if concurrent:
                 n_wr, n_rd = concurrent
+                scen = (hotcold_scenarios(sc, n_wr + n_rd)
+                        if gen_mix == "hotcold" else None)
                 recs.append(measure_concurrent(
                     drv, sc, cfg=cfg, geom=geom, base_addr=base_addr,
                     clk_mhz=clk_mhz, timeout_s=max(timeout_s, 40.0),
-                    n_wr=n_wr, n_rd=n_rd))
+                    n_wr=n_wr, n_rd=n_rd,
+                    placement="same_bank" if gen_mix == "hotcold" else "regions",
+                    scenarios=scen))
             else:
                 recs.append(measure(drv, sc, cfg=cfg, geom=geom,
                                    base_addr=base_addr, clk_mhz=clk_mhz,
@@ -1550,6 +1727,45 @@ RUN_PROFILES: Dict[str, dict] = {
     "pairs_refresh_open": dict(configs=["open_page", "refresh_credit_open",
                                         "fast_refresh_open", "slow_refresh_open"],
                                level="basic", families=None),
+    # TASK-011: the workload RBL was built for. N-1 generators streaming
+    # INSIDE a row against 1 walking ACROSS rows, all on the SAME bank -- the
+    # per-row locality VARIATION a per-row predictor needs and that no uniform
+    # pattern can provide. All four in ONE direction: mixing read and write
+    # adds tWTR/tRTW turnaround, a second variable and not the one under test.
+    #
+    # READ IT ON thrash% AND ACT/txn, NOT ON MB/s. The predicted benefit is one
+    # precharge per cold access -- a conflict-ACT (PRE+ACT) becoming an
+    # empty-ACT (ACT only). Absolute bandwidth belongs in the page-hostile
+    # range here; the comparison that matters is between MODES on identical
+    # stimulus, not against the 600 MB/s ceiling.
+    #
+    # The cheap question first: rbl_dyn does not show rbl_static's pathology
+    # (97.8 vs 55.8 MB/s on the same concurrent stimulus) because its per-epoch
+    # hill-climb walks a mispredicting threshold back. If mode 7 beats mode 6
+    # here too, the useful answer is "mode 6 is subsumed by mode 7" -- which is
+    # worth knowing before building anything to flatter mode 6.
+    # TASK-002 axis 1, the never-swept half. An arbiter tie-break only shows
+    # where generators actually COMPETE, so this runs concurrent 2w+2r --
+    # against a single stream every sub-policy picks the same command and the
+    # sweep reads flat by construction. Read it with the stall counters: the
+    # question is not only which is fastest but whether each knob moves the
+    # limiter it claims to.
+    "sched_sub": dict(configs=["open_page", "prio_load_over_store",
+                               "prio_age_boost", "row_most_pending",
+                               "row_fewest_pending", "col_most_pending",
+                               "col_fewest_pending", "qos_on",
+                               "pref_column_first", "pref_row_first"],
+                      level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR),
+                      concurrent=(2, 2)),
+    "rbl_hotcold": dict(configs=["open_page", "rbl_static", "rbl_dyn"],
+                        level="basic", families=(FAM_INCREMENTAL,),
+                        # READERS, not writers. One direction either way, but
+                        # measure_concurrent validates through the read engines
+                        # (its pre-fill writes each reader's region first), so
+                        # 4w+0r reports "read engines did not complete" and
+                        # every row comes back ok=N. 0w+4r keeps the single
+                        # direction the task asks for AND stays checkable.
+                        concurrent=(0, 4), gen_mix="hotcold"),
     "concurrent": dict(configs=["open_page"], level="basic", families=None,
                        concurrent=(1, 1)),
     # Multi-master: two readers against one writer, all on disjoint regions.
@@ -1579,7 +1795,8 @@ def run_profile(drv: DDR2CharDriver, profile: str = "smoke", *,
                       families=p["families"], txn_scale=txn_scale,
                       base_addr=base_addr, timeout_s=timeout_s, geom=geom,
                       clk_mhz=clk_mhz, progress=progress,
-                      concurrent=p.get("concurrent"))
+                      concurrent=p.get("concurrent"),
+                      gen_mix=p.get("gen_mix"))
 
 
 # =============================================================================

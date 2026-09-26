@@ -325,8 +325,14 @@ async def cocotb_test_char_families(dut):
         assert 0.0 <= r.rd_meter.util <= 1.0, f"{tag}: rd util out of range"
         assert 0.0 <= r.wr_meter.util <= 1.0, f"{tag}: wr util out of range"
         # Latency histogram counted exactly one entry per read command.
-        assert r.rd_hist_total == sc.txn_count, (
-            f"{tag}: hist total {r.rd_hist_total} != txn {sc.txn_count}")
+        # ONE histogram entry per read command. Scale by the reader count:
+        # a concurrent profile programs n_rd engines, each issuing txn_count,
+        # so the single-generator form under-counts by exactly that factor
+        # (4 readers x 8 txn read as "32 != 8").
+        expect_hist = sc.txn_count * max(r.n_rd_gen, 1)
+        assert r.rd_hist_total == expect_hist, (
+            f"{tag}: hist total {r.rd_hist_total} != txn {sc.txn_count} "
+            f"x {r.n_rd_gen} reader(s) = {expect_hist}")
         # Derived bandwidth is finite/positive.
         assert r.rd_bw_mb_s > 0 and r.wr_bw_mb_s > 0, (
             f"{tag}: non-positive BW rd={r.rd_bw_mb_s} wr={r.wr_bw_mb_s}")

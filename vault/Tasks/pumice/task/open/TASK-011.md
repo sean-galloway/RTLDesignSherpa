@@ -1,6 +1,6 @@
 # TASK-011: build generator patterns that can show RBL a win
 
-**Status:** open 2026-09-24  **Priority:** P3 — research capability; no
+**Status:** BUILT 2026-09-25, board run owed — workload discriminates (thrash 100%->63%), RBL loses the trade in sim. **Priority:** P3 — research capability; no
 correctness impact and nothing on the board depends on it
 
 Sean 2026-09-24: *"I believe this could be done across 4 generators, that are
@@ -75,3 +75,71 @@ knowing before investing in a workload built to flatter mode 6.
 The question here is not "does real traffic look like this" -- it is what the
 mechanism can do on traffic constructed to suit it. Matching that back to real
 workloads comes later, and is a separate question.
+
+
+## 2026-09-25 — BUILT, and the workload discriminates. RBL does not win.
+
+`hotcold_scenarios()` + a `same_bank` placement + the `rbl_hotcold` profile.
+Four generators on **bank 0, rows 0-3**: three row-confined against one
+striding rows, all readers (see below).
+
+**Sim, board geometry, corrected workload:**
+
+| config | rd %peak | hit% | ACT/txn | PRE | thrash% |
+|---|---|---|---|---|---|
+| open_page | 31.6% | 74.2% | 4.12 | 33 | **100.0%** |
+| rbl_static | 28.9% | 67.2% | 5.25 | 31 | **73.8%** |
+| rbl_dyn | 27.8% | 64.1% | 5.75 | 29 | **63.0%** |
+
+**The mechanism is confirmed, for the first time.** thrash% falls 100% -> 63%
+and PRE falls 33 -> 29: RBL IS converting conflict-ACTs into empty-ACTs,
+exactly as predicted. No uniform workload could move that number at all, which
+is the whole point of this task.
+
+**RBL loses the trade anyway.** ACT/txn RISES 4.12 -> 5.75 and hit% falls
+74.2% -> 64.1%. It saves precharges on cold rows and spends more activates on
+hot ones -- it is over-precharging, closing rows that should have stayed open.
+
+**Do not conclude from the sim run.** `reset_interval` is 256 cycles and sim is
+8 transactions per generator, so `rbl_dyn` cannot complete a SINGLE epoch --
+the adaptive mode is measured with its adaptation switched off, which is
+precisely the mechanism [[TASK-010]] credits for keeping it out of
+`rbl_static`'s collapse. The board at txn_scale ~1000 is the run that decides
+it, and the cheap question ("is mode 6 subsumed by mode 7") cannot be answered
+until then.
+
+### Two construction bugs, both caught before the board
+
+Recorded because each would have produced a confident WRONG answer, and each
+looked right in the table.
+
+1. **The hot generators were not hot.** They inherited the caller's family
+   (`incremental`), whose `strides_for` wrap is **0** -- meaning NO wrap, a
+   contiguous march. Intersected with the placement mask that became a walk
+   over the whole BANK, touching every row once: the exact uniformity this
+   workload exists to break. Hot is now forced to `row_major`, which
+   `strides_for` defines as "wrapped inside one page -> every burst a page
+   HIT".
+2. **The four generators were on four DIFFERENT banks.** On this geometry
+   `bank_stride == page_bytes == 0x800`, so stepping a page steps a BANK --
+   gen0..3 landed on banks 0,1,2,3. Separate banks share no open row, so the
+   cold engine could never evict a hot one and the result would have read "RBL
+   does nothing" for a reason having nothing to do with RBL. Now steps
+   `geom.row_stride_same_bank` (0x4000), which holds the bank and advances the
+   row.
+
+The first table taken (thrash 100% -> 9.9%) had BOTH bugs and is discarded.
+
+### One deviation from the plan, deliberate
+
+The task says four generators in one direction. It specifies WRITES; this uses
+**4 readers, 0 writers**. `measure_concurrent` validates through the read
+engines -- its pre-fill writes each reader's region first -- so 4w+0r reports
+"read engines did not complete" and every row comes back ok=N. 0w+4r keeps the
+single direction the task asks for (no tWTR/tRTW turnaround introduced) AND
+stays integrity-checked.
+
+Verified: component gate COMP_RC=0 at BOTH geometries; char board gate
+CHAR_RC=0, 216 passed 2 xfailed.
+
+**Board run still owed** -- that is what decides mode 6 vs mode 7.

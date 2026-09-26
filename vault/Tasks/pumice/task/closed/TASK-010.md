@@ -1,6 +1,6 @@
 # TASK-010: no generator config can show RBL a win, and the harness is what blocks it
 
-**Status:** open 2026-09-24  **Priority:** P3 — characterization capability, no
+**Status:** CLOSED 2026-09-25 — per-generator Scenario override landed (host-only, as predicted). **Priority:** P3 — characterization capability, no
 correctness impact
 
 Raised by Sean 2026-09-24 off the [[TASK-002]] pair sweep: *"explore if it is
@@ -73,3 +73,26 @@ So mode 6 is arguably not worth showing a win for -- the question to settle is
 whether it earns its place at all beside mode 7, which costs the same table and
 adapts. That is a cheaper question than building a workload to flatter it, and
 it should be answered first.
+
+
+## 2026-09-25 — DONE. `measure_concurrent(scenarios=[...])`.
+
+`_prog(idx)` now resolves a PER-GENERATOR Scenario; `scenarios=None` (the
+default) reproduces the old behaviour exactly, so every existing profile is
+byte-identical. Each generator's stride/wrap derives from its OWN family via
+`strides_for`, intersected with the same placement mask the shared path uses --
+so variety changes the access PATTERN without letting an engine escape its
+region or bank. The per-generator LFSR/hash seed is keyed on that generator's
+scenario name, which matters because a reader validates what the pre-fill wrote
+and the pre-fill programs the reader's own index.
+
+As this task predicted, the change is HOST-ONLY: no RTL, no rebuild.
+`program_wr_engine`/`program_rd_engine` already took `gen=N` with full
+per-generator stride/wrap and chargen_regs already carried sixteen config
+blocks. The hardware was never the constraint.
+
+Used immediately by [[TASK-011]]'s `rbl_hotcold`, which is the first workload
+that could not be built before this.
+
+Verified: component gate COMP_RC=0 at BOTH geometries; char board gate
+CHAR_RC=0, 216 passed 2 xfailed.
