@@ -151,7 +151,7 @@ Transport sizing first, then the monitor knobs. The defaults are sane; `MAX_TRAN
 | **AGENT_ID** | int | 11 | Monitor agent identifier (default 11 for write) |
 | **MAX_TRANSACTIONS** | int | 16 | Transaction table size |
 | **ACTIVE_TRANS_THRESHOLD** | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
-| **MONITOR_LITE** | bit | 0 | 1 = `axi_monitor_lite` (rtl/amba/monitor-lite) in place of `axi_monitor_filtered`: same taps, monbus and ids; error, timeout, completion and active-count threshold only; no perf window, debug, address/id filtering or admission stall. About a fifth of the monitor's LUTs; see the monitor-lite page |
+| **MONITOR_LITE** | bit | 0 | 1 = `axi_monitor_lite` (rtl/amba/monitor/axi_monitor_lite.sv) in place of `axi_monitor_filtered`: same taps, monbus and ids; error, timeout, completion and active-count threshold only; no perf window, debug, address/id filtering or admission stall. About a fifth of the monitor's LUTs; see the monitor-lite page |
 | USE_WDATA_ORDER_Q | bit | 0 | Write-data ordering queue |
 | NUM_BANKS | int | 1 | Banked transaction tables. **>1 on a WRITE monitor requires `USE_WDATA_ORDER_Q=1`** -- `axi_monitor_trans_mgr` fails elaboration otherwise |
 | ID_FILTER_ENABLE | bit | 0 | Synthesises the per-instance ID-slice filter |

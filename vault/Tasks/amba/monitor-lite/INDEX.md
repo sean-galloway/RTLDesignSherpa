@@ -1,6 +1,6 @@
 ---
 title: amba/monitor-lite tasks
-summary: Task rollup for rtl/amba/monitor-lite (axi_monitor_lite), the AXI monitor at a fifth of the gates.
+summary: Task rollup for rtl/amba/monitor/axi_monitor_lite.sv (axi_monitor_lite), the AXI monitor at a fifth of the gates.
 ---
 
 # amba/monitor-lite — task rollup
@@ -21,14 +21,14 @@ Open counts include the reserved `-000` template, which is never a real item.
 
 ## What lives here (Sean, 2026-09-25)
 
-`rtl/amba/monitor-lite/` is its own sub-area of amba, the way each RLB block
+`rtl/amba/monitor/axi_monitor_lite.sv` is its own sub-area of amba, the way each RLB block
 is a sub-area of RLB: the block's own features, defects and questions file
 here; work on the monbus, the full monitor family or the wrappers files under
 `amba/`. Its collateral is likewise its own: tests in `val/amba/monitor-lite/`
 (own Makefile and conftest, an entry in `val/Makefile` AREAS and in the root
 gate/func/full targets), TB classes in `bin/TBClasses/amba/monitor_lite/`,
 formal in `formal/amba/axi_monitor_lite/`, pages in
-`docs/markdown/rtl-amba/monitor-lite/` booked with the monitor subsystem.
+`docs/markdown/rtl-amba/monitor/` booked with the monitor subsystem.
 
 IDs are scoped to this sub-area and its lane; cite one from outside as
 "amba/monitor-lite TASK-001". TASK-001 began life as the legacy amba lane's

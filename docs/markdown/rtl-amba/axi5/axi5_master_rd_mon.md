@@ -97,7 +97,7 @@ The AXI5 Master Read with Monitor module combines the standard `axi5_master_rd` 
 | `ENABLE_FILTERING` | bit | 1 | Enable packet filtering: two active drop levels (packet type, then event code). Level 2 is reserved and routes nothing |
 | ADD_PIPELINE_STAGE | bit | 0 | Add pipeline stage in monitor (latency vs. timing) |
 | USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
-| MONITOR_LITE | bit | 0 | 1 = instantiate `axi_monitor_lite` (rtl/amba/monitor-lite) in place of `axi_monitor_filtered`: same taps, monbus and ids; error, timeout, completion and active-count threshold packets only; no perf window, debug, address/id filtering or admission stall (`block_ready` held high). About a fifth of the monitor's LUTs -- see the monitor-lite page. |
+| MONITOR_LITE | bit | 0 | 1 = instantiate `axi_monitor_lite` (rtl/amba/monitor/axi_monitor_lite.sv) in place of `axi_monitor_filtered`: same taps, monbus and ids; error, timeout, completion and active-count threshold packets only; no perf window, debug, address/id filtering or admission stall (`block_ready` held high). About a fifth of the monitor's LUTs -- see the monitor-lite page. |
 | N_ADDR_RANGES | int | 0 | Number of address-range comparators. 0 = checker omitted (zero area). >0 = N independent [low, high] ranges; feeds the shared allowlist checker: a debug-range hit -> AddrMatch, an error-allowlist miss -> Error/ADDR_RANGE (see axi_monitor_addr_check.md). |
 | ENABLE_ERROR_LOGIC | bit | 1 | Compile-in the error-detection cone (0 drops it for area). |
 | ENABLE_TIMEOUT_LOGIC | bit | 1 | Compile-in the timeout cone and the `axi_monitor_timeout` instance. |

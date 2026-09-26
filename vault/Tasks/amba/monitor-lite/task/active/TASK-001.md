@@ -122,7 +122,7 @@ LUTs a slot.
 
 ### 4. The lite design (proposal)
 
-`rtl/amba/monitor-lite/axi_monitor_lite.sv` (+ `_pkg` reuse from
+`rtl/amba/monitor/axi_monitor_lite.sv` (+ `_pkg` reuse from
 `rtl/amba/includes/monitor_*_pkg.sv`; same packet builder). One module per
 direction, selected inside the existing `axi4/axi5/axil*_{master,slave}_{rd,wr}_mon`
 wrappers by a `MONITOR_LITE` parameter (generate-select between
@@ -221,7 +221,7 @@ flow, and meet 10 ns on the Artix-7 with margin.
 
 ### Definition of done
 
-`rtl/amba/monitor-lite/` with filelist, `docs/markdown/rtl-amba/monitor-lite/`
+`rtl/amba/monitor/axi_monitor_lite.sv` with filelist, `docs/markdown/rtl-amba/monitor/`
 pages, the wrapper parameter, the bridge preset, the contract tests green at
 gate/func/full, the formal harness non-vacuous, and the synthesis row that
 shows the number. Then the observers and STREAM decide per instance.

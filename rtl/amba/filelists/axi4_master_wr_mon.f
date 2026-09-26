@@ -53,5 +53,5 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
 
 # This module - AXI4 Master Write Monitor
-$REPO_ROOT/rtl/amba/monitor-lite/axi_monitor_lite.sv
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_lite.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv
