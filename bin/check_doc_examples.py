@@ -37,6 +37,38 @@ RE_CONN = re.compile(r'^\s*\.(\w+)\s*\(', re.M)
 # whose first column is Port/Signal/Signal Name lists interface names.
 RE_TBL_HDR = re.compile(r'^\|\s*(Port|Signal Name|Signal)\s*\|', re.I)
 RE_TBL_ROW = re.compile(r'^\|\s*`?([A-Za-z_]\w*)`?\s*\|')
+# A chaptered book page is not named after its module, so the filename cannot
+# attribute it. Many DECLARE their subject instead:
+#
+#     **Module:** `scheduler_beats.sv`
+#     **Module:** `bank_timer.sv` (per-bank) / `pumice_bank_timers.sv` (aggregator)
+#
+# Take EVERY backticked name and union their sources. Taking only the first is a
+# real defect: pumice's 09_bank_machine.md declares two, and blaming
+# pumice_bank_timers' rows on bank_timer reported 10 correct rows as fabricated.
+#
+# Measured before adopting this: it brings 46 previously-unchecked pages into
+# scope and finds exactly 2 with bad rows, both already tracked
+# (rapids TASK-008 ch01_overview/02_port_list.md, TASK-009
+# ch02_fub_blocks/07_beats_latency_bridge.md). The 3 pumice multi-module pages
+# come out clean, which is the proof the old first-token blame was the bug.
+RE_DECL = re.compile(r'^\*\*Module:\*\*(.*)$', re.M)
+
+
+def declared_sources(text, index):
+    """-> (concatenated source, [module names]) for every module a page declares."""
+    m = RE_DECL.search(text)
+    if not m:
+        return None, []
+    names = [n for n in re.findall(r'`([A-Za-z_]\w*)(?:\.sv)?`', m.group(1))
+             if n in index]
+    if not names:
+        return None, []
+    src = ''.join(re.sub(r'//[^\n]*', '',
+                         open(index[n], errors='ignore').read()) for n in names)
+    return src, names
+
+
 def name_in_src(name, src_low):
     """Is `name` an interface name of this module?
 
@@ -98,6 +130,7 @@ def main() -> int:
     pages = 0
     doc_pages = 0
     tbl_rows_seen = [0]
+    tbl_seen = set()
     # Index every module once, so a page can be checked against whatever module
     # its example actually instantiates rather than one guessed from the page
     # name. This is what lets the check reach projects/components, whose docs
@@ -159,6 +192,28 @@ def main() -> int:
                         bad += 1
                         print(f'  {path}: {mod} example names '
                               f'{", ".join(sorted(set(miss))[:5])}')
+
+    # Declaration-attributed table check for pages the filename cannot resolve.
+    for path in page_list:
+        if not path.endswith('.md') or path in tbl_seen:
+            continue
+        if os.path.basename(path)[:-3] in index:
+            continue                      # filename already attributes it
+        text = open(path, errors='ignore').read()
+        dsrc, dnames = declared_sources(text, index)
+        if dsrc is None:
+            continue
+        rows = table_names(text)
+        if not rows:
+            continue
+        tbl_seen.add(path)
+        tbl_rows_seen[0] += len(rows)
+        low = dsrc.lower()
+        miss = sorted({n for _ln, n in rows if not name_in_src(n, low)})
+        if miss:
+            bad += 1
+            print(f'  {path}: declared {"/".join(dnames)} -- table names '
+                  f'{", ".join(miss[:6])}')
 
     for d, _s, files in os.walk('docs/markdown'):
         for fn in sorted(files):
@@ -270,7 +325,13 @@ def main() -> int:
     # that is where the known damage is -- amba TASK-077's page carried 42 of 55
     # table signals fabricated. Closing that needs an explicit per-page module
     # declaration (a `Module:` field), not a cleverer guess from this side.
-    BASELINE = 0
+    # 2, not 0: adopting declaration-based attribution (see declared_sources)
+    # brought 46 unchecked pages into scope and surfaced exactly two, BOTH already
+    # filed -- rapids TASK-008 (02_port_list.md documents 86 of 300 ports and is
+    # mis-structured) and TASK-009 (07_beats_latency_bridge.md documents the wrong
+    # concept entirely). Leaving them unchecked to keep a 0 would be choosing a
+    # prettier number over coverage. Drop this to 0 as those two close.
+    BASELINE = 2
     if bad > BASELINE:
         print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} -- a doc example\n          names a port its module does not have. The backlog this ratchet\n          tracked (amba TASK-077) is CLOSED and the floor is 0, so any\n          finding here is NEW.')
         return 1

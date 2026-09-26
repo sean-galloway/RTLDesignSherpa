@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: math_prefix_cell
+// Module: math_prefix_cell_gray
 // Purpose: Prefix Cell for the Han-Carlson structure
 //
 // Documentation: docs/markdown/rtl-common/index.md

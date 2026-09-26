@@ -12,12 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
 
 - **BUG-000** — reserved template; copy the file, do not file against it.
-- **BUG-001** — the doc port-table checker's suffix threshold produces false positives
+
+## Closed
+
+- **BUG-001** — checker attribution: multi-module declarations + 46 pages silently unchecked (fixed; threshold was NOT the defect)

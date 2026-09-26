@@ -140,7 +140,7 @@ not restated here:
 | `monbus_valid` | input | 1 | Packet valid |
 | `monbus_ready` | output | 1 | Ready to accept |
 | `monbus_packet` | input | 128 | 128-bit monitor packet (protocol-independent structure) |
-| `monbus_ts` | input | 64 | 64-bit side-band timestamp (cycle count at packet capture) |
+| `monbus_timestamp` | input | 64 | 64-bit side-band timestamp (cycle count at packet capture) |
 
 : Monitor Bus Input
 
