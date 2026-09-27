@@ -59,6 +59,74 @@ Three independent defects, one stimulus knob:
 windows, and those windows are where accounting races live. **Gap is a mandatory
 axis in every layer below**, not one option among many.
 
+## HARD REQUIREMENT (Sean, 2026-09-26): every config tested in sim is ALSO tested on the board
+
+Not a nice-to-have. Two independent reasons, both learned the hard way in
+[[TASK-013]] and [[BUG-003]]:
+
+1. **Sim cannot rank performance.** The DFI loopback models no DDR2 page timing,
+   so no paging or scheduling policy can be ordered by bandwidth there.
+2. **Sim and board DISAGREE ABOUT MECHANISM.** `adapt_access` converted ~54% of
+   activations in sim and ~3% on the board on nominally identical stimulus. A
+   sim-only result about a config is therefore not evidence about that config.
+
+**The cost objection does not survive measurement -- the board is CHEAPER:**
+
+| | per cell | ~384 cells |
+|---|---|---|
+| sim (`adapt_rowmix_2x2`, 4 configs, 215 s) | ~54 s | ~5.8 h at -n 16 |
+| **board** (same profile, 16.3 s) | **~4 s** | **~26 min** |
+
+The board is ~13x faster per cell because there is no elaboration or compile.
+So board parity costs minutes, not days. It is nearly free and it is mandatory.
+
+This is already structurally possible: `pumice_char.run_profile()` is THE SAME
+CODE in both environments ([[project_ddr2_char_sim_equivalence]]) -- the only
+intended difference is `txn_scale`. The covering array must therefore be defined
+once and run through both harnesses, and a cell is not "covered" until both have
+run it.
+
+**Oracle asymmetry, and why both are needed:**
+
+| | assertions | integrity | telemetry | bandwidth |
+|---|---|---|---|---|
+| sim | YES (`ifndef SYNTHESIS`) | yes | yes | meaningless |
+| board | **NO** | yes | yes | YES |
+
+Sim is the only place the accounting assertions fire (BUG-003 was caught there
+while the board data check PASSED). The board is the only place bandwidth means
+anything. Neither is sufficient; a config needs both.
+
+## COROLLARY, and it may explain the 54%/3% divergence: make the two configs MATCH
+
+The requirement above is "run everywhere". This is the stronger sibling: **the
+DUT configuration must be IDENTICAL in both**, and today it is not.
+
+    ddr2_char_framework/dv/tests/test_ddr2_char_char.py:  FPGA_CLK_HZ = 100_000_000
+    board:                                                75 MHz (BUILD_CLK_HZ)
+
+JEDEC timings are specified in ns and converted to CYCLES, so at 100 MHz every
+timing is **1.33x more cycles** than at 75 MHz. That changes arbiter behaviour
+directly: longer gaps in cycles -> more idle windows -> rows evicted after fewer
+column ops -> mode 5's counter (which keys on exactly "<=1 column op per
+activation") sees the close-friendly condition far more often.
+
+**So the "54% in sim vs 3% on board" comparison in [[TASK-013]] was never
+apples-to-apples** -- it compared a 100 MHz DUT against a 75 MHz DUT and
+attributed the difference to simulation-versus-silicon. This is the exact failure
+[[feedback_sim_match_fpga_exactly]] warns about.
+
+UNVERIFIED but cheap to settle: run the char sim at 75 MHz and re-measure
+`adapt_access` conversion. If it falls toward 3%, the divergence is explained and
+mode 5 is simply clock-sensitive, not mis-plumbed. **Do this before any further
+work on [[TASK-014]]'s mode-5 rework**, because the rework's premise
+("close_pred_o does not assert on hardware") may be an artefact of the clock
+mismatch rather than a defect.
+
+Action: add an env override for `FPGA_CLK_HZ` in the char sim, default it to the
+board's 75 MHz, and make the reset-parity gate (Layer 0) cover clock and derived
+timings too -- not just CSR fields.
+
 ## Layer 0 — reset parity gate (do this first; it is the cheapest and it closes the class at source)
 
 A checker, in the pre-commit gate, that asserts for every `sw=rw` field one of:

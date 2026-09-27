@@ -409,9 +409,18 @@ Read bandwidth, all stimuli from the contrived set:
 
 Flat to -1.2% on every stimulus. The telemetry says why: thrash 100.0% ->
 97.0%, PRE 32797 -> 32567 -- about 230 converted closes out of ~16,000 cold
-activations, roughly 3%, where the same stimulus in sim converted 60%. The
-mechanism that sim showed working does not reproduce at scale on hardware, and
-the cause is NOT yet known. That gap is the remaining open question here; do
+activations, roughly 3%, where the same stimulus in sim converted ~54%.
+
+**CORRECTION 2026-09-26: that comparison was NOT apples-to-apples, and the
+divergence may be entirely explained by it.** The char sim runs at
+`FPGA_CLK_HZ = 100_000_000`; the board runs at 75 MHz. JEDEC timings are
+specified in ns and converted to CYCLES, so at 100 MHz every timing is 1.33x more
+cycles. Longer gaps in cycles mean more idle windows, rows evicted after fewer
+column ops, and mode 5's counter -- which keys on exactly "<=1 column op per
+activation" -- sees the close-friendly condition far more often. So the two
+numbers came from two differently-configured DUTs, and "sim vs silicon" was the
+wrong frame. See [[TASK-015]]; the fix is to run the char sim at 75 MHz and
+re-measure BEFORE treating mode 5 as mis-plumbed. That gap is the remaining open question here; do
 not retire mode 5 on this alone, because the sim/board divergence is itself
 unexplained and an unexplained divergence is a bug somewhere, not a verdict.
 

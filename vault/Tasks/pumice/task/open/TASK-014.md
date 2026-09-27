@@ -55,6 +55,13 @@ whose value is FR-FCFS reordering to batch same-row columns, AP fights the
 reordering that justifies the design. **Even a perfectly correct predictor
 driving AP is bounded by a mechanism that loses.**
 
+**PREMISE WARNING (2026-09-26): (b) below may be an ARTEFACT.** The char sim runs
+at `FPGA_CLK_HZ = 100_000_000` and the board at 75 MHz, so every JEDEC timing is
+1.33x more cycles in sim. That alone changes how many column ops an activation
+serves, which is the ONLY thing mode 5 learns from. **Run the char sim at 75 MHz
+and re-measure before doing any of (b)** -- see [[TASK-015]]. (a) is unaffected:
+the mechanism argument against auto-precharge is a board-only measurement.
+
 **(b) It also does not assert on hardware.** `PRE ~= ACT`, thrash falls only
 100% -> 97% at best, against ~60% of activations converted in the DFI-loopback
 sim on identical stimulus. Ruled out: run length (board engagement is 0% at
