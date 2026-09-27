@@ -222,13 +222,18 @@ module axis4_intf_observer
     output logic                                            irq_out,
 
     // ================================================================
-    // axis_bus_meter window control (safe to tie off if ENABLE_BUS_METER=0)
+    // axis_bus_meter window control, PER PORT (tie off if ENABLE_BUS_METER=0)
     // ================================================================
-    // One-cycle synchronous pulse clears every bucket counter and overflow
-    // sticky; held-high also works.
-    input  logic                                            i_meter_clear,
-    // Hold high to pause every bucket counter (the window closes).
-    input  logic                                            i_meter_freeze
+    // Per port, unlike the AXI observers' single pair: the ports of one AXIS
+    // observer routinely belong to different transfers -- a DMA's sink ingress
+    // starts streaming at the kick, before its write side is busy, while the
+    // source egress runs inside the write-side window -- so one window cannot
+    // bracket both. The rapids harness keeps two windows for exactly this
+    // reason; sharing one gave the ingress port prod=0 on the board.
+    // Bit i is port i. One-cycle pulse clears port i's buckets and stickies
+    // (held-high also works); freeze held high pauses them.
+    input  logic [NUM_PORTS-1:0]                            i_meter_clear,
+    input  logic [NUM_PORTS-1:0]                            i_meter_freeze
 );
 
     // Telemetry lives behind this block's own regblock (OBS_STAT_SEL /
@@ -1074,8 +1079,8 @@ module axis4_intf_observer
                 ) u_meter (
                     .aclk               (aclk),
                     .aresetn            (aresetn),
-                    .i_clear            (i_meter_clear),
-                    .i_freeze           (i_meter_freeze),
+                    .i_clear            (i_meter_clear[mi]),
+                    .i_freeze           (i_meter_freeze[mi]),
                     .i_tvalid           (obs_axis_tvalid[mi]),
                     .i_tready           (obs_axis_tready[mi]),
                     .i_tlast            (obs_axis_tlast[mi]),

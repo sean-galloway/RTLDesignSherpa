@@ -117,7 +117,7 @@ All `obs_axis_*` ports are packed `[NUM_PORTS-1:0]` arrays and are inputs.
 | AXI4 dump master | `m_axi_aw*`, `m_axi_w*`, `m_axi_b*` (64-bit data) | Live when `EGRESS_AXIL=0`; zero otherwise. |
 | AXIL dump master | `m_axil_aw*`, `m_axil_w*`, `m_axil_b*` (64-bit data) | Live when `EGRESS_AXIL=1`; zero otherwise. |
 | `irq_out` | out | Asserted while the err FIFO holds any record. |
-| Meter window | `i_meter_clear`, `i_meter_freeze` | Clear pulse / hold-high freeze, same contract as `axi_bus_meter`. |
+| Meter window | `i_meter_clear[NUM_PORTS-1:0]`, `i_meter_freeze[NUM_PORTS-1:0]` | PER PORT: bit i clears / freezes port i's meter (same contract as `axi_bus_meter`). Per port because one observer's ports usually belong to different transfers (a sink's ingress streams before its write side is busy); the rapids harness drives its sink-ingress window on port 0 and its main window on port 1. |
 
 ---
 
@@ -272,8 +272,8 @@ axis4_intf_observer #(
     .m_axil_bready   (tally_bready),
     .m_axil_bresp    (tally_bresp),
     .irq_out         (obs_irq),
-    .i_meter_clear   (perf_clear),
-    .i_meter_freeze  (perf_freeze)
+    .i_meter_clear   ({perf_clear,  sin_clear}),    // port 1 = m_axis, port 0 = s_axis
+    .i_meter_freeze  ({perf_freeze, sin_freeze})
 );
 ```
 
