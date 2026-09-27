@@ -453,7 +453,27 @@ async def cocotb_test_pumice_top(dut):
     else:
         page_policy = 2        # CLOSE
 
+    # PAGE AXIS OVERRIDES. This suite pins page_policy=2 (CLOSE) for everything
+    # except three named tests, so most of it -- gen_replica included -- has
+    # NEVER run open page, and the mode-3/4/5 engine is reachable from exactly
+    # one test. That is the config-coverage hole pumice TASK-015 is about, and
+    # it is how BUG-003 stayed latent: the reset change flipped gen_replica from
+    # always-auto-precharge to open-page-with-background-PRE, a path it had
+    # never exercised.
+    page_policy = int(os.environ.get("TEST_PAGE_POLICY", page_policy))
+    _policy_mode = os.environ.get("TEST_POLICY_MODE")
+    _tr_init     = os.environ.get("TEST_TR_INIT")
+
     tb = await _bringup(dut, mem_type=mem_type, page_policy=page_policy)
+
+    if _policy_mode is not None:
+        await tb.csr_write_field("PAGE_POLICY_CFG", "policy_mode",
+                                 int(_policy_mode))
+        if _tr_init is not None:
+            await tb.csr_write_field("PAGE_TIMEOUT_CFG", "tr_init",
+                                     int(_tr_init))
+        dut._log.info("[cfg] page_policy=%d policy_mode=%s tr_init=%s",
+                      page_policy, _policy_mode, _tr_init)
 
     if test_type == "adapt_time_workload":
         # Successor of the retired HAPPY_HYBRID workload: the Happy
