@@ -150,6 +150,15 @@ have to get the convention right from scratch.
 On demand still applies where the block set is NOT known up front. Scaffolding
 presumes you can enumerate the members, as `retro_legacy_blocks` can.
 
+**Every state directory needs a tracked `.gitkeep`.** Git does not track an
+empty directory, so a lane INDEX that tabulates all four states links two to
+four targets that do not exist at HEAD. `amba/monitor-lite` was scaffolded
+without them and the broken-link ratchet failed on every push for 31 runs
+before anyone connected the two. A working tree cannot show you this: the
+directories are present on disk, the links resolve, and the gate reports PASS
+-- only a scan of committed blobs reproduces what CI sees. Sub-areas use an
+empty keep; top-level areas carry a one-line explainer.
+
 ## The AREA is the namespace — a task lives in its own component's files (Sean, 2026-09-14)
 
 **A pumice task goes in `vault/Tasks/pumice/`. A converter task goes in the
