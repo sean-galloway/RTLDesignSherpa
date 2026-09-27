@@ -32,3 +32,15 @@ red. Do both in one edit.
 `latency_bridge_beats.sv`, and `check_doc_examples.py` stays at 0.
 
 **Related:** [[TASK-007]], [[TASK-010]]
+
+---
+
+**CLOSED 2026-09-27.** Page re-authored against `latency_bridge_beats.sv`:
+overview (registered-read FIFO -> valid/ready skid, data only), parameters
+`DATA_WIDTH`/`SKID_DEPTH`/`DW`, ports `s_valid/s_ready/s_data`,
+`m_valid/m_ready/m_data`, `occupancy[2:0]`, `dbg_r_pending`, `dbg_r_out_valid`,
+the `r_drain_ip` one-cycle glue + `gaxi_fifo_sync` skid explained, block figure
+and timing figure redrawn for that interface, integration example instantiates
+the real module with the real ports. `bin/check_doc_examples.py`: 0 fabricated
+examples tree-wide (the example is now visible to the gate and passes).
+Out-of-path note from `d587852c2` kept.

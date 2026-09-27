@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: sink_data_path
+// Module: snk_data_path_beats
 // Purpose: RAPIDS Beats Sink Data Path - Fill to AXI Write Pipeline
 //
 // Description:

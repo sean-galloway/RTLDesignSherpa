@@ -70,7 +70,7 @@ The Beats Alloc Control is a "virtual FIFO" that tracks space allocation without
 
 ## Concept: Virtual FIFO
 
-Unlike a traditional FIFO that stores data, beats_alloc_ctrl only tracks **space reservations**:
+Unlike a traditional FIFO that stores data, alloc_ctrl_beats only tracks **space reservations**:
 
 ```
 Traditional FIFO:          Virtual FIFO (alloc_ctrl):

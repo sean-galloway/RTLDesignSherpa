@@ -21,83 +21,101 @@
 
 <!-- End Header -->
 
-# Beats Latency Bridge Specification
+# Latency Bridge (beats) Specification
 
 **Module:** `latency_bridge_beats.sv`
 **Location:** `projects/components/dmas/rapids/rtl/fub_beats/`
-**Status:** Implemented
-**Last Updated:** 2025-01-10
+**Status:** Implemented, tested, not in the SRAM path
+**Last Updated:** 2026-09-27
 
-> **No longer in the SRAM datapath (2026-09-26).** RAPIDS' SRAM path now uses
-> STREAM's `stream_alloc_ctrl` / `stream_drain_ctrl` / `stream_latency_bridge`,
-> reached through the `snk_`/`src_sram_controller_beats` naming wrappers
-> (`bdf4e0dff`). This FUB is still built and still verified -- it keeps its own
-> test, its own filelist and its `rapids_all.f` entry -- it simply is not
-> instantiated by the SRAM controllers any more. Treat this page as the FUB's
-> own specification, not as a description of the current SRAM path.
+> **Not in the SRAM datapath since 2026-09-26.** RAPIDS' SRAM path is STREAM's
+> `sram_controller`, which carries its own `stream_latency_bridge` (the same
+> design), reached through the `snk_`/`src_sram_controller_beats` naming
+> wrappers (`bdf4e0dff`). This FUB is still built and verified -- it keeps its
+> test, its filelist and its `rapids_all.f` entry -- but nothing in
+> `rapids_core_beats` instantiates it. This page is the FUB's own
+> specification.
 
 ---
 
 ## Overview
 
-The Beats Latency Bridge provides buffering to compensate for pipeline latency between alloc_ctrl and drain_ctrl in the SRAM controller. It prevents race conditions where drain signals arrive before allocation is complete.
+`latency_bridge_beats` turns a **registered-read FIFO** -- one whose data
+appears the cycle *after* the read handshake -- into a plain **valid/ready
+stream** the consumer can stall at will. It is a data-width bridge: it moves
+`DATA_WIDTH` bits per beat and carries nothing else. There is no beat count, no
+channel ID and no programmable delay in it; an earlier version of this page
+described such an interface, and it never existed in this module.
 
 ### Key Features
 
-- **Latency Compensation:** Buffers requests to match pipeline delays
-- **Configurable Depth:** Matches expected pipeline latency
-- **Flow Control:** Standard valid/ready handshaking
-- **Pass-Through Data:** Preserves beat count and channel ID
+- **One-cycle glue, one skid buffer:** a single flop (`r_drain_ip`) remembers
+  that a FIFO read was accepted, so the data that lands the next cycle is pushed
+  into a `gaxi_fifo_sync` skid of depth `SKID_DEPTH`
+- **Full throughput when the consumer is ready:** back-to-back reads are accepted
+  as long as the skid keeps draining
+- **Backpressure absorbed in the skid:** `s_ready` drops only when a skid write is
+  actually stalled, so the FIFO is never read into a slot that does not exist
+- **Occupancy reported:** `occupancy` counts the beats the bridge holds (the one
+  in flight plus the skid contents), which is what an occupancy-based
+  data-available counter needs
+- **Debug taps:** `dbg_r_pending` and `dbg_r_out_valid` expose the in-flight flop
+  and the skid output valid, for catching stuck data from a test
 
 ### Block Diagram
 
-### Figure 2.7.1: Beats Latency Bridge Block Diagram
+### Figure 2.7.1: Latency Bridge Block Diagram
 
 ```
-                +---------------------------+
-    in_valid -->|                           |--> out_valid
-    in_ready <--|    BEATS_LATENCY_BRIDGE   |--> out_ready (input)
-    in_beats -->|                           |--> out_beats
-    in_id    -->|    [Buffered Pipeline]    |--> out_id
-                +---------------------------+
+                     latency_bridge_beats
+       +-----------------------------------------------------+
+       |                                                     |
+ s_valid ---->|                  |            |              |
+ s_ready <----|  glue: r_drain_ip|--valid---->| gaxi_fifo_   |----> m_valid
+ s_data  ---->|  (1 cycle)       |--data----->| sync (skid,  |<---- m_ready
+       |      |                  |            | SKID_DEPTH)  |----> m_data
+       |      +------------------+            +------+-------+     |
+       |                                             |             |
+       |   occupancy = r_drain_ip + skid_count  <----+             |
+       +-----------------------------------------------------+
 ```
 
 ---
 
-## Concept: Why Latency Compensation?
+## Concept: bridging a registered read
 
-The SRAM controller has a timing challenge:
+A FIFO with `REGISTERED=1` read (the SRAM style this repo uses so BRAM infers
+cleanly) answers a read handshake with data **one cycle later**. A consumer
+speaking valid/ready expects data *with* valid, and may deassert ready at any
+time. Without a bridge the FIFO has already popped a beat the consumer did not
+take.
 
 ```
-Without Bridge:                        With Bridge:
-
-  alloc_ctrl.wr ----+                    alloc_ctrl.wr ----+
-                    |                                      |
-                    v                                      v
-  +----------+  (immediate)              +----------+  +--------+
-  |   SRAM   |<--- drain_ctrl.rd         |   SRAM   |  |LATENCY |
-  +----------+                           +----------+  | BRIDGE |
-                                                       +---+----+
-  Problem: drain_ctrl.rd may arrive                        |
-  before alloc_ctrl has reserved                           v
-  the space -> race condition!            drain_ctrl.rd (delayed)
-
-                                         Solution: Bridge delays drain
-                                         signals to match alloc timing
+cycle 0   s_valid && s_ready         FIFO read accepted        r_drain_ip <= 1
+cycle 1   data arrives on s_data     skid_wr_valid = r_drain_ip, data pushed
+cycle N   m_valid && m_ready         consumer drains the skid at its own pace
 ```
+
+The bridge never guesses about downstream readiness: `s_ready` is derived from
+the skid's room, counting only a write that is *stalled* this cycle as pending
+(a write that completes this cycle frees its slot at the same edge). That is
+why full throughput holds while writes complete immediately, and why the FIFO is
+never over-read when they do not.
 
 ---
 
 ## Parameters
 
 ```systemverilog
-parameter int DEPTH = 4;                         // Bridge FIFO depth
-parameter int BEATS_WIDTH = 8;                   // Beat count width
-parameter int ID_WIDTH = 3;                      // Channel ID width
-parameter int REGISTERED = 1;                    // Registered outputs
+parameter int DATA_WIDTH = 64;   // Beat width
+parameter int SKID_DEPTH = 4;    // Skid buffer depth (2-4 recommended)
+parameter int DW = DATA_WIDTH;   // Short alias
 ```
 
-: Table 2.7.1: Beats Latency Bridge Parameters
+: Table 2.7.1: Latency Bridge Parameters
+
+`occupancy` is 3 bits wide and counts 0..5 at the default depth (one beat in
+flight plus four in the skid); a larger `SKID_DEPTH` needs the port widened.
 
 ---
 
@@ -112,84 +130,93 @@ parameter int REGISTERED = 1;                    // Registered outputs
 
 : Table 2.7.2: Clock and Reset
 
-### Input Interface
+### Upstream Interface (from the registered FIFO)
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `in_valid` | input | 1 | Input request valid |
-| `in_ready` | output | 1 | Bridge ready to accept |
-| `in_beats` | input | BEATS_WIDTH | Beat count |
-| `in_id` | input | ID_WIDTH | Channel ID |
+| `s_valid` | input | 1 | FIFO has a beat to read (not empty) |
+| `s_ready` | output | 1 | Bridge accepts a read this cycle; the data lands NEXT cycle |
+| `s_data` | input | DW | Read data, valid one cycle after the `s_valid && s_ready` handshake |
 
-: Table 2.7.3: Input Interface
+: Table 2.7.3: Upstream Interface
 
-### Output Interface
+### Downstream Interface (to the consumer)
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `out_valid` | output | 1 | Output request valid |
-| `out_ready` | input | 1 | Downstream ready |
-| `out_beats` | output | BEATS_WIDTH | Beat count (delayed) |
-| `out_id` | output | ID_WIDTH | Channel ID (delayed) |
+| `m_valid` | output | 1 | Beat available |
+| `m_ready` | input | 1 | Consumer takes the beat |
+| `m_data` | output | DW | Beat data, valid with `m_valid` |
 
-: Table 2.7.4: Output Interface
+: Table 2.7.4: Downstream Interface
+
+### Status and Debug
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `occupancy` | output | 3 | Beats held by the bridge: the in-flight read plus the skid contents (0..5) |
+| `dbg_r_pending` | output | 1 | `r_drain_ip`: a read was accepted and its data is due next cycle |
+| `dbg_r_out_valid` | output | 1 | Skid output valid (mirrors `m_valid`) |
+
+: Table 2.7.5: Status and Debug
 
 ---
 
 ## Operation
 
-### Timing Diagram
-
-### Figure 2.7.2: Latency Bridge Timing (Depth=2)
+### Figure 2.7.2: Latency Bridge Timing (consumer always ready)
 
 ```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    in_valid       _/‾\_____/‾\_____:_______:_______:_______:_______
-    in_beats       X| 8 |XXX| 4 |XXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-    out_valid      _________:_______/‾\_____/‾\_____:_______:_______
-    out_beats      X:XXXXXXX:XXXXXXX| 8 |XXX| 4 |XXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-                    :       :       :       :       :       :
-                    +-------+       +-------+
-                    | 2-cycle latency through bridge |
+              ____    ____    ____    ____    ____    ____
+    clk      |    |__|    |__|    |__|    |__|    |__|    |__
+                    :       :       :       :       :
+    s_valid        _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_______:_______:_______
+    s_ready        ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+    s_data         XXXXXXXX| A |XXX| B |XXX:XXXXXXX:XXXXXXX
+                    :       :       :       :       :
+    r_drain_ip     _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_______:_______:_______
+    m_valid        _________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_______:_______
+    m_data         XXXXXXXXXXXXXXXX| A |XXX| B |XXX:XXXXXXX
+                    :       :       :       :       :
+                    +-------+
+                    | 1 cycle: read at 0, data at 1 |
 ```
+
+Two reads accepted in consecutive cycles come out in consecutive cycles: the
+bridge adds exactly the FIFO's one cycle of read latency and no bubble.
 
 **TODO:** Replace with simulation-generated waveform
+(`dv/tests/fub_beats/test_latency_bridge_beats.py`).
 
 ---
 
 ## Integration Context
 
-The latency bridge is used within the SRAM controller:
+The bridge sits between a `gaxi_fifo_sync` with `REGISTERED=1` and whatever
+consumes the stream. The same arrangement, with STREAM's twin
+`stream_latency_bridge`, is what `sram_controller_unit` uses inside the shared
+SRAM controller today; `occupancy` there is what the drain accounting
+must allow for (stream BUG-011).
 
 ```systemverilog
-// In snk_sram_controller_unit
-beats_alloc_ctrl u_alloc (
-    // Allocation on fill requests
-    .wr_valid       (fill_valid),
-    .wr_size        (fill_size),
-    // Release on actual data write
-    .rd_valid       (sram_wr_complete)
-);
-
-beats_latency_bridge u_bridge (
-    // Input from SRAM write path
-    .in_valid       (sram_wr_complete),
-    .in_beats       (beats_written),
-    // Output to drain controller (delayed)
-    .out_valid      (drain_trigger),
-    .out_beats      (drain_beats)
-);
-
-beats_drain_ctrl u_drain (
-    // Delayed notification of data available
-    .wr_valid       (drain_trigger),
-    // Drain requests from write engine
-    .rd_valid       (axi_drain_req),
-    .rd_size        (axi_drain_size)
+latency_bridge_beats #(
+    .DATA_WIDTH (512),
+    .SKID_DEPTH (4)
+) u_bridge (
+    .clk             (clk),
+    .rst_n           (rst_n),
+    // registered-read FIFO side
+    .s_valid         (fifo_rd_valid),
+    .s_ready         (fifo_rd_ready),
+    .s_data          (fifo_rd_data),
+    // consumer side
+    .m_valid         (drain_valid),
+    .m_ready         (drain_read),
+    .m_data          (drain_data),
+    // status / debug
+    .occupancy       (bridge_occupancy),
+    .dbg_r_pending   (dbg_bridge_pending),
+    .dbg_r_out_valid (dbg_bridge_out_valid)
 );
 ```
 
@@ -197,16 +224,18 @@ beats_drain_ctrl u_drain (
 
 ## Design Considerations
 
-| Depth | Use Case | Latency |
-|-------|----------|---------|
-| 2 | Minimal pipeline | 2 cycles |
-| 4 | Standard pipeline | 4 cycles |
-| 8 | Deep pipeline | 8 cycles |
+| SKID_DEPTH | Behaviour |
+|---:|---|
+| 2 | Minimum: one stall of the consumer costs a bubble on the next read |
+| 4 | Default: absorbs a short consumer stall with no upstream bubble |
+| 8 | Deeper stall absorption; `occupancy` must be widened past 3 bits |
 
-: Table 2.7.5: Bridge Depth Selection
+: Table 2.7.6: Skid Depth Selection
 
-The bridge depth should match the maximum pipeline latency from alloc_ctrl write to SRAM data being valid for drain_ctrl.
+The skid does not need to cover the FIFO's read latency (that is the one
+`r_drain_ip` flop's job); it needs to cover how long the *consumer* stalls
+without the bridge stopping upstream reads.
 
 ---
 
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-09-27

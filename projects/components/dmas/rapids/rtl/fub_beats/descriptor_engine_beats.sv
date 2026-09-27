@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: descriptor_engine
+// Module: descriptor_engine_beats
 // Purpose: Autonomous Descriptor Fetch Engine with Chaining Support
 //
 // Description:

@@ -55,3 +55,9 @@ script -- `rstrip('.sv')` strips a CHARACTER SET, so the trailing `s` of every
 **Scope:** `.sv` headers only. No port, logic or filename changes.
 
 **Related:** [[TASK-007]]
+
+---
+
+**CLOSED 2026-09-27.** All 15 `// Module:` headers set to the filename stem
+(`git diff --numstat rtl/` = 15 files x 1/1). Scan across
+`projects/components/dmas/rapids/rtl`: 28 headers, 0 disagree with the filename.

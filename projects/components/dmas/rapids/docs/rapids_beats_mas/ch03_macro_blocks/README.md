@@ -35,20 +35,22 @@ Macro blocks integrate multiple FUB modules into larger functional units that fo
 
 ```
 rapids_core_beats (Top Level)
-├── beats_scheduler_group_array
-│   └── beats_scheduler_group [8x]
-│       ├── scheduler
-│       └── descriptor_engine
-│
-├── sink_data_path (or sink_data_path_axis)
-│   ├── snk_sram_controller
-│   │   └── snk_sram_controller_unit [8x]
-│   └── axi_write_engine
-│
-└── source_data_path (or source_data_path_axis)
-    ├── src_sram_controller
-    │   └── src_sram_controller_unit [8x]
-    └── axi_read_engine
+├── rapids_src_beats                       (source half)
+│   ├── scheduler_group_array_beats
+│   │   └── scheduler_group_beats [8x]
+│   │       ├── scheduler_beats
+│   │       ├── descriptor_engine_beats
+│   │       └── ctrlrd_engine / ctrlwr_engine
+│   └── src_data_path_axis_beats
+│       └── src_data_path_beats
+│           ├── src_sram_controller_beats -> sram_controller (STREAM, 8 units inside)
+│           └── axi_read_engine_beats
+└── rapids_snk_beats                       (sink half)
+    ├── scheduler_group_array_beats (as above)
+    └── snk_data_path_axis_beats
+        └── snk_data_path_beats
+            ├── snk_sram_controller_beats -> sram_controller (STREAM, 8 units inside)
+            └── axi_write_engine_beats
 ```
 
 ---

@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: beats_latency_bridge
+// Module: latency_bridge_beats
 // Purpose: Simple Latency-1 Bridge with Skid Buffer
 //
 // Description:

@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: axi_read_engine
+// Module: axi_read_engine_beats
 // Purpose: Multi-Channel AXI4 Read Engine with Space-Aware Arbitration
 //
 // Description:

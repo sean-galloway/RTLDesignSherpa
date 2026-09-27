@@ -40,7 +40,7 @@ The AXI Write Engine reads data from SRAM and performs burst writes to system me
 - **Multi-Channel Support:** Channel ID in AXI ID field
 - **Write Response Tracking:** B channel completion handling
 - **Configurable Burst Length:** Up to 256 beats per burst
-- **Latency Compensation:** Integrated beats_latency_bridge
+- **Registered SRAM read:** consumes the SRAM controller's registered `drain_*` stream (the latency bridge lives in STREAM's `sram_controller_unit`, not here)
 
 ### Block Diagram
 

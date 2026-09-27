@@ -27,3 +27,14 @@ Master`). Follow its shape rather than inventing one.
 the pass criterion is 0 not-a-port AND 0 real ports undocumented.
 
 **Related:** [[TASK-007]]
+
+---
+
+**CLOSED 2026-09-27.** `ch01_overview/02_port_list.md` regenerated from the
+`rapids_core_beats` module declaration (interface dump with the RTL's own
+section comments): 30 parameters, 300 ports in 35 sections, grouped per half
+(shared-infrastructure `src_`/`snk_` ports, then each half's direction-unique
+ports), the monitor bus as its own section, debug last. Verification is in the
+generator: the row set is asserted equal to the declared port set (0 not-a-port,
+0 undocumented). Page footer records the generation date and says to regenerate
+rather than hand-edit.

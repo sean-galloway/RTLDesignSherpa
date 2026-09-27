@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: source_data_path_axis_test
+// Module: src_data_path_axis_test_beats
 // Purpose: RAPIDS Beats Source Data Path Test with 8 Scheduler Instances
 //
 // Description:

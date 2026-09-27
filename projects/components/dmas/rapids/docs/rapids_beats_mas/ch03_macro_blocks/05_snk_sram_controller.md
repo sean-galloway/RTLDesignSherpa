@@ -32,13 +32,13 @@
 
 ## Overview
 
-The Sink SRAM Controller manages 8 SRAM controller units, providing per-channel buffering with channel arbitration for the shared AXI write engine.
+The Sink SRAM Controller is a naming wrapper, with no logic of its own, around STREAM's `sram_controller` -- the one per-channel SRAM implementation both DMAs share since `bdf4e0dff`. It maps the RAPIDS `fill_*`/`drain_*` names onto STREAM's ports; the eight per-channel units (allocation counter, FIFO, drain counter, latency bridge) live inside STREAM's block. It manages 8 channel units, providing per-channel buffering with channel arbitration for the shared AXI write engine.
 
 ### Key Features
 
-- **8-Channel SRAM Array:** Instantiates 8 `snk_sram_controller_unit` modules
-- **Channel Arbitration:** Round-robin access to shared AXI write engine
-- **Flow Control Integration:** Per-channel alloc_ctrl and drain_ctrl
+- **One shared implementation:** instantiates STREAM's `sram_controller` once; it holds 8 `sram_controller_unit`s, each a `gaxi_fifo_sync` FIFO with `stream_alloc_ctrl`, `stream_drain_ctrl` and `stream_latency_bridge`
+- **Channel Arbitration:** none inside the controller -- the AXI write engine picks a channel and presents it on `drain_id`
+- **Flow Control Integration:** per-channel `stream_alloc_ctrl` / `stream_drain_ctrl` virtual FIFOs; the drain counter's virtual depth is 2 x SRAM_DEPTH (stream BUG-011)
 - **Space Tracking:** Reports available space per channel
 
 ### Block Diagram
@@ -46,23 +46,27 @@ The Sink SRAM Controller manages 8 SRAM controller units, providing per-channel 
 ### Figure 3.5.1: Sink SRAM Controller Block Diagram
 
 ```
-                    snk_sram_controller
+                    snk_sram_controller_beats
     +------------------------------------------------------------------+
     |                                                                  |
-    |  Fill Interface (per-channel)                                    |
-    |         |         |                   |                          |
-    |         v         v                   v                          |
-    |  +----------+ +----------+     +----------+                      |
-    |  |snk_sram_ | |snk_sram_ | ... |snk_sram_ |                      |
-    |  |ctrl_unit | |ctrl_unit |     |ctrl_unit |                      |
-    |  |   [0]    | |   [1]    |     |   [7]    |                      |
-    |  +----+-----+ +----+-----+     +----+-----+                      |
-    |       |            |                |                            |
-    |       |drain_req   |drain_req       |drain_req                   |
-    |       v            v                v                            |
-    |  +----------------------------------------------------------+   |
-    |  |         Round-Robin Channel Arbiter                      |   |
-    |  +----------------------------+-----------------------------+   |
+    |  fill_* (from AXIS ingress)                snk_sram_controller_beats |
+    |         |                                (names only)            |
+    |         v                                                        |
+    |  +------------------------------------------------------------+  |
+    |  |  sram_controller  (STREAM, shared with the STREAM DMA)     |  |
+    |  |  +-----------+ +-----------+       +-----------+           |  |
+    |  |  | unit [0]  | | unit [1]  |  ...  | unit [7]  |           |  |
+    |  |  | alloc_ctrl| | alloc_ctrl|       | alloc_ctrl|           |  |
+    |  |  | fifo_sync | | fifo_sync |       | fifo_sync |           |  |
+    |  |  | drain_ctrl| | drain_ctrl|       | drain_ctrl|           |  |
+    |  |  | lat.bridge| | lat.bridge|       | lat.bridge|           |  |
+    |  |  +-----+-----+ +-----+-----+       +-----+-----+           |  |
+    |  |        |drain_valid  |drain_valid        |drain_valid      |  |
+    |  |        v             v                   v                 |  |
+    |  |  +--------------------------------------------------------+ |  |
+    |  |  | drain_id select (the consumer arbitrates, 1 beat/cycle)| |  |
+    |  |  +--------------------------------------------------------+ |  |
+    |  +------------------------------------------------------------+  |
     |                               |                                  |
     |                               v                                  |
     |                    SRAM Read Interface                           |
@@ -138,24 +142,30 @@ parameter int ADDR_WIDTH = $clog2(SRAM_DEPTH);
 
 ---
 
-## Arbitration Logic
+## Drain Selection
 
-### Figure 3.5.2: Channel Arbitration Timing
+There is no arbiter inside the controller. Every channel unit raises its own
+`drain_valid[ch]` / `drain_size[ch]` when it has data; the AXI write engine picks a channel,
+drives it on `drain_id`, and the controller steers that channel's beats to the
+single `drain_*` port. Switching channels costs nothing beyond the consumer's own
+decision, and a channel keeps presenting `drain_valid` until it is empty.
+
+### Figure 3.5.2: Drain Selection by the Consumer
 
 ```
               ____    ____    ____    ____    ____    ____    ____
     clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
                     :       :       :       :       :       :
-    drain_req[0]   _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______:_______:_______
-    drain_req[1]   _______/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______:_______
-    drain_req[2]   _______________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______
+    drain_valid[0] ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_______:_______:_______
+    drain_valid[1] _______/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+    drain_valid[2] _______________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
                     :       :       :       :       :       :
-    drain_id       X| CH0  | CH0  | CH1  | CH1  | CH2  | CH2  |XXXXX
-    drain_gnt      _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___
-                    :       :       :       :       :       :
+    drain_id       X| CH0  | CH0  | CH0  | CH1  | CH1  | CH2  | CH2
+    drain_read     _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+    drain_data     X| d0.0 | d0.1 | d0.2 | d1.0 | d1.1 | d2.0 | d2.1
 ```
 
-**TODO:** Replace with simulation-generated waveform showing round-robin arbitration
+**TODO:** Replace with a simulation-generated waveform from the data-path test.
 
 ---
 

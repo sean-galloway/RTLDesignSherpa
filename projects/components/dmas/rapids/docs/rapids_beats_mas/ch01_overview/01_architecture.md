@@ -101,16 +101,16 @@ The sink path receives data from an external source (via Fill interface) and wri
 1. External Fill Valid
         |
         v
-2. beats_alloc_ctrl (Space Allocation)
+2. sram_controller (STREAM): stream_alloc_ctrl reserves space
         |
         v
-3. snk_sram_controller_unit (SRAM Write)
+3. sram_controller: per-channel gaxi_fifo_sync takes the beats
         |
         v
-4. beats_drain_ctrl (Data Available)
+4. sram_controller: stream_drain_ctrl reports data available
         |
         v
-5. axi_write_engine (AXI Burst Write)
+5. axi_write_engine_beats (AXI Burst Write)
         |
         v
 6. System Memory
@@ -126,16 +126,16 @@ The source path reads data from system memory and sends it to an external destin
 1. Scheduler Request
         |
         v
-2. beats_alloc_ctrl (Space Allocation)
+2. sram_controller (STREAM): stream_alloc_ctrl reserves space
         |
         v
-3. axi_read_engine (AXI Burst Read)
+3. axi_read_engine_beats (AXI Burst Read)
         |
         v
-4. src_sram_controller_unit (SRAM Write)
+4. sram_controller: per-channel gaxi_fifo_sync takes the beats
         |
         v
-5. beats_drain_ctrl (Data Available)
+5. sram_controller: stream_drain_ctrl reports data available
         |
         v
 6. External Drain Ready
@@ -179,8 +179,9 @@ Concurrent operation (CORRECT):
 
 The alloc_ctrl and drain_ctrl modules are "virtual FIFOs" that track space/data without storing actual data:
 
-- **beats_alloc_ctrl:** Tracks allocated space (write pointer advances on allocation, read pointer on actual write)
-- **beats_drain_ctrl:** Tracks available data (write pointer advances on data arrival, read pointer on drain)
+- **stream_alloc_ctrl:** Tracks allocated space (write pointer advances on allocation, read pointer on actual write)
+- **stream_drain_ctrl:** Tracks available data (write pointer advances on data arrival, read pointer on drain reservation). Its virtual depth is 2 x SRAM_DEPTH so the latency bridge's parked beats never make it refuse a real write (stream BUG-011)
+- Both live inside STREAM's `sram_controller_unit`, one per channel, reached through the `snk_`/`src_sram_controller_beats` naming wrappers since `bdf4e0dff`. RAPIDS' own `alloc_ctrl_beats` / `drain_ctrl_beats` / `latency_bridge_beats` are kept and tested but no longer in this path.
 
 ---
 
@@ -188,30 +189,41 @@ The alloc_ctrl and drain_ctrl modules are "virtual FIFOs" that track space/data 
 
 ```
 rapids_core_beats
-├── beats_scheduler_group_array
-│   ├── beats_scheduler_group [0..7]
-│   │   ├── descriptor_engine
-│   │   └── scheduler
-│   └── Shared Descriptor AXI Master
-│
-├── sink_data_path
-│   ├── snk_sram_controller
-│   │   └── snk_sram_controller_unit [0..7]
-│   │       ├── beats_alloc_ctrl
-│   │       ├── simple_sram
-│   │       └── beats_drain_ctrl
-│   └── axi_write_engine
-│       └── beats_latency_bridge
-│
-└── source_data_path
-    ├── axi_read_engine
-    │   └── beats_latency_bridge
-    └── src_sram_controller
-        └── src_sram_controller_unit [0..7]
-            ├── beats_alloc_ctrl
-            ├── simple_sram
-            └── beats_drain_ctrl
+├── monbus_arbiter                       (merges the two halves' monbus)
+├── rapids_src_beats                     (SOURCE half)
+│   ├── scheduler_group_array_beats
+│   │   ├── scheduler_group_beats [0..7]
+│   │   │   ├── scheduler_beats
+│   │   │   ├── descriptor_engine_beats
+│   │   │   ├── ctrlrd_engine
+│   │   │   └── ctrlwr_engine
+│   │   ├── arbiter_round_robin [x3]     (desc / ctrlrd / ctrlwr AXI masters)
+│   │   ├── axi4_master_rd_monlite       (descriptor-fetch monitor)
+│   │   └── axi_bus_meter
+│   └── src_data_path_axis_beats
+│       └── src_data_path_beats
+│           ├── axi_read_engine_beats
+│           └── src_sram_controller_beats    (naming wrapper)
+│               └── sram_controller          (STREAM, shared)
+│                   └── sram_controller_unit [0..7]
+│                       ├── stream_alloc_ctrl
+│                       ├── gaxi_fifo_sync   (the per-channel SRAM)
+│                       ├── stream_drain_ctrl
+│                       └── stream_latency_bridge
+└── rapids_snk_beats                     (SINK half, same shape)
+    ├── scheduler_group_array_beats
+    │   └── ...
+    └── snk_data_path_axis_beats
+        └── snk_data_path_beats
+            ├── axi_write_engine_beats
+            └── snk_sram_controller_beats
+                └── sram_controller (STREAM, shared)
+                    └── sram_controller_unit [0..7]
 ```
+
+`alloc_ctrl_beats`, `drain_ctrl_beats` and `latency_bridge_beats` (fub_beats) are
+not in this tree: since `bdf4e0dff` the SRAM path is STREAM's controller. They
+keep their tests and filelists as standalone FUBs.
 
 ---
 

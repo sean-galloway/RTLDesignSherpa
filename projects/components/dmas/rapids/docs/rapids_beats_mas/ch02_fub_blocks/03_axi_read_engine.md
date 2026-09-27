@@ -39,7 +39,7 @@ The AXI Read Engine performs burst reads from system memory and writes data to t
 - **Streaming Pipeline:** No FSM - pure streaming architecture
 - **Multi-Channel Support:** Channel ID passed through AXI ID field
 - **Configurable Burst Length:** Up to 256 beats per burst
-- **Latency Compensation:** Integrated beats_latency_bridge
+- **SRAM fill only:** writes R-channel beats straight into the SRAM controller's `fill_*` port (the latency bridge lives in STREAM's `sram_controller_unit`, not here)
 - **Error Handling:** AXI RRESP error detection and reporting
 
 ### Block Diagram

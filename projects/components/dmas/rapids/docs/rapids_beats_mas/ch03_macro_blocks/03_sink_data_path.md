@@ -111,7 +111,7 @@ parameter int B_PHASE_FIFO_DEPTH = 16;
    - snk_fill_alloc_id = channel
         |
         v
-2. Space Check (beats_alloc_ctrl)
+2. Space Check (stream_alloc_ctrl inside STREAM's sram_controller)
    - Check snk_fill_space_free[channel] >= N
    - Allocate N beats of space
         |
@@ -124,7 +124,7 @@ parameter int B_PHASE_FIFO_DEPTH = 16;
         v
 4. SRAM Write
    - Data written to channel's SRAM partition
-   - beats_drain_ctrl notified of data availability
+   - stream_drain_ctrl notified of data availability
         |
         v
 5. AXI Write Request

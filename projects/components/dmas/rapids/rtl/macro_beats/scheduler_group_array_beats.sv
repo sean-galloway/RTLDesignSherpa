@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: beats_scheduler_group_array
+// Module: scheduler_group_array_beats
 // Purpose: RAPIDS Beats Scheduler Group Array - Multi-channel with shared resources
 //
 // Description:

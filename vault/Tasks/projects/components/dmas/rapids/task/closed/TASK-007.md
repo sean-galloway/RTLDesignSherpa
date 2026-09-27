@@ -40,3 +40,20 @@ STREAM's `stream_alloc_ctrl`/`stream_drain_ctrl`/`stream_latency_bridge`.
 
 **Related:** [[TASK-008]], [[TASK-009]], [[TASK-011]]. The rapids session owns the
 RTL side and confirmed it is touching no `.md`.
+
+---
+
+**CLOSED 2026-09-27.** Index module table: every filename cell now names a real
+`*_beats.sv` (or STREAM's `sram_controller.sv`), verified by resolving each
+backticked `.sv` against `rtl/**` plus `../stream/rtl/**` -- 0 unresolved; the
+two unit rows are gone and `rapids_src_beats`/`rapids_snk_beats` rows added.
+Both MAS trees (`ch01_overview/01_architecture.md`, `ch03_macro_blocks/README.md`)
+and the HAS tree (`ch02_architecture/01_block_diagram.md`) redrawn to the
+instantiated hierarchy: core -> src/snk halves -> scheduler_group_array_beats +
+data path -> `*_sram_controller_beats` naming wrapper -> STREAM `sram_controller`
+-> `sram_controller_unit [0..7]` (stream_alloc_ctrl, gaxi_fifo_sync,
+stream_drain_ctrl, stream_latency_bridge). ch01 data-flow steps and the
+flow-control bullets say the same. `05_snk_sram_controller.md` and
+`08_src_sram_controller.md`: overview, features, block figure and the
+"Arbitration Logic" section (there is no round-robin arbiter inside; the consumer
+selects with `drain_id`) rewritten. `grep -rn 'snk_sram_controller_unit|src_sram_controller_unit|_unit_beats|simple_sram' docs/` -> 0 live claims.

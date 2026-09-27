@@ -105,7 +105,7 @@ parameter int R_PHASE_FIFO_DEPTH = 64;
    - sched_rd_id = channel
         |
         v
-2. Space Check (beats_alloc_ctrl)
+2. Space Check (stream_alloc_ctrl inside STREAM's sram_controller)
    - Check src_drain_space_free[channel] >= N
    - Allocate N beats of space
         |
@@ -122,7 +122,7 @@ parameter int R_PHASE_FIFO_DEPTH = 64;
         |
         v
 5. SRAM Write Complete
-   - beats_drain_ctrl notified via latency bridge
+   - stream_drain_ctrl notified via the unit's latency bridge
    - Data available for drain
         |
         v

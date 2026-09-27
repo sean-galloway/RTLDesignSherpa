@@ -12,20 +12,16 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 8 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 5 | done (kept for history) |
+| [closed/](closed/) | 9 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
 - **TASK-003** — scrub the tests for completeness (rapids)
-- **TASK-007** — the MAS/HAS trees and index table describe the pre-wrapper SRAM architecture
-- **TASK-008** — ch01_overview/02_port_list.md documents 86 of 300 ports, mis-structured
-- **TASK-009** — 07_beats_latency_bridge.md documents the wrong CONCEPT
 - **TASK-010** — 26 ASCII placeholder figures name dead signals; 2 figures have no test to capture from
-- **TASK-011** — 15 rapids .sv files carry a `// Module:` header that contradicts their own filename
 - **TASK-012** — size the harness observer's latency-histogram FIFO for the latency sweep
 
 ## Active
@@ -37,3 +33,7 @@ by construction rather than by discipline.
 - **TASK-004** — Register-map hygiene enforced in RAPIDS DV
 - **TASK-005** — one RTL harness -- move the host path down so verify-sim can reach it
 - **TASK-006** — re-measure the beat-count knee on rapids (July data is stale)
+- **TASK-007** — MAS/HAS trees and index table redrawn to the STREAM-wrapper hierarchy (closed 2026-09-27)
+- **TASK-008** — ch01_overview/02_port_list.md regenerated from the RTL: 300/300 ports, per half (closed 2026-09-27)
+- **TASK-009** — 07_beats_latency_bridge.md re-authored against latency_bridge_beats.sv (closed 2026-09-27)
+- **TASK-011** — 15 `// Module:` headers now match their filenames (closed 2026-09-27)

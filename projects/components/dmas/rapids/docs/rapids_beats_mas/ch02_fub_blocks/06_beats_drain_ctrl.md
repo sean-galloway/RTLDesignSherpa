@@ -40,7 +40,7 @@
 
 ## Overview
 
-The Beats Drain Control is a "virtual FIFO" that tracks data availability without storing actual data. It complements beats_alloc_ctrl by tracking when data has been written to SRAM and is available for draining.
+The Beats Drain Control is a "virtual FIFO" that tracks data availability without storing actual data. It complements alloc_ctrl_beats by tracking when data has been written to SRAM and is available for draining.
 
 ### Key Features
 
@@ -218,7 +218,7 @@ drain_ctrl_beats #(
 
 ## Relationship: alloc_ctrl vs drain_ctrl
 
-| Aspect | beats_alloc_ctrl | beats_drain_ctrl |
+| Aspect | alloc_ctrl_beats | drain_ctrl_beats |
 |--------|------------------|------------------|
 | **Tracks** | Space reservations | Data availability |
 | **Write port** | Multi-beat allocation | Single-beat arrival |

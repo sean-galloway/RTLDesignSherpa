@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: source_data_path
+// Module: src_data_path_beats
 // Purpose: RAPIDS Beats Source Data Path - AXI Read to Drain Pipeline
 //
 // Description:

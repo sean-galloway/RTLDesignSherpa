@@ -99,13 +99,13 @@
 
 | Module | File | Purpose | Status |
 |--------|------|---------|--------|
-| scheduler | `scheduler.sv` | Transfer coordinator, descriptor processing | Implemented |
-| descriptor_engine | `descriptor_engine.sv` | Descriptor fetch/parse (256-bit) | Implemented |
-| axi_read_engine | `axi_read_engine.sv` | AXI read master, streaming pipeline | Implemented |
-| axi_write_engine | `axi_write_engine.sv` | AXI write master, streaming pipeline | Implemented |
-| beats_alloc_ctrl | `beats_alloc_ctrl.sv` | Space allocation tracking (virtual FIFO) | Implemented |
-| beats_drain_ctrl | `beats_drain_ctrl.sv` | Data availability tracking (virtual FIFO) | Implemented |
-| beats_latency_bridge | `beats_latency_bridge.sv` | Latency compensation, backpressure management | Implemented |
+| scheduler_beats | `scheduler_beats.sv` | Transfer coordinator, descriptor processing | Implemented |
+| descriptor_engine_beats | `descriptor_engine_beats.sv` | Descriptor fetch/parse (256-bit) | Implemented |
+| axi_read_engine_beats | `axi_read_engine_beats.sv` | AXI read master, streaming pipeline | Implemented |
+| axi_write_engine_beats | `axi_write_engine_beats.sv` | AXI write master, streaming pipeline | Implemented |
+| alloc_ctrl_beats | `alloc_ctrl_beats.sv` | Space allocation tracking (virtual FIFO); kept and tested, no longer in the SRAM path since `bdf4e0dff` | Implemented |
+| drain_ctrl_beats | `drain_ctrl_beats.sv` | Data availability tracking (virtual FIFO); kept and tested, no longer in the SRAM path | Implemented |
+| latency_bridge_beats | `latency_bridge_beats.sv` | Registered-FIFO to valid/ready skid bridge; kept and tested, no longer in the SRAM path | Implemented |
 | ctrlrd_engine | `ctrlrd_engine.sv` | Control-read consumer gate (poll-until-match, retry budget) | Implemented |
 | ctrlwr_engine | `ctrlwr_engine.sv` | Control-write producer doorbell (single-beat write) | Implemented |
 
@@ -115,18 +115,17 @@
 
 | Module | File | Purpose | Status |
 |--------|------|---------|--------|
-| beats_scheduler_group | `beats_scheduler_group.sv` | Scheduler + Descriptor Engine wrapper | Implemented |
-| beats_scheduler_group_array | `beats_scheduler_group_array.sv` | 8-channel scheduler array with arbitration | Implemented |
-| sink_data_path | `sink_data_path.sv` | Network-to-memory path integration | Implemented |
-| sink_data_path_axis | `sink_data_path_axis.sv` | AXIS variant of sink path | Implemented |
-| source_data_path | `source_data_path.sv` | Memory-to-network path integration | Implemented |
-| source_data_path_axis | `source_data_path_axis.sv` | AXIS variant of source path | Implemented |
-| snk_sram_controller | `snk_sram_controller.sv` | Sink SRAM buffer management | Implemented |
-| snk_sram_controller_unit | `snk_sram_controller_unit.sv` | Per-channel sink SRAM unit | Implemented |
-| src_sram_controller | `src_sram_controller.sv` | Source SRAM buffer management | Implemented |
-| src_sram_controller_unit | `src_sram_controller_unit.sv` | Per-channel source SRAM unit | Implemented |
-| rapids_core_beats | `rapids_core_beats.sv` | Core RAPIDS integration (scheduler array + data paths) | Implemented |
-| rapids_regs | `rapids_regs.sv` (generated) | PeakRDL register block (base + MON regfile @ 0x1000) | Implemented |
+| scheduler_group_beats | `scheduler_group_beats.sv` | Scheduler + Descriptor Engine wrapper | Implemented |
+| scheduler_group_array_beats | `scheduler_group_array_beats.sv` | 8-channel scheduler array with arbitration | Implemented |
+| snk_data_path_beats | `snk_data_path_beats.sv` | Network-to-memory path integration | Implemented |
+| snk_data_path_axis_beats | `snk_data_path_axis_beats.sv` | AXIS variant of sink path | Implemented |
+| src_data_path_beats | `src_data_path_beats.sv` | Memory-to-network path integration | Implemented |
+| src_data_path_axis_beats | `src_data_path_axis_beats.sv` | AXIS variant of source path | Implemented |
+| snk_sram_controller_beats | `snk_sram_controller_beats.sv` | Sink SRAM: naming wrapper around STREAM's `sram_controller` (one instance, per-channel FIFOs inside it) | Implemented |
+| src_sram_controller_beats | `src_sram_controller_beats.sv` | Source SRAM: naming wrapper around STREAM's `sram_controller` | Implemented |
+| rapids_src_beats / rapids_snk_beats | `rapids_src_beats.sv`, `rapids_snk_beats.sv` | One half each: scheduler array + data path + monbus merge | Implemented |
+| rapids_core_beats | `rapids_core_beats.sv` | Both halves + the core monbus arbiter | Implemented |
+| rapids_regs | `regs/generated/rtl/rapids_regs.sv` (generated from `rtl/macro_beats/rapids_regs.rdl`) | PeakRDL register block (base + MON regfile @ 0x1000) | Implemented |
 | rapids_config_block | `rapids_config_block.sv` | Maps register `hwif_out` to core/monitor `cfg_*` | Implemented |
 | rapids_beats_top | `rapids_beats_top.sv` | Top-level: APB slave, kickoff, monitors, MonBus AXI-Lite group | Implemented |
 
@@ -146,7 +145,7 @@ The "beats" architecture is a Phase 1 implementation of RAPIDS that shares conce
 | **SRAM Buffering** | Shared buffer | Separate sink/source buffers |
 | **Descriptor Format** | 256-bit | 256-bit (compatible) |
 | **Channel Count** | 8 | 8 |
-| **Flow Control** | alloc_ctrl/drain_ctrl | beats_alloc_ctrl/beats_drain_ctrl |
+| **Flow Control** | alloc_ctrl/drain_ctrl | STREAM `stream_alloc_ctrl`/`stream_drain_ctrl` inside the shared `sram_controller` (`alloc_ctrl_beats`/`drain_ctrl_beats` kept, out of the path) |
 
 : RAPIDS Beats vs STREAM Comparison
 

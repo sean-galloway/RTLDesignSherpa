@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: beats_drain_ctrl
+// Module: drain_ctrl_beats
 // Purpose: Drain Control (Virtual FIFO for write engine flow control)
 //
 // Description:

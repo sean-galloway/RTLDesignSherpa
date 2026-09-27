@@ -172,26 +172,35 @@ Memory-to-network data flow:
 
 ```
 rapids_core_beats
-├── beats_scheduler_group_array
-│   ├── beats_scheduler_group [0]
-│   │   ├── scheduler_beats
-│   │   └── descriptor_engine_beats
-│   ├── beats_scheduler_group [1..6]
-│   │   └── ...
-│   └── beats_scheduler_group [7]
-│       └── ...
-├── sink_data_path_beats
-│   ├── snk_sram_controller_beats
-│   │   └── snk_sram_controller_unit_beats [0..7]
-│   ├── axi_write_engine_beats
-│   ├── alloc_ctrl_beats
-│   └── drain_ctrl_beats
-└── source_data_path_beats
-    ├── axi_read_engine_beats
-    ├── src_sram_controller_beats
-    │   └── src_sram_controller_unit_beats [0..7]
-    ├── alloc_ctrl_beats
-    └── drain_ctrl_beats
+├── monbus_arbiter
+├── rapids_src_beats
+│   ├── scheduler_group_array_beats
+│   │   ├── scheduler_group_beats [0..7]
+│   │   │   ├── scheduler_beats
+│   │   │   ├── descriptor_engine_beats
+│   │   │   ├── ctrlrd_engine
+│   │   │   └── ctrlwr_engine
+│   │   ├── arbiter_round_robin [x3]
+│   │   ├── axi4_master_rd_monlite
+│   │   └── axi_bus_meter
+│   └── src_data_path_axis_beats
+│       └── src_data_path_beats
+│           ├── axi_read_engine_beats
+│           └── src_sram_controller_beats
+│               └── sram_controller (STREAM)
+│                   └── sram_controller_unit [0..7]
+│                       ├── stream_alloc_ctrl
+│                       ├── gaxi_fifo_sync
+│                       ├── stream_drain_ctrl
+│                       └── stream_latency_bridge
+└── rapids_snk_beats
+    ├── scheduler_group_array_beats (same shape)
+    └── snk_data_path_axis_beats
+        └── snk_data_path_beats
+            ├── axi_write_engine_beats
+            └── snk_sram_controller_beats
+                └── sram_controller (STREAM)
+                    └── sram_controller_unit [0..7]
 ```
 
 ## Internal Buses

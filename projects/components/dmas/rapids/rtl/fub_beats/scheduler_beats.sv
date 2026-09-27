@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: scheduler
+// Module: scheduler_beats
 // Purpose: RAPIDS Scheduler - Network-to-Memory DMA (Phase 1)
 //
 // Description:

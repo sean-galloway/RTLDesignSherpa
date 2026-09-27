@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: beats_alloc_ctrl
+// Module: alloc_ctrl_beats
 // Purpose: Allocation Control (Virtual FIFO without data path)
 //
 // Description:
