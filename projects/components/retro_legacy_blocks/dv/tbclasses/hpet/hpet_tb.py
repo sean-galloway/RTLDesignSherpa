@@ -156,6 +156,7 @@ class HPETScoreboard:
         self.counter_writes = []
         self.timer_comparator_writes = []
         self.errors = []
+        self.test_results = []
 
         # Expected behavior tracking
         self.expected_interrupts = {}
@@ -217,8 +218,16 @@ class HPETScoreboard:
                     }
                     break
 
-    def add_timer_event(self, timer_id: int, event_type: str, counter_value: int):
-        """Record timer event."""
+    def add_timer_event(self, timer_id: int, event_type: str,
+                        counter_value: int = None):
+        """Record timer event.
+
+        counter_value is None when the observer could not sample the counter.
+        monitor_interrupts() is the only caller and deliberately does not read
+        it: the main counter is internal to hpet_core (not a port), and an APB
+        read from a monitor would perturb the very transactions the scoreboard
+        is counting. The event's `time` is what callers actually use.
+        """
         self.timer_events.append({
             'time': get_sim_time('ns'),
             'timer_id': timer_id,
@@ -246,6 +255,20 @@ class HPETScoreboard:
             if 'deassert_time' not in last_event:
                 last_event['deassert_time'] = event['time']
                 last_event['duration'] = event['time'] - last_event['assert_time']
+
+    def record_test(self, name: str, passed: bool):
+        """Record one named subtest outcome, so the report can count them.
+
+        Before this existed, `tests_run` was never written anywhere and
+        generate_test_report()'s `stats.get('tests_run', 0)` could only ever
+        yield 0 -- a report that said "0 tests run" after a green suite
+        (RLB/hpet BUG-002).
+        """
+        self.test_results.append({
+            'time': get_sim_time('ns'),
+            'name': name,
+            'passed': bool(passed),
+        })
 
     def verify_register_access(self) -> bool:
         """Verify register access patterns."""
@@ -317,6 +340,8 @@ class HPETScoreboard:
             'interrupt_events': len(self.interrupt_events),
             'counter_writes': len(self.counter_writes),
             'errors': len(self.errors),
+            'tests_run': len(self.test_results),
+            'tests_passed': len([t for t in self.test_results if t['passed']]),
             'config_changes': len([t for t in self.apb_transactions
                                 if t['addr'] == HPETRegisterMap.HPET_CONFIG and t['direction'] == 'WRITE'])
         }
@@ -500,6 +525,12 @@ class HPETTB(TBBase):
                 if irq_val != prev_state[i]:
                     event_type = 'assert' if irq_val else 'deassert'
                     self.scoreboard.add_interrupt_event(i, event_type)
+                    if irq_val:
+                        # A rising timer_irq is the comparator match becoming
+                        # observable. This is the only writer of timer_events;
+                        # without it `timer_functionality_verified` was False on
+                        # every passing run (RLB/hpet BUG-002).
+                        self.scoreboard.add_timer_event(i, 'match')
                     self.log.info(f"Timer {i} interrupt {event_type}{self.get_time_ns_str()}")
 
             prev_state = current_state
@@ -611,8 +642,8 @@ class HPETTB(TBBase):
 
         report = {
             'test_summary': {
-                'total_tests_run': stats.get('tests_run', 0),
-                'tests_passed': stats.get('tests_passed', 0),
+                'total_tests_run': stats['tests_run'],
+                'tests_passed': stats['tests_passed'],
                 'test_phase': self.test_phase,
                 'total_time': get_sim_time('ns'),
                 'version': f'{self.NUM_TIMERS}-timer/{self.ADDR_WIDTH}-bit'

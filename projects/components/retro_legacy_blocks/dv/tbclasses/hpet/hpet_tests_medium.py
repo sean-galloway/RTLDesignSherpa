@@ -2473,11 +2473,13 @@ class HPETMediumTests:
             try:
                 result = await test_coro
                 results.append(result)
+                self.tb.scoreboard.record_test(test_name, result)
                 status = "PASS" if result else "FAIL"
                 self.log.info(f"{test_name}: {status}")
             except Exception as e:
                 self.log.error(f"{test_name} failed with exception: {e}")
                 results.append(False)
+                self.tb.scoreboard.record_test(test_name, False)
 
         passed = sum(results)
         total = len(results)

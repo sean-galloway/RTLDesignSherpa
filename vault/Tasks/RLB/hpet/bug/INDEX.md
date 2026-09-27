@@ -12,16 +12,17 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
 
 - **BUG-000** — reserved template; copy the file, do not file against it.
-- **BUG-002** — the HPET report's `timer_functionality_verified` and `total_tests_run` can never be true: `add_timer_event()` is never called and `tests_run` is never set
 
 ## Closed
+
+- **BUG-002** — the HPET report's `timer_functionality_verified` and `total_tests_run` could never be true (fixed: real per-subtest counts, and a timer event recorded on each rising timer_irq; 25/25 at FULL, 4/4 at GATE)
 
 - **BUG-001** — 8-timer non-CDC "All Timers Stress" timeout: NOT REPRODUCIBLE, both configs pass 4/4; the `timeout = 50000` it told us to bump does not exist
