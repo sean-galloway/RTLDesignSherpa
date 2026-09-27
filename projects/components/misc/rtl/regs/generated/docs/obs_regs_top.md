@@ -317,7 +317,7 @@ Don't override. Generated from: $root
 
 #### METRIC field
 
-<p>Metric id. AGGREGATE (per tap): 0=productive, 1=backpressure, 2=starvation, 3=idle. PER CHANNEL (uses CHANNEL): 4=productive, 5=backpressure, 6=starvation, 7=idle, 8=overflow. HISTOGRAM: 9=bin (NOT YET READABLE - the bin is chosen by the i_hist_bin input port, so BIN here is accepted and ignored and this reads 0), 10=total. Any other value reads 0.</p>
+<p>Metric id. AGGREGATE (per tap): 0=productive, 1=backpressure, 2=starvation, 3=idle. PER CHANNEL (uses CHANNEL): 4=productive, 5=backpressure, 6=starvation, 7=idle, 8=overflow. AXIS OBSERVER ONLY: 11=bytes[31:0], 12=bytes[63:32], 13=beats, 14=packets (axis_bus_meter), 15=tap events dropped, 16=tap packets closed; IS_WRITE must be 0 there. HISTOGRAM: 9=bin (NOT YET READABLE - the bin is chosen by the i_hist_bin input port, so BIN here is accepted and ignored and this reads 0), 10=total. Any other value reads 0.</p>
 
 #### IS_WRITE field
 
@@ -415,7 +415,8 @@ Don't override. Generated from: $root
 - Base Offset: 0x90
 - Size: 0x4
 
-<p>Per-cone runtime enables for the rd/wr monitors. Gated by the build-time cones in OBS_CAPS0.</p>
+<p>Per-cone runtime enables for the rd/wr monitors. Gated by the build-time cones in OBS_CAPS0.
+On axis4_intf_observer the same bits gate the AXIS classes: [3] Credit, [4] Stream, [5] Channel; [6] is inert (a stream has no address).</p>
 
 |Bits|  Identifier |Access|Reset|Name|
 |----|-------------|------|-----|----|
@@ -484,7 +485,7 @@ becomes the bottleneck and reports its own limit as the engine's throughput.</p>
 - Base Offset: 0x98
 - Size: 0x4
 
-<p>Latency above which a THRESHOLD packet is raised</p>
+<p>Latency above which a THRESHOLD packet is raised. On axis4_intf_observer: the stall length in CYCLES above which a Credit/BACKPRESSURE packet is raised (AXIS has no Threshold class)</p>
 
 |Bits|Identifier|Access| Reset|Name|
 |----|----------|------|------|----|
@@ -621,7 +622,9 @@ becomes the bottleneck and reports its own limit as the engine's throughput.</p>
 <p>Build-time feature bits, packed. Wide single fields on purpose: see the CAPS PACKING note above.
 [0] ERROR_CONE  [1] TIMEOUT_CONE [2] COMPL_CONE  [3] THRESHOLD_CONE
 [4] PERF_CONE   [5] DEBUG_CONE   [6] MON_TAPS_ARMED [7] BUS_METER
-[8] COMPRESSION [9] EGRESS_AXIL  [10] ID_SLICE   [15:12] N_ADDR_RANGES</p>
+[8] COMPRESSION [9] EGRESS_AXIL  [10] ID_SLICE   [15:12] N_ADDR_RANGES.
+On axis4_intf_observer bits [5:0] name the AXIS classes MON_CTRL[5:0] gate:
+[3] CREDIT_CONE [4] STREAM_CONE [5] CHANNEL_CONE; [10] and [15:12] read 0.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
@@ -634,7 +637,8 @@ becomes the bottleneck and reports its own limit as the engine's throughput.</p>
 - Size: 0x4
 
 <p>Tap geometry, packed.
-[7:0] NUM_RD_PORTS [15:8] NUM_WR_PORTS [23:16] NUM_CHANNELS (per tap) [31:24] CH_BASE</p>
+[7:0] NUM_RD_PORTS [15:8] NUM_WR_PORTS [23:16] NUM_CHANNELS (per tap) [31:24] CH_BASE.
+On axis4_intf_observer: [7:0] NUM_PORTS, [15:8] reads 0, [31:24] reads 0.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
@@ -647,7 +651,8 @@ becomes the bottleneck and reports its own limit as the engine's throughput.</p>
 - Size: 0x4
 
 <p>Transaction-table sizing, packed.
-[15:0] MAX_TRANSACTIONS [23:16] NUM_BANKS [31:24] ADDR_WIDTH</p>
+[15:0] MAX_TRANSACTIONS [23:16] NUM_BANKS [31:24] ADDR_WIDTH.
+On axis4_intf_observer (no transaction table): [15:0] DATA_WIDTH [23:16] AXIS_ID_WIDTH [31:24] ADDR_WIDTH</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
