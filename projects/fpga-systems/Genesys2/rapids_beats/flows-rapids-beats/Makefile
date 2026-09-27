@@ -88,6 +88,13 @@ export RAPIDS_NUM_CHANNELS := $(CHANNELS)
 # to close 8-channel timing. Turn them on to MEASURE what the monitors cost.
 export USE_AXI_MONITORS ?= 0
 export GEN_MON          ?= 0
+# USE_OBSERVERS:       shared axi4_intf_master_observer + axis4_intf_observer on
+#                      the harness's data ports, on their own APB window
+#                      (REGION_OBS). Default OUT: the bitstream is unchanged.
+# OBS_ENABLE_MON_TAPS: arm the observers' monbus event taps (meters and
+#                      histograms count without them).
+export USE_OBSERVERS       ?= 0
+export OBS_ENABLE_MON_TAPS ?= 0
 
 .PHONY: help sim verify-sim project synth bitstream program characterize \
         smoke suite flow utilization timing clean clean-all cleanall
@@ -109,6 +116,7 @@ help:
 	@echo ""
 	@echo "  CHANNELS=$(CHANNELS) ACTIVE=$(ACTIVE) BEATS=$(BEATS) PORT=$(PORT)"
 	@echo "  USE_AXI_MONITORS=$(USE_AXI_MONITORS) GEN_MON=$(GEN_MON)   (both 0: monitors compiled out)"
+	@echo "  USE_OBSERVERS=$(USE_OBSERVERS) OBS_ENABLE_MON_TAPS=$(OBS_ENABLE_MON_TAPS)   (both 0: observers compiled out)"
 
 # ---- Simulation -----------------------------------------------------------
 # The harness self-check IS the characterization, run in sim: a multi-channel

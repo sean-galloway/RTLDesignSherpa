@@ -144,6 +144,9 @@ module rapids_char_top #(
     // STREAM's builds export -- to measure what the monitors cost.
     parameter int USE_AXI_MONITORS = 0,
     parameter bit GEN_MON          = 1'b0,
+    // Shared interface observers on the harness (rapids TASK-001), default OUT.
+    parameter bit USE_OBSERVERS       = 1'b0,
+    parameter bit OBS_ENABLE_MON_TAPS = 1'b0,
     // Descriptor RAM depth per half. Shrunk from the harness default (2048)
     // to fit the 100T BRAM budget; bump for deeper descriptor chains.
     parameter int SRAM_DEPTH    = 256,   // sink/source data-buffer depth (board-fit; sim default is deeper)
@@ -214,6 +217,8 @@ module rapids_char_top #(
         .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS (USE_AXI_MONITORS),
         .GEN_MON          (GEN_MON),
+        .USE_OBSERVERS       (USE_OBSERVERS),
+        .OBS_ENABLE_MON_TAPS (OBS_ENABLE_MON_TAPS),
         .FPGA_CLK_HZ      (FPGA_CLK_HZ),
         .UART_BAUD        (UART_BAUD)
     ) u_harness (

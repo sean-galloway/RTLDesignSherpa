@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 7 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 5 | done (kept for history) |
+| [active/](active/) | 1 | in progress right now |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
@@ -27,9 +27,12 @@ by construction rather than by discipline.
 - **TASK-010** — 26 ASCII placeholder figures name dead signals; 2 figures have no test to capture from
 - **TASK-011** — 15 rapids .sv files carry a `// Module:` header that contradicts their own filename
 
+## Active
+
+- **TASK-001** — adopt the shared instrumentation pair (axi4_intf_master_observer + axis4_intf_observer); reopened 2026-09-27 on the lite cost basis
+
 ## Closed
 
-- **TASK-001** — adopt the shared instrumentation pair (axi4_intf_master_observer + dma_slave_monitors)
 - **TASK-002** — RAPIDS-beats has NO contracts workbook at all
 - **TASK-004** — Register-map hygiene enforced in RAPIDS DV
 - **TASK-005** — one RTL harness -- move the host path down so verify-sim can reach it

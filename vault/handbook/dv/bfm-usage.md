@@ -222,3 +222,33 @@ this hazard, and a test that needs a stall asks the BFM for one
 (`ready_policy`) rather than driving the pin. There is no "must hand-drive"
 case; if the BFM lacks a control the test needs, the fix is in the BFM.
 
+
+## A BFM walks every top-level handle when it binds (2026-09-27)
+
+`SignalResolver` (every GAXI-derived BFM: AXIS, GAXI, the AXI4 channels) calls
+`get_top_level_ports(dut)` before it resolves anything, and that helper reads
+`.value` on EVERY child of the DUT handle to decide whether it is a signal.
+Under Verilator, cocotb's `.value` on a 2-D unpacked array raises
+`IndexError: unknown(GPI_ARRAY) contains no object at index -1`, which the
+helper does not catch -- so a top-level module that declares
+`logic [15:0] x [NUM_PORTS][NUM_CHANNELS]` cannot have an AXIS master bound to
+it at all, whatever the pin names. `axis4_intf_observer` hit it on its first
+build; `axi4_intf_master_observer` declares the same shape and never did,
+because its TB binds only `APBMaster`, which does not walk.
+
+The fix is in the RTL, and it is the right shape anyway: pack what a TB may
+need to read (`logic [NUM_PORTS-1:0][NUM_CHANNELS-1:0][15:0] x`) and keep
+1-D unpacked arrays for what a shared submodule insists on, bridged inside a
+generate block where the walk does not look. The companion trap in the same
+build: a test compile has no `-Wno-fatal`, so a parameter-degenerate shape a
+lint run merely reports (`monbus_arbiter` at `CLIENTS=1` sizes its grant id
+`[-1:0]`, ASCRANGE) stops the build. Pad the degenerate case
+(`ARB_CLIENTS = max(2, NUM_PORTS)`) rather than waive the warning.
+
+One more line on the rule above ("there is no must-hand-drive case"): a
+PROTOCOL VIOLATION is the one stimulus a compliant BFM cannot emit. The AXIS
+observer's `AXIS_ERR_VALID_TIMING` (TVALID withdrawn before the handshake) is
+driven on the pins in one helper that says so, with the BFM idle around it.
+The proper home for that is an injection control on `AXISMaster` in RDS-DV;
+until it exists, keep such a helper to one place, name the violation in it,
+and never let it touch a pin the BFM is mid-transaction on.

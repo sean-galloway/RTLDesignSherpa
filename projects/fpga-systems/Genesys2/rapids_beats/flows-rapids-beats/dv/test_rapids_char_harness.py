@@ -131,6 +131,10 @@ def _run_harness(testcase, test_name):
         'SRAM_DEPTH': 512,
         'APB_ADDR_WIDTH': 13,
         'APB_DATA_WIDTH': 32,
+        # Shared interface observers (rapids TASK-001). Default OUT, as on the
+        # board; TEST_USE_OBSERVERS=1 builds them so verify-sim covers that flavour.
+        'USE_OBSERVERS': int(os.environ.get('TEST_USE_OBSERVERS', '0')),
+        'OBS_ENABLE_MON_TAPS': int(os.environ.get('TEST_OBS_ENABLE_MON_TAPS', '0')),
     }
 
     extra_env = {

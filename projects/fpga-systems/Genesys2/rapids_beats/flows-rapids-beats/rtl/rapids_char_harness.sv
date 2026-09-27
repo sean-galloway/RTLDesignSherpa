@@ -69,6 +69,14 @@ module rapids_char_harness #(
     // STREAM's builds export -- to measure what the monitors cost.
     parameter int USE_AXI_MONITORS = 0,
     parameter bit GEN_MON          = 1'b0,
+    // Shared interface observers beside the DUT's data ports (rapids TASK-001):
+    // axi4_intf_master_observer on the rd/wr data masters, axis4_intf_observer
+    // on s_axis/m_axis. Both own their config through REGION_OBS and are
+    // compiled OUT by default, so the characterization bitstream is unchanged.
+    // OBS_ENABLE_MON_TAPS arms their monbus event taps (stream's knob name);
+    // their meters and latency histograms count regardless.
+    parameter bit USE_OBSERVERS       = 1'b0,
+    parameter bit OBS_ENABLE_MON_TAPS = 1'b0,
     // ---- Host interface (relocated from rapids_char_top) ----
     parameter int FPGA_CLK_HZ     = 100_000_000,
     parameter int UART_BAUD       = 115_200
@@ -146,6 +154,10 @@ module rapids_char_harness #(
     localparam logic [3:0] REGION_APB  = 4'h0;
     localparam logic [3:0] REGION_DESC = 4'h1;
     localparam logic [3:0] REGION_CSR  = 4'h2;
+    // Observer APB window (USE_OBSERVERS=1): paddr[12]=0 -> the AXI observer,
+    // paddr[12]=1 -> the AXIS observer, each a 4 KB obs_regs map. Without
+    // observers the window reads 0 with PSLVERR so the host can tell.
+    localparam logic [3:0] REGION_OBS  = 4'h3;
 
     // DESC-LOAD offsets
     localparam logic [11:0] DESC_ADDR_OFF   = 12'h020;
@@ -274,6 +286,14 @@ module rapids_char_harness #(
     logic [APB_DATA_WIDTH-1:0]     s_apb_pwdata, s_apb_prdata;
     logic [(APB_DATA_WIDTH/8)-1:0] s_apb_pstrb;
     logic                          s_apb_pready, s_apb_pslverr;
+    // The one apb4_master fans out by region: the DUT owns REGION_APB and every
+    // kick; the observers own REGION_OBS (see w_apb_tgt_obs).
+    logic                          dut_apb_psel, dut_apb_pready, dut_apb_pslverr;
+    logic [APB_DATA_WIDTH-1:0]     dut_apb_prdata;
+    logic                          obs_axi_psel, obs_axi_pready, obs_axi_pslverr;
+    logic [APB_DATA_WIDTH-1:0]     obs_axi_prdata;
+    logic                          obs_axis_psel, obs_axis_pready, obs_axis_pslverr;
+    logic [APB_DATA_WIDTH-1:0]     obs_axis_prdata;
 
     logic                       gen_busy, gen_done;
     logic [NUM_CHANNELS-1:0][31:0] o_gen_expected_crc;
@@ -417,6 +437,7 @@ module rapids_char_harness #(
                 WST_ACT: begin
                     case (w_wregion)
                         REGION_APB: r_wstate <= WST_APB;
+                        REGION_OBS: r_wstate <= WST_APB;
                         REGION_DESC: begin
                             if (w_woff == DESC_KICK_OFF) begin
                                 r_desc_half   <= r_wdata[0];
@@ -649,7 +670,7 @@ module rapids_char_harness #(
                     end
                 end
                 RST_ACT: begin
-                    if (w_rregion == REGION_APB) begin
+                    if (w_rregion == REGION_APB || w_rregion == REGION_OBS) begin
                         r_rstate <= RST_APB;
                     end else begin
                         r_rdata  <= w_readmux;
@@ -798,6 +819,22 @@ module rapids_char_harness #(
     assign apb_cmd_pwdata = w_kick_active ? w_kick_pwdata : r_wdata;
     assign apb_cmd_pstrb  = w_kick_active ? 4'hF : (w_apb_active ? r_wstrb : 4'hF);
     assign apb_rsp_ready  = w_kick_active ? 1'b1 : (w_apb_active || r_apb_active);
+
+    // ---- APB target select: DUT (REGION_APB, and every kick) vs observers.
+    // r_waddr / r_raddr hold for the whole APB transfer, so the region nibble
+    // is stable while the master runs the cycle.
+    wire w_apb_tgt_obs = !w_kick_active
+                       && (w_apb_active ? (w_wregion == REGION_OBS)
+                                        : (w_rregion == REGION_OBS));
+    assign dut_apb_psel  = s_apb_psel && !w_apb_tgt_obs;
+    assign obs_axi_psel  = s_apb_psel &&  w_apb_tgt_obs && !s_apb_paddr[12];
+    assign obs_axis_psel = s_apb_psel &&  w_apb_tgt_obs &&  s_apb_paddr[12];
+    assign s_apb_prdata  = !w_apb_tgt_obs   ? dut_apb_prdata
+                         : s_apb_paddr[12]  ? obs_axis_prdata : obs_axi_prdata;
+    assign s_apb_pready  = !w_apb_tgt_obs   ? dut_apb_pready
+                         : s_apb_paddr[12]  ? obs_axis_pready : obs_axi_pready;
+    assign s_apb_pslverr = !w_apb_tgt_obs   ? dut_apb_pslverr
+                         : s_apb_paddr[12]  ? obs_axis_pslverr : obs_axi_pslverr;
 
     // =========================================================================
     // Descriptor-load AXI4 single-beat write payload (shared by SRC/SNK)
@@ -1153,14 +1190,14 @@ module rapids_char_harness #(
 
         // APB
         .s_apb_paddr   (s_apb_paddr),
-        .s_apb_psel    (s_apb_psel),
+        .s_apb_psel    (dut_apb_psel),
         .s_apb_penable (s_apb_penable),
         .s_apb_pwrite  (s_apb_pwrite),
         .s_apb_pwdata  (s_apb_pwdata),
         .s_apb_pstrb   (s_apb_pstrb),
-        .s_apb_prdata  (s_apb_prdata),
-        .s_apb_pready  (s_apb_pready),
-        .s_apb_pslverr (s_apb_pslverr),
+        .s_apb_prdata  (dut_apb_prdata),
+        .s_apb_pready  (dut_apb_pready),
+        .s_apb_pslverr (dut_apb_pslverr),
 
         // SOURCE descriptor master
         .src_m_axi_desc_arid    (src_desc_arid),
@@ -1962,5 +1999,248 @@ module rapids_char_harness #(
         .o_agg_bytes(obs_sout_bytes), .o_agg_beats(), .o_agg_packets(obs_sout_packets),
         .o_ch_productive(sot_ch_p), .o_ch_backpressure(sot_ch_b),
         .o_ch_starvation(sot_ch_s), .o_ch_idle(sot_ch_i), .o_ch_overflow(sot_ch_o));
+
+    //=========================================================================
+    // Shared interface observers (USE_OBSERVERS=1) -- rapids TASK-001.
+    //   u_obs_axi  : axi4_intf_master_observer on the rd/wr data masters
+    //   u_obs_axis : axis4_intf_observer, port 0 = s_axis (sink ingress),
+    //                port 1 = m_axis (source egress)
+    // Passive taps on the same wires the bare meters above watch. They own
+    // their config through REGION_OBS and dump their monbus stream into an
+    // always-accept AXIL responder (the treatment m_axil_mon_* gets). The bare
+    // meters and their CSRs stay: the host tools read those.
+    //=========================================================================
+    generate
+    if (USE_OBSERVERS) begin : gen_obs
+        // rid -> channel map. rapids puts the channel id in the low ID bits
+        // (axi_read_engine_beats / axi_write_engine_beats), so the map is the
+        // identity over NUM_CHANNELS. Write attribution comes from awid inside
+        // the observer (WR_CH_FROM_AWID), so the sideband is tied idle.
+        logic [AXI_ID_WIDTH-1:0] obs_rid_map   [1][NUM_CHANNELS];
+        logic                    obs_rid_valid [1][NUM_CHANNELS];
+        logic [CIW-1:0]          obs_wr_ch_id  [1];
+        logic                    obs_wr_ch_vld [1];
+        for (genvar oc = 0; oc < NUM_CHANNELS; oc = oc + 1) begin : g_rid_map
+            assign obs_rid_map[0][oc]   = AXI_ID_WIDTH'(oc);
+            assign obs_rid_valid[0][oc] = 1'b1;
+        end
+        assign obs_wr_ch_id[0]  = '0;
+        assign obs_wr_ch_vld[0] = 1'b0;
+
+        // Egress responders: aw/w accepted every cycle, one OKAY B per pair.
+        logic        oa_awvalid, oa_wvalid, oa_bvalid, oa_bready;
+        logic        ox_awvalid, ox_wvalid, ox_bvalid, ox_bready;
+        logic [15:0] r_oa_aw_cnt, r_oa_w_cnt, r_oa_b_cnt;
+        logic [15:0] r_ox_aw_cnt, r_ox_w_cnt, r_ox_b_cnt;
+        assign oa_bvalid = (r_oa_aw_cnt != r_oa_b_cnt) && (r_oa_w_cnt != r_oa_b_cnt);
+        assign ox_bvalid = (r_ox_aw_cnt != r_ox_b_cnt) && (r_ox_w_cnt != r_ox_b_cnt);
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn)) begin
+                r_oa_aw_cnt <= '0; r_oa_w_cnt <= '0; r_oa_b_cnt <= '0;
+                r_ox_aw_cnt <= '0; r_ox_w_cnt <= '0; r_ox_b_cnt <= '0;
+            end else begin
+                if (oa_awvalid)             r_oa_aw_cnt <= r_oa_aw_cnt + 16'd1;
+                if (oa_wvalid)              r_oa_w_cnt  <= r_oa_w_cnt  + 16'd1;
+                if (oa_bvalid && oa_bready) r_oa_b_cnt  <= r_oa_b_cnt  + 16'd1;
+                if (ox_awvalid)             r_ox_aw_cnt <= r_ox_aw_cnt + 16'd1;
+                if (ox_wvalid)              r_ox_w_cnt  <= r_ox_w_cnt  + 16'd1;
+                if (ox_bvalid && ox_bready) r_ox_b_cnt  <= r_ox_b_cnt  + 16'd1;
+            end
+        )
+
+        axi4_intf_master_observer #(
+            .NUM_RD_PORTS             (1),
+            .NUM_WR_PORTS             (1),
+            .ADDR_WIDTH               (ADDR_WIDTH),
+            .DATA_WIDTH               (DATA_WIDTH),
+            .AXI_ID_WIDTH             (AXI_ID_WIDTH),
+            .AXI_USER_WIDTH           (1),
+            .EGRESS_AXIL              (1'b1),
+            // NUM_CHANNELS x 8 outstanding: coverage, never throughput (lite taps)
+            .MAX_TRANSACTIONS         (64),
+            .ACLK_MHZ                 (100),
+            .ENABLE_MON_TAPS          (OBS_ENABLE_MON_TAPS),
+            .TAP_ENABLE_ERROR_LOGIC   (OBS_ENABLE_MON_TAPS),
+            .TAP_ENABLE_TIMEOUT_LOGIC (OBS_ENABLE_MON_TAPS),
+            .TAP_ENABLE_COMPL_LOGIC   (OBS_ENABLE_MON_TAPS),
+            .APB_ADDR_WIDTH           (12),
+            .N_ADDR_RANGES            (0),
+            .ENABLE_BUS_METER         (1'b1),
+            .WR_CH_FROM_AWID          (1'b1),
+            .NUM_CHANNELS             (NUM_CHANNELS),
+            .ENABLE_LATENCY_HIST      (1'b1),
+            .HIST_MAX_OUTSTANDING     (8)
+        ) u_obs_axi (
+            .aclk            (aclk),
+            .aresetn         (aresetn),
+            .s_apb_psel      (obs_axi_psel),
+            .s_apb_penable   (s_apb_penable),
+            .s_apb_pready    (obs_axi_pready),
+            .s_apb_paddr     (s_apb_paddr[11:0]),
+            .s_apb_pwrite    (s_apb_pwrite),
+            .s_apb_pwdata    (s_apb_pwdata),
+            .s_apb_pstrb     (s_apb_pstrb),
+            .s_apb_prdata    (obs_axi_prdata),
+            .s_apb_pslverr   (obs_axi_pslverr),
+            .cam_clear       (cam_clear),
+            .obs_rd_arid     (rd_arid),
+            .obs_rd_araddr   (rd_araddr),
+            .obs_rd_arlen    (rd_arlen),
+            .obs_rd_arsize   (rd_arsize),
+            .obs_rd_arburst  (rd_arburst),
+            .obs_rd_arlock   (1'b0),
+            .obs_rd_arcache  (4'h0),
+            .obs_rd_arprot   (3'h0),
+            .obs_rd_arqos    (4'h0),
+            .obs_rd_arregion (4'h0),
+            .obs_rd_aruser   (1'b0),
+            .obs_rd_arvalid  (rd_arvalid),
+            .obs_rd_arready  (rd_arready),
+            .obs_rd_rid      (rd_rid),
+            .obs_rd_rdata    (rd_rdata),
+            .obs_rd_rresp    (rd_rresp),
+            .obs_rd_rlast    (rd_rlast),
+            .obs_rd_ruser    (1'b0),
+            .obs_rd_rvalid   (rd_rvalid),
+            .obs_rd_rready   (rd_rready),
+            .obs_wr_awid     (wr_awid),
+            .obs_wr_awaddr   (wr_awaddr),
+            .obs_wr_awlen    (wr_awlen),
+            .obs_wr_awsize   (wr_awsize),
+            .obs_wr_awburst  (wr_awburst),
+            .obs_wr_awlock   (wr_awlock),
+            .obs_wr_awcache  (wr_awcache),
+            .obs_wr_awprot   (wr_awprot),
+            .obs_wr_awqos    (wr_awqos),
+            .obs_wr_awregion (wr_awregion),
+            .obs_wr_awuser   (1'b0),
+            .obs_wr_awvalid  (wr_awvalid),
+            .obs_wr_awready  (wr_awready),
+            .obs_wr_wdata    (wr_wdata),
+            .obs_wr_wstrb    (wr_wstrb),
+            .obs_wr_wlast    (wr_wlast),
+            .obs_wr_wuser    (1'b0),
+            .obs_wr_wvalid   (wr_wvalid),
+            .obs_wr_wready   (wr_wready),
+            .obs_wr_bid      (wr_bid),
+            .obs_wr_bresp    (wr_bresp),
+            .obs_wr_buser    (1'b0),
+            .obs_wr_bvalid   (wr_bvalid),
+            .obs_wr_bready   (wr_bready),
+            // err-FIFO drain quiesced; irq unread (OBS_FIFO_STAT says what is owed)
+            .s_axil_arvalid  (1'b0),
+            .s_axil_arready  (),
+            .s_axil_araddr   ('0),
+            .s_axil_arprot   (3'h0),
+            .s_axil_rvalid   (),
+            .s_axil_rready   (1'b1),
+            .s_axil_rdata    (),
+            .s_axil_rresp    (),
+            // AXI4 dump master unused (EGRESS_AXIL=1)
+            .m_axi_awid      (), .m_axi_awaddr (), .m_axi_awlen (), .m_axi_awsize (),
+            .m_axi_awburst   (), .m_axi_awlock (), .m_axi_awcache (), .m_axi_awprot (),
+            .m_axi_awqos     (), .m_axi_awregion (), .m_axi_awuser (), .m_axi_awvalid (),
+            .m_axi_awready   (1'b0),
+            .m_axi_wdata     (), .m_axi_wstrb (), .m_axi_wlast (), .m_axi_wuser (),
+            .m_axi_wvalid    (), .m_axi_wready (1'b0),
+            .m_axi_bid       ('0), .m_axi_bresp (2'b00), .m_axi_buser (1'b0),
+            .m_axi_bvalid    (1'b0), .m_axi_bready (),
+            .m_axil_awvalid  (oa_awvalid),
+            .m_axil_awready  (1'b1),
+            .m_axil_awaddr   (),
+            .m_axil_awprot   (),
+            .m_axil_wvalid   (oa_wvalid),
+            .m_axil_wready   (1'b1),
+            .m_axil_wdata    (),
+            .m_axil_wstrb    (),
+            .m_axil_bvalid   (oa_bvalid),
+            .m_axil_bready   (oa_bready),
+            .m_axil_bresp    (2'b00),
+            .irq_out         (),
+            .i_meter_clear   (obs_meter_clear),
+            .i_meter_freeze  (obs_meter_freeze),
+            .cfg_rd_rid_per_channel       (obs_rid_map),
+            .cfg_rd_rid_per_channel_valid (obs_rid_valid),
+            .obs_wr_active_ch_id          (obs_wr_ch_id),
+            .obs_wr_active_ch_valid       (obs_wr_ch_vld)
+        );
+
+        axis4_intf_observer #(
+            .NUM_PORTS                (2),
+            .DATA_WIDTH               (DATA_WIDTH),
+            .AXIS_ID_WIDTH            (AXIS_ID_WIDTH),
+            .AXIS_DEST_WIDTH          (AXIS_DEST_WIDTH),
+            .AXIS_USER_WIDTH          (AXIS_USER_WIDTH),
+            .ADDR_WIDTH               (32),
+            .EGRESS_AXIL              (1'b1),
+            .ACLK_MHZ                 (100),
+            .ENABLE_MON_TAPS          (OBS_ENABLE_MON_TAPS),
+            .TAP_ENABLE_ERROR_LOGIC   (OBS_ENABLE_MON_TAPS),
+            .TAP_ENABLE_TIMEOUT_LOGIC (OBS_ENABLE_MON_TAPS),
+            .TAP_ENABLE_COMPL_LOGIC   (OBS_ENABLE_MON_TAPS),
+            .APB_ADDR_WIDTH           (12),
+            .NUM_CHANNELS             (NUM_CHANNELS)     // tid carries the channel id
+        ) u_obs_axis (
+            .aclk            (aclk),
+            .aresetn         (aresetn),
+            .s_apb_psel      (obs_axis_psel),
+            .s_apb_penable   (s_apb_penable),
+            .s_apb_pready    (obs_axis_pready),
+            .s_apb_paddr     (s_apb_paddr[11:0]),
+            .s_apb_pwrite    (s_apb_pwrite),
+            .s_apb_pwdata    (s_apb_pwdata),
+            .s_apb_pstrb     (s_apb_pstrb),
+            .s_apb_prdata    (obs_axis_prdata),
+            .s_apb_pslverr   (obs_axis_pslverr),
+            .cam_clear       (cam_clear),
+            .obs_axis_tdata  ({m_axis_tdata,  s_axis_tdata}),
+            .obs_axis_tstrb  ({m_axis_tstrb,  s_axis_tstrb}),
+            .obs_axis_tlast  ({m_axis_tlast,  s_axis_tlast}),
+            .obs_axis_tid    ({m_axis_tid,    s_axis_tid}),
+            .obs_axis_tdest  ({m_axis_tdest,  s_axis_tdest}),
+            .obs_axis_tuser  ({m_axis_tuser,  s_axis_tuser}),
+            .obs_axis_tvalid ({m_axis_tvalid, s_axis_tvalid}),
+            .obs_axis_tready ({m_axis_tready, s_axis_tready}),
+            .s_axil_arvalid  (1'b0),
+            .s_axil_arready  (),
+            .s_axil_araddr   ('0),
+            .s_axil_arprot   (3'h0),
+            .s_axil_rvalid   (),
+            .s_axil_rready   (1'b1),
+            .s_axil_rdata    (),
+            .s_axil_rresp    (),
+            .m_axi_awid      (), .m_axi_awaddr (), .m_axi_awlen (), .m_axi_awsize (),
+            .m_axi_awburst   (), .m_axi_awlock (), .m_axi_awcache (), .m_axi_awprot (),
+            .m_axi_awqos     (), .m_axi_awregion (), .m_axi_awuser (), .m_axi_awvalid (),
+            .m_axi_awready   (1'b0),
+            .m_axi_wdata     (), .m_axi_wstrb (), .m_axi_wlast (), .m_axi_wuser (),
+            .m_axi_wvalid    (), .m_axi_wready (1'b0),
+            .m_axi_bid       ('0), .m_axi_bresp (2'b00), .m_axi_buser (1'b0),
+            .m_axi_bvalid    (1'b0), .m_axi_bready (),
+            .m_axil_awvalid  (ox_awvalid),
+            .m_axil_awready  (1'b1),
+            .m_axil_awaddr   (),
+            .m_axil_awprot   (),
+            .m_axil_wvalid   (ox_wvalid),
+            .m_axil_wready   (1'b1),
+            .m_axil_wdata    (),
+            .m_axil_wstrb    (),
+            .m_axil_bvalid   (ox_bvalid),
+            .m_axil_bready   (ox_bready),
+            .m_axil_bresp    (2'b00),
+            .irq_out         (),
+            .i_meter_clear   (obs_meter_clear),
+            .i_meter_freeze  (obs_meter_freeze)
+        );
+    end else begin : gen_no_obs
+        // No observers built: REGION_OBS reads 0 with PSLVERR so the host can tell.
+        assign obs_axi_prdata   = '0;
+        assign obs_axi_pready   = 1'b1;
+        assign obs_axi_pslverr  = 1'b1;
+        assign obs_axis_prdata  = '0;
+        assign obs_axis_pready  = 1'b1;
+        assign obs_axis_pslverr = 1'b1;
+    end
+    endgenerate
 
 endmodule : rapids_char_harness

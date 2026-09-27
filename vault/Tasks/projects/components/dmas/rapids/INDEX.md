@@ -31,7 +31,7 @@ appear in commit messages and handbook notes, so the map is kept:
 
 | Was | Is |
 |---|---|
-| `RAPIDS-OBS` | [TASK-001](task/closed/TASK-001.md) |
+| `RAPIDS-OBS` | [TASK-001](task/active/TASK-001.md) |
 | `RAPIDS-KMAP` | [TASK-002](task/closed/TASK-002.md) |
 | `TASK-080` | [TASK-003](task/open/TASK-003.md) |
 | `TASK-086` | [ISSUE-001](issue/open/ISSUE-001.md) |

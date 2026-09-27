@@ -46,7 +46,10 @@ module rapids_char_genesys2_top #(
     // via the USE_AXI_MONITORS / GEN_MON env generics -- the same knob names
     // STREAM's builds export -- to measure what the monitors cost.
     parameter int USE_AXI_MONITORS = 0,
-    parameter bit GEN_MON          = 1'b0
+    parameter bit GEN_MON          = 1'b0,
+    // Shared interface observers on the harness (rapids TASK-001), default OUT.
+    parameter bit USE_OBSERVERS       = 1'b0,
+    parameter bit OBS_ENABLE_MON_TAPS = 1'b0
 ) (
     input  logic        sysclk_p,      // 200 MHz LVDS (+)
     input  logic        sysclk_n,      // 200 MHz LVDS (-)
@@ -117,7 +120,9 @@ module rapids_char_genesys2_top #(
         .APB_DATA_WIDTH   (APB_DATA_WIDTH),
         .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS (USE_AXI_MONITORS),
-        .GEN_MON          (GEN_MON)
+        .GEN_MON          (GEN_MON),
+        .USE_OBSERVERS       (USE_OBSERVERS),
+        .OBS_ENABLE_MON_TAPS (OBS_ENABLE_MON_TAPS)
     ) u_char_top (
         .CLK100MHZ    (clk100),
         .CPU_RESETN   (dut_resetn),

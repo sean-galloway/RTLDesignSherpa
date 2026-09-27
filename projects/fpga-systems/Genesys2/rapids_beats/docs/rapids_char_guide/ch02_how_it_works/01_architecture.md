@@ -3,7 +3,7 @@
 ## The spine and region decode
 
 Host commands arrive over one UART link and are steered by the top 4 bits of the
-word address (`addr[19:16]`) into three regions:
+word address (`addr[19:16]`) into four regions:
 
 ### Figure 2.1: RAPIDS Characterization Harness Spine
 
@@ -16,6 +16,7 @@ word address (`addr[19:16]`) into three regions:
 | 0 — DUT-REG | 0x0_0000 | AXIL → `apb4_master` → the DUT's APB (SRC @ 0x0000, SNK @ 0x1000) |
 | 1 — DESC-LOAD | 0x1_0000 | 256-bit descriptor assembly + single-beat AXI4 write into descriptor RAM |
 | 2 — HARNESS CSR | 0x2_0000 | gen / chk / mem / mon / obs control + status readback |
+| 3 — OBSERVERS | 0x3_0000 | `USE_OBSERVERS=1` only: the shared interface observers' `obs_regs` maps, AXI observer @ 0x0000, AXIS observer @ 0x1000 (`paddr[12]`); reads 0 with PSLVERR when not built |
 
 : Host address regions
 
@@ -38,7 +39,18 @@ The DUT is `rapids_beats_top` (`u_dut`), from
 `projects/components/dmas/rapids/`. Two build-time overrides matter for the char
 build: `USE_AXI_MONITORS = 0` and `GEN_MON = 0` — the in-core AXI/descriptor
 monitors and MonBus egress are compiled **out** so utilization is metered
-externally and 8-channel timing closes.
+externally and 8-channel timing closes. Two more knobs, also default off, add
+the shared interface observers beside the DUT's data ports (rapids TASK-001):
+`USE_OBSERVERS = 1` builds `axi4_intf_master_observer` on the rd/wr data
+masters and `axis4_intf_observer` on `s_axis` / `m_axis` (port 0 sink ingress,
+port 1 source egress), each on its own 4 KB `obs_regs` window in region 3;
+`OBS_ENABLE_MON_TAPS = 1` arms their monbus event taps (the meters and latency
+histograms count without them). Their monbus egress lands in an always-accept
+responder, like the DUT's own; the bare `axi_bus_meter` / `axis_bus_meter`
+instances and the region-2 `OBS_*` CSRs the host tools read are unchanged.
+Measured 2026-09-27 (synth, 8ch, 100 MHz): the pair adds 10,943 LUTs as
+instruments and 18,733 with the taps armed over the 60,651-LUT bare build, and
+timing closes in every variant (+3.703 / +0.869 ns synth WNS vs +3.683).
 
 Because all data paths are on-chip, the board runs at line rate with no host
 bottleneck. The harness instantiates (all sharing LFSR `0xDEADBEEF`, taps

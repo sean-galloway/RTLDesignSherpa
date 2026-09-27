@@ -89,6 +89,14 @@ set use_axi_monitors 0
 if {[info exists ::env(USE_AXI_MONITORS)]} { set use_axi_monitors $::env(USE_AXI_MONITORS) }
 set gen_mon 0
 if {[info exists ::env(GEN_MON)]}          { set gen_mon $::env(GEN_MON) }
+# Shared interface observers on the harness (axi4_intf_master_observer +
+# axis4_intf_observer, rapids TASK-001) and their monbus event taps. Default
+# OUT so the characterization bitstream is unchanged; set USE_OBSERVERS=1 to
+# measure them, OBS_ENABLE_MON_TAPS=1 to add the taps.
+set use_observers 0
+if {[info exists ::env(USE_OBSERVERS)]}       { set use_observers $::env(USE_OBSERVERS) }
+set obs_enable_mon_taps 0
+if {[info exists ::env(OBS_ENABLE_MON_TAPS)]} { set obs_enable_mon_taps $::env(OBS_ENABLE_MON_TAPS) }
 
 puts "========================================================================"
 puts "RTL Design Sherpa — RAPIDS beats Characterization ($board_label)"
@@ -99,6 +107,8 @@ puts "Part / top:        $part_name / $top_name"
 puts "Row/col addressing: $row_col"
 puts "USE_AXI_MONITORS:  $use_axi_monitors"
 puts "GEN_MON:           $gen_mon"
+puts "USE_OBSERVERS:     $use_observers"
+puts "OBS_ENABLE_MON_TAPS: $obs_enable_mon_taps"
 puts "NUM_CHANNELS:      $num_channels"
 puts "SRAM_DEPTH:        $sram_depth"
 puts "DESC_RAM_ENTRIES:  $desc_ram_entries"
@@ -168,7 +178,7 @@ puts "Setting top module: $top_name"
 set_property top $top_name $src_fs
 
 # Narrow the board geometry + memory sizing via top-level generics (see header).
-set_property generic "NUM_CHANNELS=$num_channels SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col USE_AXI_MONITORS=$use_axi_monitors GEN_MON=$gen_mon" $src_fs
+set_property generic "NUM_CHANNELS=$num_channels SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col USE_AXI_MONITORS=$use_axi_monitors GEN_MON=$gen_mon USE_OBSERVERS=$use_observers OBS_ENABLE_MON_TAPS=$obs_enable_mon_taps" $src_fs
 
 update_compile_order -fileset sources_1
 
