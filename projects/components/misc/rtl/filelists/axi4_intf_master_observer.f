@@ -30,8 +30,8 @@ $REPO_ROOT/projects/components/misc/rtl/regs/generated/rtl/obs_regs_top.sv
 # The monitor taps and the latency histogram ARE this block's closure --
 # it does not compile without them. They were reached via the consuming
 # harness before, which meant this filelist could not stand alone.
--f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_mon.f
--f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_mon.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_monlite.f
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_monlite.f
 -f $REPO_ROOT/rtl/amba/filelists/axi_perf_latency_hist.f
 -f $REPO_ROOT/rtl/amba/filelists/axi_bus_meter.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f

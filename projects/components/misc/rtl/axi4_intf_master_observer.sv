@@ -14,7 +14,7 @@
 //
 //   Drop in between an AXI4-master DMA (any number of read / write
 //   master ports) and the fabric. Each (read, write) port pair gets
-//   wrapped by axi4_master_rd_mon / axi4_master_wr_mon in pass-through
+//   wrapped by axi4_master_rd_monlite / axi4_master_wr_monlite in pass-through
 //   mode. All N monbus streams are merged by monbus_arbiter and fed
 //   into monbus_axil4_axi4_group, exposing:
 //
@@ -27,7 +27,7 @@
 //   The DMA under test is not modified -- the observer sits inline
 //   on its AXI external pins. Same clock domain on both sides.
 //
-//   Each tap (axi4_master_{rd,wr}_mon) is a pure observer: it watches
+//   Each tap (axi4_master_{rd,wr}_monlite) is a pure observer: it watches
 //   its AXI4 bus and emits a monbus packet on every event match. All
 //   filtering of which packets ultimately reach the err FIFO or the
 //   write FIFO is done by the central monbus_group filter (one set of
@@ -108,19 +108,21 @@ module axi4_intf_master_observer
     // on integer indices (4/6/8/12) and stay tick-exact.
     parameter int CFI_MIN_FREQ_MHZ      = 60,
     parameter int CFI_MAX_FREQ_MHZ      = 135,
-    // Drives cfg_monitor_enable on the embedded axi4_master_{rd,wr}_mon taps.
+    // Drives cfg_monitor_enable on the embedded axi4_master_{rd,wr}_monlite taps.
     //
-    // This was hardwired to 1'b1, and that is what made the observer a
-    // THROTTLE: those wrappers gate the command channel on
-    //   ready = core_ready & (block_ready | ~cfg_monitor_enable)
-    // so an enabled tap backpressures the DMA at MAX_TRANSACTIONS. In a perf
-    // build that is self-defeating -- the instrument becomes the bottleneck and
-    // reports its own limit as the DMA's throughput.
+    // With the full monitor this parameter was a THROTTLE: the wrapper gated the
+    // command channel on ready = core_ready & (block_ready | ~cfg_monitor_enable),
+    // so an enabled tap backpressured the DMA at MAX_TRANSACTIONS and reported
+    // its own limit as the DMA's throughput. The lite never touches the traffic
+    // it watches: a command that finds no free table entry is REFUSED and
+    // counted (its beats then surface as ORPHAN errors, which name it), and an
+    // event the monbus cannot take is DROPPED and counted. Both counts feed
+    // OBS_STICKY.TAP_BLOCKED. So 1 costs no bandwidth at any MAX_TRANSACTIONS.
     //
-    // Set 0 for measurement-only builds: no blocking, no CAM pressure, and the
-    // latency histograms and bus meters (which live OUTSIDE this gate) keep
-    // counting. Set 1 when the error/completion monbus stream is wanted, and
-    // size MAX_TRANSACTIONS for the real concurrency if you do.
+    // Set 0 to compile the taps out for area; the latency histograms and bus
+    // meters live OUTSIDE this gate and keep counting either way. Size
+    // MAX_TRANSACTIONS for the real concurrency when the monbus stream matters:
+    // undersizing now costs COVERAGE (refused commands), never throughput.
     parameter bit ENABLE_MON_TAPS       = 1'b1,
 
     // ---- Track a SLICE of the channels on a shared bus ---------------------
@@ -479,8 +481,12 @@ module axi4_intf_master_observer
     // reaches the observed interface -- but a tap whose table is full
     // stops tracking, so this is the honesty flag for the coverage
     // numbers. See vault/Tasks/amba (AMBA-MONTRACK).
-    logic [NUM_RD_PORTS-1:0] obs_rd_block_ready;
-    logic [NUM_WR_PORTS-1:0] obs_wr_block_ready;
+    logic [NUM_RD_PORTS-1:0] obs_rd_tap_lost;          // per tap: refused a command or dropped an event (lite)
+    logic [15:0]           obs_rd_dropped [NUM_RD_PORTS];
+    logic [15:0]           obs_rd_refused [NUM_RD_PORTS];
+    logic [NUM_WR_PORTS-1:0] obs_wr_tap_lost;          // per tap: refused a command or dropped an event (lite)
+    logic [15:0]           obs_wr_dropped [NUM_WR_PORTS];
+    logic [15:0]           obs_wr_refused [NUM_WR_PORTS];
     // =======================================================================
     // Configuration: APB -> cmd/rsp -> passthrough regblock
     // Same chain as stream_top_ch8 and dma_slave_monitors. No cmdrsp_router:
@@ -718,8 +724,15 @@ module axi4_intf_master_observer
         (USE_COMPRESSION != 0),         // [8]
         ENABLE_BUS_METER,               // [7]
         ENABLE_MON_TAPS,                // [6]
-        TAP_ENABLE_DEBUG_LOGIC,         // [5]
-        TAP_ENABLE_PERF_LOGIC,          // [4]
+        // [5] DEBUG_CONE and [4] PERF_CONE read 0 REGARDLESS of TAP_ENABLE_*: the
+        // lite taps build neither cone (axi_monitor_lite drops perf packets/windows
+        // and debug state-change packets; axi_bus_meter + axi_perf_latency_hist are
+        // the perf path). Reporting the parameter here would advertise a cone that
+        // does not exist, and every consumer that derives its expected classes from
+        // OBS_CAPS0 -- this block's own all_classes test first -- would wait for
+        // packets that can never come.
+        1'b0,                           // [5] DEBUG_CONE: not built on the lite
+        1'b0,                           // [4] PERF_CONE:  not built on the lite
         TAP_ENABLE_THRESHOLD_LOGIC,     // [3]
         TAP_ENABLE_COMPL_LOGIC,         // [2]
         TAP_ENABLE_TIMEOUT_LOGIC,       // [1]
@@ -766,7 +779,7 @@ module axi4_intf_master_observer
     genvar gi;
     generate
         for (gi = 0; gi < NUM_RD_PORTS; gi = gi + 1) begin : gen_rd_mon
-            axi4_master_rd_mon #(
+            axi4_master_rd_monlite #(
                 .AXI_ID_WIDTH    (AXI_ID_WIDTH),
                 .AXI_ADDR_WIDTH  (ADDR_WIDTH),
                 .AXI_DATA_WIDTH  (DATA_WIDTH),
@@ -778,8 +791,6 @@ module axi4_intf_master_observer
                 .ACLK_MHZ        (ACLK_MHZ),
                 .CFI_MIN_FREQ_MHZ(CFI_MIN_FREQ_MHZ),
                 .CFI_MAX_FREQ_MHZ(CFI_MAX_FREQ_MHZ),
-                .NUM_BANKS       (NUM_BANKS),
-                .USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q),
                 // Own only this instance's channels: without this every
                 // parallel snooper allocates for ALL traffic and the split
                 // buys nothing.
@@ -787,13 +798,7 @@ module axi4_intf_master_observer
                 // TAP_ENABLE_* parameter block for why). Overridable per-instance
                 // so the dump-path unit test can enable completions.
                 .N_ADDR_RANGES          (N_ADDR_RANGES),
-                .ADDR_RANGE_IS_ERROR     (ADDR_RANGE_IS_ERROR),
-                .ENABLE_ERROR_LOGIC     (TAP_ENABLE_ERROR_LOGIC),
-                .ENABLE_TIMEOUT_LOGIC   (TAP_ENABLE_TIMEOUT_LOGIC),
-                .ENABLE_COMPL_LOGIC     (TAP_ENABLE_COMPL_LOGIC),
-                .ENABLE_THRESHOLD_LOGIC (TAP_ENABLE_THRESHOLD_LOGIC),
-                .ENABLE_PERF_LOGIC      (TAP_ENABLE_PERF_LOGIC),
-                .ENABLE_DEBUG_LOGIC     (TAP_ENABLE_DEBUG_LOGIC)
+                .ADDR_RANGE_IS_ERROR     (ADDR_RANGE_IS_ERROR)
             ) u_rd_mon (
                 .aclk    (aclk),
                 .aresetn (aresetn),
@@ -844,14 +849,11 @@ module axi4_intf_master_observer
                 .m_axi_rready(),
 
                 // Monitor enables (all-on default; expose later if needed)
-                .debug_block_ready    (obs_rd_block_ready[gi]),
                 .cfg_monitor_enable   (cfg_monitor_enable_w),
                 .cfg_error_enable     (cfg_error_enable_w),
                 .cfg_timeout_enable   (cfg_timeout_enable_w),
-                .cfg_perf_enable      (cfg_perf_enable_w),
                 .cfg_compl_enable     (cfg_compl_enable_w),
                 .cfg_threshold_enable (cfg_threshold_enable_w),
-                .cfg_debug_enable     (cfg_debug_enable_w),
                 .cfg_timeout_cycles   (cfg_timeout_cycles_w),
                 .cfg_freq_sel         (cfg_freq_sel),
                 .cfg_latency_threshold(cfg_latency_threshold_w),
@@ -859,25 +861,13 @@ module axi4_intf_master_observer
                 // Leaf filter masks tied to "let everything through";
                 // the monbus_group's central filter does the real work.
                 .cfg_axi_pkt_mask    (16'h0000),
-                .cfg_axi_err_select  (16'h0000),
-                .cfg_axi_error_mask  (16'h0000),
-                .cfg_axi_timeout_mask(16'h0000),
-                .cfg_axi_compl_mask  (16'h0000),
-                .cfg_axi_thresh_mask (16'h0000),
-                .cfg_axi_perf_mask   (16'h0000),
-                .cfg_axi_addr_mask   (16'h0000),
-                .cfg_axi_debug_mask  (16'h0000),
 
                 // Address-range / perf-window: disabled in v1
                 .cfg_addr_check_enable (cfg_addr_check_enable_w),
+                .cfg_addr_match_enable (cfg_debug_enable_w),  // lite: DEBUG_EN is the AddrMatch enable (axi_monitor_lite binds it to its cfg_debug_enable)
                 .cfg_addr_range_enable (cfg_addr_range_enable_w),
                 .cfg_addr_range_low    (cfg_addr_range_low_w),
                 .cfg_addr_range_high   (cfg_addr_range_high_w),
-                .cfg_start_event_sel   (cfg_start_event_sel_w),
-                .cfg_end_event_sel     (cfg_end_event_sel_w),
-                .cfg_start_trigger     (cfg_start_trigger_w),
-                .cfg_end_trigger       (cfg_end_trigger_w),
-                .cfg_window_force_close(cfg_window_force_close_w),
 
                 // Free-running timestamp loop-back
                 .i_mon_time      (mon_time_w),
@@ -893,18 +883,14 @@ module axi4_intf_master_observer
                 .active_transactions   (),
                 .error_count           (),
                 .transaction_count     (),
-                .window_active         (),
-                .window_cycles         (),
-                .perf_prod_cycles      (),
-                .perf_bp_cycles        (),
-                .perf_starv_cycles     (),
-                .perf_idle_cycles      (),
-                .perf_beat_count       (),
-                .perf_byte_count       (),
-                .perf_burst_count      (),
-                .cfg_conflict_error    ()
+                .dropped_count         (obs_rd_dropped[gi]),  // lite: events lost to monbus backpressure (counted, never stalled)
+                .refused_count         (obs_rd_refused[gi])  // lite: commands that found no free table entry
                 /* verilator lint_on PINCONNECTEMPTY */
             );
+            // TAP_BLOCKED source. The full monitor STALLED the bus (block_ready) when its
+            // table filled; the lite refuses the command and counts it, and counts events
+            // lost to monbus backpressure. Same condition, counted instead of stalled.
+            assign obs_rd_tap_lost[gi] = (obs_rd_dropped[gi] != 16'd0) | (obs_rd_refused[gi] != 16'd0);
         end
     endgenerate
 
@@ -913,7 +899,7 @@ module axi4_intf_master_observer
     // =================================================================
     generate
         for (gi = 0; gi < NUM_WR_PORTS; gi = gi + 1) begin : gen_wr_mon
-            axi4_master_wr_mon #(
+            axi4_master_wr_monlite #(
                 .AXI_ID_WIDTH    (AXI_ID_WIDTH),
                 .AXI_ADDR_WIDTH  (ADDR_WIDTH),
                 .AXI_DATA_WIDTH  (DATA_WIDTH),
@@ -925,8 +911,6 @@ module axi4_intf_master_observer
                 .ACLK_MHZ        (ACLK_MHZ),
                 .CFI_MIN_FREQ_MHZ(CFI_MIN_FREQ_MHZ),
                 .CFI_MAX_FREQ_MHZ(CFI_MAX_FREQ_MHZ),
-                .NUM_BANKS       (NUM_BANKS),
-                .USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q),
                 // Own only this instance's channels: without this every
                 // parallel snooper allocates for ALL traffic and the split
                 // buys nothing.
@@ -934,13 +918,7 @@ module axi4_intf_master_observer
                 // TAP_ENABLE_* parameter block). Overridable per-instance so the
                 // dump-path unit test can enable completions.
                 .N_ADDR_RANGES          (N_ADDR_RANGES),
-                .ADDR_RANGE_IS_ERROR     (ADDR_RANGE_IS_ERROR),
-                .ENABLE_ERROR_LOGIC     (TAP_ENABLE_ERROR_LOGIC),
-                .ENABLE_TIMEOUT_LOGIC   (TAP_ENABLE_TIMEOUT_LOGIC),
-                .ENABLE_COMPL_LOGIC     (TAP_ENABLE_COMPL_LOGIC),
-                .ENABLE_THRESHOLD_LOGIC (TAP_ENABLE_THRESHOLD_LOGIC),
-                .ENABLE_PERF_LOGIC      (TAP_ENABLE_PERF_LOGIC),
-                .ENABLE_DEBUG_LOGIC     (TAP_ENABLE_DEBUG_LOGIC)
+                .ADDR_RANGE_IS_ERROR     (ADDR_RANGE_IS_ERROR)
             ) u_wr_mon (
                 .aclk    (aclk),
                 .aresetn (aresetn),
@@ -996,37 +974,22 @@ module axi4_intf_master_observer
                 .m_axi_bvalid(obs_wr_bvalid[gi]),
                 .m_axi_bready(),
 
-                .debug_block_ready    (obs_wr_block_ready[gi]),
                 .cfg_monitor_enable   (cfg_monitor_enable_w),
                 .cfg_error_enable     (cfg_error_enable_w),
                 .cfg_timeout_enable   (cfg_timeout_enable_w),
-                .cfg_perf_enable      (cfg_perf_enable_w),
                 .cfg_compl_enable     (cfg_compl_enable_w),
                 .cfg_threshold_enable (cfg_threshold_enable_w),
-                .cfg_debug_enable     (cfg_debug_enable_w),
                 .cfg_timeout_cycles   (cfg_timeout_cycles_w),
                 .cfg_freq_sel         (cfg_freq_sel),
                 .cfg_latency_threshold(cfg_latency_threshold_w),
 
                 .cfg_axi_pkt_mask    (16'h0000),
-                .cfg_axi_err_select  (16'h0000),
-                .cfg_axi_error_mask  (16'h0000),
-                .cfg_axi_timeout_mask(16'h0000),
-                .cfg_axi_compl_mask  (16'h0000),
-                .cfg_axi_thresh_mask (16'h0000),
-                .cfg_axi_perf_mask   (16'h0000),
-                .cfg_axi_addr_mask   (16'h0000),
-                .cfg_axi_debug_mask  (16'h0000),
 
                 .cfg_addr_check_enable (cfg_addr_check_enable_w),
+                .cfg_addr_match_enable (cfg_debug_enable_w),  // lite: DEBUG_EN is the AddrMatch enable (axi_monitor_lite binds it to its cfg_debug_enable)
                 .cfg_addr_range_enable (cfg_addr_range_enable_w),
                 .cfg_addr_range_low    (cfg_addr_range_low_w),
                 .cfg_addr_range_high   (cfg_addr_range_high_w),
-                .cfg_start_event_sel   (cfg_start_event_sel_w),
-                .cfg_end_event_sel     (cfg_end_event_sel_w),
-                .cfg_start_trigger     (cfg_start_trigger_w),
-                .cfg_end_trigger       (cfg_end_trigger_w),
-                .cfg_window_force_close(cfg_window_force_close_w),
 
                 .i_mon_time      (mon_time_w),
 
@@ -1040,18 +1003,14 @@ module axi4_intf_master_observer
                 .active_transactions   (),
                 .error_count           (),
                 .transaction_count     (),
-                .window_active         (),
-                .window_cycles         (),
-                .perf_prod_cycles      (),
-                .perf_bp_cycles        (),
-                .perf_starv_cycles     (),
-                .perf_idle_cycles      (),
-                .perf_beat_count       (),
-                .perf_byte_count       (),
-                .perf_burst_count      (),
-                .cfg_conflict_error    ()
+                .dropped_count         (obs_wr_dropped[gi]),  // lite: events lost to monbus backpressure (counted, never stalled)
+                .refused_count         (obs_wr_refused[gi])  // lite: commands that found no free table entry
                 /* verilator lint_on PINCONNECTEMPTY */
             );
+            // TAP_BLOCKED source. The full monitor STALLED the bus (block_ready) when its
+            // table filled; the lite refuses the command and counts it, and counts events
+            // lost to monbus backpressure. Same condition, counted instead of stalled.
+            assign obs_wr_tap_lost[gi] = (obs_wr_dropped[gi] != 16'd0) | (obs_wr_refused[gi] != 16'd0);
         end
     endgenerate
 
@@ -1696,7 +1655,7 @@ module axi4_intf_master_observer
     assign hwif_i.OBS.OBS_FIFO_STAT.WRITE_COUNT.next = 15'(write_fifo_count);
     assign hwif_i.OBS.OBS_FIFO_STAT.ANY_FULL.next    = err_fifo_full | write_fifo_full;
     assign hwif_i.OBS.OBS_STICKY.HIST_SAMPLE_LOST.next = o_hist_sample_lost;
-    assign hwif_i.OBS.OBS_STICKY.TAP_BLOCKED.next      = (|obs_rd_block_ready) | (|obs_wr_block_ready);
+    assign hwif_i.OBS.OBS_STICKY.TAP_BLOCKED.next      = (|obs_rd_tap_lost) | (|obs_wr_tap_lost);
     assign hwif_i.OBS.OBS_COMP_STAT0.TIER1.next    = 16'(w_comp_stat_tier1_a);
     assign hwif_i.OBS.OBS_COMP_STAT0.TIER0.next    = 16'(w_comp_stat_tier0);
     assign hwif_i.OBS.OBS_COMP_STAT1.CAM_MISS.next = 16'(w_comp_stat_cam_miss);

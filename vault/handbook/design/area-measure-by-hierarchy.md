@@ -37,6 +37,25 @@ same-ID responses in order, which AXI does. An allocation sequence stamp is
 not: it wraps for an entry that outlives 2^W allocations, and the slot
 count bounds live entries, not how many come and go while one waits.
 
+## A parameter the subset made inert must not feed a capability register (2026-09-27)
+
+Swapping the observers (`misc/rtl/axi4_intf_{master,slave}_observer.sv`) onto
+the lite left `TAP_ENABLE_PERF_LOGIC` / `TAP_ENABLE_DEBUG_LOGIC` declared -- two
+consumers bind them -- but inert: the lite builds neither cone. `OBS_CAPS0[5:4]`
+still reported the parameters, so the register advertised cones that did not
+exist, and the block's own `all_classes` test, which derives its expected
+classes FROM that register, waited for packets that can never come: six cells
+red, every other class present. The fix was in the hardware, not the test:
+the caps bits now read 0 regardless. When a subset makes a parameter inert,
+find every register or status word that echoes it and pin it to the truth --
+a test that trusts the hardware's self-description is the right test, and it
+will be the first thing to catch the lie.
+
+The swap itself: build-obs 184,047 -> 71,671 LUTs (-61%), WNS +1.334 -> +4.154,
+per-iteration packet counts unchanged on the five classes the lite emits, DUT
+bus meters bit-identical. The full monitor's "timeout saturates at ~7 per reset"
+(a timed-out slot went to TRANS_ERROR and leaked) is gone: 55 per iteration.
+
 ## Subsetting a block: the "dropped" list comes from the consumers, not the block (2026-09-26)
 
 The lite's "25% dropped" list was written by reading the full monitor and
