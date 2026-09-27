@@ -223,10 +223,18 @@ class LatencyBridgeBeatsTB(TBBase):
             await RisingEdge(self.dut.clk)
             occupancies.append(self.get_occupancy())
             guard += 1
+            # Drained means: feeder finished, master idle, nothing left in the
+            # wrapper FIFO, nothing presented to the bridge, bridge empty and
+            # nothing held on m_*. Bridge occupancy alone reads 0 while the last
+            # beat still sits in the FIFO under slave backpressure (199 of 200
+            # counted -- regression 2026-09-27).
             done = (feed_task.done()
                     and not self.s_master.transfer_busy
                     and len(self.s_master.transmit_queue) == 0
-                    and self.get_occupancy() == 0)
+                    and int(self.dut.fifo_count.value) == 0
+                    and int(self.dut.s_valid.value) == 0
+                    and self.get_occupancy() == 0
+                    and int(self.dut.m_valid.value) == 0)
             if done:
                 break
 
@@ -235,6 +243,12 @@ class LatencyBridgeBeatsTB(TBBase):
         avg = sum(occupancies) / len(occupancies)
         self.log.info(f"Streaming occupancy: avg={avg:.2f}, max={max(occupancies)}, samples={len(occupancies)}")
         assert max(occupancies) > 0, "Occupancy should be non-zero during streaming"
+        # The slave monitor reports a beat a cycle or two after its handshake;
+        # give the tail a bounded wait rather than a fixed handful of cycles.
+        for _ in range(500):
+            if len(received) >= num_beats:
+                break
+            await self.wait_clocks('clk', 1)
         await self.wait_clocks('clk', 5)
         expected = list(range(num_beats))
         assert received == expected, (f"data path: received {len(received)} beats, expected {num_beats}; "
