@@ -256,7 +256,7 @@ axi4_slave_wr_crc_check #(
 ### Used By
 - `axi4_dma_slaves` — bundles this write sink with `axi4_slave_rd_pattern_gen` into a single source/sink slave pair
 - `projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/stream_char_harness.sv` — on-chip write sink
-- `projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/rtl/rapids_char_harness.sv` — on-chip write sink
+- `projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/rtl/rapids_char_harness.sv` — on-chip write sink
 
 ### Uses
 - **axi4_slave_wr.sv** — standard AXI4 write slave protocol handler (AW/W/B skid + compliance)

@@ -266,7 +266,7 @@ Captured on the Nexys A7 `stream_characterization` tree, deleted in
 `9461b6aac` when stream characterization consolidated onto the Genesys 2.
 Kept as provenance, not as a runnable recipe: `dump_status.py` and
 `run_characterization.py` no longer exist in the stream area (they survive
-only under `rapids_characterization/`). The current area builds with
+only under `rapids_beats/`). The current area builds with
 `make bitstream BUILD=<mon|obs|perf>` from
 `projects/fpga-systems/Genesys2/stream/`, and its host programs live per
 build under `build-*/host/`. `per_source_capture.py` and

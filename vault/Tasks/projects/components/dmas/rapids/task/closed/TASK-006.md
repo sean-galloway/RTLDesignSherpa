@@ -32,7 +32,7 @@ suspect. July predates it by two months.
       so a run no longer evaporates into scrollback the way the 2026-09-22
       numbers did. Note `flows-rapids-beats/reports/` is gitignored: those files
       are durable on disk, NOT in the repo. The tracked, curated records live in
-      `rapids_characterization/reports/perf/json/`.)
+      `rapids_beats/reports/perf/json/`.)
 
 **RESULT 2026-09-23: the knee is gone. 28/28 configs pass.**
 

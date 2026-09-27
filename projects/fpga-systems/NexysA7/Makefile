@@ -52,7 +52,6 @@ CLEAN_DIRS = $(CLEAN_ALL_DIRS) $(CLEAN_ONLY_DIRS)
 # Directories to check for disk usage on `make status`.
 STATUS_ROOTS = \
     cdc_counter_display \
-    rapids_characterization \
     pumice
 
 

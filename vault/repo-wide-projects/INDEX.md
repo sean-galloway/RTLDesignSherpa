@@ -45,7 +45,7 @@ note — it belongs to that block and nowhere else.
 
 - [bin](projects/fpga-systems/bin/INDEX.md) — the shared board + UART layer (uart_link, uart_axi_bridge, boards registry, sequence runner)
 - [boards](projects/fpga-systems/boards/INDEX.md) — board definitions (nexys_a7_100t)
-- [Genesys2/rapids_characterization](projects/fpga-systems/Genesys2/rapids_characterization/INDEX.md) — RAPIDS board characterization
+- [Genesys2/rapids_beats](projects/fpga-systems/Genesys2/rapids_beats/INDEX.md) — RAPIDS board characterization
 - `Genesys2/stream` — area exists in the repo, no context note written yet
 - [NexysA7/cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/INDEX.md) — CDC demo on Nexys A7
 - [NexysA7/pumice/ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/INDEX.md) — DDR2 board characterization campaign

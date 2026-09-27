@@ -110,7 +110,7 @@ the three had already been migrated.
   magic) and that nothing had ever called. It also gained a `board=` argument
   (honouring `$FPGA_BOARD`) that narrows candidates by USB serial before
   probing -- see the hazard note below.
-- `Genesys2/rapids_characterization/flows-rapids-beats/host/rapids_char_io.py`
+- `Genesys2/rapids_beats/flows-rapids-beats/host/rapids_char_io.py`
   — DONE 2026-09-22. Now `find_port(probe=harness_probe())`; the probe reads
   CTRL by name and compares the 'RAP1' magic taken from rapids_char_top.sv
   rather than a docstring. The same pass stopped this file reaching
@@ -159,7 +159,7 @@ written from the top of this task without reading the rest of it. Outstanding:
 1. The Vivado build-target move directly above (deferred; overlaps NEXYS-001).
    STILL OPEN, and now down to ONE flow: `make/fpga_flow.mk` carries all five
    targets and every flow uses them EXCEPT
-   `Genesys2/rapids_characterization/flows-rapids-beats/Makefile`, which still
+   `Genesys2/rapids_beats/flows-rapids-beats/Makefile`, which still
    defines its own `bitstream:`. Verified 2026-09-23 by running that flow's
    local target twice.
 2. The remaining pumice directory moves under "Remaining moves" below.

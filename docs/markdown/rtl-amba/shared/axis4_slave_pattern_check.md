@@ -209,7 +209,7 @@ assign stream_ok = !chk_data_error && (chk_crc[ch] == gen_expected_crc[ch]);
 ## Related Modules
 
 ### Used By
-- `projects/fpga-systems/Genesys2/rapids_characterization/flows-rapids-beats/rtl/rapids_char_harness.sv` — on-chip AXIS source checker
+- `projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/rtl/rapids_char_harness.sv` — on-chip AXIS source checker
 - RAPIDS source-path characterization flows
 
 ### Uses
