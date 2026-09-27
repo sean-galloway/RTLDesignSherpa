@@ -170,10 +170,32 @@ module src_data_path_axis_beats #(
     logic [NC-1:0][SCW-1:0]      r_drain_tminus1;  // reservation that fired LAST cycle
     logic [NC-1:0][SCW-1:0]      w_pending_drain;  // in-flight, not yet in the view
     logic [NC-1:0][SCW-1:0]      w_effective_avail;// view minus in-flight
-    logic [CIW-1:0]              r_arb_grant_id;   // Currently granted channel
-    logic                        r_arb_active;     // Arbitration grant is active
-    logic [7:0]                  r_drain_remaining; // Beats remaining in current drain
-    logic                        r_grant_pulse;     // 1-cycle drain reservation
+    // Two stages, as in STREAM's write engine (axi_write_engine.sv: AW issue
+    // = reservation, W phase = drain, joined by a small in-order queue):
+    //   RESERVATION: one round-robin decision per cycle while the queue has
+    //   room; each decision is a ONE-CYCLE drain_req pulse of grant_size beats.
+    //   DRAIN: pops the queue in order, sends exactly the reserved beats, and
+    //   loads the next entry ON the last beat -- no bubble between grants.
+    // A single grant-drain-retire FSM (the previous shape) reserves the next
+    // block only after the current one has fully drained, which at
+    // cfg_drain_size == 1 is one beat every other cycle: measured 50% on the
+    // Genesys 2 AXI4-rd and AXIS-out, against 96-100% before the SRAM swap.
+    logic [CIW-1:0]              r_rr_last;         // round-robin base (last reserved)
+    logic                        r_res_valid;       // reservation pulse (= drain_req)
+    logic [CIW-1:0]              r_res_ch;
+    logic [7:0]                  r_res_size;
+    localparam int RQ_DEPTH = 4;                    // reservations in flight
+    localparam int RQ_PW    = $clog2(RQ_DEPTH);
+    logic [RQ_DEPTH-1:0][CIW-1:0] r_rq_ch;
+    logic [RQ_DEPTH-1:0][7:0]     r_rq_size;
+    logic [RQ_PW:0]              r_rq_wp, r_rq_rp;
+    logic [RQ_PW:0]              w_rq_count;
+    logic                        w_rq_empty, w_rq_room;
+    logic [CIW-1:0]              r_d_ch;            // channel being drained
+    logic                        r_d_active;
+    logic [7:0]                  r_d_remaining;     // beats left in the current block
+    logic                        w_beat_accepted;
+    logic                        w_d_load;          // drain stage takes the queue head
 
     // Packet tracking per channel
     logic [NC-1:0][15:0]         r_packet_beats;   // Beats sent in current packet
@@ -184,14 +206,17 @@ module src_data_path_axis_beats #(
     logic [31:0]                 r_axis_packets_sent;
 
     //=========================================================================
-    // Channel Arbitration Logic
+    // Channel Arbitration Logic -- reservation stage
     //=========================================================================
-    // Simple round-robin arbiter selects channels with available data
-
+    // In-flight compensation (STREAM axi_write_engine.sv:366-410): the SRAM
+    // macro registers drain_data_avail, so a reservation pulsing THIS cycle
+    // and the one that pulsed LAST cycle are not yet in the view. Subtract
+    // both; the second cycle double-counts once (avail already dropped), which
+    // only delays a decision by a cycle and never over-reserves.
     always_comb begin
         w_drain_t = '{default:'0};
-        if (r_grant_pulse) begin
-            w_drain_t[r_arb_grant_id] = SCW'(r_drain_remaining);
+        if (r_res_valid) begin
+            w_drain_t[r_res_ch] = SCW'(r_res_size);
         end
     end
 
@@ -213,73 +238,50 @@ module src_data_path_axis_beats #(
 
     assign w_eff_drain_size = (cfg_drain_size == 8'd0) ? 8'd1 : cfg_drain_size;
 
-    // Grant qualification. cfg_drain_size is a THRESHOLD: start draining once
-    // this many beats are available, OR drain a short final batch when nothing
-    // more is coming for that channel.
+    // Grant qualification. cfg_drain_size is a THRESHOLD: reserve once this
+    // many beats are available, OR a short final batch when nothing more is
+    // coming for that channel.
     always_comb begin
         for (int ch = 0; ch < NC; ch++) begin
-            // Nothing further will arrive: scheduler has no beats left to fetch
-            // AND no AXI reads are still outstanding for the channel.
             w_no_more_fill[ch] = (sched_rd_beats[ch] == 32'd0) && dbg_rd_all_complete[ch];
             w_ch_grantable[ch] = (w_effective_avail[ch] >= SCW'(w_eff_drain_size))
                               || ((w_effective_avail[ch] != '0) && w_no_more_fill[ch]);
-            // Reserve ONLY what is really present. drain_ctrl advances rd_ptr by
-            // the full rd_size in one cycle, so reserving more than is there makes
-            // rd_ptr overshoot wr_ptr and corrupts the occupancy permanently.
+            // Reserve ONLY what is really present: drain_ctrl advances rd_ptr
+            // by the full size in one cycle, and an over-reservation corrupts
+            // the occupancy permanently.
             w_grant_size[ch] = (w_effective_avail[ch] >= SCW'(w_eff_drain_size))
                               ? w_eff_drain_size : 8'(w_effective_avail[ch]);
             r_arb_request[ch] = w_ch_grantable[ch];
         end
     end
 
-    // Round-robin arbiter state machine
-    // A grant is taken ONCE and held until the reserved beats are drained:
-    //   !r_arb_active            -> pick the next grantable channel, latch its size
-    //   r_arb_active + accepted  -> decrement, retire on the last beat
-    // There is deliberately NO mid-drain availability re-check; the abandon term
-    // that used to live here was removed, for the reason below.
-    // STREAM's consumer model (axi_write_engine.sv:655-690): take a grant ONCE,
-    // drain exactly the reserved number of beats, retire on the last one, and
-    // NEVER re-consult availability mid-drain.
-    //
-    // This matters because the SRAM now REGISTERS drain_data_avail for timing
-    // closure (stream/rtl/fub/sram_controller.sv output register block), so the
-    // arbiter's view is one cycle stale. The previous FSM abandoned a live grant
-    // on `drain_data_avail[grant] == 0` and re-armed on the same stale vector; at
-    // cfg_drain_size==1 that fired on the very first accepted beat, so it dropped
-    // and re-arbitrated every beat and stranded data. Arbitration must not know
-    // about the flops -- it just arbitrates the signals it gets.
-    logic w_beat_accepted;
-    assign w_beat_accepted = m_axis_tvalid && m_axis_tready;
+    // Reservation queue occupancy. A decision this cycle lands in the queue
+    // next cycle, behind the pulse already in flight; count both against the
+    // depth and ignore this cycle's pop (conservative by one entry).
+    assign w_rq_count = r_rq_wp - r_rq_rp;
+    assign w_rq_empty = (w_rq_count == '0);
+    assign w_rq_room  = ((w_rq_count + (RQ_PW+1)'(r_res_valid)) < (RQ_PW+1)'(RQ_DEPTH));
 
+    // One round-robin decision per cycle, registered into a one-cycle pulse.
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_arb_grant_id    <= '0;
-            r_arb_active      <= 1'b0;
-            r_drain_remaining <= '0;
-            r_grant_pulse     <= 1'b0;
+            r_rr_last   <= '0;
+            r_res_valid <= 1'b0;
+            r_res_ch    <= '0;
+            r_res_size  <= '0;
         end else begin
-            r_grant_pulse <= 1'b0;
-            if (!r_arb_active) begin
+            r_res_valid <= 1'b0;
+            if (w_rq_room) begin
                 for (int ch = 0; ch < NC; ch++) begin
                     logic [CIW-1:0] check_ch;
-                    check_ch = (r_arb_grant_id + 1 + ch) % NC;
+                    check_ch = CIW'((int'(r_rr_last) + 1 + ch) % NC);
                     if (w_ch_grantable[check_ch]) begin
-                        r_arb_grant_id    <= check_ch;
-                        r_arb_active      <= 1'b1;
-                        r_drain_remaining <= w_grant_size[check_ch];
-                        r_grant_pulse     <= 1'b1;
+                        r_res_valid <= 1'b1;
+                        r_res_ch    <= check_ch;
+                        r_res_size  <= w_grant_size[check_ch];
+                        r_rr_last   <= check_ch;
                         break;
                     end
-                end
-            end else if (w_beat_accepted) begin
-                // Decrement is NOT in an else-branch of an advance term any more,
-                // so a completing beat is always counted against the block.
-                if (r_drain_remaining <= 8'd1) begin
-                    r_arb_active      <= 1'b0;
-                    r_drain_remaining <= '0;
-                end else begin
-                    r_drain_remaining <= r_drain_remaining - 8'd1;
                 end
             end
         end
@@ -288,58 +290,81 @@ module src_data_path_axis_beats #(
     //=========================================================================
     // Drain Request Generation
     //=========================================================================
-
-    // Generate drain requests based on arbitration
-    // ONE-CYCLE reservation. drain_ctrl_beats has no edge detect -- it advances
-    // rd_ptr whenever (rd_valid && !rd_empty), so a HELD request re-advances the
-    // pointer every cycle. Pulse it exactly once, carrying the reserved size.
+    // ONE-CYCLE reservation: drain_ctrl has no edge detect and re-advances
+    // rd_ptr every cycle a request is held, so the pulse carries the size once.
     always_comb begin
-        drain_req = '0;
+        drain_req  = '0;
         drain_size = '{default:'0};
-        if (r_grant_pulse) begin
-            drain_req[r_arb_grant_id] = 1'b1;
-            drain_size[r_arb_grant_id] = r_drain_remaining;
+        if (r_res_valid) begin
+            drain_req[r_res_ch]  = 1'b1;
+            drain_size[r_res_ch] = r_res_size;
         end
     end
 
+    //=========================================================================
+    // Drain stage -- the in-order reservation queue and the beat counter
+    //=========================================================================
+    assign w_beat_accepted = m_axis_tvalid && m_axis_tready;
+    // Take the queue head when idle, or on the last beat of the current block
+    // (STREAM's "continue with next transaction, NO BUBBLE").
+    assign w_d_load = !w_rq_empty
+                   && (!r_d_active || (w_beat_accepted && (r_d_remaining <= 8'd1)));
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_rq_wp       <= '0;
+            r_rq_rp       <= '0;
+            r_rq_ch       <= '0;
+            r_rq_size     <= '0;
+            r_d_ch        <= '0;
+            r_d_active    <= 1'b0;
+            r_d_remaining <= '0;
+        end else begin
+            if (r_res_valid) begin
+                r_rq_ch[r_rq_wp[RQ_PW-1:0]]   <= r_res_ch;
+                r_rq_size[r_rq_wp[RQ_PW-1:0]] <= r_res_size;
+                r_rq_wp                       <= r_rq_wp + 1'b1;
+            end
+            if (w_d_load) begin
+                r_d_active    <= 1'b1;
+                r_d_ch        <= r_rq_ch[r_rq_rp[RQ_PW-1:0]];
+                r_d_remaining <= r_rq_size[r_rq_rp[RQ_PW-1:0]];
+                r_rq_rp       <= r_rq_rp + 1'b1;
+            end else if (r_d_active && w_beat_accepted) begin
+                if (r_d_remaining <= 8'd1) begin
+                    r_d_active    <= 1'b0;
+                    r_d_remaining <= '0;
+                end else begin
+                    r_d_remaining <= r_d_remaining - 8'd1;
+                end
+            end
+        end
+    )
+
     // Drain read when AXIS accepts data
-    assign drain_id = r_arb_grant_id;
+    assign drain_id   = r_d_ch;
     assign drain_read = w_beat_accepted;
 
     //=========================================================================
     // Drain to AXIS Interface Conversion
     //=========================================================================
-
-    // AXIS tdata directly from drain
     assign m_axis_tdata = drain_data;
-
-    // All bytes valid
     assign m_axis_tstrb = {SW{1'b1}};
-
-    // Channel ID in tid
-    assign m_axis_tid = {{(AXIS_ID_WIDTH-CIW){1'b0}}, r_arb_grant_id};
-
-    // Destination from configuration (can be channel-based)
-    assign m_axis_tdest = {{(AXIS_DEST_WIDTH-CIW){1'b0}}, r_arb_grant_id};
-
-    // User field unused
+    assign m_axis_tid   = {{(AXIS_ID_WIDTH-CIW){1'b0}}, r_d_ch};
+    assign m_axis_tdest = {{(AXIS_DEST_WIDTH-CIW){1'b0}}, r_d_ch};
     assign m_axis_tuser = '0;
 
-    // Valid when we have data and active grant
-    // Gate on BOTH the registered and the combinational per-channel valid.
-    // The registered valid is the right input to ARBITRATION (it is the long
-    // cone that needed the flop), but it lags the data by a cycle. Gating on it
-    // alone lets the SRAM unit pop a beat while tvalid is suppressed -- the beat
-    // is consumed and never transmitted. STREAM's write engine documents this
-    // exact failure at axi_write_engine.sv:694-702. src had neither the flop nor
-    // the tap before the SRAM became stream's, so it was self-consistent; adding
-    // the flop without this tap is what lost beats at cfg_drain_size==1.
-    assign m_axis_tvalid = r_arb_active
-                        && drain_valid[r_arb_grant_id]
-                        && drain_valid_comb[r_arb_grant_id];
+    // Valid when the drain stage holds a block and the SRAM presents a beat.
+    // Gate on BOTH the registered and the combinational per-channel valid: the
+    // registered one lags the data by a cycle, and gating on it alone lets the
+    // SRAM unit pop a beat while tvalid is suppressed (STREAM
+    // axi_write_engine.sv:694-702).
+    assign m_axis_tvalid = r_d_active
+                        && drain_valid[r_d_ch]
+                        && drain_valid_comb[r_d_ch];
 
-    // Last when drain remaining reaches 0
-    assign m_axis_tlast = (r_drain_remaining == 1);
+    // Last beat of the reserved block
+    assign m_axis_tlast = (r_d_remaining == 8'd1);
 
     //=========================================================================
     // Statistics

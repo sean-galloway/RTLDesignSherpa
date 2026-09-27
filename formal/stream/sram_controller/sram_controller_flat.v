@@ -31,7 +31,7 @@ module counter_bin (
 		else
 			counter_bin_next = counter_bin_curr;
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			counter_bin_curr <= 'b0;
 		else
@@ -54,7 +54,7 @@ module fifo_control (
 	rd_almost_empty
 );
 	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 16;
+	parameter signed [31:0] DEPTH = 8;
 	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
 	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
 	parameter signed [31:0] REGISTERED = 0;
@@ -108,7 +108,7 @@ module fifo_control (
 	generate
 		if (REGISTERED == 1) begin : gen_flop_mode
 			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk)
+			always @(posedge rd_clk or negedge rd_rst_n)
 				if (!rd_rst_n)
 					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
@@ -150,7 +150,6 @@ module gaxi_fifo_sync (
 	rd_valid,
 	rd_data
 );
-	reg _sv2v_0;
 	parameter signed [31:0] MEM_STYLE = 32'sd0;
 	parameter signed [31:0] REGISTERED = 0;
 	parameter signed [31:0] DATA_WIDTH = 4;
@@ -179,7 +178,6 @@ module gaxi_fifo_sync (
 	wire r_wr_almost_full;
 	wire r_rd_empty;
 	wire r_rd_almost_empty;
-	reg [DW - 1:0] w_rd_data;
 	wire w_write;
 	wire w_read;
 	assign w_write = wr_valid && wr_ready;
@@ -236,18 +234,16 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 		else if (MEM_STYLE == 32'sd2) begin : gen_bram
@@ -255,11 +251,13 @@ module gaxi_fifo_sync (
 			always @(posedge axi_aclk)
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
-			always @(posedge axi_aclk)
+			reg [DATA_WIDTH - 1:0] r_rd_data;
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
-					w_rd_data <= 1'sb0;
+					r_rd_data <= 1'sb0;
 				else
-					w_rd_data <= mem[r_rd_addr];
+					r_rd_data <= mem[r_rd_addr];
+			assign rd_data = r_rd_data;
 		end
 		else begin : gen_auto
 			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
@@ -267,29 +265,25 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 	endgenerate
-	assign rd_data = w_rd_data;
 	always @(posedge axi_aclk) begin
 		if (w_write && r_wr_full)
 			;
 		if (w_read && r_rd_empty)
 			;
 	end
-	initial _sv2v_0 = 0;
 endmodule
 module stream_alloc_ctrl (
 	axi_aclk,
@@ -340,7 +334,7 @@ module stream_alloc_ctrl (
 		input reg [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
 		sv2v_cast_2BB65 = inp;
 	endfunction
-	always @(posedge axi_aclk)
+	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn)
 			r_wr_ptr_bin <= 1'sb0;
 		else if (w_write && !r_wr_full)
@@ -449,7 +443,7 @@ module stream_drain_ctrl (
 		input reg [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
 		sv2v_cast_2BB65 = inp;
 	endfunction
-	always @(posedge axi_aclk)
+	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn)
 			r_rd_ptr_bin <= 1'sb0;
 		else if (w_read && !r_rd_empty)
@@ -483,6 +477,9 @@ module stream_drain_ctrl (
 	assign wr_almost_full = r_wr_almost_full;
 	assign rd_empty = r_rd_empty;
 	assign rd_almost_empty = r_rd_almost_empty;
+	always @(posedge axi_aclk)
+		if (((axi_aresetn && rd_valid) && !r_rd_empty) && (sv2v_cast_2BB65(rd_size) > data_available))
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/stream/rtl/fub/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
 endmodule
 module stream_latency_bridge (
 	clk,
@@ -526,7 +523,7 @@ module stream_latency_bridge (
 	wire w_room_available = pending_count < sv2v_cast_3_signed(SKID_DEPTH);
 	assign s_ready = w_room_available || w_draining_now;
 	wire w_drain_fifo = s_valid && s_ready;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_drain_ip <= 1'b0;
 		else
@@ -620,8 +617,10 @@ module sram_controller_unit (
 		.rd_empty(),
 		.rd_almost_empty()
 	);
+	wire [ADDR_WIDTH + 1:0] w_drain_data_available_acct;
+	assign drain_data_available = w_drain_data_available_acct[ADDR_WIDTH:0];
 	stream_drain_ctrl #(
-		.DEPTH(SD),
+		.DEPTH(2 * SD),
 		.REGISTERED(1)
 	) u_drain_ctrl(
 		.axi_aclk(clk),
@@ -631,14 +630,14 @@ module sram_controller_unit (
 		.rd_valid(axi_wr_drain_req),
 		.rd_size(axi_wr_drain_size),
 		.rd_ready(),
-		.data_available(drain_data_available),
+		.data_available(w_drain_data_available_acct),
 		.wr_full(),
 		.wr_almost_full(),
 		.rd_empty(),
 		.rd_almost_empty()
 	);
 	gaxi_fifo_sync #(
-		.MEM_STYLE(32'sd0),
+		.MEM_STYLE(32'sd2),
 		.REGISTERED(1),
 		.DATA_WIDTH(DW),
 		.DEPTH(SD)
@@ -666,16 +665,12 @@ module sram_controller_unit (
 		.dbg_r_pending(dbg_bridge_pending),
 		.dbg_r_out_valid(dbg_bridge_out_valid)
 	);
-	function automatic [SCW - 1:0] sv2v_cast_14961;
-		input reg [SCW - 1:0] inp;
-		sv2v_cast_14961 = inp;
-	endfunction
-	assign axi_wr_drain_data_avail = drain_data_available + sv2v_cast_14961(bridge_occupancy);
+	assign axi_wr_drain_data_avail = drain_data_available;
 	function automatic signed [SCW - 1:0] sv2v_cast_14961_signed;
 		input reg signed [SCW - 1:0] inp;
 		sv2v_cast_14961_signed = inp;
 	endfunction
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			axi_rd_alloc_space_free <= sv2v_cast_14961_signed(SD);
 		else
@@ -696,6 +691,7 @@ module sram_controller (
 	axi_wr_drain_req,
 	axi_wr_drain_size,
 	axi_wr_sram_valid,
+	axi_wr_sram_valid_comb,
 	axi_wr_sram_drain,
 	axi_wr_sram_id,
 	axi_wr_sram_data,
@@ -717,15 +713,16 @@ module sram_controller (
 	input wire axi_rd_alloc_req;
 	input wire [7:0] axi_rd_alloc_size;
 	input wire [CIW - 1:0] axi_rd_alloc_id;
-	output wire [(NC * SCW) - 1:0] axi_rd_alloc_space_free;
+	output reg [(NC * SCW) - 1:0] axi_rd_alloc_space_free;
 	input wire axi_rd_sram_valid;
 	output reg axi_rd_sram_ready;
 	input wire [CIW - 1:0] axi_rd_sram_id;
 	input wire [DW - 1:0] axi_rd_sram_data;
-	output wire [(NC * SCW) - 1:0] axi_wr_drain_data_avail;
+	output reg [(NC * SCW) - 1:0] axi_wr_drain_data_avail;
 	input wire [NC - 1:0] axi_wr_drain_req;
 	input wire [(NC * 8) - 1:0] axi_wr_drain_size;
-	output wire [NC - 1:0] axi_wr_sram_valid;
+	output reg [NC - 1:0] axi_wr_sram_valid;
+	output wire [NC - 1:0] axi_wr_sram_valid_comb;
 	input wire axi_wr_sram_drain;
 	input wire [CIW - 1:0] axi_wr_sram_id;
 	output reg [DW - 1:0] axi_wr_sram_data;
@@ -736,6 +733,8 @@ module sram_controller (
 	reg [NC - 1:0] axi_wr_sram_drain_decoded;
 	wire [(NC * DW) - 1:0] axi_wr_sram_data_per_channel;
 	reg [NC - 1:0] axi_rd_alloc_req_decoded;
+	wire [(NC * SCW) - 1:0] axi_rd_alloc_space_free_comb;
+	wire [(NC * SCW) - 1:0] axi_wr_drain_data_avail_comb;
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -787,19 +786,30 @@ module sram_controller (
 				.axi_rd_sram_valid(axi_rd_sram_valid_decoded[i]),
 				.axi_rd_sram_ready(axi_rd_sram_ready_per_channel[i]),
 				.axi_rd_sram_data(axi_rd_sram_data),
-				.axi_wr_sram_valid(axi_wr_sram_valid[i]),
+				.axi_wr_sram_valid(axi_wr_sram_valid_comb[i]),
 				.axi_wr_sram_ready(axi_wr_sram_drain_decoded[i]),
 				.axi_wr_sram_data(axi_wr_sram_data_per_channel[i * DW+:DW]),
 				.axi_rd_alloc_req(axi_rd_alloc_req_decoded[i]),
 				.axi_rd_alloc_size(axi_rd_alloc_size),
-				.axi_rd_alloc_space_free(axi_rd_alloc_space_free[i * SCW+:SCW]),
+				.axi_rd_alloc_space_free(axi_rd_alloc_space_free_comb[i * SCW+:SCW]),
 				.axi_wr_drain_req(axi_wr_drain_req[i]),
 				.axi_wr_drain_size(axi_wr_drain_size[i * 8+:8]),
-				.axi_wr_drain_data_avail(axi_wr_drain_data_avail[i * SCW+:SCW]),
+				.axi_wr_drain_data_avail(axi_wr_drain_data_avail_comb[i * SCW+:SCW]),
 				.dbg_bridge_pending(dbg_bridge_pending[i]),
 				.dbg_bridge_out_valid(dbg_bridge_out_valid[i])
 			);
 		end
 	endgenerate
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			axi_rd_alloc_space_free <= 1'sb0;
+			axi_wr_drain_data_avail <= 1'sb0;
+			axi_wr_sram_valid <= 1'sb0;
+		end
+		else begin
+			axi_rd_alloc_space_free <= axi_rd_alloc_space_free_comb;
+			axi_wr_drain_data_avail <= axi_wr_drain_data_avail_comb;
+			axi_wr_sram_valid <= axi_wr_sram_valid_comb;
+		end
 	initial _sv2v_0 = 0;
 endmodule

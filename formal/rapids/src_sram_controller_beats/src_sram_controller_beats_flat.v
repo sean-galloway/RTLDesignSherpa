@@ -617,8 +617,10 @@ module sram_controller_unit (
 		.rd_empty(),
 		.rd_almost_empty()
 	);
+	wire [ADDR_WIDTH + 1:0] w_drain_data_available_acct;
+	assign drain_data_available = w_drain_data_available_acct[ADDR_WIDTH:0];
 	stream_drain_ctrl #(
-		.DEPTH(SD),
+		.DEPTH(2 * SD),
 		.REGISTERED(1)
 	) u_drain_ctrl(
 		.axi_aclk(clk),
@@ -628,7 +630,7 @@ module sram_controller_unit (
 		.rd_valid(axi_wr_drain_req),
 		.rd_size(axi_wr_drain_size),
 		.rd_ready(),
-		.data_available(drain_data_available),
+		.data_available(w_drain_data_available_acct),
 		.wr_full(),
 		.wr_almost_full(),
 		.rd_empty(),

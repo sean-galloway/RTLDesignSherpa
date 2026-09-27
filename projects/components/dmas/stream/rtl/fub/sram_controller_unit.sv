@@ -172,8 +172,26 @@ module sram_controller_unit #(
     //
     //==========================================================================
 
+    // The drain controller is an ACCOUNTING counter (writes minus reservations),
+    // not the FIFO, yet it is a virtual FIFO of depth SD whose wr_ready gates its
+    // own write count. alloc_ctrl bounds written - DRAINED to SD, and the
+    // latency bridge holds up to 5 beats outside the FIFO, so written - RESERVED
+    // legitimately reaches SD while the real FIFO still accepts. At that
+    // boundary the FIFO takes the write and this counter refuses to count it:
+    // the beat exists, is never reservable, and stays in the channel forever.
+    // Measured on rapids' source path (8 ch x 512 deep, 1024-beat transfer, a
+    // consumer draining slower than the fill): wr_ptr ended at 1020 for 1024
+    // FIFO writes, 4 beats stranded in FIFO + bridge with data_available == 0.
+    // Doubling the virtual depth gives the count the headroom the bridge
+    // needs; the value can never exceed SD + bridge occupancy, so truncating
+    // the wider count back to the unit's [ADDR_WIDTH:0] port loses nothing.
+    // (stream_drain_ctrl's rd pointer relies on power-of-2 wrap, so 2*SD,
+    // not SD + margin.)
+    logic [ADDR_WIDTH+1:0] w_drain_data_available_acct;
+    assign drain_data_available = w_drain_data_available_acct[ADDR_WIDTH:0];
+
     stream_drain_ctrl #(
-        .DEPTH(SD),
+        .DEPTH(2 * SD),
         .REGISTERED(1)
     ) u_drain_ctrl (
         .axi_aclk           (clk),
@@ -191,7 +209,7 @@ module sram_controller_unit #(
         .rd_ready           (),
 
         // Data tracking
-        .data_available     (drain_data_available),
+        .data_available     (w_drain_data_available_acct),
 
         // Unused status
         .wr_full            (),

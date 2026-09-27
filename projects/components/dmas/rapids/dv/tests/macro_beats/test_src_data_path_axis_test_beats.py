@@ -123,8 +123,13 @@ async def cocotb_test_beat_conservation(dut):
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
 
-    result, stats = await tb.test_beat_conservation(num_descriptors=12, beats_per_desc=7)
-    tb.log.info(f"Beat conservation: {stats}")
+    # The 12 x 7 default is the drain-size accounting case. TEST_CONS_DESCS /
+    # TEST_CONS_BEATS reshape it for a long single-channel transfer (the shape
+    # the char harness failed on at 1024 beats: source stops 3-4 beats short).
+    n_desc = int(os.environ.get('TEST_CONS_DESCS', '12'))
+    n_beats = int(os.environ.get('TEST_CONS_BEATS', '7'))
+    result, stats = await tb.test_beat_conservation(num_descriptors=n_desc, beats_per_desc=n_beats)
+    tb.log.info(f"Beat conservation ({n_desc} x {n_beats}): {stats}")
     assert result, f"beat conservation FAILED: {stats}"
 
 

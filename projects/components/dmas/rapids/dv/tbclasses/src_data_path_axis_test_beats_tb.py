@@ -820,10 +820,13 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
         # stops advancing. A fixed delay reads a still-draining pipeline as loss
         # -- the first version of this check used 1500 cycles and reported 25%
         # "loss" at cfg_drain_size=1, which is the shipped, known-good setting.
+        # The 20000-clock bound fits the 84-beat default; a long transfer
+        # (TEST_CONS_DESCS x TEST_CONS_BEATS) raises it through TEST_CONS_WAIT.
+        max_wait = int(os.environ.get('TEST_CONS_WAIT', '20000'))
         settled_for = 0
         waited = 0
         last = int(self.dut.dbg_axis_beats_sent.value)
-        while settled_for < 600 and waited < 20000:
+        while settled_for < 600 and waited < max_wait:
             await self.wait_clocks(self.clk_name, 50)
             waited += 50
             now = int(self.dut.dbg_axis_beats_sent.value)
@@ -831,7 +834,7 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
             last = now
         self.log.info(f"quiesced after {waited} clocks "
                       f"(stable for {settled_for}); axis_beats_sent={last}")
-        if waited >= 20000:
+        if waited >= max_wait:
             self.log.warning("quiesce bound hit -- counters may still be moving")
 
         r_in = int(self.dut.dbg_r_beats_rcvd.value) - r_in0

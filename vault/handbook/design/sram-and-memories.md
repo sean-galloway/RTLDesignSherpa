@@ -23,3 +23,27 @@ summary: No reset ports on SRAMs; ram_style attributes; [DEPTH] syntax.
   don't floor the byte size.
 
 Authority: /GLOBAL_REQUIREMENTS.md sections 1.2-1.4.
+
+## An accounting counter must never gate its own count (2026-09-27)
+
+`sram_controller_unit` tracks "beats written minus beats reserved" with
+`stream_drain_ctrl`, a virtual FIFO of depth `SD`. Being a FIFO, it has a
+`wr_ready`, and its write count is gated on it. But the bound on the REAL
+FIFO is set elsewhere -- `stream_alloc_ctrl` allows written minus DRAINED
+to reach `SD`, and the latency bridge parks up to five beats outside the
+FIFO -- so written minus RESERVED legitimately sits at `SD` while the FIFO
+still accepts. The counter then drops a real write: the beat is in the
+channel, never reservable, and the source path on rapids ended 4 beats
+short of every long transfer (rapids BUG-003, stream BUG-011).
+
+Two rules fall out of it. A counter that exists to OBSERVE a datapath
+takes its headroom from the datapath's real bound (here `SD` plus the
+bridge), never from its own nominal size; if it is modelled as a FIFO,
+size that FIFO past every reachable occupancy and never let its full flag
+touch the count. And "isolation passing is not integration passing"
+applies at the boundary too: the unit suites (`test_sram_controller*`,
+38/38 before and after) cannot reach the trigger, because it needs the
+alloc/bridge interplay at exactly `SD` occupancy -- a consumer draining
+slower than the fill. The rapids char harness, driving a 512-deep channel
+with a 1024-beat transfer at a 50% drain, is what found it; the 84-beat
+conservation cells that gated the SRAM swap could not.
