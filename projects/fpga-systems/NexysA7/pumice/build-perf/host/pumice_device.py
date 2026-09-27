@@ -394,6 +394,41 @@ class Pumice(Device):
         if tr_init is not None:
             self.regs.write("PAGE_TIMEOUT_CFG", tr_init=tr_init & 0xFF)
 
+    def set_page_timeout_cfg(self, *, tr_init: int, tr_min: int = 0,
+                             tr_max: int = 0, tr_step: int = 0) -> None:
+        """PAGE_TIMEOUT_CFG -- the adapt_time / fixed_open timeout bounds.
+
+        `fixed_open` uses tr_init alone. **`adapt_time` needs all four**: TR is
+        clamped to [tr_min, tr_max] on every adjustment, so leaving tr_max at
+        its 0 reset pins TR to 0 the first time the mistake counter moves it,
+        and `tr == 0 disables that bank's timeout entirely`. Until 2026-09-26
+        only tr_init had a host accessor, so no measurement ever ran with the
+        clamps set.
+        """
+        self.regs.write("PAGE_TIMEOUT_CFG", tr_init=tr_init & 0xFF,
+                        tr_min=tr_min & 0xFF, tr_max=tr_max & 0xFF,
+                        tr_step=tr_step & 0xFF)
+
+    def set_page_adapt_cfg(self, *, check_interval: int, mc_high_thr: int = 0,
+                           mc_low_thr: int = 0, mc_init: int = 0) -> None:
+        """PAGE_ADAPT_CFG -- the adapt_time mistake-counter evaluation.
+
+        **check_interval == 0 DISABLES ADAPTATION ENTIRELY.** The RTL wraps the
+        whole TR adjustment in `if (check_interval_i != 0)`, so at its 0 reset
+        TR never moves and `adapt_time` degenerates to `fixed_open` at tr_init
+        -- which is exactly how it has measured on every campaign to date, and
+        why it reads as "identical to open page". Same shape of defect as the
+        RBL epoch default (reset_interval=0, TASK-011).
+
+        MC++ on a premature close (an ACT re-opens the row a timeout PRE just
+        closed); MC-- on held-too-long (a conflict PRE closes a bank whose
+        timer had not expired). Above mc_high_thr TR grows, below mc_low_thr it
+        shrinks.
+        """
+        self.regs.write("PAGE_ADAPT_CFG", check_interval=check_interval & 0xFFFF,
+                        mc_high_thr=mc_high_thr & 0xF, mc_low_thr=mc_low_thr & 0xF,
+                        mc_init=mc_init & 0xF)
+
     def set_page_access_cfg(self, *, ctr_open_max: int, ctr_init: int = 0) -> None:
         """adapt_access (mode 5) counter shape, PAGE_POLICY_CFG upper fields:
         ctr_open_max = count at/above which a row is CLOSED (auto-precharge),

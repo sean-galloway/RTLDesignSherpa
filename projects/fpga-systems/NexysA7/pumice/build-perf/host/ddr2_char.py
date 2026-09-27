@@ -503,6 +503,12 @@ class DDR2CharDriver:
     def set_page_mode(self, mode: int, tr_init: Optional[int] = None) -> None:
         self.pumice.set_page_mode(mode, tr_init=tr_init)
 
+    def set_page_timeout_cfg(self, **kw: int) -> None:
+        self.pumice.set_page_timeout_cfg(**kw)
+
+    def set_page_adapt_cfg(self, **kw: int) -> None:
+        self.pumice.set_page_adapt_cfg(**kw)
+
     def set_page_access_cfg(self, **kw: int) -> None:
         self.pumice.set_page_access_cfg(**kw)
 

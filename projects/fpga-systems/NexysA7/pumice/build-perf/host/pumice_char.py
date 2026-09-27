@@ -297,6 +297,16 @@ class ControllerConfig:
     age_thresh:    Optional[int] = None     # SCHED_POLICY.age_thresh (MC cycles/16)
     page_mode:     Optional[int] = None     # PAGE_POLICY_CFG.policy_mode (0=legacy)
     page_tr_init:  Optional[int] = None     # PAGE_TIMEOUT_CFG.tr_init
+    # adapt_time (mode 4) needs ALL of these, and until 2026-09-26 none had a
+    # host accessor. TR is clamped to [tr_min, tr_max] on every adjustment, so
+    # tr_max=0 pins it to 0 and `tr==0 disables that bank's timeout entirely`;
+    # and the whole adjustment is wrapped in `if (check_interval != 0)`, so at
+    # the 0 reset TR NEVER MOVES and adapt_time is just fixed_open(tr_init).
+    # That is how it has measured on every campaign: "identical to open page".
+    page_tr_min:   Optional[int] = None
+    page_tr_max:   Optional[int] = None
+    page_tr_step:  Optional[int] = None
+    page_adapt:    Optional[Dict[str, int]] = None   # set_page_adapt_cfg kw
     page_access:   Optional[Dict[str, int]] = None  # mode 5 table (set_page_access_cfg kw)
     # WRITE BATCHING (SCHED_WR_WM) -- TASK-007. Once the write CAM's
     # schedulable occupancy crosses wr_high_wm, writes outrank reads until it
@@ -449,8 +459,30 @@ class ControllerConfig:
         # at entry -- see Pumice.set_page_mode)
         drv.set_page_access_cfg(**(self.page_access if self.page_access is not None
                                    else {"ctr_open_max": 0, "ctr_init": 0}))
-        drv.set_page_mode(self.page_mode if self.page_mode is not None else 0,
-                          tr_init=self.page_tr_init)
+        # PAGE_TIMEOUT_CFG: all four fields, EVERY config, BEFORE the mode
+        # select -- and exactly one writer, which is why set_page_mode is
+        # called with tr_init=None below.
+        #
+        # Unconditional, because an unprogrammed field inherits the previous
+        # config's and here that also silently disables the mode: this used to
+        # be guarded on `page_tr_init is not None`, so open_page running after
+        # adapt_time_tuned in the same matrix kept tr_min=2/tr_max=64. Benign
+        # only because those configs sit in legacy mode; order-dependent all
+        # the same, which is the rule the other axes already follow.
+        #
+        # BEFORE the mode select, because the RTL reloads `r_tr[b] <= tr_init`
+        # continuously for as long as adapt is OFF. Written after, tr_init
+        # lands in a register nothing is still copying and TR keeps whatever
+        # the previous config left.
+        drv.set_page_timeout_cfg(
+            tr_init=self.page_tr_init if self.page_tr_init is not None else 0,
+            tr_min=self.page_tr_min if self.page_tr_min is not None else 0,
+            tr_max=self.page_tr_max if self.page_tr_max is not None else 0,
+            tr_step=self.page_tr_step if self.page_tr_step is not None else 0)
+        drv.set_page_adapt_cfg(**(self.page_adapt if self.page_adapt is not None
+                                  else {"check_interval": 0, "mc_high_thr": 0,
+                                        "mc_low_thr": 0, "mc_init": 0}))
+        drv.set_page_mode(self.page_mode if self.page_mode is not None else 0)
         # Write batching (TASK-007). Programmed on EVERY config for the same
         # reason the other mode axes are: leaving it to inherit whatever the
         # previous config set makes the matrix order-dependent.
@@ -593,6 +625,58 @@ CONFIGS: Dict[str, ControllerConfig] = {
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=5,
         page_access={"ctr_open_max": 2, "ctr_init": 0},
         order_mode=0, rd_in_order=True),
+    # ---- TASK-013: predictor configs that actually predict -----------------
+    # `adapt_time` above is mode 4 with tr_init and NOTHING ELSE, which is
+    # fixed_open(24) wearing mode 4's name: the adjustment is gated on
+    # `check_interval != 0` and TR is clamped to [tr_min, tr_max] = [0, 0].
+    # Every "adapt_time is identical to open page" result on record was
+    # measuring a mode that had never once adapted.
+    #
+    # tr_min is 2, NOT 0. `tr == 0 disables that bank's timeout entirely`, so
+    # a tr_min of 0 lets TR decay to 0 and the mode silently degenerates into
+    # plain open page -- the same way it has been failing all along, just by a
+    # different route.
+    #
+    # WHAT MODE 4 CAN AND CANNOT WIN. r_mc is ONE GLOBAL signed counter and
+    # the adjust loop applies that single decision to every r_tr[b], all of
+    # which start at tr_init -- so all eight per-bank TR registers are
+    # provably identical for all time and policy_scope=0's "per-bank TR" is a
+    # fiction. Heterogeneous-traffic-across-banks therefore CANNOT be the
+    # contrivance. The only honest win left is temporal: converge on the right
+    # TR without being told it. That is measured against the ladder below, not
+    # against a single fixed point.
+    "adapt_time_tuned": ControllerConfig(
+        "adapt_time_tuned", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4,
+        page_tr_init=8, page_tr_min=2, page_tr_max=64, page_tr_step=4,
+        page_adapt={"check_interval": 1024, "mc_high_thr": 2,
+                    "mc_low_thr": 0, "mc_init": 0},
+        order_mode=0, rd_in_order=True),
+    # SIM-SIZED mode 4. At txn_scale=1 a scenario is 8 transactions -- order
+    # 70 controller cycles -- and adapt_time_tuned needs 14 check intervals of
+    # 1024 to walk TR from tr_init to tr_max: ~14,336 cycles, a factor of ~200
+    # more run than exists. The adjustment logic therefore NEVER FIRES in sim,
+    # so a sim pass proves the config programs, NOT that the mode adapts, and
+    # the bandwidth verdict has to come from the board. This variant shrinks
+    # the interval so the adjust path is at least exercised somewhere a
+    # waveform can be read; it is not the configuration to quote numbers from.
+    "adapt_time_fast": ControllerConfig(
+        "adapt_time_fast", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4,
+        page_tr_init=8, page_tr_min=2, page_tr_max=64, page_tr_step=4,
+        page_adapt={"check_interval": 4, "mc_high_thr": 2,
+                    "mc_low_thr": 0, "mc_init": 0},
+        order_mode=0, rd_in_order=True),
+    # The fixed-TR ladder mode 4 has to beat. A single fixed_open point is not
+    # a fair opponent: the claim for an adaptive TR is that ONE config tracks
+    # the per-workload optimum, so the reference is the BEST of this ladder
+    # per workload, and the question is whether adapt_time_tuned matches it
+    # without retuning.
+    **{f"fixed_open_tr{tr}": ControllerConfig(
+        f"fixed_open_tr{tr}", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=3, page_tr_init=tr,
+        order_mode=0, rd_in_order=True)
+       for tr in (2, 4, 8, 16, 32, 64)},
     # ---- axis: refresh ----------------------------------------------------
     "fast_refresh": ControllerConfig(
         "fast_refresh", scheme=dc.SCHEME_ROW_MAJOR,
@@ -1228,7 +1312,9 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
         notes=tuple(notes))
 
 
-def hotcold_scenarios(sc: Scenario, n_gen: int) -> List[Scenario]:
+def hotcold_scenarios(sc: Scenario, n_gen: int,
+                      n_hot: "Optional[int]" = None,
+                      cold_blen: int = 2) -> List[Scenario]:
     """TASK-011: N-1 HOT generators against 1 COLD one, for RBL.
 
     Sean 2026-09-24: *"4 generators, offset from each other but hitting the
@@ -1261,12 +1347,72 @@ def hotcold_scenarios(sc: Scenario, n_gen: int) -> List[Scenario]:
 
     This is the first workload on which RBL *could* beat plain open page, and
     therefore the first on which its failure means anything.
+
+    THE COLD BURST MUST BE ONE COLUMN OP, AND THAT IS WHAT THE MODE-5 TABLE
+    ACTUALLY KEYS ON (2026-09-26). The predictor votes a row closed only when
+    an activation served **<= 1 column op**; at >= 2 it decrements toward open.
+    A DRAM column op moves 16 B on this geometry, so the caller's default AXI
+    burst of blen=8 (64 B) is FOUR column ops *in one row* -- and the first sim
+    measured exactly that: col_ops=128 against ACT=32. Every activation, hot
+    or cold, served 4, every counter decremented, and every row voted OPEN.
+    `adapt_access` came back bit-identical to `open_page` for a reason that has
+    nothing to do with the address walk: **no address pattern whatsoever can
+    make mode 5 vote close while the burst is longer than one column op.**
+
+    cold_blen=2 is 16 B, exactly one column op, so a cold activation serves one
+    access and the counter increments to the close verdict. This is not a knob
+    tuned to flatter the mode -- a short scattered burst IS the access pattern
+    a close-on-sight predictor exists to catch. Hot generators keep the
+    caller's burst: they are supposed to serve many column ops per activation.
+
+    THE HOT:COLD RATIO IS THE DISCRIMINATION KNOB (n_hot, 2026-09-26). At 3:1
+    open page is far ahead of close page before any predictor runs, so mode 5
+    is trying to beat a strong opponent with a quarter of the traffic. The
+    sharpest test is the ratio where open and close page come out NEAR TIED:
+    there neither fixed policy is right about most of the workload, and a
+    predictor that gets both classes right wins unambiguously rather than by
+    a few percent. n_hot=None keeps the original n_gen-1.
     """
-    hot = max(1, n_gen - 1)
+    hot = max(1, min(n_gen - 1, n_hot if n_hot is not None else n_gen - 1))
     out = [replace(sc, name=f"{sc.name}__hot{i}", family=FAM_ROW_MAJOR)
            for i in range(hot)]
-    out.append(replace(sc, name=f"{sc.name}__cold", family=FAM_COL_MAJOR))
+    out += [replace(sc, name=f"{sc.name}__cold{i}", family=FAM_COL_MAJOR,
+                    burst_len=cold_blen)
+            for i in range(n_gen - hot)]
     return out
+
+
+def confine_mask(stride: int, geom: Geometry, rows: int = 8) -> int:
+    """Placement confinement mask for a generator striding by `stride`.
+
+    THE MASK MUST BE COARSER THAN THE STRIDE. The hardware wraps the OFFSET,
+    not the address (dma_address_gen: offset = (i*stride) & wrap_mask, then
+    addr = base + offset), so a mask with no bits at or above the stride's
+    lowest set bit collapses every index onto the base -- the generator emits
+    ONE ADDRESS FOREVER, silently, for the whole run.
+
+    That is exactly what `bank_stride - 1` did to every col_major generator
+    (2026-09-26): stride 0x4000 & mask 0x7FF == 0. The mask looked like the
+    obvious way to say "stay in your bank", and it cannot be, because on this
+    geometry the bank bits sit BETWEEN the column and row bits
+    (col [10:0], bank [13:11], row [14+]). "One bank" is not a contiguous
+    low-order field, so no AND-mask expresses it.
+
+    What an AND-mask CAN express is a bounded row walk that leaves the bank
+    bits alone: an offset built from row_stride_same_bank has zero bits below
+    0x4000 and zero bank bits, so `rows * row_stride_same_bank - 1` bounds the
+    walk to `rows` rows and preserves the bank by construction.
+
+      stride >= bank_stride  -> row-granular walk; bound rows, bank preserved
+                                (col_major stays in its bank; col_interleave
+                                deliberately does NOT -- walking banks IS that
+                                family, and confining it would erase it)
+      stride <  bank_stride  -> sub-page walk; the page mask is coarser than
+                                the stride and is correct as-is
+    """
+    if stride >= geom.bank_stride:
+        return rows * geom.row_stride_same_bank - 1
+    return geom.bank_stride - 1
 
 
 def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
@@ -1274,6 +1420,8 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
                       base_addr: int = 0x0, clk_mhz: "Optional[float]" = None,
                       timeout_s: float = 40.0, n_wr: int = 1, n_rd: int = 1,
                       placement: str = "regions",
+                      same_bank_rows: int = 8,
+                      bank_spread: int = 1,
                       scenarios: "Optional[Sequence[Scenario]]" = None
                       ) -> CharRecord:
     """Run writers and readers in ONE window instead of back to back.
@@ -1364,7 +1512,7 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
         # to be one bank. Intersect with the family wrap so the access PATTERN
         # is preserved and only the walk is shortened -- same rule the region
         # branch uses.
-        bank_wrap = geom.bank_stride - 1
+        bank_wrap = confine_mask(stride, geom, same_bank_rows)
         wrap = (fam_wrap & bank_wrap) if fam_wrap else bank_wrap
     elif placement == "same_bank":
         # TASK-011. Every generator on ONE bank, offset from each other -- the
@@ -1382,9 +1530,66 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
         # read as "RBL does nothing" for a reason having nothing to do with RBL.
         # row_stride_same_bank (0x4000 here = bank_stride << bank_width) holds
         # the bank and advances the row, which is what col_major strides by.
-        bank_wrap = geom.bank_stride - 1
+        #
+        # THE WRAP MASK IS NOT bank_stride-1. That was the bug (found
+        # 2026-09-26): on this geometry the bank bits sit BETWEEN column and
+        # row bits (col [10:0], bank [13:11], row [14+]), so "one bank" is not
+        # expressible as a contiguous AND-mask at all. bank_stride-1 = 0x7FF
+        # confines to one PAGE, and intersecting col_major's stride of 0x4000
+        # with it gives 0x4000 & 0x7FF == 0 -- every index maps to the base and
+        # the cold generator emits ONE ADDRESS FOREVER. The hardware masks the
+        # OFFSET before adding base (dma_address_gen: offset = (i*stride) &
+        # wrap_mask), so this was real in silicon, not a host-model artifact.
+        #
+        # The offset from a row_stride_same_bank stride has zero bits below
+        # 0x4000 and zero bank bits, so a mask of rows*row_stride_same_bank-1
+        # cycles the offset through exactly `rows` rows and NEVER disturbs the
+        # bank -- confinement and bounding in one mask. The hot (row_major)
+        # engines keep their own page wrap, which was always correct.
+        #
+        # ROW BUDGETS, NOT A FIXED ONE-ROW PITCH. A generator that walks rows
+        # needs as many rows of clearance as it walks; one that streams inside
+        # a row needs exactly one. At the fixed idx*row_stride pitch two cold
+        # engines starting one row apart walk overlapping windows, and a row
+        # both of them touch serves TWO column ops per activation -- which the
+        # mode-5 table then classifies open, the precise opposite of what a
+        # cold row is. Give each generator the span it actually uses.
+        # BANK GROUPS (bank_spread). One bank maximises the hot/cold CONFLICT
+        # and minimises the pressure auto-precharge actually relieves, which
+        # are not the same thing:
+        #
+        #   On a single bank the ACT -> PRE -> ACT chain binds at tRAS + tRP
+        #   either way. bank_timer.sv: "auto-precharge fires once the
+        #   read/write recovery (preblk) AND tRAS elapse" -- the AP path waits
+        #   tRAS exactly like an explicit precharge. So mode 5 saves the
+        #   command-bus SLOT, not the latency; and with one bank active the
+        #   command bus is the one resource that is not contended. The
+        #   stimulus would be measuring mode 5 where its mechanism cannot pay.
+        #
+        # Auto-precharge pays when precharges COMPETE for issue slots against
+        # other banks' commands, which needs several banks busy at once.
+        # bank_spread>1 replicates the whole hot/cold group onto that many
+        # banks: each bank still holds one open row and still sees a streamer
+        # and a walker fighting over it, and now the precharges those conflicts
+        # generate contend for the command bus. bank_spread=1 is exactly the
+        # single-bank layout above.
+        bank_wrap = confine_mask(stride, geom, same_bank_rows)
         wrap = (fam_wrap & bank_wrap) if fam_wrap else bank_wrap
-        _addr = lambda idx: base_addr + idx * geom.row_stride_same_bank
+        _n_all = n_wr + n_rd
+        _nbanks = 1 << geom.bank_width
+        _spread = max(1, min(bank_spread, _nbanks, _n_all))
+        _place: Dict[int, Tuple[int, int]] = {}          # idx -> (bank, row)
+        _next_row = [0] * _spread
+        for _i in range(_n_all):
+            _sc_i = (scenarios[_i] if scenarios and _i < len(scenarios)
+                     and scenarios[_i] is not None else sc)
+            _g = _i % _spread                            # round-robin bank group
+            _place[_i] = (_g, _next_row[_g])
+            _st_i, _ = strides_for(_sc_i, geom)
+            _next_row[_g] += same_bank_rows if _st_i >= geom.bank_stride else 1
+        _addr = lambda idx: (base_addr
+                             + _place[idx][0] * geom.bank_stride
+                             + _place[idx][1] * geom.row_stride_same_bank)
     elif placement == "regions":
         _addr = lambda idx: base_addr + idx * region
     else:
@@ -1420,9 +1625,18 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
         if sc_i is sc:
             return stride, wrap
         stride_i, fam_wrap_i = strides_for(sc_i, geom)
-        # `wrap` already carries the placement confinement (region mask, or
-        # bank mask under placement="banks"). Intersecting preserves it.
-        wrap_i = (fam_wrap_i & wrap) if fam_wrap_i else wrap
+        # Re-derive the confinement from THIS generator's stride. Intersecting
+        # with the shared `wrap` is wrong whenever the two families stride at
+        # different granularities: the hot engines are row_major (page mask
+        # 0x7FF) and the cold one is col_major (stride 0x4000), so the shared
+        # mask collapses the cold walk to a single address -- see
+        # confine_mask(). The placement is still honoured, just computed per
+        # generator instead of inherited.
+        if placement in ("banks", "same_bank"):
+            conf_i = confine_mask(stride_i, geom, same_bank_rows)
+        else:
+            conf_i = wrap
+        wrap_i = (fam_wrap_i & conf_i) if fam_wrap_i else conf_i
         return stride_i, wrap_i
 
     def _prog(idx: int) -> dict:
@@ -1510,6 +1724,25 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
         notes.append(f"1:1 VIOLATION: hist total {rd_total} != {expect_rd_txn}")
     notes.append(f"concurrent {n_wr}w+{n_rd}r of {hw['num_wr_gen']}w+"
                  f"{hw['num_rd_gen']}r built, region 0x{region:X}")
+    # PER-GENERATOR PROVENANCE. The record carries the PARENT scenario, so its
+    # name and burst_len describe the caller's template and not necessarily
+    # what ran: a hotcold mix overrides family AND burst_len per generator, so
+    # the row prints "blen=8" while half the engines issued blen=2. A reader of
+    # the CSV six months from now has no way to tell, which is the exact shape
+    # of "a passing run must prove its config". Record what actually ran, and
+    # the placement that decided where -- not the template.
+    if scenarios:
+        mix = ",".join(
+            f"{(_sc_for(i)).family[:3]}{(_sc_for(i)).burst_len}"
+            for i in range(n_wr + n_rd))
+        notes.append(f"placement={placement} gens=[{mix}] "
+                     f"(family+blen per generator; the scenario column is the "
+                     f"template, not the mix)")
+        if placement == "same_bank":
+            notes.append(f"same_bank_rows={same_bank_rows} "
+                         f"bank_spread={_spread} "
+                         f"banks={sorted({_place[i][0] for i in _place})} "
+                         f"rows={sorted({_place[i][1] for i in _place})}")
 
     return CharRecord(
         scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
@@ -1600,6 +1833,10 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
                concurrent: Optional[Tuple[int, int]] = None,
                gen_mix: Optional[str] = None,
                sc_over: Optional[Dict[str, object]] = None,
+               same_bank_rows: int = 8,
+               n_hot: Optional[int] = None,
+               bank_spread: int = 1,
+               cold_blen: int = 2,
                ) -> List[CharRecord]:
     """Run the scenario suite under EACH controller config -- the full
     (config x generator) matrix. Returns a flat list, each record tagged with
@@ -1635,13 +1872,16 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
                 progress(f"{cfg.name}/{sc.name}", i, total)
             if concurrent:
                 n_wr, n_rd = concurrent
-                scen = (hotcold_scenarios(sc, n_wr + n_rd)
+                scen = (hotcold_scenarios(sc, n_wr + n_rd, n_hot=n_hot,
+                                          cold_blen=cold_blen)
                         if gen_mix == "hotcold" else None)
                 recs.append(measure_concurrent(
                     drv, sc, cfg=cfg, geom=geom, base_addr=base_addr,
                     clk_mhz=clk_mhz, timeout_s=max(timeout_s, 40.0),
                     n_wr=n_wr, n_rd=n_rd,
                     placement="same_bank" if gen_mix == "hotcold" else "regions",
+                    same_bank_rows=same_bank_rows,
+                    bank_spread=bank_spread,
                     scenarios=scen))
             else:
                 recs.append(measure(drv, sc, cfg=cfg, geom=geom,
@@ -1800,6 +2040,77 @@ RUN_PROFILES: Dict[str, dict] = {
                         # every row comes back ok=N. 0w+4r keeps the single
                         # direction the task asks for AND stays checkable.
                         concurrent=(0, 4), gen_mix="hotcold"),
+    # ---- TASK-013: the two predictor contrivances --------------------------
+    # PREDICTOR 1 (mode 5, adapt_access). A per-row predictor needs rows that
+    # DIFFER: some worth holding open, some worth closing on sight. hotcold is
+    # the only stimulus here that has that -- 3 engines streaming inside one
+    # row each (many column ops per activation -> counter-- -> hold open) and
+    # 1 walking across rows (exactly one column op per activation -> counter++
+    # -> close on sight). open_page gets the hot rows right and eats a
+    # precharge on every cold ACT; close_page gets the cold rows right and
+    # eats an ACT on every hot burst. Mode 5 is the only one that can get BOTH
+    # right, so the bar is beating BOTH, not beating one.
+    #
+    # THIS PROFILE COULD NOT HAVE WORKED BEFORE 2026-09-26. The cold engine
+    # emitted a single address forever (confine_mask(): a wrap mask finer than
+    # the stride collapses the walk onto the base), so there were four rows in
+    # play, not eleven, and the "walker" never walked. Every "adapt_access is
+    # inert" result on record was taken on that stimulus.
+    #
+    # same_bank_rows=8 keeps the cold walk at rows 3..10 while the hot engines
+    # hold 0,1,2. The predictor table is XOR-folded to 6 bits, which is the
+    # IDENTITY below row 64, so eleven distinct rows means eleven distinct
+    # table entries and no aliasing. Push this past ~61 and cold rows start
+    # folding onto the hot ones, which corrupts exactly the discrimination the
+    # profile exists to measure.
+    "adapt_rowmix": dict(configs=["open_page", "close_page", "adapt_access",
+                                  "adapt_time_tuned"],
+                         level="basic", families=(FAM_INCREMENTAL,),
+                         concurrent=(0, 4), gen_mix="hotcold",
+                         same_bank_rows=8),
+    # Same stimulus at the BALANCED ratio: 2 streaming, 2 walking. 3:1 hands
+    # open page most of the traffic before a predictor runs, so mode 5 has to
+    # win a fight it starts behind. At 2:2 neither fixed policy is right about
+    # most of the workload and the two should come out close -- which is the
+    # condition under which "beats both" is a clean result rather than a few
+    # percent over the better one. Run BOTH: if mode 5 wins at 2:2 and not at
+    # 3:1, the honest finding is that it needs a cold-heavy mix, not that it
+    # works.
+    "adapt_rowmix_2x2": dict(configs=["open_page", "close_page", "adapt_access",
+                                      "adapt_time_tuned"],
+                             level="basic", families=(FAM_INCREMENTAL,),
+                             concurrent=(0, 4), gen_mix="hotcold",
+                             same_bank_rows=8, n_hot=2),
+    # The same 2:2 mix spread over TWO banks, and this is the one that gives
+    # mode 5 a mechanism to win with. A single bank binds the ACT -> PRE -> ACT
+    # chain at tRAS + tRP whether the precharge is explicit or automatic, so
+    # mode 5 can only save the command-bus SLOT -- and a lone bank does not
+    # contend for the command bus. Two bank groups keep the per-bank hot/cold
+    # row conflict AND make precharges compete for issue slots, which is the
+    # cost auto-precharge actually removes. 4 generators is the harness ceiling
+    # (char_gen_unit NUM_GEN=4), so 2 groups x (1 hot + 1 cold) is the widest
+    # spread this stimulus can have.
+    "adapt_rowmix_2bank": dict(configs=["open_page", "close_page",
+                                        "adapt_access", "adapt_time_tuned"],
+                               level="basic", families=(FAM_INCREMENTAL,),
+                               concurrent=(0, 4), gen_mix="hotcold",
+                               same_bank_rows=8, n_hot=2, bank_spread=2),
+    # PREDICTOR 2 (mode 4, adapt_time). Measured against the FIXED-TR LADDER,
+    # because "beats fixed_open(24)" is not the claim -- an adaptive TR claims
+    # to find the right TR on a workload it was not tuned for. So the
+    # reference is the best fixed point PER FAMILY, and the question is
+    # whether one adapt_time config matches it across families whose optima
+    # differ (row_major wants a long TR, col_major a short one).
+    #
+    # A per-bank contrivance is deliberately absent: r_mc is one GLOBAL
+    # counter driving every r_tr[b] identically, so per-bank TR cannot
+    # diverge and no across-banks stimulus can show it. See adapt_time_tuned.
+    "adapt_tr": dict(configs=["open_page", "close_page", "adapt_time_tuned",
+                              "fixed_open_tr2", "fixed_open_tr4",
+                              "fixed_open_tr8", "fixed_open_tr16",
+                              "fixed_open_tr32", "fixed_open_tr64"],
+                     level="basic",
+                     families=(FAM_ROW_MAJOR, FAM_COL_MAJOR, FAM_INCREMENTAL)),
     "concurrent": dict(configs=["open_page"], level="basic", families=None,
                        concurrent=(1, 1)),
     # Multi-master: two readers against one writer, all on disjoint regions.
@@ -1830,7 +2141,11 @@ def run_profile(drv: DDR2CharDriver, profile: str = "smoke", *,
                       base_addr=base_addr, timeout_s=timeout_s, geom=geom,
                       clk_mhz=clk_mhz, progress=progress,
                       concurrent=p.get("concurrent"),
-                      gen_mix=p.get("gen_mix"), sc_over=p.get("sc_over"))
+                      gen_mix=p.get("gen_mix"), sc_over=p.get("sc_over"),
+                      same_bank_rows=p.get("same_bank_rows", 8),
+                      n_hot=p.get("n_hot"),
+                      bank_spread=p.get("bank_spread", 1),
+                      cold_blen=p.get("cold_blen", 2))
 
 
 # =============================================================================
