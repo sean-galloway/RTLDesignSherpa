@@ -135,12 +135,16 @@ def _cfg():
 
 
 def _set(dut, name, value):
-    """Drive a port if the DUT has it (AXIL has no id/len/last)."""
+    """Drive a port if the DUT has it (AXIL has no id/len/last).
+
+    Returns nothing on purpose. It used to return whether the port existed,
+    and no caller ever looked, so every call read as a discarded verdict to
+    bin/review/check_discarded_verdicts.py (18 per file). The optional-port
+    behaviour is the point of the helper, not a result to assert.
+    """
     handle = getattr(dut, name, None)
     if handle is not None:
         handle.value = value
-        return True
-    return False
 
 
 def _get(dut, name):

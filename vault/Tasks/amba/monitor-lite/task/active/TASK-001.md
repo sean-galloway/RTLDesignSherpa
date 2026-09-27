@@ -421,3 +421,9 @@ the lite reported `AXI_ERR_DATA_ORPHAN` for the second beat and failed phase
 falling edge and drops valid at the falling edge after the accepting rising
 edge. Both wrapper families pass with it. Handbook:
 `dv/bfm-usage.md`, "A hand-rolled driver has a write-timing hazard a BFM does not".
+Follow-up the same evening: the gating test's `_set()` helper returned a
+boolean nobody read, which `check_discarded_verdicts.py` counts as a discarded
+verdict; the original was baselined, the new copy was not, so the derived test
+tripped the ratchet (0 -> 18) for every session once it landed. The helper
+returns nothing now, both files are at 0 and the baseline is 18 lower.
+

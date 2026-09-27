@@ -16,6 +16,5 @@
   "projects/components/dmas/stream/dv/tests/top/test_stream_top_monbus.py": 1,
   "projects/fpga-systems/Genesys2/stream/build-mon/dv/tests/test_stream_mon.py": 5,
   "projects/fpga-systems/Genesys2/stream/build-obs/dv/tests/test_stream_mon.py": 3,
-  "val/amba/test_mon_cg_gating.py": 18,
   "val/amba/test_wb4_monitor.py": 10
 }
