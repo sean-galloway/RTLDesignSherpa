@@ -105,6 +105,30 @@ DRAM_CONFIGS = {
 }
 
 
+def dram_clocks(name=None):
+    """Both simulation clock periods, DERIVED from the operating point.
+
+    Sean, 2026-09-27: *"why isn't aclk set the same in sim. I've been begging you
+    to make the sim env identical to the board for months."* There was no reason.
+    This TB hardcoded `aclk_period_ns=10` (100 MHz) against a 75 MHz board, and
+    `dfi_period_ns=4` -- a 2.5:1 ratio that matches neither DFI_RATE=2 nor
+    anything else. Both are now derived here so they cannot drift from the part
+    and clock the rest of the bench is configured for.
+
+    QUANTISED TO WHOLE PICOSECONDS, and to a MULTIPLE OF 8. 1e9/75e6 is
+    13.3333...ns, which cocotb refuses outright ("Unable to accurately represent
+    13.333333333333334(ns) with the simulator precision of 1e-12"), and the
+    DFI clock divides it -- 13333/2 = 6666.5 ps is not whole either. A multiple
+    of 8 ps keeps /2, /4 and /8 all whole. Residual frequency error is ~2e-4.
+    """
+    c = DRAM_CONFIGS[name or _os_env_mod.environ.get("DRAM_CONFIG",
+                                                     "board_ddr2_300")]
+    grain = 8
+    aclk_ps = grain * round(1e12 / c["mc_clk_hz"] / grain)
+    dfi_ps  = aclk_ps // c["ck_per_mc"]          # DFI carries ck_per_mc per MC
+    return aclk_ps / 1000.0, dfi_ps / 1000.0, round(1e12 / aclk_ps)
+
+
 def dram_config(name=None):
     """Resolve one operating point into (model_timings, controller_mc_cycles, meta).
 
@@ -143,7 +167,8 @@ class PumiceTopCsrTB:
     # by-name register map (generated from pumice_csr.rdl)
     _REGMAP = None
 
-    def __init__(self, dut, *, aclk_period_ns: int = 10, dfi_period_ns: int = 4,
+    def __init__(self, dut, *, aclk_period_ns: float = None,
+                 dfi_period_ns: float = None,
                  dram_beat_width: int = 64, dfi_rate: int = 2, dram_bl: int = 8,
                  axi_id_width: int = 8, axi_addr_width: int = 32,
                  num_ranks: int = 1, num_banks: int = 8,
@@ -153,8 +178,13 @@ class PumiceTopCsrTB:
         self.dut = dut
         self.log = logging.getLogger("pumice_top_csr_tb")
         self.log.setLevel(logging.INFO)
-        self.aclk_period_ns = aclk_period_ns
-        self.dfi_period_ns = dfi_period_ns
+        # DEFAULT TO THE BOARD. Explicit arguments still win, for a test that
+        # deliberately studies another clock -- but the default is the operating
+        # point, never a hardcoded constant.
+        _a, _d, _hz = dram_clocks()
+        self.aclk_period_ns = _a if aclk_period_ns is None else aclk_period_ns
+        self.dfi_period_ns  = _d if dfi_period_ns  is None else dfi_period_ns
+        self._clk_actual_hz = _hz
 
         # geometry: AXI data width == one DFI word == DRAM_BEAT_WIDTH * DFI_RATE
         self.dfi_rate = dfi_rate
@@ -380,6 +410,9 @@ class PumiceTopCsrTB:
             + ", ".join(f"{k}: {got} CK enforced < {want} CK needed"
                         for k, (got, want) in _short.items())
             + ". Fix the operating point, do not relax the model.")
+        self.log.info("[cfg] clocks: aclk=%.3fns (%d Hz) dfi=%.3fns",
+                      self.aclk_period_ns, self._clk_actual_hz,
+                      self.dfi_period_ns)
         self.log.info("[cfg] DRAM_CONFIG=%s tCK=%.3fns CL=%d CWL=%d BL=%d "
                       "| ctrl MC: tRC=%d tRCD=%d tRP=%d tRAS=%d tWR=%d tRTP=%d",
                       _meta["name"], _meta["tck_ns"], _meta["CL"], _meta["CWL"],
