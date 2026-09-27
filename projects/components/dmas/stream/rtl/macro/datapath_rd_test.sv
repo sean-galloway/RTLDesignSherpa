@@ -137,6 +137,7 @@ module datapath_rd_test #(
     // SRAM Read Interface (for TB to drain and verify)
     //=========================================================================
     output logic [NC-1:0]                       axi_wr_sram_valid,   // Per-channel valid (data available)
+    output logic [NC-1:0]                       axi_wr_sram_valid_comb, // Per-channel valid, combinational: the consumer's data-valid gate
     input  logic                                axi_wr_sram_drain,   // TB drives ready (drain request)
     input  logic [IW-1:0]                       axi_wr_sram_id,      // TB selects channel
     output logic [DW-1:0]                       axi_wr_sram_data,    // Data from selected channel
@@ -486,7 +487,7 @@ module datapath_rd_test #(
         // Combinational valid output (only the write engine consumes this; the
         // read-path wrapper has no write engine, so leave it dangling).
         /* verilator lint_off PINCONNECTEMPTY */
-        .axi_wr_sram_valid_comb (),
+        .axi_wr_sram_valid_comb (axi_wr_sram_valid_comb),
         /* verilator lint_on PINCONNECTEMPTY */
         .axi_wr_sram_drain      (axi_wr_sram_drain),
         .axi_wr_sram_id         (sram_wr_drain_channel_id),  // Channel ID only

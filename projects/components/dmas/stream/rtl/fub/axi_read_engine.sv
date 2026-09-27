@@ -306,14 +306,68 @@ module axi_read_engine #(
     logic [NC-1:0] w_arb_request;               // Masked requests to arbiter
     logic [NC-1:0][7:0] w_transfer_size;        // Actual transfer size per channel (min of remaining beats or config)
 
+    //=========================================================================
+    // In-flight allocation pipeline (closes the stale-space_free race)
+    //=========================================================================
+    // axi_rd_alloc_space_free is three cycles behind an AR handshake: the
+    // engine registers axi_rd_alloc_req (T+1), stream_alloc_ctrl counts it
+    // at the next edge (T+2), and sram_controller flops the per-channel
+    // vector at its boundary for 100 MHz closure (T+3). During T+1 and T+2
+    // the reported space still contains the beats that AR already took, so
+    // a channel allowed several outstanding ARs (PIPELINE=1) issued the
+    // next one against space it did not have, and the SRAM controller was
+    // over-committed by up to two bursts (stream BUG-012 / rapids BUG-004, found by
+    // test_axi_read_engine_beats 'all' at 8 ch / PIPELINE=1: "alloc 13
+    // beats with only 0 free").
+    //
+    // Fix, the read-side twin of the write engine's w_pending_drain: keep
+    // the sizes of the ARs that handshook in the last two cycles and
+    // subtract them from the registered view before the space check. Two
+    // registered terms, not a combinational "this cycle" term -- the space
+    // check gates m_axi_arvalid below, and m_axi_arvalid is what an AR in
+    // progress would feed back into, which is a loop. The AR of the current
+    // cycle is instead caught one cycle later by the live gate.
+    logic [NC-1:0][SCW-1:0] w_alloc_t;          // beats the AR handshaking THIS cycle takes
+    logic [NC-1:0][SCW-1:0] r_alloc_tminus1;    // ... handshook last cycle
+    logic [NC-1:0][SCW-1:0] r_alloc_tminus2;    // ... the cycle before
+    logic [NC-1:0][SCW-1:0] w_pending_alloc;    // in flight, not yet in the registered view
+    logic [NC-1:0][SCW-1:0] w_effective_space;  // registered view minus in-flight
+
+    always_comb begin
+        w_alloc_t = '{default:0};
+        if (m_axi_arvalid && m_axi_arready) begin
+            w_alloc_t[w_arb_grant_id] = SCW'(m_axi_arlen) + SCW'(1);
+        end
+    end
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_alloc_tminus1 <= '{default:0};
+            r_alloc_tminus2 <= '{default:0};
+        end else begin
+            r_alloc_tminus1 <= w_alloc_t;
+            r_alloc_tminus2 <= r_alloc_tminus1;
+        end
+    )
+
+    always_comb begin
+        for (int i = 0; i < NC; i++) begin
+            w_pending_alloc[i] = r_alloc_tminus1[i] + r_alloc_tminus2[i];
+            w_effective_space[i] = (SCW'(axi_rd_alloc_space_free[i]) >= w_pending_alloc[i])
+                                    ? (SCW'(axi_rd_alloc_space_free[i]) - w_pending_alloc[i])
+                                    : '0;
+        end
+    end
+
     always_comb begin
         for (int i = 0; i < NC; i++) begin
             // Calculate actual transfer size for this channel
             w_transfer_size[i] = 8'((sched_rd_beats[i] <= (32'(cfg_axi_rd_xfer_beats) + 32'd1)) ?
                         (sched_rd_beats[i] - 32'd1) : 32'(cfg_axi_rd_xfer_beats));
 
-            // Check if channel has enough space for actual transfer size
-            w_space_ok[i] = (SCW'(axi_rd_alloc_space_free[i]) >= SCW'(w_transfer_size[i] + 8'd1));
+            // Check if channel has enough space for actual transfer size,
+            // net of the ARs still in flight through the reporting chain
+            w_space_ok[i] = (w_effective_space[i] >= SCW'(w_transfer_size[i] + 8'd1));
 
             // Check outstanding constraint
             // PIPELINE=0: !r_outstanding_limit means no outstanding transaction (can issue)
@@ -407,10 +461,18 @@ module axi_read_engine #(
     // When axi_rd_alloc_space_free goes to 0, arvalid must drop in the same cycle
 
     // AXI AR outputs - COMBINATIONAL.
-    // m_axi_arvalid is gated by live sched_rd_valid[w_arb_grant_id] so a
-    // stale grant (from the 1-cycle r_arb_request pipeline) cannot fire an
-    // AR for a channel the scheduler is no longer driving.
-    assign m_axi_arvalid = w_arb_grant_valid && sched_rd_valid[w_arb_grant_id];
+    // m_axi_arvalid is gated by the LIVE request term for the granted
+    // channel, not only by sched_rd_valid. The grant comes from the 1-cycle
+    // r_arb_request pipeline, so it can be a cycle stale in three ways: the
+    // scheduler stopped driving the channel, the channel's AR of the
+    // previous cycle used the space this one would need, or -- at
+    // PIPELINE=0 -- that AR set r_outstanding_limit and the channel must
+    // not issue again until its data is back. Gating only on sched_rd_valid
+    // let the last two through: with one channel eligible the round-robin
+    // re-granted it the cycle after its AR and a second AR issued while the
+    // first was outstanding (stream BUG-012 / rapids BUG-004, test_axi_read_engine_beats
+    // 'starved': "alloc 8 beats with only 7 free" at PIPELINE=0).
+    assign m_axi_arvalid = w_arb_grant_valid && w_arb_request[w_arb_grant_id];
     assign m_axi_arid = {{(IW-CW){1'b0}}, w_arb_grant_id};  // Channel ID in lower bits
     // Address comes directly from scheduler (scheduler increments after each AR)
     assign m_axi_araddr = sched_rd_addr[w_arb_grant_id];
@@ -421,12 +483,13 @@ module axi_read_engine #(
     assign m_axi_arburst = 2'b01;  // INCR
 
     // Acknowledge arbiter grant when AXI accepts AR command, OR when the
-    // grant is stale (live sched_rd_valid dropped after the registered
-    // r_arb_request was captured). Stale-release prevents the arbiter from
-    // stalling on a channel whose AR will never fire because m_axi_arvalid
-    // is masked by live sched_rd_valid.
+    // grant is stale (the live request term dropped after the registered
+    // r_arb_request was captured: scheduler done, space taken by the
+    // previous AR, or outstanding limit reached). Stale-release prevents
+    // the arbiter from stalling on a channel whose AR will never fire
+    // because m_axi_arvalid is masked by the live term.
     logic [NC-1:0] w_stale_grant;
-    assign w_stale_grant = w_arb_grant & ~sched_rd_valid;
+    assign w_stale_grant = w_arb_grant & ~w_arb_request;
     assign w_arb_grant_ack = (w_arb_grant & {NC{(m_axi_arvalid && m_axi_arready)}})
                            | w_stale_grant;
 

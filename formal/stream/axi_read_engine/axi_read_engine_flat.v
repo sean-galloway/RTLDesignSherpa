@@ -95,7 +95,7 @@ module arbiter_round_robin (
 		end
 	end
 	assign w_next_grant_valid = w_should_grant;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			grant <= 1'sb0;
 			grant_id <= 1'sb0;
@@ -574,14 +574,17 @@ module axi_read_engine (
 	localparam signed [31:0] MOW = $clog2(AR_MAX_OUTSTANDING + 1);
 	reg [NC - 1:0] r_outstanding_limit;
 	reg [(NC * MOW) - 1:0] r_outstanding_count;
+	wire w_arb_grant_valid;
+	wire [NC - 1:0] w_arb_grant;
 	wire [CW - 1:0] w_arb_grant_id;
+	wire [NC - 1:0] w_arb_grant_ack;
 	function automatic signed [MOW - 1:0] sv2v_cast_04DDF_signed;
 		input reg signed [MOW - 1:0] inp;
 		sv2v_cast_04DDF_signed = inp;
 	endfunction
 	generate
 		if (PIPELINE == 0) begin : gen_no_pipeline_tracking
-			always @(posedge clk)
+			always @(posedge clk or negedge rst_n)
 				if (!rst_n)
 					r_outstanding_limit <= 1'sb0;
 				else begin : sv2v_autoblock_1
@@ -613,7 +616,7 @@ module axi_read_engine (
 						end
 				end
 			end
-			always @(posedge clk)
+			always @(posedge clk or negedge rst_n)
 				if (!rst_n)
 					r_outstanding_count <= 1'sb0;
 				else begin : sv2v_autoblock_3
@@ -638,7 +641,7 @@ module axi_read_engine (
 	endgenerate
 	reg [NC - 1:0] r_all_complete;
 	reg [NC - 1:0] r_all_complete_prev;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_all_complete <= 1'sb1;
 			r_all_complete_prev <= 1'sb1;
@@ -659,6 +662,47 @@ module axi_read_engine (
 	reg [NC - 1:0] w_below_outstanding_limit;
 	reg [NC - 1:0] w_arb_request;
 	reg [(NC * 8) - 1:0] w_transfer_size;
+	reg [(NC * SCW) - 1:0] w_alloc_t;
+	reg [(NC * SCW) - 1:0] r_alloc_tminus1;
+	reg [(NC * SCW) - 1:0] r_alloc_tminus2;
+	reg [(NC * SCW) - 1:0] w_pending_alloc;
+	reg [(NC * SCW) - 1:0] w_effective_space;
+	function automatic [SCW - 1:0] sv2v_cast_14961;
+		input reg [SCW - 1:0] inp;
+		sv2v_cast_14961 = inp;
+	endfunction
+	function automatic signed [SCW - 1:0] sv2v_cast_14961_signed;
+		input reg signed [SCW - 1:0] inp;
+		sv2v_cast_14961_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_alloc_t = {NC {sv2v_cast_14961(0)}};
+		if (m_axi_arvalid && m_axi_arready)
+			w_alloc_t[w_arb_grant_id * SCW+:SCW] = sv2v_cast_14961(m_axi_arlen) + sv2v_cast_14961_signed(1);
+	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_alloc_tminus1 <= {NC {sv2v_cast_14961(0)}};
+			r_alloc_tminus2 <= {NC {sv2v_cast_14961(0)}};
+		end
+		else begin
+			r_alloc_tminus1 <= w_alloc_t;
+			r_alloc_tminus2 <= r_alloc_tminus1;
+		end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_6
+			reg signed [31:0] i;
+			for (i = 0; i < NC; i = i + 1)
+				begin
+					w_pending_alloc[i * SCW+:SCW] = r_alloc_tminus1[i * SCW+:SCW] + r_alloc_tminus2[i * SCW+:SCW];
+					w_effective_space[i * SCW+:SCW] = (sv2v_cast_14961(axi_rd_alloc_space_free[i * SCW+:SCW]) >= w_pending_alloc[i * SCW+:SCW] ? sv2v_cast_14961(axi_rd_alloc_space_free[i * SCW+:SCW]) - w_pending_alloc[i * SCW+:SCW] : {SCW * 1 {1'sb0}});
+				end
+		end
+	end
 	function automatic [31:0] sv2v_cast_32;
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
@@ -667,32 +711,38 @@ module axi_read_engine (
 		input reg [7:0] inp;
 		sv2v_cast_8 = inp;
 	endfunction
-	function automatic [SCW - 1:0] sv2v_cast_14961;
-		input reg [SCW - 1:0] inp;
-		sv2v_cast_14961 = inp;
-	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_6
+		begin : sv2v_autoblock_7
 			reg signed [31:0] i;
 			for (i = 0; i < NC; i = i + 1)
 				begin
 					w_transfer_size[i * 8+:8] = sv2v_cast_8((sched_rd_beats[i * 32+:32] <= (sv2v_cast_32(cfg_axi_rd_xfer_beats) + 32'd1) ? sched_rd_beats[i * 32+:32] - 32'd1 : sv2v_cast_32(cfg_axi_rd_xfer_beats)));
-					w_space_ok[i] = sv2v_cast_14961(axi_rd_alloc_space_free[i * SCW+:SCW]) >= sv2v_cast_14961(w_transfer_size[i * 8+:8] + 8'd1);
+					w_space_ok[i] = w_effective_space[i * SCW+:SCW] >= sv2v_cast_14961(w_transfer_size[i * 8+:8] + 8'd1);
 					w_below_outstanding_limit[i] = !r_outstanding_limit[i];
 					w_arb_request[i] = (sched_rd_valid[i] && w_space_ok[i]) && w_below_outstanding_limit[i];
 				end
 		end
 	end
-	wire w_arb_grant_valid;
-	wire [NC - 1:0] w_arb_grant;
-	wire [NC - 1:0] w_arb_grant_ack;
+	reg [NC - 1:0] r_arb_request;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			r_arb_request <= 1'sb0;
+		else
+			r_arb_request <= w_arb_request;
 	generate
 		if (NC == 1) begin : gen_single_channel
-			assign w_arb_grant_valid = w_arb_request[0];
-			assign w_arb_grant = w_arb_request;
-			assign w_arb_grant_id = 1'b0;
+			arbiter_single_client #(.WAIT_GNT_ACK(1)) u_arbiter_single(
+				.clk(clk),
+				.rst_n(rst_n),
+				.block_arb(1'b0),
+				.request(r_arb_request[0]),
+				.grant_ack(w_arb_grant_ack[0]),
+				.grant_valid(w_arb_grant_valid),
+				.grant(w_arb_grant[0]),
+				.grant_id(w_arb_grant_id[0])
+			);
 		end
 		else begin : gen_multi_channel
 			arbiter_round_robin #(
@@ -702,7 +752,7 @@ module axi_read_engine (
 				.clk(clk),
 				.rst_n(rst_n),
 				.block_arb(1'b0),
-				.request(w_arb_request),
+				.request(r_arb_request),
 				.grant_ack(w_arb_grant_ack),
 				.grant_valid(w_arb_grant_valid),
 				.grant(w_arb_grant),
@@ -711,7 +761,7 @@ module axi_read_engine (
 			);
 		end
 	endgenerate
-	assign m_axi_arvalid = w_arb_grant_valid;
+	assign m_axi_arvalid = w_arb_grant_valid && w_arb_request[w_arb_grant_id];
 	assign m_axi_arid = {{IW - CW {1'b0}}, w_arb_grant_id};
 	assign m_axi_araddr = sched_rd_addr[w_arb_grant_id * AW+:AW];
 	assign m_axi_arlen = w_transfer_size[w_arb_grant_id * 8+:8];
@@ -721,11 +771,13 @@ module axi_read_engine (
 	endfunction
 	assign m_axi_arsize = sv2v_cast_3_signed(AXSIZE);
 	assign m_axi_arburst = 2'b01;
-	assign w_arb_grant_ack = w_arb_grant & {NC {m_axi_arvalid && m_axi_arready}};
+	wire [NC - 1:0] w_stale_grant;
+	assign w_stale_grant = w_arb_grant & ~w_arb_request;
+	assign w_arb_grant_ack = (w_arb_grant & {NC {m_axi_arvalid && m_axi_arready}}) | w_stale_grant;
 	reg r_alloc_req;
 	reg [7:0] r_alloc_size;
 	reg [IW - 1:0] r_alloc_id;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_alloc_req <= 1'b0;
 			r_alloc_size <= 1'sb0;
@@ -748,7 +800,7 @@ module axi_read_engine (
 	assign m_axi_rready = axi_rd_sram_ready;
 	reg [NC - 1:0] r_done_strobe;
 	reg [(NC * 32) - 1:0] r_beats_done;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_done_strobe <= {NC {1'd0}};
 			r_beats_done <= {NC {32'd0}};
@@ -763,10 +815,10 @@ module axi_read_engine (
 	assign sched_rd_done_strobe = r_done_strobe;
 	assign sched_rd_beats_done = r_beats_done;
 	reg [NC - 1:0] r_rd_error;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_rd_error <= 1'sb0;
-		else if ((m_axi_rvalid && m_axi_rready) && (m_axi_rresp != 2'b00)) begin : sv2v_autoblock_7
+		else if ((m_axi_rvalid && m_axi_rready) && (m_axi_rresp != 2'b00)) begin : sv2v_autoblock_8
 			reg [CW - 1:0] ch_id;
 			ch_id = m_axi_rid[CW - 1:0];
 			r_rd_error[ch_id] <= 1'b1;
@@ -774,7 +826,7 @@ module axi_read_engine (
 	assign sched_rd_error = r_rd_error;
 	reg [31:0] r_r_beats_rcvd;
 	reg [31:0] r_sram_writes;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_r_beats_rcvd <= 1'sb0;
 			r_sram_writes <= 1'sb0;

@@ -1101,7 +1101,7 @@ module axi_write_engine_beats (
 		end
 	endgenerate
 	wire [NC - 1:0] w_stale_grant;
-	assign w_stale_grant = w_arb_grant & ~sched_wr_valid;
+	assign w_stale_grant = w_arb_grant & ~w_arb_request;
 	assign w_arb_grant_ack = (w_arb_grant & {NC {m_axi_awvalid && m_axi_awready}}) | w_stale_grant;
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
@@ -1110,7 +1110,7 @@ module axi_write_engine_beats (
 			r_aw_channel_id <= 1'sb0;
 		end
 		else begin
-			if ((w_arb_grant_valid && !r_aw_valid) && sched_wr_valid[w_arb_grant_id]) begin
+			if ((w_arb_grant_valid && !r_aw_valid) && w_arb_request[w_arb_grant_id]) begin
 				r_aw_valid <= 1'b1;
 				r_aw_channel_id <= w_arb_grant_id;
 				r_aw_len <= w_transfer_size[w_arb_grant_id * 8+:8];

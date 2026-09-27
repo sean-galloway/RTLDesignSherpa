@@ -544,8 +544,19 @@ module axi_write_engine_beats #(
     // r_arb_request was captured). Stale-release prevents the arbiter from
     // stalling on a channel that will never see its AW issued, since the
     // AW-issue block below is gated by live sched_wr_valid[w_arb_grant_id].
+    // A grant can be a cycle stale (r_arb_request pipeline): the scheduler
+    // stopped driving the channel, or -- at PIPELINE=0 -- the channel's AW
+    // of the previous cycle set r_outstanding_limit and it must not issue
+    // again until its B is back. Keying the AW load and the stale release on
+    // the live w_arb_request term (scheduler valid, data net of in-flight
+    // drains, below the outstanding limit) closes both; keying on
+    // sched_wr_valid alone let a lone channel run two AWs in flight at
+    // PIPELINE=0 and the binary limit flag then cleared on the first B
+    // while the second was still open (rapids BUG-005, found by
+    // test_axi_write_engine_beats 'single': "AW #2 ch0: ch0 already has
+    // 1 burst(s) outstanding (limit 1)").
     logic [NC-1:0] w_stale_grant;
-    assign w_stale_grant = w_arb_grant & ~sched_wr_valid;
+    assign w_stale_grant = w_arb_grant & ~w_arb_request;
     assign w_arb_grant_ack = (w_arb_grant & {NC{(m_axi_awvalid && m_axi_awready)}})
                            | w_stale_grant;
 
@@ -559,7 +570,7 @@ module axi_write_engine_beats #(
             // Accept new command from arbiter; gate by live sched_wr_valid so
             // a stale grant (from the 1-cycle r_arb_request pipeline) cannot
             // capture an AW for a channel the scheduler is no longer driving.
-            if (w_arb_grant_valid && !r_aw_valid && sched_wr_valid[w_arb_grant_id]) begin
+            if (w_arb_grant_valid && !r_aw_valid && w_arb_request[w_arb_grant_id]) begin
                 r_aw_valid <= 1'b1;
                 r_aw_channel_id <= w_arb_grant_id;
                 r_aw_len <= w_transfer_size[w_arb_grant_id];  // cfg_axi_wr_xfer_beats stores AWLEN value directly

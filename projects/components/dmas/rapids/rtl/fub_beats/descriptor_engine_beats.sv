@@ -617,7 +617,9 @@ module descriptor_engine_beats #(
     // Descriptor Validation
     //=========================================================================
 
-    // Address range validation
+    // Address range validation of the address about to be fetched (latched into
+    // r_axi_read_addr when the address FIFO pops). Consumed in RD_ISSUE_ADDR: an
+    // out-of-range address is refused there instead of being fetched.
     assign w_addr_range_valid = ((r_axi_read_addr >= cfg_addr0_base && r_axi_read_addr <= cfg_addr0_limit) ||
                                 (r_axi_read_addr >= cfg_addr1_base && r_axi_read_addr <= cfg_addr1_limit));
 
@@ -728,10 +730,17 @@ module descriptor_engine_beats #(
             end
 
             rapids_pkg::RD_ISSUE_ADDR: begin
-                // Issue AXI AR transaction
+                // Issue AXI AR transaction -- but only for an address inside one
+                // of the two configured ranges. An address outside both is the
+                // MAS CHECK_RANGE "range error": no fetch, descriptor_error, back
+                // to idle. Until 2026-09-27 the range wire was computed and never
+                // consumed for the kicked address (only chained next pointers
+                // were checked), so any APB address was fetched (rapids BUG-006).
                 if (r_channel_reset_active) begin
                     w_next_state = rapids_pkg::RD_IDLE; // Reset aborts operation
-                end else if (ar_ready) begin
+                end else if (!w_addr_range_valid) begin
+                    w_next_state = rapids_pkg::RD_ERROR; // Address outside both ranges: refuse
+                end else if (ar_valid && ar_ready) begin
                     w_next_state = rapids_pkg::RD_WAIT_DATA; // AR accepted, wait for data
                 end
                 // Note: Stays in ISSUE_ADDR until ar_ready or reset
@@ -822,7 +831,7 @@ module descriptor_engine_beats #(
                 end
 
                 rapids_pkg::RD_ISSUE_ADDR: begin
-                    if (ar_ready) begin
+                    if (ar_valid && ar_ready) begin
                         r_axi_read_active <= 1'b1;
                     end
                 end
@@ -919,7 +928,7 @@ module descriptor_engine_beats #(
     // AR issues for chunk 0 (RD_ISSUE_ADDR) and, for EXT descriptors, chunk 1
     // (RD_ISSUE_ADDR2). Chunk 1 sits immediately after chunk 0 in memory:
     // descriptor_addr + 0x20 (256 bits = 32 bytes).
-    assign ar_valid = ((r_current_state == rapids_pkg::RD_ISSUE_ADDR) ||
+    assign ar_valid = (((r_current_state == rapids_pkg::RD_ISSUE_ADDR) && w_addr_range_valid) ||
                        (r_current_state == rapids_pkg::RD_ISSUE_ADDR2)) && !r_axi_read_active;
     assign ar_addr = (r_current_state == rapids_pkg::RD_ISSUE_ADDR2) ?
                         (r_axi_read_addr + ADDR_WIDTH'(32)) : r_axi_read_addr;

@@ -11,6 +11,10 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes \
 
 # Package files (order matters: dependencies first)
 PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/monitor_amba5_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/monitor_pkg.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/includes/stream_pkg.sv
 
 # RTL dependencies

@@ -31,7 +31,7 @@ module counter_bin (
 		else
 			counter_bin_next = counter_bin_curr;
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			counter_bin_curr <= 'b0;
 		else
@@ -54,7 +54,7 @@ module fifo_control (
 	rd_almost_empty
 );
 	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 16;
+	parameter signed [31:0] DEPTH = 8;
 	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
 	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
 	parameter signed [31:0] REGISTERED = 0;
@@ -108,7 +108,7 @@ module fifo_control (
 	generate
 		if (REGISTERED == 1) begin : gen_flop_mode
 			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk)
+			always @(posedge rd_clk or negedge rd_rst_n)
 				if (!rd_rst_n)
 					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
@@ -150,7 +150,6 @@ module gaxi_fifo_sync (
 	rd_valid,
 	rd_data
 );
-	reg _sv2v_0;
 	parameter signed [31:0] MEM_STYLE = 32'sd0;
 	parameter signed [31:0] REGISTERED = 0;
 	parameter signed [31:0] DATA_WIDTH = 4;
@@ -179,7 +178,6 @@ module gaxi_fifo_sync (
 	wire r_wr_almost_full;
 	wire r_rd_empty;
 	wire r_rd_almost_empty;
-	reg [DW - 1:0] w_rd_data;
 	wire w_write;
 	wire w_read;
 	assign w_write = wr_valid && wr_ready;
@@ -236,18 +234,16 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 		else if (MEM_STYLE == 32'sd2) begin : gen_bram
@@ -255,11 +251,13 @@ module gaxi_fifo_sync (
 			always @(posedge axi_aclk)
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
-			always @(posedge axi_aclk)
+			reg [DATA_WIDTH - 1:0] r_rd_data;
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
-					w_rd_data <= 1'sb0;
+					r_rd_data <= 1'sb0;
 				else
-					w_rd_data <= mem[r_rd_addr];
+					r_rd_data <= mem[r_rd_addr];
+			assign rd_data = r_rd_data;
 		end
 		else begin : gen_auto
 			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
@@ -267,29 +265,25 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 	endgenerate
-	assign rd_data = w_rd_data;
 	always @(posedge axi_aclk) begin
 		if (w_write && r_wr_full)
 			;
 		if (w_read && r_rd_empty)
 			;
 	end
-	initial _sv2v_0 = 0;
 endmodule
 module gaxi_skid_buffer (
 	axi_aclk,
@@ -306,8 +300,6 @@ module gaxi_skid_buffer (
 	parameter signed [31:0] DATA_WIDTH = 32;
 	parameter signed [31:0] DEPTH = 2;
 	parameter signed [31:0] DW = DATA_WIDTH;
-	parameter signed [31:0] BUF_WIDTH = DATA_WIDTH * DEPTH;
-	parameter signed [31:0] BW = BUF_WIDTH;
 	input wire axi_aclk;
 	input wire axi_aresetn;
 	input wire wr_valid;
@@ -324,11 +316,16 @@ module gaxi_skid_buffer (
 	wire w_rd_xfer;
 	assign w_wr_xfer = wr_valid & wr_ready;
 	assign w_rd_xfer = rd_valid & rd_ready;
+	generate
+		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+		end
+	endgenerate
 	genvar _gv_gi_1;
 	generate
 		for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
 			localparam gi = _gv_gi_1;
-			always @(posedge axi_aclk)
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
 					r_data[gi] <= 1'sb0;
 				else
@@ -354,7 +351,7 @@ module gaxi_skid_buffer (
 					endcase
 		end
 	endgenerate
-	always @(posedge axi_aclk)
+	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn)
 			r_data_count <= 1'sb0;
 		else
@@ -369,7 +366,7 @@ module gaxi_skid_buffer (
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
 	endfunction
-	always @(posedge axi_aclk)
+	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn) begin
 			wr_ready <= 1'b0;
 			rd_valid <= 1'b0;
@@ -392,6 +389,7 @@ module descriptor_engine_beats (
 	descriptor_valid,
 	descriptor_ready,
 	descriptor_packet,
+	descriptor_ext_packet,
 	descriptor_error,
 	descriptor_eos,
 	descriptor_eol,
@@ -432,11 +430,12 @@ module descriptor_engine_beats (
 	reg _sv2v_0;
 	parameter signed [31:0] CHANNEL_ID = 0;
 	parameter signed [31:0] NUM_CHANNELS = 32;
-	parameter signed [31:0] CHAN_WIDTH = $clog2(NUM_CHANNELS);
+	parameter signed [31:0] CHAN_WIDTH = (NUM_CHANNELS > 1 ? $clog2(NUM_CHANNELS) : 1);
 	parameter signed [31:0] ADDR_WIDTH = 64;
 	parameter signed [31:0] AXI_ID_WIDTH = 8;
 	parameter signed [31:0] FIFO_DEPTH = 8;
 	parameter signed [31:0] DESC_ADDR_FIFO_DEPTH = 2;
+	parameter signed [31:0] USE_ROW_COL_MAJOR_ADDRESSING = 1;
 	parameter signed [31:0] TIMEOUT_CYCLES = 1000;
 	parameter [15:0] MON_AGENT_ID = 16'h0010;
 	parameter [7:0] MON_UNIT_ID = 8'h01;
@@ -450,6 +449,7 @@ module descriptor_engine_beats (
 	output wire descriptor_valid;
 	input wire descriptor_ready;
 	output wire [255:0] descriptor_packet;
+	output wire [255:0] descriptor_ext_packet;
 	output wire descriptor_error;
 	output wire descriptor_eos;
 	output wire descriptor_eol;
@@ -489,7 +489,7 @@ module descriptor_engine_beats (
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (AXI_ID_WIDTH < CHAN_WIDTH) begin
-		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/rapids/rtl/fub_beats/descriptor_engine_beats.sv:139:13 - descriptor_engine_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CHAN_WIDTH);
+		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/rapids/rtl/fub_beats/descriptor_engine_beats.sv:147:13 - descriptor_engine_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CHAN_WIDTH);
 		$finish(1);
 	end
 	reg [2:0] r_current_state;
@@ -522,6 +522,8 @@ module descriptor_engine_beats (
 	reg [1:0] r_axi_read_resp;
 	reg [255:0] r_descriptor_data;
 	reg [ADDR_WIDTH - 1:0] r_saved_next_addr;
+	reg [255:0] r_descriptor_ext_data;
+	wire w_want_ext;
 	wire w_chain_condition;
 	wire w_next_addr_valid;
 	wire w_chain_eligible;
@@ -550,7 +552,7 @@ module descriptor_engine_beats (
 	reg r_mon_valid;
 	reg [127:0] r_mon_packet;
 	reg [63:0] r_mon_timestamp;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_channel_reset_active <= 1'b0;
 		else
@@ -636,7 +638,7 @@ module descriptor_engine_beats (
 	assign w_prefetch_allows = w_desc_fifo_count < w_prefetch_limit;
 	assign w_should_chain = ((w_chain_eligible && w_desc_committed) && w_prefetch_allows) && w_desc_addr_fifo_wr_ready;
 	assign w_pending_push_fire = ((r_chain_pending && w_prefetch_allows) && w_desc_addr_fifo_wr_ready) && !w_desc_committed;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_chain_pending <= 1'b0;
 			r_pending_chain_addr <= 1'sb0;
@@ -665,6 +667,29 @@ module descriptor_engine_beats (
 		.rd_data(w_desc_fifo_rd_data),
 		.count(w_desc_fifo_count)
 	);
+	generate
+		if (USE_ROW_COL_MAJOR_ADDRESSING != 0) begin : g_ext_fifo
+			wire [255:0] w_desc_ext_fifo_rd_data;
+			gaxi_fifo_sync #(
+				.DATA_WIDTH(256),
+				.DEPTH(FIFO_DEPTH)
+			) i_descriptor_ext_fifo(
+				.axi_aclk(clk),
+				.axi_aresetn(rst_n),
+				.wr_valid(w_desc_fifo_wr_valid),
+				.wr_ready(),
+				.wr_data(r_descriptor_ext_data),
+				.rd_valid(),
+				.rd_ready(w_desc_fifo_rd_ready),
+				.rd_data(w_desc_ext_fifo_rd_data),
+				.count()
+			);
+			assign descriptor_ext_packet = w_desc_ext_fifo_rd_data;
+		end
+		else begin : g_no_ext
+			assign descriptor_ext_packet = 1'sb0;
+		end
+	endgenerate
 	localparam signed [31:0] rapids_pkg_DESC_OPCODE_HI = 209;
 	localparam signed [31:0] rapids_pkg_DESC_OPCODE_LO = 208;
 	always @(*) begin
@@ -687,8 +712,11 @@ module descriptor_engine_beats (
 	assign w_addr_range_valid = ((r_axi_read_addr >= cfg_addr0_base) && (r_axi_read_addr <= cfg_addr0_limit)) || ((r_axi_read_addr >= cfg_addr1_base) && (r_axi_read_addr <= cfg_addr1_limit));
 	assign w_our_axi_response = r_valid && (r_id[CHAN_WIDTH - 1:0] == CHANNEL_ID[CHAN_WIDTH - 1:0]);
 	assign w_axi_response_ok = r_resp == 2'b00;
-	assign r_ready = (r_current_state == 3'b010) && w_our_axi_response;
-	always @(posedge clk)
+	localparam signed [31:0] rapids_pkg_DESC_TYPE_HI = 212;
+	localparam signed [31:0] rapids_pkg_DESC_TYPE_LO = 210;
+	assign w_want_ext = (USE_ROW_COL_MAJOR_ADDRESSING != 0) && (r_data[rapids_pkg_DESC_TYPE_HI:rapids_pkg_DESC_TYPE_LO] == 3'd1);
+	assign r_ready = ((r_current_state == 3'b010) || (r_current_state == 3'b110)) && w_our_axi_response;
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_current_state <= 3'b000;
 		else
@@ -726,17 +754,31 @@ module descriptor_engine_beats (
 			3'b001:
 				if (r_channel_reset_active)
 					w_next_state = 3'b000;
-				else if (ar_ready)
+				else if (!w_addr_range_valid)
+					w_next_state = 3'b100;
+				else if (ar_valid && ar_ready)
 					w_next_state = 3'b010;
 			3'b010:
 				if (r_channel_reset_active)
 					w_next_state = 3'b000;
 				else if (w_our_axi_response && r_valid) begin
-					if (w_axi_response_ok)
-						w_next_state = 3'b011;
-					else
+					if (!w_axi_response_ok)
 						w_next_state = 3'b100;
+					else if (w_want_ext)
+						w_next_state = 3'b101;
+					else
+						w_next_state = 3'b011;
 				end
+			3'b101:
+				if (r_channel_reset_active)
+					w_next_state = 3'b000;
+				else if (ar_ready)
+					w_next_state = 3'b110;
+			3'b110:
+				if (r_channel_reset_active)
+					w_next_state = 3'b000;
+				else if (w_our_axi_response && r_valid)
+					w_next_state = (w_axi_response_ok ? 3'b011 : 3'b100);
 			3'b011:
 				if (w_desc_fifo_wr_ready)
 					w_next_state = 3'b000;
@@ -744,13 +786,14 @@ module descriptor_engine_beats (
 			default: w_next_state = 3'b000;
 		endcase
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_apb_operation_active <= 1'b0;
 			r_axi_read_active <= 1'b0;
 			r_axi_read_addr <= 64'h0000000000000000;
 			r_axi_read_resp <= 2'b00;
 			r_descriptor_data <= 1'sb0;
+			r_descriptor_ext_data <= 1'sb0;
 			r_saved_next_addr <= 64'h0000000000000000;
 			r_descriptor_error <= 1'b0;
 		end
@@ -764,15 +807,25 @@ module descriptor_engine_beats (
 					r_descriptor_error <= 1'b0;
 				end
 				3'b001:
-					if (ar_ready)
+					if (ar_valid && ar_ready)
 						r_axi_read_active <= 1'b1;
 				3'b010:
 					if (w_our_axi_response && r_valid) begin
 						r_descriptor_data <= r_data;
 						r_axi_read_resp <= r_resp;
 						r_saved_next_addr <= {{ADDR_WIDTH - 32 {1'b0}}, w_next_addr};
+						if (w_want_ext && w_axi_response_ok)
+							r_axi_read_active <= 1'b0;
 						if (!r_data[192])
 							r_descriptor_error <= 1'b1;
+					end
+				3'b101:
+					if (ar_ready)
+						r_axi_read_active <= 1'b1;
+				3'b110:
+					if (w_our_axi_response && r_valid) begin
+						r_descriptor_ext_data <= r_data;
+						r_axi_read_resp <= r_resp;
 					end
 				3'b011:
 					if (w_desc_fifo_wr_ready) begin
@@ -807,10 +860,14 @@ module descriptor_engine_beats (
 			w_desc_fifo_wr_data[1-:2] = w_desc_type;
 		end
 	end
-	assign ar_valid = (r_current_state == 3'b001) && !r_axi_read_active;
-	assign ar_addr = r_axi_read_addr;
+	assign ar_valid = (((r_current_state == 3'b001) && w_addr_range_valid) || (r_current_state == 3'b101)) && !r_axi_read_active;
+	function automatic signed [ADDR_WIDTH - 1:0] sv2v_cast_A5DC5_signed;
+		input reg signed [ADDR_WIDTH - 1:0] inp;
+		sv2v_cast_A5DC5_signed = inp;
+	endfunction
+	assign ar_addr = (r_current_state == 3'b101 ? r_axi_read_addr + sv2v_cast_A5DC5_signed(32) : r_axi_read_addr);
 	assign ar_len = 8'h00;
-	assign ar_size = 3'b110;
+	assign ar_size = 3'b101;
 	assign ar_burst = 2'b01;
 	assign ar_id = {{AXI_ID_WIDTH - CHAN_WIDTH {1'b0}}, CHANNEL_ID[CHAN_WIDTH - 1:0]};
 	assign ar_lock = 1'b0;
@@ -834,7 +891,7 @@ module descriptor_engine_beats (
 		input reg [63:0] inp;
 		sv2v_cast_64 = inp;
 	endfunction
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_mon_valid <= 1'b0;
 			r_mon_packet <= 1'sb0;
@@ -859,7 +916,7 @@ module descriptor_engine_beats (
 			endcase
 		end
 	wire w_channel_idle_rising = !r_channel_idle_prev && channel_idle;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_apb_ip <= 1'b0;
 			r_channel_idle_prev <= 1'b1;
