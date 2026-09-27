@@ -210,7 +210,7 @@ filelist_dirs = [
 ]
 
 [[area]]
-name = "genesys2_rapids_char"
+name = "genesys2_rapids_beats_char"
 kind = "board"
 rtl_roots = []
 filelist_dirs = ["projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/flists"]
