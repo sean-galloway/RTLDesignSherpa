@@ -647,7 +647,12 @@ async def cocotb_test_pumice_core_refresh_credit(dut):
     _BATCH_MAX = 16
 
     def _elapsed(t0):
-        return (get_sim_time('ns') - t0) / 10.0
+        # ns -> MC CYCLES using the ACTUAL clock period. This was `/ 10.0`, a
+        # hardcoded 100 MHz assumption, so at the board's 13.336 ns it
+        # over-reported elapsed cycles by 1.33x: the demand loop exited early,
+        # fewer tREFI ticks elapsed, and the arms saw 1-2 REFs where they
+        # require >= 3. The assertions were right; the cycle math was wrong.
+        return (get_sim_time('ns') - t0) / _ACLK_NS
 
     async def _demand(cycles, tag):
         """Sustained demand for at least `cycles` cycles of real sim time."""
@@ -658,7 +663,7 @@ async def cocotb_test_pumice_core_refresh_credit(dut):
             n = max(2, min(_BATCH_MAX, int(want / _rate[0])))
             b0 = get_sim_time('ns')
             await _demand_n(n, tag + k * _BATCH_MAX)
-            _rate[0] = max(1.0, (get_sim_time('ns') - b0) / 10.0 / n)
+            _rate[0] = max(1.0, (get_sim_time('ns') - b0) / _ACLK_NS / n)
             k += 1
         el = _elapsed(t0)
         dut._log.info("demand(want=%d tag=%d): actual=%.0f cyc (%.1f tREFI "
@@ -921,7 +926,7 @@ async def _measure_write_stream(dut, *, t_refi, t_rfc, label, title, n=256,
     ref0 = slave.cmd_counts.get(_DC.REF, 0)
     t0 = get_sim_time('ns')
     await _write_many(dut, reqs)
-    elapsed = (get_sim_time('ns') - t0) / 10.0
+    elapsed = (get_sim_time('ns') - t0) / _ACLK_NS
 
     m = {
         'label': label, 'title': title, 'bursts': n, 'beats': n * BL_WORDS,
@@ -1111,7 +1116,7 @@ async def _measure_read_stream(dut, *, t_refi, t_rfc, label, title, n=256,
     ref0 = slave.cmd_counts.get(_DC.REF, 0)
     t0 = get_sim_time('ns')
     results = await _read_many(dut, [a for a, _ in reqs])
-    elapsed = (get_sim_time('ns') - t0) / 10.0
+    elapsed = (get_sim_time('ns') - t0) / _ACLK_NS
     # _read_many and _count_r wake on the SAME RisingEdge and the order
     # between two coroutines on one edge is undefined, so sampling the counter
     # here loses the final beat -- exactly one, at both geometries (255/256
