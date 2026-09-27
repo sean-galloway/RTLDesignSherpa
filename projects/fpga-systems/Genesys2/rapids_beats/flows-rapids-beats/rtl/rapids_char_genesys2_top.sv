@@ -39,7 +39,14 @@ module rapids_char_genesys2_top #(
     // Extended row/col-major addressing in the DUT. Pinned OFF by default for
     // this characterization build (it is tuned down to close 8-channel timing);
     // override via the RAPIDS_ROW_COL env generic to measure the cost.
-    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
+    // In-core AXI/descriptor monitors + MonBus egress in the DUT, and the GEN_MON
+    // cone in rapids_beats_top. Default OFF: this characterization build meters
+    // externally (axi_bus_meter) and is tuned to close 8-channel timing. Override
+    // via the USE_AXI_MONITORS / GEN_MON env generics -- the same knob names
+    // STREAM's builds export -- to measure what the monitors cost.
+    parameter int USE_AXI_MONITORS = 0,
+    parameter bit GEN_MON          = 1'b0
 ) (
     input  logic        sysclk_p,      // 200 MHz LVDS (+)
     input  logic        sysclk_n,      // 200 MHz LVDS (-)
@@ -108,7 +115,9 @@ module rapids_char_genesys2_top #(
         .DESC_RAM_ENTRIES (DESC_RAM_ENTRIES),
         .APB_ADDR_WIDTH   (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH   (APB_DATA_WIDTH),
-        .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING)
+        .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
+        .USE_AXI_MONITORS (USE_AXI_MONITORS),
+        .GEN_MON          (GEN_MON)
     ) u_char_top (
         .CLK100MHZ    (clk100),
         .CPU_RESETN   (dut_resetn),

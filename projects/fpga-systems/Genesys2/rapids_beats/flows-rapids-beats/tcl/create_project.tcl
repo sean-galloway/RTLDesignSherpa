@@ -79,6 +79,17 @@ if {[info exists ::env(RAPIDS_DESC_RAM_ENTRIES)]} { set desc_ram_entries $::env(
 set row_col 0
 if {[info exists ::env(RAPIDS_ROW_COL)]} { set row_col $::env(RAPIDS_ROW_COL) }
 
+# In-core monitors + MonBus egress (USE_AXI_MONITORS) and the GEN_MON cone in
+# rapids_beats_top. Default 0/0: this build meters externally (axi_bus_meter)
+# and is tuned to close 8-channel timing. Set USE_AXI_MONITORS=1 (and GEN_MON=1
+# so the packets have an egress and the monitors are not pruned) to measure
+# what they cost -- with them compiled out a lite-vs-full monitor comparison is
+# unmeasurable. Same knob names STREAM's build-*/Makefile export.
+set use_axi_monitors 0
+if {[info exists ::env(USE_AXI_MONITORS)]} { set use_axi_monitors $::env(USE_AXI_MONITORS) }
+set gen_mon 0
+if {[info exists ::env(GEN_MON)]}          { set gen_mon $::env(GEN_MON) }
+
 puts "========================================================================"
 puts "RTL Design Sherpa — RAPIDS beats Characterization ($board_label)"
 puts "========================================================================"
@@ -86,6 +97,8 @@ puts "Project root:      $project_root"
 puts "REPO_ROOT:         $::env(REPO_ROOT)"
 puts "Part / top:        $part_name / $top_name"
 puts "Row/col addressing: $row_col"
+puts "USE_AXI_MONITORS:  $use_axi_monitors"
+puts "GEN_MON:           $gen_mon"
 puts "NUM_CHANNELS:      $num_channels"
 puts "SRAM_DEPTH:        $sram_depth"
 puts "DESC_RAM_ENTRIES:  $desc_ram_entries"
@@ -155,7 +168,7 @@ puts "Setting top module: $top_name"
 set_property top $top_name $src_fs
 
 # Narrow the board geometry + memory sizing via top-level generics (see header).
-set_property generic "NUM_CHANNELS=$num_channels SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col" $src_fs
+set_property generic "NUM_CHANNELS=$num_channels SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col USE_AXI_MONITORS=$use_axi_monitors GEN_MON=$gen_mon" $src_fs
 
 update_compile_order -fileset sources_1
 

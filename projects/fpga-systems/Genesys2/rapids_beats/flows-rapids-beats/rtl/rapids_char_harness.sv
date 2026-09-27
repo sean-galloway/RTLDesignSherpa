@@ -62,6 +62,13 @@ module rapids_char_harness #(
     // this characterization build (it is tuned down to close 8-channel timing);
     // override via the RAPIDS_ROW_COL env generic to measure the cost.
     parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
+    // In-core AXI/descriptor monitors + MonBus egress in the DUT, and the GEN_MON
+    // cone in rapids_beats_top. Default OFF: this characterization build meters
+    // externally (axi_bus_meter) and is tuned to close 8-channel timing. Override
+    // via the USE_AXI_MONITORS / GEN_MON env generics -- the same knob names
+    // STREAM's builds export -- to measure what the monitors cost.
+    parameter int USE_AXI_MONITORS = 0,
+    parameter bit GEN_MON          = 1'b0,
     // ---- Host interface (relocated from rapids_char_top) ----
     parameter int FPGA_CLK_HZ     = 100_000_000,
     parameter int UART_BAUD       = 115_200
@@ -1124,12 +1131,14 @@ module rapids_char_harness #(
         .AXIS_ID_WIDTH  (AXIS_ID_WIDTH),
         .AXIS_DEST_WIDTH(AXIS_DEST_WIDTH),
         .AXIS_USER_WIDTH(AXIS_USER_WIDTH),
-        // Compile the in-core AXI/descriptor monitors + MonBus egress OUT: this
-        // char build meters utilization externally (axi_bus_meter), so the DUT
-        // monitors are dead weight -- removing them reclaims LUTs and closes
-        // 8-channel timing (mirrors stream_char's USE_AXI_MONITORS=0).
-        .USE_AXI_MONITORS(0),
-        .GEN_MON         (1'b0),
+        // In-core AXI/descriptor monitors + MonBus egress, and the GEN_MON cone.
+        // Both default OFF (see the parameters): this char build meters utilization
+        // externally (axi_bus_meter), so the DUT monitors are dead weight -- off
+        // reclaims LUTs and closes 8-channel timing (mirrors stream_char's
+        // USE_AXI_MONITORS=0). Overridable via the env generics so the monitors'
+        // cost can be MEASURED rather than argued.
+        .USE_AXI_MONITORS(USE_AXI_MONITORS),
+        .GEN_MON         (GEN_MON),
         // Extended addressing compiled OUT. rapids_beats_top defaults this to 1
         // as of the default flip, but this char build is tuned down to close
         // 8-channel timing and meters externally; inheriting the new default

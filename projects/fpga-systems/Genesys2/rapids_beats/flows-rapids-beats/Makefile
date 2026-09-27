@@ -79,6 +79,15 @@ BEATS    ?= 8
 # (see 'make board-info'), so its tty number depends on enumeration order.
 PORT     ?= auto
 export RAPIDS_NUM_CHANNELS := $(CHANNELS)
+# ---- Monitor knobs -- the SAME names STREAM's build-*/Makefile export ------
+# USE_AXI_MONITORS: in-core AXI/descriptor monitors + MonBus egress in the DUT.
+# GEN_MON:          the per-channel completion/error MonBus emitters (the
+#                   packets' egress; turn it on with the monitors or they are
+#                   pruned as unused).
+# Both default OFF: this build meters externally (axi_bus_meter) and is tuned
+# to close 8-channel timing. Turn them on to MEASURE what the monitors cost.
+export USE_AXI_MONITORS ?= 0
+export GEN_MON          ?= 0
 
 .PHONY: help sim verify-sim project synth bitstream program characterize \
         smoke suite flow utilization timing clean clean-all cleanall
@@ -99,6 +108,7 @@ help:
 	@echo "  make clean / clean-all"
 	@echo ""
 	@echo "  CHANNELS=$(CHANNELS) ACTIVE=$(ACTIVE) BEATS=$(BEATS) PORT=$(PORT)"
+	@echo "  USE_AXI_MONITORS=$(USE_AXI_MONITORS) GEN_MON=$(GEN_MON)   (both 0: monitors compiled out)"
 
 # ---- Simulation -----------------------------------------------------------
 # The harness self-check IS the characterization, run in sim: a multi-channel
