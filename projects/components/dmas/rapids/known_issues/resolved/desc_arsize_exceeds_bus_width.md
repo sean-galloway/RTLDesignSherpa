@@ -1,6 +1,9 @@
 # Descriptor fetch drives ARSIZE=64B on a 32B bus
 
-**Status:** Active / Filed, not yet fixed
+**Status:** RESOLVED 2026-09-26 in `e236d102e` (fix(rapids,stream): ARSIZE must match the
+256-bit descriptor bus) -- `descriptor_engine_beats.sv` derives ARSIZE from the bus width and
+`descriptor_engine_tb.py` asserts it. This file stayed in `active/` for a day after the fix
+landed; moved 2026-09-27.
 **Severity:** Medium — benign in the current testbenches, but it is an AXI
 protocol violation on the wire and it over-reads 32 bytes past every
 extended-descriptor chunk 1.

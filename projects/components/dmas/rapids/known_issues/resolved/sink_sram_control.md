@@ -27,7 +27,11 @@
 
 **Severity**: Low
 **Impact**: Concurrent read operations not supported
-**Status**: CONFIRMED structural against the beats RTL 2026-09-25
+**Status**: RETIRED 2026-09-27. The module this describes (`snk_sram_controller_unit_beats.sv`,
+and before it `sink_sram_control.sv`) was deleted in `bdf4e0dff`; the sink SRAM is STREAM's
+`sram_controller` now, whose single drain port per cycle IS the design -- the AXIS egress
+consumes one beat per cycle, so a second read port could not raise throughput (perf report
+v1.2: sink egress at 100 % of line rate). Kept as history; not a defect.
 **Discovery Date**: During RTL review
 
 ### Description

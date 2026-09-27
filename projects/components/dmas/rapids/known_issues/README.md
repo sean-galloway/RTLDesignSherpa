@@ -33,11 +33,11 @@ This directory tracks all known RTL issues in the RAPIDS subsystem, organized by
 known_issues/
 ├── README.md           ← This file
 ├── scheduler_group_signal_naming_conflicts.md
-├── active/             ← Unresolved issues and pending enhancements
-│   ├── desc_arsize_exceeds_bus_width.md
-│   ├── drain_size_gt1_source_beat_drop.md
-│   └── sink_sram_control.md
+├── active/             ← Unresolved issues and pending enhancements (empty)
 └── resolved/           ← Fixed; kept permanently for reference
+    ├── desc_arsize_exceeds_bus_width.md
+    ├── drain_size_gt1_source_beat_drop.md
+    ├── sink_sram_control.md
     ├── char_harness_sink_selfcheck_no_beats.md
     ├── sink_data_path.md
     └── snk_scheduler_write_commit_stall.md
@@ -58,31 +58,25 @@ known_issues/
 
 ## Current Status
 
-### Resolved Issues (3)
+### Resolved Issues (6)
 
-All three FUBs (Functional Unit Blocks) in the scheduler group are now **production-ready** with all known bugs fixed:
+| File (`resolved/`) | What it was | Closed |
+|---|---|---|
+| `snk_scheduler_write_commit_stall.md` | Sink scheduler stalled on write commit | 2026-07-16 |
+| `sink_data_path.md` | Sink data path AXI timeout detection (moved to the monitor by design) | 2026-09-14 |
+| `char_harness_sink_selfcheck_no_beats.md` | Genesys2 char harness sink self-check saw no beats | 2026-09-22 |
+| `drain_size_gt1_source_beat_drop.md` | Source path dropped beats at DRAIN_SIZE > 1 | 2026-09-27 (`29c696c30`) |
+| `desc_arsize_exceeds_bus_width.md` | Descriptor engine issued ARSIZE wider than the bus | fixed in `e236d102e`, tracker moved 2026-09-27 |
+| `sink_sram_control.md` | Single-read limit of the old `sink_sram_control` unit | module deleted in `bdf4e0dff` (STREAM `sram_controller` now), tracker retired 2026-09-27 |
 
-| Issue | Component | Status | Date Fixed | Verification |
-|-------|-----------|--------|------------|--------------|
-| Credit counter initialization | Scheduler | FIXED | 2025-10-14 | 43/43 tests passing |
-| FSM state transitions (3 bugs) | Program Engine | FIXED | 2025-10-14 | 8/8 tests passing |
-| APB sequential pattern | Descriptor Engine | NO BUG FOUND | 2025-10-14 | All scenarios working |
+### Active Issues (0)
 
-**Test Results:**
-- **Scheduler:** 43/43 tests passing (100%) - Credit-based flow control fully functional
-- **Program Engine:** 8/8 tests passing (100%) - All FSM bugs fixed and verified
-- **Descriptor Engine:** 14/14 tests passing (100%) - Sequential patterns work correctly
+`active/` is empty. The last two entries had been fixed days before their
+trackers moved (see the 2026-09-14 note above for the same failure); the
+directory count is what people read, so the file moves when the fix lands.
 
-### Active Issues (2)
-
-| Issue | Component | Severity | Priority | Impact |
-|-------|-----------|----------|----------|--------|
-| AXI timeout detection missing | Sink Data Path | Medium | Medium | Error detection incomplete |
-| Single read operation limit | Sink SRAM Control | Low | Low | Architectural simplification |
-
-**Note:** Active issues are **not bugs** but missing features or architectural limitations:
-- **Sink Data Path:** Timeout detection is a planned enhancement, not a critical bug
-- **Sink SRAM Control:** Single-read limitation is a design simplification, functionally correct
+Open work that is not a defect is tracked in `vault/Tasks/projects/components/dmas/rapids/`,
+not here.
 
 ---
 
