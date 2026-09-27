@@ -52,6 +52,9 @@ if _DV_DIR not in sys.path:
 
 from tbclasses.pumice_axi_bfm import PumiceAxiBfm      # noqa: E402
 
+from tbclasses.pumice_top_csr_tb import board_clock_periods  # noqa: E402
+_ACLK_NS, _DFI_NS = board_clock_periods()   # BOARD parity, not literals
+
 NUM_BANKS, ROW_WIDTH, COL_WIDTH = 8, 14, 10
 DFI_RATE, DRAM_BEAT = 2, 64
 DW = DRAM_BEAT * DFI_RATE
@@ -100,8 +103,8 @@ async def _csr_rd(dut, addr):
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
 async def cocotb_test_pumice_top_csr(dut):
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
-    cocotb.start_soon(Clock(dut.dfi_clk, 4, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, _ACLK_NS, units="ns").start())
+    cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units="ns").start())
     # idle
     dut.s_cpuif_req.value = 0; dut.s_cpuif_req_is_wr.value = 0
     dut.s_cpuif_addr.value = 0; dut.s_cpuif_wr_data.value = 0; dut.s_cpuif_wr_biten.value = 0

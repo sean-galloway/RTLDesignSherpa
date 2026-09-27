@@ -129,6 +129,20 @@ def dram_clocks(name=None):
     return aclk_ps / 1000.0, dfi_ps / 1000.0, round(1e12 / aclk_ps)
 
 
+def board_clock_periods(name=None):
+    """(aclk_ns, dfi_ns) for the named operating point -- the ONE source of truth.
+
+    Tests that start their own clocks must call this instead of writing literals.
+    Twenty sites across this suite hardcoded `Clock(dut.aclk, 10)` /
+    `Clock(dut.dfi_clk, 4)` -- 100 MHz and a 2.5:1 ratio matching neither
+    DFI_RATE=2 nor the 75 MHz board. Fixing the TB class alone did not help the
+    tests that bypass it, which is how BUG-003 was measured on the wrong clock for
+    hours and produced three conclusions that had to be reversed.
+    """
+    a, d, _hz = dram_clocks(name)
+    return a, d
+
+
 def dram_config(name=None):
     """Resolve one operating point into (model_timings, controller_mc_cycles, meta).
 

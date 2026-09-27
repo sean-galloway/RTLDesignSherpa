@@ -34,6 +34,9 @@ if _DV_DIR not in sys.path:
 
 from tbclasses.pumice_axi_bfm import PumiceAxiBfm      # noqa: E402
 
+from tbclasses.pumice_top_csr_tb import board_clock_periods  # noqa: E402
+_ACLK_NS, _DFI_NS = board_clock_periods()   # BOARD parity, not literals
+
 DFI_RATE, DRAM_BEAT = 2, 64
 DW = DRAM_BEAT * DFI_RATE          # 128 (host AXI = DFI word)
 SW = DW // 8
@@ -44,8 +47,8 @@ BURST_INCR = 1
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
 async def cocotb_test_pumice_core(dut):
-    cocotb.start_soon(Clock(dut.aclk, 10, units='ns').start())
-    cocotb.start_soon(Clock(dut.dfi_clk, 4, units='ns').start())
+    cocotb.start_soon(Clock(dut.aclk, _ACLK_NS, units='ns').start())
+    cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units='ns').start())
     _idle(dut)
     dut.aresetn.value = 0
     dut.dfi_rstn.value = 0

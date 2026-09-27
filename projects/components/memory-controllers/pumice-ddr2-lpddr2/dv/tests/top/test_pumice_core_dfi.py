@@ -62,6 +62,9 @@ if _DV_DIR not in sys.path:
 
 from tbclasses.pumice_axi_bfm import PumiceAxiBfm      # noqa: E402
 
+from tbclasses.pumice_top_csr_tb import board_clock_periods  # noqa: E402
+_ACLK_NS, _DFI_NS = board_clock_periods()   # BOARD parity, not literals
+
 NUM_BANKS, ROW_WIDTH, COL_WIDTH = 8, 14, 10
 # Geometry. The defaults are the historical sim point (128b core, BL8, device
 # width == beat width) -- NOT the board's. Overridable so a run can reproduce
@@ -159,8 +162,8 @@ def _mkaddr(bank, row, col):
 
 async def _bring_up(dut, page_policy=0, read_latency=0, strict_read=False):
     """clocks + reset + config + strict DFISlavePHY(golden) + init -> returns memory."""
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
-    cocotb.start_soon(Clock(dut.dfi_clk, 4, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, _ACLK_NS, units="ns").start())
+    cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units="ns").start())
     _cfg(dut, page_policy)
     dut.aresetn.value = 0
     dut.dfi_rstn.value = 0

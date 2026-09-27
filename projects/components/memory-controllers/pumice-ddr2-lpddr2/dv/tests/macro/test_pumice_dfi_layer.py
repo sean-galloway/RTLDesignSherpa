@@ -29,6 +29,9 @@ if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer   # noqa: E402
 
+from tbclasses.pumice_top_csr_tb import board_clock_periods  # noqa: E402
+_ACLK_NS, _DFI_NS = board_clock_periods()   # BOARD parity, not literals
+
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/macro/pumice_dfi_layer.f")
 
@@ -66,8 +69,8 @@ def pack_wd(data, strb, last):
 
 @cocotb.test(timeout_time=5, timeout_unit="ms")
 async def cocotb_test_pumice_dfi_layer(dut):
-    cocotb.start_soon(Clock(dut.ctl_clk, 10, units='ns').start())
-    cocotb.start_soon(Clock(dut.dfi_clk, 4, units='ns').start())
+    cocotb.start_soon(Clock(dut.ctl_clk, _ACLK_NS, units='ns').start())
+    cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units='ns').start())
     dut.ctl_rstn.value = 0
     dut.dfi_rstn.value = 0
     # cmd/wd/rd are BFM-owned, all on ctl_clk (the controller side of the
