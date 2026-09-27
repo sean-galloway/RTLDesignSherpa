@@ -366,5 +366,105 @@ txn_scale=1000. Read thrash%, ACT/txn and PRE/txn beside MB/s -- the mechanism
 and the payoff are separate claims and RBL is the example of the first arriving
 without the second.
 
+## BOARD RESULT 2026-09-26: the win is real, the predictors are not
+
+Board, txn_scale=1000, 75.00 MHz read off BUILD_CLK_HZ, peak 600 MB/s.
+Read bandwidth, all stimuli from the contrived set:
+
+| stimulus | open_page | close_page | adapt_access | adapt_time_tuned |
+|---|---|---|---|---|
+| 3:1, one bank | 205.9 | 55.4 | 203.9 (-1.0%) | 228.1 (+10.8%) |
+| 2:2, one bank | 221.2 | 72.1 | 221.2 (0.0%) | 245.7 (+11.1%) |
+| 2:2, two banks | 327.7 | 144.2 | 323.8 (-1.2%) | 436.8 (+33.3%) |
+
+### mode 5 (adapt_access): does not pay, and barely engages
+
+Flat to -1.2% on every stimulus. The telemetry says why: thrash 100.0% ->
+97.0%, PRE 32797 -> 32567 -- about 230 converted closes out of ~16,000 cold
+activations, roughly 3%, where the same stimulus in sim converted 60%. The
+mechanism that sim showed working does not reproduce at scale on hardware, and
+the cause is NOT yet known. That gap is the remaining open question here; do
+not retire mode 5 on this alone, because the sim/board divergence is itself
+unexplained and an unexplained divergence is a bug somewhere, not a verdict.
+
+**Prediction on record, falsified.** This task predicted
+`adapt_access > open_page > close_page`. It is not.
+
+### mode 4 (adapt_time): the win is real and the ADAPTATION is not
+
+adapt_time_tuned is genuinely faster -- +10.8% to +33.3% over open page, with
+a visible mechanism (2-bank: thrash 100.0% -> 25.8% while issuing MORE
+precharges, 40800 vs 32797, i.e. closes moved off the critical path; blocked
+cycles 642k -> 526k). That is a real result.
+
+It is not adaptation. Two controls settle it.
+
+**Control 1 -- the fixed-TR ladder on the same stimulus** (`adapt_rowmix_2bank_tr`):
+
+| config | rd MB/s | vs open |
+|---|---|---|
+| adapt_time_tuned | 436.8 | +33.3% |
+| **fixed_open_tr2** | **436.8** | **+33.3%** |
+| fixed_open_tr4 | 368.6 | +12.5% |
+| fixed_open_tr8 | 338.5 | +3.3% |
+| fixed_open_tr16 / 32 / 64 | 327.7 | +0.0% |
+
+adapt lands EXACTLY on fixed_open_tr2 -- and tr_min is 2.
+
+**Control 2 -- move only the floor** (`adapt_floor`). If adapt tracked the
+workload, the floor would not matter; if it decays to the floor, it tracks it:
+
+| config | tr_min | rd MB/s | matches |
+|---|---|---|---|
+| adapt_time_tuned | 2 | 436.8 | fixed_open_tr2 = 436.8 |
+| adapt_time_floor8 | 8 | 338.5 | fixed_open_tr8 = 338.5 |
+| adapt_time_floor16 | 16 | 327.7 | fixed_open_tr16 = 327.7 |
+
+**adapt_time == fixed_open(tr_min), exactly, in all three.** MC is dominated by
+"held too long" (a conflict PRE on a bank whose timer had not expired), so TR
+shrinks monotonically to tr_min and stays. The mistake counter, check_interval,
+tr_max and tr_step earn NOTHING measurable. Mode 4 is subsumed by mode 3 at
+TR=tr_min -- the same verdict class RBL's mode 7 got (bit-identical to open
+page), reached the same way: by controlling for the simple mechanism before
+crediting the complicated one.
+
+Note this also explains `adapt_tr`'s plain-family result, where
+fixed_open_tr2 matched adapt on row_major, col_major AND incremental. One
+number, three families, no learning: it was the floor every time.
+
+### THE ACTUAL FINDING, which is worth shipping
+
+**A short fixed page timeout beats open page by +9.1% to +33.3%.**
+`fixed_open` at TR=2 is mode 3 -- no predictor table, no mistake counter, no
+epoch machinery -- and it equals the best adaptive result on every workload
+measured:
+
+| stimulus | open_page | fixed_open_tr2 | gain |
+|---|---|---|---|
+| col_major (sequential) | 195.2 | 212.9 | +9.1% |
+| hotcold 2:2 two banks | 327.7 | 436.8 | +33.3% |
+| row_major / incremental | 572.0 / 561.1 | 571.8 / 561.1 | ~0% (nothing to fix) |
+
+It costs nothing on the page-friendly families and wins big on the
+page-hostile ones. That is the shippable result of this task.
+
+## Where this leaves modes 4 and 5
+
+| mode | verdict | evidence |
+|---|---|---|
+| 4 adapt_time | **subsumed by mode 3** at TR=tr_min; adaptation earns nothing | two controls, exact equality at three different floors |
+| 5 adapt_access | no bandwidth benefit, and engages 20x less on board than in sim | 3 stimuli; the sim/board divergence is UNEXPLAINED |
+
+Recommend: default the board to `fixed_open` TR=2 rather than open page.
+Do NOT retire mode 5 yet -- the unexplained sim/board divergence must be
+understood first, because it may be a defect in the predictor's hardware path
+rather than a verdict on the idea. Mode 4's retirement is better supported, but
+its timeout PATH is exactly what mode 3 provides, so retiring mode 4 costs
+nothing functional.
+
+Still missing, and cheap: a stat register exposing `r_tr[0]`. Both controls
+above had to infer TR from bandwidth equality. A readback would have shown the
+decay directly in one run instead of three.
+
 Related: [[TASK-011]] (RBL, the worked example), [[TASK-010]] (the
 per-generator scenario machinery), [[TASK-005]] (predictor area).

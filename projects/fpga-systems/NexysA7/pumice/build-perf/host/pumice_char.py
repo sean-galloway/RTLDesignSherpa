@@ -667,6 +667,30 @@ CONFIGS: Dict[str, ControllerConfig] = {
         page_adapt={"check_interval": 4, "mc_high_thr": 2,
                     "mc_low_thr": 0, "mc_init": 0},
         order_mode=0, rd_in_order=True),
+    # DOES MODE 4 ADAPT, OR JUST DECAY TO ITS FLOOR? Every stimulus measured so
+    # far has adapt_time_tuned landing EXACTLY on fixed_open_tr2 -- and tr_min
+    # is 2. The hypothesis that fits every point is that MC is dominated by
+    # "held too long" (a conflict PRE on a bank whose timer had not expired),
+    # so TR shrinks monotonically to tr_min and stays, making adapt_time
+    # identical to fixed_open(tr_min) by construction rather than by learning.
+    #
+    # These two move ONLY the floor. If adapt tracks the floor instead of the
+    # workload, the adaptation machinery earns nothing and mode 4 is subsumed
+    # by mode 3 -- the same verdict RBL's mode 7 got.
+    "adapt_time_floor8": ControllerConfig(
+        "adapt_time_floor8", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4,
+        page_tr_init=8, page_tr_min=8, page_tr_max=64, page_tr_step=4,
+        page_adapt={"check_interval": 1024, "mc_high_thr": 2,
+                    "mc_low_thr": 0, "mc_init": 0},
+        order_mode=0, rd_in_order=True),
+    "adapt_time_floor16": ControllerConfig(
+        "adapt_time_floor16", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4,
+        page_tr_init=8, page_tr_min=16, page_tr_max=64, page_tr_step=4,
+        page_adapt={"check_interval": 1024, "mc_high_thr": 2,
+                    "mc_low_thr": 0, "mc_init": 0},
+        order_mode=0, rd_in_order=True),
     # The fixed-TR ladder mode 4 has to beat. A single fixed_open point is not
     # a fair opponent: the claim for an adaptive TR is that ONE config tracks
     # the per-workload optimum, so the reference is the BEST of this ladder
@@ -2095,6 +2119,27 @@ RUN_PROFILES: Dict[str, dict] = {
                                level="basic", families=(FAM_INCREMENTAL,),
                                concurrent=(0, 4), gen_mix="hotcold",
                                same_bank_rows=8, n_hot=2, bank_spread=2),
+    # THE CONTROL FOR MODE 4's HOTCOLD WIN. adapt_time_tuned came back +33% over
+    # open page on adapt_rowmix_2bank, and `adapt_tr` showed that on the plain
+    # families a single well-chosen fixed TR (tr2) matches adapt everywhere --
+    # so "+33%" is not yet evidence of ADAPTATION, only of a better timeout
+    # than open page's none. Run the same ladder on the hotcold stimulus: if a
+    # fixed TR matches adapt there too, mode 4's value is "pick a TR", not
+    # "learn one", and the adaptation machinery is unearned.
+    "adapt_floor": dict(configs=["open_page", "adapt_time_tuned",
+                                 "adapt_time_floor8", "adapt_time_floor16",
+                                 "fixed_open_tr2", "fixed_open_tr8",
+                                 "fixed_open_tr16"],
+                        level="basic", families=(FAM_INCREMENTAL,),
+                        concurrent=(0, 4), gen_mix="hotcold",
+                        same_bank_rows=8, n_hot=2, bank_spread=2),
+    "adapt_rowmix_2bank_tr": dict(configs=["open_page", "adapt_time_tuned",
+                                           "fixed_open_tr2", "fixed_open_tr4",
+                                           "fixed_open_tr8", "fixed_open_tr16",
+                                           "fixed_open_tr32", "fixed_open_tr64"],
+                                  level="basic", families=(FAM_INCREMENTAL,),
+                                  concurrent=(0, 4), gen_mix="hotcold",
+                                  same_bank_rows=8, n_hot=2, bank_spread=2),
     # PREDICTOR 2 (mode 4, adapt_time). Measured against the FIXED-TR LADDER,
     # because "beats fixed_open(24)" is not the claim -- an adaptive TR claims
     # to find the right TR on a workload it was not tuned for. So the
