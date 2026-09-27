@@ -466,5 +466,54 @@ Still missing, and cheap: a stat register exposing `r_tr[0]`. Both controls
 above had to infer TR from bandwidth equality. A readback would have shown the
 decay directly in one run instead of three.
 
+## Is mode 5's sim/board divergence a REFRESH artefact? No.
+
+Sean asked, 2026-09-26, and it was a good hypothesis: the refresh PRESSURE
+differs by 117x between the two environments.
+
+    sim    REF=74   vs ACT=26      -> 2.85 refreshes per activation
+    board  REF=810  vs ACT=33427   -> 0.024 refreshes per activation
+
+A refresh drains every bank with PREA. PREA does not teach the counter
+(learning is gated on `w_is_pre == OP_PRE`), but it DOES claim the fall
+(`w_pre_claims[b] = (w_is_pre && bank==b) || w_is_prea`), suppressing
+auto-precharge-close detection, and it leaves every bank closed so the next ACT
+reads EMPTY rather than MISS. At 2.85 refreshes per activation that is not a
+correction on the measurement, it could BE the measurement.
+
+Tested on the board (`adapt_refresh`), varying ONLY t_refi:
+
+| config | REF | rd MB/s | ACT | PRE | thrash |
+|---|---|---|---|---|---|
+| open_page | 800 | 327.6 | 32798 | 32799 | 100.0% |
+| adapt_access | 809 | 323.8 | 33334 | 32382 | 97.0% |
+| open_page_fastref | 1883 | 317.5 | 33882 | 33882 | 100.0% |
+| adapt_access_fastref | 1882 | 317.5 | 33882 | 33882 | 100.0% |
+| adapt_access_slowref | 13 | 342.6 | 32009 | 32013 | 100.0% |
+
+**The hypothesis predicts the opposite of what happens.** More refreshes should
+mean more conversion; instead mode 5 goes to ZERO at high refresh and is also
+inert at near-zero refresh. Its only engagement (3%) is at the DEFAULT rate, in
+the middle. Non-monotonic, zero at both extremes: not a refresh effect.
+
+Two things the experiment did find:
+
+1. **`adapt_access_fastref` is BIT-IDENTICAL to `open_page_fastref`** -- same
+   ACT (33882), same PRE (33882), same thrash, same 317.5 MB/s. That is the
+   RBL mode-7 signature: a mode provably contributing nothing.
+2. At near-zero refresh, `PRE=32013 ~= ACT=32009` -- every close is an explicit
+   precharge, so `close_pred_o` is never asserted at all.
+
+Together these say mode 5's prediction rarely survives to be USED on hardware,
+rather than that it learns the wrong verdict. The next probe should be
+`close_pred_o` itself (is it ever asserted? for how long?), not the counters --
+`close_pred_o[b] <= 1'b0` on EVERY fall, so a prediction cleared on close and
+re-established only at the next ACT may simply not be live when the column op
+issues. There is no readback for it today, which is the second argument for a
+predictor-state stat register.
+
+Incidental: slow_refresh is the fastest config here at 342.6 MB/s, so refresh
+costs ~4.4% on this stimulus (327.6 -> 342.6).
+
 Related: [[TASK-011]] (RBL, the worked example), [[TASK-010]] (the
 per-generator scenario machinery), [[TASK-005]] (predictor area).

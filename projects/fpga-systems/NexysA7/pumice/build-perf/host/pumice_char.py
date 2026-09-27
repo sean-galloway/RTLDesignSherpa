@@ -667,6 +667,32 @@ CONFIGS: Dict[str, ControllerConfig] = {
         page_adapt={"check_interval": 4, "mc_high_thr": 2,
                     "mc_low_thr": 0, "mc_init": 0},
         order_mode=0, rd_in_order=True),
+    # IS MODE 5's SIM/BOARD DIVERGENCE A REFRESH ARTEFACT? (Sean, 2026-09-26.)
+    # Sim converts ~60%% of cold activations, the board ~3%%, on identical
+    # stimulus. The refresh PRESSURE differs by 117x between them:
+    #   sim   REF=74  vs ACT=26     -> 2.85 refreshes per activation
+    #   board REF=810 vs ACT=33427  -> 0.024 refreshes per activation
+    # A refresh drains every bank with PREA. PREA does not teach the counter
+    # (learning is gated on w_is_pre == OP_PRE), but it DOES claim the fall
+    # (w_pre_claims includes w_is_prea), which suppresses auto-precharge-close
+    # detection, and it leaves every bank closed so the next ACT reads EMPTY
+    # rather than MISS. At 2.85 refreshes per activation that is not a
+    # correction on the measurement, it IS the measurement.
+    # These vary ONLY t_refi under adapt_access.
+    "adapt_access_fastref": ControllerConfig(
+        "adapt_access_fastref", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=5,
+        page_access={"ctr_open_max": 2, "ctr_init": 0},
+        t_refi=0x0100, order_mode=0, rd_in_order=True),
+    "adapt_access_slowref": ControllerConfig(
+        "adapt_access_slowref", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=5,
+        page_access={"ctr_open_max": 2, "ctr_init": 0},
+        t_refi=0x7FFF, order_mode=0, rd_in_order=True),
+    "open_page_fastref": ControllerConfig(
+        "open_page_fastref", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, t_refi=0x0100,
+        order_mode=0, rd_in_order=True),
     # DOES MODE 4 ADAPT, OR JUST DECAY TO ITS FLOOR? Every stimulus measured so
     # far has adapt_time_tuned landing EXACTLY on fixed_open_tr2 -- and tr_min
     # is 2. The hypothesis that fits every point is that MC is dominated by
@@ -2126,6 +2152,12 @@ RUN_PROFILES: Dict[str, dict] = {
     # than open page's none. Run the same ladder on the hotcold stimulus: if a
     # fixed TR matches adapt there too, mode 4's value is "pick a TR", not
     # "learn one", and the adaptation machinery is unearned.
+    "adapt_refresh": dict(configs=["open_page", "adapt_access",
+                                   "open_page_fastref", "adapt_access_fastref",
+                                   "adapt_access_slowref"],
+                          level="basic", families=(FAM_INCREMENTAL,),
+                          concurrent=(0, 4), gen_mix="hotcold",
+                          same_bank_rows=8, n_hot=2, bank_spread=2),
     "adapt_floor": dict(configs=["open_page", "adapt_time_tuned",
                                  "adapt_time_floor8", "adapt_time_floor16",
                                  "fixed_open_tr2", "fixed_open_tr8",
