@@ -282,6 +282,38 @@ class MonCgGatingTB:
             _set(d, f'{down}_bresp', 0)
             _set(d, f'{down}_bvalid', 1 if enable else 0)
 
+    async def respond_once(self, tag):
+        """Deliver EXACTLY one response beat for `tag`.
+
+        The inline form this replaces set valid right after a RisingEdge and
+        then waited for `valid && ready` at a falling edge before holding one
+        more edge "to let the rising edge consummate it". Under cocotb +
+        Verilator a write made in a rising-edge timestep is applied before that
+        edge's always_ff sampling, so the beat was consummated at the SAME edge
+        the write landed on; the extra hold then delivered it a second time.
+        Measured 2026-09-26 on every wrapper, full and lite: two downstream and
+        two upstream response handshakes per transaction. The full monitor
+        never reported the second beat (it does not emit read-data orphans)
+        and the request counter was already one-edge-disciplined, so the
+        double beat sat under every green run of this test until the lite,
+        which does report DATA_ORPHAN, showed it as an extra packet.
+
+        Discipline: write only at falling edges, so the value is stable through
+        the next rising edge; `ready` sampled at a falling edge is the state
+        that edge-to-come will consummate (it only moves on rising edges).
+        """
+        d = self.dut
+        await FallingEdge(d.aclk)
+        self.drive_response(tag, True)
+        for _ in range(200):
+            if _get(d, self.d_rsp_ready):        # the rising edge ahead takes the beat
+                await FallingEdge(d.aclk)
+                break
+            await FallingEdge(d.aclk)
+        else:
+            raise AssertionError(f'{self.cfg["name"]}: response {tag} never accepted')
+        self.drive_response(tag, False)
+
     # -- observation -------------------------------------------------------
     def up_handshake(self):
         return _get(self.dut, self.req_valid) and _get(self.dut, self.req_ready)
@@ -460,13 +492,7 @@ async def mon_cg_gating_test(dut):
         # injecting beats for as long as it is asserted, which would leave the
         # datapath permanently non-empty and the block permanently awake.
         _set(dut, tb.rsp_ready, 1)
-        tb.drive_response(tag, True)
-        for _ in range(200):
-            await FallingEdge(dut.aclk)
-            if _get(dut, tb.d_rsp_valid) and _get(dut, tb.d_rsp_ready):
-                break
-        await FallingEdge(dut.aclk)   # let the rising edge consummate it
-        tb.drive_response(tag, False)
+        await tb.respond_once(tag)
         for _ in range(40):           # drain it out of the upstream port
             await RisingEdge(dut.aclk)
         _set(dut, tb.rsp_ready, 0)
@@ -523,13 +549,7 @@ async def mon_cg_gating_test(dut):
 
     # Retire the phase-5 transaction so the block can genuinely idle.
     _set(dut, tb.rsp_ready, 1)
-    tb.drive_response(4, True)
-    for _ in range(200):
-        await FallingEdge(dut.aclk)
-        if _get(dut, tb.d_rsp_valid) and _get(dut, tb.d_rsp_ready):
-            break
-    await FallingEdge(dut.aclk)
-    tb.drive_response(4, False)
+    await tb.respond_once(4)
     for _ in range(40):
         await RisingEdge(dut.aclk)
     _set(dut, tb.rsp_ready, 0)
@@ -546,13 +566,7 @@ async def mon_cg_gating_test(dut):
     await counter.join()
     tb.clear_request()
     _set(dut, tb.rsp_ready, 1)
-    tb.drive_response(5, True)
-    for _ in range(200):
-        await FallingEdge(dut.aclk)
-        if _get(dut, tb.d_rsp_valid) and _get(dut, tb.d_rsp_ready):
-            break
-    await FallingEdge(dut.aclk)
-    tb.drive_response(5, False)
+    await tb.respond_once(5)
     for _ in range(40):
         await RisingEdge(dut.aclk)
     _set(dut, tb.rsp_ready, 0)

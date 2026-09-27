@@ -47,6 +47,8 @@ AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's hand
 
 ## Parameters
 
+> A lite-monitor version of this clock-gated wrapper exists as [`axil5_slave_rd_monlite_cg`](axil5_slave_rd_monlite_cg.md): the same gating logic around `axil5_slave_rd_monlite` instead of `axil5_slave_rd_mon`, about a fifth of the monitor gates.
+
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `SKID_DEPTH_AR` | int | `2` |  |

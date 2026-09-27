@@ -49,6 +49,8 @@ If you take one thing from this page, take this: AXI5-Lite is AXI4-Lite plus opt
 
 ## Parameters
 
+> A lite-monitor version of this clock-gated wrapper exists as [`axil5_slave_wr_monlite_cg`](axil5_slave_wr_monlite_cg.md): the same gating logic around `axil5_slave_wr_monlite` instead of `axil5_slave_wr_mon`, about a fifth of the monitor gates.
+
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `SKID_DEPTH_AW` | int | `2` |  |

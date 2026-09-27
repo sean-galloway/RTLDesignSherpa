@@ -173,3 +173,35 @@ What this prevents is the 200-line hand-written "AXI4 read responder BFM" -- a
 reimplementation of something the framework ships, which diverges from the
 protocol at the first corner case.
 
+## A hand-rolled driver has a write-timing hazard a BFM does not (2026-09-26)
+
+`val/amba/test_mon_cg_gating.py` drives the monitored wrappers by hand -- a
+deliberate choice, since it tests the clock gate, not the protocol. Its response
+driver set `rvalid` right after a `RisingEdge`, waited for `valid && ready` at a
+falling edge, then held one more edge "to let the rising edge consummate it".
+Under cocotb + Verilator a write made in a rising-edge timestep is applied
+before that edge's `always_ff` sampling, so the beat was consummated at the
+write's own edge, and the hold delivered it a second time. Probed: two
+downstream and two upstream response handshakes per transaction, on every
+wrapper, for as long as the test has existed.
+
+Twenty-four green cells hid it. The full monitor does not emit read-data
+orphans, so the second beat changed nothing it reported. `axi_monitor_lite`
+does: the first run of the `_monlite_cg` wrappers failed phase 6 on all 32
+cells with an extra `AXI_ERR_DATA_ORPHAN` packet behind the completion. The
+test was wrong and the new DUT was the first strict enough to say so -- the
+[[escape-analysis]] shape where a stricter checker exposes a stimulus defect
+the lenient one absorbed.
+
+The fix is `respond_once()`: write only at falling edges, so the value is
+stable through the next rising edge; `ready` sampled at a falling edge is the
+state that rising edge will consummate, because it only moves on rising edges;
+drop valid at the falling edge after the accepting edge. The request side had
+already learned this (its handshake counter is one-edge-disciplined and says
+so); the response side had not.
+
+The rule this file already states covers it: a framework BFM drives at the
+falling edge and never has this hazard. When a test must hand-drive a
+valid/ready pair anyway, it inherits the BFM's discipline: write at
+`FallingEdge`, never in a `RisingEdge` callback.
+

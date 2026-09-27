@@ -390,3 +390,34 @@ the RDL. Not gated by USE_AXI_MONITORS (STREAM's over-gating lesson). The
 lite itself is unchanged: perf stays a consumer-side meter, as on STREAM.
 `top_beats` added to the rapids `sub_areas`; the aggregator warns about
 unlisted test directories.
+
+### 15. The clock-gated wrappers (2026-09-26, Sean: "Build the monlite_cg wrappers and tests")
+
+Sixteen `<core>_monlite_cg` wrappers, one per `<core>_mon_cg`: the `_monlite`
+wrapper behind one `amba_clock_gate_ctrl`, with the `_mon_cg`'s activity term,
+request-side ready masks and monbus liveness terms lifted verbatim (scratch
+`gen_monlite_cg.py`: header from the `_monlite`, gating from the `_mon_cg`,
+every parameter and port passed through by name, four cg pins appended).
+Filelists `<core>_monlite_cg.f` = the lite's closure + `amba_clock_gate_ctrl.f`.
+Tests in `val/amba/monitor-lite/`: sixteen `test_<core>_monlite_cg.py` derived
+from the `_mon_cg` tests (DUT, filelist, full-only parameters stripped, cg
+enabled under the traffic) and `test_monlite_cg_gating.py`, the six-phase
+structural gating test over all sixteen (AXIL5 included; the `_mon_cg` table
+predates it). Sixteen doc pages, book-index entries, pointer notes on the
+`_mon_cg` pages. Nothing instantiates a `_cg` wrapper in the repo yet; these
+exist so the set is complete, not because a consumer asked.
+
+Found by the lite on the way: `val/amba/test_mon_cg_gating.py`'s response
+driver delivered every response beat TWICE. It set `rvalid` right after a
+RisingEdge, waited for `valid && ready` at a falling edge, then held one more
+edge "to let the rising edge consummate it" -- but under cocotb + Verilator a
+write made in a rising-edge timestep is applied before that edge's sampling,
+so the beat had already gone at the write's own edge and the hold delivered
+it again. Probed 2026-09-26: two downstream and two upstream response
+handshakes per transaction on the full-monitor `_mon_cg` too. The full
+monitor does not report read-data orphans, so 24 green cells never noticed;
+the lite reported `AXI_ERR_DATA_ORPHAN` for the second beat and failed phase
+6 on all 32 cells. Fix in the shared test: `respond_once()` writes at a
+falling edge and drops valid at the falling edge after the accepting rising
+edge. Both wrapper families pass with it. Handbook:
+`dv/bfm-usage.md`, "A hand-rolled driver has a write-timing hazard a BFM does not".

@@ -1,0 +1,180 @@
+"""axi5_master_rd_monlite_cg: the clock-gated lite-monitor sibling of axi5_master_rd_mon_cg (amba/monitor-lite TASK-001).
+Derived 2026-09-26 from val/amba/test_axi5_master_rd_mon_cg.py: same TB, same scenarios, clock gating
+left enabled underneath the traffic, the DUT swapped for the _monlite_cg wrapper and
+the full-monitor-only parameters (ENABLE_FILTERING) removed. The TB
+guards every cfg write with hasattr, so the lite's smaller cfg set is driven and
+nothing else is touched. Gating itself is asserted by test_monlite_cg_gating.py.
+"""
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: test_axi5_master_rd_mon_cg
+# Purpose: AXI5 Master Read Monitor with Clock Gating Integration Test
+#
+# Documentation: PRD.md
+# Subsystem: tests
+#
+# Author: sean galloway
+# Created: 2025-12-20
+
+"""
+AXI5 Master Read Monitor with Clock Gating Integration Test
+
+Tests the clock-gated version of the AXI5 master read monitor.
+"""
+
+import os
+import random
+import pytest
+import cocotb
+from cocotb_test.simulator import run
+
+from TBClasses.axi5.monitor.axi5_master_monitor_tb import AXI5MasterMonitorTB
+from TBClasses.shared.utilities import get_paths, sim_build_path
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+
+
+@cocotb.test(timeout_time=30, timeout_unit="sec")
+async def axi5_master_rd_monlite_cg_test(dut):
+    """AXI5 master read monitor clock-gated integration test"""
+
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+
+    tb = AXI5MasterMonitorTB(dut, is_write=False, aclk=dut.aclk, aresetn=dut.aresetn)
+    await tb.initialize()
+
+    # Configure clock gating (converged interface: enable + idle count).
+    # Gating behaviour itself is asserted by val/amba/test_mon_cg_gating.py;
+    # here it is simply left enabled so the functional traffic below runs
+    # with the clock actually being gated and ungated underneath it.
+    dut.cfg_cg_enable.value = 1
+    dut.cfg_cg_idle_count.value = 8
+
+    await tb.run_integration_tests(test_level=test_level)
+
+
+def generate_axi5_monitor_cg_params():
+    """Generate AXI5 monitor CG parameter combinations based on REG_LEVEL."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        params = [(8, 32, 32, 1, 16, 2, 4, 'gate')]
+    elif reg_level == 'FUNC':
+        params = [
+            (8, 32, 32, 1, 16, 2, 4, 'gate'),
+            (8, 32, 32, 1, 16, 4, 8, 'func'),
+            (8, 32, 32, 1, 32, 2, 4, 'func'),
+        ]
+    else:  # FULL
+        test_levels = ['gate', 'func', 'full']
+        configs = [(8, 32, 32, 1, 16, 2, 4), (8, 32, 32, 1, 16, 4, 8), (8, 32, 32, 1, 32, 2, 4)]
+        params = [
+            (id_w, addr_w, data_w, user_w, max_t, skid_ar, skid_r, level)
+            for (id_w, addr_w, data_w, user_w, max_t, skid_ar, skid_r) in configs
+            for level in test_levels
+        ]
+
+    return params
+
+
+@pytest.mark.parametrize(
+    "id_width, addr_width, data_width, user_width, max_trans, skid_ar, skid_r, test_level",
+    generate_axi5_monitor_cg_params()
+)
+def test_axi5_master_rd_monlite_cg(id_width, addr_width, data_width, user_width, max_trans, skid_ar, skid_r, test_level):
+    """Integration test runner for AXI5 master read monitor with clock gating."""
+
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_axi5': 'rtl/amba/axi5/',
+        'rtl_gaxi': 'rtl/amba/gaxi',
+        'rtl_includes': 'rtl/amba/includes',
+        'rtl_common': 'rtl/common',
+        'rtl_shared': 'rtl/amba/shared',
+        'rtl_monitor': 'rtl/amba/monitor',
+    })
+
+    dut_name = "axi5_master_rd_monlite_cg"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name = f"test_{worker_id}_{dut_name}_iw{id_width}_aw{addr_width}_dw{data_width}_mt{max_trans}_sk{skid_ar}x{skid_r}_{test_level}_{reg_level}"
+
+    log_path = os.path.join(log_dir, f'{test_name}.log')
+    sim_build = sim_build_path(tests_dir, test_name)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/axi5_master_rd_monlite_cg.f")
+
+    for src in verilog_sources:
+        if not os.path.exists(src):
+            raise FileNotFoundError(f"RTL source not found: {src}")
+
+    rtl_parameters = {
+        'AXI_ID_WIDTH': str(id_width),
+        'AXI_ADDR_WIDTH': str(addr_width),
+        'AXI_DATA_WIDTH': str(data_width),
+        'AXI_USER_WIDTH': str(user_width),
+        'UNIT_ID': '1',
+        'AGENT_ID': '10',
+        'MAX_TRANSACTIONS': str(max_trans),
+        'SKID_DEPTH_AR': str(skid_ar),
+        'SKID_DEPTH_R': str(skid_r),
+        'CG_IDLE_COUNT_WIDTH': '4',
+    }
+
+    extra_env = {
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'TEST_LEVEL': test_level,
+        'TEST_ID_WIDTH': str(id_width),
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': str(data_width),
+        'TEST_STUB': '0',
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_CLK_PERIOD': '10',
+    }
+
+    compile_args = [
+        "--trace-fst",
+        "--trace-structs",
+        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
+        "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
+    ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend([])
+
+    print(f"\n{'='*80}")
+    print(f"AXI5 Master Read Monitor CG Integration Test")
+    print(f"Test Level: {test_level}")
+    print(f"{'='*80}")
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes + [rtl_dict['rtl_common'], sim_build],
+            toplevel=dut_name,
+            module="test_axi5_master_rd_mon_cg",
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
+            keep_files=True,
+            compile_args=compile_args,
+            simulator="verilator",
+        )
+        print(f"PASSED: {test_name}")
+    except Exception as e:
+        print(f"FAILED: {test_name}")
+        print(f"Error: {str(e)}")
+        raise

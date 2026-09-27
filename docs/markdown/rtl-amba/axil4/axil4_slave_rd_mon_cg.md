@@ -72,6 +72,8 @@ Gating behaviour is asserted directly by `val/amba/test_mon_cg_gating.py`
 
 ## Parameters
 
+> A lite-monitor version of this clock-gated wrapper exists as [`axil4_slave_rd_monlite_cg`](axil4_slave_rd_monlite_cg.md): the same gating logic around `axil4_slave_rd_monlite` instead of `axil4_slave_rd_mon`, about a fifth of the monitor gates.
+
 In addition to all [axil4_slave_rd_mon](./axil4_slave_rd_mon.md) parameters
 (including `USE_MONITOR` and `N_ADDR_RANGES`):
 

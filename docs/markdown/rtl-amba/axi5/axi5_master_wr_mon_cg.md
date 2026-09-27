@@ -109,6 +109,8 @@ flowchart TB
 
 ## Parameters
 
+> A lite-monitor version of this clock-gated wrapper exists as [`axi5_master_wr_monlite_cg`](axi5_master_wr_monlite_cg.md): the same gating logic around `axi5_master_wr_monlite` instead of `axi5_master_wr_mon`, about a fifth of the monitor gates.
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | SKID_DEPTH_AW | int | 2 | AW channel SKID buffer depth |
