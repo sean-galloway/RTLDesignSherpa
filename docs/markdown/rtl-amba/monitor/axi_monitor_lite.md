@@ -25,7 +25,7 @@
 **Module:** `axi_monitor_lite.sv`
 **Location:** `rtl/amba/monitor/axi_monitor_lite.sv`
 **Category:** Monitor Infrastructure
-**Status:** Production Ready (amba/monitor-lite TASK-001, 2026-09-25)
+**Status:** Production Ready (amba/monitor-lite TASK-001, 2026-09-25); adopted by every consumer, measured in three board builds and validated on silicon, 2026-09-27
 
 ---
 
@@ -53,14 +53,19 @@ What it reports:
   `cfg_timeout_cnt` microseconds, naming the phase (`CMD` for a stalled
   command channel, `DATA`, `RESP`).
 - **Threshold** packets when the number of outstanding transactions crosses
-  `cfg_active_trans_threshold` upward.
+  `cfg_active_trans_threshold` upward, or a completion's latency exceeds
+  `cfg_latency_threshold`.
+- **Address-range** packets from the optional checker (`N_ADDR_RANGES > 0`):
+  `Error/ADDR_RANGE` for a miss against an error-flavoured range, `AddrMatch`
+  for a hit on a match-flavoured one, gated by `cfg_addr_match_enable`.
 
 What it does not do, by design: performance packets and windows
 (`axi_bus_meter` is the perf path), debug state-change packets, the
-address-range checker and report-time address filter, the ID-range filter,
-the latency threshold, three independent per-phase timers, and the
-`block_ready` admission stall. The lite never touches the traffic it
-watches.
+report-time address filter, the ID-range filter, three independent per-phase
+timers, and the `block_ready` admission stall. The lite never touches the
+traffic it watches. Two features first listed here as dropped came back on
+2026-09-26, each because a consumer bound it: the address-range checker and
+the latency threshold (TASK-001 sections 11 and 13).
 
 ---
 
@@ -144,7 +149,70 @@ bridges share. No path through `axi_monitor_lite` is among the twenty
 worst; all of them have at least 0.85 ns of slack at 10 ns. The group's
 chain is filed as its own item.
 
+### In systems, on silicon (2026-09-26 and 27)
+
+The fixture number above is one monitor. What a design saves depends on how
+much of it is monitored, so the lite was measured where it is used: the three
+Genesys 2 STREAM builds (Kintex-7 325T-2, 203,800 LUTs), each rebuilt from
+HEAD after `make clean-all`, post-route, Vivado 2025.1; and two synth-only
+matrices that hold everything but the monitor constant.
+
+| Build | Full monitor | Lite | Saved |
+|---|---:|---:|---:|
+| STREAM build-obs, 4ch, both observers on (same-day A/B, 2026-09-26) | 184,047 LUTs, WNS +1.334 ns | 71,671 LUTs, WNS +4.154 ns | 112,376 LUTs, 61% |
+| STREAM build-mon, 8ch, in-core monitors on (`stable/` 2026-09-09 vs 2026-09-26) | 139,293 LUTs, WNS +1.513 ns | 87,443 LUTs, WNS +3.764 ns | 51,850 LUTs, 37% |
+| STREAM build-perf, 8ch, monitors compiled out | 67,956 LUTs | 68,139 LUTs | nothing to save |
+| STREAM perf with in-core monitors on, synth matrix, 100 MHz | 143,914 LUTs, WNS -6.061 ns | 91,063 LUTs, WNS +1.312 ns | 52,851 LUTs, 37% |
+| RAPIDS beats, 8ch, in-core monitors on, synth matrix | 71,721 LUTs | 65,974 LUTs | 5,747 LUTs, 8% |
+
+Two rows carry the argument. On STREAM's perf clocking the full monitor does
+not close (-6.061 ns at 100 MHz) and the lite does (+1.312 ns): on that design
+the lite is what makes an instrumented perf build buildable at all, not merely
+a smaller one. RAPIDS shows the other end: it monitors only its descriptor
+read path, so the saving is 8%. The lite's advantage scales with the monitored
+surface, and the build-obs row -- four monitors at 64 slots, 112,376 LUTs
+back -- is what that looks like when the surface is large.
+
+On the board the numbers held. STREAM build-obs with both observers on the
+lite (`host_obs_matrix` at tool defaults, per iteration): completion 4491 to
+4412, address-match 4410 to 4402, error 4402 to 4402, threshold 4402 to 4419;
+the DUT's own bus meters bit-identical (R/W utilization 99.8%, 914.2 MB/s);
+the six-endpoint register walk identical. Perf and Debug packet classes read
+0, by design -- the perf data is in the meters and histograms, which never
+lived in the monitor. Timeout went from 7 to 55 per iteration: the full
+monitor parked a timed-out slot in `TRANS_ERROR` and leaked it, saturating at
+about 7 per reset; the lite frees the slot and keeps reporting. STREAM
+build-mon on the in-core lite walks 283 registers clean and provokes 7 of 7
+monitor scenarios with nothing in the UNEXPECTED bin; RAPIDS beats on the
+in-core lite passes its golden-CRC smoke and an 8-channel characterization at
+2.88 GB/s.
+
 <!-- MEASURED -->
+
+---
+
+## Adopted
+
+Every consumer is on the lite, each switch measured and tested where it lives:
+
+| Consumer | What switched | Since |
+|---|---|---|
+| Generated bridges | every monitored port; the `mon_preset` cone presets became aliases of the lite | `e92a5ae2d`, 2026-09-26 |
+| STREAM in-core (`stream_core`, `scheduler_group_array`) | rd/wr data ports and the descriptor port | `8cce2ecce`, 2026-09-26 |
+| RAPIDS beats in-core (`scheduler_group_array_beats`) | the descriptor port | `8cce2ecce`, 2026-09-26 |
+| Genesys 2 STREAM bridges (`bridge_stream_mon_axil`, `bridge_stream_char_axil`) | regenerated onto the `_monlite` wrappers | `0b65960d4`, 2026-09-26 |
+| Observers (`axi4_intf_master_observer`, `axi4_intf_slave_observer`) | the rd and wr taps | `78cddb5e2`, 2026-09-27 |
+
+No design under `projects/` instantiates a full `_mon` wrapper any more (178
+`_monlite` instantiations tree-wide); the full monitor remains available behind
+its own sixteen `_mon_cg` wrappers for a build that wants the Perf and Debug
+packet classes on the monbus.
+
+What a consumer gives up, stated once: those two packet classes. Anything that
+derives its expected classes from the hardware is correct without change --
+the observers' `OBS_CAPS0` reports both cones as not built. Anything with a
+hardcoded class list (STREAM's `host_obs_matrix`) reads those two rows as LOW
+until it learns to ask; that is the tool, not the monitor.
 
 ---
 

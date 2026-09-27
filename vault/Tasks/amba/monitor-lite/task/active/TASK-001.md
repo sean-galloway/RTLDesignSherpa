@@ -451,3 +451,46 @@ per-module pages are deleted; the `_mon`/`_mon_cg` pointer notes and the RTL
 (AXI4/AXI5/AXI4-Lite/AXI5-Lite/Monitor) are re-rendered so their generated
 indexes drop the old entries. Every RTL file added since the 25th has a page.
 
+
+### 17. Adopted everywhere, measured in systems, validated on silicon (2026-09-27, Sean: "Document that the monlite is rearchitected to be light weight and viable")
+
+The definition of done above ended "then the observers and STREAM decide per
+instance". They have. STREAM in-core and RAPIDS beats switched in 8cce2ecce,
+the bridge generator in e92a5ae2d, the Genesys 2 STREAM bridges in 0b65960d4,
+and both observers in 78cddb5e2 -- no design under `projects/` instantiates a
+full `_mon` wrapper (178 `_monlite` instantiations tree-wide; the full monitor
+survives behind its own sixteen `_mon_cg` wrappers). ISSUE-001 ("which
+monitored instances should switch") is closed on that evidence; its two doubts
+were answered by measurement, not argument: the observers' perf path
+(`axi_perf_latency_hist` on the raw handshakes, `axi_bus_meter`) lives outside
+the monitor entirely, and `block_ready`'s table-bound is `refused_count` --
+the same condition, counted instead of stalled -- now sourcing
+`OBS_STICKY.TAP_BLOCKED`.
+
+Measured in systems, post-route unless marked, Kintex-7 325T-2:
+
+| Build | Full | Lite | Saved |
+|---|---:|---:|---:|
+| STREAM build-obs, 4ch, both observers on (same-day A/B) | 184,047 LUTs, +1.334 ns | 71,671 LUTs, +4.154 ns | 61% |
+| STREAM build-mon, 8ch, in-core on | 139,293 LUTs, +1.513 ns | 87,443 LUTs, +3.764 ns | 37% |
+| STREAM perf, in-core on, synth, 100 MHz | 143,914 LUTs, -6.061 ns | 91,063 LUTs, +1.312 ns | 37%, and closes |
+| RAPIDS beats, 8ch, in-core on, synth | 71,721 LUTs | 65,974 LUTs | 8% |
+
+On the board, STREAM build-obs per-iteration packet counts held on every class
+the lite emits, the DUT bus meters were bit-identical, and the register walk
+identical; timeout rose 7 to 55 per iteration because the full monitor's
+sticky-slot saturation (section 8's "OPEN for the architecture pass") does not
+exist in the lite. RAPIDS beats passed golden-CRC smoke and 8-channel
+characterization on the in-core lite. Module page:
+`docs/markdown/rtl-amba/monitor/axi_monitor_lite.md`, "In systems" and
+"Adopted".
+
+Two things the observer swap exposed, both fixed in 78cddb5e2 and recorded in
+`vault/handbook/design/area-measure-by-hierarchy.md`: an inert
+`TAP_ENABLE_PERF/DEBUG_LOGIC` still fed `OBS_CAPS0`, so the register advertised
+cones the lite does not build and the block's own caps-driven test failed
+six cells; and the slave observer's ID slice bound a tap filter the lite has
+none of -- unused anywhere, now refused at elaboration.
+
+Every line of the definition of done is met. Closing this task is the owner's
+call; it is the lane's anchor and still the place later sections land.
