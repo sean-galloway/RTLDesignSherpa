@@ -426,4 +426,13 @@ boolean nobody read, which `check_discarded_verdicts.py` counts as a discarded
 verdict; the original was baselined, the new copy was not, so the derived test
 tripped the ratchet (0 -> 18) for every session once it landed. The helper
 returns nothing now, both files are at 0 and the baseline is 18 lower.
+Sean, on the patched driver: "Never hand roll BFMs!!!!!!!!". Both gating tests
+are now driven by the framework BFMs through the family monitor TB classes
+(master BFM transactions, slave-BFM and MonbusSlave `ready_policy` stalls);
+the hand-rolled `MonCgGatingTB` driver is gone from both files.
+The BFM rewrite tightened the phase timing and found one more thing: a
+`cam_clear` pulsed inside the full monitor's reporter emission window at
+idle-count 0 strands the completion packet on the AXI4/AXIL4/AXIL5 slave
+`_mon_cg` wrappers (6 of 32 cells). The test now delivers before it clears;
+the race is amba ISSUE-002. The `_monlite_cg` wrappers do not show it.
 

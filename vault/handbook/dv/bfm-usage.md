@@ -193,15 +193,21 @@ test was wrong and the new DUT was the first strict enough to say so -- the
 [[escape-analysis]] shape where a stricter checker exposes a stimulus defect
 the lenient one absorbed.
 
-The fix is `respond_once()`: write only at falling edges, so the value is
-stable through the next rising edge; `ready` sampled at a falling edge is the
-state that rising edge will consummate, because it only moves on rising edges;
-drop valid at the falling edge after the accepting edge. The request side had
-already learned this (its handshake counter is one-edge-disciplined and says
-so); the response side had not.
+The first fix was a patched hand driver (`respond_once()`, writing at falling
+edges). Sean's answer to that was "Never hand roll BFMs!!!!!!!!", and he is
+right: the patch fixed the one hazard it had found and kept the surface that
+grows them. The test is now driven entirely by the framework BFMs the
+family's own monitor TB class already builds -- the master BFM issues the
+transaction, the slave BFM's memory model answers it, and every stall the
+six phases need is a `set_ready_policy('stall' | 'always')` on the upstream
+response receiver, the downstream request receivers or the MonbusSlave. The
+test reads pins to observe handshakes and gating; it drives only config pins.
+Sixteen wrappers per family pass unchanged, because the BFMs never delivered
+the beat twice in the first place.
 
-The rule this file already states covers it: a framework BFM drives at the
-falling edge and never has this hazard. When a test must hand-drive a
-valid/ready pair anyway, it inherits the BFM's discipline: write at
-`FallingEdge`, never in a `RisingEdge` callback.
+The rule this file already states covers it, with no exception for
+"structural" tests: a framework BFM drives at the falling edge and never has
+this hazard, and a test that needs a stall asks the BFM for one
+(`ready_policy`) rather than driving the pin. There is no "must hand-drive"
+case; if the BFM lacks a control the test needs, the fix is in the BFM.
 
