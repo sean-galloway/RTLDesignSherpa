@@ -1,0 +1,93 @@
+{
+ "head": {
+  "text": "rapids_core_beats - sink channel 0 kick to first AW",
+  "tock": 1
+ },
+ "signal": [
+  {
+   "name": "clk",
+   "wave": "ppppppppppppppppppppp",
+   "period": 1
+  },
+  {},
+  [
+   "APB",
+   {
+    "name": "snk_apb_valid[7:0]",
+    "wave": "=.==.................",
+    "data": [
+     "0",
+     "1",
+     "0"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "snk_apb_ready[7:0]",
+    "wave": "=..=.................",
+    "data": [
+     "0xff",
+     "0xfe"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "snk_apb_addr[0][63:0]",
+    "wave": "=.=..................",
+    "data": [
+     "0",
+     "0x30000000"
+    ],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "STATUS",
+   {
+    "name": "snk_scheduler_idle[7:0]",
+    "wave": "=...............=....",
+    "data": [
+     "0xff",
+     "0xfe"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "snk_descriptor_engine_idle[7:0]",
+    "wave": "=..=............=....",
+    "data": [
+     "0xff",
+     "0xfe",
+     "0xff"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "snk_system_idle",
+    "wave": "1...............0....",
+    "data": [],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "AXI",
+   {
+    "name": "m_axi_wr_awvalid",
+    "wave": "0...................1",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_wr_awready",
+    "wave": "0....................",
+    "data": [],
+    "phase": 0
+   }
+  ]
+ ],
+ "config": {
+  "hscale": 1
+ }
+}

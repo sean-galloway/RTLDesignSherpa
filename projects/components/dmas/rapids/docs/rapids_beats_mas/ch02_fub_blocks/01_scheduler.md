@@ -277,24 +277,21 @@ Bits [255:198] - reserved
 
 ### Figure 2.1.3: Basic Transfer Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    state          |  IDLE  | PARSE |    CH_XFER_DATA      | DONE |
-                    :       :       :       :       :       :
-    desc_valid     ‾‾\______/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-                    :       :       :       :       :       :
-    sched_rd_valid _________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____________
-                    :       :       :       :       :       :
-    sched_wr_valid _________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____________
-                    :       :       :       :       :       :
-    rd_done_strobe ___________________________/‾\_________________
-                    :       :       :       :       :       :
-    wr_done_strobe _____________________________/‾\_______________
-```
+![Scheduler - one descriptor through the FSM](../assets/wavedrom/scheduler_basic_transfer.png)
 
-**TODO:** Replace with simulation-generated waveform
+**Source:** [scheduler_basic_transfer.json](../assets/wavedrom/scheduler_basic_transfer.json),
+captured from `dv/tests/fub_beats/test_scheduler_beats.py` (`basic_flow`, channel 0
+of 8, 512-bit, seed 7) with `WAVES=1`.
+
+Reading it: `descriptor_valid` is accepted in IDLE; the FSM steps through
+FETCH_DESC into XFER_DATA and `scheduler_idle` drops. In XFER_DATA both engines
+are requested at once (`sched_rd_valid` and `sched_wr_valid` high together): the
+read engine reports each burst issued on `sched_rd_done_strobe`, the write engine
+reports issue on `sched_wr_done_strobe` and the B response on
+`sched_wr_commit_strobe` (here the model answers B immediately, so the two
+coincide). The write side finishes its beats first and drops `sched_wr_valid`;
+when the read side has issued its last burst the FSM moves to COMPLETE and back to
+IDLE, and `descriptor_ready` re-asserts for the next descriptor.
 
 ---
 

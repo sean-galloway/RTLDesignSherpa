@@ -1,0 +1,80 @@
+{
+ "head": {
+  "text": "scheduler_beats - reset release to first descriptor",
+  "tock": 1
+ },
+ "signal": [
+  {
+   "name": "clk",
+   "wave": "ppppppppppppppppppppppppppppppppp",
+   "period": 1
+  },
+  {},
+  [
+   "RESET",
+   {
+    "name": "rst_n",
+    "wave": "0.........1......................",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "cfg_channel_enable",
+    "wave": "0...................1............",
+    "data": [],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "STATE",
+   {
+    "name": "scheduler_state[6:0]",
+    "wave": "=..........................==....",
+    "data": [
+     "IDLE",
+     "FETCH_DESC",
+     "XFER_DATA"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "scheduler_idle",
+    "wave": "1..........................0.....",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "ctrlrd_idle",
+    "wave": "0................................",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "ctrlwr_idle",
+    "wave": "0................................",
+    "data": [],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "ENGINES",
+   {
+    "name": "sched_rd_valid",
+    "wave": "0...........................1....",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "sched_wr_valid",
+    "wave": "0...........................1....",
+    "data": [],
+    "phase": 0
+   }
+  ]
+ ],
+ "config": {
+  "hscale": 1
+ }
+}

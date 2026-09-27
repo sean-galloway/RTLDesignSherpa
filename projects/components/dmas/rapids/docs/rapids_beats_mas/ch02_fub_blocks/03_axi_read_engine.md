@@ -164,28 +164,22 @@ Scheduler Request --> AR Channel --> R Channel --> SRAM Write
 
 ### Figure 2.3.2: AXI Read Burst Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    sched_rd_valid _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____
-    sched_rd_beats |=============== 8 ================|XXXXX|XXXXX
-                    :       :       :       :       :       :
-    m_axi_arvalid  _/‾\_____:_______:_______:_______:_______:_______
-    m_axi_arlen    X| 7 |XXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-    m_axi_arready  ‾‾‾‾‾\___/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-                    :       :       :       :       :       :
-    m_axi_rvalid   _________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____
-    m_axi_rdata    X:XXXXXXX|==D0===|==D1===|...|==D7===|XXXXXXX
-    m_axi_rlast    _________:_______:_______:_______/‾\_____:_______
-                    :       :       :       :       :       :
-    sram_wr_en     _________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____
-    sram_wr_data   X:XXXXXXX|==D0===|==D1===|...|==D7===|XXXXXXX
-                    :       :       :       :       :       :
-    sched_rd_done  _________:_______:_______:_______:_______/‾\___
-```
+![AXI Read Engine - one 8-beat burst](../assets/wavedrom/axi_read_engine_burst.png)
 
-**TODO:** Replace with simulation-generated waveform
+**Source:** [axi_read_engine_burst.json](../assets/wavedrom/axi_read_engine_burst.json),
+captured from `dv/tests/fub_beats/test_axi_read_engine_beats.py` (`single`, 4 ch,
+256-bit, `cfg_axi_rd_xfer_beats = 7`, seed 7) with `WAVES=1`.
+
+Reading it: the scheduler holds `sched_rd_valid` with 26 beats remaining; the
+arbiter grants channel 0 and the AR (`arlen = 7`) handshakes two cycles later.
+The cycle after the handshake the engine pulses `sched_rd_done_strobe` with
+`beats_done = 8` (the scheduler advances address and remaining on it -- note
+`sched_rd_beats` drops 26 to 18 and `araddr` for the next AR is already 0x100)
+and `axi_rd_alloc_req` with `alloc_size = 8`; the modelled `space_free` debits
+two cycles later, as the real controller does. R beats pass straight through to
+`axi_rd_sram_valid`; `rlast` closes the burst. The engine never waits for the
+data before issuing the next AR of another channel, but at `PIPELINE = 0` this
+channel's next AR waits for `rlast`.
 
 ---
 

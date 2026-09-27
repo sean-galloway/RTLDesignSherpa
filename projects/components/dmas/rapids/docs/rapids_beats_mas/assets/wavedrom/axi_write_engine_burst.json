@@ -1,0 +1,193 @@
+{
+ "head": {
+  "text": "axi_write_engine_beats: one 8-beat burst (drain reservation, AW, W from the SRAM drain port, B, done and commit strobes)",
+  "tock": 1
+ },
+ "signal": [
+  {
+   "name": "clk",
+   "wave": "pppppppppppppppppppp",
+   "period": 1
+  },
+  {},
+  [
+   "Scheduler",
+   {
+    "name": "sched_wr_valid[3:0]",
+    "wave": "=.=.................",
+    "data": [
+     "0",
+     "1"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "sched_wr_beats[0][31:0]",
+    "wave": "=.=...=.............",
+    "data": [
+     "0",
+     "26",
+     "18"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "sched_wr_done_strobe[3:0]",
+    "wave": "=.....==............",
+    "data": [
+     "0",
+     "1",
+     "0"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "sched_wr_beats_done[0][31:0]",
+    "wave": "=.....=.............",
+    "data": [
+     "0",
+     "8"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "sched_wr_commit_strobe[3:0]",
+    "wave": "=................==.",
+    "data": [
+     "0",
+     "1",
+     "0"
+    ],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "SRAM drain",
+   {
+    "name": "axi_wr_drain_req[3:0]",
+    "wave": "=....==.............",
+    "data": [
+     "0",
+     "1",
+     "0"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "axi_wr_drain_size[0][7:0]",
+    "wave": "=....==.............",
+    "data": [
+     "0",
+     "8",
+     "0"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "axi_wr_drain_data_avail[0][9:0]",
+    "wave": "=.=....=............",
+    "data": [
+     "0",
+     "26",
+     "18"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "axi_wr_sram_valid[3:0]",
+    "wave": "=.=.................",
+    "data": [
+     "0",
+     "1"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "axi_wr_sram_id[1:0]",
+    "wave": "=...................",
+    "data": [
+     "0"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "axi_wr_sram_drain",
+    "wave": "0......1.......0....",
+    "data": [],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "AW",
+   {
+    "name": "m_axi_awvalid",
+    "wave": "0....10.............",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_awready",
+    "wave": "0....10.............",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_awaddr[63:0]",
+    "wave": "=.....=.............",
+    "data": [
+     "0",
+     "0x100"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_awlen[7:0]",
+    "wave": "=....=..............",
+    "data": [
+     "0",
+     "7"
+    ],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "W / B",
+   {
+    "name": "m_axi_wvalid",
+    "wave": "0......1.......0....",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_wready",
+    "wave": "0......1.......0....",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_wlast",
+    "wave": "0.............10....",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_bvalid",
+    "wave": "0...............10..",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_bready",
+    "wave": "1...................",
+    "data": [],
+    "phase": 0
+   }
+  ]
+ ],
+ "config": {
+  "hscale": 1
+ }
+}

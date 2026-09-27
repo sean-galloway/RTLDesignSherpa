@@ -166,26 +166,26 @@ flight plus four in the skid); a larger `SKID_DEPTH` needs the port widened.
 
 ### Figure 2.7.2: Latency Bridge Timing (consumer always ready)
 
-```
-              ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :
-    s_valid        _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_______:_______:_______
-    s_ready        ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-    s_data         XXXXXXXX| A |XXX| B |XXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :
-    r_drain_ip     _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_______:_______:_______
-    m_valid        _________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_______:_______
-    m_data         XXXXXXXXXXXXXXXX| A |XXX| B |XXX:XXXXXXX
-                    :       :       :       :       :
-                    +-------+
-                    | 1 cycle: read at 0, data at 1 |
-```
+![Latency bridge behind a registered-read FIFO](../assets/wavedrom/latency_bridge_beats_streaming.png)
 
-Two reads accepted in consecutive cycles come out in consecutive cycles: the
-bridge adds exactly the FIFO's one cycle of read latency and no bubble.
+**Source:** [latency_bridge_beats_streaming.json](../assets/wavedrom/latency_bridge_beats_streaming.json),
+captured from `dv/tests/fub_beats/test_latency_bridge_beats.py` (`streaming`,
+256-bit, seed 7) with `WAVES=1`. The test drives a `REGISTERED = 1`
+`gaxi_fifo_sync` in front of the bridge (`dv/tb/latency_bridge_beats_tb_top.sv`),
+because that is the only way to produce the bridge's upstream contract: a
+valid/ready master presents data *with* valid, a registered FIFO presents it
+one cycle *after* the read handshake.
 
-**TODO:** Replace with simulation-generated waveform
+Reading it: each `wr_valid` beat lands in the FIFO and `s_valid` (FIFO not empty)
+rises a cycle later; the bridge reads it at once (`s_ready` stays high) and
+`dbg_r_pending` marks the cycle the data is in flight. Two cycles after the
+write the beat is on `m_valid`/`m_data` with its payload intact (1, 2, 3, ...),
+and `occupancy` shows exactly one beat inside the bridge per transfer. With a
+consumer that is always ready the bridge adds the FIFO's read latency and no
+more.
+
+An earlier revision of this test drove `s_*` directly from the BFM and never
+compared `m_data`; every beat came out 0 and the test passed (rapids TASK-003).
 (`dv/tests/fub_beats/test_latency_bridge_beats.py`).
 
 ---

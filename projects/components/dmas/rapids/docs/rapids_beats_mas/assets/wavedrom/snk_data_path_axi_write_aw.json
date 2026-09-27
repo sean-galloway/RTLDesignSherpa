@@ -1,0 +1,106 @@
+{
+ "head": {
+  "text": "snk_data_path_beats - first AXI write burst issued",
+  "tock": 1
+ },
+ "signal": [
+  {
+   "name": "clk",
+   "wave": "pppppppppppppppppppppppppp",
+   "period": 1
+  },
+  {},
+  [
+   "SCHED",
+   {
+    "name": "sched_wr_valid[7:0]",
+    "wave": "=.........................",
+    "data": [
+     "1"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "sched_wr_beats[0][31:0]",
+    "wave": "=.....................=...",
+    "data": [
+     "32",
+     "23"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "sched_wr_done_strobe[7:0]",
+    "wave": "=....................==...",
+    "data": [
+     "0",
+     "1",
+     "0"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "sched_wr_beats_done[0][31:0]",
+    "wave": "=....................=....",
+    "data": [
+     "0",
+     "9"
+    ],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "AW",
+   {
+    "name": "m_axi_awvalid",
+    "wave": "0..1.................0....",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_awready",
+    "wave": "0...................10....",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_awaddr[63:0]",
+    "wave": "=.....................=...",
+    "data": [
+     "0x20000000",
+     "0x20000240"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_awlen[7:0]",
+    "wave": "=..=......................",
+    "data": [
+     "0",
+     "8"
+    ],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "W",
+   {
+    "name": "m_axi_wvalid",
+    "wave": "0.....................1...",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_wready",
+    "wave": "0.......................10",
+    "data": [],
+    "phase": 0
+   }
+  ]
+ ],
+ "config": {
+  "hscale": 1
+ }
+}

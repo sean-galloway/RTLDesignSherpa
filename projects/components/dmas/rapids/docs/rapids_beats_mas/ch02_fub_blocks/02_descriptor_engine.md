@@ -214,22 +214,20 @@ parameter logic [3:0] MON_UNIT_ID = 4'h1;        // Unit identifier
 
 ### Figure 2.2.3: Descriptor Chain Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    apb_valid      _/‾\_____:_______:_______:_______:_______:_______
-                    :       :       :       :       :       :
-    m_axi_arvalid  _________/‾‾‾‾‾‾‾\_______/‾‾‾‾‾‾‾\_______
-                    :       :       :       :       :       :
-    m_axi_araddr   X|=DESC0=|XXXXXXX|=DESC1=|XXXXXXX|XXXXXXX
-                    :       :       :       :       :       :
-    m_axi_rvalid   _________________/‾\_____________/‾\_____
-                    :       :       :       :       :       :
-    desc_valid     _____________________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-```
+![Descriptor Engine - three-descriptor chain](../assets/wavedrom/descriptor_engine_chain.png)
 
-**TODO:** Replace with simulation-generated waveform
+**Source:** [descriptor_engine_chain.json](../assets/wavedrom/descriptor_engine_chain.json),
+captured from `dv/tests/fub_beats/test_descriptor_engine_beats.py`
+(`descriptor_chaining`, 32 channels, seed 7) with `WAVES=1`.
+
+Reading it: one `apb_valid` kick carries the head address (0x10000). The engine
+issues an AXI read for it (`ar_valid`, `ar_addr`), the data returns on `r_valid`,
+and the parsed descriptor is presented on `descriptor_valid` to a ready
+scheduler. Because the descriptor's `next_ptr` points at 0x10040 and `last` is
+clear, the engine fetches the next one on its own -- and the one after that at
+0x10080 -- with no further APB traffic; `descriptor_eol` marks the last of the
+chain. Each fetch costs the same AR -> R -> present latency, so a chain streams
+at one descriptor per fetch round trip.
 
 ---
 

@@ -1,0 +1,82 @@
+{
+ "head": {
+  "text": "snk_data_path_beats - last W beats and the B response",
+  "tock": 1
+ },
+ "signal": [
+  {
+   "name": "clk",
+   "wave": "pppppppppppp",
+   "period": 1
+  },
+  {},
+  [
+   "SCHED",
+   {
+    "name": "sched_wr_valid[7:0]",
+    "wave": "=...........",
+    "data": [
+     "1"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "sched_wr_beats[0][31:0]",
+    "wave": "=...........",
+    "data": [
+     "23"
+    ],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "W",
+   {
+    "name": "m_axi_wvalid",
+    "wave": "1.......0...",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_wready",
+    "wave": "0..1.01.0...",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_wlast",
+    "wave": "0......10...",
+    "data": [],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "B",
+   {
+    "name": "m_axi_bvalid",
+    "wave": "0........10.",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_bready",
+    "wave": "1...........",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axi_bresp[1:0]",
+    "wave": "=...........",
+    "data": [
+     "0"
+    ],
+    "phase": 0
+   }
+  ]
+ ],
+ "config": {
+  "hscale": 1
+ }
+}

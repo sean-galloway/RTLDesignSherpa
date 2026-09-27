@@ -1,0 +1,122 @@
+{
+ "head": {
+  "text": "latency_bridge_beats behind a REGISTERED=1 FIFO: registered read in, valid/ready stream out",
+  "tock": 1
+ },
+ "signal": [
+  {
+   "name": "clk",
+   "wave": "pppppppppppppppppp",
+   "period": 1
+  },
+  {},
+  [
+   "FIFO write (GAXI master)",
+   {
+    "name": "wr_valid",
+    "wave": "0.10.10.10.10.10.1",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "wr_ready",
+    "wave": "1.................",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "wr_data[255:0]",
+    "wave": "=....==.==.==.==.=",
+    "data": [
+     "0",
+     "1",
+     "0",
+     "2",
+     "0",
+     "3",
+     "0",
+     "4",
+     "0",
+     "5"
+    ],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "FIFO read = bridge input",
+   {
+    "name": "s_valid",
+    "wave": "0...10.10.10.10.10",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "s_ready",
+    "wave": "1.................",
+    "data": [],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "Bridge output",
+   {
+    "name": "m_valid",
+    "wave": "0.....10.10.10.10.",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_ready",
+    "wave": "0.....10.10.10.10.",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_data[255:0]",
+    "wave": "=........==.==.==.",
+    "data": [
+     "0",
+     "1",
+     "0",
+     "2",
+     "0",
+     "3",
+     "0"
+    ],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "Status",
+   {
+    "name": "occupancy[2:0]",
+    "wave": "=....==.==.==.==.=",
+    "data": [
+     "0",
+     "1",
+     "0",
+     "1",
+     "0",
+     "1",
+     "0",
+     "1",
+     "0",
+     "1"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "dbg_r_pending",
+    "wave": "0....10.10.10.10.1",
+    "data": [],
+    "phase": 0
+   }
+  ]
+ ],
+ "config": {
+  "hscale": 1
+ }
+}

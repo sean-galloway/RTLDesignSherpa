@@ -84,21 +84,19 @@ RAPIDS uses asynchronous assert, synchronous deassert reset methodology.
 
 ### Figure 1.3.1: Reset Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    rst_n    ‾‾‾‾‾‾‾\_______________________________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-                    :  [1]  :       :       :  [2]  :       :
-    internal_regs   X|======RESET VALUES============|=NORMAL OP====
-                    :       :       :       :       :       :
-    fsm_state       X|======IDLE====================|=ACTIVE=======
+![scheduler_beats - reset release to first descriptor](../assets/wavedrom/scheduler_reset.png)
 
-    [1] = Reset asserted (asynchronous)
-    [2] = Reset deasserted (synchronous to clock rising edge)
-```
+**Source:** [scheduler_reset.json](../assets/wavedrom/scheduler_reset.json), captured
+from `dv/tests/fub_beats/test_scheduler_beats.py` (basic transfer, the same run as
+Figure 2.1.3) with `WAVES=1`.
 
-**TODO:** Replace with simulation-generated waveform
+Reading it: `rst_n` is held low for ten cycles and released on a clock edge. Every
+state register is already at its reset value while reset is asserted -- the FSM sits
+in `IDLE`, `scheduler_idle` is high, both control engines report idle and neither
+engine request is raised. Nothing changes at the release edge itself; the scheduler
+stays in `IDLE` until the testbench raises `cfg_channel_enable` ten cycles later and
+a descriptor becomes available, at which point it steps through `FETCH_DESC` to
+`XFER_DATA` and raises the read and write requests together.
 
 ---
 

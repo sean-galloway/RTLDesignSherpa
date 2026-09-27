@@ -170,21 +170,16 @@ Empty condition:   wr_ptr == rd_ptr
 
 ### Figure 2.6.2: Data Arrival and Drain Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    wr_valid       _/‾\_____/‾\_____/‾\_____/‾\_____:_______:_______
-                    :       :       :       :       :       :
-    rd_valid       _________:_______:_______:_______/‾\_____:_______
-    rd_size        X:XXXXXXX:XXXXXXX:XXXXXXX| 4 |XXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-    data_available |== 0 ===|== 1 ==|== 2 ==|== 3 ==|== 4 ==|== 0 ==
-                    :       :       :       :       :       :
-    rd_empty       ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾/‾‾‾‾‾‾‾
-```
+![Drain control - single-beat arrivals then a multi-beat drain](../assets/wavedrom/drain_ctrl_beats_arrive_drain.png)
 
-**TODO:** Replace with simulation-generated waveform showing actual flow control
+**Source:** [drain_ctrl_beats_arrive_drain.json](../assets/wavedrom/drain_ctrl_beats_arrive_drain.json), captured from
+`dv/tests/fub_beats/test_drain_ctrl_beats.py` (`basic_write_drain`, depth 512, seed 7) with `WAVES=1`.
+
+Reading it: six `wr_valid` handshakes, one beat each, raise `data_available`
+1, 2, ... 6 and drop `rd_empty` on the first arrival. A single `rd_valid`
+handshake with `rd_size = 6` then reserves all six at once: `data_available`
+returns to 0 and `rd_empty` rises the next cycle. The counter tracks beats,
+not bytes, and never touches the data itself.
 
 ---
 

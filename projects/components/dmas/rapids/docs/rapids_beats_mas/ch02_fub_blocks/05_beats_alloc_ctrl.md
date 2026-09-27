@@ -173,22 +173,16 @@ Empty condition:   wr_ptr == rd_ptr
 
 ### Figure 2.5.2: Allocation and Release Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    wr_valid       _/‾\_____:_______:_______:_______:_______:_______
-    wr_size        X| 8 |XXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-    rd_valid       _________/‾\_____/‾\_____/‾\_____/‾\_____/‾\_____
-                    :       :       :       :       :       :
-    space_free     |==512===|==504==|==505==|==506==|==507==|==508==
-                    :       :       :       :       :       :
-    wr_ptr         |== 0 ===|== 8 ==|== 8 ==|== 8 ==|== 8 ==|== 8 ==
-    rd_ptr         |== 0 ===|== 0 ==|== 1 ==|== 2 ==|== 3 ==|== 4 ==
-```
+![Allocation control - allocate then release](../assets/wavedrom/alloc_ctrl_beats_alloc_release.png)
 
-**TODO:** Replace with simulation-generated waveform showing actual flow control
+**Source:** [alloc_ctrl_beats_alloc_release.json](../assets/wavedrom/alloc_ctrl_beats_alloc_release.json), captured from
+`dv/tests/fub_beats/test_alloc_ctrl_beats.py` (`basic_alloc_drain`, depth 512, seed 7) with `WAVES=1`.
+
+Reading it: one `wr_valid` handshake with `wr_size = 6` reserves six beats and
+`space_free` drops 512 to 506 the next cycle; `rd_empty` falls because reserved
+space is now outstanding. Each later `rd_valid` handshake releases one beat and
+`space_free` climbs back one at a time (507, 508, ...). `wr_full` and
+`wr_almost_full` stay low: the virtual FIFO is nowhere near its depth.
 
 ---
 

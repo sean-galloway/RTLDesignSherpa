@@ -25,7 +25,7 @@
 
 **Purpose:** Track ASCII waveforms that need to be replaced with simulation-generated versions.
 
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-09-27
 
 ---
 
@@ -115,10 +115,9 @@ are. For the fill handshake itself, capture Figure 3.3.3 instead.
 ### Figure 2.3.2: AXI Read Burst Timing
 
 **File:** `ch02_fub_blocks/03_axi_read_engine.md`
-**Test Source:** NONE YET -- no test exercises `axi_read_engine_beats` directly
-(verified 2026-09-26: nothing under `dv/tests/` instantiates it; only the
-testplans and coverage config name it). This figure cannot be generated until
-such a test exists.
+**Test Source:** `dv/tests/fub_beats/test_axi_read_engine_beats.py` (added
+2026-09-27, rapids TASK-010 part B; TB `axi_read_engine_beats_tb.py`, test
+type `single` gives one channel's bursts on an otherwise quiet bus).
 **Signals to Capture:**
 - `clk`
 - `sched_rd_valid`
@@ -138,9 +137,9 @@ such a test exists.
 ### Figure 2.4.2: AXI Write Burst Timing
 
 **File:** `ch02_fub_blocks/04_axi_write_engine.md`
-**Test Source:** NONE YET -- no test exercises `axi_write_engine_beats` directly
-(verified 2026-09-26, same as Figure 2.3.2). This figure cannot be generated
-until such a test exists.
+**Test Source:** `dv/tests/fub_beats/test_axi_write_engine_beats.py` (added
+2026-09-27, rapids TASK-010 part B; TB `axi_write_engine_beats_tb.py`, test
+type `single`).
 **Signals to Capture:**
 - `clk`
 - `sched_wr_valid`
@@ -275,16 +274,17 @@ assets/wavedrom/
 
 | Figure | File | Status | Test Coverage |
 |--------|------|--------|---------------|
-| 1.1.4 | ch01_overview/01_architecture.md | TODO | test_snk_sram_controller_beats.py |
-| 1.3.1 | ch01_overview/03_clocks_and_reset.md | TODO | test_scheduler_beats.py |
-| 2.1.3 | ch02_fub_blocks/01_scheduler.md | TODO | test_scheduler_beats.py |
-| 2.2.3 | ch02_fub_blocks/02_descriptor_engine.md | TODO | test_descriptor_engine_beats.py |
-| 2.3.2 | ch02_fub_blocks/03_axi_read_engine.md | TODO | test_src_sram_controller_beats.py |
-| 2.4.2 | ch02_fub_blocks/04_axi_write_engine.md | TODO | test_snk_sram_controller_beats.py |
-| 2.5.2 | ch02_fub_blocks/05_beats_alloc_ctrl.md | TODO | test_alloc_ctrl_beats.py |
-| 2.6.2 | ch02_fub_blocks/06_beats_drain_ctrl.md | TODO | test_drain_ctrl_beats.py |
-| 2.7.2 | ch02_fub_blocks/07_beats_latency_bridge.md | TODO | test_latency_bridge_beats.py |
-| 3.3.3 | ch03_macro_blocks/03_sink_data_path.md | TODO | test_snk_sram_controller_beats.py |
+| 1.1.4 | ch01_overview/01_architecture.md | DONE 2026-09-27 (`assets/wavedrom/rapids_core_beats_sink_kick.png`) | test_rapids_core_beats.py |
+| 1.3.1 | ch01_overview/03_clocks_and_reset.md | DONE 2026-09-27 (`assets/wavedrom/scheduler_reset.png`) | test_scheduler_beats.py |
+| 2.1.3 | ch02_fub_blocks/01_scheduler.md | DONE 2026-09-27 (`assets/wavedrom/scheduler_basic_transfer.png`) | test_scheduler_beats.py |
+| 2.2.3 | ch02_fub_blocks/02_descriptor_engine.md | DONE 2026-09-27 (`assets/wavedrom/descriptor_engine_chain.png`) | test_descriptor_engine_beats.py |
+| 2.3.2 | ch02_fub_blocks/03_axi_read_engine.md | DONE 2026-09-27 (`assets/wavedrom/axi_read_engine_burst.png`) | test_axi_read_engine_beats.py |
+| 2.4.2 | ch02_fub_blocks/04_axi_write_engine.md | DONE 2026-09-27 (`assets/wavedrom/axi_write_engine_burst.png`) | test_axi_write_engine_beats.py |
+| 2.5.2 | ch02_fub_blocks/05_beats_alloc_ctrl.md | DONE 2026-09-27 (`assets/wavedrom/alloc_ctrl_beats_alloc_release.png`) | test_alloc_ctrl_beats.py |
+| 2.6.2 | ch02_fub_blocks/06_beats_drain_ctrl.md | DONE 2026-09-27 (`assets/wavedrom/drain_ctrl_beats_arrive_drain.png`) | test_drain_ctrl_beats.py |
+| 2.7.2 | ch02_fub_blocks/07_beats_latency_bridge.md | DONE 2026-09-27 (`assets/wavedrom/latency_bridge_beats_streaming.png`) | test_latency_bridge_beats.py |
+| 3.3.3 | ch03_macro_blocks/03_sink_data_path.md | DONE 2026-09-27 (`assets/wavedrom/snk_data_path_fill_alloc.png`, `_axi_write_aw.png`, `_axi_write_b.png`) | test_rapids_core_beats.py |
+| 3.4.3 | ch03_macro_blocks/04_sink_data_path_axis.md | DONE 2026-09-27 (`assets/wavedrom/snk_data_path_axis_ingress.png`) | test_rapids_core_beats.py |
 
 : Waveform Progress Tracking
 
@@ -300,4 +300,4 @@ assets/wavedrom/
 
 ---
 
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-09-27

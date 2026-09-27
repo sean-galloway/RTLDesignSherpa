@@ -36,3 +36,23 @@ write an engine-level test or drop the two figures.
 waveform row -- do not "fix" it to `mon_packet`.
 
 **Related:** [[TASK-009]]
+
+---
+
+**Progress 2026-09-27.** Part B done: `dv/tests/fub_beats/test_axi_read_engine_beats.py`
+and `test_axi_write_engine_beats.py` (TBs in `dv/tbclasses/`), AXI4 slave BFM + memory
+model on the bus side, GAXI slave on the SRAM-fill side, level models for the scheduler and
+SRAM ports; both found real RTL defects on their first run (rapids BUG-004, BUG-005).
+Part A: 7 of the 26 placeholders replaced with generated waveforms (`assets/wavedrom/*.png`
++ `.json`, produced by `scratchpad/mkwave.py` over `bin/vcd2wavedrom2`, wavedrom-cli and
+rsvg-convert): Figures 2.1.3, 2.2.3, 2.3.2, 2.4.2, 2.5.2, 2.6.2, 2.7.2. `TODO.md` rows
+updated. Remaining 19 (ch01 1.1.4/1.3.1, ch02 2.9.3, ch03 3.3.3/3.4.3/3.5.2/3.6.3/3.7.3/3.8.2,
+ch04 x6, HAS ch05 wavedrom) need macro/top-level wave captures; same recipe.
+
+**Progress 2026-09-27 (later).** Part A now 12 of 26: added 1.1.4 (`rapids_core_beats_sink_kick`),
+1.3.1 (`scheduler_reset`), 3.3.3 as three panels (`snk_data_path_fill_alloc`,
+`snk_data_path_axi_write_aw`, `snk_data_path_axi_write_b`) and 3.4.3
+(`snk_data_path_axis_ingress`), all cut from the core sink and scheduler dumps already on
+disk. Remaining 14: 2.9.3 (ctrlwr doorbell), 3.5.2/3.8.2 (SRAM controller drain select),
+3.6.3/3.7.3 (source path, AXIS egress), ch04 x6 interface figures, HAS ch05 wavedrom --
+each needs its own WAVES=1 capture from the named test; recipe unchanged (mkwave.py).

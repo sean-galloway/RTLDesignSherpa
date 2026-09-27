@@ -148,27 +148,40 @@ parameter int B_PHASE_FIFO_DEPTH = 16;
 
 ### Figure 3.3.3: Sink Path Transfer Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    fill_alloc_req _/‾\_____:_______:_______:_______:_______:_______
-    fill_alloc_size| 4 |XXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-    fill_valid     _________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_______:_______:_______
-    fill_data      X:XXXXXXX|==D0==|==D1==|==D2==|==D3==|XXXXXXXXX
-                    :       :       :       :       :       :
-    sched_wr_valid _________:_______:_______:_______/‾‾‾‾‾‾‾\_______
-    sched_wr_beats X:XXXXXXX:XXXXXXX:XXXXXXX| 4 |XXXXXXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-    m_axi_awvalid  _________:_______:_______:_______/‾\_____:_______
-    m_axi_wvalid   _________:_______:_______:_______:_/‾‾‾‾‾\_______
-    m_axi_bvalid   _________:_______:_______:_______:_______:_/‾\___
-                    :       :       :       :       :       :
-    sched_wr_done  _________:_______:_______:_______:_______:___/‾\_
-```
+Three windows from one transfer: the allocation and fill, the first AXI write burst
+being issued, and the end of that burst with its response.
 
-**TODO:** Replace with simulation-generated waveform showing complete sink transfer
+**(a) Allocation and fill**
+
+![snk_data_path_beats - allocation and fill](../assets/wavedrom/snk_data_path_fill_alloc.png)
+
+**(b) First AXI write burst issued**
+
+![snk_data_path_beats - first AXI write burst issued](../assets/wavedrom/snk_data_path_axi_write_aw.png)
+
+**(c) Last W beats and the B response**
+
+![snk_data_path_beats - last W beats and the B response](../assets/wavedrom/snk_data_path_axi_write_b.png)
+
+**Source:** [snk_data_path_fill_alloc.json](../assets/wavedrom/snk_data_path_fill_alloc.json),
+[snk_data_path_axi_write_aw.json](../assets/wavedrom/snk_data_path_axi_write_aw.json),
+[snk_data_path_axi_write_b.json](../assets/wavedrom/snk_data_path_axi_write_b.json),
+captured inside `rapids_core_beats.u_snk.u_sink_data_path` from
+`dv/tests/top_beats/test_rapids_core_beats.py` (sink path, channel 0, 32 beats,
+512-bit data, `cfg_alloc_size = 16`, `TEST_LEVEL=full`) with `WAVES=1`.
+
+Reading (a): the first beat for channel 0 arrives with no space allocated, so the
+path raises `fill_alloc_req` for 16 beats; `fill_space_free[0]` drops 512 to 496 three
+cycles later and the beat is accepted on the same cycle as the request. The remaining
+beats are accepted one per handshake (`fill_ready` stays high; the gaps are the AXIS
+producer's pacing). Reading (b): once the descriptor arrives the scheduler holds
+`sched_wr_valid` with 32 beats remaining; the engine issues the AW (`awlen = 8`,
+9 beats) and, the cycle after the AW handshake, pulses `sched_wr_done_strobe` with
+`beats_done = 9`, on which the scheduler advances to 23 remaining and the next AW
+address is already 0x20000240. Reading (c): W beats drain at the memory's pace
+(`wready` from the AXI slave BFM), `wlast` marks the ninth beat, and the B response
+arrives two cycles later with `bresp = OKAY`. The done strobe is reported at issue,
+not at B; completion of the whole transfer is what `snk_system_idle` reflects.
 
 ---
 

@@ -192,22 +192,18 @@ parameter int TUSER_WIDTH = 1;
 
 ### Figure 3.4.3: AXIS Ingress Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    s_axis_tvalid  _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______:_______
-    s_axis_tready  _______/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______:_______
-    s_axis_tdata   X:XXXXX|=D0==|=D1==|=D2==|=D3==|XXX:XXXXXXX:XXXXXXX
-    s_axis_tid     X:XXXXX| CH2 | CH2 | CH2 | CH2 |XXX:XXXXXXX:XXXXXXX
-    s_axis_tlast   ___________________:_______/‾\___:_______:_______
-                    :       :       :       :       :       :
-    snk_fill_valid _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______:_______
-    snk_fill_id    X:XXXXX| CH2 | CH2 | CH2 | CH2 |XXX:XXXXXXX:XXXXXXX
-    snk_fill_last  ___________________:_______/‾\___:_______:_______
-```
+![snk_data_path_axis_beats - AXIS ingress, end of a 32-beat packet](../assets/wavedrom/snk_data_path_axis_ingress.png)
 
-**TODO:** Replace with simulation-generated waveform showing AXIS packet reception
+**Source:** [snk_data_path_axis_ingress.json](../assets/wavedrom/snk_data_path_axis_ingress.json),
+captured from `dv/tests/top_beats/test_rapids_core_beats.py` (sink path, channel 0,
+32 beats, 512-bit data, `TEST_LEVEL=full`) with `WAVES=1`.
+
+Reading it: each AXIS beat is passed straight through to the fill interface in the
+same cycle -- `fill_valid` mirrors `s_axis_tvalid`, `fill_id` is `s_axis_tid`, and
+`fill_data` is `s_axis_tdata` (the low 16 bits are shown; the payload counts up
+0x1a..0x1f). `s_axis_tready` is high while channel 0 has allocated space and drops the
+cycle after `s_axis_tlast` because the packet count is now complete and the next beat
+would need a fresh allocation (Figure 3.3.3a).
 
 ---
 

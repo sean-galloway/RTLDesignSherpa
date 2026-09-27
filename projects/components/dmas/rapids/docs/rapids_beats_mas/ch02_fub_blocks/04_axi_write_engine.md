@@ -188,29 +188,22 @@ Phase 1: AW (Address)    Phase 2: W (Data)    Phase 3: B (Response)
 
 ### Figure 2.4.2: AXI Write Burst Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    sched_wr_valid _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____
-    sched_wr_beats |=============== 4 ================|XXXXX|XXXXX
-                    :       :       :       :       :       :
-    m_axi_awvalid  _/‾\_____:_______:_______:_______:_______:_______
-    m_axi_awlen    X| 3 |XXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-    sram_rd_en     _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_______:_______:_______
-                    :       :       :       :       :       :
-    m_axi_wvalid   _________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_______:_______
-    m_axi_wdata    X:XXXXXXX|==D0===|==D1===|==D2===|==D3===|XXXXXXX
-    m_axi_wlast    _________:_______:_______:_______/‾\_____:_______
-                    :       :       :       :       :       :
-    m_axi_bvalid   _________:_______:_______:_______:_______/‾\_____
-    m_axi_bresp    X:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX| OK|XXX
-                    :       :       :       :       :       :
-    sched_wr_done  _________:_______:_______:_______:_______:_/‾\___
-```
+![AXI Write Engine - one 8-beat burst](../assets/wavedrom/axi_write_engine_burst.png)
 
-**TODO:** Replace with simulation-generated waveform
+**Source:** [axi_write_engine_burst.json](../assets/wavedrom/axi_write_engine_burst.json),
+captured from `dv/tests/fub_beats/test_axi_write_engine_beats.py` (`single`, 4 ch,
+256-bit, `cfg_axi_wr_xfer_beats = 7`, seed 7) with `WAVES=1`.
+
+Reading it: the SRAM model reports 26 beats available for channel 0 and the
+scheduler holds `sched_wr_valid`. The arbiter grants the channel, the AW
+(`awlen = 7`) is registered and handshakes; in that same cycle
+`axi_wr_drain_req` reserves 8 beats (`data_avail` drops to 18 two cycles later,
+the controller's reporting latency), and the cycle after, `sched_wr_done_strobe`
+reports 8 beats issued so the scheduler advances (`awaddr` for the next AW is
+already 0x100). W beats stream from the ID-selected drain port
+(`axi_wr_sram_drain` is exactly `wvalid && wready`), `wlast` closes the burst,
+and the B response two cycles later raises `sched_wr_commit_strobe`. At
+`PIPELINE = 0` the channel's next AW waits for that B.
 
 ---
 

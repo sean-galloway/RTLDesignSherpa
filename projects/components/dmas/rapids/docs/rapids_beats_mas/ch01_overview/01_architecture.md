@@ -231,26 +231,20 @@ keep their tests and filelists as standalone FUBs.
 
 ### Figure 1.1.4: Basic Sink Path Transfer Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    fill_valid     _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____
-                    :       :       :       :       :       :
-    fill_ready     ‾\_______/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_______/‾‾‾‾‾
-                    :  [1]  :       :       :       :  [2]  :
-    fill_data      X|==D0===|==D1===|==D2===|==D3===|=====XX|XXXXX
-                    :       :       :       :       :       :
-    sram_wr_en     _________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\____________
-                    :       :       :       :       :       :
-    data_avail     ___/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\____
-                    :       :       :       :       :       :
+![rapids_core_beats - sink channel 0 kick to first AW](../assets/wavedrom/rapids_core_beats_sink_kick.png)
 
-    [1] = fill_ready deasserted (SRAM full or allocation pending)
-    [2] = fill_ready deasserted (end of burst)
-```
+**Source:** [rapids_core_beats_sink_kick.json](../assets/wavedrom/rapids_core_beats_sink_kick.json),
+captured from `dv/tests/top_beats/test_rapids_core_beats.py` (sink path, channel 0,
+32 beats, 512-bit data, `TEST_LEVEL=full`) with `WAVES=1`.
 
-**TODO:** Replace with simulation-generated waveform showing actual signals
+Reading it: the AXIS packet is already sitting in the sink SRAM when software kicks
+channel 0 (`snk_apb_valid[0]` for one cycle with the descriptor address 0x30000000).
+`snk_apb_ready[0]` drops the same cycle and stays low while the channel is busy.
+The descriptor engine leaves idle immediately to fetch the descriptor; twelve cycles
+later it hands the descriptor to the scheduler, its own idle returns, and
+`snk_scheduler_idle[0]` and `snk_system_idle` fall together. The first AW follows four
+cycles after that. `snk_system_idle` returns after the last B response of the transfer
+(not in this window); the busy-then-idle sequence is what the top-level tests wait on.
 
 ---
 

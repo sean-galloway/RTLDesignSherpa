@@ -1,0 +1,98 @@
+{
+ "head": {
+  "text": "snk_data_path_beats - allocation and fill",
+  "tock": 1
+ },
+ "signal": [
+  {
+   "name": "clk",
+   "wave": "pppppppppppppppppppppppppp",
+   "period": 1
+  },
+  {},
+  [
+   "ALLOC",
+   {
+    "name": "fill_alloc_req",
+    "wave": "0...10....................",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "fill_alloc_id[2:0]",
+    "wave": "=.........................",
+    "data": [
+     "0"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "fill_alloc_size[7:0]",
+    "wave": "=.........................",
+    "data": [
+     "16"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "fill_space_free[0][9:0]",
+    "wave": "=......=..................",
+    "data": [
+     "512",
+     "496"
+    ],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "FILL",
+   {
+    "name": "fill_valid",
+    "wave": "0...10.10.10.10.10.10.10.1",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "fill_ready",
+    "wave": "1.........................",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "fill_id[2:0]",
+    "wave": "=.........................",
+    "data": [
+     "0"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "fill_data[511:0]",
+    "wave": "=...==.==.==.==.==.==.==.=",
+    "data": [
+     "0x0000",
+     "0x0000",
+     "0x0000",
+     "0x0001",
+     "0x0000",
+     "0x0002",
+     "0x0000",
+     "0x0003",
+     "0x0000",
+     "0x0004",
+     "0x0000",
+     "0x0005",
+     "0x0000",
+     "0x0006",
+     "0x0000",
+     "0x0007"
+    ],
+    "phase": 0
+   }
+  ]
+ ],
+ "config": {
+  "hscale": 1
+ }
+}
