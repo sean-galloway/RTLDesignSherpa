@@ -24,6 +24,7 @@ suite is untouched).
 """
 
 import os
+import re
 import sys
 
 import pytest
@@ -69,8 +70,51 @@ import pumice_char as pc                                # noqa: E402
 # Passed to the RTL as UART_BAUD = FPGA_CLK_HZ / CLKS_PER_BIT so the RTL
 # divisor and this constant cannot drift apart.
 CLKS_PER_BIT   = int(os.environ.get("TEST_CLKS_PER_BIT", "4"))
-FPGA_CLK_HZ    = 100_000_000
+# THE SIM RUNS THE BOARD'S CONFIGURATION BY DEFAULT. Every constant below is the
+# value the Nexys A7 build actually reports at init:
+#
+#   [init] board: DDR2 v1 dfi_rate=2 gear=1 bl=4 row=13 bank=6
+#                 axi=64b beat=32b dev=16b clk=75.00MHz
+#
+# It used to be 100 MHz with bl=8 / beat=8B / dev=8B, which is FOUR differences
+# from the board at once, and that made every sim-vs-board comparison invalid
+# without anyone having to make a mistake. JEDEC timings are specified in ns and
+# converted to CYCLES, so a 100 MHz sim gives every timing 1.33x more cycles than
+# the board -- longer gaps, more idle windows, different arbiter behaviour. That
+# is not a smaller version of the board, it is a DIFFERENT DUT.
+#
+# It also defeated the env overrides meant to paper over it: the correct names are
+# TEST_DRAM_BEAT_BYTES and TEST_DRAM_DEVICE_BYTES (BYTES), and runs were passing
+# TEST_DRAM_BEAT=32 / TEST_DRAM_DEVICE_W=16, which nothing reads -- so two of
+# three "corrections" were silently inert while the run looked configured.
+#
+# RULE: the DEFAULT is the board. An override is for deliberately studying a
+# DIFFERENT geometry, never for restoring parity -- parity is not opt-in.
+# See feedback_sim_match_fpga_exactly and pumice TASK-015.
+FPGA_CLK_HZ    = int(os.environ.get("TEST_FPGA_CLK_HZ", "75000000"))
 UART_BAUD      = FPGA_CLK_HZ // CLKS_PER_BIT
+# THE SIMULATION CLOCK PERIOD IS DERIVED FROM FPGA_CLK_HZ, not hard-coded.
+# UartSimHarness defaults to clk_period_ns=10 (100 MHz) and this suite never
+# overrode it, so the sim really did run at 100 MHz while the board runs 75 --
+# and FPGA_CLK_HZ=100e6 was CONSISTENT with that, just not with the board.
+# Setting FPGA_CLK_HZ alone is worse than leaving it: it tells the RTL a
+# frequency the TB is not driving (measured -- all 4 char tests fail that way).
+# Deriving the period here means the two cannot disagree: change the frequency
+# and the clock follows.
+# QUANTISED TO WHOLE PICOSECONDS. 1e9/75e6 is 13.3333...ns, which cocotb refuses
+# outright: "Unable to accurately represent 13.333333333333334(ns) with the
+# simulator precision of 1e-12". Round to the nearest ps so the period is exactly
+# representable; the residual frequency error is ~2.5e-5 (75.0019 MHz vs 75), far
+# below anything a JEDEC timing in whole cycles can notice.
+# AND DIVISIBLE BY THE DERIVED RATIOS. Representable is not enough: the TB
+# derives a DFI clock at half the MC period (DFI_RATE=2), and 13333/2 = 6666.5 ps
+# is not a whole picosecond either -- measured as
+# "Unable to accurately represent 6.6665(ns)". Quantise to a multiple of 8 ps so
+# /2, /4 and /8 derivations all land on whole picoseconds.
+_PS_GRAIN      = 8
+_CLK_PERIOD_PS = _PS_GRAIN * round(1e12 / FPGA_CLK_HZ / _PS_GRAIN)   # 13336 ps
+CLK_PERIOD_NS  = _CLK_PERIOD_PS / 1000.0        # 13.333 ns, exact at 1 ps
+CLK_ACTUAL_HZ  = round(1e12 / _CLK_PERIOD_PS)   # 75_001_875 -- report the truth
 ROW_W, COL_W   = 13, 10
 NUM_BANKS      = 8
 # JEDEC burst length in device beats, FOLLOWING the build under test.
@@ -94,10 +138,10 @@ NUM_BANKS      = 8
 # HOST to BL8 while a BL4 build ran underneath it: set_dfi_phase(bl=...)
 # and the host's bank_lsb both come from here, so a BL4 test programmed
 # BL8 and was not the configuration it claimed to be.
-DRAM_BL        = int(os.environ.get("TEST_DRAM_BL", "8"))
+DRAM_BL        = int(os.environ.get("TEST_DRAM_BL", "4"))          # board: bl=4
 DFI_RATE        = int(os.environ.get("TEST_DFI_RATE", "2"))
-DRAM_BEAT_BYTES = int(os.environ.get("TEST_DRAM_BEAT_BYTES", "8"))
-DRAM_DEVICE_BYTES = int(os.environ.get("TEST_DRAM_DEVICE_BYTES", str(DRAM_BEAT_BYTES)))
+DRAM_BEAT_BYTES = int(os.environ.get("TEST_DRAM_BEAT_BYTES", "4"))  # board: beat=32b
+DRAM_DEVICE_BYTES = int(os.environ.get("TEST_DRAM_DEVICE_BYTES", "2"))  # board: dev=16b
 # DFI beats per DRAM burst.
 #
 # TESTED TWICE AND REJECTED: BL/K, where K = beat_bytes/device_bytes.
@@ -120,6 +164,103 @@ DRAM_DEVICE_BYTES = int(os.environ.get("TEST_DRAM_DEVICE_BYTES", str(DRAM_BEAT_B
 # it changes and does not fix BL4 (PUMICE-041). Whatever the BFM means by
 # beats_per_burst here, these tests want DRAM_BL. Do not re-derive it from K
 # without first explaining why families_x16 passes at 8 and fails at 4.
+# ---------------------------------------------------------------------------
+# BOARD IS THE DEFAULT; OTHER CONFIGS ARE FIRST-CLASS BUT MUST BE VISIBLE.
+#
+# Running other geometries (BL, beat width, device width, clock) is WANTED --
+# that is real coverage and pumice TASK-015 sweeps it deliberately. What must
+# never happen is DIVERGENCE NOBODY NOTICED. Two distinct failures produced that,
+# and only one of them is about deviation:
+#
+#   1. The defaults were not the board (100 MHz / bl8 / 8B beat / 8B device vs
+#      75 MHz / bl4 / 4B / 2B). Fixed above: the defaults ARE the board now.
+#   2. The overrides meant to correct it were MISSPELLED and therefore inert.
+#      The real names take BYTES -- TEST_DRAM_BEAT_BYTES, TEST_DRAM_DEVICE_BYTES
+#      -- and runs were passing TEST_DRAM_BEAT=32 / TEST_DRAM_DEVICE_W=16, which
+#      nothing reads. The run LOOKED configured and silently was not.
+#
+# (2) is the dangerous one: a typo that errors costs a minute, a typo that is
+# ignored costs months of invalid comparisons. So an unrecognised TEST_* knob is
+# a HARD ERROR, and any deviation from the board is announced beside the results
+# rather than forbidden.
+BOARD_REFERENCE = {
+    "FPGA_CLK_HZ":       75_000_000,   # clk=75.00MHz
+    "DRAM_BL":           4,            # bl=4
+    "DRAM_BEAT_BYTES":   4,            # beat=32b
+    "DRAM_DEVICE_BYTES": 2,            # dev=16b
+    "DFI_RATE":          2,            # dfi_rate=2
+}
+
+# The allowed TEST_* set is DERIVED FROM THIS FILE, not hand-listed. A
+# hand-maintained whitelist rots: the first version of this guard missed the
+# names the test itself passes into the simulator subprocess and failed all four
+# char tests. Anything this module mentions is legitimate; a typo does not appear
+# in the source and so is caught.
+# Known-typo names appear as literals in the hints table below, so they would be
+# re-admitted by the source scan -- subtract them explicitly.
+_TYPO_NAMES = {
+    "TEST_DRAM_BEAT", "TEST_DRAM_DEVICE_W", "TEST_DRAM_DEVICE_WIDTH",
+    "TEST_CLK_MHZ", "TEST_CLK_HZ",
+}
+_KNOWN_TEST_ENV = (
+    set(re.findall(r"TEST_[A-Z0-9_]+", open(__file__).read()))
+    | {"TEST_LEVEL", "TEST_ALLOW_CONFIG_DEVIATION"}
+) - _TYPO_NAMES
+
+def _reject_unknown_test_env() -> None:
+    """A misspelled knob must FAIL, never be silently ignored.
+
+    The failure this exists for: runs were passing TEST_DRAM_BEAT=32 and
+    TEST_DRAM_DEVICE_W=16, names nothing reads, so the run LOOKED configured and
+    silently was not -- which is how a 100 MHz / bl8 sim got compared against a
+    75 MHz / bl4 board. An ignored override costs months; an error costs a minute.
+    """
+    unknown = sorted(k for k in os.environ
+                     if k.startswith("TEST_") and k not in _KNOWN_TEST_ENV)
+    if not unknown:
+        return
+    hints = {
+        "TEST_DRAM_BEAT":         "TEST_DRAM_BEAT" + "_BYTES (BYTES, not bits)",
+        "TEST_DRAM_DEVICE_W":     "TEST_DRAM_DEVICE" + "_BYTES (BYTES, not bits)",
+        "TEST_DRAM_DEVICE_WIDTH": "TEST_DRAM_DEVICE" + "_BYTES (BYTES, not bits)",
+        "TEST_CLK_MHZ":           "TEST_FPGA" + "_CLK_HZ (Hz)",
+        "TEST_CLK_HZ":            "TEST_FPGA" + "_CLK_HZ (Hz)",
+    }
+    lines = [f"  {k}" + (f"   -- did you mean {hints[k]}?" if k in hints else "")
+             for k in unknown]
+    raise AssertionError(
+        "unrecognised TEST_* environment knob(s):\n" + "\n".join(lines) +
+        "\n\nThis is an error, not a warning: an ignored override makes a run "
+        "look configured while it is not. Recognised knobs:\n  " +
+        "\n  ".join(sorted(_KNOWN_TEST_ENV)))
+
+def _announce_config() -> None:
+    """Print the EFFECTIVE config, and flag any deviation from the board.
+
+    Other geometries are legitimate and expected; they simply must be legible in
+    the log next to the numbers they produced.
+    """
+    actual = {
+        "FPGA_CLK_HZ": FPGA_CLK_HZ, "DRAM_BL": DRAM_BL,
+        "DRAM_BEAT_BYTES": DRAM_BEAT_BYTES,
+        "DRAM_DEVICE_BYTES": DRAM_DEVICE_BYTES, "DFI_RATE": DFI_RATE,
+    }
+    delta = {k: (v, BOARD_REFERENCE[k]) for k, v in actual.items()
+             if v != BOARD_REFERENCE[k]}
+    cfg = " ".join(f"{k}={v}" for k, v in actual.items())
+    cfg += (f" CLK_PERIOD_NS={CLK_PERIOD_NS:.3f}"
+            f" CLK_ACTUAL_HZ={CLK_ACTUAL_HZ}")
+    if not delta:
+        print(f"[cfg] BOARD PARITY: {cfg}")
+        return
+    print("\n*** NON-BOARD CONFIGURATION -- not comparable to board numbers ***")
+    for k, (got, want) in delta.items():
+        print(f"      {k}: this run={got}  board={want}")
+    print(f"[cfg] {cfg}\n")
+
+_reject_unknown_test_env()
+_announce_config()
+
 BEATS_PER_BURST  = DRAM_BL
 
 
@@ -203,6 +344,7 @@ async def _bringup(dut, *, init_complete_delay: int = 20):
     """Common transport bringup via the shared UartSimHarness; only the
     DFI backend BFM + init_complete are DDR2-specific and stay here."""
     h = UartSimHarness(dut, clks_per_bit=CLKS_PER_BIT,
+                       clk_period_ns=CLK_PERIOD_NS,
                        idle_inputs={"phy_dfi_init_complete": 0,
                                     "phy_dfi_ctrlupd_ack": 0,
                                     "phy_dfi_phyupd_req": 0,
@@ -346,8 +488,21 @@ async def cocotb_test_char_families(dut):
 # =============================================================================
 # pytest wrapper
 # =============================================================================
-def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
-         dram_device_width: int = 0, dram_bl: int = None):
+def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 32,
+         dram_device_width: int = 16, dram_bl: int = None):
+    # DEFAULTS ARE THE BOARD: 32b pumice beat over an x16 device at BL4
+    # (dram_bl=None -> DRAM_BL, whose default is the board's 4). They used to be
+    # beat=64 / device=64 / BL8 -- a geometry the board does not have -- so a test
+    # that specified nothing got a DUT that does not exist in hardware.
+    #
+    # The comment below already named this as the reason the concurrent-gap defect
+    # "did not reproduce in the char sim". The per-test override was added but the
+    # DEFAULT was left non-board, so every test that did not opt in kept running
+    # the wrong geometry. Defaults are what tests actually get.
+    #
+    # Other geometries are supported and wanted -- see
+    # test_ddr2_char_char_concurrent_gap_board_bl8, which passes dram_bl=8 as a
+    # deliberate one-variable control. They are just never the default.
     if dram_device_width == 0:
         dram_device_width = dram_beat_width
     # BL is per-test, not a module constant. The board runs BL4 and this suite
