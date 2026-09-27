@@ -99,6 +99,11 @@ class CtrlrdEngineTB(TBBase):
         self.clk_name = 'clk'
         self.rst_n = dut.rst_n
 
+        # The test cell parameterizes the DUT's AXI_DATA_WIDTH; the TB must model
+        # the bus it was given rather than assume 64. A ctrlrd is ALWAYS a 4-byte
+        # read, so on a wider bus the data rides the address-selected 32-bit lane.
+        self.axi_data_width = int(os.environ.get('AXI_DATA_WIDTH', 64))
+
         # Component references (created in setup_clocks_and_reset)
         self.ctrlrd_master = None
         self.axi_slave = None
@@ -227,6 +232,22 @@ class CtrlrdEngineTB(TBBase):
             return random.randint(delay_tuple[0], delay_tuple[1])
         return delay_tuple
 
+    def _lane_place(self, addr: int, data32: int) -> int:
+        """Place a 4-byte read value on the 32-bit lane AXI selects by address.
+
+        A ctrlrd is ALWAYS a 32-bit read at a 32-bit-aligned address -- an
+        unaligned address is a malformed descriptor -- so the placement is
+        word-granular and everything below addr[2] is zero by contract. On a bus
+        wider than 32 bits a real slave returns the word on the addressed lanes,
+        which is what ctrlrd_engine's lane select reads. Degenerates to a no-op
+        on a 32-bit bus, where the only lane is lane 0.
+        """
+        words = self.axi_data_width // 32
+        if words <= 1:
+            return data32 & 0xFFFFFFFF
+        sel = (addr >> 2) & (words - 1)
+        return (data32 & 0xFFFFFFFF) << (32 * sel)
+
     async def send_ctrlrd_request(self, addr: int, expected_data: int, mask: int, profile: DelayProfile):
         """
         Send single ctrlrd request.
@@ -327,7 +348,7 @@ class CtrlrdEngineTB(TBBase):
 
                         # Drive R channel with matching data
                         self.dut.r_valid.value = 1
-                        self.dut.r_data.value = read_data
+                        self.dut.r_data.value = self._lane_place(test_addr, read_data)
                         self.dut.r_id.value = ar_id
                         self.dut.r_resp.value = 0
                         self.dut.r_last.value = 1
@@ -363,7 +384,7 @@ class CtrlrdEngineTB(TBBase):
                     clock=self.clk,
                     prefix="",  # No prefix - signals are ar_*, r_*
                     log=self.log,
-                    data_width=64,  # AXI_DATA_WIDTH
+                    data_width=self.axi_data_width,  # AXI_DATA_WIDTH
                     id_width=8,     # AXI_ID_WIDTH
                     addr_width=64,  # ADDR_WIDTH
                     user_width=1,
@@ -519,7 +540,7 @@ class CtrlrdEngineTB(TBBase):
 
                     # Drive R channel
                     self.dut.r_valid.value = 1
-                    self.dut.r_data.value = response_data
+                    self.dut.r_data.value = self._lane_place(ar_addr, response_data)
                     self.dut.r_id.value = ar_id
                     self.dut.r_resp.value = 0  # OKAY
                     self.dut.r_last.value = 1
@@ -602,7 +623,7 @@ class CtrlrdEngineTB(TBBase):
                 clock=self.clk,
                 prefix="",
                 log=self.log,
-                data_width=64,
+                data_width=self.axi_data_width,
                 id_width=8,
                 addr_width=64,
                 user_width=1,
@@ -653,7 +674,7 @@ class CtrlrdEngineTB(TBBase):
                 clock=self.clk,
                 prefix="",
                 log=self.log,
-                data_width=64,
+                data_width=self.axi_data_width,
                 id_width=8,
                 addr_width=64,
                 user_width=1,
@@ -661,12 +682,20 @@ class CtrlrdEngineTB(TBBase):
                 memory_model=self.memory_model
             )
 
+        # Strided by the bus width so every case lands on lane 0. This test rides
+        # the shared AXI4 slave BFM, which returns a narrow read in the low word
+        # instead of on the address-selected lanes (CocoTBFramework
+        # axi4_interfaces.py _generate_read_response -- its master/write path DOES
+        # lane-position, the slave read path does not). Lane coverage therefore
+        # lives in test_back_to_back, whose manual responder this TB controls and
+        # which walks addr[2] across 0x7000..0x7010.
+        bus_stride = max(4, self.axi_data_width // 8)
         test_cases = [
             # (addr, expected, mask, actual_data, should_match)
-            (0x3000, 0x12345678, 0xFFFF0000, 0x12340000, True),   # Upper 16 bits match: (0x12345678 & 0xFFFF0000) == (0x12340000 & 0xFFFF0000) = 0x12340000
-            (0x3004, 0xABCDEF12, 0x0000FFFF, 0x0000EF12, True),   # Lower 16 bits match: (0xABCDEF12 & 0x0000FFFF) == (0x0000EF12 & 0x0000FFFF) = 0x0000EF12
-            (0x3008, 0xFF00FF00, 0xFF00FF00, 0xFF55FF99, True),   # Alternating bytes: (0xFF00FF00 & 0xFF00FF00) == (0xFF55FF99 & 0xFF00FF00) = 0xFF00FF00
-            (0x300C, 0x12345679, 0x00000001, 0xABCDEF79, True),   # Only LSB matches: (0x12345679 & 0x00000001) == (0xABCDEF79 & 0x00000001) = 0x00000001
+            (0x3000 + 0 * bus_stride, 0x12345678, 0xFFFF0000, 0x12340000, True),   # Upper 16 bits match
+            (0x3000 + 1 * bus_stride, 0xABCDEF12, 0x0000FFFF, 0x0000EF12, True),   # Lower 16 bits match
+            (0x3000 + 2 * bus_stride, 0xFF00FF00, 0xFF00FF00, 0xFF55FF99, True),   # Alternating bytes
+            (0x3000 + 3 * bus_stride, 0x12345679, 0x00000001, 0xABCDEF79, True),   # Only LSB matches
         ]
 
         for test_addr, expected_data, mask, actual_data, should_match in test_cases:
@@ -722,7 +751,7 @@ class CtrlrdEngineTB(TBBase):
                 clock=self.clk,
                 prefix="",
                 log=self.log,
-                data_width=64,
+                data_width=self.axi_data_width,
                 id_width=8,
                 addr_width=64,
                 user_width=1,
@@ -807,7 +836,7 @@ class CtrlrdEngineTB(TBBase):
 
                     await self.wait_clocks(self.clk_name, 2)
                     self.dut.r_valid.value = 1
-                    self.dut.r_data.value = 0x00000000
+                    self.dut.r_data.value = self._lane_place(ar_addr, 0x00000000)
                     self.dut.r_id.value = ar_id
                     self.dut.r_resp.value = 2  # SLVERR
                     self.dut.r_last.value = 1
@@ -880,7 +909,7 @@ class CtrlrdEngineTB(TBBase):
                         return
 
                     self.dut.r_valid.value = 1
-                    self.dut.r_data.value = expected_data
+                    self.dut.r_data.value = self._lane_place(test_addr, expected_data)
                     self.dut.r_id.value = ar_id
                     self.dut.r_resp.value = 0
                     self.dut.r_last.value = 1
@@ -973,7 +1002,7 @@ class CtrlrdEngineTB(TBBase):
 
                     await self.wait_clocks(self.clk_name, 2)
                     self.dut.r_valid.value = 1
-                    self.dut.r_data.value = response_data
+                    self.dut.r_data.value = self._lane_place(ar_addr, response_data)
                     self.dut.r_id.value = ar_id
                     self.dut.r_resp.value = 0
                     self.dut.r_last.value = 1

@@ -129,6 +129,19 @@ module ctrlrd_engine #(
     logic [31:0] r_mask;
     logic [31:0] r_axi_read_data;
 
+    // A ctrlrd is ALWAYS a 4-byte read: ar_size is 3'b010 unconditionally, which is
+    // correct at any bus width. But AXI returns a narrow read on the byte lanes
+    // selected by the address, so the 32-bit word must be picked out of r_data by
+    // address rather than always taken from [31:0] -- at AXI_DATA_WIDTH=64 an
+    // address with bit 2 set lands on r_data[63:32]. Degenerates to a constant
+    // zero select when the bus is already 32 bits wide.
+    localparam int AXI_WORDS  = AXI_DATA_WIDTH / 32;             // 32-bit words per beat
+    localparam int WORD_SEL_W = (AXI_WORDS > 1) ? $clog2(AXI_WORDS) : 1;
+    logic [WORD_SEL_W-1:0] w_rd_word_sel;
+    logic [31:0]           w_rd_word;
+    assign w_rd_word_sel = (AXI_WORDS > 1) ? r_ctrlrd_addr[WORD_SEL_W+1:2] : '0;
+    assign w_rd_word     = r_data[32*w_rd_word_sel +: 32];
+
     // Retry mechanism - registered
     logic [8:0] r_retry_counter;
     logic r_retry_wait_complete;
@@ -366,7 +379,7 @@ module ctrlrd_engine #(
 
                 READ_WAIT_DATA: begin
                     if (w_transaction_complete) begin
-                        r_axi_read_data <= r_data[31:0]; // Capture lower 32 bits
+                        r_axi_read_data <= w_rd_word; // 4-byte read, lane-selected by address
                         r_read_resp <= r_resp;
                         r_addr_issued <= 1'b0; // Clear for next attempt
                     end
