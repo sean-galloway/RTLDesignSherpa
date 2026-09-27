@@ -52,6 +52,91 @@ from CocoTBFramework.components.dfi.jedec_timings import builtin_timings
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 
+# ---------------------------------------------------------------------------
+# NAMED, COHERENT DRAM OPERATING POINTS
+#
+# Sean, 2026-09-27: "A config should match the boards. Multiple legal and
+# strictly defined configs should be run. Using handwavy and bullshit mixes of
+# configs that make no logical sense is unacceptable."
+#
+# An operating point is a PART plus a CLOCK plus the mode-register choices. Every
+# cycle count below is DERIVED from the part's ns datasheet values at that
+# point's tCK -- for BOTH the golden model and the controller -- so the two agree
+# by construction. Nothing is hand-picked and no subset can be corrected
+# independently of the rest.
+#
+# WHAT THIS REPLACES: the TB programmed a hand-written DDR2-300-ish set
+# (CL=3 CWL=2 tRCD=3 tRP=3 tRAS=4 tRC=6 tWR=3) into a controller whose golden
+# model was builtin_timings("ddr2-650-mt47h64m16hr") -- CL=5 CWL=4 tRCD=5 tRP=5
+# tRAS=15 tRC=20 tWR=5. Every timing was 1.5x-3.8x short of the modelled part,
+# which is why every call site passed strict_violations=False: with the DRAM
+# state model's hard checks armed the suite failed almost immediately. The
+# consequence was that this suite could not detect a JEDEC violation AT ALL.
+#
+# The derivation is IMPORTED, not copied. `ddr2_timings_mc_cycles` already
+# encodes the bank_timer port contracts (t_wr_i is "WR cmd -> earliest PRE, incl
+# WL+BL/2") and was fixed for exactly that in 65968b9b4 -- a fix this TB never
+# received because it carried its own constants. Duplicating it again is how that
+# happened; importing is the point.
+import sys as _sys_cfg
+_HOST_DIR = ("/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/"
+             "pumice/build-perf/host")
+if _HOST_DIR not in _sys_cfg.path:
+    _sys_cfg.path.insert(0, _HOST_DIR)
+from pumice_device import (                              # noqa: E402
+    DDR2_MT47H64M16_NS as _PART_MT47H64M16,
+    ddr2_timings_mc_cycles as _ctrl_timings,
+)
+from CocoTBFramework.components.dfi.jedec_timings import (  # noqa: E402
+    timings_from_params as _model_timings_from,
+)
+
+DRAM_CONFIGS = {
+    # THE BOARD, and the default. MT47H64M16 at 75 MHz MC / 150 MHz CK, CL3, BL4
+    # -- exactly what the Nexys A7 build reports at init.
+    "board_ddr2_300":  dict(part=_PART_MT47H64M16, mc_clk_hz=75e6,
+                           ck_per_mc=2, CL=3, BL=4),
+    # The same part at its RATED speed. A second legal point, not a variation on
+    # the first: deriving it reproduces builtin_timings("ddr2-650-mt47h64m16hr")
+    # exactly (tRCD=5 tRP=5 tRAS=15 tRC=20 tWR=5), which is the cross-check that
+    # this derivation is right.
+    "mt47h64m16_650": dict(part=_PART_MT47H64M16, mc_clk_hz=162.5e6,
+                           ck_per_mc=2, CL=5, BL=4),
+}
+
+
+def dram_config(name=None):
+    """Resolve one operating point into (model_timings, controller_mc_cycles, meta).
+
+    Both halves come from the same part+clock, so a coherence assertion is
+    possible -- and is made in PumiceTopCsrTB.program_timings().
+    """
+    name = name or _os_env_mod.environ.get("DRAM_CONFIG", "board_ddr2_300")
+    if name not in DRAM_CONFIGS:
+        raise ValueError(
+            f"unknown DRAM_CONFIG {name!r}. Legal operating points: "
+            f"{sorted(DRAM_CONFIGS)}. Add a NEW named point rather than editing "
+            f"one -- a point is a part plus a clock plus mode registers, and "
+            f"changing a field in place makes it a mix of two parts.")
+    c = DRAM_CONFIGS[name]
+    tck_ns = 1e9 / (c["mc_clk_hz"] * c["ck_per_mc"])
+    cl, bl = c["CL"], c["BL"]
+    cwl = cl - 1                                   # DDR2: WL = CL-1
+    model = _model_timings_from(
+        tCK_ns=tck_ns, CL=cl, CWL=cwl, BL=bl,
+        **{(f"{k}_ns" if k != "tRAS" else "tRAS_min_ns"): v
+           for k, v in c["part"].items()})
+    ctrl = _ctrl_timings(c["mc_clk_hz"], ck_per_mc=c["ck_per_mc"], cl=cl,
+                         part=c["part"], dram_bl=bl)
+    meta = dict(name=name, tck_ns=tck_ns, CL=cl, CWL=cwl, BL=bl,
+                ck_per_mc=c["ck_per_mc"], mc_clk_hz=c["mc_clk_hz"])
+    return model, ctrl, meta
+
+
+import os as _os_env_mod
+_os_env = _os_env_mod.environ
+
+
 class PumiceTopCsrTB:
     """End-to-end TB for the rearchitected pumice_top (cpuif + DFI)."""
 
@@ -109,7 +194,12 @@ class PumiceTopCsrTB:
         _mt = MemoryType.LPDDR2 if self.mem_type == "LPDDR2" else MemoryType.DDR2
         self.dfi_base = DFIBase(
             dfi_version=DFIVersion.V2_1, memory_type=_mt,
-            timings=builtin_timings("ddr2-650-mt47h64m16hr"),
+            # The golden model's timings come from the SAME named operating
+            # point the controller is programmed from (see DRAM_CONFIGS). It used
+            # to be a hardcoded builtin_timings("ddr2-650-mt47h64m16hr") while the
+            # controller was programmed with a DDR2-300-ish set -- a model of one
+            # part checking a controller configured for another.
+            timings=dram_config()[0],
             mapping=self.mapping, beats_per_burst=self.dram_bl,
         )
 
@@ -253,21 +343,49 @@ class PumiceTopCsrTB:
         PAGE_POLICY_CFG.policy_mode)."""
         w = self.csr_write_field
         # JEDEC timings (small, sim-fast; DFISlavePHY runs relaxed violation)
-        await w("TIMINGS_RC_RCD_RP_RAS", "tRC", 6)
-        await w("TIMINGS_RC_RCD_RP_RAS", "tRCD", 3)
-        await w("TIMINGS_RC_RCD_RP_RAS", "tRP", 3)
-        await w("TIMINGS_RC_RCD_RP_RAS", "tRAS", 4)
-        await w("TIMINGS_RFC_REFI", "tRFC", 8)
+        # ALL TIMINGS FROM ONE NAMED OPERATING POINT. Derived from the part's ns
+        # datasheet values at that point's tCK by the same function the board host
+        # uses, so the bank_timer port contracts (notably t_wr_i = "WR cmd ->
+        # earliest PRE, incl WL+BL/2") are honoured rather than re-guessed here.
+        _model, _ctrl, _meta = dram_config()
+        await w("TIMINGS_RC_RCD_RP_RAS", "tRC",  _ctrl["tRC"])
+        await w("TIMINGS_RC_RCD_RP_RAS", "tRCD", _ctrl["tRCD"])
+        await w("TIMINGS_RC_RCD_RP_RAS", "tRP",  _ctrl["tRP"])
+        await w("TIMINGS_RC_RCD_RP_RAS", "tRAS", _ctrl["tRAS"])
+        await w("TIMINGS_RFC_REFI", "tRFC", _ctrl["tRFC"])
         await w("TIMINGS_RFC_REFI", "tREFI", t_refi)
-        await w("TIMINGS_RRD_FAW_WTR_CCD", "tRRD", 2)
-        await w("TIMINGS_RRD_FAW_WTR_CCD", "tFAW", 6)
-        await w("TIMINGS_RRD_FAW_WTR_CCD", "tWTR", 2)
-        await w("TIMINGS_RRD_FAW_WTR_CCD", "tCCD", 2)
-        await w("TIMINGS_CL_CWL_WR", "CL", 3)
-        await w("TIMINGS_CL_CWL_WR", "CWL", 2)
-        await w("TIMINGS_CL_CWL_WR", "tWR", 3)
-        await w("TIMINGS_RTP_RTW", "tRTP", 2)
-        await w("TIMINGS_RTP_RTW", "tRTW", 2)
+        await w("TIMINGS_RRD_FAW_WTR_CCD", "tRRD", _ctrl["tRRD"])
+        await w("TIMINGS_RRD_FAW_WTR_CCD", "tFAW", _ctrl["tFAW"])
+        await w("TIMINGS_RRD_FAW_WTR_CCD", "tWTR", _ctrl["tWTR"])
+        await w("TIMINGS_RRD_FAW_WTR_CCD", "tCCD", _ctrl["tCCD"])
+        await w("TIMINGS_CL_CWL_WR", "CL",  _meta["CL"])
+        await w("TIMINGS_CL_CWL_WR", "CWL", _meta["CWL"])
+        await w("TIMINGS_CL_CWL_WR", "tWR", _ctrl["tWR"])
+        await w("TIMINGS_RTP_RTW", "tRTP", _ctrl["tRTP"])
+        if "tRTW" in _ctrl:
+            await w("TIMINGS_RTP_RTW", "tRTW", _ctrl["tRTW"])
+        # COHERENCE ASSERTION. The controller's enforced command distance, in CK,
+        # must cover what the model requires. This is what makes
+        # DFI_STRICT_VIOLATIONS usable: a legal operating point passes by
+        # construction, so an armed violation means an RTL defect and not a
+        # misconfigured bench.
+        _ck = _meta["ck_per_mc"]
+        _need = {"tRCD": _model.tRCD_cycles, "tRP": _model.tRP_cycles,
+                 "tRAS": _model.tRAS_min_cycles, "tRC": _model.tRC_cycles}
+        _short = {k: (_ctrl[k] * _ck, v) for k, v in _need.items()
+                  if _ctrl[k] * _ck < v}
+        assert not _short, (
+            f"DRAM_CONFIG {_meta['name']!r} is INCOHERENT -- the controller would "
+            f"be programmed below what the golden model requires: "
+            + ", ".join(f"{k}: {got} CK enforced < {want} CK needed"
+                        for k, (got, want) in _short.items())
+            + ". Fix the operating point, do not relax the model.")
+        self.log.info("[cfg] DRAM_CONFIG=%s tCK=%.3fns CL=%d CWL=%d BL=%d "
+                      "| ctrl MC: tRC=%d tRCD=%d tRP=%d tRAS=%d tWR=%d tRTP=%d",
+                      _meta["name"], _meta["tck_ns"], _meta["CL"], _meta["CWL"],
+                      _meta["BL"], _ctrl["tRC"], _ctrl["tRCD"], _ctrl["tRP"],
+                      _ctrl["tRAS"], _ctrl["tWR"], _ctrl["tRTP"])
+
         await w("DFI_PHASE", "rd_phase", 0)
         await w("DFI_PHASE", "wr_phase", 0)
         # Class-C structural CSRs: must MATCH the built params (design-requirements
@@ -320,6 +438,14 @@ class PumiceTopCsrTB:
         import os as _os
         if _os.environ.get("DFI_STRICT_TIMING", "") in ("1", "true", "True"):
             strict_timing = True
+        # DFI_STRICT_VIOLATIONS=1 arms the DRAM state model's HARD JEDEC checks.
+        # Off by default, which means this suite has never enforced command-sequence
+        # legality: an illegal sequence passes silently and the model just behaves
+        # however it behaves. That distinction is load-bearing for BUG-003 -- if the
+        # controller's sequence is legal and the model still emits an extra read
+        # beat, the defect is in the MODEL, not the RTL.
+        if _os.environ.get("DFI_STRICT_VIOLATIONS", "") in ("1", "true", "True"):
+            strict_violations = True
         read_latency = int(_os.environ.get("DFI_READ_LATENCY", read_latency))
         write_latency = int(_os.environ.get("DFI_WRITE_LATENCY", write_latency))
         self.dfi_slave = DFISlavePHY(
