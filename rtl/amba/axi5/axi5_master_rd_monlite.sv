@@ -7,7 +7,7 @@
 // Module: axi5_master_rd_monlite
 // Purpose: AXI5 Master Read with the lite monitor (axi_monitor_lite) -- axi5_master_rd plus a fifth of the monitor gates
 //
-// Documentation: docs/markdown/rtl-amba/axi5/axi5_master_rd_monlite.md
+// Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md
 // Subsystem: amba
 //
 // Author: sean galloway

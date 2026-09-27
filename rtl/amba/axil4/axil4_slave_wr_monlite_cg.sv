@@ -7,7 +7,7 @@
 // Module: axil4_slave_wr_monlite_cg
 // Purpose: AXIL4 Slave Write with the lite monitor, clock gated -- axil4_slave_wr_monlite behind one amba_clock_gate_ctrl
 //
-// Documentation: docs/markdown/rtl-amba/axil4/axil4_slave_wr_monlite_cg.md
+// Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md
 // Subsystem: amba
 //
 // Author: sean galloway

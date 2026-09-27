@@ -46,7 +46,7 @@ AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's hand
 
 ## Parameters
 
-> A lite-monitor version of this wrapper exists as [`axil5_master_rd_monlite`](axil5_master_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+> A lite-monitor version of this wrapper exists as [`axil5_master_rd_monlite`](../monitor/axi_monitor_lite_wrappers.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|

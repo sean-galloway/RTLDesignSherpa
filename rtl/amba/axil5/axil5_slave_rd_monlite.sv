@@ -7,7 +7,7 @@
 // Module: axil5_slave_rd_monlite
 // Purpose: AXIL5 Slave Read with the lite monitor (axi_monitor_lite) -- axil5_slave_rd plus a fifth of the monitor gates
 //
-// Documentation: docs/markdown/rtl-amba/axil5/axil5_slave_rd_monlite.md
+// Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md
 // Subsystem: amba
 //
 // Author: sean galloway

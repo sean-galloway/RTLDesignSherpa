@@ -438,3 +438,16 @@ filed as amba ISSUE-002 and closed the next day as no-action: Sean, "Clearing th
 table outside of idle is illegal" -- the contract is now on the clear ports. The
 `_monlite_cg` wrappers do not show it either way.
 
+### 16. One page for the thirty-two wrappers (2026-09-27, Sean: "These can be binned together on a single page")
+
+The sixteen `_monlite` and sixteen `_monlite_cg` pages were generated from one
+template each and differed only in names; they are now one page,
+`docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md`, declaring all
+thirty-two modules (the doc checker unions a multi-module declaration), with
+the wrapper table, the shared monitor parameter and port tables once, the
+clock-gating section with the per-wrapper ready-mask table, and testing. The
+per-module pages are deleted; the `_mon`/`_mon_cg` pointer notes and the RTL
+`Documentation:` headers point at the single page; the five books
+(AXI4/AXI5/AXI4-Lite/AXI5-Lite/Monitor) are re-rendered so their generated
+indexes drop the old entries. Every RTL file added since the 25th has a page.
+

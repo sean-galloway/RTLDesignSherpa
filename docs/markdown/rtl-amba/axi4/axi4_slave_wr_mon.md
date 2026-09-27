@@ -48,7 +48,7 @@ The AXI4 Slave Write Monitor bolts a full transaction monitor onto a working AXI
 
 ## Parameters
 
-> A lite-monitor version of this wrapper exists as [`axi4_slave_wr_monlite`](axi4_slave_wr_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+> A lite-monitor version of this wrapper exists as [`axi4_slave_wr_monlite`](../monitor/axi_monitor_lite_wrappers.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
 
 ### AXI4 Slave Parameters
 

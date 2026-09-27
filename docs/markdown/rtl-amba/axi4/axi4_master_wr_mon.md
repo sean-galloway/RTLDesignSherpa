@@ -48,7 +48,7 @@ Some modules move data; this one moves data and tells you how the transfer went.
 
 ## Parameters
 
-> A lite-monitor version of this wrapper exists as [`axi4_master_wr_monlite`](axi4_master_wr_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+> A lite-monitor version of this wrapper exists as [`axi4_master_wr_monlite`](../monitor/axi_monitor_lite_wrappers.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
 
 ### AXI4 Master Parameters
 

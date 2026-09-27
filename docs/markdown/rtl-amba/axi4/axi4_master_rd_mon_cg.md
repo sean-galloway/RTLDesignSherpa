@@ -61,7 +61,7 @@ All other functionality is identical to the base module. See [axi4_master_rd_mon
 
 ## Parameters
 
-> A lite-monitor version of this clock-gated wrapper exists as [`axi4_master_rd_monlite_cg`](axi4_master_rd_monlite_cg.md): the same gating logic around `axi4_master_rd_monlite` instead of `axi4_master_rd_mon`, about a fifth of the monitor gates.
+> A lite-monitor version of this clock-gated wrapper exists as [`axi4_master_rd_monlite_cg`](../monitor/axi_monitor_lite_wrappers.md): the same gating logic around `axi4_master_rd_monlite` instead of `axi4_master_rd_mon`, about a fifth of the monitor gates.
 
 ### Clock Gating Parameters
 

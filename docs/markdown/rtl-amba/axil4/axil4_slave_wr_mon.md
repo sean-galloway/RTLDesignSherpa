@@ -44,7 +44,7 @@ Key features:
 
 ## Parameters
 
-> A lite-monitor version of this wrapper exists as [`axil4_slave_wr_monlite`](axil4_slave_wr_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+> A lite-monitor version of this wrapper exists as [`axil4_slave_wr_monlite`](../monitor/axi_monitor_lite_wrappers.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
 
 In addition to all [axil4_slave_wr](../axil4/axil4_slave_wr.md) parameters:
 

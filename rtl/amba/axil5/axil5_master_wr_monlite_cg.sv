@@ -7,7 +7,7 @@
 // Module: axil5_master_wr_monlite_cg
 // Purpose: AXIL5 Master Write with the lite monitor, clock gated -- axil5_master_wr_monlite behind one amba_clock_gate_ctrl
 //
-// Documentation: docs/markdown/rtl-amba/axil5/axil5_master_wr_monlite_cg.md
+// Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md
 // Subsystem: amba
 //
 // Author: sean galloway

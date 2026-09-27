@@ -44,7 +44,7 @@ Combines **[axil4_master_wr](../axil4/axil4_master_wr.md)** with **axi_monitor_f
 
 ## Parameters
 
-> A lite-monitor version of this wrapper exists as [`axil4_master_wr_monlite`](axil4_master_wr_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+> A lite-monitor version of this wrapper exists as [`axil4_master_wr_monlite`](../monitor/axi_monitor_lite_wrappers.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
 
 Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md)** including:
 - `UNIT_ID`, `AGENT_ID`, `MAX_TRANSACTIONS`, `ENABLE_FILTERING`, `ADD_PIPELINE_STAGE`, `USE_MONITOR`, `N_ADDR_RANGES`

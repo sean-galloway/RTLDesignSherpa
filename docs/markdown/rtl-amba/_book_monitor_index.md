@@ -15,6 +15,7 @@
 - [AXI Monitor Base](monitor/axi_monitor_base.md)
 - [AXI Monitor Filtered](monitor/axi_monitor_filtered.md)
 - [AXI Monitor Lite](monitor/axi_monitor_lite.md)
+- [AXI Monitor Lite Wrappers](monitor/axi_monitor_lite_wrappers.md)
 - [AXI Monitor Reporter — Completion Cone](monitor/axi_monitor_reporter_compl.md)
 - [AXI Monitor Reporter — Debug State-Change Emitter](monitor/axi_monitor_reporter_debug.md)
 - [AXI Monitor Reporter — Error Cone](monitor/axi_monitor_reporter_error.md)

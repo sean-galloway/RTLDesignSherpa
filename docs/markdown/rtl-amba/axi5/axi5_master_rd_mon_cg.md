@@ -56,7 +56,7 @@ The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_
 
 ## Parameters
 
-> A lite-monitor version of this clock-gated wrapper exists as [`axi5_master_rd_monlite_cg`](axi5_master_rd_monlite_cg.md): the same gating logic around `axi5_master_rd_monlite` instead of `axi5_master_rd_mon`, about a fifth of the monitor gates.
+> A lite-monitor version of this clock-gated wrapper exists as [`axi5_master_rd_monlite_cg`](../monitor/axi_monitor_lite_wrappers.md): the same gating logic around `axi5_master_rd_monlite` instead of `axi5_master_rd_mon`, about a fifth of the monitor gates.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|

@@ -98,7 +98,7 @@ flowchart TB
 
 ## Parameters
 
-> A lite-monitor version of this clock-gated wrapper exists as [`axi5_slave_rd_monlite_cg`](axi5_slave_rd_monlite_cg.md): the same gating logic around `axi5_slave_rd_monlite` instead of `axi5_slave_rd_mon`, about a fifth of the monitor gates.
+> A lite-monitor version of this clock-gated wrapper exists as [`axi5_slave_rd_monlite_cg`](../monitor/axi_monitor_lite_wrappers.md): the same gating logic around `axi5_slave_rd_monlite` instead of `axi5_slave_rd_mon`, about a fifth of the monitor gates.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|

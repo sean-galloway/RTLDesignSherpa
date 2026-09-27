@@ -7,7 +7,7 @@
 // Module: axi4_slave_wr_monlite
 // Purpose: AXI4 Slave Write with the lite monitor (axi_monitor_lite) -- axi4_slave_wr plus a fifth of the monitor gates
 //
-// Documentation: docs/markdown/rtl-amba/axi4/axi4_slave_wr_monlite.md
+// Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md
 // Subsystem: amba
 //
 // Author: sean galloway

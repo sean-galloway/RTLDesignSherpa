@@ -47,7 +47,7 @@ What the wrapper buys you:
 
 ## Parameters
 
-> A lite-monitor version of this clock-gated wrapper exists as [`axi4_master_wr_monlite_cg`](axi4_master_wr_monlite_cg.md): the same gating logic around `axi4_master_wr_monlite` instead of `axi4_master_wr_mon`, about a fifth of the monitor gates.
+> A lite-monitor version of this clock-gated wrapper exists as [`axi4_master_wr_monlite_cg`](../monitor/axi_monitor_lite_wrappers.md): the same gating logic around `axi4_master_wr_monlite` instead of `axi4_master_wr_mon`, about a fifth of the monitor gates.
 
 MOST [axi4_master_wr_mon](./axi4_master_wr_mon.md) parameters pass through. As of 2026-09-01 only
 `ACTIVE_TRANS_THRESHOLD` is NOT forwarded, and that one is harmless: its inner

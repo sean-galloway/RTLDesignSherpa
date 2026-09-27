@@ -121,7 +121,7 @@ flowchart TB
 
 ## Parameters
 
-> A lite-monitor version of this wrapper exists as [`axi5_master_wr_monlite`](axi5_master_wr_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+> A lite-monitor version of this wrapper exists as [`axi5_master_wr_monlite`](../monitor/axi_monitor_lite_wrappers.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
 
 Transport sizing first, then the monitor knobs. The defaults are sane; `MAX_TRANSACTIONS` is the one to think about (see the backpressure section).
 

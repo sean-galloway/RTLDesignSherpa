@@ -49,7 +49,7 @@ The AXI4 Master Read Monitor combines a functional AXI4 master read interface wi
 
 ## Parameters
 
-> A lite-monitor version of this wrapper exists as [`axi4_master_rd_monlite`](axi4_master_rd_monlite.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
+> A lite-monitor version of this wrapper exists as [`axi4_master_rd_monlite`](../monitor/axi_monitor_lite_wrappers.md): the same core and taps with `axi_monitor_lite` instead of `axi_monitor_filtered`, about a fifth of the monitor gates, error/timeout/completion/threshold packets only. Selected in generated bridges by `mon_preset = "lite"`.
 
 ### AXI4 Master Parameters
 
