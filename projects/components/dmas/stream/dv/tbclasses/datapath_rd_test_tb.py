@@ -9,7 +9,7 @@ Created: 2025-10-26
 """
 
 import cocotb
-from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles
+from cocotb.triggers import Timer, RisingEdge, FallingEdge, ClockCycles
 from cocotb.clock import Clock
 import os
 import sys
@@ -1146,25 +1146,39 @@ class DatapathRdTestTB(TBBase):
         # Manual handshaking sequence for ID-multiplexed interface
         # Per user requirement: sample data on falling edge after drain is driven
 
-        # Step 1: Set channel ID to select which channel to drain
+        # Step 1: Set channel ID to select which channel to drain, then wait until
+        # the channel actually presents a beat (valid AND valid_comb): data_avail
+        # counts beats the controller has accounted for, the beat reaches the
+        # drain port a few cycles later (stream BUG-012).
         self.dut.axi_wr_sram_id.value = channel_id
+        presented = False
+        for _ in range(timeout_cycles):
+            await Timer(1, units='ns')
+            valid = (int(self.dut.axi_wr_sram_valid.value) >> channel_id) & 1
+            try:
+                valid_comb = (int(self.dut.axi_wr_sram_valid_comb.value) >> channel_id) & 1
+            except AttributeError:
+                valid_comb = 1
+            if valid and valid_comb:
+                presented = True
+                break
+            await RisingEdge(self.clk)
+        if not presented:
+            self.log.error(f"Channel {channel_id}: data_avail={data_available} but no beat presented within {timeout_cycles} cycles{self.get_time_ns_str()}")
+            return None
         self.log.debug(f"Channel {channel_id}: Set axi_wr_sram_id = {channel_id}{self.get_time_ns_str()}")
 
         # Step 2: Drive drain signal high
         self.dut.axi_wr_sram_drain.value = 1
         self.log.debug(f"Channel {channel_id}: Asserted axi_wr_sram_drain{self.get_time_ns_str()}")
 
-        # Step 3: Wait for falling edge of clock (gives RTL time to respond)
-        await FallingEdge(self.clk)
-
-        # Step 4: Sample the data on falling edge
+        # Step 3: the beat on the port now is the one this drain pops at the next edge
+        await Timer(1, units='ns')
         data = int(self.dut.axi_wr_sram_data.value)
         self.log.debug(f"Channel {channel_id}: Sampled data = 0x{data:X}{self.get_time_ns_str()}")
-
-        # Step 5: Clear drain signal
+        await RisingEdge(self.clk)                 # the pop (drain && valid && valid_comb)
         self.dut.axi_wr_sram_drain.value = 0
         self.log.debug(f"Channel {channel_id}: Cleared axi_wr_sram_drain{self.get_time_ns_str()}")
-
         return data
 
     async def drain_and_verify_sram(self, channel_id, expected_beats, start_addr):
@@ -1447,28 +1461,31 @@ class DatapathRdTestTB(TBBase):
                     # Find first channel with valid data
                     for ch in range(self.num_channels):
                         if (valid_vec >> ch) & 0x1:
-                            # Channel has valid data - drain it
-                            # Set ID and assert drain HIGH for FULL CLOCK CYCLE
+                            # The consumer contract is the write engine's: pop only on
+                            # drain && valid && valid_comb, and take the beat that is on
+                            # the port BEFORE the popping edge. Sampling after the edge
+                            # (the old code) returned the next head, and when the SRAM ran
+                            # dry mid-descriptor the registered valid stayed high a cycle
+                            # with stale data: a duplicate beat per descriptor, hidden while
+                            # the read engine double-issued ARs (stream BUG-012).
                             self.dut.axi_wr_sram_id.value = ch
-                            self.dut.axi_wr_sram_drain.value = 1
-
-                            # Wait for NEXT rising edge (drain held high for full clock)
-                            await RisingEdge(self.clk)
-
-                            # Sample data on THIS rising edge
+                            await Timer(1, units='ns')          # mux settles on the selected channel
+                            try:
+                                valid_comb = (int(self.dut.axi_wr_sram_valid_comb.value) >> ch) & 0x1
+                            except AttributeError:
+                                valid_comb = 1
+                            if not valid_comb:
+                                break                            # dry window: try again next cycle
                             data = int(self.dut.axi_wr_sram_data.value)
                             time_ns = cocotb.utils.get_sim_time('ns')
-
-                            # Clear drain AFTER sampling
+                            self.dut.axi_wr_sram_drain.value = 1
+                            await RisingEdge(self.clk)          # the pop
                             self.dut.axi_wr_sram_drain.value = 0
-
-                            # Save for later verification
                             self.drained_data.append((ch, data, time_ns))
                             drain_count += 1
                             if drain_count <= 5 or drain_count % 50 == 0:
                                 self.log.info(f"SRAM_OUT: ch={ch} data=0x{data:064X} @ {time_ns}ns (total={drain_count})")
-
-                            break  # Check again from the top (will check valid on NEXT rising edge)
+                            break  # Check again from the top
 
             except Exception as e:
                 self.log.error(f"Auto-drain error: {e}{self.get_time_ns_str()}")
