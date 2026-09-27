@@ -1,5 +1,10 @@
 # RAPIDS Beats DMA — Performance Characterization (Genesys 2, 8 channels)
 
+> **v1.3 (2026-09-27).** Latency sweep (7.5) re-measured on a bitstream whose
+> AXI observer keeps 32 timestamps per channel instead of 8: no histogram
+> sample loss on any row, latency columns replaced, caveat retired (rapids
+> TASK-012). Every utilization and bandwidth number is unchanged from v1.2.
+>
 > **v1.2 (2026-09-27).** Section 7 adds the STREAM five-knob characterization
 > measured by the shared interface observers (`axi4_intf_master_observer` on the
 > AXI4 masters, `axis4_intf_observer` on both AXIS links) instead of the harness's
@@ -244,8 +249,11 @@ does the same on RAPIDS beats, with two changes to the v1.1 setup:
   descriptor follows from beats per descriptor over burst length.
 
 Bitstream: `USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0` (meters and latency
-histograms, no monbus event taps), post-route WNS +1.317 ns at 100 MHz, 65.5 BRAM
-tiles (the 512-deep R-channel delay queue is in block RAM). All **67 configurations
+histograms, no monbus event taps). v1.2 rows (7.1-7.4) are from bitstream v3:
+post-route WNS +1.317 ns at 100 MHz, 65.5 BRAM tiles (the 512-deep R-channel
+delay queue is in block RAM). The 7.5 latency sweep is from bitstream v4, the same
+build with the AXI observer's timestamp FIFO at `HIST_MAX_OUTSTANDING = 32`:
+WNS +0.224 ns, 73962 LUTs, 65.5 BRAM tiles. All **67 configurations
 pass the golden CRC on both paths**: A 20/20, B 7/7, C+D 28/28, E 12/12.
 
 ### 7.0 The regression this campaign found first
@@ -381,16 +389,16 @@ many beats the DUT keeps in flight), at 8 channels x 1024 beats:
 | 8 | 100.0 % | 99.4 % | 99.8 % | 99.8 % | 6.38 | 6.36 | 24 | 48 | 47 |
 | 16 | 98.8 % | 98.2 % | 99.7 % | 99.7 % | 6.38 | 6.28 | 48 | 48 | 48 |
 | 32 | 93.6 % | 93.0 % | 99.5 % | 99.5 % | 6.37 | 5.96 | 48 | 48 | 48 |
-| 48 | 91.4 % | 91.0 % | 98.7 % | 98.7 % | 6.32 | 5.82 | 94 | 96 | 93 |
-| 64 | 89.7 % | 89.2 % | 97.6 % | 97.6 % | 6.25 | 5.71 | 96 | 96 | 93 |
-| 96 | 78.9 % | 78.5 % | 95.0 % | 95.0 % | 6.08 | 5.02 | 94 | 95 | 91 |
-| 128 | 67.5 % | 67.2 % | 88.8 % | 88.8 % | 5.68 | 4.30 | 160 | 170 | 111 |
-| 192 | 60.8 % | 60.5 % | 71.5 % | 71.5 % | 4.58 | 3.87 | 156 | 168 | 140 |
-| 256 | 48.0 % | 47.7 % | 57.4 % | 57.4 % | 3.67 | 3.05 | 264 | 274 | 195 |
-| 384 | 33.8 % | 33.5 % | 40.3 % | 40.3 % | 2.58 | 2.14 | 309 | 320 | 269 |
-| 512 | 26.1 % | 25.8 % | 31.1 % | 31.1 % | 1.99 | 1.65 | 516 | 530 | 351 |
+| 48 | 91.4 % | 91.0 % | 98.7 % | 98.7 % | 6.32 | 5.82 | 95 | 96 | 94 |
+| 64 | 89.7 % | 89.2 % | 97.6 % | 97.6 % | 6.25 | 5.71 | 96 | 96 | 96 |
+| 96 | 78.9 % | 78.5 % | 95.0 % | 95.0 % | 6.08 | 5.02 | 96 | 96 | 96 |
+| 128 | 67.5 % | 67.2 % | 88.8 % | 88.8 % | 5.68 | 4.30 | 192 | 192 | 192 |
+| 192 | 60.8 % | 60.5 % | 71.5 % | 71.5 % | 4.58 | 3.87 | 192 | 192 | 192 |
+| 256 | 48.0 % | 47.7 % | 57.4 % | 57.4 % | 3.67 | 3.05 | 384 | 384 | 384 |
+| 384 | 33.8 % | 33.5 % | 40.3 % | 40.3 % | 2.58 | 2.14 | 384 | 384 | 384 |
+| 512 | 26.1 % | 25.8 % | 31.1 % | 31.1 % | 1.99 | 1.65 | 768 | 768 | 768 |
 
-: Table 7.5 -- latency sweep; histogram means are log2-binned, so they step
+: Table 7.5 -- latency sweep (v1.3 rerun, `HIST_MAX_OUTSTANDING = 32`, no sample loss on any row); the latency columns are log2-histogram means, so they sit on bin midpoints
 
 Little's law makes the knee readable directly: sustained beats/cycle x latency =
 beats in flight. The SOURCE read path holds >= 97.6 % to 64 cycles and >= 95 %
@@ -405,15 +413,24 @@ x 16-beat bursts) and its knee sits at 96-112 cycles; RAPIDS beats at the shippe
 window -- larger `AxLEN`, or more outstanding per channel -- is the lever, and
 section 7.4 shows the DUT already runs 32- and 64-beat bursts at line rate.
 
-Two honesty notes from the instruments themselves. The observer latency means
-follow the injected delay (24 -> 48 -> 96 -> 160 -> 264 -> 320 -> 530 cycles for
-0 .. 512 injected), which is the delay model and the histogram agreeing. And from
-48 cycles up the AXI observer sets `OBS_STICKY.HIST_SAMPLE_LOST`: with more than
-`HIST_MAX_OUTSTANDING = 8` commands per channel in flight its timestamp FIFO
-overflows, so those means are from a subset of transactions (the utilization
-counters are unaffected). Raising `HIST_MAX_OUTSTANDING` on the harness's
-observer instance is the follow-up if exact latency distributions are wanted at
-high injected delay.
+Two notes from the instruments themselves. First, the latency columns are
+histogram means over log2 bins (bin b holds [2^b, 2^(b+1)), reported at its
+midpoint 1.5 x 2^b), and on this sweep every transaction of a row lands in one
+bin: the measured round trip is the injected delay plus roughly 24 cycles of
+DUT-plus-model overhead, so 0 lands in [16,32), 8-32 in [32,64), 48-96 in
+[64,128), 128-192 in [128,256), 256-384 in [256,512) and 512 in [512,1024) --
+the 24 / 48 / 96 / 192 / 384 / 768 staircase in the table is the histogram's
+resolution, not a step in the DUT. Second, the v1.2 issue of this report carried
+`OBS_STICKY.HIST_SAMPLE_LOST` from 48 cycles up: the observer's timestamp FIFO
+was sized `HIST_MAX_OUTSTANDING = 8` per channel and the source read engine keeps
+more than that in flight once the delay exceeds one burst, so those v1.2 latency
+means came from a subset of transactions (and read low: 170, 264, 320, 530 where
+the full population sits at 192, 384, 384, 768). rapids TASK-012 raised the FIFO
+to 32 on the harness's `u_obs_axi` (bitstream v4, post-route WNS +0.224 ns,
+still positive), the sweep was re-run, and `OBS_STICKY` reads 0 on all 12 rows
+for both observers. The utilization and bandwidth columns are identical between
+the two runs, which is what the design of the meters predicts: sample loss only
+ever touched the histograms.
 
 ![latency knee](plots/obs_latency_knee.png)
 
@@ -466,7 +483,7 @@ python3 $H --port /dev/ttyUSB0 --channels 8 --suite --suite-bp off --suite-seeds
     --suite-channels 8 --suite-beats 1024 --suite-delay 0,8,16,32,48,64,96,128,192,256,384,512 --results $J/genesys_obs_E.json
 # figures (size/channel plots from C; obs_desc_matrix / obs_xfer_knee / obs_latency_knee from A / B / E):
 python3 .../host/plot_char_reports.py --size $J/genesys_obs_C.json --outdir .../reports/perf/plots
-cd projects/fpga-systems/Genesys2/rapids_beats/reports && ./generate_reports_pdf.sh --rev 1.2 --only perf
+cd projects/fpga-systems/Genesys2/rapids_beats/reports && ./generate_reports_pdf.sh --rev 1.3 --only perf
 ```
 
 Genesys 2 host link: JTAG on the FT2232 (`200300B818A0`), UART on the separate

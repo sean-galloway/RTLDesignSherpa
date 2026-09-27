@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 9 | done (kept for history) |
+| [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
@@ -22,7 +22,6 @@ by construction rather than by discipline.
 - **TASK-000** — reserved template; copy the file, do not file against it.
 - **TASK-003** — scrub the tests for completeness (rapids)
 - **TASK-010** — 26 ASCII placeholder figures name dead signals; 2 figures have no test to capture from
-- **TASK-012** — size the harness observer's latency-histogram FIFO for the latency sweep
 
 ## Active
 
@@ -37,3 +36,4 @@ by construction rather than by discipline.
 - **TASK-008** — ch01_overview/02_port_list.md regenerated from the RTL: 300/300 ports, per half (closed 2026-09-27)
 - **TASK-009** — 07_beats_latency_bridge.md re-authored against latency_bridge_beats.sv (closed 2026-09-27)
 - **TASK-011** — 15 `// Module:` headers now match their filenames (closed 2026-09-27)
+- **TASK-012** — harness AXI observer timestamp FIFO 8 -> 32; latency sweep re-measured with no sample loss (closed 2026-09-27)

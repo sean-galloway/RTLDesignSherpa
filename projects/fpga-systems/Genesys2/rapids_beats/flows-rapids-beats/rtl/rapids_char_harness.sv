@@ -2136,7 +2136,11 @@ module rapids_char_harness #(
             .WR_CH_FROM_AWID          (1'b1),
             .NUM_CHANNELS             (NUM_CHANNELS),
             .ENABLE_LATENCY_HIST      (1'b1),
-            .HIST_MAX_OUTSTANDING     (8)
+            // 32, not 8: the latency sweep keeps ~20 beats (two bursts) in
+            // flight per channel and the 8-deep timestamp FIFO overflowed
+            // (OBS_STICKY.HIST_SAMPLE_LOST) from RESP_DELAY >= 48 -- rapids
+            // TASK-012.
+            .HIST_MAX_OUTSTANDING     (32)
         ) u_obs_axi (
             .aclk            (aclk),
             .aresetn         (aresetn),
