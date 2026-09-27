@@ -34,6 +34,7 @@ STRUCTURE FOLLOWS AMBA PATTERN:
 """
 
 import os
+import random
 import sys
 
 import pytest
@@ -58,13 +59,18 @@ from projects.components.dmas.rapids.dv.tbclasses.alloc_ctrl_beats_tb import All
 # NOTE: These cocotb test functions are prefixed with "cocotb_" to prevent pytest
 # from collecting them directly. They are only run via the pytest wrappers below.
 
+def _depth():
+    """(basic ops, stress ops) by TEST_LEVEL."""
+    return {'gate': (5, 25), 'func': (10, 50), 'full': (25, 200)}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), (10, 50))
+
+
 @cocotb.test(timeout_time=100, timeout_unit="ms")
 async def cocotb_test_basic_alloc_drain(dut):
     """Test basic allocation and drain cycle"""
     tb = AllocCtrlBeatsTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result = await tb.test_basic_alloc_drain(num_ops=10)
+    result = await tb.test_basic_alloc_drain(num_ops=_depth()[0])
     tb.generate_test_report()
     assert result, "Basic alloc/drain test failed"
 
@@ -112,7 +118,7 @@ async def cocotb_test_stress_rapid_operations(dut):
     tb = AllocCtrlBeatsTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result = await tb.test_stress_rapid_operations(num_ops=100)
+    result = await tb.test_stress_rapid_operations(num_ops=_depth()[1])
     tb.generate_test_report()
     assert result, "Stress test failed"
 
@@ -122,23 +128,21 @@ async def cocotb_test_stress_rapid_operations(dut):
 # ===========================================================================
 
 def generate_beats_alloc_ctrl_test_params():
-    """Generate test parameters for beats_alloc_ctrl tests.
+    """(depth, almost_wr_margin, almost_rd_margin, timing_profile) by REG_LEVEL.
 
-    Returns list of tuples: (depth, almost_wr_margin, almost_rd_margin)
+    GATE: the primary config, back-to-back timing
+    FUNC: three configs + two GAXI delay profiles on the primary config
+    FULL: three configs + the full five-profile sweep on the primary config
     """
-    configs = [
-        # Standard configuration
-        (512, 1, 1),
-        # Smaller depth
-        (128, 1, 1),
-        # Larger margins
-        (256, 4, 4),
-    ]
-    # GAXI BFM delay-profile sweep on the primary config (the rest stay at
-    # 'default' = backtoback, preserving existing coverage). Drives the wr/rd
-    # alloc masters via GAXI_TIMING_PROFILE.
-    profiles = ['constrained', 'slow_producer', 'gaxi_backpressure', 'gaxi_stress',
-                'gaxi_realistic']
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    configs = [(512, 1, 1), (128, 1, 1), (256, 4, 4)]
+    if reg_level == 'GATE':
+        configs = configs[:1]
+        profiles = []
+    elif reg_level == 'FUNC':
+        profiles = ['slow_producer', 'gaxi_backpressure']
+    else:
+        profiles = ['constrained', 'slow_producer', 'gaxi_backpressure', 'gaxi_stress', 'gaxi_realistic']
     params = [cfg + ('default',) for cfg in configs]
     params += [configs[0] + (p,) for p in profiles]
     return params
@@ -154,7 +158,7 @@ beats_alloc_ctrl_params = generate_beats_alloc_ctrl_test_params()
 @pytest.mark.fub
 @pytest.mark.beats_alloc_ctrl
 @pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_alloc_ctrl_params)
-def test_basic_alloc_drain(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
+def test_alloc_ctrl_beats_basic_alloc_drain(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
     """Pytest: Test basic allocation and drain cycle"""
     _run_beats_alloc_ctrl_test(request, "cocotb_test_basic_alloc_drain",
                                 depth, almost_wr_margin, almost_rd_margin, timing_profile)
@@ -163,7 +167,7 @@ def test_basic_alloc_drain(request, depth, almost_wr_margin, almost_rd_margin, t
 @pytest.mark.fub
 @pytest.mark.beats_alloc_ctrl
 @pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_alloc_ctrl_params)
-def test_full_detection(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
+def test_alloc_ctrl_beats_full_detection(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
     """Pytest: Test full flag detection"""
     _run_beats_alloc_ctrl_test(request, "cocotb_test_full_detection",
                                 depth, almost_wr_margin, almost_rd_margin, timing_profile)
@@ -172,7 +176,7 @@ def test_full_detection(request, depth, almost_wr_margin, almost_rd_margin, timi
 @pytest.mark.fub
 @pytest.mark.beats_alloc_ctrl
 @pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_alloc_ctrl_params)
-def test_empty_detection(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
+def test_alloc_ctrl_beats_empty_detection(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
     """Pytest: Test empty flag detection"""
     _run_beats_alloc_ctrl_test(request, "cocotb_test_empty_detection",
                                 depth, almost_wr_margin, almost_rd_margin, timing_profile)
@@ -181,7 +185,7 @@ def test_empty_detection(request, depth, almost_wr_margin, almost_rd_margin, tim
 @pytest.mark.fub
 @pytest.mark.beats_alloc_ctrl
 @pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_alloc_ctrl_params)
-def test_variable_size(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
+def test_alloc_ctrl_beats_variable_size(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
     """Pytest: Test variable-size allocations"""
     _run_beats_alloc_ctrl_test(request, "cocotb_test_variable_size_alloc",
                                 depth, almost_wr_margin, almost_rd_margin, timing_profile)
@@ -195,7 +199,7 @@ def test_variable_size(request, depth, almost_wr_margin, almost_rd_margin, timin
 @pytest.mark.beats_alloc_ctrl
 @pytest.mark.stress
 @pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_alloc_ctrl_params)
-def test_stress(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
+def test_alloc_ctrl_beats_stress(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
     """Pytest: Stress test with rapid operations"""
     _run_beats_alloc_ctrl_test(request, "cocotb_test_stress_rapid_operations",
                                 depth, almost_wr_margin, almost_rd_margin, timing_profile)
@@ -270,7 +274,8 @@ def _run_beats_alloc_ctrl_test(request, testcase_name, depth, almost_wr_margin, 
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': str(12345),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
         'TEST_DEPTH': str(depth),
     }
 

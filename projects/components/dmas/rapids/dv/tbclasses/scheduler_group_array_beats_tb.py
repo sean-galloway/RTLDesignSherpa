@@ -265,6 +265,9 @@ class SchedulerGroupArrayBeatsTB(TBBase):
         # sched_wr_ready is a packed array - set all channels ready
         self.dut.sched_wr_ready.value = (1 << self.NUM_CHANNELS) - 1
         self.dut.mon_ready.value = 1
+        # Capture MonBus packets in the background from here on: the aggregation
+        # test used to poll only after the activity that produced them (rapids TASK-003).
+        cocotb.start_soon(self._capture_monbus())
 
         await self.wait_clocks(self.clk_name, 5)
         self.log.info("Beats scheduler group array initialization completed")
@@ -520,6 +523,17 @@ class SchedulerGroupArrayBeatsTB(TBBase):
         self._set_packed_bit(self.dut.sched_wr_commit_strobe, channel, 0)
         self.completions_sent[channel] += 1
         self.log.info(f"WR completion: channel={channel}, beats={beats_done}")
+
+    async def _capture_monbus(self):
+        """Count and keep every packet the array's aggregated MonBus hands over."""
+        from TBClasses.monbus import parse
+        self.mon_packets = []
+        while True:
+            await self.wait_clocks(self.clk_name, 1)
+            if int(self.dut.mon_valid.value) == 1 and int(self.dut.mon_ready.value) == 1:
+                raw = int(self.dut.mon_packet.value)
+                self.mon_packets.append(parse(raw))
+                self.mon_packets_received += 1
 
     async def check_monbus_packet(self, timeout: int = 50) -> Optional[int]:
         """Check for monitor bus packet.
@@ -988,19 +1002,16 @@ class SchedulerGroupArrayBeatsTB(TBBase):
         """
         self.log.info(f"=== MonBus Aggregation Test ===")
 
-        initial_count = self.mon_packets_received
-        stats = {'events_received': 0}
-
-        # Check for monitor packets
-        for _ in range(num_events * 10):
-            packet = await self.check_monbus_packet(timeout=20)
-            if packet is not None:
-                stats['events_received'] += 1
-                self.log.info(f"  MonBus packet received: 0x{packet:016X}")
-                if stats['events_received'] >= num_events:
-                    break
-
-        success = stats['events_received'] > 0
+        # Packets have been captured since initialize_test(); the activity that
+        # produced them ran before this call. Give stragglers a moment.
+        await self.wait_clocks(self.clk_name, 50)
+        pkts = list(getattr(self, 'mon_packets', []))
+        kinds = [p.get_packet_type_name() for p in pkts]
+        stats = {'events_received': len(pkts), 'kinds': sorted(set(kinds))}
+        self.log.info(f"  MonBus packets captured: {len(pkts)} {stats['kinds']}")
+        success = len(pkts) >= num_events and 'PktTypeCompletion' in kinds
+        if not success:
+            self.log.error(f"MonBus aggregation: expected >= {num_events} packets incl. a completion, got {len(pkts)} {kinds[:8]}")
         self.log.info(f"MonBus aggregation test: {stats['events_received']} events received")
         return (success, stats)
 

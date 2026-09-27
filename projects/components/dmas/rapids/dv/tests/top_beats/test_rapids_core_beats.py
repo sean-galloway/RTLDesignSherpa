@@ -27,6 +27,7 @@ Basic directional tests (dispatched by testcase):
 """
 
 import os
+import random
 import sys
 
 import pytest
@@ -47,13 +48,19 @@ from projects.components.dmas.rapids.dv.tbclasses.rapids_core_beats_tb import Ra
 # COCOTB TEST FUNCTIONS - thin; logic lives in the TB
 # ===========================================================================
 
+def _beats():
+    """Beats per transfer by TEST_LEVEL (the build is one fixed configuration, so
+    REG_LEVEL selects nothing here; depth is the only axis)."""
+    return {'gate': 4, 'func': 16, 'full': 32}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), 4)
+
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_source_path(dut):
     """SOURCE half: memory -> AXIS, single channel, data-integrity check."""
     tb = RapidsCoreBeatsTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    ok, stats = await tb.test_source_path(channel=0, beats=4)
+    ok, stats = await tb.test_source_path(channel=0, beats=_beats())
     tb.finalize_test()
     assert ok, f"source-path failed: {stats.get('errors')}"
 
@@ -64,7 +71,7 @@ async def cocotb_test_sink_path(dut):
     tb = RapidsCoreBeatsTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    ok, stats = await tb.test_sink_path(channel=0, beats=4)
+    ok, stats = await tb.test_sink_path(channel=0, beats=_beats())
     tb.finalize_test()
     assert ok, f"sink-path failed: {stats.get('errors')}"
 
@@ -124,7 +131,8 @@ def _run_core_beats(request, test_type, data_width):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(12345),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
         'TEST_NUM_CHANNELS': '8',
         'TEST_ADDR_WIDTH': '64',
         'TEST_DATA_WIDTH': str(data_width),

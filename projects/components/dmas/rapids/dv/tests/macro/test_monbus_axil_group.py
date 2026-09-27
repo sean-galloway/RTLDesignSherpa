@@ -41,6 +41,7 @@ STRUCTURE FOLLOWS RAPIDS FUB PATTERN:
 """
 
 import os
+import random
 import sys
 import pytest
 import cocotb
@@ -69,7 +70,7 @@ async def cocotb_test_basic_flow(dut):
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
 
-    success, stats = await tb.test_basic_packet_flow(count=32)
+    success, stats = await tb.test_basic_packet_flow(count=_depth()[0])
     assert success, f"Basic packet flow test failed: {stats}"
     tb.log.info(f"✅ Basic flow: {stats['success_rate']:.1%} success rate")
 
@@ -81,7 +82,7 @@ async def cocotb_test_error_fifo(dut):
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
 
-    success, stats = await tb.test_error_fifo_functionality(count=16)
+    success, stats = await tb.test_error_fifo_functionality(count=_depth()[1])
     assert success, f"Error FIFO test failed: {stats}"
     tb.log.info(f"✅ Error FIFO: {stats['packets_read']}/{stats['packets_sent']} packets")
 
@@ -93,7 +94,7 @@ async def cocotb_test_master_write(dut):
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
 
-    success, stats = await tb.test_master_write_functionality(count=8)
+    success, stats = await tb.test_master_write_functionality(count=_depth()[2])
     assert success, f"Master write test failed: {stats}"
     tb.log.info(f"✅ Master write: {stats['completed_writes']}/{stats['expected_writes']} writes")
 
@@ -149,11 +150,17 @@ def generate_monbus_axil_test_params():
     not adaptive -- the parameter is here for API stability, not
     runtime configurability.
     """
-    return [
-        # (fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
-        (64, 32, 32, 64, 3),   # Standard configuration
-        (128, 64, 32, 64, 3),  # Larger FIFOs
-    ]
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    grid = [(64, 32, 32, 64, 3)]          # standard configuration
+    if reg_level in ('FUNC', 'FULL'):
+        grid.append((128, 64, 32, 64, 3))  # larger FIFOs
+    return grid
+
+
+def _depth():
+    """(basic packets, error-fifo packets, master writes) by TEST_LEVEL."""
+    return {'gate': (16, 8, 4), 'func': (32, 16, 8), 'full': (96, 48, 24)}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), (32, 16, 8))
+
 
 monbus_axil_params = generate_monbus_axil_test_params()
 
@@ -214,6 +221,8 @@ def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_w
 
     extra_env = {
         'LOG_PATH': log_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
         'TEST_FIFO_DEPTH_ERR': str(fifo_depth_err),
         'TEST_FIFO_DEPTH_WRITE': str(fifo_depth_write),
         'TEST_ADDR_WIDTH': str(addr_width),
@@ -253,41 +262,41 @@ def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_w
 
 @pytest.mark.parametrize("fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
-def test_basic_flow(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+def test_monbus_axil_group_basic_flow(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
     """MonBus AXIL Group basic flow test."""
     run_monbus_axil_test("test_basic_flow", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
 
 
 @pytest.mark.parametrize("fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
-def test_error_fifo(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+def test_monbus_axil_group_error_fifo(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
     """MonBus AXIL Group error FIFO test."""
     run_monbus_axil_test("test_error_fifo", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
 
 
 @pytest.mark.parametrize("fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
-def test_master_write(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+def test_monbus_axil_group_master_write(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
     """MonBus AXIL Group master write test."""
     run_monbus_axil_test("test_master_write", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
 
 
 @pytest.mark.parametrize("fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
-def test_protocol_filtering(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+def test_monbus_axil_group_protocol_filtering(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
     """MonBus AXIL Group protocol filtering test."""
     run_monbus_axil_test("test_protocol_filtering", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
 
 
 @pytest.mark.parametrize("fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
-def test_concurrent_streams(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+def test_monbus_axil_group_concurrent_streams(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
     """MonBus AXIL Group concurrent streams test."""
     run_monbus_axil_test("test_concurrent_streams", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
 
 
 @pytest.mark.parametrize("fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
-def test_stress(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+def test_monbus_axil_group_stress(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
     """MonBus AXIL Group stress test."""
     run_monbus_axil_test("test_stress", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)

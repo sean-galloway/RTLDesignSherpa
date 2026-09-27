@@ -42,7 +42,7 @@ from collections import defaultdict, deque
 
 # CocoTB imports
 import cocotb
-from cocotb.triggers import Combine
+from cocotb.triggers import Combine, RisingEdge, FallingEdge, ReadOnly
 
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
@@ -72,7 +72,7 @@ from TBClasses.monbus.monbus_validators import (
 )
 
 # GAXI for monitor bus driving
-from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
+from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_monitor
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 
 
@@ -212,6 +212,7 @@ class MonbusAxilGroupTB(TBBase):
         self.source_monbus_master = create_gaxi_master(
             dut=self.dut,
             title="Source MonBus Master",
+            timeout_cycles=20000,   # the AXIL write path drains ~1 beat per handshake; sends legitimately wait
             prefix="source_monbus",
             clock=self.axi_aclk,
             field_config=monbus_config,
@@ -229,6 +230,7 @@ class MonbusAxilGroupTB(TBBase):
         self.sink_monbus_master = create_gaxi_master(
             dut=self.dut,
             title="Sink MonBus Master",
+            timeout_cycles=20000,   # the AXIL write path drains ~1 beat per handshake; sends legitimately wait
             prefix="sink_monbus",
             clock=self.axi_aclk,
             field_config=monbus_config,
@@ -240,11 +242,16 @@ class MonbusAxilGroupTB(TBBase):
 
         # AXI-Lite slave read interface for error FIFO access
         # Use multi_sig=True because AXIL4 uses separate signals (araddr, arprot, rdata, etc.)
+        # The drain is 64 bits wide (S_AXIL_DATA_WIDTH); the factory defaults to
+        # 32 and silently truncated every slice to its low half, which is why
+        # the record compare saw packet[127:96] as zero (rapids TASK-003).
         self.error_fifo_reader = create_axil4_master_rd(
             dut=self.dut,
             clock=self.axi_aclk,
             prefix="s_axil",
             multi_sig=True,
+            data_width=self.TEST_DATA_WIDTH,
+            addr_width=self.TEST_ADDR_WIDTH,
             log=self.log
         )
 
@@ -255,8 +262,45 @@ class MonbusAxilGroupTB(TBBase):
             clock=self.axi_aclk,
             prefix="m_axil",
             multi_sig=True,
+            data_width=64,
+            addr_width=self.TEST_ADDR_WIDTH,
             log=self.log
         )
+        # Scoreboard taps (rapids TASK-003): every scenario used to count its own
+        # BFM sends as "received" and could not fail. Observe the DUT instead --
+        # the 2:1 arbiter output (every accepted packet passes it before the
+        # filters), and the AW/W handshakes the master-write slave sees.
+        self.arb_seen = []          # parsed MonitorPackets at arb_monbus_valid && arb_monbus_ready
+        self.aw_seen = []
+        self.w_seen = []
+        # The slave BFM drives its ready signals only after reset_bus(); the old
+        # TB never called it, so m_axil_awready sat low and the write path was
+        # never exercised -- invisible while nothing checked for writes.
+        for chn in ('AW', 'W', 'B'):
+            comp = self.master_write_slave.get(chn)
+            if comp is not None and hasattr(comp, 'reset_bus'):
+                await comp.reset_bus()
+        self.master_write_slave['AW'].add_callback(lambda pkt: self.aw_seen.append(pkt))
+        self.master_write_slave['W'].add_callback(lambda pkt: self.w_seen.append(pkt))
+        self.in_seen = {'source': 0, 'sink': 0}
+        # Framework monitors, not hand-rolled samplers: the GAXI monitor samples the
+        # handshake in the right phase, and the arbiter output is one more
+        # valid/ready/packet interface (internal wires of the group top).
+        self.arb_monitor = create_gaxi_monitor(
+            dut=self.dut, title="Arbiter MonBus Monitor", prefix="arb_monbus", clock=self.axi_aclk,
+            field_config=monbus_config, is_slave=True, log=self.log,
+            signal_map={'valid': 'arb_monbus_valid', 'ready': 'arb_monbus_ready', 'data': 'arb_monbus_packet'})
+        self.arb_monitor.add_callback(self._on_arb_packet)
+        self.source_in_monitor = create_gaxi_monitor(
+            dut=self.dut, title="Source Input Monitor", prefix="source_monbus", clock=self.axi_aclk,
+            field_config=monbus_config, is_slave=True, log=self.log,
+            signal_map={'valid': 'source_monbus_valid', 'ready': 'source_monbus_ready', 'data': 'source_monbus_packet'})
+        self.source_in_monitor.add_callback(lambda pkt: self.in_seen.__setitem__('source', self.in_seen['source'] + 1))
+        self.sink_in_monitor = create_gaxi_monitor(
+            dut=self.dut, title="Sink Input Monitor", prefix="sink_monbus", clock=self.axi_aclk,
+            field_config=monbus_config, is_slave=True, log=self.log,
+            signal_map={'valid': 'sink_monbus_valid', 'ready': 'sink_monbus_ready', 'data': 'sink_monbus_packet'})
+        self.sink_in_monitor.add_callback(lambda pkt: self.in_seen.__setitem__('sink', self.in_seen['sink'] + 1))
 
         # Initialize timing profiles
         self.set_timing_profile('normal')
@@ -269,6 +313,9 @@ class MonbusAxilGroupTB(TBBase):
 
         # Set configuration base/limit addresses for master writes
         self.dut.cfg_base_addr.value = 0x10000000
+        self.dut.cfg_flush_watermark.value = 1   # flush the write FIFO as soon as it holds a beat
+        self.dut.cfg_compress_en.value = 0
+        self.dut.cam_clear.value = 0
         self.dut.cfg_limit_addr.value = 0x1000FFFF
 
         # AXI protocol (protocol 0): Allow all packets, route errors to error FIFO
@@ -320,6 +367,26 @@ class MonbusAxilGroupTB(TBBase):
         # For now, components use default timing
 
         self.log.info(f"Set timing profile to: {profile_name} (timing control not yet implemented)")
+
+    def _on_arb_packet(self, pkt):
+        """One packet left the source/sink arbiter; keep it in the decoded shape
+        the checks use (protocol, packet_type, event_code, channel_id, event_data)."""
+        from types import SimpleNamespace
+        try:
+            raw = int(pkt.pack()) if hasattr(pkt, 'pack') else 0
+        except Exception:
+            raw = 0
+        self.arb_seen.append(SimpleNamespace(
+            protocol=int(pkt.protocol), packet_type=int(pkt.pkt_type), event_code=int(pkt.event_code),
+            channel_id=int(pkt.channel_id), event_data=int(pkt.data), raw_packet=raw))
+
+    @staticmethod
+    def _key(d):
+        """(protocol, pkt_type) of a packet dict, for multiset comparison."""
+        return (int(d['protocol']), int(d['pkt_type']))
+
+    def _arb_keys(self, start):
+        return sorted((p.protocol, p.packet_type) for p in self.arb_seen[start:])
 
     def create_monbus_packet_dict(self, protocol: ProtocolType, pkt_type: PktType,
                                  event_code: int, channel_id: int = 0, unit_id: int = 0,
@@ -418,7 +485,7 @@ class MonbusAxilGroupTB(TBBase):
         elif protocol == ProtocolType.PROTOCOL_AXIS:
             self.dut.cfg_axis_pkt_mask.value = pkt_mask
             self.dut.cfg_axis_err_select.value = err_select
-        elif protocol == ProtocolType.PROTOCOL_ARB:
+        elif protocol == ProtocolType.PROTOCOL_CORE:
             # ARB is protocol 2 (CORE in RTL)
             self.dut.cfg_core_pkt_mask.value = pkt_mask
             self.dut.cfg_core_err_select.value = err_select
@@ -452,7 +519,7 @@ class MonbusAxilGroupTB(TBBase):
         # Available protocols: AXI, AXIS, APB, ARB, CORE
         await self.configure_protocol_filtering(ProtocolType.PROTOCOL_AXI)
         await self.configure_protocol_filtering(ProtocolType.PROTOCOL_AXIS)
-        await self.configure_protocol_filtering(ProtocolType.PROTOCOL_ARB)
+        await self.configure_protocol_filtering(ProtocolType.PROTOCOL_CORE)
 
         self.log.info("✅ Test initialization completed")
 
@@ -481,6 +548,14 @@ class MonbusAxilGroupTB(TBBase):
 
         success_count = 0
         total_count = count
+        # Route every type to the write path (drained by m_axil) so the error
+        # FIFO cannot fill up and stall the flow this test is measuring.
+        for proto in (ProtocolType.PROTOCOL_AXI, ProtocolType.PROTOCOL_AXIS, ProtocolType.PROTOCOL_CORE):
+            await self.configure_protocol_filtering(proto, pkt_mask=0x0000, err_select=0x0000)
+        await self.wait_clocks(self.clk_name, 5)
+        arb_start = len(self.arb_seen)
+        in_before = self.in_seen['source'] + self.in_seen['sink']
+        sent_keys = []
         test_stats = {
             'success_rate': 0.0,
             'packets_sent': 0,
@@ -490,11 +565,11 @@ class MonbusAxilGroupTB(TBBase):
 
         for i in range(count):
             # Create test packet - only use available protocols (AXI, AXIS, ARB)
-            protocol = random.choice([ProtocolType.PROTOCOL_AXI, ProtocolType.PROTOCOL_AXIS, ProtocolType.PROTOCOL_ARB])
+            protocol = random.choice([ProtocolType.PROTOCOL_AXI, ProtocolType.PROTOCOL_AXIS, ProtocolType.PROTOCOL_CORE])
             pkt_type = random.choice([PktType.PktTypeError, PktType.PktTypeCompletion, PktType.PktTypePerf])
 
             # Use only ARB event codes since those are the only ones we have
-            if protocol == ProtocolType.PROTOCOL_ARB:
+            if protocol == ProtocolType.PROTOCOL_CORE:
                 if pkt_type == PktType.PktTypeError:
                     event_code = ARBErrorCode.ARB_ERR_STARVATION.value
                 elif pkt_type == PktType.PktTypeCompletion:
@@ -522,15 +597,47 @@ class MonbusAxilGroupTB(TBBase):
             if success:
                 success_count += 1
                 test_stats['packets_sent'] += 1
+                sent_keys.append(self._key(packet_dict))
                 self.stats['protocol_stats'][protocol.name][pkt_type.name] += 1
 
             # Add some delay between packets
             await self.wait_clocks(self.clk_name, random.randint(1, 5))
 
+        # let the BFM pipelines finish their last handshake before counting
+        for _ in range(200):
+            await self.wait_clocks(self.clk_name, 1)
+            if not self.source_monbus_master.transfer_busy and not self.sink_monbus_master.transfer_busy:
+                break
+        # Packets the DUT has accepted can still sit in its input skids while the
+        # arbiter is held off by a backed-up write path (3 AXIL beats per packet
+        # behind a BFM with delays), so wait for the arbiter to catch up with the
+        # input count rather than a fixed 60 cycles (96 packets at 'full' left 5
+        # behind -- regression 2026-09-27).
+        accepted = self.in_seen['source'] + self.in_seen['sink'] - in_before   # DUT input handshakes
+        for _ in range(40 * count + 500):
+            if len(self.arb_seen) - arb_start >= accepted:
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        await self.wait_clocks(self.clk_name, 60)
+        arrived = len(self.arb_seen) - arb_start
+        accepted = self.in_seen['source'] + self.in_seen['sink'] - in_before
         test_stats['success_rate'] = success_count / total_count if total_count > 0 else 0.0
-        test_stats['packets_received'] = success_count  # Simplified
+        test_stats['packets_received'] = arrived
+        test_stats['packets_accepted'] = accepted
+        if arrived != accepted:
+            test_stats['errors'].append(f"arbiter passed {arrived} packets, the DUT accepted {accepted} at its inputs")
+        if accepted != success_count:
+            test_stats['errors'].append(f"DUT accepted {accepted} packets, the BFMs report {success_count} sent")
+        if self._arb_keys(arb_start) != sorted(sent_keys):
+            from collections import Counter
+            missing = Counter(sent_keys) - Counter(self._arb_keys(arb_start))
+            extra = Counter(self._arb_keys(arb_start)) - Counter(sent_keys)
+            test_stats['errors'].append(f"arbiter output (protocol, type) multiset differs from what was sent: "
+                                        f"missing {dict(missing)}, extra {dict(extra)}")
+        for e in test_stats['errors']:
+            self.log.error(e)
 
-        return test_stats['success_rate'] > 0.9, test_stats
+        return test_stats['success_rate'] > 0.9 and not test_stats['errors'], test_stats
 
     async def test_error_fifo_functionality(self, count: int = 16) -> Tuple[bool, Dict[str, Any]]:
         """Test error FIFO functionality via AXI-Lite slave read"""
@@ -545,6 +652,15 @@ class MonbusAxilGroupTB(TBBase):
 
         # Send error packets
         error_packets_sent = 0
+        self.expected_error_packets.clear()
+        # Drain whatever an earlier phase left in the error FIFO so the records
+        # read below are exactly the ones injected here.
+        stale = 0
+        while int(self.dut.irq_out.value) == 1 and stale < 3 * 64:
+            await self.read_error_fifo()
+            stale += 1
+        if stale:
+            self.log.info(f"drained {stale} stale slices from the error FIFO before the test")
         for i in range(count):
             packet_dict = self.create_monbus_packet_dict(
                 protocol=ProtocolType.PROTOCOL_AXI,
@@ -592,20 +708,45 @@ class MonbusAxilGroupTB(TBBase):
             self.log.warning("FIFO has data but interrupt not asserted")
 
         # Try to read from error FIFO
+        # Each record drains as three 64-bit slices in order {tag,ts},
+        # packet[127:64], packet[63:0] (monbus_axil4_axil4_group.sv). Rebuild the
+        # packet and compare it, field by field, with what was injected.
+        from TBClasses.monbus import parse
         error_packets_read = 0
-        for i in range(min(error_packets_sent, status['count']) + 2):  # Read actual count + margin
-            data = await self.read_error_fifo()
-            if data is not None and data != 0:
-                error_packets_read += 1
-                self.received_error_packets.append(data)
-                self.log.info(f"Read packet {error_packets_read}: 0x{data:016X}")
-            await self.wait_clocks(self.clk_name, 2)
+        mismatches = []
+        for i in range(min(error_packets_sent, status['count'])):
+            slices = []
+            for _ in range(3):
+                data = await self.read_error_fifo()
+                slices.append(0 if data is None else int(data))
+                await self.wait_clocks(self.clk_name, 1)
+            raw = (slices[1] << 64) | slices[2]
+            pkt = parse(raw)
+            if i < 2:
+                arb_raw = [hex(q.raw_packet) for q in self.arb_seen[-error_packets_sent:]][:2]
+                self.log.info(f"record {i} slices: {[hex(x) for x in slices]}; record raw {hex(raw)}; arbiter raw {arb_raw}")
+            error_packets_read += 1
+            self.received_error_packets.append(raw)
+            exp = self.expected_error_packets.popleft() if self.expected_error_packets else None
+            if exp is None:
+                mismatches.append(f"record {i}: nothing expected")
+                continue
+            got = (pkt.protocol, pkt.packet_type, pkt.event_code, pkt.channel_id, pkt.event_data)
+            want = (int(exp['protocol']), int(exp['pkt_type']), int(exp['event_code']), int(exp['channel_id']), int(exp['data']))
+            if got != want:
+                mismatches.append(f"record {i}: got (proto,type,event,ch,data)={got}, expected {want}")
+            await self.wait_clocks(self.clk_name, 1)
+        if status['count'] != error_packets_sent:
+            mismatches.append(f"err_fifo_count {status['count']} after sending {error_packets_sent} error packets")
+        for m in mismatches[:8]:
+            self.log.error(m)
 
         test_stats = {
             'packets_sent': error_packets_sent,
             'packets_read': error_packets_read,
             'fifo_count': status['count'],
-            'success_rate': error_packets_read / error_packets_sent if error_packets_sent > 0 else 0.0
+            'mismatches': len(mismatches),
+            'success_rate': 1.0 if (error_packets_read == error_packets_sent and not mismatches) else 0.0
         }
 
         return test_stats['success_rate'] > 0.5, test_stats
@@ -616,7 +757,7 @@ class MonbusAxilGroupTB(TBBase):
 
         # Configure to route COMPLETION packets to master write
         await self.configure_protocol_filtering(
-            ProtocolType.PROTOCOL_ARB,
+            ProtocolType.PROTOCOL_CORE,
             pkt_mask=0x0000,  # Don't drop any packets
             err_select=0x0000  # Don't route to error FIFO (will go to write FIFO)
         )
@@ -624,11 +765,13 @@ class MonbusAxilGroupTB(TBBase):
         # Set up slave to receive master writes
         write_count = 0
         expected_writes = count
+        self.expected_write_packets.clear()   # per-call accounting (the stress test calls this repeatedly)
+        arb_start, aw_start, w_start = len(self.arb_seen), len(self.aw_seen), len(self.w_seen)
 
         # Send packets that should trigger master writes
         for i in range(count):
             packet_dict = self.create_monbus_packet_dict(
-                protocol=ProtocolType.PROTOCOL_ARB,
+                protocol=ProtocolType.PROTOCOL_CORE,
                 pkt_type=PktType.PktTypeCompletion,
                 event_code=ARBCompletionCode.ARB_COMPL_GRANT_ISSUED.value,
                 channel_id=i,
@@ -644,15 +787,37 @@ class MonbusAxilGroupTB(TBBase):
         # Wait for master writes to complete
         await self.wait_clocks(self.clk_name, 50)
 
-        # Check if master write slave received transactions
-        # (In a real test, you'd check the slave's received transactions)
-        write_count = len(self.expected_write_packets)  # Simplified
-
+        # The master-write slave BFM saw the writes, or it did not. Wait for the
+        # write path to drain (one AXIL beat per record slice, three per packet)
+        # before counting -- a fixed 150-cycle wait cut the tail off at FULL depth.
+        for _ in range(4000):
+            await self.wait_clocks(self.clk_name, 1)
+            if int(self.dut.write_fifo_count.value) == 0 and len(self.aw_seen) - aw_start == len(self.w_seen) - w_start \
+                    and len(self.w_seen) - w_start >= 3 * len(self.expected_write_packets):
+                break
+        await self.wait_clocks(self.clk_name, 20)
+        accepted = len(self.expected_write_packets)
+        arrived = len(self.arb_seen) - arb_start
+        aw = len(self.aw_seen) - aw_start
+        w = len(self.w_seen) - w_start
+        write_count = aw
         test_stats = {
             'expected_writes': expected_writes,
+            'accepted': accepted,
+            'arbiter_passed': arrived,
+            'm_axil_aw': aw,
+            'm_axil_w_beats': w,
+            'write_fifo_count_after': int(self.dut.write_fifo_count.value),
             'completed_writes': write_count,
-            'success_rate': write_count / expected_writes if expected_writes > 0 else 0.0
+            'success_rate': 1.0 if (aw > 0 and arrived == accepted and w == aw and w == 3 * accepted) else 0.0,
         }
+        self.log.info(f"master write stats: {test_stats}, err_fifo_count={int(self.dut.err_fifo_count.value)}")
+        if arrived != accepted:
+            self.log.error(f"master write: arbiter passed {arrived} of {accepted} accepted packets")
+        if aw == 0:
+            self.log.error("master write: no AW ever reached the m_axil slave -- the write path emitted nothing")
+        if w != aw or w != 3 * accepted:
+            self.log.error(f"master write: {aw} AW / {w} W beats for {accepted} packets (expected {3 * accepted} of each, one slice per beat)")
 
         return test_stats['success_rate'] > 0.5, test_stats
 
@@ -661,7 +826,8 @@ class MonbusAxilGroupTB(TBBase):
         self.log.info("Testing protocol-specific packet filtering...")
 
         test_results = {}
-        protocols = [ProtocolType.PROTOCOL_AXI, ProtocolType.PROTOCOL_AXIS, ProtocolType.PROTOCOL_ARB]
+        failures = []
+        protocols = [ProtocolType.PROTOCOL_AXI, ProtocolType.PROTOCOL_AXIS, ProtocolType.PROTOCOL_CORE]
 
         for protocol in protocols:
             # Test dropping packets
@@ -672,6 +838,9 @@ class MonbusAxilGroupTB(TBBase):
             )
 
             # Send packets that should be dropped
+            await self.wait_clocks(self.clk_name, 5)
+            arb_start, aw_start = len(self.arb_seen), len(self.aw_seen)
+            err_before, wr_before = int(self.dut.err_fifo_count.value), int(self.dut.write_fifo_count.value)
             dropped_count = 0
             for i in range(8):
                 packet_dict = self.create_monbus_packet_dict(
@@ -691,16 +860,36 @@ class MonbusAxilGroupTB(TBBase):
                 'packets_sent': dropped_count,
                 'expected_dropped': dropped_count
             }
+            await self.wait_clocks(self.clk_name, 20)
+            arrived = len(self.arb_seen) - arb_start
+            err_delta = int(self.dut.err_fifo_count.value) - err_before
+            wr_delta = int(self.dut.write_fifo_count.value) - wr_before
+            aw_delta = len(self.aw_seen) - aw_start
+            test_results[protocol.name].update({'arbiter_passed': arrived, 'err_fifo_delta': err_delta,
+                                                'write_fifo_delta': wr_delta, 'm_axil_aw_delta': aw_delta})
+            if arrived != dropped_count:
+                failures.append(f"{protocol.name}: {arrived} of {dropped_count} packets reached the arbiter")
+            if err_delta or wr_delta or aw_delta:
+                failures.append(f"{protocol.name}: masked packets still landed (err +{err_delta}, write +{wr_delta}, AW +{aw_delta})")
+            # restore this protocol's default: accept everything, errors to the error FIFO
+            await self.configure_protocol_filtering(protocol, pkt_mask=0x0000, err_select=0x0001)
 
-        # Calculate overall success
-        total_filtered = sum(len(r) for r in test_results.values())
-        success = total_filtered > 0
+        for f in failures:
+            self.log.error(f)
+        test_results['failures'] = failures
 
-        return success, test_results
+        return not failures, test_results
 
     async def test_concurrent_packet_streams(self, duration_cycles: int = 200) -> Tuple[bool, Dict[str, Any]]:
         """Test concurrent packet streams from source and sink"""
         self.log.info(f"Testing concurrent packet streams for {duration_cycles} cycles...")
+
+        for proto in (ProtocolType.PROTOCOL_AXI, ProtocolType.PROTOCOL_AXIS):
+            await self.configure_protocol_filtering(proto, pkt_mask=0x0000, err_select=0x0000)
+        await self.wait_clocks(self.clk_name, 5)
+        arb_start = len(self.arb_seen)
+        in_before = dict(self.in_seen)
+        src_before, snk_before = self.stats['packets_sent']['source'], self.stats['packets_sent']['sink']
 
         # Start concurrent packet injection using CocoTB's event loop
         source_task = cocotb.start_soon(self._inject_source_packets(duration_cycles // 2))
@@ -712,14 +901,28 @@ class MonbusAxilGroupTB(TBBase):
         # Wait for all packets to propagate
         await self.wait_clocks(self.clk_name, 50)
 
+        await self.wait_clocks(self.clk_name, 200)
+        n_src = self.in_seen['source'] - in_before['source']     # accepted by the DUT, not just queued in the BFM
+        n_snk = self.in_seen['sink'] - in_before['sink']
+        arrived = self.arb_seen[arb_start:]
+        got_axi = sum(1 for q in arrived if q.protocol == ProtocolType.PROTOCOL_AXI.value)
+        got_axis = sum(1 for q in arrived if q.protocol == ProtocolType.PROTOCOL_AXIS.value)
+        errors = []
+        if len(arrived) != n_src + n_snk:
+            errors.append(f"arbiter passed {len(arrived)} packets, {n_src + n_snk} were sent")
+        if got_axi != n_src or got_axis != n_snk:
+            errors.append(f"arbiter output has {got_axi} AXI / {got_axis} AXIS packets, sent {n_src} / {n_snk}")
+        for e in errors:
+            self.log.error(e)
         test_stats = {
-            'source_packets': self.stats['packets_sent']['source'],
-            'sink_packets': self.stats['packets_sent']['sink'],
-            'total_packets': self.stats['packets_sent']['source'] + self.stats['packets_sent']['sink'],
-            'success_rate': 1.0  # Simplified - just check no crashes
+            'source_packets': n_src,
+            'sink_packets': n_snk,
+            'total_packets': n_src + n_snk,
+            'arbiter_passed': len(arrived),
+            'success_rate': 1.0 if not errors else 0.0,
         }
 
-        return True, test_stats
+        return not errors, test_stats
 
     async def _inject_source_packets(self, count: int):
         """Helper to inject source packets"""

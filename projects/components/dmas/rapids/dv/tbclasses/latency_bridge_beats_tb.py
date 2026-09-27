@@ -60,15 +60,20 @@ class LatencyBridgeBeatsTB(TBBase):
     def _create_bfms(self):
         """Create the GAXI BFMs for the s (input) and m (output) interfaces.
 
-        s_valid/s_ready/s_data -> GAXIMaster ; m_valid/m_ready/m_data -> GAXISlave.
+        wr_valid/wr_ready/wr_data (FIFO in front of the bridge) -> GAXIMaster ;
+        m_valid/m_ready/m_data -> GAXISlave.
         Both carry a 'data' payload. Cycle-accurate control is achieved by loading
         deterministic FlexRandomizer delay sequences (see set_*_delay_seq).
         """
         fc = FieldConfig()
         fc.add_field(FieldDefinition(name='data', bits=self.data_width,
                                      format='hex', description='beat data'))
+        # The master feeds the wrapper's REGISTERED=1 gaxi_fifo_sync (wr_*), not
+        # the bridge's s_* port: the bridge expects s_data one cycle after the
+        # handshake, which no valid/ready BFM produces. See
+        # dv/tb/latency_bridge_beats_tb_top.sv.
         self.s_master = create_gaxi_master(
-            dut=self.dut, title='lb_s', prefix='s', clock=self.dut.clk,
+            dut=self.dut, title='lb_wr', prefix='wr', clock=self.dut.clk,
             field_config=fc, multi_sig=True, log=self.log)
         self.m_slave = create_gaxi_slave(
             dut=self.dut, title='lb_m', prefix='m', clock=self.dut.clk,
@@ -190,11 +195,16 @@ class LatencyBridgeBeatsTB(TBBase):
         self.log.info(f"Backpressure released (s_ready={ready_after}, occupancy={occ_after})")
         self.log.info("Backpressure test passed")
 
-    async def test_streaming(self, num_beats=20):
+    async def test_streaming(self, num_beats=None):
         """Streaming flow under the active timing profile: continuously feed
-        num_beats while the slave drains, sampling occupancy each cycle."""
+        num_beats while the slave drains, sampling occupancy each cycle, and
+        check every beat comes out of m_data unchanged and in order."""
+        if num_beats is None:
+            num_beats = {'gate': 20, 'func': 60, 'full': 200}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), 20)
         self.log.info(f"=== Testing Streaming Flow ({num_beats} beats, profile-driven) ===")
         occupancies = []
+        received = []
+        self.m_slave.add_callback(lambda pkt: received.append(int(pkt.data)))
 
         # Feed beats from a background coroutine so we can sample occupancy each
         # cycle while data is in flight (send() queues + yields, so feeding and
@@ -205,8 +215,11 @@ class LatencyBridgeBeatsTB(TBBase):
 
         feed_task = cocotb.start_soon(feeder())
 
-        guard = 0
-        while guard < 2000:
+        # A slow producer profile can spend tens of cycles per beat, so the guard
+        # scales with the beat count (200 beats at 'full' overran a fixed 2000
+        # cycles and the check counted 119 of 200 -- regression 2026-09-27).
+        guard, guard_limit = 0, 60 * num_beats + 500
+        while guard < guard_limit:
             await RisingEdge(self.dut.clk)
             occupancies.append(self.get_occupancy())
             guard += 1
@@ -222,5 +235,10 @@ class LatencyBridgeBeatsTB(TBBase):
         avg = sum(occupancies) / len(occupancies)
         self.log.info(f"Streaming occupancy: avg={avg:.2f}, max={max(occupancies)}, samples={len(occupancies)}")
         assert max(occupancies) > 0, "Occupancy should be non-zero during streaming"
-        self.log.info("Streaming flow completed")
+        await self.wait_clocks('clk', 5)
+        expected = list(range(num_beats))
+        assert received == expected, (f"data path: received {len(received)} beats, expected {num_beats}; "
+                                      f"first mismatch at {next((i for i, (a, b) in enumerate(zip(received, expected)) if a != b), None)}; "
+                                      f"received[:12]={received[:12]}")
+        self.log.info(f"Streaming flow completed: {num_beats} beats received in order")
         return occupancies

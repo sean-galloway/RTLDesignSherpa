@@ -41,6 +41,7 @@ STRUCTURE FOLLOWS AMBA PATTERN:
 """
 
 import os
+import random
 import sys
 
 import pytest
@@ -65,13 +66,18 @@ from projects.components.dmas.rapids.dv.tbclasses.scheduler_tb import SchedulerT
 # NOTE: These cocotb test functions are prefixed with "cocotb_" to prevent pytest
 # from collecting them directly. They are only run via the pytest wrappers below.
 
+def _depth():
+    """(descriptors in the basic flow, back-to-back descriptors) by TEST_LEVEL."""
+    return {'gate': (3, 5), 'func': (5, 10), 'full': (12, 30)}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), (5, 10))
+
+
 @cocotb.test(timeout_time=100, timeout_unit="ms")
 async def cocotb_test_basic_descriptor_flow(dut):
     """Test basic descriptor processing flow"""
     tb = SchedulerTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result = await tb.test_basic_descriptor_flow(num_descriptors=5)
+    result = await tb.test_basic_descriptor_flow(num_descriptors=_depth()[0])
     tb.generate_test_report()
     assert result, "Basic descriptor flow test failed"
 
@@ -167,7 +173,7 @@ async def cocotb_test_back_to_back_descriptors(dut):
     tb = SchedulerTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result = await tb.test_back_to_back_descriptors(count=10)
+    result = await tb.test_back_to_back_descriptors(count=_depth()[1])
     tb.generate_test_report()
     assert result, "Back-to-back descriptors test failed"
 
@@ -471,7 +477,8 @@ def _run_scheduler_test(request, testcase_name, channel_id, num_channels, data_w
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': str(12345),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
         'CHANNEL_ID': str(channel_id),
         'NUM_CHANNELS': str(num_channels),
         'DATA_WIDTH': str(data_width),

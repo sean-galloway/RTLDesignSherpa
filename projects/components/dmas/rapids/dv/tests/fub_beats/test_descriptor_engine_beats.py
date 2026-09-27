@@ -40,6 +40,7 @@ STRUCTURE FOLLOWS AMBA PATTERN:
 """
 
 import os
+import random
 import sys
 
 import pytest
@@ -70,7 +71,7 @@ async def cocotb_test_basic_descriptor_flow(dut):
     tb = DescriptorEngineTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result = await tb.test_basic_descriptor_flow(num_descriptors=5)
+    result = await tb.test_basic_descriptor_flow(num_descriptors=_depth()[0])
     tb.generate_test_report()
     assert result, "Basic descriptor flow test failed"
 
@@ -160,7 +161,7 @@ async def cocotb_test_rapid_descriptors(dut):
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
     # Test 20 rapid descriptors
-    result = await tb.test_basic_descriptor_flow(num_descriptors=20)
+    result = await tb.test_basic_descriptor_flow(num_descriptors=_depth()[1])
     tb.generate_test_report()
     assert result, "Rapid descriptors test failed"
 
@@ -181,29 +182,29 @@ async def cocotb_test_long_chain(dut):
 # ===========================================================================
 
 def generate_descriptor_engine_test_params():
-    """Generate test parameters for descriptor engine tests.
+    """(channel_id, num_channels, axi_id_width, timing_profile) by REG_LEVEL.
 
-    Returns list of tuples: (channel_id, num_channels, axi_id_width)
+    GATE: the 32-channel config, back-to-back timing
+    FUNC: three channel counts + three GAXI delay profiles on the primary config
+    FULL: three channel counts + the full ten-profile sweep on the primary config
     """
-    configs = [
-        # Standard configuration
-        (0, 32, 8),
-        # Fewer channels
-        (0, 16, 8),
-        # Minimal channels
-        (0, 8, 8),
-    ]
-    # BFM delay-profile sweep. 'default' (on every config) preserves the
-    # original coverage; the broader profile set runs on the primary config only
-    # to keep the matrix bounded. Each profile drives both the AXI read slave
-    # (TIMING_PROFILE) and the apb GAXI master (GAXI_TIMING_PROFILE) -- standard
-    # names exercise AXI+GAXI; gaxi_* names exercise the GAXI side (AXI falls back).
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    configs = [(0, 32, 8), (0, 16, 8), (0, 8, 8)]
     sweep = ['fast', 'constrained', 'backtoback', 'burst_pause', 'slow_producer',
              'high_throughput', 'gaxi_stress', 'gaxi_backpressure', 'gaxi_realistic',
              'gaxi_pipeline']
+    if reg_level == 'GATE':
+        configs, sweep = configs[:1], []
+    elif reg_level == 'FUNC':
+        sweep = ['constrained', 'slow_producer', 'gaxi_realistic']
     params = [cfg + ('default',) for cfg in configs]
     params += [configs[0] + (p,) for p in sweep]
     return params
+
+
+def _depth():
+    """(descriptors in the basic flow, descriptors in the rapid flow) by TEST_LEVEL."""
+    return {'gate': (3, 10), 'func': (5, 20), 'full': (12, 60)}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), (5, 20))
 
 
 descriptor_engine_params = generate_descriptor_engine_test_params()
@@ -380,7 +381,8 @@ def _run_descriptor_engine_test(request, testcase_name, channel_id, num_channels
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': str(12345),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
         'TEST_NUM_CHANNELS': str(num_channels),
         'TEST_ADDR_WIDTH': '64',
         'TEST_AXI_ID_WIDTH': str(axi_id_width),

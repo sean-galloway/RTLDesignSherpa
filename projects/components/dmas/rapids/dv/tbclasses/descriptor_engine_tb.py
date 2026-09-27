@@ -36,6 +36,7 @@ NOT in Phase 1 (NOT tested):
 import os
 import random
 import cocotb
+from cocotb.triggers import RisingEdge
 from typing import Dict, List, Optional
 
 # Framework imports
@@ -426,6 +427,30 @@ class DescriptorEngineTB(TBBase):
         self.apb_requests_sent += 1
         self.log.info(f"APB request sent: addr=0x{addr:X}")
 
+    def _watch_descriptor_error(self):
+        """Start a background sampler that latches descriptor_error the first
+        cycle it is high. Returns the dict the sampler writes into; pair with
+        _error_seen_within()."""
+        flag = {'seen': False, 'task': None}
+
+        async def sampler():
+            while not flag['seen']:
+                await RisingEdge(self.clk)
+                if int(self.dut.descriptor_error.value) == 1:
+                    flag['seen'] = True
+
+        flag['task'] = cocotb.start_soon(sampler())
+        return flag
+
+    async def _error_seen_within(self, flag, cycles):
+        """Wait up to `cycles` for the watcher to latch, then stop it."""
+        for _ in range(cycles):
+            if flag['seen']:
+                break
+            await RisingEdge(self.clk)
+        flag['task'].kill()
+        return flag['seen']
+
     async def wait_for_descriptor(self, timeout_cycles=200):
         """Wait for descriptor output, return descriptor data or None on timeout."""
         for _ in range(timeout_cycles):
@@ -714,6 +739,29 @@ class DescriptorEngineTB(TBBase):
             return False
 
         self.log.info("✓ Valid address (range 1) accepted")
+
+        # Step 3: an address outside BOTH ranges must be refused -- descriptor_error
+        # rises and no descriptor is delivered. Without this step a range check
+        # that accepts everything passes the test named for it.
+        await self.simulate_scheduler_cycle()
+        await self.wait_clocks(self.clk_name, 50)
+        bad_addr = 0x30100
+        desc3 = self.create_descriptor(src_addr=0x5000, dst_addr=0x6000, length_beats=8, valid=True, last=True)
+        self.write_descriptor_to_memory(bad_addr, desc3)
+        # descriptor_error is a short pulse (RD_ERROR sets it, RD_IDLE clears it the
+        # next cycle) and it can land while send_apb_request() is still inside the
+        # BFM, so watch for it from before the request goes out.
+        watch = self._watch_descriptor_error()
+        await self.send_apb_request(bad_addr)
+        error_seen = await self._error_seen_within(watch, 200)
+        delivered = int(self.dut.descriptor_valid.value)
+        if not error_seen:
+            self.log.error(f"Out-of-range address 0x{bad_addr:X} did not raise descriptor_error")
+            return False
+        if delivered:
+            self.log.error(f"Out-of-range address 0x{bad_addr:X} still delivered a descriptor")
+            return False
+        self.log.info(f"Out-of-range address 0x{bad_addr:X} rejected with descriptor_error")
         return True
 
     async def test_channel_reset(self):
@@ -790,13 +838,21 @@ class DescriptorEngineTB(TBBase):
         mon_active = False
         await self.wait_clocks(self.clk_name, 5)
 
-        if len(mon_packets) > 0:
-            self.log.info(f"✓ Monitor bus test PASSED: {len(mon_packets)} packets captured")
-            self.mon_packets_received += len(mon_packets)
-            return True
-        else:
-            self.log.warning("⚠ Monitor bus test: No packets (may be expected)")
-            return True  # Not a hard failure
+        # A completed fetch leaves RD_COMPLETE with a PktTypeCompletion packet
+        # (descriptor_engine_beats.sv, CORE_COMPL_DESCRIPTOR_LOADED); a run
+        # that sees none has a broken observability path, not an optional one.
+        if not mon_packets:
+            self.log.error("Monitor bus test: no packet after a completed descriptor fetch")
+            return False
+        from TBClasses.monbus import parse
+        kinds = [parse(p).get_packet_type_name() for p in mon_packets]
+        self.log.info(f"Monitor packets: {kinds}")
+        if 'PktTypeCompletion' not in kinds:
+            self.log.error(f"Monitor bus test: expected a PktTypeCompletion, saw {kinds}")
+            return False
+        self.log.info(f"Monitor bus test PASSED: {len(mon_packets)} packet(s), completion seen")
+        self.mon_packets_received += len(mon_packets)
+        return True
 
     async def test_invalid_descriptor(self):
         """Test handling of invalid descriptor (valid bit = 0)."""
@@ -811,18 +867,18 @@ class DescriptorEngineTB(TBBase):
         )
         self.write_descriptor_to_memory(mem_addr, desc)
 
+        # descriptor_error rises in RD_WAIT_DATA when the fetched valid bit is 0 and
+        # RD_IDLE clears it again a cycle or two later: with fixed AXI profiles the
+        # whole fetch fits inside a 100-cycle wait, so a blind wait-then-poll missed
+        # it (regression 2026-09-27). Watch from before the request instead.
+        watch = self._watch_descriptor_error()
         await self.send_apb_request(mem_addr)
-
-        # Wait and check for error
-        await self.wait_clocks(self.clk_name, 100)
-
-        # Check if error flag is set
-        if int(self.dut.descriptor_error.value) == 1:
+        seen = await self._error_seen_within(watch, 300)
+        if seen:
             self.log.info("✓ Invalid descriptor test PASSED: Error flag set")
             return True
-        else:
-            self.log.info("⚠ Invalid descriptor test: No error flag (behavior may vary)")
-            return True  # Not a hard failure
+        self.log.error("Invalid descriptor (valid=0) did not raise descriptor_error")
+        return False
 
     def generate_test_report(self):
         """Generate comprehensive test report."""

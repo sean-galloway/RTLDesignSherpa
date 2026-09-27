@@ -324,34 +324,33 @@ class SrcSRAMControllerTB(TBBase):
         self.log.debug(f"Drain request: ch={channel}, size={size}")
 
     async def drain_data(self, channel: int) -> Optional[int]:
-        """Read data from SRAM via drain interface (for network TX).
+        """Read one beat from the SRAM via the ID-select drain port.
 
-        Args:
-            channel: Source channel ID
+        Contract (the write engine is the real consumer): drain_id selects the
+        channel and drain_data shows that channel's head beat in the same cycle;
+        a drain_read handshake pops it at the clock edge. So the beat has to be
+        sampled BEFORE the edge that carries drain_read -- the old helper pulsed
+        drain_read, waited a clock and then read drain_data, i.e. it always
+        returned the beat AFTER the one it popped (0/10 data matches, rapids
+        TASK-003).
 
         Returns:
-            Data word if available, None on timeout
+            Data word if available, None if the channel has nothing to drain
         """
         if channel >= self.TEST_NUM_CHANNELS:
             return None
-
-        # Check if valid data available
         if not self.is_channel_drain_valid(channel):
             return None
-
-        # Issue read
-        self.dut.drain_read.value = 1
         self.dut.drain_id.value = channel
-
-        await self.wait_clocks(self.clk_name, 1)
-
+        self.dut.drain_read.value = 0
+        await self.wait_clocks(self.clk_name, 1)      # mux settles on the selected channel
         try:
             data = int(self.dut.drain_data.value)
         except Exception:
-            data = 0  # Default if read fails
-
+            data = 0
+        self.dut.drain_read.value = 1                  # pop that beat at the next edge
+        await self.wait_clocks(self.clk_name, 1)
         self.drains_done[channel] += 1
-
         self.dut.drain_read.value = 0
 
         # Clear drain_req for this channel after read
@@ -447,7 +446,11 @@ class SrcSRAMControllerTB(TBBase):
 
         # Phase 1: Pass if data flows through (fills and drains succeed)
         # Data verification is informational at this stage
-        success = (fills_ok == count) and (drains_ok == count)
+        # data_matches used to be logged and ignored: a controller returning the
+        # wrong beats passed as long as the handshakes completed (rapids TASK-003)
+        success = (fills_ok == count) and (drains_ok == count) and (data_matches == count)
+        if data_matches != count:
+            self.log.error(f"Data mismatches: {count - data_matches}/{count} drained beats differ from what was filled")
         self.log.info(f"Basic fill/drain test: {'PASSED' if success else 'FAILED'}")
         return success
 
@@ -464,6 +467,8 @@ class SrcSRAMControllerTB(TBBase):
         """
         self.log.info(f"=== Multi-Channel Test: {self.TEST_NUM_CHANNELS} channels ===")
 
+        filled = {}
+        mismatches = 0
         fills_ok = 0
         drains_ok = 0
         total_ops = self.TEST_NUM_CHANNELS * num_ops_per_channel
@@ -480,6 +485,7 @@ class SrcSRAMControllerTB(TBBase):
                 data = (ch << 16) | (random.randint(0, 0xFFFF))
                 if await self.fill_data(ch, data):
                     fills_ok += 1
+                    filled.setdefault(ch, []).append(data)
 
         self.log.info(f"Fills completed: {fills_ok}/{total_ops}")
         await self.wait_clocks(self.clk_name, 20)
@@ -494,6 +500,10 @@ class SrcSRAMControllerTB(TBBase):
                     data = await self.drain_data(ch)
                     if data is not None:
                         drains_ok += 1
+                        exp = filled.get(ch, [None]*(i+1))[i] if i < len(filled.get(ch, [])) else None
+                        if exp is None or (data & 0xFFFFFFFF) != exp:
+                            mismatches += 1
+                            self.log.error(f"ch{ch} drain {i}: got 0x{data & 0xFFFFFFFF:08X}, filled 0x{exp if exp is not None else 0:08X}")
                 await self.wait_clocks(self.clk_name, 2)
 
         self.log.info(f"Drains completed: {drains_ok}/{total_ops}")
@@ -502,7 +512,10 @@ class SrcSRAMControllerTB(TBBase):
         fill_rate = fills_ok / total_ops if total_ops > 0 else 0
         drain_rate = drains_ok / fills_ok if fills_ok > 0 else 0
 
-        success = fill_rate >= 0.9 and drain_rate >= 0.5
+        # every fill must drain back, with its own payload (the old verdict accepted half the drains missing and never compared data)
+        success = fills_ok == total_ops and drains_ok == fills_ok and mismatches == 0
+        if mismatches:
+            self.log.error(f"Multi-channel test: {mismatches} payload mismatches")
         self.log.info(f"Multi-channel test: fill_rate={fill_rate:.1%}, drain_rate={drain_rate:.1%}")
         self.log.info(f"Multi-channel test: {'PASSED' if success else 'FAILED'}")
         return success

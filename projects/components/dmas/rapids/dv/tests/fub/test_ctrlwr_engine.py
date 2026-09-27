@@ -36,6 +36,7 @@ STRUCTURE FOLLOWS AMBA PATTERN:
 """
 
 import os
+import random
 import sys
 
 import pytest
@@ -70,6 +71,16 @@ async def cocotb_test_basic_write(dut):
 
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
+async def cocotb_test_misaligned_address(dut):
+    """Misaligned addresses must raise ctrlwr_error and issue no write.
+    The TB scenario existed but no entry point ran it (rapids TASK-003)."""
+    tb = CtrlwrEngineTB(dut)
+    await tb.setup_clocks_and_reset()
+    result = await tb.test_misaligned_address(DelayProfile.FIXED_DELAY)
+    assert result, "Misaligned address test failed"
+
+
+@cocotb.test(timeout_time=100, timeout_unit="ms")
 async def cocotb_test_null_address(dut):
     """Test null address handling (skip operation)"""
     tb = CtrlwrEngineTB(dut)
@@ -83,7 +94,7 @@ async def cocotb_test_back_to_back(dut):
     """Test back-to-back control write operations"""
     tb = CtrlwrEngineTB(dut)
     await tb.setup_clocks_and_reset()
-    result = await tb.test_back_to_back(DelayProfile.FIXED_DELAY, num_operations=5)
+    result = await tb.test_back_to_back(DelayProfile.FIXED_DELAY, num_operations=_depth())
     assert result, "Back-to-back test failed"
 
 
@@ -127,14 +138,20 @@ async def cocotb_test_mixed_scenarios(dut):
 # ===========================================================================
 
 def generate_ctrlwr_test_params():
-    """Generate test parameters for ctrlwr_engine tests.
+    """(channel_id, num_channels, addr_width) by REG_LEVEL: GATE channel 0,
+    FUNC + channel 5, FULL + channel 7."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    grid = [(0, 8, 64)]
+    if reg_level in ('FUNC', 'FULL'):
+        grid.append((5, 8, 64))
+    if reg_level == 'FULL':
+        grid.append((7, 8, 64))
+    return grid
 
-    Returns list of tuples: (channel_id, num_channels, addr_width)
-    """
-    return [
-        # Standard configuration
-        (0, 8, 64),
-    ]
+
+def _depth():
+    """back-to-back operations by TEST_LEVEL."""
+    return {'gate': 3, 'func': 5, 'full': 12}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), 5)
 
 
 ctrlwr_params = generate_ctrlwr_test_params()
@@ -150,6 +167,15 @@ ctrlwr_params = generate_ctrlwr_test_params()
 def test_ctrlwr_engine_basic_write(request, channel_id, num_channels, addr_width):
     """Pytest: Test basic control write operation"""
     _run_ctrlwr_test(request, "cocotb_test_basic_write",
+                     channel_id, num_channels, addr_width)
+
+
+@pytest.mark.fub
+@pytest.mark.ctrlwr
+@pytest.mark.parametrize("channel_id, num_channels, addr_width", ctrlwr_params)
+def test_ctrlwr_engine_misaligned_address(request, channel_id, num_channels, addr_width):
+    """Pytest: misaligned address -> ctrlwr_error, no AXI write"""
+    _run_ctrlwr_test(request, "cocotb_test_misaligned_address",
                      channel_id, num_channels, addr_width)
 
 
@@ -270,7 +296,8 @@ def _run_ctrlwr_test(request, testcase_name, channel_id, num_channels, addr_widt
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': str(12345),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
         'CHANNEL_ID': str(channel_id),
         'NUM_CHANNELS': str(num_channels),
         'ADDR_WIDTH': str(addr_width),

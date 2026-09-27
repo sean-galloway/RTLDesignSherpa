@@ -386,15 +386,27 @@ class RapidsCoreBeatsTB(TBBase):
     # STATUS HELPERS
     # =========================================================================
 
-    async def wait_half_idle(self, half, timeout_cycles=20000) -> bool:
+    async def wait_half_idle(self, half, timeout_cycles=20000, start_cycles=500) -> bool:
+        """Wait for the half to go busy after a kick, then return to idle.
+
+        Polling for idle==1 alone returned immediately -- the half is still idle
+        for a few cycles after the APB kick -- so the scoreboard ran mid-transfer;
+        at 4 beats the 200-cycle tail hid it, at 32 beats it did not (TASK-003).
+        """
         sig = getattr(self.dut, f'{half}_system_idle')
+        started = False
+        for _ in range(start_cycles):
+            await self.wait_clocks(self.clk_name, 1)
+            if int(sig.value) == 0:
+                started = True
+                break
+        if not started:
+            self.log.error(f"{half} half never left idle after the kick")
+            return False
         for _ in range(timeout_cycles):
             await self.wait_clocks(self.clk_name, 1)
-            try:
-                if int(sig.value) == 1:
-                    return True
-            except Exception:
-                pass
+            if int(sig.value) == 1:
+                return True
         return False
 
     # =========================================================================
@@ -424,7 +436,7 @@ class RapidsCoreBeatsTB(TBBase):
 
         got = self.captured_axis.get(channel, [])
         errors = list(self.test_errors)
-        if len(got) < beats:
+        if len(got) != beats:   # over-delivery is as wrong as under-delivery (rapids TASK-003)
             errors.append(f"source ch{channel}: captured {len(got)}/{beats} beats")
         else:
             mism = sum(1 for a, b in zip(got[:beats], pattern) if a != b)
@@ -458,7 +470,8 @@ class RapidsCoreBeatsTB(TBBase):
         await self.send_apb_request('snk', channel, desc_addr)
 
         # Wait for the write path to drain to memory.
-        await self.wait_half_idle('snk', timeout_cycles=20000)
+        if not await self.wait_half_idle('snk', timeout_cycles=20000):
+            self.test_errors.append('sink half did not return to idle within 20000 cycles')
         await self.wait_clocks(self.clk_name, 200)
 
         got = self.read_sink(dst_addr, beats)

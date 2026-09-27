@@ -719,15 +719,23 @@ class RapidsBeatsTopTB(TBBase):
     # STATUS HELPERS
     # =========================================================================
 
-    async def wait_half_idle(self, half, timeout_cycles=20000) -> bool:
+    async def wait_half_idle(self, half, timeout_cycles=20000, start_cycles=500) -> bool:
+        """Wait for the half to go busy after a kick, then return to idle (polling
+        for idle alone returned before the transfer had started; TASK-003)."""
         sig = getattr(self.dut, f'{half}_system_idle')
+        started = False
+        for _ in range(start_cycles):
+            await self.wait_clocks(self.clk_name, 1)
+            if int(sig.value) == 0:
+                started = True
+                break
+        if not started:
+            self.log.error(f"{half} half never left idle after the kick")
+            return False
         for _ in range(timeout_cycles):
             await self.wait_clocks(self.clk_name, 1)
-            try:
-                if int(sig.value) == 1:
-                    return True
-            except Exception:
-                pass
+            if int(sig.value) == 1:
+                return True
         return False
 
     def read_sched_error(self, half) -> int:
@@ -755,18 +763,20 @@ class RapidsBeatsTopTB(TBBase):
 
         await self.kick_off_channel('src', channel, desc_addr)
 
+        # Busy-then-idle straight after the kick. wait_half_idle() first wants
+        # to see the half LEAVE idle; calling it after the beat-capture wait
+        # (as this test did until 2026-09-27) meant the transfer had already
+        # finished and idle was back high, so it reported "never left idle" on
+        # every full-level run. Over-delivery check: a kick accepted twice
+        # re-runs the SAME descriptor, so the duplicate beats are byte-identical
+        # and only arrive after the first chain completes -- settle to idle
+        # before counting, otherwise a double launch passes unnoticed.
+        if not await self.wait_half_idle('src', timeout_cycles=20000):
+            self.test_errors.append('src half did not return to idle within 20000 cycles')
         for _ in range(4000):
             await self.wait_clocks(self.clk_name, 1)
             if len(self.captured_axis.get(channel, [])) >= beats:
                 break
-        await self.wait_clocks(self.clk_name, 50)
-
-        # Over-delivery check. A kick accepted twice re-runs the SAME descriptor,
-        # so the duplicate beats are byte-identical and only arrive AFTER the
-        # first chain completes -- long after the ">= beats" wait above returns.
-        # Settle to idle before counting: otherwise a double launch passes
-        # unnoticed, because got[:beats] still matches the pattern exactly.
-        await self.wait_half_idle('src', timeout_cycles=20000)
         await self.wait_clocks(self.clk_name, 200)
 
         got = self.captured_axis.get(channel, [])
@@ -968,7 +978,8 @@ class RapidsBeatsTopTB(TBBase):
         await self.wait_clocks(self.clk_name, 20)
         await self.kick_off_channel('snk', channel, desc_addr)
 
-        await self.wait_half_idle('snk', timeout_cycles=20000)
+        if not await self.wait_half_idle('snk', timeout_cycles=20000):
+            self.test_errors.append('snk half did not return to idle within 20000 cycles')
         await self.wait_clocks(self.clk_name, 200)
 
         got = self.read_sink(dst_addr, beats)

@@ -38,6 +38,7 @@ STRUCTURE FOLLOWS AMBA PATTERN:
 """
 
 import os
+import random
 import sys
 
 import pytest
@@ -89,7 +90,7 @@ async def cocotb_test_read_retry_match(dut):
     """Test read-retry-match operation (requires retries before match)"""
     tb = CtrlrdEngineTB(dut)
     await tb.setup_clocks_and_reset()
-    result = await tb.test_read_retry_match(DelayProfile.FIXED_DELAY, max_retries=3)
+    result = await tb.test_read_retry_match(DelayProfile.FIXED_DELAY, max_retries=_depth()[1])
     assert result, "Read-retry-match test failed"
 
 
@@ -98,7 +99,7 @@ async def cocotb_test_max_retries_exceeded(dut):
     """Test max retries exceeded scenario"""
     tb = CtrlrdEngineTB(dut)
     await tb.setup_clocks_and_reset()
-    result = await tb.test_max_retries_exceeded(DelayProfile.FIXED_DELAY, max_retries=3)
+    result = await tb.test_max_retries_exceeded(DelayProfile.FIXED_DELAY, max_retries=_depth()[1])
     assert result, "Max retries exceeded test failed"
 
 
@@ -146,7 +147,7 @@ async def cocotb_test_back_to_back(dut):
     """Test back-to-back control read operations"""
     tb = CtrlrdEngineTB(dut)
     await tb.setup_clocks_and_reset()
-    result = await tb.test_back_to_back(DelayProfile.FIXED_DELAY, num_operations=5)
+    result = await tb.test_back_to_back(DelayProfile.FIXED_DELAY, num_operations=_depth()[0])
     assert result, "Back-to-back test failed"
 
 
@@ -164,14 +165,23 @@ async def cocotb_test_mixed_scenarios(dut):
 # ===========================================================================
 
 def generate_ctrlrd_test_params():
-    """Generate test parameters for ctrlrd_engine tests.
+    """(channel_id, num_channels, addr_width, axi_data_width) by REG_LEVEL.
 
-    Returns list of tuples: (channel_id, num_channels, addr_width, axi_data_width)
+    GATE: channel 0 of 8; FUNC: + channel 5 (ID/arbitration path exercised at a
+    second index); FULL: + channel 7 (the last index).
     """
-    return [
-        # Standard configuration
-        (0, 8, 64, 64),
-    ]
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    grid = [(0, 8, 64, 64)]
+    if reg_level in ('FUNC', 'FULL'):
+        grid.append((5, 8, 64, 64))
+    if reg_level == 'FULL':
+        grid.append((7, 8, 64, 64))
+    return grid
+
+
+def _depth():
+    """(back-to-back operations, retries) by TEST_LEVEL."""
+    return {'gate': (3, 2), 'func': (5, 3), 'full': (12, 5)}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), (5, 3))
 
 
 ctrlrd_params = generate_ctrlrd_test_params()
@@ -347,7 +357,8 @@ def _run_ctrlrd_test(request, testcase_name, channel_id, num_channels, addr_widt
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': str(12345),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
         'CHANNEL_ID': str(channel_id),
         'NUM_CHANNELS': str(num_channels),
         'ADDR_WIDTH': str(addr_width),

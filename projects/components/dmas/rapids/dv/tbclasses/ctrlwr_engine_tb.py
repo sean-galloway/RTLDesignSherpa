@@ -404,6 +404,14 @@ class CtrlwrEngineTB(TBBase):
         # Clear transaction history
         self.axi_transactions = []
 
+        # The claim under test is "no AXI transaction": count the AW handshakes
+        # the slave BFM sees while the request runs, and read address 0 back
+        # afterwards. An idle poll alone cannot tell a skipped write from a
+        # fast one.
+        aw_seen = []
+        self.axi_slave['AW'].add_callback(lambda pkt: aw_seen.append(pkt))
+        self.memory_model.write(0, self.memory_model.integer_to_bytearray(0, 4))
+
         # Test parameters
         null_addr = 0x0
         test_data = 0xDEADBEEF
@@ -427,8 +435,13 @@ class CtrlwrEngineTB(TBBase):
         await self.wait_clocks(self.clk_name, 10)
 
         # Verify NO AXI transaction occurred
-        # For null address, memory model should show no writes
-        # (This is a simple check - we already verified engine went back to idle immediately)
+        if aw_seen:
+            self.log.error(f"Null address issued {len(aw_seen)} AXI write(s); the 64'h0 special case must skip AXI")
+            return False
+        at_zero = self.memory_model.bytearray_to_integer(self.memory_model.read(0, 4))
+        if at_zero != 0:
+            self.log.error(f"Memory address 0 holds 0x{at_zero:08X} after a null-address request")
+            return False
 
         # Verify engine returned to idle
         if int(self.dut.ctrlwr_engine_idle.value) != 1:

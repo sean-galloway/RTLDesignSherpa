@@ -24,6 +24,7 @@ This test uses bare-metal signal control for simplicity and direct RTL interacti
 """
 
 import os
+import random
 import sys
 import pytest
 import cocotb
@@ -47,15 +48,26 @@ class TimeoutTB:
         self.dut = dut
         self.clk = dut.clk
 
+    async def setup_clocks_and_reset(self):
+        """The mandatory entry point (GLOBAL_REQUIREMENTS 2.2); setup() is the body."""
+        await self.setup()
+
+    async def assert_reset(self):
+        self.dut.rst_n.value = 0
+
+    async def deassert_reset(self):
+        self.dut.rst_n.value = 1
+
     async def setup(self):
-        """Setup clock and reset"""
+        """Setup clock, config-before-reset, reset"""
         # Start clock
         cocotb.start_soon(Clock(self.clk, 10, units="ns").start())
 
         # Configure before reset (Phase 1 simplified scheduler)
         self.dut.cfg_channel_enable.value = 1
         self.dut.cfg_channel_reset.value = 0
-        self.dut.cfg_sched_timeout_cycles.value = 1000  # 1000 cycle timeout
+        self.timeout_cycles = int(os.environ.get('TEST_TIMEOUT_CYCLES', '1000'))
+        self.dut.cfg_sched_timeout_cycles.value = self.timeout_cycles
         # Escalate to a fatal CH_ERROR after a single timeout window so the timeout
         # surfaces on sched_error. (Recoverable-timeout: cfg_sched_timeout_limit=0
         # would never escalate; this test verifies the escalation/error path.)
@@ -63,9 +75,9 @@ class TimeoutTB:
         self.dut.cfg_sched_timeout_enable.value = 1     # Enable timeout detection
 
         # Reset
-        self.dut.rst_n.value = 0
+        await self.assert_reset()
         await Timer(100, units="ns")
-        self.dut.rst_n.value = 1
+        await self.deassert_reset()
         await Timer(50, units="ns")
 
         # Initialize descriptor interface
@@ -214,7 +226,7 @@ class TimeoutTB:
 async def cocotb_test_timeout_simple(dut):
     """Simple timeout test without GAXI infrastructure"""
     tb = TimeoutTB(dut)
-    await tb.setup()
+    await tb.setup_clocks_and_reset()
     result = await tb.test_timeout()
     assert result, "Timeout detection test failed"
 
@@ -223,12 +235,20 @@ async def cocotb_test_timeout_simple(dut):
 # PYTEST WRAPPER
 # ===========================================================================
 
+def generate_timeout_params():
+    """cfg_sched_timeout_cycles by REG_LEVEL: GATE the shipped 1000, FUNC + a
+    short 200, FULL + 64 (the fastest the watchdog is asked to trip)."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    return {'GATE': [1000], 'FUNC': [1000, 200]}.get(reg_level, [1000, 200, 64])
+
+
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.timeout
-def test_timeout_simple(request):
+@pytest.mark.parametrize("timeout_cycles", generate_timeout_params())
+def test_scheduler_beats_timeout(request, timeout_cycles):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
-    """Pytest wrapper for simple timeout test"""
+    """Pytest wrapper for the scheduler watchdog timeout test"""
     # Check if coverage collection is enabled via environment variable
     coverage_enabled = os.environ.get('COVERAGE', '0') == '1'
 
@@ -242,7 +262,7 @@ def test_timeout_simple(request):
         filelist_path='projects/components/dmas/rapids/rtl/filelists/fub_beats/scheduler_beats.f'
     )
 
-    test_name = "test_scheduler_timeout_simple"
+    test_name = f"test_scheduler_beats_timeout_t{timeout_cycles}"
 
     # Handle pytest-xdist
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -265,6 +285,9 @@ def test_timeout_simple(request):
         'LOG_PATH': log_path,
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
+        'TEST_TIMEOUT_CYCLES': str(timeout_cycles),
     }
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name)

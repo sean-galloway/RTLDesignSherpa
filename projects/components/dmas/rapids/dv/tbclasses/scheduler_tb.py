@@ -1060,25 +1060,31 @@ class SchedulerTB(TBBase):
         if not idle:
             self.log.error("Transfer did not complete")
             return False
+        # The CH_COMPLETE packet is registered as the FSM leaves COMPLETE, so it
+        # appears on mon_valid in the first IDLE cycle -- the same cycle
+        # wait_for_idle returns. Give the capture coroutine time to see it.
+        await self.wait_clocks(self.clk_name, 5)
 
         # Check for IRQ event in monitor packets
         num_packets = len(self.monitor_packets_received)
         self.log.info(f"Monitor packets received: {num_packets}")
 
-        # IRQ event type is 0x7 per rapids_pkg.sv
-        irq_found = False
-        for pkt in self.monitor_packets_received:
-            # Check event type field (implementation specific)
-            self.log.debug(f"MonBus packet: 0x{pkt:016x}")
-            # For now, just verify packets were generated
-            irq_found = True
-
-        if num_packets > 0:
-            self.log.info("IRQ generation test PASSED (monitor packets generated)")
-            return True
-        else:
-            self.log.warning("No monitor packets received - may be expected")
-            return True  # Pass anyway, depends on configuration
+        # A gen_irq descriptor completes with a MonBus packet whose event code is
+        # RAPIDS_EVENT_IRQ (8'h07, rapids_pkg.sv); decode through the shared
+        # parser rather than guessing at bit positions.
+        from TBClasses.monbus import parse
+        decoded = [parse(int(pkt)) for pkt in self.monitor_packets_received]
+        kinds = [(d.get_packet_type_name(), d.event_code) for d in decoded]
+        self.log.info(f"MonBus packets: {kinds}")
+        irq_found = any(code == 0x07 for _, code in kinds)
+        if num_packets == 0:
+            self.log.error("IRQ generation: no MonBus packet after a gen_irq descriptor completed")
+            return False
+        if not irq_found:
+            self.log.error(f"IRQ generation: no packet carries RAPIDS_EVENT_IRQ (0x07); saw {kinds}")
+            return False
+        self.log.info("IRQ generation test PASSED (RAPIDS_EVENT_IRQ packet seen)")
+        return True
 
     # =========================================================================
     # TEST CASES - Error Handling
@@ -1339,12 +1345,14 @@ class SchedulerTB(TBBase):
         if missing_states:
             self.log.warning(f"Missing expected states: {[s.name for s in missing_states]}")
 
-        if num_transitions >= 3:
-            self.log.info("FSM state transitions test PASSED")
-            return True
-        else:
-            self.log.warning(f"Only {num_transitions} transitions observed")
-            return True  # Still pass, may have fewer transitions
+        if missing_states:
+            self.log.error(f"FSM never visited: {[s.name for s in missing_states]}")
+            return False
+        if num_transitions < 3:
+            self.log.error(f"Only {num_transitions} FSM transitions observed; a full descriptor needs at least 3")
+            return False
+        self.log.info("FSM state transitions test PASSED")
+        return True
 
     # =========================================================================
     # Utility Methods

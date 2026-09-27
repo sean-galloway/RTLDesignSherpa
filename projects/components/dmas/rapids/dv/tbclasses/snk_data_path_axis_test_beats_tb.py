@@ -467,22 +467,33 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
                 addr = self.BASE_ADDRESS + channel * self.CHANNEL_OFFSET + i * 0x1000
                 beats = random.randint(1, 8)
 
+                # A descriptor with no data behind it can never complete, so give
+                # the channel its beats first and require the transfer to finish
+                # (the old scenario sent bare descriptors and passed either way).
+                test_data = [random.getrandbits(self.DATA_WIDTH) for _ in range(beats)]
+                await self.send_axis_packet(channel, test_data, last=True)
+                await self.wait_clocks(self.clk_name, 10)
+
                 # Send descriptor
                 await self.send_descriptor(channel, addr, beats)
 
-                # Wait for scheduler to process
-                await self.wait_clocks(self.clk_name, 50)
+                # Wait for scheduler to process (poll up to 1000 cycles)
+                sched_idle = 0
+                for _ in range(20):
+                    await self.wait_clocks(self.clk_name, 50)
+                    sched_idle = int(self.dut.sched_idle.value)
+                    if (sched_idle >> channel) & 1:
+                        break
 
                 # Check scheduler state
-                sched_idle = int(self.dut.sched_idle.value)
                 if (sched_idle >> channel) & 1:
                     # Scheduler returned to idle (processed descriptor)
                     successful += 1
                     self.test_stats['successful_operations'] += 1
                 else:
-                    # Scheduler still busy (may be waiting for data)
-                    successful += 1  # Still counts as sent successfully
-                    self.test_stats['successful_operations'] += 1
+                    self.log.error(f"Descriptor {i}: channel {channel} did not return to idle")
+                    failed += 1
+                    self.test_stats['failed_operations'] += 1
 
                 delay = self.get_timing_value('inter_op_delay')
                 await self.wait_clocks(self.clk_name, delay)
@@ -637,6 +648,18 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
         except Exception as e:
             self.log.warning(f"  Could not read scheduler state for ch{channel}: {e}")
 
+    def _compare_memory(self, relative_addr: int, beats) -> str:
+        """Compare consecutive beats in the AXI slave's memory with the words that
+        went in on AXIS. Returns '' when every beat matches, else a description.
+        (The old check accepted any non-zero byte at the first beat.)"""
+        bpb = self.DATA_WIDTH // 8
+        mask = (1 << self.DATA_WIDTH) - 1
+        for b, word in enumerate(beats):
+            got = self.memory_model.bytearray_to_integer(self.memory_model.read(relative_addr + b * bpb, bpb))
+            if got != (int(word) & mask):
+                return f"beat {b} at 0x{relative_addr + b * bpb:X}: memory 0x{got:X}, sent 0x{int(word) & mask:X}"
+        return ""
+
     async def test_axi_write_operations(self, num_operations: int = 12) -> Tuple[bool, Dict[str, Any]]:
         """Test AXI write operations
 
@@ -723,14 +746,14 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
             relative_addr = addr - self.BASE_ADDRESS
 
             try:
-                mem_data = self.memory_model.read(relative_addr, bytes_to_read)
-                if mem_data and any(b != 0 for b in mem_data):
+                bad = self._compare_memory(relative_addr, op['test_data'])
+                if not bad:
                     successful += 1
                     self.test_stats['axi_writes_completed'] += 1
                     self.test_stats['successful_operations'] += 1
-                    self.log.info(f"Op {i} ch{channel}: PASS - data at 0x{addr:X}")
+                    self.log.info(f"Op {i} ch{channel}: PASS - {op['beats']} beats match at 0x{addr:X}")
                 else:
-                    self.log.warning(f"Op {i} ch{channel}: FAIL - no data in memory at 0x{addr:X}")
+                    self.log.error(f"Op {i} ch{channel}: FAIL - {bad}")
                     failed += 1
                     self.test_stats['failed_operations'] += 1
             except Exception as e:
@@ -794,11 +817,13 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
                     mem_data = self.memory_model.read(relative_addr, bytes_to_read)
                     if mem_data and any(b != 0 for b in mem_data):
                         break
-                if mem_data and any(b != 0 for b in mem_data):
+                bad = self._compare_memory(relative_addr, test_data)
+                if not bad:
                     successful += 1
                     self.test_stats['successful_operations'] += 1
                     self.log.debug(f"E2E transfer {i} successful: ch{channel}, addr=0x{addr:X}")
                 else:
+                    self.log.error(f"E2E transfer {i}: {bad}")
                     failed += 1
                     self.test_stats['failed_operations'] += 1
                     self.log.warning(f"E2E transfer {i} failed: no memory write")

@@ -510,19 +510,21 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
 
                 # Send descriptor
                 await self.send_descriptor(channel, addr, beats)
-
-                # Wait for scheduler to process
-                await self.wait_clocks(self.clk_name, 50)
-
-                # Check scheduler state
-                sched_idle = int(self.dut.sched_idle.value)
+                # The source path fetches its own data, so the channel must return to
+                # idle; poll up to 1000 cycles (the old code accepted 'busy' as success).
+                sched_idle = 0
+                for _ in range(20):
+                    await self.wait_clocks(self.clk_name, 50)
+                    sched_idle = int(self.dut.sched_idle.value)
+                    if (sched_idle >> channel) & 1:
+                        break
                 if (sched_idle >> channel) & 1:
                     successful += 1
                     self.test_stats['successful_operations'] += 1
                 else:
-                    # Scheduler busy is expected (waiting for read to complete)
-                    successful += 1
-                    self.test_stats['successful_operations'] += 1
+                    self.log.error(f"Descriptor {i}: channel {channel} did not return to idle")
+                    failed += 1
+                    self.test_stats['failed_operations'] += 1
 
                 delay = self.timing_config.next()['inter_op_delay']
                 await self.wait_clocks(self.clk_name, delay)
@@ -595,16 +597,14 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
                 channel = i % self.NUM_CHANNELS
                 addr = self.BASE_ADDRESS + channel * self.CHANNEL_OFFSET + (i % 64) * (self.DATA_WIDTH // 8)
                 beats = 4
-
-                # Send descriptor to trigger read
+                reads_before = int(self.dut.dbg_r_beats_rcvd.value)
                 await self.send_descriptor(channel, addr, beats)
-
-                # Wait for AXI read to complete
                 await self.wait_clocks(self.clk_name, 100)
-
-                # Check debug signals for read completion
-                dbg_reads = int(self.dut.dbg_r_beats_rcvd.value)
-                if dbg_reads > 0:
+                # this descriptor's read must add exactly its beats to the cumulative counter
+                dbg_reads = int(self.dut.dbg_r_beats_rcvd.value) - reads_before
+                if dbg_reads != beats:
+                    self.log.error(f"AXI read {i}: {dbg_reads} R beats for a {beats}-beat descriptor")
+                if dbg_reads == beats:
                     successful += 1
                     self.test_stats['axi_reads_completed'] += 1
                     self.test_stats['successful_operations'] += 1
@@ -641,16 +641,14 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
                 channel = i % self.NUM_CHANNELS
                 addr = self.BASE_ADDRESS + channel * self.CHANNEL_OFFSET + (i % 64) * (self.DATA_WIDTH // 8)
                 beats = random.randint(1, 4)
-
-                # Send descriptor to trigger read -> AXIS output
+                sent_before = int(self.dut.dbg_axis_beats_sent.value)
                 await self.send_descriptor(channel, addr, beats)
-
-                # Wait for AXIS output
                 await self.wait_clocks(self.clk_name, 150)
-
-                # Check AXIS output counter
-                axis_sent = int(self.dut.dbg_axis_beats_sent.value)
-                if axis_sent > 0:
+                # this descriptor must add exactly its beats to the egress counter
+                axis_sent = int(self.dut.dbg_axis_beats_sent.value) - sent_before
+                if axis_sent != beats:
+                    self.log.error(f"AXIS packet {i}: {axis_sent} beats out for a {beats}-beat descriptor")
+                if axis_sent == beats:
                     successful += 1
                     self.test_stats['axis_packets_received'] += 1
                     self.test_stats['successful_operations'] += 1

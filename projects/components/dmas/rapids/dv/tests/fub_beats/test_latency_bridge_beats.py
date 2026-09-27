@@ -126,7 +126,7 @@ def test_beats_latency_bridge(request, test_type, data_width, timing_profile):
         'rtl_fub_beats': '../../rtl/fub_beats',
     })
 
-    dut_name = "latency_bridge_beats"
+    dut_name = "latency_bridge_beats_tb_top"   # bridge behind a REGISTERED=1 gaxi_fifo_sync (dv/tb)
 
     # Format parameters for unique test name (xdist compatibility)
     dw_str = f"{data_width:04d}"
@@ -139,7 +139,7 @@ def test_beats_latency_bridge(request, test_type, data_width, timing_profile):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/dmas/rapids/rtl/filelists/fub_beats/latency_bridge_beats.f'
+        filelist_path='projects/components/dmas/rapids/dv/tb/latency_bridge_beats_tb_top.f'
     )
 
     sim_build = sim_build_path(tests_dir, test_name)
@@ -153,6 +153,7 @@ def test_beats_latency_bridge(request, test_type, data_width, timing_profile):
 
     extra_env = {
         'TEST_TYPE': test_type,  # Pass test type to cocotb
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,

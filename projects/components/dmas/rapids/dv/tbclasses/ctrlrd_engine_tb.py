@@ -637,6 +637,14 @@ class CtrlrdEngineTB(TBBase):
 
         # No need to write to memory - null address skips AXI read
 
+        # The claim under test is "no AXI transaction": count AR handshakes the
+        # slave BFM sees while the request runs. Without this the BFM would
+        # answer a spurious read of address 0 with 0, which matches
+        # expected_data, and the special case could be dropped unnoticed.
+        ar_seen = []
+        if self.axi_slave is not None:
+            self.axi_slave['AR'].add_callback(lambda pkt: ar_seen.append(pkt))
+
         # Send ctrlrd request
         success = await self.send_ctrlrd_request(test_addr, expected_data, mask, profile)
         if not success:
@@ -649,7 +657,12 @@ class CtrlrdEngineTB(TBBase):
             self.log.error(f"Null address operation failed: error={error}")
             return False
 
-        self.log.info(f"✓ Null address completed successfully")
+        await self.wait_clocks(self.clk_name, 5)
+        if ar_seen:
+            self.log.error(f"Null address issued {len(ar_seen)} AXI read(s); the 64'h0 special case must skip AXI")
+            return False
+
+        self.log.info(f"✓ Null address completed successfully with no AXI transaction")
         self.log.info(f"  Result: 0x{result_data:08X}")
 
         return True
@@ -936,13 +949,21 @@ class CtrlrdEngineTB(TBBase):
         self.dut.cfg_channel_reset.value = 1
         await self.wait_clocks(self.clk_name, 5)
 
-        # Verify engine returns to idle
+        # While cfg_channel_reset is high the engine reports idle=0 by design
+        # (ctrlrd_engine_idle = READ_IDLE && !r_channel_reset_active && fifo
+        # empty); the check that matters is that it is idle once reset drops.
         idle = int(self.dut.ctrlrd_engine_idle.value)
-        self.log.info(f"  Engine idle after reset: {idle}")
+        self.log.info(f"  Engine idle while reset held: {idle} (0 expected)")
 
         # Deassert reset
         self.dut.cfg_channel_reset.value = 0
         await self.wait_clocks(self.clk_name, 5)
+        idle = int(self.dut.ctrlrd_engine_idle.value)
+        self.log.info(f"  Engine idle after reset released: {idle}")
+        if idle != 1:
+            self.log.error("Engine did not return to idle within 5 cycles of releasing cfg_channel_reset")
+            monitor_active[0] = False
+            return False
 
         # Stop background task
         monitor_active[0] = False

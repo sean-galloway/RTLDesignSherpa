@@ -36,6 +36,7 @@ STRUCTURE FOLLOWS AMBA PATTERN:
 """
 
 import os
+import random
 import sys
 
 import pytest
@@ -146,9 +147,8 @@ async def cocotb_test_monbus_aggregation(dut):
     result, stats = await tb.test_monitor_bus_aggregation(num_events=2)
     tb.finalize_test()
     tb.print_test_summary()
-    # Monitor test is informational
     tb.log.info(f"MonBus aggregation: {stats}")
-    assert True, "MonBus test completed"
+    assert result, f"MonBus aggregation test failed: {stats}"
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -340,7 +340,7 @@ def _run_beats_scheduler_group_array_test(request, testcase_name, num_channels, 
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': str(12345),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_ADDR_WIDTH': str(addr_width),
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_AXI_ID_WIDTH': str(axi_id_width),

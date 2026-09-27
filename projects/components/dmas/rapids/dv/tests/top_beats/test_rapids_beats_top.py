@@ -32,6 +32,7 @@ write responder in the TB.
 """
 
 import os
+import random
 import sys
 
 import pytest
@@ -52,6 +53,12 @@ from projects.components.dmas.rapids.dv.tbclasses.rapids_beats_top_tb import Rap
 # COCOTB TEST FUNCTIONS - thin; logic lives in the TB
 # ===========================================================================
 
+def _beats():
+    """Beats per transfer by TEST_LEVEL (the build is one fixed configuration, so
+    REG_LEVEL selects nothing here; depth is the only axis)."""
+    return {'gate': 4, 'func': 16, 'full': 32}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), 4)
+
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_source_path(dut):
     """SOURCE datapath (memory -> AXIS), configured + kicked over APB by name."""
@@ -59,7 +66,7 @@ async def cocotb_test_source_path(dut):
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
 
-    ok, stats = await tb.test_source_path(channel=0, beats=4)
+    ok, stats = await tb.test_source_path(channel=0, beats=_beats())
 
     tb.finalize_test()
     assert ok, f"source-path datapath failed: {stats.get('errors')}"
@@ -185,7 +192,7 @@ async def cocotb_test_sink_path(dut):
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
 
-    ok, stats = await tb.test_sink_path(channel=0, beats=4)
+    ok, stats = await tb.test_sink_path(channel=0, beats=_beats())
 
     tb.finalize_test()
     assert ok, f"sink-path datapath failed: {stats.get('errors')}"
@@ -405,7 +412,8 @@ def _run_top(testcase, test_name, extra_params=None):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(12345),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
         'TEST_NUM_CHANNELS': '8',
         'TEST_ADDR_WIDTH': '64',
         'TEST_DATA_WIDTH': '512',

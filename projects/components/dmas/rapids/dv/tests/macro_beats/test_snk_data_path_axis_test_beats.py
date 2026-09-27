@@ -38,6 +38,7 @@ STRUCTURE FOLLOWS AMBA PATTERN:
 """
 
 import os
+import random
 import sys
 
 import pytest
@@ -302,7 +303,7 @@ def _run_sink_axis_test(request, testcase_name, num_channels, addr_width, data_w
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': str(12345),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_ADDR_WIDTH': str(addr_width),
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_AXI_ID_WIDTH': str(axi_id_width),

@@ -321,34 +321,33 @@ class SnkSRAMControllerTB(TBBase):
         self.log.debug(f"Drain request: ch={channel}, size={size}")
 
     async def drain_data(self, channel: int) -> Optional[int]:
-        """Read data from SRAM via drain interface.
+        """Read one beat from the SRAM via the ID-select drain port.
 
-        Args:
-            channel: Source channel ID
+        Contract (the write engine is the real consumer): drain_id selects the
+        channel and drain_data shows that channel's head beat in the same cycle;
+        a drain_read handshake pops it at the clock edge. So the beat has to be
+        sampled BEFORE the edge that carries drain_read -- the old helper pulsed
+        drain_read, waited a clock and then read drain_data, i.e. it always
+        returned the beat AFTER the one it popped (0/10 data matches, rapids
+        TASK-003).
 
         Returns:
-            Data word if available, None on timeout
+            Data word if available, None if the channel has nothing to drain
         """
         if channel >= self.TEST_NUM_CHANNELS:
             return None
-
-        # Check if valid data available
         if not self.is_channel_drain_valid(channel):
             return None
-
-        # Issue read
-        self.dut.drain_read.value = 1
         self.dut.drain_id.value = channel
-
-        await self.wait_clocks(self.clk_name, 1)
-
+        self.dut.drain_read.value = 0
+        await self.wait_clocks(self.clk_name, 1)      # mux settles on the selected channel
         try:
             data = int(self.dut.drain_data.value)
         except Exception:
-            data = 0  # Default if read fails
-
+            data = 0
+        self.dut.drain_read.value = 1                  # pop that beat at the next edge
+        await self.wait_clocks(self.clk_name, 1)
         self.drains_done[channel] += 1
-
         self.dut.drain_read.value = 0
 
         # Clear drain_req for this channel after read
@@ -444,7 +443,11 @@ class SnkSRAMControllerTB(TBBase):
 
         # Phase 1: Pass if data flows through (fills and drains succeed)
         # Data verification is informational at this stage
-        success = (fills_ok == count) and (drains_ok == count)
+        # data_matches used to be logged and ignored: a controller returning the
+        # wrong beats passed as long as the handshakes completed (rapids TASK-003)
+        success = (fills_ok == count) and (drains_ok == count) and (data_matches == count)
+        if data_matches != count:
+            self.log.error(f"Data mismatches: {count - data_matches}/{count} drained beats differ from what was filled")
         self.log.info(f"Basic fill/drain test: {'PASSED' if success else 'FAILED'}")
         return success
 

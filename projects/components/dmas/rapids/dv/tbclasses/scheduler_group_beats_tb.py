@@ -219,6 +219,9 @@ class SchedulerGroupBeatsTB(TBBase):
         self.dut.desc_ar_ready.value = 1
         self.dut.sched_wr_ready.value = 1
         self.dut.mon_ready.value = 1
+        if not getattr(self, '_mon_capture_started', False):
+            self._mon_capture_started = True
+            cocotb.start_soon(self._capture_monbus())
 
         await self.wait_clocks(self.clk_name, 5)
         self.log.info("Beats scheduler group initialization completed")
@@ -417,6 +420,18 @@ class SchedulerGroupBeatsTB(TBBase):
         self.dut.sched_wr_commit_strobe.value = 0
         self.completions_sent += 1
         self.log.info(f"WR completion: beats={beats_done}")
+
+    async def _capture_monbus(self):
+        """Count every packet on the group's monitor bus from initialisation on.
+        test_monbus_events used to poll only after the activity that produced
+        them and saw nothing (rapids TASK-003)."""
+        from TBClasses.monbus import parse
+        self.mon_packets = []
+        while True:
+            await self.wait_clocks(self.clk_name, 1)
+            if int(self.dut.mon_valid.value) == 1 and int(self.dut.mon_ready.value) == 1:
+                self.mon_packets.append(parse(int(self.dut.mon_packet.value)))
+                self.mon_packets_received += 1
 
     async def check_monbus_packet(self, timeout: int = 50) -> Optional[int]:
         """Check for monitor bus packet.
@@ -769,21 +784,22 @@ class SchedulerGroupBeatsTB(TBBase):
         self.log.info("=== MonBus Events Test ===")
 
         initial_count = self.mon_packets_received
-
-        # Generate activity to trigger mon events
-        await self.send_apb_request(0x100)
+        n0 = len(getattr(self, 'mon_packets', []))
+        # A bare APB kick never completes here (nothing answers the descriptor
+        # fetch), so no packet could ever appear; run one real descriptor through
+        # the group -- the flow helper models the AXI side -- and then look.
+        if not await self.test_basic_descriptor_flow(num_descriptors=1):
+            self.log.error("MonBus events: the descriptor flow itself failed")
+            return False
         await self.wait_clocks(self.clk_name, wait_cycles)
-
-        # Check for monitor packets
-        for _ in range(10):
-            packet = await self.check_monbus_packet(timeout=20)
-            if packet is not None:
-                self.log.info(f"  MonBus packet received: 0x{packet:016X}")
-
-        events_received = self.mon_packets_received - initial_count
-        self.log.info(f"MonBus events received: {events_received}")
-
-        return events_received > 0
+        pkts = list(getattr(self, 'mon_packets', []))[n0:]
+        kinds = [p.get_packet_type_name() for p in pkts]
+        events_received = len(pkts)
+        self.log.info(f"MonBus events received: {events_received} {sorted(set(kinds))}")
+        if events_received == 0 or 'PktTypeCompletion' not in kinds:
+            self.log.error(f"MonBus events: expected at least one completion after a descriptor fetch, saw {kinds}")
+            return False
+        return True
 
     def generate_test_report(self) -> bool:
         """Generate comprehensive test report."""
