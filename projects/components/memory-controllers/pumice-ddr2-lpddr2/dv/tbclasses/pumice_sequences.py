@@ -21,6 +21,7 @@ looks on the bus.
 
 from __future__ import annotations
 
+import random
 from typing import Callable, List, Optional, Sequence, Tuple
 
 from CocoTBFramework.components.axi4.axi4_sequence import (
@@ -104,6 +105,91 @@ def build_b2b_wr_rd_sequences(
         [payload_fn(bi, ki) for ki in range(burst_len)]
         for bi in range(n_bursts)
     ]
+    return wr_seq, rd_seq, expected
+
+
+def build_random_sequences(
+    *,
+    n_bursts: int,
+    base_addr: int,
+    data_width: int,
+    seed: int,
+    max_burst_len: int = 16,
+    n_ids: int = 8,
+    max_delay: int = 8,
+    name: str = "rand",
+) -> Tuple[AXI4Sequence, AXI4Sequence, List[List[int]]]:
+    """SEEDED RANDOM AXI traffic: random order, lengths, IDs, QoS and pacing.
+
+    WHY A RANDOM BUILDER EXISTS AT ALL. Every other builder here walks one axis
+    deliberately -- back-to-back bursts, an address pattern, a pathological
+    address list -- so between them they reach the states somebody thought of.
+    A defect that needs a particular INTERLEAVING is on none of those paths: a
+    write turnaround landing as another bank's row closes, a read returning
+    while a differently-IDed read is still outstanding, a short burst straddling
+    a DRAM burst boundary behind a long one. Those need traffic nobody designed.
+
+    WHAT IS RANDOMISED, and why each one matters to THIS controller:
+      * burst ORDER -- addresses are visited in a shuffled order, so the
+        bank/row sequence the scheduler sees is not monotonic. A monotonic walk
+        is the easiest possible case for an open-page policy.
+      * burst LENGTH -- 1..max_burst_len beats. pumice pads a short write out to
+        a whole DRAM burst with zero-strobe filler and trims a long read down,
+        so mixed lengths exercise the splitter and intake paths that equal-length
+        traffic never leaves.
+      * AXI ID -- up to n_ids distinct IDs, which is what puts more than one
+        transaction in the read-reorder CAM at once. Single-ID traffic retires
+        in order and cannot show a reorder defect.
+      * QoS and inter-burst DELAY -- so arrival pacing varies rather than being
+        whatever back-to-back happens to produce.
+
+    WHAT IS NOT RANDOMISED, deliberately: the ADDRESS SLOTS. Bursts are placed in
+    distinct, non-overlapping slots and then shuffled. Overlapping random writes
+    would make the expected read-back data depend on write ORDER, and AXI gives
+    no ordering guarantee between different IDs -- so the oracle would be
+    ambiguous exactly where the traffic is most interesting, and a genuine
+    reorder bug would be indistinguishable from the test not knowing the answer.
+    Distinct slots keep the oracle exact while leaving every other axis free.
+
+    Returns the same (wr_seq, rd_seq, expected) triple as the other builders;
+    the read sequence revisits the same slots in a DIFFERENT shuffled order.
+    """
+    rng = random.Random(seed)
+    bytes_per_beat = data_width // 8
+    slot_bytes = max_burst_len * bytes_per_beat
+
+    # one slot per burst, each with its own randomly chosen length
+    lengths = [rng.randint(1, max_burst_len) for _ in range(n_bursts)]
+    payload = [[((bi & 0xFFFF) << 16) | (ki & 0xFFFF) for ki in range(lengths[bi])]
+               for bi in range(n_bursts)]
+
+    wr_order = list(range(n_bursts))
+    rng.shuffle(wr_order)
+    wr_seq = AXI4Sequence(f"{name}_wr", data_width=data_width)
+    for bi in wr_order:
+        wr_seq.add_write(
+            base_addr + bi * slot_bytes,
+            data=payload[bi],
+            axid=rng.randrange(n_ids),
+            qos=rng.randrange(16),
+            delay=rng.randrange(max_delay + 1),
+        )
+
+    rd_order = list(range(n_bursts))
+    rng.shuffle(rd_order)
+    rd_seq = AXI4Sequence(f"{name}_rd", data_width=data_width)
+    for bi in rd_order:
+        rd_seq.add_read(
+            base_addr + bi * slot_bytes,
+            length=lengths[bi],
+            axid=rng.randrange(n_ids),
+            qos=rng.randrange(16),
+            delay=rng.randrange(max_delay + 1),
+        )
+
+    # expected is in READ-SEQUENCE order, because that is the order the results
+    # come back in and the order the caller compares against.
+    expected: List[List[int]] = [payload[bi] for bi in rd_order]
     return wr_seq, rd_seq, expected
 
 

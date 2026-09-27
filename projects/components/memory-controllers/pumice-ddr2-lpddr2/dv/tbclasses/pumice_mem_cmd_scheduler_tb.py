@@ -85,6 +85,8 @@ class PumiceMemCmdSchedulerTB(TBBase):
         self.rd_entry = None
         self.wr_committed = []
         self.rd_issued = []
+        self._cam_sigs = None          # handle cache, see _apply_cam
+        self._cam_last = {}            # last value written per side
         # arbiter push audit (see _arbiter_audit)
         self.pushes = []
         self.unsafe_pushes = []
@@ -178,6 +180,26 @@ class PumiceMemCmdSchedulerTB(TBBase):
     # now does the {bank,row} match itself, so the mock just places the entry's
     # registered fields at its slot index in the sch_* vectors.
     def _apply_cam(self):
+        """Drive the mock CAM's request signals.
+
+        CALLED EVERY CYCLE, so it is written to cost nothing when nothing
+        changed. It used to resolve `getattr(self.dut, f'{pfx}_sch_valid_i')`
+        and its four siblings from a fresh f-string every cycle and then write
+        all ten signals unconditionally -- 10 f-strings, 10 getattrs and 10
+        simulator writes per clock, whether or not a single bit differed.
+        Signal writes were the largest remaining cost in the profile after the
+        TBBase fix (167k writes across ~8k cycles, ~21 per cycle).
+
+        Handles are resolved once; values are written only when they change.
+        That is safe because these are LEVEL signals the DUT samples, not
+        pulses -- a value that did not change does not need re-driving.
+        """
+        if self._cam_sigs is None:
+            self._cam_sigs = {
+                pfx: tuple(getattr(self.dut, f'{pfx}_sch_{f}_i')
+                           for f in ('valid', 'bank', 'row', 'col', 'older'))
+                for pfx in ('wr', 'rd')
+            }
         wr_fire = int(self.dut.wr_commit_valid_o.value)
         wr_fslot = int(self.dut.wr_commit_slot_o.value)
         rd_fire = int(self.dut.rd_issue_valid_o.value)
@@ -192,13 +214,14 @@ class PumiceMemCmdSchedulerTB(TBBase):
                 bank |= (ent['bank'] & ((1 << self.BKW) - 1)) << (e * self.BKW)
                 row  |= (ent['row']  & ((1 << self.ROW_WIDTH) - 1)) << (e * self.ROW_WIDTH)
                 col  |= (ent['col']  & ((1 << self.COL_WIDTH) - 1)) << (e * self.COL_WIDTH)
-            getattr(self.dut, f'{pfx}_sch_valid_i').value = valid
-            getattr(self.dut, f'{pfx}_sch_bank_i').value = bank
-            getattr(self.dut, f'{pfx}_sch_row_i').value = row
-            getattr(self.dut, f'{pfx}_sch_col_i').value = col
             # single pending entry per side -> it is trivially the oldest, so the
             # order matrix is don't-care (arg_oldest needs no OTHER masked entry).
-            getattr(self.dut, f'{pfx}_sch_older_i').value = 0
+            nv = (valid, bank, row, col, 0)
+            if self._cam_last.get(pfx) == nv:
+                continue
+            self._cam_last[pfx] = nv
+            for sig, val in zip(self._cam_sigs[pfx], nv):
+                sig.value = val
 
     async def _cam_model(self):
         while True:

@@ -38,6 +38,7 @@ from CocoTBFramework.components.axi4.axi4_sequence import (  # noqa: E402
 )
 from tbclasses.pumice_sequences import (  # noqa: E402
     build_b2b_wr_rd_sequences, build_addr_pattern_sequences,
+    build_random_sequences,
     build_patho_addresses,
 )
 
@@ -540,6 +541,44 @@ async def cocotb_test_pumice_top(dut):
             n_bursts=n, burst_len=BL_WORDS, base_addr=BASE, data_width=DW)
         await _wr_rd_check(tb, wr, rd)
         tb.log.info(f"PASS {test_type}: {n} back-to-back bursts (BFM) vs golden")
+        return
+
+    # ---- SEEDED RANDOM SOAK: the traffic nobody designed ------------------
+    # Every other scenario in this file walks an axis on purpose, so between them
+    # they reach the states somebody thought of. This one randomises burst order,
+    # burst LENGTH, AXI ID, QoS and inter-burst delay all at once, which is what
+    # puts several differently-IDed transactions in the read-reorder CAM while a
+    # short write is being padded out to a whole DRAM burst behind a long one.
+    #
+    # The oracle is unchanged and exact: _wr_rd_check compares the golden
+    # MemoryModel against each transaction's OWN address, so out-of-order read
+    # completion across IDs is handled by construction. The builder places bursts
+    # in distinct slots precisely so that stays true -- overlapping random writes
+    # would make the expected data depend on an ordering AXI does not guarantee
+    # between different IDs, and a real reorder bug would then be
+    # indistinguishable from the test not knowing the answer.
+    #
+    # SEEDED from the suite's own SEED, so a failure replays
+    # (project_seed_rerun_masks_failures).
+    if test_type == "random_soak":
+        n = {"gate": 16, "basic": 16, "func": 64, "medium": 64,
+             "full": 256}.get(level, 16)
+        seed = int(os.environ.get("SEED", "0"))
+        wr, rd, exp = build_random_sequences(
+            n_bursts=n, base_addr=BASE, data_width=DW, seed=seed,
+            max_burst_len=16, n_ids=8, max_delay=8)
+        await _wr_rd_check(tb, wr, rd, drain=600)
+        lens = sorted({len(e) for e in exp})
+        tb.log.info("PASS random_soak: %d random bursts, seed=%d, "
+                    "burst lengths present=%s, 8 ids, randomised QoS+delay",
+                    n, seed, lens)
+        # A soak that happened to draw one length, or one id, proves much less
+        # than its name suggests -- so say what it actually drew, and fail if the
+        # randomisation collapsed.
+        assert len(lens) >= min(4, n), (
+            f"random_soak drew only {len(lens)} distinct burst lengths from "
+            f"{n} bursts ({lens}) -- the randomisation is not varying, so this "
+            f"is a back-to-back test wearing a soak's name.")
         return
 
     # ---- burst-length coverage: EVERY legal AxLEN must work ----
@@ -1228,7 +1267,8 @@ _FUNC = ["smoke", "configure_via_csr", "axi_write_smoke", "wr_rd_roundtrip",
          "wr_rd_b2b_multi", "wr2rd_forward_burst", "wr_rd_bank_sweep",
          "fresh_read_each_bank", "row_hit_pattern", "workload_mix",
          "wr_rd_ooo_multi_id", "open_page_workload", "adapt_time_workload",
-         "smoke_lpddr2", "open_page_lpddr2", "workload_mix_lpddr2"]
+         "smoke_lpddr2", "open_page_lpddr2", "workload_mix_lpddr2",
+         "random_soak"]
 
 
 # ---- PUMICE-037: concurrent read + write, reader paced ---------------------
