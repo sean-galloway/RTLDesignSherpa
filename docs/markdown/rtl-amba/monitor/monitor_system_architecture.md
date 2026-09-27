@@ -582,6 +582,17 @@ hides the tail that actually matters.
 
 ## Configuration cautions
 
+**`cam_clear` is legal only while the monitor is idle.** Idle means no
+outstanding transactions in the table and no packet in flight through the
+reporter or the output queue. The clear empties the table synchronously and
+does not flush what the reporter is still assembling, so a clear issued a cycle
+or two after a completion can leave a packet behind it; on a clock-gated
+wrapper at idle-count 0 that packet is stranded, because the table going empty
+was the last thing holding the clock (amba ISSUE-002, closed as this rule).
+Software sequence: stop traffic, wait for `busy` low and `monbus_valid` low,
+then clear. The clock-gating test does exactly that -- it waits for the
+completion packet to be delivered before its housekeeping clear.
+
 Two that have bitten before:
 
 - **Do not enable every packet type at once.** `cfg_compl_enable` together with

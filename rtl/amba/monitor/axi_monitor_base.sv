@@ -135,7 +135,7 @@ module axi_monitor_base
     // Global Clock and Reset
     input  logic                     aclk,
     input  logic                     aresetn,
-    input  logic                     clear,   // sync clear: empty the trans CAM + active_count
+    input  logic                     clear,   // sync clear: empty the trans CAM + active_count. Legal ONLY while the monitor is idle (no outstanding transactions, no packet in flight); a clear during traffic is a contract violation, not a corner case (amba ISSUE-002)
 
     // Address-range packet filter configuration (active when
     // ADDR_FILTER_ENABLE=1). Inclusive [low, high]; a transaction whose

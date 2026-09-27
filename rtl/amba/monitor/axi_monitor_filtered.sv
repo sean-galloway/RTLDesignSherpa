@@ -103,7 +103,7 @@ module axi_monitor_filtered
     // Clock and Reset
     input  logic                        aclk,
     input  logic                        aresetn,
-    input  logic                        clear,   // sync clear: trans CAM + active_count
+    input  logic                        clear,   // sync clear: trans CAM + active_count. Legal only while idle (amba ISSUE-002)
 
     // Command interface
     input  logic [ADDR_WIDTH-1:0]       cmd_addr,

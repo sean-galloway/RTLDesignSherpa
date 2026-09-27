@@ -1,7 +1,7 @@
 # ISSUE-002: cam_clear inside the reporter's emission window strands the completion packet under aggressive clock gating
 
 **Priority:** P3
-**Status:** open
+**Status:** closed 2026-09-27 (opened 2026-09-26) -- recorded no-action: the sequence is illegal
 **Owner:** TBD
 
 ## What was observed
@@ -37,7 +37,17 @@ before it clears (the housekeeping it was always meant to be). Whether the
 reporter's in-flight packet should count as a liveness term (it did for
 `w_monbus_valid`, TASK-070) is the design question this issue holds.
 
-## Resolves into
+## Resolution (Sean, 2026-09-27): "Clearing the table outside of idle is illegal"
+
+Not a defect. `cam_clear` is legal only while the monitor is idle: no
+outstanding transactions and no packet in flight. The observed stranding is
+what an illegal clear does, and the RTL need not defend against it. The
+contract is now written on the `clear` port of `axi_monitor_base`,
+`axi_monitor_filtered` and `axi_monitor_lite`, and under "Configuration
+cautions" in `monitor_system_architecture.md`. The gating test already
+clears only after the completion packet has been delivered.
+
+## Resolves into (as originally filed)
 
 A task on `axi4_*_mon_cg` (extend the activity term with the reporter FIFO's
 non-empty flag, or have `cam_clear` also flush the reporter) or a recorded

@@ -12,13 +12,16 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
 
 - **ISSUE-000** — reserved template; copy the file, do not file against it.
 - **ISSUE-001** — monbus_axil4_axil4_group misses 10 ns on Artix-7 through the s1_beats_to_limit CARRY4 chain (found synthesizing the amba/monitor-lite TASK-001 lite fixture)
-- **ISSUE-002** — cam_clear inside the reporter's emission window strands the completion packet under aggressive clock gating (`_mon_cg` slave wrappers, idle-count 0; the `_monlite_cg` wrappers are unaffected)
+
+## Closed
+
+- **ISSUE-002** — cam_clear inside the reporter's emission window strands the completion packet under aggressive gating. CLOSED 2026-09-27, no-action: clearing outside idle is illegal (Sean); contract written on the clear ports and in monitor_system_architecture.md.

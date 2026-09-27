@@ -434,5 +434,7 @@ The BFM rewrite tightened the phase timing and found one more thing: a
 `cam_clear` pulsed inside the full monitor's reporter emission window at
 idle-count 0 strands the completion packet on the AXI4/AXIL4/AXIL5 slave
 `_mon_cg` wrappers (6 of 32 cells). The test now delivers before it clears;
-the race is amba ISSUE-002. The `_monlite_cg` wrappers do not show it.
+filed as amba ISSUE-002 and closed the next day as no-action: Sean, "Clearing the
+table outside of idle is illegal" -- the contract is now on the clear ports. The
+`_monlite_cg` wrappers do not show it either way.
 

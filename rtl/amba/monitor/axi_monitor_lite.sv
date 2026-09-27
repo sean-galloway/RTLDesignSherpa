@@ -95,7 +95,7 @@ module axi_monitor_lite
 ) (
     input  logic                  aclk,
     input  logic                  aresetn,
-    input  logic                  clear,          // synchronous: empty the table, zero the counters
+    input  logic                  clear,          // synchronous: empty the table, zero the counters. Legal only while idle -- no outstanding transactions, nothing queued (amba ISSUE-002)
 
     // Side-band time, sampled into monbus_timestamp with every packet
     input  monbus_timestamp_t     i_mon_time,
