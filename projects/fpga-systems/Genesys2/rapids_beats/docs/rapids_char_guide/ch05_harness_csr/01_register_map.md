@@ -64,6 +64,7 @@ The identity register: region-2 `CTRL`/`ID` @ 0x000 reads **`0x5241_5031`**
 | `MON_FLUSHWM` | 0x58 | `value` | [15:0] | RW | Monitor flush watermark |
 | `CH_SEL` | 0x60 | `value` | — | RW | Selects the channel for indexed CRC reads |
 | `OBS_CTRL` | 0xC0 | `arm` | [0] | W | Pulse: re-arm the bus meters |
+| `RESP_DELAY` | 0xC4 | `rd_delay` / `wr_delay` | [15:0] / [31:16] | RW | Memory-latency model (STREAM knob 5): per-beat hold, in aclk cycles, injected by `axi_response_delay` on the source read's R channel and the sink write's B channel. 0 = one register stage. |
 
 : Harness CSR — control registers
 

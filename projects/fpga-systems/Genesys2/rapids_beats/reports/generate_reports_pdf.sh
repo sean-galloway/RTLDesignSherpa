@@ -25,7 +25,12 @@ ONLY="all"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # reports/ -> rapids_beats/ -> NexysA7/ -> projects/ -> repo root
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+# REPO_ROOT from the environment (source env_python) when set; the relative walk
+# is a fallback and must be FIVE levels up: this script lives at
+# projects/fpga-systems/Genesys2/rapids_beats/reports/. The four-level walk from
+# before the rapids_beats move resolved to projects/, and md_to_docx.py was
+# "not found" from there.
+REPO_ROOT="${REPO_ROOT:-$(cd "${SCRIPT_DIR}/../../../../.." && pwd)}"
 
 show_help() {
   cat <<EOF

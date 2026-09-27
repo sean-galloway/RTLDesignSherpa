@@ -39,6 +39,9 @@ source env_python            # from the repo root: sets PYTHONPATH + provides
 | `0x2_0000` HARNESS CSR | byte offsets | gen/chk/mem/mon control + status readback. `ID` @ `0x00` = `0x52415031` ("RAP1"); `STATUS` @ `0x80`; beat totals @ `0x84-0x94`; sched errors @ `0x98/0x9C`; per-channel CRC arrays @ `0xA0-0xAC` indexed by `CH_SEL` @ `0x60`; valid masks @ `0xB0-0xBC`. |
 
 These offsets are taken directly from the `rapids_char_top.sv` header.
+`RESP_DELAY` @ `0xC4` (region 2) programs the memory-latency model on the R and
+B channels; `run_characterization.py --suite-delay` sweeps it. Region `0x3_0000`
+is the interface observers' `obs_regs` maps (`USE_OBSERVERS=1` builds only).
 
 ## Usage
 

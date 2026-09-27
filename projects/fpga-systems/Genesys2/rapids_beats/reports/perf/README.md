@@ -1,5 +1,12 @@
 # RAPIDS Beats DMA — Performance Characterization (Genesys 2, 8 channels)
 
+> **v1.2 (2026-09-27).** Section 7 adds the STREAM five-knob characterization
+> measured by the shared interface observers (`axi4_intf_master_observer` on the
+> AXI4 masters, `axis4_intf_observer` on both AXIS links) instead of the harness's
+> bare meters, on a bitstream that also fixes a source-path regression the campaign
+> found (rapids BUG-003 / stream BUG-011). Sections 1-6 are the v1.1 bare-meter
+> record and stand as measured.
+
 **Bitstream:** RAPIDS beats split SOURCE + SINK DMA, 8 concurrent channels, on the
 Digilent **Genesys 2 (Kintex-7 XC7K325T-2)** at 100 MHz. The AXI4 and AXIS4
 datapaths are **512 bits wide (64 B/beat)**, so the one-direction line rate is
@@ -208,17 +215,225 @@ return to idle on its own at end-of-descriptor so no host reset is needed — th
 
 ## 6. Other limitations
 
-- **No memory-latency axis.** The synthetic slaves are zero-latency, so — unlike
-  STREAM — there is no `response-delay` knob to show the in-flight-window limit.
-  Adding a `RESP_DELAY` CSR to the pattern slaves is the natural v1.1 extension.
+- **No memory-latency axis (v1.1).** Superseded in v1.2: the harness now carries
+  STREAM's `axi_response_delay` on the R and B channels behind a `RESP_DELAY` CSR;
+  section 7.5 is that sweep.
 
 ---
+
+
+## 7. The STREAM knob set, measured by the interface observers (v1.2)
+
+STREAM characterizes a DMA on five knobs -- beats per transaction, transactions
+per descriptor, descriptors per channel, channels, and memory latency -- and
+reads the datapath through instruments that sit outside the DUT. This section
+does the same on RAPIDS beats, with two changes to the v1.1 setup:
+
+- **The instruments are the shared observers.** `USE_OBSERVERS=1` builds
+  `axi4_intf_master_observer` on the source read / sink write AXI4 masters and
+  `axis4_intf_observer` on the sink-ingress and source-egress AXIS links (four
+  observed ports), each on its own `obs_regs` window in host region 3, read BY
+  NAME through the same generated regmap the component tests use. Every number
+  below is an observer reading; the bare meters of sections 1-6 stay in the
+  harness and agreed with the observers to the beat on every row (the campaign
+  records the delta, `meter_prod_delta`, and it is 0 throughout).
+- **Two knobs the v1.1 host could not turn.** Burst length
+  (`AXI_XFER_CONFIG.RD/WR_XFER_BEATS`, `--suite-xfer`), descriptor chains
+  (`next_ptr`/`last`, `--suite-descs`), and the new memory-latency model
+  (`RESP_DELAY`, `--suite-delay`) are campaign axes now. Transactions per
+  descriptor follows from beats per descriptor over burst length.
+
+Bitstream: `USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0` (meters and latency
+histograms, no monbus event taps), post-route WNS +1.317 ns at 100 MHz, 65.5 BRAM
+tiles (the 512-deep R-channel delay queue is in block RAM). All **67 configurations
+pass the golden CRC on both paths**: A 20/20, B 7/7, C+D 28/28, E 12/12.
+
+### 7.0 The regression this campaign found first
+
+The first observer run failed every SOURCE row at >= 1024 beats (`beat_total=1020
+of 1024`) and read the source at ~50 % where v1.1 had 96-100 %. The bare
+bitstream failed identically, the sim reproduced it, and a bisect over the rapids
+RTL tree (REPO_ROOT overlays, never a checkout) landed on `bdf4e0dff`, the commit
+that replaced rapids' SRAM controller with STREAM's. Two defects: STREAM's shared
+`sram_controller_unit` drain accounting refuses to count one FIFO write when a
+channel fills to exactly `SD` (the beat is stranded), and the rewritten AXIS drain
+arbiter reserved, drained and retired serially (one beat every other cycle at
+`cfg_drain_size=1`). Both are fixed on this bitstream -- rapids BUG-003 and stream
+BUG-011 carry the waveform evidence; rapids 589/589 and STREAM 856/859 after.
+
+### 7.1 Headline: line rate on all four interfaces
+
+At 8 channels x 256 KB the four observers read **99.4 / 100.0 / 100.0 / 100.0 %**
+(AXIS-in, AXI4-wr, AXI4-rd, AXIS-out), i.e. **6.36 / 6.40 / 6.40 / 6.40 GB/s**
+against the **6.40 GB/s** one-direction line rate (64 B x 100 MHz); the AXIS
+byte-derived cross-check gives 6.36 and 6.40 GB/s. Channel scaling is flat:
+
+| Channels (4096 beats/ch) | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out |
+|---:|---:|---:|---:|---:|
+| 1 | 98.6 % | 99.8 % | 99.7 % | 99.7 % |
+| 2 | 98.9 % | 99.8 % | 99.8 % | 99.8 % |
+| 4 | 99.2 % | 99.9 % | 99.9 % | 99.9 % |
+| 8 | 99.4 % | 100.0 % | 100.0 % | 100.0 % |
+
+: Table 7.1 -- observer engaged utilization vs active channels (phase D)
+
+![observer utilization vs channel count](plots/obs_channel_scaling.png)
+
+: Figure 7.1 -- observer utilization vs channel count at 256 KB/channel.
+
+### 7.2 Transfer size (phase C): the amortization knee
+
+| beats/ch | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | wr GB/s | rd GB/s | rd bursts | AR->RLAST | AW->B |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 3.8 % | 38.1 % | 28.6 % | 28.6 % | 2.44 | 1.83 | 8 | 6 | 6 |
+| 4 | 14.0 % | 84.2 % | 71.1 % | 71.1 % | 5.39 | 4.55 | 8 | 12 | 12 |
+| 16 | 39.4 % | 95.5 % | 90.8 % | 90.8 % | 6.11 | 5.81 | 16 | 23 | 23 |
+| 64 | 72.0 % | 98.5 % | 97.5 % | 97.5 % | 6.30 | 6.24 | 64 | 22 | 23 |
+| 256 | 91.0 % | 99.4 % | 99.4 % | 99.4 % | 6.36 | 6.36 | 232 | 24 | 24 |
+| 1024 | 97.6 % | 99.8 % | 99.8 % | 99.8 % | 6.39 | 6.39 | 912 | 24 | 24 |
+| 4096 | 99.4 % | 100.0 % | 100.0 % | 100.0 % | 6.40 | 6.40 | 3648 | 24 | 24 |
+
+: Table 7.2 -- size sweep at 8 channels; latencies are observer-histogram means in aclk cycles
+
+The three DMA-side interfaces are above 90 % from 16 beats (1 KB) per channel
+and within 0.6 % of line rate from 1024. The AXIS-in column lags because its
+window is the sink-INGRESS window (armed at GO, before the sink's write side is
+busy), so it carries the generator start-up that the other three windows exclude;
+at 256 KB that cost has amortized to 0.6 %. `rd bursts` confirms the 9-beat burst
+shape (`AxLEN` 8) from 64 beats up. AR->RLAST settles at 24 cycles: the pattern
+slave's fixed response plus a 9-beat burst.
+
+![observer utilization vs size](plots/obs_size_util.png)
+
+: Figure 7.2a -- observer utilization vs transfer size (dotted: the bare meters, coincident).
+
+![observer bandwidth vs size](plots/obs_size_bw.png)
+
+: Figure 7.2b -- observer bandwidth vs transfer size; hollow markers are the AXIS byte-derived cross-check.
+
+![AXI latency vs size](plots/obs_latency.png)
+
+: Figure 7.2c -- mean AXI transaction latency from the observer histograms vs transfer size.
+
+### 7.3 Descriptors x channels (phase A): the STREAM matrix
+
+{1, 2, 4, 8, 16} descriptors per channel x {1, 2, 4, 8} channels, 1024 beats
+(64 KB) per descriptor, chained through `next_ptr` and closed with `last`:
+
+| descs/ch | 1 ch wr / sout | 2 ch | 4 ch | 8 ch |
+|---:|---:|---:|---:|---:|
+| 1 | 99.3 / 98.7 % | 99.7 / 99.4 % | 99.6 / 99.7 % | 99.8 / 99.8 % |
+| 2 | 98.9 / 99.4 % | 99.0 / 99.7 % | 99.1 / 99.8 % | 99.1 / 99.9 % |
+| 4 | 98.7 / 99.7 % | 98.7 / 99.8 % | 98.8 / 99.9 % | 98.8 / 100.0 % |
+| 8 | 98.6 / 99.8 % | 98.6 / 99.9 % | 98.6 / 100.0 % | 98.6 / 100.0 % |
+| 16 | 98.5 / 99.9 % | 98.5 / 100.0 % | 98.5 / 100.0 % | 98.5 / 100.0 % |
+
+: Table 7.3 -- AXI4-wr (sink) / AXIS-out (source) utilization over the descriptor x channel matrix
+
+Flat, as STREAM's is: neither chain length nor channel count moves the datapath
+off line rate. The one visible structure is the sink write side settling 1.5 %
+below the source as chains lengthen -- the per-descriptor dispatch on the write
+engine costs a fixed handful of cycles per descriptor boundary, which the source
+egress does not pay.
+
+![descriptor matrix](plots/obs_desc_matrix.png)
+
+: Figure 7.3 -- the descriptor x channel matrix from the observers.
+
+### 7.4 Burst length (phase B): the transaction-size knee
+
+`AXI_XFER_CONFIG` AxLEN {0, 1, 3, 7, 15, 31, 63} = {1 .. 64}-beat bursts at 8
+channels x 1024 beats:
+
+| beats/burst | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | AR->RLAST | AW->B |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 24.0 % | 23.2 % | 91.3 % | 91.3 % | 6 | 6 |
+| 2 | 43.6 % | 42.4 % | 99.8 % | 99.8 % | 12 | 12 |
+| 4 | 99.6 % | 99.0 % | 99.8 % | 99.8 % | 12 | 12 |
+| 8 | 100.0 % | 99.7 % | 99.8 % | 99.8 % | 24 | 24 |
+| 16 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 48 | 48 |
+| 32 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 96 | 94 |
+| 64 | 99.7 % | 99.1 % | 99.8 % | 99.8 % | 191 | 180 |
+
+: Table 7.4 -- burst-length sweep; latencies in aclk cycles
+
+The knee is at **4 beats**: below it the SINK path collapses (23 % at single-beat
+bursts, 42 % at 2) while the SOURCE path holds 91-100 %. That asymmetry is the two
+engines' outstanding depth -- the read engine keeps enough ARs in flight to hide a
+one-beat burst's round trip, the write engine cannot, and at one beat per AW the
+sink is AW-issue bound. STREAM's knee sits at the same place (~3 beats). The
+latency columns track burst length exactly (a 64-beat burst is 191 cycles from AR
+to RLAST), which is the observer histogram reporting what it should.
+
+![burst-length knee](plots/obs_xfer_knee.png)
+
+: Figure 7.4 -- utilization vs burst length; the sink write path needs >= 4-beat bursts.
+
+### 7.5 Memory latency (phase E): the in-flight window
+
+`RESP_DELAY` holds every R beat and every B response for N cycles (the
+`axi_response_delay` model, which pipelines: throughput is limited only by how
+many beats the DUT keeps in flight), at 8 channels x 1024 beats:
+
+| delay (cyc) | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | rd GB/s | wr GB/s | AR->first R | AR->RLAST | AW->B |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 100.0 % | 99.8 % | 99.8 % | 99.8 % | 6.39 | 6.39 | 24 | 24 | 24 |
+| 8 | 100.0 % | 99.4 % | 99.8 % | 99.8 % | 6.38 | 6.36 | 24 | 48 | 47 |
+| 16 | 98.8 % | 98.2 % | 99.7 % | 99.7 % | 6.38 | 6.28 | 48 | 48 | 48 |
+| 32 | 93.6 % | 93.0 % | 99.5 % | 99.5 % | 6.37 | 5.96 | 48 | 48 | 48 |
+| 48 | 91.4 % | 91.0 % | 98.7 % | 98.7 % | 6.32 | 5.82 | 94 | 96 | 93 |
+| 64 | 89.7 % | 89.2 % | 97.6 % | 97.6 % | 6.25 | 5.71 | 96 | 96 | 93 |
+| 96 | 78.9 % | 78.5 % | 95.0 % | 95.0 % | 6.08 | 5.02 | 94 | 95 | 91 |
+| 128 | 67.5 % | 67.2 % | 88.8 % | 88.8 % | 5.68 | 4.30 | 160 | 170 | 111 |
+| 192 | 60.8 % | 60.5 % | 71.5 % | 71.5 % | 4.58 | 3.87 | 156 | 168 | 140 |
+| 256 | 48.0 % | 47.7 % | 57.4 % | 57.4 % | 3.67 | 3.05 | 264 | 274 | 195 |
+| 384 | 33.8 % | 33.5 % | 40.3 % | 40.3 % | 2.58 | 2.14 | 309 | 320 | 269 |
+| 512 | 26.1 % | 25.8 % | 31.1 % | 31.1 % | 1.99 | 1.65 | 516 | 530 | 351 |
+
+: Table 7.5 -- latency sweep; histogram means are log2-binned, so they step
+
+Little's law makes the knee readable directly: sustained beats/cycle x latency =
+beats in flight. The SOURCE read path holds >= 97.6 % to 64 cycles and >= 95 %
+to 96, then falls as `0.888 x 128 = 114`, `0.715 x 192 = 137`, `0.574 x 256 = 147`,
+`0.311 x 512 = 159` -- an asymptote of **~160 beats in flight across 8 channels,
+~20 per channel, i.e. about two 9-beat bursts per channel**. The SINK write path
+knees earlier (93 % at 32, 89 % at 64) and asymptotes lower (`0.258 x 512 = 132`,
+~16 beats per channel): the write engine's window on the B response is one to two
+bursts. STREAM's window on the same knobs is ~128 beats per channel (8 outstanding
+x 16-beat bursts) and its knee sits at 96-112 cycles; RAPIDS beats at the shipped
+9-beat bursts is window-bound roughly two to three times earlier. Widening the
+window -- larger `AxLEN`, or more outstanding per channel -- is the lever, and
+section 7.4 shows the DUT already runs 32- and 64-beat bursts at line rate.
+
+Two honesty notes from the instruments themselves. The observer latency means
+follow the injected delay (24 -> 48 -> 96 -> 160 -> 264 -> 320 -> 530 cycles for
+0 .. 512 injected), which is the delay model and the histogram agreeing. And from
+48 cycles up the AXI observer sets `OBS_STICKY.HIST_SAMPLE_LOST`: with more than
+`HIST_MAX_OUTSTANDING = 8` commands per channel in flight its timestamp FIFO
+overflows, so those means are from a subset of transactions (the utilization
+counters are unaffected). Raising `HIST_MAX_OUTSTANDING` on the harness's
+observer instance is the follow-up if exact latency distributions are wanted at
+high injected delay.
+
+![latency knee](plots/obs_latency_knee.png)
+
+: Figure 7.5 -- utilization vs injected memory latency, all four observers.
+
+### 7.6 What the observers add over the bare meters
+
+Same utilization numbers (to the beat), plus what a meter cannot give: burst
+counts, the AR->first-R / AR->RLAST / AW->B latency distributions, exact AXIS
+bytes and packets per port with per-`tid` attribution, the tap's own packet count
+as a cross-check, and a sticky bit that says when a number undercounts. All of it
+through one register map shared with STREAM's harness, so the host code and the
+report generator are the same on both DMAs.
 
 ## Appendix: data files & reproduce
 
 | File | Contents |
 |------|----------|
-| `perf/json/genesys_full_matrix.json` | channel × size matrix (this report) |
+| `perf/json/genesys_obs_{A,B,C,E}.json` | v1.2 observer campaign: descriptors x channels, burst length, size x channels, latency |
+| `perf/json/genesys_full_matrix.json` | channel × size matrix (v1.1, bare meters) |
 | `perf/json/genesys_8ch_*.json` | earlier back-to-back runs (show the pre-fix wedge) |
 | `perf/plots/*.png` | figures above (`flows-rapids-beats/host/plot_char_reports.py`) |
 
@@ -237,6 +452,21 @@ python3 projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/host/plot
 
 # this report (DOCX + PDF, house style):
 cd projects/fpga-systems/Genesys2/rapids_beats/reports && ./generate_reports_pdf.sh --rev 1.0
+
+# v1.2 observer campaign (USE_OBSERVERS=1 bitstream: make bitstream BOARD=genesys2 USE_OBSERVERS=1):
+H=projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/host/run_characterization.py
+J=projects/fpga-systems/Genesys2/rapids_beats/reports/perf/json
+python3 $H --port /dev/ttyUSB0 --channels 8 --suite --suite-bp off --suite-seeds default \
+    --suite-channels 1,2,4,8 --suite-beats 1024 --suite-descs 1,2,4,8,16 --results $J/genesys_obs_A.json
+python3 $H --port /dev/ttyUSB0 --channels 8 --suite --suite-bp off --suite-seeds default \
+    --suite-channels 8 --suite-beats 1024 --suite-xfer 0,1,3,7,15,31,63 --results $J/genesys_obs_B.json
+python3 $H --port /dev/ttyUSB0 --channels 8 --suite --suite-bp off --suite-seeds default \
+    --suite-channels 1,2,4,8 --suite-beats 1,4,16,64,256,1024,4096 --results $J/genesys_obs_C.json
+python3 $H --port /dev/ttyUSB0 --channels 8 --suite --suite-bp off --suite-seeds default \
+    --suite-channels 8 --suite-beats 1024 --suite-delay 0,8,16,32,48,64,96,128,192,256,384,512 --results $J/genesys_obs_E.json
+# figures (size/channel plots from C; obs_desc_matrix / obs_xfer_knee / obs_latency_knee from A / B / E):
+python3 .../host/plot_char_reports.py --size $J/genesys_obs_C.json --outdir .../reports/perf/plots
+cd projects/fpga-systems/Genesys2/rapids_beats/reports && ./generate_reports_pdf.sh --rev 1.2 --only perf
 ```
 
 Genesys 2 host link: JTAG on the FT2232 (`200300B818A0`), UART on the separate

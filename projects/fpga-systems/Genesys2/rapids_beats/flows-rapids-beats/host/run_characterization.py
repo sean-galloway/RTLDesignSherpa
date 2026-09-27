@@ -158,15 +158,59 @@ class RapidsCharCampaign:
         self.write_fields(half, 'DESCENG_ADDR1_BASE',  ADDR1_BASE=0x0000_0000)
         self.write_fields(half, 'DESCENG_ADDR1_LIMIT', ADDR1_LIMIT=0xFFFF_FFFF)
 
-        # RD/WR=8 beats, ALLOC=16, DRAIN=1.
+        # RD/WR_XFER_BEATS hold AxLEN (0 == 1 beat; the engines burst
+        # cfg+1 beats while enough remain), ALLOC=16, DRAIN=1. The AxLEN is a
+        # sweep axis (--suite-xfer, STREAM knob 1 "beats per transaction");
+        # the historical default 8 = 9-beat bursts is kept as the default.
         self.write_fields(half, 'AXI_XFER_CONFIG',
-                          RD_XFER_BEATS=8, WR_XFER_BEATS=8,
+                          RD_XFER_BEATS=self.xfer_axlen, WR_XFER_BEATS=self.xfer_axlen,
                           ALLOC_SIZE=16, DRAIN_SIZE=1)
 
         self.write_fields(half, 'CTRL_CONFIG', CTRLRD_MAX_TRY=1)
         self.write_fields(half, 'CHANNEL_ENABLE', CH_EN=all_ch)
         self.write_fields(half, 'GLOBAL_CTRL', GLOBAL_EN=1)  # avoid RST bit
         self.log.info(f"{half.upper()} half configured via APB (by name)")
+
+    xfer_axlen = 8   # AXI_XFER_CONFIG.{RD,WR}_XFER_BEATS as programmed (AxLEN)
+    resp_delay = 0   # RESP_DELAY: rd (R) and wr (B) hold, aclk cycles (STREAM knob 5)
+
+    def set_resp_delay(self, rd_cyc: int, wr_cyc: int = None) -> None:
+        """Program the harness's axi_response_delay blocks BY NAME: rd_cyc on
+        the R channel, wr_cyc (default = rd_cyc) on B. 0 = one register stage."""
+        wr_cyc = rd_cyc if wr_cyc is None else wr_cyc
+        self.resp_delay = int(rd_cyc)
+        self.io.csr_write_reg("RESP_DELAY", RD_DELAY=int(rd_cyc) & 0xFFFF,
+                              WR_DELAY=int(wr_cyc) & 0xFFFF)
+
+    def set_xfer_axlen(self, axlen: int) -> None:
+        """Re-program the per-transaction burst length (AxLEN, 0..255) on BOTH
+        halves; takes effect on the next descriptor. STREAM knob 1."""
+        self.xfer_axlen = int(axlen)
+        for half in ('src', 'snk'):
+            self.write_fields(half, 'AXI_XFER_CONFIG',
+                              RD_XFER_BEATS=self.xfer_axlen, WR_XFER_BEATS=self.xfer_axlen,
+                              ALLOC_SIZE=16, DRAIN_SIZE=1)
+
+    @staticmethod
+    def _chain(first_addr: int, data_base: int, beats: int, descs: int, ch: int,
+               *, is_src: bool):
+        """A chain of `descs` DATA descriptors for one channel, `beats` each,
+        contiguous in descriptor RAM (32 B apart) and in data memory
+        (beats*64 B apart); next_ptr links them, `last` closes the chain.
+        descs=1 is exactly the single descriptor the campaign always built.
+        STREAM knob 3 "descriptors per channel"."""
+        out = []
+        for n in range(descs):
+            daddr = first_addr + n * 32
+            nxt = (first_addr + (n + 1) * 32) if n + 1 < descs else 0
+            dst = data_base + n * beats * BYTES_PER_BEAT
+            desc = (build_data_descriptor(dst, 0, beats, channel_id=ch,
+                                          last=(n + 1 == descs), next_ptr=nxt)
+                    if is_src else
+                    build_data_descriptor(0, dst, beats, channel_id=ch,
+                                          last=(n + 1 == descs), next_ptr=nxt))
+            out.append((daddr, desc))
+        return out
 
     def configure(self) -> None:
         # Monitor egress window: sane constants (never 0/0, which stalls the
@@ -223,7 +267,7 @@ class RapidsCharCampaign:
     # ---- SINK self-check: AXIS gen -> sink -> m_axi_wr CRC -----------------
 
     def run_sink_selfcheck(self, active_channels, beats: int, timeout_s: float,
-                           base_seed: int = LFSR_SEED_DEFAULT):
+                           base_seed: int = LFSR_SEED_DEFAULT, descs: int = 1):
         """SINK path: AXIS gen -> DUT sink -> m_axi_wr write-CRC.
 
         PASS is anchored on the DATA-path CRC: wr_crc_value[ch] must equal the
@@ -245,12 +289,14 @@ class RapidsCharCampaign:
         self.reset_channels()
 
         # ---- STAGE everything over UART (meter NOT armed yet) ---------------
-        # 1. Load a SINK DATA descriptor per active channel into the SNK RAM.
+        # 1. Load a SINK DATA descriptor chain per active channel into the SNK
+        #    RAM (descs=1 is the single descriptor this always built).
+        total_beats = beats * descs
         for ch in active_channels:
-            desc_addr = DESC_BASE + ch * 0x1000
-            dst_addr = DST_DATA_BASE + ch * CHANNEL_OFFSET
-            desc = build_data_descriptor(0, dst_addr, beats, channel_id=ch)
-            self.io.load_descriptor('snk', desc_addr, descriptor_to_words(desc))
+            for daddr, desc in self._chain(DESC_BASE + ch * 0x1000,
+                                           DST_DATA_BASE + ch * CHANNEL_OFFSET,
+                                           beats, descs, ch, is_src=False):
+                self.io.load_descriptor('snk', daddr, descriptor_to_words(desc))
 
         # 2. Reset the sink-write CRC checker (1-cycle pulse in HW).
         self.io.csr_write_reg("MEM_CTRL", WR_CRC_RESET=1)
@@ -260,7 +306,7 @@ class RapidsCharCampaign:
         #    is the LFSR seed verbatim. Golden uses the matching base_seed.
         seed_csr = 0 if base_seed == LFSR_SEED_DEFAULT else base_seed
         self.io.csr_write_reg("GEN_SEED", VALUE=seed_csr)
-        self.io.csr_write_reg("GEN_NBEATS", VALUE=beats)
+        self.io.csr_write_reg("GEN_NBEATS", VALUE=total_beats)
         self.io.csr_write_reg("GEN_BPP", VALUE=0)        # 0 => one packet per channel
         self.io.csr_write_reg("GEN_CHMASK", VALUE=mask)
         self.io.csr_write_reg("GEN_TDEST", VALUE=0)
@@ -270,7 +316,7 @@ class RapidsCharCampaign:
         #    the wr path completes all `expected_total` writes, so the window
         #    brackets exactly the transfer regardless of when snk_system_idle
         #    (unreliable at large beat counts) asserts.
-        expected_total = beats * n_active
+        expected_total = total_beats * n_active
         self._stage_kicks('snk', mask, start_gen=True)
         self.io.csr_write_reg("OBS_TARGET", VALUE=expected_total)
 
@@ -287,7 +333,7 @@ class RapidsCharCampaign:
         # 6. Golden-anchored scoreboard: wr_crc_value[ch] == golden(ch); the
         #    generator self-CRC is corroboration only (non-fatal on flake).
         return self._score(
-            active_channels, beats, expected_total, ok_idle,
+            active_channels, total_beats, expected_total, ok_idle,
             base_seed=base_seed,
             beat_count_reg="WR_BEATS_T",
             sched_err_reg="SNK_SCHERR",
@@ -299,7 +345,7 @@ class RapidsCharCampaign:
     # ---- SOURCE self-check: m_axi_rd LFSR -> source -> m_axis chk ----------
 
     def run_source_selfcheck(self, active_channels, beats: int, timeout_s: float,
-                             backpressure: bool = False):
+                             backpressure: bool = False, descs: int = 1):
         """SOURCE path: m_axi_rd LFSR gen -> DUT source -> m_axis checker.
 
         PASS validates BOTH data-path CRCs against golden: the read-side memory
@@ -346,16 +392,18 @@ class RapidsCharCampaign:
             self.io.csr_write_reg("CHK_CTRL", CHK_START=1, CHK_READY_EN=1)
             self.io.csr_write_reg("CHK_CTRL", CHK_START=0, CHK_READY_EN=1)
 
-        # 3. Load a SOURCE DATA descriptor per active channel into the SRC RAM.
+        # 3. Load a SOURCE DATA descriptor chain per active channel into the
+        #    SRC RAM (descs=1 is the single descriptor this always built).
+        total_beats = beats * descs
         for ch in active_channels:
-            desc_addr = DESC_BASE + ch * 0x1000
-            src_addr = SRC_DATA_BASE + ch * CHANNEL_OFFSET
-            desc = build_data_descriptor(src_addr, 0, beats, channel_id=ch)
-            self.io.load_descriptor('src', desc_addr, descriptor_to_words(desc))
+            for daddr, desc in self._chain(DESC_BASE + ch * 0x1000,
+                                           SRC_DATA_BASE + ch * CHANNEL_OFFSET,
+                                           beats, descs, ch, is_src=True):
+                self.io.load_descriptor('src', daddr, descriptor_to_words(desc))
 
         # 4. Stage the descriptor kicks (SRC half, no gen) + deterministic
         #    window-close target: freeze after the egress path checks all beats.
-        expected_total = beats * n_active
+        expected_total = total_beats * n_active
         self._stage_kicks('src', mask, start_gen=False)
         self.io.csr_write_reg("OBS_TARGET", VALUE=expected_total)
 
@@ -375,7 +423,7 @@ class RapidsCharCampaign:
         # 6. Golden-anchored scoreboard: rd_crc AND chk_actual_crc == golden.
         #    Source seed is always the DEADBEEF default (see above).
         return self._score(
-            active_channels, beats, expected_total, ok_idle,
+            active_channels, total_beats, expected_total, ok_idle,
             base_seed=LFSR_SEED_DEFAULT,
             beat_count_reg="CHK_BEATS_T",
             sched_err_reg="SRC_SCHERR",
@@ -524,6 +572,47 @@ class RapidsCharCampaign:
                 except Exception as exc:  # noqa: BLE001
                     self.log.warning(f"  {label}: {key} axis extras read failed: {exc}")
             perf['ifaces'][key] = rec
+        # Interface OBSERVERS (region 3, USE_OBSERVERS=1 builds): the same
+        # window, measured by the shared instrument instead of the harness's bare
+        # meters -- apples-to-apples with STREAM. Recorded beside the meters with
+        # a cross-check, plus what the bare meters cannot give: AXI burst counts
+        # and latency histograms, AXIS tap packet counts. Absent -> no key.
+        if self.io.obs_present():
+            perf['observers'] = {}
+            for key, disp in ifaces:
+                try:
+                    o = self.io.read_observer(key, per_channel=self.num_channels)
+                except Exception as exc:  # noqa: BLE001
+                    self.log.warning(f"  {label}: {key} observer read failed: {exc}")
+                    continue
+                orec = {'iface': key, 'util': o['util'],
+                        'eff_bw_gb_s': PEAK_BW_PER_DIR * o['util'] / 1e9,
+                        'peak_bw_gb_s': PEAK_BW_PER_DIR / 1e9, 'buckets': o}
+                if key in ('sin', 'sout') and o['total']:
+                    orec['byte_bw_gb_s'] = o['bytes'] * ACLK_HZ / o['total'] / 1e9
+                if key in ('rd', 'wr'):
+                    try:
+                        orec['latency'] = self.io.read_observer_latency(key)
+                    except Exception as exc:  # noqa: BLE001
+                        self.log.warning(f"  {label}: {key} latency read failed: {exc}")
+                m = perf['ifaces'].get(key, {}).get('buckets')
+                if m:
+                    orec['meter_prod_delta'] = o['prod'] - m['prod']
+                print(f"  {label} {disp} OBSERVER: util={o['util']:.1%} "
+                      f"eff={orec['eff_bw_gb_s']:.2f} GB/s (prod={o['prod']} bp={o['bp']} "
+                      f"starv={o['starv']} idle={o['idle']}"
+                      + (f" bursts={o['bursts']}" if 'bursts' in o else
+                         f" bytes={o['bytes']} pkts={o['packets']} tap_pkts={o['tap_packets']}")
+                      + (f" dprod_vs_meter={orec['meter_prod_delta']}" if m else "") + ")")
+                lat = orec.get('latency') or {}
+                for mname, ld in lat.items():
+                    print(f"    {disp} latency {mname}: n={ld['samples']} mean={ld['mean_cyc']:.1f} "
+                          f"p50={ld['p50_cyc']} p90={ld['p90_cyc']} p99={ld['p99_cyc']} cyc")
+                perf['observers'][key] = orec
+            try:
+                perf['observer_sticky'] = self.io.read_observer_sticky()
+            except Exception as exc:  # noqa: BLE001
+                self.log.warning(f"  {label}: observer sticky read failed: {exc}")
         if not perf['ifaces']:
             perf = None
 
@@ -543,7 +632,7 @@ class RapidsCharCampaign:
     # ---- suite: sweep a matrix, one row per config -------------------------
 
     def run_suite(self, channels_list, beats_list, bp_list, seeds_list,
-                  timeout_s: float):
+                  timeout_s: float, descs_list=(1,), xfer_list=(8,), delay_list=(0,)):
         """Run the full characterization matrix and return a results list.
 
         Sweeps: active-channel counts x beats/channel x source-backpressure x
@@ -556,29 +645,39 @@ class RapidsCharCampaign:
             runs and validates at the default seed.
         """
         rows = []
-        total = (len(channels_list) * len(beats_list)
-                 * len(bp_list) * len(seeds_list))
+        total = (len(channels_list) * len(beats_list) * len(descs_list)
+                 * len(xfer_list) * len(delay_list) * len(bp_list) * len(seeds_list))
         idx = 0
-        for n_active in channels_list:
+        for delay in delay_list:
+         self.set_resp_delay(delay)
+         for xfer in xfer_list:
+          self.set_xfer_axlen(xfer)
+          for n_active in channels_list:
             active = list(range(min(n_active, self.num_channels)))
             for beats in beats_list:
+              for descs in descs_list:
                 for seed in seeds_list:
                     for bp in bp_list:
                         idx += 1
                         seed_lbl = ('default' if seed == LFSR_SEED_DEFAULT
                                     else f"0x{seed:08X}")
-                        name = (f"ch{n_active}_b{beats}_"
+                        name = (f"ch{n_active}_b{beats}_d{descs}_x{xfer}_l{delay}_"
                                 f"bp{'on' if bp else 'off'}_seed{seed_lbl}")
                         print(f"\n[{idx}/{total}] {name}")
                         sink_ok, sink_d = self.run_sink_selfcheck(
-                            active, beats, timeout_s, base_seed=seed)
+                            active, beats, timeout_s, base_seed=seed, descs=descs)
                         src_ok, src_d = self.run_source_selfcheck(
-                            active, beats, timeout_s, backpressure=bp)
+                            active, beats, timeout_s, backpressure=bp, descs=descs)
                         rows.append({
                             'name': name,
                             'active_channels': len(active),
                             'channels': active,
-                            'beats': beats,
+                            'beats': beats,                 # per descriptor
+                            'descs': descs,                 # per channel (chain)
+                            'total_beats': beats * descs,   # per channel
+                            'xfer_axlen': xfer,
+                            'xfer_beats': xfer + 1,         # burst length in beats
+                            'resp_delay': delay,            # R/B hold, aclk cycles
                             'source_backpressure': bp,
                             'base_seed': seed,
                             'base_seed_label': seed_lbl,
@@ -750,6 +849,10 @@ def _single_row(name, active, beats, bp, seed, sink, source):
         'active_channels': len(active),
         'channels': list(active),
         'beats': beats,
+        'descs': 1, 'total_beats': beats,
+        'xfer_axlen': RapidsCharCampaign.xfer_axlen,
+        'xfer_beats': RapidsCharCampaign.xfer_axlen + 1,
+        'resp_delay': RapidsCharCampaign.resp_delay,
         'source_backpressure': bp,
         'base_seed': seed,
         'base_seed_label': ('default' if seed == LFSR_SEED_DEFAULT
@@ -853,6 +956,15 @@ Examples:
                    help='active-channel counts to sweep (default 1,2,4)')
     p.add_argument('--suite-beats', default='1,4,8,16',
                    help='beats/channel to sweep (default 1,4,8,16)')
+    p.add_argument('--suite-descs', default='1',
+                   help="descriptors per channel (chain length), e.g. 1,2,4,8,16 "
+                        "-- STREAM knob 3; default 1")
+    p.add_argument('--suite-xfer', default='8',
+                   help="AXI_XFER_CONFIG AxLEN values (burst = value+1 beats), "
+                        "e.g. 0,1,3,7,15,31,63 -- STREAM knob 1; default 8 (9-beat bursts)")
+    p.add_argument('--suite-delay', default='0',
+                   help="RESP_DELAY values in aclk cycles (R and B), e.g. "
+                        "0,16,32,64,96,128,192,256,384,512 -- STREAM knob 5; default 0")
     p.add_argument('--suite-bp', default='off,on',
                    help='source backpressure to sweep (default off,on)')
     p.add_argument('--suite-seeds', default=f'default,0x{_DEFAULT_ALT_SEED:08X}',
@@ -914,13 +1026,19 @@ def main() -> int:
             beats_list = _parse_int_list(args.suite_beats)
             bp_list = _parse_bp_list(args.suite_bp)
             seeds_list = _parse_seed_list(args.suite_seeds)
-            total = (len(channels_list) * len(beats_list)
-                     * len(bp_list) * len(seeds_list))
+            descs_list = _parse_int_list(args.suite_descs)
+            xfer_list = _parse_int_list(args.suite_xfer)
+            delay_list = _parse_int_list(args.suite_delay)
+            total = (len(channels_list) * len(beats_list) * len(descs_list)
+                     * len(xfer_list) * len(delay_list) * len(bp_list) * len(seeds_list))
             print(f"\n=== SUITE: {total} configs "
-                  f"(channels={channels_list} beats={beats_list} "
-                  f"bp={args.suite_bp} seeds={args.suite_seeds}) ===")
+                  f"(channels={channels_list} beats={beats_list} descs={descs_list} "
+                  f"xfer_axlen={xfer_list} delay={delay_list} bp={args.suite_bp} "
+                  f"seeds={args.suite_seeds}) ===")
             rows = campaign.run_suite(channels_list, beats_list, bp_list,
-                                      seeds_list, args.timeout)
+                                      seeds_list, args.timeout,
+                                      descs_list=descs_list, xfer_list=xfer_list,
+                                      delay_list=delay_list)
             _print_suite_summary(rows)
             results_path = args.results or os.path.abspath(os.path.join(
                 _RESULTS_DIR,

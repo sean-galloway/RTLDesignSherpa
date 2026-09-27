@@ -48,6 +48,11 @@ port 1 source egress), each on its own 4 KB `obs_regs` window in region 3;
 histograms count without them). Their monbus egress lands in an always-accept
 responder, like the DUT's own; the bare `axi_bus_meter` / `axis_bus_meter`
 instances and the region-2 `OBS_*` CSRs the host tools read are unchanged.
+The harness also carries STREAM's memory-latency model: `axi_response_delay`
+on the source read's R channel and the sink write's B channel, programmed by
+the `RESP_DELAY` CSR (region 2, 0xC4) in aclk cycles, so the same
+latency-vs-throughput knee STREAM reports can be swept here (`--suite-delay`).
+
 Measured 2026-09-27 (synth, 8ch, 100 MHz): the pair adds 10,943 LUTs as
 instruments and 18,733 with the taps armed over the 60,651-LUT bare build, and
 timing closes in every variant (+3.703 / +0.869 ns synth WNS vs +3.683).

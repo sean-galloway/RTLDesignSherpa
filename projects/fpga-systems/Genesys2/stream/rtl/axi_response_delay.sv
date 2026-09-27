@@ -107,20 +107,23 @@ module axi_response_delay #(
     )
 
     // ---- Storage -----------------------------------------------------------
-    // Each slot holds {payload, admit-timestamp}. Vivado picks BRAM or LUTRAM
-    // based on width/depth — at 256×~160b the R-channel queue lands in BRAM,
-    // the small B-channel queue in LUTRAM.
+    // Each slot holds {payload, admit-timestamp}. The payload array is written
+    // and read in a reset-free always_ff below so Vivado can infer BLOCK RAM:
+    // with the array inside the async-reset block it could only dissolve it
+    // into flops, which fails outright past ~256 kbit (the rapids harness
+    // queue is 512 x 523 b = 268 kbit; Synth 8-3391 "number of bits too
+    // large"). The timestamp array is read combinationally for the dwell
+    // compare, so it stays distributed RAM.
     `ifdef XILINX
-        (* ram_style = "auto" *)
+        (* ram_style = "block" *)
     `elsif INTEL
-        /* synthesis ramstyle = "AUTO" */
+        /* synthesis ramstyle = "M20K" */
     `endif
     logic [DATA_WIDTH-1:0] r_data [CAPACITY];
-
     `ifdef XILINX
-        (* ram_style = "auto" *)
+        (* ram_style = "distributed" *)
     `elsif INTEL
-        /* synthesis ramstyle = "AUTO" */
+        /* synthesis ramstyle = "MLAB" */
     `endif
     logic [CYC_W-1:0]      r_tin  [CAPACITY];
 
@@ -173,12 +176,9 @@ module axi_response_delay #(
             r_head      <= '0;
             r_tail      <= '0;
             r_count     <= '0;
-            r_out_data  <= '0;
             r_out_valid <= 1'b0;
         end else begin
             if (enq) begin
-                r_data[r_tail] <= s_data;
-                r_tin [r_tail] <= r_cyc;
                 r_tail         <= r_tail + 1'b1;  // power-of-2 truncation wrap
             end
             if (deq) begin
@@ -192,13 +192,28 @@ module axi_response_delay #(
 
             // Output register stage: load on stage_load, drop r_out_valid on
             // a consume that isn't immediately followed by another load.
+            // (r_out_data is loaded in the RAM block below; m_data is
+            // qualified by m_valid, so it needs no reset.)
             if (stage_load) begin
-                r_out_data  <= r_data[r_head];
                 r_out_valid <= 1'b1;
             end else if (stage_consume) begin
                 r_out_valid <= 1'b0;
             end
         end
     )
+
+    // ---- RAM ports: no reset, so the arrays infer as memories -------------
+    // Write at the tail on admit; registered read of the head on stage_load.
+    // enq and stage_load never address the same slot in one cycle (stage_load
+    // needs a non-empty queue, and the tail slot is empty by definition).
+    always_ff @(posedge aclk) begin
+        if (enq) begin
+            r_data[r_tail] <= s_data;
+            r_tin [r_tail] <= r_cyc;
+        end
+        if (stage_load) begin
+            r_out_data <= r_data[r_head];
+        end
+    end
 
 endmodule : axi_response_delay

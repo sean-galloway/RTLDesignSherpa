@@ -45,6 +45,8 @@
 # ---- Host path (relocated from rapids_char_top: the harness owns UART->AXIL->APB)
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/uart_axil_bridge.f
 -f $REPO_ROOT/rtl/amba/filelists/apb4_master.f
+# Memory-latency model on the R and B channels (STREAM knob 5), RESP_DELAY CSR.
+$REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/axi_response_delay.sv
 # Shared interface observers (USE_OBSERVERS, rapids TASK-001). Generate-gated
 # in the harness, but their closure must compile in every build.
 -f $REPO_ROOT/projects/components/misc/rtl/filelists/axi4_intf_master_observer.f

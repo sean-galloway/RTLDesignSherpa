@@ -1,9 +1,12 @@
 # TASK-001: adopt the shared instrumentation pair (axi4_intf_master_observer + dma_slave_monitors)
 > **Was `RAPIDS-OBS` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
-**Status:** ACTIVE — reopened 2026-09-27 (owner: "rapids should have axi4 observer and
-also axi4s observer if it doesn't have them"). The 2026-09-24 close below stands as
-history: it dropped adoption on a cost basis the observers no longer have.
+**Status:** CLOSED 2026-09-27 — both observers adopted on the Genesys 2 harness and the
+STREAM five-knob characterization measured through them (perf report v1.2, section 7):
+line rate on all four ports at 8 ch x 256 KB (99.4 / 100 / 100 / 100 %), knees at 4-beat
+bursts and ~64-96 cycles of memory latency, 67/67 configurations golden-clean. The
+campaign also found and closed rapids BUG-003 / stream BUG-011. The 2026-09-24 close
+below stands as history: it dropped adoption on a cost basis the observers no longer have.
 
 ## Reopened 2026-09-27: the cost basis changed, and the AXIS half never existed
 

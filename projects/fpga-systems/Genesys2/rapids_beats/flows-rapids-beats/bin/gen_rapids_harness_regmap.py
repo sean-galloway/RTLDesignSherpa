@@ -95,6 +95,8 @@ CSR = [
     (0x078, 'GO',          'w',  [('GO', 0, 0, 'w')]),                # arm+gen+kick, 1-cyc
     (0x07C, 'OBS_TARGET',  'rw', None),                               # freeze window at N beats
     (0x0C0, 'OBS_CTRL',    'w',  [('ARM', 0, 0, 'w')]),               # bus-meter re-arm pulse
+    (0x0C4, 'RESP_DELAY',  'rw', [('RD_DELAY', 15, 0, 'rw'),           # R-channel hold, cycles
+                                  ('WR_DELAY', 31, 16, 'rw')]),         # B-channel hold, cycles
     # ---- readable status ----  (CSR_ID aliases 0x000 on the read path)
     (0x080, 'STATUS',      'r',  [('MON_IRQ', 0, 0, 'r'), ('SRC_IDLE', 1, 1, 'r'),
                                   ('SNK_IDLE', 2, 2, 'r'), ('GEN_BUSY', 3, 3, 'r'),

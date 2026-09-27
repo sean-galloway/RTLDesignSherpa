@@ -199,6 +199,10 @@ module rapids_char_harness #(
     localparam logic [11:0] CSR_GO          = 12'h078;  // [0]=GO (arm+gen+kick, 1-cyc)
     localparam logic [11:0] CSR_OBS_TARGET  = 12'h07C;  // freeze window at N productive beats
     localparam logic [11:0] CSR_OBS_CTRL    = 12'h0C0;  // [0] ARM (1-cyc pulse)
+    // Memory-latency knob (STREAM knob 5): per-beat hold injected by the
+    // axi_response_delay blocks on the rd R channel [15:0] and the wr B
+    // channel [31:16], in aclk cycles. 0 = one register stage (bypass).
+    localparam logic [11:0] CSR_RESP_DELAY  = 12'h0C4;
 
     localparam logic [11:0] CSR_ID          = 12'h000;
     localparam logic [11:0] CSR_STATUS      = 12'h080;
@@ -246,6 +250,7 @@ module rapids_char_harness #(
     // Harness control/status registers (driven by the CSR region)
     // =========================================================================
     logic                       r_cam_clear;          // 1-cycle pulse
+    logic [31:0]                r_resp_delay;         // {wr_delay[15:0], rd_delay[15:0]}
     logic                       r_cfg_gen_start;       // 1-cycle pulse (single run per arm)
     logic [31:0]                r_cfg_gen_lfsr_seed;
     logic [31:0]                r_cfg_gen_num_beats;
@@ -505,6 +510,7 @@ module rapids_char_harness #(
             r_kick_stride           <= '0;
             r_go                    <= 1'b0;
             r_obs_target            <= '0;
+            r_resp_delay            <= '0;
         end else begin
             // Pulses default low; re-asserted for one cycle on a matching write.
             // The gen/chk START bits are ALSO 1-cycle pulses (not held levels):
@@ -526,6 +532,7 @@ module rapids_char_harness #(
                 case (w_woff)
                     CSR_CTRL:        r_cam_clear             <= r_wdata[0];
                     CSR_OBS_CTRL:    r_obs_arm               <= r_wdata[0];
+                    CSR_RESP_DELAY:  r_resp_delay            <= r_wdata;
                     CSR_GEN_CTRL:    r_cfg_gen_start         <= r_wdata[0];
                     CSR_GEN_SEED:    r_cfg_gen_lfsr_seed     <= r_wdata;
                     CSR_GEN_NBEATS:  r_cfg_gen_num_beats     <= r_wdata;
@@ -620,6 +627,7 @@ module rapids_char_harness #(
                     CSR_OBS_RD_BP:   w_readmux = obs_rd_bp;
                     CSR_OBS_RD_STRV: w_readmux = obs_rd_starv;
                     CSR_OBS_RD_IDLE: w_readmux = obs_rd_idle;
+                    CSR_RESP_DELAY:  w_readmux = r_resp_delay;
                     CSR_OBS_WR_PROD: w_readmux = obs_wr_prod;
                     CSR_OBS_WR_BP:   w_readmux = obs_wr_bp;
                     CSR_OBS_WR_STRV: w_readmux = obs_wr_starv;
@@ -1125,6 +1133,16 @@ module rapids_char_harness #(
     logic [AXI_ID_WIDTH-1:0]   wr_bid;
     logic [1:0]                wr_bresp;
     logic                      wr_bvalid, wr_bready;
+    // Slave-model side of the response-delay blocks. The models drive s_rd_r* /
+    // s_wr_b*; axi_response_delay re-times them onto rd_r* / wr_b*, which the
+    // DUT, the bare meters and the observers see (same wire, one truth).
+    logic [AXI_ID_WIDTH-1:0]   s_rd_rid;
+    logic [DATA_WIDTH-1:0]     s_rd_rdata;
+    logic [1:0]                s_rd_rresp;
+    logic                      s_rd_rlast, s_rd_rvalid, s_rd_rready;
+    logic [AXI_ID_WIDTH-1:0]   s_wr_bid;
+    logic [1:0]                s_wr_bresp;
+    logic                      s_wr_bvalid, s_wr_bready;
 
     // ---- AXIS ingress (harness gen -> DUT s_axis) ----
     logic [DATA_WIDTH-1:0]     s_axis_tdata;
@@ -1520,20 +1538,69 @@ module rapids_char_harness #(
         .s_axi_aruser  (1'b0),
         .s_axi_arvalid (rd_arvalid),
         .s_axi_arready (rd_arready),
-        // R
-        .s_axi_rid     (rd_rid),
-        .s_axi_rdata   (rd_rdata),
-        .s_axi_rresp   (rd_rresp),
-        .s_axi_rlast   (rd_rlast),
+        // R -- into the response-delay block, not the DUT directly
+        .s_axi_rid     (s_rd_rid),
+        .s_axi_rdata   (s_rd_rdata),
+        .s_axi_rresp   (s_rd_rresp),
+        .s_axi_rlast   (s_rd_rlast),
         .s_axi_ruser   (),
-        .s_axi_rvalid  (rd_rvalid),
-        .s_axi_rready  (rd_rready),
+        .s_axi_rvalid  (s_rd_rvalid),
+        .s_axi_rready  (s_rd_rready),
         .busy          (rd_mem_busy)
     );
 
     //=========================================================================
     // Sink-data memory: CRC checker backing DUT m_axi_wr_*
     //=========================================================================
+    //=========================================================================
+    // Memory-latency model (STREAM knob 5): axi_response_delay on the read
+    // data (R) and write response (B) channels, RESP_DELAY-programmed. Every
+    // beat dwells rd_delay / wr_delay cycles; up to CAPACITY beats overlap, so
+    // throughput stays at line rate until the DUT's in-flight window can no
+    // longer cover the latency -- the knee STREAM's report locates at
+    // outstanding x burst ~= delay. 0 = one register stage.
+    //=========================================================================
+    localparam int RD_R_PAYLOAD_W = AXI_ID_WIDTH + DATA_WIDTH + 2 + 1;
+    localparam int WR_B_PAYLOAD_W = AXI_ID_WIDTH + 2;
+    logic [RD_R_PAYLOAD_W-1:0] s_rd_r_payload, m_rd_r_payload;
+    logic [WR_B_PAYLOAD_W-1:0] s_wr_b_payload, m_wr_b_payload;
+    assign s_rd_r_payload = {s_rd_rid, s_rd_rdata, s_rd_rresp, s_rd_rlast};
+    assign {rd_rid, rd_rdata, rd_rresp, rd_rlast} = m_rd_r_payload;
+    assign s_wr_b_payload = {s_wr_bid, s_wr_bresp};
+    assign {wr_bid, wr_bresp} = m_wr_b_payload;
+
+    axi_response_delay #(
+        .DATA_WIDTH (RD_R_PAYLOAD_W),
+        .DELAY_W    (16),
+        .CAPACITY   (512)              // 8 ch x 8 outstanding x 9-beat bursts fits
+    ) u_rd_resp_delay (
+        .aclk           (aclk),
+        .aresetn        (aresetn),
+        .i_delay_cycles (r_resp_delay[15:0]),
+        .s_data         (s_rd_r_payload),
+        .s_valid        (s_rd_rvalid),
+        .s_ready        (s_rd_rready),
+        .m_data         (m_rd_r_payload),
+        .m_valid        (rd_rvalid),
+        .m_ready        (rd_rready)
+    );
+
+    axi_response_delay #(
+        .DATA_WIDTH (WR_B_PAYLOAD_W),
+        .DELAY_W    (16),
+        .CAPACITY   (64)
+    ) u_wr_resp_delay (
+        .aclk           (aclk),
+        .aresetn        (aresetn),
+        .i_delay_cycles (r_resp_delay[31:16]),
+        .s_data         (s_wr_b_payload),
+        .s_valid        (s_wr_bvalid),
+        .s_ready        (s_wr_bready),
+        .m_data         (m_wr_b_payload),
+        .m_valid        (wr_bvalid),
+        .m_ready        (wr_bready)
+    );
+
     axi4_slave_wr_crc_check #(
         .NUM_CHANNELS   (NUM_CHANNELS),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
@@ -1569,11 +1636,11 @@ module rapids_char_harness #(
         .s_axi_wvalid  (wr_wvalid),
         .s_axi_wready  (wr_wready),
         // B
-        .s_axi_bid     (wr_bid),
-        .s_axi_bresp   (wr_bresp),
+        .s_axi_bid     (s_wr_bid),
+        .s_axi_bresp   (s_wr_bresp),
         .s_axi_buser   (),
-        .s_axi_bvalid  (wr_bvalid),
-        .s_axi_bready  (wr_bready),
+        .s_axi_bvalid  (s_wr_bvalid),
+        .s_axi_bready  (s_wr_bready),
         .busy          (wr_mem_busy)
     );
 
@@ -2229,8 +2296,12 @@ module rapids_char_harness #(
             .m_axil_bready   (ox_bready),
             .m_axil_bresp    (2'b00),
             .irq_out         (),
-            .i_meter_clear   (obs_meter_clear),
-            .i_meter_freeze  (obs_meter_freeze)
+            // Per-port windows: port 0 (s_axis) is the sink-INGRESS window the
+            // bare u_meter_sin uses, port 1 (m_axis) the main window. One window
+            // read prod=0 on the ingress port on the board (the stream starts at
+            // the kick, before the sink's write side is busy).
+            .i_meter_clear   ({obs_meter_clear,  obs_sin_clear}),
+            .i_meter_freeze  ({obs_meter_freeze, obs_sin_freeze})
         );
     end else begin : gen_no_obs
         // No observers built: REGION_OBS reads 0 with PSLVERR so the host can tell.

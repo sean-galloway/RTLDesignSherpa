@@ -18,6 +18,8 @@ the DUT's own AXI/AXIS ports.
 | Throughput | AXIS/AXI bus meters + exact byte/packet counters (`OBS_SIN/SOUT_BYTES/PKTS`) over the timed window |
 | Utilization | `OBS_{RD,WR,SIN,SOUT}_{PROD,BP,STARV,IDLE}` buckets |
 | Scaling | Repeat across the active-channel mask |
+| Observer telemetry (`USE_OBSERVERS=1`) | Region-3 `obs_regs` by name: per-port cycle buckets, AXIS bytes/packets, AXI burst counts and latency histograms, tap drop counts (`OBS_STICKY`) |
+| Sweep axes | `--suite-channels`, `--suite-beats`, `--suite-descs` (chains), `--suite-xfer` (burst AxLEN), `--suite-delay` (`RESP_DELAY`) -- STREAM's five knobs |
 
 : What is measured
 

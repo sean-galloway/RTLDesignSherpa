@@ -52,6 +52,7 @@ except ImportError:  # pragma: no cover - only hit without REPO_ROOT / pyserial
 REGION_APB = 0x0        # DUT-REG
 REGION_DESC = 0x1       # DESC-LOAD
 REGION_CSR = 0x2        # HARNESS CSR
+REGION_OBS = 0x3        # OBSERVERS (USE_OBSERVERS=1 builds only, rapids TASK-001)
 _REGION_SHIFT = 16
 
 
@@ -336,6 +337,166 @@ class RapidsCharIO:
         hi = self.csr_read_reg(f"OBS_{d}_BYTES_HI") or 0
         pkts = self.csr_read_reg(f"OBS_{d}_PKTS") or 0
         return {'bytes': (hi << 32) | lo, 'packets': pkts}
+
+    # ---- Interface observers (region 3), BY NAME through obs_regs_top_regmap --
+    #
+    # USE_OBSERVERS=1 builds axi4_intf_master_observer (rd + wr data masters) and
+    # axis4_intf_observer (sin = port 0, sout = port 1) on the harness, each with
+    # its own 4 KB obs_regs map: AXI @ 0x0000, AXIS @ 0x1000 (paddr[12]). The
+    # regmap is the SAME generated file the misc component TB and the stream host
+    # read (projects/components/misc/rtl/regs/generated/obs_regs_top_regmap.py),
+    # so an observer register move breaks here loudly rather than silently.
+    # The observers meter the same window as the bare meters (obs_meter_clear /
+    # obs_meter_freeze), so their buckets bracket exactly the same transfer.
+
+    OBS_BASES = {'axi': 0x0000, 'axis': 0x1000}
+    # iface -> (which observer, tap index, IS_WRITE)
+    OBS_IFACE = {'rd': ('axi', 0, 0), 'wr': ('axi', 0, 1),
+                 'sin': ('axis', 0, 0), 'sout': ('axis', 1, 0)}
+    # OBS_STAT_SEL.METRIC ids (obs_regs.rdl / axis4_intf_observer.sv)
+    OBS_M_PROD, OBS_M_BP, OBS_M_STARV, OBS_M_IDLE = 0, 1, 2, 3
+    OBS_M_CH_PROD = 4
+    OBS_M_HIST_BIN, OBS_M_HIST_TOTAL = 9, 10
+    OBS_M_BYTES_LO, OBS_M_BYTES_HI, OBS_M_BEATS, OBS_M_PACKETS = 11, 12, 13, 14
+    OBS_M_TAP_DROPPED, OBS_M_TAP_PACKETS = 15, 16
+    OBS_HIST_BINS = 16     # HIST_NUM_BINS: bin b counts latencies in [2^b, 2^(b+1))
+
+    _obs_rm = None
+    _obs_present = None
+
+    @classmethod
+    def _obs_regmap(cls):
+        if cls._obs_rm is None:
+            import importlib.util
+            root = os.environ.get('REPO_ROOT') or os.path.abspath(
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), *([os.pardir] * 6)))
+            path = os.path.join(root, 'projects', 'components', 'misc',
+                                'rtl', 'regs', 'generated', 'obs_regs_top_regmap.py')
+            spec = importlib.util.spec_from_file_location('obs_regs_top_regmap', path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            cls._obs_rm = mod.top_block
+        return cls._obs_rm
+
+    @classmethod
+    def obs_addr(cls, name: str) -> int:
+        reg = cls._obs_regmap().get(name)
+        if not isinstance(reg, dict) or reg.get('type') != 'reg':
+            raise KeyError(f"unknown observer register {name!r}")
+        return int(str(reg.get('address', reg.get('offset'))), 0)
+
+    @classmethod
+    def obs_compose(cls, name: str, **fields: int) -> int:
+        """Compose an obs_regs word from named FIELDS (unset fields keep reset)."""
+        reg = cls._obs_regmap()[name]
+        word = int(str(reg.get('default', '0x0')), 0)
+        for fname, val in fields.items():
+            fld = reg.get(fname)
+            if not isinstance(fld, dict) or fld.get('type') != 'field':
+                raise KeyError(f"unknown field {name}.{fname}")
+            off = str(fld['offset'])
+            hi, lo = (int(x) for x in off.split(':')) if ':' in off else (int(off), int(off))
+            mask = ((1 << (hi - lo + 1)) - 1) << lo
+            word = (word & ~mask) | ((int(val) << lo) & mask)
+        return word & 0xFFFF_FFFF
+
+    def obs_write(self, which: str, name: str, value: int = None, **fields: int) -> bool:
+        word = self.obs_compose(name, **fields) if value is None else value
+        addr = region_base(REGION_OBS) | self.OBS_BASES[which] | self.obs_addr(name)
+        return self.axil_write(addr, word)
+
+    def obs_read(self, which: str, name: str, retries: int = 3) -> int:
+        addr = region_base(REGION_OBS) | self.OBS_BASES[which] | self.obs_addr(name)
+        result = None
+        for attempt in range(max(1, retries)):
+            try:
+                result = self.axil_read(addr)
+            except Exception:  # noqa: BLE001
+                result = None
+            if result is not None:
+                return result
+            if attempt + 1 < retries:
+                time.sleep(0.005)
+        return result
+
+    def obs_present(self) -> bool:
+        """Were the observers BUILT? OBS_CAPS0 is parameter-driven and never 0 on
+        a built instance (BUS_METER alone sets bit 7); an unbuilt region 3 answers
+        0 (with PSLVERR the bridge does not surface). Cached per link."""
+        if self._obs_present is None:
+            caps = [self.obs_read(w, "OBS_CAPS0") or 0 for w in ('axi', 'axis')]
+            self._obs_present = all(c != 0 for c in caps)
+        return self._obs_present
+
+    def obs_caps(self) -> dict:
+        return {w: {n: self.obs_read(w, n) for n in ("OBS_CAPS0", "OBS_CAPS1", "OBS_CAPS2")}
+                for w in ('axi', 'axis')}
+
+    def obs_stat(self, which: str, tap: int, metric: int, *, channel: int = 0,
+                 is_write: int = 0, bin_idx: int = 0, hist_metric: int = 0) -> int:
+        """One OBS_STAT_SEL -> OBS_STAT_DATA indexed read, fields by name."""
+        self.obs_write(which, "OBS_STAT_SEL", TAP=tap, CHANNEL=channel, METRIC=metric,
+                       IS_WRITE=is_write, BIN=bin_idx, HIST_METRIC=hist_metric)
+        return (self.obs_read(which, "OBS_STAT_DATA") or 0) & 0xFFFF_FFFF
+
+    def read_observer(self, iface: str, per_channel: int = 0) -> dict:
+        """The observer's frozen buckets for one interface, same shape as
+        read_bus_meter() plus the AXIS-native counters (sin/sout) or the burst
+        totals (rd/wr), and the tap's honesty counters where they exist."""
+        which, tap, iw = self.OBS_IFACE[iface]
+        st = lambda m, **kw: self.obs_stat(which, tap, m, is_write=iw, **kw)  # noqa: E731
+        prod, bp, starv, idle = (st(self.OBS_M_PROD), st(self.OBS_M_BP),
+                                 st(self.OBS_M_STARV), st(self.OBS_M_IDLE))
+        engaged = prod + bp + starv
+        rec = {'prod': prod, 'bp': bp, 'starv': starv, 'idle': idle,
+               'engaged': engaged, 'total': engaged + idle,
+               'util': (prod / engaged) if engaged else 0.0}
+        if which == 'axis':
+            rec['bytes'] = (st(self.OBS_M_BYTES_HI) << 32) | st(self.OBS_M_BYTES_LO)
+            rec['beats'] = st(self.OBS_M_BEATS)
+            rec['packets'] = st(self.OBS_M_PACKETS)
+            rec['tap_dropped'] = st(self.OBS_M_TAP_DROPPED)
+            rec['tap_packets'] = st(self.OBS_M_TAP_PACKETS)
+        else:
+            # histogram TOTAL == completed bursts for the selected metric
+            rec['bursts'] = st(self.OBS_M_HIST_TOTAL, hist_metric=1 if iface == 'rd' else 0)
+        if per_channel:
+            rec['ch_prod'] = [st(self.OBS_M_CH_PROD, channel=c) for c in range(per_channel)]
+        return rec
+
+    def read_observer_latency(self, iface: str) -> dict:
+        """AXI observer latency histograms (axi_perf_latency_hist): rd has two
+        metrics (0 = AR->first R, 1 = AR->RLAST), wr one (AW->B). Bins are log2:
+        bin b holds latencies in [2^b, 2^(b+1)) cycles. Returns the raw bins and
+        derived mean (geometric bin midpoints) and p50/p90/p99 (bin lower bounds)."""
+        if iface not in ('rd', 'wr'):
+            raise ValueError("latency histograms exist for 'rd' / 'wr' only")
+        which, tap, iw = self.OBS_IFACE[iface]
+        metrics = {'ar_first_r': 0, 'ar_rlast': 1} if iface == 'rd' else {'aw_b': 0}
+        out = {}
+        for name, hm in metrics.items():
+            bins = [self.obs_stat(which, tap, self.OBS_M_HIST_BIN, is_write=iw,
+                                  bin_idx=b, hist_metric=hm) for b in range(self.OBS_HIST_BINS)]
+            total = self.obs_stat(which, tap, self.OBS_M_HIST_TOTAL, is_write=iw, hist_metric=hm)
+            n = sum(bins)
+            mean = (sum(c * 1.5 * (1 << b) for b, c in enumerate(bins)) / n) if n else 0.0
+            def pct(q):
+                if not n:
+                    return 0
+                acc = 0
+                for b, c in enumerate(bins):
+                    acc += c
+                    if acc >= q * n:
+                        return 1 << b
+                return 1 << (self.OBS_HIST_BINS - 1)
+            out[name] = {'bins': bins, 'total': total, 'samples': n, 'mean_cyc': mean,
+                         'p50_cyc': pct(0.50), 'p90_cyc': pct(0.90), 'p99_cyc': pct(0.99)}
+        return out
+
+    def read_observer_sticky(self) -> dict:
+        """OBS_STICKY per observer: HIST_SAMPLE_LOST / TAP_BLOCKED. A set bit
+        means the numbers UNDERCOUNT; report it beside them, never silently."""
+        return {w: self.obs_read(w, "OBS_STICKY") or 0 for w in ('axi', 'axis')}
 
     def ping(self) -> bool:
         """Verify the UART link + CSR block are alive via the ID register
