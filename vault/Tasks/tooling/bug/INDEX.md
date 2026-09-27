@@ -12,17 +12,17 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
 
 - **BUG-000** — reserved template; copy the file, do not file against it.
 - **BUG-002** — `--blindspots` enumerates filelists from the index but resolves them from disk; a partial-pathspec rename commit reports phantom unregistered filelists
-- **BUG-003** — `RegisterMap.walk()` crashes on an ERROR response, so the MON-window guard silently disabled the board register walk on every `USE_AXI_MONITORS=0` build since 2026-09-24 (walker fixed; host-side skip still open)
 
 ## Closed
 
+- **BUG-003** — `RegisterMap.walk()` crashes on an ERROR response, so the MON-window guard silently disabled the board register walk on every `USE_AXI_MONITORS=0` build since 2026-09-24 (walker fixed; host-side skip still open)
 - **BUG-001** — checker attribution: multi-module declarations + 46 pages silently unchecked (fixed; threshold was NOT the defect)

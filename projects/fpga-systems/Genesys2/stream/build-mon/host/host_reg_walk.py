@@ -93,6 +93,37 @@ def _endpoints():
     ]
 
 
+# The STREAM MON regfile occupies offsets 0x1000.. of the stream_apb window
+# (stream_config_block: paddr[12] selects it). Derived from the regmap, so a
+# register that moves in or out of the window moves in or out of the skip.
+MON_WINDOW_LO = 0x1000
+
+
+def _mon_window_names(rm):
+    return {n for n, r in rm.registers.items() if rm.reg_address(r) >= MON_WINDOW_LO}
+
+
+def _monitors_built(bridge) -> bool:
+    """BUILD_CONFIG.USE_MONITORS, by name. FAIL OPEN: if it cannot be read,
+    walk the MON window as before -- a wrong skip would hide a real fault."""
+    try:
+        import harness_addrs
+        from harness_addrs import H
+        rm_path = os.path.join(REPO, "projects/fpga-systems/Genesys2/stream/rtl/regs/"
+                               "generated/harness_csr_regs_top_regmap.py")
+        with contextlib.redirect_stdout(io.StringIO()):
+            hrm = RegisterMap(rm_path, apb_data_width=32, apb_addr_width=32,
+                              start_address=harness_addrs.HARNESS_CSR_BASE,
+                              log=logging.getLogger("reg_walk"))
+        fld = hrm.registers["BUILD_CONFIG"]["USE_MONITORS"]
+        off = str(fld["offset"]); lo = int(off.split(":")[-1])
+        val = bridge.read(H("BUILD_CONFIG"))
+        return True if val is None else bool((val >> lo) & 1)
+    except Exception:
+        return True
+
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--port", default="auto")
@@ -123,7 +154,15 @@ def main(argv=None):
             with contextlib.redirect_stdout(io.StringIO()):
                 rm = RegisterMap(path, apb_data_width=32, apb_addr_width=32,
                                  start_address=base, log=log)
-            fails = rm.walk(read=br.read, write=br.write)
+            names = None
+            if key == "stream" and not _monitors_built(br):
+                # MON regfile window gated on USE_MON_REGS (2f23fe075): answers
+                # ERROR by design without monitors -- tooling BUG-003.
+                mon = _mon_window_names(rm)
+                names = [n for n in rm.registers if n not in mon]
+                print(f"  {label:<38} MON window skipped: {len(mon)} regs, "
+                      f"BUILD_CONFIG.USE_MONITORS=0")
+            fails = rm.walk(read=br.read, write=br.write, names=names)
             status = "PASS" if not fails else f"FAIL ({len(fails)})"
             print(f"  {label:<38} {len(rm.registers):4d} regs  {status}")
             if fails and args.verbose:
