@@ -515,5 +515,67 @@ predictor-state stat register.
 Incidental: slow_refresh is the fastest config here at 342.6 MB/s, so refresh
 costs ~4.4% on this stimulus (327.6 -> 342.6).
 
+## Mode 5 localized: the AP datapath works, close_pred_o does not assert
+
+Two more board experiments, no RTL change needed.
+
+### It is not run length -- matched scale, opposite behaviour
+
+`adapt_rowmix_2bank` swept on the board:
+
+| txn_scale | ACT | PRE | thrash | engaged |
+|---|---|---|---|---|
+| 1 | 32 | 32 | 100.0% | 0% |
+| 10 | 326 | 329 | 100.0% | 0% |
+| 100 | 3335 | 3240 | 97.0% | 3% |
+| 1000 | 33338 | 32385 | 97.0% | 3% |
+
+Sim at txn_scale=1 on this same stimulus converted 14 of 26 activations (54%).
+**The board at txn_scale=1 converts ZERO.** So the earlier "60% in sim vs 3% on
+board" was not a learning-window or steady-state effect -- at matched scale the
+two environments do the OPPOSITE thing. Board engagement saturates at 3% from
+scale 100 and never improves.
+
+### The auto-precharge datapath is PROVEN GOOD on hardware
+
+This is the useful narrowing, and it comes free from data already collected.
+`close_page` is MODE_STATIC_CLOSE, which drives the same port the predictor
+does -- `ap_close_o = {NUM_BANKS{1'b1}}` -- and on the board it returns:
+
+    close_page   ACT=160010   PRE=15
+
+15 explicit precharges against 160,010 activations: auto-precharge works
+perfectly on real silicon. `adapt_access` drives that identical port from
+`w_acc_close`/`close_pred_o` and returns `PRE ~= ACT`.
+
+**So the AP mechanism, the scheduler's ap handling and the DFI path are all
+fine. `close_pred_o` is simply not asserting.** The fault is inside
+`pumice_row_pred_table`, not anywhere downstream of it, and mode 5 should NOT
+be retired as a bad idea -- it has never actually run on hardware.
+
+### Where to look, in order
+
+1. `close_pred_o[b] <= 1'b0` on EVERY fall, re-established only at the next ACT.
+   Under real tRCD/tRAS the column op may issue in a window where the verdict
+   is not yet live, so the bit is correct and simply never sampled.
+2. `r_col_cnt` reset discipline. Learning compares `r_col_cnt <= 2'd1` at the
+   explicit PRE; if the count does not clear per activation on hardware timing,
+   every row looks like a multi-access row and votes OPEN forever -- which is
+   exactly the observed `PRE ~= ACT`.
+3. The `w_fall` claim window is ONE cycle ("a PRE to the bank at the fall cycle
+   or the next one"). That window was tuned against loopback timing; on the
+   board the PRE can lag the fall by more, which would misclassify explicit
+   closes as auto-precharge closes and suppress learning entirely.
+
+(1) and (3) are both "a timing assumption that holds in the loopback and not on
+the board", which is the shape of every sim/board divergence in this controller
+so far.
+
+Blocked on observability: there is no readback for `close_pred_o` or
+`r_col_cnt`. That is now the THIRD investigation forced to infer predictor state
+from bandwidth equality (after mode 4's TR decay and the refresh test). A small
+stat block -- `close_pred_o` assert count, AP-close count, `r_tr[0]` -- would
+have answered all three directly and is the recommended next change.
+
 Related: [[TASK-011]] (RBL, the worked example), [[TASK-010]] (the
 per-generator scenario machinery), [[TASK-005]] (predictor area).
