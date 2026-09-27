@@ -767,11 +767,16 @@ CONFIGS: Dict[str, ControllerConfig] = {
     # the per-workload optimum, so the reference is the BEST of this ladder
     # per workload, and the question is whether adapt_time_tuned matches it
     # without retuning.
+    # BUG-003 decides between two fixes on this number. TR=2 is the measured
+    # optimum (+33%) and TR<=2 is the value that breaks the read return, so the
+    # question is whether TR=3 -- the smallest SAFE value -- keeps the win. If it
+    # does, clamping the floor to 3 is a complete fix. If it drops toward TR=4's
+    # 368.6, the win needs the proper per-bank outstanding-read gate.
     **{f"fixed_open_tr{tr}": ControllerConfig(
         f"fixed_open_tr{tr}", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=3, page_tr_init=tr,
         order_mode=0, rd_in_order=True)
-       for tr in (2, 4, 8, 16, 32, 64)},
+       for tr in (1, 2, 3, 4, 8, 16, 32, 64)},
     # ---- axis: refresh ----------------------------------------------------
     "fast_refresh": ControllerConfig(
         "fast_refresh", scheme=dc.SCHEME_ROW_MAJOR,
@@ -2230,6 +2235,13 @@ RUN_PROFILES: Dict[str, dict] = {
                         level="basic", families=(FAM_INCREMENTAL,),
                         concurrent=(0, 4), gen_mix="hotcold",
                         same_bank_rows=8, n_hot=2, bank_spread=2),
+    # BUG-003: is TR=3 (smallest safe) as good as TR=2 (optimal but broken)?
+    "bug003_tr_floor": dict(configs=["open_page", "fixed_open_tr1",
+                                     "fixed_open_tr2", "fixed_open_tr3",
+                                     "fixed_open_tr4"],
+                            level="basic", families=(FAM_INCREMENTAL,),
+                            concurrent=(0, 4), gen_mix="hotcold",
+                            same_bank_rows=8, n_hot=2, bank_spread=2),
     "adapt_rowmix_2bank_tr": dict(configs=["open_page", "adapt_time_tuned",
                                            "fixed_open_tr2", "fixed_open_tr4",
                                            "fixed_open_tr8", "fixed_open_tr16",
