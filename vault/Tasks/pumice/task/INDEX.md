@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-015** — never recycle a number, even when its item closed.
+**Next ID: TASK-016** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -23,6 +23,9 @@ exactly one state by construction rather than by discipline.
 - **TASK-014** — the adaptive page modes need a disposition: retire mode 4
   (it IS fixed_open(tr_min)), re-plumb mode 5's verdict to the background
   precharge, and add predictor observability first
+- **TASK-015** — test the DUT across configurations: 4-layer plan (reset-parity
+  gate, pairwise covering array x gap, invariant oracles, seeded soak) with a
+  reportable 2-way coverage number
 
 ## Closed
 
