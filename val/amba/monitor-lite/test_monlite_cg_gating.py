@@ -77,6 +77,8 @@ from cocotb.triggers import RisingEdge, FallingEdge, Edge, with_timeout
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from TBClasses.axi4.monitor.axi4_master_monitor_tb import AXI4MasterMonitorTB
 from TBClasses.axi4.monitor.axi4_slave_monitor_tb import AXI4SlaveMonitorTB
 from TBClasses.axi5.monitor.axi5_master_monitor_tb import AXI5MasterMonitorTB
@@ -95,6 +97,14 @@ CG_IDLE_COUNT_WIDTH = 4
 # long enough to cover the wrapper's internal pipeline latency, so both an
 # aggressive and a relaxed setting are covered.
 IDLE_COUNTS = (0, 4)
+
+# BFM timing comes from the repo's shared profile table, never from numbers
+# typed here (bin/TBClasses/amba/amba_random_configs.py). 'backtoback' is the
+# deterministic zero-gap case; 'constrained' puts 0-10 cycle gaps on every
+# valid and ready so the gate/ungate boundaries land at varied points of a
+# transaction. The stalls the phases need are still ready_policy, which is
+# deterministic backpressure and overrides the profile while set.
+BFM_PROFILES = ('backtoback', 'constrained')
 
 WRAPPER_SUFFIX = 'monlite_cg'
 
@@ -233,10 +243,22 @@ class GatingHarness:
         self.up_rsp = mc['R'] if self.is_rd else mc['B']
         self.down_req = [sc['AR']] if self.is_rd else [sc['AW'], sc['W']]
         self.mon = self.tb.mon_slave
-        # Phase 1 starts with the consumer's response-ready LOW.
+        # Shared delay profile on every BFM channel: request drivers and
+        # response drivers take the 'master' (valid_delay) section, request and
+        # response receivers the 'slave' (ready_delay) section.
+        prof = AXI_RANDOMIZER_CONFIGS[os.environ['BFM_PROFILE']]
+        req_keys = ('AR',) if self.is_rd else ('AW', 'W')
+        rsp_key = 'R' if self.is_rd else 'B'
+        for k in req_keys:
+            mc[k].set_randomizer(FlexRandomizer(dict(prof['master'])))
+            sc[k].set_randomizer(FlexRandomizer(dict(prof['slave'])))
+        sc[rsp_key].set_randomizer(FlexRandomizer(dict(prof['master'])))
+        mc[rsp_key].set_randomizer(FlexRandomizer(dict(prof['slave'])))
+        # Phase 1 starts with the consumer's response-ready LOW; the downstream
+        # request receivers follow the profile ('valid_first' + ready_delay).
         self.up_rsp.set_ready_policy('stall')
         for c in self.down_req:
-            c.set_ready_policy('always')
+            c.set_ready_policy('valid_first')
         self.mon.set_ready_policy('always')
 
     # -- stimulus: ONE transaction through the framework BFMs ---------------
@@ -308,7 +330,7 @@ class GatingHarness:
         _set_cfg(self.dut, 'cam_clear', 0)
 
 
-async def _run_txn_and_count(h, cycles=300):
+async def _run_txn_and_count(h, cycles=600):
     """One BFM transaction with the pin-level handshake counter running
     alongside it. Returns (up_handshakes, down_handshakes)."""
     counter = h.start_handshake_counter(cycles)
@@ -360,13 +382,15 @@ async def monlite_cg_gating_test(dut):
     # transaction starts from a fully gated block, so each straddles an ungate
     # boundary, and each completes before the next so the block returns to a
     # genuinely idle state.
+    # From here the consumer's response-ready follows the profile again.
+    h.up_rsp.set_ready_policy('valid_first')
     n_req = 3
     for i in range(n_req):
         assert _get(dut, 'cg_gating') == 1, (
             f'{name} [phase 4, req {i}]: block did not re-gate between requests')
         assert _get(dut, h.up_req_ready) == 0, (
             f'{name} [phase 4, req {i}]: {h.up_req_ready} high while gated')
-        counter = h.start_handshake_counter(cycles=300)
+        counter = h.start_handshake_counter(cycles=600)
         txn = cocotb.start_soon(h.one_transaction())
         if i == 0:
             # Phase 3: the BFM's request valid alone must restart the clock.
@@ -383,7 +407,7 @@ async def monlite_cg_gating_test(dut):
                 f'request valid went high - the block never wakes')
             assert await _gated_clock_running(dut), (
                 f'{name} [phase 3]: gated clock did not restart on activity')
-        await with_timeout(txn, 300 * CLK_PERIOD_NS, 'ns')
+        await with_timeout(txn, 600 * CLK_PERIOD_NS, 'ns')
         await counter.task
         assert counter.up == 1, (
             f'{name} [phase 4, req {i}]: {counter.up} upstream request handshakes '
@@ -407,7 +431,7 @@ async def monlite_cg_gating_test(dut):
     await h.settle_to_gated(cycles=20)
     assert _get(dut, 'cg_gating') == 1, (
         f'{name} [phase 5]: block did not gate before the back-pressure case')
-    counter = h.start_handshake_counter(cycles=400)
+    counter = h.start_handshake_counter(cycles=800)
     txn = cocotb.start_soon(h.one_transaction())
     for _ in range(60):
         await FallingEdge(dut.aclk)
@@ -422,8 +446,8 @@ async def monlite_cg_gating_test(dut):
             f'block waiting on downstream back-pressure - the beat is stranded '
             f'in a stopped clock domain with nothing left to wake it')
     for c in h.down_req:
-        c.set_ready_policy('always')
-    await with_timeout(txn, 400 * CLK_PERIOD_NS, 'ns')
+        c.set_ready_policy('valid_first')
+    await with_timeout(txn, 800 * CLK_PERIOD_NS, 'ns')
     await counter.task
     assert counter.up == 1 and counter.down == 1, (
         f'{name} [phase 5]: {counter.up} upstream / {counter.down} downstream '
@@ -442,7 +466,7 @@ async def monlite_cg_gating_test(dut):
     # accepted over and over until unrelated traffic happens to wake the block.
     h.mon.set_ready_policy('stall')
     h.mon.clear_received_packets()
-    await with_timeout(h.one_transaction(), 300 * CLK_PERIOD_NS, 'ns')
+    await with_timeout(h.one_transaction(), 600 * CLK_PERIOD_NS, 'ns')
     # No cam_clear here: the completion frees the CAM entry itself, and a
     # clear inside the reporter's emission window is exactly the race that
     # strands the packet (see await_delivery). The parked packet is what
@@ -496,9 +520,10 @@ async def monlite_cg_gating_test(dut):
 # pytest side
 # ---------------------------------------------------------------------------
 
+@pytest.mark.parametrize('profile', BFM_PROFILES)
 @pytest.mark.parametrize('idle_count', IDLE_COUNTS)
 @pytest.mark.parametrize('dut_key', sorted(DUTS.keys()))
-def test_monlite_cg_gating(dut_key, idle_count):
+def test_monlite_cg_gating(dut_key, idle_count, profile):
     """Clock gating actually gates a clock, for every *_monlite_cg wrapper."""
     cfg = DUTS[dut_key]
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
@@ -510,7 +535,7 @@ def test_monlite_cg_gating(dut_key, idle_count):
         'rtl_shared': 'rtl/amba/shared',
     })
 
-    test_name = f'test_{worker_id}_monlite_cg_gating_{dut_key}_ic{idle_count}'
+    test_name = f'test_{worker_id}_monlite_cg_gating_{dut_key}_ic{idle_count}_{profile}'
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -530,6 +555,7 @@ def test_monlite_cg_gating(dut_key, idle_count):
         extra_env={
             'DUT': dut_key,
             'CG_IDLE_COUNT': str(idle_count),
+            'BFM_PROFILE': profile,
             'LOG_PATH': log_path,
             'COCOTB_LOG_LEVEL': 'INFO',
         },

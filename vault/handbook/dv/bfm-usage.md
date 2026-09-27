@@ -205,6 +205,17 @@ test reads pins to observe handshakes and gating; it drives only config pins.
 Sixteen wrappers per family pass unchanged, because the BFMs never delivered
 the beat twice in the first place.
 
+The BFMs' timing is not typed into the test either. Every valid_delay and
+ready_delay comes from the repo's shared profile table,
+`bin/TBClasses/amba/amba_random_configs.py` (`AXI_RANDOMIZER_CONFIGS`,
+`GAXI_RANDOMIZER_CONFIGS`: fixed, constrained, fast, backtoback, burst_pause,
+slow_producer, slow_consumer, high_throughput and the gaxi_* patterns), and the
+profile is a test axis -- the gating test runs 'backtoback' for the deterministic
+zero-gap case and 'constrained' so the gate/ungate boundaries land at varied
+points of a transaction. A monitor TB class that keeps its own private delay
+table (the AXI4/AXI5 base TBs do) is the older pattern; new tests take the
+shared one.
+
 The rule this file already states covers it, with no exception for
 "structural" tests: a framework BFM drives at the falling edge and never has
 this hazard, and a test that needs a stall asks the BFM for one
