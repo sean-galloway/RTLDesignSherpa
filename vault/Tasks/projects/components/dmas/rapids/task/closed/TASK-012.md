@@ -1,6 +1,6 @@
 # TASK-012: size the harness observer's latency-histogram FIFO for the latency sweep
 
-**Status:** OPEN — filed 2026-09-27 from the observer campaign (perf report v1.2 section 7.5).
+**Status:** CLOSED 2026-09-27 (see the closing note at the end); was open — filed 2026-09-27 from the observer campaign (perf report v1.2 section 7.5).
 
 `rapids_char_harness.sv` instantiates `axi4_intf_master_observer` with
 `HIST_MAX_OUTSTANDING(8)`: eight command timestamps per channel in the

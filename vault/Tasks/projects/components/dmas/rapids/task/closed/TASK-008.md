@@ -1,7 +1,7 @@
 # TASK-008: ch01_overview/02_port_list.md documents 86 of 300 ports, mis-structured
 
 **Priority:** P1. This is the book's entry page for the top-level interface.
-**Status:** open 2026-09-26. Measured, not estimated.
+**Status:** CLOSED 2026-09-27 (see the closing note at the end); was open 2026-09-26. Measured, not estimated.
 
 **The numbers.** `rapids_core_beats` has **300 ports**: 121 prefixed `src_`, 119
 prefixed `snk_`, 60 neither. The page carries 86 rows and **82 of them name no

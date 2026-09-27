@@ -2,7 +2,7 @@
 
 **Priority:** P2. This is the ROOT CAUSE of the doc naming drift, so it recurs
 until fixed.
-**Status:** open 2026-09-26. The rapids session verified the count independently
+**Status:** CLOSED 2026-09-27 (see the closing note at the end); was open 2026-09-26. The rapids session verified the count independently
 and is tracking it their side; filed here so it survives that session ending.
 
 **Measured** across `projects/components/dmas/rapids/rtl`: 28 files carry a

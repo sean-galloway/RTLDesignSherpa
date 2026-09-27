@@ -1,7 +1,7 @@
 # TASK-009: 07_beats_latency_bridge.md documents the wrong CONCEPT
 
 **Priority:** P1. Prioritised by the rapids session; misleads worse than a wrong name.
-**Status:** open 2026-09-26.
+**Status:** CLOSED 2026-09-27 (see the closing note at the end); was open 2026-09-26.
 
 **The page describes a beat-count/ID bridge. The module is a data-width skid.**
 

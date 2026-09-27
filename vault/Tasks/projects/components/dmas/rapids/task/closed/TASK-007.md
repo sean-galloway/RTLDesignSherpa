@@ -1,7 +1,7 @@
 # TASK-007: the MAS/HAS trees and index table describe the pre-wrapper SRAM architecture
 
 **Priority:** P1. Readers are told the design has a per-channel unit array it does not have.
-**Status:** open 2026-09-26. Found while doing the doc knock-on for `bdf4e0dff`.
+**Status:** CLOSED 2026-09-27 (see the closing note at the end); was open 2026-09-26. Found while doing the doc knock-on for `bdf4e0dff`.
 
 **Ground truth.** `snk_sram_controller_beats.sv` and `src_sram_controller_beats.sv`
 each instantiate STREAM's `sram_controller` **once**, at line 124, with
