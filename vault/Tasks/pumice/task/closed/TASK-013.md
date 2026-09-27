@@ -17,10 +17,17 @@ Neither adaptive predictor earns its machinery. Mode 4 is `fixed_open(tr_min)`
 exactly. Mode 5 is unproven and mis-plumbed, and even fixed would drive the
 losing mechanism.
 
-**The default change is NOT shipped.** Setting the reset to mode 3 / TR=2
-exposed [[BUG-003]] in the component gate — a short timeout precharges under an
-in-flight read and the read-return ring loses a ticket at `rd_gap >= 8`. The
-resets were reverted the same day; the measurement, the docs and the
+**The default change is NOT shipped yet — but its blocker is gone.** Setting
+the reset to mode 3 / TR=2 exposed [[BUG-003]] in the component gate. The
+diagnosis quoted here for two days ("a short timeout precharges under an
+in-flight read and the read-return ring loses a ticket at `rd_gap >= 8`") was
+**wrong**: the precharge was legal and the read ring was not involved. The real
+defect was in `pumice_cmd_arbiter.sv` — a pick its own final safety gate had
+rejected was still pushed to the cmd FIFO, so the DRAM executed a command the
+controller recorded as never issued, and the un-retired CAM entry re-issued the
+same read. Root-caused and fixed 2026-09-27 (one line: `cmd_valid_o` gated by
+`w_out_safe`). The resets stay at 0 until the default change is re-measured on
+the board with the fix in place; the measurement, the docs and the
 recommendation all stand.
 
 **Three of this task's own hypotheses were falsified and are recorded as such:**

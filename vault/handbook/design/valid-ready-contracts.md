@@ -12,6 +12,42 @@ summary: Stability rules; observers gate commands only, never responses.
   abort paths (found by the K-map pass; the write side registers awvalid
   correctly). Register valids that cross an abort boundary.
 - Ready may be combinational; never require ready-before-valid.
+- **A "reject" that does not gate `valid` rejects nothing** (owner design law,
+  2026-09-27, pumice BUG-003). When a block re-checks safety at its output
+  register and has BOTH an internal "this really issued" strobe and an external
+  `valid`, the safety term must appear in **both** or the block lies to itself.
+  pumice's arbiter had
+
+        assign w_out_safe   = (r_do_rd || r_do_wr) ? bank_rdwr_ready_i[...] : ...;
+        assign w_out_reject = r_pick_valid && !w_out_safe;   // frees the slot
+        assign w_fire_out   = r_pick_valid && cmd_ready_i && w_out_safe;
+        assign cmd_valid_o  = r_pick_valid;                  // <-- no safe term
+
+  and a comment asserting "Dropping is lossless". Freeing the output register
+  is not dropping: while the rejected pick sat there, `cmd_valid_o && ready`
+  was true, the FIFO took it, and the DRAM executed it. Meanwhile `w_fire_out`
+  — which gates `evt_*` to the bank timers, the post-fire guard shifts, AND the
+  CAM retire — stayed low, so the controller's model recorded the command as
+  never issued. **Two consequences, and the second is the one that bites:** the
+  DRAM got an illegal command, and because the CAM entry was never retired the
+  same read was issued AGAIN after the re-pick. One AXI read, two RD commands
+  on the bus, one extra read return. It was chased for weeks as a DV
+  read-return modelling defect and then as a missing precharge guard; it was
+  one missing `&& w_out_safe`.
+  **The test:** for any output-register safety gate, write down the set of
+  consumers of the safety term. If `valid` is not in that set, the design
+  issues commands it has decided not to issue. Make the fire and the push the
+  same expression (`w_fire_out == cmd_valid_o && cmd_ready_i`) so they cannot
+  diverge again. Retracting `valid` this way is safe against a `gaxi_fifo_sync`
+  (its `wr_ready` is a registered `!r_wr_full`, so no loop, and it pushes only
+  on `wr_valid && wr_ready`) — but it IS a valid retraction, so check the
+  consumer, per the AXI stability rule above.
+- **Instrument the port, never re-derive the condition.** The trace that found
+  this originally reconstructed the push as `r_pick_valid && cmd_ready_i`
+  because that is what `cmd_valid_o` was assigned to. After the fix that
+  instrument still reported 9 pushes the DUT no longer made. A probe that
+  re-derives a DUT expression measures the design it was written against;
+  read `cmd_valid_o` itself.
 - Observer rule (owner design law): a monitor/observer may backpressure
   COMMAND channels only - responses/data must never be stalled. Monitors
   size so backpressure does not normally happen ([[sizing-invariants]]),

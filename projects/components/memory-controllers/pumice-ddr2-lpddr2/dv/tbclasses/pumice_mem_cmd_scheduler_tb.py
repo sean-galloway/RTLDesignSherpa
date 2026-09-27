@@ -20,8 +20,9 @@ import sys
 import subprocess
 from collections import deque
 
+
 import cocotb
-from cocotb.triggers import RisingEdge
+from cocotb.triggers import RisingEdge, Timer
 
 _repo_root = subprocess.check_output(
     ['git', 'rev-parse', '--show-toplevel']
@@ -35,15 +36,40 @@ _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 from tbclasses.pumice_fub_bfm import fub_consumer      # noqa: E402
+from tbclasses.pumice_dram_configs import (            # noqa: E402
+    dram_config, describe as describe_config,
+)
 
 OP_NOP, OP_ACT, OP_RD, OP_RDA, OP_WR, OP_WRA, OP_PRE, OP_PREA, OP_REF, OP_REFPB, OP_MRS = range(11)
 PAGE_OPEN, PAGE_CLOSE = 0, 1
 MEMTYPE_DDR2 = 0
 
 
+def _resolve_cfg(config=None):
+    """(name, model_timings, controller_mc_cycles, meta) for a named point.
+
+    A test may pass a name; otherwise DRAM_CONFIG in the environment decides;
+    otherwise the BOARD. A default that is a constant rather than the board is
+    how this suite spent months measuring the wrong thing
+    (feedback_config_register_not_default).
+    """
+    model, ctrl, meta = dram_config(config)
+    return meta['name'], model, ctrl, meta
+
+
 class PumiceMemCmdSchedulerTB(TBBase):
-    def __init__(self, dut):
+    # THE OPERATING POINT, not a pile of constants. This TB used to clock aclk at
+    # 100 MHz (`freq=10, units='ns'`) and program t_rcd=3 t_rp=3 t_ras=5 t_rc=8
+    # t_faw=6 -- a timing set belonging to no part at no frequency. pumice
+    # BUG-003 was root-caused on that config and the writeup claimed the board;
+    # the mechanism was structural and held anyway, but the claim was false and
+    # had to be corrected. A scheduler-layer TB is single-domain, so a frequency
+    # reaches it ONLY through these cycle counts -- which is exactly why the
+    # config axis belongs here and is worth sweeping.
+    def __init__(self, dut, config=None):
         super().__init__(dut)
+        self.config_name, self._model_t, self._ctrl_t, self.meta = _resolve_cfg(config)
+        self.BL = self.meta['BL']
         self.NUM_BANKS = self.convert_to_int(os.environ.get('NUM_BANKS', '8'))
         self.ROW_WIDTH = self.convert_to_int(os.environ.get('ROW_WIDTH', '14'))
         self.COL_WIDTH = self.convert_to_int(os.environ.get('COL_WIDTH', '10'))
@@ -59,9 +85,13 @@ class PumiceMemCmdSchedulerTB(TBBase):
         self.rd_entry = None
         self.wr_committed = []
         self.rd_issued = []
+        # arbiter push audit (see _arbiter_audit)
+        self.pushes = []
+        self.unsafe_pushes = []
 
     async def setup_clocks_and_reset(self):
-        await self.start_clock('aclk', freq=10, units='ns')
+        # Period from the operating point, never a literal.
+        await self.start_clock('aclk', freq=self.meta['aclk_ns'], units='ns')
         self._build_bfms()
         self._drive_idle()
         self.dut.aresetn.value = 0
@@ -71,6 +101,7 @@ class PumiceMemCmdSchedulerTB(TBBase):
         cocotb.start_soon(self._cam_model())
         cocotb.start_soon(self._cmd_sink())
         cocotb.start_soon(self._track_commit_issue())
+        cocotb.start_soon(self._arbiter_audit())
 
     async def assert_reset(self):
         self.dut.aresetn.value = 0
@@ -82,19 +113,25 @@ class PumiceMemCmdSchedulerTB(TBBase):
         self.dut.page_policy_i.value = PAGE_OPEN
         self.dut.memtype_i.value = MEMTYPE_DDR2
         # timing (small, legal-ish)
-        self.dut.t_rcd_i.value = 3
-        self.dut.t_rp_i.value = 3
-        self.dut.t_ras_i.value = 5
-        self.dut.t_rc_i.value = 8
-        self.dut.t_wr_i.value = 4
-        self.dut.t_rtp_i.value = 2
-        self.dut.t_faw_i.value = 6
-        self.dut.t_rrd_i.value = 2
-        self.dut.t_wtr_i.value = 2
-        self.dut.t_rtw_i.value = 2
-        self.dut.t_ccd_i.value = 2
-        self.dut.t_refi_i.value = 0x0800
-        self.dut.t_rfc_i.value = 8       # mission-mode REF recovery (arbiter)
+        # DERIVED from the operating point. The keys are the derivation's own
+        # (JEDEC) names; the ports are the RTL's. t_rtw is the one term that is
+        # not a pure JEDEC delay -- it carries a measured PHY read-pipeline floor
+        # (PUMICE-037) -- and it comes from the same derivation so it cannot
+        # drift from the rest.
+        t = self._ctrl_t
+        self.dut.t_rcd_i.value  = t['tRCD']
+        self.dut.t_rp_i.value   = t['tRP']
+        self.dut.t_ras_i.value  = t['tRAS']
+        self.dut.t_rc_i.value   = t['tRC']
+        self.dut.t_wr_i.value   = t['tWR']
+        self.dut.t_rtp_i.value  = t['tRTP']
+        self.dut.t_faw_i.value  = t['tFAW']
+        self.dut.t_rrd_i.value  = t['tRRD']
+        self.dut.t_wtr_i.value  = t['tWTR']
+        self.dut.t_rtw_i.value  = t['tRTW']
+        self.dut.t_ccd_i.value  = t['tCCD']
+        self.dut.t_refi_i.value = t['tREFI']
+        self.dut.t_rfc_i.value  = t['tRFC']
         self.dut.refresh_burst_i.value = 1
         self.dut.t_init_wait_i.value = 0
         self.dut.t_dll_wait_i.value = 0
@@ -188,16 +225,69 @@ class PumiceMemCmdSchedulerTB(TBBase):
             await RisingEdge(self.dut.aclk)
             cyc += 1
             if int(self.dut.cmd_valid_o.value) and int(self.dut.cmd_ready_i.value):
+                op = int(self.dut.cmd_op_o.value)
+                # ROW IS ONLY MEANINGFUL ON AN ACT. A DRAM column command carries
+                # bank and column, not a row -- the row is implied by whatever
+                # ACT opened the bank. pumice's arbiter assigns w_row only on its
+                # ACT branches, so cmd_row_o reads 0 beside a RD/WR. Recording
+                # that 0 as if it were the target row makes every column op look
+                # like it addresses row 0, which is exactly what the stream
+                # checker's wrong-row rule then reported. None means "not
+                # observable here", and the checker skips the comparison rather
+                # than inventing a verdict from a don't-care.
                 self.cmds.append({
                     'cycle': cyc,
-                    'op':   int(self.dut.cmd_op_o.value),
+                    'op':   op,
                     'bank': int(self.dut.cmd_bank_o.value),
-                    'row':  int(self.dut.cmd_row_o.value),
+                    'row':  int(self.dut.cmd_row_o.value) if op == OP_ACT else None,
                     'col':  int(self.dut.cmd_col_o.value),
                     'ap':   int(self.dut.cmd_ap_o.value),
                 })
 
     # ---- helpers ------------------------------------------------------------
+    async def _arbiter_audit(self):
+        """Record every cmd-FIFO push, and whether the arbiter's OWN final
+        safety gate had approved it.
+
+        `w_out_safe` is the arbiter's last-moment re-check of a registered pick
+        against the freshest bank-timer state. A push that happens while it is
+        LOW is a command the controller decided not to issue and issued anyway.
+        That was pumice BUG-003: `cmd_valid_o` was `r_pick_valid` with no
+        `w_out_safe` term, so the reject freed the output register (which the
+        code called "dropping") while the FIFO took the command regardless -- and
+        because `w_fire_out` DOES carry the term, `evt_*` never strobed and the
+        bank timers, the guard chains and the CAM retire all recorded a command
+        that the DRAM had executed.
+
+        The invariant is one comparison and it holds for every config, every
+        paging mode and every traffic pattern, so it lives here rather than in
+        the one test that found it. `unsafe_pushes` must stay empty.
+
+        SAMPLED 1 ps AFTER the edge, never on it: `w_out_safe` and `cmd_valid_o`
+        are combinational, and reading them on the edge samples before the deltas
+        settle -- which is what once made an arbiter-side count come up exactly
+        one short (776 vs 777) and wrongly exonerate the arbiter.
+        """
+        arb = self.dut.u_arbiter
+        cyc = 0
+        while True:
+            await RisingEdge(self.dut.aclk)
+            await Timer(1, 'ps')
+            cyc += 1
+            try:
+                pushing = int(arb.cmd_valid_o.value) and int(arb.cmd_ready_i.value)
+            except Exception:
+                return              # no arbiter visibility; audit is inert
+            if not pushing:
+                continue
+            rec = dict(cycle=cyc, op=int(arb.r_op.value),
+                       bank=int(arb.r_bank.value),
+                       safe=int(arb.w_out_safe.value),
+                       fire=int(arb.w_fire_out.value))
+            self.pushes.append(rec)
+            if not rec['safe']:
+                self.unsafe_pushes.append(rec)
+
     async def complete_init(self, max_cycles=200):
         self.dut.dfi_init_complete_i.value = 1
         for _ in range(max_cycles):

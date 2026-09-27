@@ -8,6 +8,7 @@ import sys
 import random
 
 import cocotb
+from cocotb.triggers import RisingEdge, Timer
 import pytest
 from cocotb_test.simulator import run
 
@@ -19,6 +20,8 @@ if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
 from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa: E402
+from tbclasses.pumice_dram_configs import dram_config  # noqa: E402
+_CTRL_T = dram_config()[1]      # the operating point this suite runs
 from tbclasses.pumice_mem_cmd_scheduler_tb import (  # noqa: E402
     PumiceMemCmdSchedulerTB, OP_ACT, OP_RD, OP_WR, OP_PRE, OP_REF, OP_MRS,
 )
@@ -357,6 +360,322 @@ def test_pumice_mem_cmd_scheduler(request):
     _run_scheduler(request, "cocotb_test_pumice_mem_cmd_scheduler")
 
 
+
+@cocotb.test(timeout_time=30, timeout_unit="ms")
+async def cocotb_test_timeout_pre_vs_pending_column(dut):
+    """pumice BUG-003 at the MACRO level: does a column op ever issue to a bank
+    the scheduler has just precharged?
+
+    WHY HERE. At the core level the illegal command is observable at
+    `cmd_valid_o && cmd_ready_i` and on the DFI pins, but the pick guards are
+    timed to the arbiter's INTERNAL fire and the observable sits downstream of a
+    FIFO -- the offending PRE sat valid-but-not-ready for 3 cycles, so push and
+    pop times diverge and guard state cannot be aligned to the bad command. This
+    macro drives the scheduler directly: no AXI front end, no CAMs, no cmd FIFO
+    hop beyond CMD_DELAY, no DFI layer.
+
+    THE CONFIG IS THE ONE THAT FAILS ON THE BOARD PATH: open page with the
+    background timeout enabled (`page_mode_i=3`, `page_tr_init_i=2`). Baselines
+    matter as much as the failing arm -- open page with the timeout OFF, and
+    close page, are both clean at the core level, so this test drives all three
+    and only the timeout arm is expected to be able to fail.
+
+    THE ORACLE IS JEDEC LEGALITY, not a bandwidth number: replay the issued
+    command stream through a per-bank open/closed model and assert that no
+    column op is ever issued to a bank with no open row. That is exactly the
+    condition the DRAM state model reports as `no_act_before_rd`.
+
+    THE RACE needs a column already classified against an open row at the moment
+    the timeout closes it, so the inter-read delay is SWEPT: at some delays the
+    next request lands in the pick pipeline as the PRE fires, at others it does
+    not. A single delay would pass by luck.
+    """
+    tb = PumiceMemCmdSchedulerTB(dut)
+    await tb.setup_clocks_and_reset()
+    done = await tb.complete_init()
+    assert done, "init_done never asserted"
+
+    BANK, ROW = 2, 0x123          # the bank/row the board path failed on
+
+    # Guard trace. The whole reason this test lives at the macro level: these are
+    # the arbiter-internal pick guards, and here they can be tied to the command
+    # that broke the rule.
+    #
+    # ALIGNMENT IS BY COMMAND ORDINAL, NEVER BY CYCLE. The observable stream is
+    # at cmd_valid_o/cmd_ready_i -- CMD_DELAY plus FIFO occupancy downstream of
+    # the arbiter's internal fire -- so the two cycle numbers differ by a varying
+    # amount and subtracting them is meaningless. An earlier pass read "the read
+    # is 4 cycles after the PRE" off two unrelated counters and built a whole
+    # theory on it. The cmd FIFO is in-order and lossless, so output command #N
+    # IS arbiter fire #N; that identity is ASSERTED below, not assumed.
+    #
+    # Everything is sampled 1 ps AFTER each rising edge, never on it. w_fire_out
+    # is combinational; reading it on the edge samples it before the deltas
+    # settle, which is what made an earlier arbiter-side count come up exactly
+    # one short (776 vs 777) and wrongly exonerate the arbiter.
+    arb = dut.u_arbiter
+    guards, fires, outs, pushes, suppressed = {}, [], [], [], []
+    _GSIGS = ('w_pre_col_guard', 'r_preguard0', 'r_preguard1', 'r_preguard2',
+              'w_preact_bank_guard', 'w_col_inflight_guard', 'w_prepick_guard',
+              'w_if_preact_out', 'w_if_col_out', 'w_guarded')
+
+    def _m(sig):
+        try:
+            return int(getattr(arb, sig).value)
+        except Exception:
+            return -1
+
+    async def _trace():
+        cyc = 0
+        while True:
+            await RisingEdge(dut.aclk)
+            await Timer(1, 'ps')          # let the combinational cone settle
+            cyc += 1
+            g = {s: _m(s) for s in _GSIGS}
+            g['fire'] = _m('w_fire_out')
+            g['safe'] = _m('w_out_safe')
+            g['rej'] = _m('w_out_reject')
+            g['pv'] = _m('r_pick_valid')
+            g['crdy'] = _m('cmd_ready_i')
+            g['bank'] = _m('r_bank')
+            g['do_pre'] = _m('r_do_pre')
+            g['do_rd'] = _m('r_do_rd')
+            g['rowact'] = _m('r_bank_row_active')
+            g['tmo'] = _m('timeout_pre_req_i')
+            g['tmo_bank'] = _m('timeout_pre_bank_i')
+            guards[cyc] = g
+            # THE PUSH, read from the arbiter's OWN handshake rather than
+            # reconstructed from r_pick_valid: cmd_valid_o carries the w_out_safe
+            # gate (BUG-003), and an instrument that re-derives the condition
+            # measures the version of the design it was written against, not the
+            # one running. Reading the port cannot drift.
+            if int(arb.cmd_valid_o.value) and g['crdy'] == 1:
+                pushes.append({'cycle': cyc, 'bank': g['bank'],
+                               'op': _m('r_op'), 'row': _m('r_row'),
+                               'col': _m('r_col_out'),
+                               'safe': g['safe'], 'fire': g['fire'],
+                               'do_pre': g['do_pre'], 'do_rd': g['do_rd']})
+            # A pick the final gate SUPPRESSED: it was in the output register,
+            # the FIFO had room, and it did not go. This is the hazard being
+            # caught -- a non-zero count is the positive evidence the test needs,
+            # not a failure.
+            if g['pv'] == 1 and g['crdy'] == 1 and g['safe'] == 0:
+                suppressed.append({'cycle': cyc, 'bank': g['bank'],
+                                   'op': _m('r_op'), 'do_rd': g['do_rd'],
+                                   'do_pre': g['do_pre']})
+            if g['fire'] == 1:
+                fires.append({'cycle': cyc, 'bank': g['bank'],
+                              'do_pre': g['do_pre'], 'do_rd': g['do_rd']})
+            if int(dut.cmd_valid_o.value) and int(dut.cmd_ready_i.value):
+                outs.append({'cycle': cyc, 'op': int(dut.cmd_op_o.value),
+                             'bank': int(dut.cmd_bank_o.value),
+                             'row': int(dut.cmd_row_o.value),
+                             'col': int(dut.cmd_col_o.value),
+                             'ap': int(dut.cmd_ap_o.value)})
+    cocotb.start_soon(_trace())
+
+    def replay(cmds):
+        """Return (local index, command) for every column op issued to a bank
+        with no open row."""
+        state = {b: 'idle' for b in range(8)}
+        bad = []
+        for i, c in enumerate(cmds):
+            op, b = c['op'], c['bank']
+            if op == OP_ACT:
+                state[b] = 'open'
+            elif op == OP_PRE:
+                state[b] = 'idle'
+            elif op == OP_REF:
+                state = {k: 'idle' for k in state}
+            elif op in (OP_RD, OP_WR):
+                if state.get(b) != 'open':
+                    bad.append((i, c))
+                if c['ap']:
+                    state[b] = 'idle'
+        return bad
+
+    async def arm(mode, tr, label):
+        dut.page_mode_i.value = mode
+        dut.page_tr_init_i.value = tr
+        await tb.wait_clocks('aclk', 4)
+        # ACCUMULATE the whole arm and replay ONCE. Clearing the stream between
+        # reps discarded the ACT that opened the row while the DUT still had it
+        # open, so the replay began each window with every bank "idle" and
+        # flagged perfectly legal reads -- 38 of 39 points in the open-page
+        # baseline, which is how that baseline assertion earned its place.
+        base, pbase, sbase = len(outs), len(pushes), len(suppressed)
+        cbase = max(guards) if guards else 0
+        # Sweep the gap so the next request lands at every phase relative to the
+        # timeout PRE. TR=2 expires almost immediately once the bank goes idle.
+        for gap in range(0, 13):
+            for rep in range(3):
+                for k in range(4):
+                    tb.rd_entry = {'bank': BANK, 'row': ROW,
+                                   'col': 0x40 + 4 * k, 'id': 0xA,
+                                   'age': 10, 'slot': 3}
+                    for _ in range(40):
+                        if tb.rd_entry is None:
+                            break
+                        await tb.wait_clocks('aclk', 1)
+                    await tb.wait_clocks('aclk', gap)
+                await tb.wait_clocks('aclk', 16)     # drain CMD_DELAY + FIFO
+        stream = outs[base:]
+        pstream = pushes[pbase:]
+        rej = [p for p in pstream if p['safe'] == 0]
+        supp = suppressed[sbase:]
+        bad = replay(stream)
+        # Cycles in which the page policy actually ASKED for a background close.
+        # Without this the whole test is vacuous under any config that disables
+        # the timeout: zero closes, zero hazards, green. See
+        # feedback_checker_verdict_needs_a_count -- a verdict needs its count.
+        tmo_cyc = sum(1 for c, g in guards.items()
+                      if c > cbase and g['tmo'] == 1)
+        tb.log.info("[%s] mode=%d tr=%d -> %d cmds out, %d pushes, "
+                      "%d pushed-but-NOT-safe, %d picks SUPPRESSED by the final "
+                      "gate, %d illegal column ops, %d cycles requesting a "
+                      "background close",
+                      label, mode, tr, len(stream), len(pstream), len(rej),
+                      len(supp), len(bad), tmo_cyc)
+        return dict(label=label, stream=stream, pstream=pstream, rej=rej,
+                    supp=supp, tmo_cyc=tmo_cyc,
+                    bad=[(i, c, stream, pstream, rej) for i, c in bad])
+
+    # baseline 1: open page, timeout OFF -> must be clean
+    base_open = await arm(0, 0, "open_page_no_timeout")
+    # baseline 2: static close (auto-precharge) -> must be clean
+    base_close = await arm(2, 0, "static_close")
+    # the failing arm: open page + background timeout, TR=2
+    tmo = await arm(3, 2, "fixed_open_tr2")
+
+    # THE TEST MUST PROVE IT RAN. Each arm has to have issued a real command
+    # stream, and the failing arm has to have actually exercised the background
+    # close -- otherwise a green result says nothing about the hazard.
+    for a in (base_open, base_close, tmo):
+        assert len(a['pstream']) >= 100, (
+            f"VACUOUS ARM: {a['label']} pushed only {len(a['pstream'])} commands; "
+            f"the stimulus did not run, so its verdict is meaningless.")
+    assert tmo['tmo_cyc'] > 0, (
+        "VACUOUS TEST: the fixed_open TR=2 arm never asserted "
+        "timeout_pre_req_i, so no background close happened and the hazard was "
+        "never presented. Check page_mode_i/page_tr_init_i reached the DUT.")
+    assert base_open['tmo_cyc'] == 0, (
+        f"BASELINE BROKEN: open page with the timeout OFF requested "
+        f"{base_open['tmo_cyc']} background closes; it is not a baseline.")
+    tb.log.info("coverage: background-close requests -- open_page=%d, "
+                  "static_close=%d, fixed_open_tr2=%d (must be >0)",
+                  base_open['tmo_cyc'], base_close['tmo_cyc'], tmo['tmo_cyc'])
+
+    assert not base_open['bad'], (
+        f"BASELINE BROKEN: open page with no timeout issued a column op to a "
+        f"closed bank -- {base_open['bad'][0][1]}. The test is wrong, not the DUT.")
+    assert not base_close['bad'], (
+        f"BASELINE BROKEN: static close issued a column op to a closed bank -- "
+        f"{base_close['bad'][0][1]}.")
+
+    # The defect this test was written for: a pick its own final safety gate
+    # rejected (w_out_safe == 0) must not reach the cmd FIFO. cmd_valid_o is
+    # gated by w_out_safe, so the push and the fire are the same event; assert
+    # that on every arm, not just the one that used to fail.
+    for a in (base_open, base_close, tmo):
+        assert not a['rej'], (
+            f"BUG-003 REGRESSED in {a['label']}: {len(a['rej'])} commands were "
+            f"pushed to the cmd FIFO with w_out_safe==0 -- the arbiter rejected "
+            f"them at its final gate, never strobed evt_* for them, and issued "
+            f"them to the DRAM anyway. First: {a['rej'][0]}")
+
+    # POSITIVE evidence, not just absence. The failing arm must actually reach
+    # the hazard -- a pick arriving at the output register after a background
+    # close invalidated it -- and the gate must be the thing that stops it. If
+    # this count is 0 the arm proves nothing: either the stimulus stopped
+    # creating the race or an upstream guard started absorbing it, and in both
+    # cases BUG-003's regression check has quietly stopped testing anything.
+    tb.log.info("coverage: picks suppressed by the final gate -- open_page=%d, "
+                  "static_close=%d, fixed_open_tr2=%d (must be >0)",
+                  len(base_open['supp']), len(base_close['supp']),
+                  len(tmo['supp']))
+    assert tmo['supp'], (
+        "COVERAGE LOST: the fixed_open TR=2 arm never presented a pick that the "
+        "final safety gate had to reject, so '0 illegal column ops' is vacuous. "
+        "BUG-003's mechanism is a rejected pick reaching the cmd FIFO; if no "
+        "pick is ever rejected the check is inert. Re-derive the stimulus.")
+
+    if tmo['bad']:
+        idx, bad, stream, pstream, rej = tmo['bad'][0]
+        ops = {OP_ACT: 'ACT', OP_RD: 'RD', OP_WR: 'WR', OP_PRE: 'PRE',
+               OP_REF: 'REF', OP_MRS: 'MRS'}
+        trace = " -> ".join(
+            f"{ops.get(c['op'], c['op'])}(b{c['bank']}"
+            f"{',ap' if c['ap'] else ''})@{c['cycle']}"
+            for c in stream if c['bank'] == BANK)
+
+        # The ordinal mapping, made ARM-LOCAL. The cmd FIFO is drained at the end
+        # of every gap iteration, so within one arm push #i IS output #i. Assert
+        # it rather than assume it: an earlier pass compared the arbiter's cycle
+        # counter against the FIFO's and read a 4-cycle gap that did not exist.
+        ordinal_ok = (len(pstream) == len(stream))
+        dut._log.info("arm pushes=%d, FIFO outputs=%d -> ordinal mapping %s",
+                      len(pstream), len(stream),
+                      "VALID" if ordinal_ok else "INVALID (do not trust cycles)")
+        assert ordinal_ok, (
+            f"BUG-003 REPRODUCED ({len(tmo['bad'])} illegal column ops), but the "
+            f"push/output ordinal mapping is broken ({len(pstream)} vs "
+            f"{len(stream)}), so the guard cycle cannot be identified.")
+
+        p0 = pstream[idx]
+        dut._log.info("=== illegal column op is arm command #%d: pushed at cycle "
+                      "%d, op=%s bank=%d, w_out_safe=%d, w_fire_out=%d ===",
+                      idx, p0['cycle'], ops.get(p0['op'], p0['op']), p0['bank'],
+                      p0['safe'], p0['fire'])
+        # THE MEASUREMENT. cmd_valid_o == r_pick_valid, so a pick with
+        # w_out_safe == 0 is still PUSHED to the FIFO and executed by the DRAM,
+        # while w_fire_out == 0 means evt_* never strobed -- the bank timers and
+        # the r_guard/r_preguard chains never learned the command happened.
+        dut._log.info("pushes with w_out_safe==0 in this arm: %d of %d -- %s",
+                      len(rej), len(pstream),
+                      [(r['cycle'], ops.get(r['op'], r['op']), r['bank'])
+                       for r in rej[:16]])
+        n_unsafe_cols = sum(1 for r in rej if r['op'] in (OP_RD, OP_WR))
+        dut._log.info("of those, %d are COLUMN ops; the replay found %d illegal "
+                      "column ops", n_unsafe_cols, len(tmo['bad']))
+
+        f0 = p0['cycle']
+        dut._log.info("%6s %3s %4s %4s %4s %4s %4s %6s | %7s %3s %3s %3s | "
+                      "%9s %8s %7s %9s %6s %7s %3s",
+                      "cyc", "pv", "crdy", "safe", "fire", "dpre", "drd",
+                      "rowact", "pre_col", "pg0", "pg1", "pg2", "preact_bk",
+                      "col_infl", "prepick", "ifpre_out", "ifcol", "guarded",
+                      "tmo")
+        for c in range(max(1, f0 - 12), f0 + 4):
+            g = guards.get(c)
+            if not g:
+                continue
+            b = lambda k: ((g[k] >> BANK) & 1) if g[k] >= 0 else -1
+            dut._log.info("%6d %3d %4d %4d %4d %4d %4d %6d | %7d %3d %3d %3d | "
+                          "%9d %8d %7d %9d %6d %7d %3d",
+                          c, g['pv'], g['crdy'], g['safe'], g['fire'],
+                          g['do_pre'], g['do_rd'], b('rowact'),
+                          b('w_pre_col_guard'), b('r_preguard0'),
+                          b('r_preguard1'), b('r_preguard2'),
+                          b('w_preact_bank_guard'), b('w_col_inflight_guard'),
+                          b('w_prepick_guard'), b('w_if_preact_out'),
+                          b('w_if_col_out'), b('w_guarded'), g['tmo'])
+        near = [(p['cycle'], ops.get(p['op'], p['op']), 'safe' if p['safe'] else 'UNSAFE')
+                for p in pstream if p['bank'] == BANK and f0 - 24 <= p['cycle'] <= f0]
+        dut._log.info("pushes to bank %d in [%d..%d]: %s", BANK, f0 - 24, f0, near)
+        assert False, (
+            f"BUG-003 REPRODUCED at the macro level: column op "
+            f"{ops.get(bad['op'], bad['op'])} to bank {bad['bank']} with no open "
+            f"row, pushed at cycle {f0} with w_out_safe={p0['safe']} and "
+            f"w_fire_out={p0['fire']}. {len(tmo['bad'])} occurrences; "
+            f"{len(rej)} pushes this arm had w_out_safe==0.\n"
+            f"  bank {BANK} stream: {trace}\n"
+            f"  guard trace logged above.")
+
+
+def test_pumice_mem_cmd_scheduler_timeout_pre_vs_pending_column(request):
+    _run_scheduler(request, "cocotb_test_timeout_pre_vs_pending_column")
+
+
 def _run_scheduler(request, testcase):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_mem_cmd_scheduler"
@@ -374,9 +693,15 @@ def _run_scheduler(request, testcase):
     params = {
         "NUM_RANKS": "1", "NUM_BANKS": "8", "ROW_WIDTH": "14", "COL_WIDTH": "10",
         "AXI_ID_WIDTH": "8", "NUM_ENTRIES": "8",
-        # enable the in-scheduler command-history scoreboard (audit-only);
-        # global turnaround windows match the TB's t_wtr_i/t_rtw_i = 2
-        "CMD_HISTORY_EN": "1", "HIST_T_WTR": "2", "HIST_T_RTW": "2",
+        # The in-scheduler command-history scoreboard (audit-only). Its
+        # turnaround windows are ELABORATION parameters and must match the
+        # timings the TB programs at runtime. They were pinned at 2/2 to match
+        # the TB's old invented set; the TB now derives its timings from a named
+        # operating point, so these are derived from the same one -- otherwise
+        # this second oracle audits windows no config in the table uses, which is
+        # worse than not auditing at all because it still reports success.
+        "CMD_HISTORY_EN": "1",
+        "HIST_T_WTR": str(_CTRL_T['tWTR']), "HIST_T_RTW": str(_CTRL_T['tRTW']),
     }
     extra_env = {
         "DUT": dut_name, "LOG_PATH": log_path, "COCOTB_LOG_LEVEL": "INFO",

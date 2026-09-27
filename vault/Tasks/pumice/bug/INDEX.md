@@ -12,20 +12,21 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
 
 - **BUG-000** — TEMPLATE — copy this file, never file against it
-- **BUG-003** — a short page timeout precharges under an in-flight read; the
-  read-return ring loses a ticket at rd_gap >= 8. LATENT (needs mode 3 + short
-  TR; reset is 0, so nothing reaches it today). Blocks the fixed_open default.
 
 ## Closed
 
+- **BUG-003** — an arbiter pick rejected by its own final safety gate
+  (`w_out_safe==0`) was pushed to the cmd FIFO and executed by the DRAM, while
+  `w_fire_out` withheld `evt_*` so the bank timers never saw it — FIXED
+  2026-09-27, one line in `pumice_cmd_arbiter.sv`
 - **BUG-001** — one unattributed mismatched beat, seen once in 1008 matrix cells
 - **BUG-002** — close-page below its command-bus ceiling — FIXED 2026-09-25,
   62.8% -> 85.7% via bank-timer lookahead + final-stage timing authority

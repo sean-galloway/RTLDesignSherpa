@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-016** — never recycle a number, even when its item closed.
+**Next ID: TASK-017** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
+| [open/](open/) | 5 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
@@ -26,6 +26,9 @@ exactly one state by construction rather than by discipline.
 - **TASK-015** — test the DUT across configurations: 4-layer plan (reset-parity
   gate, pairwise covering array x gap, invariant oracles, seeded soak) with a
   reportable 2-way coverage number
+- **TASK-016** — nothing checks the DDR2 init sequence for JEDEC legality;
+  the matrix excludes it because the init waits are shortened for sim, so
+  init command order/content is unverified at every level
 
 ## Closed
 

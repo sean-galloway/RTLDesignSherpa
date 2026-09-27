@@ -1499,7 +1499,31 @@ module pumice_cmd_arbiter
     )
 
     // ---- command push outputs (from the registered decision) ----
-    assign cmd_valid_o = r_pick_valid;
+    // GATED BY w_out_safe (pumice BUG-003). w_out_reject above makes w_out_ready
+    // true so an unsafe pick is OVERWRITTEN next cycle, and the comment there
+    // calls that "dropping". It was not dropping anything: cmd_valid_o was
+    // r_pick_valid unconditionally, so while the unsafe pick sat in the output
+    // register the FIFO accepted it (w_write = wr_valid && wr_ready) and the
+    // DRAM executed it -- and because w_fire_out DOES include w_out_safe,
+    // evt_*_o never strobed, so the bank timers and the r_guard/r_preguard
+    // chains never learned the command had been issued. The controller's model
+    // and the DRAM diverged, silently, in the one direction that matters.
+    //
+    // Measured at the macro level (test_pumice_mem_cmd_scheduler.py,
+    // cocotb_test_timeout_pre_vs_pending_column) under the BOARD config, open
+    // page + background timeout PRE, TR=2: 465 pushes, 9 with w_out_safe==0,
+    // all 9 column RDs to a bank whose row the timeout PRE had just closed, and
+    // exactly those 9 were the illegal column ops the JEDEC replay flagged
+    // (1:1, no others). Both baselines -- open page with the timeout off, and
+    // static close -- had 0 unsafe pushes and 0 illegal ops. The gate was never
+    // the problem; it caught all nine. The drop simply did not exist.
+    //
+    // With this gate, w_fire_out == cmd_valid_o && cmd_ready_i identically, so
+    // the fire IS the push by construction and the two cannot diverge again.
+    // Retracting valid is safe here: gaxi_fifo_sync drives wr_ready from a
+    // REGISTERED !r_wr_full (no combinational path back to wr_valid, so no
+    // loop) and pushes only on wr_valid && wr_ready.
+    assign cmd_valid_o = r_pick_valid && w_out_safe;
     assign cmd_op_o    = r_op;
     assign cmd_rank_o  = RKW'(RK0);
     assign cmd_bank_o  = r_bank;

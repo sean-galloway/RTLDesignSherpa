@@ -73,103 +73,17 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 # state model's hard checks armed the suite failed almost immediately. The
 # consequence was that this suite could not detect a JEDEC violation AT ALL.
 #
-# The derivation is IMPORTED, not copied. `ddr2_timings_mc_cycles` already
-# encodes the bank_timer port contracts (t_wr_i is "WR cmd -> earliest PRE, incl
-# WL+BL/2") and was fixed for exactly that in 65968b9b4 -- a fix this TB never
-# received because it carried its own constants. Duplicating it again is how that
-# happened; importing is the point.
-import sys as _sys_cfg
-_HOST_DIR = ("/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/"
-             "pumice/build-perf/host")
-if _HOST_DIR not in _sys_cfg.path:
-    _sys_cfg.path.insert(0, _HOST_DIR)
-from pumice_device import (                              # noqa: E402
-    DDR2_MT47H64M16_NS as _PART_MT47H64M16,
-    ddr2_timings_mc_cycles as _ctrl_timings,
+# THE TABLE MOVED. It used to live here, which meant the macro-level scheduler
+# TB could not reach it and carried its own invented numbers instead
+# (`t_rcd=3 t_rp=3 t_ras=5 t_rc=8` at 100 MHz -- a set matching no part at no
+# clock). Both layers now import the same 12 named points; see
+# tbclasses/pumice_dram_configs.py for the table and the reasoning behind each
+# point. Re-exported here because four test files import board_clock_periods
+# from this module.
+from tbclasses.pumice_dram_configs import (                # noqa: E402,F401
+    DRAM_CONFIGS, ALL_CONFIGS, SPAN_CONFIGS, DEFAULT_CONFIG,
+    dram_clocks, board_clock_periods, dram_config, describe as describe_config,
 )
-from CocoTBFramework.components.dfi.jedec_timings import (  # noqa: E402
-    timings_from_params as _model_timings_from,
-)
-
-DRAM_CONFIGS = {
-    # THE BOARD, and the default. MT47H64M16 at 75 MHz MC / 150 MHz CK, CL3, BL4
-    # -- exactly what the Nexys A7 build reports at init.
-    "board_ddr2_300":  dict(part=_PART_MT47H64M16, mc_clk_hz=75e6,
-                           ck_per_mc=2, CL=3, BL=4),
-    # The same part at its RATED speed. A second legal point, not a variation on
-    # the first: deriving it reproduces builtin_timings("ddr2-650-mt47h64m16hr")
-    # exactly (tRCD=5 tRP=5 tRAS=15 tRC=20 tWR=5), which is the cross-check that
-    # this derivation is right.
-    "mt47h64m16_650": dict(part=_PART_MT47H64M16, mc_clk_hz=162.5e6,
-                           ck_per_mc=2, CL=5, BL=4),
-}
-
-
-def dram_clocks(name=None):
-    """Both simulation clock periods, DERIVED from the operating point.
-
-    Sean, 2026-09-27: *"why isn't aclk set the same in sim. I've been begging you
-    to make the sim env identical to the board for months."* There was no reason.
-    This TB hardcoded `aclk_period_ns=10` (100 MHz) against a 75 MHz board, and
-    `dfi_period_ns=4` -- a 2.5:1 ratio that matches neither DFI_RATE=2 nor
-    anything else. Both are now derived here so they cannot drift from the part
-    and clock the rest of the bench is configured for.
-
-    QUANTISED TO WHOLE PICOSECONDS, and to a MULTIPLE OF 8. 1e9/75e6 is
-    13.3333...ns, which cocotb refuses outright ("Unable to accurately represent
-    13.333333333333334(ns) with the simulator precision of 1e-12"), and the
-    DFI clock divides it -- 13333/2 = 6666.5 ps is not whole either. A multiple
-    of 8 ps keeps /2, /4 and /8 all whole. Residual frequency error is ~2e-4.
-    """
-    c = DRAM_CONFIGS[name or _os_env_mod.environ.get("DRAM_CONFIG",
-                                                     "board_ddr2_300")]
-    grain = 8
-    aclk_ps = grain * round(1e12 / c["mc_clk_hz"] / grain)
-    dfi_ps  = aclk_ps // c["ck_per_mc"]          # DFI carries ck_per_mc per MC
-    return aclk_ps / 1000.0, dfi_ps / 1000.0, round(1e12 / aclk_ps)
-
-
-def board_clock_periods(name=None):
-    """(aclk_ns, dfi_ns) for the named operating point -- the ONE source of truth.
-
-    Tests that start their own clocks must call this instead of writing literals.
-    Twenty sites across this suite hardcoded `Clock(dut.aclk, 10)` /
-    `Clock(dut.dfi_clk, 4)` -- 100 MHz and a 2.5:1 ratio matching neither
-    DFI_RATE=2 nor the 75 MHz board. Fixing the TB class alone did not help the
-    tests that bypass it, which is how BUG-003 was measured on the wrong clock for
-    hours and produced three conclusions that had to be reversed.
-    """
-    a, d, _hz = dram_clocks(name)
-    return a, d
-
-
-def dram_config(name=None):
-    """Resolve one operating point into (model_timings, controller_mc_cycles, meta).
-
-    Both halves come from the same part+clock, so a coherence assertion is
-    possible -- and is made in PumiceTopCsrTB.program_timings().
-    """
-    name = name or _os_env_mod.environ.get("DRAM_CONFIG", "board_ddr2_300")
-    if name not in DRAM_CONFIGS:
-        raise ValueError(
-            f"unknown DRAM_CONFIG {name!r}. Legal operating points: "
-            f"{sorted(DRAM_CONFIGS)}. Add a NEW named point rather than editing "
-            f"one -- a point is a part plus a clock plus mode registers, and "
-            f"changing a field in place makes it a mix of two parts.")
-    c = DRAM_CONFIGS[name]
-    tck_ns = 1e9 / (c["mc_clk_hz"] * c["ck_per_mc"])
-    cl, bl = c["CL"], c["BL"]
-    cwl = cl - 1                                   # DDR2: WL = CL-1
-    model = _model_timings_from(
-        tCK_ns=tck_ns, CL=cl, CWL=cwl, BL=bl,
-        **{(f"{k}_ns" if k != "tRAS" else "tRAS_min_ns"): v
-           for k, v in c["part"].items()})
-    ctrl = _ctrl_timings(c["mc_clk_hz"], ck_per_mc=c["ck_per_mc"], cl=cl,
-                         part=c["part"], dram_bl=bl)
-    meta = dict(name=name, tck_ns=tck_ns, CL=cl, CWL=cwl, BL=bl,
-                ck_per_mc=c["ck_per_mc"], mc_clk_hz=c["mc_clk_hz"])
-    return model, ctrl, meta
-
 
 import os as _os_env_mod
 _os_env = _os_env_mod.environ
