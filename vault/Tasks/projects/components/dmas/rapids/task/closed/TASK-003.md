@@ -2,7 +2,7 @@
 > **Was `TASK-080` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
-**Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be
+**Status:** CLOSED 2026-09-27 (closing note at the end); was open 2026-09-04. Raised by Sean: test scrubbing was meant to be
 part of the kimi review packets and got dropped along the way. Applies to the
 components suites as well as rtl/.
 
@@ -88,3 +88,15 @@ with beats now); monbus basic_flow counted the arbiter 60 cycles after the last 
 while 5 packets still sat in the input skids (waits for the arbiter to catch up); the top
 source path called the busy-then-idle wait AFTER its beat-capture wait, so the half was
 already idle again (wait moved to right after the kick). Rerun is recorded below.
+
+## Closing note (2026-09-27)
+
+Every checkable clause of the reviewer brief is now real across the five rapids
+test areas (seeds, levels, names, sources, BFM-driven protocols, checks that can
+fail), the scrub surfaced three RTL defects (rapids BUG-004/005/006) and four
+regression-only test defects (commits 54a62e8f5, 36857de7d). The clean full
+regression after those commits ran 743 cells: fub 48, fub_beats 425, macro 12,
+macro_beats 249, top_beats 10, with one failure -- the latency-bridge streaming
+drain check counted 199 of 200 beats because it ignored the wrapper FIFO; fixed
+and that suite rerun 27/27 at FULL, then the clean full run repeated. The residue -- hand-rolled responders and
+monitors in three TBs that should be framework BFMs -- is rapids TASK-013.

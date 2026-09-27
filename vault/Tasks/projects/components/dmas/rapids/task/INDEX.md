@@ -2,7 +2,7 @@
 
 # projects/components/dmas/rapids — tasks
 
-**Next ID: TASK-013** — never recycle a number, even when its item closed.
+**Next ID: TASK-014** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,13 +14,13 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 10 | done (kept for history) |
+| [closed/](closed/) | 11 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
-- **TASK-003** — scrub the tests for completeness (rapids)
+- **TASK-013** — replace the hand-rolled protocol responders in the rapids TBs with framework BFMs
 - **TASK-010** — 26 ASCII placeholder figures name dead signals; 2 figures have no test to capture from
 
 ## Active
@@ -37,3 +37,4 @@ by construction rather than by discipline.
 - **TASK-009** — 07_beats_latency_bridge.md re-authored against latency_bridge_beats.sv (closed 2026-09-27)
 - **TASK-011** — 15 `// Module:` headers now match their filenames (closed 2026-09-27)
 - **TASK-012** — harness AXI observer timestamp FIFO 8 -> 32; latency sweep re-measured with no sample loss (closed 2026-09-27)
+- **TASK-003** — scrub the tests for completeness (rapids) (closed 2026-09-27; residue is TASK-013)

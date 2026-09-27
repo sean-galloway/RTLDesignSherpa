@@ -13,8 +13,8 @@ is `git mv`, so an item is in exactly one state by construction.
 
 | Lane | For | Open | Active | Closed | Dropped |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | 7 | 0 | 5 | 0 |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | 1 | 0 | 2 | 0 |
+| [task/](task/INDEX.md) | planned work we decided to do | 2 | 0 | 11 | 0 |
+| [bug/](bug/INDEX.md) | a defect with a reproduction | 0 | 0 | 6 | 0 |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 2 | 0 | 1 | 0 |
 
 Open counts include the reserved `-000` template in each lane, which is never a
@@ -33,7 +33,7 @@ appear in commit messages and handbook notes, so the map is kept:
 |---|---|
 | `RAPIDS-OBS` | [TASK-001](task/closed/TASK-001.md) |
 | `RAPIDS-KMAP` | [TASK-002](task/closed/TASK-002.md) |
-| `TASK-080` | [TASK-003](task/open/TASK-003.md) |
+| `TASK-080` | [TASK-003](task/closed/TASK-003.md) |
 | `TASK-086` | [ISSUE-001](issue/open/ISSUE-001.md) |
 | `TASK-057` | [TASK-004](task/closed/TASK-004.md) |
 | `TASK-084` | [TASK-005](task/closed/TASK-005.md) |
