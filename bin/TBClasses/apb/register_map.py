@@ -167,6 +167,18 @@ class RegisterMap:
                                 key=lambda kv: self.reg_address(kv[1])):
             addr = self.reg_address(reg, base)
             got = read(addr)
+            # Two distinct failures, and neither may crash the walk. The sentinel
+            # means the accessor saw no reply at all; None means it saw an ERROR
+            # response -- a bus error, which is what a guarded window returns when
+            # it is not built (the STREAM MON window under USE_MON_REGS=0, gated in
+            # 2f23fe075). Before this, None reached `got & smask` below and raised
+            # TypeError: unsupported operand type(s) for &: 'NoneType' and 'int',
+            # so the walk aborted on the first guarded register and NO endpoint got
+            # a verdict at all -- silent loss of board register validation.
+            if got is None:
+                fails.append(f"{name} @ 0x{addr:08X}: ERROR RESPONSE "
+                             f"(bus error -- window not built?)")
+                continue
             if got == self.WALK_NO_RESPONSE:
                 fails.append(f"{name} @ 0x{addr:08X}: NO RESPONSE (unreachable)")
                 continue
@@ -206,6 +218,9 @@ class RegisterMap:
                 write(addr, pat)
                 rb = read(addr)
                 expect = (pat & latch) | (dflt & ~latch & 0xFFFF_FFFF)
+                if rb is None:
+                    fails.append(f"{name} @ 0x{addr:08X}: ERROR RESPONSE on readback")
+                    break
                 if rb == self.WALK_NO_RESPONSE:
                     fails.append(f"{name} @ 0x{addr:08X}: no response after write")
                     break
