@@ -667,6 +667,36 @@ CONFIGS: Dict[str, ControllerConfig] = {
         page_adapt={"check_interval": 4, "mc_high_thr": 2,
                     "mc_low_thr": 0, "mc_init": 0},
         order_mode=0, rd_in_order=True),
+    # AUTO-PRECHARGE vs BACKGROUND PRECHARGE, mechanism isolated (Sean asked
+    # 2026-09-26: "I wouldn't expect auto-precharge to be very performant").
+    # close_page closes every row via AP; fixed_open_tr1 closes every row via a
+    # background explicit PRE after one idle cycle. Same POLICY (close on
+    # sight), different MECHANISM. tr2 already beat close_page 436.8 vs 144.2
+    # but spares rows reused within 2 idle cycles, so part of that gap is
+    # policy; tr1 removes almost all of the policy difference and leaves the
+    # mechanism.
+    # MODE 2 PROPER -- the test that close_page is NOT. close_page is
+    # page_policy=CLOSE with policy_mode=0, so its auto-precharge comes from the
+    # LEGACY w_ap path and ap_mode_en_o is 0: it never exercises `ap_close_o` at
+    # all. `ap_close_o` is the port mode 5 drives, and NOTHING has ever driven it
+    # on hardware -- no config sets policy_mode=2, and mode 5's close_pred_o
+    # does not assert. So "the AP datapath is proven good" was proven about the
+    # wrong path.
+    #
+    # This config sets page_policy=OPEN (legacy AP off) and policy_mode=2, so
+    # ap_mode_en_o=1 and ap_close_o={all 1}. Any auto-precharge behaviour it
+    # shows comes from ap_close_o and nothing else. If it looks like close_page
+    # (ACT ~160k, PRE ~0), ap_close_o works and mode 5's fault is close_pred_o.
+    # If it looks like open_page, ap_close_o is broken on the board and THAT is
+    # mode 5's real fault.
+    "static_close_mode2": ControllerConfig(
+        "static_close_mode2", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=2,
+        order_mode=0, rd_in_order=True),
+    "fixed_open_tr1": ControllerConfig(
+        "fixed_open_tr1", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=3, page_tr_init=1,
+        order_mode=0, rd_in_order=True),
     # IS MODE 5's SIM/BOARD DIVERGENCE A REFRESH ARTEFACT? (Sean, 2026-09-26.)
     # Sim converts ~60%% of cold activations, the board ~3%%, on identical
     # stimulus. The refresh PRESSURE differs by 117x between them:
@@ -2152,6 +2182,17 @@ RUN_PROFILES: Dict[str, dict] = {
     # than open page's none. Run the same ladder on the hotcold stimulus: if a
     # fixed TR matches adapt there too, mode 4's value is "pick a TR", not
     # "learn one", and the adaptation machinery is unearned.
+    "ap_port_probe": dict(configs=["open_page", "close_page",
+                                   "static_close_mode2", "adapt_access"],
+                          level="basic", families=(FAM_INCREMENTAL,),
+                          concurrent=(0, 4), gen_mix="hotcold",
+                          same_bank_rows=8, n_hot=2, bank_spread=2),
+    "ap_vs_bgpre": dict(configs=["open_page", "close_page",
+                                 "fixed_open_tr1", "fixed_open_tr2",
+                                 "adapt_access"],
+                        level="basic", families=(FAM_INCREMENTAL,),
+                        concurrent=(0, 4), gen_mix="hotcold",
+                        same_bank_rows=8, n_hot=2, bank_spread=2),
     "adapt_refresh": dict(configs=["open_page", "adapt_access",
                                    "open_page_fastref", "adapt_access_fastref",
                                    "adapt_access_slowref"],

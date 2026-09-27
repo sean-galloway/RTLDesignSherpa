@@ -538,15 +538,47 @@ scale 100 and never improves.
 
 ### The auto-precharge datapath is PROVEN GOOD on hardware
 
-This is the useful narrowing, and it comes free from data already collected.
-`close_page` is MODE_STATIC_CLOSE, which drives the same port the predictor
-does -- `ap_close_o = {NUM_BANKS{1'b1}}` -- and on the board it returns:
+**CORRECTED 2026-09-26, and the first version of this argument was wrong.**
+Sean: *"Isn't there a separate config bit to turn off AP?"* There is, and it is
+the bit `close_page` actually uses.
 
-    close_page   ACT=160010   PRE=15
+There are TWO independent auto-precharge controls:
 
-15 explicit precharges against 160,010 activations: auto-precharge works
-perfectly on real silicon. `adapt_access` drives that identical port from
-`w_acc_close`/`close_pred_o` and returns `PRE ~= ACT`.
+| control | written by | effect |
+|---|---|---|
+| `PAGE_POLICY_CFG.page_policy_or` (legacy open/close) | `set_page_policy()` | CLOSE turns on the legacy `w_ap` path |
+| `policy_mode` + `ap_mode_en_o` | `set_page_mode()` | any mode 1..5 sets `ap_mode_en_o=1`, and `ap_close_o` then OVERRIDES the legacy path |
+
+`close_page` is `page_policy=CLOSE` with **`page_mode=None` -> mode 0**. Mode 0
+is not in `w_mode_on`, so `ap_mode_en_o=0` and `ap_close_o='0`: **close_page
+never exercises `ap_close_o` at all.** Its auto-precharge is entirely the legacy
+`w_ap` path. The original claim here -- "close_page is MODE_STATIC_CLOSE, so the
+port the predictor drives is proven good" -- was proven about the WRONG PATH.
+`ap_close_o` had never been driven on hardware by anything: no config set
+policy_mode=2, and mode 5's close_pred_o does not assert.
+
+Tested properly with `static_close_mode2` (`page_policy=OPEN` so the legacy path
+is off, `policy_mode=2` so `ap_close_o={all 1}` -- any AP behaviour can only come
+from `ap_close_o`):
+
+| config | AP source | rd MB/s | ACT | PRE | thrash | rd_lat |
+|---|---|---|---|---|---|---|
+| open_page | none | 327.6 | 32800 | 32800 | 100.0% | 100.8 |
+| close_page | legacy `w_ap` | 144.1 | 160018 | 36 | 0.0% | 192.1 |
+| **static_close_mode2** | **`ap_close_o`** | 144.1 | 160002 | 2 | 0.0% | 192.0 |
+| adapt_access | `ap_close_o` via close_pred_o | 323.8 | 33334 | 32382 | 97.0% | 96.8 |
+
+`ap_close_o` driven all-ones is INDISTINGUISHABLE from the legacy path (144.1
+MB/s, ~160k ACT, PRE ~0 both). So the port works, the scheduler honours it, and
+the DFI path carries it.
+
+Two consequences. The conclusion below (mode 5's fault is `close_pred_o`) SURVIVES
+and is now properly evidenced rather than accidentally so. And this is the first
+time mode 2 has ever been measured -- `close_page`, the config named for it, is a
+different mechanism.
+
+`adapt_access` drives that same proven-good port from `w_acc_close`/`close_pred_o`
+and returns `PRE ~= ACT`.
 
 **So the AP mechanism, the scheduler's ap handling and the DFI path are all
 fine. `close_pred_o` is simply not asserting.** The fault is inside
@@ -577,5 +609,89 @@ from bandwidth equality (after mode 4's TR decay and the refresh test). A small
 stat block -- `close_pred_o` assert count, AP-close count, `r_tr[0]` -- would
 have answered all three directly and is the recommended next change.
 
+## The mechanism, not the predictor: AP costs 4.9x the activations
+
+Sean, 2026-09-26: *"I wouldn't expect auto-precharge to be very performant. Is
+this what the adapt* are using?"*
+
+**Only mode 5 uses it, and mode 4 explicitly forces it OFF.**
+
+```systemverilog
+assign ap_close_o = (policy_mode_i == MODE_STATIC_CLOSE) ? {NUM_BANKS{1'b1}}
+                  : w_acc_on                             ? w_acc_close
+                                                         : '0;
+```
+
+| mode | close mechanism |
+|---|---|
+| 2 static_close (close_page) | auto-precharge, unconditional |
+| 5 adapt_access | auto-precharge, gated by close_pred_o |
+| 3 fixed_open / 4 adapt_time | `ap_close_o='0` -> background explicit PRE (timeout_pre_req_o) |
+
+That maps exactly onto every result in this task: the background-PRE modes win,
+the AP mode does nothing, the all-AP mode is catastrophic.
+
+Mechanism isolated on the board (`ap_vs_bgpre`), same stimulus, same
+close-on-sight policy, differing only in HOW the row is closed:
+
+| config | mechanism | rd MB/s | ACT | PRE | thrash | rd_lat |
+|---|---|---|---|---|---|---|
+| open_page | none | 327.7 | 32794 | 32796 | 100.0% | 100.7 |
+| close_page | AP, always | 144.1 | **160006** | 8 | 0.0% | 192.0 |
+| fixed_open_tr1 | bg PRE, ~always | **436.8** | **32400** | 40400 | 24.7% | 96.0 |
+| fixed_open_tr2 | bg PRE, 2-cyc grace | 436.8 | 32600 | 40800 | 25.8% | 96.0 |
+| adapt_access | AP, predicted | 323.8 | 33429 | 32570 | 97.0% | 96.7 |
+
+**Auto-precharge costs 4.9x the activations for identical traffic** -- 160,006
+vs 32,400, about five activations per transaction -- and latency 192.0 vs 96.0.
+Confirmed on BOTH AP paths independently: the legacy `w_ap` route (close_page,
+160,018 ACT) and the `ap_close_o` route (static_close_mode2, 160,002 ACT) land
+on the same number, so this is a property of auto-precharge itself and not of
+one implementation of it.
+
+### Why: AP is UNCANCELLABLE
+
+AP commits to closing at the column op, before it is known whether more requests
+to that row are coming. A background PRE fires only once the bank goes IDLE, and
+if more same-row requests are pending the bank is not idle, so the row survives
+and serves them. **The idle gate is an implicit cancellation, and that is the
+entire difference.** On a controller whose value is FR-FCFS reordering to batch
+same-row columns ([[TASK-002]]: worth 3.9x on streaming), AP destroys the row
+before the batching can happen -- it fights the reordering that justifies the
+design.
+
+Corroboration: `fixed_open_tr1` and `fixed_open_tr2` are IDENTICAL (436.8 both),
+so the grace period contributes nothing. The idle gate alone does the work.
+
+### Consequence for mode 5 -- bigger than the close_pred_o bug
+
+The previous section localized mode 5's failure to `close_pred_o` never
+asserting. That stands, but it is no longer the main point: **even with
+close_pred_o fixed, mode 5 would apply a mechanism that costs 4.9x the
+activations.** Fixing the bug would make mode 5 apply a bad mechanism more
+selectively, which is a smaller win than it sounds -- its ceiling is bounded by
+AP, and AP is structurally wrong for a reordering controller.
+
+**Recommendation: re-route mode 5's per-row verdict to the BACKGROUND PRECHARGE
+path, not the AP path.** `close_pred_o` should raise `timeout_pre_req_o` for a
+predicted-dead row (close it as soon as the bank idles, without waiting out TR)
+instead of driving `ap_close_o`. That keeps the idle-gate cancellation that makes
+mode 3 fast while adding the per-row selectivity mode 5 was built for. It is the
+only version of mode 5 that could beat `fixed_open`.
+
+### Revised standing of the whole page-policy axis
+
+| mode | verdict |
+|---|---|
+| 3 fixed_open | **THE WIN.** TR=1 or 2, background PRE gated on bank idle. +9.1% to +33.3% |
+| 4 adapt_time | same mechanism as 3; adaptation adds nothing (decays to tr_min) |
+| 5 adapt_access | right idea, WRONG MECHANISM (AP) plus a bug (close_pred_o). Needs rework, not retirement |
+| 2 static_close | the AP mechanism at full strength, and 2.3x slower than open page |
+
+The one-line summary of this task: **closing pages early is worth up to +33%,
+and the mechanism that matters is a background precharge gated on bank idle --
+not a predictor, and not auto-precharge.**
+
 Related: [[TASK-011]] (RBL, the worked example), [[TASK-010]] (the
-per-generator scenario machinery), [[TASK-005]] (predictor area).
+per-generator scenario machinery), [[TASK-005]] (predictor area),
+[[TASK-002]] (FR-FCFS reordering value).
