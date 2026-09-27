@@ -904,6 +904,15 @@ class MonbusAxilGroupTB(TBBase):
         await self.wait_clocks(self.clk_name, 200)
         n_src = self.in_seen['source'] - in_before['source']     # accepted by the DUT, not just queued in the BFM
         n_snk = self.in_seen['sink'] - in_before['sink']
+        # Same drain rule as test_basic_packet_flow: the arbiter can still be
+        # held off by the write path after the last input handshake, so wait
+        # for it to catch up with the accepted count before comparing (199 of
+        # 200 on one seed of the 2026-09-27 confirming regression).
+        for _ in range(40 * duration_cycles + 500):
+            if len(self.arb_seen) - arb_start >= n_src + n_snk:
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        await self.wait_clocks(self.clk_name, 60)
         arrived = self.arb_seen[arb_start:]
         got_axi = sum(1 for q in arrived if q.protocol == ProtocolType.PROTOCOL_AXI.value)
         got_axis = sum(1 for q in arrived if q.protocol == ProtocolType.PROTOCOL_AXIS.value)
