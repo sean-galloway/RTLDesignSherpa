@@ -704,15 +704,33 @@ def cmd_blindspots(reg: dict, ratchet: bool = False,
     detail = not ratchet   # ratchet mode reports deltas, not the whole backlog
 
     # 1. Filelists that no registered area covers.
-    registered: set[Path] = set()
-    for area in reg.get("area", []):
-        registered.update(area_filelists(area))
+    # BOTH halves of this subtraction must read the SAME tree. area_filelists()
+    # resolves filelist_dirs with rglob on DISK while the tracked set below comes
+    # from the INDEX, so a filelist that is tracked AND sits inside a registered
+    # dir but is merely missing from the worktree was reported "unregistered" --
+    # advising you to register a directory that already is registered (tooling
+    # BUG-002). The split also made the verdict depend on WHICH index git was
+    # reading: inside a pre-commit hook GIT_INDEX_FILE names the temporary index
+    # `git commit -- <paths>` builds, so a failure there could not be reproduced
+    # standalone afterwards. Classify by registered-directory PREFIX instead, so
+    # both sides read the index and neither touches the filesystem.
+    #
+    # Prefix matching is equivalent to the old rglob: rglob("*.f") recursed, and
+    # `d in p.parents` accepts a filelist nested at any depth under a registered
+    # dir.
+    reg_dirs = [REPO_ROOT / d
+                for area in reg.get("area", [])
+                for d in area.get("filelist_dirs", [])]
+
+    def _registered(p: Path) -> bool:
+        return any(d == p.parent or d in p.parents for d in reg_dirs)
+
     # Tracked files only. rglob("*.f") also finds Fortran under venv/, which is
     # noise: if git does not track it, it is not ours to register.
     tracked = subprocess.run(["git", "ls-files", "*.f"], cwd=REPO_ROOT,
                              capture_output=True, text=True).stdout.split()
-    on_disk = {REPO_ROOT / t for t in tracked}
-    orphans = sorted(on_disk - registered)
+    orphans = sorted(p for p in (REPO_ROOT / t for t in tracked)
+                     if not _registered(p))
     if orphans:
         findings += len(orphans)
         if detail:
