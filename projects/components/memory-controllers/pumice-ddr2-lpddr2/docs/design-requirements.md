@@ -289,7 +289,12 @@ The column auto-precharge bit `ap` is set directly from `page_policy_i`
 - **`OPEN`** (`ap=0`) — rows stay open; column ops stream to an open row at tCCD
   rate. Best for locality; the per-bank `bank_timer` holds the row open on RD/WR.
 - **`CLOSE`** (`ap=1`) — every column op auto-precharges (issues `RDA`/`WRA`). Best
-  for random access; no stale-row hazard.
+  for random access; no stale-row hazard. **MEASURED 2026-09-26: this is the slow way
+  to close a page.** Auto-precharge costs 4.9x the activations of an idle-gated
+  background precharge on identical traffic (160,006 vs 32,400 ACT) and doubles read
+  latency, because AP commits to closing at the column op and is uncancellable, while
+  a background PRE fires only once the bank goes idle and so spares rows that still
+  have queued same-row requests. Prefer `policy_mode = 3` (`fixed_open`) over this.
 - **`HAPPY_HYBRID`** — RETIRED (2026-08-25). It was never wired into the
   rearchitected core (treated as `OPEN`); `page_predictor.sv` and its CSR
   collateral (`happy_enable`, `PAGE_PRED_TUNING`, `OBS_PAGE_PRED_ACCURACY`)
@@ -339,10 +344,24 @@ recomputes timing.
 
 The mechanisms below extend the baseline so that **one bitstream characterizes every
 policy by flipping a CSR** (the "config not param" rule). Each is a paper-derived,
-**config-bit-selectable MODE**; the reset/default is always the baseline above
-(bit-identical), each mode is added **serially in pre-silicon** (faithful DRAM-model
-red test → RTL → green) behind its own enable, and each carries read-only telemetry so
-the host can sweep it and compare against the static baselines in-system.
+**config-bit-selectable MODE**; each mode is added **serially in pre-silicon**
+(faithful DRAM-model red test → RTL → green) behind its own enable, and each carries
+read-only telemetry so the host can sweep it and compare against the static baselines
+in-system.
+
+**The "reset = baseline, bit-identical" rule still holds, and one deliberate
+exception to it is PROPOSED but BLOCKED.** `PAGE_POLICY_CFG.policy_mode` should
+reset to **3 (`fixed_open`)** with `PAGE_TIMEOUT_CFG.tr_init = 2` -- the change was
+made and reverted on 2026-09-26, blocked on BUG-003 (a short timeout precharges
+under an in-flight read; the read-return ring loses a ticket at `rd_gap >= 8`) --
+because the characterization it exists to enable
+produced an unambiguous answer: `fixed_open` TR=2 is *strictly dominant* over the
+open-page baseline on the board — +41.2% on `col_major_interleaved_bl4`, +8.6..11.6%
+on `col_major`, exactly flat on `incremental`/`row_major`, no scenario regressing,
+zero integrity failures. Shipping a default that is measurably worse on a third of
+the suite, purely to preserve bit-identity with a pre-characterization baseline, would
+invert the purpose of the exercise. The baseline remains reachable by writing
+`policy_mode = 0`. See TASK-013.
 
 **Commodity-legal only.** Every mode below runs on the real Nexys A7 DDR2 part (and
 LPDDR2 where noted): all scheduling policies, all page policies, REFab / REFpb

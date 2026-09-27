@@ -257,37 +257,88 @@ The overlays are independent and none of them is required:
 
 ### Axis 2 — page policy (`pumice_page_policy`)
 
-Decides **auto-precharge per bank** — whether a row stays open after an
-access. Mode 0 keeps the flat build-time `page_policy_i` (OPEN/CLOSE); any
-nonzero mode takes over:
+Decides **when an open row closes**. Mode 0 keeps the flat build-time
+`page_policy_i` (OPEN/CLOSE); any nonzero mode takes over. **The reset is still
+mode 0**: mode 3 `fixed_open` TR=2 is the measured best default and is
+RECOMMENDED, but shipping it is blocked on [[BUG-003]].
 
-| mode | policy |
-|---|---|
-| 1 `static_open` | never auto-precharge — best for streaming/row-major |
-| 2 `static_close` | always auto-precharge — best for random/low-locality |
-| 3 `fixed_open` | open, but rows close on an **idle timeout** |
-| 4 `adapt_time` | **adaptive timeout** — a per-bank timeout register adapts up/down from a mistake counter (premature-close vs held-too-long) each interval |
-| 5 `adapt_access` | **per-row 2-bit close predictor** — knob-free; predicts whether this row will be hit again |
+> **THE DEFAULT DOES NOT SHIP YET — [[BUG-003]].** The RDL resets were changed
+> to mode 3 / TR=2 on 2026-09-26 and **REVERTED the same day**: the component
+> gate caught a read-return-ring assertion ("DFI return beat with NO ticket in
+> flight") on `gen_replica` at `rd_gap >= 8`, proven by controlled A/B to be
+> caused by the new reset. A short timeout appears to fire inside a read's DFI
+> return latency and precharge under an in-flight read. The MEASUREMENT below
+> stands and the recommendation stands; the reset value does not change until
+> BUG-003 closes. Note the board returned correct data at gap=8 under
+> `fixed_open_tr2` -- but the assertion is `ifndef SYNTHESIS`, so that is "did
+> not corrupt in that run", not "cannot corrupt".
 
-> **6/7 (`rbl_static` / `rbl_dyn`) were RETIRED 2026-09-26.** Measured on
-> silicon at txn_scale=1000 on a workload built specifically to give a per-row
-> predictor something to discriminate: the mechanism **worked** — thrash fell
-> 100% -> 57.8%, i.e. conflict-ACTs became empty-ACTs — and it still lost.
-> Mode 6 gave up 26% of bandwidth (195.2 -> 144.2 MB/s) by paying +22,827 ACTs
-> while PRE barely moved; mode 7's hill-climb drove its threshold to "never
-> close early", landing bit-identical to plain open page. Removing it returned
-> **702 LUT / 1,521 FF** in-design and streaming was unchanged at 572.3 MB/s,
-> confirming it had been inert. A write of 6 or 7 now falls through to the
-> build default. See `vault/Tasks/pumice/task/closed/TASK-011.md`.
+
+| mode | policy | close mechanism |
+|---|---|---|
+| 1 `static_open` | never close early — streaming/row-major | none |
+| 2 `static_close` | always close on the access | **auto-precharge** |
+| 3 `fixed_open` | **THE RECOMMENDED DEFAULT** (blocked, BUG-003). open, rows close on an idle timeout | background PRE |
+| 4 `adapt_time` | timeout that adapts from a mistake counter | background PRE |
+| 5 `adapt_access` | per-row 2-bit close predictor | **auto-precharge** |
+
+**Closing pages early is the single biggest runtime win on this controller, and
+the mechanism that matters is the background precharge — not a predictor.**
+Board, txn_scale=1000, peak 600 MB/s, `fixed_open` TR=2 vs open page:
+
+| scenario | open page | fixed_open TR=2 | Δ |
+|---|---|---|---|
+| `col_major_interleaved` bl4 / bl8 / bl16 | 249.5 / 262.1 / 364.5 | 352.2 / 354.2 / 438.2 | **+41.2% / +35.2% / +20.2%** |
+| `col_major` bl4 / bl8 / bl16 | 114.7 / 195.2 / 286.7 | 128.0 / 213.0 / 311.3 | +11.6% / +9.1% / +8.6% |
+| `incremental`, `row_major` (all BL) | 561.6 / 572.2 | 561.6 / 572.2 | **exactly flat** |
+| hot/cold 2-bank contrived | 327.7 | 436.8 | **+33.3%** |
+
+Strictly dominant: **no scenario regresses**, worst case −0.0% (rounding), zero
+integrity failures. It costs no area — mode 3 is the timeout path mode 4 already
+needs — and TR=2 is a measured sweet spot, not a lucky point: TR=1 is identical
+everywhere, and TR=4 already falls back to open-page numbers on plain
+`col_major`. Page-friendly families are flat rather than merely close because
+the idle gate never fires when the next request is already queued for the open
+row.
+
+> **Why background PRE and not auto-precharge.** Same stimulus, same
+> close-on-sight policy, differing only in mechanism:
 >
-> **Modes 4/5 are KEPT but unproven.** They measure identical to plain open
-> page on every board scenario (±0.2 MB/s, sequential and concurrent) — but
-> that is an absence of *benefit*, not a demonstrated *cost*, and their
-> triggers may never have fired: `adapt_time` closes on an idle timeout and
-> every workload measured saturates the generators, while `adapt_access` needs
-> its 2-bit counters to learn. Retiring them on that evidence would repeat the
-> error that made RBL unmeasurable for months — concluding from a workload
-> that could not discriminate. Open as TASK-013.
+> | mechanism | rd MB/s | ACT | latency |
+> |---|---|---|---|
+> | auto-precharge (mode 2, and the legacy `page_policy=CLOSE`) | 144.1 | **160,006** | 192.0 |
+> | background PRE (mode 3, TR=1) | **436.8** | **32,400** | 96.0 |
+>
+> **AP costs 4.9× the activations and doubles latency**, confirmed independently
+> on both AP paths. AP is *uncancellable*: it commits to closing at the column
+> op, before it is known whether more requests to that row are coming. A
+> background PRE fires only once the bank goes **idle** — and if more same-row
+> requests are pending the bank is not idle, so the row survives and serves
+> them. That idle gate is an implicit cancellation. On a controller whose value
+> is FR-FCFS reordering to batch same-row columns, AP destroys the row before
+> the batching can happen.
+
+> **6/7 (`rbl_static` / `rbl_dyn`) were RETIRED 2026-09-26.** The mechanism
+> worked — thrash fell 100% -> 57.8% — and it still lost: mode 6 gave up 26% of
+> bandwidth by paying +22,827 ACTs, and mode 7's hill-climb landed
+> bit-identical to open page. Removal returned **702 LUT / 1,521 FF** with
+> streaming unchanged at 572.3 MB/s. See
+> `vault/Tasks/pumice/task/closed/TASK-011.md`.
+>
+> **Mode 4 is SUBSUMED by mode 3** (2026-09-26). Its adaptation earns nothing:
+> the mistake counter is dominated by "held too long", so TR decays monotonically
+> to `tr_min` and stays. Proven by moving only the floor —
+> `adapt_time(tr_min=2/8/16)` lands **exactly** on `fixed_open_tr2/tr8/tr16`
+> (436.8 / 338.5 / 327.7). `r_mc` is also a single *global* counter driving all
+> eight `r_tr[b]` identically, so `policy_scope=0`'s "per-bank TR" cannot
+> diverge. Retiring it costs nothing functional — mode 3 *is* its close path.
+>
+> **Mode 5 is UNPROVEN and mis-plumbed, not disproven.** `close_pred_o` does not
+> assert on hardware (`PRE ≈ ACT`, thrash 100% -> 97% at best) while
+> `ap_close_o` itself is proven good — mode 2 driving that same port returns
+> ACT=160,002 / PRE=2. And even fixed, it would drive *auto-precharge*, the
+> mechanism that costs 4.9× the activations. The fix worth making is routing its
+> per-row verdict to `timeout_pre_req_o` instead. Open as TASK-013.
 
 The block never drives a PRE itself: it raises a request and the arbiter
 issues it as its lowest-priority pick, so demand traffic, refresh drain and

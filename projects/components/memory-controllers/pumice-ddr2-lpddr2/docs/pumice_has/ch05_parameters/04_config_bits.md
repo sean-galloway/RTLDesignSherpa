@@ -68,11 +68,37 @@ Register block at the same offset (0x040) in every controller. These bits govern
 | Bit Field             | Width | Apply       | Description                                                          |
 |-----------------------|-------|-------------|----------------------------------------------------------------------|
 | `refpb_policy_or`     | 2     | LP-only     | REFpb selection-policy override (LPDDR2/3/4); N/A for DDR-only flavors |
-| `page_policy_or`      | 2     | all         | Runtime override for fallback page policy                            |
+| `page_policy_or`      | 2     | all         | Runtime override for the LEGACY flat page policy (`01`=OPEN, `10`=CLOSE). Only consulted when `PAGE_POLICY_CFG.policy_mode == 0`; since policy_mode now RESETS to 3, this field is inert out of reset. `10`=CLOSE drives the legacy auto-precharge path, which measures 4.9x the activations of a background precharge -- see MAS ch02 "08_page_policy". |
 | `refresh_defer_active`| 4     | all         | Active deferral count (1 .. build-time MAX). 1 = no batching.        |
 | `zqcs_freq_hz`        | 16    | all         | Periodic ZQCS interval. 0 = init-only.                              |
 | `fgr_mode`            | 2     | DDR3+       | Fine-Granularity Refresh mode (DDR3 1x/2x/4x; DDR4 fixed-rate, on-the-fly). N/A in DDR2. |
 | `refresh_per_rank`    | 1     | all         | Force per-rank dispatch even when `NUM_RANKS=1` (debug). Reset = 1 always when multi-rank. |
+
+## PAGE_POLICY_CFG / PAGE_TIMEOUT_CFG / PAGE_ADAPT_CFG (Axis 2)
+
+The runtime page-policy engine (`pumice_page_policy`). **This axis carries the
+largest measured runtime win on the controller** -- up to +41.2% -- and its
+reset is UNCHANGED at 0 pending BUG-003; the recommended value is documented below.
+
+| Field | Width | Reset | Notes |
+|-------|-------|-------|-------|
+| `PAGE_POLICY_CFG.policy_mode` | 3 | 0 | Mode 3 (`fixed_open`) is the RECOMMENDED default, blocked on BUG-003. 0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access. 6/7 retired (TASK-011). |
+| `PAGE_POLICY_CFG.policy_scope` | 1 | 0 | Documented as "per-bank TR" but CANNOT diverge: `r_mc` is one global counter driving every `r_tr[b]`. A fiction; do not rely on it. |
+| `PAGE_POLICY_CFG.ctr_open_max` | 4 | 0 | mode 5 close threshold; 0 = build default (2). |
+| `PAGE_POLICY_CFG.ctr_init` | 4 | 0 | mode 5 counter init; 0 = build default (weak-open 1), NOT literal 0. |
+| `PAGE_TIMEOUT_CFG.tr_init` | 8 | 0 | Recommended 2, blocked on BUG-003. Idle MC cycles before the background precharge fires. **`0` DISABLES the timeout** -- it is not a build-default sentinel on this field. TR=1 and TR=2 measure identically; TR=4 already loses the plain `col_major` wins. |
+| `PAGE_TIMEOUT_CFG.tr_min` / `tr_max` / `tr_step` | 8 each | 0 | mode 4 clamps and step. All-zero pins TR to 0, which disables the timeout -- mode 4 needs all three set to do anything. |
+| `PAGE_ADAPT_CFG.check_interval` | 16 | 0 | **`0` gates the ENTIRE mode-4 TR adjustment off.** Every "adapt_time is identical to open page" result before 2026-09-26 was measuring `fixed_open(tr_init)` under mode 4's name. |
+| `PAGE_ADAPT_CFG.mc_high_thr` / `mc_low_thr` / `mc_init` | 4 each | 0 | mode 4 mistake-counter thresholds. |
+
+> **STALE ROWS ELSEWHERE IN THIS FILE.** `happy_enable` (SCHED_TUNING) and
+> `zqcs_freq_hz` / `refresh_defer_active` / `refpb_policy_or` (REFRESH_TUNING)
+> describe retired hardware: the HAPPY predictor and `page_predictor.sv` are
+> gone, and the three REFRESH_TUNING fields were retired 2026-09-09 (refresh
+> mode and the JEDEC postpone/pull-in credits are `REF_CTRL` now; no ZQCS engine
+> ever consumed the interval). Left in place rather than silently rewritten
+> because they predate this change and are not part of it -- they need their own
+> pass against the RDL.
 
 ## ADDR_MAP (Address-Mapping Family Bits)
 

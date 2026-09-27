@@ -906,7 +906,7 @@ further amortisation while costing read forward progress.</p>
 - Base Offset: 0x70
 - Size: 0x4
 
-<p>Axis 2 mode select + adapt_access counter shape. 0 = build default.</p>
+<p>Axis 2 mode select + adapt_access counter shape. 0 = build default. Resets to 3 (fixed_open) -- see policy_mode.</p>
 
 | Bits| Identifier |Access|Reset|Name|
 |-----|------------|------|-----|----|
@@ -919,7 +919,7 @@ further amortisation while costing read forward progress.</p>
 
 #### policy_mode field
 
-<p>0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access. 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn; measured inert or harmful, see TASK-011) -- a write of 6 or 7 falls through to the build default.</p>
+<p>0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access. 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn; measured inert or harmful, see TASK-011) -- a write of 6 or 7 falls through to the build default. RESET IS 0. Mode 3 (fixed_open) is the RECOMMENDED default and is measured strictly dominant over open page on the board across every scenario -- +41.2% col_major_interleaved, +8.6..11.6% col_major, and EXACTLY flat on incremental/row_major, with no scenario regressing. The win is the background precharge gated on bank idle (timeout_pre_req_o), not a predictor: modes 4 and 5 add machinery that measured no better (mode 4 decays to tr_min and equals fixed_open(tr_min); mode 5 drives auto-precharge, which costs 4.9x the activations). The reset change to 3 was made and REVERTED 2026-09-26, blocked on BUG-003: a short timeout precharges under an in-flight read and the read-return ring loses a ticket at rd_gap &gt;= 8. See TASK-013 and BUG-003.</p>
 
 #### policy_scope field
 
@@ -958,7 +958,7 @@ further amortisation while costing read forward progress.</p>
 
 #### tr_init field
 
-<p>TR init (fixed_open uses this alone; ~tRC)</p>
+<p>TR init: idle MC cycles a row is held open before the background precharge fires. fixed_open uses this alone. RESET IS 0 (which DISABLES the timeout). The recommended value is 2, blocked on BUG-003. Measured: TR=1 and TR=2 are identical on every scenario and TR=4 already loses the plain col_major wins (falls back to open-page numbers), so the optimum is 1..2 and the cliff is between 2 and 4. tr_init=0 DISABLES the timeout entirely (see f_tr/r_idle in pumice_page_policy.sv) -- it is not a build-default sentinel on this field, so enabling mode 3 requires writing tr_init too.</p>
 
 #### tr_min field
 

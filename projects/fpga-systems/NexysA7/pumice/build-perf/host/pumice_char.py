@@ -544,6 +544,21 @@ CONFIGS: Dict[str, ControllerConfig] = {
     # or a change to PAGE_POLICY_BUILD_DEFAULT ever diverges from OPEN, these
     # two rows separate and the matrix shows it. Without this row, nothing in
     # the suite measures what the hardware does untouched.
+    # POWER-ON STATE. This must MIRROR THE RDL RESETS, because apply() writes
+    # every mode field on every config (an unset field would otherwise inherit
+    # the previous config's, which is how the matrix became order-dependent
+    # once before). So a bare ControllerConfig() does NOT measure the reset
+    # state -- it programs page_mode=0, overriding it. When a reset value in
+    # pumice_csr.rdl changes, THIS LINE CHANGES WITH IT or `defaults` quietly
+    # stops meaning "defaults".
+    #
+    # 2026-09-26: the reset change to mode 3 (fixed_open) / tr_init 2 was made
+    # and REVERTED the same day, blocked on BUG-003 -- a short timeout
+    # precharges under an in-flight read and the read-return ring loses a
+    # ticket at rd_gap >= 8 (caught by the component gate on gen_replica,
+    # proven by controlled A/B). So the reset is still 0/0 and this config
+    # mirrors that. When BUG-003 closes and the reset moves, change this line
+    # in the same pass -- `defaults` means nothing if it drifts from the RDL.
     "defaults": ControllerConfig("defaults"),
     "close_page": ControllerConfig(
         "close_page", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_CLOSE,

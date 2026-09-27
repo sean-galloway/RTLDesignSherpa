@@ -654,11 +654,11 @@ addrmap pumice_csr {
 
     reg {
         name = "Page Policy Config";
-        desc = "Axis 2 mode select + adapt_access counter shape. 0 = build default.";
+        desc = "Axis 2 mode select + adapt_access counter shape. 0 = build default. Resets to 3 (fixed_open) -- see policy_mode.";
 
         field {
             sw = rw; hw = r;
-            desc = "0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access. 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn; measured inert or harmful, see TASK-011) -- a write of 6 or 7 falls through to the build default.";
+            desc = "0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access. 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn; measured inert or harmful, see TASK-011) -- a write of 6 or 7 falls through to the build default. RESET IS 0. Mode 3 (fixed_open) is the RECOMMENDED default and is measured strictly dominant over open page on the board across every scenario -- +41.2% col_major_interleaved, +8.6..11.6% col_major, and EXACTLY flat on incremental/row_major, with no scenario regressing. The win is the background precharge gated on bank idle (timeout_pre_req_o), not a predictor: modes 4 and 5 add machinery that measured no better (mode 4 decays to tr_min and equals fixed_open(tr_min); mode 5 drives auto-precharge, which costs 4.9x the activations). The reset change to 3 was made and REVERTED 2026-09-26, blocked on BUG-003: a short timeout precharges under an in-flight read and the read-return ring loses a ticket at rd_gap >= 8. See TASK-013 and BUG-003.";
         } policy_mode[2:0] = 3'h0;
 
         field {
@@ -686,7 +686,7 @@ addrmap pumice_csr {
         name = "Page Timeout Config";
         desc = "fixed_open / adapt_time timeout register bounds (MC cycles).";
 
-        field { sw = rw; hw = r; desc = "TR init (fixed_open uses this alone; ~tRC)"; } tr_init[7:0]  = 8'h0;
+        field { sw = rw; hw = r; desc = "TR init: idle MC cycles a row is held open before the background precharge fires. fixed_open uses this alone. RESET IS 0 (which DISABLES the timeout). The recommended value is 2, blocked on BUG-003. Measured: TR=1 and TR=2 are identical on every scenario and TR=4 already loses the plain col_major wins (falls back to open-page numbers), so the optimum is 1..2 and the cliff is between 2 and 4. tr_init=0 DISABLES the timeout entirely (see f_tr/r_idle in pumice_page_policy.sv) -- it is not a build-default sentinel on this field, so enabling mode 3 requires writing tr_init too."; } tr_init[7:0]  = 8'h0;
         field { sw = rw; hw = r; desc = "adapt_time TR lower clamp";                  } tr_min[15:8]  = 8'h0;
         field { sw = rw; hw = r; desc = "adapt_time TR upper clamp";                  } tr_max[23:16] = 8'h0;
         field { sw = rw; hw = r; desc = "adapt_time TR adjustment step";              } tr_step[31:24] = 8'h0;

@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-014** — never recycle a number, even when its item closed.
+**Next ID: TASK-015** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -20,11 +20,15 @@ exactly one state by construction rather than by discipline.
 ## Open
 
 - **TASK-000** — TEMPLATE — copy this file, never file against it
-- **TASK-013** — adapt predictors (modes 4/5) are inert on everything measured,
-  but their triggers may never have fired; test before retiring
+- **TASK-014** — the adaptive page modes need a disposition: retire mode 4
+  (it IS fixed_open(tr_min)), re-plumb mode 5's verdict to the background
+  precharge, and add predictor observability first
 
 ## Closed
 
+- **TASK-013** — page-policy campaign: closing pages early is worth up to +41.2%
+  and the mechanism is the background precharge, not a predictor. Mode 4 is
+  fixed_open(tr_min); mode 5 mis-plumbed. Default change blocked on BUG-003
 - **TASK-005** — the paging predictors are built unconditionally and the board never uses them
 - **TASK-006** — no stall-cause attribution, so the overhead breakdown cannot be published
 - **TASK-008** — no test bounds the write drain, and the cap is unreachable at the shipped watermarks

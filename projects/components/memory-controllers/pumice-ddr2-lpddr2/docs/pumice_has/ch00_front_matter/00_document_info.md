@@ -26,7 +26,7 @@
 ## DDR2 / LPDDR2 Family Controller Hardware Architecture Specification
 
 **Document Number:** DDR2-LPDDR2-HAS-001
-**Version:** 0.4
+**Version:** 0.7
 **Status:** Draft - reconciled with rearchitected RTL
 **Classification:** Open Source - MIT License
 
@@ -60,6 +60,7 @@ This Hardware Architecture Specification (HAS) provides a high-level architectur
 | 0.4     | 2026-07-12 | RTL Design Sherpa | Full reconciliation with the rearchitected RTL: three-layer core (`pumice_axi4_ifc` / `pumice_mem_cmd_scheduler` / `pumice_dfi_layer`); FSM-free `bank_timer`; de-FSM'd CAMs; single `ADDR_MAP.bank_lsb` address knob (scheme selector retired); fully-functional LPDDR2 (bit-exact JESD209-2F CA + JEDEC MR init); host-width `pumice_top_geared` gearing; block/hierarchy diagrams regenerated. |
 | 0.5     | 2026-09-xx | RTL Design Sherpa | (No revision-history row was recorded when v0.5 was cut; its content is whatever the 2026-07-22 build captured. Noted rather than reconstructed.) |
 | 0.6     | 2026-09-26 | RTL Design Sherpa | Paging modes 6/7 (`rbl_static`/`rbl_dyn`) RETIRED and the `pumice_rbl_table` FUB removed — measured on silicon on a workload built to suit them, the mechanism worked (thrash 100% -> 57.8%) and still lost: mode 6 -26% bandwidth, mode 7 bit-identical to plain open page. `PAGE_RBL_CFG` @ 0x07C left a documented HOLE, not reused. Newly documented: the bank timers' advisory lookahead (`safe_*_la_o`), the arbiter's in-flight shadow and FINAL-STAGE timing authority, and the TASK-006 stall counters + `REF_STATS_REF_BUSY`, none of which appeared in any prior revision. |
+| 0.7     | 2026-09-26 | RTL Design Sherpa | **Page-policy characterization; the default change is RECOMMENDED but BLOCKED (BUG-003).** Mode 3 (`fixed_open`) with `tr_init = 2` measured strictly dominant over open page on the board at txn_scale=1000: +41.2% `col_major_interleaved_bl4`, +8.6..11.6% `col_major`, exactly flat on `incremental`/`row_major`, no scenario regressing, zero integrity failures. The RDL resets were changed to mode 3 / TR=2 and REVERTED the same day: the component gate caught a read-return-ring assertion ("DFI return beat with NO ticket in flight") at `rd_gap >= 8`, proven by controlled A/B to be caused by the new reset -- a short timeout fires inside a read's DFI return latency and precharges under an in-flight read (BUG-003, P1). The mechanism finding stands regardless: auto-precharge costs 4.9x the activations and 2x the read latency on identical traffic (160,006 vs 32,400 ACT) because it is uncancellable, whereas a background precharge gated on bank idle is implicitly cancellable. Mode 4 (`adapt_time`) documented as SUBSUMED by mode 3 -- its TR decays to `tr_min` and it equals `fixed_open(tr_min)` exactly at three different floors -- and `policy_scope=0`'s "per-bank TR" documented as a fiction (`r_mc` is one global counter). Mode 5 (`adapt_access`) documented as unproven and mis-plumbed. Two CSR traps now documented: `tr_init = 0` DISABLES the timeout, and `PAGE_ADAPT_CFG.check_interval = 0` gates the entire mode-4 adjustment off -- which is why mode 4 measured inert on every campaign before this one. |
 
 ---
 

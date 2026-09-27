@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-003** — never recycle a number, even when its item closed.
+**Next ID: BUG-004** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -20,6 +20,9 @@ exactly one state by construction rather than by discipline.
 ## Open
 
 - **BUG-000** — TEMPLATE — copy this file, never file against it
+- **BUG-003** — a short page timeout precharges under an in-flight read; the
+  read-return ring loses a ticket at rd_gap >= 8. LATENT (needs mode 3 + short
+  TR; reset is 0, so nothing reaches it today). Blocks the fixed_open default.
 
 ## Closed
 
