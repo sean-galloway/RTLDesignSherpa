@@ -2182,6 +2182,15 @@ RUN_PROFILES: Dict[str, dict] = {
     # than open page's none. Run the same ladder on the hotcold stimulus: if a
     # fixed TR matches adapt there too, mode 4's value is "pick a TR", not
     # "learn one", and the adaptation machinery is unearned.
+    # CAN fixed_open TR=2 BE THE DEFAULT? The +9.1% to +33.3% result was taken
+    # on contrived hot/cold stimulus plus three plain families -- not enough to
+    # change a shipping default. A default must not REGRESS anything, so sweep
+    # the full family grid at MEDIUM (both burst lengths, gaps, id modes)
+    # against the current default. The question is not "does tr2 win" but "does
+    # tr2 ever lose".
+    "default_candidate": dict(configs=["open_page", "fixed_open_tr2",
+                                       "fixed_open_tr1", "fixed_open_tr4"],
+                              level="medium", families=None),
     "ap_port_probe": dict(configs=["open_page", "close_page",
                                    "static_close_mode2", "adapt_access"],
                           level="basic", families=(FAM_INCREMENTAL,),

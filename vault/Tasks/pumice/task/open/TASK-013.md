@@ -692,6 +692,53 @@ The one-line summary of this task: **closing pages early is worth up to +33%,
 and the mechanism that matters is a background precharge gated on bank idle --
 not a predictor, and not auto-precharge.**
 
+## fixed_open TR=2 is safe as a DEFAULT: zero regressions on the full grid
+
+The +9.1% to +33.3% result was taken on contrived hot/cold stimulus plus three
+plain families. That is not enough to change a shipping default, where the
+question is not "does it win" but **"does it ever lose"**. Swept the full family
+grid at MEDIUM (three burst lengths, gap and multi-id variants) on the board,
+txn_scale=1000, peak 600 MB/s:
+
+| scenario | open_page | tr1 | tr2 | tr4 | tr2 vs open |
+|---|---|---|---|---|---|
+| incremental_bl4 / bl8 / bl16 | 561.6 | 561.6 | 561.6 | 561.6 | 0.0% |
+| row_major_bl4 / bl8 / bl16 | 572.2-572.3 | = | = | = | 0.0% |
+| col_major_bl4 | 114.7 | 128.0 | 128.0 | 114.7 | **+11.6%** |
+| col_major_bl8 | 195.2 | 213.0 | 213.0 | 195.2 | +9.1% |
+| col_major_bl16 | 286.7 | 311.2 | 311.3 | 286.7 | +8.6% |
+| col_major_interleaved_bl4 | 249.5 | 352.2 | 352.2 | 353.1 | **+41.2%** |
+| col_major_interleaved_bl8 | 262.1 | 354.2 | 354.2 | 354.3 | +35.2% |
+| col_major_interleaved_bl16 | 364.5 | 438.2 | 438.2 | 438.2 | +20.2% |
+| col_major_bl8_multiid | 195.2 | 213.0 | 213.0 | 195.2 | +9.1% |
+| col_major_bl8_gap | 195.2 | 213.0 | 213.0 | 195.2 | +9.1% |
+
+**Worst case -0.0% (rounding). No scenario regresses. Zero integrity failures.**
+
+Three things this adds beyond the contrived result:
+
+1. **col_major_interleaved is the biggest win in the whole campaign, +41.2%**,
+   and it was not measured before this sweep. The bank-interleaved walk gains
+   most from closing early -- it touches every bank in turn, so a row left open
+   is a row that will certainly conflict before it is ever revisited.
+2. **TR=2 is a sweet spot, not just a working point.** tr1 is identical to tr2
+   everywhere, and tr4 misses the plain col_major wins entirely (114.7 / 195.2
+   / 286.7 -- exactly open_page) while still getting the interleaved ones. The
+   optimum is 1..2 and the cliff is between 2 and 4.
+3. **Page-friendly families are EXACTLY flat**, not merely "close": 561.6 and
+   572.2-572.3 to the tenth on every burst length. Closing early costs nothing
+   where there is nothing to close, because the idle gate never fires when the
+   next request is already queued for the open row.
+
+**Recommendation: change the shipping default from open page to fixed_open
+TR=2** (PAGE_POLICY_CFG.policy_mode=3, PAGE_TIMEOUT_CFG.tr_init=2). It is
+strictly dominant across every scenario measured, costs no area (mode 3 is the
+timeout path that already exists for mode 4), and needs no predictor.
+
+That is an owner's decision, not mine to land: it changes a CSR reset value, so
+it wants the RDL change, the regenerate, and the docs sync in one pass
+([[feedback_docs_sync_with_config]] -- docs sync with configs, always).
+
 Related: [[TASK-011]] (RBL, the worked example), [[TASK-010]] (the
 per-generator scenario machinery), [[TASK-005]] (predictor area),
 [[TASK-002]] (FR-FCFS reordering value).
