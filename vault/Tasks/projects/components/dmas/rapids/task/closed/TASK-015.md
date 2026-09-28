@@ -78,9 +78,11 @@ block). Add both to the HAS table and to `rapids_pkg` beside the others.
   New params `ACLK_MHZ` (microsecond tick), `SNK/SRC_AXIS_MON_AGENT_ID`
   threaded core -> top. Status counts are half/core outputs, unconnected at the
   top (no register yet).
-- Found and fixed on the way: rapids BUG-008 (PKT_MASK documented "1 = enable",
-  default 0xFFFF, while both the lites and the group drop on 1). Registers
-  regenerated; the same inversion exists in STREAM's register file (filed there).
+- Found on the way: rapids BUG-008 -- PKT_MASK was documented "1 = enable"
+  while the lites and the group mask on 1. Description corrected and registers
+  regenerated; the all-masked reset (0xFFFF) is as intended (Sean, 2026-09-28),
+  so a host must clear the classes it wants. STREAM's register file carries the
+  same description (stream BUG-016, description-only).
 - Filelists: the two wrapper filelists added to both half filelists and the core
   filelist (the loader dedups).
 - Verification: `rapids_core_beats_tb` decodes every merged monbus packet with

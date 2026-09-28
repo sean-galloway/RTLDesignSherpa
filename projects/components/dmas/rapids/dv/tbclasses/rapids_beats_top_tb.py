@@ -994,7 +994,7 @@ class RapidsBeatsTopTB(TBBase):
         packet each way, then decode the raw 24-byte trace records the group's
         capture master wrote to m_axil_mon_* and require exactly one
         Completion/STREAM_END per monitor with the right tid and beat count.
-        PKT_MASK is a DROP mask (rapids BUG-008): 0 passes everything."""
+        PKT_MASK masks on a set bit and resets all-masked (rapids BUG-008): 0 passes everything."""
         self.log.info(f"=== AXIS monitor-lites: {beats} beats each way ===")
         for half, reg in (('src', 'RDMON'), ('snk', 'WRMON')):
             await self.write_fields(half, f'{reg}_ENABLE', MON_EN=1, ERR_EN=1, COMPL_EN=1)

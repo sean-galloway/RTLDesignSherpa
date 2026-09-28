@@ -1465,14 +1465,14 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Descriptor AXI monitor packet type filtering (16-bit mask)</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 15:0| PKT_MASK |  rw  | 0x0 |  — |
-|31:16|   RSVD   |   r  | 0x0 |  — |
+| Bits|Identifier|Access| Reset|Name|
+|-----|----------|------|------|----|
+| 15:0| PKT_MASK |  rw  |0xFFFF|  — |
+|31:16|   RSVD   |   r  |  0x0 |  — |
 
 #### PKT_MASK field
 
-<p>Packet type DROP mask [15:0] - bit[type] = 1 drops that packet type, at the monitor-lite and again at the monbus group (rapids BUG-008: this used to read 1=enable with a 0xFFFF default, which dropped everything)</p>
+<p>Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor-lite and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (rapids BUG-008 corrected this description; the polarity and the reset are as intended)</p>
 
 #### RSVD field
 
@@ -1668,14 +1668,14 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Read engine AXI monitor packet type filtering (16-bit mask)</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 15:0| PKT_MASK |  rw  | 0x0 |  — |
-|31:16|   RSVD   |   r  | 0x0 |  — |
+| Bits|Identifier|Access| Reset|Name|
+|-----|----------|------|------|----|
+| 15:0| PKT_MASK |  rw  |0xFFFF|  — |
+|31:16|   RSVD   |   r  |  0x0 |  — |
 
 #### PKT_MASK field
 
-<p>Packet type DROP mask [15:0] - bit[type] = 1 drops that packet type, at the monitor-lite and again at the monbus group (rapids BUG-008: this used to read 1=enable with a 0xFFFF default, which dropped everything)</p>
+<p>Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor-lite and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (rapids BUG-008 corrected this description; the polarity and the reset are as intended)</p>
 
 #### RSVD field
 
@@ -1876,14 +1876,14 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Write engine AXI monitor packet type filtering (16-bit mask)</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 15:0| PKT_MASK |  rw  | 0x0 |  — |
-|31:16|   RSVD   |   r  | 0x0 |  — |
+| Bits|Identifier|Access| Reset|Name|
+|-----|----------|------|------|----|
+| 15:0| PKT_MASK |  rw  |0xFFFF|  — |
+|31:16|   RSVD   |   r  |  0x0 |  — |
 
 #### PKT_MASK field
 
-<p>Packet type DROP mask [15:0] - bit[type] = 1 drops that packet type, at the monitor-lite and again at the monbus group (rapids BUG-008: this used to read 1=enable with a 0xFFFF default, which dropped everything)</p>
+<p>Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor-lite and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (rapids BUG-008 corrected this description; the polarity and the reset are as intended)</p>
 
 #### RSVD field
 
@@ -4114,14 +4114,14 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Descriptor AXI monitor packet type filtering (16-bit mask)</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 15:0| PKT_MASK |  rw  | 0x0 |  — |
-|31:16|   RSVD   |   r  | 0x0 |  — |
+| Bits|Identifier|Access| Reset|Name|
+|-----|----------|------|------|----|
+| 15:0| PKT_MASK |  rw  |0xFFFF|  — |
+|31:16|   RSVD   |   r  |  0x0 |  — |
 
 #### PKT_MASK field
 
-<p>Packet type DROP mask [15:0] - bit[type] = 1 drops that packet type, at the monitor-lite and again at the monbus group (rapids BUG-008: this used to read 1=enable with a 0xFFFF default, which dropped everything)</p>
+<p>Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor-lite and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (rapids BUG-008 corrected this description; the polarity and the reset are as intended)</p>
 
 #### RSVD field
 
@@ -4317,14 +4317,14 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Read engine AXI monitor packet type filtering (16-bit mask)</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 15:0| PKT_MASK |  rw  | 0x0 |  — |
-|31:16|   RSVD   |   r  | 0x0 |  — |
+| Bits|Identifier|Access| Reset|Name|
+|-----|----------|------|------|----|
+| 15:0| PKT_MASK |  rw  |0xFFFF|  — |
+|31:16|   RSVD   |   r  |  0x0 |  — |
 
 #### PKT_MASK field
 
-<p>Packet type DROP mask [15:0] - bit[type] = 1 drops that packet type, at the monitor-lite and again at the monbus group (rapids BUG-008: this used to read 1=enable with a 0xFFFF default, which dropped everything)</p>
+<p>Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor-lite and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (rapids BUG-008 corrected this description; the polarity and the reset are as intended)</p>
 
 #### RSVD field
 
@@ -4525,14 +4525,14 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Write engine AXI monitor packet type filtering (16-bit mask)</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 15:0| PKT_MASK |  rw  | 0x0 |  — |
-|31:16|   RSVD   |   r  | 0x0 |  — |
+| Bits|Identifier|Access| Reset|Name|
+|-----|----------|------|------|----|
+| 15:0| PKT_MASK |  rw  |0xFFFF|  — |
+|31:16|   RSVD   |   r  |  0x0 |  — |
 
 #### PKT_MASK field
 
-<p>Packet type DROP mask [15:0] - bit[type] = 1 drops that packet type, at the monitor-lite and again at the monbus group (rapids BUG-008: this used to read 1=enable with a 0xFFFF default, which dropped everything)</p>
+<p>Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor-lite and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (rapids BUG-008 corrected this description; the polarity and the reset are as intended)</p>
 
 #### RSVD field
 

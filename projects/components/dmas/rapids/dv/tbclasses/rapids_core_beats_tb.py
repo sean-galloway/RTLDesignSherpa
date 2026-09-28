@@ -181,7 +181,7 @@ class RapidsCoreBeatsTB(TBBase):
         s('cfg_desc_mon_timeout_enable', 0)
         s('cfg_desc_mon_timeout_cycles', 1_000_000)
         s('cfg_desc_mon_latency_thresh', 100_000)
-        s('cfg_desc_mon_pkt_mask', 0)        # bit[type] = 1 DROPS that type (rapids BUG-008)
+        s('cfg_desc_mon_pkt_mask', 0)        # bit[type] = 1 MASKS that type; reset is all-masked (rapids BUG-008)
         s('cfg_desc_mon_err_select', 0)
         for m in ('err', 'timeout', 'compl', 'thresh', 'perf', 'addr', 'debug'):
             getattr(d, f'{pfx}_cfg_desc_mon_{m}_mask').value = 0xFF

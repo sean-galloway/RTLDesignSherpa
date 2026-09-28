@@ -21,7 +21,7 @@ by construction rather than by discipline.
 ## Open
 
 - **BUG-000** — reserved template; copy the file, do not file against it.
-- **BUG-016** — the monitor PKT_MASK registers say "1 = enable" and default to 0xFFFF, but the group drops on 1
+- **BUG-016** — the monitor PKT_MASK registers are described as "1 = enable"; the hardware masks on 1 (docs only)
 
 ## Closed
 

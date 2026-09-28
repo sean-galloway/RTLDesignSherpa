@@ -74,10 +74,11 @@ The `*_ENABLE` bits map onto the AXIS monitor-lite's class enables: `MON_EN`
 `COMPL_EN` (one Completion/STREAM_END per packet), `PERF_EN` (stream
 start/pause/resume and Credit/BACKPRESSURE stall reports), `TIMEOUT_EN`.
 `*_TIMEOUT` is MICROSECONDS in its low 16 bits (0 = never), `*_LATENCY_THRESH`
-the stall CYCLES that raise a backpressure report, and `*_PKT_MASK` is a DROP
-mask: bit[type] = 1 drops that packet type at the monitor-lite and again at the
-monbus group. The mask defaults to 0 (rapids BUG-008: it used to read
-"1 = enable" with a 0xFFFF default, which dropped every packet).
+the stall CYCLES that raise a backpressure report, and `*_PKT_MASK` is a MASK:
+bit[type] = 1 masks (drops) that packet type at the monitor-lite and again at
+the monbus group. It resets to all-masked (0xFFFF); the host clears the bits of
+the classes it wants to see (rapids BUG-008 corrected the description, which
+used to read "1 = enable"; the polarity and the reset are as intended).
 
 Within each group the enable/timeout/latency/mask fields map 1:1, e.g.
 `cfg_desc_mon_enable = MON.DAXMON_ENABLE.MON_EN & GLOBAL_CTRL.GLOBAL_EN`,

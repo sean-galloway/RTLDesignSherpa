@@ -2,7 +2,7 @@
 
 **Priority:** Low -- observability only; nothing functional depends on it.
 **Status:** OPEN 2026-09-28. Surfaced by the rapids TASK-015 top-level monitor
-test once rapids BUG-008 let packets through the monbus group: with
+test, which clears the SRC `RDMON_PKT_MASK` the monbus group filters on: with
 `SCHED_CONFIG` programmed `SCHED_EN=1, ERR_EN=1` (COMPL_EN = 0) the capture
 trace still carried a Completion from the descriptor engine (agent 0x11/0x12)
 and two from the scheduler (agent 0x31/0x32) for every transfer.
@@ -12,8 +12,8 @@ and two from the scheduler (agent 0x31/0x32) for every transfer.
 `scheduler_group_beats.sv` line ~340 documents `cfg_sched_compl_enable` as
 "(always enabled)": the input exists on the group and the array but does not
 gate the emitter. The descriptor engine's fetch-complete packet has no enable at
-all. Until BUG-008 the group's default `PKT_MASK` of 0xFFFF dropped everything,
-so the bit looked honoured.
+all. With the reset `PKT_MASK` (all masked) the group drops these packets, so
+the bit looks honoured until a host unmasks the completion class.
 
 ## Why an issue, not a bug
 

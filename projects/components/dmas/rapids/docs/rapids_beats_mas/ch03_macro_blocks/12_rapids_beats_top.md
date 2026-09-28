@@ -113,8 +113,8 @@ on the data masters; the RTL has never had them). Data-master observation lives
 in the characterization harness as external instruments (`axi_bus_meter`,
 `axis_bus_meter`, and the interface observers on `USE_OBSERVERS` builds). The
 group's AXIS filter slot is fed from `SRC.MON.RDMON_*`, so it filters both
-halves' AXIS packets; `*_PKT_MASK` is a DROP mask (bit[type] = 1 drops; rapids
-BUG-008). The group provides:
+halves' AXIS packets; `*_PKT_MASK` masks on a set bit and resets to all-masked
+(rapids BUG-008 corrected its description). The group provides:
 
 - `s_axil_err_*` -- AXI-Lite (32-bit) **error-drain slave**: CPU reads captured
   error events from the error FIFO.

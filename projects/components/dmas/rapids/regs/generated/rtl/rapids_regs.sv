@@ -4068,7 +4068,7 @@ module rapids_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.value <= 16'h0;
+            field_storage.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.load_next) begin
                 field_storage.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.value <= field_combo.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.next;
@@ -4436,7 +4436,7 @@ module rapids_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SRC.MON.RDMON_PKT_MASK.PKT_MASK.value <= 16'h0;
+            field_storage.SRC.MON.RDMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.SRC.MON.RDMON_PKT_MASK.PKT_MASK.load_next) begin
                 field_storage.SRC.MON.RDMON_PKT_MASK.PKT_MASK.value <= field_combo.SRC.MON.RDMON_PKT_MASK.PKT_MASK.next;
@@ -4827,7 +4827,7 @@ module rapids_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SRC.MON.WRMON_PKT_MASK.PKT_MASK.value <= 16'h0;
+            field_storage.SRC.MON.WRMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.SRC.MON.WRMON_PKT_MASK.PKT_MASK.load_next) begin
                 field_storage.SRC.MON.WRMON_PKT_MASK.PKT_MASK.value <= field_combo.SRC.MON.WRMON_PKT_MASK.PKT_MASK.next;
@@ -6579,7 +6579,7 @@ module rapids_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.value <= 16'h0;
+            field_storage.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.load_next) begin
                 field_storage.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.value <= field_combo.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.next;
@@ -6947,7 +6947,7 @@ module rapids_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SNK.MON.RDMON_PKT_MASK.PKT_MASK.value <= 16'h0;
+            field_storage.SNK.MON.RDMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.SNK.MON.RDMON_PKT_MASK.PKT_MASK.load_next) begin
                 field_storage.SNK.MON.RDMON_PKT_MASK.PKT_MASK.value <= field_combo.SNK.MON.RDMON_PKT_MASK.PKT_MASK.next;
@@ -7338,7 +7338,7 @@ module rapids_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SNK.MON.WRMON_PKT_MASK.PKT_MASK.value <= 16'h0;
+            field_storage.SNK.MON.WRMON_PKT_MASK.PKT_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.SNK.MON.WRMON_PKT_MASK.PKT_MASK.load_next) begin
                 field_storage.SNK.MON.WRMON_PKT_MASK.PKT_MASK.value <= field_combo.SNK.MON.WRMON_PKT_MASK.PKT_MASK.next;

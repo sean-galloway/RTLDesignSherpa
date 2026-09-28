@@ -48,10 +48,12 @@ bits wide; `paddr[12]` selects the half and `paddr[11]` the monitor window.
 | +0x800-0x9FF | `rapids_mon_regs` | AXI-monitor config and performance |
 | 0x0000 / 0x1000 | half base | SRC half / SNK half |
 
-The three `*_PKT_MASK` registers are DROP masks: bit[type] = 1 drops that packet
-type, at the monitor-lite and again at the monbus group; they default to 0.
-(rapids BUG-008: they used to read "1 = enable" with a 0xFFFF default, which
-dropped every packet.) `*_TIMEOUT` counts MICROSECONDS in its low 16 bits.
+The three `*_PKT_MASK` registers are masks: bit[type] = 1 masks (drops) that
+packet type, at the monitor-lite and again at the monbus group. They reset to
+all-masked (0xFFFF), so nothing reaches the group until the host clears the
+bits of the classes it wants to see. (rapids BUG-008: the description used to
+read "1 = enable"; the polarity and the reset are as intended.) `*_TIMEOUT`
+counts MICROSECONDS in its low 16 bits.
 
 On a build with `USE_MON_REGS = 0` (the default when `USE_AXI_MONITORS = 0`) the
 two monitor windows keep their addresses but answer every access with `PSLVERR`

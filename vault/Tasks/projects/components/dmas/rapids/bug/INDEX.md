@@ -31,4 +31,4 @@ by construction rather than by discipline.
 - **BUG-005** — the write engine runs two AWs per channel at PIPELINE=0 (closed 2026-09-27)
 - **BUG-006** — the descriptor engine fetches any APB-kicked address, in range or not (closed 2026-09-27)
 - **BUG-007** — a kick that ends in RD_ERROR wedges the channel's APB path through channel reset (closed 2026-09-27)
-- **BUG-008** — the monitor PKT_MASK registers default to "drop everything", documented as "1 = enable" (closed 2026-09-27)
+- **BUG-008** — the monitor PKT_MASK registers were documented as "1 = enable"; the hardware masks on 1 (closed 2026-09-28)

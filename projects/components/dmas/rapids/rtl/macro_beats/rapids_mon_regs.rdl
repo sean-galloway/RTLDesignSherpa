@@ -138,10 +138,10 @@ regfile rapids_mon_regs {
         desc = "Descriptor AXI monitor packet type filtering (16-bit mask)";
 
         field {
-            desc = "Packet type DROP mask [15:0] - bit[type] = 1 drops that packet type, at the monitor-lite and again at the monbus group (rapids BUG-008: this used to read 1=enable with a 0xFFFF default, which dropped everything)";
+            desc = "Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor-lite and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (rapids BUG-008 corrected this description; the polarity and the reset are as intended)";
             sw = rw;
             hw = r;
-        } PKT_MASK[15:0] = 16'h0000;
+        } PKT_MASK[15:0] = 16'hFFFF;
 
         field {
             desc = "Reserved";
@@ -324,10 +324,10 @@ regfile rapids_mon_regs {
         desc = "Read engine AXI monitor packet type filtering (16-bit mask)";
 
         field {
-            desc = "Packet type DROP mask [15:0] - bit[type] = 1 drops that packet type, at the monitor-lite and again at the monbus group (rapids BUG-008: this used to read 1=enable with a 0xFFFF default, which dropped everything)";
+            desc = "Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor-lite and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (rapids BUG-008 corrected this description; the polarity and the reset are as intended)";
             sw = rw;
             hw = r;
-        } PKT_MASK[15:0] = 16'h0000;
+        } PKT_MASK[15:0] = 16'hFFFF;
 
         field {
             desc = "Reserved";
@@ -516,10 +516,10 @@ regfile rapids_mon_regs {
         desc = "Write engine AXI monitor packet type filtering (16-bit mask)";
 
         field {
-            desc = "Packet type DROP mask [15:0] - bit[type] = 1 drops that packet type, at the monitor-lite and again at the monbus group (rapids BUG-008: this used to read 1=enable with a 0xFFFF default, which dropped everything)";
+            desc = "Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor-lite and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (rapids BUG-008 corrected this description; the polarity and the reset are as intended)";
             sw = rw;
             hw = r;
-        } PKT_MASK[15:0] = 16'h0000;
+        } PKT_MASK[15:0] = 16'hFFFF;
 
         field {
             desc = "Reserved";
