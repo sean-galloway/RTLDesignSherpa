@@ -94,11 +94,16 @@ Runtime overrides take effect at the next "quiet point" (no commands in flight).
 
 The CSR exposes the following observation counters (described in §6.3):
 
-- `OBS_ROW_HIT[8]` — per-bank rolling row-hit count (clear-on-read).
-- `OBS_REF_LATENCY[8]` — per-bank average refresh-blocking cycles.
-- `OBS_TXN_QUEUE_DEPTH_MAX` / `OBS_TXN_QUEUE_DEPTH_AVG` — max and time-averaged transaction-queue depth.
-- `PAGE_STATS_HIT` / `PAGE_STATS_MISS` / `PAGE_STATS_EMPTY` — global page-outcome counters (replaced the retired `OBS_PAGE_PRED_ACCURACY`).
-- `OBS_REFRESH_DEFER_HIST_0..3` — refresh-deferral histogram bins (plus `OBS_REFRESH_PENDING_MAX` for the max `refresh_pending` observed).
-- `OBS_AXI_R_LATENCY_AVG` / `OBS_AXI_R_LATENCY_P99` / `OBS_AXI_W_LATENCY_AVG` — AXI read/write latency counters.
+- `OBS_ROW_HIT[8]` — per-bank ROW HITS, free-running (subtract two reads).
+- `PAGE_STATS_HIT` / `PAGE_STATS_MISS` / `PAGE_STATS_EMPTY` — global page-outcome counters.
+- `SCHED_STATS_ACT` / `SCHED_STATS_PRE` — activations and closes.
+- `REF_STATS_REF` / `REF_STATS_REF_BUSY` — refreshes, and those that fired with work pending.
+- `STALL_*` — stall-cause attribution.
+
+AXI latency and queue occupancy are **not** controller counters: they are measured
+by `rtl/amba/shared/axi_bus_meter.sv` and `axi_perf_latency_hist.sv`, which the
+characterisation harness instantiates directly (`char_engine_block.sv:608-712`).
+> **27 `OBS_*` registers were removed on 2026-09-28 (pumice BUG-020).** They were declared, documented and readable, and nothing drove them -- every one read zero. `OBS_ROW_HIT[8]` was kept and is now driven; the rest went. AXI-side latency and occupancy are measured by `axi_bus_meter` and `axi_perf_latency_hist` outside the controller.
+
 
 These feed back into the sweep tool for in-loop default selection.

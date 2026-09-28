@@ -121,6 +121,11 @@ module pumice_core_tb_top
     logic [31:0] stall_bp, stall_refresh, stall_turnaround, stall_tccd;
     logic [31:0] stall_actlimit, stall_banktimer, stall_noreq;
     logic [31:0] stat_page_hit, stat_page_miss, stat_page_empty;
+    // Per-bank row hits (pumice BUG-020). Exposed rather than left
+    // unconnected so a test can read the DUT's own hit count: an
+    // unconnected output here is what let 35 OBS_* registers read zero
+    // for months without a single test noticing.
+    logic [31:0] stat_row_hit [NUM_BANKS];
     logic [31:0] stat_act, stat_pre, stat_ref;
     logic [31:0] stat_ref_busy;
 
@@ -205,6 +210,7 @@ module pumice_core_tb_top
         // stat_ref counts host idle time too, so this is the one a measured
         // refresh cost comes from.
         .stat_ref_busy_o(stat_ref_busy),
+        .stat_row_hit_o(stat_row_hit),
         // CSR-backed MR values at their RDL resets (MR0 0x0433 = BL8/CL3/tWR3);
         // no runtime MR retune in this TB, init_restart tied off.
         .mr0_i(16'h0433), .mr1_i(16'h0000), .mr2_i(16'h0000), .mr3_i(16'h0000),

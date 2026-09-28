@@ -12,22 +12,23 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 17 | done (kept for history) |
+| [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-020** — all 35 `OBS_*` registers are undriven (`pumice_top` has zero
-  `hwif_in.OBS_*` assignments) and read 0 forever; caught on the board when a
-  99.4%-row-hit workload reported 0 per-bank hits
 
 - **BUG-000** — TEMPLATE — copy this file, never file against it
 - **BUG-019** — DV wrappers have no depth axis: 23 of 36 never export TEST_LEVEL, so FULL == GATE for them; conversion ready (not simulated) on branch tooling-pumice-halves
 
 ## Closed
+
+- **BUG-020** — 35 undriven `OBS_*` registers: `OBS_ROW_HIT[8]` wired (the only
+  sound row-hit count), the other 27 removed with their addresses left as holes
+  (0 registers moved); docs synced
 
 - **BUG-004** (was `PUMICE-001`) — Runtime-config axes corrupt data (board + sim)
 - **BUG-005** (was `PUMICE-002`) — test_pumice_top_csr wr_rd roundtrip returns zero read beats

@@ -12,88 +12,61 @@ Don't override. Generated from: $root
 
 <p>Configuration and observation registers for the DDR2/LPDDR2 controller</p>
 
-|Offset|       Identifier       |                  Name                  |
-|------|------------------------|----------------------------------------|
-| 0x000|          CTRL          |            Control Register            |
-| 0x004|         STATUS         |             Status Register            |
-| 0x008|     STATUS_HISTORY     |             Status History             |
-| 0x010|  TIMINGS_RC_RCD_RP_RAS |    Timings: tRC / tRCD / tRP / tRAS    |
-| 0x014|    TIMINGS_RFC_REFI    |          Timings: tRFC / tREFI         |
-| 0x018| TIMINGS_RRD_FAW_WTR_CCD|   Timings: tRRD / tFAW / tWTR / tCCD   |
-| 0x01C|    TIMINGS_CL_CWL_WR   |    Timings: CL / CWL / tWR / tRFCpb    |
-| 0x020|           MR0          |             Mode Register 0            |
-| 0x024|           MR1          |             Mode Register 1            |
-| 0x028|           MR2          |             Mode Register 2            |
-| 0x02C|           MR3          |             Mode Register 3            |
-| 0x030|  PASR_BANK_MASK_RANK0  |          PASR Bank Mask Rank 0         |
-| 0x034|   PASR_SEG_MASK_RANK0  |        PASR Segment Mask Rank 0        |
-| 0x038|    TEMP_DERATE_RANK0   |        Temperature Derate Rank 0       |
-| 0x040|      SCHED_TUNING      |            Scheduler Tuning            |
-| 0x048|     REFRESH_TUNING     |             Refresh Tuning             |
-| 0x04C|        ADDR_MAP        |               Address Map              |
-| 0x050|       INIT_TUNING      |               Init Tuning              |
-| 0x054|     TIMINGS_RTP_RTW    |          Timings: tRTP / tRTW          |
-| 0x058|      INIT_TIMING0      |      Init Timing 0: tINIT / tDLLK      |
-| 0x05C|      INIT_TIMING1      | Init Timing 1: tMRD / tRP / tRFC (init)|
-| 0x060|        DFI_PHASE       |       DFI Command Phase Placement      |
-| 0x064|       PHY_TIMING       |  PHY / DFI data timing + memory config |
-| 0x068|      SCHED_POLICY      |            Scheduler Policy            |
-| 0x06C|       SCHED_WR_WM      |       Scheduler Write Watermarks       |
-| 0x070|     PAGE_POLICY_CFG    |           Page Policy Config           |
-| 0x074|    PAGE_TIMEOUT_CFG    |           Page Timeout Config          |
-| 0x080|     OBS_ROW_HIT[0]     |      Per-Bank Row Hit Observation      |
-| 0x084|     OBS_ROW_HIT[1]     |      Per-Bank Row Hit Observation      |
-| 0x088|     OBS_ROW_HIT[2]     |      Per-Bank Row Hit Observation      |
-| 0x08C|     OBS_ROW_HIT[3]     |      Per-Bank Row Hit Observation      |
-| 0x090|     OBS_ROW_HIT[4]     |      Per-Bank Row Hit Observation      |
-| 0x094|     OBS_ROW_HIT[5]     |      Per-Bank Row Hit Observation      |
-| 0x098|     OBS_ROW_HIT[6]     |      Per-Bank Row Hit Observation      |
-| 0x09C|     OBS_ROW_HIT[7]     |      Per-Bank Row Hit Observation      |
-| 0x0C0|   OBS_REF_LATENCY[0]   |  Per-Bank Refresh Latency Observation  |
-| 0x0C4|   OBS_REF_LATENCY[1]   |  Per-Bank Refresh Latency Observation  |
-| 0x0C8|   OBS_REF_LATENCY[2]   |  Per-Bank Refresh Latency Observation  |
-| 0x0CC|   OBS_REF_LATENCY[3]   |  Per-Bank Refresh Latency Observation  |
-| 0x0D0|   OBS_REF_LATENCY[4]   |  Per-Bank Refresh Latency Observation  |
-| 0x0D4|   OBS_REF_LATENCY[5]   |  Per-Bank Refresh Latency Observation  |
-| 0x0D8|   OBS_REF_LATENCY[6]   |  Per-Bank Refresh Latency Observation  |
-| 0x0DC|   OBS_REF_LATENCY[7]   |  Per-Bank Refresh Latency Observation  |
-| 0x100| OBS_TXN_QUEUE_DEPTH_MAX|                    —                   |
-| 0x104| OBS_TXN_QUEUE_DEPTH_AVG|                    —                   |
-| 0x108| OBS_REFRESH_PENDING_MAX|                    —                   |
-| 0x10C|OBS_REFRESH_DEFER_HIST_0|                    —                   |
-| 0x110|OBS_REFRESH_DEFER_HIST_1|                    —                   |
-| 0x114|OBS_REFRESH_DEFER_HIST_2|                    —                   |
-| 0x118|OBS_REFRESH_DEFER_HIST_3|                    —                   |
-| 0x130|  OBS_AXI_R_LATENCY_AVG |                    —                   |
-| 0x134|  OBS_AXI_R_LATENCY_P99 |                    —                   |
-| 0x138|  OBS_AXI_W_LATENCY_AVG |                    —                   |
-| 0x140|        REF_CTRL        |          Refresh Mode Control          |
-| 0x144|      REF_TIMING_PB     |         Per-Bank Refresh Timing        |
-| 0x148|     PAGE_STATS_HIT     |Page Stats: Column Ops (misnamed 'Hits')|
-| 0x14C|     PAGE_STATS_MISS    |           Page Stats: Misses           |
-| 0x150|    PAGE_STATS_EMPTY    |           Page Stats: Empties          |
-| 0x154|     SCHED_STATS_ACT    |         Sched Stats: Activates         |
-| 0x158|     SCHED_STATS_PRE    |         Sched Stats: Precharges        |
-| 0x15C|      REF_STATS_REF     |        Refresh Stats: Refreshes        |
-| 0x160|        STALL_BP        |         Stall: DFI backpressure        |
-| 0x164|      STALL_REFRESH     |             Stall: refresh             |
-| 0x168|    STALL_TURNAROUND    |          Stall: bus turnaround         |
-| 0x16C|       STALL_TCCD       |          Stall: column spacing         |
-| 0x170|     STALL_ACTLIMIT     |       Stall: activate rate limit       |
-| 0x174|     STALL_BANKTIMER    |          Stall: per-bank timer         |
-| 0x178|       STALL_NOREQ      |         Stall: nothing pending         |
-| 0x17C|   REF_STATS_REF_BUSY   |  Refresh Stats: Refreshes with demand  |
-| 0x1C0|      OBS_WORDS[0]      |        Observation Word Harvest        |
-| 0x1C4|      OBS_WORDS[1]      |        Observation Word Harvest        |
-| 0x1C8|      OBS_WORDS[2]      |        Observation Word Harvest        |
-| 0x1CC|      OBS_WORDS[3]      |        Observation Word Harvest        |
-| 0x1D0|      OBS_WORDS[4]      |        Observation Word Harvest        |
-| 0x1D4|      OBS_WORDS[5]      |        Observation Word Harvest        |
-| 0x1D8|      OBS_WORDS[6]      |        Observation Word Harvest        |
-| 0x1DC|      OBS_WORDS[7]      |        Observation Word Harvest        |
-| 0x1E0|      OBS_WORDS[8]      |        Observation Word Harvest        |
-| 0xFF0|           ID           |                Module ID               |
-| 0xFF4|          BUILD         |               Build Hash               |
+|Offset|       Identifier      |                  Name                  |
+|------|-----------------------|----------------------------------------|
+| 0x000|          CTRL         |            Control Register            |
+| 0x004|         STATUS        |             Status Register            |
+| 0x008|     STATUS_HISTORY    |             Status History             |
+| 0x010| TIMINGS_RC_RCD_RP_RAS |    Timings: tRC / tRCD / tRP / tRAS    |
+| 0x014|    TIMINGS_RFC_REFI   |          Timings: tRFC / tREFI         |
+| 0x018|TIMINGS_RRD_FAW_WTR_CCD|   Timings: tRRD / tFAW / tWTR / tCCD   |
+| 0x01C|   TIMINGS_CL_CWL_WR   |    Timings: CL / CWL / tWR / tRFCpb    |
+| 0x020|          MR0          |             Mode Register 0            |
+| 0x024|          MR1          |             Mode Register 1            |
+| 0x028|          MR2          |             Mode Register 2            |
+| 0x02C|          MR3          |             Mode Register 3            |
+| 0x030|  PASR_BANK_MASK_RANK0 |          PASR Bank Mask Rank 0         |
+| 0x034|  PASR_SEG_MASK_RANK0  |        PASR Segment Mask Rank 0        |
+| 0x038|   TEMP_DERATE_RANK0   |        Temperature Derate Rank 0       |
+| 0x040|      SCHED_TUNING     |            Scheduler Tuning            |
+| 0x048|     REFRESH_TUNING    |             Refresh Tuning             |
+| 0x04C|        ADDR_MAP       |               Address Map              |
+| 0x050|      INIT_TUNING      |               Init Tuning              |
+| 0x054|    TIMINGS_RTP_RTW    |          Timings: tRTP / tRTW          |
+| 0x058|      INIT_TIMING0     |      Init Timing 0: tINIT / tDLLK      |
+| 0x05C|      INIT_TIMING1     | Init Timing 1: tMRD / tRP / tRFC (init)|
+| 0x060|       DFI_PHASE       |       DFI Command Phase Placement      |
+| 0x064|       PHY_TIMING      |  PHY / DFI data timing + memory config |
+| 0x068|      SCHED_POLICY     |            Scheduler Policy            |
+| 0x06C|      SCHED_WR_WM      |       Scheduler Write Watermarks       |
+| 0x070|    PAGE_POLICY_CFG    |           Page Policy Config           |
+| 0x074|    PAGE_TIMEOUT_CFG   |           Page Timeout Config          |
+| 0x080|     OBS_ROW_HIT[0]    |      Per-Bank Row Hit Observation      |
+| 0x084|     OBS_ROW_HIT[1]    |      Per-Bank Row Hit Observation      |
+| 0x088|     OBS_ROW_HIT[2]    |      Per-Bank Row Hit Observation      |
+| 0x08C|     OBS_ROW_HIT[3]    |      Per-Bank Row Hit Observation      |
+| 0x090|     OBS_ROW_HIT[4]    |      Per-Bank Row Hit Observation      |
+| 0x094|     OBS_ROW_HIT[5]    |      Per-Bank Row Hit Observation      |
+| 0x098|     OBS_ROW_HIT[6]    |      Per-Bank Row Hit Observation      |
+| 0x09C|     OBS_ROW_HIT[7]    |      Per-Bank Row Hit Observation      |
+| 0x140|        REF_CTRL       |          Refresh Mode Control          |
+| 0x144|     REF_TIMING_PB     |         Per-Bank Refresh Timing        |
+| 0x148|     PAGE_STATS_HIT    |Page Stats: Column Ops (misnamed 'Hits')|
+| 0x14C|    PAGE_STATS_MISS    |           Page Stats: Misses           |
+| 0x150|    PAGE_STATS_EMPTY   |           Page Stats: Empties          |
+| 0x154|    SCHED_STATS_ACT    |         Sched Stats: Activates         |
+| 0x158|    SCHED_STATS_PRE    |         Sched Stats: Precharges        |
+| 0x15C|     REF_STATS_REF     |        Refresh Stats: Refreshes        |
+| 0x160|        STALL_BP       |         Stall: DFI backpressure        |
+| 0x164|     STALL_REFRESH     |             Stall: refresh             |
+| 0x168|    STALL_TURNAROUND   |          Stall: bus turnaround         |
+| 0x16C|       STALL_TCCD      |          Stall: column spacing         |
+| 0x170|     STALL_ACTLIMIT    |       Stall: activate rate limit       |
+| 0x174|    STALL_BANKTIMER    |          Stall: per-bank timer         |
+| 0x178|      STALL_NOREQ      |         Stall: nothing pending         |
+| 0x17C|   REF_STATS_REF_BUSY  |  Refresh Stats: Refreshes with demand  |
+| 0xFF0|           ID          |                Module ID               |
+| 0xFF4|         BUILD         |               Build Hash               |
 
 ### CTRL register
 
@@ -992,7 +965,20 @@ further amortisation while costing read forward progress.</p>
 - Array Stride: 0x4
 - Total Size: 0x20
 
-<p>Rolling row-hit count per bank. Reset on read or soft_reset.</p>
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (pumice BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(pumice ISSUE-014).</p>
 
 |Offset|Identifier|Name|
 |------|----------|----|
@@ -1004,9 +990,9 @@ further amortisation while costing read forward progress.</p>
 - Base Offset: 0x0
 - Size: 0x4
 
-|Bits|Identifier| Access |Reset|Name|
-|----|----------|--------|-----|----|
-|31:0|    VAL   |rw, rclr|  —  |  — |
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
 
 #### VAL field
 
@@ -1021,7 +1007,20 @@ further amortisation while costing read forward progress.</p>
 - Array Stride: 0x4
 - Total Size: 0x20
 
-<p>Rolling row-hit count per bank. Reset on read or soft_reset.</p>
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (pumice BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(pumice ISSUE-014).</p>
 
 |Offset|Identifier|Name|
 |------|----------|----|
@@ -1033,9 +1032,9 @@ further amortisation while costing read forward progress.</p>
 - Base Offset: 0x0
 - Size: 0x4
 
-|Bits|Identifier| Access |Reset|Name|
-|----|----------|--------|-----|----|
-|31:0|    VAL   |rw, rclr|  —  |  — |
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
 
 #### VAL field
 
@@ -1050,7 +1049,20 @@ further amortisation while costing read forward progress.</p>
 - Array Stride: 0x4
 - Total Size: 0x20
 
-<p>Rolling row-hit count per bank. Reset on read or soft_reset.</p>
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (pumice BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(pumice ISSUE-014).</p>
 
 |Offset|Identifier|Name|
 |------|----------|----|
@@ -1062,9 +1074,9 @@ further amortisation while costing read forward progress.</p>
 - Base Offset: 0x0
 - Size: 0x4
 
-|Bits|Identifier| Access |Reset|Name|
-|----|----------|--------|-----|----|
-|31:0|    VAL   |rw, rclr|  —  |  — |
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
 
 #### VAL field
 
@@ -1079,7 +1091,20 @@ further amortisation while costing read forward progress.</p>
 - Array Stride: 0x4
 - Total Size: 0x20
 
-<p>Rolling row-hit count per bank. Reset on read or soft_reset.</p>
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (pumice BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(pumice ISSUE-014).</p>
 
 |Offset|Identifier|Name|
 |------|----------|----|
@@ -1091,9 +1116,9 @@ further amortisation while costing read forward progress.</p>
 - Base Offset: 0x0
 - Size: 0x4
 
-|Bits|Identifier| Access |Reset|Name|
-|----|----------|--------|-----|----|
-|31:0|    VAL   |rw, rclr|  —  |  — |
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
 
 #### VAL field
 
@@ -1108,7 +1133,20 @@ further amortisation while costing read forward progress.</p>
 - Array Stride: 0x4
 - Total Size: 0x20
 
-<p>Rolling row-hit count per bank. Reset on read or soft_reset.</p>
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (pumice BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(pumice ISSUE-014).</p>
 
 |Offset|Identifier|Name|
 |------|----------|----|
@@ -1120,9 +1158,9 @@ further amortisation while costing read forward progress.</p>
 - Base Offset: 0x0
 - Size: 0x4
 
-|Bits|Identifier| Access |Reset|Name|
-|----|----------|--------|-----|----|
-|31:0|    VAL   |rw, rclr|  —  |  — |
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
 
 #### VAL field
 
@@ -1137,7 +1175,20 @@ further amortisation while costing read forward progress.</p>
 - Array Stride: 0x4
 - Total Size: 0x20
 
-<p>Rolling row-hit count per bank. Reset on read or soft_reset.</p>
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (pumice BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(pumice ISSUE-014).</p>
 
 |Offset|Identifier|Name|
 |------|----------|----|
@@ -1149,9 +1200,9 @@ further amortisation while costing read forward progress.</p>
 - Base Offset: 0x0
 - Size: 0x4
 
-|Bits|Identifier| Access |Reset|Name|
-|----|----------|--------|-----|----|
-|31:0|    VAL   |rw, rclr|  —  |  — |
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
 
 #### VAL field
 
@@ -1166,7 +1217,20 @@ further amortisation while costing read forward progress.</p>
 - Array Stride: 0x4
 - Total Size: 0x20
 
-<p>Rolling row-hit count per bank. Reset on read or soft_reset.</p>
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (pumice BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(pumice ISSUE-014).</p>
 
 |Offset|Identifier|Name|
 |------|----------|----|
@@ -1178,9 +1242,9 @@ further amortisation while costing read forward progress.</p>
 - Base Offset: 0x0
 - Size: 0x4
 
-|Bits|Identifier| Access |Reset|Name|
-|----|----------|--------|-----|----|
-|31:0|    VAL   |rw, rclr|  —  |  — |
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
 
 #### VAL field
 
@@ -1195,7 +1259,20 @@ further amortisation while costing read forward progress.</p>
 - Array Stride: 0x4
 - Total Size: 0x20
 
-<p>Rolling row-hit count per bank. Reset on read or soft_reset.</p>
+<p>Free-running row-hit count per bank: column ops issued to a bank
+whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+issued command stream (pumice BUG-020 wired these; before that
+they, and every other OBS_* register, read zero forever).</p>
+<p>Read two and subtract for a window, as with PAGE_STATS_<em> and
+SCHED_STATS_</em>; they clear only on aresetn. This used to be
+<code>sw=rw, onread=rclr</code>, which could never have worked: the field is
+hw=w and driven every cycle, so the hardware rewrites the value
+the read cleared.</p>
+<p>These are the SOUND row-hit count. Do not re-derive hits as
+PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+background-close mode, because a row can be opened, hit by the
+timeout precharge before its column command issues, and reopened
+(pumice ISSUE-014).</p>
 
 |Offset|Identifier|Name|
 |------|----------|----|
@@ -1207,405 +1284,13 @@ further amortisation while costing read forward progress.</p>
 - Base Offset: 0x0
 - Size: 0x4
 
-|Bits|Identifier| Access |Reset|Name|
-|----|----------|--------|-----|----|
-|31:0|    VAL   |rw, rclr|  —  |  — |
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
 
 #### VAL field
 
 <p>Row-hit count</p>
-
-## OBS_REF_LATENCY register file
-
-- Absolute Address: 0xC0
-- Base Offset: 0xC0
-- Size: 0x4
-- Array Dimensions: [8]
-- Array Stride: 0x4
-- Total Size: 0x20
-
-<p>Average refresh blocking time per bank</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |  REF_LAT |  — |
-
-### REF_LAT register
-
-- Absolute Address: 0xC0
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Refresh-blocking cycles</p>
-
-## OBS_REF_LATENCY register file
-
-- Absolute Address: 0xC4
-- Base Offset: 0xC0
-- Size: 0x4
-- Array Dimensions: [8]
-- Array Stride: 0x4
-- Total Size: 0x20
-
-<p>Average refresh blocking time per bank</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |  REF_LAT |  — |
-
-### REF_LAT register
-
-- Absolute Address: 0xC4
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Refresh-blocking cycles</p>
-
-## OBS_REF_LATENCY register file
-
-- Absolute Address: 0xC8
-- Base Offset: 0xC0
-- Size: 0x4
-- Array Dimensions: [8]
-- Array Stride: 0x4
-- Total Size: 0x20
-
-<p>Average refresh blocking time per bank</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |  REF_LAT |  — |
-
-### REF_LAT register
-
-- Absolute Address: 0xC8
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Refresh-blocking cycles</p>
-
-## OBS_REF_LATENCY register file
-
-- Absolute Address: 0xCC
-- Base Offset: 0xC0
-- Size: 0x4
-- Array Dimensions: [8]
-- Array Stride: 0x4
-- Total Size: 0x20
-
-<p>Average refresh blocking time per bank</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |  REF_LAT |  — |
-
-### REF_LAT register
-
-- Absolute Address: 0xCC
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Refresh-blocking cycles</p>
-
-## OBS_REF_LATENCY register file
-
-- Absolute Address: 0xD0
-- Base Offset: 0xC0
-- Size: 0x4
-- Array Dimensions: [8]
-- Array Stride: 0x4
-- Total Size: 0x20
-
-<p>Average refresh blocking time per bank</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |  REF_LAT |  — |
-
-### REF_LAT register
-
-- Absolute Address: 0xD0
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Refresh-blocking cycles</p>
-
-## OBS_REF_LATENCY register file
-
-- Absolute Address: 0xD4
-- Base Offset: 0xC0
-- Size: 0x4
-- Array Dimensions: [8]
-- Array Stride: 0x4
-- Total Size: 0x20
-
-<p>Average refresh blocking time per bank</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |  REF_LAT |  — |
-
-### REF_LAT register
-
-- Absolute Address: 0xD4
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Refresh-blocking cycles</p>
-
-## OBS_REF_LATENCY register file
-
-- Absolute Address: 0xD8
-- Base Offset: 0xC0
-- Size: 0x4
-- Array Dimensions: [8]
-- Array Stride: 0x4
-- Total Size: 0x20
-
-<p>Average refresh blocking time per bank</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |  REF_LAT |  — |
-
-### REF_LAT register
-
-- Absolute Address: 0xD8
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Refresh-blocking cycles</p>
-
-## OBS_REF_LATENCY register file
-
-- Absolute Address: 0xDC
-- Base Offset: 0xC0
-- Size: 0x4
-- Array Dimensions: [8]
-- Array Stride: 0x4
-- Total Size: 0x20
-
-<p>Average refresh blocking time per bank</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |  REF_LAT |  — |
-
-### REF_LAT register
-
-- Absolute Address: 0xDC
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Refresh-blocking cycles</p>
-
-### OBS_TXN_QUEUE_DEPTH_MAX register
-
-- Absolute Address: 0x100
-- Base Offset: 0x100
-- Size: 0x4
-
-<p>Max queue depth observed</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Max depth</p>
-
-### OBS_TXN_QUEUE_DEPTH_AVG register
-
-- Absolute Address: 0x104
-- Base Offset: 0x104
-- Size: 0x4
-
-<p>Time-averaged queue depth</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Avg depth</p>
-
-### OBS_REFRESH_PENDING_MAX register
-
-- Absolute Address: 0x108
-- Base Offset: 0x108
-- Size: 0x4
-
-<p>Max refresh_pending observed</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Max pending</p>
-
-### OBS_REFRESH_DEFER_HIST_0 register
-
-- Absolute Address: 0x10C
-- Base Offset: 0x10C
-- Size: 0x4
-
-<p>Refresh-deferral histogram bin 0</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Bin 0 count</p>
-
-### OBS_REFRESH_DEFER_HIST_1 register
-
-- Absolute Address: 0x110
-- Base Offset: 0x110
-- Size: 0x4
-
-<p>Refresh-deferral histogram bin 1</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Bin 1 count</p>
-
-### OBS_REFRESH_DEFER_HIST_2 register
-
-- Absolute Address: 0x114
-- Base Offset: 0x114
-- Size: 0x4
-
-<p>Refresh-deferral histogram bin 2</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Bin 2 count</p>
-
-### OBS_REFRESH_DEFER_HIST_3 register
-
-- Absolute Address: 0x118
-- Base Offset: 0x118
-- Size: 0x4
-
-<p>Refresh-deferral histogram bin 3</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Bin 3 count</p>
-
-### OBS_AXI_R_LATENCY_AVG register
-
-- Absolute Address: 0x130
-- Base Offset: 0x130
-- Size: 0x4
-
-<p>Avg AXI read latency (cycles)</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Avg cycles</p>
-
-### OBS_AXI_R_LATENCY_P99 register
-
-- Absolute Address: 0x134
-- Base Offset: 0x134
-- Size: 0x4
-
-<p>99th-pct AXI read latency</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>P99 cycles</p>
-
-### OBS_AXI_W_LATENCY_AVG register
-
-- Absolute Address: 0x138
-- Base Offset: 0x138
-- Size: 0x4
-
-<p>Avg AXI write latency</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Avg cycles</p>
 
 ### REF_CTRL register
 
@@ -1686,7 +1371,7 @@ further amortisation while costing read forward progress.</p>
 
 #### VAL field
 
-<p>EVERY column op issued (READ/WRITE, with or without AP). NOT a hit count despite the register name -- the RTL increments it on every column command. Row hits are DERIVED: hits = PAGE_STATS_HIT - SCHED_STATS_ACT.</p>
+<p>EVERY column op issued (READ/WRITE, with or without AP). NOT a hit count despite the register name -- the RTL increments it on every column command. For ROW HITS read OBS_ROW_HIT[8] (0x080), which counts them directly. Do NOT derive hits as PAGE_STATS_HIT - SCHED_STATS_ACT, which this field used to recommend: it goes NEGATIVE under a background-close mode, because a row can be opened, hit by the timeout precharge before its column command issues, and reopened -- two activations, one column op (pumice ISSUE-014, measured 49 ACTs against 48 column ops). It is a lower bound on hits, not hits.</p>
 
 ### PAGE_STATS_MISS register
 
@@ -1871,267 +1556,6 @@ further amortisation while costing read forward progress.</p>
 #### VAL field
 
 <p>REF commands issued with work pending</p>
-
-## OBS_WORDS register file
-
-- Absolute Address: 0x1C0
-- Base Offset: 0x1C0
-- Size: 0x4
-- Array Dimensions: [9]
-- Array Stride: 0x4
-- Total Size: 0x24
-
-<p>Packed obs_* signals from FUB internals (see csr_obs_layout.md)</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |   WORD   |  — |
-
-### WORD register
-
-- Absolute Address: 0x1C0
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Obs word</p>
-
-## OBS_WORDS register file
-
-- Absolute Address: 0x1C4
-- Base Offset: 0x1C0
-- Size: 0x4
-- Array Dimensions: [9]
-- Array Stride: 0x4
-- Total Size: 0x24
-
-<p>Packed obs_* signals from FUB internals (see csr_obs_layout.md)</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |   WORD   |  — |
-
-### WORD register
-
-- Absolute Address: 0x1C4
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Obs word</p>
-
-## OBS_WORDS register file
-
-- Absolute Address: 0x1C8
-- Base Offset: 0x1C0
-- Size: 0x4
-- Array Dimensions: [9]
-- Array Stride: 0x4
-- Total Size: 0x24
-
-<p>Packed obs_* signals from FUB internals (see csr_obs_layout.md)</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |   WORD   |  — |
-
-### WORD register
-
-- Absolute Address: 0x1C8
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Obs word</p>
-
-## OBS_WORDS register file
-
-- Absolute Address: 0x1CC
-- Base Offset: 0x1C0
-- Size: 0x4
-- Array Dimensions: [9]
-- Array Stride: 0x4
-- Total Size: 0x24
-
-<p>Packed obs_* signals from FUB internals (see csr_obs_layout.md)</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |   WORD   |  — |
-
-### WORD register
-
-- Absolute Address: 0x1CC
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Obs word</p>
-
-## OBS_WORDS register file
-
-- Absolute Address: 0x1D0
-- Base Offset: 0x1C0
-- Size: 0x4
-- Array Dimensions: [9]
-- Array Stride: 0x4
-- Total Size: 0x24
-
-<p>Packed obs_* signals from FUB internals (see csr_obs_layout.md)</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |   WORD   |  — |
-
-### WORD register
-
-- Absolute Address: 0x1D0
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Obs word</p>
-
-## OBS_WORDS register file
-
-- Absolute Address: 0x1D4
-- Base Offset: 0x1C0
-- Size: 0x4
-- Array Dimensions: [9]
-- Array Stride: 0x4
-- Total Size: 0x24
-
-<p>Packed obs_* signals from FUB internals (see csr_obs_layout.md)</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |   WORD   |  — |
-
-### WORD register
-
-- Absolute Address: 0x1D4
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Obs word</p>
-
-## OBS_WORDS register file
-
-- Absolute Address: 0x1D8
-- Base Offset: 0x1C0
-- Size: 0x4
-- Array Dimensions: [9]
-- Array Stride: 0x4
-- Total Size: 0x24
-
-<p>Packed obs_* signals from FUB internals (see csr_obs_layout.md)</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |   WORD   |  — |
-
-### WORD register
-
-- Absolute Address: 0x1D8
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Obs word</p>
-
-## OBS_WORDS register file
-
-- Absolute Address: 0x1DC
-- Base Offset: 0x1C0
-- Size: 0x4
-- Array Dimensions: [9]
-- Array Stride: 0x4
-- Total Size: 0x24
-
-<p>Packed obs_* signals from FUB internals (see csr_obs_layout.md)</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |   WORD   |  — |
-
-### WORD register
-
-- Absolute Address: 0x1DC
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Obs word</p>
-
-## OBS_WORDS register file
-
-- Absolute Address: 0x1E0
-- Base Offset: 0x1C0
-- Size: 0x4
-- Array Dimensions: [9]
-- Array Stride: 0x4
-- Total Size: 0x24
-
-<p>Packed obs_* signals from FUB internals (see csr_obs_layout.md)</p>
-
-|Offset|Identifier|Name|
-|------|----------|----|
-|  0x0 |   WORD   |  — |
-
-### WORD register
-
-- Absolute Address: 0x1E0
-- Base Offset: 0x0
-- Size: 0x4
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Obs word</p>
 
 ### ID register
 

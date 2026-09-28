@@ -9,9 +9,11 @@
 //
 // Address Space: 4 KB (12-bit paddr), 32-bit registers, little-endian.
 //
-// Layout matches docs/pumice_has/ch06_integration/03_csr_map.md
-// plus an obs_* window at 0x1C0..0x1E3 carrying the 9-word harvest from
-// docs/csr_obs_layout.md.
+// Layout matches docs/pumice_has/ch06_integration/03_csr_map.md.
+// The obs_* harvest window that used to sit at 0x1C0..0x1E3 was removed on
+// 2026-09-28 (pumice BUG-020): its aggregator had been deleted in e8908eebf
+// two months earlier, so the window read zero. docs/csr_obs_layout.md went
+// with it.
 
 addrmap pumice_csr {
     name = "DDR2/LPDDR2 Memory Controller CSR";
@@ -453,99 +455,62 @@ addrmap pumice_csr {
 
     regfile {
         name = "Per-Bank Row Hit Observation";
-        desc = "Rolling row-hit count per bank. Reset on read or soft_reset.";
+        desc = "Free-running row-hit count per bank: column ops issued to a bank
+                whose row was ALREADY OPEN. Driven by pumice_page_policy from the
+                issued command stream (pumice BUG-020 wired these; before that
+                they, and every other OBS_* register, read zero forever).
+
+                Read two and subtract for a window, as with PAGE_STATS_* and
+                SCHED_STATS_*; they clear only on aresetn. This used to be
+                `sw=rw, onread=rclr`, which could never have worked: the field is
+                hw=w and driven every cycle, so the hardware rewrites the value
+                the read cleared.
+
+                These are the SOUND row-hit count. Do not re-derive hits as
+                PAGE_STATS_HIT - SCHED_STATS_ACT: that goes negative under a
+                background-close mode, because a row can be opened, hit by the
+                timeout precharge before its column command issues, and reopened
+                (pumice ISSUE-014).";
 
         reg {
-            field {
-                sw = rw; hw = w; onread = rclr;
-                desc = "Row-hit count";
-            } VAL[31:0];
+            field { sw = r; hw = w; desc = "Row-hit count"; } VAL[31:0];
         } ROW_HIT @ 0x0;
 
     } OBS_ROW_HIT[8] @ 0x080 += 0x4;
-
-    regfile {
-        name = "Per-Bank Refresh Latency Observation";
-        desc = "Average refresh blocking time per bank";
-
-        reg {
-            field { sw = r; hw = w; desc = "Refresh-blocking cycles"; } VAL[31:0];
-        } REF_LAT @ 0x0;
-
-    } OBS_REF_LATENCY[8] @ 0x0C0 += 0x4;
 
     //=========================================================================
     // System Observation (0x100 – 0x1FF)
     //=========================================================================
 
-    reg {
-        desc = "Max queue depth observed";
-        field { sw = r; hw = w; desc = "Max depth"; } VAL[31:0];
-    } OBS_TXN_QUEUE_DEPTH_MAX @ 0x100;
-
-    reg {
-        desc = "Time-averaged queue depth";
-        field { sw = r; hw = w; desc = "Avg depth"; } VAL[31:0];
-    } OBS_TXN_QUEUE_DEPTH_AVG @ 0x104;
-
-    reg {
-        desc = "Max refresh_pending observed";
-        field { sw = r; hw = w; desc = "Max pending"; } VAL[31:0];
-    } OBS_REFRESH_PENDING_MAX @ 0x108;
-
-    reg {
-        desc = "Refresh-deferral histogram bin 0";
-        field { sw = r; hw = w; desc = "Bin 0 count"; } VAL[31:0];
-    } OBS_REFRESH_DEFER_HIST_0 @ 0x10C;
-
-    reg {
-        desc = "Refresh-deferral histogram bin 1";
-        field { sw = r; hw = w; desc = "Bin 1 count"; } VAL[31:0];
-    } OBS_REFRESH_DEFER_HIST_1 @ 0x110;
-
-    reg {
-        desc = "Refresh-deferral histogram bin 2";
-        field { sw = r; hw = w; desc = "Bin 2 count"; } VAL[31:0];
-    } OBS_REFRESH_DEFER_HIST_2 @ 0x114;
-
-    reg {
-        desc = "Refresh-deferral histogram bin 3";
-        field { sw = r; hw = w; desc = "Bin 3 count"; } VAL[31:0];
-    } OBS_REFRESH_DEFER_HIST_3 @ 0x118;
-
-    // 0x120 (was OBS_PAGE_PRED_ACCURACY) -- retired with the HAPPY predictor;
-    // page-outcome telemetry is PAGE_STATS_{HIT,MISS,EMPTY}.
-
-    reg {
-        desc = "Avg AXI read latency (cycles)";
-        field { sw = r; hw = w; desc = "Avg cycles"; } VAL[31:0];
-    } OBS_AXI_R_LATENCY_AVG @ 0x130;
-
-    reg {
-        desc = "99th-pct AXI read latency";
-        field { sw = r; hw = w; desc = "P99 cycles"; } VAL[31:0];
-    } OBS_AXI_R_LATENCY_P99 @ 0x134;
-
-    reg {
-        desc = "Avg AXI write latency";
-        field { sw = r; hw = w; desc = "Avg cycles"; } VAL[31:0];
-    } OBS_AXI_W_LATENCY_AVG @ 0x138;
-
     //=========================================================================
-    // obs_* harvest words (0x1C0 – 0x1E3) — see docs/csr_obs_layout.md.
-    // 9 RO 32-bit words carrying the packed obs_* signals from
-    // command_scheduler_macro (words 0..6) + axi_frontend_macro (words 7..8).
+    // RETIRED 2026-09-28 (pumice BUG-020). These registers were in the map, in
+    // the MAS and in the generated docs, and NOTHING drove them -- pumice_top
+    // carried zero hwif_in.OBS_* assignments, so every one read zero forever.
+    // They were removed rather than wired, for the reason recorded per group.
+    // ADDRESSES ARE LEFT AS HOLES so the rest of the map does not shift.
+    //
+    //   0x0C0-0x0DC  OBS_REF_LATENCY[8]            no consumer, ever
+    //   0x100        OBS_TXN_QUEUE_DEPTH_MAX       } AXI-side: duplicates
+    //   0x104        OBS_TXN_QUEUE_DEPTH_AVG       } axi_bus_meter and
+    //   0x130        OBS_AXI_R_LATENCY_AVG         } axi_perf_latency_hist,
+    //   0x134        OBS_AXI_R_LATENCY_P99         } which the char harness
+    //   0x138        OBS_AXI_W_LATENCY_AVG         } already instantiates at
+    //                                              } char_engine_block.sv:608.
+    //     Measuring AXI latency and occupancy from inside the controller is the
+    //     wrong side of the interface; an external meter sees what the system
+    //     sees. pumice TASK-025 was dropped on the same reasoning.
+    //   0x108        OBS_REFRESH_PENDING_MAX       no consumer, ever
+    //   0x10C-0x118  OBS_REFRESH_DEFER_HIST_0..3   no consumer, ever
+    //   0x120        (already a hole: OBS_PAGE_PRED_ACCURACY, HAPPY predictor)
+    //   0x1C0-0x1E0  OBS_WORDS[9]                  its aggregator was deleted in
+    //     e8908eebf (2026-07-21, "retire three dead code trees"); `obs_words`
+    //     appears nowhere in rtl/, not even rtl/OLD/. The window outlived its
+    //     source by two months and nobody noticed, because nothing read it.
+    //
+    // Refresh behaviour is still observable: REF_STATS_REF and REF_STATS_REF_BUSY
+    // are driven and work. Per-bank ROW HITS are KEPT and now driven (0x080),
+    // because they are the only sound hit count -- see OBS_ROW_HIT above.
     //=========================================================================
-
-    regfile {
-        name = "Observation Word Harvest";
-        desc = "Packed obs_* signals from FUB internals (see csr_obs_layout.md)";
-
-        reg {
-            field { sw = r; hw = w; desc = "Obs word"; } VAL[31:0];
-        } WORD @ 0x0;
-
-    } OBS_WORDS[9] @ 0x1C0 += 0x4;
 
     //=========================================================================
     // Advanced-mode select CSRs (0x068 – 0x078, 0x140 – 0x15C) — TASK-001
@@ -783,7 +748,7 @@ addrmap pumice_csr {
         // NAME IS A MISNOMER, kept only because renaming it would break every
         // existing consumer of the generated regmap. It counts column ops.
         name = "Page Stats: Column Ops (misnamed 'Hits')";
-        field { sw = r; hw = w; desc = "EVERY column op issued (READ/WRITE, with or without AP). NOT a hit count despite the register name -- the RTL increments it on every column command. Row hits are DERIVED: hits = PAGE_STATS_HIT - SCHED_STATS_ACT."; } VAL[31:0];
+        field { sw = r; hw = w; desc = "EVERY column op issued (READ/WRITE, with or without AP). NOT a hit count despite the register name -- the RTL increments it on every column command. For ROW HITS read OBS_ROW_HIT[8] (0x080), which counts them directly. Do NOT derive hits as PAGE_STATS_HIT - SCHED_STATS_ACT, which this field used to recommend: it goes NEGATIVE under a background-close mode, because a row can be opened, hit by the timeout precharge before its column command issues, and reopened -- two activations, one column op (pumice ISSUE-014, measured 49 ACTs against 48 column ops). It is a lower bound on hits, not hits."; } VAL[31:0];
     } PAGE_STATS_HIT @ 0x148;
 
     reg {

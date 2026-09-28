@@ -88,15 +88,20 @@ A multi-rank system distributes refresh across the timeline so any single rank o
 
 ## Per-Rank / Per-Bank Observation
 
-The RDL declares per-bank observation arrays for rank 0: `OBS_ROW_HIT[8]` (0x080..0x09C) and `OBS_REF_LATENCY[8]` (0x0C0..0x0DC). The generated regmap flattens them to indexed names:
+The RDL declares one per-bank observation array for rank 0: `OBS_ROW_HIT[8]`
+(0x080..0x09C), driven from the issued command stream. The generated regmap
+flattens it to indexed names:
 
 ```c
-uint32_t get_row_hit(uint8_t bank) {
-    return csr_read(OBS_ROW_HIT0_ROW_HIT + bank * 4);   // read-clear
+uint32_t get_row_hits(uint8_t bank) {
+    return csr_read(OBS_ROW_HIT0_ROW_HIT + bank * 4);   // free-running
 }
 ```
 
-A multi-rank build adds the per-rank arrays. (Note: `hwif_in` observation readback is tied off in `pumice_top` today — see §4.1.)
+Free-running: read twice around a window and subtract, masking the 32-bit wrap.
+
+`OBS_REF_LATENCY[8]` (0x0C0..0x0DC) was removed on 2026-09-28 -- it was never
+driven and had no consumer (pumice BUG-020).
 
 ## Multi-Rank Bring-Up Checklist
 
@@ -105,7 +110,6 @@ A multi-rank build adds the per-rank arrays. (Note: `hwif_in` observation readba
 | Verify the build's `NUM_RANKS` matches the expected DIMM rank count  | Build / board mismatch                    |
 | Program `PASR_*_RANK{N}` if using LPDDR2                              | PASR for LPDDR2 bring-up                   |
 | Verify per-rank ZQ calibration succeeds during init                   | Each rank's drive impedance               |
-| Sweep `OBS_REF_LATENCY[bank]` across rank workload mix               | Per-rank refresh fairness                 |
 | Stress-test rank-switching (read alternating ranks)                   | tRTRS / tCS timing                        |
 
 ## Open Questions / Future Work

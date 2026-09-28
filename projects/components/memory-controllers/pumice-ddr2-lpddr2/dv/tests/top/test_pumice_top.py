@@ -1094,6 +1094,77 @@ async def cocotb_test_patho(dut):
 
 
 @cocotb.test(timeout_time=180, timeout_unit="ms")
+async def cocotb_test_row_hit_counters(dut):
+    """pumice BUG-020 regression: OBS_ROW_HIT[8] must actually count.
+
+    The layer-2b invariants alone CANNOT catch a dead counter here. At the
+    shipping default (policy_mode=3, tr_init=2) the background close retires a
+    row almost immediately, so real hits are ~0 -- and both per-bank rules are
+    bounds that zero satisfies. That is how 35 undriven OBS_* registers survived
+    in the map: every check that touched them was satisfied by zero.
+
+    So this runs a policy where rows STAY open (static_open, mode 1) on a pattern
+    of repeated same-row accesses, and asserts the counters move -- and that they
+    agree with the independent global arithmetic.
+    """
+    # static_open AND refresh parked. The default bring-up runs t_refi=0x400,
+    # which on this stimulus precharges every bank before a row can be reused --
+    # the first attempt at this test measured 96 column ops against 96
+    # activations with empty=47/48, i.e. the banks were repeatedly found CLOSED.
+    # That is a property of the stimulus, not of the counters: a pattern that
+    # cannot produce a hit cannot show a hit counter working.
+    tb = await _bringup(dut, profile="backtoback", t_refi=0xFFFF)
+    # NOTE _bringup's `page_policy=` is REFRESH_TUNING.page_policy_or, NOT the
+    # paging mode -- program_defaults says so and I read the name instead of the
+    # docstring. The paging mode is PAGE_POLICY_CFG.policy_mode, and at its reset
+    # (3 = fixed_open, tr_init=2) the background precharge retires a row before
+    # its next access: measured empty=63 of 64 activations with PRE=64, so there
+    # were no hits to count. static_open keeps the row open.
+    await tb.csr_write_field("PAGE_POLICY_CFG", "policy_mode", 1)
+    await ClockCycles(dut.aclk, 32)
+
+    before = await tb.read_telemetry()
+    # One bank, one row, walking columns: the densest hit pattern available.
+    # Expect roughly one activation and one hit per subsequent column op.
+    same_row = [BASE + k * BL_WORDS * 8 for k in range(32)]
+    wr, rd, _ = build_addr_pattern_sequences(
+        burst_len=BL_WORDS, data_width=DW, addresses=same_row,
+        rd_axid_fn=lambda bi: bi & 0xF)
+    await _wr_rd_check(tb, wr, rd, drain=400)
+    await ClockCycles(dut.aclk, 512)
+    after = await tb.read_telemetry()
+    d = {k: (after[k] - before[k]) & 0xFFFFFFFF for k in after}
+
+    mode = await tb.csr_read_field("PAGE_POLICY_CFG", "policy_mode")
+    tr   = await tb.csr_read_field("PAGE_TIMEOUT_CFG", "tr_init")
+    tb.log.info(f"BUG-020 diag: policy_mode={mode} tr_init={tr} "
+                f"miss={d['PAGE_STATS_MISS']} empty={d['PAGE_STATS_EMPTY']} "
+                f"PRE={d['SCHED_STATS_PRE']} REF={d['REF_STATS_REF']}")
+
+    per_bank = [d[f"OBS_ROW_HIT{b}_ROW_HIT"] for b in range(8)]
+    total = sum(per_bank)
+    col_ops, acts = d["PAGE_STATS_HIT"], d["SCHED_STATS_ACT"]
+    tb.log.info(f"BUG-020 regression: col_ops={col_ops} ACT={acts} "
+                f"per_bank={per_bank} total_hits={total}")
+
+    assert col_ops > 0, f"no traffic reached the DUT: {d}"
+    assert total > 0, (
+        f"OBS_ROW_HIT[8] counted ZERO row hits across {col_ops} column ops with "
+        f"only {acts} activations, under static_open with refresh parked. The "
+        f"counters are not "
+        f"driven -- this is pumice BUG-020 returning.")
+
+    # Independent cross-check. Every column op either hit an open row or was
+    # preceded by an activation, so hits + (activating col ops) == col_ops, and
+    # the activating ones cannot exceed ACT.
+    assert total <= col_ops, f"hits {total} > col_ops {col_ops}: {d}"
+    assert total >= col_ops - acts, (
+        f"hits {total} < col_ops({col_ops}) - ACT({acts}) = {col_ops - acts}: {d}")
+    tb.log.info(f"PASS BUG-020 regression: {total} row hits counted across 8 banks "
+                f"({col_ops} column ops, {acts} activations)")
+
+
+@cocotb.test(timeout_time=180, timeout_unit="ms")
 async def cocotb_test_telemetry_invariants(dut):
     """TASK-015 layer 2b: the exported counters must be arithmetically consistent.
 
@@ -1535,6 +1606,11 @@ def test_pumice_top_nr2(request):
     _run(request, "cocotb_test_pumice_top",
          extra_env={"TEST_TYPE": "workload_mix", "MEM_TYPE": "DDR2"},
          params_over={"NUM_RANKS": "2"})
+
+
+def test_pumice_top_row_hit_counters(request):
+    """pumice BUG-020: the per-bank row-hit counters must actually count."""
+    _run(request, "cocotb_test_row_hit_counters")
 
 
 def test_pumice_top_telemetry_invariants(request):

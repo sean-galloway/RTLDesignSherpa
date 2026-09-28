@@ -185,10 +185,8 @@ FIELDS = {
     "CTRL.pwr_req_dpd": dict(waived="power-state request strobe (deep power down)"),
 }
 
-# Observation counters: sw=rw because a write CLEARS them. Not configuration, and
-# a nonzero reset would be a defect.
-for _b in range(8):
-    FIELDS[f"OBS_ROW_HIT{_b}_ROW_HIT.VAL"] = dict(
-        waived=f"row-hit observation counter for bank {_b}; sw=rw means write-to-clear, not config"
-    )
-del _b
+# OBS_ROW_HIT[8] used to appear here as eight sw=rw waivers ("write clears").
+# They are sw=r now: pumice BUG-020 wired them and made them free-running like
+# every other counter, because onread=rclr could never have worked against a
+# field the hardware drives every cycle. Not software-writable, so out of this
+# gate's scope -- this gate is about configuration nobody decided about.

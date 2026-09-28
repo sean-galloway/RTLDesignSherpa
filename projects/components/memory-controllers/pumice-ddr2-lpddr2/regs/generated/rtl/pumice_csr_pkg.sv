@@ -69,98 +69,6 @@ package pumice_csr_pkg;
     } pumice_csr__OBS_ROW_HIT__in_t;
 
     typedef struct {
-        logic [31:0] next;
-    } pumice_csr__OBS_REF_LATENCY__REF_LAT__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_REF_LATENCY__REF_LAT__VAL__in_t VAL;
-    } pumice_csr__OBS_REF_LATENCY__REF_LAT__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_REF_LATENCY__REF_LAT__in_t REF_LAT;
-    } pumice_csr__OBS_REF_LATENCY__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } pumice_csr__OBS_TXN_QUEUE_DEPTH_MAX__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_TXN_QUEUE_DEPTH_MAX__VAL__in_t VAL;
-    } pumice_csr__OBS_TXN_QUEUE_DEPTH_MAX__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } pumice_csr__OBS_TXN_QUEUE_DEPTH_AVG__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_TXN_QUEUE_DEPTH_AVG__VAL__in_t VAL;
-    } pumice_csr__OBS_TXN_QUEUE_DEPTH_AVG__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } pumice_csr__OBS_REFRESH_PENDING_MAX__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_REFRESH_PENDING_MAX__VAL__in_t VAL;
-    } pumice_csr__OBS_REFRESH_PENDING_MAX__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } pumice_csr__OBS_REFRESH_DEFER_HIST_0__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_REFRESH_DEFER_HIST_0__VAL__in_t VAL;
-    } pumice_csr__OBS_REFRESH_DEFER_HIST_0__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } pumice_csr__OBS_REFRESH_DEFER_HIST_1__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_REFRESH_DEFER_HIST_1__VAL__in_t VAL;
-    } pumice_csr__OBS_REFRESH_DEFER_HIST_1__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } pumice_csr__OBS_REFRESH_DEFER_HIST_2__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_REFRESH_DEFER_HIST_2__VAL__in_t VAL;
-    } pumice_csr__OBS_REFRESH_DEFER_HIST_2__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } pumice_csr__OBS_REFRESH_DEFER_HIST_3__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_REFRESH_DEFER_HIST_3__VAL__in_t VAL;
-    } pumice_csr__OBS_REFRESH_DEFER_HIST_3__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } pumice_csr__OBS_AXI_R_LATENCY_AVG__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_AXI_R_LATENCY_AVG__VAL__in_t VAL;
-    } pumice_csr__OBS_AXI_R_LATENCY_AVG__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } pumice_csr__OBS_AXI_R_LATENCY_P99__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_AXI_R_LATENCY_P99__VAL__in_t VAL;
-    } pumice_csr__OBS_AXI_R_LATENCY_P99__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } pumice_csr__OBS_AXI_W_LATENCY_AVG__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_AXI_W_LATENCY_AVG__VAL__in_t VAL;
-    } pumice_csr__OBS_AXI_W_LATENCY_AVG__in_t;
-
-    typedef struct {
         logic next;
     } pumice_csr__REF_CTRL__perbank_supported__in_t;
 
@@ -281,33 +189,10 @@ package pumice_csr_pkg;
     } pumice_csr__REF_STATS_REF_BUSY__in_t;
 
     typedef struct {
-        logic [31:0] next;
-    } pumice_csr__OBS_WORDS__WORD__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_WORDS__WORD__VAL__in_t VAL;
-    } pumice_csr__OBS_WORDS__WORD__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_WORDS__WORD__in_t WORD;
-    } pumice_csr__OBS_WORDS__in_t;
-
-    typedef struct {
         pumice_csr__STATUS__in_t STATUS;
         pumice_csr__STATUS_HISTORY__in_t STATUS_HISTORY;
         pumice_csr__TEMP_DERATE_RANK0__in_t TEMP_DERATE_RANK0;
         pumice_csr__OBS_ROW_HIT__in_t OBS_ROW_HIT[8];
-        pumice_csr__OBS_REF_LATENCY__in_t OBS_REF_LATENCY[8];
-        pumice_csr__OBS_TXN_QUEUE_DEPTH_MAX__in_t OBS_TXN_QUEUE_DEPTH_MAX;
-        pumice_csr__OBS_TXN_QUEUE_DEPTH_AVG__in_t OBS_TXN_QUEUE_DEPTH_AVG;
-        pumice_csr__OBS_REFRESH_PENDING_MAX__in_t OBS_REFRESH_PENDING_MAX;
-        pumice_csr__OBS_REFRESH_DEFER_HIST_0__in_t OBS_REFRESH_DEFER_HIST_0;
-        pumice_csr__OBS_REFRESH_DEFER_HIST_1__in_t OBS_REFRESH_DEFER_HIST_1;
-        pumice_csr__OBS_REFRESH_DEFER_HIST_2__in_t OBS_REFRESH_DEFER_HIST_2;
-        pumice_csr__OBS_REFRESH_DEFER_HIST_3__in_t OBS_REFRESH_DEFER_HIST_3;
-        pumice_csr__OBS_AXI_R_LATENCY_AVG__in_t OBS_AXI_R_LATENCY_AVG;
-        pumice_csr__OBS_AXI_R_LATENCY_P99__in_t OBS_AXI_R_LATENCY_P99;
-        pumice_csr__OBS_AXI_W_LATENCY_AVG__in_t OBS_AXI_W_LATENCY_AVG;
         pumice_csr__REF_CTRL__in_t REF_CTRL;
         pumice_csr__PAGE_STATS_HIT__in_t PAGE_STATS_HIT;
         pumice_csr__PAGE_STATS_MISS__in_t PAGE_STATS_MISS;
@@ -323,7 +208,6 @@ package pumice_csr_pkg;
         pumice_csr__STALL_BANKTIMER__in_t STALL_BANKTIMER;
         pumice_csr__STALL_NOREQ__in_t STALL_NOREQ;
         pumice_csr__REF_STATS_REF_BUSY__in_t REF_STATS_REF_BUSY;
-        pumice_csr__OBS_WORDS__in_t OBS_WORDS[9];
     } pumice_csr__in_t;
 
     typedef struct {

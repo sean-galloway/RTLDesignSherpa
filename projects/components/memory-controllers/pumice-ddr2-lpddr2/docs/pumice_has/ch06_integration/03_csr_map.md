@@ -260,37 +260,41 @@ build-time — see §5.1.
 Single-rank (rank 0), `NUM_BANKS = 8`. Each is a `regfile` of 8 word-wide
 registers striding by 4 bytes.
 
-### `OBS_ROW_HIT[0..7]` (0x080 + N×4, R/W with clear-on-read)
+### `OBS_ROW_HIT[0..7]` (0x080 + N×4, R only)
 
-Rolling row-hit count per bank. `VAL[31:0]`, `onread = rclr` (reset on read or
-`soft_reset`).
+Per-bank ROW HITS: column ops issued to a bank whose row was **already open**.
+`VAL[31:0]`, `hw = w`, driven by `pumice_page_policy` from the issued command
+stream. Free-running — they clear only on `aresetn`, so read two and subtract
+for a window, as with `PAGE_STATS_*`.
 
-### `OBS_REF_LATENCY[0..7]` (0x0C0 + N×4, R only)
+These are the sound row-hit count. Do **not** re-derive hits as
+`PAGE_STATS_HIT - SCHED_STATS_ACT`: that goes negative under a background-close
+mode (ISSUE-014).
 
-Average refresh-blocking cycles per bank. `VAL[31:0]`, `hw = w`.
+Until 2026-09-28 these were `sw = rw` with `onread = rclr`, which could never
+have worked — the field is `hw = w` and driven every cycle, so the hardware
+rewrites whatever a read clears.
 
-## System Observation (0x100 – 0x1FF)
+## Retired observation registers (0x0C0 – 0x1E0)
 
-All `hw = w`, `sw = r`.
+Twenty-seven `OBS_*` registers were removed on 2026-09-28. They were in the
+register map, in this book and in the generated docs, and **nothing drove them**:
+`pumice_top` carried no `hwif_in.OBS_*` assignment, so every one read zero
+forever. A 99.4%-row-hit board workload reporting zero hits is what finally
+surfaced it (pumice BUG-020). Their addresses are left as holes so the rest of
+the map does not shift.
 
-| Offset | Register                     | Description                                  |
-|--------|------------------------------|----------------------------------------------|
-| 0x100  | `OBS_TXN_QUEUE_DEPTH_MAX`    | Max queue depth observed                     |
-| 0x104  | `OBS_TXN_QUEUE_DEPTH_AVG`    | Time-averaged depth                          |
-| 0x108  | `OBS_REFRESH_PENDING_MAX`    | Max `refresh_pending` value observed         |
-| 0x10C  | `OBS_REFRESH_DEFER_HIST_0`   | Refresh deferral histogram bin 0             |
-| 0x110  | `OBS_REFRESH_DEFER_HIST_1`   | Histogram bin 1                              |
-| 0x114  | `OBS_REFRESH_DEFER_HIST_2`   | Histogram bin 2                              |
-| 0x118  | `OBS_REFRESH_DEFER_HIST_3`   | Histogram bin 3                              |
-| 0x120  | `OBS_PAGE_PRED_ACCURACY`     | HAPPY mode: rolling prediction accuracy (%)  |
-| 0x130  | `OBS_AXI_R_LATENCY_AVG`      | Avg AXI read latency in cycles               |
-| 0x134  | `OBS_AXI_R_LATENCY_P99`      | 99th-percentile read latency                 |
-| 0x138  | `OBS_AXI_W_LATENCY_AVG`      | Avg AXI write latency                        |
+| Range | Was | Why it went |
+|-------|-----|-------------|
+| 0x0C0..0x0DC | `OBS_REF_LATENCY[8]` | never driven, no consumer. Refresh remains observable via `REF_STATS_REF` / `REF_STATS_REF_BUSY`, which are driven |
+| 0x100..0x104 | `OBS_TXN_QUEUE_DEPTH_{MAX,AVG}` | AXI-side occupancy; belongs to an external meter |
+| 0x108..0x118 | `OBS_REFRESH_PENDING_MAX`, `OBS_REFRESH_DEFER_HIST_0..3` | never driven, no consumer |
+| 0x120 | `OBS_PAGE_PRED_ACCURACY` | retired earlier with the HAPPY predictor |
+| 0x130..0x138 | `OBS_AXI_{R,W}_LATENCY_*` | AXI latency is a property of the interface and is measured by `axi_bus_meter` + `axi_perf_latency_hist`, which the characterisation harness already instantiates. Measuring it from inside the controller is the wrong side of the interface |
+| 0x1C0..0x1E0 | `OBS_WORDS[9]` | the aggregator that packed them was deleted in e8908eebf (2026-07-21, "retire three dead code trees"); the window outlived its source by two months and nobody noticed, because nothing read it |
 
-### `OBS_WORDS[0..8]` (0x1C0 + N×4, R only)
-
-Nine 32-bit read-only words carrying the packed `obs_*` signal harvest from the
-FUB internals (see `docs/csr_obs_layout.md`). `VAL[31:0]`, `hw = w`.
+`OBS_ROW_HIT[8]` at 0x080 was **kept and wired**: it is the only sound row-hit
+count, and ISSUE-014 exists because the arithmetic used in its absence is not.
 
 ## Module Identification (0xFF0 – 0xFFC)
 

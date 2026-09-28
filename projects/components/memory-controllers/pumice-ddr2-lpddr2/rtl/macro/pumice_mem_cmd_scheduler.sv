@@ -80,6 +80,7 @@ module pumice_mem_cmd_scheduler
     output logic [31:0]               stall_banktimer_o,
     output logic [31:0]               stall_noreq_o,
     output logic [31:0]               stat_page_hit_o,
+    output logic [31:0]               stat_row_hit_o [NUM_BANKS],  // per-bank row hits (BUG-020)
     output logic [31:0]               stat_page_miss_o,
     output logic [31:0]               stat_page_empty_o,
     output logic [31:0]               stat_act_o,
@@ -424,6 +425,7 @@ module pumice_mem_cmd_scheduler
         .timeout_pre_req_o (w_pp_to_req),
         .timeout_pre_bank_o(w_pp_to_bank),
         .stat_page_hit_o   (stat_page_hit_o),
+        .stat_row_hit_o    (stat_row_hit_o),
         .stat_page_miss_o  (stat_page_miss_o),
         .stat_page_empty_o (stat_page_empty_o),
         .stat_act_o        (stat_act_o),

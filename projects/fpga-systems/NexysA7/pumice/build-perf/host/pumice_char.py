@@ -814,13 +814,24 @@ class PageStats:
     TWO TRAPS, both of which produce a plausible-looking wrong number:
 
     1. `PAGE_STATS_HIT` IS NOT HITS. The RTL increments it on `w_is_col` --
-       EVERY column op (`pumice_page_policy.sv:348`), hit or not. Its RDL
-       description ("Column ops issued to an already-open row") is wrong. So
-       `hit / (hit + miss + empty)`, the obvious reading, is meaningless: it
-       mixes a per-ACCESS count with two per-ACT counts. What the hardware
-       actually gives is accesses (col_ops) and the ACTs those accesses cost,
-       so the real row-hit rate is the fraction of accesses that needed NO
-       activate:  (col_ops - acts) / col_ops.
+       EVERY column op, hit or not (the RDL field says so now; it used to claim
+       "column ops issued to an already-open row"). So `hit / (hit+miss+empty)`,
+       the obvious reading, is meaningless: it mixes a per-ACCESS count with two
+       per-ACT counts.
+
+       `(col_ops - acts) / col_ops` is what this class computes, and it is a
+       LOWER BOUND, not the rate. It can go NEGATIVE: under a background-close
+       mode a row can be opened, hit by the timeout precharge before its column
+       command issues, and reopened -- two activations for one column op
+       (measured in sim: 49 ACTs against 48 column ops). `row_hit_rate` clamps
+       at zero for that reason, NOT because of a window boundary.
+
+       The SOUND source is `OBS_ROW_HIT[8]` (0x080..0x09C), which counts hits
+       per bank directly; it was undriven until pumice BUG-020 and read zero, so
+       this bound was all there was. Moving `row_hit_rate` onto it is pumice
+       ISSUE-014's remaining item -- it costs eight more register reads per
+       snapshot on the board's UART path, which is why it is a deliberate change
+       and not a drive-by.
 
     2. THE SCALE IS PER COLUMN OP, NOT PER AXI BURST, and that sets a FLOOR on
        the hit rate that is easy to mistake for a good result. One AXI burst

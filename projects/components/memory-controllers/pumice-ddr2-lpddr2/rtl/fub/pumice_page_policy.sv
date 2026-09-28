@@ -93,6 +93,17 @@ module pumice_page_policy
     // bandwidth. No host arming, no window register, no write trigger -- so
     // nothing here can be fired by RegisterMap.walk().
     input  logic                       demand_i,          // any CAM entry schedulable
+    // Per-bank ROW HITS (pumice BUG-020). Free-running like every other stat
+    // here, so the host subtracts two reads for a window.
+    //
+    // A hit is a column op to a bank that did NOT need an activation. This is
+    // counted from the issued stream directly rather than derived as
+    // `col_ops - ACT`: that derivation is unsound under a background-close mode,
+    // because a row can be opened, hit by the timeout precharge before its
+    // column command issues, and reopened -- two ACTs, one column op, and a
+    // NEGATIVE hit count (pumice ISSUE-014, measured 49 ACTs for 48 column ops).
+    output logic [31:0]                stat_row_hit_o [NUM_BANKS],
+
     output logic [31:0]                stat_ref_busy_o
 );
 
@@ -233,6 +244,8 @@ module pumice_page_policy
     // refresh closes deliberately do NOT mark: the reopen cost after them is
     // the page-empty class.
     logic [NUM_BANKS-1:0] r_conflict_mark;
+    // An activation issued for bank b that has not yet seen its column op.
+    logic [NUM_BANKS-1:0] r_act_pending;
 
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
@@ -244,11 +257,30 @@ module pumice_page_policy
             stat_pre_o        <= 32'h0;
             stat_ref_o        <= 32'h0;
             stat_ref_busy_o   <= 32'h0;
+            r_act_pending     <= '0;
+            for (int b = 0; b < NUM_BANKS; b++) stat_row_hit_o[b] <= 32'h0;
         end else begin
             if (w_is_pre && !w_pre_was_timeout)
                 r_conflict_mark[cmd_bank_i] <= 1'b1;
 
             if (w_is_col) stat_page_hit_o <= stat_page_hit_o + 32'h1;
+
+            // Per-bank row hits. `r_act_pending[b]` means "an activation for
+            // bank b is still waiting for the column op it was issued for".
+            // Set by any ACT to b; cleared by the first column op to b, which
+            // is that activation's own access and therefore NOT a hit. A column
+            // op arriving with the flag clear found the row already open.
+            //
+            // The re-activation case (open -> timeout close -> reopen, with no
+            // column op in between) simply sets the flag twice, which is why
+            // this counts correctly where col_ops - ACT does not.
+            if (w_is_act) r_act_pending[cmd_bank_i] <= 1'b1;
+            if (w_is_col) begin
+                if (r_act_pending[cmd_bank_i])
+                    r_act_pending[cmd_bank_i] <= 1'b0;
+                else
+                    stat_row_hit_o[cmd_bank_i] <= stat_row_hit_o[cmd_bank_i] + 32'h1;
+            end
             if (w_is_act) begin
                 stat_act_o <= stat_act_o + 32'h1;
                 if (r_conflict_mark[cmd_bank_i]) begin

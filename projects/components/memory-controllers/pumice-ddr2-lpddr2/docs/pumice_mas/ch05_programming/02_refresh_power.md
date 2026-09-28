@@ -141,4 +141,4 @@ DPD is rare in practice (DRAM fully unused for hours). Note the runtime family s
 
 - **Auto power-down thresholds.** This build has no `POWER_TUNING` register — APD/SRF is request-driven. Adding idle-threshold CSRs for automatic low-power entry is a candidate feature.
 - **Per-rank power control.** `CTRL.pwr_req_*` is channel-wide. Per-rank request registers are a multi-rank follow-up.
-- **Observation readback.** `STATUS.power_state`, `STATUS_HISTORY`, and the `OBS_REFRESH_DEFER_HIST_*` telemetry are declared but `hwif_in` is tied off in `pumice_top` today (see §4.1); wiring them enables telemetry-driven auto-tuning.
+- **Observation readback.** `STATUS.power_state` and `STATUS_HISTORY` are declared but `hwif_in` is tied off in `pumice_top` today (see §4.1). The `OBS_REFRESH_DEFER_HIST_*` registers this bullet used to name were REMOVED on 2026-09-28 for exactly that reason (pumice BUG-020) -- this chapter had recorded the tie-off while other chapters went on presenting them as live telemetry. Refresh remains observable through `REF_STATS_REF` and `REF_STATS_REF_BUSY`, which are driven.

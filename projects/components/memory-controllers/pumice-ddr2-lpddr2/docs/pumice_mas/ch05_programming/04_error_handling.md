@@ -73,7 +73,12 @@ Set these during bring-up before triggering init; they take effect immediately (
 
 ### Refresh Pressure
 
-Watch `OBS_REFRESH_PENDING_MAX` (0x108). If it approaches the deferral budget, reduce batching:
+Watch `REF_STATS_REF_BUSY` against `REF_STATS_REF`: the ratio is how often a
+refresh fired with work already pending. If it climbs, reduce batching:
+
+(`OBS_REFRESH_PENDING_MAX` at 0x108 used to be named here. It was removed on
+2026-09-28 -- it was never driven and always read zero, so this step could not
+have told anyone anything. pumice BUG-020.)
 
 ```c
 uint32_t v = csr_read(REFRESH_TUNING);
@@ -101,10 +106,11 @@ void dump_state_history(void) {
 1. Read STATUS.init_done (or the init_done_o port) — must be 1
 2. Read STATUS.power_state — should be ACTIVE
 3. Read STATUS_HISTORY — look for oscillation
-4. Read OBS_TXN_QUEUE_DEPTH_MAX / OBS_REFRESH_PENDING_MAX — check for backlog
-5. Read OBS_AXI_R_LATENCY_P99 — tail latency telemetry
-6. Read OBS_ROW_HIT[bank] — per-bank traffic distribution
-7. Read OBS_REF_LATENCY[bank] — per-bank refresh fairness
+4. Read STALL_* — stall-cause attribution (backlog shows up here)
+5. Read OBS_ROW_HIT[bank] — per-bank row-hit distribution (free-running:
+   read twice and subtract)
+6. Read PAGE_STATS_{HIT,MISS,EMPTY} + SCHED_STATS_{ACT,PRE} — page behaviour
+7. Read REF_STATS_REF / REF_STATS_REF_BUSY — refresh cost against demand
 ```
 
 This is the bring-up team's first-pass diagnostic flow.

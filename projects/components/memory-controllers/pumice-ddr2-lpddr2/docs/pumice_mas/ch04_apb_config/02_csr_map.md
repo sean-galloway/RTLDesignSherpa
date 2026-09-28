@@ -74,10 +74,8 @@ The register map is a SystemRDL source, `rtl/macro/pumice_csr.rdl`. It is compil
 | 0x05C  | `INIT_TIMING1`            | Init waits: tMRD / tRP / tRFC                             |
 | 0x060  | `DFI_PHASE`               | DFI READ/WRITE command sub-phase placement                |
 | 0x064  | `PHY_TIMING`              | t_phy_wrlat / t_rddata_en / memtype / refresh_burst       |
-| 0x080..0x09C | `OBS_ROW_HIT[8]`     | Per-bank row-hit count (RO, read-clear)                   |
-| 0x0C0..0x0DC | `OBS_REF_LATENCY[8]` | Per-bank refresh-blocking cycles (RO)                     |
-| 0x100..0x138 | `OBS_*`              | System observation / telemetry (RO)                       |
-| 0x1C0..0x1E0 | `OBS_WORDS[9]`       | Packed obs_* harvest words (RO)                           |
+| 0x080..0x09C | `OBS_ROW_HIT[8]`     | Per-bank row-hit count (RO, free-running)                 |
+| 0x0C0..0x1E0 | *(retired holes)*    | 27 `OBS_*` registers removed 2026-09-28 — see BUG-020     |
 | 0xFF0  | `ID`                      | Module ID (version / memtype / n_phases / 0xD2)           |
 | 0xFF4  | `BUILD`                   | Build hash                                                |
 
@@ -376,18 +374,14 @@ REFpb intervals (MC cycles). All-bank tREFI/tRFCab stay in TIMINGS_RFC_REFI.
 
 | Offset       | Register / array       | Field       | Notes                              |
 |--------------|------------------------|-------------|------------------------------------|
-| 0x080..0x09C | `OBS_ROW_HIT[8]`       | `VAL[31:0]` | Per-bank row-hit count; read-clear (`onread = rclr`) |
-| 0x0C0..0x0DC | `OBS_REF_LATENCY[8]`   | `VAL[31:0]` | Per-bank refresh-blocking cycles   |
-| 0x100        | `OBS_TXN_QUEUE_DEPTH_MAX` | `VAL`    | Max queue depth observed           |
-| 0x104        | `OBS_TXN_QUEUE_DEPTH_AVG` | `VAL`    | Time-averaged queue depth          |
-| 0x108        | `OBS_REFRESH_PENDING_MAX` | `VAL`    | Max refresh_pending observed       |
-| 0x10C..0x118 | `OBS_REFRESH_DEFER_HIST_0..3` | `VAL` | Refresh-deferral histogram bins    |
-| 0x120        | (unmapped)               | —        | was `OBS_PAGE_PRED_ACCURACY` — retired; see `PAGE_STATS_*` |
-| 0x130        | `OBS_AXI_R_LATENCY_AVG`  | `VAL`    | Avg AXI read latency (cycles)      |
-| 0x134        | `OBS_AXI_R_LATENCY_P99`  | `VAL`    | 99th-pct AXI read latency          |
-| 0x138        | `OBS_AXI_W_LATENCY_AVG`  | `VAL`    | Avg AXI write latency              |
-| 0x1C0..0x1E0 | `OBS_WORDS[9]`         | `VAL`       | Packed obs_* harvest words         |
-| 0x148        | `PAGE_STATS_HIT`         | `VAL`    | EVERY column op issued — **not** a hit count despite the name; row hits are DERIVED as `PAGE_STATS_HIT - SCHED_STATS_ACT` |
+| 0x080..0x09C | `OBS_ROW_HIT[8]`       | `VAL[31:0]` | Per-bank ROW HITS: column ops issued to a bank whose row was already open. Free-running; subtract two reads for a window |
+| 0x0C0..0x0DC | *(retired)* | — | was `OBS_REF_LATENCY[8]` — never driven, no consumer; removed 2026-09-28 (BUG-020) |
+| 0x100..0x118 | *(retired)* | — | was `OBS_TXN_QUEUE_DEPTH_*` / `OBS_REFRESH_PENDING_MAX` / `OBS_REFRESH_DEFER_HIST_0..3` — never driven (BUG-020) |
+| 0x120        | *(retired)* | — | was `OBS_PAGE_PRED_ACCURACY` — retired with the HAPPY predictor; see `PAGE_STATS_*` |
+| 0x130..0x138 | *(retired)* | — | was `OBS_AXI_{R,W}_LATENCY_*` — AXI latency belongs to an external meter (`axi_bus_meter`, `axi_perf_latency_hist`), not the controller (BUG-020) |
+| 0x1C0..0x1E0 | *(retired)* | — | was `OBS_WORDS[9]` — its aggregator was deleted in e8908eebf (2026-07-21); the window outlived its source (BUG-020) |
+
+| 0x148        | `PAGE_STATS_HIT`         | `VAL`    | EVERY column op issued — **not** a hit count despite the name. For row hits read `OBS_ROW_HIT[8]`. Do **not** derive them as `PAGE_STATS_HIT - SCHED_STATS_ACT`: that goes negative under a background-close mode, because a row can be opened, timed out and reopened before its column command issues (ISSUE-014) |
 | 0x14C        | `PAGE_STATS_MISS`        | `VAL`    | ACT after a conflict PRE (row thrash) |
 | 0x150        | `PAGE_STATS_EMPTY`       | `VAL`    | ACT to an idle bank (cold open)    |
 | 0x154        | `SCHED_STATS_ACT`        | `VAL`    | ACT commands issued                |

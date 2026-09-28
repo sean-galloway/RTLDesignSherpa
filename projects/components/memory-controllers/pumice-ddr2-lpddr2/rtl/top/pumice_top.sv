@@ -118,6 +118,7 @@ module pumice_top
     // be overridden without a second driver on the struct.
     logic [31:0] w_stall_bp, w_stall_refresh, w_stall_turnaround, w_stall_tccd, w_stall_actlimit, w_stall_banktimer, w_stall_noreq;
     logic [31:0] w_stat_page_hit, w_stat_page_miss, w_stat_page_empty;
+    logic [31:0] w_stat_row_hit [NUM_BANKS];   // per-bank row hits (BUG-020)
     logic [31:0] w_stat_act, w_stat_pre, w_stat_ref;
     logic [31:0] w_stat_ref_busy;   // TASK-012: REFs with work pending
     always_comb begin
@@ -130,6 +131,16 @@ module pumice_top
         hwif_in.STALL_BANKTIMER.VAL.next = w_stall_banktimer;
         hwif_in.STALL_NOREQ.VAL.next = w_stall_noreq;
         hwif_in.PAGE_STATS_HIT.VAL.next    = w_stat_page_hit;
+        // Per-bank row hits. These were in the register map, in the MAS and
+        // in the generated docs with NOTHING driving them -- pumice_top had
+        // zero hwif_in.OBS_* assignments, so all 35 OBS_* registers read 0
+        // forever and a 99.4%-row-hit board workload reported no hits at all
+        // (pumice BUG-020). These eight are the group worth keeping: they are
+        // the only SOUND row-hit count, because the documented
+        // `hits = col_ops - ACT` derivation goes negative under a
+        // background-close mode (pumice ISSUE-014).
+        for (int b = 0; b < NUM_BANKS; b++)
+            hwif_in.OBS_ROW_HIT[b].ROW_HIT.VAL.next = w_stat_row_hit[b];
         hwif_in.PAGE_STATS_MISS.VAL.next   = w_stat_page_miss;
         hwif_in.PAGE_STATS_EMPTY.VAL.next  = w_stat_page_empty;
         hwif_in.SCHED_STATS_ACT.VAL.next   = w_stat_act;
@@ -269,6 +280,7 @@ module pumice_top
         .stall_banktimer_o        (w_stall_banktimer),
         .stall_noreq_o        (w_stall_noreq),
         .stat_page_hit_o    (w_stat_page_hit),
+        .stat_row_hit_o     (w_stat_row_hit),
         .stat_page_miss_o   (w_stat_page_miss),
         .stat_page_empty_o  (w_stat_page_empty),
         .stat_act_o         (w_stat_act),

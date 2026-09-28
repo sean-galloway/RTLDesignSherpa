@@ -119,27 +119,11 @@ class Telemetry(Sequence):
                     f"telemetry is not reaching the host, or no traffic ran. "
                     f"Window: {d}")
 
-            # pumice BUG-020: all 35 OBS_* registers are undriven in pumice_top
-            # (zero `hwif_in.OBS_*` assignments), so the eight per-bank hit
-            # counters read 0 forever. The two rules that use them therefore
-            # cannot pass on any hit-bearing workload -- which is how the bug was
-            # found: 32000 column ops against 184 activations reported 0 hits.
-            #
-            # Skip them, and then ASSERT THEY ARE STILL DEAD. If someone wires the
-            # counters up, this raises and points at the skip, so the workaround
-            # cannot quietly outlive the defect it works around.
-            per_bank_total = sum(d[n] for n in _PER_BANK)
-            if per_bank_total != 0:
-                raise AssertionError(
-                    f"{fam_name}: the per-bank hit counters reported "
-                    f"{per_bank_total}, so pumice BUG-020 appears to be FIXED. "
-                    f"Remove the skip of hits_within_col_ops / "
-                    f"hits_at_least_col_ops_minus_act in seq_telemetry.py and "
-                    f"close BUG-020.")
-            dead = ("hits_within_col_ops", "hits_at_least_col_ops_minus_act")
-
+            # BUG-020 is FIXED: OBS_ROW_HIT[8] is driven now, so the two rules
+            # that use the per-bank counters are enforced here like the rest.
+            # (They were skipped while the counters read zero forever.)
             armed = ti.assert_clean(
-                d, require=tuple(r.name for r in ti.RULES), skip=dead,
+                d, require=tuple(r.name for r in ti.RULES),
                 context=f"board telemetry / {fam_name}")
             total_armed += armed
             windows.append((fam_name, d))
@@ -161,8 +145,6 @@ class Telemetry(Sequence):
                     f"invariants passing on corrupt traffic is not a pass.")
 
         ctx.say(f"[telemetry] PASS: {len(fams)} window(s), {len(ti.RULES)} rules "
-                f"armed each ({total_armed} evaluations), 0 violations. 2 rules "
-                f"SKIPPED per pumice BUG-020 (per-bank hit counters undriven); "
-                f"the skip self-cancels when they start counting.")
+                f"armed each ({total_armed} evaluations), 0 violations, none skipped.")
         return {"windows": results, "rules": len(ti.RULES),
                 "rule_evaluations": total_armed}

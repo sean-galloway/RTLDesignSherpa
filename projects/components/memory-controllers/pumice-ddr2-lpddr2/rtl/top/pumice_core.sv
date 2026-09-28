@@ -142,6 +142,7 @@ module pumice_core
     output logic [31:0]                stall_banktimer_o,
     output logic [31:0]                stall_noreq_o,
     output logic [31:0]                stat_page_hit_o,
+    output logic [31:0]                stat_row_hit_o [NUM_BANKS],  // per-bank row hits (BUG-020)
     output logic [31:0]                stat_page_miss_o,
     output logic [31:0]                stat_page_empty_o,
     output logic [31:0]                stat_act_o,
@@ -452,6 +453,7 @@ module pumice_core
         .stall_banktimer_o        (stall_banktimer_o),
         .stall_noreq_o        (stall_noreq_o),
         .stat_page_hit_o    (stat_page_hit_o),
+        .stat_row_hit_o     (stat_row_hit_o),
         .stat_page_miss_o   (stat_page_miss_o),
         .stat_page_empty_o  (stat_page_empty_o),
         .stat_act_o         (stat_act_o),

@@ -91,18 +91,23 @@ RTL clamps `bank_lsb` to `[0, COL_WIDTH]`; keep `log2(BL/DFI_RATE) <= bank_lsb <
 
 ## Telemetry to Watch
 
-Observation registers per §4.2 (RO; note `hwif_in` readback is tied off in `pumice_top` today — see §4.1):
+Observation registers per §4.2. All of these are DRIVEN and free-running: read
+two and subtract for a window.
 
 | Telemetry register              | What it tells you                    | Tune action                          |
 |---------------------------------|--------------------------------------|--------------------------------------|
-| `OBS_AXI_R_LATENCY_AVG` / `_P99`| AXI read latency (avg / tail)        | scheduler / lookahead / page policy / age_max |
-| `OBS_AXI_W_LATENCY_AVG`         | AXI write latency                    | write-path / CWL alignment           |
-| `OBS_ROW_HIT[bank]`             | Per-bank row-hit rate (read-clear)   | address mapping (`bank_lsb`/`hash`), page policy |
-| `OBS_REF_LATENCY[bank]`         | Per-bank refresh blocking            | refresh deferral / refpb policy      |
-| `OBS_TXN_QUEUE_DEPTH_MAX/AVG`   | Queue pressure                       | `SCHED_WR_WM` watermarks             |
-| `OBS_REFRESH_PENDING_MAX`       | Proximity to refresh-deadline miss   | lower `REF_CTRL.postpone_limit`      |
-| `OBS_REFRESH_DEFER_HIST_0..3`   | Refresh batch histogram              | validate `REF_CTRL.postpone_limit`   |
-| `OBS_PAGE_PRED_ACCURACY`        | HAPPY prediction accuracy            | `warmup_cycles` / `hysteresis`       |
+| `OBS_ROW_HIT[bank]`             | Per-bank row hits                    | address mapping (`bank_lsb`/`hash`), page policy |
+| `PAGE_STATS_{HIT,MISS,EMPTY}`   | Column ops, and the cause of each activation | page policy, `tr_init`       |
+| `SCHED_STATS_{ACT,PRE}`         | Activations and closes               | page policy, `tr_init`               |
+| `REF_STATS_REF` / `_REF_BUSY`   | Refreshes, and those firing with work pending | `tREFI`, `REF_CTRL.postpone_limit` |
+| `STALL_*`                       | Stall-cause attribution              | whichever cause dominates            |
+
+**AXI latency and queue occupancy are not here on purpose.** They are properties
+of the interface, measured outside the controller by `axi_bus_meter` and
+`axi_perf_latency_hist` (the characterisation harness instantiates both). The
+`OBS_AXI_*` and `OBS_TXN_QUEUE_DEPTH_*` registers this table used to list were
+removed on 2026-09-28 -- they were never driven and always read zero, so every
+"tune action" in those rows was keyed on a constant (pumice BUG-020).
 | `OBS_WORDS[9]`                  | Packed obs_* harvest                 | FUB-internal diagnostics             |
 
 ## Workload-Specific Recipes

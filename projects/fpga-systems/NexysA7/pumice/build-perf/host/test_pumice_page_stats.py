@@ -61,8 +61,17 @@ def test_never_activating_is_a_perfect_hit_rate():
 
 
 def test_hit_rate_never_goes_negative():
-    """More ACTs than column ops is physically odd but arithmetically reachable
-    across a window boundary (an ACT counted whose column op landed outside).
+    """More ACTs than column ops is REAL and reproducible, not a window artefact.
+
+    The reason recorded here until 2026-09-28 -- "arithmetically reachable across
+    a window boundary (an ACT counted whose column op landed outside)" -- was
+    wrong, and wrong in a way that would send someone hunting a windowing bug
+    that does not exist. Under a background-close mode a row can be opened, hit
+    by the timeout precharge BEFORE its column command issues, and reopened: two
+    activations, one column op. Measured in sim at proven quiescence (two
+    consecutive identical reads), 49 ACTs against 48 column ops, with golden
+    data. pumice ISSUE-014.
+
     Clamp, because a negative 'rate' propagates as a plausible small number."""
     assert mk(col_ops=4, miss=6, empty=0).row_hit_rate == pytest.approx(0.0)
 
