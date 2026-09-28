@@ -909,7 +909,7 @@ further amortisation while costing read forward progress.</p>
 
 | Bits| Identifier|Access|Reset|Name|
 |-----|-----------|------|-----|----|
-| 2:0 |policy_mode|  rw  | 0x0 |  — |
+| 2:0 |policy_mode|  rw  | 0x3 |  — |
 |  3  |   RSVD_3  |   r  | 0x0 |  — |
 | 5:4 |  RSVD_5_4 |   r  | 0x0 |  — |
 | 9:6 |  RSVD_9_6 |   r  | 0x0 |  — |
@@ -950,14 +950,14 @@ further amortisation while costing read forward progress.</p>
 
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|
-| 7:0 |  tr_init |  rw  | 0x0 |  — |
+| 7:0 |  tr_init |  rw  | 0x2 |  — |
 | 15:8| RSVD_15_8|   r  | 0x0 |  — |
 |23:16|RSVD_23_16|   r  | 0x0 |  — |
 |31:24|RSVD_31_24|   r  | 0x0 |  — |
 
 #### tr_init field
 
-<p>TR init: idle MC cycles a row is held open before the background precharge fires. fixed_open uses this alone. RESET IS 0 (which DISABLES the timeout). The recommended value is 2, blocked on BUG-003. Measured: TR=1 and TR=2 are identical on every scenario and TR=4 already loses the plain col_major wins (falls back to open-page numbers), so the optimum is 1..2 and the cliff is between 2 and 4. tr_init=0 DISABLES the timeout entirely (see f_tr/r_idle in pumice_page_policy.sv) -- it is not a build-default sentinel on this field, so enabling mode 3 requires writing tr_init too.</p>
+<p>TR init: idle MC cycles a row is held open before the background precharge fires. fixed_open (policy_mode=3) uses this alone. RESET IS 2, the measured optimum, changed from 0 on 2026-09-27 together with policy_mode. tr_init=0 DISABLES the timeout entirely (see f_tr/r_idle in pumice_page_policy.sv) -- it is not a build-default sentinel on this field, so a reset of 0 silently disabled mode 3 and is why these two resets must move together. MEASURED ON THE BOARD 2026-09-27 at 75 MHz BL4 x16 against a 600 MB/s peak, 24 cells over four scenario families, all integrity-clean: TR=1 and TR=2 identical, and TR=2 gives +9.1% col_major (195.2 -&gt; 212.9 MB/s) and +35.1% col_major_interleaved (262.1 -&gt; 354.1), exactly flat on incremental (561.1) and row_major (572.0), with no scenario regressing. The cliff is between 2 and 3 on col_major, which is why 2 and not 4. This change was made and REVERTED on 2026-09-26 because BUG-003 let a short timeout push a rejected pick to the DRAM; BUG-003 was fixed 2026-09-27 and the board run above is post-fix with mismatched=0 on every cell.</p>
 
 #### RSVD_15_8 field
 

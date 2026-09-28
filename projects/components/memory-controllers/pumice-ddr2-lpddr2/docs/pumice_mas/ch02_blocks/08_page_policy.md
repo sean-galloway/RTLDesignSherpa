@@ -63,7 +63,7 @@ See `vault/Tasks/pumice/task/open/TASK-013.md` for the full campaign.
 | 0 | build default | Engine inert; legacy flat auto-precharge from `page_policy_or`. |
 | 1 | `static_open`  | Per-bank ap mask forced 0 — rows stay open. |
 | 2 | `static_close` | Per-bank ap mask forced 1 — every column op auto-precharges. |
-| 3 | `fixed_open`   | **THE RECOMMENDED DEFAULT.** (BUG-003, which blocked it, was fixed 2026-09-27.) ap=0; per-bank idle countdown from `PAGE_TIMEOUT_CFG.tr_init`. On expiry the engine REQUESTS a close; the arbiter issues the PRE as its strictly lowest-priority pick. This background-precharge path is where the measured win comes from -- see "Mechanism" below. |
+| 3 | `fixed_open`   | **THE SHIPPING DEFAULT** -- `policy_mode` resets to 3 and `tr_init` to 2 as of 2026-09-27. ap=0; per-bank idle countdown from `PAGE_TIMEOUT_CFG.tr_init`. On expiry the engine REQUESTS a close; the arbiter issues the PRE as its strictly lowest-priority pick. This background-precharge path is where the measured win comes from -- see "Mechanism" below. |
 | 4..7 | *retired* | **Fall through to the build default** — engine inert, no auto-precharge. 4 (`adapt_time`) and 5 (`adapt_access`) RETIRED 2026-09-27 (TASK-014); 6 (`rbl_static`) and 7 (`rbl_dyn`) RETIRED 2026-09-26 (TASK-011). `policy_mode` is a 3-bit field, so software can still write these; the fallthrough is a contract, regressed by `test_page_predictor` and the scheduler matrix. |
 
 ## Decision interfaces to the arbiter

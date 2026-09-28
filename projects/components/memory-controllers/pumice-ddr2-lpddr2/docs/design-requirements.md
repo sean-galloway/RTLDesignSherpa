@@ -351,12 +351,20 @@ policy by flipping a CSR** (the "config not param" rule). Each is a paper-derive
 read-only telemetry so the host can sweep it and compare against the static baselines
 in-system.
 
-**The "reset = baseline, bit-identical" rule still holds, and one deliberate
-exception to it is PROPOSED but BLOCKED.** `PAGE_POLICY_CFG.policy_mode` should
-reset to **3 (`fixed_open`)** with `PAGE_TIMEOUT_CFG.tr_init = 2` -- the change was
-made and reverted on 2026-09-26, blocked on BUG-003 (a short timeout precharges
-under an in-flight read; the read-return ring loses a ticket at `rd_gap >= 8`) --
-because the characterization it exists to enable
+**The "reset = baseline, bit-identical" rule has ONE deliberate exception, and it
+SHIPPED on 2026-09-27.** `PAGE_POLICY_CFG.policy_mode` resets to **3
+(`fixed_open`)** with `PAGE_TIMEOUT_CFG.tr_init = 2`. The two must move together:
+`tr_init = 0` disables the timeout, so mode 3 at the old reset would have been
+open page under another name.
+
+The change was made and reverted once before, on 2026-09-26, blocked on BUG-003.
+That diagnosis was itself wrong ("a short timeout precharges under an in-flight
+read; the read-return ring loses a ticket") -- the real defect was an arbiter pick
+that its own final safety gate had rejected still being pushed to the DRAM,
+because `cmd_valid_o` carried no `w_out_safe` term. Fixed 2026-09-27, and the
+board run behind this reset is post-fix with `mismatched=0` on every cell.
+
+The exception is justified because the characterization it exists to enable
 produced an unambiguous answer: `fixed_open` TR=2 is *strictly dominant* over the
 open-page baseline on the board — +41.2% on `col_major_interleaved_bl4`, +8.6..11.6%
 on `col_major`, exactly flat on `incremental`/`row_major`, no scenario regressing,

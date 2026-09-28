@@ -2143,7 +2143,7 @@ module pumice_csr (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.PAGE_POLICY_CFG.policy_mode.value <= 3'h0;
+            field_storage.PAGE_POLICY_CFG.policy_mode.value <= 3'h3;
         end else begin
             if(field_combo.PAGE_POLICY_CFG.policy_mode.load_next) begin
                 field_storage.PAGE_POLICY_CFG.policy_mode.value <= field_combo.PAGE_POLICY_CFG.policy_mode.next;
@@ -2166,7 +2166,7 @@ module pumice_csr (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.PAGE_TIMEOUT_CFG.tr_init.value <= 8'h0;
+            field_storage.PAGE_TIMEOUT_CFG.tr_init.value <= 8'h2;
         end else begin
             if(field_combo.PAGE_TIMEOUT_CFG.tr_init.load_next) begin
                 field_storage.PAGE_TIMEOUT_CFG.tr_init.value <= field_combo.PAGE_TIMEOUT_CFG.tr_init.next;

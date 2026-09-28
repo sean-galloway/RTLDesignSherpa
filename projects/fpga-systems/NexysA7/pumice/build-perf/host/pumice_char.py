@@ -2143,6 +2143,36 @@ RUN_PROFILES: Dict[str, dict] = {
                         concurrent=(0, 4), gen_mix="hotcold",
                         same_bank_rows=8, n_hot=2, bank_spread=2),
     # BUG-003: is TR=3 (smallest safe) as good as TR=2 (optimal but broken)?
+    # THE DEFAULT DECISION, across every family. `bug003_tr_floor` pins
+    # families=(FAM_INCREMENTAL,), so it answers "is the TR floor safe" on ONE
+    # workload shape -- and the CLI's --families is ignored for a profile that
+    # pins its own, which is a trap worth knowing.
+    #
+    # This profile is the one TASK-013's default change needs: the fixed-TR
+    # ladder against open page on ALL FOUR families, because the families
+    # disagree about the optimum. The historical +41.2% was col_major_interleaved
+    # and the flat result was incremental/row_major, so a single-family run can
+    # show either a huge win or none and both would be true-but-partial.
+    #
+    # tr8 is included to bracket the cliff from above: TR=1..2 measured
+    # identical, TR=3 already gives back half the win, so the interesting region
+    # is 1..4 with 8 as the "clearly too long" control.
+    # NO gen_mix, NO concurrent, DELIBERATELY. `gen_mix="hotcold"` pins
+    # placement=same_bank and a fixed gens=[row8,row8,col2,col2] mix, which
+    # OVERRIDES the per-family generator selection -- so a profile that sets it
+    # and then lists four families measures ONE workload four times and reports
+    # four identical numbers. The first version of this profile did exactly that
+    # (+33.3% on all four families, to the same decimal) and the giveaway was the
+    # numbers matching to 0.1 MB/s across supposedly different access patterns.
+    # Leaving both out lets each family drive its own generator shape, which is
+    # the whole point of a family sweep.
+    "paging_default_allfam": dict(
+        configs=["open_page", "fixed_open_tr1", "fixed_open_tr2",
+                 "fixed_open_tr3", "fixed_open_tr4", "fixed_open_tr8"],
+        level="basic",
+        families=(FAM_INCREMENTAL, FAM_ROW_MAJOR, FAM_COL_MAJOR,
+                  FAM_COL_INTERLEAVE)),
+
     "bug003_tr_floor": dict(configs=["open_page", "fixed_open_tr1",
                                      "fixed_open_tr2", "fixed_open_tr3",
                                      "fixed_open_tr4"],
