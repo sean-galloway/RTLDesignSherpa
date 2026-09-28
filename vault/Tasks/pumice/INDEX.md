@@ -73,9 +73,24 @@ thing.
 [MIGRATION_MAP.md](../MIGRATION_MAP.md). Lane assignment was hand-derived from
 each item's own Status line, because a keyword pass misclassified 14 of the 35.
 
-`PUMICE-045..050` are RETIRED, not free: 045-049 are in the table above and
+`PUMICE-045..051` are RETIRED, not free: 045-049 are in the table above and
 every commit message before 2026-09-24 still refers to them by the old number.
-The highest legacy number ever issued in this area is 050.
+The highest legacy number ever issued in this area is **051**.
+
+**The legacy ID space is now fully numeric.** Two IDs in this area were once
+word-suffixed, and both have been numbered retroactively:
+`PUMICE-CLEANUP` -> `PUMICE-050` (2026-09-24) and `PUMICE-KMAP` ->
+`PUMICE-051` (2026-09-27). A word-suffixed ID does not sort, does not parse
+against a `PREFIX-NNN` checker, and gets silently skipped by any tool that
+assumes digits -- `PUMICE-KMAP` was dropped by exactly such a parser during the
+flat-page migration and only recovered because a peer session's independent count
+disagreed. Both spellings still resolve; new text should use the number.
+
+`PUMICE-PERF` is NOT an ID and is not numbered: it is an informal work-stream
+label on two comments (`pumice_cmd_arbiter.sv`, `test_pumice_arbiter_issue_rate.py`)
+marking the Phase 1 per-entry issue-mask work. It has no tracker item and never
+did. If it ever needs one, file it in a lane with a lane ID rather than
+retrofitting a legacy number.
 
 **Legacy IDs were not rewritten at their call sites.** Measured after the
 migration: 652 `PUMICE-*` occurrences repo-wide, but 327 of those are this

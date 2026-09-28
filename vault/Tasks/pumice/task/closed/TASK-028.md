@@ -1,11 +1,20 @@
 # TASK-028: real K-maps for the scheduler, CAMs and DFI layer
 
-> **Migrated from `PUMICE-KMAP`** on 2026-09-27, when this area's flat
+> **Migrated from `PUMICE-KMAP (via PUMICE-051)`** on 2026-09-27, when this area's flat
 > `closed.md` was split into one file per item to match the rest of the vault.
 > The legacy ID is cited throughout the repo -- RTL comments, DV code, handbook
 > notes, commit messages and session memory -- so it is NOT rewritten at those
 > call sites; `vault/Tasks/MIGRATION_MAP.md` and this line are how an old
 > `PUMICE-KMAP` reference resolves. Body below is verbatim from the flat page.
+>
+> **The legacy ID was NUMBERED retroactively as `PUMICE-051`.** A word-suffixed
+> ID does not sort, does not parse against a `PREFIX-NNN` checker, and -- as this
+> item proved -- gets skipped by any tool that assumes digits. `PUMICE-CLEANUP`
+> had already been handled this way (`via PUMICE-050`), so this follows the same
+> precedent rather than inventing one. 051 was the next free legacy number and
+> the pre-migration area INDEX had already reserved it for exactly this. Both
+> forms resolve here: the 16 existing `PUMICE-KMAP` citations keep working, and
+> anything written from now on can use a number.
 >
 > **This item was MISSED by the first pass of the migration** and added after a
 > peer session's independent count came to 36 where mine said 35. The parser

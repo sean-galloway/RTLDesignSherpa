@@ -273,7 +273,7 @@ The flat per-state pages were split into one-file-per-item on 2026-09-27. Legacy
 | pumice | `PUMICE-042` | bug/closed | `BUG-017` |
 | pumice | `PUMICE-043` | bug/closed | `BUG-018` |
 | pumice | `PUMICE-044` | issue/dropped | `ISSUE-013` |
-| pumice | `PUMICE-KMAP` | task/closed | `TASK-028` |
+| pumice | `PUMICE-KMAP` (numbered `PUMICE-051`) | task/closed | `TASK-028` |
 
 ## pumice, 2026-09-27 -- the 35 historical flat items
 
