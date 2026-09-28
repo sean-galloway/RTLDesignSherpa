@@ -406,6 +406,119 @@ class RLBTopTests:
             self.log.error(f"PIT fabric routing test failed: {e}")
             return False
 
+    async def test_fabric_routes_rtc_to_the_pic(self) -> bool:
+        """An RTC second-tick reaches the 8259 on IRQ8, internally.
+
+        The RTC divider is the obstacle: one tick is 32768 selected_clk edges
+        in production mode. clock_select=1 puts selected_clk on pclk AND drops
+        the divider target to 99 (rtc_core: DIV_TARGET_SYS), and the block's own
+        TB ships force_divider_near_target() to poke r_clk_div_counter just
+        below that -- the RTL comment names that helper as the reason the two
+        targets are localparams. Same trick here, through the rlb_top hierarchy.
+
+        NOT modelled on the RTC block's own periodic-tick test: that one waits
+        500 cycles and then logs "Second tick flag not set (may need more time)"
+        and passes ANYWAY. It cannot fail, so it proves nothing. This one fails
+        if the tick does not arrive.
+
+        RTC is IRQ8 -> slave 8259 IR0.
+        """
+        self.log.info("=== smoke: fabric routes RTC to the 8259 ===")
+        try:
+            if not await self._fabric_preamble():
+                return False
+
+            W = self.tb.SLAVE_RTC
+            # RTC_CONFIG: CONFIG_RTC_ENABLE (1<<0) | CONFIG_CLOCK_SELECT (1<<3).
+            # clock_select=1 is what makes the divider target 99 instead of 32767.
+            await self.tb.apb_write(self.tb.window_addr(W, 0x000), 0x1 | 0x8)
+            # RTC_STATUS is W1C -- clear any stale tick before arming.
+            await self.tb.apb_write(self.tb.window_addr(W, 0x008), 0xFFFFFFFF)
+            # RTC_CONTROL: CONTROL_SECOND_INT_ENABLE (1<<2)
+            await self.tb.apb_write(self.tb.window_addr(W, 0x004), 1 << 2)
+            await self.tb.wait_clocks('pclk', 10)
+
+            # Whitebox: roll the divider over in a few cycles instead of 100.
+            # An explicit failure if the path is wrong -- a silent fallback to
+            # "just wait" would turn a broken hierarchy into a passing test.
+            try:
+                core = self.tb.dut.u_rtc.u_rtc_core
+                core.r_clk_div_counter.value = 99 - 2      # DIV_TARGET_SYS - 2
+            except AttributeError as e:
+                self.log.error("  whitebox path dut.u_rtc.u_rtc_core."
+                               f"r_clk_div_counter not reachable: {e}")
+                return False
+            await self.tb.wait_clocks('pclk', 60)
+
+            if not self._routing_verdict(
+                    'rtc_second_irq',
+                    ['rtc_second_irq', 'pic_int_out', 'rlb_irq_out']):
+                return False
+            self.log.info("smoke fabric-RTC GREEN (rtc_second_irq reached the "
+                          "8259 on IRQ8 with pic_irq_in held at 0)")
+            return True
+        except Exception as e:
+            self.log.error(f"RTC fabric routing test failed: {e}")
+            return False
+
+    async def test_fabric_routes_smbus_to_the_pic(self) -> bool:
+        """An SMBus error interrupt reaches the 8259 on IRQ10, internally.
+
+        No bus model and no timeout needed. rlb_top_tb._idle_inputs() holds
+        smb_sda_i high ("open-drain with pull-ups: released lines read high"),
+        so nothing on the bus ever pulls the ACK slot low. smbus_core.sv:494
+        reads that as a NAK:
+
+            end else if (w_ack_state && r_ack_valid && r_ack_bit) begin
+                r_nak_received <= 1'b1;
+                r_master_state <= M_ERROR;
+
+        and r_nak_received is one of the terms in w_error_next (line 238), so
+        the sticky error status sets and, with INT_ERROR_EN armed, raises
+        smb_interrupt. The absent slave IS the stimulus.
+
+        A quick command is the shortest transaction that has an ACK slot:
+        START, 8 address bits, ACK, STOP. clk_div 6 gives unit=(6+2)>>1=4 and
+        an SCL period of 32 pclk, so the whole thing is ~400 cycles -- the
+        phy warns about degenerate periods down at clk_div=2, which this
+        stays well clear of.
+
+        SMBus is IRQ10 -> slave 8259 IR2.
+        """
+        self.log.info("=== smoke: fabric routes SMBus to the 8259 ===")
+        try:
+            if not await self._fabric_preamble():
+                return False
+
+            W = self.tb.SLAVE_SMBUS
+            # Slow enough to be legal, fast enough to be cheap.
+            await self.tb.apb_write(self.tb.window_addr(W, 0x020), 6)
+            # INT_STATUS is W1C -- clear before arming.
+            await self.tb.apb_write(self.tb.window_addr(W, 0x030), 0xFF)
+            # INT_ENABLE: INT_ERROR_EN (1<<1)
+            await self.tb.apb_write(self.tb.window_addr(W, 0x02C), 1 << 1)
+            # CONTROL: MASTER_EN (1<<0). Must precede the start -- w_start_req
+            # is (cmd_start && cfg_master_en && !w_slv_addressed).
+            await self.tb.apb_write(self.tb.window_addr(W, 0x000), 1 << 0)
+            await self.tb.wait_clocks('pclk', 10)
+
+            # SLAVE_ADDR, then COMMAND = QUICK_CMD | START | STOP.
+            await self.tb.apb_write(self.tb.window_addr(W, 0x00C), 0x50)
+            await self.tb.apb_write(self.tb.window_addr(W, 0x008),
+                                    0x0 | (1 << 16) | (1 << 17))
+            await self.tb.wait_clocks('pclk', 1500)
+
+            if not self._routing_verdict(
+                    'smb_interrupt',
+                    ['smb_interrupt', 'pic_int_out', 'rlb_irq_out']):
+                return False
+            self.log.info("smoke fabric-SMBus GREEN (a NAKed quick command "
+                          "reached the 8259 on IRQ10 with pic_irq_in held at 0)")
+            return True
+        except Exception as e:
+            self.log.error(f"SMBus fabric routing test failed: {e}")
+            return False
+
     async def test_fabric_gpio_returns_the_slave_vector(self) -> bool:
         """The GPIO interrupt is acknowledged as a SLAVE vector, not the master's.
 
