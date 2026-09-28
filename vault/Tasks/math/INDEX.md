@@ -15,19 +15,17 @@ Pick the lane before filing:
 | [bug/](bug/INDEX.md) | a defect with a reproduction | `BUG-002` |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | `ISSUE-001` |
 
-**The pages at this level are the LEGACY task lane.** They are frozen: close
-them out where they stand, and do not add to them. New work of any kind goes in
-a lane above. See [the convention](../INDEX.md) for the full definitions.
+Items live one per file under the lane directories below; this page is the
+area overview. See [the convention](../INDEX.md) for the definitions.
 
 
 Math library (rtl/math, val/math, docs/markdown/rtl-math) work.
 
-| State | Count |
-|---|---|
-| [active](active.md) | 0 |
-| [open](open.md) | 1 |
-| [closed](closed.md) | 9 |
-| [dropped](dropped.md) | 0 |
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 1 | 0 | 3 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 0 | 0 | 5 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 0 | 0 | 1 | 0 | 0 |
 
 ## Recently closed
 

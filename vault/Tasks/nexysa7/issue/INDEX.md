@@ -2,7 +2,7 @@
 
 # nexysa7 — issues
 
-**Next ID: ISSUE-001** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-002** — never recycle a number, even when its item closed.
 
 An observed problem that is not yet a diagnosed defect or a decided piece of work: an anomaly, a risk, an open question. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -15,9 +15,13 @@ by construction rather than by discipline.
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
-| [dropped/](dropped/) | 0 | ended without completing |
+| [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **ISSUE-000** — reserved template; copy the file, do not file against it.
+
+## Dropped
+
+- **ISSUE-001** — MON-SPLIT — WITHDRAWN, this was my own tooling bug

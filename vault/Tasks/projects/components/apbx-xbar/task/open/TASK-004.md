@@ -1,11 +1,6 @@
-<!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. Move a task between pages by cutting its block, do not copy. -->
+# TASK-004: scrub the tests for completeness (apbx crossbar)
 
-# apbx-xbar — Open
-
----
-
-
-## APBX-007: scrub the tests for completeness (apbx crossbar)
+> Migrated 2026-09-27 from `vault/Tasks/projects/components/apbx-xbar/open.md` as **APBX-007** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be

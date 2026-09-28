@@ -1,9 +1,6 @@
-<!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. Move a task between pages by cutting its block, do not copy. -->
+# ISSUE-001: MON-SPLIT — WITHDRAWN, this was my own tooling bug
 
-# nexysa7 tasks — dropped
-
-<!-- Moved from vault/Tasks/amba/ 2026-09-14: a NexysA7 flow task, filed under amba -->
-## NEXYSA7-STREAM-MON-SPLIT — WITHDRAWN, this was my own tooling bug
+> Migrated 2026-09-27 from `vault/Tasks/nexysa7/dropped.md` as **NEXYSA7-STREAM** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 **Status:** DROPPED 2026-08-28, same day it was filed
 **Priority:** n/a -- there was never a defect here
 

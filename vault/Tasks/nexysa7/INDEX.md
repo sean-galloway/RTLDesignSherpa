@@ -20,16 +20,15 @@ Pick the lane before filing:
 | [bug/](bug/INDEX.md) | a defect with a reproduction | `BUG-001` |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | `ISSUE-001` |
 
-**The pages at this level are the LEGACY task lane.** They are frozen: close
-them out where they stand, and do not add to them. New work of any kind goes in
-a lane above. See [the convention](../INDEX.md) for the full definitions.
+Items live one per file under the lane directories below; this page is the
+area overview. See [the convention](../INDEX.md) for the definitions.
 
 
 Board-campaign and characterization-flow tasks for
 `projects/NexysA7/` (stream characterization: `flows-stream-bridge` = perf/char,
 `flows-stream-monitor` = monitor coverage, plus `flows-idma-bridge`,
 `flows-vivado-mcdma`; ddr2 characterization; timing characterization). Lifecycle
-pages: [open](open.md) · active · closed · dropped (created when first needed).
+pages: open · active · closed · dropped (created when first needed).
 Convention: [Tasks](../INDEX.md). Related handbook:
 [[fpga/cmn-infra/build-flows]], [[fpga/NexysA7/stream-char/INDEX]].
 

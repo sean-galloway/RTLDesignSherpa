@@ -2,7 +2,7 @@
 
 # math — bugs
 
-**Next ID: BUG-002** — never recycle a number, even when its item closed.
+**Next ID: BUG-006** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,4 +24,9 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-006** — bf16_adder underflow can report as +infinity/overflow (wrap bit shared by both flags)
+- **BUG-002** — levels are decorative: TEST_LEVEL exported but never gates depth; FULL == FUNC grids
+- **BUG-003** — fp16/fp8 multiplier rounding deviates from RNE (family sweep of MATH-001)
+- **BUG-004** — Multiplier underflow edge: rounding carry out of exp 0 is flushed, IEEE says min-normal
+- **BUG-005** — goldschmidt_div iter2-pipe: ow_is_inf asserted on ZERO results, missed a==inf (FIXED)
 - **BUG-001** — math_prefix_cell_gray.sv declared itself `math_prefix_cell` (fixed, both copies)

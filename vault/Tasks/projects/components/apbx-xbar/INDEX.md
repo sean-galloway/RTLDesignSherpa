@@ -24,11 +24,11 @@ APB crossbar family (`projects/components/apbx-xbar/`): the generated
 fixed-configuration variants `1to1`, `2to1`, `1to4`, `2to4` and
 `2to2_mixed`. Every port independently speaks APB4 or APB5.
 
-| State | Count |
-|---|---|
-| [open](open.md) | 1 |
-| [closed](closed.md) | 5 |
-| [dropped](dropped.md) | 1 |
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 1 | 0 | 3 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 0 | 0 | 2 | 1 | 0 |
+| [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 
 ## Open shortlist
 
@@ -50,7 +50,7 @@ proof of the version gating) and APBX-003 (parity) are all closed.
 
 ## Reading order
 
-[closed.md](closed.md) APBX-001 is the whole story of the APB4→APBX
+closed.md APBX-001 is the whole story of the APB4→APBX
 generalization and records why mixing needs no converters; APBX-002 proved
 the version gating formally (on the thin core, since deleted); APBX-003
 added parity and records why a check-and-regenerate fabric protects a

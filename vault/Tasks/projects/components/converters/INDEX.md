@@ -24,10 +24,11 @@ Protocol and width converters (`projects/components/converters/`): the
 AXI4↔AXIL4 and AXI4→APB4/APB5 protocol converters, the data-width
 upsize/downsize primitives and the dwidth converter wrappers.
 
-| State | Count |
-|---|---|
-| [open](open.md) | 2 |
-| [closed](closed.md) | 7 |
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 1 | 0 | 1 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 7 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 
 ## Open shortlist
 

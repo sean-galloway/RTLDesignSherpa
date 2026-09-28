@@ -1,6 +1,6 @@
-# NexysA7 tasks - closed
+# TASK-003: Migrate the remaining char flows onto the shared projects/fpga-systems/bin layer
 
-## NEXYS-003: Migrate the remaining char flows onto the shared projects/fpga-systems/bin layer
+> Migrated 2026-09-27 from `vault/Tasks/nexysa7/closed.md` as **NEXYS-003** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 
 **Status:** CLOSED 2026-09-23 -- GOAL ACHIEVED. Residue re-filed, not dropped.
 
@@ -242,4 +242,3 @@ is not installed in the venv — `pip install pyserial` before board work).
 </details>
 
 ---
-
