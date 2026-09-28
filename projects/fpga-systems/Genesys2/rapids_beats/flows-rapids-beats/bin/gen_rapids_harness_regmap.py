@@ -71,6 +71,7 @@ CSR = [
     (0x01C, 'GEN_BPP',     'rw', None),
     (0x020, 'GEN_CHMASK',  'rw', None),
     (0x024, 'GEN_TDEST',   'rw', None),
+    (0x028, 'GEN_MODE',    'rw', [('INTERLEAVE', 0, 0, 'rw')]),      # 1: round-robin channels per beat
     (0x030, 'CHK_CTRL',    'rw', [('CHK_START', 0, 0, 'w'),           # pulse
                                   ('CHK_READY_EN', 1, 1, 'rw')]),     # level
     (0x034, 'CHK_SEED',    'rw', None),

@@ -37,7 +37,7 @@
 
 - AXI-Stream master (`m_axis_*`) with no address channel — simpler than the AXI4 pattern generators
 - Per-channel independent LFSR (seed `^ ch`) and CRC-32, copied verbatim from `axi4_slave_rd_pattern_gen`
-- Sequential per-channel scheduling — finish one channel's beats, then the next, so each channel's LFSR sequence is contiguous
+- Two channel schedules: sequential (finish one channel's beats, then the next) or, with `cfg_interleave`, round-robin beat by beat across the active channels so every channel holds data in the sink at once; per-channel data, CRC and packet boundaries are identical in both
 - Channel mask (`cfg_channel_mask`) selects active channels (0 → all)
 - Programmable beats-per-channel and `tlast` cadence (`cfg_beats_per_pkt`)
 - Per-channel expected-CRC / beat-count telemetry plus an aggregate total
@@ -101,6 +101,7 @@ Characterizing a stream-consuming engine (a "sink") needs a deterministic source
 | cfg_channel_mask | input | NUM_CHANNELS | Active channels (0 → all channels active) |
 | cfg_num_beats | input | BEAT_COUNT_WIDTH | Beats to send per channel |
 | cfg_beats_per_pkt | input | BEAT_COUNT_WIDTH | `tlast` cadence (0 → one packet per channel) |
+| cfg_interleave | input | 1 | 1 → round-robin the active channels one beat at a time; 0 → sequential (latched with the mask on `cfg_start`) |
 | cfg_tdest | input | AXIS_DEST_WIDTH | Value driven on `tdest` |
 | cfg_busy | output | 1 | High while running (state != IDLE) |
 | cfg_done | output | 1 | One-cycle pulse at end of run |
@@ -135,9 +136,11 @@ Characterizing a stream-consuming engine (a "sink") needs a deterministic source
 
 A three-state FSM (`IDLE`, `RUN`, `DONE`) sequences a run. On `cfg_start` the effective channel mask, beats-per-channel, and `tlast` cadence are latched; if there are no beats or no active channel it drops straight to `DONE`, otherwise it selects the first active channel and enters `RUN`. `DONE` pulses `cfg_done` for one cycle and returns to `IDLE`. `m_axis_tvalid` is asserted exactly in `RUN`.
 
-### Sequential Per-Channel Scheduling
+### Channel Scheduling: Sequential or Interleaved
 
-Channels are streamed one at a time in ascending index order among the masked set. A `f_next_active_after` function priority-scans the mask for the lowest active channel index strictly greater than the current one (or the first active channel at start). When the current channel's beats are exhausted (`w_ch_last_beat`), the FSM advances to the next active channel and reloads its beat count; when none remain it goes to `DONE`. Because channels run to completion in turn, each channel's LFSR sequence is contiguous and uninterrupted.
+In the sequential mode (`cfg_interleave = 0`) channels are streamed one at a time in ascending index order among the masked set. A `f_next_active_after` function priority-scans the mask for the lowest active channel index strictly greater than the current one (or the first active channel at start). When the current channel's beats are exhausted (`w_ch_last_beat`), the FSM advances to the next active channel and reloads its beat count; when none remain it goes to `DONE`. Because channels run to completion in turn, each channel's LFSR sequence is contiguous and uninterrupted.
+
+In the interleaved mode (`cfg_interleave = 1`, latched on `cfg_start`) the same scan hands the bus to the next active channel after every accepted beat, wrapping to the first active channel when the scan finds none above the current one. Every active channel takes exactly one beat per round, so a single round counter (`r_beats_remaining`) and a single packet counter serve all channels: both advance when the last active channel of a round has taken its beat, and the run ends when the final round completes. A channel's LFSR and CRC still advance only on its own beats, so beat N of channel C carries the same data as in a sequential run and the exported CRCs do not change; only the order in which channels occupy the bus differs. This is the schedule that puts data in every sink channel at once, which is what an aggregate-window measurement needs (the sequential schedule only ever fills one sink channel).
 
 ### Per-Channel LFSR + CRC (Verbatim from the AXI4 blocks)
 
@@ -145,7 +148,7 @@ Each channel owns a `shifter_lfsr_fibonacci` (32-bit, taps `{23,3,2,1}`, seed `w
 
 ### Stream Outputs and tlast Cadence
 
-`m_axis_tdata` is the active channel's LFSR output replicated `REP` times; `tid` carries the channel index; `tstrb` is all-ones (full beats); `tdest` is driven from `cfg_tdest`; `tuser` is 0. `tlast` asserts on each channel's final beat, and additionally every `cfg_beats_per_pkt` beats when that cadence is non-zero (0 → one packet spanning the channel's whole run). A per-channel packet counter (`r_pkt_cnt`) resets at each `tlast` and at channel boundaries.
+`m_axis_tdata` is the active channel's LFSR output replicated `REP` times; `tid` carries the channel index; `tstrb` is all-ones (full beats); `tdest` is driven from `cfg_tdest`; `tuser` is 0. `tlast` asserts on each channel's final beat, and additionally every `cfg_beats_per_pkt` beats when that cadence is non-zero (0 → one packet spanning the channel's whole run). A per-channel packet counter (`r_pkt_cnt`) resets at each `tlast` and at channel boundaries; in the interleaved mode every channel shares it, since all channels sit at the same beat index within their packets.
 
 ### Backpressure Insensitivity
 
@@ -207,7 +210,7 @@ axis4_master_pattern_gen #(
 ## Design Notes
 
 - **CRC-consistency by construction:** the LFSR and CRC blocks are copied verbatim from `axi4_slave_rd_pattern_gen`, so a stream emitted here and re-CRC'd by `axi4_slave_wr_crc_check` (or checked by `axis4_slave_pattern_check`) yields identical per-channel CRCs.
-- **Sequential scheduling keeps sequences contiguous:** finishing one channel before starting the next means each channel's LFSR runs as an unbroken sequence, matching how the checker regenerates it.
+- **Either schedule keeps sequences contiguous per channel:** the checker demultiplexes by `tid` and regenerates each channel's LFSR from its own beats, so sequential and interleaved runs verify the same way. Interleaving exists for the sink-side measurement (rapids ISSUE-006): sequential streaming leaves only one sink channel holding data, so the measured window was one channel's, not the DUT's.
 - **No address channel:** as a pure stream the generator is simpler than the AXI4 pattern gens — no `dma_address_gen`, no burst FSM, just per-channel beat counting.
 - **Backpressure-safe:** advancing only on accepted beats decouples the data sequence from `tready` timing.
 - **Data width constraint:** `AXIS_DATA_WIDTH` must be a multiple of `LFSR_WIDTH` since `tdata = REP × lfsr_out`.
@@ -251,7 +254,7 @@ Treat any behaviour described on this page as unverified by simulation.
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Index: `docs/markdown/rtl-amba/index.md`
-- Harness: `projects/components/dmas/rapids/CONTROL_ENGINE_INTEGRATION.md`
+- Harness: `vault/Tasks/projects/components/dmas/rapids/CONTROL_ENGINE_INTEGRATION.md`
 
 ---
 

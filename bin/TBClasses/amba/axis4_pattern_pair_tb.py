@@ -66,6 +66,8 @@ class Axis4PatternPairTB(TBBase):
         self._done_seen = False
         self._done_monitor = None
         self._bp_task = None
+        self._tids = []            # channel of every accepted beat, in order
+        self._tid_monitor = None
 
     # ---- three mandatory TB methods (GLOBAL_REQUIREMENTS 2.2) ----------
 
@@ -84,6 +86,7 @@ class Axis4PatternPairTB(TBBase):
         self.dut.cfg_channel_mask.value = 0
         self.dut.cfg_num_beats.value = 0
         self.dut.cfg_beats_per_pkt.value = 0
+        self.dut.cfg_interleave.value = 0
         self.dut.cfg_tdest.value = 0
         self.dut.chk_backpressure.value = 0
 
@@ -112,6 +115,14 @@ class Axis4PatternPairTB(TBBase):
                 self._done_seen = True
                 self.log.debug(f"@ {get_sim_time('ns')}ns: gen_done pulse")
 
+    async def _monitor_tids(self):
+        """Record the channel of every accepted beat, in bus order, so the
+        schedule (sequential vs interleaved) can be checked exactly."""
+        while True:
+            await RisingEdge(self.dut.clk)
+            if int(self.dut.o_axis_hs.value) == 1:
+                self._tids.append(int(self.dut.o_axis_tid.value))
+
     async def _drive_backpressure(self, pattern):
         """Toggle the checker's ready gate through (on, cycles) pairs,
         repeating until stopped."""
@@ -123,7 +134,7 @@ class Axis4PatternPairTB(TBBase):
     # ---- scenario -------------------------------------------------------
 
     async def run_stream(self, *, beats, beats_per_pkt, mask=0, seed=0xACE1_2345,
-                         backpressure=None, label=""):
+                         backpressure=None, interleave=False, label=""):
         # Full reset between scenarios: the checker's counters only clear
         # on reset or on its start pulse, and its CRC is cumulative.
         await self.assert_reset()
@@ -132,13 +143,17 @@ class Axis4PatternPairTB(TBBase):
         await self.wait_clocks('clk', 5)
 
         self._done_seen = False
+        self._tids = []
         if self._done_monitor is None:
             self._done_monitor = cocotb.start_soon(self._monitor_gen_done())
+        if self._tid_monitor is None:
+            self._tid_monitor = cocotb.start_soon(self._monitor_tids())
 
         self.dut.cfg_lfsr_seed.value = seed
         self.dut.cfg_channel_mask.value = mask
         self.dut.cfg_num_beats.value = beats
         self.dut.cfg_beats_per_pkt.value = beats_per_pkt
+        self.dut.cfg_interleave.value = 1 if interleave else 0
         self.dut.cfg_tdest.value = 0
         self.dut.chk_backpressure.value = 0
         await self.wait_clocks('clk', 2)
@@ -179,9 +194,10 @@ class Axis4PatternPairTB(TBBase):
         # Let the tail drain into the checker before reading counters.
         await self.wait_clocks('clk', 200)
         self.check_results(beats=beats, beats_per_pkt=beats_per_pkt,
-                           mask=mask, label=label)
+                           mask=mask, interleave=interleave, label=label)
 
-    def check_results(self, *, beats, beats_per_pkt, mask, label):
+    def check_results(self, *, beats, beats_per_pkt, mask, label,
+                      interleave=False):
         active = [c for c in range(self.NUM_CH)
                   if mask == 0 or (mask >> c) & 1]
         expected_total = beats * len(active)
@@ -234,8 +250,31 @@ class Axis4PatternPairTB(TBBase):
                                f"count {got_pkts}, expected {exp_pkts}")
                 self.errors += 1
 
+        # The schedule itself, beat by beat: sequential streams each active
+        # channel's whole run in turn; interleaved gives every active channel
+        # one beat per round. Checking only the CRCs would pass either way.
+        n_act = len(active)
+        if interleave:
+            exp_sched = [active[i % n_act] for i in range(beats * n_act)]
+        else:
+            exp_sched = [c for c in active for _ in range(beats)]
+        got_sched = list(self._tids)
+        if got_sched != exp_sched:
+            common = min(len(got_sched), len(exp_sched))
+            i = next((k for k in range(common)
+                      if got_sched[k] != exp_sched[k]), common)
+            lo = max(0, i - 3)
+            self.log.error(f"@ {get_sim_time('ns')}ns: [{label}] "
+                           f"{'interleaved' if interleave else 'sequential'} "
+                           f"schedule diverges at beat {i}: got "
+                           f"{got_sched[lo:i + 4]} expected {exp_sched[lo:i + 4]} "
+                           f"({len(got_sched)} vs {len(exp_sched)} beats)")
+            self.errors += 1
+
         self.log.info(f"@ {get_sim_time('ns')}ns: [{label}] {chk_total} beats "
-                      f"over {len(active)} channel(s), CRCs agreed")
+                      f"over {len(active)} channel(s), "
+                      f"{'interleaved' if interleave else 'sequential'}, "
+                      f"CRCs and schedule agreed")
 
     # ---- entry point -----------------------------------------------------
 
@@ -263,6 +302,21 @@ class Axis4PatternPairTB(TBBase):
         # Smallest interesting case: exactly one packet.
         await self.run_stream(beats=8, beats_per_pkt=8, label="single-packet")
 
+        # Interleaved schedule (rapids TASK-018): one beat per active channel
+        # per round. Same per-channel data, CRCs and packet boundaries as the
+        # sequential runs above; only the bus order differs, and the order is
+        # checked beat by beat. A sparse mask exercises the wrap over gaps.
+        sparse = 1 | (1 << (self.NUM_CH - 1))
+        await self.run_stream(beats=n, beats_per_pkt=8, interleave=True,
+                              label="interleave")
+        await self.run_stream(beats=n // 2, beats_per_pkt=8, mask=sparse,
+                              interleave=True, label="interleave-sparse")
+        await self.run_stream(beats=n, beats_per_pkt=8, interleave=True,
+                              backpressure=[(True, 40), (False, 20)],
+                              label="interleave-backpressure")
+        await self.run_stream(beats=8, beats_per_pkt=8, mask=0x1,
+                              interleave=True, label="interleave-one-channel")
+
         if self.TEST_LEVEL == 'full':
             rng = random.Random(self.SEED)
             for i in range(4):
@@ -271,6 +325,7 @@ class Axis4PatternPairTB(TBBase):
                     beats_per_pkt=rng.choice((4, 8, 16)),
                     mask=rng.randrange(1, 1 << self.NUM_CH),
                     seed=rng.randrange(1 << 32),
+                    interleave=bool(rng.getrandbits(1)),
                     label=f"random-{i}")
 
         assert self.errors == 0, \

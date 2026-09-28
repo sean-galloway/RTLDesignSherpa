@@ -18,7 +18,10 @@
 //   On cfg_start the block streams cfg_num_beats beats PER CHANNEL for every
 //   channel selected in cfg_channel_mask (mask == 0 => all NUM_CHANNELS active),
 //   scheduled sequentially (finish one channel, then the next) so each
-//   channel's LFSR sequence is contiguous. Each channel N maintains an
+//   channel's LFSR sequence is contiguous -- or, with cfg_interleave set,
+//   round-robin beat by beat across the active channels so every active
+//   channel holds data in the DUT at once (the aggregate-window case). Each
+//   channel N maintains an
 //   independent LFSR seeded (seed ^ N) -- IDENTICAL to axi4_slave_rd_pattern_gen
 //   -- and its own dataint_crc-32 instance. Each beat:
 //     - m_axis_tid   = channel index
@@ -27,7 +30,10 @@
 //     - tlast asserted every cfg_beats_per_pkt beats (0 => tlast on each
 //       channel's final beat only), and always on each channel's final beat.
 //   Because the LFSR advances only on accepted beats, beat N of channel C is a
-//   deterministic function of (seed ^ C, N), independent of tready stalls.
+//   deterministic function of (seed ^ C, N), independent of tready stalls and
+//   of the scheduling mode: the per-channel data, CRC and packet boundaries
+//   are identical in sequential and interleaved runs; only the order in which
+//   channels take the bus differs.
 //
 //   The per-channel expected CRC is exported continuously (o_expected_crc[ch],
 //   o_expected_crc_valid[ch]) mirroring axi4_slave_rd_pattern_gen's
@@ -46,7 +52,7 @@
 //   - AXIS_DATA_WIDTH must be a multiple of LFSR_WIDTH (tdata = REP x lfsr_out).
 //   - No address channel (pure stream): simpler than the AXI4 pattern gen.
 //
-// Documentation: projects/components/dmas/rapids/CONTROL_ENGINE_INTEGRATION.md (harness)
+// Documentation: vault/Tasks/projects/components/dmas/rapids/CONTROL_ENGINE_INTEGRATION.md (harness)
 // Subsystem: amba/shared
 
 `timescale 1ns / 1ps
@@ -90,6 +96,7 @@ module axis4_master_pattern_gen #(
     input  logic [NUM_CHANNELS-1:0]       cfg_channel_mask,   // active channels (0 => all)
     input  logic [BEAT_COUNT_WIDTH-1:0]   cfg_num_beats,      // beats to send PER CHANNEL
     input  logic [BEAT_COUNT_WIDTH-1:0]   cfg_beats_per_pkt,  // tlast cadence (0 => 1 pkt/channel)
+    input  logic                          cfg_interleave,     // 1: round-robin active channels per beat
     input  logic [AXIS_DEST_WIDTH-1:0]    cfg_tdest,
     output logic                          cfg_busy,
     output logic                          cfg_done,           // 1-cycle pulse at end of run
@@ -118,11 +125,14 @@ module axis4_master_pattern_gen #(
     state_t r_state;
 
     logic [CIW-1:0]              r_ch;               // channel currently streaming
-    logic [BEAT_COUNT_WIDTH-1:0] r_beats_remaining;  // beats left for current channel
-    logic [BEAT_COUNT_WIDTH-1:0] r_pkt_cnt;          // tlast cadence counter (per channel)
+    logic [BEAT_COUNT_WIDTH-1:0] r_beats_remaining;  // beats left for current channel (sequential)
+                                                     // or rounds left (interleaved)
+    logic [BEAT_COUNT_WIDTH-1:0] r_pkt_cnt;          // tlast cadence counter (per channel; in the
+                                                     // interleaved mode every channel shares it)
     logic [NUM_CHANNELS-1:0]     r_channel_mask;     // latched active-channel mask
     logic [BEAT_COUNT_WIDTH-1:0] r_num_beats;        // latched beats-per-channel
     logic [BEAT_COUNT_WIDTH-1:0] r_beats_per_pkt;    // latched tlast cadence
+    logic                        r_interleave;       // latched scheduling mode
 
     logic                        w_load;
     logic                        w_beat;
@@ -164,16 +174,21 @@ module axis4_master_pattern_gen #(
     logic [NUM_CHANNELS-1:0] w_eff_mask;
     assign w_eff_mask = (cfg_channel_mask == '0) ? {NUM_CHANNELS{1'b1}} : cfg_channel_mask;
 
-    logic [CIW:0] w_first_res, w_next_res;
+    logic [CIW:0] w_first_res, w_next_res, w_wrap_res;
     assign w_first_res = f_next_active_after(w_eff_mask, -1);
     assign w_next_res  = f_next_active_after(r_channel_mask, int'(r_ch));
+    assign w_wrap_res  = f_next_active_after(r_channel_mask, -1);   // round-robin wrap target
 
     logic           w_first_found, w_next_found;
-    logic [CIW-1:0] w_first_idx,   w_next_idx;
+    logic [CIW-1:0] w_first_idx,   w_next_idx, w_wrap_idx;
     assign w_first_found = w_first_res[CIW];
     assign w_first_idx   = w_first_res[CIW-1:0];
     assign w_next_found  = w_next_res[CIW];
     assign w_next_idx    = w_next_res[CIW-1:0];
+    assign w_wrap_idx    = w_wrap_res[CIW-1:0];
+
+    logic unused_wrap_found;
+    assign unused_wrap_found = w_wrap_res[CIW];   // the latched mask is never empty in RUN
 
     //==========================================================================
     // Per-channel LFSR pattern generators + CRC-32 calculators
@@ -284,6 +299,7 @@ module axis4_master_pattern_gen #(
             r_channel_mask    <= '0;
             r_num_beats       <= '0;
             r_beats_per_pkt   <= '0;
+            r_interleave      <= 1'b0;
             cfg_done          <= 1'b0;
         end else begin
             cfg_done <= 1'b0;   // default: single-cycle pulse
@@ -293,6 +309,7 @@ module axis4_master_pattern_gen #(
                         r_channel_mask  <= w_eff_mask;
                         r_num_beats     <= cfg_num_beats;
                         r_beats_per_pkt <= cfg_beats_per_pkt;
+                        r_interleave    <= cfg_interleave;
                         r_pkt_cnt       <= '0;
                         if ((cfg_num_beats == '0) || !w_first_found) begin
                             r_state <= DONE;
@@ -305,7 +322,22 @@ module axis4_master_pattern_gen #(
                 end
 
                 RUN: begin
-                    if (w_beat) begin
+                    if (w_beat && r_interleave) begin
+                        // Round-robin: every accepted beat hands the bus to the
+                        // next active channel. The round -- and the beat/packet
+                        // counters, which every channel shares because each gets
+                        // exactly one beat per round -- advances when the last
+                        // active channel has taken its beat.
+                        if (w_next_found) begin
+                            r_ch <= w_next_idx;
+                        end else if (w_ch_last_beat) begin
+                            r_state <= DONE;
+                        end else begin
+                            r_ch              <= w_wrap_idx;
+                            r_beats_remaining <= r_beats_remaining - 1'b1;
+                            r_pkt_cnt         <= w_pkt_last ? '0 : (r_pkt_cnt + 1'b1);
+                        end
+                    end else if (w_beat) begin
                         r_pkt_cnt <= w_pkt_last ? '0 : (r_pkt_cnt + 1'b1);
                         if (w_ch_last_beat) begin
                             // Finished this channel -> advance to the next active

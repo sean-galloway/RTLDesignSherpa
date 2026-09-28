@@ -173,6 +173,7 @@ class RapidsCharCampaign:
 
     xfer_axlen = 8   # AXI_XFER_CONFIG.{RD,WR}_XFER_BEATS as programmed (AxLEN)
     resp_delay = 0   # RESP_DELAY: rd (R) and wr (B) hold, aclk cycles (STREAM knob 5)
+    interleave = False   # GEN_MODE.INTERLEAVE: round-robin the active channels per beat
 
     def set_resp_delay(self, rd_cyc: int, wr_cyc: int = None) -> None:
         """Program the harness's axi_response_delay blocks BY NAME: rd_cyc on
@@ -181,6 +182,14 @@ class RapidsCharCampaign:
         self.resp_delay = int(rd_cyc)
         self.io.csr_write_reg("RESP_DELAY", RD_DELAY=int(rd_cyc) & 0xFFFF,
                               WR_DELAY=int(wr_cyc) & 0xFFFF)
+
+    def set_interleave(self, on: bool) -> None:
+        """Select the AXIS generator's channel schedule for the sink runs BY
+        NAME: sequential (one channel's whole run, then the next -- only one
+        sink channel ever holds data) or interleaved (round-robin per beat, so
+        every active channel holds data at once; rapids TASK-018)."""
+        self.interleave = bool(on)
+        self.io.csr_write_reg("GEN_MODE", INTERLEAVE=int(self.interleave))
 
     def set_xfer_axlen(self, axlen: int) -> None:
         """Re-program the per-transaction burst length (AxLEN, 0..255) on BOTH
@@ -310,6 +319,7 @@ class RapidsCharCampaign:
         self.io.csr_write_reg("GEN_BPP", VALUE=0)        # 0 => one packet per channel
         self.io.csr_write_reg("GEN_CHMASK", VALUE=mask)
         self.io.csr_write_reg("GEN_TDEST", VALUE=0)
+        self.io.csr_write_reg("GEN_MODE", INTERLEAVE=int(self.interleave))
 
         # 4. Stage the descriptor kicks (SNK half, gen-start-on-GO) + the
         #    deterministic window-close target: the meter freezes the cycle after
@@ -678,6 +688,7 @@ class RapidsCharCampaign:
                             'xfer_axlen': xfer,
                             'xfer_beats': xfer + 1,         # burst length in beats
                             'resp_delay': delay,            # R/B hold, aclk cycles
+                            'gen_interleave': self.interleave,  # sink channel schedule
                             'source_backpressure': bp,
                             'base_seed': seed,
                             'base_seed_label': seed_lbl,
@@ -833,7 +844,7 @@ def _write_results(rows, path: str) -> None:
     print(f"Results written to {path}")
 
 
-def _single_row(name, active, beats, bp, seed, sink, source):
+def _single_row(name, active, beats, bp, seed, sink, source, interleave=False):
     """One result row for a non-suite run, in the SAME schema run_suite emits.
 
     Deliberately identical to the suite row: a smoke/single run is one config,
@@ -853,6 +864,7 @@ def _single_row(name, active, beats, bp, seed, sink, source):
         'xfer_axlen': RapidsCharCampaign.xfer_axlen,
         'xfer_beats': RapidsCharCampaign.xfer_axlen + 1,
         'resp_delay': RapidsCharCampaign.resp_delay,
+        'gen_interleave': bool(interleave),
         'source_backpressure': bp,
         'base_seed': seed,
         'base_seed_label': ('default' if seed == LFSR_SEED_DEFAULT
@@ -940,6 +952,10 @@ Examples:
     p.add_argument('--timeout', type=float, default=30.0,
                    help='per-pass completion timeout (seconds)')
     p.add_argument('--sink-only', action='store_true')
+    p.add_argument('--interleave', action='store_true',
+                   help='sink runs: the AXIS generator round-robins the active channels '
+                        'beat by beat (GEN_MODE.INTERLEAVE), so every active channel holds '
+                        'data at once. Default: one channel\'s whole run, then the next.')
     p.add_argument('--source-only', action='store_true')
     p.add_argument('--backpressure', action='store_true',
                    help='single run: inject source-egress backpressure')
@@ -997,6 +1013,7 @@ def main() -> int:
 
         campaign = RapidsCharCampaign(io, args.channels, verbose=args.verbose)
         campaign.configure()
+        campaign.set_interleave(bool(args.interleave))
 
         # ---- SMOKE mode --------------------------------------------------
         if args.smoke:
@@ -1070,9 +1087,11 @@ def main() -> int:
         print(f"OVERALL: {'PASS' if all_pass else 'FAIL'}")
         _write_results([_single_row(
             f"run_ch{n_active}_b{args.beats}_"
-            f"bp{'on' if args.backpressure else 'off'}",
+            f"bp{'on' if args.backpressure else 'off'}"
+            f"{'_il' if args.interleave else ''}",
             active_channels, args.beats, bool(args.backpressure),
-            args.base_seed, sink_res, source_res)],
+            args.base_seed, sink_res, source_res,
+            interleave=campaign.interleave)],
             _results_path(args, 'run'))
         return 0 if all_pass else 1
 

@@ -59,6 +59,11 @@ the board whose region-2 `CTRL`/`ID` reads `0x52415031` ("RAP1").
 ./run_characterization.py --sink-only   --channels 4
 ./run_characterization.py --source-only --channels 4
 
+# Sink with the generator round-robining the active channels beat by beat
+# (GEN_MODE.INTERLEAVE): every sink channel holds data at once, so the
+# measured write window is the DUT's, not one channel's (rapids TASK-018)
+./run_characterization.py --sink-only --interleave --channels 8 --active 8
+
 # Smoke (both paths, quick) and full suite (matrix → JSON)
 ./run_characterization.py --smoke  --channels 4
 ./run_characterization.py --suite  --suite-channels 1,2,4 --suite-beats 1,4,8,16 \

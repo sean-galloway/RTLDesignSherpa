@@ -181,6 +181,7 @@ module rapids_char_harness #(
     localparam logic [11:0] CSR_GEN_BPP     = 12'h01C;
     localparam logic [11:0] CSR_GEN_CHMASK  = 12'h020;
     localparam logic [11:0] CSR_GEN_TDEST   = 12'h024;
+    localparam logic [11:0] CSR_GEN_MODE    = 12'h028;  // [0]=INTERLEAVE (round-robin channels per beat)
     localparam logic [11:0] CSR_CHK_CTRL    = 12'h030;
     localparam logic [11:0] CSR_CHK_SEED    = 12'h034;
     localparam logic [11:0] CSR_MEM_CTRL    = 12'h040;
@@ -266,6 +267,7 @@ module rapids_char_harness #(
     logic [31:0]                r_cfg_gen_beats_per_pkt;
     logic [NUM_CHANNELS-1:0]    r_cfg_gen_channel_mask;
     logic [AXIS_DEST_WIDTH-1:0] r_cfg_gen_tdest;
+    logic                       r_cfg_gen_interleave;  // rapids TASK-018: aggregate-window stimulus
     logic                       r_chk_cfg_start;       // 1-cycle pulse
     logic [31:0]                r_chk_cfg_lfsr_seed;
     logic                       r_chk_ready_en;        // level
@@ -499,6 +501,7 @@ module rapids_char_harness #(
             r_cfg_gen_beats_per_pkt <= '0;
             r_cfg_gen_channel_mask  <= '0;
             r_cfg_gen_tdest         <= '0;
+            r_cfg_gen_interleave    <= 1'b0;
             r_chk_cfg_start         <= 1'b0;
             r_chk_cfg_lfsr_seed     <= '0;
             r_chk_ready_en          <= 1'b0;
@@ -548,6 +551,7 @@ module rapids_char_harness #(
                     CSR_GEN_BPP:     r_cfg_gen_beats_per_pkt <= r_wdata;
                     CSR_GEN_CHMASK:  r_cfg_gen_channel_mask  <= r_wdata[NUM_CHANNELS-1:0];
                     CSR_GEN_TDEST:   r_cfg_gen_tdest         <= r_wdata[AXIS_DEST_WIDTH-1:0];
+                    CSR_GEN_MODE:    r_cfg_gen_interleave    <= r_wdata[0];
                     CSR_CHK_CTRL: begin
                         r_chk_cfg_start <= r_wdata[0];
                         r_chk_ready_en  <= r_wdata[1];
@@ -617,6 +621,7 @@ module rapids_char_harness #(
                                         wr_mem_busy, rd_mem_busy, o_data_error,
                                         gen_done, gen_busy,
                                         snk_system_idle, src_system_idle, mon_irq};
+                    CSR_GEN_MODE:    w_readmux = 32'(r_cfg_gen_interleave);
                     CSR_GEN_BEATS_T: w_readmux = o_gen_beat_count_total;
                     CSR_CHK_BEATS_T: w_readmux = o_chk_beat_count_total;
                     CSR_PKT_CNT:     w_readmux = o_pkt_count;
@@ -876,6 +881,7 @@ module rapids_char_harness #(
     logic [31:0] cfg_gen_num_beats;
     logic [31:0] cfg_gen_beats_per_pkt;
     logic [NUM_CHANNELS-1:0] cfg_gen_channel_mask;
+    logic cfg_gen_interleave;
     logic [AXIS_DEST_WIDTH-1:0] cfg_gen_tdest;
     logic chk_cfg_start;
     logic [31:0] chk_cfg_lfsr_seed;
@@ -914,6 +920,7 @@ module rapids_char_harness #(
     assign cfg_gen_beats_per_pkt = r_cfg_gen_beats_per_pkt;
     assign cfg_gen_channel_mask = r_cfg_gen_channel_mask;
     assign cfg_gen_tdest = r_cfg_gen_tdest;
+    assign cfg_gen_interleave = r_cfg_gen_interleave;
     assign chk_cfg_start = r_chk_cfg_start;
     assign chk_cfg_lfsr_seed = r_chk_cfg_lfsr_seed;
     assign chk_ready_en = r_chk_ready_en;
@@ -1468,6 +1475,7 @@ module rapids_char_harness #(
         .cfg_channel_mask     (cfg_gen_channel_mask),
         .cfg_num_beats        (cfg_gen_num_beats),
         .cfg_beats_per_pkt    (cfg_gen_beats_per_pkt),
+        .cfg_interleave       (cfg_gen_interleave),
         .cfg_tdest            (cfg_gen_tdest),
         .cfg_busy             (gen_busy),
         .cfg_done             (gen_done),

@@ -213,6 +213,9 @@ class RapidsCharHarnessTB(TBBase):
             self.campaign.reset_channels()
             if rd_delay or wr_delay:
                 self.campaign.set_resp_delay(rd_delay, wr_delay)
+            # TEST_GEN_INTERLEAVE=1: round-robin channel schedule (TASK-018)
+            if int(os.environ.get('TEST_GEN_INTERLEAVE', '0')):
+                self.campaign.set_interleave(True)
             return self.campaign.run_sink_selfcheck(active, beats,
                                                     SIM_POLL_TIMEOUT_S)
         ok, detail = await cocotb.external(prog)()

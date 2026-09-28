@@ -55,6 +55,7 @@ The identity register: region-2 `CTRL`/`ID` @ 0x000 reads **`0x5241_5031`**
 | `GEN_BPP` | 0x1C | `value` | [31:0] | RW | Beats per packet |
 | `GEN_CHMASK` | 0x20 | `value` | [N-1:0] | RW | Active-channel mask |
 | `GEN_TDEST` | 0x24 | `value` | — | RW | AXIS TDEST |
+| `GEN_MODE` | 0x28 | `interleave` | [0] | RW | 1: round-robin the active channels beat by beat (every sink channel holds data at once); 0: one channel's whole run, then the next |
 | `CHK_CTRL` | 0x30 | `chk_start` | [0] | RW | Pulse: start the checker |
 | `CHK_CTRL` | 0x30 | `chk_ready_en` | [1] | RW | Level: checker backpressure enable |
 | `CHK_SEED` | 0x34 | `value` | [31:0] | RW | Checker seed |

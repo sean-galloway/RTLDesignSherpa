@@ -31,6 +31,7 @@ module tb_axis4_pattern_pair #(
     input  logic [NUM_CHANNELS-1:0]       cfg_channel_mask,   // active channels (0 => all)
     input  logic [BEAT_COUNT_WIDTH-1:0]   cfg_num_beats,      // beats PER CHANNEL
     input  logic [BEAT_COUNT_WIDTH-1:0]   cfg_beats_per_pkt,
+    input  logic                          cfg_interleave,     // 1: round-robin channels per beat
     input  logic [AXIS_DEST_WIDTH-1:0]    cfg_tdest,
     input  logic                          chk_backpressure,   // gate checker tready
 
@@ -46,7 +47,11 @@ module tb_axis4_pattern_pair #(
     output logic [NUM_CHANNELS-1:0][31:0] chk_beat_count,
     output logic [31:0]                   chk_beat_count_total,
     output logic                          o_data_error,
-    output logic [BEAT_COUNT_WIDTH-1:0]   o_pkt_count
+    output logic [BEAT_COUNT_WIDTH-1:0]   o_pkt_count,
+
+    // Stream order probe: the TB reconstructs the channel schedule from it
+    output logic                          o_axis_hs,          // accepted beat this cycle
+    output logic [AXIS_ID_WIDTH-1:0]      o_axis_tid
 );
 
     localparam int STRB_WIDTH = AXIS_DATA_WIDTH / 8;
@@ -65,6 +70,8 @@ module tb_axis4_pattern_pair #(
     // ready_en, and the generator sees that same tready -> lockstep, no desync.
     logic                          w_ready_en;
     assign w_ready_en = !chk_backpressure;
+    assign o_axis_hs  = axis_tvalid && axis_tready;
+    assign o_axis_tid = axis_tid;
 
     axis4_master_pattern_gen #(
         .NUM_CHANNELS    (NUM_CHANNELS),
@@ -82,6 +89,7 @@ module tb_axis4_pattern_pair #(
         .cfg_channel_mask    (cfg_channel_mask),
         .cfg_num_beats       (cfg_num_beats),
         .cfg_beats_per_pkt   (cfg_beats_per_pkt),
+        .cfg_interleave      (cfg_interleave),
         .cfg_tdest           (cfg_tdest),
         .cfg_busy            (gen_busy),
         .cfg_done            (gen_done),
