@@ -1324,32 +1324,75 @@ module axi_monitor_reporter (
 	assign err_valid_f = err_valid && !filtered_mask[err_idx];
 	assign to_valid_f = to_valid && !filtered_mask[to_idx];
 	assign compl_valid_f = compl_valid && !filtered_mask[compl_idx];
+	localparam [1:0] CLS_ERR = 2'd0;
+	localparam [1:0] CLS_TO = 2'd1;
+	localparam [1:0] CLS_COMPL = 2'd2;
+	wire [2:0] w_cls_valid;
+	reg [1:0] r_grant_ptr;
+	reg [1:0] w_grant_sel;
+	reg w_grant_valid;
+	assign w_cls_valid = {compl_valid_f, to_valid_f, err_valid_f};
+	function automatic [1:0] rot3;
+		input reg [1:0] base;
+		input reg [1:0] off;
+		reg [2:0] sum;
+		begin
+			sum = {1'b0, base} + {1'b0, off};
+			if (sum >= 3'd3)
+				sum = sum - 3'd3;
+			rot3 = sum[1:0];
+		end
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_grant_sel = CLS_ERR;
+		w_grant_valid = 1'b0;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] k;
+			for (k = 0; k < 3; k = k + 1)
+				begin : sv2v_autoblock_2
+					reg [1:0] cls;
+					cls = rot3(r_grant_ptr, k[1:0]);
+					if (!w_grant_valid && w_cls_valid[cls]) begin
+						w_grant_sel = cls;
+						w_grant_valid = 1'b1;
+					end
+				end
+		end
+	end
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		w_fifo_wr_valid = 1'b0;
 		w_fifo_wr_data = 85'b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000;
-		if (err_valid_f) begin
-			w_fifo_wr_valid = 1'b1;
-			w_fifo_wr_data[84-:4] = err_type;
-			w_fifo_wr_data[80-:8] = err_code;
-			w_fifo_wr_data[72-:9] = err_chan;
-			w_fifo_wr_data[63-:64] = err_data;
-		end
-		else if (to_valid_f) begin
-			w_fifo_wr_valid = 1'b1;
-			w_fifo_wr_data[84-:4] = to_type;
-			w_fifo_wr_data[80-:8] = to_code;
-			w_fifo_wr_data[72-:9] = to_chan;
-			w_fifo_wr_data[63-:64] = to_data;
-		end
-		else if (compl_valid_f) begin
-			w_fifo_wr_valid = 1'b1;
-			w_fifo_wr_data[84-:4] = compl_type;
-			w_fifo_wr_data[80-:8] = compl_code;
-			w_fifo_wr_data[72-:9] = compl_chan;
-			w_fifo_wr_data[63-:64] = compl_data;
-		end
+		if (w_grant_valid)
+			(* full_case, parallel_case *)
+			case (w_grant_sel)
+				CLS_ERR: begin
+					w_fifo_wr_valid = 1'b1;
+					w_fifo_wr_data[84-:4] = err_type;
+					w_fifo_wr_data[80-:8] = err_code;
+					w_fifo_wr_data[72-:9] = err_chan;
+					w_fifo_wr_data[63-:64] = err_data;
+				end
+				CLS_TO: begin
+					w_fifo_wr_valid = 1'b1;
+					w_fifo_wr_data[84-:4] = to_type;
+					w_fifo_wr_data[80-:8] = to_code;
+					w_fifo_wr_data[72-:9] = to_chan;
+					w_fifo_wr_data[63-:64] = to_data;
+				end
+				CLS_COMPL: begin
+					w_fifo_wr_valid = 1'b1;
+					w_fifo_wr_data[84-:4] = compl_type;
+					w_fifo_wr_data[80-:8] = compl_code;
+					w_fifo_wr_data[72-:9] = compl_chan;
+					w_fifo_wr_data[63-:64] = compl_data;
+				end
+				default:
+					;
+			endcase
 	end
 	assign w_fifo_rd_ready = !monbus_valid;
 	reg [MAX_TRANSACTIONS - 1:0] w_events_to_mark;
@@ -1360,6 +1403,11 @@ module axi_monitor_reporter (
 	reg w_mark_is_error;
 	reg w_mark_is_compl;
 	assign w_fifo_wr_accept = w_fifo_wr_valid && w_fifo_wr_ready;
+	always @(posedge aclk or negedge aresetn)
+		if (!aresetn)
+			r_grant_ptr <= CLS_ERR;
+		else if (w_fifo_wr_accept)
+			r_grant_ptr <= rot3(w_grant_sel, 2'd1);
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -1369,18 +1417,24 @@ module axi_monitor_reporter (
 		w_mark_idx = 1'sb0;
 		w_mark_is_error = 1'b0;
 		w_mark_is_compl = 1'b0;
-		if (err_valid_f) begin
-			w_mark_idx = err_idx;
-			w_mark_is_error = 1'b1;
-		end
-		else if (to_valid_f) begin
-			w_mark_idx = to_idx;
-			w_mark_is_error = 1'b1;
-		end
-		else if (compl_valid_f) begin
-			w_mark_idx = compl_idx;
-			w_mark_is_compl = 1'b1;
-		end
+		if (w_grant_valid)
+			(* full_case, parallel_case *)
+			case (w_grant_sel)
+				CLS_ERR: begin
+					w_mark_idx = err_idx;
+					w_mark_is_error = 1'b1;
+				end
+				CLS_TO: begin
+					w_mark_idx = to_idx;
+					w_mark_is_error = 1'b1;
+				end
+				CLS_COMPL: begin
+					w_mark_idx = compl_idx;
+					w_mark_is_compl = 1'b1;
+				end
+				default:
+					;
+			endcase
 		if (w_fifo_wr_accept) begin
 			w_events_to_mark[w_mark_idx] = 1'b1;
 			w_error_events[w_mark_idx] = w_mark_is_error;
@@ -1392,7 +1446,7 @@ module axi_monitor_reporter (
 		if (_sv2v_0)
 			;
 		w_auto_retire = 1'sb0;
-		begin : sv2v_autoblock_1
+		begin : sv2v_autoblock_3
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 				if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && filtered_mask[idx])
@@ -1533,7 +1587,7 @@ module axi_monitor_reporter (
 	endfunction
 	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
-			begin : sv2v_autoblock_2
+			begin : sv2v_autoblock_4
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					r_trans_table_local[((MAX_TRANSACTIONS - 1) - idx) * 285+:285] <= 1'sb0;
@@ -1547,14 +1601,14 @@ module axi_monitor_reporter (
 			r_event_channel <= 1'sb0;
 		end
 		else begin
-			begin : sv2v_autoblock_3
+			begin : sv2v_autoblock_5
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					r_trans_table_local[((MAX_TRANSACTIONS - 1) - idx) * 285+:285] <= trans_table[((MAX_TRANSACTIONS - 1) - idx) * 285+:285];
 			end
 			if (monbus_valid && monbus_ready)
 				monbus_valid <= 1'b0;
-			begin : sv2v_autoblock_4
+			begin : sv2v_autoblock_6
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					if (!r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])
@@ -2426,6 +2480,20 @@ module axi_monitor_trans_mgr (
 		end
 	end
 	reg [N - 1:0] w_freeing_oh;
+	localparam signed [31:0] EARLY_BURSTS = 4;
+	localparam signed [31:0] EQW = 3;
+	reg [31:0] r_eq;
+	reg [2:0] r_eq_count;
+	reg [7:0] r_open_beats;
+	reg r_open_any;
+	wire w_early_pending;
+	wire w_early_w;
+	wire w_early_take;
+	wire w_take_q;
+	wire w_take_open;
+	wire w_beat_to_open;
+	wire [7:0] w_absorb_beats;
+	wire w_absorb_done;
 	localparam signed [31:0] SLOTW = (N > 1 ? $clog2(N) : 1);
 	localparam signed [31:0] WQW = (N > 1 ? $clog2(N + 1) : 1);
 	reg [IW - 1:0] r_widq [0:N - 1];
@@ -2546,10 +2614,10 @@ module axi_monitor_trans_mgr (
 		if (_sv2v_0)
 			;
 		w_data_cmd_bypass_oh = 1'sb0;
-		if (((!IS_READ && data_valid) && data_ready) && !(|w_data_state_pred_oh)) begin : sv2v_autoblock_22
+		if ((((!IS_READ && data_valid) && data_ready) && !(|w_data_state_pred_oh)) && !w_early_pending) begin : sv2v_autoblock_22
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
-				w_data_cmd_bypass_oh[i] = w_addr_alloc_mirror_oh[i] || ((cmd_valid && addr_update_oh[i]) && (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h1));
+				w_data_cmd_bypass_oh[i] = w_addr_alloc_mirror_oh[i] || (((cmd_valid && addr_update_oh[i]) && (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h1)) && !cam_entry_payload[(((N - 1) - i) * 285) + 281]);
 		end
 	end
 	wire addr_hit_any;
@@ -2642,6 +2710,67 @@ module axi_monitor_trans_mgr (
 	assign addr_update_oh = pick_oldest(w_addr_pend_oh, w_age_flat);
 	assign data_update_oh = (IS_READ ? (|w_data_cand_open ? pick_oldest(w_data_cand_open, w_age_flat) : (data_last ? pick_oldest(w_data_cand_any, w_age_flat) : {N {1'sb0}})) : w_data_state_first_oh | w_data_cmd_bypass_oh);
 	assign resp_update_oh = (|w_resp_cand_open ? pick_oldest(w_resp_cand_open, w_age_flat) : pick_oldest(w_resp_cand_any, w_age_flat));
+	assign w_early_pending = (r_eq_count != {3 {1'sb0}}) || r_open_any;
+	assign w_early_w = (((!IS_READ && IS_AXI) && data_valid) && data_ready) && !(|data_update_oh);
+	assign w_early_take = ((!IS_READ && IS_AXI) && |addr_alloc_oh) && w_early_pending;
+	assign w_take_q = w_early_take && (r_eq_count != {3 {1'sb0}});
+	assign w_take_open = w_early_take && (r_eq_count == {3 {1'sb0}});
+	function automatic [7:0] sv2v_cast_8;
+		input reg [7:0] inp;
+		sv2v_cast_8 = inp;
+	endfunction
+	assign w_absorb_beats = (w_take_q ? r_eq[0+:8] : r_open_beats + sv2v_cast_8(w_early_w));
+	assign w_absorb_done = (w_take_q ? 1'b1 : w_early_w && data_last);
+	assign w_beat_to_open = w_early_w && !w_take_open;
+	function automatic signed [2:0] sv2v_cast_90E85_signed;
+		input reg signed [2:0] inp;
+		sv2v_cast_90E85_signed = inp;
+	endfunction
+	always @(posedge aclk or negedge aresetn)
+		if (!aresetn) begin
+			r_eq <= 1'sb0;
+			r_eq_count <= 1'sb0;
+			r_open_beats <= 1'sb0;
+			r_open_any <= 1'b0;
+		end
+		else if (clear) begin
+			r_eq <= 1'sb0;
+			r_eq_count <= 1'sb0;
+			r_open_beats <= 1'sb0;
+			r_open_any <= 1'b0;
+		end
+		else if (!IS_READ && IS_AXI) begin : sv2v_autoblock_27
+			reg [2:0] v_cnt;
+			v_cnt = r_eq_count;
+			if (w_take_q) begin
+				begin : sv2v_autoblock_28
+					reg signed [31:0] i;
+					for (i = 0; i < 3; i = i + 1)
+						r_eq[i * 8+:8] <= r_eq[(i + 1) * 8+:8];
+				end
+				r_eq[24+:8] <= 1'sb0;
+				v_cnt = v_cnt - 1'b1;
+			end
+			if (w_take_open) begin
+				r_open_any <= 1'b0;
+				r_open_beats <= 1'sb0;
+			end
+			else if (w_beat_to_open) begin
+				if (data_last) begin
+					if (v_cnt < sv2v_cast_90E85_signed(EARLY_BURSTS)) begin
+						r_eq[v_cnt[1:0] * 8+:8] <= r_open_beats + 8'd1;
+						v_cnt = v_cnt + 1'b1;
+					end
+					r_open_any <= 1'b0;
+					r_open_beats <= 1'sb0;
+				end
+				else begin
+					r_open_any <= 1'b1;
+					r_open_beats <= r_open_beats + 8'd1;
+				end
+			end
+			r_eq_count <= v_cnt;
+		end
 	reg [5:0] w_addr_chan_idx;
 	always @(*) begin
 		if (_sv2v_0)
@@ -2656,7 +2785,7 @@ module axi_monitor_trans_mgr (
 			r_rpt_stale_mask <= 1'sb0;
 		else if (clear)
 			r_rpt_stale_mask <= 1'sb0;
-		else begin : sv2v_autoblock_27
+		else begin : sv2v_autoblock_29
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				if (w_freeing_oh[i])
@@ -2677,19 +2806,19 @@ module axi_monitor_trans_mgr (
 		input reg [AGEW - 1:0] inp;
 		sv2v_cast_D1065 = inp;
 	endfunction
-	always @(*) begin : sv2v_autoblock_28
+	always @(*) begin : sv2v_autoblock_30
 		reg signed [31:0] surv_bank [0:NUM_BANKS - 1];
 		reg signed [31:0] ab;
 		reg signed [31:0] db;
 		reg signed [31:0] rb;
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_29
+		begin : sv2v_autoblock_31
 			reg signed [31:0] b;
 			for (b = 0; b < NUM_BANKS; b = b + 1)
 				surv_bank[b] = 0;
 		end
-		begin : sv2v_autoblock_30
+		begin : sv2v_autoblock_32
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				if (cam_entry_valid[i] && !w_freeing_oh[i])
@@ -2710,10 +2839,10 @@ module axi_monitor_trans_mgr (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_31
+		begin : sv2v_autoblock_33
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
-				begin : sv2v_autoblock_32
+				begin : sv2v_autoblock_34
 					reg signed [31:0] dec;
 					dec = 0;
 					w_age_next[i] = r_age[i];
@@ -2724,7 +2853,7 @@ module axi_monitor_trans_mgr (
 					else if (resp_alloc_oh[i])
 						w_age_next[i] = w_age_resp_new;
 					else if (cam_entry_valid[i] && !w_freeing_oh[i]) begin
-						begin : sv2v_autoblock_33
+						begin : sv2v_autoblock_35
 							reg signed [31:0] j;
 							for (j = 0; j < N; j = j + 1)
 								if ((((i / BANK_SLOTS) == (j / BANK_SLOTS)) && w_freeing_oh[j]) && (r_age[j] < r_age[i]))
@@ -2796,6 +2925,13 @@ module axi_monitor_trans_mgr (
 					next[15-:8] = 1'sb0;
 					next[221-:6] = w_addr_chan_idx;
 					next[278] = 1'b0;
+					if (w_early_take) begin
+						next[282] = 1'b1;
+						next[15-:8] = w_absorb_beats;
+						next[87-:32] = timestamp;
+						if (w_absorb_done || (w_absorb_beats >= next[23-:8]))
+							next[281] = 1'b1;
+					end
 					next_we = 1'b1;
 					next_id = cmd_id;
 				end
@@ -2926,7 +3062,7 @@ module axi_monitor_trans_mgr (
 		if (_sv2v_0)
 			;
 		w_occupancy = 1'sb0;
-		begin : sv2v_autoblock_34
+		begin : sv2v_autoblock_36
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				w_occupancy = w_occupancy + {{$clog2(N + 1) - 1 {1'b0}}, cam_entry_valid[i]};
@@ -2944,7 +3080,7 @@ module axi_monitor_trans_mgr (
 	initial f_past_ok = 1'b0;
 	always @(posedge aclk) f_past_ok <= aresetn;
 	always @(posedge aclk)
-		if ((IS_READ && aresetn) && f_past_ok) begin : sv2v_autoblock_35
+		if ((IS_READ && aresetn) && f_past_ok) begin : sv2v_autoblock_37
 			reg signed [31:0] fi;
 			for (fi = 0; fi < N; fi = fi + 1)
 				if (cam_entry_valid[fi]) begin : ap_no_reopened_complete
@@ -2952,7 +3088,7 @@ module axi_monitor_trans_mgr (
 				end
 		end
 	always @(posedge aclk)
-		if ((!IS_READ && aresetn) && f_past_ok) begin : sv2v_autoblock_36
+		if ((!IS_READ && aresetn) && f_past_ok) begin : sv2v_autoblock_38
 			reg signed [31:0] fi;
 			for (fi = 0; fi < N; fi = fi + 1)
 				if (cam_entry_valid[fi]) begin : ap_wr_data_phase_has_cmd
@@ -3182,7 +3318,7 @@ module axi_monitor_base (
 	wire w_data_valid_f;
 	wire w_resp_valid_f;
 	assign w_cmd_valid_f = cmd_valid && id_owned(cmd_id);
-	assign w_data_valid_f = data_valid && id_owned(data_id);
+	assign w_data_valid_f = (IS_READ ? data_valid && id_owned(data_id) : data_valid);
 	assign w_resp_valid_f = resp_valid && id_owned(resp_id);
 	axi_monitor_trans_mgr #(
 		.MAX_TRANSACTIONS(MAX_TRANSACTIONS),
