@@ -2,7 +2,7 @@
 
 # bridge — tasks
 
-**Next ID: TASK-002** — never recycle a number, even when its item closed.
+**Next ID: TASK-012** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,8 +14,8 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
-| [dropped/](dropped/) | 1 | ended without completing |
+| [closed/](closed/) | 7 | done (kept for history) |
+| [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
@@ -24,4 +24,17 @@ by construction rather than by discipline.
 
 ## Dropped
 
+- **TASK-009** — WB4 in the bridge is best effort -- the two known gaps stay open by decision
+- **TASK-010** — Legacy TASK-012 — AXI burst optimization
+- **TASK-011** — Legacy TASK-014 — APB3 to APB4 bridge
 - **TASK-001** — trim method from `bridge/CLAUDE.md`; dropped, the file was already compliant and every row of its removal table was falsified by reading the text.
+
+## Closed
+
+- **TASK-002** — AMBA5 bridge support (AXI5 ports alongside AXI4)
+- **TASK-003** — scrub the tests for completeness (bridge)
+- **TASK-004** — AXI5-Lite and APB5 as MASTER protocols
+- **TASK-005** — Master-unique transaction IDs: prepend the master index
+- **TASK-006** — Legacy backlog carried over from projects/components/bridge/TASKS.md
+- **TASK-007** — A native-AXI5 fabric
+- **TASK-008** — Wishbone B4 as a bridge protocol, both sides

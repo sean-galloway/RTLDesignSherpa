@@ -9,15 +9,14 @@ its own ID sequence. **Every item is its own file**, `<ID>.md`, filed under
 the directory for its state (`open/`, `active/`, `closed/`, `dropped/`).
 Pick the lane before filing:
 
-| Lane | For | Next ID |
-|---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | `TASK-001` |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | `BUG-001` |
-| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | `ISSUE-001` |
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 2 | 0 | 11 | 2 | 1 |
+| [bug/](bug/INDEX.md) | 2 | 0 | 12 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 1 | 0 | 0 | 0 | 0 |
 
-**The pages at this level are the LEGACY task lane.** They are frozen: close
-them out where they stand, and do not add to them. New work of any kind goes in
-a lane above. See [the convention](../INDEX.md) for the full definitions.
+Items live one per file under the lane directories below; this page is the
+area overview. See [the convention](../INDEX.md) for the definitions.
 
 
 Canonical tracker for `rtl/common/` (~57 reusable building blocks).
@@ -25,11 +24,11 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 
 | Page | Count | What |
 |---|---|---|
-| [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 2 | accepted, ready to start |
-| [deferred.md](deferred.md) | 1 | parked pending a named condition |
-| [closed.md](closed.md) | 23 | done (kept for history) |
-| [dropped.md](dropped.md) | 2 | ended without completing |
+| active.md | 0 | in progress right now |
+| open.md | 2 | accepted, ready to start |
+| deferred.md | 1 | parked pending a named condition |
+| closed.md | 23 | done (kept for history) |
+| dropped.md | 2 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%
 module test coverage, no blocking issues. Activity is maintenance, coverage and
@@ -40,11 +39,11 @@ integration support.
 - **COMMON-003** — CLOSED 2026-08-09: rescoped twice (Sean) and delivered as
   `docs/markdown/rtl-integ-common/technique-index.md` — techniques mapped to
   their real, tested worked examples in projects/ instead of toy designs
-  that would duplicate them. No new RTL by design; see closed.md.
+  that would duplicate them. No new RTL by design; see the closed/ dirs
 - **COMMON-020** — CLOSED 2026-08-09: fifo_sync wavedrom now emits 4 diagrams
   per config and asserts non-empty. Three stacked defects (no constraints,
   wrong clock-group name, prefixed bindings) + the auto-draining FIFOSlave;
-  see closed.md.
+  see the closed/ dirs
 - **COMMON-024** — CLOSED 2026-08-08: line-coverage gaps closed off the
   93.3% baseline. Roughly 45% of the apparent gap was a Verilator artifact
   (coverage points on declarations, which are not executable); the biggest
@@ -81,7 +80,7 @@ integration support.
 - **COMMON-006** (parameterized adders/multipliers) and **COMMON-009**
   (BCH/Reed-Solomon) DROPPED 2026-08-09 — generation stays the approach for
   the former; R/S, if it happens, is a future `projects/components/reed-solomon/`
-  component, not library work (see dropped.md; tracked as RS-001).
+  component, not library work (see the dropped/ dirs tracked as RS-001).
 
 Practice and rationale live in the [handbook](../../handbook/INDEX.md);
 this directory tracks *work* only. `/GLOBAL_REQUIREMENTS.md` wins on conflict.

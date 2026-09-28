@@ -2,7 +2,7 @@
 
 # common — bugs
 
-**Next ID: BUG-001** — never recycle a number, even when its item closed.
+**Next ID: BUG-014** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,12 +12,28 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 12 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
+- **BUG-013** — non-FIFO reset bodies hardcoded active-low
 - **BUG-000** — reserved template; copy the file, do not file against it.
+
+## Closed
+
+- **BUG-001** — ISSUE-001: counter.sv tick not gated during reset
+- **BUG-002** — arbiter_round_robin_simple starved agents (Kimi round_2)
+- **BUG-003** — RTL fixes surfaced by Kimi round_2 common review
+- **BUG-004** — fifo_control default parameters contradict its own constraint
+- **BUG-005** — shifter_beat_pack: runtime cfg wider than COUNT_BITS corrupts occupancy
+- **BUG-006** — arbiter ACK mode: 105 unexpected ACKs, and the compliance model was muted
+- **BUG-007** — the arbiter compliance model does not model block_arb
+- **BUG-008** — simple arbiter "violations" are a monitor sampling bug
+- **BUG-009** — ACK-mode arbiter compliance: the model loses a grant
+- **BUG-010** — the fifo_sync wavedrom generator produces no wave JSON
+- **BUG-011** — pwm formal prove FAILs: shadow model disagreed with the DUT
+- **BUG-012** — FIFO-family reset bodies hardcoded active-low - FIXED
