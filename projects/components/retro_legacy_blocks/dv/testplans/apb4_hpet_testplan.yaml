@@ -15,7 +15,7 @@ parameters:
     default: 3
     description: Number of timers (2-8)
   - name: VENDOR_ID
-    default: 0x8086
+    default: 0x4747
     description: Vendor identification
   - name: REVISION_ID
     default: 0x01
@@ -177,7 +177,7 @@ test_level_coverage:
 # Parameter combinations tested
 parameter_coverage:
   - NUM_TIMERS: 2
-    VENDOR_ID: 0x8086
+    VENDOR_ID: 0x4747
     REVISION_ID: 0x01
     CDC_ENABLE: 0
     test_level: full
@@ -198,7 +198,7 @@ parameter_coverage:
     status: verified
 
   - NUM_TIMERS: 2
-    VENDOR_ID: 0x8086
+    VENDOR_ID: 0x4747
     REVISION_ID: 0x01
     CDC_ENABLE: 1
     test_level: full

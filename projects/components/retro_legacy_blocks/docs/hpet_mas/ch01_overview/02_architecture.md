@@ -124,7 +124,7 @@ apb4_hpet (Top Level)
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | `NUM_TIMERS` | int | 2 | 2, 3, 8 | Number of independent timers |
-| `VENDOR_ID` | int | 1 | 0-65535 | Drives HPET_ID[31:16] -- GCAP_ID's full 16-bit vendor field, so 0x8086 reads back complete |
+| `VENDOR_ID` | int | 1 | 0-65535 | Drives HPET_ID[31:16] -- GCAP_ID's full 16-bit vendor field, so 0x4747 reads back complete |
 | `REVISION_ID` | int | 1 | 0-255 | Drives HPET_ID[7:0] -- GCAP_ID's revision field |
 | `COUNTER_CLK_PERIOD_FS` | int | 10000000 | non-zero, <= 0x05F5E100 | Femtoseconds per main-counter tick, published at HPET_PERIOD (0x004). MUST match the clock the counter ticks on: `CDC_ENABLE[0] ? hpet_clk : pclk` |
 | `CDC_ENABLE` | int | 0 | 0, 1 | Enable clock domain crossing |
@@ -399,7 +399,7 @@ apb4_hpet #(
 hardware interface -- the generated block is built once for the maximum
 configuration, so nothing about it is per-instance. `vendor_id` is the
 published spec's full 16 bits at GCAP_ID[31:16] and `rev_id` is 8 bits at
-GCAP_ID[7:0], so a PCI-style `VENDOR_ID(16'h8086)` reads back complete
+GCAP_ID[7:0], so a PCI-style `VENDOR_ID(16'h4747)` reads back complete
 (see Chapter 5). The same path carries `COUNTER_CLK_PERIOD_FS` to
 HPET_PERIOD, which is GCAP_ID[63:32].
 

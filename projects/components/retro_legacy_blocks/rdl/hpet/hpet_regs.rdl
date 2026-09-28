@@ -110,7 +110,7 @@ addrmap hpet_regs #(
         field {
             name = "Vendor ID";
             desc = "GCAP_ID[31:16]. Sixteen bits, per the spec, driven from the
-                    VENDOR_ID parameter -- so a PCI-style vendor such as 0x8086
+                    VENDOR_ID parameter -- so a PCI-style vendor such as 0x4747
                     now reads back in full rather than truncated to its low
                     byte.";
             sw = r;

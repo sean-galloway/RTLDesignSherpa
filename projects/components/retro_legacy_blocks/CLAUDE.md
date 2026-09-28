@@ -280,7 +280,7 @@ Per-Timer Registers (i = 0 to NUM_TIMERS-1), fields at bits [6:2]:
 ```systemverilog
 apb4_hpet #(
     .NUM_TIMERS(3),
-    .VENDOR_ID(16'h8086),   // hardware-driven into GCAP_ID[31:16] (TASK-006)
+    .VENDOR_ID(16'h4747),   // hardware-driven into GCAP_ID[31:16] (TASK-006)
     .REVISION_ID(8'h01),    // hardware-driven into GCAP_ID[7:0]
     .CDC_ENABLE(0)
 ) u_hpet (

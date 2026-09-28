@@ -53,7 +53,7 @@ verilator -cc \
   -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f \
   --top-module apb4_hpet \
   -GNUM_TIMERS=8 \
-  -GVENDOR_ID=0x8086 \
+  -GVENDOR_ID=0x4747 \
   -GREVISION_ID=0x01
 ```
 
@@ -74,7 +74,7 @@ run(
     toplevel='apb4_hpet',
     parameters={
         'NUM_TIMERS': 2,
-        'VENDOR_ID': 0x8086,
+        'VENDOR_ID': 0x4747,
         'REVISION_ID': 0x01
     },
     # ... other run() parameters
@@ -198,7 +198,7 @@ module apb4_hpet #(
 
 | Configuration | NUM_TIMERS | VENDOR_ID | REVISION_ID | Description |
 |---------------|------------|-----------|-------------|-------------|
-| Intel-like | 2 | 0x8086 | 0x01 | 2-timer Intel HPET |
+| v4747 | 2 | 0x4747 | 0x01 | 2-timer HPET |
 | AMD-like | 3 | 0x1022 | 0x02 | 3-timer AMD HPET |
 | Custom | 8 | 0xABCD | 0x10 | 8-timer extended HPET |
 

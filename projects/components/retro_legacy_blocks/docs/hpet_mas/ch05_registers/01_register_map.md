@@ -109,7 +109,7 @@ Contains capability information and identification fields. `vendor_id`,
 through the register block's hardware interface, so one generated block
 serves every instantiation. This is GCAP_ID[31:0] at the published spec field
 positions (RLB/hpet TASK-006); `vendor_id` is the spec's full 16 bits, so a
-PCI-style `VENDOR_ID(16'h8086)` now reads back complete rather than truncated
+PCI-style `VENDOR_ID(16'h4747)` now reads back complete rather than truncated
 to its low byte. GCAP_ID[63:32] is the counter clock period, at 0x004.
 
 | Bits | Field | Access | Reset | Description |
@@ -123,12 +123,12 @@ to its low byte. GCAP_ID[63:32] is the counter clock period, at 0x004.
 
 **Example Values**, computed for the parameters the DV grid actually passes
 (the previous table claimed the parameter DEFAULT of 1 while the suite has
-always driven 0x8086/0x1022/0xABCD, so those constants never matched a real
+always driven 0x4747/0x1022/0xABCD, so those constants never matched a real
 readback):
 
 | Config | VENDOR_ID | REVISION_ID | HPET_ID reads |
 |---|---|---|---|
-| 2 timers | 0x8086 | 0x01 | `0x8086A101` |
+| 2 timers | 0x4747 | 0x01 | `0x4747A101` |
 | 3 timers | 0x1022 | 0x02 | `0x1022A202` |
 | 8 timers | 0xABCD | 0x10 | `0xABCDA710` |
 
@@ -136,7 +136,7 @@ Decoding the 8-timer value: vendor 0xABCD, leg_rt_cap 1 (bit 15),
 count_size_cap 1 (bit 13), num_tim_cap 7 (bits 12:8), rev_id 0x10.
 
 These words each carry 0x8000 because `leg_rt_cap` reads 1 since RLB/hpet
-TASK-003; before the legacy routing existed they read `0x80862101`,
+TASK-003; before the legacy routing existed they read `0x47472101`,
 `0x10222202` and `0xABCD2710`.
 
 #### HPET_CONFIG (0x010) - Configuration Register

@@ -187,7 +187,7 @@ To modify the register map:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `VENDOR_ID` | int | 1 | Drives HPET_ID[31:16] -- GCAP_ID's full 16-bit vendor field, so 0x8086 reads back complete |
+| `VENDOR_ID` | int | 1 | Drives HPET_ID[31:16] -- GCAP_ID's full 16-bit vendor field, so 0x4747 reads back complete |
 | `REVISION_ID` | int | 1 | Drives HPET_ID[7:0] -- GCAP_ID's revision field |
 | `COUNTER_CLK_PERIOD_FS` | int | 10000000 | Femtoseconds per main-counter tick, published at HPET_PERIOD (0x004). Must match the clock the counter ticks on: `CDC_ENABLE[0] ? hpet_clk : pclk` |
 | `NUM_TIMERS` | int | 2 | Number of timer channels (2-8) |
@@ -218,7 +218,7 @@ is 16 bits at [31:16] and `rev_id` 8 bits at [7:0]. HPET_ID[15]
 (legacy replacement capable) reads 1: RLB/hpet TASK-003 implemented the
 routing that HPET_CONFIG[1] gates.
 
-**Intel-like (2 timers, no CDC):**
+**2 timers, no CDC:**
 ```systemverilog
 apb4_hpet #(
     .NUM_TIMERS(2),
@@ -629,10 +629,10 @@ The test suite validates all parameter combinations:
 
 | Config | Timers | Vendor | Rev | CDC | Description |
 |--------|--------|--------|-----|-----|-------------|
-| 1 | 2 | 0x8086 | 0x01 | 0 | Intel-like, no CDC |
+| 1 | 2 | 0x4747 | 0x01 | 0 | v4747, no CDC |
 | 2 | 3 | 0x1022 | 0x02 | 0 | AMD-like, no CDC |
 | 3 | 8 | 0xABCD | 0x10 | 0 | Custom, no CDC |
-| 4 | 2 | 0x8086 | 0x01 | 1 | Intel-like, CDC |
+| 4 | 2 | 0x4747 | 0x01 | 1 | v4747, CDC |
 | 5 | 3 | 0x1022 | 0x02 | 1 | AMD-like, CDC |
 | 6 | 8 | 0xABCD | 0x10 | 1 | Custom, CDC |
 
@@ -643,7 +643,7 @@ The test suite validates all parameter combinations:
 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
 # Run specific configuration
-pytest 'projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py::test_hpet[2-32902-1-0-full-2-timer Intel-like]' -v
+pytest 'projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py::test_hpet[2-18247-1-0-full-2-timer v4747]' -v
 
 # Run CDC tests only
 pytest -k "CDC" projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v

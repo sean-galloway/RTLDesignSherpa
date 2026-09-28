@@ -98,7 +98,7 @@ The APB High Precision Event Timer (HPET) is a configurable multi-timer peripher
 Every block makes trade-offs; here's where this one landed.
 
 **Configurability:**
-The HPET component prioritizes configurability to support diverse use cases. Timer count and CDC enablement are parameterizable at synthesis time, so you can tailor an instance for your application without touching the RTL. (The `VENDOR_ID`/`REVISION_ID` parameters reach HPET_ID through the register block's hardware interface. `vendor_id` is the published spec's full 16 bits at GCAP_ID[31:16], so a PCI-style value such as 0x8086 reads back complete; `rev_id` is 8 bits at GCAP_ID[7:0]. See Chapter 5.)
+The HPET component prioritizes configurability to support diverse use cases. Timer count and CDC enablement are parameterizable at synthesis time, so you can tailor an instance for your application without touching the RTL. (The `VENDOR_ID`/`REVISION_ID` parameters reach HPET_ID through the register block's hardware interface. `vendor_id` is the published spec's full 16 bits at GCAP_ID[31:16], so a PCI-style value such as 0x4747 reads back complete; `rev_id` is 8 bits at GCAP_ID[7:0]. See Chapter 5.)
 
 **Reliability:**
 Extensive testing (5/6 configurations at 100% pass rate) validates core functionality. The design includes per-timer data buses to prevent corruption. (Note: the register block never raises PSLVERR -- unmapped addresses alias or read 0.)

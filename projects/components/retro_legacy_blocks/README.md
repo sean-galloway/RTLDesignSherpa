@@ -212,7 +212,7 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tb imp
 ```systemverilog
 apb4_hpet #(
     .NUM_TIMERS(3),
-    .VENDOR_ID(16'h8086),
+    .VENDOR_ID(16'h4747),
     .REVISION_ID(16'h0001),
     .CDC_ENABLE(0)  // 0=synchronous clocks, 1=async CDC
 ) u_hpet (

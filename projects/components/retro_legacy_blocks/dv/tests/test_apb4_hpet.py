@@ -187,10 +187,10 @@ def generate_test_params():
     # runs the six configurations once, FULL runs them at all three depths.
     configs = [
         # (num_timers, vendor_id, revision_id, cdc_enable, description)
-        (2, 0x8086, 0x01, 0, "2-timer Intel-like"),
+        (2, 0x4747, 0x01, 0, "2-timer v4747"),
         (3, 0x1022, 0x02, 0, "3-timer AMD-like"),
         (8, 0xABCD, 0x10, 0, "8-timer custom"),
-        (2, 0x8086, 0x01, 1, "2-timer Intel-like CDC"),
+        (2, 0x4747, 0x01, 1, "2-timer v4747 CDC"),
         (3, 0x1022, 0x02, 1, "3-timer AMD-like CDC"),
         (8, 0xABCD, 0x10, 1, "8-timer custom CDC"),
     ]
@@ -407,7 +407,7 @@ if __name__ == "__main__":
     test_config = os.environ.get('HPET_TEST_CONFIG', '2timer').lower()
 
     config_map = {
-        '2timer': (2, 0x8086, 0x01, 'gate'),  # Intel-like
+        '2timer': (2, 0x4747, 0x01, 'gate'),  # vendor 0x4747
         '3timer': (3, 0x1022, 0x02, 'gate'),  # AMD-like
         '8timer': (8, 0xABCD, 0x10, 'gate'),  # Custom
     }

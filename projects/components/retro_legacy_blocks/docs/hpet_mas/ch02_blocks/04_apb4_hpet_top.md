@@ -68,7 +68,7 @@ apb4_hpet
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| **VENDOR_ID** | int | 1 | 0-65535 | Reported in HPET_ID[31:16] -- GCAP_ID's full 16-bit vendor field, so 0x8086 reads back complete |
+| **VENDOR_ID** | int | 1 | 0-65535 | Reported in HPET_ID[31:16] -- GCAP_ID's full 16-bit vendor field, so 0x4747 reads back complete |
 | **REVISION_ID** | int | 1 | 0-255 | Reported in HPET_ID[7:0] -- GCAP_ID's revision field |
 | **COUNTER_CLK_PERIOD_FS** | int | 10000000 | non-zero, <= 0x05F5E100 | Femtoseconds per counter tick, published at HPET_PERIOD (0x004) |
 | **NUM_TIMERS** | int | 2 | 2, 3, 8 | Number of independent timers in array |

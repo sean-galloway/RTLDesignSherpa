@@ -418,7 +418,7 @@ module hpet_config_regs #(
     // HPET_ID - driven from this module's parameters
     // ========================================================================
     assign hwif_in.HPET_ID.num_tim_cap.next = 5'(NUM_TIMERS - 1);
-    // Sixteen bits now, per GCAP_ID[31:16]: a PCI-style vendor such as 0x8086
+    // Sixteen bits now, per GCAP_ID[31:16]: a PCI-style vendor such as 0x4747
     // reads back in full rather than truncated to its low byte.
     assign hwif_in.HPET_ID.vendor_id.next   = 16'(VENDOR_ID);
     assign hwif_in.HPET_ID.rev_id.next      = 8'(REVISION_ID);
