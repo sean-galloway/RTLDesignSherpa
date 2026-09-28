@@ -1,5 +1,21 @@
 # RAPIDS Beats DMA — Performance Characterization (Genesys 2, 8 channels)
 
+> **v1.4 (2026-09-28).** Sections 1, 3 and 7 re-measured on a bitstream built
+> from the current RTL (rapids TASK-015 AXIS monitor-lite skids on both network
+> ports, BUG-004..007 engine fixes, PIPELINE = 1). Two things changed the numbers:
+> the sink-ingress meter window now brackets first beat to last beat (rapids
+> ISSUE-001), so the AXIS-in column no longer charges the ~200-cycle launch cost
+> to ingress and reads 97-100 % from 4 beats up; and the write engine now runs
+> with PIPELINE = 1. The first bitstream with the BUG-005 fix at the old
+> PIPELINE = 0 measured 49.9 % AXI4-wr at 4096 beats/channel (59.5 % at 1024):
+> the pre-fix engine had reached line rate only because it ran two bursts in
+> flight per channel by accident, and one-in-flight cannot cover the write
+> response round trip at 8-beat bursts. PIPELINE = 1 (up to AW_MAX_OUTSTANDING
+> = 8 per channel) is the design point from here on and is what this version
+> reports. Rapids ISSUE-004 (one row reading zero ingress starvation) closed on
+> this re-measurement plus an ILA trace of that row: every row now shows the
+> same single trailing starvation cycle.
+>
 > **v1.3 (2026-09-27).** Latency sweep (7.5) re-measured on a bitstream whose
 > AXI observer keeps 32 timestamps per channel instead of 8: no histogram
 > sample loss on any row, latency columns replaced, caveat retired (rapids
@@ -70,21 +86,22 @@ interface.
 ## 1. Headline
 
 At a 256 KB/channel transfer across all 8 channels, every interface runs at
-**99.8–100 % of line rate** — the engine is gapless on both the memory bus and the
+**100 % of line rate** — the engine is gapless on both the memory bus and the
 network bus, in both directions, simultaneously.
 
 | Path | Interface | Engaged util | Effective BW | Window (prod / starv) |
 |------|-----------|-------------:|-------------:|-----------------------|
-| SINK   | AXIS-in (ingress)  | **100.0 %** | 6.40 GB/s | 32737 / 0 |
-| SINK   | AXI4-wr (egress)   | **100.0 %** | 6.40 GB/s | 32768 / 13 |
-| SOURCE | AXI4-rd (ingress)  | **99.8 %**  | 6.39 GB/s | 32768 / 50 |
-| SOURCE | AXIS-out (egress)  | **99.8 %**  | 6.39 GB/s | 32768 / 50 |
+| SINK   | AXIS-in (ingress)  | **100.0 %** | 6.40 GB/s | 32768 / 1 |
+| SINK   | AXI4-wr (egress)   | **100.0 %** | 6.40 GB/s | 32768 / 6 |
+| SOURCE | AXI4-rd (ingress)  | **100.0 %** | 6.40 GB/s | 32768 / 14 |
+| SOURCE | AXIS-out (egress)  | **100.0 %** | 6.40 GB/s | 32768 / 14 |
 
 : Headline — 8-channel line-rate at 256 KB/channel (Genesys 2)
 
-`prod = 32768 = 8 channels × 4096 beats` on the AXI4 side: every expected beat is
-accounted for, and the non-productive residue is a handful of cycles of one-time
-fill latency.
+`prod = 32768 = 8 channels × 4096 beats` on every interface: every expected beat
+is accounted for, and the non-productive residue is a handful of cycles of
+one-time fill latency (the single AXIS-in cycle is the registered window close
+landing one cycle after the last accepted beat).
 
 ![8-channel line-rate bar](plots/headline_8ch.png)
 
@@ -102,11 +119,21 @@ Each interface has a dedicated meter instantiated in the harness:
   byte (`tstrb` popcount) and packet (`tlast`) counters for the byte-derived
   cross-check.
 
-The window is armed by `GO`, opens when the active path goes busy, and **freezes
-deterministically** when the completion interface's productive-beat count reaches
-the staged target (`CSR_OBS_TARGET = channels × beats`). Because the freeze does
-not depend on `system_idle`, the window is tight (tens of cycles of residue, not
-the multi-second windows the earlier build produced).
+The shared window is armed by `GO`, opens when the active path goes busy, and
+**freezes deterministically** when the completion interface's productive-beat
+count reaches the staged target (`CSR_OBS_TARGET = channels × beats`). Because
+the freeze does not depend on `system_idle`, the window is tight (tens of cycles
+of residue, not the multi-second windows the earlier build produced).
+
+The AXIS-in meter has its own window (rapids ISSUE-001, v1.4): armed by `GO`,
+opened by the first cycle the generator presents `tvalid`, and frozen the cycle
+after the target-th ingress beat. The sink's write side cannot go busy until
+the DUT has already accepted traffic, so the shared window would have counted
+either none of the ingress (opened too late) or the launch cost between `GO`
+and the first beat (opened at arm); first-beat-to-last-beat is what "ingress
+utilization" means. An ILA capture on the board (rapids ISSUE-004) shows the
+sequence: `GO`, arm one cycle later, first beat and open the cycle after, 32
+handshakes at line rate, freeze one cycle after the last beat.
 
 ---
 
@@ -127,19 +154,22 @@ vanishing fraction of a large one.
 
 | Transfer / ch | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | wr BW | sout BW |
 |---------------|--------:|--------:|--------:|---------:|------:|--------:|
-| 256 B (4 b)   |   0.6 % |  19.5 % |  19.0 % |   19.0 % | 1.25 | 1.22 |
-| 1 KB (16 b)   |  55.1 % |  72.7 % |  71.1 % |   71.1 % | 4.65 | 4.55 |
-| 4 KB (64 b)   |  91.6 % |  97.5 % |  92.6 % |   92.6 % | 6.24 | 5.93 |
-| 16 KB (256 b) |  97.6 % |  99.1 % |  97.6 % |   97.6 % | 6.34 | 6.25 |
-| 64 KB (1024 b)|  99.5 % |  99.9 % |  99.4 % |   99.4 % | 6.40 | 6.36 |
-| 256 KB (4096 b)| 99.9 %| 100.0 % |  99.8 % |   99.8 % | 6.40 | 6.39 |
+| 256 B (4 b)   |  97.0 % |  84.2 % |  69.6 % |   69.6 % | 5.39 | 4.45 |
+| 1 KB (16 b)   |  99.2 % |  95.5 % |  90.1 % |   90.1 % | 6.11 | 5.77 |
+| 4 KB (64 b)   |  99.8 % |  98.5 % |  97.3 % |   97.3 % | 6.30 | 6.23 |
+| 16 KB (256 b) | 100.0 % |  99.7 % |  99.3 % |   99.3 % | 6.38 | 6.36 |
+| 64 KB (1024 b)| 100.0 % |  99.9 % |  99.8 % |   99.8 % | 6.40 | 6.39 |
+| 256 KB (4096 b)| 100.0 %| 100.0 % | 100.0 % |  100.0 % | 6.40 | 6.40 |
 
 : Table — engaged utilization (%) and effective bandwidth (GB/s) vs transfer size (8 ch)
 
-By 4 KB/channel every interface is already above 91 %, and by 64 KB the whole
-engine is within 0.6 % of line rate. All four curves are the same monotonic
-amortization of a single fixed per-transfer startup cost (descriptor dispatch +
-`AR→first-R` / SRAM fill); there is no steady-state bubble.
+By 4 KB/channel every interface is already above 97 %, and by 64 KB the whole
+engine is within 0.2 % of line rate. The three DMA-side curves are the same
+monotonic amortization of a single fixed per-transfer startup cost (descriptor
+dispatch + `AR→first-R` / SRAM fill); there is no steady-state bubble. AXIS-in
+sits above them because its window starts at the first offered beat, so the
+launch cost is not in it -- it reports what the ingress link itself did, which
+at 8 channels x 4 beats is 32 beats in 33 cycles.
 
 ![where the cycles go](plots/size_buckets.png)
 
@@ -158,10 +188,10 @@ per-channel penalty as the engine scales out.
 
 | Channels | AXI4-wr | AXIS-out |
 |----------|--------:|---------:|
-| 1 | 99.9 % | 99.8 % |
-| 2 | 99.8 % | 97.2 % |
-| 4 | 99.9 % | 96.6 % |
-| 8 | 100.0 % | 99.8 % |
+| 1 | 99.9 % | 99.7 % |
+| 2 | 99.9 % | 99.8 % |
+| 4 | 100.0 % | 99.9 % |
+| 8 | 100.0 % | 100.0 % |
 
 : Table — utilization vs channel count (256 KB/ch)
 
@@ -249,12 +279,14 @@ does the same on RAPIDS beats, with two changes to the v1.1 setup:
   descriptor follows from beats per descriptor over burst length.
 
 Bitstream: `USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0` (meters and latency
-histograms, no monbus event taps). v1.2 rows (7.1-7.4) are from bitstream v3:
-post-route WNS +1.317 ns at 100 MHz, 65.5 BRAM tiles (the 512-deep R-channel
-delay queue is in block RAM). The 7.5 latency sweep is from bitstream v4, the same
-build with the AXI observer's timestamp FIFO at `HIST_MAX_OUTSTANDING = 32`:
-WNS +0.224 ns, 73962 LUTs, 65.5 BRAM tiles. All **67 configurations
-pass the golden CRC on both paths**: A 20/20, B 7/7, C+D 28/28, E 12/12.
+histograms, no monbus event taps). Every v1.4 row of 7.1-7.5 is from one build
+of the current RTL (PIPELINE = 1, AXIS monitor-lite skids on both network
+ports, `HIST_MAX_OUTSTANDING = 32`): post-route WNS +0.351 ns at 100 MHz,
+80040 LUTs, 65.5 BRAM tiles (the 512-deep R-channel delay queue is in block
+RAM). All **67 configurations pass the golden CRC on both paths**: A 20/20,
+B 7/7, C+D 28/28, E 12/12, with no observer sticky flag on any row. The v1.2
+and v1.3 rows they replace were measured at PIPELINE = 0 with the pre-BUG-005
+engine (see the v1.4 note at the top).
 
 ### 7.0 The regression this campaign found first
 
@@ -271,17 +303,17 @@ BUG-011 carry the waveform evidence; rapids 589/589 and STREAM 856/859 after.
 
 ### 7.1 Headline: line rate on all four interfaces
 
-At 8 channels x 256 KB the four observers read **99.4 / 100.0 / 100.0 / 100.0 %**
+At 8 channels x 256 KB the four observers read **100.0 / 100.0 / 100.0 / 100.0 %**
 (AXIS-in, AXI4-wr, AXI4-rd, AXIS-out), i.e. **6.36 / 6.40 / 6.40 / 6.40 GB/s**
 against the **6.40 GB/s** one-direction line rate (64 B x 100 MHz); the AXIS
 byte-derived cross-check gives 6.36 and 6.40 GB/s. Channel scaling is flat:
 
 | Channels (4096 beats/ch) | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out |
 |---:|---:|---:|---:|---:|
-| 1 | 98.6 % | 99.8 % | 99.7 % | 99.7 % |
-| 2 | 98.9 % | 99.8 % | 99.8 % | 99.8 % |
-| 4 | 99.2 % | 99.9 % | 99.9 % | 99.9 % |
-| 8 | 99.4 % | 100.0 % | 100.0 % | 100.0 % |
+| 1 | 100.0 % | 99.9 % | 99.7 % | 99.7 % |
+| 2 | 100.0 % | 99.9 % | 99.8 % | 99.8 % |
+| 4 | 100.0 % | 100.0 % | 99.9 % | 99.9 % |
+| 8 | 100.0 % | 100.0 % | 100.0 % | 100.0 % |
 
 : Table 7.1 -- observer engaged utilization vs active channels (phase D)
 
@@ -293,23 +325,23 @@ byte-derived cross-check gives 6.36 and 6.40 GB/s. Channel scaling is flat:
 
 | beats/ch | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | wr GB/s | rd GB/s | rd bursts | AR->RLAST | AW->B |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1 | 3.8 % | 38.1 % | 28.6 % | 28.6 % | 2.44 | 1.83 | 8 | 6 | 6 |
-| 4 | 14.0 % | 84.2 % | 71.1 % | 71.1 % | 5.39 | 4.55 | 8 | 12 | 12 |
-| 16 | 39.4 % | 95.5 % | 90.8 % | 90.8 % | 6.11 | 5.81 | 16 | 23 | 23 |
-| 64 | 72.0 % | 98.5 % | 97.5 % | 97.5 % | 6.30 | 6.24 | 64 | 22 | 23 |
-| 256 | 91.0 % | 99.4 % | 99.4 % | 99.4 % | 6.36 | 6.36 | 232 | 24 | 24 |
-| 1024 | 97.6 % | 99.8 % | 99.8 % | 99.8 % | 6.39 | 6.39 | 912 | 24 | 24 |
-| 4096 | 99.4 % | 100.0 % | 100.0 % | 100.0 % | 6.40 | 6.40 | 3648 | 24 | 24 |
+| 1 | 88.9 % | 38.1 % | 27.6 % | 27.6 % | 2.44 | 1.77 | 8 | 6 | 6 |
+| 4 | 97.0 % | 84.2 % | 69.6 % | 69.6 % | 5.39 | 4.45 | 8 | 12 | 12 |
+| 16 | 99.2 % | 95.5 % | 90.1 % | 90.1 % | 6.11 | 5.77 | 16 | 23 | 23 |
+| 64 | 99.8 % | 98.5 % | 97.3 % | 97.3 % | 6.30 | 6.23 | 64 | 22 | 23 |
+| 256 | 100.0 % | 99.7 % | 99.3 % | 99.3 % | 6.38 | 6.36 | 232 | 24 | 24 |
+| 1024 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 6.40 | 6.39 | 912 | 24 | 24 |
+| 4096 | 100.0 % | 100.0 % | 100.0 % | 100.0 % | 6.40 | 6.40 | 3648 | 24 | 24 |
 
 : Table 7.2 -- size sweep at 8 channels; latencies are observer-histogram means in aclk cycles
 
 The three DMA-side interfaces are above 90 % from 16 beats (1 KB) per channel
-and within 0.6 % of line rate from 1024. The AXIS-in column lags because its
-window is the sink-INGRESS window (armed at GO, before the sink's write side is
-busy), so it carries the generator start-up that the other three windows exclude;
-at 256 KB that cost has amortized to 0.6 %. `rd bursts` confirms the 9-beat burst
-shape (`AxLEN` 8) from 64 beats up. AR->RLAST settles at 24 cycles: the pattern
-slave's fixed response plus a 9-beat burst.
+and within 0.3 % of line rate from 1024. The AXIS-in column now leads them:
+its window brackets first offered beat to last accepted beat (rapids ISSUE-001),
+so it reports the ingress link itself rather than the launch cost, and reads
+97 % at 4 beats and 100 % from 256. `rd bursts` confirms the 9-beat burst shape
+(`AxLEN` 8) from 64 beats up. AR->RLAST settles at 24 cycles: the pattern slave's
+fixed response plus a 9-beat burst.
 
 ![observer utilization vs size](plots/obs_size_util.png)
 
@@ -330,16 +362,16 @@ slave's fixed response plus a 9-beat burst.
 
 | descs/ch | 1 ch wr / sout | 2 ch | 4 ch | 8 ch |
 |---:|---:|---:|---:|---:|
-| 1 | 99.3 / 98.7 % | 99.7 / 99.4 % | 99.6 / 99.7 % | 99.8 / 99.8 % |
-| 2 | 98.9 / 99.4 % | 99.0 / 99.7 % | 99.1 / 99.8 % | 99.1 / 99.9 % |
-| 4 | 98.7 / 99.7 % | 98.7 / 99.8 % | 98.8 / 99.9 % | 98.8 / 100.0 % |
-| 8 | 98.6 / 99.8 % | 98.6 / 99.9 % | 98.6 / 100.0 % | 98.6 / 100.0 % |
-| 16 | 98.5 / 99.9 % | 98.5 / 100.0 % | 98.5 / 100.0 % | 98.5 / 100.0 % |
+| 1 | 99.4 / 98.7 % | 99.7 / 99.3 % | 99.9 / 99.7 % | 99.9 / 99.8 % |
+| 2 | 99.0 / 99.3 % | 99.1 / 99.7 % | 99.2 / 99.8 % | 99.2 / 99.9 % |
+| 4 | 98.8 / 99.7 % | 98.8 / 99.8 % | 98.9 / 99.9 % | 98.9 / 100.0 % |
+| 8 | 98.7 / 99.8 % | 98.7 / 99.9 % | 98.7 / 100.0 % | 98.7 / 100.0 % |
+| 16 | 98.6 / 99.9 % | 98.6 / 100.0 % | 98.6 / 100.0 % | 98.6 / 100.0 % |
 
 : Table 7.3 -- AXI4-wr (sink) / AXIS-out (source) utilization over the descriptor x channel matrix
 
 Flat, as STREAM's is: neither chain length nor channel count moves the datapath
-off line rate. The one visible structure is the sink write side settling 1.5 %
+off line rate. The one visible structure is the sink write side settling 1.4 %
 below the source as chains lengthen -- the per-descriptor dispatch on the write
 engine costs a fixed handful of cycles per descriptor boundary, which the source
 egress does not pay.
@@ -355,21 +387,23 @@ channels x 1024 beats:
 
 | beats/burst | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | AR->RLAST | AW->B |
 |---:|---:|---:|---:|---:|---:|---:|
-| 1 | 24.0 % | 23.2 % | 91.3 % | 91.3 % | 6 | 6 |
-| 2 | 43.6 % | 42.4 % | 99.8 % | 99.8 % | 12 | 12 |
-| 4 | 99.6 % | 99.0 % | 99.8 % | 99.8 % | 12 | 12 |
-| 8 | 100.0 % | 99.7 % | 99.8 % | 99.8 % | 24 | 24 |
+| 1 | 39.8 % | 38.8 % | 99.8 % | 99.8 % | 6 | 6 |
+| 2 | 78.4 % | 77.1 % | 99.8 % | 99.8 % | 12 | 12 |
+| 4 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 12 | 12 |
+| 8 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 24 | 24 |
 | 16 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 48 | 48 |
-| 32 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 96 | 94 |
-| 64 | 99.7 % | 99.1 % | 99.8 % | 99.8 % | 191 | 180 |
+| 32 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 96 | 96 |
+| 64 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 191 | 191 |
 
 : Table 7.4 -- burst-length sweep; latencies in aclk cycles
 
-The knee is at **4 beats**: below it the SINK path collapses (23 % at single-beat
-bursts, 42 % at 2) while the SOURCE path holds 91-100 %. That asymmetry is the two
-engines' outstanding depth -- the read engine keeps enough ARs in flight to hide a
-one-beat burst's round trip, the write engine cannot, and at one beat per AW the
-sink is AW-issue bound. STREAM's knee sits at the same place (~3 beats). The
+The knee is at **4 beats**: below it the SINK path falls (39 % at single-beat
+bursts, 77 % at 2) while the SOURCE path holds 99.8 % at every burst length.
+PIPELINE = 1 moved the sink's short-burst numbers up from the 23 % / 42 % of
+v1.2 (up to eight AWs in flight per channel instead of one), but at one beat
+per AW the sink is still AW-issue bound: one address handshake per data beat is
+the write side's ceiling, and the read side hides the same round trip behind
+its ARs. STREAM's knee sits at the same place (~3 beats). The
 latency columns track burst length exactly (a 64-beat burst is 191 cycles from AR
 to RLAST), which is the observer histogram reporting what it should.
 
@@ -385,33 +419,37 @@ many beats the DUT keeps in flight), at 8 channels x 1024 beats:
 
 | delay (cyc) | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | rd GB/s | wr GB/s | AR->first R | AR->RLAST | AW->B |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0 | 100.0 % | 99.8 % | 99.8 % | 99.8 % | 6.39 | 6.39 | 24 | 24 | 24 |
-| 8 | 100.0 % | 99.4 % | 99.8 % | 99.8 % | 6.38 | 6.36 | 24 | 48 | 47 |
-| 16 | 98.8 % | 98.2 % | 99.7 % | 99.7 % | 6.38 | 6.28 | 48 | 48 | 48 |
-| 32 | 93.6 % | 93.0 % | 99.5 % | 99.5 % | 6.37 | 5.96 | 48 | 48 | 48 |
-| 48 | 91.4 % | 91.0 % | 98.7 % | 98.7 % | 6.32 | 5.82 | 95 | 96 | 94 |
-| 64 | 89.7 % | 89.2 % | 97.6 % | 97.6 % | 6.25 | 5.71 | 96 | 96 | 96 |
-| 96 | 78.9 % | 78.5 % | 95.0 % | 95.0 % | 6.08 | 5.02 | 96 | 96 | 96 |
-| 128 | 67.5 % | 67.2 % | 88.8 % | 88.8 % | 5.68 | 4.30 | 192 | 192 | 192 |
-| 192 | 60.8 % | 60.5 % | 71.5 % | 71.5 % | 4.58 | 3.87 | 192 | 192 | 192 |
-| 256 | 48.0 % | 47.7 % | 57.4 % | 57.4 % | 3.67 | 3.05 | 384 | 384 | 384 |
-| 384 | 33.8 % | 33.5 % | 40.3 % | 40.3 % | 2.58 | 2.14 | 384 | 384 | 384 |
-| 512 | 26.1 % | 25.8 % | 31.1 % | 31.1 % | 1.99 | 1.65 | 768 | 768 | 768 |
+| 0 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 6.39 | 6.40 | 24 | 24 | 24 |
+| 8 | 100.0 % | 99.9 % | 99.7 % | 99.7 % | 6.38 | 6.40 | 24 | 48 | 48 |
+| 16 | 100.0 % | 99.9 % | 99.6 % | 99.6 % | 6.38 | 6.40 | 48 | 48 | 48 |
+| 32 | 100.0 % | 99.9 % | 99.5 % | 99.5 % | 6.37 | 6.40 | 48 | 48 | 48 |
+| 48 | 100.0 % | 99.9 % | 99.3 % | 99.3 % | 6.35 | 6.40 | 96 | 96 | 96 |
+| 64 | 93.7 % | 92.8 % | 99.1 % | 99.1 % | 6.34 | 5.94 | 96 | 96 | 96 |
+| 96 | 76.7 % | 75.2 % | 98.7 % | 98.7 % | 6.32 | 4.81 | 96 | 96 | 96 |
+| 128 | 65.5 % | 63.7 % | 98.3 % | 98.3 % | 6.29 | 4.08 | 192 | 192 | 192 |
+| 192 | 46.5 % | 44.9 % | 97.6 % | 97.6 % | 6.24 | 2.88 | 192 | 192 | 192 |
+| 256 | 36.0 % | 34.7 % | 96.9 % | 96.8 % | 6.20 | 2.22 | 384 | 384 | 384 |
+| 384 | 24.8 % | 23.8 % | 95.4 % | 95.3 % | 6.10 | 1.53 | 384 | 384 | 384 |
+| 512 | 19.0 % | 18.2 % | 93.7 % | 93.6 % | 6.00 | 1.16 | 768 | 768 | 768 |
 
-: Table 7.5 -- latency sweep (v1.3 rerun, `HIST_MAX_OUTSTANDING = 32`, no sample loss on any row); the latency columns are log2-histogram means, so they sit on bin midpoints
+: Table 7.5 -- latency sweep (v1.4, PIPELINE = 1, `HIST_MAX_OUTSTANDING = 32`, no sample loss on any row); the latency columns are log2-histogram means, so they sit on bin midpoints
 
 Little's law makes the knee readable directly: sustained beats/cycle x latency =
-beats in flight. The SOURCE read path holds >= 97.6 % to 64 cycles and >= 95 %
-to 96, then falls as `0.888 x 128 = 114`, `0.715 x 192 = 137`, `0.574 x 256 = 147`,
-`0.311 x 512 = 159` -- an asymptote of **~160 beats in flight across 8 channels,
-~20 per channel, i.e. about two 9-beat bursts per channel**. The SINK write path
-knees earlier (93 % at 32, 89 % at 64) and asymptotes lower (`0.258 x 512 = 132`,
-~16 beats per channel): the write engine's window on the B response is one to two
-bursts. STREAM's window on the same knobs is ~128 beats per channel (8 outstanding
-x 16-beat bursts) and its knee sits at 96-112 cycles; RAPIDS beats at the shipped
-9-beat bursts is window-bound roughly two to three times earlier. Widening the
-window -- larger `AxLEN`, or more outstanding per channel -- is the lever, and
-section 7.4 shows the DUT already runs 32- and 64-beat bursts at line rate.
+beats in flight. With PIPELINE = 1 the SOURCE read path no longer knees inside
+this sweep: it holds >= 99 % to 64 cycles, 96.9 % at 256 and 93.7 % at 512, so
+`0.937 x 512 = 480` beats are in flight across 8 channels -- ~60 per channel,
+i.e. six to seven 9-beat bursts of the eight `AR_MAX_OUTSTANDING` allows (v1.3
+measured ~20 per channel at PIPELINE = 0). The SINK write path holds 99.9 % to
+48 cycles, knees at 64 (92.8 %) and then falls as `0.752 x 96 = 72`,
+`0.637 x 128 = 82`, `0.347 x 256 = 89`, `0.182 x 512 = 93` -- an asymptote of
+**~93 beats in flight, ~12 per channel**, well short of the 64 per channel that
+eight 8-beat AWs could hold. So the write side's in-flight window is bounded by
+something other than the AW count; the sink SRAM's per-channel allocation and
+commit accounting is the candidate, and it is filed as rapids ISSUE-006 rather
+than guessed at here. STREAM's window on the same knobs is ~128 beats per channel
+(8 outstanding x 16-beat bursts) and its knee sits at 96-112 cycles. Wider bursts
+remain a lever on both sides, and section 7.4 shows the DUT already runs 32- and
+64-beat bursts at line rate.
 
 Two notes from the instruments themselves. First, the latency columns are
 histogram means over log2 bins (bin b holds [2^b, 2^(b+1)), reported at its
@@ -450,7 +488,8 @@ report generator are the same on both DMAs.
 | File | Contents |
 |------|----------|
 | `perf/json/genesys_obs_{A,B,C,E}.json` | v1.2 observer campaign: descriptors x channels, burst length, size x channels, latency |
-| `perf/json/genesys_full_matrix.json` | channel × size matrix (v1.1, bare meters) |
+| `perf/json/genesys_full_matrix.json` | channel × size matrix (v1.4, bare meters, PIPELINE = 1) |
+| `perf/json/genesys_full_matrix_v1.1.json` | the same matrix as measured for v1.1 (PIPELINE = 0 with the pre-BUG-005 engine) |
 | `perf/json/genesys_8ch_*.json` | earlier back-to-back runs (show the pre-fix wedge) |
 | `perf/plots/*.png` | figures above (`flows-rapids-beats/host/plot_char_reports.py`) |
 

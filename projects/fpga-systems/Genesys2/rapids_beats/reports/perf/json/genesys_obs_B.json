@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-27T12:18:52",
+  "timestamp": "2026-09-28T08:13:38",
   "total": 7,
   "passed": 7,
   "failed": 0,
@@ -42,57 +42,57 @@
           "ifaces": {
             "sin": {
               "iface": "sin",
-              "util": 0.24006564294924393,
-              "eff_bw_gb_s": 1.5364201148751613,
+              "util": 0.3982498784637822,
+              "eff_bw_gb_s": 2.548799222168206,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
-                "bp": 25932,
-                "starv": 0,
-                "idle": 1392,
-                "engaged": 34124,
-                "total": 35516,
-                "util": 0.24006564294924393
+                "bp": 12377,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 20570,
+                "total": 20570,
+                "util": 0.3982498784637822
               },
               "bytes": 524288,
               "packets": 8,
-              "byte_bw_gb_s": 1.476202275030972
+              "byte_bw_gb_s": 2.5487992221682063
             },
             "wr": {
               "iface": "wr",
-              "util": 0.2319037508846426,
-              "eff_bw_gb_s": 1.4841840056617126,
+              "util": 0.3876401835991104,
+              "eff_bw_gb_s": 2.4808971750343067,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 27133,
+                "starv": 12941,
                 "idle": 0,
-                "engaged": 35325,
-                "total": 35325,
-                "util": 0.2319037508846426
+                "engaged": 21133,
+                "total": 21133,
+                "util": 0.3876401835991104
               }
             }
           },
           "observers": {
             "sin": {
               "iface": "sin",
-              "util": 0.24006564294924393,
-              "eff_bw_gb_s": 1.5364201148751613,
+              "util": 0.3982498784637822,
+              "eff_bw_gb_s": 2.548799222168206,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
-                "bp": 25932,
-                "starv": 0,
-                "idle": 1392,
-                "engaged": 34124,
-                "total": 35516,
-                "util": 0.24006564294924393,
+                "bp": 12377,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 20570,
+                "total": 20570,
+                "util": 0.3982498784637822,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8,
                 "tap_dropped": 0,
-                "tap_packets": 8,
+                "tap_packets": 85,
                 "ch_prod": [
                   1024,
                   1024,
@@ -104,22 +104,22 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 1.476202275030972,
+              "byte_bw_gb_s": 2.5487992221682063,
               "meter_prod_delta": 0
             },
             "wr": {
               "iface": "wr",
-              "util": 0.2319037508846426,
-              "eff_bw_gb_s": 1.4841840056617126,
+              "util": 0.3876401835991104,
+              "eff_bw_gb_s": 2.4808971750343067,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 27133,
+                "starv": 12941,
                 "idle": 0,
-                "engaged": 35325,
-                "total": 35325,
-                "util": 0.2319037508846426,
+                "engaged": 21133,
+                "total": 21133,
+                "util": 0.3876401835991104,
                 "bursts": 8190,
                 "ch_prod": [
                   1024,
@@ -220,52 +220,52 @@
           "ifaces": {
             "rd": {
               "iface": "rd",
-              "util": 0.9125543054472541,
-              "eff_bw_gb_s": 5.840347554862427,
+              "util": 0.9981722919458998,
+              "eff_bw_gb_s": 6.388302668453759,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 785,
+                "starv": 15,
                 "idle": 0,
-                "engaged": 8977,
-                "total": 8977,
-                "util": 0.9125543054472541
+                "engaged": 8207,
+                "total": 8207,
+                "util": 0.9981722919458998
               }
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9125543054472541,
-              "eff_bw_gb_s": 5.840347554862427,
+              "util": 0.9981722919458998,
+              "eff_bw_gb_s": 6.388302668453759,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 785,
+                "starv": 15,
                 "idle": 0,
-                "engaged": 8977,
-                "total": 8977,
-                "util": 0.9125543054472541
+                "engaged": 8207,
+                "total": 8207,
+                "util": 0.9981722919458998
               },
               "bytes": 524288,
               "packets": 8192,
-              "byte_bw_gb_s": 5.840347554862426
+              "byte_bw_gb_s": 6.388302668453759
             }
           },
           "observers": {
             "rd": {
               "iface": "rd",
-              "util": 0.9125543054472541,
-              "eff_bw_gb_s": 5.840347554862427,
+              "util": 0.9981722919458998,
+              "eff_bw_gb_s": 6.388302668453759,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 785,
+                "starv": 15,
                 "idle": 0,
-                "engaged": 8977,
-                "total": 8977,
-                "util": 0.9125543054472541,
+                "engaged": 8207,
+                "total": 8207,
+                "util": 0.9981722919458998,
                 "bursts": 8192,
                 "ch_prod": [
                   1024,
@@ -336,22 +336,22 @@
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9125543054472541,
-              "eff_bw_gb_s": 5.840347554862427,
+              "util": 0.9981722919458998,
+              "eff_bw_gb_s": 6.388302668453759,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 785,
+                "starv": 15,
                 "idle": 0,
-                "engaged": 8977,
-                "total": 8977,
-                "util": 0.9125543054472541,
+                "engaged": 8207,
+                "total": 8207,
+                "util": 0.9981722919458998,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8192,
                 "tap_dropped": 0,
-                "tap_packets": 8192,
+                "tap_packets": 484360,
                 "ch_prod": [
                   1024,
                   1024,
@@ -363,7 +363,7 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 5.840347554862426,
+              "byte_bw_gb_s": 6.388302668453759,
               "meter_prod_delta": 0
             }
           },
@@ -454,57 +454,57 @@
           "ifaces": {
             "sin": {
               "iface": "sin",
-              "util": 0.43641787864258696,
-              "eff_bw_gb_s": 2.793074423312557,
+              "util": 0.7839984687529907,
+              "eff_bw_gb_s": 5.01759020001914,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
-                "bp": 10579,
-                "starv": 0,
-                "idle": 752,
-                "engaged": 18771,
-                "total": 19523,
-                "util": 0.43641787864258696
+                "bp": 2256,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 10449,
+                "total": 10449,
+                "util": 0.7839984687529907
               },
               "bytes": 524288,
               "packets": 8,
-              "byte_bw_gb_s": 2.6854889105158017
+              "byte_bw_gb_s": 5.01759020001914
             },
             "wr": {
               "iface": "wr",
-              "util": 0.4237533623008483,
-              "eff_bw_gb_s": 2.712021518725429,
+              "util": 0.7707941287165977,
+              "eff_bw_gb_s": 4.933082423786225,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 11140,
+                "starv": 2436,
                 "idle": 0,
-                "engaged": 19332,
-                "total": 19332,
-                "util": 0.4237533623008483
+                "engaged": 10628,
+                "total": 10628,
+                "util": 0.7707941287165977
               }
             }
           },
           "observers": {
             "sin": {
               "iface": "sin",
-              "util": 0.43641787864258696,
-              "eff_bw_gb_s": 2.793074423312557,
+              "util": 0.7839984687529907,
+              "eff_bw_gb_s": 5.01759020001914,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
-                "bp": 10579,
-                "starv": 0,
-                "idle": 752,
-                "engaged": 18771,
-                "total": 19523,
-                "util": 0.43641787864258696,
+                "bp": 2256,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 10449,
+                "total": 10449,
+                "util": 0.7839984687529907,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8,
                 "tap_dropped": 0,
-                "tap_packets": 16,
+                "tap_packets": 93,
                 "ch_prod": [
                   1024,
                   1024,
@@ -516,22 +516,22 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 2.6854889105158017,
+              "byte_bw_gb_s": 5.01759020001914,
               "meter_prod_delta": 0
             },
             "wr": {
               "iface": "wr",
-              "util": 0.4237533623008483,
-              "eff_bw_gb_s": 2.712021518725429,
+              "util": 0.7707941287165977,
+              "eff_bw_gb_s": 4.933082423786225,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 11140,
+                "starv": 2436,
                 "idle": 0,
-                "engaged": 19332,
-                "total": 19332,
-                "util": 0.4237533623008483,
+                "engaged": 10628,
+                "total": 10628,
+                "util": 0.7707941287165977,
                 "bursts": 4094,
                 "ch_prod": [
                   1024,
@@ -632,52 +632,52 @@
           "ifaces": {
             "rd": {
               "iface": "rd",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026
               }
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026
               },
               "bytes": 524288,
               "packets": 8192,
-              "byte_bw_gb_s": 6.389859841560024
+              "byte_bw_gb_s": 6.389081160126737
             }
           },
           "observers": {
             "rd": {
               "iface": "rd",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538,
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026,
                 "bursts": 4096,
                 "ch_prod": [
                   1024,
@@ -721,8 +721,8 @@
                   "bins": [
                     0,
                     0,
-                    6,
-                    4090,
+                    3,
+                    4093,
                     0,
                     0,
                     0,
@@ -738,7 +738,7 @@
                   ],
                   "total": 4096,
                   "samples": 4096,
-                  "mean_cyc": 11.9912109375,
+                  "mean_cyc": 11.99560546875,
                   "p50_cyc": 8,
                   "p90_cyc": 8,
                   "p99_cyc": 8
@@ -748,22 +748,22 @@
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538,
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8192,
                 "tap_dropped": 0,
-                "tap_packets": 16384,
+                "tap_packets": 492552,
                 "ch_prod": [
                   1024,
                   1024,
@@ -775,7 +775,7 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 6.389859841560024,
+              "byte_bw_gb_s": 6.389081160126737,
               "meter_prod_delta": 0
             }
           },
@@ -866,57 +866,57 @@
           "ifaces": {
             "sin": {
               "iface": "sin",
-              "util": 0.9962300863431838,
-              "eff_bw_gb_s": 6.375872552596376,
-              "peak_bw_gb_s": 6.4,
-              "buckets": {
-                "prod": 8192,
-                "bp": 31,
-                "starv": 0,
-                "idle": 240,
-                "engaged": 8223,
-                "total": 8463,
-                "util": 0.9962300863431838
-              },
-              "bytes": 524288,
-              "packets": 8,
-              "byte_bw_gb_s": 6.195060853125369
-            },
-            "wr": {
-              "iface": "wr",
-              "util": 0.9903288201160542,
-              "eff_bw_gb_s": 6.3381044487427465,
+              "util": 0.9998779445868424,
+              "eff_bw_gb_s": 6.399218845355791,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 80,
+                "starv": 1,
                 "idle": 0,
-                "engaged": 8272,
-                "total": 8272,
-                "util": 0.9903288201160542
+                "engaged": 8193,
+                "total": 8193,
+                "util": 0.9998779445868424
+              },
+              "bytes": 524288,
+              "packets": 8,
+              "byte_bw_gb_s": 6.399218845355791
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9992681141741888,
+              "eff_bw_gb_s": 6.395315930714808,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8192,
+                "bp": 0,
+                "starv": 6,
+                "idle": 0,
+                "engaged": 8198,
+                "total": 8198,
+                "util": 0.9992681141741888
               }
             }
           },
           "observers": {
             "sin": {
               "iface": "sin",
-              "util": 0.9962300863431838,
-              "eff_bw_gb_s": 6.375872552596376,
+              "util": 0.9998779445868424,
+              "eff_bw_gb_s": 6.399218845355791,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
-                "bp": 31,
-                "starv": 0,
-                "idle": 240,
-                "engaged": 8223,
-                "total": 8463,
-                "util": 0.9962300863431838,
+                "bp": 0,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 8193,
+                "total": 8193,
+                "util": 0.9998779445868424,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8,
                 "tap_dropped": 0,
-                "tap_packets": 24,
+                "tap_packets": 101,
                 "ch_prod": [
                   1024,
                   1024,
@@ -928,22 +928,22 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 6.195060853125369,
+              "byte_bw_gb_s": 6.399218845355791,
               "meter_prod_delta": 0
             },
             "wr": {
               "iface": "wr",
-              "util": 0.9903288201160542,
-              "eff_bw_gb_s": 6.3381044487427465,
+              "util": 0.9992681141741888,
+              "eff_bw_gb_s": 6.395315930714808,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 80,
+                "starv": 6,
                 "idle": 0,
-                "engaged": 8272,
-                "total": 8272,
-                "util": 0.9903288201160542,
+                "engaged": 8198,
+                "total": 8198,
+                "util": 0.9992681141741888,
                 "bursts": 2047,
                 "ch_prod": [
                   1024,
@@ -1044,52 +1044,52 @@
           "ifaces": {
             "rd": {
               "iface": "rd",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026
               }
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026
               },
               "bytes": 524288,
               "packets": 8192,
-              "byte_bw_gb_s": 6.389859841560024
+              "byte_bw_gb_s": 6.389081160126737
             }
           },
           "observers": {
             "rd": {
               "iface": "rd",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538,
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026,
                 "bursts": 2048,
                 "ch_prod": [
                   1024,
@@ -1160,22 +1160,22 @@
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538,
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8192,
                 "tap_dropped": 0,
-                "tap_packets": 24576,
+                "tap_packets": 500744,
                 "ch_prod": [
                   1024,
                   1024,
@@ -1187,7 +1187,7 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 6.389859841560024,
+              "byte_bw_gb_s": 6.389081160126737,
               "meter_prod_delta": 0
             }
           },
@@ -1278,57 +1278,57 @@
           "ifaces": {
             "sin": {
               "iface": "sin",
-              "util": 1.0,
-              "eff_bw_gb_s": 6.4,
+              "util": 0.9998779445868424,
+              "eff_bw_gb_s": 6.399218845355791,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 0,
-                "idle": 217,
-                "engaged": 8192,
-                "total": 8409,
-                "util": 1.0
+                "starv": 1,
+                "idle": 0,
+                "engaged": 8193,
+                "total": 8193,
+                "util": 0.9998779445868424
               },
               "bytes": 524288,
               "packets": 8,
-              "byte_bw_gb_s": 6.234843619931026
+              "byte_bw_gb_s": 6.399218845355791
             },
             "wr": {
               "iface": "wr",
-              "util": 0.9968362131905573,
-              "eff_bw_gb_s": 6.3797517644195665,
+              "util": 0.9992681141741888,
+              "eff_bw_gb_s": 6.395315930714808,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 26,
+                "starv": 6,
                 "idle": 0,
-                "engaged": 8218,
-                "total": 8218,
-                "util": 0.9968362131905573
+                "engaged": 8198,
+                "total": 8198,
+                "util": 0.9992681141741888
               }
             }
           },
           "observers": {
             "sin": {
               "iface": "sin",
-              "util": 1.0,
-              "eff_bw_gb_s": 6.4,
+              "util": 0.9998779445868424,
+              "eff_bw_gb_s": 6.399218845355791,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 0,
-                "idle": 217,
-                "engaged": 8192,
-                "total": 8409,
-                "util": 1.0,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 8193,
+                "total": 8193,
+                "util": 0.9998779445868424,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8,
                 "tap_dropped": 0,
-                "tap_packets": 32,
+                "tap_packets": 109,
                 "ch_prod": [
                   1024,
                   1024,
@@ -1340,22 +1340,22 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 6.234843619931026,
+              "byte_bw_gb_s": 6.399218845355791,
               "meter_prod_delta": 0
             },
             "wr": {
               "iface": "wr",
-              "util": 0.9968362131905573,
-              "eff_bw_gb_s": 6.3797517644195665,
+              "util": 0.9992681141741888,
+              "eff_bw_gb_s": 6.395315930714808,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 26,
+                "starv": 6,
                 "idle": 0,
-                "engaged": 8218,
-                "total": 8218,
-                "util": 0.9968362131905573,
+                "engaged": 8198,
+                "total": 8198,
+                "util": 0.9992681141741888,
                 "bursts": 1023,
                 "ch_prod": [
                   1024,
@@ -1374,8 +1374,8 @@
                     0,
                     0,
                     0,
-                    11,
-                    1012,
+                    1,
+                    1022,
                     0,
                     0,
                     0,
@@ -1390,7 +1390,7 @@
                   ],
                   "total": 1023,
                   "samples": 1023,
-                  "mean_cyc": 23.870967741935484,
+                  "mean_cyc": 23.988269794721408,
                   "p50_cyc": 16,
                   "p90_cyc": 16,
                   "p99_cyc": 16
@@ -1456,52 +1456,52 @@
           "ifaces": {
             "rd": {
               "iface": "rd",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026
               }
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026
               },
               "bytes": 524288,
               "packets": 8192,
-              "byte_bw_gb_s": 6.389859841560024
+              "byte_bw_gb_s": 6.389081160126737
             }
           },
           "observers": {
             "rd": {
               "iface": "rd",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538,
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026,
                 "bursts": 1024,
                 "ch_prod": [
                   1024,
@@ -1572,22 +1572,22 @@
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538,
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8192,
                 "tap_dropped": 0,
-                "tap_packets": 32768,
+                "tap_packets": 508936,
                 "ch_prod": [
                   1024,
                   1024,
@@ -1599,7 +1599,7 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 6.389859841560024,
+              "byte_bw_gb_s": 6.389081160126737,
               "meter_prod_delta": 0
             }
           },
@@ -1690,21 +1690,21 @@
           "ifaces": {
             "sin": {
               "iface": "sin",
-              "util": 1.0,
-              "eff_bw_gb_s": 6.4,
+              "util": 0.9998779445868424,
+              "eff_bw_gb_s": 6.399218845355791,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 0,
-                "idle": 197,
-                "engaged": 8192,
-                "total": 8389,
-                "util": 1.0
+                "starv": 1,
+                "idle": 0,
+                "engaged": 8193,
+                "total": 8193,
+                "util": 0.9998779445868424
               },
               "bytes": 524288,
               "packets": 8,
-              "byte_bw_gb_s": 6.249707950888067
+              "byte_bw_gb_s": 6.399218845355791
             },
             "wr": {
               "iface": "wr",
@@ -1725,22 +1725,22 @@
           "observers": {
             "sin": {
               "iface": "sin",
-              "util": 1.0,
-              "eff_bw_gb_s": 6.4,
+              "util": 0.9998779445868424,
+              "eff_bw_gb_s": 6.399218845355791,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 0,
-                "idle": 197,
-                "engaged": 8192,
-                "total": 8389,
-                "util": 1.0,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 8193,
+                "total": 8193,
+                "util": 0.9998779445868424,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8,
                 "tap_dropped": 0,
-                "tap_packets": 40,
+                "tap_packets": 117,
                 "ch_prod": [
                   1024,
                   1024,
@@ -1752,7 +1752,7 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 6.249707950888067,
+              "byte_bw_gb_s": 6.399218845355791,
               "meter_prod_delta": 0
             },
             "wr": {
@@ -1787,8 +1787,8 @@
                     0,
                     0,
                     0,
-                    9,
-                    502,
+                    1,
+                    510,
                     0,
                     0,
                     0,
@@ -1802,7 +1802,7 @@
                   ],
                   "total": 511,
                   "samples": 511,
-                  "mean_cyc": 47.57729941291585,
+                  "mean_cyc": 47.95303326810176,
                   "p50_cyc": 32,
                   "p90_cyc": 32,
                   "p99_cyc": 32
@@ -1868,52 +1868,52 @@
           "ifaces": {
             "rd": {
               "iface": "rd",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026
               }
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026
               },
               "bytes": 524288,
               "packets": 8192,
-              "byte_bw_gb_s": 6.389859841560024
+              "byte_bw_gb_s": 6.389081160126737
             }
           },
           "observers": {
             "rd": {
               "iface": "rd",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538,
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026,
                 "bursts": 512,
                 "ch_prod": [
                   1024,
@@ -1984,22 +1984,22 @@
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538,
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8192,
                 "tap_dropped": 0,
-                "tap_packets": 40960,
+                "tap_packets": 517128,
                 "ch_prod": [
                   1024,
                   1024,
@@ -2011,7 +2011,7 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 6.389859841560024,
+              "byte_bw_gb_s": 6.389081160126737,
               "meter_prod_delta": 0
             }
           },
@@ -2102,21 +2102,21 @@
           "ifaces": {
             "sin": {
               "iface": "sin",
-              "util": 1.0,
-              "eff_bw_gb_s": 6.4,
+              "util": 0.9998779445868424,
+              "eff_bw_gb_s": 6.399218845355791,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 0,
-                "idle": 197,
-                "engaged": 8192,
-                "total": 8389,
-                "util": 1.0
+                "starv": 1,
+                "idle": 0,
+                "engaged": 8193,
+                "total": 8193,
+                "util": 0.9998779445868424
               },
               "bytes": 524288,
               "packets": 8,
-              "byte_bw_gb_s": 6.249707950888067
+              "byte_bw_gb_s": 6.399218845355791
             },
             "wr": {
               "iface": "wr",
@@ -2137,22 +2137,22 @@
           "observers": {
             "sin": {
               "iface": "sin",
-              "util": 1.0,
-              "eff_bw_gb_s": 6.4,
+              "util": 0.9998779445868424,
+              "eff_bw_gb_s": 6.399218845355791,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 0,
-                "idle": 197,
-                "engaged": 8192,
-                "total": 8389,
-                "util": 1.0,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 8193,
+                "total": 8193,
+                "util": 0.9998779445868424,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8,
                 "tap_dropped": 0,
-                "tap_packets": 48,
+                "tap_packets": 125,
                 "ch_prod": [
                   1024,
                   1024,
@@ -2164,7 +2164,7 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 6.249707950888067,
+              "byte_bw_gb_s": 6.399218845355791,
               "meter_prod_delta": 0
             },
             "wr": {
@@ -2200,8 +2200,8 @@
                     0,
                     0,
                     0,
-                    9,
-                    246,
+                    1,
+                    254,
                     0,
                     0,
                     0,
@@ -2214,7 +2214,7 @@
                   ],
                   "total": 255,
                   "samples": 255,
-                  "mean_cyc": 94.30588235294118,
+                  "mean_cyc": 95.81176470588235,
                   "p50_cyc": 64,
                   "p90_cyc": 64,
                   "p99_cyc": 64
@@ -2280,52 +2280,52 @@
           "ifaces": {
             "rd": {
               "iface": "rd",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026
               }
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026
               },
               "bytes": 524288,
               "packets": 8192,
-              "byte_bw_gb_s": 6.389859841560024
+              "byte_bw_gb_s": 6.389081160126737
             }
           },
           "observers": {
             "rd": {
               "iface": "rd",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538,
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026,
                 "bursts": 256,
                 "ch_prod": [
                   1024,
@@ -2396,22 +2396,22 @@
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538,
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8192,
                 "tap_dropped": 0,
-                "tap_packets": 49152,
+                "tap_packets": 525320,
                 "ch_prod": [
                   1024,
                   1024,
@@ -2423,7 +2423,7 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 6.389859841560024,
+              "byte_bw_gb_s": 6.389081160126737,
               "meter_prod_delta": 0
             }
           },
@@ -2514,57 +2514,57 @@
           "ifaces": {
             "sin": {
               "iface": "sin",
-              "util": 0.9967149288234578,
-              "eff_bw_gb_s": 6.37897554447013,
-              "peak_bw_gb_s": 6.4,
-              "buckets": {
-                "prod": 8192,
-                "bp": 27,
-                "starv": 0,
-                "idle": 240,
-                "engaged": 8219,
-                "total": 8459,
-                "util": 0.9967149288234578
-              },
-              "bytes": 524288,
-              "packets": 8,
-              "byte_bw_gb_s": 6.197990306182764
-            },
-            "wr": {
-              "iface": "wr",
-              "util": 0.9908079342041606,
-              "eff_bw_gb_s": 6.341170778906628,
+              "util": 0.9998779445868424,
+              "eff_bw_gb_s": 6.399218845355791,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 76,
+                "starv": 1,
                 "idle": 0,
-                "engaged": 8268,
-                "total": 8268,
-                "util": 0.9908079342041606
+                "engaged": 8193,
+                "total": 8193,
+                "util": 0.9998779445868424
+              },
+              "bytes": 524288,
+              "packets": 8,
+              "byte_bw_gb_s": 6.399218845355791
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.9992681141741888,
+              "eff_bw_gb_s": 6.395315930714808,
+              "peak_bw_gb_s": 6.4,
+              "buckets": {
+                "prod": 8192,
+                "bp": 0,
+                "starv": 6,
+                "idle": 0,
+                "engaged": 8198,
+                "total": 8198,
+                "util": 0.9992681141741888
               }
             }
           },
           "observers": {
             "sin": {
               "iface": "sin",
-              "util": 0.9967149288234578,
-              "eff_bw_gb_s": 6.37897554447013,
+              "util": 0.9998779445868424,
+              "eff_bw_gb_s": 6.399218845355791,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
-                "bp": 27,
-                "starv": 0,
-                "idle": 240,
-                "engaged": 8219,
-                "total": 8459,
-                "util": 0.9967149288234578,
+                "bp": 0,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 8193,
+                "total": 8193,
+                "util": 0.9998779445868424,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8,
                 "tap_dropped": 0,
-                "tap_packets": 56,
+                "tap_packets": 133,
                 "ch_prod": [
                   1024,
                   1024,
@@ -2576,22 +2576,22 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 6.197990306182764,
+              "byte_bw_gb_s": 6.399218845355791,
               "meter_prod_delta": 0
             },
             "wr": {
               "iface": "wr",
-              "util": 0.9908079342041606,
-              "eff_bw_gb_s": 6.341170778906628,
+              "util": 0.9992681141741888,
+              "eff_bw_gb_s": 6.395315930714808,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 76,
+                "starv": 6,
                 "idle": 0,
-                "engaged": 8268,
-                "total": 8268,
-                "util": 0.9908079342041606,
+                "engaged": 8198,
+                "total": 8198,
+                "util": 0.9992681141741888,
                 "bursts": 127,
                 "ch_prod": [
                   1024,
@@ -2613,8 +2613,8 @@
                     0,
                     0,
                     0,
-                    16,
-                    111,
+                    1,
+                    126,
                     0,
                     0,
                     0,
@@ -2626,7 +2626,7 @@
                   ],
                   "total": 127,
                   "samples": 127,
-                  "mean_cyc": 179.90551181102362,
+                  "mean_cyc": 191.24409448818898,
                   "p50_cyc": 128,
                   "p90_cyc": 128,
                   "p99_cyc": 128
@@ -2692,52 +2692,52 @@
           "ifaces": {
             "rd": {
               "iface": "rd",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026
               }
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026
               },
               "bytes": 524288,
               "packets": 8192,
-              "byte_bw_gb_s": 6.389859841560024
+              "byte_bw_gb_s": 6.389081160126737
             }
           },
           "observers": {
             "rd": {
               "iface": "rd",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538,
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026,
                 "bursts": 128,
                 "ch_prod": [
                   1024,
@@ -2808,22 +2808,22 @@
             },
             "sout": {
               "iface": "sout",
-              "util": 0.9984156002437538,
-              "eff_bw_gb_s": 6.389859841560024,
+              "util": 0.9982939312698026,
+              "eff_bw_gb_s": 6.389081160126737,
               "peak_bw_gb_s": 6.4,
               "buckets": {
                 "prod": 8192,
                 "bp": 0,
-                "starv": 13,
+                "starv": 14,
                 "idle": 0,
-                "engaged": 8205,
-                "total": 8205,
-                "util": 0.9984156002437538,
+                "engaged": 8206,
+                "total": 8206,
+                "util": 0.9982939312698026,
                 "bytes": 524288,
                 "beats": 8192,
                 "packets": 8192,
                 "tap_dropped": 0,
-                "tap_packets": 57344,
+                "tap_packets": 533512,
                 "ch_prod": [
                   1024,
                   1024,
@@ -2835,7 +2835,7 @@
                   1024
                 ]
               },
-              "byte_bw_gb_s": 6.389859841560024,
+              "byte_bw_gb_s": 6.389081160126737,
               "meter_prod_delta": 0
             }
           },
