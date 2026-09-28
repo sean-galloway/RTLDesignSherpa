@@ -226,6 +226,21 @@ not restated here:
 
 : Protocol Configuration
 
+**How STREAM drives these slots (2026-09-28, stream BUG-017).** The group
+filters by the packet's PROTOCOL field, and every in-core monitor (DAXMON,
+RDMON, WRMON) tags its packets `PROTOCOL_AXI`, so only the AXI slot ever acts
+on in-core traffic. `stream_top_ch8` drives that slot from all three monitors'
+register sets at once: the drop masks (`PKT_MASK`, `ERR_MASK`, `MASK1..3`) are
+ANDed, so a type or event is dropped at the group only if all three monitors
+drop it, and `ERR_SELECT` is ORed. Each monitor still applies its own mask
+inside itself; the group is not a second per-monitor filter. The AXIS and CORE
+slots are tied to drop-nothing because nothing in-core emits those protocols.
+Until this change the AXI slot was wired from DAXMON's registers alone, with
+RDMON's and WRMON's parked on the unused AXIS and CORE slots, so a program
+that switched DAXMON off (a drop-all `DAXMON_PKT_MASK`) lost every RDMON and
+WRMON packet at the group -- the order-dependent ADDR_RANGE loss of amba
+BUG-036.
+
 ### Debug/Status
 
 | Signal | Direction | Width | Description |

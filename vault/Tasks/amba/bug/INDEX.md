@@ -12,19 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 36 | done (kept for history) |
+| [closed/](closed/) | 37 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-036** — SOFT_RESET does not fully reset the monitor subsystem
 - **BUG-000** — reserved template; copy the file, do not file against it.
 
 ## Closed
 
+- **BUG-036** — SOFT_RESET does not fully reset the monitor subsystem -- CLOSED 2026-09-28: not reset state; the in-core group filtered every packet with DAXMON's registers (stream BUG-017, fixed)
 - **BUG-037** — ID filter loses an owned write's completion at some seeds -- CLOSED 2026-09-28: root cause was W-before-AW beats dropped by the write monitor (not the filter); trans_mgr now queues early bursts for the next AW
 - **BUG-035** — monitor TIMEOUT packets saturate at ~table depth per reset -- CLOSED 2026-09-28: cosim fix 2026-09-15, board confirmed by Sean
 - **BUG-002** — `axi4_dma_observer` does not elaborate — CLOSED: module deleted

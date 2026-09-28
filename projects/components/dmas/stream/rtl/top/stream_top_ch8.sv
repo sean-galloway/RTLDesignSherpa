@@ -13,7 +13,7 @@
 //           → stream_regs (PeakRDL registers, 0x100-0x3FF)
 //       → stream_config_block (register mapping)
 //       → stream_core (conditional: monitors enabled/disabled)
-//       → monbus_axil_group (monitor bus → AXI-Lite, USE_AXI_MONITORS=1)
+//       → monbus_axil4_axil4_group (monitor bus → AXI-Lite, USE_AXI_MONITORS=1)
 //
 //   APB Address Map:
 //     0x000-0x03F: Channel kick-off registers (CHx_CTRL_{LOW,HIGH})
@@ -25,7 +25,7 @@
 //     - 3 AXI4 masters (descriptor fetch, read data, write data)
 //     - Configurable AXI transaction monitors (USE_AXI_MONITORS parameter)
 //     - Monitor bus to AXI-Lite conversion (error FIFO + master write)
-//     - Single interrupt output (stream_irq from monbus_axil_group)
+//     - Single interrupt output (stream_irq from monbus_axil4_axil4_group)
 //     - Performance profiler registers (RDL block, PERF_* @ 0x2B0-0x2D8)
 //
 // Parameters:
@@ -76,7 +76,7 @@ module stream_top_ch8 #(
     parameter bit GEN_MON = 1'b1,        // 0 = omit per-channel completion/error MonBus emitters (area)
     parameter int CDC_ENABLE = 1,        // 0 = Same clock (pclk=aclk), 1 = Different clocks (CDC)
     // Bulk-trace MonBus compressor select. Only meaningful when
-    // USE_AXI_MONITORS=1; pass-through to monbus_axil_group.USE_COMPRESSION.
+    // USE_AXI_MONITORS=1; pass-through to monbus_axil4_axil4_group.USE_COMPRESSION.
     //   0: raw 3-beat-per-record writer (default, byte-exact prior behaviour)
     //   1: 32-entry LRU CAM-based compressor in front of the writer, 1 beat
     //      per slot with a 4-bit format tag in bits [63:60] of each slot.
@@ -290,7 +290,7 @@ module stream_top_ch8 #(
     output logic [31:0]                             mon_compressor_stat_ed_delta_ovf,
 
     //-------------------------------------------------------------------------
-    // Monitor capture region (used by monbus_axil_group's master writes when
+    // Monitor capture region (used by monbus_axil4_axil4_group's master writes when
     // USE_AXI_MONITORS=1). The SoC integrator points these at whatever
     // memory region collects the dumped packets -- in stream_char that's
     // debug_sram at 0x0004_0000+. The monbus-group master-write config
@@ -542,7 +542,7 @@ module stream_top_ch8 #(
     logic [7:0]                             mon_write_fifo_count;
 
     //-------------------------------------------------------------------------
-    // Monitor Bus (to monbus_axil_group)
+    // Monitor Bus (to monbus_axil4_axil4_group)
     //-------------------------------------------------------------------------
     logic                                          mon_valid;
     logic                                          mon_ready;
@@ -2222,44 +2222,73 @@ module stream_top_ch8 #(
                 .cfg_compress_en     (hwif_out.MON.WRMON_ENABLE.COMPRESS_EN.value),
 
                 //---------------------------------------------------------------------
-                // Protocol 0 Configuration - Descriptor AXI Monitor (DAXMON)
+                // Group filters (amba BUG-036 root cause, 2026-09-28).
+                //
+                // The group filters by the packet's PROTOCOL field, and every
+                // in-core monitor -- DAXMON, RDMON, WRMON, full or lite -- tags
+                // its packets PROTOCOL_AXI. This block used to wire the AXI slot
+                // from DAXMON's registers alone and park RDMON's and WRMON's on
+                // the AXIS and CORE slots ("protocol reuse"), which nothing ever
+                // emits. So DAXMON_PKT_MASK and DAXMON's event masks silently
+                // governed EVERY in-core packet at the group: a host program that
+                // switched DAXMON off (drop-all mask, as the addr_error scenario
+                // does) lost RDMON's and WRMON's packets at this last stage, and
+                // whether a class came out depended on what the previous scenario
+                // had left in DAXMON's registers -- the "order dependence" that
+                // was hunted as surviving reset state.
+                //
+                // Now the AXI slot passes what ANY monitor allows: drop masks are
+                // ANDed (dropped only if all three drop), err_select is ORed
+                // (routed to the err FIFO if any asks). Each monitor still applies
+                // its own mask inside itself, so per-monitor filtering is intact;
+                // the group only stops being a second filter keyed to one of them.
+                // The AXIS and CORE slots are tied to "drop nothing, select
+                // nothing": no in-core source emits those protocols.
                 //---------------------------------------------------------------------
-                .cfg_axi_pkt_mask       (hwif_out.MON.DAXMON_PKT_MASK.PKT_MASK.value),
-                .cfg_axi_err_select     (hwif_out.MON.DAXMON_ERR_CFG.ERR_SELECT.value),
-                .cfg_axi_error_mask     (hwif_out.MON.DAXMON_ERR_CFG.ERR_MASK.value),
-                .cfg_axi_timeout_mask   (hwif_out.MON.DAXMON_MASK1.TIMEOUT_MASK.value),
-                .cfg_axi_compl_mask     (hwif_out.MON.DAXMON_MASK1.COMPL_MASK.value),
-                .cfg_axi_thresh_mask    (hwif_out.MON.DAXMON_MASK2.THRESH_MASK.value),
-                .cfg_axi_perf_mask      (hwif_out.MON.DAXMON_MASK2.PERF_MASK.value),
-                .cfg_axi_addr_mask      (hwif_out.MON.DAXMON_MASK3.ADDR_MASK.value),
-                .cfg_axi_debug_mask     (hwif_out.MON.DAXMON_MASK3.DEBUG_MASK.value),
-
-                //---------------------------------------------------------------------
-                // Protocol 1 Configuration - Read Engine Monitor (RDMON)
-                // Note: Using AXIS ports for read engine AXI monitor (protocol reuse)
-                //---------------------------------------------------------------------
-                .cfg_axis_pkt_mask      (hwif_out.MON.RDMON_PKT_MASK.PKT_MASK.value),
-                .cfg_axis_err_select    (hwif_out.MON.RDMON_ERR_CFG.ERR_SELECT.value),
-                .cfg_axis_error_mask    (hwif_out.MON.RDMON_ERR_CFG.ERR_MASK.value),
-                .cfg_axis_timeout_mask  (hwif_out.MON.RDMON_MASK1.TIMEOUT_MASK.value),
-                .cfg_axis_compl_mask    (hwif_out.MON.RDMON_MASK1.COMPL_MASK.value),
-                .cfg_axis_credit_mask   (hwif_out.MON.RDMON_MASK2.THRESH_MASK.value),   // Thresh → Credit
-                .cfg_axis_channel_mask  (hwif_out.MON.RDMON_MASK2.PERF_MASK.value),     // Perf → Channel
-                .cfg_axis_stream_mask   (hwif_out.MON.RDMON_MASK3.ADDR_MASK.value),     // Addr → Stream
-
-                //---------------------------------------------------------------------
-                // Protocol 2 Configuration - Write Engine Monitor (WRMON)
-                // Note: Using CORE ports for write engine AXI monitor (protocol reuse)
-                //---------------------------------------------------------------------
-                .cfg_core_pkt_mask      (hwif_out.MON.WRMON_PKT_MASK.PKT_MASK.value),
-                .cfg_core_err_select    (hwif_out.MON.WRMON_ERR_CFG.ERR_SELECT.value),
-                .cfg_core_error_mask    (hwif_out.MON.WRMON_ERR_CFG.ERR_MASK.value),
-                .cfg_core_timeout_mask  (hwif_out.MON.WRMON_MASK1.TIMEOUT_MASK.value),
-                .cfg_core_compl_mask    (hwif_out.MON.WRMON_MASK1.COMPL_MASK.value),
-                .cfg_core_thresh_mask   (hwif_out.MON.WRMON_MASK2.THRESH_MASK.value),
-                .cfg_core_perf_mask     (hwif_out.MON.WRMON_MASK2.PERF_MASK.value),
-                .cfg_core_debug_mask    (hwif_out.MON.WRMON_MASK3.DEBUG_MASK.value),
-
+                .cfg_axi_pkt_mask       (hwif_out.MON.DAXMON_PKT_MASK.PKT_MASK.value &
+                                         hwif_out.MON.RDMON_PKT_MASK.PKT_MASK.value &
+                                         hwif_out.MON.WRMON_PKT_MASK.PKT_MASK.value),
+                .cfg_axi_err_select     (hwif_out.MON.DAXMON_ERR_CFG.ERR_SELECT.value |
+                                         hwif_out.MON.RDMON_ERR_CFG.ERR_SELECT.value |
+                                         hwif_out.MON.WRMON_ERR_CFG.ERR_SELECT.value),
+                .cfg_axi_error_mask     (hwif_out.MON.DAXMON_ERR_CFG.ERR_MASK.value &
+                                         hwif_out.MON.RDMON_ERR_CFG.ERR_MASK.value &
+                                         hwif_out.MON.WRMON_ERR_CFG.ERR_MASK.value),
+                .cfg_axi_timeout_mask   (hwif_out.MON.DAXMON_MASK1.TIMEOUT_MASK.value &
+                                         hwif_out.MON.RDMON_MASK1.TIMEOUT_MASK.value &
+                                         hwif_out.MON.WRMON_MASK1.TIMEOUT_MASK.value),
+                .cfg_axi_compl_mask     (hwif_out.MON.DAXMON_MASK1.COMPL_MASK.value &
+                                         hwif_out.MON.RDMON_MASK1.COMPL_MASK.value &
+                                         hwif_out.MON.WRMON_MASK1.COMPL_MASK.value),
+                .cfg_axi_thresh_mask    (hwif_out.MON.DAXMON_MASK2.THRESH_MASK.value &
+                                         hwif_out.MON.RDMON_MASK2.THRESH_MASK.value &
+                                         hwif_out.MON.WRMON_MASK2.THRESH_MASK.value),
+                .cfg_axi_perf_mask      (hwif_out.MON.DAXMON_MASK2.PERF_MASK.value &
+                                         hwif_out.MON.RDMON_MASK2.PERF_MASK.value &
+                                         hwif_out.MON.WRMON_MASK2.PERF_MASK.value),
+                .cfg_axi_addr_mask      (hwif_out.MON.DAXMON_MASK3.ADDR_MASK.value &
+                                         hwif_out.MON.RDMON_MASK3.ADDR_MASK.value &
+                                         hwif_out.MON.WRMON_MASK3.ADDR_MASK.value),
+                .cfg_axi_debug_mask     (hwif_out.MON.DAXMON_MASK3.DEBUG_MASK.value &
+                                         hwif_out.MON.RDMON_MASK3.DEBUG_MASK.value &
+                                         hwif_out.MON.WRMON_MASK3.DEBUG_MASK.value),
+                // AXIS / CORE slots: no in-core source emits these protocols
+                .cfg_axis_pkt_mask      (16'h0),
+                .cfg_axis_err_select    (16'h0),
+                .cfg_axis_error_mask    (16'h0),
+                .cfg_axis_timeout_mask  (16'h0),
+                .cfg_axis_compl_mask    (16'h0),
+                .cfg_axis_credit_mask   (16'h0),
+                .cfg_axis_channel_mask  (16'h0),
+                .cfg_axis_stream_mask   (16'h0),
+                .cfg_core_pkt_mask      (16'h0),
+                .cfg_core_err_select    (16'h0),
+                .cfg_core_error_mask    (16'h0),
+                .cfg_core_timeout_mask  (16'h0),
+                .cfg_core_compl_mask    (16'h0),
+                .cfg_core_thresh_mask   (16'h0),
+                .cfg_core_perf_mask     (16'h0),
+                .cfg_core_debug_mask    (16'h0),
                 //---------------------------------------------------------------------
                 // Status Outputs
                 //---------------------------------------------------------------------

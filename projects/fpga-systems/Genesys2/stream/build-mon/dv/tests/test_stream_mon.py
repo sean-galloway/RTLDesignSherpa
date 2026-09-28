@@ -401,6 +401,123 @@ async def cocotb_test_soft_reset_scope(dut):
     tb.log.info("[soft-scope] SOFT_RESET clears monitor config; UART/CSR survive")
 
 
+@cocotb.test(timeout_time=int(os.environ.get('SIM_TIMEOUT_MS', '80')), timeout_unit="ms")
+async def cocotb_test_scenario_order(dut):
+    """amba BUG-036 reproduction probe: is addr_error's ERROR/ADDR_RANGE output
+    order-dependent in cosim the way it is on the board?
+
+    On Genesys2 build-mon, `--only addr_error` emits ~125 ADDR_RANGE packets and
+    `--only perf,addr_error` emits ZERO. Every cosim probe so far pulsed one
+    block's own aresetn (group: cleared; observer: cleared). This one runs the
+    BOARD'S OWN program -- host_mon_matrix.run_scenario over the identical
+    CharacterizationRunner, on the identical stream_harness RTL -- so the reset
+    FANOUT (u_bridge is on the global aresetn, everything else on unit_aresetn)
+    and every internal block are exercised together, in the board's order:
+    addr_error (control), perf, addr_error. Counts come out of the stream tally
+    the way the board reads them. A reproduction here is a waveform away from
+    the cause; a non-reproduction points at the host or the silicon build.
+    """
+    _host = os.path.join(_AREA, 'build-mon', 'host')
+    if _host not in sys.path:
+        sys.path.insert(0, _host)
+    import host_mon_matrix as HM   # the board's scenario table and runner glue
+
+    tb = StreamHarnessTB(dut)
+    await tb.setup_clocks_and_reset()
+    assert await tb.run_ping_test(), "ping failed -- harness not alive over UART"
+
+    runner, bridge = tb.runner, tb.bridge
+    runner.log = lambda msg, _l=tb.log: _l.info(f"  [runner] {msg}")
+
+    rd, cfgw = HM.tally.windows()
+    tally_rd, tally_cfg = rd["stream"], cfgw["stream"]
+    unexpected = await cocotb.external(
+        lambda: HM.tally.check_capacity(bridge, tally_cfg, HM.CANDIDATES, HM.MON_N_PROFILE))()
+    labels = HM.tally.labels(HM.CANDIDATES, unexpected)
+    sc = {s[0]: s for s in HM.SCENARIOS}
+
+    def _pins():
+        """The in-core record path across the harness's two reset domains: the
+        group's AXIL master (unit_aresetn) -> bridge master 2 (global aresetn) ->
+        the s4 tally mux grant latch (global aresetn) -> the tally (unit_aresetn).
+        A write left in flight across SOFT_RESET shows up here as a stuck grant
+        or a B the reset group can no longer accept."""
+        out = {}
+        for n in ('mon_awvalid', 'mon_wvalid', 'mon_bvalid', 'mon_bready',
+                  'r_s4_busy', 'r_s4_gr_bridge', 'r_s4_gr_obs', 's4_awvalid', 's4_wvalid', 's4_bvalid'):
+            sig = getattr(dut, n, None)
+            try:
+                out[n] = int(sig.value) if sig is not None else None
+            except ValueError:
+                out[n] = 'x'
+        return out
+
+    # in-core monbus record handshakes (group -> bridge master 2), per scenario
+    from cocotb.triggers import RisingEdge as _RE
+    hs = {'aw': 0, 'w': 0, 'b': 0}
+    async def _count(sig_name, key):
+        sig = getattr(dut, sig_name, None)
+        if sig is None:
+            tb.log.warning(f"[order] dut.{sig_name} not visible"); return
+        while True:
+            await _RE(sig)
+            hs[key] += 1
+    for _n, _k in (('mon_awvalid', 'aw'), ('mon_wvalid', 'w'), ('mon_bvalid', 'b')):
+        cocotb.start_soon(_count(_n, _k))
+
+    async def _csr_state(tag):
+        """What the program left in the datapath monitors' CSRs, by name."""
+        out = []
+        for m in ("RDMON", "WRMON"):
+            vals = {}
+            for r in ("ENABLE", "PKT_MASK", "ERR_CFG", "ADDR_RANGE_CTRL", "ADDR_RANGE2_LOW", "ADDR_RANGE2_HIGH"):
+                try:
+                    vals[r] = await tb.uart_read(_MON_REG(f"{m}_{r}"))
+                except Exception as e:      # a name the map does not carry
+                    vals[r] = f"?{e.__class__.__name__}"
+            out.append(f"{m}: " + " ".join(f"{k}={v:#x}" if isinstance(v, int) else f"{k}={v}" for k, v in vals.items()))
+        for r in ("MON_GROUP_BASE_ADDR", "MON_GROUP_LIMIT_ADDR", "MON_GROUP_FLUSH_WATERMARK"):
+            try:
+                out.append(f"{r}={await tb.uart_read(_MON_REG(r)):#x}")
+            except Exception as e:
+                out.append(f"{r}=?{e.__class__.__name__}")
+        tb.log.info(f"[order] CSRs {tag}: " + " | ".join(out))
+
+    async def run(name):
+        before = dict(hs)
+        done, counts = await cocotb.external(
+            lambda: HM.run_scenario(bridge, runner, sc[name], tally_rd, tally_cfg, unexpected, 5000.0))()
+        errs = sum(c for b, c in counts.items() if b != unexpected and HM.CANDIDATES[b][2] == HM.PKT_ERROR)
+        delta = {k: hs[k] - before[k] for k in hs}
+        tb.log.info(f"[order] {name:10s} pass={done} ERROR-class={errs} "
+                    f"unexpected={counts.get(unexpected, 0)} in-core handshakes={delta} "
+                    f"{HM.tally.format_counts(counts, labels)}")
+        tb.log.info(f"[order] {name:10s} record-path pins after the run: {_pins()}")
+        await _csr_state(f"after {name}")
+        return done, counts, errs
+
+    tb.log.info(f"[order] record-path pins fresh: {_pins()}")
+    _, c_basic, _ = await run('basic')              # does the program's path deliver ANY record in cosim?
+    n_basic = sum(c for b, c in c_basic.items() if b != unexpected)
+    assert n_basic > 0, (
+        "[order] the 'basic' scenario (completion + AddrMatch) put NO records in the tally through the "
+        "board's program, so the host->tally path itself is not working in this cosim; nothing below can be read")
+    _, _, e_first = await run('addr_error')          # control: first thing after "programming"
+    assert e_first > 0, (
+        "[order] the control addr_error run emitted NO ERROR/ADDR_RANGE packets, so this probe "
+        "cannot tell the defect from its absence (is USE_AXI_MONITORS on and the range checker built?)")
+    _, _, e_perf = await run('perf')
+    _, _, e_after = await run('addr_error')          # the run the board loses
+    tb.log.info(f"[order] addr_error first: {e_first} ERROR packets; after perf: {e_after}")
+    assert e_after > 0, (
+        f"[order] REPRODUCED amba BUG-036 in cosim: addr_error emitted {e_first} ERROR/ADDR_RANGE "
+        f"packets as the first scenario and {e_after} after perf ran. Wave this run.")
+    if e_after * 2 < e_first:
+        tb.log.warning(f"[order] addr_error after perf emitted {e_after} vs {e_first} first -- "
+                       f"not zero, but less than half; worth a look")
+    tb.log.info("[order] no order dependence in cosim: the ERROR class survives a prior perf scenario")
+
+
 def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'stream_harness': 'projects/fpga-systems/Genesys2/stream',
@@ -432,8 +549,10 @@ def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
     # nothing from them.
     use_mon  = os.environ.get('USE_AXI_MONITORS', '1')
     test_name = ("test_stream_mon_profile" if profile
-                 else "test_stream_mon_compress"
-                 if testcase.endswith("_compress") else "test_stream_mon")
+                 else "test_stream_mon_compress" if testcase.endswith("_compress")
+                 else "test_stream_scenario_order" if testcase.endswith("_scenario_order")
+                 else "test_stream_soft_reset_scope" if testcase.endswith("_soft_reset_scope")
+                 else "test_stream_mon")   # every testcase gets its OWN sim_build: two tests sharing one dir collide under xdist
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -568,6 +687,8 @@ def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
     extra_env['CHAR_POLL_TIMEOUT_S'] = '5000'
     if profile:
         extra_env['SIM_TIMEOUT_MS'] = '250'
+    if testcase.endswith("_scenario_order"):
+        extra_env['SIM_TIMEOUT_MS'] = '6000'   # four board scenarios back to back, one a perf window
     # WAVES support — follows the repo-standard pattern (test_stream_char.py):
     # --trace-fst in compile_args + waves= + sim_args + plus_args=['--trace'].
     # The +trace plusarg is what actually opens the dump at runtime.
@@ -666,6 +787,11 @@ async def cocotb_test_stream_mon_compress(dut):
                   f"smaller than the raw 3-beat encoding")
     assert res['slots_per_pkt'] < 3.0, (
         f"[compress] {res['slots_per_pkt']:.2f} slots/packet is the RAW 3-beat ratio")
+
+
+def test_stream_scenario_order(request):
+    """amba BUG-036 probe: addr_error, perf, addr_error through the board's own runner."""
+    _run_stream_mon(request, testcase="cocotb_test_scenario_order")
 
 
 def test_stream_soft_reset_scope(request):

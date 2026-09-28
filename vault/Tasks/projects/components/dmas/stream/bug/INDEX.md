@@ -2,7 +2,7 @@
 
 # projects/components/dmas/stream — bugs
 
-**Next ID: BUG-017** — never recycle a number, even when its item closed.
+**Next ID: BUG-018** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,17 +14,18 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 15 | done (kept for history) |
+| [closed/](closed/) | 16 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **BUG-000** — reserved template; copy the file, do not file against it.
-- **BUG-016** — the monitor PKT_MASK registers are described as "1 = enable"; the hardware masks on 1 (docs only)
+- **BUG-017** — the in-core monbus group filtered every packet with DAXMON's registers (the order-dependent addr_error of amba BUG-036) -- FIXED, board evidence owed
 
 ## Closed
 
+- **BUG-016** — the monitor PKT_MASK registers are described as "1 = enable"; the hardware masks on 1 -- CLOSED 2026-09-28 (RDL at 02b5f4629, MAS rows with BUG-017)
 - **BUG-001** — STREAM formal proofs read a hand-copied gaxi_fifo_sync, not the RTL
 - **BUG-002** — `.sv2v_prep` holds TRACKED generated files that `make clean` deletes
 - **BUG-003** — stream_core's formal dependency list has rotted behind the monitor rework

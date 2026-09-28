@@ -547,9 +547,17 @@ Descriptor AXI monitor packet type filtering.
 | Bits   | Field     | Type | Reset  | Description                              |
 |--------|-----------|------|--------|------------------------------------------|
 | 31:16  | Reserved  | RO   | 0x0    | Reserved                                 |
-| 15:0   | PKT_MASK  | RW   | 0xFFFF | Packet type mask (1=enable, 0=disable)   |
+| 15:0   | PKT_MASK  | RW   | 0xFFFF | Packet type drop mask: bit[type]=1 masks (drops) that type; reset all-masked |
 
 : DAXMON_PKT_MASK
+
+Scope note (stream BUG-017, 2026-09-28): this mask acts inside DAXMON. At the
+monbus group, which filters by protocol and sees every in-core packet as AXI,
+the effective drop mask is `DAXMON_PKT_MASK & RDMON_PKT_MASK & WRMON_PKT_MASK`
+(dropped only if all three drop), so switching one monitor off with a drop-all
+mask no longer silences the other two. Before this note the group used
+`DAXMON_PKT_MASK` alone for every in-core packet.
+
 
 #### DAXMON_ERR_CFG (0x10D0)
 
@@ -646,7 +654,7 @@ Read engine AXI monitor packet type filtering.
 | Bits   | Field     | Type | Reset  | Description                              |
 |--------|-----------|------|--------|------------------------------------------|
 | 31:16  | Reserved  | RO   | 0x0    | Reserved                                 |
-| 15:0   | PKT_MASK  | RW   | 0xFFFF | Packet type mask (1=enable, 0=disable)   |
+| 15:0   | PKT_MASK  | RW   | 0xFFFF | Packet type drop mask: bit[type]=1 masks (drops) that type; reset all-masked |
 
 : RDMON_PKT_MASK
 
@@ -745,7 +753,7 @@ Write engine AXI monitor packet type filtering.
 | Bits   | Field     | Type | Reset  | Description                              |
 |--------|-----------|------|--------|------------------------------------------|
 | 31:16  | Reserved  | RO   | 0x0    | Reserved                                 |
-| 15:0   | PKT_MASK  | RW   | 0xFFFF | Packet type mask (1=enable, 0=disable)   |
+| 15:0   | PKT_MASK  | RW   | 0xFFFF | Packet type drop mask: bit[type]=1 masks (drops) that type; reset all-masked |
 
 : WRMON_PKT_MASK
 

@@ -428,11 +428,16 @@ Latency threshold for performance warnings.
 
 **Type:** Packet type filter
 **Width:** 16 bits (1 bit per packet type)
-**Default:** 16'h00FF (errors + completions)
+**Default:** 16'hFFFF (all types masked; the host opens the classes it wants)
 **Register:** DAXMON_PKT_MASK.PKT_MASK @ 0x10CC[15:0]
 
+At the monbus group the effective AXI-protocol drop mask is the AND of
+`DAXMON_PKT_MASK`, `RDMON_PKT_MASK` and `WRMON_PKT_MASK` (stream BUG-017):
+a drop-all mask on one monitor switches that monitor off without silencing
+the other two.
+
 **Description:**
-Bit mask to filter packet types. Only packet types with corresponding bit set are generated.
+Drop mask over packet types: a SET bit masks (drops) that type, a clear bit lets it through. The reset value masks everything.
 
 **Packet Type Mapping:**
 ```
