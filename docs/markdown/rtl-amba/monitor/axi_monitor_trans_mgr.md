@@ -405,6 +405,22 @@ behavior. An entry whose AW has not yet handshaked is held in
 `TRANS_ADDR_PHASE` even after taking the beat, preserving address-phase
 timeout coverage (formal property `ap_wr_data_phase_has_cmd`).
 
+#### Early write data (W before its AW, write monitors)
+
+AXI4 lets a master present W beats before the AW they belong to, and a W beat
+carries no ID. Until 2026-09-28 a beat that found no entry awaiting data was
+dropped outright (`data_wants_alloc` is `!IS_AXI`-gated for writes, so no
+orphan was allocated either); the AW then waited for data that had already
+passed and its B fabricated an `EVT_PROTOCOL`, losing the completion (amba
+BUG-037; `rtl/amba/KNOWN_ISSUES/axi_monitor_early_write_data_dropped.md`).
+Now a small FIFO (`EARLY_BURSTS = 4`) holds completed early bursts as beat
+counts, plus the one burst still open, and each write allocation absorbs the
+oldest as its data phase. AXI4 write data is in AW order, so the next AW is
+the owner by definition. While early data is pending the same-cycle bypass is
+off (that beat is a later transaction's and is queued too), and the bypass
+never binds to a pending AW whose data phase is already complete. Beyond
+four completed bursts ahead of their addresses the excess is still dropped.
+
 ---
 
 ### Address filtering

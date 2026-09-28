@@ -603,6 +603,18 @@ module axi_monitor_trans_mgr
     // requires declaration before use.
     logic [N-1:0] w_freeing_oh;
 
+    // Early write data (amba BUG-037; logic below resp_update_oh). Declared here
+    // because the same-cycle AW+W bypass above reads w_early_pending.
+    localparam int EARLY_BURSTS = 4;
+    localparam int EQW = $clog2(EARLY_BURSTS + 1);
+    logic [EARLY_BURSTS-1:0][7:0] r_eq;          // completed early bursts, oldest first
+    logic [EQW-1:0]               r_eq_count;
+    logic [7:0]                   r_open_beats;  // beats of the early burst still open
+    logic                         r_open_any;
+    logic w_early_pending, w_early_w, w_early_take, w_take_q, w_take_open, w_beat_to_open;
+    logic [7:0] w_absorb_beats;
+    logic       w_absorb_done;
+
     // ========================================================================
     // Write-data ordering FIFO of AWIDs (USE_WDATA_ORDER_Q, writes only).
     //
@@ -863,12 +875,17 @@ module axi_monitor_trans_mgr
     logic [N-1:0] w_data_cmd_bypass_oh;
     always_comb begin
         w_data_cmd_bypass_oh = '0;
-        if (!IS_READ && data_valid && data_ready && !(|w_data_state_pred_oh)) begin
+        if (!IS_READ && data_valid && data_ready && !(|w_data_state_pred_oh) &&
+            !w_early_pending) begin    // early data queued: this beat is a later transaction's, queue it too (BUG-037)
             for (int i = 0; i < N; i++) begin
                 w_data_cmd_bypass_oh[i] =
                     w_addr_alloc_mirror_oh[i] ||
                     (cmd_valid && addr_update_oh[i] &&
-                     (cam_entry_payload[i].state == TRANS_ADDR_PHASE));
+                     (cam_entry_payload[i].state == TRANS_ADDR_PHASE) &&
+                     // an AW still awaiting its handshake whose data phase is
+                     // ALREADY complete (it absorbed an early burst) must not
+                     // take this beat: it is the next transaction's (BUG-037)
+                     !cam_entry_payload[i].data_completed);
             end
         end
     end
@@ -1102,8 +1119,70 @@ module axi_monitor_trans_mgr
     assign resp_update_oh = (|w_resp_cand_open) ? pick_oldest(w_resp_cand_open, w_age_flat)
                                                 : pick_oldest(w_resp_cand_any, w_age_flat);
 
-    // Channel index from ID (used only by addr allocation -- kept for
-    // source-compatibility with the production module).
+    // ------------------------------------------------------------------------
+    // EARLY WRITE DATA (amba BUG-037). AXI4 lets a master present W beats
+    // before their AW, and W carries no ID. On an AXI write monitor a beat that
+    // found no entry awaiting data used to be DROPPED: data_wants_alloc is
+    // gated with !IS_AXI, so no orphan was allocated either. The AW then
+    // arrived to a table that had never seen its data, waited for beats that
+    // had already passed, and the B closed it as EVT_PROTOCOL ("response
+    // before data") -- a legal write reported as a protocol violation and its
+    // completion lost. Measured on val/amba/test_axi4_wr_mon_id_filter at
+    // SEED=94641: two of eight writes in the filter-OFF leg, with TWO early
+    // single-beat bursts outstanding at once.
+    //
+    // Fix: keep the early bursts in a small FIFO of beat counts (a completed
+    // burst per entry) plus the one burst still open, and let each write
+    // allocation absorb the oldest as its data phase. AXI4 W order is AW
+    // order, so the next AW is the owner by definition; no ID is needed. While
+    // early data is pending, the same-cycle AW+W bypass is OFF: that beat
+    // belongs to a later transaction than the queued bursts, so it is queued
+    // too. More than EARLY_BURSTS completed bursts ahead of their addresses
+    // keeps today's behaviour (the excess is dropped); one or two in flight is
+    // what real masters do. axi_monitor_lite carries the one-burst form.
+    // ------------------------------------------------------------------------
+    assign w_early_pending = (r_eq_count != '0) || r_open_any;
+    // a W beat with no owner this cycle (no pending entry, bypass suppressed)
+    assign w_early_w       = !IS_READ && IS_AXI && data_valid && data_ready && !(|data_update_oh);
+    // the write allocation this cycle absorbs the oldest early burst
+    assign w_early_take    = !IS_READ && IS_AXI && (|addr_alloc_oh) && w_early_pending;
+    assign w_take_q        = w_early_take && (r_eq_count != '0);
+    assign w_take_open     = w_early_take && (r_eq_count == '0);       // r_open_any is implied
+    // what the allocation absorbs: a completed burst from the FIFO, or the open
+    // burst plus this cycle's beat if it is one of the open burst's
+    assign w_absorb_beats  = w_take_q ? r_eq[0] : (r_open_beats + 8'(w_early_w));
+    assign w_absorb_done   = w_take_q ? 1'b1    : (w_early_w && data_last);
+    assign w_beat_to_open  = w_early_w && !w_take_open;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_eq <= '0; r_eq_count <= '0; r_open_beats <= '0; r_open_any <= 1'b0;
+        end else if (clear) begin
+            r_eq <= '0; r_eq_count <= '0; r_open_beats <= '0; r_open_any <= 1'b0;
+        end else if (!IS_READ && IS_AXI) begin
+            automatic logic [EQW-1:0] v_cnt = r_eq_count;
+            if (w_take_q) begin
+                for (int i = 0; i < EARLY_BURSTS - 1; i++) r_eq[i] <= r_eq[i + 1];
+                r_eq[EARLY_BURSTS-1] <= '0;
+                v_cnt = v_cnt - 1'b1;
+            end
+            if (w_take_open) begin
+                r_open_any <= 1'b0; r_open_beats <= '0;
+            end else if (w_beat_to_open) begin
+                if (data_last) begin
+                    if (v_cnt < EQW'(EARLY_BURSTS)) begin
+                        r_eq[v_cnt[EQW-2:0]] <= r_open_beats + 8'd1;
+                        v_cnt = v_cnt + 1'b1;
+                    end
+                    r_open_any <= 1'b0; r_open_beats <= '0;
+                end else begin
+                    r_open_any <= 1'b1; r_open_beats <= r_open_beats + 8'd1;
+                end
+            end
+            r_eq_count <= v_cnt;
+        end
+    )
+
     logic [5:0] w_addr_chan_idx;
     always_comb begin
         /* verilator lint_off WIDTHTRUNC */
@@ -1307,6 +1386,17 @@ module axi_monitor_trans_mgr
                     next.data_beat_count       = '0;
                     next.channel               = w_addr_chan_idx;
                     next.eos_seen              = 1'b0;
+                    // EARLY WRITE DATA (amba BUG-037): a burst counted ahead of
+                    // this AW is this transaction's data phase. Same-cycle
+                    // bypass beats add to it below, from `next`.
+                    if (w_early_take) begin
+                        next.data_started    = 1'b1;
+                        next.data_beat_count = w_absorb_beats;
+                        next.data_timestamp  = timestamp;
+                        if (w_absorb_done || (w_absorb_beats >= next.expected_beats)) begin
+                            next.data_completed = 1'b1;
+                        end
+                    end
                     next_we                    = 1'b1;
                     next_id                    = cmd_id;
                 end
