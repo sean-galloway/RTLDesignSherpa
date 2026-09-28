@@ -47,6 +47,8 @@ became reachable through the BFM, and test_unmapped_address_errors encodes it
 rather than leaving it as a written-down finding.
 """
 
+import random
+
 from cocotb.triggers import ClockCycles
 
 # RLB TASK-015: the fabric tests acknowledge through the 8259, so they need
@@ -138,19 +140,9 @@ class RLBTopTests:
         """
         self.log.info("=== smoke: fabric routes GPIO to the 8259 ===")
         try:
-            await self.tb.assert_reset()
-            await self.tb.wait_clocks('pclk', 10)
-            await self.tb.deassert_reset()
-            await self.tb.wait_clocks('pclk', 10)
-            self.tb._idle_inputs()          # pic_irq_in = 0 and stays 0
-            await self.tb.wait_clocks('pclk', 5)
-
-            if not await self.tb.init_pic_cascade():
-                self.log.error("  cascade init failed; IRQ8-15 cannot arrive")
+            if not await self._fabric_preamble():
                 return False
-            if self.tb.pic_int_out():
-                self.log.error("  pic_int_out already high before the stimulus")
-                return False
+            await self.tb.arm_ioapic_for_fabric(11)
 
             # GPIO: global enable + global int enable, pin 0 rising edge.
             await self.tb.gpio_write(0x000, 0x3)          # gpio_enable|int_enable
@@ -164,30 +156,13 @@ class RLBTopTests:
             self.tb.dut.gpio_in.value = 1                 # rising edge on pin 0
             await self.tb.wait_clocks('pclk', 40)
 
-            if int(self.tb.dut.pic_irq_in.value) != 0:
-                self.log.error("  pic_irq_in is non-zero -- the test would not "
-                               "be proving internal routing")
-                return False
-            if not self.tb.pic_int_out():
-                self.log.error("  GPIO asserted but pic_int_out stayed LOW -- "
-                               "the internal fabric did not deliver IRQ11")
-                return False
-            if not self.tb.rlb_irq_out():
-                self.log.error("  rlb_irq_out LOW while a block interrupt is "
-                               "asserted")
-                return False
-
             # The BFM's negative assertion, which polling could not express:
             # exactly these lines moved and no others. The line that must NOT
             # have moved is where the bugs are -- a fabric that ORed a source
             # onto the wrong bit passes every positive check above.
-            ok, missing, unexpected = self.tb.irqs.expect_only(
-                ['gpio_irq', 'pic_int_out', 'rlb_irq_out'])
-            if not ok:
-                self.log.error(f"  IRQ lines wrong: missing={missing} "
-                               f"unexpected={unexpected}")
-                for pkt in self.tb.irqs.all_events():
-                    self.log.error(f"    {pkt}")
+            if not self._routing_verdict(
+                    'gpio_irq', ['gpio_irq', 'pic_int_out', 'rlb_irq_out'],
+                    ioapic_irq=11):
                 return False
 
             self.log.info("smoke fabric-GPIO GREEN (gpio_irq reached the 8259 "
@@ -210,20 +185,9 @@ class RLBTopTests:
         """
         self.log.info("=== smoke: fabric routes PM/ACPI to the 8259 ===")
         try:
-            await self.tb.assert_reset()
-            await self.tb.wait_clocks('pclk', 10)
-            await self.tb.deassert_reset()
-            await self.tb.wait_clocks('pclk', 10)
-            self.tb._idle_inputs()
-            await self.tb.wait_clocks('pclk', 5)
-
-            if not await self.tb.init_pic_cascade():
-                self.log.error("  cascade init failed; IRQ8-15 cannot arrive")
+            if not await self._fabric_preamble():
                 return False
-            self.tb.irqs.clear()
-            if self.tb.pic_int_out():
-                self.log.error("  pic_int_out already high before the stimulus")
-                return False
+            await self.tb.arm_ioapic_for_fabric(9)
 
             # ACPI_CONTROL: enable ACPI + GPE. Bit values from the pm_acpi TB,
             # not guessed: CONTROL_ACPI_ENABLE (1<<0), CONTROL_GPE_ENABLE (1<<2).
@@ -242,32 +206,10 @@ class RLBTopTests:
             self.tb.dut.pm_gpe_events.value = 1      # rising GPE event
             await self.tb.wait_clocks('pclk', 40)
 
-            if int(self.tb.dut.pic_irq_in.value) != 0:
-                self.log.error("  pic_irq_in is non-zero -- this would not be "
-                               "proving internal routing")
-                return False
-
-            pm = self.tb.irqs.monitors.get('pm_interrupt')
-            if pm is None or pm.assert_count == 0:
-                self.log.error("  pm_interrupt never asserted -- the PM block "
-                               "did not raise, so the fabric is untested here")
-                for pkt in self.tb.irqs.all_events():
-                    self.log.error(f"    saw: {pkt}")
-                self.tb.dut.pm_gpe_events.value = 0
-                return False
-
-            if not self.tb.pic_int_out():
-                self.log.error("  pm_interrupt asserted but pic_int_out stayed "
-                               "LOW -- the fabric did not deliver IRQ9")
-                return False
-
-            ok, missing, unexpected = self.tb.irqs.expect_only(
-                ['pm_interrupt', 'pic_int_out', 'rlb_irq_out'])
-            if not ok:
-                self.log.error(f"  IRQ lines wrong: missing={missing} "
-                               f"unexpected={unexpected}")
-                for pkt in self.tb.irqs.all_events():
-                    self.log.error(f"    {pkt}")
+            if not self._routing_verdict(
+                    'pm_interrupt',
+                    ['pm_interrupt', 'pic_int_out', 'rlb_irq_out'],
+                    ioapic_irq=9):
                 self.tb.dut.pm_gpe_events.value = 0
                 return False
 
@@ -297,13 +239,29 @@ class RLBTopTests:
             self.log.error("  cascade init failed; IRQ8-15 cannot arrive")
             return False
         self.tb.irqs.clear()
+        self.tb.clear_ioapic_deliveries()
         if self.tb.pic_int_out():
             self.log.error("  pic_int_out already high before the stimulus")
             return False
+        # Criterion 4: vary WHEN the stimulus lands. A level-sensitive OR
+        # fabric is exactly where coincident and overlapping asserts bite, so
+        # one clean edge at the same offset every run is the weakest schedule
+        # available. Seeded by the run (RDS_SEED_BASE pins it) and LOGGED, so a
+        # failure is reproducible rather than mysterious.
+        jitter = random.randint(0, 23)
+        self.log.info(f"  inter-assert jitter: {jitter} pclk before stimulus")
+        await self.tb.wait_clocks('pclk', jitter)
         return True
 
-    def _routing_verdict(self, source: str, expected: list) -> bool:
-        """Shared checks: source fired, reached the PIC, and NOTHING else moved."""
+    def _routing_verdict(self, source: str, expected: list,
+                         ioapic_irq: int = None) -> bool:
+        """Shared checks: source fired, reached the PIC and the IOAPIC, and
+        NOTHING else moved.
+
+        ioapic_irq: when given, the block's IRQ number. The IOAPIC must deliver
+        vector 0x40+irq (RLB TASK-017 criterion 1 wants the IOAPIC pin proven,
+        not just the PIC input). Left None while a test is still PIC-only.
+        """
         if int(self.tb.dut.pic_irq_in.value) != 0:
             self.log.error("  pic_irq_in is non-zero -- this would not be "
                            "proving internal routing")
@@ -326,6 +284,24 @@ class RLBTopTests:
             for pkt in self.tb.irqs.all_events():
                 self.log.error(f"    {pkt}")
             return False
+        # Criterion 2: IR2 belongs to the cascade alone, always -- checked on
+        # every block, not just the ones that should raise it.
+        if not self.tb.cascade_invariant_ok():
+            self.log.error("  IRQ2 violated: master IR2 != slave INT, so "
+                           "something other than the cascade drove pin 2")
+            return False
+        if ioapic_irq is not None:
+            want = 0x40 + ioapic_irq
+            delivered = self.tb.ioapic_deliveries()
+            vectors = [int(getattr(p, 'vector', -1)) for p in delivered]
+            if want not in vectors:
+                self.log.error(
+                    f"  {source} reached the 8259 but the IOAPIC did not "
+                    f"deliver vector 0x{want:02X} (saw {len(delivered)} "
+                    f"delivery(ies): {[f'0x{v:02X}' for v in vectors]})")
+                return False
+            self.log.info(f"  IOAPIC delivered vector 0x{want:02X} "
+                          f"({len(delivered)} delivery(ies) observed)")
         return True
 
     async def test_fabric_routes_uart_to_the_pic(self) -> bool:
@@ -348,6 +324,8 @@ class RLBTopTests:
             if not await self._fabric_preamble():
                 return False
 
+            await self.tb.arm_ioapic_for_fabric(4)
+
             W = self.tb.SLAVE_UART
             # MCR: OUT2 (1<<3) gates the IRQ pin
             await self.tb.apb_write(self.tb.window_addr(W, 0x014), 1 << 3)
@@ -356,7 +334,8 @@ class RLBTopTests:
             await self.tb.wait_clocks('pclk', 40)
 
             if not self._routing_verdict(
-                    'uart_irq', ['uart_irq', 'pic_int_out', 'rlb_irq_out']):
+                    'uart_irq', ['uart_irq', 'pic_int_out', 'rlb_irq_out'],
+                    ioapic_irq=4):
                 return False
             self.log.info("smoke fabric-UART GREEN (uart_irq reached the 8259 "
                           "on IRQ4 with pic_irq_in held at 0)")
@@ -384,6 +363,8 @@ class RLBTopTests:
             if not await self._fabric_preamble():
                 return False
 
+            await self.tb.arm_ioapic_for_fabric(0)
+
             W = self.tb.SLAVE_PIT
             self.tb.dut.pit_gate_in.value = 0x1          # GATE high, counter 0
             await self.tb.apb_write(self.tb.window_addr(W, 0x000), 1 << 0)  # enable
@@ -395,7 +376,9 @@ class RLBTopTests:
             await self.tb.wait_clocks('pclk', 400)       # pit_clk is slower
 
             if not self._routing_verdict(
-                    'pit_timer_irq', ['pit_timer_irq', 'pic_int_out', 'rlb_irq_out']):
+                    'pit_timer_irq',
+                    ['pit_timer_irq', 'pic_int_out', 'rlb_irq_out'],
+                    ioapic_irq=0):
                 self.tb.dut.pit_gate_in.value = 0
                 return False
             self.log.info("smoke fabric-PIT GREEN (pit_timer_irq reached the "
@@ -428,6 +411,10 @@ class RLBTopTests:
             if not await self._fabric_preamble():
                 return False
 
+            # Unmask the IOAPIC entry BEFORE the stimulus: an RTE resets
+            # masked, and a masked entry swallows the interrupt silently.
+            await self.tb.arm_ioapic_for_fabric(8)
+
             W = self.tb.SLAVE_RTC
             # RTC_CONFIG: CONFIG_RTC_ENABLE (1<<0) | CONFIG_CLOCK_SELECT (1<<3).
             # clock_select=1 is what makes the divider target 99 instead of 32767.
@@ -452,7 +439,8 @@ class RLBTopTests:
 
             if not self._routing_verdict(
                     'rtc_second_irq',
-                    ['rtc_second_irq', 'pic_int_out', 'rlb_irq_out']):
+                    ['rtc_second_irq', 'pic_int_out', 'rlb_irq_out'],
+                    ioapic_irq=8):
                 return False
             self.log.info("smoke fabric-RTC GREEN (rtc_second_irq reached the "
                           "8259 on IRQ8 with pic_irq_in held at 0)")
@@ -490,6 +478,8 @@ class RLBTopTests:
             if not await self._fabric_preamble():
                 return False
 
+            await self.tb.arm_ioapic_for_fabric(10)
+
             W = self.tb.SLAVE_SMBUS
             # Slow enough to be legal, fast enough to be cheap.
             await self.tb.apb_write(self.tb.window_addr(W, 0x020), 6)
@@ -510,7 +500,8 @@ class RLBTopTests:
 
             if not self._routing_verdict(
                     'smb_interrupt',
-                    ['smb_interrupt', 'pic_int_out', 'rlb_irq_out']):
+                    ['smb_interrupt', 'pic_int_out', 'rlb_irq_out'],
+                    ioapic_irq=10):
                 return False
             self.log.info("smoke fabric-SMBus GREEN (a NAKed quick command "
                           "reached the 8259 on IRQ10 with pic_irq_in held at 0)")

@@ -44,6 +44,9 @@ from pathlib import Path
 repo_root = Path(__file__).resolve().parents[6]
 sys.path.insert(0, str(repo_root))
 
+from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_monitor
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
+
 from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import (
     IOAPICRegisterMap,
 )
@@ -183,6 +186,24 @@ class RLBTopTB(TBBase):
             'rlb_irq_out':      None,
         }, title="RLB", log=self.log)
         self.irqs.start()
+
+        # IOAPIC delivery is a valid/ready handshake with a multi-field payload,
+        # so it is GAXI's job and NOT the interrupt BFM's (RLB TASK-017 traps).
+        # Auto-discovery: field_base is '{prefix}{bus_name}{pkt_prefix}{field_name}',
+        # so prefix='ioapic_irq_out_' resolves ioapic_irq_out_vector and friends,
+        # and valid_base/ready_base resolve _valid/_ready -- no signal_map needed.
+        # pclk is correct in both readings: apb4_ioapic documents the delivery
+        # output as pclk-domain, and CDC_ENABLE=0 makes pclk == ioapic_clk.
+        # is_slave=False -> the gaxi_master config, where the DUT drives valid
+        # and the TB drives ready (idled high in _idle_inputs).
+        deliv_fields = FieldConfig()
+        deliv_fields.add_field(FieldDefinition(name='vector',     bits=8, default=0))
+        deliv_fields.add_field(FieldDefinition(name='dest',       bits=8, default=0))
+        deliv_fields.add_field(FieldDefinition(name='deliv_mode', bits=3, default=0))
+        deliv_fields.add_field(FieldDefinition(name='dest_mode',  bits=1, default=0))
+        self.ioapic_deliv = create_gaxi_monitor(
+            self.dut, "IOAPICDeliv", "ioapic_irq_out_", self.dut.pclk,
+            field_config=deliv_fields, is_slave=False, multi_sig=True, log=self.log)
 
         await self.wait_clocks('pclk', 2)
         self.log.info("APB master created, IRQ BFM watching "
@@ -408,6 +429,40 @@ class RLBTopTB(TBBase):
     async def pulse_pic_irq(self, irq: int) -> bool:
         """Drive the legacy input directly; did the 8259 raise INT?"""
         return await self._pulse_and_watch(self.dut.pic_irq_in, irq)
+
+    async def arm_ioapic_for_fabric(self, irq: int):
+        """Unmask this IRQ's redirection entry so the IOAPIC will deliver it.
+
+        RTEs reset MASKED, so without this the fabric reaches the IOAPIC's pin
+        and nothing comes out -- which looks identical to a broken route. The
+        vector programmed by arm_ioapic_pin is 0x40 + irq.
+        boot_intx_en=False: the boot-interrupt reroute is a different path and
+        would confuse what the PIC side of the test is proving.
+        """
+        await self.arm_ioapic_pin(irq, masked=False, boot_intx_en=False)
+
+    def ioapic_deliveries(self) -> list:
+        """Packets the IOAPIC actually delivered.
+
+        NEVER `if self.ioapic_deliv:` -- GAXIMonitor defines __len__, so an
+        idle monitor is FALSY and the check would skip itself exactly when it
+        matters. Same trap the IRQ BFM pins shut in its unit tests.
+        """
+        return list(self.ioapic_deliv.get_observed_packets())
+
+    def clear_ioapic_deliveries(self):
+        self.ioapic_deliv.clear_queue()
+
+    def cascade_invariant_ok(self) -> bool:
+        """Master IR2 carries the cascade and nothing else.
+
+        rlb_top masks bit 2 off every other source (& 8'hFB) and forces it from
+        the slave's INT, so IR2 must EQUAL w_spic_int at all times. Asserting
+        'IR2 never moves' would be wrong: for IRQ8-15 blocks it SHOULD rise --
+        that is the cascade working.
+        """
+        ir2 = (int(self.dut.w_master_pic_irq.value) >> 2) & 1
+        return ir2 == int(self.dut.w_spic_int.value)
 
     async def pulse_ioapic_irq(self, irq: int) -> bool:
         """Drive the IOAPIC pin; did it reach the 8259 by rerouting?"""
