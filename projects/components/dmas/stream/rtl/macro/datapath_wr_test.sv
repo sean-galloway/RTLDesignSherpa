@@ -35,7 +35,7 @@ module datapath_wr_test #(
     parameter int DATA_WIDTH = 512,
     parameter int ID_WIDTH = 8,
     parameter int SRAM_DEPTH = 4096,
-    parameter int PIPELINE = 0,
+    parameter int PIPELINE = 1,
     parameter int AW_MAX_OUTSTANDING = 8,
 
     // Short aliases

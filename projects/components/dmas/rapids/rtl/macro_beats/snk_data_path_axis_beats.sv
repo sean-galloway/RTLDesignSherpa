@@ -43,7 +43,7 @@ module snk_data_path_axis_beats #(
     parameter int AXI_ID_WIDTH = 8,
     parameter int SRAM_DEPTH = 512,
     parameter int SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1,
-    parameter int PIPELINE = 0,
+    parameter int PIPELINE = 1,
     parameter int AW_MAX_OUTSTANDING = 8,
     parameter int W_PHASE_FIFO_DEPTH = 64,
     parameter int B_PHASE_FIFO_DEPTH = 16,

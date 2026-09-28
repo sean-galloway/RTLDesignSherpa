@@ -80,7 +80,7 @@ module formal_axi_read_engine (
         .DATA_WIDTH         (DW),
         .ID_WIDTH           (IW),
         .SEG_COUNT_WIDTH    (SCW),
-        .PIPELINE           (0),
+        .PIPELINE           (1),   // the design point everywhere since 2026-09-28 (was proved at 0)
         .AR_MAX_OUTSTANDING (4),
         .STROBE_EVERY_BEAT  (0)
     ) dut (

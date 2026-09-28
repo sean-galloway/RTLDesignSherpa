@@ -514,7 +514,12 @@ class DatapathWrTestTB(TBBase):
                 self.log.info(f"Channel {channel_id}: Completed {aw_count} AW transactions{self.get_time_ns_str()}")
 
                 # CRITICAL: Wait for all channels to be idle (B responses received)
-                idle_success = await self.wait_for_idle(timeout_cycles=5000)
+                # The tail after the last counted AW (its W beats and B) runs at
+                # the producer's pace, so the idle budget follows the caller's
+                # profile-scaled budget rather than a fixed 5000 cycles: at one
+                # channel under slow_producer a long varying_lengths transfer
+                # overran 5000 (seed 92826, 2026-09-28) with data still moving.
+                idle_success = await self.wait_for_idle(timeout_cycles=max(5000, timeout_cycles))
 
                 # Stop background monitors
                 self.w_monitor_active = False

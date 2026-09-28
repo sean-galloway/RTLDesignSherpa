@@ -496,6 +496,11 @@ its last status was re-proved; each failure was a harness or flow defect, not RT
   unaccepted AR withdrew it. Firmware programs ranges while the channel is idle
   (HAS); the harnesses now assume them stable after reset.
 
+Later on 2026-09-28 the four engine harnesses (rapids axi_read/write_engine_beats,
+stream axi_read/write_engine) moved from PIPELINE=0 to PIPELINE=1, the design
+point every module now defaults to; all four PASS at 1 (and passed at 0 the same
+day on the regenerated flats).
+
 Result 2026-09-28: rapids 11/11 PASS (alloc_ctrl_beats, axi_read/write_engine_beats,
 descriptor_engine_beats, drain_ctrl_beats, latency_bridge_beats, scheduler_beats,
 snk/src_sram_controller_beats, ctrlrd_engine, ctrlwr_engine); stream 9 re-proved

@@ -87,7 +87,7 @@ module formal_axi_write_engine (
         .ID_WIDTH           (IW),
         .USER_WIDTH         (UW),
         .SEG_COUNT_WIDTH    (SCW),
-        .PIPELINE           (0),
+        .PIPELINE           (1),   // the design point everywhere since 2026-09-28 (was proved at 0)
         .AW_MAX_OUTSTANDING (4),
         .W_PHASE_FIFO_DEPTH (8),
         .B_PHASE_FIFO_DEPTH (4)

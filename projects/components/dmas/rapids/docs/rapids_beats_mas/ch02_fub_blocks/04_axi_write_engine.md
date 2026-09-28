@@ -79,7 +79,7 @@ parameter int AXI_ID_WIDTH = 8;                  // AXI ID width
 parameter int MAX_OUTSTANDING = 8;               // Max outstanding AW transactions
 parameter int W_FIFO_DEPTH = 64;                 // Write data FIFO depth
 parameter int B_FIFO_DEPTH = 16;                 // Write response FIFO depth
-parameter int PIPELINE = 0;                      // Pipeline stages
+parameter int PIPELINE = 1;                      // Pipeline stages
 
 // Derived
 parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS);
@@ -210,8 +210,9 @@ channel spends the AW-to-B round trip idle, and on the Genesys 2 the
 8-channel sink write path measured 49.9 % engaged utilization at 4096
 beats per channel once BUG-005 made the engine honour one-in-flight (the
 pre-fix engine had run two by accident and read 100 %). The top and core
-therefore default `PIPELINE = 1`, which restores line rate; this page keeps
-the engine's own default of `0`.
+therefore default `PIPELINE = 1`, which restores line rate, and since
+2026-09-28 so does every module that declares the parameter, this engine
+included: `0` is selectable, never the default.
 
 ---
 

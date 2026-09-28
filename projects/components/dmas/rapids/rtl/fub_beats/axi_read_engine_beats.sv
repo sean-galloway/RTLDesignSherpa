@@ -64,7 +64,7 @@ module axi_read_engine_beats #(
     parameter int DATA_WIDTH = 512,                 // AXI data width
     parameter int ID_WIDTH = 8,                     // AXI ID width
     parameter int SEG_COUNT_WIDTH = 8,              // Width of space/count signals (typically $clog2(SRAM_DEPTH)+1)
-    parameter int PIPELINE = 0,                     // 1: allow multiple outstanding requests per channel (pipelined)
+    parameter int PIPELINE = 1,                     // 1: allow multiple outstanding requests per channel (pipelined)
                                                     // 0: wait for all data before next request per channel (non-pipelined)
     parameter int AR_MAX_OUTSTANDING = 8,           // Maximum outstanding AR requests per channel (PIPELINE=1 only)
     parameter int STROBE_EVERY_BEAT = 0,            // 0: strobe only on last beat (default)

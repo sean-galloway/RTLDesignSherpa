@@ -45,7 +45,7 @@ module rapids_src_beats #(
     parameter int AXI_ID_WIDTH = 8,
     parameter int SRAM_DEPTH = 512,
     parameter int SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1,
-    parameter int PIPELINE = 0,
+    parameter int PIPELINE = 1,
     parameter int AR_MAX_OUTSTANDING = 8,
 
     // AXIS network-interface parameters (tid carries the channel id)

@@ -76,7 +76,7 @@ parameter int ADDR_WIDTH = 64;                   // Address bus width
 parameter int DATA_WIDTH = 512;                  // Data bus width
 parameter int AXI_ID_WIDTH = 8;                  // AXI ID width
 parameter int MAX_OUTSTANDING = 8;               // Max outstanding AR transactions
-parameter int PIPELINE = 0;                      // Pipeline stages
+parameter int PIPELINE = 1;                      // Pipeline stages
 
 // Derived
 parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS);

@@ -49,7 +49,7 @@ module axi_write_engine #(
     parameter int ID_WIDTH = 8,                     // AXI ID width
     parameter int USER_WIDTH = 8,                   // AXI USER width (for channel tracking)
     parameter int SEG_COUNT_WIDTH = 8,              // Width of space/count signals (typically $clog2(SRAM_DEPTH)+1)
-    parameter int PIPELINE = 0,                     // 0: wait for all data before next request per channel
+    parameter int PIPELINE = 1,                     // 0: wait for all data before next request per channel
                                                     // 1: allow multiple outstanding requests per channel
     parameter int AW_MAX_OUTSTANDING = 8,           // Maximum outstanding AW requests per channel (PIPELINE=1 only)
     parameter int W_PHASE_FIFO_DEPTH = 64,          // W-phase transaction FIFO depth (in-order with AW)

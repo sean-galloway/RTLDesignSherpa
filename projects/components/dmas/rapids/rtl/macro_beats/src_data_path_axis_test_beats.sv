@@ -39,7 +39,7 @@ module src_data_path_axis_test_beats #(
     parameter int DATA_WIDTH = 512,
     parameter int AXI_ID_WIDTH = 8,
     parameter int SRAM_DEPTH = 4096,
-    parameter int PIPELINE = 0,
+    parameter int PIPELINE = 1,
     parameter int AR_MAX_OUTSTANDING = 8,
 
     // AXIS parameters

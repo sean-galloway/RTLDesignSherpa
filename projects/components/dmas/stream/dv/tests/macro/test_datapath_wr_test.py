@@ -277,6 +277,8 @@ async def run_varying_lengths_test(tb, xfer_beats, num_channels, sram_depth):
     current_addr = dst_addr_base
     verification_errors = 0
 
+    cum_aw_txns = 0
+
     for idx, desc_length in enumerate(descriptor_lengths):
         tb.log.info(f"Descriptor {idx+1}/{total_descriptors}: {desc_length} beats @ addr 0x{current_addr:08X}")
 
@@ -299,11 +301,17 @@ async def run_varying_lengths_test(tb, xfer_beats, num_channels, sram_depth):
         )
         assert success, f"Failed to issue descriptor {idx+1} (length={desc_length})"
 
-        # Wait for this descriptor's write to complete
-        expected_aw_txns = (desc_length + xfer_beats - 1) // xfer_beats
-        timeout_cycles = 5000
-        success, actual_txns = await tb.wait_for_completion(channel_id, expected_aw_txns, timeout_cycles=timeout_cycles)
-        assert success, f"Descriptor {idx+1} write timeout (expected {expected_aw_txns} txns, got {actual_txns})"
+        # Wait for this descriptor's write to complete. dbg_aw_transactions is
+        # CUMULATIVE, so the expected count must be too: passing the per-descriptor
+        # count returned immediately from descriptor 2 on, and the fixed 5000-cycle
+        # idle budget then had to cover the whole descriptor, which a long one under
+        # slow_producer cannot (seed 92826 at 1 ch x 256 b, 2026-09-28). The budget
+        # scales with the descriptor length and the producer's pace.
+        cum_aw_txns += (desc_length + xfer_beats - 1) // xfer_beats
+        cycles_per_beat = 40 if tb.TIMING_PROFILE == 'slow_producer' else 8
+        timeout_cycles = max(5000, desc_length * cycles_per_beat)
+        success, actual_txns = await tb.wait_for_completion(channel_id, cum_aw_txns, timeout_cycles=timeout_cycles)
+        assert success, f"Descriptor {idx+1} write timeout (expected {cum_aw_txns} cumulative txns, got {actual_txns})"
 
         # Verify this descriptor's memory immediately
         success, errors = await tb.verify_memory(current_addr, desc_length)

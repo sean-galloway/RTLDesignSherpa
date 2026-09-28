@@ -90,7 +90,7 @@ When ALL channels complete their work (`w_arb_request == 0`), the engine becomes
 | `DATA_WIDTH` | int | 512 | AXI data width |
 | `ID_WIDTH` | int | 8 | AXI ID width |
 | `SEG_COUNT_WIDTH` | int | 8 | Width of space/count signals |
-| `PIPELINE` | int | 0 | 0: non-pipelined, 1: pipelined |
+| `PIPELINE` | int | 1 | 0: non-pipelined, 1: pipelined (default 1 since 2026-09-28) |
 | `AR_MAX_OUTSTANDING` | int | 8 | Maximum outstanding AR requests (PIPELINE=1) |
 | `STROBE_EVERY_BEAT` | int | 0 | 0: strobe on last beat, 1: strobe every beat |
 

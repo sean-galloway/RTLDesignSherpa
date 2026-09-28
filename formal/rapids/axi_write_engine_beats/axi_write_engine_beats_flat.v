@@ -822,7 +822,7 @@ module axi_write_engine_beats (
 	parameter signed [31:0] ID_WIDTH = 8;
 	parameter signed [31:0] USER_WIDTH = 8;
 	parameter signed [31:0] SEG_COUNT_WIDTH = 8;
-	parameter signed [31:0] PIPELINE = 0;
+	parameter signed [31:0] PIPELINE = 1;
 	parameter signed [31:0] AW_MAX_OUTSTANDING = 8;
 	parameter signed [31:0] W_PHASE_FIFO_DEPTH = 64;
 	parameter signed [31:0] B_PHASE_FIFO_DEPTH = 16;

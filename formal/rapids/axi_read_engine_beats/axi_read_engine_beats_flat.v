@@ -525,7 +525,7 @@ module axi_read_engine_beats (
 	parameter signed [31:0] DATA_WIDTH = 512;
 	parameter signed [31:0] ID_WIDTH = 8;
 	parameter signed [31:0] SEG_COUNT_WIDTH = 8;
-	parameter signed [31:0] PIPELINE = 0;
+	parameter signed [31:0] PIPELINE = 1;
 	parameter signed [31:0] AR_MAX_OUTSTANDING = 8;
 	parameter signed [31:0] STROBE_EVERY_BEAT = 0;
 	parameter signed [31:0] NC = NUM_CHANNELS;

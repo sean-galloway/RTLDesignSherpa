@@ -51,20 +51,22 @@ async def cocotb_test_axi_write_engine_beats(dut):
 def generate_params():
     """(test_type, num_channels, data_width, pipeline, xfer_cfg, timing_profile) by REG_LEVEL.
 
-    GATE: 4 ch x 256 b, PIPELINE=0, 8-beat bursts, back-to-back consumer
-    FUNC: + 8 ch x 512 b, PIPELINE=1, 16-beat bursts, two consumer profiles
+    GATE: 4 ch x 256 b, PIPELINE=1, 8-beat bursts, back-to-back consumer
+    FUNC: + 8 ch x 512 b, PIPELINE=0, 16-beat bursts, two consumer profiles
     FULL: + 32-beat bursts and the full consumer profile sweep
+    (PIPELINE=1 is the RTL default everywhere since 2026-09-28; both modes stay
+     under test here because the one-in-flight contract is still a contract)
     """
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     test_types = ['single', 'all', 'odd', 'trickle']
     if reg_level == 'GATE':
-        shapes = [(4, 256, 0, 7)]
+        shapes = [(4, 256, 1, 7)]
         profiles = ['default']
     elif reg_level == 'FUNC':
-        shapes = [(4, 256, 0, 7), (8, 512, 1, 15)]
+        shapes = [(4, 256, 1, 7), (8, 512, 0, 15)]
         profiles = ['default', 'gaxi_backpressure']
     else:
-        shapes = [(4, 256, 0, 7), (8, 512, 0, 15), (8, 512, 1, 31)]
+        shapes = [(4, 256, 1, 7), (8, 512, 0, 15), (8, 512, 1, 31)]
         profiles = ['default', 'slow_producer', 'gaxi_backpressure', 'gaxi_stress', 'gaxi_realistic']
     params = []
     for tt in test_types:

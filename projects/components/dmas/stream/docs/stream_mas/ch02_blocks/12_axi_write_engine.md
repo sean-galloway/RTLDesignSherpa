@@ -94,7 +94,7 @@ The write engine drives `axi_wr_sram_id` to select which channel's data to drain
 | `ID_WIDTH` | int | 8 | AXI ID width |
 | `USER_WIDTH` | int | 8 | AXI USER width |
 | `SEG_COUNT_WIDTH` | int | 8 | Width of space/count signals |
-| `PIPELINE` | int | 0 | 0: non-pipelined, 1: pipelined |
+| `PIPELINE` | int | 1 | 0: non-pipelined, 1: pipelined (default 1 since 2026-09-28: one burst in flight per channel cannot cover the B round trip at 8-beat bursts, rapids BUG-005 / stream BUG-013 aftermath) |
 | `AW_MAX_OUTSTANDING` | int | 8 | Maximum outstanding AW requests (PIPELINE=1) |
 | `W_PHASE_FIFO_DEPTH` | int | 64 | W-phase transaction FIFO depth |
 | `B_PHASE_FIFO_DEPTH` | int | 16 | B-phase transaction FIFO depth per channel |
