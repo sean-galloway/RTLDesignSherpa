@@ -1,7 +1,7 @@
 # TASK-006: emit CONTRACT TABLES (proofs), not K-map pictures
 
 > Migrated 2026-09-27 from `vault/Tasks/tooling/open.md` as **TOOLING-KMAP** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
-**Status:** open 2026-08-06; SCOPE CHANGED 2026-08-28 — the output FORM
+**Status:** CLOSED 2026-09-27 -- the emitter (bin/kmaps: writer, minimiser, invariant check, don't-cares, implicants, verdict, citation gate) is complete and is the one implementation; per-component content and the pumice conversion are filed in those lanes
 changes, not just its rigour. Sean, after reviewing the emitted maps: "all
 of the kmaps so far are unacceptable as there is no way to discern what
 signals map to what... it should list out the signals that have strict
@@ -106,3 +106,22 @@ This task is the EMITTER: form, invariant check, don't-cares, implicants,
 verdict, one shared implementation. It is deferred rather than closed only
 until the branch is on main; the acceptance line ("a workbook where every map
 states...") is then owned per component by pumice TASK-029 and STREAM's lane.
+
+## CLOSED 2026-09-27 -- the global mechanism is done; the unit-specific remainder is filed in the unit lanes
+
+Sean, 2026-09-27: a tooling item is the GLOBAL mechanism and nothing else. If
+part of it needs updates inside a unit, that part is an item in the unit's own
+lane -- otherwise every agent says "not totally my problem" and it never lands.
+Applied here:
+
+- **pumice TASK-029** -- move `gen_pumice_signal_contracts.py` onto `bin/kmaps`
+  (ready-made on branch `tooling-pumice-halves`, e8fc555c4) and arm its 17 maps
+  (`depends_only_on=` / `rtl_sop=`; the derived-vs-RTL gate is inert on them).
+- **stream TASK-012** -- arm the 26 stream maps still rendering NOT CHECKED.
+
+What this item delivered globally: items 0-4 (term list, don't-cares with
+citations, sufficiency field, Quine-McCluskey implicants with a derived-vs-RTL
+verdict, and the invariant checker that fails the run when a relation excludes
+nothing or everything) and item 5's promotion to `bin/kmaps/` with a
+parameterised citation gate. The acceptance line ("a workbook where every map
+states...") is per component and lives on the two items above.

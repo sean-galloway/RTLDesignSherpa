@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-029** — never recycle a number, even when its item closed.
+**Next ID: TASK-032** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 5 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 23 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
@@ -21,6 +21,9 @@ exactly one state by construction rather than by discipline.
 ## Open
 
 - **TASK-000** — TEMPLATE — copy this file, never file against it
+- **TASK-029** — move gen_pumice_signal_contracts.py onto bin/kmaps and arm its 17 maps (depends_only_on / rtl_sop; the derived-vs-RTL gate is inert today); conversion ready on branch tooling-pumice-halves
+- **TASK-030** — repoint pumice's 173 legacy tracker-id citations (104 .py, 43 .md, 26 .sv) against MIGRATION_MAP.md
+- **TASK-031** — ddr2_char dv/tests Makefile: clean target onto bin/clean_sim_builds.py (last raw rm -rf local_sim_build in the repo); ready on the same branch
 - **TASK-015** — test the DUT across configurations: 4-layer plan (reset-parity
   gate, pairwise covering array x gap, invariant oracles, seeded soak) with a
   reportable 2-way coverage number

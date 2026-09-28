@@ -1,7 +1,7 @@
 # TASK-013: source comments still cite pre-migration task IDs
 
 **Priority:** P3. Nothing is broken; the references are stale, not dangling.
-**Status:** DEFERRED 2026-09-27 -- every non-pumice citation swept and committed; pumice's 173 wait for the pumice session (board campaign first, then their own sweep from their worktree).
+**Status:** CLOSED 2026-09-27 -- every area's citations swept except pumice's, which is pumice's own item now
 **Owner:** TBD
 
 **What.** The flat-page migration (TOOL-001) renumbered every legacy ID into the
@@ -153,3 +153,19 @@ Pumice's files are being edited from the pumice session's worktree during its
 board campaign; a sweep from here would collide. Deferred, not closed, until
 that sweep lands -- the condition is "pumice session sweeps its 173 from its own
 worktree and reports the count".
+
+## CLOSED 2026-09-27 -- the global mechanism is done; the unit-specific remainder is filed in the unit lanes
+
+Sean, 2026-09-27: a tooling item is the GLOBAL mechanism and nothing else. If
+part of it needs updates inside a unit, that part is an item in the unit's own
+lane -- otherwise every agent says "not totally my problem" and it never lands.
+Applied here:
+
+- **pumice TASK-030** -- repoint pumice's 173 legacy citations (104 .py, 43 .md,
+  26 .sv) against MIGRATION_MAP.md by `<area> <ID>`, the same method used
+  everywhere else.
+
+What this item delivered globally: `vault/Tasks/MIGRATION_MAP.md` as the one
+key, the map-keyed sweep (skips bare ids and rows whose target no longer
+exists), 1,199 citations in 370 files repointed (c50be80d7), and the bridge
+generator's 20 emitted ids repointed with every bridge regenerated (89536ba8e).

@@ -12,19 +12,20 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 10 | done (kept for history) |
+| [closed/](closed/) | 12 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 1 | parked pending a named condition |
+| [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-004** — Twelve component conftests stamp TEST_LEVEL into os.environ, which kills every per-cell depth export
 - **BUG-000** — reserved template; copy the file, do not file against it.
 
 ## Closed
 
+- **BUG-004** — conftests stamp TEST_LEVEL, killing per-cell depth -- CLOSED 2026-09-27: mechanism + checker done, 7 of 8 areas converted; pumice's conversion is pumice BUG-019
+- **BUG-005** — concurrent deletion of local_sim_build -- CLOSED 2026-09-27: marker-aware cleaner on every clean target on main; the ddr2_char Makefile is pumice TASK-031
 - **BUG-006** — env_python hardcodes /mnt/data/tools
 - **BUG-007** — Python version mismatch breaks EVERY Verilator build on this box
 - **BUG-008** — `--reruns 3` re-rolls the seed, so a seed-exposed RTL bug retries until it passes
@@ -38,4 +39,3 @@ by construction rather than by discipline.
 
 ## Deferred
 
-- **BUG-005** — concurrent deletion of local_sim_build -- DEFERRED 2026-09-27: marker-aware cleaner on every clean target on main; the ddr2_char Makefile line is on branch tooling-pumice-halves (pumice merges)
