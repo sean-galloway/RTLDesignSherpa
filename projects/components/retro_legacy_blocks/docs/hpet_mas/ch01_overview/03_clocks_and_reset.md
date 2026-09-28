@@ -234,7 +234,10 @@ uint64_t read_hpet_counter(void) {
 }
 ```
 
-**Note:** Hardware atomic read not implemented (future enhancement)
+**Note:** A hardware atomic read is deliberately NOT implemented. Two reads are
+structural for a 64-bit counter on a 32-bit APB, and the retry loop above is the
+IA-PC HPET software contract -- latching the counter on a LO read would depart
+from a real HPET rather than improve on it. (RLB/hpet TASK-004, dropped 2026-09-27.)
 
 ### Clock Gating Considerations
 
