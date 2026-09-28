@@ -44,7 +44,7 @@ The following features are explicitly within scope for this controller:
 - **DDR2 and LPDDR2 device support** selected at runtime by the `PHY_TIMING.memtype` CSR field
 - **DFI frequency ratio** of 1, 2, or 4 phases via the `DFI_RATE` parameter
 - **Multi-rank operation** — 1, 2, or 4 ranks via `NUM_RANKS` parameter; per-rank `CS_n`, `CKE`, `ODT`, and refresh tracking; rank-aware ODT cross-termination rules per JEDEC
-- **Page policies:** OPEN, CLOSE, plus the runtime page-policy engine (`fixed_open` idle-timeout and Ghasempour-2015 `adapt_time`; CSR-selected via `PAGE_POLICY_CFG.policy_mode`; open-page decision inline in `pumice_cmd_arbiter`)
+- **Page policies:** OPEN, CLOSE, plus the runtime page-policy engine (`fixed_open` idle-timeout; the adaptive modes retired 2026-09-27, TASK-014; CSR-selected via `PAGE_POLICY_CFG.policy_mode`; open-page decision inline in `pumice_cmd_arbiter`)
 - **Per-bank refresh** for LPDDR2 with DARP-style scheduling (parameterized)
 - **All-bank refresh** for DDR2 (and as LPDDR2 fallback)
 - **Elastic refresh deferral** up to JEDEC ceiling of 8× tREFI (parameterized)

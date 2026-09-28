@@ -139,7 +139,7 @@ Also present but not in the default top build: `page_predictor` and
   turnaround windows from `global_timers`. The open-page decision is inline.
 - **Page policy**: OPEN (row-hit reuse + explicit PRE on miss), CLOSE (auto-pre
   on every column op via RDA/WRA), or an adaptive runtime mode
-  (`pumice_page_policy`: fixed_open / adapt_time).
+  (`pumice_page_policy`: fixed_open; the adaptive modes retired 2026-09-27).
   Programmed via `REFRESH_TUNING.page_policy_or`.
 - **Key params**: `NUM_ENTRIES`, `NUM_RANKS`, `NUM_BANKS`, `AGE_WIDTH`.
 - **Notable**: A combinational picker with registered feedback — always

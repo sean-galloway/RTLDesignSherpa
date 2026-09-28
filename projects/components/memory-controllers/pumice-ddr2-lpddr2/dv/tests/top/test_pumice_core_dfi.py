@@ -431,7 +431,7 @@ async def cocotb_test_pumice_core_refresh_collide(dut):
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_pumice_core_fixed_open(dut):
-    """TASK-001 Axis 2: fixed_open + adapt_time idle-timeout page close.
+    """TASK-001 Axis 2: fixed_open idle-timeout page close.
 
     Self-checking in BOTH directions so the feature cannot pass vacuously:
 
@@ -441,7 +441,6 @@ async def cocotb_test_pumice_core_fixed_open(dut):
       arm B (fixed_open): same traffic, short tr_init. The row MUST close
         during idle (PRE observed at the DFI with no demand present), and a
         subsequent same-row read must reopen (new ACT) and return golden data.
-      arm C (adapt_time smoke): mode 4 with TR bounds behaves like a timeout
         close at tr_init and data stays golden (the adaptive TR walk gets its
         own directed test when its tuning matters; here it must not wedge).
     """
@@ -459,9 +458,29 @@ async def cocotb_test_pumice_core_fixed_open(dut):
         assert got[:BL_WORDS] == data, f"data mismatch @ col {col}"
 
     async def _idle_pre_count(cycles):
+        """PREs issued in the window. Refresh is parked for the whole test (see
+        the note at arm A), so the paging engine is the only PRE source here."""
         before = slave.cmd_counts.get(_DC.PRE, 0)
         await ClockCycles(dut.aclk, cycles)
         return slave.cmd_counts.get(_DC.PRE, 0) - before
+
+    # REFRESH IS PARKED FOR THIS ENTIRE TEST. A refresh drains by precharging
+    # every open bank, so a PRE delta over an idle window counts refresh closes
+    # as if the timeout engine had produced them -- and whether a refresh lands
+    # inside any given 300-cycle window depends only on how much traffic ran
+    # before it. Every arm below therefore passed or failed on refresh PHASE
+    # rather than on the mechanism it names.
+    #
+    # That was latent until arm C (an adapt_time smoke) was retired on
+    # 2026-09-27: the teardown moved earlier by arm C's duration, a refresh
+    # landed in its window, and "mode 0 after mode 3: timeout engine failed to
+    # disarm" fired against RTL that disarms correctly -- `timeout_pre_req_o` is
+    # gated on `w_timeout_on`, so mode 0 cannot request a close at all.
+    #
+    # Parked rather than subtracted: a refresh part-way through a window leaves
+    # banks closed and changes what the paging engine would do next, so
+    # subtracting its PREs would still leave the arm measuring two mechanisms.
+    dut.t_refi_i.value = 0xFFFF
 
     # ---- arm A: mode OFF -- the row must stay open across idle -------------
     dut.page_mode_i.value = 0
@@ -482,27 +501,57 @@ async def cocotb_test_pumice_core_fixed_open(dut):
     assert slave.cmd_counts.get(_DC.ACT, 0) > acts_before, (
         "reopen after timeout close did not ACT -- row state inconsistent")
 
-    # ---- arm C: adapt_time smoke -------------------------------------------
-    dut.page_mode_i.value = 4          # adapt_time
-    dut.page_tr_min_i.value = 8
-    dut.page_tr_max_i.value = 64
-    dut.page_tr_step_i.value = 4
-    dut.page_mc_high_i.value = 2
-    dut.page_mc_low_i.value = 1
-    dut.page_mc_init_i.value = 0
-    dut.page_check_ivl_i.value = 128
-    await _wr_rd_one(3, 3)
-    pres = await _idle_pre_count(300)
-    assert pres >= 1, "adapt_time: no timeout close at TR=tr_init"
-    await _wr_rd_one(4, 4)             # still coherent after adaptive close
+    # arm C was an adapt_time (mode 4) smoke. RETIRED 2026-09-27 with the mode:
+    # it was measured to BE fixed_open(tr_min), so the arm re-tested arm B's
+    # close path under a second name. Mode 4 now falls through to the build
+    # default, and the scheduler matrix keeps a regression on THAT fallthrough.
 
     # ---- teardown: mode off, confirm inertness returns ---------------------
+    # DRAIN BEFORE MEASURING. arm B leaves mode 3 armed with a short fuse, so
+    # the row reopened by `_wr_rd_one(2, 2)` can expire and issue a timeout PRE
+    # in the gap before the mode write lands. That PRE is legitimately a MODE-3
+    # close, but it is OBSERVED at the DFI slave several cycles later -- inside
+    # the teardown's window if the window opens immediately -- and got charged
+    # to mode 0 as a failure to disarm.
+    #
+    # Arm C (an adapt_time smoke, retired 2026-09-27) used to sit here and
+    # absorbed that latency incidentally. With it gone the drain has to be
+    # explicit, which is better anyway: the teardown now states the separation
+    # it depends on instead of inheriting it from an unrelated arm.
     dut.page_mode_i.value = 0
+    await ClockCycles(dut.aclk, 8)
+
+    # ASSERT THE ENGINE, NOT THE BUS. Disarm is a STRUCTURAL property:
+    # `timeout_pre_req_o` is gated on `w_timeout_on = (policy_mode_i ==
+    # MODE_FIXED_OPEN)`, so in mode 0 the page-policy engine cannot request a
+    # close at all. Reading the request line tests exactly that.
+    #
+    # The previous check counted PREs on the DFI bus over a 300-cycle window,
+    # which conflates FOUR sources: this engine, refresh drains, closes issued
+    # under the previous mode but observed later, and conflict PREs. It passed
+    # only because arm C (an adapt_time smoke, retired 2026-09-27) happened to
+    # sit in front of it and absorb the latency; removing arm C moved the window
+    # and it began failing against RTL that disarms correctly. Three different
+    # window/drain tweaks each moved the symptom without addressing it -- the
+    # signal is the answer, the bus is a proxy with confounders.
+    req = dut.u_core.u_sched.u_page_policy.timeout_pre_req_o
+    for _ in range(300):
+        await ClockCycles(dut.aclk, 1)
+        assert int(req.value) == 0, (
+            "mode 0: page_policy asserted timeout_pre_req_o -- the timeout "
+            "engine failed to disarm (it is gated on policy_mode==3, so this "
+            "should be structurally impossible)")
+
+    # And the bus stays quiet too, measured AFTER an explicit drain so an
+    # in-flight mode-3 close is not charged to mode 0.
     await _wr_rd_one(5, 5)
+    await ClockCycles(dut.aclk, 128)
     pres = await _idle_pre_count(300)
-    assert pres == 0, "mode 0 after modes 3/4: timeout engine failed to disarm"
-    dut._log.info("PASS fixed_open/adapt_time: inert at 0, closes on idle "
-                  "timeout, clean reopen, disarms")
+    assert pres == 0, (
+        f"mode 0 after mode 3: {pres} PRE(s) on the bus in an idle window with "
+        f"refresh parked and the engine's request line proven low")
+    dut._log.info("PASS fixed_open: inert at 0, closes on idle timeout, "
+                  "clean reopen, disarms")
 
 
 
@@ -1443,11 +1492,14 @@ async def cocotb_test_pumice_core_perf_refresh_bubbles(dut):
                   100.0 * m['util'])
 
 
-# Axis-2 paging modes (pumice_page_policy.sv:106-113).
+# Axis-2 paging modes. The LIVE set is 0..3.
 _PAGE_MODES = [(0, "build_default"), (1, "static_open"), (2, "static_close"),
-               (3, "fixed_open"),    (4, "adapt_time"),  (5, "adapt_access")]
-# 6 (rbl_static) / 7 (rbl_dyn) retired 2026-09-26 -- measured inert or harmful
-# on silicon, see TASK-011. A write of 6/7 falls through to the build default.
+               (3, "fixed_open")]
+# 4 (adapt_time) / 5 (adapt_access) retired 2026-09-27 -- mode 4 measured as
+# fixed_open(tr_min), mode 5 drove auto-precharge at 4.9x the activations
+# (TASK-014). 6 (rbl_static) / 7 (rbl_dyn) retired 2026-09-26 -- measured inert
+# or harmful on silicon (TASK-011). A write of 4..7 falls through to the build
+# default; the scheduler matrix regresses that fallthrough.
 
 
 # TASK-006 stall attribution, read straight off the DUT. The seven counters are
@@ -2060,112 +2112,15 @@ def test_pumice_core_perf_paging_sched_cross(request):
     _run(request, "cocotb_test_pumice_core_perf_paging_sched_cross", enhanced=True)
 
 # ---------------------------------------------------------------------------
-# rbl / adapt_access: RESTORED 2026-09-09 (predictor tables back in rtl/fub/,
-# timing re-gated on the write-lead tree). The two directed tests below are
-# the ones retired on 2026-09-01, verbatim.
-# ---------------------------------------------------------------------------
-
-@cocotb.test(timeout_time=60, timeout_unit="ms")
-async def cocotb_test_pumice_core_acc(dut):
-    """TASK-001 Axis 2: adapt_access (mode 5) -- per-row 2-bit predictor.
-
-    Happy's Hybrid counts ACCESSES PER ACTIVATION, so the thrash arm must be
-    single-access: one write burst per activation, alternating two rows in one
-    bank. Each conflict close then teaches "1 access -> close-friendly"
-    (2'b01 -> 2'b10), and the next visit auto-precharges. NOTE this differs
-    from the rbl test's thrash: a write+read pair is 2 accesses and would
-    (correctly) teach the predictor to keep the row OPEN.
-
-      arm A (mode 0 baseline): N single-write thrash turns -> PREs ~= N.
-      arm B (adapt_access): warm 4 turns (one taught close per row), then N
-        turns -> PREs < half of baseline; the written data reads back golden
-        afterwards; and a FRIENDLY row (write+read pairs = reuse) in another
-        bank stays open -- zero ACTs between consecutive accesses.
-      arm C (disarm): back to mode 0 -> thrash costs PREs again (mask released
-        and the table dropped).
-    """
-    from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
-    _memory, slave = await _bring_up(dut, page_policy=0)   # OPEN base
-
-    BANK, ROW_A, ROW_B = 4, 6, 11
-    FR_BANK, FR_ROW = 1, 3                      # friendly-row control
-    rng = random.Random(int(os.environ.get("SEED", "9")))
-    written = {}                                # addr -> data, for readback
-
-    async def _wr_one(bank, row, col, rid):
-        addr = _mkaddr(bank, row, col * BL)
-        data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
-        written[addr] = data
-        await _write(dut, addr, data, rid & 0xF)
-
-    async def _rd_check(addr, rid):
-        got = await _read(dut, addr, rid & 0xF)
-        assert got[:BL_WORDS] == written[addr], f"data mismatch @ {addr:#x}"
-
-    async def _thrash(n, col0):
-        before = slave.cmd_counts.get(_DC.PRE, 0)
-        for t in range(n):
-            await _wr_one(BANK, ROW_A if (t & 1) == 0 else ROW_B, col0 + t, t)
-            await ClockCycles(dut.aclk, 20)     # let the burst land + close
-        return slave.cmd_counts.get(_DC.PRE, 0) - before
-
-    N = 12
-
-    # ---- arm A: OPEN baseline -- single-access thrash costs a PRE/turn ----
-    dut.page_mode_i.value = 0
-    pres_open = await _thrash(N, 0)
-    assert pres_open >= N - 2, (f"baseline thrash produced only {pres_open} "
-                                f"PREs for {N} turns -- pattern not thrashing")
-
-    # ---- arm B: adapt_access ---------------------------------------------
-    dut.page_mode_i.value = 5
-    _ = await _thrash(4, 32)                    # teach: 1 close per row
-    pres_acc = await _thrash(N, 48)
-    assert pres_acc < pres_open // 2, (
-        f"adapt_access did not suppress conflict PREs: {pres_acc} vs baseline "
-        f"{pres_open} -- single-access rows are not auto-precharging")
-
-    # written data must read back golden (reads also re-teach; fine, counting
-    # windows are already closed).
-    for addr in list(written)[-4:]:
-        await _rd_check(addr, 5)
-
-    # friendly row: write+read pairs (2 accesses/activation) in another bank
-    # must stay open -- reuse teaches OPEN and the weak-open init never closes.
-    await _wr_one(FR_BANK, FR_ROW, 0, 8)
-    await _rd_check(_mkaddr(FR_BANK, FR_ROW, 0), 8)
-    acts_before = slave.cmd_counts.get(_DC.ACT, 0)
-    for k in range(3):
-        await _wr_one(FR_BANK, FR_ROW, 1 + k, 9 + k)
-        await _rd_check(_mkaddr(FR_BANK, FR_ROW, (1 + k) * BL), 9 + k)
-    acts_delta = slave.cmd_counts.get(_DC.ACT, 0) - acts_before
-    assert acts_delta == 0, (
-        f"friendly row re-activated {acts_delta}x under adapt_access -- a "
-        f"reuse-served row was classified close")
-
-    # ---- arm C: ctr_init knob ---------------------------------------------
-    # ctr_init=3 (strong close) is applied while the mode is off, so on entry
-    # EVERY fresh row predicts close at its first ACT: a cold-table thrash
-    # needs at most one conflict PRE (closing whatever the last arm left open).
-    dut.page_mode_i.value = 0
-    dut.page_ctr_init_i.value = 3
-    await ClockCycles(dut.aclk, 4)              # table re-inits while disabled
-    dut.page_mode_i.value = 5
-    pres_init3 = await _thrash(4, 80)
-    assert pres_init3 <= 1, (
-        f"ctr_init=3 cold table still cost {pres_init3} PREs in 4 turns -- "
-        f"the init knob is not reaching the predictor")
-    dut.page_ctr_init_i.value = 0
-
-    # ---- arm D: disarm ----------------------------------------------------
-    dut.page_mode_i.value = 0
-    pres_off = await _thrash(4, 96)
-    assert pres_off >= 2, "mode 0 after adapt_access: failed to disarm"
-    dut._log.info(f"PASS adapt_access: baseline {pres_open} PREs/{N} turns, "
-                  f"mode-5 {pres_acc}, friendly row stayed open, "
-                  f"ctr_init=3 cold-table {pres_init3} PREs, disarm ok")
-
-
-
-def test_pumice_core_acc(request):
-    _run(request, "cocotb_test_pumice_core_acc")
+# adapt_access (paging mode 5) and its test RETIRED 2026-09-27, together with
+# pumice_row_pred_table.sv. The predictor drove close_pred_o into ap_close_o --
+# auto-precharge -- which measured 4.9x the activations of a background
+# precharge on identical traffic (160,006 vs 32,400 ACT) and double the read
+# latency. AP commits at the column op, before it is known whether more requests
+# to that row are coming, so on a controller whose value is FR-FCFS reordering
+# to batch same-row columns it fights the reordering that justifies the design.
+#
+# Removed as a DECISION (Sean, 2026-09-27: "remove the adaptive modes as showing
+# no benefit"), NOT as a measurement: mode 5 was unproven and mis-plumbed rather
+# than disproven, and re-plumbing it onto the background precharge was the
+# alternative that was not taken. See TASK-014.

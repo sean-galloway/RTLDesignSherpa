@@ -506,11 +506,9 @@ class DDR2CharDriver:
     def set_page_timeout_cfg(self, **kw: int) -> None:
         self.pumice.set_page_timeout_cfg(**kw)
 
-    def set_page_adapt_cfg(self, **kw: int) -> None:
-        self.pumice.set_page_adapt_cfg(**kw)
+    # set_page_adapt_cfg / set_page_access_cfg pass-throughs REMOVED
+    # 2026-09-27 with paging modes 4 and 5 and the PAGE_ADAPT_CFG register.
 
-    def set_page_access_cfg(self, **kw: int) -> None:
-        self.pumice.set_page_access_cfg(**kw)
 
 
     def set_sched_policy(self, **kw) -> None:

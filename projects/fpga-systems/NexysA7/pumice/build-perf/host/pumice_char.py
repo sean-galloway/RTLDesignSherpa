@@ -303,11 +303,6 @@ class ControllerConfig:
     # and the whole adjustment is wrapped in `if (check_interval != 0)`, so at
     # the 0 reset TR NEVER MOVES and adapt_time is just fixed_open(tr_init).
     # That is how it has measured on every campaign: "identical to open page".
-    page_tr_min:   Optional[int] = None
-    page_tr_max:   Optional[int] = None
-    page_tr_step:  Optional[int] = None
-    page_adapt:    Optional[Dict[str, int]] = None   # set_page_adapt_cfg kw
-    page_access:   Optional[Dict[str, int]] = None  # mode 5 table (set_page_access_cfg kw)
     # WRITE BATCHING (SCHED_WR_WM) -- TASK-007. Once the write CAM's
     # schedulable occupancy crosses wr_high_wm, writes outrank reads until it
     # falls to wr_low_wm, so a run of writes drains back-to-back and the
@@ -455,33 +450,24 @@ class ControllerConfig:
             drv.set_refresh_interval(self.t_refi)
         drv.set_refresh(**(self.refresh if self.refresh is not None
                            else {"mode": 0, "postpone": 0, "pullin": 0}))
-        # table shape first, then the mode select (predictors read the shape
-        # at entry -- see Pumice.set_page_mode)
-        drv.set_page_access_cfg(**(self.page_access if self.page_access is not None
-                                   else {"ctr_open_max": 0, "ctr_init": 0}))
-        # PAGE_TIMEOUT_CFG: all four fields, EVERY config, BEFORE the mode
-        # select -- and exactly one writer, which is why set_page_mode is
-        # called with tr_init=None below.
+        # The mode-5 predictor table shape used to be programmed here, before
+        # the mode select. Paging mode 5 RETIRED 2026-09-27 (TASK-014), so there
+        # is no table and no set_page_access_cfg.
+        # PAGE_TIMEOUT_CFG, EVERY config, BEFORE the mode select -- and exactly
+        # one writer, which is why set_page_mode is called with tr_init=None
+        # below.
         #
         # Unconditional, because an unprogrammed field inherits the previous
-        # config's and here that also silently disables the mode: this used to
-        # be guarded on `page_tr_init is not None`, so open_page running after
-        # adapt_time_tuned in the same matrix kept tr_min=2/tr_max=64. Benign
-        # only because those configs sit in legacy mode; order-dependent all
-        # the same, which is the rule the other axes already follow.
+        # config's value and here that also silently disables the mode: this was
+        # once guarded on `page_tr_init is not None`, which left a later config
+        # running on an earlier one's TR. Order-dependence is the thing every
+        # axis here is written to avoid.
         #
-        # BEFORE the mode select, because the RTL reloads `r_tr[b] <= tr_init`
-        # continuously for as long as adapt is OFF. Written after, tr_init
-        # lands in a register nothing is still copying and TR keeps whatever
-        # the previous config left.
+        # tr_init is now the register's ONLY live field: tr_min/tr_max/tr_step
+        # were the adapt_time clamps and became reserved 2026-09-27 with mode 4.
+        # PAGE_ADAPT_CFG is deleted, so there is no set_page_adapt_cfg either.
         drv.set_page_timeout_cfg(
-            tr_init=self.page_tr_init if self.page_tr_init is not None else 0,
-            tr_min=self.page_tr_min if self.page_tr_min is not None else 0,
-            tr_max=self.page_tr_max if self.page_tr_max is not None else 0,
-            tr_step=self.page_tr_step if self.page_tr_step is not None else 0)
-        drv.set_page_adapt_cfg(**(self.page_adapt if self.page_adapt is not None
-                                  else {"check_interval": 0, "mc_high_thr": 0,
-                                        "mc_low_thr": 0, "mc_init": 0}))
+            tr_init=self.page_tr_init if self.page_tr_init is not None else 0)
         drv.set_page_mode(self.page_mode if self.page_mode is not None else 0)
         # Write batching (TASK-007). Programmed on EVERY config for the same
         # reason the other mode axes are: leaving it to inherit whatever the
@@ -630,16 +616,7 @@ CONFIGS: Dict[str, ControllerConfig] = {
         "age_thr", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
         order_mode=3, age_thresh=8, rd_in_order=True),
     # ---- axis: page-policy predictors (Axis 2 modes 4..7, on open_page) --
-    "adapt_time": ControllerConfig(
-        "adapt_time", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=24,
-        order_mode=0, rd_in_order=True),
     # Sim-validated shape: acc ctr_open_max=2/ctr_init=0 (test_pumice_core_acc).
-    "adapt_access": ControllerConfig(
-        "adapt_access", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=5,
-        page_access={"ctr_open_max": 2, "ctr_init": 0},
-        order_mode=0, rd_in_order=True),
     # ---- TASK-013: predictor configs that actually predict -----------------
     # `adapt_time` above is mode 4 with tr_init and NOTHING ELSE, which is
     # fixed_open(24) wearing mode 4's name: the adjustment is gated on
@@ -660,13 +637,6 @@ CONFIGS: Dict[str, ControllerConfig] = {
     # contrivance. The only honest win left is temporal: converge on the right
     # TR without being told it. That is measured against the ladder below, not
     # against a single fixed point.
-    "adapt_time_tuned": ControllerConfig(
-        "adapt_time_tuned", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4,
-        page_tr_init=8, page_tr_min=2, page_tr_max=64, page_tr_step=4,
-        page_adapt={"check_interval": 1024, "mc_high_thr": 2,
-                    "mc_low_thr": 0, "mc_init": 0},
-        order_mode=0, rd_in_order=True),
     # SIM-SIZED mode 4. At txn_scale=1 a scenario is 8 transactions -- order
     # 70 controller cycles -- and adapt_time_tuned needs 14 check intervals of
     # 1024 to walk TR from tr_init to tr_max: ~14,336 cycles, a factor of ~200
@@ -675,13 +645,6 @@ CONFIGS: Dict[str, ControllerConfig] = {
     # the bandwidth verdict has to come from the board. This variant shrinks
     # the interval so the adjust path is at least exercised somewhere a
     # waveform can be read; it is not the configuration to quote numbers from.
-    "adapt_time_fast": ControllerConfig(
-        "adapt_time_fast", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4,
-        page_tr_init=8, page_tr_min=2, page_tr_max=64, page_tr_step=4,
-        page_adapt={"check_interval": 4, "mc_high_thr": 2,
-                    "mc_low_thr": 0, "mc_init": 0},
-        order_mode=0, rd_in_order=True),
     # AUTO-PRECHARGE vs BACKGROUND PRECHARGE, mechanism isolated (Sean asked
     # 2026-09-26: "I wouldn't expect auto-precharge to be very performant").
     # close_page closes every row via AP; fixed_open_tr1 closes every row via a
@@ -724,16 +687,6 @@ CONFIGS: Dict[str, ControllerConfig] = {
     # rather than MISS. At 2.85 refreshes per activation that is not a
     # correction on the measurement, it IS the measurement.
     # These vary ONLY t_refi under adapt_access.
-    "adapt_access_fastref": ControllerConfig(
-        "adapt_access_fastref", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=5,
-        page_access={"ctr_open_max": 2, "ctr_init": 0},
-        t_refi=0x0100, order_mode=0, rd_in_order=True),
-    "adapt_access_slowref": ControllerConfig(
-        "adapt_access_slowref", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=5,
-        page_access={"ctr_open_max": 2, "ctr_init": 0},
-        t_refi=0x7FFF, order_mode=0, rd_in_order=True),
     "open_page_fastref": ControllerConfig(
         "open_page_fastref", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, t_refi=0x0100,
@@ -748,20 +701,6 @@ CONFIGS: Dict[str, ControllerConfig] = {
     # These two move ONLY the floor. If adapt tracks the floor instead of the
     # workload, the adaptation machinery earns nothing and mode 4 is subsumed
     # by mode 3 -- the same verdict RBL's mode 7 got.
-    "adapt_time_floor8": ControllerConfig(
-        "adapt_time_floor8", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4,
-        page_tr_init=8, page_tr_min=8, page_tr_max=64, page_tr_step=4,
-        page_adapt={"check_interval": 1024, "mc_high_thr": 2,
-                    "mc_low_thr": 0, "mc_init": 0},
-        order_mode=0, rd_in_order=True),
-    "adapt_time_floor16": ControllerConfig(
-        "adapt_time_floor16", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4,
-        page_tr_init=8, page_tr_min=16, page_tr_max=64, page_tr_step=4,
-        page_adapt={"check_interval": 1024, "mc_high_thr": 2,
-                    "mc_low_thr": 0, "mc_init": 0},
-        order_mode=0, rd_in_order=True),
     # The fixed-TR ladder mode 4 has to beat. A single fixed_open point is not
     # a fair opponent: the claim for an adaptive TR is that ONE config tracks
     # the per-workload optimum, so the reference is the BEST of this ladder
@@ -2045,7 +1984,7 @@ RUN_PROFILES: Dict[str, dict] = {
     # timing. Sim proves the mechanism; the board supplies the MB/s.
     "paging_grade": dict(configs=["open_page", "close_page"], level="basic",
                          families=None),
-    "paging": dict(configs=["adapt_time", "adapt_access"],
+    "paging": dict(configs=["open_page", "fixed_open_tr2"],
                    level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
     # Axis-1 order modes on the base build: per-channel in_order vs
     # age_threshold vs plain reorder, streaming vs page-thrash.
@@ -2067,8 +2006,7 @@ RUN_PROFILES: Dict[str, dict] = {
     # ALTERNATING locality -- the two directions interleave at the controller
     # and the row a reader wants is not the row the writer just opened. If the
     # predictors are ever worth their 5,578 LUT ([[TASK-005]]), it is here.
-    "pairs_paging_mix": dict(configs=["open_page", "adapt_time", "adapt_access",
-                                      ],
+    "pairs_paging_mix": dict(configs=["open_page"],
                              level="basic", families=None, concurrent=(1, 1)),
     # PAIR SWEEP 2 -- refresh x paging. Axis 3 has only ever been measured on
     # CLOSE page, at ~34 MB/s, where refresh is a small fraction of a slow run.
@@ -2163,11 +2101,6 @@ RUN_PROFILES: Dict[str, dict] = {
     # table entries and no aliasing. Push this past ~61 and cold rows start
     # folding onto the hot ones, which corrupts exactly the discrimination the
     # profile exists to measure.
-    "adapt_rowmix": dict(configs=["open_page", "close_page", "adapt_access",
-                                  "adapt_time_tuned"],
-                         level="basic", families=(FAM_INCREMENTAL,),
-                         concurrent=(0, 4), gen_mix="hotcold",
-                         same_bank_rows=8),
     # Same stimulus at the BALANCED ratio: 2 streaming, 2 walking. 3:1 hands
     # open page most of the traffic before a predictor runs, so mode 5 has to
     # win a fight it starts behind. At 2:2 neither fixed policy is right about
@@ -2176,11 +2109,6 @@ RUN_PROFILES: Dict[str, dict] = {
     # percent over the better one. Run BOTH: if mode 5 wins at 2:2 and not at
     # 3:1, the honest finding is that it needs a cold-heavy mix, not that it
     # works.
-    "adapt_rowmix_2x2": dict(configs=["open_page", "close_page", "adapt_access",
-                                      "adapt_time_tuned"],
-                             level="basic", families=(FAM_INCREMENTAL,),
-                             concurrent=(0, 4), gen_mix="hotcold",
-                             same_bank_rows=8, n_hot=2),
     # The same 2:2 mix spread over TWO banks, and this is the one that gives
     # mode 5 a mechanism to win with. A single bank binds the ACT -> PRE -> ACT
     # chain at tRAS + tRP whether the precharge is explicit or automatic, so
@@ -2190,11 +2118,6 @@ RUN_PROFILES: Dict[str, dict] = {
     # cost auto-precharge actually removes. 4 generators is the harness ceiling
     # (char_gen_unit NUM_GEN=4), so 2 groups x (1 hot + 1 cold) is the widest
     # spread this stimulus can have.
-    "adapt_rowmix_2bank": dict(configs=["open_page", "close_page",
-                                        "adapt_access", "adapt_time_tuned"],
-                               level="basic", families=(FAM_INCREMENTAL,),
-                               concurrent=(0, 4), gen_mix="hotcold",
-                               same_bank_rows=8, n_hot=2, bank_spread=2),
     # THE CONTROL FOR MODE 4's HOTCOLD WIN. adapt_time_tuned came back +33% over
     # open page on adapt_rowmix_2bank, and `adapt_tr` showed that on the plain
     # families a single well-chosen fixed TR (tr2) matches adapt everywhere --
@@ -2211,27 +2134,11 @@ RUN_PROFILES: Dict[str, dict] = {
     "default_candidate": dict(configs=["open_page", "fixed_open_tr2",
                                        "fixed_open_tr1", "fixed_open_tr4"],
                               level="medium", families=None),
-    "ap_port_probe": dict(configs=["open_page", "close_page",
-                                   "static_close_mode2", "adapt_access"],
+    "ap_port_probe": dict(configs=["open_page", "close_page", "static_close_mode2"],
                           level="basic", families=(FAM_INCREMENTAL,),
                           concurrent=(0, 4), gen_mix="hotcold",
                           same_bank_rows=8, n_hot=2, bank_spread=2),
-    "ap_vs_bgpre": dict(configs=["open_page", "close_page",
-                                 "fixed_open_tr1", "fixed_open_tr2",
-                                 "adapt_access"],
-                        level="basic", families=(FAM_INCREMENTAL,),
-                        concurrent=(0, 4), gen_mix="hotcold",
-                        same_bank_rows=8, n_hot=2, bank_spread=2),
-    "adapt_refresh": dict(configs=["open_page", "adapt_access",
-                                   "open_page_fastref", "adapt_access_fastref",
-                                   "adapt_access_slowref"],
-                          level="basic", families=(FAM_INCREMENTAL,),
-                          concurrent=(0, 4), gen_mix="hotcold",
-                          same_bank_rows=8, n_hot=2, bank_spread=2),
-    "adapt_floor": dict(configs=["open_page", "adapt_time_tuned",
-                                 "adapt_time_floor8", "adapt_time_floor16",
-                                 "fixed_open_tr2", "fixed_open_tr8",
-                                 "fixed_open_tr16"],
+    "ap_vs_bgpre": dict(configs=["open_page", "close_page", "fixed_open_tr1", "fixed_open_tr2"],
                         level="basic", families=(FAM_INCREMENTAL,),
                         concurrent=(0, 4), gen_mix="hotcold",
                         same_bank_rows=8, n_hot=2, bank_spread=2),
@@ -2242,13 +2149,6 @@ RUN_PROFILES: Dict[str, dict] = {
                             level="basic", families=(FAM_INCREMENTAL,),
                             concurrent=(0, 4), gen_mix="hotcold",
                             same_bank_rows=8, n_hot=2, bank_spread=2),
-    "adapt_rowmix_2bank_tr": dict(configs=["open_page", "adapt_time_tuned",
-                                           "fixed_open_tr2", "fixed_open_tr4",
-                                           "fixed_open_tr8", "fixed_open_tr16",
-                                           "fixed_open_tr32", "fixed_open_tr64"],
-                                  level="basic", families=(FAM_INCREMENTAL,),
-                                  concurrent=(0, 4), gen_mix="hotcold",
-                                  same_bank_rows=8, n_hot=2, bank_spread=2),
     # PREDICTOR 2 (mode 4, adapt_time). Measured against the FIXED-TR LADDER,
     # because "beats fixed_open(24)" is not the claim -- an adaptive TR claims
     # to find the right TR on a workload it was not tuned for. So the
@@ -2259,12 +2159,6 @@ RUN_PROFILES: Dict[str, dict] = {
     # A per-bank contrivance is deliberately absent: r_mc is one GLOBAL
     # counter driving every r_tr[b] identically, so per-bank TR cannot
     # diverge and no across-banks stimulus can show it. See adapt_time_tuned.
-    "adapt_tr": dict(configs=["open_page", "close_page", "adapt_time_tuned",
-                              "fixed_open_tr2", "fixed_open_tr4",
-                              "fixed_open_tr8", "fixed_open_tr16",
-                              "fixed_open_tr32", "fixed_open_tr64"],
-                     level="basic",
-                     families=(FAM_ROW_MAJOR, FAM_COL_MAJOR, FAM_INCREMENTAL)),
     "concurrent": dict(configs=["open_page"], level="basic", families=None,
                        concurrent=(1, 1)),
     # Multi-master: two readers against one writer, all on disjoint regions.

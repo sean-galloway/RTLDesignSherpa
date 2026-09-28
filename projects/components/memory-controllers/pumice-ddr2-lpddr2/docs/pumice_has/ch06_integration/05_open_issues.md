@@ -46,9 +46,13 @@ Keeping `last_ref_age` per bank costs one counter per bank. For 8 banks this is 
 ### 5. HAPPY Predictor Hash Function
 
 RESOLVED (2026-08-25): the HAPPY address-hash predictor is retired — it was
-never wired into the rearchitected core. Its Ghasempour-2015 successors are
-runtime modes of `pumice_page_policy` (`adapt_time` and `adapt_access` both
-landed), which need no address hash.
+never wired into the rearchitected core. Its Ghasempour-2015 successors landed
+as runtime modes of `pumice_page_policy` (`adapt_time` and `adapt_access`) and
+have since been retired themselves (2026-09-27, TASK-014): `adapt_time`
+measured as `fixed_open(tr_min)`, and `adapt_access` drove auto-precharge,
+which costs 4.9x the activations of a background precharge. The surviving
+mechanism is `fixed_open`'s background close, which needs no predictor and no
+address hash.
 
 ### 6. Self-Refresh Exit Latency
 
@@ -129,8 +133,9 @@ red-to-green model test):
 2. **Scheduling (Axis 1)** — `in_order` -> `fr_fcfs` (confirm current) ->
    `age_threshold` -> `most/fewest_pending` -> `ACCESS_PREF` ->
    write-batching -> **QoS** (AxQOS-aware pick, `QOS_EN`).
-3. **Paging (Axis 2)** — `static_open/close` (confirm) -> `fixed_open` ->
-   `adapt_time` -> `adapt_access`. (`rbl_static`/`rbl_dyn` retired 2026-09-26.)
+3. **Paging (Axis 2)** — `static_open/close` (confirm) -> `fixed_open`.
+   (`adapt_time`/`adapt_access` retired 2026-09-27; `rbl_static`/`rbl_dyn`
+   retired 2026-09-26. Modes 4..7 fall through to the build default.)
 4. **Refresh (Axis 3, commodity)** — JEDEC pull-in/postpone sweep ->
    `refpb_rr`.
 

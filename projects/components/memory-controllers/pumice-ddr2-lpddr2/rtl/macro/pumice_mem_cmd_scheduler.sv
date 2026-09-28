@@ -70,17 +70,7 @@ module pumice_mem_cmd_scheduler
     input  logic [1:0]                sched_prio_sub_i,   // SCHED_POLICY.prio_sub
     input  logic                      sched_qos_en_i,     // SCHED_POLICY.qos_en
     input  logic [2:0]                page_mode_i,        // PAGE_POLICY_CFG.policy_mode
-    input  logic                      page_scope_i,
     input  logic [7:0]                page_tr_init_i,
-    input  logic [7:0]                page_tr_min_i,
-    input  logic [7:0]                page_tr_max_i,
-    input  logic [7:0]                page_tr_step_i,
-    input  logic [3:0]                page_mc_high_i,
-    input  logic [3:0]                page_mc_low_i,
-    input  logic [3:0]                page_mc_init_i,
-    input  logic [15:0]               page_check_ivl_i,
-    input  logic [3:0]                page_ctr_thresh_i,
-    input  logic [3:0]                page_ctr_init_i,
     // stall-cause attribution from the arbiter (TASK-006)
     output logic [31:0]               stall_bp_o,
     output logic [31:0]               stall_refresh_o,
@@ -417,17 +407,7 @@ module pumice_mem_cmd_scheduler
         .aclk              (aclk),
         .aresetn           (aresetn),
         .policy_mode_i     (page_mode_i),
-        .policy_scope_i    (page_scope_i),
         .tr_init_i         (page_tr_init_i),
-        .tr_min_i          (page_tr_min_i),
-        .tr_max_i          (page_tr_max_i),
-        .tr_step_i         (page_tr_step_i),
-        .mc_high_thr_i     (page_mc_high_i),
-        .mc_low_thr_i      (page_mc_low_i),
-        .mc_init_i         (page_mc_init_i),
-        .check_interval_i  (page_check_ivl_i),
-        .ctr_thresh_i      (page_ctr_thresh_i),
-        .ctr_init_i        (page_ctr_init_i),
         // Taps the ARBITER's accept (pre-FIFO), not the FIFO output: the
         // predictors correlate each command with the LIVE bank image, and the
         // cmd FIFO now releases CMD_DELAY cycles later -- a command seen that

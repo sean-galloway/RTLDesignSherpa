@@ -687,22 +687,7 @@ package pumice_csr_pkg;
     } pumice_csr__PAGE_POLICY_CFG__policy_mode__out_t;
 
     typedef struct {
-        logic value;
-    } pumice_csr__PAGE_POLICY_CFG__policy_scope__out_t;
-
-    typedef struct {
-        logic [3:0] value;
-    } pumice_csr__PAGE_POLICY_CFG__ctr_open_max__out_t;
-
-    typedef struct {
-        logic [3:0] value;
-    } pumice_csr__PAGE_POLICY_CFG__ctr_init__out_t;
-
-    typedef struct {
         pumice_csr__PAGE_POLICY_CFG__policy_mode__out_t policy_mode;
-        pumice_csr__PAGE_POLICY_CFG__policy_scope__out_t policy_scope;
-        pumice_csr__PAGE_POLICY_CFG__ctr_open_max__out_t ctr_open_max;
-        pumice_csr__PAGE_POLICY_CFG__ctr_init__out_t ctr_init;
     } pumice_csr__PAGE_POLICY_CFG__out_t;
 
     typedef struct {
@@ -710,46 +695,8 @@ package pumice_csr_pkg;
     } pumice_csr__PAGE_TIMEOUT_CFG__tr_init__out_t;
 
     typedef struct {
-        logic [7:0] value;
-    } pumice_csr__PAGE_TIMEOUT_CFG__tr_min__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } pumice_csr__PAGE_TIMEOUT_CFG__tr_max__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } pumice_csr__PAGE_TIMEOUT_CFG__tr_step__out_t;
-
-    typedef struct {
         pumice_csr__PAGE_TIMEOUT_CFG__tr_init__out_t tr_init;
-        pumice_csr__PAGE_TIMEOUT_CFG__tr_min__out_t tr_min;
-        pumice_csr__PAGE_TIMEOUT_CFG__tr_max__out_t tr_max;
-        pumice_csr__PAGE_TIMEOUT_CFG__tr_step__out_t tr_step;
     } pumice_csr__PAGE_TIMEOUT_CFG__out_t;
-
-    typedef struct {
-        logic [3:0] value;
-    } pumice_csr__PAGE_ADAPT_CFG__mc_high_thr__out_t;
-
-    typedef struct {
-        logic [3:0] value;
-    } pumice_csr__PAGE_ADAPT_CFG__mc_low_thr__out_t;
-
-    typedef struct {
-        logic [3:0] value;
-    } pumice_csr__PAGE_ADAPT_CFG__mc_init__out_t;
-
-    typedef struct {
-        logic [15:0] value;
-    } pumice_csr__PAGE_ADAPT_CFG__check_interval__out_t;
-
-    typedef struct {
-        pumice_csr__PAGE_ADAPT_CFG__mc_high_thr__out_t mc_high_thr;
-        pumice_csr__PAGE_ADAPT_CFG__mc_low_thr__out_t mc_low_thr;
-        pumice_csr__PAGE_ADAPT_CFG__mc_init__out_t mc_init;
-        pumice_csr__PAGE_ADAPT_CFG__check_interval__out_t check_interval;
-    } pumice_csr__PAGE_ADAPT_CFG__out_t;
 
     typedef struct {
         logic [1:0] value;
@@ -806,7 +753,6 @@ package pumice_csr_pkg;
         pumice_csr__SCHED_WR_WM__out_t SCHED_WR_WM;
         pumice_csr__PAGE_POLICY_CFG__out_t PAGE_POLICY_CFG;
         pumice_csr__PAGE_TIMEOUT_CFG__out_t PAGE_TIMEOUT_CFG;
-        pumice_csr__PAGE_ADAPT_CFG__out_t PAGE_ADAPT_CFG;
         pumice_csr__REF_CTRL__out_t REF_CTRL;
         pumice_csr__REF_TIMING_PB__out_t REF_TIMING_PB;
     } pumice_csr__out_t;

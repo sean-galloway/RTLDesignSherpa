@@ -385,59 +385,41 @@ class Pumice(Device):
 
     def set_page_mode(self, mode: int, tr_init: Optional[int] = None) -> None:
         """PAGE_POLICY_CFG.policy_mode (0=legacy, 1=static_open, 2=static_close,
-        3=fixed_open, 4=adapt_time, 5=adapt_access; 6/7 RETIRED 2026-09-26)
+        3=fixed_open; 4/5 RETIRED 2026-09-27, 6/7 RETIRED 2026-09-26 --
+        a write of 4..7 falls through to the build default)
         and, optionally, PAGE_TIMEOUT_CFG.tr_init for the timeout policies.
-        Modes 5..7 take their table shape from set_page_access_cfg() /
+        (Modes 4..7 are retired and fall through to the build default.) Formerly
         program those BEFORE selecting the mode so the
         predictor starts from a known table."""
         self._wr("PAGE_POLICY_CFG", policy_mode=mode & 0x7)
         if tr_init is not None:
             self.regs.write("PAGE_TIMEOUT_CFG", tr_init=tr_init & 0xFF)
 
-    def set_page_timeout_cfg(self, *, tr_init: int, tr_min: int = 0,
-                             tr_max: int = 0, tr_step: int = 0) -> None:
-        """PAGE_TIMEOUT_CFG -- the adapt_time / fixed_open timeout bounds.
+    def set_page_timeout_cfg(self, *, tr_init: int) -> None:
+        """PAGE_TIMEOUT_CFG -- the fixed_open idle timeout, in MC cycles.
 
-        `fixed_open` uses tr_init alone. **`adapt_time` needs all four**: TR is
-        clamped to [tr_min, tr_max] on every adjustment, so leaving tr_max at
-        its 0 reset pins TR to 0 the first time the mistake counter moves it,
-        and `tr == 0 disables that bank's timeout entirely`. Until 2026-09-26
-        only tr_init had a host accessor, so no measurement ever ran with the
-        clamps set.
+        tr_init is the ONLY live field. tr_min / tr_max / tr_step were the
+        adapt_time TR clamps and step; they became reserved on 2026-09-27 when
+        paging mode 4 was retired, because that mode measured as
+        fixed_open(tr_min) -- its mistake counter is dominated by the
+        held-too-long case, so TR decayed monotonically to the floor and stayed.
+        Their BIT POSITIONS are held reserved so tr_init does not move.
+
+        `tr_init == 0 DISABLES the timeout entirely`, so enabling mode 3 means
+        writing this register too -- it is not a build-default sentinel.
         """
-        self.regs.write("PAGE_TIMEOUT_CFG", tr_init=tr_init & 0xFF,
-                        tr_min=tr_min & 0xFF, tr_max=tr_max & 0xFF,
-                        tr_step=tr_step & 0xFF)
+        self.regs.write("PAGE_TIMEOUT_CFG", tr_init=tr_init & 0xFF)
 
-    def set_page_adapt_cfg(self, *, check_interval: int, mc_high_thr: int = 0,
-                           mc_low_thr: int = 0, mc_init: int = 0) -> None:
-        """PAGE_ADAPT_CFG -- the adapt_time mistake-counter evaluation.
+    # set_page_adapt_cfg() REMOVED 2026-09-27: PAGE_ADAPT_CFG was deleted from
+    # the RDL with paging mode 4 (adapt_time), which measured as
+    # fixed_open(tr_min). 0x078 is left a hole in the map -- every register
+    # carries an explicit absolute offset, so nothing shifted, and an old host
+    # reading 0x078 now gets nothing instead of another register's meaning.
 
-        **check_interval == 0 DISABLES ADAPTATION ENTIRELY.** The RTL wraps the
-        whole TR adjustment in `if (check_interval_i != 0)`, so at its 0 reset
-        TR never moves and `adapt_time` degenerates to `fixed_open` at tr_init
-        -- which is exactly how it has measured on every campaign to date, and
-        why it reads as "identical to open page". Same shape of defect as the
-        RBL epoch default (reset_interval=0, TASK-011).
-
-        MC++ on a premature close (an ACT re-opens the row a timeout PRE just
-        closed); MC-- on held-too-long (a conflict PRE closes a bank whose
-        timer had not expired). Above mc_high_thr TR grows, below mc_low_thr it
-        shrinks.
-        """
-        self.regs.write("PAGE_ADAPT_CFG", check_interval=check_interval & 0xFFFF,
-                        mc_high_thr=mc_high_thr & 0xF, mc_low_thr=mc_low_thr & 0xF,
-                        mc_init=mc_init & 0xF)
-
-    def set_page_access_cfg(self, *, ctr_open_max: int, ctr_init: int = 0) -> None:
-        """adapt_access (mode 5) counter shape, PAGE_POLICY_CFG upper fields:
-        ctr_open_max = count at/above which a row is CLOSED (auto-precharge),
-        ctr_init = cold-table value (higher = close-biased). The counter is the
-        paper's 2-bit saturating counter (ctr_width was retired 2026-09-09).
-        Shares the word with policy_mode via the shadow."""
-        self._wr("PAGE_POLICY_CFG", ctr_open_max=ctr_open_max & 0xF,
-                 ctr_init=ctr_init & 0xF)
-
+    # set_page_access_cfg() REMOVED 2026-09-27 with paging mode 5
+    # (adapt_access) and pumice_row_pred_table.sv. Its fields
+    # (PAGE_POLICY_CFG.ctr_open_max / ctr_init) are now reserved; their bit
+    # positions are held so policy_mode does not move.
 
     def set_refresh(self, *, mode: Optional[int] = None,
                     postpone: Optional[int] = None,

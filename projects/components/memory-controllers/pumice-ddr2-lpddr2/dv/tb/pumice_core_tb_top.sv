@@ -53,15 +53,7 @@ module pumice_core_tb_top
     input  page_policy_e     page_policy_i,
     // Runtime page-policy pins (TASK-001); unconnected => 0 => legacy.
     input  logic [2:0]       page_mode_i,
-    input  logic             page_scope_i,
     input  logic [7:0]       page_tr_init_i,
-    input  logic [7:0]       page_tr_min_i,
-    input  logic [7:0]       page_tr_max_i,
-    input  logic [7:0]       page_tr_step_i,
-    input  logic [3:0]       page_mc_high_i,
-    input  logic [3:0]       page_mc_low_i,
-    input  logic [3:0]       page_mc_init_i,
-    input  logic [15:0]      page_check_ivl_i,
     input  logic [3:0]       ref_postpone_i,
     input  logic [3:0]       ref_pullin_i,
     input  logic [1:0]       ref_mode_i,
@@ -80,8 +72,6 @@ module pumice_core_tb_top
     input  logic [1:0]       sched_prio_sub_i,
     input  logic             sched_qos_en_i,
     input  logic [7:0]       sched_age_thresh_i,
-    input  logic [3:0]       page_ctr_thresh_i,
-    input  logic [3:0]       page_ctr_init_i,
     input  logic [4:0]       bank_lsb_i,
     input  logic             hash_en_i,
     input  logic [7:0]       hash_seed_i,
@@ -184,11 +174,8 @@ module pumice_core_tb_top
     ) u_core (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .memtype_i(memtype_i), .page_policy_i(page_policy_i),
-        .page_mode_i(page_mode_i), .page_scope_i(page_scope_i),
-        .page_tr_init_i(page_tr_init_i), .page_tr_min_i(page_tr_min_i),
-        .page_tr_max_i(page_tr_max_i), .page_tr_step_i(page_tr_step_i),
-        .page_mc_high_i(page_mc_high_i), .page_mc_low_i(page_mc_low_i),
-        .page_mc_init_i(page_mc_init_i), .page_check_ivl_i(page_check_ivl_i),
+        .page_mode_i(page_mode_i),
+        .page_tr_init_i(page_tr_init_i),
         .sched_order_mode_i(sched_order_mode_i),
         .sched_row_sel_i(sched_row_sel_i), .sched_col_sel_i(sched_col_sel_i),
         .sched_access_pref_i(sched_access_pref_i),
@@ -196,7 +183,6 @@ module pumice_core_tb_top
         .sched_wr_batch_max_i(sched_wr_batch_max_i),
         .sched_prio_sub_i(sched_prio_sub_i), .sched_qos_en_i(sched_qos_en_i),
         .sched_age_thresh_i(sched_age_thresh_i),
-        .page_ctr_thresh_i(page_ctr_thresh_i), .page_ctr_init_i(page_ctr_init_i),
         // TASK-006 stall attribution. These used to be left open here on the
         // grounds that the core TB scores the datapath and the counters are
         // read over the CSR bus -- but the core TB is where the paging sweep

@@ -477,18 +477,14 @@ async def cocotb_test_pumice_top(dut):
                       page_policy, _policy_mode, _tr_init)
 
     if test_type == "adapt_time_workload":
-        # Successor of the retired HAPPY_HYBRID workload: the Happy
-        # Happy adaptive-timeout policy (PAGE_POLICY_CFG.policy_mode=4),
-        # short TR so closes actually happen inside this workload.
+        # adapt_time (mode 4) RETIRED 2026-09-27. The workload is KEPT and
+        # re-pointed at fixed_open, because mode 4 was measured to BE
+        # fixed_open(tr_min) -- so this is the same traffic against the policy
+        # that actually shipped, rather than a scenario deleted along with a
+        # mode. The name is left alone so the cell's history stays traceable.
         w = tb.csr_write_field
-        await w("PAGE_POLICY_CFG", "policy_mode", 4)
+        await w("PAGE_POLICY_CFG", "policy_mode", 3)
         await w("PAGE_TIMEOUT_CFG", "tr_init", 24)
-        await w("PAGE_TIMEOUT_CFG", "tr_min", 8)
-        await w("PAGE_TIMEOUT_CFG", "tr_max", 96)
-        await w("PAGE_TIMEOUT_CFG", "tr_step", 8)
-        await w("PAGE_ADAPT_CFG", "mc_high_thr", 2)
-        await w("PAGE_ADAPT_CFG", "mc_low_thr", 1)
-        await w("PAGE_ADAPT_CFG", "check_interval", 256)
 
     def payload(bi, ki):
         return (rng.getrandbits(DW - 1) ^ ((bi << 8) | ki)) if False else \

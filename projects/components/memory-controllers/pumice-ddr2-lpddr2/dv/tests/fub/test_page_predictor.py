@@ -2,19 +2,26 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Directed unit test for the Axis-2 paging PREDICTORS behind pumice_page_policy
-(TASK-001 modes 5/6/7). It proves each predictor mode produces a DISTINCT
-per-bank auto-precharge verdict versus the default policy:
+Directed unit test for pumice_page_policy's auto-precharge decision.
 
-  * mode 0 (build_default): ap_mode_en_o stays 0 -- no auto-precharge, whatever
-    the command stream (this is the RED baseline the predictors must beat).
-  * mode 5 (adapt_access): a row that sees <=1 column per activation is voted
-    closed after a few ACT/PRE cycles -> u_row_pred.close_pred_o -> ap_close_o
-    asserts (GREEN).
+WHAT THIS USED TO BE. It tested the Axis-2 paging PREDICTORS (modes 5/6/7),
+proving mode 5 (adapt_access) voted a single-access row closed via
+u_row_pred.close_pred_o -> ap_close_o. Modes 6/7 were retired 2026-09-26 and
+modes 4/5 on 2026-09-27, taking pumice_row_pred_table.sv with them, so there is
+no predictor left in this block to test.
 
-The verdict flops are latched at ACT time (pipelined +1 cycle, PUMICE-017)
-and held while the row is open, so the checks settle a few cycles after the ACT.
-Assertions use only the top ports, so no --public access is required.
+WHAT IT IS NOW, and why it was not simply deleted. A retired mode encoding is
+still WRITABLE -- policy_mode is a 3-bit field and software can put 4..7 in it.
+The contract is that those encodings fall through to the BUILD DEFAULT, which
+means ap_mode_en_o stays 0 and no bank is auto-precharged. That contract is the
+only thing standing between a stale host writing mode 5 and the controller
+doing something undefined, and nothing else checks it at this level. So the
+mode-0 baseline is kept and the retired encodings are asserted to behave
+identically to it.
+
+The live auto-precharge path (mode 2, static_close) is covered here too, so the
+test still distinguishes "no AP" from "AP" rather than only asserting absence --
+a test that only ever expects 0 cannot tell a correct block from a dead one.
 """
 
 import os
@@ -43,17 +50,7 @@ class PredTB(TBBase):
         d = self.dut
         # config: park the timeout path, neutral shapes ("0 = build default")
         d.policy_mode_i.value   = mode
-        d.policy_scope_i.value  = 0
-        d.ctr_thresh_i.value    = 2      # mode 5: close when counter >= 2
-        d.ctr_init_i.value      = 1      # weak-open init
         d.tr_init_i.value       = 0xFF   # long idle timer -> timeout never fires
-        d.tr_min_i.value        = 0xFF
-        d.tr_max_i.value        = 0xFF
-        d.tr_step_i.value       = 0
-        d.mc_high_thr_i.value   = 0
-        d.mc_low_thr_i.value    = 0
-        d.mc_init_i.value       = 0
-        d.check_interval_i.value = 0xFFFF
         d.cmd_valid_i.value     = 0
         d.cmd_op_i.value        = OP_NOP
         d.cmd_bank_i.value      = 0
@@ -94,40 +91,52 @@ async def cocotb_test_page_predictor(dut):
     tb = PredTB(dut)
     ROW = 0x1234
     BANK = 3
-
-    # ---- mode 0: default -> NEVER auto-precharge (RED baseline) -------------
-    await tb.setup(mode=0)
-    for _ in range(8):
-        await tb.cmd(OP_ACT, bank=BANK, row=ROW, active_mask=(1 << BANK),
-                     open_row=(ROW << (BANK * 14)))
-        await tb.wait_clocks('aclk', 2)
-    assert int(dut.ap_mode_en_o.value) == 0, \
-        "mode 0 asserted ap_mode_en_o -- default must not auto-precharge"
-    assert tb.ap_active() == 0, "mode 0 produced an auto-precharge verdict"
-    dut._log.info("mode 0: ap_mode_en=0, ap_close=0 (RED baseline confirmed)")
-
-    # ---- mode 5: adapt_access -> a single-access row is voted closed -------
-    await tb.setup(mode=5)
-    assert int(dut.ap_mode_en_o.value) == 1, "mode 5 must enable ap_mode_en_o"
     open_vec = (ROW << (BANK * 14))
-    for _ in range(4):
-        # ACT the row, serve ZERO columns, then explicit PRE -> close-friendly
-        await tb.cmd(OP_ACT, bank=BANK, row=ROW, active_mask=(1 << BANK),
-                     open_row=open_vec)
-        await tb.wait_clocks('aclk', 1)
-        await tb.cmd(OP_PRE, bank=BANK, row=ROW, active_mask=0, open_row=open_vec)
-        await tb.wait_clocks('aclk', 2)
-    # final ACT: verdict latches from the learned (close-voting) counter
-    await tb.cmd(OP_ACT, bank=BANK, row=ROW, active_mask=(1 << BANK),
-                 open_row=open_vec)
-    await tb.wait_clocks('aclk', 3)
-    ap5 = tb.ap_active()
-    assert (ap5 >> BANK) & 1, (
-        f"mode 5 (adapt_access) did not auto-precharge the single-access row: "
-        f"ap_close=0b{ap5:08b} (expected bit {BANK} set)")
-    dut._log.info(f"mode 5: ap_close=0b{ap5:08b} bit {BANK} SET (GREEN)")
-    dut._log.info("PASS: predictors produce DISTINCT per-bank auto-precharge "
-                  "(mode 0 none; mode 5 closes the target bank)")
+
+    async def drive_acts(n=8):
+        for _ in range(n):
+            await tb.cmd(OP_ACT, bank=BANK, row=ROW, active_mask=(1 << BANK),
+                         open_row=open_vec)
+            await tb.wait_clocks('aclk', 2)
+
+    # ---- mode 0: build default -> NEVER auto-precharge (the baseline) -------
+    await tb.setup(mode=0)
+    await drive_acts()
+    assert int(dut.ap_mode_en_o.value) == 0, \
+        "mode 0 asserted ap_mode_en_o -- the build default must not auto-precharge"
+    assert tb.ap_active() == 0, "mode 0 produced an auto-precharge verdict"
+    dut._log.info("mode 0 (build default): ap_mode_en=0, ap_close=0")
+
+    # ---- mode 2: static_close -> the LIVE auto-precharge path ---------------
+    # Present so this test can still tell "no AP" from "AP". Asserting only
+    # absence would pass just as happily against a block that had stopped
+    # driving ap_close_o at all.
+    await tb.setup(mode=2)
+    await drive_acts(2)
+    assert int(dut.ap_mode_en_o.value) == 1, "mode 2 must enable ap_mode_en_o"
+    ap2 = tb.ap_active()
+    assert (ap2 >> BANK) & 1, (
+        f"mode 2 (static_close) did not auto-precharge: ap_close=0b{ap2:08b}")
+    dut._log.info("mode 2 (static_close): ap_close=0b%08b -- AP path is live", ap2)
+
+    # ---- modes 4..7: RETIRED, must fall through to the build default -------
+    # 4 adapt_time / 5 adapt_access retired 2026-09-27 (TASK-014); 6 rbl_static
+    # / 7 rbl_dyn retired 2026-09-26 (TASK-011). Software can still write these
+    # encodings, so the fallthrough is a real contract, not a formality.
+    for mode in (4, 5, 6, 7):
+        await tb.setup(mode=mode)
+        await drive_acts()
+        assert int(dut.ap_mode_en_o.value) == 0, (
+            f"RETIRED mode {mode} asserted ap_mode_en_o -- it must fall through "
+            f"to the build default, which never auto-precharges")
+        ap = tb.ap_active()
+        assert ap == 0, (
+            f"RETIRED mode {mode} produced an auto-precharge verdict "
+            f"ap_close=0b{ap:08b} -- it must behave exactly as mode 0")
+    dut._log.info("modes 4,5,6,7 (RETIRED): all fall through to the build "
+                  "default -- ap_mode_en=0, ap_close=0")
+    dut._log.info("PASS: build default and retired encodings never auto-precharge; "
+                  "static_close does")
 
 
 @pytest.mark.parametrize("test_type", ["directed"])

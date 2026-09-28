@@ -97,6 +97,6 @@
 
 **Page Conflict / Row Miss** — An access whose target row differs from the currently open row in the target bank. Pays tRP + tRCD before the access can begin.
 
-**Page Policy** — The strategy for when to close an open row. Static OPEN / CLOSE via `REFRESH_TUNING.page_policy_or`; adaptive modes (`fixed_open`, `adapt_time`) via `PAGE_POLICY_CFG.policy_mode` in `pumice_page_policy`. The per-command decision is inline in `pumice_cmd_arbiter`.
+**Page Policy** — The strategy for when to close an open row. Static OPEN / CLOSE via `REFRESH_TUNING.page_policy_or`; the runtime idle-timeout mode (`fixed_open`) via `PAGE_POLICY_CFG.policy_mode` in `pumice_page_policy`. The per-command decision is inline in `pumice_cmd_arbiter`.
 
 **Command CAMs** — The two content-addressable buffers that hold in-flight requests between the AXI interface and the scheduler: `pumice_wr_data_cam` (write data buffer + snarf source) and `pumice_rd_cmd_cam` (read reorder buffer). Both store burst data in an SRAM with FIFO-fed / oldest-pick streaming read engines and no active-slot state latch.

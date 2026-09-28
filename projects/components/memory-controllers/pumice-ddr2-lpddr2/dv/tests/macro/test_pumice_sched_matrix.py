@@ -23,7 +23,7 @@ THE THREE AXES, and why each one can hide a defect the others cannot:
 
   PAGING MODE (0..5). The modes differ in WHO closes a row and WHEN: nobody
   (static open), the column itself (auto-precharge), or a background timer with
-  no column driving it (fixed_open / adapt_time). Only the third kind can close
+  no column driving it (fixed_open). Only the third kind can close
   a row while a column for that row is already in the pick pipeline, which is
   the entire BUG-003 race. A suite that only runs open page cannot see it.
 
@@ -79,8 +79,10 @@ _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/macro/pumice_mem_cmd_scheduler.f")
 
 # Paging modes, by the name the RTL and the CSR use for each.
-#   0 build_default  1 static_open  2 static_close(AP)
-#   3 fixed_open     4 adapt_time   5 adapt_access
+#   0 build_default  1 static_open  2 static_close(AP)  3 fixed_open
+# (4 adapt_time and 5 adapt_access were RETIRED 2026-09-27 -- mode 4 measured
+#  as fixed_open(tr_min) and mode 5 drove auto-precharge, which costs 4.9x the
+#  activations. A write of 4..7 now falls through to the build default.)
 # The (mode, tr_init) pairs: tr_init only means anything for the background-close
 # modes, and TR=2 is the aggressive setting TASK-013 measured as the best default
 # and BUG-003 blocked.
@@ -97,8 +99,11 @@ PAGE_ARMS = (
     ("static_close",  2, 0),
     ("fixed_open_tr2", 3, 2),
     ("fixed_open_tr8", 3, 8),
-    ("adapt_time_tr2", 4, 2),
-    ("adapt_access",   5, 0),
+    # A write to a RETIRED mode must behave as the build default, not as
+    # something undefined -- so the retired encodings stay in the sweep as a
+    # REGRESSION on the fallthrough, not as modes.
+    ("retired_mode4_falls_through", 4, 2),
+    ("retired_mode5_falls_through", 5, 0),
 )
 
 
@@ -223,7 +228,7 @@ _LEVELS = {
     "func": dict(patterns=("col_stream", "row_thrash", "bank_rotate", "rw_mix",
                            "random", "random_single_bank"),
                  arms=("build_default", "static_open", "static_close",
-                       "fixed_open_tr2", "adapt_time_tr2"),
+                       "fixed_open_tr2", "retired_mode4_falls_through"),
                  reqs=384),
     "full": dict(patterns=tuple(n for n, _ in PATTERNS),
                  arms=tuple(n for n, _, _ in PAGE_ARMS),

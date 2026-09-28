@@ -658,25 +658,16 @@ addrmap pumice_csr {
 
         field {
             sw = rw; hw = r;
-            desc = "0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access. 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn; measured inert or harmful, see TASK-011) -- a write of 6 or 7 falls through to the build default. RESET IS 0. Mode 3 (fixed_open) is the RECOMMENDED default and is measured strictly dominant over open page on the board across every scenario -- +41.2% col_major_interleaved, +8.6..11.6% col_major, and EXACTLY flat on incremental/row_major, with no scenario regressing. The win is the background precharge gated on bank idle (timeout_pre_req_o), not a predictor: modes 4 and 5 add machinery that measured no better (mode 4 decays to tr_min and equals fixed_open(tr_min); mode 5 drives auto-precharge, which costs 4.9x the activations). The reset change to 3 was made and REVERTED 2026-09-26, blocked on BUG-003: a short timeout precharges under an in-flight read and the read-return ring loses a ticket at rd_gap >= 8. See TASK-013 and BUG-003.";
+            desc = "0=build default, 1=static_open, 2=static_close, 3=fixed_open. 4/5 RETIRED 2026-09-27 (were adapt_time/adapt_access) and 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn) -- a write of 4..7 falls through to the build default. RESET IS 0. Mode 3 (fixed_open) is the RECOMMENDED default and is measured strictly dominant over open page on the board across every scenario -- +41.2% col_major_interleaved, +8.6..11.6% col_major, and EXACTLY flat on incremental/row_major, with no scenario regressing. The win is the background precharge gated on bank idle (timeout_pre_req_o), not a predictor. Mode 4 was measured to BE fixed_open(tr_min): moving only tr_min moved the result onto the matching fixed point every time, because its mistake counter is dominated by the held-too-long case so TR decayed to the floor and stayed. Mode 5 drove auto-precharge, which costs 4.9x the activations of a background precharge and double the read latency, and AP commits at the column op before it is known whether more same-row requests are coming -- it fights the FR-FCFS reordering that justifies this design. See TASK-013 and TASK-014.";
         } policy_mode[2:0] = 3'h0;
 
-        field {
-            sw = rw; hw = r;
-            desc = "0 = per-bank decision state, 1 = global";
-        } policy_scope[3:3] = 1'b0;
+        field { sw = r; hw = na; desc = "Reserved (was policy_scope, 0=per-bank / 1=global decision state). RETIRED 2026-09-27 with adapt_time: the mistake counter was a single GLOBAL register driving all eight per-bank TR registers from one decision, so per-bank scope could not diverge from global and the field selected between two identical behaviours."; } RSVD_3[3:3] = 1'b0;
 
         field { sw = r; hw = na; desc = "Reserved (was ctr_width; the adapt_access counter is the 2-bit saturating counter of the paper, not selectable)"; } RSVD_5_4[5:4] = 2'h0;
 
-        field {
-            sw = rw; hw = r;
-            desc = "adapt_access: counter value at/above which the row is CLOSED";
-        } ctr_open_max[9:6] = 4'h0;
+        field { sw = r; hw = na; desc = "Reserved (was ctr_open_max, the adapt_access close threshold). RETIRED 2026-09-27 with mode 5."; } RSVD_9_6[9:6] = 4'h0;
 
-        field {
-            sw = rw; hw = r;
-            desc = "adapt_access: counter init value";
-        } ctr_init[13:10] = 4'h0;
+        field { sw = r; hw = na; desc = "Reserved (was ctr_init, the adapt_access counter init). RETIRED 2026-09-27 with mode 5."; } RSVD_13_10[13:10] = 4'h0;
 
         field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:14] = 18'h0;
 
@@ -684,26 +675,28 @@ addrmap pumice_csr {
 
     reg {
         name = "Page Timeout Config";
-        desc = "fixed_open / adapt_time timeout register bounds (MC cycles).";
+        desc = "fixed_open idle-timeout register (MC cycles). tr_init is the only live field; the adapt_time clamps and step retired 2026-09-27 with mode 4.";
 
         field { sw = rw; hw = r; desc = "TR init: idle MC cycles a row is held open before the background precharge fires. fixed_open uses this alone. RESET IS 0 (which DISABLES the timeout). The recommended value is 2, blocked on BUG-003. Measured: TR=1 and TR=2 are identical on every scenario and TR=4 already loses the plain col_major wins (falls back to open-page numbers), so the optimum is 1..2 and the cliff is between 2 and 4. tr_init=0 DISABLES the timeout entirely (see f_tr/r_idle in pumice_page_policy.sv) -- it is not a build-default sentinel on this field, so enabling mode 3 requires writing tr_init too."; } tr_init[7:0]  = 8'h0;
-        field { sw = rw; hw = r; desc = "adapt_time TR lower clamp";                  } tr_min[15:8]  = 8'h0;
-        field { sw = rw; hw = r; desc = "adapt_time TR upper clamp";                  } tr_max[23:16] = 8'h0;
-        field { sw = rw; hw = r; desc = "adapt_time TR adjustment step";              } tr_step[31:24] = 8'h0;
+        field { sw = r; hw = na; desc = "Reserved (was tr_min, the adapt_time TR lower clamp). RETIRED 2026-09-27 with mode 4 -- fixed_open uses tr_init alone. Bit position held so tr_init does not move."; } RSVD_15_8[15:8]  = 8'h0;
+        field { sw = r; hw = na; desc = "Reserved (was tr_max, the adapt_time TR upper clamp). RETIRED 2026-09-27 with mode 4."; } RSVD_23_16[23:16] = 8'h0;
+        field { sw = r; hw = na; desc = "Reserved (was tr_step, the adapt_time TR adjustment step). RETIRED 2026-09-27 with mode 4."; } RSVD_31_24[31:24] = 8'h0;
 
     } PAGE_TIMEOUT_CFG @ 0x074;
 
-    reg {
-        name = "Page Adaptive Config";
-        desc = "adapt_time (Happy adaptive-timeout) mistake-counter thresholds.";
-
-        field { sw = rw; hw = r; desc = "MC high threshold (TR += step above)";  } mc_high_thr[3:0]  = 4'h0;
-        field { sw = rw; hw = r; desc = "MC low threshold (TR -= step below)";   } mc_low_thr[7:4]   = 4'h0;
-        field { sw = rw; hw = r; desc = "MC init value";                          } mc_init[11:8]     = 4'h0;
-        field { sw = r; hw = na; desc = "Reserved";                               } RSVD[15:12] = 4'h0;
-        field { sw = rw; hw = r; desc = "Cycles between MC evaluations";          } check_interval[31:16] = 16'h0;
-
-    } PAGE_ADAPT_CFG @ 0x078;
+    // 0x078 was PAGE_ADAPT_CFG (the adapt_time mistake-counter thresholds:
+    // mc_high_thr, mc_low_thr, mc_init, check_interval). RETIRED 2026-09-27
+    // with paging mode 4 itself. adapt_time was measured to BE
+    // fixed_open(tr_min) -- moving only tr_min moved the result onto the
+    // matching fixed point every time (2 -> 436.8 MB/s, 8 -> 338.5,
+    // 16 -> 327.7), because the mistake counter is dominated by the
+    // held-too-long case so TR decays monotonically to the floor and stays
+    // there. Mode 3 is already its close path, so nothing functional was lost.
+    //
+    // As with 0x07C, the address is left a HOLE rather than reused: every
+    // register in this map carries an explicit absolute @ offset, so removing
+    // this one shifts nothing, and an old host reading 0x078 gets nothing back
+    // instead of some other register's meaning.
 
     // 0x07C was PAGE_RBL_CFG (the RBLA/Yoon miss-counter table shape for
     // paging modes 6/7). RETIRED 2026-09-26 with the modes themselves --

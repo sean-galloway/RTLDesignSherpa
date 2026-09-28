@@ -65,12 +65,46 @@ DDR2_MR_SEQUENCE = [
 ]
 
 
+# Opcodes, from pumice_pkg.sv.
+OP_PREA, OP_REF, OP_MRS = 0x7, 0x8, 0xA
+
+# THE JEDEC DDR2 POWER-UP SEQUENCE, JESD79-2F section 3.3 "Power-up and
+# Initialization", as (op, mr_index_or_None). `bank` carries the MR index on an
+# MRS and is don't-care otherwise.
+#
+# Nothing in this repo asserted this ORDER on the command bus before: the
+# existing walk checks the six MR-write strobes, which cannot see the PRECHARGE
+# ALL and the two REFRESHes that JEDEC places between them, nor their position
+# relative to the MR writes. Getting that order wrong is a real and historical
+# failure mode here -- the MRS chain itself shipped as EMRS3-before-EMRS2 until
+# 64fb2137, benign only because MR2/MR3 happen to be 0 on this part.
+DDR2_INIT_CMD_SEQUENCE = [
+    (OP_PREA, None),   # precharge all, pre-EMR
+    (OP_MRS,  2),      # EMRS(2)
+    (OP_MRS,  3),      # EMRS(3)
+    (OP_MRS,  1),      # EMRS(1) -- enable DLL
+    (OP_MRS,  0),      # MRS(0)  -- with DLL reset (A8)
+    (OP_PREA, None),   # precharge all, pre-refresh
+    (OP_REF,  None),   # refresh 1 of 2
+    (OP_REF,  None),   # refresh 2 of 2
+    (OP_MRS,  0),      # MRS(0)  -- DLL reset cleared
+    (OP_MRS,  1),      # EMRS(1) -- OCD calibration default
+    (OP_MRS,  1),      # EMRS(1) -- OCD calibration exit
+]
+
+# Which wait register gates the gap AFTER each command above, from the FSM's
+# own r_wait assignments in init_sequencer.sv.
+DDR2_INIT_GAP_SOURCE = ['rp', 'mrd', 'mrd', 'mrd', 'dll',
+                        'rp', 'rfc', 'rfc', 'mrd', 'mrd', 'mrd']
+
+
 class InitTB(TBBase):
     CLK = 10
 
     async def setup(self, memtype: int = MEMTYPE_DDR2,
                     mr0: int = DDR2_MR0_BASE, mr1: int = DDR2_MR1_DEFAULT,
-                    mr2: int = DDR2_MR2_DEFAULT, mr3: int = DDR2_MR3_DEFAULT):
+                    mr2: int = DDR2_MR2_DEFAULT, mr3: int = DDR2_MR3_DEFAULT,
+                    waits: dict = None):
         self.dut.memtype_i.value             = memtype
         self.dut.dfi_init_complete_i.value   = 0
         self.dut.zqcl_grant_i.value          = 0
@@ -80,14 +114,21 @@ class InitTB(TBBase):
         self.dut.mr2_i.value          = mr2
         self.dut.mr3_i.value          = mr3
         self.dut.init_restart_i.value = 0
-        # Zero the JEDEC timing waits so the FSM advances one state per S_WAIT
-        # bounce — keeps the unit walk deterministic and fast (the real tINIT/
-        # tRFC/tDLLK budgets are exercised at the macro/top level).
-        self.dut.t_init_wait_i.value = 0
-        self.dut.t_dll_wait_i.value  = 0
-        self.dut.t_mrd_wait_i.value  = 0
-        self.dut.t_rp_wait_i.value   = 0
-        self.dut.t_rfc_wait_i.value  = 0
+        # JEDEC timing waits. Default ZERO so the FSM advances one state per
+        # S_WAIT bounce, which keeps the existing walks deterministic and fast.
+        #
+        # This comment used to claim "the real tINIT/tRFC/tDLLK budgets are
+        # exercised at the macro/top level". They were not -- at ANY level. Every
+        # environment zeroed them for speed, so the sequencer's use of its own
+        # wait registers was unverified everywhere (pumice TASK-016). The
+        # `waits` argument exists for the test that closes that hole; passing
+        # nothing keeps the old behaviour exactly.
+        w = waits or {}
+        self.dut.t_init_wait_i.value = w.get('init', 0)
+        self.dut.t_dll_wait_i.value  = w.get('dll', 0)
+        self.dut.t_mrd_wait_i.value  = w.get('mrd', 0)
+        self.dut.t_rp_wait_i.value   = w.get('rp', 0)
+        self.dut.t_rfc_wait_i.value  = w.get('rfc', 0)
         await self.start_clock('mc_clk', freq=self.CLK, units='ns')
         self.dut.mc_rst_n.value = 0
         await self.wait_clocks('mc_clk', 5)
@@ -114,6 +155,53 @@ class InitTB(TBBase):
 
     def zqcl_req(self) -> int:
         return int(self.dut.zqcl_req_o.value)
+
+    async def restart(self, waits: dict):
+        """Re-run the init sequence on an EXISTING TB, with new wait values.
+
+        Deliberately NOT a second `setup()`. Constructing a second InitTB, or
+        calling setup() again, starts a SECOND clock driver on the same mc_clk
+        -- two coroutines driving one signal -- and re-opens the TB's log file,
+        truncating whatever the first run had already recorded. The first
+        version of the wait-scaling test below did exactly that, and the
+        symptom was the sequence-match evidence vanishing from the log while
+        the test still passed.
+        """
+        w = waits or {}
+        self.dut.t_init_wait_i.value = w.get('init', 0)
+        self.dut.t_dll_wait_i.value  = w.get('dll', 0)
+        self.dut.t_mrd_wait_i.value  = w.get('mrd', 0)
+        self.dut.t_rp_wait_i.value   = w.get('rp', 0)
+        self.dut.t_rfc_wait_i.value  = w.get('rfc', 0)
+        self.dut.dfi_init_complete_i.value = 0
+        self.dut.mc_rst_n.value = 0
+        await self.wait_clocks('mc_clk', 5)
+        self.dut.mc_rst_n.value = 1
+        await self.wait_clocks('mc_clk', 5)
+
+    async def capture_cmd_stream(self, max_cycles: int = 4000):
+        """Capture the COMMAND stream the sequencer issues, with cycle stamps.
+
+        `capture_mr_seq` watches the mode-register shadow strobes, which is a
+        different thing: it sees the six MR writes but not the PRECHARGE ALL and
+        REFRESH commands that JEDEC interleaves between them, and not the gaps.
+        Those are the parts nothing checked (pumice TASK-016).
+
+        Stops once init_done_o rises, so it costs only what the sequence costs.
+        """
+        seen, cyc = [], 0
+        for _ in range(max_cycles):
+            await RisingEdge(self.dut.mc_clk)
+            await Timer(1, units='ps')
+            cyc += 1
+            if int(self.dut.init_cmd_valid_o.value):
+                seen.append(dict(cycle=cyc,
+                                 op=int(self.dut.init_cmd_op_o.value),
+                                 bank=int(self.dut.init_cmd_bank_o.value),
+                                 row=int(self.dut.init_cmd_row_o.value)))
+            if self.init_done():
+                break
+        return seen
 
     async def capture_mr_seq(self, max_cycles: int = 20):
         """Watch for MR write strobes; return list of (index, data) seen."""
@@ -260,13 +348,98 @@ async def cocotb_test_init_sequencer(dut):
             f"restart did not re-emit new MR0-with-DLL: got {seen2}"
         assert (0, NEW_MR0) in seen2, f"restart did not re-emit new MR0: got {seen2}"
 
+    elif test_type == "ddr2_init_command_stream":
+        # pumice TASK-016. Two questions nothing answered at any level:
+        #   (1) does the sequencer issue the JEDEC command sequence, in order,
+        #       INCLUDING the precharges and refreshes the MR-strobe walk cannot
+        #       see; and
+        #   (2) does it actually honour its own wait registers?
+        #
+        # (2) cannot be asked by comparing against datasheet numbers, because no
+        # simulation can afford the real ones -- 200 us of tINIT at 100 MHz is
+        # 20,000 cycles before the sequence even starts. So it is asked
+        # DIFFERENTIALLY instead: run the same sequence at two wait settings and
+        # require every gap to grow by exactly the amount its wait register grew.
+        # That needs no model of the FSM's fixed per-state overhead, and it is
+        # the check that would catch a sequencer ignoring a wait register --
+        # which is the failure mode that matters, since a wait wired to nothing
+        # looks identical to a wait set to zero.
+        ops = {OP_PREA: 'PREA', OP_REF: 'REF', OP_MRS: 'MRS'}
+
+        first = [True]
+
+        async def run_once(waits):
+            # ONE TB for both runs -- see InitTB.restart for why a second one
+            # is wrong.
+            if first[0]:
+                await tb.setup(MEMTYPE_DDR2, waits=waits)
+                first[0] = False
+            else:
+                await tb.restart(waits)
+            await tb.wait_clocks('mc_clk', 1)
+            tb.dut.dfi_init_complete_i.value = 1
+            stream = await tb.capture_cmd_stream()
+            assert tb.init_done() == 1, (
+                f"init never completed with waits={waits}; captured "
+                f"{len(stream)} commands")
+            return stream
+
+        base_w = dict(init=0, dll=4, mrd=2, rp=3, rfc=6)
+        stream_a = await run_once(base_w)
+
+        got = [(c['op'], c['bank'] if c['op'] == OP_MRS else None)
+               for c in stream_a]
+        assert got == DDR2_INIT_CMD_SEQUENCE, (
+            "DDR2 init command sequence does not match JESD79-2F 3.3.\n"
+            "  got : " + " -> ".join(
+                f"{ops.get(o, o)}" + (f"({i})" if i is not None else "")
+                for o, i in got) + "\n"
+            "  want: " + " -> ".join(
+                f"{ops.get(o, o)}" + (f"({i})" if i is not None else "")
+                for o, i in DDR2_INIT_CMD_SEQUENCE))
+        tb.log.info("init command sequence matches JESD79-2F 3.3: %s",
+                    " -> ".join(f"{ops.get(o, o)}" + (f"({i})" if i is not None else "")
+                                for o, i in got))
+
+        # Second run: bump every wait by a DIFFERENT amount, so a gap that
+        # tracks the wrong register is caught too, not just one that tracks
+        # nothing.
+        bump = dict(init=0, dll=7, mrd=5, rp=9, rfc=11)
+        stream_b = await run_once(bump)
+        assert len(stream_b) == len(stream_a), (
+            f"the two runs issued different command counts "
+            f"({len(stream_a)} vs {len(stream_b)})")
+
+        gaps_a = [stream_a[i + 1]['cycle'] - stream_a[i]['cycle']
+                  for i in range(len(stream_a) - 1)]
+        gaps_b = [stream_b[i + 1]['cycle'] - stream_b[i]['cycle']
+                  for i in range(len(stream_b) - 1)]
+        bad = []
+        for i, (ga, gb) in enumerate(zip(gaps_a, gaps_b)):
+            src = DDR2_INIT_GAP_SOURCE[i]
+            want_delta = bump[src] - base_w[src]
+            got_delta = gb - ga
+            if got_delta != want_delta:
+                after = DDR2_INIT_CMD_SEQUENCE[i]
+                bad.append(
+                    f"gap after {ops.get(after[0], after[0])}"
+                    f"{('(' + str(after[1]) + ')') if after[1] is not None else ''}"
+                    f" is gated by t_{src}_wait: raising it by {want_delta} "
+                    f"changed the gap by {got_delta} ({ga} -> {gb})")
+        assert not bad, (
+            "the init sequencer does not honour its wait registers:\n  "
+            + "\n  ".join(bad))
+        tb.log.info("all %d inter-command gaps scale exactly with their wait "
+                    "registers (rp/mrd/dll/rfc); gaps run1=%s run2=%s",
+                    len(gaps_a), gaps_a, gaps_b)
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
     await tb.wait_clocks('mc_clk', 3)
 
 
-_GATE = [("ddr2_init_walk",)]
+_GATE = [("ddr2_init_walk",), ("ddr2_init_command_stream",)]
 _FUNC = _GATE + [("wait_for_complete",), ("lpddr2_smoke",),
                  ("mr_restart",), ("random_soak",)]
 _FULL = _FUNC
@@ -304,6 +477,11 @@ def test_init_sequencer(request, test_type):
         # The simulator's depth comes from here now; no conftest stamps it.
         "TEST_LEVEL": _TEST_LEVEL,
         "COCOTB_LOG_LEVEL": "INFO",
+        # Persist the TB log. Without this the sequence this test verifies is
+        # printed to a stdout that pytest swallows on success, so a passing run
+        # left no record of WHAT it checked -- which is the same blind-verdict
+        # problem the checkers elsewhere in this suite are guarded against.
+        "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),
     }

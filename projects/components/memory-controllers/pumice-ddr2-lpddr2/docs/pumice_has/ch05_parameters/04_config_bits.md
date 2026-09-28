@@ -74,22 +74,41 @@ Register block at the same offset (0x040) in every controller. These bits govern
 | `fgr_mode`            | 2     | DDR3+       | Fine-Granularity Refresh mode (DDR3 1x/2x/4x; DDR4 fixed-rate, on-the-fly). N/A in DDR2. |
 | `refresh_per_rank`    | 1     | all         | Force per-rank dispatch even when `NUM_RANKS=1` (debug). Reset = 1 always when multi-rank. |
 
-## PAGE_POLICY_CFG / PAGE_TIMEOUT_CFG / PAGE_ADAPT_CFG (Axis 2)
+## PAGE_POLICY_CFG / PAGE_TIMEOUT_CFG (Axis 2)
 
 The runtime page-policy engine (`pumice_page_policy`). **This axis carries the
-largest measured runtime win on the controller** -- up to +41.2% -- and its
-reset is UNCHANGED at 0 pending BUG-003; the recommended value is documented below.
+largest measured runtime win on the controller** -- up to +41.2%.
+
+**THE ADAPTIVE MODES WERE REMOVED 2026-09-27** (TASK-014). Paging modes 4
+(`adapt_time`) and 5 (`adapt_access`) are gone, along with
+`pumice_row_pred_table.sv` and the whole `PAGE_ADAPT_CFG` register. Mode 4 had
+been MEASURED to be `fixed_open(tr_min)` -- its mistake counter is dominated by
+the held-too-long case, so TR decayed monotonically to the floor and stayed
+there, landing exactly on the matching fixed point at three different floors.
+Mode 5 drove auto-precharge, which costs 4.9x the activations of a background
+precharge and double the read latency, and commits at the column op before it
+is known whether more same-row requests are coming -- it fights the FR-FCFS
+reordering that justifies this design. Mode 5 was removed as a DECISION, not a
+measurement: it was unproven and mis-plumbed rather than disproven.
+
+`policy_mode` remains a 3-bit field, so software can still WRITE 4..7. Those
+encodings fall through to the build default and never auto-precharge; that
+contract is regressed by `test_page_predictor` and by the scheduler matrix.
 
 | Field | Width | Reset | Notes |
 |-------|-------|-------|-------|
-| `PAGE_POLICY_CFG.policy_mode` | 3 | 0 | Mode 3 (`fixed_open`) is the RECOMMENDED default, blocked on BUG-003. 0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access. 6/7 retired (TASK-011). |
-| `PAGE_POLICY_CFG.policy_scope` | 1 | 0 | Documented as "per-bank TR" but CANNOT diverge: `r_mc` is one global counter driving every `r_tr[b]`. A fiction; do not rely on it. |
-| `PAGE_POLICY_CFG.ctr_open_max` | 4 | 0 | mode 5 close threshold; 0 = build default (2). |
-| `PAGE_POLICY_CFG.ctr_init` | 4 | 0 | mode 5 counter init; 0 = build default (weak-open 1), NOT literal 0. |
-| `PAGE_TIMEOUT_CFG.tr_init` | 8 | 0 | Recommended 2, blocked on BUG-003. Idle MC cycles before the background precharge fires. **`0` DISABLES the timeout** -- it is not a build-default sentinel on this field. TR=1 and TR=2 measure identically; TR=4 already loses the plain `col_major` wins. |
-| `PAGE_TIMEOUT_CFG.tr_min` / `tr_max` / `tr_step` | 8 each | 0 | mode 4 clamps and step. All-zero pins TR to 0, which disables the timeout -- mode 4 needs all three set to do anything. |
-| `PAGE_ADAPT_CFG.check_interval` | 16 | 0 | **`0` gates the ENTIRE mode-4 TR adjustment off.** Every "adapt_time is identical to open page" result before 2026-09-26 was measuring `fixed_open(tr_init)` under mode 4's name. |
-| `PAGE_ADAPT_CFG.mc_high_thr` / `mc_low_thr` / `mc_init` | 4 each | 0 | mode 4 mistake-counter thresholds. |
+| `PAGE_POLICY_CFG.policy_mode` | 3 | 0 | 0=build default, 1=static_open, 2=static_close, 3=fixed_open. **4..7 RETIRED** and fall through to the build default (4/5 on 2026-09-27, TASK-014; 6/7 on 2026-09-26, TASK-011). Mode 3 (`fixed_open`) is the RECOMMENDED default; BUG-003, which blocked it, was fixed 2026-09-27. |
+| `PAGE_POLICY_CFG.policy_scope` | 1 | 0 | **RESERVED** since 2026-09-27. Was documented as "per-bank TR" but could not diverge: `r_mc` was one global counter driving every `r_tr[b]`. Retired with mode 4. |
+| `PAGE_POLICY_CFG.ctr_open_max` / `ctr_init` | 4 each | 0 | **RESERVED** since 2026-09-27. Were the mode-5 predictor's close threshold and counter init. Bit positions held so `policy_mode` does not move. |
+| `PAGE_TIMEOUT_CFG.tr_init` | 8 | 0 | The ONLY live field in this register. Idle MC cycles before the background precharge fires. **`0` DISABLES the timeout** -- it is not a build-default sentinel on this field. TR=1 and TR=2 measure identically; TR=4 already loses the plain `col_major` wins. |
+| `PAGE_TIMEOUT_CFG.tr_min` / `tr_max` / `tr_step` | 8 each | 0 | **RESERVED** since 2026-09-27. Were the mode-4 TR clamps and step. Bit positions held so `tr_init` does not move. |
+
+`PAGE_ADAPT_CFG` (0x078) is **deleted**. The address is left a HOLE rather than
+reused, exactly as 0x07C was when `PAGE_RBL_CFG` retired: every register in this
+map carries an explicit absolute offset, so removing one shifts nothing, and an
+old host reading 0x078 gets nothing back instead of another register's meaning.
+Verified by diffing the generated register maps before and after -- 81 -> 80
+registers, **zero moved**.
 
 > **STALE ROWS ELSEWHERE IN THIS FILE.** `happy_enable` (SCHED_TUNING) and
 > `zqcs_freq_hz` / `refresh_defer_active` / `refpb_policy_or` (REFRESH_TUNING)

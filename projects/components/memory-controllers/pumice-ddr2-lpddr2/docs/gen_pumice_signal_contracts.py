@@ -952,7 +952,7 @@ def cmd_path_sheets(wb):
     _km_hdr_row(ws, r, cols, widths=[13,16,17,9,13,40]); r += 1
     for x in [
         ["OPEN","N","N","0","RD / WR","row stays open -> next hit streams at tCCD"],
-        ["OPEN","-","Y","1","RDA / WRA","idle/timeout close (fixed_open/adapt_time)"],
+        ["OPEN","-","Y","1","RDA / WRA","idle/timeout close (fixed_open)"],
         ["CLOSE","-","-","1","RDA / WRA","every access self-precharges; next access re-ACTs"],
         ["OPEN","Y","N","0","RD / WR","open policy never AP on last col; explicit PRE closes"],
     ]:

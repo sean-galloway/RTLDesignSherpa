@@ -63,9 +63,8 @@ See `vault/Tasks/pumice/task/open/TASK-013.md` for the full campaign.
 | 0 | build default | Engine inert; legacy flat auto-precharge from `page_policy_or`. |
 | 1 | `static_open`  | Per-bank ap mask forced 0 — rows stay open. |
 | 2 | `static_close` | Per-bank ap mask forced 1 — every column op auto-precharges. |
-| 3 | `fixed_open`   | **THE RECOMMENDED DEFAULT** (blocked on BUG-003). ap=0; per-bank idle countdown from `PAGE_TIMEOUT_CFG.tr_init`. On expiry the engine REQUESTS a close; the arbiter issues the PRE as its strictly lowest-priority pick. This background-precharge path is where the measured win comes from -- see "Mechanism" below. |
-| 4 | `adapt_time`   | `fixed_open` with an adapting timeout register TR (Ghasempour 2015 adaptive-timeout): a mistake counter walks TR by `tr_step` within `[tr_min, tr_max]` every `check_interval` cycles. |
-| 5 | `adapt_access` | Per-row 2-bit close predictor (Ghasempour "Hybrid", `pumice_row_pred_table`): a tagless direct-mapped table of saturating counters indexed by {bank, XOR-folded row}. An explicit PRE close teaches from the accesses-per-activation count (<=1 access -> toward close, >=2 -> toward open); an auto-precharge close is judged by its reopen (same-row reopen = premature -> toward open). Verdict latched per bank at ACT time drives the ap mask. `ctr_open_max` / `ctr_init` in `PAGE_POLICY_CFG` shape the threshold and init (0 = defaults 2 and weak-open 1). |
+| 3 | `fixed_open`   | **THE RECOMMENDED DEFAULT.** (BUG-003, which blocked it, was fixed 2026-09-27.) ap=0; per-bank idle countdown from `PAGE_TIMEOUT_CFG.tr_init`. On expiry the engine REQUESTS a close; the arbiter issues the PRE as its strictly lowest-priority pick. This background-precharge path is where the measured win comes from -- see "Mechanism" below. |
+| 4..7 | *retired* | **Fall through to the build default** — engine inert, no auto-precharge. 4 (`adapt_time`) and 5 (`adapt_access`) RETIRED 2026-09-27 (TASK-014); 6 (`rbl_static`) and 7 (`rbl_dyn`) RETIRED 2026-09-26 (TASK-011). `policy_mode` is a 3-bit field, so software can still write these; the fallthrough is a contract, regressed by `test_page_predictor` and the scheduler matrix. |
 
 ## Decision interfaces to the arbiter
 
@@ -77,19 +76,37 @@ See `vault/Tasks/pumice/task/open/TASK-013.md` for the full campaign.
    `row_active` + `pre_ready` + the 2-cycle re-issue guard), so demand,
    refresh and JEDEC timing always outrank a housekeeping close.
 
-## adapt_time mistake taxonomy
+## The retired adaptive modes (4 and 5)
 
-At the command stream, per the paper:
+Both were implemented 2026-08-25 and removed 2026-09-27 (TASK-014).
 
-- **Premature close** (MC++): an ACT re-opens the same row a timeout PRE just
-  closed on that bank. The closed row is captured from the registered
-  open-row image at PRE time (a PRE carries no row field).
-- **Held too long** (MC−−): a conflict (wrong-row) PRE closes a bank whose
-  timer had not expired.
+**`adapt_time` was measured to BE `fixed_open(tr_min)`.** It carried a mistake
+taxonomy — premature close (MC++) when an ACT re-opened the row a timeout PRE
+had just closed, held-too-long (MC−−) when a conflict PRE closed a bank whose
+timer had not expired — and walked TR by `tr_step` within `[tr_min, tr_max]`
+every `check_interval`. In practice MC is dominated by the held-too-long case,
+so TR decayed monotonically to the floor and stayed: moving only `tr_min` moved
+the result onto the matching fixed point every time (2 → 436.8 MB/s, 8 → 338.5,
+16 → 327.7). `MC` was also a single GLOBAL counter driving all eight `r_tr[b]`,
+so `policy_scope`'s "per-bank TR" could not diverge from global. Mode 3 is
+already its close path, so retiring it cost nothing functional.
 
+**`adapt_access` was removed as a decision, not a measurement.** A per-row
+2-bit saturating counter (tagless, {bank, XOR-folded row}) voted at ACT time
+and drove `ap_close_o` — auto-precharge. That mechanism measures 4.9x the
+activations of a background precharge on identical traffic (160,006 vs 32,400
+ACT) and double the read latency, and it commits at the column op, before it is
+known whether more requests to that row are coming. On a controller whose value
+is FR-FCFS reordering to batch same-row columns, AP fights the reordering that
+justifies the design, so even a perfect predictor is bounded by a losing
+mechanism. It was unproven and mis-plumbed rather than disproven; re-plumbing
+it onto the background precharge was the alternative not taken.
+
+<!-- retired adapt_time adjustment rule, kept for the record:
 Every `check_interval` cycles: `MC > mc_high_thr` → TR += step;
 `MC < mc_low_thr` → TR −= step; clamp to `[tr_min, tr_max]`; MC re-arms to
 `mc_init`. `policy_scope` selects per-bank TR (0) or a single global TR (1).
+-->
 
 ## Telemetry
 
@@ -106,10 +123,16 @@ Always on, mode-independent, feeding the read-only `*_STATS` CSRs:
 
 `test_pumice_core_dfi.py::test_pumice_core_fixed_open` — self-checking in
 both directions: mode-0 arms assert zero idle precharges before and after the
-mode arms (inertness and disarm), the fixed_open arm asserts the idle-timeout
-close and a clean golden-data reopen, and the adapt_time arm smoke-tests the
-adaptive path. The close request was mutation-checked (engine forced off →
-the test fails at "row never closed").
+mode arms (inertness and disarm) and the fixed_open arm asserts the idle-timeout
+close and a clean golden-data reopen. The close request was mutation-checked
+(engine forced off → the test fails at "row never closed").
+
+`test_page_predictor.py` asserts the RETIREMENT contract: mode 0 and every
+retired encoding (4..7) leave `ap_mode_en_o` low and `ap_close_o` at zero,
+while mode 2 (`static_close`) does auto-precharge — so the test still
+distinguishes "no AP" from a block that has stopped driving `ap_close_o` at
+all. `test_pumice_sched_matrix.py` sweeps the retired encodings as
+fallthrough arms across all 12 operating points.
 
 ## Related
 
@@ -121,14 +144,16 @@ the test fails at "row never closed").
 
 ## Mechanism: why the close path matters more than the policy
 
-Two of the five modes close a row with **auto-precharge** (`ap_close_o`, fused
-into the column command) and two close it with a **background precharge**
-(`timeout_pre_req_o`, a separate command the arbiter issues at lowest priority):
+One live mode closes a row with **auto-precharge** (`ap_close_o`, fused into
+the column command) and one with a **background precharge**
+(`timeout_pre_req_o`, a separate command the arbiter issues at lowest
+priority). This distinction is why the adaptive modes were retired rather than
+tuned — it dominates the policy that selects it:
 
 | mode | close mechanism |
 |---|---|
-| 2 `static_close`, 5 `adapt_access` | auto-precharge |
-| 3 `fixed_open`, 4 `adapt_time` | background precharge |
+| 2 `static_close` | auto-precharge |
+| 3 `fixed_open` | background precharge |
 
 Measured on the board, same stimulus and the same close-on-sight policy,
 differing only in mechanism (txn_scale=1000, peak 600 MB/s):

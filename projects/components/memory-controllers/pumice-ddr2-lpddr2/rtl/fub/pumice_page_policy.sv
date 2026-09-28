@@ -14,21 +14,14 @@
 //        1 static_open   ap=0 everywhere
 //        2 static_close  ap=1 everywhere
 //        3 fixed_open    ap=0; rows close by IDLE TIMEOUT instead
-//        4 adapt_time    ap=0; per-bank timeout register TR adapts (Happy
-//                        adaptive-timeout: mistake counter MC, premature-close
-//                        vs held-too-long, TR += / -= step each check interval)
-//        5 adapt_access  ap = per-row 2-bit close predictor (Happy "Hybrid",
-//                        pumice_row_pred_table; knob-free)
+//        4,5            RETIRED 2026-09-27 (were adapt_time / adapt_access).
 //        6,7            RETIRED 2026-09-26 (were rbl_static / rbl_dyn) --
 //                        measured inert or harmful on silicon, see TASK-011.
-//                        A write here falls through to the build default.
+//                        A write to 4..7 falls through to the build default.
 //
-//   Modes 5/6/7 drive per-bank auto-precharge from a paging predictor
-//   (pumice_row_pred_table). It computes its verdict at
-//   ACT time and holds it registered while the row is open; their table
-//   update is PIPELINED (PUMICE-017) so the update cone stays < 25 mux-levels
-//   and the pick path (which reads ap_close_o as a registered input) is
-//   untouched. Shaped by PAGE_POLICY_CFG (mode 5).
+//   ONE close mechanism per mode now: auto-precharge (mode 2) or the
+//   background idle timeout (mode 3). There is no predictor in this block any
+//   more -- pumice_row_pred_table was deleted with mode 5.
 //
 //   2. A background precharge REQUEST (`timeout_pre_req_o` / bank) for a row
 //      whose idle timer expired. The ARBITER issues the actual PRE as its
@@ -42,14 +35,6 @@
 //   page_empty  ACT to a bank that was simply closed (no conflict)
 //   act/pre/ref command-class counters
 //
-// adapt_time mistake taxonomy (per the Happy paper, at this command stream):
-//   premature close : an ACT re-opens the SAME row a timeout PRE just closed
-//                     on that bank -> the timer fired too early -> MC++
-//   held too long   : a WRONG-ROW (conflict) PRE closes a bank whose timer had
-//                     not expired -> holding gained nothing -> MC--
-// Every check_interval cycles: MC > mc_high_thr -> TR += step;
-// MC < mc_low_thr -> TR -= step; clamp [tr_min, tr_max]; MC re-arms to
-// mc_init. TR is GLOBAL when policy_scope==1, per-bank when 0.
 
 `timescale 1ns / 1ps
 
@@ -69,17 +54,7 @@ module pumice_page_policy
 
     // ---- mode-select CSR fields (SCHED/PAGE_* registers) -------------------
     input  logic [2:0]                 policy_mode_i,     // PAGE_POLICY_CFG.policy_mode
-    input  logic                       policy_scope_i,    // 0=per-bank TR, 1=global TR
-    input  logic [3:0]                 ctr_thresh_i,      // PAGE_POLICY_CFG.ctr_open_max
-    input  logic [3:0]                 ctr_init_i,        // PAGE_POLICY_CFG.ctr_init
-    input  logic [7:0]                 tr_init_i,         // PAGE_TIMEOUT_CFG
-    input  logic [7:0]                 tr_min_i,
-    input  logic [7:0]                 tr_max_i,
-    input  logic [7:0]                 tr_step_i,
-    input  logic [3:0]                 mc_high_thr_i,     // PAGE_ADAPT_CFG
-    input  logic [3:0]                 mc_low_thr_i,
-    input  logic [3:0]                 mc_init_i,
-    input  logic [15:0]                check_interval_i,
+    input  logic [7:0]                 tr_init_i,         // PAGE_TIMEOUT_CFG.tr_init
 
     // ---- issued command stream (arbiter output, single-issue) --------------
     input  logic                       cmd_valid_i,       // cmd_valid && cmd_ready
@@ -125,8 +100,30 @@ module pumice_page_policy
     localparam logic [2:0] MODE_STATIC_OPEN  = 3'd1;
     localparam logic [2:0] MODE_STATIC_CLOSE = 3'd2;
     localparam logic [2:0] MODE_FIXED_OPEN   = 3'd3;
-    localparam logic [2:0] MODE_ADAPT_TIME   = 3'd4;
-    localparam logic [2:0] MODE_ADAPT_ACCESS = 3'd5;
+    // 4 (adapt_time) and 5 (adapt_access) RETIRED 2026-09-27, by Sean:
+    // "remove the adaptive modes as showing no benefit".
+    //
+    // Mode 4 was MEASURED to be redundant: moving only tr_min moved the result
+    // and it landed exactly on the corresponding fixed point every time
+    // (tr_min 2 -> 436.8 MB/s == fixed_open TR=2; 8 -> 338.5 == TR=8; 16 ->
+    // 327.7 == TR=16). The mistake counter is dominated by the held-too-long
+    // case, so TR decayed monotonically to the floor and stayed there --
+    // adapt_time WAS fixed_open(tr_min) wearing another name, and mode 3 is
+    // already its close path. Its r_mc was also a single GLOBAL counter driving
+    // all eight r_tr[b] from one decision, so policy_scope=0's "per-bank TR"
+    // could not diverge and was a fiction.
+    //
+    // Mode 5 was NOT disproven -- it was unproven and mis-plumbed, and is
+    // removed as a DECISION rather than a measurement. It drove close_pred_o
+    // into ap_close_o, i.e. auto-precharge, which measured 4.9x the activations
+    // of a background precharge on identical traffic (160,006 vs 32,400 ACT)
+    // and double the read latency. AP commits at the column op, before it is
+    // known whether more requests to that row are coming, so on a controller
+    // whose value is FR-FCFS reordering to batch same-row columns it fights the
+    // reordering that justifies the design. Even a perfect predictor driving AP
+    // is bounded by a mechanism that loses; re-plumbing it onto the background
+    // precharge was the alternative and was not taken.
+    //
     // 6 (rbl_static) and 7 (rbl_dyn) RETIRED 2026-09-26. Measured on silicon
     // at txn_scale=1000 on a workload built specifically to suit them
     // ([[TASK-011]]): mode 6 lost 26% of bandwidth (195.2 -> 144.2 MB/s) by
@@ -137,48 +134,18 @@ module pumice_page_policy
     // did not pay. A write to policy_mode 6/7 now falls through to the build
     // default, which is what mode 7 measured as anyway.
 
-    // Modes 5/6/7 drive per-bank auto-precharge from a paging PREDICTOR
-    // (pumice_row_pred_table). It computes its verdict at
-    // ACT time and hold it, registered, while the row is open -- the consumer
-    // (pumice_bank_cmd_picker) reads ap_close_o as a registered input, so the
-    // predictors' pipelined update cones (PUMICE-017) never touch the pick.
-    logic w_mode_on, w_timeout_on, w_adapt_on, w_acc_on;
+    logic w_mode_on, w_timeout_on;
     assign w_mode_on    = (policy_mode_i == MODE_STATIC_OPEN)
                        || (policy_mode_i == MODE_STATIC_CLOSE)
-                       || (policy_mode_i == MODE_FIXED_OPEN)
-                       || (policy_mode_i == MODE_ADAPT_TIME)
-                       || (policy_mode_i == MODE_ADAPT_ACCESS);
-    assign w_timeout_on = (policy_mode_i == MODE_FIXED_OPEN)
-                       || (policy_mode_i == MODE_ADAPT_TIME);
-    assign w_adapt_on   = (policy_mode_i == MODE_ADAPT_TIME);
-    assign w_acc_on     = (policy_mode_i == MODE_ADAPT_ACCESS);
+                       || (policy_mode_i == MODE_FIXED_OPEN);
+    assign w_timeout_on = (policy_mode_i == MODE_FIXED_OPEN);
 
     // ---- auto-precharge decision -------------------------------------------
-    logic [NUM_BANKS-1:0] w_acc_close;
+    // ONE producer now: static_close. The predictor path (mode 5) and its
+    // pumice_row_pred_table instance are gone with the adaptive modes.
     assign ap_mode_en_o = w_mode_on;
     assign ap_close_o   = (policy_mode_i == MODE_STATIC_CLOSE) ? {NUM_BANKS{1'b1}}
-                        : w_acc_on                              ? w_acc_close
-                                                                : '0;
-
-    // Per-row open/close predictor (mode 5, adapt_access): 2-bit saturating
-    // counters vote to close rows that historically saw one access per open.
-    pumice_row_pred_table #(
-        .NUM_BANKS(NUM_BANKS),
-        .ROW_WIDTH(ROW_WIDTH)
-    ) u_row_pred (
-        .aclk             (aclk),
-        .aresetn          (aresetn),
-        .enable_i         (w_acc_on),
-        .ctr_thresh_i     (ctr_thresh_i),
-        .ctr_init_i       (ctr_init_i),
-        .cmd_valid_i      (cmd_valid_i),
-        .cmd_op_i         (cmd_op_i),
-        .cmd_bank_i       (cmd_bank_i),
-        .cmd_row_i        (cmd_row_i),
-        .bank_row_active_i(bank_row_active_i),
-        .bank_open_row_i  (bank_open_row_i),
-        .close_pred_o     (w_acc_close)
-    );
+                                                               : '0;
 
 
 
@@ -199,28 +166,25 @@ module pumice_page_policy
     logic [NUM_BANKS-1:0][7:0] r_idle;      // countdown
     logic [NUM_BANKS-1:0]      r_expired;   // sticky until the row closes
 
-    // Effective TR for a bank: fixed_open always uses tr_init; adapt_time uses
-    // the adapting register (global scope mirrors bank 0's register).
+    // Effective TR for a bank. With adapt_time retired there is exactly one
+    // source: the programmed tr_init. The per-bank r_tr[] registers, the global
+    // vs per-bank policy_scope select and the mistake taxonomy that drove them
+    // are all gone -- see the mode-retirement note above for why.
     function automatic logic [7:0] f_tr (input int b);
-        if (!w_adapt_on)       return tr_init_i;
-        else if (policy_scope_i) return r_tr[0];
-        else                     return r_tr[b];
+        return tr_init_i;
     endfunction
 
-    // ---- adapt_time state ---------------------------------------------------
-    // Last close cause + row per bank, for the mistake taxonomy.
-    logic [NUM_BANKS-1:0]                 r_closed_by_timeout;
-    logic [NUM_BANKS-1:0][ROW_WIDTH-1:0]  r_last_closed_row;
-    logic signed [4:0]                    r_mc;         // mistake counter
-    logic [15:0]                          r_check_cnt;
-
-    // The timeout-PRE the arbiter issued THIS cycle (ours vs a conflict PRE):
-    // it is ours when the arbiter tagged it (cmd from the timeout branch). The
-    // arbiter cannot tell us which branch fired, so we infer: a PRE to a bank
-    // whose r_expired is set is a timeout close; any other PRE is a conflict
-    // close. (Refresh-drain PREs land on active banks whose timers may also
-    // have expired — counting those as timeout closes is harmless: the row
-    // was idle-expired either way.)
+    // Was this cycle's PRE a TIMEOUT close or a conflict close? Needed by the
+    // TELEMETRY below (a timeout close must not mark its bank, so the next ACT
+    // classifies as page_empty rather than page_miss), not by any adaptive
+    // logic -- it merely used to be declared inside the adapt block, and
+    // deleting that block took it with it.
+    //
+    // The arbiter cannot tell us which branch fired, so we infer: a PRE to a
+    // bank whose r_expired is set is a timeout close; any other PRE is a
+    // conflict close. Refresh-drain PREs land on active banks whose timers may
+    // also have expired -- counting those as timeout closes is harmless, the
+    // row was idle-expired either way.
     logic w_pre_was_timeout;
     assign w_pre_was_timeout = w_is_pre && r_expired[cmd_bank_i];
 
@@ -228,74 +192,20 @@ module pumice_page_policy
         if (`RST_ASSERTED(aresetn)) begin
             r_idle              <= '0;
             r_expired           <= '0;
-            r_closed_by_timeout <= '0;
-            r_last_closed_row   <= '0;
-            for (int b = 0; b < NUM_BANKS; b++) r_tr[b] <= 8'h0;
-            r_mc                <= '0;
-            r_check_cnt         <= 16'h0;
         end else begin
-            // TR registers track tr_init whenever adapt mode is off, so
-            // entering adapt_time starts from the programmed init point.
-            if (!w_adapt_on)
-                for (int b = 0; b < NUM_BANKS; b++) r_tr[b] <= tr_init_i;
-
             for (int b = 0; b < NUM_BANKS; b++) begin
                 if (!w_timeout_on || !bank_row_active_i[b]) begin
-                    // Row closed (or engine off): clear; remember why it closed.
-                    if (r_expired[b] && !bank_row_active_i[b])
-                        r_closed_by_timeout[b] <= 1'b1;
+                    // Row closed (or engine off): clear.
                     r_idle[b]    <= '0;
                     r_expired[b] <= r_expired[b] && bank_row_active_i[b];
                 end else if (cmd_valid_i && (int'(cmd_bank_i) == b)) begin
                     // Any command to the bank re-warms the row.
                     r_idle[b]    <= f_tr(b);
                     r_expired[b] <= 1'b0;
-                    if (cmd_op_i == OP_ACT) r_closed_by_timeout[b] <= 1'b0;
                 end else if (r_idle[b] != 0) begin
                     r_idle[b] <= r_idle[b] - 8'h1;
                     if (r_idle[b] == 8'h1 && f_tr(b) != 0)
                         r_expired[b] <= 1'b1;
-                end
-            end
-
-            // Track the row being closed, for premature-reopen detection. A
-            // PRE carries no row field, but the registered open-row image for
-            // that bank still holds the row it is closing this cycle.
-            if (w_is_pre)
-                r_last_closed_row[cmd_bank_i] <= bank_open_row_i[cmd_bank_i];
-
-            // ---- adapt_time mistake counter + periodic TR adjust ----------
-            if (w_adapt_on) begin
-                // premature close: ACT re-opens the same row a timeout closed.
-                if (w_is_act && r_closed_by_timeout[cmd_bank_i]
-                             && (cmd_row_i == r_last_closed_row[cmd_bank_i])) begin
-                    if (r_mc != 5'sd15) r_mc <= r_mc + 5'sd1;
-                end
-                // held too long: a conflict PRE on a non-expired open bank.
-                else if (w_is_pre && !r_expired[cmd_bank_i]
-                                  && bank_row_active_i[cmd_bank_i]) begin
-                    if (r_mc != -5'sd16) r_mc <= r_mc - 5'sd1;
-                end
-
-                if (check_interval_i != 0) begin
-                    if (r_check_cnt >= check_interval_i) begin
-                        r_check_cnt <= 16'h0;
-                        for (int b = 0; b < NUM_BANKS; b++) begin
-                            automatic logic [7:0] tr_n = r_tr[b];
-                            if (r_mc > $signed({1'b0, mc_high_thr_i})) begin
-                                tr_n = (8'hFF - r_tr[b] < tr_step_i) ? tr_max_i
-                                     : r_tr[b] + tr_step_i;
-                                if (tr_n > tr_max_i) tr_n = tr_max_i;
-                            end else if (r_mc < $signed({1'b0, mc_low_thr_i})) begin
-                                tr_n = (r_tr[b] < tr_min_i + tr_step_i) ? tr_min_i
-                                     : r_tr[b] - tr_step_i;
-                            end
-                            r_tr[b] <= tr_n;
-                        end
-                        r_mc <= $signed({1'b0, mc_init_i});
-                    end else begin
-                        r_check_cnt <= r_check_cnt + 16'h1;
-                    end
                 end
             end
         end

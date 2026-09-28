@@ -81,7 +81,7 @@ The column auto-precharge bit is set directly from `page_policy_i`:
 
 - **`OPEN`** — `ap = 0`; rows stay open. Column ops stream to an open row at tCCD rate.
 - **`CLOSE`** — `ap = 1`; every column op auto-precharges (issues `RDA` / `WRA`).
-- **Adaptive policies** — the runtime page-policy engine (`pumice_page_policy`, `PAGE_POLICY_CFG.policy_mode`): `fixed_open` idle-timeout close and Ghasempour-2015 `adapt_time`. (The former `HAPPY_HYBRID` enum encoding and `page_predictor.sv` are retired; the encoding maps to build default.)
+- **Adaptive policies** — the runtime page-policy engine (`pumice_page_policy`, `PAGE_POLICY_CFG.policy_mode`): `fixed_open` idle-timeout close (the adaptive modes `adapt_time` and `adapt_access` were RETIRED 2026-09-27, TASK-014). (The former `HAPPY_HYBRID` enum encoding and `page_predictor.sv` are retired; the encoding maps to build default.)
 
 The open-page "keep the row open" decision therefore lives inline in the arbiter and the per-bank `bank_timer` (which keeps the row open on `RD`/`WR`), not in a separate predictor or lookahead unit.
 

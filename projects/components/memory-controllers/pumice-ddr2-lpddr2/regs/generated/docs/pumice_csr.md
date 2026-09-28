@@ -41,7 +41,6 @@ Don't override. Generated from: $root
 | 0x06C|       SCHED_WR_WM      |       Scheduler Write Watermarks       |
 | 0x070|     PAGE_POLICY_CFG    |           Page Policy Config           |
 | 0x074|    PAGE_TIMEOUT_CFG    |           Page Timeout Config          |
-| 0x078|     PAGE_ADAPT_CFG     |          Page Adaptive Config          |
 | 0x080|     OBS_ROW_HIT[0]     |      Per-Bank Row Hit Observation      |
 | 0x084|     OBS_ROW_HIT[1]     |      Per-Bank Row Hit Observation      |
 | 0x088|     OBS_ROW_HIT[2]     |      Per-Bank Row Hit Observation      |
@@ -908,34 +907,34 @@ further amortisation while costing read forward progress.</p>
 
 <p>Axis 2 mode select + adapt_access counter shape. 0 = build default. Resets to 3 (fixed_open) -- see policy_mode.</p>
 
-| Bits| Identifier |Access|Reset|Name|
-|-----|------------|------|-----|----|
-| 2:0 | policy_mode|  rw  | 0x0 |  — |
-|  3  |policy_scope|  rw  | 0x0 |  — |
-| 5:4 |  RSVD_5_4  |   r  | 0x0 |  — |
-| 9:6 |ctr_open_max|  rw  | 0x0 |  — |
-|13:10|  ctr_init  |  rw  | 0x0 |  — |
-|31:14|    RSVD    |   r  | 0x0 |  — |
+| Bits| Identifier|Access|Reset|Name|
+|-----|-----------|------|-----|----|
+| 2:0 |policy_mode|  rw  | 0x0 |  — |
+|  3  |   RSVD_3  |   r  | 0x0 |  — |
+| 5:4 |  RSVD_5_4 |   r  | 0x0 |  — |
+| 9:6 |  RSVD_9_6 |   r  | 0x0 |  — |
+|13:10| RSVD_13_10|   r  | 0x0 |  — |
+|31:14|    RSVD   |   r  | 0x0 |  — |
 
 #### policy_mode field
 
-<p>0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access. 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn; measured inert or harmful, see TASK-011) -- a write of 6 or 7 falls through to the build default. RESET IS 0. Mode 3 (fixed_open) is the RECOMMENDED default and is measured strictly dominant over open page on the board across every scenario -- +41.2% col_major_interleaved, +8.6..11.6% col_major, and EXACTLY flat on incremental/row_major, with no scenario regressing. The win is the background precharge gated on bank idle (timeout_pre_req_o), not a predictor: modes 4 and 5 add machinery that measured no better (mode 4 decays to tr_min and equals fixed_open(tr_min); mode 5 drives auto-precharge, which costs 4.9x the activations). The reset change to 3 was made and REVERTED 2026-09-26, blocked on BUG-003: a short timeout precharges under an in-flight read and the read-return ring loses a ticket at rd_gap &gt;= 8. See TASK-013 and BUG-003.</p>
+<p>0=build default, 1=static_open, 2=static_close, 3=fixed_open. 4/5 RETIRED 2026-09-27 (were adapt_time/adapt_access) and 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn) -- a write of 4..7 falls through to the build default. RESET IS 0. Mode 3 (fixed_open) is the RECOMMENDED default and is measured strictly dominant over open page on the board across every scenario -- +41.2% col_major_interleaved, +8.6..11.6% col_major, and EXACTLY flat on incremental/row_major, with no scenario regressing. The win is the background precharge gated on bank idle (timeout_pre_req_o), not a predictor. Mode 4 was measured to BE fixed_open(tr_min): moving only tr_min moved the result onto the matching fixed point every time, because its mistake counter is dominated by the held-too-long case so TR decayed to the floor and stayed. Mode 5 drove auto-precharge, which costs 4.9x the activations of a background precharge and double the read latency, and AP commits at the column op before it is known whether more same-row requests are coming -- it fights the FR-FCFS reordering that justifies this design. See TASK-013 and TASK-014.</p>
 
-#### policy_scope field
+#### RSVD_3 field
 
-<p>0 = per-bank decision state, 1 = global</p>
+<p>Reserved (was policy_scope, 0=per-bank / 1=global decision state). RETIRED 2026-09-27 with adapt_time: the mistake counter was a single GLOBAL register driving all eight per-bank TR registers from one decision, so per-bank scope could not diverge from global and the field selected between two identical behaviours.</p>
 
 #### RSVD_5_4 field
 
 <p>Reserved (was ctr_width; the adapt_access counter is the 2-bit saturating counter of the paper, not selectable)</p>
 
-#### ctr_open_max field
+#### RSVD_9_6 field
 
-<p>adapt_access: counter value at/above which the row is CLOSED</p>
+<p>Reserved (was ctr_open_max, the adapt_access close threshold). RETIRED 2026-09-27 with mode 5.</p>
 
-#### ctr_init field
+#### RSVD_13_10 field
 
-<p>adapt_access: counter init value</p>
+<p>Reserved (was ctr_init, the adapt_access counter init). RETIRED 2026-09-27 with mode 5.</p>
 
 #### RSVD field
 
@@ -947,66 +946,30 @@ further amortisation while costing read forward progress.</p>
 - Base Offset: 0x74
 - Size: 0x4
 
-<p>fixed_open / adapt_time timeout register bounds (MC cycles).</p>
+<p>fixed_open idle-timeout register (MC cycles). tr_init is the only live field; the adapt_time clamps and step retired 2026-09-27 with mode 4.</p>
 
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|
 | 7:0 |  tr_init |  rw  | 0x0 |  — |
-| 15:8|  tr_min  |  rw  | 0x0 |  — |
-|23:16|  tr_max  |  rw  | 0x0 |  — |
-|31:24|  tr_step |  rw  | 0x0 |  — |
+| 15:8| RSVD_15_8|   r  | 0x0 |  — |
+|23:16|RSVD_23_16|   r  | 0x0 |  — |
+|31:24|RSVD_31_24|   r  | 0x0 |  — |
 
 #### tr_init field
 
 <p>TR init: idle MC cycles a row is held open before the background precharge fires. fixed_open uses this alone. RESET IS 0 (which DISABLES the timeout). The recommended value is 2, blocked on BUG-003. Measured: TR=1 and TR=2 are identical on every scenario and TR=4 already loses the plain col_major wins (falls back to open-page numbers), so the optimum is 1..2 and the cliff is between 2 and 4. tr_init=0 DISABLES the timeout entirely (see f_tr/r_idle in pumice_page_policy.sv) -- it is not a build-default sentinel on this field, so enabling mode 3 requires writing tr_init too.</p>
 
-#### tr_min field
+#### RSVD_15_8 field
 
-<p>adapt_time TR lower clamp</p>
+<p>Reserved (was tr_min, the adapt_time TR lower clamp). RETIRED 2026-09-27 with mode 4 -- fixed_open uses tr_init alone. Bit position held so tr_init does not move.</p>
 
-#### tr_max field
+#### RSVD_23_16 field
 
-<p>adapt_time TR upper clamp</p>
+<p>Reserved (was tr_max, the adapt_time TR upper clamp). RETIRED 2026-09-27 with mode 4.</p>
 
-#### tr_step field
+#### RSVD_31_24 field
 
-<p>adapt_time TR adjustment step</p>
-
-### PAGE_ADAPT_CFG register
-
-- Absolute Address: 0x78
-- Base Offset: 0x78
-- Size: 0x4
-
-<p>adapt_time (Happy adaptive-timeout) mistake-counter thresholds.</p>
-
-| Bits|  Identifier  |Access|Reset|Name|
-|-----|--------------|------|-----|----|
-| 3:0 |  mc_high_thr |  rw  | 0x0 |  — |
-| 7:4 |  mc_low_thr  |  rw  | 0x0 |  — |
-| 11:8|    mc_init   |  rw  | 0x0 |  — |
-|15:12|     RSVD     |   r  | 0x0 |  — |
-|31:16|check_interval|  rw  | 0x0 |  — |
-
-#### mc_high_thr field
-
-<p>MC high threshold (TR += step above)</p>
-
-#### mc_low_thr field
-
-<p>MC low threshold (TR -= step below)</p>
-
-#### mc_init field
-
-<p>MC init value</p>
-
-#### RSVD field
-
-<p>Reserved</p>
-
-#### check_interval field
-
-<p>Cycles between MC evaluations</p>
+<p>Reserved (was tr_step, the adapt_time TR adjustment step). RETIRED 2026-09-27 with mode 4.</p>
 
 ## OBS_ROW_HIT register file
 

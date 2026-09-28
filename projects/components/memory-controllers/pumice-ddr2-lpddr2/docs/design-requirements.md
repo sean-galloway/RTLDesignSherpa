@@ -299,9 +299,11 @@ The column auto-precharge bit `ap` is set directly from `page_policy_i`
   rearchitected core (treated as `OPEN`); `page_predictor.sv` and its CSR
   collateral (`happy_enable`, `PAGE_PRED_TUNING`, `OBS_PAGE_PRED_ACCURACY`)
   are deleted, and the `page_policy_or` encoding `11` maps to build default.
-  Its Ghasempour-2015 successors are `adapt_time` (mode 4) and `adapt_access`
-  (mode 5) of `PAGE_POLICY_CFG.policy_mode` in `pumice_page_policy` — both
-  IMPLEMENTED 2026-08-25.
+  Its Ghasempour-2015 successors `adapt_time` (mode 4) and `adapt_access`
+  (mode 5) were implemented 2026-08-25 and RETIRED 2026-09-27 (TASK-014):
+  `adapt_time` measured as `fixed_open(tr_min)`, `adapt_access` drove
+  auto-precharge at 4.9x the activations. The surviving runtime policy is
+  `fixed_open`.
 
 The "keep the row open" decision lives **inline** in the arbiter + per-bank
 `bank_timer`, not in a separate predictor/lookahead — consistent with the
@@ -376,10 +378,13 @@ DDR2/LPDDR2 project** and are tracked for the DDR3/DDR4 roadmap in
 - **`SCHED_POLICY`** — `ORDER_MODE` (in_order / fr_fcfs / age_threshold), `PRIO_SUB`
   (none / load_over_store / age_boost), `ROW_SEL`, `COL_SEL`, `ACCESS_PREF`,
   `AGE_THRESH`, `AUTO_PRECHARGE_EN`, write-drain `WR_HIGH_WM`/`WR_LOW_WM`, `QOS_EN`.
-- **`PAGE_POLICY_CFG`** — `POLICY_MODE` (static_open / static_close / fixed_open /
-  adapt_time / adapt_access; 6/7 retired 2026-09-26), `POLICY_SCOPE`, plus `TIMEOUT_CFG`
-  (`TR_INIT/MIN/MAX/STEP`), `ADAPT_CFG` (`MC_HIGH/LOW_THR`, `MC_INIT`, `CHECK_INTERVAL`),
-  `HYBRID_CFG` (`CTR_WIDTH`, `CTR_OPEN_MAX`, `CTR_INIT`),
+- **`PAGE_POLICY_CFG`** — `POLICY_MODE` (static_open / static_close /
+  fixed_open; 4/5 retired 2026-09-27, 6/7 retired 2026-09-26, all falling
+  through to the build default), plus `TIMEOUT_CFG.TR_INIT`. `POLICY_SCOPE`,
+  `TR_MIN/MAX/STEP` and the `HYBRID_CFG` counter fields are now RESERVED at
+  their original bit positions; the `ADAPT_CFG` register is deleted and 0x078
+  left a hole so no offset moves.
+  Retired with them:
   `RESET_INTERVAL`, `WAYS`/`SETS`, dyn hill-climb weights).
 - **`REFRESH_MODE` / `REF_CTRL`** — `MODE` (refab / refpb_rr), `POSTPONE_LIMIT` /
   `PULLIN_LIMIT` (0..8), `TREFI` / `TREFI_PB` / `TRFC_AB` / `TRFC_PB`, capability strap
@@ -455,19 +460,25 @@ per-bank precharge *request* that still respects tRAS/tRTP/tRP/tRC. All commodit
   the last column op to a row. Best on random/low-locality (up to +18% vs open).
 - **`fixed_open`** (IMPLEMENTED 2026-08-25, `pumice_page_policy`) — leave the row open, close after an **idle timeout** of
   `TR_INIT` clocks (paper used ≈ tRC). One per-bank timeout counter.
-- **`adapt_time` (Happy adaptive-timeout, recommended adaptive; IMPLEMENTED 2026-08-25, `pumice_page_policy`)** — per **bank**: Timeout
-  Counter `TC`, Timeout Register `TR`, 4-bit Mistake Counter `MC`. Close the row when
-  `TC==TR`. `MC`↑ on a premature-close mistake (page-empty reopening the just-closed row),
-  `MC`↓ on held-too-long (a conflict that could have been an empty); every
-  `CHECK_INTERVAL`, `MC>HIGH ⇒ TR+=STEP`, `MC<LOW ⇒ TR-=STEP` (clamped `TR_MIN..TR_MAX`).
-  Best measured policy; ~16–32 small registers total + a last-closed-row latch/comparator
-  per bank.
-- **`adapt_access` (Happy "Hybrid"; IMPLEMENTED 2026-08-25, `pumice_row_pred_table`)** —
-  per **row** 2-bit saturating counter; decision = counter vs `ctr_open_max` (default 2)
-  at ACT time. As built: tagless direct-mapped, {bank, XOR-folded row} index (folding
-  replaces the paper's full per-row BRAM — aliasing blends history, acceptable for a
-  predictor), learning from accesses-per-activation at explicit PRE closes plus a
-  premature-reopen decrement for auto-precharge closes.
+- **`adapt_time` — RETIRED 2026-09-27** (implemented 2026-08-25, removed by
+  TASK-014). Per bank: Timeout Counter `TC`, Timeout Register `TR`, 4-bit
+  Mistake Counter `MC`, adjusted every `CHECK_INTERVAL`. Measured to BE
+  `fixed_open(tr_min)`: moving only `tr_min` moved the result onto the matching
+  fixed point every time (2 → 436.8 MB/s, 8 → 338.5, 16 → 327.7), because `MC`
+  is dominated by the held-too-long case so `TR` decays monotonically to the
+  floor and stays. `MC` was also a single GLOBAL counter driving all eight
+  `r_tr[b]`, so `POLICY_SCOPE`'s per-bank claim could not diverge from global.
+- **`adapt_access` — RETIRED 2026-09-27** (implemented 2026-08-25 in
+  `pumice_row_pred_table.sv`, now deleted). Per-row 2-bit saturating counter
+  voting at ACT time. Removed as a DECISION, not a measurement: it was unproven
+  and mis-plumbed rather than disproven. It drove `close_pred_o` into
+  `ap_close_o` — auto-precharge — which measures 4.9x the activations of a
+  background precharge on identical traffic (160,006 vs 32,400 ACT) and double
+  the read latency, and commits at the column op before it is known whether
+  more same-row requests are coming. On a controller whose value is FR-FCFS
+  reordering to batch same-row columns, that fights the reordering the design
+  exists for, so even a perfect predictor is bounded by a losing mechanism.
+  Re-plumbing it onto the background precharge was the alternative not taken.
 - **`rbl_static` / `rbl_dyn` (RBLA / Yoon 2012) — IMPLEMENTED 2026-08-25, RETIRED 2026-09-26.** Measured on silicon at txn_scale=1000 on a workload built specifically to give a per-row predictor something to discriminate (TASK-011: three generators confined to a row against one striding rows, same bank). The mechanism WORKED -- thrash fell 100% -> 57.8%, i.e. conflict-ACTs became empty-ACTs -- and it still lost: mode 6 gave up 26% of bandwidth by paying +22,827 ACTs while PRE barely moved, and mode 7's per-epoch hill-climb drove its threshold to "never close early", landing bit-identical to plain open page (32,223 vs 32,224 ACTs). Removing it returned 702 LUTs and 1,521 FFs in-design -- note the standalone OOC figure of 5,578 LUTs over-stated the integrated cost by ~8x, which is worth knowing before sizing any predictor from an isolated synthesis. Streaming bandwidth was unchanged at 572.3 MB/s, confirming it was inert.
 
 
@@ -512,7 +523,7 @@ at a time, each with its own red→green model test and OFF-by-default:
    capability straps (no behavior change; defaults bit-identical).
 2. Scheduling: `in_order` → `fr_fcfs` (confirm current) → `age_threshold` → `most/fewest
    pending` → `ACCESS_PREF` → write-batching → QoS.
-3. Paging: `static_open/close` (confirm) → `fixed_open` → `adapt_time` → `adapt_access`.
+3. Paging: `static_open/close` (confirm) → `fixed_open`. (Adaptive modes retired 2026-09-27.)
 4. Refresh (commodity): pull-in/postpone sweep → `refpb_rr`.
 
 ---
