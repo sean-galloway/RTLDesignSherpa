@@ -55,12 +55,37 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 async def _wait_recovery(tb, max_cycles=1000):
-    """Wait for block_ready to re-assert AND the table to fully drain."""
+    """Wait for block_ready to re-assert AND the table to fully drain.
+
+    The lite has no block_ready (it refuses instead of stalling), so there the
+    recovery condition is the drained table alone; the leak oracle for the
+    lite is refused_count, checked by the caller."""
     for _ in range(max_cycles):
-        if int(tb.dut.block_ready.value) == 1 and int(tb.dut.active_count.value) == 0:
+        if _block_ready(tb) == 1 and int(tb.dut.active_count.value) == 0:
             return True
         await RisingEdge(tb.dut.aclk)
     return False
+
+
+def _block_ready(tb):
+    return int(tb.dut.block_ready.value) if hasattr(tb.dut, 'block_ready') else 1
+
+
+def _refused(tb):
+    return int(tb.dut.refused_count.value) if hasattr(tb.dut, 'refused_count') else 0
+
+
+def _gate(tb):
+    """Emulate the wrapper gating cmd_ready = block_ready on the full core.
+    Returns the running task, or None on the lite, which never gates."""
+    if not hasattr(tb.dut, 'block_ready'):
+        return None
+
+    async def honor_block_ready():
+        while True:
+            tb.dut.cmd_ready.value = int(tb.dut.block_ready.value)
+            await RisingEdge(tb.dut.aclk)
+    return cocotb.start_soon(honor_block_ready())
 
 
 async def phase_runtime_disabled_compl(tb) -> list:
@@ -76,13 +101,7 @@ async def phase_runtime_disabled_compl(tb) -> list:
     tb.dut.cfg_error_enable.value = 1
     await tb.idle(2)
 
-    # Emulate the wrapper gating: cmd_ready = block_ready.
-    async def honor_block_ready():
-        while True:
-            tb.dut.cmd_ready.value = int(tb.dut.block_ready.value)
-            await RisingEdge(tb.dut.aclk)
-
-    gate = cocotb.start_soon(honor_block_ready())
+    gate = _gate(tb)
     await tb.idle(2)
 
     n_txns = depth * 3
@@ -92,14 +111,15 @@ async def phase_runtime_disabled_compl(tb) -> list:
         await tb.send_data(txn_id=i & id_mask, last=True)
         await tb.idle(1)
 
-    gate.kill()
+    if gate is not None:
+        gate.kill()
     tb.dut.cmd_valid.value = 0
     tb.dut.data_valid.value = 0
     tb.dut.cmd_ready.value = 1
 
     recovered = await _wait_recovery(tb)
     final_count = int(tb.dut.active_count.value)
-    final_block = int(tb.dut.block_ready.value)
+    final_block = _block_ready(tb)
     if not recovered:
         failures.append(
             f"A: runtime-disabled completion class leaked table slots: after "
@@ -108,6 +128,11 @@ async def phase_runtime_disabled_compl(tb) -> list:
             "entries with cfg_compl_enable=0 were never auto-retired")
     else:
         tb.log.info(f"A: recovered, active_count={final_count}, block_ready={final_block}")
+    if _refused(tb):
+        failures.append(
+            f"A: the lite refused {_refused(tb)} command(s) -- runtime-disabled "
+            "completions leaked entries until the table filled (the lite's "
+            "twin of block_ready wedging low)")
 
     # No completion packets may be emitted while the class is disabled.
     compl = tb.completions()
@@ -133,12 +158,7 @@ async def phase_backpressure_toggle(tb) -> list:
     tb.dut.monbus_ready.value = 0         # jam the monbus: FIFO fills, then
     await tb.idle(2)                      # completions stop being marked
 
-    async def honor_block_ready():
-        while True:
-            tb.dut.cmd_ready.value = int(tb.dut.block_ready.value)
-            await RisingEdge(tb.dut.aclk)
-
-    gate = cocotb.start_soon(honor_block_ready())
+    gate = _gate(tb)
     await tb.idle(2)
 
     # Enough completions to overrun INTR_FIFO_DEPTH (8) + output register:
@@ -150,13 +170,14 @@ async def phase_backpressure_toggle(tb) -> list:
         await tb.send_data(txn_id=i & id_mask, last=True)
         await tb.idle(1)
 
-    gate.kill()
+    if gate is not None:
+        gate.kill()
     tb.dut.cmd_valid.value = 0
     tb.dut.data_valid.value = 0
     tb.dut.cmd_ready.value = 1
     await tb.idle(4)
 
-    table = tb.read_table()
+    table = tb.read_table()            # [] on the lite (no exposed table)
     unmarked = [i for i, e in enumerate(table)
                 if e['valid'] and not e['event_reported']]
     tb.log.info(f"B: before disable: active_count={int(tb.dut.active_count.value)}, "
@@ -171,7 +192,7 @@ async def phase_backpressure_toggle(tb) -> list:
 
     recovered = await _wait_recovery(tb)
     final_count = int(tb.dut.active_count.value)
-    final_block = int(tb.dut.block_ready.value)
+    final_block = _block_ready(tb)
     if not recovered:
         failures.append(
             f"B: enable-toggle under FIFO backpressure leaked table slots: "
@@ -181,6 +202,10 @@ async def phase_backpressure_toggle(tb) -> list:
             "continuous, not edge-triggered)")
     else:
         tb.log.info(f"B: recovered, active_count={final_count}, block_ready={final_block}")
+    if _refused(tb):
+        failures.append(
+            f"B: the lite refused {_refused(tb)} command(s) during the "
+            "backpressure/disable sequence -- entries were stranded")
 
     tb.dut.cfg_compl_enable.value = 1
     await tb.drain()
@@ -220,15 +245,22 @@ DEFAULT_SEED = 12345
 
 
 def generate_test_params():
-    """(iw, aw, max_transactions, seed). Deterministic: directed stimulus."""
+    """(iw, aw, max_transactions, seed, dut). Deterministic: directed stimulus.
+
+    The lite cell (amba/monitor-lite TASK-002) runs the same two phases against
+    axi_monitor_lite: no block_ready to wedge, so the leak oracle is that the
+    table drains AND refused_count stays 0 -- a leaked entry per disabled
+    completion would fill the eight slots inside the first eight of the
+    twenty-four transactions and every later command would be refused."""
     return [
-        (4, 32, 8, DEFAULT_SEED),
+        (4, 32, 8, DEFAULT_SEED, 'axi_monitor_base'),
+        (4, 32, 8, DEFAULT_SEED, 'axi_monitor_lite'),
     ]
 
 
-@pytest.mark.parametrize("iw, aw, max_transactions, seed", generate_test_params())
-def test_axi_monitor_runtime_disable(iw, aw, max_transactions, seed):
-    """Runtime-disable auto-retire test runner (axi_monitor_base DUT)."""
+@pytest.mark.parametrize("iw, aw, max_transactions, seed, dut", generate_test_params())
+def test_axi_monitor_runtime_disable(iw, aw, max_transactions, seed, dut):
+    """Runtime-disable auto-retire test runner (axi_monitor_base and axi_monitor_lite)."""
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -237,8 +269,8 @@ def test_axi_monitor_runtime_disable(iw, aw, max_transactions, seed):
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
-    dut_name = "axi_monitor_base"
-    test_name = (f"test_{worker_id}_axi_monitor_runtime_disable_"
+    dut_name = dut
+    test_name = (f"test_{worker_id}_{dut_name}_runtime_disable_"
                  f"iw{iw}_aw{aw}_mt{max_transactions}_seed{seed}")
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = sim_build_path(tests_dir, test_name)
@@ -248,7 +280,7 @@ def test_axi_monitor_runtime_disable(iw, aw, max_transactions, seed):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        module='axi_monitor_base')
+        module=dut_name)
 
     rtl_parameters = {
         'ID_WIDTH': str(iw),
@@ -260,9 +292,9 @@ def test_axi_monitor_runtime_disable(iw, aw, max_transactions, seed):
         'IS_AXI': '1',
         # The classes under test are all COMPILED IN (defaults) -- runtime
         # disable is the whole point of this suite.
-        'ENABLE_PERF_PACKETS': '0',
-        'ENABLE_DEBUG_MODULE': '0',
     }
+    if dut_name == 'axi_monitor_base':
+        rtl_parameters.update({'ENABLE_PERF_PACKETS': '0', 'ENABLE_DEBUG_MODULE': '0'})
 
     extra_env = {
         'DUT': dut_name,

@@ -57,6 +57,15 @@ BURST_INCR  = 0b01
 BURST_WRAP  = 0b10
 
 
+def _drive(dut, pin, value):
+    """Drive `pin` if the DUT has it. axi_monitor_lite (amba/monitor-lite
+    TASK-002) has no cmd_size/cmd_burst and no perf, debug or per-channel
+    timeout-count cfg; the full core has no cfg_timeout_cnt / cfg_axi_pkt_mask /
+    cfg_addr_match_enable. Guarded writes let one TB drive both."""
+    if hasattr(dut, pin):
+        getattr(dut, pin).value = value
+
+
 class AXI4MonitorTB(TBBase):
     """Testbench for AXI4 Monitor stress testing"""
 
@@ -120,8 +129,8 @@ class AXI4MonitorTB(TBBase):
         self.dut.cmd_addr.value = 0
         self.dut.cmd_id.value = 0
         self.dut.cmd_len.value = 0
-        self.dut.cmd_size.value = 2
-        self.dut.cmd_burst.value = BURST_INCR
+        _drive(self.dut, 'cmd_size', 2)
+        _drive(self.dut, 'cmd_burst', BURST_INCR)
 
         # Data channel (W/R)
         self.dut.data_valid.value = 0
@@ -150,22 +159,32 @@ class AXI4MonitorTB(TBBase):
         self.dut.cfg_compl_enable.value = 1
         self.dut.cfg_threshold_enable.value = 0
         self.dut.cfg_timeout_enable.value = 1
-        self.dut.cfg_perf_enable.value = 0
-        self.dut.cfg_debug_enable.value = 0
+        _drive(self.dut, 'cfg_perf_enable', 0)
+        _drive(self.dut, 'cfg_debug_enable', 0)
 
         # Timer configuration
         self.dut.cfg_freq_sel.value = 0
-        self.dut.cfg_addr_cnt.value = 10
-        self.dut.cfg_data_cnt.value = 10
-        self.dut.cfg_resp_cnt.value = 10
+        _drive(self.dut, 'cfg_addr_cnt', 10)
+        _drive(self.dut, 'cfg_data_cnt', 10)
+        _drive(self.dut, 'cfg_resp_cnt', 10)
 
         # Threshold configuration
         self.dut.cfg_active_trans_threshold.value = 1000
         self.dut.cfg_latency_threshold.value = 10000
 
         # Debug configuration
-        self.dut.cfg_debug_level.value = 0
-        self.dut.cfg_debug_mask.value = 0
+        _drive(self.dut, 'cfg_debug_level', 0)
+        _drive(self.dut, 'cfg_debug_mask', 0)
+        # lite-only (no-ops on the full core): never time out, drop nothing,
+        # no address-match class, no address ranges, timestamp input parked.
+        _drive(self.dut, 'cfg_timeout_cnt', 0xFFFF)
+        _drive(self.dut, 'cfg_axi_pkt_mask', 0)
+        _drive(self.dut, 'cfg_addr_check_enable', 0)
+        _drive(self.dut, 'cfg_addr_match_enable', 0)
+        _drive(self.dut, 'cfg_addr_range_enable', 0)
+        _drive(self.dut, 'cfg_addr_range_low', 0)
+        _drive(self.dut, 'cfg_addr_range_high', 0)
+        _drive(self.dut, 'i_mon_time', 0)
 
         await RisingEdge(self.dut.aclk)
 
@@ -224,8 +243,8 @@ class AXI4MonitorTB(TBBase):
         self.dut.cmd_addr.value = addr
         self.dut.cmd_id.value = txn_id
         self.dut.cmd_len.value = length
-        self.dut.cmd_size.value = size
-        self.dut.cmd_burst.value = burst
+        _drive(self.dut, 'cmd_size', size)
+        _drive(self.dut, 'cmd_burst', burst)
         self.dut.cmd_valid.value = 1
         await RisingEdge(self.dut.aclk)
         self.dut.cmd_valid.value = 0
@@ -499,10 +518,11 @@ def generate_test_params():
     """Generate test parameter combinations"""
     if os.environ.get('FULL_TEST_MATRIX', 'false').lower() == 'true':
         from itertools import product
-        return list(product([4, 8], [32, 64], [2, 4, 8, 16], [True, False], [True, False], ['full']))
+        return list(product([4, 8], [32, 64], [2, 4, 8, 16], [True, False], [True, False], ['full'],
+                            ['axi_monitor_base', 'axi_monitor_lite']))
 
     # Curated 11 configs
-    return [
+    curated = [
         (4, 32, 8,  True,  True,  'protocol'),  # 1. AXI4 Read
         (4, 32, 8,  False, True,  'protocol'),  # 2. AXI4 Write
         (4, 32, 8,  True,  False, 'protocol'),  # 3. AXI4-Lite Read
@@ -515,10 +535,22 @@ def generate_test_params():
         (8, 64, 8,  True,  True,  'addr64'),    # 10. 64-bit addr, 8-bit ID
         (8, 64, 16, True,  True,  'combined'),  # 11. Combined stress
     ]
+    base = [c + ('axi_monitor_base',) for c in curated]
+    # The lite (amba/monitor-lite TASK-002): the same six phases through the
+    # same TB. Every phase applies -- the lite emits completions, response
+    # errors and orphans and takes the same handshakes -- so nothing is skipped
+    # by class here; only the base-only cfg pins go undriven (see _drive).
+    lite = [(4, 32, 8,  True,  True,  'protocol', 'axi_monitor_lite'),
+            (4, 32, 8,  False, True,  'protocol', 'axi_monitor_lite'),
+            (4, 32, 8,  True,  False, 'protocol', 'axi_monitor_lite'),
+            (4, 32, 8,  False, False, 'protocol', 'axi_monitor_lite'),
+            (4, 32, 2,  True,  True,  'table',    'axi_monitor_lite'),
+            (8, 32, 16, True,  True,  'id_space', 'axi_monitor_lite')]
+    return base + lite
 
 
-@pytest.mark.parametrize("iw, aw, max_transactions, is_read, is_axi4, test_mode", generate_test_params())
-def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
+@pytest.mark.parametrize("iw, aw, max_transactions, is_read, is_axi4, test_mode, dut", generate_test_params())
+def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode, dut):
     """AXI4 monitor test runner"""
 
     # Get worker ID for parallel execution isolation
@@ -536,12 +568,12 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
-    # Test the base monitor directly, not the wrapper
-    dut_name = "axi_monitor_base"
+    # Test the core directly, not a wrapper: axi_monitor_base or axi_monitor_lite
+    dut_name = dut
     protocol = "axi4" if is_axi4 else "lite"
     direction = "rd" if is_read else "wr"
 
-    test_name = f"test_{worker_id}_axi_monitor_{test_mode}_iw{iw}_aw{aw}_mt{max_transactions}_{protocol}_{direction}"
+    test_name = f"test_{worker_id}_{dut_name}_{test_mode}_iw{iw}_aw{aw}_mt{max_transactions}_{protocol}_{direction}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = sim_build_path(tests_dir, test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -550,7 +582,7 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        module='axi_monitor_base')
+        module=dut_name)
 
     rtl_parameters = {
         'ID_WIDTH': str(iw),
@@ -560,9 +592,9 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
         'MAX_TRANSACTIONS': str(max_transactions),
         'IS_READ': '1' if is_read else '0',
         'IS_AXI': '1' if is_axi4 else '0',
-        'ENABLE_PERF_PACKETS': '0',
-        'ENABLE_DEBUG_MODULE': '0',
     }
+    if dut_name == 'axi_monitor_base':
+        rtl_parameters.update({'ENABLE_PERF_PACKETS': '0', 'ENABLE_DEBUG_MODULE': '0'})
 
     stress_level = os.environ.get('STRESS_LEVEL', 'medium').lower()
     timeout_map = {'low': 30, 'medium': 60, 'high': 180, 'extreme': 600}

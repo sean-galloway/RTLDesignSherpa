@@ -118,6 +118,13 @@ def decode_trans(raw: int, width: int) -> dict:
     return out
 
 
+def _drive(dut, pin, value):
+    """Drive `pin` if the DUT has it. The full core and the lite share most
+    of their interface but not all of it; see initialize_inputs()."""
+    if hasattr(dut, pin):
+        getattr(dut, pin).value = value
+
+
 class AxiMonitorTransMgrTB(TBBase):
     """Testbench for the AXI monitor transaction-tracking core."""
 
@@ -128,6 +135,9 @@ class AxiMonitorTransMgrTB(TBBase):
         self.AW = int(os.environ.get('TEST_AW', '32'))
 
         self.mon_slave = None
+        # axi_monitor_lite has no exposed transaction table and no block_ready:
+        # table-reading helpers return [] and callers fall back to active_count.
+        self.is_lite = not hasattr(dut, 'w_trans_table')
 
         # Continuous observations collected by _sample_table()
         self.samples_running = False
@@ -161,56 +171,68 @@ class AxiMonitorTransMgrTB(TBBase):
     # -- setup ---------------------------------------------------------
 
     async def initialize_inputs(self):
-        self.dut.clear.value = 0
-        self.dut.cmd_valid.value = 0
-        self.dut.cmd_ready.value = 1
-        self.dut.cmd_addr.value = 0
-        self.dut.cmd_id.value = 0
-        self.dut.cmd_len.value = 0
-        self.dut.cmd_size.value = 2
-        self.dut.cmd_burst.value = BURST_INCR
+        """Quiesce every input. Guarded per pin: this TB also drives
+        axi_monitor_lite (amba/monitor-lite TASK-002), which has no cmd_size /
+        cmd_burst, no perf/debug/window cfg, no per-channel timeout counts and
+        no cfg_addr_range_* -- and has cfg_timeout_cnt / cfg_axi_pkt_mask /
+        cfg_addr_match_enable that the full core does not. A pin the DUT lacks
+        is skipped; one it has is driven to the same quiet value either way.
+        """
+        _drive(self.dut, 'clear', 0)
+        _drive(self.dut, 'cmd_valid', 0)
+        _drive(self.dut, 'cmd_ready', 1)
+        _drive(self.dut, 'cmd_addr', 0)
+        _drive(self.dut, 'cmd_id', 0)
+        _drive(self.dut, 'cmd_len', 0)
+        _drive(self.dut, 'cmd_size', 2)
+        _drive(self.dut, 'cmd_burst', BURST_INCR)
 
-        self.dut.data_valid.value = 0
-        self.dut.data_ready.value = 1
-        self.dut.data_id.value = 0
-        self.dut.data_last.value = 0
-        self.dut.data_resp.value = RESP_OKAY
+        _drive(self.dut, 'data_valid', 0)
+        _drive(self.dut, 'data_ready', 1)
+        _drive(self.dut, 'data_id', 0)
+        _drive(self.dut, 'data_last', 0)
+        _drive(self.dut, 'data_resp', RESP_OKAY)
 
-        self.dut.resp_valid.value = 0
-        self.dut.resp_ready.value = 1
-        self.dut.resp_id.value = 0
-        self.dut.resp_code.value = RESP_OKAY
+        _drive(self.dut, 'resp_valid', 0)
+        _drive(self.dut, 'resp_ready', 1)
+        _drive(self.dut, 'resp_id', 0)
+        _drive(self.dut, 'resp_code', RESP_OKAY)
 
-        self.dut.monbus_ready.value = 1
+        _drive(self.dut, 'monbus_ready', 1)
 
-        self.dut.cfg_error_enable.value = 1
-        self.dut.cfg_compl_enable.value = 1
-        self.dut.cfg_threshold_enable.value = 0
-        self.dut.cfg_timeout_enable.value = 0
-        self.dut.cfg_perf_enable.value = 0
-        self.dut.cfg_debug_enable.value = 0
+        _drive(self.dut, 'cfg_error_enable', 1)
+        _drive(self.dut, 'cfg_compl_enable', 1)
+        _drive(self.dut, 'cfg_threshold_enable', 0)
+        _drive(self.dut, 'cfg_timeout_enable', 0)
+        _drive(self.dut, 'cfg_perf_enable', 0)
+        _drive(self.dut, 'cfg_debug_enable', 0)
 
-        self.dut.cfg_freq_sel.value = 0
-        self.dut.cfg_addr_cnt.value = 0xF
-        self.dut.cfg_data_cnt.value = 0xF
-        self.dut.cfg_resp_cnt.value = 0xF
+        _drive(self.dut, 'cfg_freq_sel', 0)
+        _drive(self.dut, 'cfg_addr_cnt', 0xF)
+        _drive(self.dut, 'cfg_data_cnt', 0xF)
+        _drive(self.dut, 'cfg_resp_cnt', 0xF)
 
-        self.dut.cfg_active_trans_threshold.value = 0xFFFF
-        self.dut.cfg_latency_threshold.value = 0xFFFFFFFF
-        self.dut.cfg_debug_level.value = 0
-        self.dut.cfg_debug_mask.value = 0
+        _drive(self.dut, 'cfg_active_trans_threshold', 0xFFFF)
+        _drive(self.dut, 'cfg_latency_threshold', 0xFFFFFFFF)
+        _drive(self.dut, 'cfg_debug_level', 0)
+        _drive(self.dut, 'cfg_debug_mask', 0)
 
-        self.dut.cfg_addr_check_enable.value = 0
-        self.dut.cfg_addr_range_enable.value = 0
-        self.dut.cfg_addr_range_low.value = 0
-        self.dut.cfg_addr_range_high.value = 0
+        _drive(self.dut, 'cfg_addr_check_enable', 0)
+        _drive(self.dut, 'cfg_addr_range_enable', 0)
+        _drive(self.dut, 'cfg_addr_range_low', 0)
+        _drive(self.dut, 'cfg_addr_range_high', 0)
 
-        self.dut.cfg_start_event_sel.value = 0
-        self.dut.cfg_end_event_sel.value = 0
-        self.dut.cfg_start_trigger.value = 0
-        self.dut.cfg_end_trigger.value = 0
-        self.dut.cfg_window_force_close.value = 0
-        self.dut.i_mon_time.value = 0
+        _drive(self.dut, 'cfg_start_event_sel', 0)
+        _drive(self.dut, 'cfg_end_event_sel', 0)
+        _drive(self.dut, 'cfg_start_trigger', 0)
+        _drive(self.dut, 'cfg_end_trigger', 0)
+        _drive(self.dut, 'cfg_window_force_close', 0)
+        _drive(self.dut, 'i_mon_time', 0)
+
+        # lite-only pins (no-ops on axi_monitor_base)
+        _drive(self.dut, 'cfg_timeout_cnt', 0xFFFF)       # 0xFFFF = never
+        _drive(self.dut, 'cfg_axi_pkt_mask', 0)
+        _drive(self.dut, 'cfg_addr_match_enable', 0)
 
         await RisingEdge(self.dut.aclk)
 
@@ -223,6 +245,8 @@ class AxiMonitorTransMgrTB(TBBase):
 
     def _check_struct_width(self):
         """Fail loudly if bus_transaction_t no longer matches TRANS_FIELDS."""
+        if self.is_lite:
+            return
         rtl_width = self.dut.w_trans_table[0].value.n_bits
         assert rtl_width == TRANS_WIDTH, (
             f"bus_transaction_t is {rtl_width} bits but this test decodes "
@@ -233,7 +257,9 @@ class AxiMonitorTransMgrTB(TBBase):
     # -- observation ---------------------------------------------------
 
     def read_table(self):
-        """Snapshot the whole transaction table as decoded dicts."""
+        """Snapshot the whole transaction table as decoded dicts (empty on the lite)."""
+        if self.is_lite:
+            return []
         out = []
         for i in range(self.MAX_TRANS):
             raw = int(self.dut.w_trans_table[i].value)

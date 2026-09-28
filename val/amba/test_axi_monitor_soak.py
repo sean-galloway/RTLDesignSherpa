@@ -277,5 +277,215 @@ def test_axi_monitor_soak(request):
         includes=includes + [rtl_dict['rtl_shared'], sim_build],
         toplevel=dut_name, module=module, parameters=rtl_parameters,
         sim_build=sim_build, extra_env=extra_env, keep_files=True,
-        compile_args=compile_args,
+        compile_args=compile_args, testcase='monitor_soak',
+    )
+
+
+# ---------------------------------------------------------------------------
+# The lite (amba/monitor-lite TASK-002). axi_monitor_pktgen_dut is the full
+# monitor's reporter + timeout FUBs fed from a hand-built table; the lite is
+# one module with no separable reporter, so its soak drives the CORE's own
+# command/data handshakes with random legal read traffic and checks the
+# accounting the lite promises instead of a bin count:
+#
+#     completions + errors + timeouts GENERATED
+#         == packets DELIVERED by class + drops REPORTED + drops still PENDING
+#     perf_completed_count == clean transactions, perf_error_count == errored
+#     refused_count == 0 (the traffic never exceeds the table), no X.
+#
+# Events are predictable from the stimulus: a transaction with an erroring
+# beat yields one Error and no Completion; a clean one yields one Completion;
+# a gap of >= 100 clocks in a transaction's progress yields one Timeout (the
+# lite ages an entry since its last beat, in microseconds at the 5 MHz LUT
+# entry = 5 clocks/us, and latches one timeout per entry). Ordinary gaps are
+# <= 10 clocks (2 us) against an 8 us threshold, so no gap is near the edge.
+# ---------------------------------------------------------------------------
+LITE_N_SLOTS = 4
+LITE_TIMEOUT_US = 8
+LITE_TICK_CLKS = 5            # cfg_freq_sel=0 -> the 5 MHz LUT entry: 1 us = 5 clocks
+LITE_STALL_CLKS = 100         # 20 us >> 8 us: a guaranteed timeout
+LITE_ERR_EVENT_DROPPED = 0xE  # AXI_ERR_EVENT_DROPPED: the lite's drop report
+PKT_ERROR, PKT_COMPLETION, PKT_TIMEOUT = 0, 1, 3
+
+
+def _lite_drive(dut, pin, value):
+    if hasattr(dut, pin):
+        getattr(dut, pin).value = value
+
+
+async def _lite_init(dut):
+    """Quiesce every input of axi_monitor_lite and program the soak config."""
+    for pin, v in (('clear', 0), ('i_mon_time', 0),
+                   ('cmd_addr', 0), ('cmd_id', 0), ('cmd_len', 0), ('cmd_valid', 0), ('cmd_ready', 1),
+                   ('data_id', 0), ('data_last', 0), ('data_resp', 0), ('data_valid', 0), ('data_ready', 1),
+                   ('resp_id', 0), ('resp_code', 0), ('resp_valid', 0), ('resp_ready', 1),
+                   ('cfg_freq_sel', 0), ('cfg_timeout_cnt', LITE_TIMEOUT_US),
+                   ('cfg_error_enable', 1), ('cfg_compl_enable', 1), ('cfg_timeout_enable', 1),
+                   ('cfg_threshold_enable', 0), ('cfg_active_trans_threshold', 0xFFFF),
+                   ('cfg_latency_threshold', 0xFFFFFFFF), ('cfg_axi_pkt_mask', 0),
+                   ('cfg_addr_check_enable', 0), ('cfg_addr_match_enable', 0),
+                   ('cfg_addr_range_enable', 0), ('cfg_addr_range_low', 0), ('cfg_addr_range_high', 0),
+                   ('monbus_ready', 1)):
+        _lite_drive(dut, pin, v)
+
+
+@cocotb.test()
+async def monitor_soak_monlite(dut):
+    soak_cycles = int(os.environ.get('SOAK_CYCLES', '200000'))
+    rng = random.Random(int(os.environ.get('SEED', '1')))
+    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    await _lite_init(dut)
+    dut.aresetn.value = 0
+    for _ in range(6):
+        await RisingEdge(dut.aclk)
+    dut.aresetn.value = 1
+    for _ in range(3):
+        await RisingEdge(dut.aclk)
+
+    delivered: Counter = Counter()      # by pkt_type, drop reports excluded
+    drop_reported = 0
+    n_packets = 0
+
+    async def _cap():
+        nonlocal n_packets, drop_reported
+        while True:
+            await RisingEdge(dut.aclk)
+            await ReadOnly()
+            if int(dut.monbus_valid.value) and int(dut.monbus_ready.value):
+                raw = int(dut.monbus_packet.value)
+                proto, ptype, ecode = decode_monbus(raw)
+                n_packets += 1
+                if ptype == PKT_ERROR and ecode == LITE_ERR_EVENT_DROPPED:
+                    drop_reported += (raw & 0xFFFF)          # count rides in the addr field
+                else:
+                    delivered[ptype] += 1
+    cocotb.start_soon(_cap())
+
+    # ---- the traffic model: reads with distinct IDs, one data beat a cycle ----
+    exp_compl = exp_err = exp_tmo = 0
+    active = {}          # id -> dict(beats_left, err_beat, ready_at, saw_stall)
+    cycles = 0
+    last_report = 0
+
+    def _free_id():
+        ids = [i for i in range(LITE_N_SLOTS) if i not in active]
+        return rng.choice(ids) if ids else None
+
+    while cycles < soak_cycles or active:
+        issuing = cycles < soak_cycles
+        # consumer backpressure, 15% of cycles
+        dut.monbus_ready.value = 0 if rng.random() < 0.15 else 1
+        # at most one command this cycle
+        tid = _free_id() if issuing else None
+        if tid is not None and rng.random() < 0.35:
+            length = rng.choice((0, 0, 1, 3))
+            beats = length + 1
+            err_beat = rng.randrange(beats) if rng.random() < 0.20 else None
+            stall = rng.random() < 0.10
+            active[tid] = dict(beats_left=beats, err_beat=err_beat, beat_idx=0,
+                               ready_at=cycles + (LITE_STALL_CLKS if stall else rng.randint(1, 10)),
+                               stall_done=not stall)
+            dut.cmd_id.value = tid
+            dut.cmd_addr.value = rng.getrandbits(32) & ~0x3
+            dut.cmd_len.value = length
+            dut.cmd_valid.value = 1
+            if err_beat is None:
+                exp_compl += 1
+            else:
+                exp_err += 1
+            if stall:
+                exp_tmo += 1
+        else:
+            dut.cmd_valid.value = 0
+        # at most one data beat this cycle, on a transaction whose time has come
+        due = [i for i, t in active.items() if t['ready_at'] <= cycles]
+        if due:
+            i = rng.choice(due)
+            t = active[i]
+            last = (t['beats_left'] == 1)
+            dut.data_id.value = i
+            dut.data_last.value = 1 if last else 0
+            dut.data_resp.value = 0b10 if t['err_beat'] == t['beat_idx'] else 0b00
+            dut.data_valid.value = 1
+            t['beats_left'] -= 1
+            t['beat_idx'] += 1
+            t['ready_at'] = cycles + rng.randint(1, 10)
+            if last:
+                del active[i]
+        else:
+            dut.data_valid.value = 0
+        await RisingEdge(dut.aclk)
+        cycles += 1
+        if cycles - last_report >= 50_000:
+            last_report = cycles
+            dut._log.info(f"[soak-lite] {cycles:>8,}/{soak_cycles:,} cyc  packets={n_packets:,}  "
+                          f"delivered={dict(delivered)}  drop_reported={drop_reported}  "
+                          f"generated: compl={exp_compl} err={exp_err} tmo={exp_tmo}")
+    dut.cmd_valid.value = 0
+    dut.data_valid.value = 0
+    dut.monbus_ready.value = 1
+    for _ in range(600):                       # last timeouts age out, queue drains
+        await RisingEdge(dut.aclk)
+
+    pending = int(dut.dropped_count.value)
+    completed = int(dut.perf_completed_count.value)
+    errored = int(dut.perf_error_count.value)
+    refused = int(dut.refused_count.value)
+    live = int(dut.active_count.value)
+    generated = exp_compl + exp_err + exp_tmo
+    accounted = sum(delivered.values()) + drop_reported + pending
+    dut._log.info("=" * 70)
+    dut._log.info(f"SOAK-LITE COMPLETE: {cycles:,} cycles, {n_packets:,} packets on the bus")
+    dut._log.info(f"  generated: {exp_compl} completions + {exp_err} errors + {exp_tmo} timeouts = {generated}")
+    dut._log.info(f"  delivered: {dict(delivered)}  drop reports: {drop_reported}  pending drops: {pending}  -> {accounted}")
+    dut._log.info(f"  ports: perf_completed={completed} perf_error={errored} refused={refused} active={live}")
+    dut._log.info("=" * 70)
+    for sig in (dut.dropped_count, dut.perf_completed_count, dut.perf_error_count, dut.refused_count, dut.active_count):
+        assert sig.value.is_resolvable, f"{sig._name} went X -- monitor state corrupted"
+    assert n_packets > 0, "the lite emitted nothing over the whole soak"
+    assert delivered[PKT_COMPLETION] > 0 and delivered[PKT_ERROR] > 0 and delivered[PKT_TIMEOUT] > 0, (
+        f"a class never reached the bus: {dict(delivered)}")
+    assert refused == 0, f"refused_count={refused}: the traffic never exceeds {LITE_N_SLOTS} outstanding"
+    assert live == 0, f"{live} entries still live after the drain"
+    assert completed == (exp_compl & 0xFFFF), f"perf_completed_count={completed}, model={exp_compl}"
+    assert errored == (exp_err & 0xFFFF), f"perf_error_count={errored}, model={exp_err}"
+    assert accounted == generated, (
+        f"{generated} events generated but {sum(delivered.values())} delivered + "
+        f"{drop_reported} reported dropped + {pending} pending = {accounted}: the lite "
+        + ("LOST events it never counted" if accounted < generated else "counted events that did not happen"))
+
+
+def test_axi_monitor_soak_monlite(request):
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_monitor':  'rtl/amba/monitor',
+        'rtl_includes': 'rtl/amba/includes',
+    })
+    dut_name = "axi_monitor_lite"
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+    soak = os.environ.get('SOAK_CYCLES', '200000')
+    test_name = f"test_{worker_id}_{dut_name}_soak{soak}"
+    log_path  = os.path.join(log_dir, f'{test_name}.log')
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, module=dut_name)
+    rtl_parameters = {'MAX_TRANSACTIONS': str(LITE_N_SLOTS), 'ID_WIDTH': '4', 'ADDR_WIDTH': '32',
+                      'IS_READ': '1', 'IS_AXI': '1', 'UNIT_ID': '1', 'AGENT_ID': '10'}
+    extra_env = {
+        'DUT': dut_name, 'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{test_name}.xml'),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'SOAK_CYCLES': soak,
+    }
+    compile_args = [
+        '+define+SIMULATION', '-Wno-DECLFILENAME', '-Wno-WIDTHEXPAND',
+        '-Wno-WIDTHTRUNC', '-Wno-UNUSEDPARAM', '-Wno-TIMESCALEMOD', '-Wno-UNUSEDSIGNAL',
+    ]
+    create_view_cmd(log_dir, log_path, sim_build, module, test_name)
+    run(
+        python_search=[tests_dir], verilog_sources=verilog_sources,
+        includes=includes + [sim_build],
+        toplevel=dut_name, module=module, parameters=rtl_parameters,
+        sim_build=sim_build, extra_env=extra_env, keep_files=True,
+        compile_args=compile_args, testcase='monitor_soak_monlite',
     )

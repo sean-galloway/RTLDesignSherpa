@@ -913,3 +913,187 @@ def test_axi_monitor_pktgen_timeout_starvation_sustained(request):
 def test_axi_monitor_pktgen_timeout_starvation(request):
     """TASK-083 measurement at the board's table depth (16, not the default 4)."""
     _run_pktgen(request, "cocotb_test_timeout_starvation", n_slots=16)
+
+
+# ---------------------------------------------------------------------------
+# The lite (amba/monitor-lite TASK-002): timeout under a sustained error flood.
+# axi_monitor_pktgen_dut is the full monitor's reporter fed from a hand-built
+# table; the lite has no separable reporter, so this drives axi_monitor_lite's
+# own handshakes: one read (id 0) left without data so it times out, while
+# the other three IDs carry back-to-back single-beat SLVERR reads -- one
+# Error event per cycle at FLOOD_DUTY=1, one every other cycle at 2. The lite
+# picks ONE event a cycle, Error above Timeout, and counts what it could not
+# queue in dropped_count. Measured, then the accounting is asserted:
+#     timeouts generated (1) == timeouts delivered + drops reported/pending
+# and the class counts are logged for the TASK-002 record. Whether a lost
+# timeout under a 100% error duty is acceptable is the owner's call; the
+# number is what this test produces.
+# ---------------------------------------------------------------------------
+LITE_ERR_EVENT_DROPPED = 0xE
+
+
+def _lite_pin(dut, pin, value):
+    if hasattr(dut, pin):
+        getattr(dut, pin).value = value
+
+
+async def _lite_setup(dut, timeout_us):
+    for pin, v in (('clear', 0), ('i_mon_time', 0),
+                   ('cmd_addr', 0), ('cmd_id', 0), ('cmd_len', 0), ('cmd_valid', 0), ('cmd_ready', 1),
+                   ('data_id', 0), ('data_last', 0), ('data_resp', 0), ('data_valid', 0), ('data_ready', 1),
+                   ('resp_id', 0), ('resp_code', 0), ('resp_valid', 0), ('resp_ready', 1),
+                   ('cfg_freq_sel', 0), ('cfg_timeout_cnt', timeout_us),
+                   ('cfg_error_enable', 1), ('cfg_compl_enable', 1), ('cfg_timeout_enable', 1),
+                   ('cfg_threshold_enable', 0), ('cfg_active_trans_threshold', 0xFFFF),
+                   ('cfg_latency_threshold', 0xFFFFFFFF), ('cfg_axi_pkt_mask', 0),
+                   ('cfg_addr_check_enable', 0), ('cfg_addr_match_enable', 0),
+                   ('cfg_addr_range_enable', 0), ('cfg_addr_range_low', 0), ('cfg_addr_range_high', 0),
+                   ('monbus_ready', 1)):
+        _lite_pin(dut, pin, v)
+    dut.aresetn.value = 0
+    for _ in range(6):
+        await RisingEdge(dut.aclk)
+    dut.aresetn.value = 1
+    for _ in range(3):
+        await RisingEdge(dut.aclk)
+
+
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_timeout_starvation_monlite(dut):
+    """One stalled read against a sustained SLVERR flood on the other IDs."""
+    _apply_seed()
+    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    timeout_us = 4                                  # 20 clocks at the 5 MHz LUT entry
+    await _lite_setup(dut, timeout_us)
+    duty = int(os.environ.get('FLOOD_DUTY', '1'))   # 1 = an error every cycle, 2 = every other
+    flood_cycles = 400
+
+    captured = []
+    drop_reported = 0
+
+    async def _cap():
+        nonlocal drop_reported
+        while True:
+            await RisingEdge(dut.aclk)
+            await ReadOnly()
+            if int(dut.monbus_valid.value) and int(dut.monbus_ready.value):
+                raw = int(dut.monbus_packet.value)
+                d = decode_monbus(raw)
+                if d['packet_type'] == PKT_ERROR and d['event_code'] == LITE_ERR_EVENT_DROPPED:
+                    drop_reported += (raw & 0xFFFF)
+                else:
+                    captured.append(d)
+    cocotb.start_soon(_cap())
+
+    # the victim: AR on id 0, no data
+    dut.cmd_id.value = 0
+    dut.cmd_addr.value = 0xD000_0000
+    dut.cmd_len.value = 0
+    dut.cmd_valid.value = 1
+    await RisingEdge(dut.aclk)
+    dut.cmd_valid.value = 0
+
+    # the flood: id k gets AR in one cycle and its single SLVERR beat the next,
+    # ids 1..3 rotating so the table never exceeds 4 entries (no refusals)
+    errors_generated = 0
+    pending_data = None
+    for cyc in range(flood_cycles):
+        fire = (cyc % duty) == 0
+        k = 1 + (cyc // duty) % 3
+        if pending_data is not None:
+            dut.data_id.value = pending_data
+            dut.data_last.value = 1
+            dut.data_resp.value = 0b10
+            dut.data_valid.value = 1
+            errors_generated += 1
+            pending_data = None
+        else:
+            dut.data_valid.value = 0
+        if fire:
+            dut.cmd_id.value = k
+            dut.cmd_addr.value = 0xC000_0000 | (k << 8)
+            dut.cmd_len.value = 0
+            dut.cmd_valid.value = 1
+            pending_data = k
+        else:
+            dut.cmd_valid.value = 0
+        await RisingEdge(dut.aclk)
+    dut.cmd_valid.value = 0
+    if pending_data is not None:                    # close the last flood read
+        dut.data_id.value = pending_data; dut.data_last.value = 1
+        dut.data_resp.value = 0b10; dut.data_valid.value = 1
+        errors_generated += 1
+        await RisingEdge(dut.aclk)
+    dut.data_valid.value = 0
+    await idle(dut, 40)
+    # now let the victim complete cleanly
+    dut.data_id.value = 0; dut.data_last.value = 1; dut.data_resp.value = 0; dut.data_valid.value = 1
+    await RisingEdge(dut.aclk)
+    dut.data_valid.value = 0
+    await idle(dut, 200)
+
+    by_class = {}
+    for d in captured:
+        by_class[d['packet_type']] = by_class.get(d['packet_type'], 0) + 1
+    tmo_for_victim = [d for d in captured if d['packet_type'] == PKT_TIMEOUT and d['addr'] == 0xD000_0000]
+    pending = int(dut.dropped_count.value)
+    refused = int(dut.refused_count.value)
+    generated = errors_generated + 1 + 1          # errors + one timeout + the victim's completion
+    accounted = len(captured) + drop_reported + pending
+    dut._log.info(
+        f"[lite starvation, duty 1/{duty}] flood {flood_cycles} cyc: errors generated={errors_generated} "
+        f"delivered: error={by_class.get(PKT_ERROR,0)} timeout={by_class.get(PKT_TIMEOUT,0)} "
+        f"compl={by_class.get(PKT_COMPLETION,0)}  drop reports={drop_reported} pending={pending} "
+        f"refused={refused}  victim timeout {'DELIVERED' if tmo_for_victim else 'LOST (counted as dropped)'}")
+    assert refused == 0, f"refused={refused}: the flood exceeded the table, so the numbers say nothing"
+    assert int(dut.perf_error_count.value) == errors_generated, (
+        f"perf_error_count={int(dut.perf_error_count.value)} vs {errors_generated} erroring beats driven")
+    assert accounted == generated, (
+        f"{generated} events generated, {len(captured)} delivered + {drop_reported} reported + "
+        f"{pending} pending = {accounted}: the lite lost an event it did not count")
+    assert by_class.get(PKT_COMPLETION, 0) == 1, "the victim's clean completion did not arrive"
+    # A timeout lost to the flood is COUNTED, never silent -- that is the contract
+    # this measures. Delivery under duty 1 is the owner's call (see TASK-002).
+    if not tmo_for_victim:
+        assert drop_reported + pending >= 1, "the victim's timeout neither arrived nor was counted as dropped"
+
+
+def _run_lite(request, testcase, extra=None):
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_monitor': 'rtl/amba/monitor', 'rtl_amba_includes': 'rtl/amba/includes',
+    })
+    dut_name = "axi_monitor_lite"
+    tag = "_".join(f"{k}{v}" for k, v in sorted((extra or {}).items()))
+    test_name = f"test_{worker_id}_{dut_name}_{testcase}{('_' + tag) if tag else ''}"
+    log_path = os.path.join(log_dir, f'{test_name}.log')
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, module=dut_name)
+    rtl_parameters = {'MAX_TRANSACTIONS': '4', 'ID_WIDTH': '4', 'ADDR_WIDTH': '32',
+                      'IS_READ': '1', 'IS_AXI': '1', 'UNIT_ID': '1', 'AGENT_ID': '10'}
+    extra_env = {
+        'DUT': dut_name, 'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO', 'TEST_CLK_PERIOD': '10',
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+    }
+    extra_env.update({k: str(v) for k, v in (extra or {}).items()})
+    compile_args = [
+        "--trace-fst", "--trace-structs",
+        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME",
+        "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC", "-Wno-SELRANGE",
+        "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
+    ]
+    run(
+        python_search=[tests_dir], verilog_sources=verilog_sources,
+        includes=includes + [sim_build],
+        toplevel=dut_name, module="test_axi_monitor_pktgen", testcase=testcase,
+        parameters=rtl_parameters, extra_env=extra_env, sim_build=sim_build,
+        compile_args=compile_args, waves=bool(int(os.environ.get('WAVES', '0'))), keep_files=True,
+    )
+
+
+@pytest.mark.parametrize("duty", [1, 2])
+def test_axi_monitor_pktgen_timeout_starvation_monlite(request, duty):
+    """The lite's counterpart of timeout_starvation: measured, accounting asserted."""
+    _run_lite(request, "cocotb_test_timeout_starvation_monlite", {'FLOOD_DUTY': duty})

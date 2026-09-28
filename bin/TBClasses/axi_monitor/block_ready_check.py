@@ -69,6 +69,23 @@ is the one that catches THIS defect: the gate faithfully follows block_ready,
 but block_ready itself is computed against a stale count, so layers 1 and 2
 both pass while commands are admitted with nowhere to go.
 
+THE LITE WRAPPERS INVERT THE CONTRACT
+------------------------------------
+axi*_{master,slave}_{rd,wr}_monlite (amba/monitor-lite) has NO block_ready and
+never gates the command handshake: a command that finds no free entry is
+admitted untracked and COUNTED on the `refused_count` port. So the three layers
+become, for LiteRefuseCheck:
+
+    1. saturation coverage   occupancy reached the depth and refused_count moved
+    2. refuse accounting     every command admitted while the table was full is
+                             in refused_count -- none went missing silently
+    3. admission invariant   occupancy never exceeded the depth
+
+Layer 2 is the lite's whole promise: it may lose a transaction under pressure
+but it must SAY so. A refused_count that lags admitted_while_full means the
+lite lost a command and told nobody, which is the same defect the full
+monitor's layer 3 exists to catch.
+
 USAGE
 -----
     from TBClasses.axi_monitor.block_ready_check import BlockReadyCheck
@@ -270,3 +287,178 @@ class BlockReadyCheck:
                 f"gating_violations={self.gating_violations} "
                 f"block_ready_low={self.block_ready_low_cycles}/"
                 f"{self.total_cycles} cycles")
+
+
+class LiteRefuseCheck:
+    """The lite wrappers' counterpart of BlockReadyCheck (see the module doc).
+
+    Same discovery, same port-only discipline. Instead of a block signal it
+    watches `refused_count`, and its layer 2 is an accounting identity rather
+    than a gating rule: commands admitted at full occupancy == refused_count.
+    """
+
+    _CMD_HANDSHAKES = BlockReadyCheck._CMD_HANDSHAKES
+
+    def __init__(self, dut, log, depth):
+        self.dut = dut
+        self.log = log
+        self.depth = depth
+        self.peak_occupancy = 0
+        self.admitted_while_full = 0
+        self.accepted = 0
+        self.full_cycles = 0
+        self.total_cycles = 0
+        self.final_refused = None
+        self._task = None
+        self._stop = False
+        self.cmd_valid, self.cmd_ready = self._find_handshake()
+        # The matching RESPONSE handshake on the same side (ar->r, aw->b): a
+        # bus-level outstanding count that owes nothing to the DUT. When the
+        # DUT's occupancy never fills, this says whether the STIMULUS ever put
+        # `depth` transactions in flight -- the difference between "the lite
+        # never refused" and "the traffic never asked".
+        self.rsp_valid, self.rsp_ready = self._find_response()
+        self.bus_outstanding = 0
+        self.peak_bus_outstanding = 0
+        self.completed = 0
+        self.cfg_enable = getattr(dut, "cfg_monitor_enable", None)
+        self.refused = getattr(dut, "refused_count", None)
+        self.occupancy = getattr(dut, "active_transactions", None)
+        self.tracked = getattr(dut, "transaction_count", None)
+        if self.refused is None:
+            raise RuntimeError(
+                f"{type(dut).__name__} has no refused_count port. Every "
+                "_monlite wrapper brings the refused counter out; without it "
+                "a lost command is indistinguishable from one never issued.")
+        if self.cmd_valid is None or self.occupancy is None:
+            raise RuntimeError(
+                "LiteRefuseCheck could not bind: "
+                f"handshake={'ok' if self.cmd_valid is not None else 'NOT FOUND'}, "
+                f"active_transactions={'ok' if self.occupancy is not None else 'NOT FOUND'}.")
+        if getattr(dut, "debug_block_ready", None) is not None:
+            raise RuntimeError(
+                f"{type(dut).__name__} exposes debug_block_ready -- that is a "
+                "full monitor; use BlockReadyCheck. Running the lite check on "
+                "it would pass while measuring nothing about the gate.")
+
+    def _find_handshake(self):
+        for v, r in self._CMD_HANDSHAKES:
+            sv, sr = getattr(self.dut, v, None), getattr(self.dut, r, None)
+            if sv is not None and sr is not None:
+                self.log.info(f"LiteRefuseCheck: command handshake {v}/{r}")
+                self._cmd_names = (v, r)
+                return sv, sr
+        self._cmd_names = None
+        return None, None
+
+    def _find_response(self):
+        if not getattr(self, "_cmd_names", None):
+            return None, None
+        v, r = self._cmd_names
+        rv = v.replace("arvalid", "rvalid").replace("awvalid", "bvalid")
+        rr = r.replace("arready", "rready").replace("awready", "bready")
+        sv, sr = getattr(self.dut, rv, None), getattr(self.dut, rr, None)
+        if sv is not None and sr is not None:
+            self.log.info(f"LiteRefuseCheck: response handshake {rv}/{rr}")
+        return sv, sr
+
+    async def _sample(self):
+        while not self._stop:
+            await RisingEdge(self.dut.aclk)
+            self.total_cycles += 1
+            try:
+                admitted = bool(int(self.cmd_valid.value)
+                                and int(self.cmd_ready.value))
+                occ = int(self.occupancy.value)
+                enabled = (self.cfg_enable is None
+                           or bool(int(self.cfg_enable.value)))
+                refused = int(self.refused.value)
+            except ValueError:
+                continue
+            self.final_refused = refused
+            self.peak_occupancy = max(self.peak_occupancy, occ)
+            if occ >= self.depth:
+                self.full_cycles += 1
+            if admitted:
+                self.accepted += 1
+                self.bus_outstanding += 1
+                if enabled and occ >= self.depth:
+                    self.admitted_while_full += 1
+            if self.rsp_valid is not None:
+                try:
+                    done = bool(int(self.rsp_valid.value) and int(self.rsp_ready.value))
+                    last = getattr(self.dut, self._cmd_names[0].replace("arvalid", "rlast").replace("awvalid", "bvalid"), None)
+                    if done and (last is None or "bvalid" in self._cmd_names[0].replace("awvalid", "bvalid") or int(last.value)):
+                        self.completed += 1
+                        self.bus_outstanding -= 1
+                except ValueError:
+                    pass
+            self.peak_bus_outstanding = max(self.peak_bus_outstanding, self.bus_outstanding)
+
+    def start(self):
+        self._stop = False
+        self._task = cocotb.start_soon(self._sample())
+
+    def stop(self):
+        self._stop = True
+
+    def assert_saturation_reached(self, min_cycles=1):
+        """Layer 1: the table filled and at least one command was refused."""
+        assert self.full_cycles >= min_cycles and (self.final_refused or 0) > 0, (
+            f"table full on {self.full_cycles} cycles, refused_count="
+            f"{self.final_refused} -- the lite never ran out of entries, so "
+            f"this run says NOTHING about admission under pressure "
+            f"({self.accepted} commands over {self.total_cycles} cycles; the "
+            f"bus itself peaked at {self.peak_bus_outstanding} outstanding, so "
+            + ("the STIMULUS never asked for the depth"
+               if self.peak_bus_outstanding < self.depth else
+               "the traffic did reach the depth and the lite did not fill")
+            + "). Raise the outstanding depth or slow the response side; do not "
+            "treat this as a pass.")
+
+    def assert_refuse_accounting(self):
+        """Layer 2: every admitted command is either tracked or refused.
+
+        Checked as an end-state identity on the ports, not per cycle: the
+        occupancy port is a registered pop-count, so a command admitted on the
+        cycle a slot is freed reads as "admitted while full" here yet finds
+        the slot in the RTL. Once traffic has drained,
+            admitted == transaction_count + refused_count + active_transactions
+        must hold exactly -- a command missing from all three is one the lite
+        lost and told nobody about.
+        """
+        assert self.tracked is not None, (
+            "transaction_count port not found -- cannot close the accounting")
+        tracked = int(self.tracked.value)
+        live = int(self.occupancy.value)
+        assert self.accepted == tracked + (self.final_refused or 0) + live, (
+            f"{self.accepted} commands admitted but transaction_count={tracked} "
+            f"+ refused_count={self.final_refused} + still live={live} = "
+            f"{tracked + (self.final_refused or 0) + live}. "
+            + ("The lite LOST commands without counting them."
+               if tracked + (self.final_refused or 0) + live < self.accepted else
+               "More completions/refusals than commands: a beat or response "
+               "was attributed twice."))
+        self.log.info(f"LiteRefuseCheck: {self.accepted} admitted = {tracked} "
+                      f"completed + {self.final_refused} refused + {live} live; "
+                      f"per-cycle admitted_while_full={self.admitted_while_full} "
+                      f"(informational: the port count lags the allocator by a cycle)")
+
+    def assert_no_overflow(self, depth=None):
+        """Layer 3: the table never held more than its depth."""
+        depth = depth or self.depth
+        assert self.accepted > 0, (
+            "no command handshakes observed -- the stimulus never reached the "
+            "monitor, so a pass would be meaningless")
+        assert self.peak_occupancy <= depth, (
+            f"occupancy peaked at {self.peak_occupancy} with only {depth} "
+            "entries -- the table overflowed.")
+
+    def summary(self) -> str:
+        return (f"admitted={self.accepted} peak_occupancy="
+                f"{self.peak_occupancy}/{self.depth} "
+                f"admitted_while_full={self.admitted_while_full} "
+                f"refused_count={self.final_refused} "
+                f"completed={int(self.tracked.value) if self.tracked is not None else '-'} "
+                f"bus_peak_outstanding={self.peak_bus_outstanding} "
+                f"full={self.full_cycles}/{self.total_cycles} cycles")

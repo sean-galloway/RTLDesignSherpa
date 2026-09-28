@@ -186,12 +186,47 @@ async def axi_monitor_wr_same_cycle_test(dut):
                         f"(codes={[hex(e.event_code) for e in errs]})")
 
     # No entry may be left stranded in a non-terminal state.
+    # ------------------------------------------------------------------
+    # Phase 5: a PARTIAL early burst -- first beat before the AW, AW(len=1),
+    # then the last beat. Both cores count early beats and absorb them at the
+    # AW (BUG-037 in the full core, the one-burst register in the lite); the
+    # absorbed count must leave exactly one beat expected, or the real last
+    # beat reads as early/late and a legal write reports BURST_LENGTH.
+    # ------------------------------------------------------------------
+    tb.log.info("PHASE 5: partial early burst -- W(beat 1) before AW(len=1), then W(last)")
+    tb.clear_packets()
+    await tb.send_data(txn_id=7, last=False)                # beat 1, no AW yet
+    await tb.idle(1)
+    await tb.send_cmd(txn_id=7, addr=0x7000, length=1)      # AW absorbs the one early beat
+    await tb.idle(1)
+    await tb.send_data(txn_id=7, last=True)                 # beat 2, the real last
+    await tb.idle(2)
+    await send_resp(tb, txn_id=7)
+    await tb.drain()
+    compl = tb.completions()
+    errs = tb.errors()
+    if len(compl) != 1:
+        failures.append(
+            f"5: {len(compl)} completion packet(s), expected 1 -- the early "
+            "beat was not credited to its AW")
+    if errs:
+        failures.append(
+            f"5: {len(errs)} spurious error packet(s) "
+            f"(codes={[hex(e.event_code) for e in errs]}) -- the absorbed beat "
+            "count is off by one (a legal 2-beat write reads as a length error)")
+
     await tb.idle(10)
     table = tb.read_table()
     stuck = [(i, e['state'], hex(e['addr'])) for i, e in enumerate(table)
              if e['valid'] and e['state'] != TRANS_ERROR]
     if stuck:
         failures.append(f"final: live non-terminal slots remain: {stuck}")
+    if tb.is_lite:                       # no table to read: the counts are the oracle
+        live = int(tb.dut.active_count.value)
+        if live:
+            failures.append(f"final: {live} entr{'y' if live == 1 else 'ies'} still live on the lite")
+        if int(tb.dut.refused_count.value):
+            failures.append(f"final: the lite refused {int(tb.dut.refused_count.value)} command(s)")
 
     if failures:
         tb.log.error("=" * 78)
@@ -208,16 +243,22 @@ DEFAULT_SEED = 12345
 
 
 def generate_test_params():
-    """(iw, aw, max_transactions, seed). Directed, deterministic."""
+    """(iw, aw, max_transactions, seed, dut). Directed, deterministic.
+
+    The lite cells (amba/monitor-lite TASK-002) run the same four phases
+    against axi_monitor_lite, whose early-write-data path is the one-burst
+    form of the fix the full core got for BUG-037."""
     return [
-        (4, 32, 8, DEFAULT_SEED),
-        (8, 32, 16, DEFAULT_SEED),   # capped-table config (CMD_ENTRY_RESERVE > 0)
+        (4, 32, 8, DEFAULT_SEED, 'axi_monitor_base'),
+        (8, 32, 16, DEFAULT_SEED, 'axi_monitor_base'),   # capped-table config (CMD_ENTRY_RESERVE > 0)
+        (4, 32, 8, DEFAULT_SEED, 'axi_monitor_lite'),
+        (8, 32, 16, DEFAULT_SEED, 'axi_monitor_lite'),
     ]
 
 
-@pytest.mark.parametrize("iw, aw, max_transactions, seed", generate_test_params())
-def test_axi_monitor_wr_same_cycle(iw, aw, max_transactions, seed):
-    """Same-cycle AW+W test runner (axi_monitor_base DUT, IS_READ=0)."""
+@pytest.mark.parametrize("iw, aw, max_transactions, seed, dut", generate_test_params())
+def test_axi_monitor_wr_same_cycle(iw, aw, max_transactions, seed, dut):
+    """Same-cycle AW+W test runner (axi_monitor_base and axi_monitor_lite, IS_READ=0)."""
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -226,7 +267,7 @@ def test_axi_monitor_wr_same_cycle(iw, aw, max_transactions, seed):
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
-    dut_name = "axi_monitor_base"
+    dut_name = dut
 
     # Write-data attribution mechanism, overridable from the environment.
     # Default 0 keeps the standing sweep on the legacy state-predicate select;
@@ -237,7 +278,7 @@ def test_axi_monitor_wr_same_cycle(iw, aw, max_transactions, seed):
     use_wq = int(os.environ.get('USE_WDATA_ORDER_Q', '0'))
     num_banks = int(os.environ.get('NUM_BANKS', '1'))
 
-    test_name = (f"test_{worker_id}_axi_monitor_wr_same_cycle_"
+    test_name = (f"test_{worker_id}_{dut_name}_wr_same_cycle_"
                  f"iw{iw}_aw{aw}_mt{max_transactions}"
                  f"_nb{num_banks}_wq{use_wq}_seed{seed}")
     log_path = os.path.join(log_dir, f'{test_name}.log')
@@ -248,7 +289,7 @@ def test_axi_monitor_wr_same_cycle(iw, aw, max_transactions, seed):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        module='axi_monitor_base')
+        module=dut_name)
 
     rtl_parameters = {
         'ID_WIDTH': str(iw),
@@ -258,11 +299,10 @@ def test_axi_monitor_wr_same_cycle(iw, aw, max_transactions, seed):
         'MAX_TRANSACTIONS': str(max_transactions),
         'IS_READ': '0',            # WRITE monitor -- the path under test
         'IS_AXI': '1',             # orphan write-data path compiled dead
-        'USE_WDATA_ORDER_Q': str(use_wq),
-        'NUM_BANKS': str(num_banks),
-        'ENABLE_PERF_PACKETS': '0',
-        'ENABLE_DEBUG_MODULE': '0',
     }
+    if dut_name == 'axi_monitor_base':
+        rtl_parameters.update({'USE_WDATA_ORDER_Q': str(use_wq), 'NUM_BANKS': str(num_banks),
+                               'ENABLE_PERF_PACKETS': '0', 'ENABLE_DEBUG_MODULE': '0'})
 
     extra_env = {
         'DUT': dut_name,

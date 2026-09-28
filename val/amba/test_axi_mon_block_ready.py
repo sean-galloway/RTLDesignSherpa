@@ -45,7 +45,7 @@ from cocotb_test.simulator import run
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
-from TBClasses.axi_monitor.block_ready_check import BlockReadyCheck
+from TBClasses.axi_monitor.block_ready_check import BlockReadyCheck, LiteRefuseCheck
 from TBClasses.axi4.monitor.axi4_master_monitor_tb import AXI4MasterMonitorTB
 
 
@@ -61,6 +61,11 @@ WRAPPERS = [
     "axil4_slave_rd_mon",  "axil4_slave_wr_mon",
 ]
 
+# The lite siblings (amba/monitor-lite TASK-002). Same bus ports, same TBs, no
+# block_ready: a command that finds no entry is admitted untracked and counted
+# on refused_count, so these run LiteRefuseCheck -- the same three layers with
+# the gating rule replaced by the refuse-accounting identity.
+LITE_WRAPPERS = [w.replace("_mon", "_monlite") for w in WRAPPERS]
 FILELIST_DIR = {"axi4": "rtl/amba/filelists", "axi5": "rtl/amba/filelists",
                 "axil": "rtl/amba/filelists"}
 
@@ -244,6 +249,7 @@ async def cocotb_test_block_ready(dut):
     depth = int(os.environ.get("MAX_TRANSACTIONS", "16"))
     n_txns = int(os.environ.get("TXN_COUNT", "192"))
     is_write = "_wr_" in dut_name
+    is_lite = "_monlite" in dut_name
 
     tb = _monitor_tb_for(dut_name)(dut, is_write=is_write,
                                    aclk=dut.aclk, aresetn=dut.aresetn)
@@ -255,13 +261,14 @@ async def cocotb_test_block_ready(dut):
     dut.cfg_error_enable.value = 1
     dut.cfg_compl_enable.value = 1
     dut.cfg_timeout_enable.value = 1
-    dut.cfg_perf_enable.value = 1
+    if hasattr(dut, "cfg_perf_enable"):          # the lite has no perf class
+        dut.cfg_perf_enable.value = 1
     # Long timeout: do not let the timeout path retire slots underneath us, or
     # the table drains for a reason unrelated to what is being measured.
     dut.cfg_timeout_cycles.value = 0xFFFF
     await _wait_clocks(tb, 4)
 
-    chk = BlockReadyCheck(dut, tb.log, depth=depth)
+    chk = (LiteRefuseCheck if is_lite else BlockReadyCheck)(dut, tb.log, depth=depth)
     chk.start()
 
     # Slow responses keep transactions resident so the table fills through the
@@ -282,7 +289,7 @@ async def cocotb_test_block_ready(dut):
             'w_delay':  [(0, 0)],
             'b_delay':  [(120, 400)],        # responses held -> entries persist
         })
-        _apply_hold(tb, hold)
+        tb.log.info(f"response hold applied to {_apply_hold(tb, hold)} component(s)")
     else:
         # READ side, same intent as the write profile above: commands as fast
         # as the RTL takes them, RESPONSES held so entries stay resident and
@@ -294,7 +301,7 @@ async def cocotb_test_block_ready(dut):
             'ar_delay': [(0, 0)],
             'r_delay':  [(120, 400)],
         })
-        _apply_hold(tb, hold)
+        tb.log.info(f"response hold applied to {_apply_hold(tb, hold)} component(s)")
 
     # The six base testbenches spell their one-transaction driver differently
     # -- single_{read,write}_test on the axi4/axi5 masters and the axi5 slaves,
@@ -337,8 +344,12 @@ async def cocotb_test_block_ready(dut):
     tb.log.info(f"{dut_name} MAX_TRANSACTIONS={depth}: {chk.summary()}")
 
     chk.assert_saturation_reached()
-    chk.assert_gating_contract()
-    chk.assert_no_untracked_admissions(depth=depth)
+    if is_lite:
+        chk.assert_refuse_accounting()
+        chk.assert_no_overflow(depth=depth)
+    else:
+        chk.assert_gating_contract()
+        chk.assert_no_untracked_admissions(depth=depth)
 
 
 # Depths are per-direction because the two paths reach different occupancies.
@@ -403,11 +414,44 @@ def _cases():
             depths = [12, 16]
         for d in depths:
             yield (w, d)
+    # The lite has no CMD_ENTRY_RESERVE: it fills to its depth exactly and then
+    # refuses. The AXI wrappers saturate 8 and 12 easily (the AXI BFMs keep
+    # 40-80 in flight). The AXI-Lite master BFM never has more than 4 reads
+    # outstanding -- measured on the BUS by LiteRefuseCheck, 2026-09-28: the
+    # full axil4_master_rd_mon's occupancy of 7 at depth 8 is its own retire
+    # latency, not concurrency -- so an AXI-Lite READ lite cell can only be
+    # saturated at depth 2, and the AXI-Lite WRITE BFM holds at most 2, so a
+    # write cell saturates only at depth 1. Claiming 8 there would fail layer
+    # 1 honestly and prove nothing; the small depths prove the same refuse
+    # accounting (admitted == completed + refused + live) the AXI cells do.
+    # axil4_master_wr_monlite cannot be saturated at any depth: its core taps
+    # the DOWNSTREAM (m_axil) side behind the write master's skid buffers, and
+    # the AXI-Lite slave BFM takes the next AW only after the previous B, so the
+    # core never sees two writes outstanding (upstream peak 2, core view 1;
+    # 1024 admitted = 1024 completed + 0 refused at depth 1, 2026-09-28). The
+    # accounting identity holds there but layer 1 cannot, so it is not claimed.
+    # Depth per lite wrapper follows the bus-measured concurrency of its TB
+    # (LiteRefuseCheck.bus_peak_outstanding, 2026-09-28): a cell must be able
+    # to put MORE than `depth` in flight or it cannot refuse.
+    #     axi4_master_rd 84   axi4_slave_rd 4    axi4_*_wr 46-68
+    #     axi5_*_rd      4    axi5_*_wr 50-68    axil4_*_rd 4    axil4_slave_wr 2
+    for w in LITE_WRAPPERS:
+        if w == "axil4_master_wr_monlite":
+            continue
+        if w == "axil4_slave_wr_monlite":
+            depths = [1]
+        elif w == "axi4_master_rd_monlite" or "_wr_" in w:
+            depths = [8, 12]
+        else:
+            depths = [2]            # the read BFMs above hold at most 4 in flight
+        for d in depths:
+            yield (w, d)
 
 
 @pytest.mark.parametrize("dut_name,max_trans", list(_cases()))
 def test_axi_mon_block_ready(dut_name, max_trans):
-    """Every accepted command must get a table slot -- all 12 wrappers."""
+    """Every accepted command must get a table slot (12 wrappers), and every
+    refused command must be counted (their 12 lite siblings)."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({"rtl_amba": "rtl/amba"})
 
     worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
