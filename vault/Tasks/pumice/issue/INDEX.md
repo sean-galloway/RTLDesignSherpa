@@ -12,17 +12,14 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 12 | done (kept for history) |
+| [closed/](closed/) | 13 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-017** — `make bitstream` defaults to the 66.67 MHz profile, not the
-  board's 75 MHz design point; two bitstreams were built and measured that way
-  before a board-side clock check caught it
 
 
 - **ISSUE-015** — `init` programs the read path as wrlat=1/rden=6/delay=7 and
@@ -33,6 +30,10 @@ exactly one state by construction rather than by discipline.
 - **ISSUE-000** — TEMPLATE — copy this file, never file against it
 
 ## Closed
+
+- **ISSUE-017** — `PUMICE_SYS_75` defaults ON, so `make bitstream` builds the
+  board's 75 MHz design point; the frequency is announced in a banner and the
+  board's own clock is checked before any sequence runs
 
 - **ISSUE-014** — row hits now come from `OBS_ROW_HIT[8]`; the old `col_ops - ACT`
   derivation undercounts by 2.06% on silicon (239,084 vs 234,257)

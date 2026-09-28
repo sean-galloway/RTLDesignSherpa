@@ -141,12 +141,39 @@ lappend current_defines "USE_ASYNC_RESET"
 # DDR2_CHAR_SYNTH selects the real MMCME2_BASE / BUFG / IDELAYCTRL clocking
 # in ddr2_char_top (sim path aliases all clocks to CLK100MHZ instead).
 lappend current_defines "DDR2_CHAR_SYNTH"
-# Per-frequency profile: env PUMICE_SYS_75=1 selects the 75 MHz / DDR2-300
-# MMCM + FPGA_CLK_HZ profile in ddr2_char_top.sv. Default (unset) = 66.67 MHz.
-if {[info exists ::env(PUMICE_SYS_75)] && $::env(PUMICE_SYS_75) ne "" && $::env(PUMICE_SYS_75) ne "0"} {
-    lappend current_defines "PUMICE_SYS_75"
-    puts "verilog_define: PUMICE_SYS_75 (75 MHz / DDR2-300 profile)"
+# Per-frequency profile: selects the MMCM + FPGA_CLK_HZ profile in
+# ddr2_char_top.sv. 75 MHz / DDR2-300 is THE BOARD'S DESIGN POINT -- it is what
+# board_ddr2_300 in dv/tbclasses/pumice_dram_configs.py carries, what the CSR
+# reset-parity manifest declares, what every timing CSR reset is derived for,
+# and what the whole characterization campaign runs at.
+#
+# IT NOW DEFAULTS ON. It used to default OFF, so a plain `make bitstream` built
+# the 66.67 MHz profile: a board that comes up, passes init, passes write_read
+# with mismatched=0, and is not the design point. On 2026-09-28 two bitstreams
+# were built and programmed that way, board results were taken from them, and
+# WNS was compared across frequencies and read as a design result (+0.392 ns
+# against a 75 MHz baseline of +0.003 ns -- the difference was the slower clock).
+# The only visible sign was one field of one log line, 200 lines into a board
+# run. A board build defaulting to a frequency the board does not ship is a
+# trap, not a preference (pumice ISSUE-017).
+#
+# The 66.67 MHz profile is still reachable, but you have to ask for it:
+#     PUMICE_SYS_75=0 make bitstream
+set _sys75 1
+if {[info exists ::env(PUMICE_SYS_75)] && $::env(PUMICE_SYS_75) ne ""} {
+    set _sys75 [expr {$::env(PUMICE_SYS_75) ne "0"}]
 }
+if {$_sys75} {
+    lappend current_defines "PUMICE_SYS_75"
+    set _freq_note "75.00 MHz (PUMICE_SYS_75 -- the board design point)"
+} else {
+    set _freq_note "66.67 MHz (PUMICE_SYS_75=0 -- NOT the board design point)"
+}
+# Say it loudly and unconditionally. "Which clock is this .bit" must never be
+# inferred from a board log two hundred lines in.
+puts "=============================================================="
+puts "  FREQUENCY PROFILE: $_freq_note"
+puts "=============================================================="
 # Reader debug stream: env PUMICE_RD_DBG_FIFO=<depth> builds the per-beat
 # actual/expected/mismatch stream out of read generator 0. Default (unset) = 0,
 # not built, because it costs a FIFO plus two AXI-data-wide buses and nothing

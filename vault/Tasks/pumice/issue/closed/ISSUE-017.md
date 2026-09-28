@@ -1,6 +1,6 @@
 # ISSUE-017: `make bitstream` silently builds the 66.67 MHz profile, not the board's 75 MHz design point
 
-**Status:** open 2026-09-28  **Priority:** P2 -- it produces a board that looks
+**Status:** CLOSED 2026-09-28 (resolution below)  **Priority:** P2 -- it produces a board that looks
 right, measures plausibly, and is not the design point.
 **Owner:** TBD
 **Found by:** running into it. Two bitstreams were built and programmed tonight
@@ -77,3 +77,46 @@ A decision, then the work:
 Either way the frequency should be printed in the build banner and recorded next
 to the bitstream, so "which clock is this .bit" is never inferred from a log line
 two hundred lines into a board run.
+
+---
+
+## Closed 2026-09-28 -- option 1, and why
+
+Of the two options above I took the first: **`PUMICE_SYS_75` now defaults ON**,
+so a plain `make bitstream` produces the board's design point. The 66.67 MHz
+profile is still reachable and is now the one you have to ask for:
+
+    PUMICE_SYS_75=0 make bitstream
+
+Reasoning, stated because it was my call and not Sean's: a board build that
+silently produces a frequency the board does not ship is a defect rather than a
+preference. Option 2 (refuse without an explicit selection) is the handbook's
+usual answer for a missing configuration and remains a one-line change, but it
+breaks every existing `make bitstream` invocation including anything scripted,
+and the trap here is the DEFAULT being wrong rather than the choice being
+implicit. If fail-loud is preferred, flip `set _sys75 1` to a hard error.
+
+The frequency is now announced unconditionally at project creation, before any
+synthesis output:
+
+    ==============================================================
+      FREQUENCY PROFILE: 75.00 MHz (PUMICE_SYS_75 -- the board design point)
+    ==============================================================
+
+**Verified, with the env var deliberately unset:** build RC=0, banner reports
+75.00 MHz, WNS +0.029 ns post-physopt; programmed; `seq_reset_parity` reads
+`board clock 75000000 Hz (manifest declares 75000000 Hz)` and passes 53 fields
+with 0 mismatches.
+
+**The "record it next to the bitstream" half of the done-when was dropped, on
+purpose.** A file beside the `.bit` can drift from the `.bit` it claims to
+describe. `BUILD_CLK_HZ` is an elaboration-time constant read off the running
+hardware, and `seq_reset_parity` compares it against the manifest before any
+sequence runs -- a stronger guarantee than a stamp, and already in place. It
+stops a wrong-frequency board in 0.19 s (demonstrated against the 66.67 MHz
+build before this fix).
+
+Adding a `POSTBUILD` hook to `make/fpga_flow.mk` would have been needed for a
+file stamp; that file is shared by every board flow in the repo, and widening
+its interface for a guarantee already held elsewhere was not worth the blast
+radius.
