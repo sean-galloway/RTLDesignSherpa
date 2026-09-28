@@ -112,7 +112,7 @@
       "name": "TIMER_COMPARATOR_LO",
       "offset": "0x104 + i*0x20",
       "access": "RW",
-      "description": "Per-timer comparator bits [31:0] (reads return last software-written value)",
+      "description": "Per-timer comparator bits [31:0] (reads return hpet_core's live comparator, including the periodic advance)",
       "diagram": {
         "reg": [
           {"bits": 32, "name": "comparator[31:0]", "attr": "Comparator lower 32 bits"}
@@ -124,7 +124,7 @@
       "name": "TIMER_COMPARATOR_HI",
       "offset": "0x108 + i*0x20",
       "access": "RW",
-      "description": "Per-timer comparator bits [63:32] (reads return last software-written value)",
+      "description": "Per-timer comparator bits [63:32] (reads return hpet_core's live comparator, including the periodic advance)",
       "diagram": {
         "reg": [
           {"bits": 32, "name": "comparator[63:32]", "attr": "Comparator upper 32 bits"}

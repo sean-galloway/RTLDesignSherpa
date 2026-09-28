@@ -551,11 +551,11 @@ addrmap hpet_regs {
         } TIMER_CONFIG @ 0x00;
 
         reg {
-            field { sw = rw; hw = r; swmod; } timer_comp_lo[31:0] = 32'h0;  // swmod = write strobe
+            field { sw = rw; hw = rw; precedence = sw; swmod; } timer_comp_lo[31:0] = 32'h0;  // live readback + write strobe
         } TIMER_COMPARATOR_LO @ 0x04;
 
         reg {
-            field { sw = rw; hw = r; swmod; } timer_comp_hi[31:0] = 32'h0;
+            field { sw = rw; hw = rw; precedence = sw; swmod; } timer_comp_hi[31:0] = 32'h0;
         } TIMER_COMPARATOR_HI @ 0x08;
 
     } TIMER[NUM_TIMERS] @ 0x100 += 0x20;  // 32-byte spacing

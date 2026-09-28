@@ -295,6 +295,12 @@ module hpet_core #(
     input  logic [63:0]             timer_comp_wdata [NUM_TIMERS],
 
     // Interrupt Interface
+    // Live comparator readback: what this core is ACTUALLY comparing
+    // against, periodic auto-advance included (RLB/hpet TASK-002). Same
+    // domain as the register wrapper in both CDC modes, so it needs no
+    // synchroniser -- exactly like counter_rdata.
+    output logic [63:0]             timer_comp_rdata [NUM_TIMERS],
+
     output logic [NUM_TIMERS-1:0]   timer_int_status,
     input  logic [NUM_TIMERS-1:0]   timer_int_clear,
     output logic [NUM_TIMERS-1:0]   timer_irq
@@ -384,6 +390,13 @@ module hpet_core #(
     )
 
     assign counter_rdata = r_main_counter;
+
+    // Live comparator readback (RLB/hpet TASK-002), the counter_rdata pattern
+    generate
+        for (i = 0; i < NUM_TIMERS; i++) begin : gen_comp_rdata
+            assign timer_comp_rdata[i] = r_timer_comparator[i];
+        end
+    endgenerate
 
     // ========================================================================
     // Software Write Strobes, Run State and Counter Wrap
@@ -537,8 +550,11 @@ module hpet_core #(
     // ========================================================================
     // r_timer_period mirrors whatever software last wrote, so periodic mode
     // advances by the programmed interval while r_timer_comparator walks
-    // ahead of it. (The register block keeps showing the written value, not
-    // the advanced one - that is the documented HPET behaviour.)
+    // ahead of it. As of RLB/hpet TASK-002 the register block READS BACK this
+    // live, advancing value -- the comparator fields are hw=rw with
+    // precedence=sw, driven from timer_comp_rdata -- so software sees
+    // the value hpet_core is actually comparing against, not the value it
+    // last wrote.
     generate
         for (i = 0; i < NUM_TIMERS; i++) begin : gen_timer_comparators
             `ALWAYS_FF_RST(clk, rst_n,

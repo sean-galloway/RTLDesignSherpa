@@ -134,8 +134,9 @@
  *                  In periodic mode: initial compare value and period
  *                  Each half loads hpet_core on its own WRITE STROBE, so
  *                  rewriting the same value re-arms the timer. Readback
- *                  always shows the written value; in periodic mode the
- *                  core's internal comparator advances beyond it.
+ *                  returns the core's LIVE comparator, so in periodic
+ *                  mode it shows the advanced value, not the last one
+ *                  written (RLB/hpet TASK-002).
  *
  *   TIMER_COMP_HI Register:
  *          [31:0]  Upper 32 bits of timer comparator value
@@ -239,6 +240,7 @@ logic                    r_counter_write_lo;
 logic                    r_counter_write_hi;
 logic [63:0]             w_counter_wdata;
 logic [63:0]             w_counter_rdata;
+logic [63:0]             w_timer_comp_rdata [NUM_TIMERS];
 logic [NUM_TIMERS-1:0]   w_timer_enable;
 logic [NUM_TIMERS-1:0]   w_timer_int_enable;
 logic [NUM_TIMERS-1:0]   w_timer_type;
@@ -375,6 +377,7 @@ hpet_config_regs #(
     .counter_write_hi     (r_counter_write_hi),
     .counter_wdata        (w_counter_wdata),
     .counter_rdata        (w_counter_rdata),
+    .timer_comp_rdata     (w_timer_comp_rdata),
     .timer_enable         (w_timer_enable),
     .timer_int_enable     (w_timer_int_enable),
     .timer_type           (w_timer_type),
@@ -405,6 +408,7 @@ hpet_core #(
     .counter_write_hi     (r_counter_write_hi),
     .counter_wdata        (w_counter_wdata),
     .counter_rdata        (w_counter_rdata),
+    .timer_comp_rdata     (w_timer_comp_rdata),
     .timer_enable         (w_timer_enable),
     .timer_int_enable     (w_timer_int_enable),
     .timer_type           (w_timer_type),

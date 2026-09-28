@@ -1011,15 +1011,20 @@ class HPETMediumTests:
             timer_comp_write[i] = (comp_lo.value != prev_comp_lo) ||
                                    (comp_hi.value != prev_comp_hi)
         For a PERIODIC timer, hpet_core auto-advances its internal
-        `r_timer_comparator` on every fire while the PeakRDL-visible
-        register keeps reading the ORIGINAL software-written value P
-        forever (nothing ever writes the register itself during periodic
-        auto-advance). So after N fires the internal comparator is at
-        (N+1)*P while software still reads back P. If software rewrites P
-        again (e.g. to restart a periodic phase after resetting the main
-        counter), the value hasn't changed from what PeakRDL is storing, so
-        `timer_comp_write` never pulses and the stale, far-advanced
-        internal comparator is never reloaded.
+        `r_timer_comparator` on every fire. The ORIGINAL defect was that the
+        write path was value-change-detected:
+            timer_comp_write[i] = (comp_lo.value != prev_comp_lo) || ...
+        so rewriting a comparator with the value PeakRDL already stored never
+        pulsed a strobe, and the stale, far-advanced internal comparator was
+        never reloaded. The write path is `swmod`-strobed now, which is what
+        this test pins.
+        
+        NOTE (RLB/hpet TASK-002): the register no longer reads back the
+        original software-written value P forever -- the comparator fields are
+        hw=rw with precedence=sw, so a read returns hpet_core's LIVE advancing
+        comparator. That does not weaken this test: it still rewrites the same
+        value software originally programmed and requires a strobe, and its
+        assertion is on the internal comparator, not on a readback.
 
         Deterministic construction: run a periodic timer at a period P large
         enough that a CDC round-trip cannot smuggle in an extra fire between
@@ -1032,11 +1037,11 @@ class HPETMediumTests:
         SAME comparator value P.
 
         The primary, config-independent assertion reads hpet_core's
-        internal `r_timer_comparator` directly (there is no software-
-        visible register for "the comparator hpet_core is actually
-        comparing against" -- the whole point of this defect is that it is
-        invisible from the CPU interface) and requires it to read back
-        exactly P. This sidesteps CDC-latency-dependent timing windows
+        internal `r_timer_comparator` directly and requires it to read back
+        exactly P. Since TASK-002 the comparator IS software-visible, but the
+        internal read is kept as the assertion: it is one combinational
+        sample with no APB latency, so it cannot race a periodic advance the
+        way a multi-cycle register read can. This sidesteps CDC-latency-dependent timing windows
         entirely: correct behavior reloads to P; the defect leaves it at
         whatever multiple of P it had already advanced to.
 
@@ -1123,6 +1128,128 @@ class HPETMediumTests:
 
         except Exception as e:
             self.log.error(f"issue #46 round_3 comparator strobe test failed with exception: {e}")
+            await self._fresh_disabled_state()
+            return False
+
+    # ========================================================================
+    # RLB/hpet TASK-002: a comparator read returns the LIVE value
+    # ========================================================================
+
+    async def test_comparator_reads_back_live_value(self) -> bool:
+        """RLB/hpet TASK-002: reading TIMER_COMPARATOR_LO/HI must return the
+        comparator hpet_core is actually comparing against -- including the
+        periodic auto-advance -- not the last value software wrote.
+
+        The tracker filed this as "comparator registers are write-only". That
+        was never the defect: `sw = rw` was already set and a read returned
+        storage. What it returned was STALE -- in periodic mode hpet_core
+        advances `r_timer_comparator` internally on every fire and nothing
+        wrote it back, so after N fires software still read the original P
+        while hardware compared against a far larger value. The tracker's own
+        proposed fix (`hw = r`) is what the RTL already had and is exactly
+        what cannot work: hw=r means hardware only READS the field, so
+        hardware can never publish the live value into it.
+
+        The fix is hw=rw with precedence=sw (owner's decision: "read back
+        live") -- the same idiom HPET_COUNTER_LO/HI already use. Hardware
+        reads the field to carry a software write down to the core and drives
+        the live value in continuously so reads return it, while precedence=sw
+        lets a software write win in its own cycle. The field still holds the
+        committed value during the aligned timer_comp_write_* strobe cycle,
+        which is where the wrapper samples it.
+
+        Two assertions, in the order the tracker's completion criteria list
+        them:
+
+        1. "Maintain existing write behavior" -- with HPET disabled, a write
+           then a read returns exactly what was written. If precedence were
+           hw rather than sw, hardware's continuous write would win in the
+           write cycle, software's value would never land in storage, and
+           this would fail.
+
+        2. "Read returns current comparator value" -- after letting a
+           periodic timer fire, the readback must equal hpet_core's internal
+           `r_timer_comparator` exactly, and must have advanced past P.
+
+        HPET is DISABLED before the second readback. A register read is a
+        multi-cycle APB round trip (~31 core clocks) and LO/HI are two
+        separate transactions; with the counter still running a periodic
+        comparator can advance between them, so comparing a live readback
+        against a separately-sampled internal value would race. Quiescing
+        first makes the comparison deterministic in both CDC configurations.
+        """
+        timer_id = 0
+        period = 300
+        self.log.info("=== RLB/hpet TASK-002: comparator reads back the live value ===")
+        self.tb.test_phase = "TASK002_COMP_LIVE_READBACK"
+
+        lo_addr = HPETRegisterMap.get_timer_comp_lo_addr(timer_id)
+        hi_addr = HPETRegisterMap.get_timer_comp_hi_addr(timer_id)
+
+        try:
+            await self._fresh_disabled_state()
+            await self._configure_one_shot(timer_id, comparator=period, periodic=True)
+
+            passed = True
+
+            # (1) write behaviour preserved while nothing is advancing
+            _, lo = await self.tb.read_register(lo_addr)
+            _, hi = await self.tb.read_register(hi_addr)
+            quiescent = (hi << 32) | lo
+            if quiescent != period:
+                self.log.error(f"comparator readback while disabled = {quiescent}, "
+                               f"expected the written value {period} -- hardware is "
+                               "clobbering the software write (precedence)")
+                passed = False
+            else:
+                self.log.info(f"comparator readback while disabled = {quiescent} (written value preserved)")
+
+            # (2) let it advance, then quiesce and compare against the core
+            await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000001)
+            fire_timeout_ns = self.tb.CORE_CLOCK_PERIOD * period * 6
+            for fire_num in range(1, 3):
+                if not await self._wait_for_fire(timer_id, fire_timeout_ns):
+                    self.log.error(f"Timer {timer_id} periodic fire #{fire_num} did not "
+                                   "occur (setup failure)")
+                    await self._fresh_disabled_state()
+                    return False
+                if fire_num == 2:
+                    # Disable the instant fire #2 is seen, so no further
+                    # advance can land while we read.
+                    await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000000)
+                else:
+                    await self.tb.write_register(HPETRegisterMap.HPET_STATUS, 1 << timer_id)
+                    clear_deadline = get_sim_time('ns') + self.tb.CORE_CLOCK_PERIOD * 20
+                    while self.tb.timer_interrupt_state[timer_id] and get_sim_time('ns') < clear_deadline:
+                        await Timer(2, units="ns")
+
+            await Timer(self.tb.CORE_CLOCK_PERIOD * 30, units="ns")
+
+            internal = int(self.tb.dut.u_hpet_core.r_timer_comparator[timer_id].value)
+            _, lo = await self.tb.read_register(lo_addr)
+            _, hi = await self.tb.read_register(hi_addr)
+            live = (hi << 32) | lo
+            self.log.info(f"after 2 periodic fires: readback={live} "
+                          f"internal r_timer_comparator={internal} (period={period})")
+
+            if live != internal:
+                self.log.error(f"comparator readback {live} != hpet_core's internal "
+                               f"comparator {internal} -- the read is not live "
+                               "(RLB/hpet TASK-002)")
+                passed = False
+            if live <= period:
+                self.log.error(f"comparator readback {live} did not advance past the "
+                               f"programmed period {period} after 2 fires -- the read "
+                               "is returning the stale software-written value")
+                passed = False
+
+            await self._fresh_disabled_state()
+            if passed:
+                self.log.info("PASS RLB/hpet TASK-002: comparator reads back the live value")
+            return passed
+
+        except Exception as e:
+            self.log.error(f"TASK-002 comparator live readback test failed with exception: {e}")
             await self._fresh_disabled_state()
             return False
 
@@ -2454,6 +2581,8 @@ class HPETMediumTests:
             ("issue #46 round_2 H1: STATUS reset value", self.test_status_reset_value()),
             ("issue #46 round_3: re-enable does not re-fire", self.test_reenable_does_not_refire()),
             ("issue #46 round_3: comparator write strobe", self.test_comparator_write_strobe_not_value_change()),
+            ("RLB/hpet TASK-002: comparator reads back live",
+             self.test_comparator_reads_back_live_value()),
             ("issue #46 review: periodic catch-up keeps firing", self.test_periodic_counter_ahead_keeps_firing()),
             ("issue #46 review: live 64-bit comparator reprogram no spurious fire",
              self.test_live_64bit_comparator_reprogram_no_spurious_fire()),

@@ -484,6 +484,9 @@ module hpet_regs (
             if(decoded_reg_strb.TIMER[i0].TIMER_COMPARATOR_LO && decoded_req_is_wr) begin // SW write
                 next_c = (field_storage.TIMER[i0].TIMER_COMPARATOR_LO.timer_comp_lo.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
                 load_next_c = '1;
+            end else begin // HW Write
+                next_c = hwif_in.TIMER[i0].TIMER_COMPARATOR_LO.timer_comp_lo.next;
+                load_next_c = '1;
             end
             field_combo.TIMER[i0].TIMER_COMPARATOR_LO.timer_comp_lo.next = next_c;
             field_combo.TIMER[i0].TIMER_COMPARATOR_LO.timer_comp_lo.load_next = load_next_c;
@@ -507,6 +510,9 @@ module hpet_regs (
             load_next_c = '0;
             if(decoded_reg_strb.TIMER[i0].TIMER_COMPARATOR_HI && decoded_req_is_wr) begin // SW write
                 next_c = (field_storage.TIMER[i0].TIMER_COMPARATOR_HI.timer_comp_hi.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+                load_next_c = '1;
+            end else begin // HW Write
+                next_c = hwif_in.TIMER[i0].TIMER_COMPARATOR_HI.timer_comp_hi.next;
                 load_next_c = '1;
             end
             field_combo.TIMER[i0].TIMER_COMPARATOR_HI.timer_comp_hi.next = next_c;

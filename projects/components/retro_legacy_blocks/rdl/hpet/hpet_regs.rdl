@@ -298,9 +298,24 @@ addrmap hpet_regs #(
 
             field {
                 name = "Comparator Low";
-                desc = "Lower 32 bits of 64-bit comparator";
+                desc = "Lower 32 bits of 64-bit comparator.
+                        READS RETURN THE LIVE VALUE hpet_core is comparing
+                        against, including the periodic auto-advance -- not
+                        the last value software wrote (RLB/hpet TASK-002).
+                        hw=rw with precedence=sw is what makes both directions
+                        work, and is the same idiom HPET_COUNTER_LO/HI use:
+                        hardware READS the field to carry a software write down
+                        to the core, and WRITES it continuously to publish the
+                        live value back, while precedence=sw lets a software
+                        write win in its own cycle. The field still holds the
+                        committed value during the aligned timer_comp_write_*
+                        strobe cycle, which is where the wrapper samples it;
+                        hardware resumes mirroring one cycle later.";
                 sw = rw;
-                hw = r;
+                hw = rw;    // HW writes the live comparator in, and reads the
+                            // field back out so the wrapper can take the
+                            // just-written value at its strobe
+                precedence = sw;  // Software write takes priority
                 swmod;      // Write STROBE into hpet_core (issue #46 round_3)
             } timer_comp_lo[31:0] = 32'h0;
 
@@ -312,9 +327,24 @@ addrmap hpet_regs #(
 
             field {
                 name = "Comparator High";
-                desc = "Upper 32 bits of 64-bit comparator";
+                desc = "Upper 32 bits of 64-bit comparator.
+                        READS RETURN THE LIVE VALUE hpet_core is comparing
+                        against, including the periodic auto-advance -- not
+                        the last value software wrote (RLB/hpet TASK-002).
+                        hw=rw with precedence=sw is what makes both directions
+                        work, and is the same idiom HPET_COUNTER_LO/HI use:
+                        hardware READS the field to carry a software write down
+                        to the core, and WRITES it continuously to publish the
+                        live value back, while precedence=sw lets a software
+                        write win in its own cycle. The field still holds the
+                        committed value during the aligned timer_comp_write_*
+                        strobe cycle, which is where the wrapper samples it;
+                        hardware resumes mirroring one cycle later.";
                 sw = rw;
-                hw = r;
+                hw = rw;    // HW writes the live comparator in, and reads the
+                            // field back out so the wrapper can take the
+                            // just-written value at its strobe
+                precedence = sw;  // Software write takes priority
                 swmod;      // Write STROBE into hpet_core (issue #46 round_3)
             } timer_comp_hi[31:0] = 32'h0;
 

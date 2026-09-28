@@ -352,8 +352,10 @@ Lower 32 bits of the 64-bit timer comparator value.
 - Timer fires when `main_counter >= comparator`
 - For **one-shot mode:** Comparator value stays unchanged after fire
 - For **periodic mode:** the CORE's working comparator auto-increments by the
-  period on each fire, but this is not reflected back into the register --
-  reads always return the last software-written value
+  period on each fire, and a read returns that live value (RLB/hpet TASK-002):
+  the field is `hw=rw` with `precedence = sw` (the same idiom the main counter
+  uses), so hardware continuously publishes its working comparator into the
+  register while a software write still wins in its own cycle
 - Each half loads the core on its own write; writing the value the
   register already holds still counts (the internal comparator reloads,
   discarding any periodic advance)

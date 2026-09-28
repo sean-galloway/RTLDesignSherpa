@@ -165,12 +165,12 @@ The design scales linearly with timer count. Each additional timer adds approxim
 - PeakRDL register generation
 - Per-timer write data buses (corruption fix)
 - Comprehensive test suite (3-level hierarchy)
+- Live comparator readback -- reads return hpet_core's working comparator, including the periodic advance (RLB/hpet TASK-002)
 
 **Outstanding Items:**
 - 8-timer stress test timeout (minor, likely test configuration)
 
 **Future Enhancements (Not Planned):**
-- Live comparator readback (reads return the last software-written value; periodic auto-increments are not reflected)
 - FSB interrupt delivery (use dedicated IRQ signals)
 - Legacy mode emulation (not needed in modern designs)
 - 64-bit atomic counter reads -- NOT a shortfall and not planned: the counter is

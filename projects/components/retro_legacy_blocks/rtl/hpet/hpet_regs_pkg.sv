@@ -53,10 +53,32 @@ package hpet_regs_pkg;
     } hpet_regs__HPET_COUNTER_HI__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } hpet_regs__timer_regfile__TIMER_COMPARATOR_LO__timer_comp_lo__in_t;
+
+    typedef struct {
+        hpet_regs__timer_regfile__TIMER_COMPARATOR_LO__timer_comp_lo__in_t timer_comp_lo;
+    } hpet_regs__timer_regfile__TIMER_COMPARATOR_LO__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } hpet_regs__timer_regfile__TIMER_COMPARATOR_HI__timer_comp_hi__in_t;
+
+    typedef struct {
+        hpet_regs__timer_regfile__TIMER_COMPARATOR_HI__timer_comp_hi__in_t timer_comp_hi;
+    } hpet_regs__timer_regfile__TIMER_COMPARATOR_HI__in_t;
+
+    typedef struct {
+        hpet_regs__timer_regfile__TIMER_COMPARATOR_LO__in_t TIMER_COMPARATOR_LO;
+        hpet_regs__timer_regfile__TIMER_COMPARATOR_HI__in_t TIMER_COMPARATOR_HI;
+    } hpet_regs__timer_regfile__in_t;
+
+    typedef struct {
         hpet_regs__HPET_ID__in_t HPET_ID;
         hpet_regs__HPET_STATUS__in_t HPET_STATUS;
         hpet_regs__HPET_COUNTER_LO__in_t HPET_COUNTER_LO;
         hpet_regs__HPET_COUNTER_HI__in_t HPET_COUNTER_HI;
+        hpet_regs__timer_regfile__in_t TIMER[8];
     } hpet_regs__in_t;
 
     typedef struct {

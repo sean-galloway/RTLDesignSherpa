@@ -130,8 +130,8 @@ end
 | `HPET_COUNTER_HI` | 32'h0 | Read/write; reads return the live counter |
 | `HPET_ID` | Constant | RO identification: vendor/revision are the low byte of `VENDOR_ID`/`REVISION_ID`, `num_tim_cap` = NUM_TIMERS-1, `leg_rt_cap` = 0 |
 | `TIMER[i]_CONFIG` | 32'h0 | Timer disabled, one-shot mode |
-| `TIMER[i]_COMPARATOR_LO` | 32'h0 | Read/write; reads return the last software-written value |
-| `TIMER[i]_COMPARATOR_HI` | 32'h0 | Read/write; reads return the last software-written value |
+| `TIMER[i]_COMPARATOR_LO` | 32'h0 | Read/write; reads return the live comparator (includes the periodic advance) |
+| `TIMER[i]_COMPARATOR_HI` | 32'h0 | Read/write; reads return the live comparator (includes the periodic advance) |
 
 #### HPET Reset (`hpet_resetn`)
 

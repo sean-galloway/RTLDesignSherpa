@@ -144,6 +144,7 @@ module hpet_config_regs #(
     output logic                    counter_write_hi,
     output logic [63:0]             counter_wdata,
     input  logic [63:0]             counter_rdata,
+    input  logic [63:0]             timer_comp_rdata [NUM_TIMERS],
 
     output logic [NUM_TIMERS-1:0]   timer_enable,
     output logic [NUM_TIMERS-1:0]   timer_int_enable,
@@ -353,9 +354,19 @@ module hpet_config_regs #(
             assign w_comp_hi_swmod[i] =
                 hwif_out.TIMER[i].TIMER_COMPARATOR_HI.timer_comp_hi.swmod;
 
-            // Comparator fields are hw = r, so the value is simply whatever
-            // software last wrote; the strobe is what tells the core to
-            // reload it, which is what makes rewriting the SAME value work.
+            // Comparator fields are hw = rw with precedence = sw (TASK-002), the
+            // same idiom HPET_COUNTER_LO/HI use above: hardware drives the live,
+            // auto-advancing comparator in continuously so READS return it, and a
+            // software write still wins in its own cycle so WRITES reach the core.
+            // As with the counter, the field holds the value the write just
+            // committed during the aligned timer_comp_write_* strobe cycle -- which
+            // is when timer_comp_wdata is sampled -- and the hardware write-back
+            // resumes mirroring the live value one cycle later.
+            assign hwif_in.TIMER[i].TIMER_COMPARATOR_LO.timer_comp_lo.next =
+                timer_comp_rdata[i][31:0];
+            assign hwif_in.TIMER[i].TIMER_COMPARATOR_HI.timer_comp_hi.next =
+                timer_comp_rdata[i][63:32];
+
             assign timer_comp_wdata[i] = {
                 hwif_out.TIMER[i].TIMER_COMPARATOR_HI.timer_comp_hi.value,
                 hwif_out.TIMER[i].TIMER_COMPARATOR_LO.timer_comp_lo.value
