@@ -66,11 +66,13 @@ procedure for each so they all come out identical.
       item-free flat pages retired in da5a84eb0. Items live at
       vault/Tasks/projects/components/dmas/rapids/.
 - [x] bridge — bridge/TASKS.md (DONE -> vault/Tasks/bridge/; source gone)
-- [x] delta — DONE 2026-09-25 -> vault/Tasks/projects/components/delta/ (16 items;
+- [x] delta — migrated 2026-09-25, AREA DELETED 2026-09-27 (Sean: an unstarted
+      component cannot hold items; 5 .sv exist under rtl/ and rtl_test/, no tests). (16 items;
       TASK-001/002 closed on migration -- their acceptance criteria are met in
       ch02_blocks/ while the ch04_routing/ and ch05_flow_control/ paths they name
       do not exist; real TASK-000 renumbered TASK-016). File deleted.
-- [x] hive — DONE 2026-09-25 -> vault/Tasks/projects/components/hive/ (25 items, all
+- [x] hive — migrated 2026-09-25, AREA DELETED 2026-09-27 (Sean: zero .sv, zero tests,
+      zero filelists -- nothing had begun). (25 items, all
       open but TASK-025; zero .sv, zero tests, only ch01 + ch02/00 written, so every
       Related Files path is still unwritten). File deleted.
 - [x] retro-legacy — DONE 2026-09-25 -> vault/Tasks/RLB/hpet/ (all six items were

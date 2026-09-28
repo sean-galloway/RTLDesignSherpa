@@ -83,7 +83,9 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 ### Other Documentation
 - **README** - Quick start and integration guide (to be created)
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
-- **[Tasks](../../../vault/Tasks/projects/components/hive/INDEX.md)** - Current work items (migrated to the vault 2026-09-25)
+- **Tasks** - none tracked. The vault area was deleted 2026-09-27: hive has no .sv,
+  no tests and no filelists, so its 24 open items described work that had not begun.
+  They are in git history at `vault/Tasks/projects/components/hive/`.
 
 ---
 
@@ -341,7 +343,8 @@ endmodule
 - Chapter 4 (Programming) pending
 - Chapter 5 (Performance) pending
 
-**See:** `vault/Tasks/projects/components/hive/` for detailed work items
+**See:** nothing tracked -- the vault area was deleted 2026-09-27 (unstarted); the
+former items are in git history.
 
 ### 10.2 Roadmap
 
@@ -510,4 +513,4 @@ The shell script will automatically:
 - **Complete Specification:** `docs/hive_spec/hive_index.md`
 - **Quick Start:** `README.md` (to be created)
 - **AI Guidance:** `CLAUDE.md`
-- **Tasks:** `vault/Tasks/projects/components/hive/`
+- **Tasks:** none tracked (vault area deleted 2026-09-27, unstarted)
