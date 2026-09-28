@@ -12,23 +12,24 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 25 | done (kept for history) |
+| [closed/](closed/) | 26 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-000** — TEMPLATE — copy this file, never file against it
-- **TASK-029** — give the 17 signal-contract maps their sufficiency argument
-  (depends_only_on) and RTL verdict (rtl_sop); the generator moved onto bin/kmaps
-  in this commit, so what remains is the maps' own evidence
 - **TASK-015** — test the DUT across configurations: 4-layer plan (reset-parity
   gate, pairwise covering array x gap, invariant oracles, seeded soak) with a
   reportable 2-way coverage number
 
 ## Closed
+
+- **TASK-029** — all 17 signal-contract maps carry a sufficiency argument and
+  the 14 two-valued ones an RTL verdict: 12 IDENTICAL, 2 DIFFERS (both redundant
+  terms the bank timer already implies, justified and kept)
 
 - **TASK-031** — ddr2_char's clean target uses the marker-aware cleaner (the last
   raw `rm -rf local_sim_build` in the repo)

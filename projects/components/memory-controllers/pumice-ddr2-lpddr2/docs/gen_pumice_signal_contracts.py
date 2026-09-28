@@ -1368,7 +1368,9 @@ def build_arbiter_sheet(wb):
              "so all four combinations occur.",
              None,
              "pumice_cmd_arbiter.sv (r_guard0/1 are registered off the pick)"),
-        ])
+        ],
+        depends_only_on='The refresh pick is a WHOLE-CONTROLLER decision, so the axes are the only state that can block it: nothing in flight (any_active, inflight_preact), no bank guarded (guards_nz folds r_guard0|r_guard1 across all banks), tRFC not running, and no grant already outstanding. Per-bank identity is deliberately absent -- REFab touches every bank, so there is no bank to be selective about, and that is why the guard vectors are reduced to a single OR here.',
+        rtl_sop='!any_active & !inflight_preact & !guards_nz & !rfc_busy & !grant')
 
     # 2. refresh branch action (multi-valued)
     km.kmap(
@@ -1402,7 +1404,8 @@ def build_arbiter_sheet(wb):
              "implies 'a row is open'.",
              lambda a, f, sfe: (not f) or a,
              "pumice_cmd_arbiter.sv:1054-1058"),
-        ])
+        ],
+        depends_only_on="Given the refresh request, the branch reads only whether work is in flight, whether a precharge is needed first, and whether the whole-controller safety gate is clear. The request itself is the map's precondition, not an axis; per-bank state is folded into rfsh_pre_found (a PRE is needed somewhere) and into ref_safe (map 1), which is why neither bank index nor timer values appear.")
 
     # 3. column masks (6 vars -> 4 pages)
     km.kmap(
@@ -1445,7 +1448,9 @@ def build_arbiter_sheet(wb):
              "the other: a hit can be pending tRCD (rdwr_ready=0), and a ready "
              "bank can hold the WRONG row (rhit=0). All four occur.",
              None, "pumice_cmd_arbiter.sv:562-565 + bank_timer.sv:135"),
-        ])
+        ],
+        depends_only_on="Entry validity and rd_issue_ready are the precondition, so they are not axes. Everything else the column decision reads is on an axis, with two deliberate folds named in the expression: dbl_issue collapses the two double-issue sources (same-bank AP in flight, same-entry column in flight) and col_guard collapses the six per-bank column blockers. The entry index e and bank rb do not appear because every term is already evaluated for THIS entry's bank -- the map is one entry's slice, and the fold is where the bank-specific part lives.",
+        rtl_sop='rhit & rdwr_ready & tccd_ok & twtr_ok & !dbl_issue & !col_guard')
     km.kmap(
         "wr_col_m[e]  (given wr_sch_valid_i[e] && wr_commit_ready)",
         "pumice_cmd_arbiter.sv (classify + direction guard)",
@@ -1466,7 +1471,9 @@ def build_arbiter_sheet(wb):
              "double-issue prevention for THIS entry/bank, the second folds "
              "turnaround, AP and precharge guards. Either can hold alone.",
              None, "pumice_cmd_arbiter.sv:581-587"),
-        ])
+        ],
+        depends_only_on="The read map's argument, mirrored: entry validity and wr_commit_ready are the precondition; dbl_issue and col_guard fold the same two families for the write bank wb; the turnaround axis is trtw_ok rather than twtr_ok because a write following a read is the opposite crossing. Nothing outside these can block a write column, which is what makes the six axes sufficient.",
+        rtl_sop='whit & rdwr_ready & tccd_ok & trtw_ok & !dbl_issue & !col_guard')
     km.kmap(
         "w_rd_turn_block / w_wr_turn_block",
         "pumice_cmd_arbiter.sv (direction-turnaround guard)",
@@ -1484,7 +1491,9 @@ def build_arbiter_sheet(wb):
              "event, so all four combinations occur as a fired column walks "
              "through: 01 means 'fired last cycle', 11 'two back to back'.",
              None, "pumice_cmd_arbiter.sv (r_wrfire0/r_wrfire1)"),
-        ])
+        ],
+        depends_only_on="A pure function of the OPPOSITE direction's two-deep fire shift and nothing else. It exists precisely because the flopped twtr/trtw ok bits lag the column they describe by two cycles, so no timer value belongs on an axis -- the shift register IS the state, and the map's point is that the block depends on nothing further.",
+        rtl_sop='oppfire0 | oppfire1')
 
     # 4. activate masks (6 vars)
     km.kmap(
@@ -1503,14 +1512,24 @@ def build_arbiter_sheet(wb):
         "1s ONLY on the page [trrd_ok=1, rfc_busy=0], single cell "
         "(row_active=0, guarded=0, act_ready=1, tfaw_ok=1). ANY 1 on an "
         "rfc_busy=1 page = ACT during refresh recovery — the silicon "
-        "row-corruption bug the tRFC counter closes.",
+        "row-corruption bug the tRFC counter closes. "
+        "VERDICT DIFFERS IS EXPECTED AND THE TERM STAYS: the derived cover "
+        "drops !row_active because the relation below proves act_ready "
+        "already implies it (safe_act_o is ANDed with !r_row_valid, "
+        "bank_timer.sv:133), so half the grid is unreachable and the literal "
+        "is free. The arbiter re-states it rather than relying on another "
+        "module's internal invariant -- if bank_timer ever reported ready "
+        "with a row open, this AND is what still blocks the ACT. Redundant "
+        "by derivation, deliberate by design; not a defect.",
         relations=[
             ("act_ready => !row_active. bank_act_ready is safe_act_o, which is "
              "ANDed with !r_row_valid -- a bank with a row open never reports "
              "itself ready to activate. Half the grid cannot occur.",
              lambda ra, g, ar, tf, tr, rb: (not ar) or (not ra),
              "bank_timer.sv:133 (safe_act_o = !r_row_valid && ...)"),
-        ])
+        ],
+        depends_only_on="Entry validity is the precondition. The activation decision reads the bank's own row/guard/ready state plus the two global JEDEC windows, and w_act_classify_gate is split back onto its two axes (tfaw_ok, trrd_ok) so the fold cannot hide one of them. Note act_ready here is the ADVISORY lookahead twin: the live bank readiness is enforced later at the output register (map 9), which is why this map can be sufficient without a live timer axis.",
+        rtl_sop='!row_active & !guarded & act_ready & tfaw_ok & trrd_ok & !rfc_busy')
 
     # 5. precharge masks (4 vars, clean single grid)
     km.kmap(
@@ -1522,7 +1541,14 @@ def build_arbiter_sheet(wb):
         lambda ra, g, h, p: ra and (not g) and (not h) and p,
         "Single 1-cell at (1,0,0,1): only an open bank on the WRONG row, "
         "un-guarded and tRAS/tRTP/tWR-clear, may precharge. A 1 with "
-        "guarded=1 = the registered-readiness staleness hazard.",
+        "guarded=1 = the registered-readiness staleness hazard. "
+        "VERDICT DIFFERS IS EXPECTED AND THE TERM STAYS: the derived cover "
+        "drops row_active because the relations below prove BOTH hit and "
+        "pre_ready already imply it (safe_pre_o is ANDed with r_row_valid), "
+        "leaving the literal free. It is kept for the same reason as the "
+        "activate map: the arbiter does not lean on the bank timer's "
+        "internal invariant to avoid precharging a closed bank. Redundant "
+        "by derivation, deliberate by design; not a defect.",
         relations=[
             ("hit => row_active. A row HIT is defined as 'this bank has a row "
              "open AND it is the requested one', so a hit with no open row is "
@@ -1535,7 +1561,9 @@ def build_arbiter_sheet(wb):
              "has a row to precharge.",
              lambda ra, g, h, p: (not p) or ra,
              "bank_timer.sv:138 (safe_pre_o = r_row_valid && (r_ras=='0) && (r_preblk=='0) && !r_ap_pending)"),
-        ])
+        ],
+        depends_only_on="Entry validity is the precondition. A precharge is decided entirely by this bank's row state, its guard, whether the request hits the open row, and the bank's PRE readiness -- no global window applies, since tRP and tRAS are enforced inside the bank timer and surface through pre_ready.",
+        rtl_sop='row_active & !guarded & !hit & pre_ready')
 
     # 6. per-bank guard
     km.kmap(
@@ -1572,7 +1600,9 @@ def build_arbiter_sheet(wb):
              "four combinations as a pick moves through; bank_match is an "
              "address compare independent of all of them.",
              None, "pumice_cmd_arbiter.sv (guard fold)"),
-        ])
+        ],
+        depends_only_on="The guard fold for one bank is the OR of every source that can guard it, and the axes enumerate all of them: the two registered guard vectors, the pick-stage guards (pick_guards_nz folds prepick and column-inflight), and the in-flight shadow's OUT stage. bank_match is the OR of the two out-stage one-hots, each built as (inflight_class ? 1<<r_bank : 0), so their OR is the old ((preact||col) && r_bank==b) term BY CONSTRUCTION -- which is why the bank index itself need not be an axis.",
+        rtl_sop='guard0 | guard1 | pick_guards_nz | inflight_rowop_or_col & bank_match')
 
     # 7. output stage
     km.kmap(
@@ -1596,7 +1626,8 @@ def build_arbiter_sheet(wb):
              "FIFO. Nothing couples them, so all four occur -- which is what "
              "makes the pick pipeline latency rather than a rate limit.",
              None, "pumice_cmd_arbiter.sv (output register)"),
-        ])
+        ],
+        depends_only_on="The output register's handshake depends only on whether a pick is held and whether the consumer can take it. The live safety re-check is folded INTO the cmd_ready axis (cmd_ready && w_out_safe) rather than given its own axis, because a rejected pick is dropped rather than held -- so safety changes which of the two outcomes occurs, not whether the slot frees. That fold is the whole subtlety of this map and is stated in the expression.")
 
     # 8. priority order table
     km.table(
@@ -1655,7 +1686,9 @@ def build_bank_timer_sheet(wb):
              "row_valid together, so (row_valid=1, rp!=0) cannot occur.",
              lambda rv, rp0, rc0: rp0 or (not rv),
              "bank_timer.sv:106 + :120-123"),
-        ])
+        ],
+        depends_only_on="One bank's activate safety is exactly: no row open, tRP elapsed, tRC elapsed. No other bank and no global window appears because tFAW and tRRD are enforced by the arbiter across banks (map 6), not by the per-bank timer -- the division of labour is what makes three axes sufficient here.",
+        rtl_sop='!row_valid & rp==0 & rc==0')
     km.kmap(
         "safe_rd_o / safe_wr_o", "bank_timer.sv:135-136",
         "safe_rd = safe_wr = r_row_valid && (r_rcd == 0) && !r_ap_pending",
@@ -1668,7 +1701,9 @@ def build_bank_timer_sheet(wb):
              "row_valid together, so (row_valid=0, rcd!=0) cannot occur.",
              lambda rv, rcd0, ap: rcd0 or rv,
              "bank_timer.sv:96 + :116"),
-        ])
+        ],
+        depends_only_on='A column is safe exactly when the row is open, tRCD has elapsed, and no auto-precharge is pending on the bank. Reads and writes share one expression because the direction-dependent windows (tWTR, tRTW, tCCD) are global and live in the arbiter, not in the bank timer.',
+        rtl_sop='row_valid & rcd==0 & !ap_pending')
     km.kmap(
         "safe_pre_o", "bank_timer.sv:138",
         "safe_pre = r_row_valid && (r_ras == 0) && (r_preblk == 0) && "
@@ -1683,7 +1718,9 @@ def build_bank_timer_sheet(wb):
              "row_valid, so (row_valid=0, ras!=0) cannot occur.",
              lambda rv, ras0, pb0, ap: ras0 or rv,
              "bank_timer.sv (set_act_i -> r_ras) + :116"),
-        ])
+        ],
+        depends_only_on='Precharge safety is the row being open, tRAS elapsed, the read-to-PRE / write-recovery window elapsed (preblk, which covers tRTP and tWR together), and no auto-precharge already committed. preblk is a single axis on purpose: the arbiter cannot see per-command which of tRTP or tWR applies, so the timer merges them and that merge is the axis.',
+        rtl_sop='row_valid & ras==0 & preblk==0 & !ap_pending')
     km.kmap(
         "w_ap_fire (internal auto-precharge)", "bank_timer.sv:88",
         "w_ap_fire = r_ap_pending && (r_preblk == 0) && (r_ras == 0)",
@@ -1696,7 +1733,9 @@ def build_bank_timer_sheet(wb):
              "the ACT and column edges, so a pending auto-precharge can sit "
              "through any combination of them. That is the flag's purpose.",
              None, "bank_timer.sv:88 + :115-127"),
-        ])
+        ],
+        depends_only_on="The internal auto-precharge fires on the bank's own committed flag plus the two windows that gate any precharge. row_valid is deliberately NOT an axis: ap_pending can only have been set by a column to an open row, so it implies row_valid, and adding it would introduce cells that cannot occur.",
+        rtl_sop='ap_pending & preblk==0 & ras==0')
     km.kmap(
         "state_o (observability only)", "bank_timer.sv:144-147",
         "rv ? (rcd_nz ? ACTIVATING : ACTIVE) : (rp_nz ? PRECHARGING : IDLE)",
@@ -1722,7 +1761,8 @@ def build_bank_timer_sheet(wb):
              "the decode had been checked in a state the timers forbid.",
              lambda rv, rcd, rp: not (rcd and rp),
              "bank_timer.sv:96,106,116,120-123"),
-        ])
+        ],
+        depends_only_on='The reported state is a pure decode of the row-valid flag and whether the two transition timers are still counting. It is observability only -- nothing in the controller consumes it -- so no input that affects BEHAVIOUR belongs on an axis.')
     km.table(
         "row_valid / ap_pending next-state priority", "bank_timer.sv:115-127",
         ["set_act", "set_pre", "w_ap_fire", "set_rd||set_wr",
@@ -1764,7 +1804,9 @@ def build_refresh_sheet(wb):
              "(w_grant_early), so the (1,0) cell is reachable and must read 0, "
              "not X. Checked, and genuinely independent.",
              None, "refresh_ctrl.sv:133-134"),
-        ])
+        ],
+        depends_only_on='Accepting a refresh grant depends only on the grant arriving and there being a refresh still owed. The burst counter does not appear because it is loaded, not tested, at this edge.',
+        rtl_sop='grant & pend_nz')
     km.kmap(
         "refresh_drain_active", "refresh_ctrl.sv:126",
         "w_drain_active = (r_burst_remaining > 0) && (r_pending > 0) && "
@@ -1781,7 +1823,9 @@ def build_refresh_sheet(wb):
              "registered request while pending is non-zero. That is exactly "
              "why the term is in the equation, so all combinations occur.",
              None, "refresh_ctrl.sv:186-192"),
-        ])
+        ],
+        depends_only_on='Drain is active exactly while the burst has commands left, refreshes are still owed, and the request line is up. tREFI does not appear: it sets r_pending elsewhere, and this map is about draining what is already owed.',
+        rtl_sop='rem_nz & pend_nz & req_o')
     km.table(
         "r_pending next-value", "refresh_ctrl.sv:98-108",
         ["enable && expired", "w_grant_accept", "next"],
@@ -1806,7 +1850,9 @@ def build_refresh_sheet(wb):
              "on init_done, and any_row_active is a registered image, so all "
              "sixteen combinations are reachable.",
              None, "pumice_mem_cmd_scheduler.sv:529,576"),
-        ])
+        ],
+        depends_only_on='Busy is the OR of every reason the controller cannot be considered idle: init incomplete, a refresh outstanding, a command still in the read path, or any row left open. The bank index is folded into any_row_active because busy is a whole-controller output -- WHICH bank is open cannot change the answer.',
+        rtl_sop='!init_done | refresh_req | cmd_rd_valid | any_row_active')
     return ws
 
 
