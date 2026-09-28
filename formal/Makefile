@@ -53,7 +53,7 @@ check-tools:
 # 2026-09-11: `make formal` ran neither, so ninety task directories had no
 # entry point and nobody noticed twelve flat files drifting from their RTL.
 .PHONY: formal
-formal: formal-rtl formal-converters formal-stream formal-rapids formal-rlb
+formal: formal-rtl formal-converters formal-stream formal-rapids formal-rlb formal-pumice
 
 # Everything whose RTL lives in repo-root rtl/.
 .PHONY: formal-rtl
@@ -87,6 +87,14 @@ formal-stream:
 .PHONY: formal-rapids
 formal-rapids:
 	$(MAKE) -C rapids prove-all
+
+# pumice DDR2/LPDDR2 memory controller. Added 2026-09-28; wired into the
+# `formal:` list in the SAME edit, for the reason the RLB note below gives.
+# Every pumice proof flattens with sv2v first, so this MUST go through
+# formal/pumice/Makefile rather than invoking sby directly.
+.PHONY: formal-pumice
+formal-pumice:
+	$(MAKE) -C pumice all
 
 # Retro legacy blocks. Added 2026-09-14 for RLB-010; the comment above about
 # formal-amba and formal-converters going missing from the `formal:` list is

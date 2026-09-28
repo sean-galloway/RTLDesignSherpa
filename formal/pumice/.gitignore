@@ -1,0 +1,33 @@
+# Flattened DUTs are NOT tracked in this area, deliberately.
+#
+# Elsewhere in formal/ the sv2v output is committed, and a staleness audit found
+# 36 of 48 flat files no longer matching their RTL. A stale flat file is the
+# worst kind of failure: the proof still runs, still passes, and is proving
+# something about RTL that no longer exists. Untracked, the file cannot exist
+# until make builds it from the current sources, so the failure mode is gone
+# rather than merely watched for.
+*_flat.v
+
+# sby output. Listed by ARTIFACT rather than by workdir name: the per-task dir
+# is <block>_<task>/, but a bare `sby -f x.sby` writes to <block>/ instead, and
+# a per-block list of both shapes would need a new line for every block added.
+# Ignoring what sby puts INSIDE a workdir covers every shape, now and later.
+# the workdir itself, for the task names used here
+*_prove/
+*_cover/
+*_data/
+# ...and its contents by name, so a task named something else still cannot leak
+status.sqlite
+config.sby
+logfile.txt
+model/
+src/
+engine_*/
+*.xml
+PASS
+FAIL
+ERROR
+TIMEOUT
+UNKNOWN
+status
+status.path

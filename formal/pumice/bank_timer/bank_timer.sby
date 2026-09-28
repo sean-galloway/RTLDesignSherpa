@@ -1,0 +1,26 @@
+[tasks]
+prove
+cover
+
+[options]
+# The timings are constrained to 1..4 in the wrapper, so 22 cycles is enough to
+# see a full tRC elapse and a second ACT permitted after it. Counting a real
+# tRC of 60 would unroll 60+ cycles for no extra confidence -- it is the same
+# counter at 4 as at 60.
+prove: mode bmc
+prove: depth 22
+cover: mode cover
+cover: depth 22
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read_verilog -formal bank_timer_flat.v
+read -formal -sv formal_bank_timer.sv
+prep -top formal_bank_timer
+
+[files]
+formal_bank_timer.sv
+bank_timer_flat.v

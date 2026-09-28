@@ -9,7 +9,8 @@ and modules listed PASSING whose proof had never once elaborated. A status
 that is typed rather than measured drifts silently, because a stale row looks
 exactly like a current one.
 
-    python3 bin/formal_status.py --areas amba cdc common integ_common
+    python3 bin/formal_status.py                    # every area, discovered
+    python3 bin/formal_status.py --areas pumice cdc  # just these
     python3 bin/formal_status.py --inventory        # no runs: what EXISTS
     python3 bin/formal_status.py --markdown         # table for the tracker
 
@@ -28,7 +29,24 @@ import sys
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-DEFAULT_AREAS = ["amba", "cdc", "common", "integ_common"]
+
+
+def default_areas() -> list[str]:
+    """Every formal area that actually holds a proof -- DISCOVERED, not listed.
+
+    This was a hand-kept list, ["amba", "cdc", "common", "integ_common"], and it
+    had drifted exactly the way this file's docstring warns a typed status does:
+    `integ_common` did not exist at all (discover() skipped it silently), and
+    seven areas that DID exist were missing -- apbx_xbar, bridge, converters,
+    pumice, rapids, retro_legacy_blocks and stream, 58 proofs between them. The
+    suite reported ~297 task directories because that is all it was looking at.
+    A tool whose job is to measure the suite must not be told where the suite is.
+    """
+    base = ROOT / "formal"
+    if not base.is_dir():
+        return []
+    return sorted(d.name for d in base.iterdir()
+                  if d.is_dir() and any(d.glob("*/*.sby")))
 
 
 def sby_tasks(sby: pathlib.Path) -> list[str]:
@@ -98,7 +116,8 @@ def run_task(entry, task, timeout):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--areas", nargs="+", default=DEFAULT_AREAS)
+    ap.add_argument("--areas", nargs="+", default=None,
+                    help="areas to measure (default: every formal/<area> holding a proof)")
     ap.add_argument("--inventory", action="store_true",
                     help="do not run anything; report what exists")
     ap.add_argument("--markdown", action="store_true")
@@ -111,6 +130,7 @@ def main():
     ap.add_argument("--exclude", nargs="*", default=None)
     args = ap.parse_args()
 
+    args.areas = args.areas or default_areas()
     entries = discover(args.areas)
     if args.only:
         entries = [e for e in entries if e["name"] in args.only]
