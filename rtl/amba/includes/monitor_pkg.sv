@@ -487,6 +487,7 @@ package monitor_pkg;
                             monitor_amba4_pkg::AXIS_ERR_ID_VIOLATION   : base_name = "ID_VIOLATION";
                             monitor_amba4_pkg::AXIS_ERR_DEST_VIOLATION : base_name = "DEST_VIOLATION";
                             monitor_amba4_pkg::AXIS_ERR_USER_VIOLATION : base_name = "USER_VIOLATION";
+                            monitor_amba4_pkg::AXIS_ERR_EVENT_DROPPED  : base_name = "EVENT_DROPPED";
                             monitor_amba4_pkg::AXIS_ERR_USER_DEFINED   : base_name = "USER_DEFINED";
                             default                                     : base_name = $sformatf("UNKNOWN_AXIS_ERR_%0X", event_code);
                         endcase

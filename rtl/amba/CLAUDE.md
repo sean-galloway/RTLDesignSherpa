@@ -193,13 +193,16 @@ gaxi_fifo_sync #(.REGISTERED(0), .DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 | Module | Purpose | Key Params | Documentation |
 |--------|---------|------------|---------------|
-| `axis_bus_meter.sv` | Stream throughput / backpressure counters. **The only AXIS-side measurement block** | DATA_WIDTH, NUM_CHANNELS | `docs/markdown/rtl-amba/shared/axis_bus_meter.md` |
+| `axis_monitor_lite.sv` (`rtl/amba/monitor/`) | Stream monitor in the lite discipline: packets, stalls, bubbles, TID/TDEST changes as Stream/Credit/Channel/Error/Timeout/Completion monbus packets. A TAP -- drives nothing | DATA_WIDTH, ID_WIDTH, DEST_WIDTH, OUT_DEPTH | `docs/markdown/rtl-amba/monitor/axis_monitor_lite.md` |
+| `axis_bus_meter.sv` | Stream throughput / backpressure counters (the perf path; no packets) | DATA_WIDTH, NUM_CHANNELS | `docs/markdown/rtl-amba/shared/axis_bus_meter.md` |
 
-> **There is no AXIS monbus monitor.** `axis4_master.sv` and `axis4_slave.sv`
-> are skid-buffered stream endpoints (`AXIS_DATA_WIDTH`, `AXIS_ID_WIDTH`,
-> `AXIS_DEST_WIDTH`) and carry zero monbus ports; this table called them
-> "AXIS transmit/receive monitoring" for months. Measured: no module under
-> `rtl/amba/axis4/` declares a monbus port.
+> Until 2026-09-27 there was no AXIS monbus monitor at all: `axis4_master.sv`
+> and `axis4_slave.sv` are skid-buffered stream endpoints (`AXIS_DATA_WIDTH`,
+> `AXIS_ID_WIDTH`, `AXIS_DEST_WIDTH`) with zero monbus ports, and this table
+> called them "AXIS transmit/receive monitoring" for months. `axis_monitor_lite`
+> is the core (amba/monitor-lite TASK-003); the `axis4/axis5 master/slave
+> _monlite` wrappers that pair it with those endpoints are the next step of
+> that task and do NOT exist yet -- check `ls rtl/amba/axis4/` before naming one.
 
 ### AXI4-Lite Monitors
 
@@ -506,11 +509,13 @@ apb4_monitor #(
 );
 ```
 
-### Pattern 3: AXIS measurement (there is NO AXIS monbus monitor)
+### Pattern 3: AXIS measurement
 
-No module on the stream side emits monbus -- `axis4_master`/`axis4_slave` are
-skid-buffered stream endpoints, not monitors. For throughput and backpressure
-on a stream, snoop it with `axis_bus_meter` and read its counters:
+For EVENTS on a stream (stalls past a threshold, in-packet gaps, TVALID
+withdrawn, packet ends, TID/TDEST changes) tap it with `axis_monitor_lite`
+(`docs/markdown/rtl-amba/monitor/axis_monitor_lite.md`; both tvalid and tready
+are inputs, it drives nothing). For THROUGHPUT and backpressure counters, snoop
+it with `axis_bus_meter`; the monitor emits no perf packets by design:
 
 ```systemverilog
 axis_bus_meter #(

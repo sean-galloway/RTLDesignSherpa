@@ -504,7 +504,7 @@ class AXISErrorCode(IntEnum):
     AXIS_ERR_RESERVED_B            = 0xB
     AXIS_ERR_RESERVED_C            = 0xC
     AXIS_ERR_RESERVED_D            = 0xD
-    AXIS_ERR_RESERVED_E            = 0xE
+    AXIS_ERR_EVENT_DROPPED         = 0xE  # monitor-lite: events lost to monbus backpressure (data = count)
     AXIS_ERR_USER_DEFINED          = 0xF
 
 

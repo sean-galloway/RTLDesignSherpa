@@ -379,7 +379,7 @@ package monitor_amba4_pkg;
         AXIS_ERR_RESERVED_B      = 8'hB,  // Reserved
         AXIS_ERR_RESERVED_C      = 8'hC,  // Reserved
         AXIS_ERR_RESERVED_D      = 8'hD,  // Reserved
-        AXIS_ERR_RESERVED_E      = 8'hE,  // Reserved
+        AXIS_ERR_EVENT_DROPPED   = 8'hE,  // monitor-lite: events lost to monbus backpressure (event_data = count); same value as AXI_ERR_EVENT_DROPPED
         AXIS_ERR_USER_DEFINED    = 8'hF   // User-defined error
     } axis_error_code_t;
 
