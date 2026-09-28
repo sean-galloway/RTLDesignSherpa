@@ -50,7 +50,7 @@ digraph indirect_access {
         rank=sink;
         legend [shape=none, margin=0, fillcolor="white", label=<
             <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
-                <tr><td bgcolor="lightyellow"><b>Intel Indirect Access Method</b></td></tr>
+                <tr><td bgcolor="lightyellow"><b>Indirect Access Method</b></td></tr>
                 <tr><td align="left">1. Write offset to IOREGSEL</td></tr>
                 <tr><td align="left">2. Read/Write selected register via IOWIN</td></tr>
                 <tr><td align="left">Benefits: Reduced address space</td></tr>

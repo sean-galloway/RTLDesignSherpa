@@ -35,7 +35,7 @@ read-back command are not implemented; see Known Limitations below.
 
 ## Overview
 
-This is the micro architecture specification for the APB PIT 8254, an Intel 8254-compatible timer peripheral with an AMBA APB4 register interface. It's organized into five chapters that walk from "what is this block" down to "which bits do I write." Read the status line above before you read anything else -- Mode 0 is what this RTL does, and it does it the 8254 way; Modes 1-5 and the read-back command are documented here as reference material, not as things this RTL does.
+This is the micro architecture specification for the APB PIT 8254, an 8254-compatible timer peripheral with an AMBA APB4 register interface. It's organized into five chapters that walk from "what is this block" down to "which bits do I write." Read the status line above before you read anything else -- Mode 0 is what this RTL does, and it does it the 8254 way; Modes 1-5 and the read-back command are documented here as reference material, not as things this RTL does.
 
 > Status (2026-07-22): Chapter 1, the Chapter 2 overview, the Chapter 3 top-level signal
 > list, the Chapter 4 initialization and use-case sections, and the Chapter 5 register map

@@ -132,7 +132,7 @@ module gaxi_fifo_sync #(
         if (MEM_STYLE == FIFO_SRL) begin : gen_srl
             `ifdef XILINX
                 (* shreg_extract = "yes", ram_style = "distributed" *)
-            `elsif INTEL
+            `elsif SYNTH_PRAGMA
                 /* synthesis ramstyle = "MLAB" */
             `endif
             logic [DATA_WIDTH-1:0] mem [DEPTH];
@@ -159,7 +159,7 @@ module gaxi_fifo_sync #(
         else if (MEM_STYLE == FIFO_BRAM) begin : gen_bram
             `ifdef XILINX
                 (* ram_style = "block" *)
-            `elsif INTEL
+            `elsif SYNTH_PRAGMA
                 /* synthesis ramstyle = "M20K" */
             `endif
             logic [DATA_WIDTH-1:0] mem [DEPTH];

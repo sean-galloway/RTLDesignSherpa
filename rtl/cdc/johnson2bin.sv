@@ -157,10 +157,10 @@
 //   - Xilinx UltraScale/UltraScale+:
 //     * JCW=16: ~1.8-2.5 ns propagation delay
 //     * Supports up to ~400 MHz with registered output
-//   - Intel Cyclone V:
+//   - Cyclone V:
 //     * JCW=16: ~3.0-4.0 ns propagation delay
 //     * Supports up to ~250 MHz with registered output
-//   - Intel Arria 10 / Stratix 10:
+//   - Arria 10 / Stratix 10:
 //     * JCW=16: ~2.0-3.0 ns propagation delay
 //     * Supports up to ~350 MHz with registered output
 //
@@ -169,7 +169,7 @@
 //   - If synthesis tool warns about optimization:
 //   ```systemverilog
 //   (* keep_hierarchy = "yes" *) module johnson2bin ...  // Xilinx: preserve hierarchy
-//   (* preserve *) wire [WIDTH-1:0] binary;             // Intel: preserve logic
+//   (* preserve *) wire [WIDTH-1:0] binary;             // Quartus: preserve logic
 //   ```
 //
 //   **FIFO Pointer Synchronization (Primary Use Case):**
@@ -204,7 +204,7 @@
 //   - For flexibility: USE_JOHNSON=1 supports any depth
 //
 //   **Verification on FPGA:**
-//   - Use ILA (Xilinx) or SignalTap (Intel) to capture:
+//   - Use ILA (Xilinx) or SignalTap to capture:
 //     * Johnson code input (from synchronizer)
 //     * Binary output
 //     * Verify conversion correctness
@@ -225,7 +225,7 @@
 //      → Priority encoder delays add up, especially for wide buses
 //
 //   **When to Use Vendor IP Instead:**
-//   - For async FIFOs: Consider Xilinx FIFO Generator or Intel DCFIFO
+//   - For async FIFOs: Consider Xilinx FIFO Generator or DCFIFO
 //   - Vendor IP includes:
 //     * Built-in pointer management (standard Gray or Johnson)
 //     * Optimized for specific FPGA architecture

@@ -13,7 +13,7 @@ useful datapath -- its sole purpose is to force synthesis tools to build
 specific combinational structures between registered endpoints so that the
 resulting timing reports can be compared across:
 
-- FPGA families (Xilinx 7-series vs. UltraScale vs. Intel Cyclone/Stratix)
+- FPGA families (Xilinx 7-series vs. UltraScale vs. Cyclone/Stratix)
 - ASIC standard-cell libraries (TSMC, GF, Samsung at various nodes)
 - Synthesis tool settings (effort levels, mapping strategies)
 - Parameter sweeps (wider adders, deeper trees, bigger multipliers)
@@ -164,7 +164,7 @@ type.
 
 **Structure:** Two registered input vectors feed a simple `+` operator.
 The synthesis tool infers a ripple-carry adder and maps it to dedicated
-fast-carry resources (CARRY4/CARRY8 on Xilinx, ALM carry on Intel).
+fast-carry resources (CARRY4/CARRY8 on Xilinx, ALM carry on Quartus targets).
 The output is WIDTH+1 bits (including carry-out).
 
 **Synthesis goal:** Measure the speed of the dedicated carry chain versus
@@ -345,7 +345,7 @@ decorrelated.
 |------|------|-------------------|
 | `"asic"` | Synopsys DC / Cadence Genus | Target library, operating conditions |
 | `"vivado"` | Xilinx Vivado | Part number (e.g., `xc7a200t...`) |
-| `"quartus"` | Intel Quartus Prime | FAMILY, DEVICE in .qsf |
+| `"quartus"` | Quartus Prime | FAMILY, DEVICE in .qsf |
 
 All overridable parameters use `if {![info exists ...]}` guards so you
 can set them in your synthesis script **before** sourcing the SDC:
@@ -503,8 +503,8 @@ Synthesize the same RTL + SDC against different targets:
 |--------|------|---------|
 | Xilinx Artix-7 | Vivado | `set_property part xc7a200t...` |
 | Xilinx UltraScale+ | Vivado | `set_property part xcvu9p...` |
-| Intel Cyclone 10 | Quartus | `set_global_assignment FAMILY "Cyclone 10 LP"` |
-| Intel Stratix 10 | Quartus | `set_global_assignment FAMILY "Stratix 10"` |
+| Cyclone 10 | Quartus | `set_global_assignment FAMILY "Cyclone 10 LP"` |
+| Stratix 10 | Quartus | `set_global_assignment FAMILY "Stratix 10"` |
 | ASIC (TSMC 28nm) | DC/Genus | Point to `.db` / `.lib` library |
 
 The SDC is tool-agnostic (standard Tcl/SDC syntax) and works unchanged

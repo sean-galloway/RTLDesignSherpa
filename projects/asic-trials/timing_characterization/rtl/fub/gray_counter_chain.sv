@@ -86,14 +86,14 @@ module gray_counter_chain #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [WIDTH-1:0] r_out_bin;
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [WIDTH-1:0] r_out_gray;

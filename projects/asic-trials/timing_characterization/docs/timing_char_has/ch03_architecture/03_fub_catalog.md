@@ -68,7 +68,7 @@ trees more efficient per-level than NAND trees on modern FPGAs.
 
 Two registered input vectors feed a `+` operator, inferred as a ripple-carry
 adder. On FPGAs, this maps to dedicated fast-carry resources (CARRY4/CARRY8
-on Xilinx, ALM carry on Intel) that run at sub-100ps per bit.
+on Xilinx, ALM carry on Quartus targets) that run at sub-100ps per bit.
 
 ### multiplier_tree -- Multiplier Wrapper
 

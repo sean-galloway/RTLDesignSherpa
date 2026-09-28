@@ -215,14 +215,14 @@ module icg_tsmc (
 
 endmodule
 
-// Example for Intel/Altera technology
-module icg_intel (
+// Example for Quartus technology
+module icg_quartus (
     input  logic clk,
     input  logic en,
     output logic gclk
 );
 
-    // Intel FPGA implementation
+    // Quartus FPGA implementation
     logic en_reg;
 
     always_ff @(negedge clk) begin

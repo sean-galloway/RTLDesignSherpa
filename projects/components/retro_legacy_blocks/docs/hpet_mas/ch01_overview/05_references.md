@@ -49,9 +49,8 @@ Everything this MAS leaned on, plus the pointers you'll want when you need to go
 
 **Architectural Reference (Not Specification Compliant):**
 - **IA-PC HPET Specification 1.0a**
-  - Publisher: Intel Corporation and Microsoft Corporation
+  - Publisher: (see specification)
   - Date: October 2004
-  - URL: https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/software-developers-hpet-spec-1-0a.pdf
   - Relevance: Architectural inspiration (APB HPET is NOT IA-PC HPET compliant)
   - **Note:** Used as reference for timer concepts only. APB HPET uses APB interface (not memory-mapped), different register layout, and does not support legacy modes or FSB delivery.
 

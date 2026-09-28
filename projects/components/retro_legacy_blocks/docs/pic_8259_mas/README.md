@@ -77,7 +77,7 @@ cd docs/
 
 ## References
 
-- Intel PIC_8259 datasheet
+- 8259A datasheet
 - ACPI specification (if applicable)
 - Legacy peripheral architecture specifications
 - APB protocol specification

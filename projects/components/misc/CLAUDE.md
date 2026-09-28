@@ -71,7 +71,7 @@ logic.
 ```systemverilog
 `ifdef XILINX
     (* ram_style = "block" *)          // block RAM for large ROMs
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "M20K" */
 `endif
 logic [DATA_WIDTH-1:0] rom_data [DEPTH];

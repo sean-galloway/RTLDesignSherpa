@@ -25,7 +25,7 @@
 
 ## Overview
 
-The alphabet soup, decoded. If you've worked with Intel interrupt controllers before, most of this is familiar — the IOAPIC-specific terms are the ones worth a skim.
+The alphabet soup, decoded. If you've worked with legacy interrupt controllers before, most of this is familiar — the IOAPIC-specific terms are the ones worth a skim.
 
 ## References
 
@@ -33,7 +33,7 @@ The alphabet soup, decoded. If you've worked with Intel interrupt controllers be
 
 | Acronym | Full Name | Description |
 | --- | --- | --- |
-| **IOAPIC** | I/O Advanced Programmable Interrupt Controller | Intel's advanced interrupt routing controller |
+| **IOAPIC** | I/O Advanced Programmable Interrupt Controller | advanced interrupt routing controller |
 | **APB** | Advanced Peripheral Bus | AMBA low-power peripheral bus |
 | **AMBA** | Advanced Microcontroller Bus Architecture | ARM bus specification |
 | **APIC** | Advanced Programmable Interrupt Controller | Generic term for advanced interrupt controllers |
@@ -45,7 +45,7 @@ The alphabet soup, decoded. If you've worked with Intel interrupt controllers be
 | **PCI** | Peripheral Component Interconnect | Standard expansion bus |
 | **RLB** | Retro Legacy Blocks | Project name for classic peripheral IP cores |
 | **CDC** | Clock Domain Crossing | Synchronization between clock domains |
-| **IRR** | Interrupt Request Register | Intel term for interrupt pending state |
+| **IRR** | Interrupt Request Register | standard term for interrupt pending state |
 | **ISR** | Interrupt Service Routine | Software interrupt handler |
 | **SMI** | System Management Interrupt | Special interrupt for system management mode |
 | **NMI** | Non-Maskable Interrupt | High-priority interrupt that can't be masked |
@@ -69,7 +69,7 @@ The alphabet soup, decoded. If you've worked with Intel interrupt controllers be
 Array of 64-bit entries (one per IRQ) that configure how each interrupt is routed to CPUs. Contains vector, delivery mode, destination, trigger type, polarity, and mask.
 
 **Indirect Access:**
-Intel's register access method where software writes an offset to IOREGSEL, then accesses the selected register via IOWIN. Reduces address space requirements.
+The register access method where software writes an offset to IOREGSEL, then accesses the selected register via IOWIN. Reduces address space requirements.
 
 **Remote IRR (Interrupt Request Register):**
 Status bit for level-triggered interrupts. Set when interrupt is accepted by CPU, cleared when EOI is received. Prevents interrupt re-triggering while being serviced.

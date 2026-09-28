@@ -27,8 +27,8 @@
 
 ### Primary Specifications
 
-**Intel 8254 Programmable Interval Timer**
-- **Document**: Intel 8254 Datasheet
+**8254 Programmable Interval Timer**
+- **Document**: 8254 Datasheet
 - **Relevance**: Original reference design for PIT functionality and control word format
 - **Note**: APB PIT 8254 implements Mode 0 with APB interface adaptation
 
@@ -157,7 +157,7 @@
 - **Rationale**: FPGA-friendly reset inference, consistent reset polarity
 
 **FPGA Synthesis Attributes**
-- **Reference**: Xilinx Vivado Synthesis Guide, Intel Quartus Synthesis Handbook
+- **Reference**: Xilinx Vivado Synthesis Guide, Quartus Synthesis Handbook
 - **Attributes**: `ram_style`, `use_dsp`, synthesis directives
 - **Purpose**: Guide FPGA synthesis for optimal resource usage
 
@@ -168,7 +168,7 @@
 
 ### External Resources
 
-**Intel 8254 Historical Context**
+**8254 Historical Context**
 - **Platform**: IBM PC/AT and compatibles
 - **Usage**: System timer, speaker control, PC architecture timer
 - **Legacy**: Widely emulated in virtualization and retro computing

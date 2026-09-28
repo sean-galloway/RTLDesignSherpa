@@ -190,7 +190,7 @@ REFUTED were wrong** (`shifter_barrel` modulo, `shifter_universal` WIDTH>=2,
 both confirmed against the RTL), so the rule-10 validation rule fired again.
 The single FP: `sync_pulse.md`'s Xilinx constraints target `r_sync_reg[0]`,
 which is Vivado's name for a registered vector, not a phantom register — the
-Intel SDC block correctly uses `r_sync[0]`. Tool-convention class, worth adding
+Quartus SDC block correctly uses `r_sync[0]`. Tool-convention class, worth adding
 to the brief's known-FP list.
 
 **The `_meta` unit earned its place**: 6 of the 18 came from it, all in pages no

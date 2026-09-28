@@ -35,7 +35,7 @@ The vocabulary used across this MAS, collected in one place so the rest of the c
 | **FSB** | Front Side Bus | Legacy PC architecture bus (not supported in APB HPET) |
 | **FSM** | Finite State Machine | Sequential logic controller |
 | **HPET** | High Precision Event Timer | Multi-timer peripheral for precise timing |
-| **IA-PC** | Intel Architecture - Personal Computer | PC platform specification (architectural reference) |
+| **IA-PC** | Industry-standard PC architecture | PC platform specification (architectural reference) |
 | **IRQ** | Interrupt Request | Hardware interrupt signal |
 | **PIT** | Programmable Interval Timer | Legacy PC timer (8254-compatible) |
 | **RO** | Read-Only | Register field cannot be written by software |

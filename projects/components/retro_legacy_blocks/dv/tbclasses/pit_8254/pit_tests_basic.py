@@ -45,7 +45,7 @@ class PITBasicTests:
         """
         Test basic register read/write access.
 
-        IMPORTANT: Per Intel 8254 spec, Mode 0 counters start counting immediately
+        IMPORTANT: Per 8254 spec, Mode 0 counters start counting immediately
         after loading a value (when GATE is high). This means reading back a counter
         register returns the CURRENT count, not the original load value.
 
@@ -73,7 +73,7 @@ class PITBasicTests:
             self.tb.log.info(f"  PIT_CONFIG write/read: OK (0x{data:08x})")
 
             # Test counter data registers
-            # NOTE: Must program control word first per Intel 8254 specification
+            # NOTE: Must program control word first per 8254 specification
             for counter_id in range(3):
                 # Program control word for this counter:
                 # - counter_select = counter_id (bits 7:6)

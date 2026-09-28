@@ -58,7 +58,7 @@ style preference. Many are enforced by elaboration asserts or by DV gates.
   wires `w_*`; parameters/localparams `UPPER_CASE`; derived params documented.
 - **Array syntax** `logic [W-1:0] mem [DEPTH]` — never `[0:DEPTH-1]`.
 - **FPGA attributes** on inferred memories (`ram_style`, `use_dsp`) guarded by
-  `` `ifdef XILINX`` / `` `ifdef INTEL``.
+  `` `ifdef XILINX`` / `` `ifdef SYNTH_PRAGMA``.
 - **No magic numbers / no hardcoded register offsets.** Config is reached
   **by name** through the generated register map (PeakRDL `*_regmap.py`), never
   a literal offset. RTL constants come from parameters or `localparam`.

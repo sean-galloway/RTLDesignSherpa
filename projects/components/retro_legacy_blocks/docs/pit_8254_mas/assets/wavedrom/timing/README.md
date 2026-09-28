@@ -44,7 +44,7 @@ done
 ### Operating Modes
 
 NOTE: the delivered RTL implements Mode 0 only. Modes 1-5 below, the
-non-Mode-0 rows of the GATE table, and the readback command are Intel 8254
+non-Mode-0 rows of the GATE table, and the readback command are 8254
 REFERENCE behavior kept for context; programming those modes yields Mode 0
 counting, and SC=11 is a no-op. The Mode 0 row of the GATE table is what the
 RTL does: GATE low suspends the count, GATE high resumes it.

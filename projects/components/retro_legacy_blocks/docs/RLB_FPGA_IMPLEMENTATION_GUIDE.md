@@ -69,7 +69,7 @@
 #### 2. **PIT_8254** (Programmable Interval Timer)
 - **Purpose:** Classic PC timer (3 channels)
 - **Features:** Mode 0-5 operation, binary/BCD counting
-- **PC Equivalent:** Intel 8254 PIT
+- **PC Equivalent:** 8254 PIT
 - **Use Cases:** System tick, speaker control, legacy PC compatibility
 
 #### 3. **RTC** (Real-Time Clock)
@@ -81,7 +81,7 @@
 #### 4. **PIC_8259** (Programmable Interrupt Controller)
 - **Purpose:** Legacy interrupt management
 - **Features:** 8 IRQ inputs, priority, cascading, masking
-- **PC Equivalent:** Intel 8259A PIC
+- **PC Equivalent:** 8259A PIC
 - **Use Cases:** Legacy PC interrupts, simple systems
 
 #### 5. **SMBus** (System Management Bus)
@@ -99,7 +99,7 @@
 #### 7. **IOAPIC** (I/O Advanced Programmable Interrupt Controller)
 - **Purpose:** Advanced interrupt routing
 - **Features:** 24 IRQs, redirection table, edge/level, priority, EOI
-- **PC Equivalent:** Intel 82093AA I/O APIC
+- **PC Equivalent:** 82093AA I/O APIC
 - **Use Cases:** Multi-processor systems, flexible IRQ routing, modern PCs
 
 ---

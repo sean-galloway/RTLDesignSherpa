@@ -20,7 +20,7 @@ This directory contains Graphviz source files for IOAPIC specification diagrams.
 
 **3. indirect_access.gv — Indirect Register Access Method**
 - Shows IOREGSEL/IOWIN mechanism
-- Illustrates Intel 82093AA compatibility
+- Illustrates 82093AA compatibility
 - Used in: Ch03 Interfaces, Ch05 Registers
 
 ## Usage Example

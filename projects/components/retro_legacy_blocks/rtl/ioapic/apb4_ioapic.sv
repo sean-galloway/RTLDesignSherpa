@@ -26,7 +26,7 @@
  * DESCRIPTION:
  *   Top-level module that integrates APB slave with CDC, configuration
  *   registers, and IOAPIC core. Provides complete I/O APIC functionality
- *   with Intel 82093AA compatibility.
+ *   with 82093AA compatibility.
  *
  * ARCHITECTURE:
  *   - APB Slave CDC: Handles APB interface with optional clock crossing
@@ -78,7 +78,7 @@
  *   an inter-clock path it should never have analysed, or - worse - reports
  *   timing met on a path it never analysed at all.
  *
- * REGISTER ACCESS METHOD (Intel IOAPIC Indirect Access):
+ * REGISTER ACCESS METHOD (IOAPIC Indirect Access):
  *   1. Write register offset to IOREGSEL (APB address 0x00)
  *   2. Read/write data via IOWIN (APB address 0x04)
  *

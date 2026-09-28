@@ -7,7 +7,7 @@ rtl_file: projects/components/retro_legacy_blocks/rtl/pit_8254/apb4_pit_8254.sv
 test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb4_pit_8254.py
 
 # Module description:
-# APB interface to Intel 8254-compatible Programmable Interval Timer (PIT)
+# APB interface to 8254-compatible Programmable Interval Timer (PIT)
 # with 3 independent 16-bit counters, 6 operating modes, and configurable
 # clock sources.
 
@@ -172,7 +172,7 @@ implied_coverage:
   overall_percentage: 42
 
 notes: |
-  8254 PIT implements classic Intel programmable interval timer with 3
+  8254 PIT implements classic 8254 programmable interval timer with 3
   independent 16-bit counters and 6 operating modes.
 
   Current Status:

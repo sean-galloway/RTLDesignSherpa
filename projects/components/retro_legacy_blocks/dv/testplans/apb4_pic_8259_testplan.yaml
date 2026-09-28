@@ -7,7 +7,7 @@ rtl_file: projects/components/retro_legacy_blocks/rtl/pic_8259/apb4_pic_8259.sv
 test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb4_pic_8259.py
 
 # Module description:
-# APB interface to Intel 8259-compatible Programmable Interrupt Controller (PIC)
+# APB interface to 8259-compatible Programmable Interrupt Controller (PIC)
 # with 8 interrupt sources, priority encoding, masking, edge/level triggering,
 # and cascade support for multi-PIC configurations.
 
@@ -159,7 +159,7 @@ implied_coverage:
   overall_percentage: 45
 
 notes: |
-  8259 PIC implements classic Intel programmable interrupt controller with
+  8259 PIC implements classic 8259A programmable interrupt controller with
   8 IRQ sources, fixed/rotating priority, and cascade support for 15 IRQs.
 
   Current Status:

@@ -28,7 +28,7 @@
 **Goal:** Compare combinational delay across FPGA families for technology selection.
 
 **Flow:**
-1. Synthesize `char_top` against Xilinx Artix-7, UltraScale+, and Intel Cyclone/Stratix
+1. Synthesize `char_top` against Xilinx Artix-7, UltraScale+, and Cyclone/Stratix
 2. Extract per-FUB setup slack from timing reports
 3. Compute delay-per-logic-level for each technology
 4. Select technology based on critical path requirements

@@ -342,14 +342,14 @@ module hpet_core #(
     // (typically 2-8 timers, small array)
 `ifdef XILINX
     (* ram_style = "distributed" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "MLAB" */
 `endif
     logic [63:0]           r_timer_comparator [NUM_TIMERS];
 
 `ifdef XILINX
     (* ram_style = "distributed" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "MLAB" */
 `endif
     logic [63:0]           r_timer_period [NUM_TIMERS];  // Period for periodic mode

@@ -112,14 +112,14 @@ module axi_response_delay #(
     // the small B-channel queue in LUTRAM.
     `ifdef XILINX
         (* ram_style = "auto" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "AUTO" */
     `endif
     logic [DATA_WIDTH-1:0] r_data [CAPACITY];
 
     `ifdef XILINX
         (* ram_style = "auto" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "AUTO" */
     `endif
     logic [CYC_W-1:0]      r_tin  [CAPACITY];

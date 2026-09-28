@@ -35,7 +35,7 @@ Curated situational cheat-sheet across tiers:
 | Streaming/strided, high row locality | `static_open` / `most_pending` column selection | DDR2 |
 | Random / low locality | `static_close` + auto-precharge fusion | DDR2 |
 | **Mixed** — some rows hot-but-thrashing | **RBLA** (decide on row-buffer *misses*, not accesses) | DDR2 |
-| Phase-changing locality | `adapt_time` (Happy Intel-adaptive per-bank timeout) | DDR2 |
+| Phase-changing locality | `adapt_time` (Happy adaptive per-bank timeout) | DDR2 |
 | Low-demand rows starving the bus | **`fewest_pending`** column selection (counter-intuitive: drain the *least*-wanted row so it precharges sooner) | DDR2 |
 | Latency-critical reads under write pressure | `load_over_store` + write-batching watermarks | DDR2 |
 | Adversarial power-of-2 strides hot-banking | XOR / **permutation (prime-modulo, bit-reversal)** address hashing | DDR2/3 |

@@ -241,7 +241,7 @@ module uart_16550_core #(
     // picks distributed RAM, at 64+ it can pick a block.
 `ifdef XILINX
     (* ram_style = "auto" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "AUTO" */
 `endif
     logic [7:0] r_tx_fifo [FIFO_DEPTH];
@@ -445,7 +445,7 @@ module uart_16550_core #(
     // RX FIFO
 `ifdef XILINX
     (* ram_style = "auto" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "AUTO" */
 `endif
     logic [10:0] r_rx_fifo [FIFO_DEPTH];  // 8 data + parity_err + frame_err + break

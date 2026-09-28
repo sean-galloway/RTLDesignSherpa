@@ -250,7 +250,7 @@ apb4_slave_cg #(
 Clock gating removes the switching power of the wrapped `apb4_slave` during the
 gated window. The achievable saving is therefore bounded by the fraction of time
 the interface is idle, and by whether the target technology maps the enable onto
-a real clock-gating cell (an ASIC ICG, a Xilinx `BUFGCE`, an Intel `ALTCLKCTRL`)
+a real clock-gating cell (an ASIC ICG, a Xilinx `BUFGCE`, an `ALTCLKCTRL`)
 rather than a data-path enable.
 
 **No power measurements have been taken for this module in this repository.** Any
@@ -274,7 +274,7 @@ true gated clock or a fan-out of clock enables is a synthesis decision:
 - Confirm which happened in the post-synthesis netlist before claiming power savings
 - Verify with post-implementation power analysis
 
-**Intel (Altera):**
+**Quartus:**
 - Maps to `ALTCLKCTRL`; may need explicit vendor primitive instantiation
 - Check power reports for gating effectiveness
 

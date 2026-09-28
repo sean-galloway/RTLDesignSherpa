@@ -291,7 +291,7 @@ uint32_t cw = (0 << 0) |  // Counter select in wrong position!
               (3 << 6) |  // RW in wrong position!
               (0 << 4);   // Mode in wrong position!
 
-// CORRECT: Proper bit positions per Intel 8254 spec
+// CORRECT: Proper bit positions per 8254 spec
 uint32_t cw = (0 << 6) |  // SC[7:6] = Counter select
               (3 << 4) |  // RW[5:4] = Read/Write mode
               (0 << 1) |  // M[3:1] = Mode

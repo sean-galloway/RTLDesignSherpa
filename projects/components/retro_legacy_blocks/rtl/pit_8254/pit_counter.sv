@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: pit_counter
-// Purpose: One Intel 8254 counter - 16-bit, binary or BCD, Mode 0
+// Purpose: One 8254 counter - 16-bit, binary or BCD, Mode 0
 //
 // ============================================================================
 // WHAT THIS COUNTER IMPLEMENTS

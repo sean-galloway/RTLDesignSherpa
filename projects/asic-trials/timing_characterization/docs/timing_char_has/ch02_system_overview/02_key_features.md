@@ -59,4 +59,4 @@ The nine FUBs cover the major combinational logic families encountered in produc
 | Synopsys Design Compiler | `asic` | SDC (source) |
 | Cadence Genus | `asic` | SDC (read_sdc) |
 | Xilinx Vivado | `vivado` | SDC/XDC (read_xdc) |
-| Intel Quartus Prime | `quartus` | SDC (set_global_assignment) |
+| Quartus Prime | `quartus` | SDC (set_global_assignment) |

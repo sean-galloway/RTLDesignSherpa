@@ -46,7 +46,7 @@ cd docs/
 
 ## References
 
-- Intel SMBUS datasheet
+- SMBus specification
 - ACPI specification (if applicable)
 - Legacy peripheral architecture specifications
 - APB protocol specification

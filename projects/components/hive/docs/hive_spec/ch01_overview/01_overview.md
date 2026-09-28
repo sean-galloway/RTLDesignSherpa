@@ -36,7 +36,7 @@ HIVE (Hierarchical Intelligent Vector Environment) is a distributed control and 
 **Target Platforms:**
 - **Proof of Concept:** Digilent NexysA7 100T (Xilinx Artix-7)
 - **Production Target:** Digilent Genesys2 (Xilinx Kintex-7 325T)
-- **Alternative:** Terasic DE10 Standard (Intel Cyclone V SX)
+- **Alternative:** Terasic DE10 Standard (Cyclone V SX)
 
 ---
 

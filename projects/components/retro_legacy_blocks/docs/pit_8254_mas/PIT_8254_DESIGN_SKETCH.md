@@ -36,7 +36,7 @@ and GATE is start-enable only. The MAS chapters are the authority.
 
 ## Executive Summary
 
-The APB 8254 PIT provides a production-quality implementation of the Intel 8254 Programmable Interval Timer with AMBA APB4 interface. Following HPET's proven design patterns, the PIT implements 3 independent 16-bit counters with 6 programmable modes for system timing, square wave generation, and event counting.
+The APB 8254 PIT provides a production-quality implementation of the 8254 Programmable Interval Timer with AMBA APB4 interface. Following HPET's proven design patterns, the PIT implements 3 independent 16-bit counters with 6 programmable modes for system timing, square wave generation, and event counting.
 
 **Design Philosophy:** Leverage HPET's successful patterns while adapting for 8254's specific requirements.
 

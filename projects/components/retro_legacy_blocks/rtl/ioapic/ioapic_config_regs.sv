@@ -6,13 +6,13 @@
 //
 // Module: ioapic_config_regs
 // Purpose: Configuration register wrapper for IOAPIC - PeakRDL wrapper with
-//          the Intel IOREGSEL/IOWIN indirect access mechanism
+//          the IOREGSEL/IOWIN indirect access mechanism
 //
 // ARCHITECTURE:
 //   cmd/rsp --> peakrdl_to_cmdrsp adapter --> IOREGSEL/IOWIN translation -->
 //   --> ioapic_regs (PeakRDL) --> hwif --> mapping --> IOAPIC core
 //
-// INDIRECT ACCESS METHOD (Intel 82093AA):
+// INDIRECT ACCESS METHOD (82093AA):
 //   1. Write the internal register offset to IOREGSEL (APB 0x000)
 //   2. Read/write the selected register through IOWIN (APB 0x004)
 //

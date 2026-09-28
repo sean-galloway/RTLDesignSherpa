@@ -46,7 +46,7 @@ Heap-indexed binary tree: leaf inputs from registered LFSR taps, NAND gates at e
 ```systemverilog
 `ifdef XILINX
     (* dont_touch = "true" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis preserve */
 `endif
 logic w_nand_tree [TREE_SIZE];

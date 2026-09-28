@@ -28,34 +28,32 @@
 ### 1. HPET (High Precision Event Timer)
 
 **Best PDF:**
-- **Intel IA-PC HPET Specification 1.0a** (Official, 33 pages)
-  - Direct link: https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/software-developers-hpet-spec-1-0a.pdf
+- **IA-PC HPET Specification 1.0a** (Official, 33 pages)
   - The definitive specification with complete register maps
 
 ### 2. IOAPIC (I/O Advanced Programmable Interrupt Controller)
 
 **Best PDFs:**
-- **Intel 82093AA I/O APIC Datasheet** (Official, 20 pages)
+- **82093AA I/O APIC Datasheet** (Official, 20 pages)
   - MIT hosted: https://pdos.csail.mit.edu/6.828/2018/readings/ia32/ioapic.pdf
 
-- **Intel MultiProcessor Specification v1.4** (Comprehensive, 108 pages)
+- **MultiProcessor Specification v1.4** (Comprehensive, 108 pages)
   - MIT hosted: https://pdos.csail.mit.edu/6.828/2008/readings/ia32/MPspec.pdf
 
-- **Intel 64 and IA-32 Architectures SDM Volume 3A** (Current, authoritative)
-  - Download page: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
-  - Direct PDF: Available from Intel SDM downloads (Chapter 10 covers APIC/IOAPIC)
+- **IA-32 Architectures SDM Volume 3A** (Current, authoritative)
+  - Direct PDF: Available from SDM downloads (Chapter 10 covers APIC/IOAPIC)
 
 ### 3. PIC 8259 (Programmable Interrupt Controller)
 
 **Best PDF:**
-- **Intel 8259A Official Datasheet** (1988, 24 pages)
+- **8259A Official Datasheet** (1988, 24 pages)
   - Stanford hosted: https://pdos.csail.mit.edu/6.828/2014/readings/hardware/8259A.pdf
   - Order Number: 231468-003
 
 ### 4. PIT 8254 (Programmable Interval Timer)
 
 **Best PDFs:**
-- **Intel 8254 Official Datasheet** (1993, 21 pages)
+- **8254 Official Datasheet** (1993, 21 pages)
   - Stanford hosted: https://www.scs.stanford.edu/10wi-cs140/pintos/specs/8254.pdf
   - Order Number: 231164-005
 
@@ -73,8 +71,7 @@
 - **ACPI Specification Version 6.5a** (December 2024)
   - PDF: https://uefi.org/sites/default/files/resources/ACPI_Spec_6_5_Aug29.pdf
 
-- **Intel ACPI Component Architecture (ACPICA) User Guide**
-  - Direct link: https://cdrdv2-public.intel.com/772726/acpica-reference-19.pdf
+- **ACPI Component Architecture (ACPICA) User Guide**
   - 146 pages of implementation guidance
 
 ### 6. RTC (Real-Time Clock)
@@ -101,9 +98,8 @@
   - Direct link: https://www.nxp.com/docs/en/user-guide/UM10204.pdf
   - Essential for understanding I2C/SMBus relationship
 
-- **Intel SMBus Controller White Paper**
-  - Title: "Interfacing I2C Devices to an Intel SMBus Controller"
-  - Direct link: https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/smbus-controller-i2c-devices-paper.pdf
+- **SMBus Controller White Paper**
+  - Title: "Interfacing I2C Devices to an SMBus Controller"
 
 ---
 
@@ -207,8 +203,7 @@
 - Namespace access: https://www.kernel.org/doc/html/latest/driver-api/acpi/namespace.html
 - Scan handlers: https://www.kernel.org/doc/html/latest/driver-api/acpi/scan_handlers.html
 
-**Intel ACPICA Reference Implementation:**
-- Downloads: https://www.intel.com/content/www/us/en/developer/topic-technology/open/acpica/download.html
+**ACPICA Reference Implementation:**
 - ACPICA source tree with OS Services Layer (OSL) interface
 
 **Coreboot ACPI Implementation:**
@@ -259,12 +254,11 @@
 - SMBus protocol: https://docs.kernel.org/i2c/smbus-protocol.html
 - I2C adapter drivers: https://github.com/torvalds/linux/tree/master/drivers/i2c/busses
 
-**Intel SMBus Controller Driver:**
-- i801 driver (Intel PCH): https://github.com/torvalds/linux/blob/master/drivers/i2c/busses/i2c-i801.c
-- This is your best reference for Intel SMBus implementation
+**SMBus Controller Driver:**
+- i801 driver (PCH): https://github.com/torvalds/linux/blob/master/drivers/i2c/busses/i2c-i801.c
+- This is your best reference for SMBus implementation
 
 **Coreboot SMBus Implementation:**
-- SMBus common code: https://github.com/coreboot/coreboot/blob/master/src/southbridge/intel/common/smbus.c
 - SMBus host API: https://doxygen.coreboot.org/d0/d3e/smbus__host_8h_source.html
 
 **QEMU Reference Implementation:**
@@ -335,7 +329,7 @@
 
 ### Hardware Programming Tutorials
 - **OSDev Wiki**: https://wiki.osdev.org/ (Excellent tutorials for all components)
-- **Intel SDM**: Essential for understanding x86 architecture context
+- **SDM**: Essential for understanding x86 architecture context
 
 ### Books
 - "PCI System Architecture" by Tom Shanley (for bus interfacing concepts)
@@ -366,7 +360,7 @@ For each component, follow this process:
 ## Notes on Documentation Quality
 
 **Most Authoritative Sources:**
-1. Intel datasheets (official specs)
+1. vendor datasheets (official specs)
 2. UEFI Forum ACPI specs (official)
 3. SMBus.org specifications (official)
 4. Linux kernel source code (production quality)

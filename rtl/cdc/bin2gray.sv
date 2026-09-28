@@ -166,7 +166,7 @@
 //   - WIDTH=16: 15 LUTs
 //   - No special primitives needed - pure combinational logic
 //   - Xilinx: Implements as LUT1 (XOR function)
-//   - Intel: Implements as adaptive LUT in ALM
+//   - Quartus: Implements as adaptive LUT in ALM
 //
 //   **Critical Timing Considerations:**
 //   - This module is combinational - timing depends on where it's used
@@ -213,7 +213,7 @@
 //   - If synthesis tool warns about optimization:
 //   ```systemverilog
 //   (* keep = "true" *) wire [WIDTH-1:0] gray;  // Xilinx: prevent optimization
-//   (* preserve *) wire [WIDTH-1:0] gray;       // Intel: preserve logic
+//   (* preserve *) wire [WIDTH-1:0] gray;       // Quartus: preserve logic
 //   ```
 //
 //   **FIFO Pointer Synchronization (Most Common Use):**
@@ -228,7 +228,7 @@
 //   - Always register Gray output before sending across domains
 //
 //   **Verification on FPGA:**
-//   - Use ILA (Xilinx) or SignalTap (Intel) to capture:
+//   - Use ILA (Xilinx) or SignalTap to capture:
 //     * Binary input
 //     * Gray output
 //     * Verify single-bit changes
@@ -246,7 +246,7 @@
 //      → Destination gets garbage values
 //
 //   **When to Use Vendor IP Instead:**
-//   - For async FIFOs: Consider Xilinx FIFO Generator or Intel DCFIFO
+//   - For async FIFOs: Consider Xilinx FIFO Generator or DCFIFO
 //   - Vendor IP includes:
 //     * Built-in Gray code conversion
 //     * Optimized pointer management

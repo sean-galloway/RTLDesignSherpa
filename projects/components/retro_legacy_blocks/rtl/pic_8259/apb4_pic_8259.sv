@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: apb4_pic_8259
-// Purpose: APB wrapper for Intel 8259A-compatible Programmable Interrupt Controller
+// Purpose: APB wrapper for 8259A-compatible Programmable Interrupt Controller
 //
 // Top-level integration module providing:
 // - APB4 slave interface

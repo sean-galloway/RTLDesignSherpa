@@ -79,10 +79,10 @@ IOBUF u_iobuf[31:0] (
 );
 ```
 
-For Intel/Altera FPGAs:
+For Quartus FPGAs:
 
 ```systemverilog
-// Intel ALTBIDIR instantiation example
+// ALTBIDIR instantiation example
 altbidir u_altbidir[31:0] (
     .padio     (gpio_pins),
     .datain    (gpio_out),

@@ -84,7 +84,7 @@ module mux_tree #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [ACTUAL_FLOPS-1:0] r_data_flops;
@@ -103,7 +103,7 @@ module mux_tree #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [ACTUAL_SEL-1:0] r_sel_flops;
@@ -133,7 +133,7 @@ module mux_tree #(
 
             `ifdef XILINX
                 (* dont_touch = "true" *)
-            `elsif INTEL
+            `elsif SYNTH_PRAGMA
                 /* synthesis preserve */
             `endif
             logic w_node;
@@ -164,7 +164,7 @@ module mux_tree #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic r_out_flop;

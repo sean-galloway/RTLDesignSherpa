@@ -406,7 +406,7 @@ parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 
 - Google Brain Float (BF16) specification
 - IEEE 754-2019 Standard for Floating-Point Arithmetic
-- Intel BFloat16 documentation
+- BFloat16 documentation
 - NVIDIA TensorFloat documentation
 
 ## Navigation

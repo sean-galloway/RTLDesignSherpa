@@ -168,7 +168,7 @@ For 28nm technology node (typical):
 | Technology | Target Fmax |
 |------------|-------------|
 | Xilinx Ultrascale+ | 250 MHz |
-| Intel Agilex | 250 MHz |
+| Agilex | 250 MHz |
 | 28nm ASIC | 400 MHz |
 | 16nm ASIC | 600 MHz |
 

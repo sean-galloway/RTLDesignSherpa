@@ -31,8 +31,8 @@ Everything this spec leans on: the standards, the sibling RLB documents, the too
 
 ### Primary Standards
 
-1. **Intel 82093AA I/O Advanced Programmable Interrupt Controller (IOAPIC)**
-   - Intel Corporation
+1. **82093AA I/O Advanced Programmable Interrupt Controller (IOAPIC)**
+   - (publisher)
    - May 1996
    - Document Order Number: 290566-001
    - **Purpose:** Defines IOAPIC register layout, indirect access method, and behavior
@@ -70,9 +70,9 @@ Everything this spec leans on: the standards, the sibling RLB documents, the too
 
 ### External Resources
 
-**Intel APIC Architecture:**
-- Intel MultiProcessor Specification Version 1.4
-- Intel Architecture Software Developer's Manual (Volume 3: System Programming)
+**APIC Architecture:**
+- MultiProcessor Specification Version 1.4
+- Architecture Software Developer's Manual (Volume 3: System Programming)
 - **Relevance:** APIC system architecture, LAPIC integration, interrupt delivery
 
 **AMBA Specifications:**
@@ -108,13 +108,13 @@ APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
 
 **Evolution of PC Interrupt Controllers:**
 
-1. **Intel 8259A PIC (1976-1990s)**
+1. **8259A PIC (1976-1990s)**
    - 8 IRQ inputs, cascadable to 15
    - Fixed priority
    - Edge-triggered by default (ICW1 LTIM selects a level-triggered mode)
    - Direct memory-mapped access
 
-2. **Intel 82093AA IOAPIC (1996-present)**
+2. **82093AA IOAPIC (1996-present)**
    - 24 IRQ inputs
    - Programmable priority
    - Edge and level-triggered

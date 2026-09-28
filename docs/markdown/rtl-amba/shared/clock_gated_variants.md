@@ -417,7 +417,7 @@ constraints.
 An inferred latch feeding an AND gate on a clock net will either be rejected or produce a
 glitch-prone, unconstrained clock. For FPGA targets, either
 
-- replace `icg` with a vendor clock-enable primitive (Xilinx `BUFGCE`, Intel
+- replace `icg` with a vendor clock-enable primitive (Xilinx `BUFGCE`, Quartus
   `ALTCLKCTRL`, and equivalents), or
 - hold `cfg_cg_enable` low and use the base (non-`_cg`) module, converting the gating
   intent into ordinary clock enables that the synthesis tool can infer.

@@ -665,7 +665,7 @@ set_implementation rtl  # vs gate-level
 ```
 
 **FPGA Notes:**
-- Modern FPGAs have dedicated DSP blocks (DSP48 on Xilinx, DSP on Intel)
+- Modern FPGAs have dedicated DSP blocks (DSP48 on Xilinx, DSP on Quartus targets)
 - Synthesis tools may map Wallace tree to DSP block
 - **Check resource utilization** - may use LUTs instead of DSP if tree doesn't fit
 

@@ -20,7 +20,7 @@
 # Set FLOW to select tool-specific blocks:
 #   "asic"    - Synopsys DC / Cadence Genus
 #   "vivado"  - Xilinx Vivado
-#   "quartus" - Intel Quartus Prime
+#   "quartus" - Quartus Prime
 #
 # Override from your synthesis script BEFORE sourcing this SDC:
 #   set FLOW "vivado"
@@ -190,7 +190,7 @@ if {$FLOW eq "asic"} {
 
 } elseif {$FLOW eq "quartus"} {
     # ==================================================================
-    # Intel Quartus Prime Flow
+    # Quartus Prime Flow
     # ==================================================================
     #
     # PREREQUISITES -- set these in your .qsf file or Tcl script:

@@ -214,7 +214,7 @@
 //   - WIDTH=4: 10 XOR gates total (more complex than bin2gray)
 //   - WIDTH=8: 28 XOR gates (scales O(N^2))
 //   - Xilinx: Implements as LUT4/LUT5 with XOR functions
-//   - Intel: Implements in ALM adaptive logic
+//   - Quartus: Implements in ALM adaptive logic
 //   - Resource usage higher than bin2gray due to XOR trees
 //
 //   **Critical Path Analysis:**
@@ -323,8 +323,8 @@
 //   **Performance by FPGA Family:**
 //   - Xilinx 7-series (WIDTH=16):   ~1.0-1.5 ns
 //   - Xilinx UltraScale+ (WIDTH=16): ~0.8-1.2 ns
-//   - Intel Cyclone V (WIDTH=16):    ~1.2-1.8 ns
-//   - Intel Arria 10 (WIDTH=16):     ~0.9-1.4 ns
+//   - Cyclone V (WIDTH=16):    ~1.2-1.8 ns
+//   - Arria 10 (WIDTH=16):     ~0.9-1.4 ns
 //   - Scales with WIDTH and clock speed requirements
 //
 //   **Comparison to bin2gray:**
@@ -358,7 +358,7 @@
 //   **When to Use Vendor IP:**
 //   - For async FIFOs with pointers >16 bits wide
 //   - Vendor IP often uses specialized Gray code handling
-//   - Xilinx FIFO Generator / Intel DCFIFO:
+//   - Xilinx FIFO Generator / DCFIFO:
 //     * Optimized pointer synchronization
 //     * Built-in gray2bin/bin2gray
 //     * Better timing closure

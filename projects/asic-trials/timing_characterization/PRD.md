@@ -67,7 +67,7 @@ prevent this without distorting the results:
 |-----------|---------------|---------|
 | **LFSR-driven inputs** | 32-bit Galois LFSR feeds all FUB inputs | Prevents constant propagation |
 | **Output port routing** | Every FUB output reaches a top-level port | Prevents output pruning |
-| **Synthesis attributes** | `dont_touch` (Xilinx), `preserve` (Intel) | Prevents chain collapsing |
+| **Synthesis attributes** | `dont_touch` (Xilinx), `preserve` (Quartus) | Prevents chain collapsing |
 | **Decorrelated operands** | Second operand uses 16-bit-shifted LFSR taps | Prevents common subexpression elimination |
 
 ### 2.2 Registered Endpoints
@@ -364,7 +364,7 @@ which is the primary purpose of this design.
 |------|------|-------|
 | ASIC | Synopsys DC / Cadence Genus | Target library, operating conditions |
 | FPGA (Xilinx) | Vivado | Part number |
-| FPGA (Intel) | Quartus Prime | FAMILY, DEVICE |
+| FPGA (Quartus) | Quartus Prime | FAMILY, DEVICE |
 
 ### 7.3 Recommended Sweeps
 

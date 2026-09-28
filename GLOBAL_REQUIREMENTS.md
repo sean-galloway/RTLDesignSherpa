@@ -98,7 +98,7 @@ and never in the emitted `.sv`.
 ```systemverilog
 `ifdef XILINX
     (* ram_style = "auto" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "AUTO" */
 `endif
 logic [DATA_WIDTH-1:0] mem [DEPTH];
@@ -106,7 +106,7 @@ logic [DATA_WIDTH-1:0] mem [DEPTH];
 
 **Attributes:**
 - Xilinx: `ram_style = "auto" | "block" | "distributed" | "ultra"`
-- Intel: `ramstyle = "AUTO" | "M20K" | "MLAB" | "logic"`
+- Quartus: `ramstyle = "AUTO" | "M20K" | "MLAB" | "logic"`
 
 **Applies to:** All memory array declarations
 **Source:** `projects/components/CLAUDE.md` Rule #1

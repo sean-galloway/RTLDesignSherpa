@@ -164,8 +164,8 @@ All memory arrays (depth > 1) MUST include vendor-specific synthesis attributes:
 // REQUIRED for all memories
 `ifdef XILINX
     (* ram_style = "auto" *)  // Let Xilinx tools decide
-`elsif INTEL
-    /* synthesis ramstyle = "AUTO" */  // Let Intel tools decide
+`elsif SYNTH_PRAGMA
+    /* synthesis ramstyle = "AUTO" */  // Let the tools decide
 `endif
 logic [DATA_WIDTH-1:0] mem [DEPTH];
 ```
@@ -179,7 +179,7 @@ logic [DATA_WIDTH-1:0] mem [DEPTH];
 | `ram_style = "distributed"` | Force LUT RAM | Small memories (<32 words), need low latency |
 | `ram_style = "ultra"` | Force UltraRAM | Very large memories (Ultrascale+ only) |
 
-#### 2.2.3 Available Intel Attributes
+#### 2.2.3 Available Quartus Attributes
 
 | Attribute | Usage | When to Use |
 |-----------|-------|-------------|
@@ -211,7 +211,7 @@ logic [7:0] pipe_stage;
 FPGA synthesis attributes:
 1. **Performance** - Better memory architecture selection
 2. **Area efficiency** - Prevents logic explosion for large memories
-3. **Cross-vendor** - Works on both Xilinx and Intel FPGAs
+3. **Cross-vendor** - Works on both Xilinx and Quartus FPGAs
 4. **Predictability** - Explicit control over synthesis decisions
 
 #### 2.2.6 Examples
@@ -302,7 +302,7 @@ SRAM memory arrays MUST include:
 // Memory array with FPGA hints
 `ifdef XILINX
     (* ram_style = "auto" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "AUTO" */
 `endif
 logic [DATA_WIDTH-1:0] mem [DEPTH] = '{default:0};

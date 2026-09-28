@@ -103,14 +103,14 @@ module queue_depth #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [DATA_WIDTH-1:0] r_out_flop;
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic r_out_valid;

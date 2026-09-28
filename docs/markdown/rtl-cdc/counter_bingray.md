@@ -283,7 +283,7 @@ sync chain tight:
 
 ```systemverilog
 (* ASYNC_REG = "TRUE" *) logic [WIDTH-1:0] counter_gray; // Xilinx
-// synthesis attribute ASYNC_REG of counter_gray is "TRUE"  // Altera/Intel
+// synthesis attribute ASYNC_REG of counter_gray is "TRUE"  // Quartus
 ```
 
 Dynamic power scales with switching activity; static is minimal. Gate the clock

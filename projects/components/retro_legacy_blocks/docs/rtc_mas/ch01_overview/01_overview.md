@@ -77,7 +77,7 @@ The feature set is short. Each item below is what the RTL does as of the issue #
   software has written RTC_CONFIG again, so the counters keep counting in
   the mode they were set in — the time is still correct after a bus reset
   and `time_valid` is as it was
-- `clock_select=1` runs the counters from pclk for test. On a XILINX or INTEL
+- `clock_select=1` runs the counters from pclk for test. On a XILINX or SYNTH_PRAGMA
   target the source mux is a device glitchless cell and the select may be
   changed live; on every other target, simulation included, it is a plain
   combinational mux and the select must be changed only with `rtc_enable` low

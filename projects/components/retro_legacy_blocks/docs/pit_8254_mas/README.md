@@ -74,7 +74,7 @@ cd docs/
 
 ## References
 
-- Intel PIT_8254 datasheet
+- 8254 datasheet
 - ACPI specification (if applicable)
 - Legacy peripheral architecture specifications
 - APB protocol specification

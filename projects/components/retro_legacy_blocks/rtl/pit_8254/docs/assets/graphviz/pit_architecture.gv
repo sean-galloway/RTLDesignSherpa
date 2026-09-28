@@ -1,5 +1,5 @@
 // PIT_8254 Architecture Block Diagram
-// Purpose: Show Intel 8254-compatible PIT module hierarchy with APB interface
+// Purpose: Show 8254-compatible PIT module hierarchy with APB interface
 
 digraph pit_architecture {
     rankdir=LR;

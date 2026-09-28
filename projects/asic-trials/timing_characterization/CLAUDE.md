@@ -86,7 +86,7 @@ This file contains timing-characterization-specific guidance. For complete requi
 ```systemverilog
 `ifdef XILINX
     (* dont_touch = "true" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis preserve */
 `endif
 ```
@@ -240,7 +240,7 @@ module new_fub #(
     // Combinational logic with dont_touch
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [WIDTH-1:0] w_result;

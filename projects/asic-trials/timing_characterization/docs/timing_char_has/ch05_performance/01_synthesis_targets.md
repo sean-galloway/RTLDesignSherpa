@@ -36,8 +36,8 @@ it directly quantifies how far each FUB falls short of the target.
 |----------|----------------|------|
 | Xilinx 7-series | Artix-7 (xc7a200t), Kintex-7 (xc7k325t) | Vivado |
 | Xilinx UltraScale+ | VU9P (xcvu9p), KU15P (xcku15p) | Vivado |
-| Intel Cyclone | Cyclone 10 LP, Cyclone V | Quartus Prime |
-| Intel Stratix | Stratix 10, Agilex | Quartus Prime |
+| Cyclone | Cyclone 10 LP, Cyclone V | Quartus Prime |
+| Stratix | Stratix 10, Agilex | Quartus Prime |
 | ASIC | TSMC 28nm, GF 22nm, Samsung 14nm | DC / Genus |
 
 ## Frequency Sweep Points

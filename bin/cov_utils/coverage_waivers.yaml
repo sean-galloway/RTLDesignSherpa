@@ -407,19 +407,19 @@ waivers:
 
   - id: VS-002
     pattern: "rtl/common/simple_sram.sv"
-    lines: "ifdef XILINX / elsif INTEL attribute blocks"
+    lines: "ifdef XILINX / elsif SYNTH_PRAGMA attribute blocks"
     type: line
     category: vendor_specific
     reason: >
       FPGA synthesis attributes (ram_style, ramstyle) are gated behind
-      ifdef XILINX / elsif INTEL preprocessor guards. In Verilator
+      ifdef XILINX / elsif SYNTH_PRAGMA preprocessor guards. In Verilator
       simulation, neither vendor define is active, so these attribute
       blocks are not elaborated. The underlying memory array is still
       fully simulated and covered.
     reviewer: "sean galloway"
     date: "2025-01-15"
     status: active
-    pragma: "ifdef XILINX / elsif INTEL guards"
+    pragma: "ifdef XILINX / elsif SYNTH_PRAGMA guards"
 
   # ---------------------------------------------------------------------------
   # Reset-Only Toggle Paths

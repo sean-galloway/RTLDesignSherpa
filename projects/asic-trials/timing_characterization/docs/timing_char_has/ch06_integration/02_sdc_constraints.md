@@ -31,7 +31,7 @@ The constraint file `char_top.sdc` supports three flows via the `FLOW` variable:
 |------|------|---------------|
 | `"asic"` | Synopsys DC / Cadence Genus | Target library, operating conditions |
 | `"vivado"` | Xilinx Vivado | Part number |
-| `"quartus"` | Intel Quartus Prime | FAMILY, DEVICE in .qsf |
+| `"quartus"` | Quartus Prime | FAMILY, DEVICE in .qsf |
 
 ## Overridable Parameters
 

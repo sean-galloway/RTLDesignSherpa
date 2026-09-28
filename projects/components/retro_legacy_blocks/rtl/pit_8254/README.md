@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# Intel 8254 PIT (Programmable Interval Timer) - APB Implementation
+# 8254 PIT (Programmable Interval Timer) - APB Implementation
 
 **Status:** Mode 0 complete and defect-clean against GitHub #52
 **Priority:** High
@@ -39,13 +39,13 @@ around the GATE edge.
 
 ## Overview
 
-APB-based implementation of Intel 8254-compatible Programmable Interval Timer with 3 independent 16-bit counters.
+APB-based implementation of 8254-compatible Programmable Interval Timer with 3 independent 16-bit counters.
 
 Follows HPET 3-layer architecture pattern with PeakRDL-generated registers.
 
 ## Features
 
-- Intel 8254-compatible register interface
+- 8254-compatible register interface
 - 3 independent 16-bit counters
 - Mode 0: interrupt on terminal count, with GATE pause/resume
 - Modes 1-5: NOT implemented - the mode field is stored and reported by
@@ -229,7 +229,7 @@ apb4_pit_8254 #(
 - [ ] Modes 1-5 implementation
 - [ ] Read-back command support (control word SC = 11)
 
-## Stated deviations from the Intel 8254
+## Stated deviations from the 8254
 
 1. **Modes 1-5 do not exist.** The mode field is stored and reported; the
    counting logic has no `case (cfg_mode)`.

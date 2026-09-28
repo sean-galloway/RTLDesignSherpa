@@ -25,7 +25,7 @@
 
 ## Overview
 
-The APB Programmable Interval Timer (PIT 8254) is an Intel 8254-compatible timer peripheral for precise interval timing and event generation in embedded systems. You get 3 independent 16-bit hardware counters running Mode 0 (Interrupt on Terminal Count), sitting behind an APB interface, with optional clock domain crossing if your timer ticks in its own clock domain.
+The APB Programmable Interval Timer (PIT 8254) is an 8254-compatible timer peripheral for precise interval timing and event generation in embedded systems. You get 3 independent 16-bit hardware counters running Mode 0 (Interrupt on Terminal Count), sitting behind an APB interface, with optional clock domain crossing if your timer ticks in its own clock domain.
 
 ### Figure 1.1: APB PIT 8254 Block Diagram
 
@@ -46,7 +46,7 @@ The APB Programmable Interval Timer (PIT 8254) is an Intel 8254-compatible timer
 - **PeakRDL Integration**: Register map generated from SystemRDL specification
 - **Counter Latch**: A control word with RW=00 freezes the selected count for an atomic read, the 8254 way
 - **Status Readback**: Per-counter status including mode, RW mode, NULL_COUNT, and OUT state
-- **Control Word Programming**: Intel 8254-compatible control word format
+- **Control Word Programming**: 8254-compatible control word format
 
 ### Applications
 
@@ -77,7 +77,7 @@ The APB Programmable Interval Timer (PIT 8254) is an Intel 8254-compatible timer
 ### Design Philosophy
 
 **8254 Compatibility:**
-The PIT follows the Intel 8254 specification for control word format, counter behavior, and status readback. It is not a cycle-exact clone -- it holds functional compatibility for Mode 0 operation, and where it deviates, this document says so out loud.
+The PIT follows the 8254 specification for control word format, counter behavior, and status readback. It is not a cycle-exact clone -- it holds functional compatibility for Mode 0 operation, and where it deviates, this document says so out loud.
 
 **Modern Integration:**
 The original 8254 hangs off separate port I/O addresses. This implementation uses a unified APB register interface instead, which is what you want for modern SoC integration.
@@ -106,7 +106,7 @@ The counter loads with the programmed value and decrements on each clock. When t
 ### Waveform 1.2: Mode 2 Rate Generator (reference only - not implemented)
 
 Mode 2 on a real 8254 produces a divide-by-N clock output. This waveform is
-Intel 8254 reference behavior: the RTL implements Mode 0 only, and a control
+8254 reference behavior: the RTL implements Mode 0 only, and a control
 word selecting Mode 2 still yields Mode 0 counting (see Known Limitations).
 
 ![PIT Mode 2 Rate Generator](../assets/wavedrom/timing/pit_mode2_rate_generator.png)
@@ -141,18 +141,18 @@ On a real 8254, the readback command (SC=11) latches counter value and status
 while the counter continues running. In the delivered RTL, SC=11 is a NO-OP:
 status is always live in PIT_STATUS, and the count is latched through the
 ordinary counter-latch command instead (a control word with RW=00, released
-by the next COUNTERx_DATA read or by reprogramming the counter -- see ch05). The waveform shows the Intel
+by the next COUNTERx_DATA read or by reprogramming the counter -- see ch05). The waveform shows the
 reference behavior for the read-back command itself.
 
 ![PIT Readback](../assets/wavedrom/timing/pit_readback.png)
 
 ## Design Notes
 
-### Comparison with Intel 8254
+### Comparison with 8254
 
-The APB PIT 8254 is architecturally compatible with the Intel 8254 but has key differences:
+The APB PIT 8254 is architecturally compatible with the 8254 but has key differences:
 
-| Feature | Intel 8254 | APB PIT 8254 |
+| Feature | 8254 | APB PIT 8254 |
 |---------|-----------|----------|
 | **Interface** | Port I/O (8-bit) | AMBA APB4 (32-bit) |
 | **Counter Count** | 3 | 3 (fixed) |

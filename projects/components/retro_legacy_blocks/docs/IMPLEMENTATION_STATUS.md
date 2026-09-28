@@ -32,7 +32,7 @@
 
 ### Test Results Summary
 
-**2-Timer Intel-like (no CDC):** ALL TESTS PASS
+**2-Timer v4747 (no CDC):** ALL TESTS PASS
 - Basic: 4/4 | Medium: 5/5 | Full: 3/3
 - **Overall: 12/12 (100%)**
 
@@ -40,7 +40,7 @@
 - Basic: 4/4 | Medium: 5/5 | Full: 3/3
 - **Overall: 12/12 (100%)**
 
-**2-Timer Intel-like (CDC):** ALL TESTS PASS
+**2-Timer v4747 (CDC):** ALL TESTS PASS
 - Basic: 4/4 | Medium: 5/5 | Full: 3/3
 - **Overall: 12/12 (100%)**
 
@@ -157,10 +157,10 @@ The All Timers Stress test likely has a similar short timeout that prevents Time
 ```
 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
-test_hpet[2-32902-1-0-full-2-timer Intel-like]      PASSED
+test_hpet[2-18247-1-0-full-2-timer v4747]      PASSED
 test_hpet[3-4130-2-0-full-3-timer AMD-like]         PASSED
 test_hpet[8-43981-16-0-full-8-timer custom]         FAILED (1 stress test timeout)
-test_hpet[2-32902-1-1-full-2-timer Intel-like CDC]  PASSED
+test_hpet[2-18247-1-1-full-2-timer v4747 CDC]  PASSED
 test_hpet[3-4130-2-1-full-3-timer AMD-like CDC]     PASSED
 test_hpet[8-43981-16-1-full-8-timer custom CDC]     PASSED
 

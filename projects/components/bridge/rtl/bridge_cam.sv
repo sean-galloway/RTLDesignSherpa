@@ -83,7 +83,7 @@ module bridge_cam #(
     // Tag array: Stores transaction IDs
     `ifdef XILINX
         (* ram_style = "distributed" *)  // Small CAM uses LUT RAM
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "MLAB" */
     `endif
     logic [TAG_WIDTH-1:0] r_tag_array [DEPTH];
@@ -91,7 +91,7 @@ module bridge_cam #(
     // Data array: Stores associated metadata (master_index)
     `ifdef XILINX
         (* ram_style = "distributed" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "MLAB" */
     `endif
     logic [DATA_WIDTH-1:0] r_data_array [DEPTH];
@@ -99,7 +99,7 @@ module bridge_cam #(
     // Counter array: Stores ordering counter for duplicate tags (Mode 2 only)
     `ifdef XILINX
         (* ram_style = "distributed" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "MLAB" */
     `endif
     logic [COUNT_WIDTH-1:0] r_count_array [DEPTH];

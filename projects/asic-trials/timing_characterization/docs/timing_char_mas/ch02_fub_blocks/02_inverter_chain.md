@@ -33,7 +33,7 @@ Linear chain from input FF to output FF. Delay grows O(N) with INVERTER_COUNT. d
 ```systemverilog
 `ifdef XILINX
     (* dont_touch = "true" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis preserve */
 `endif
 logic w_chain [NUM_INVERTERS+1];

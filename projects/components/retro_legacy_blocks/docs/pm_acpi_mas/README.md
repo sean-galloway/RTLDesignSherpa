@@ -58,7 +58,7 @@ cd docs/
 
 ## References
 
-- Intel PM_ACPI datasheet
+- ACPI specification
 - ACPI specification (if applicable)
 - Legacy peripheral architecture specifications
 - APB protocol specification

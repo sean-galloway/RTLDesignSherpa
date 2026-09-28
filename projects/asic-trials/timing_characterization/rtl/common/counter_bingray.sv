@@ -175,7 +175,7 @@
 //   **Synthesis on FPGAs:**
 //   - Binary counter: Maps to FPGA carry chain logic
 //     * Xilinx: Uses CARRY4 primitives in slices
-//     * Intel: Uses carry chain in ALMs
+//     * Quartus: Uses carry chain in ALMs
 //     * Very efficient - one LUT + carry per bit
 //   - Gray code conversion: XOR tree after counter
 //     * WIDTH=8: 7 XORs (one per bit except MSB)
@@ -233,7 +233,7 @@
 //   (* SHREG_EXTRACT = "NO" *) logic [WIDTH-1:0] counter_bin;
 //   (* SHREG_EXTRACT = "NO" *) logic [WIDTH-1:0] counter_gray;
 //
-//   // Intel: Force register (usually automatic)
+//   // Quartus: Force register (usually automatic)
 //   (* preserve *) logic [WIDTH-1:0] counter_bin;
 //   (* preserve *) logic [WIDTH-1:0] counter_gray;
 //   ```
@@ -253,10 +253,10 @@
 //   - Xilinx UltraScale/UltraScale+:
 //     * WIDTH=16: ~600-700 MHz
 //     * Improved carry chain: ~0.015 ns/bit
-//   - Intel Cyclone V:
+//   - Cyclone V:
 //     * WIDTH=16: ~400-500 MHz
 //     * ALM carry: ~0.025 ns/bit
-//   - Intel Arria 10 / Stratix 10:
+//   - Arria 10 / Stratix 10:
 //     * WIDTH=16: ~500-600 MHz
 //     * HyperFlex registers can push >700 MHz
 //
@@ -311,7 +311,7 @@
 //     (see fifo_async_div2.sv)
 //
 //   **Verification on FPGA:**
-//   - Use ILA (Xilinx) or SignalTap (Intel) to capture:
+//   - Use ILA (Xilinx) or SignalTap to capture:
 //     * counter_bin vs counter_gray (verify Gray code property)
 //     * Check that only 1 bit changes in counter_gray per increment
 //     * Verify counter_bin_next = counter_bin + 1 (when enabled)
@@ -331,7 +331,7 @@
 //      → This is specialized for FIFO pointers, use counter_bin for general counting
 //
 //   **When to Use Vendor FIFO IP Instead:**
-//   - Xilinx FIFO Generator or Intel DCFIFO includes:
+//   - Xilinx FIFO Generator or DCFIFO includes:
 //     * Built-in counter_bingray equivalent
 //     * Optimized for specific FPGA architecture
 //     * Status flags (empty, full, almost_empty, almost_full)

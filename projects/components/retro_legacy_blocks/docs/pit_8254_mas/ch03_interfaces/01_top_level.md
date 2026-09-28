@@ -102,7 +102,7 @@ module apb4_pit_8254 #(
 **Counter Control and Status:**
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `gate_in[2:0]` | Input | 3 | GATE inputs for counters 0, 1, 2, active high. In Mode 0 a low GATE pauses the count where it stands and a high GATE resumes it from that value -- no reload, no restart -- as on the Intel 8254. A load is unaffected by GATE. The pins are treated as asynchronous in both clocking configurations and pass a `SYNC_STAGES`-flop synchronizer (default 2) on the counting clock, so a transition takes effect `SYNC_STAGES` counting clocks after the pin moves. No external synchronizer is needed. |
+| `gate_in[2:0]` | Input | 3 | GATE inputs for counters 0, 1, 2, active high. In Mode 0 a low GATE pauses the count where it stands and a high GATE resumes it from that value -- no reload, no restart -- as on the 8254. A load is unaffected by GATE. The pins are treated as asynchronous in both clocking configurations and pass a `SYNC_STAGES`-flop synchronizer (default 2) on the counting clock, so a transition takes effect `SYNC_STAGES` counting clocks after the pin moves. No external synchronizer is needed. |
 | `timer_irq[2:0]` | Output | 3 | Timer interrupt outputs. Driven by OUT signals from counters 0, 1, 2. High when terminal count reached (Mode 0). |
 
 ## Functional Description

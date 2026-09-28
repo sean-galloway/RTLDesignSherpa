@@ -150,11 +150,10 @@
 - **Download:** https://www.xilinx.com/support/download.html
 - **License:** Free WebPACK edition for Artix-7
 
-### Intel Quartus Prime (Alternative)
+### Quartus Prime (Alternative)
 - **Version:** 21.1 or later
 - **Target Device:** Cyclone V SX (DE10 Standard)
 - **Usage:** Alternative FPGA platform support
-- **Download:** https://www.intel.com/content/www/us/en/software/programmable/quartus-prime/download.html
 - **License:** Free Lite edition for Cyclone V
 
 ---
@@ -230,9 +229,9 @@
 
 ### Terasic DE10 Standard
 - **Product Page:** https://www.terasic.com.tw/cgi-bin/page/archive.pl?Language=English&No=1081
-- **FPGA:** Intel Cyclone V SX (5CSXFC6D6F31C6)
+- **FPGA:** Cyclone V SX (5CSXFC6D6F31C6)
 - **Resources:** 110,000 LEs, 87 DSPs, 5.5Mb memory
-- **HIVE Status:** Alternative platform (Intel toolchain)
+- **HIVE Status:** Alternative platform (Quartus toolchain)
 - **Price:** ~$300
 
 ---

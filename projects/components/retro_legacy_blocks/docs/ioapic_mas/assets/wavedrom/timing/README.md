@@ -134,4 +134,4 @@ done
 - **IOAPIC RTL:** `rtl/ioapic/apb4_ioapic.sv`
 - **IOAPIC Testbench:** `dv/tbclasses/ioapic/ioapic_tb.py`
 - **Constraint Class:** none yet for the IOAPIC (see `bin/TBClasses/wavedrom_user/hpet.py` and `apb.py` for examples)
-- **Intel IOAPIC Spec:** 82093AA I/O APIC Datasheet
+- **IOAPIC Spec:** 82093AA I/O APIC Datasheet

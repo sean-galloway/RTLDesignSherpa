@@ -410,7 +410,7 @@ endgenerate
 
 Modern FPGAs have dedicated adder resources:
 - **Xilinx**: CARRY4 primitives
-- **Intel**: Carry chain logic
+- **Quartus**: Carry chain logic
 - **Result**: Behavioral `+` often as fast as manual instantiation
 
 **Exception:** Carry-save adders and multiplier trees benefit from explicit full adder instantiation.
@@ -423,7 +423,7 @@ Modern FPGAs have dedicated adder resources:
 | Full Adder | 2 XOR + 2 AND + 1 OR |
 | N-bit Array | N full adders, carry rippling |
 
-**FPGA Note:** Modern FPGAs (Xilinx, Intel) have dedicated carry chain logic that implements full adders very efficiently — often faster than generic LUT logic.
+**FPGA Note:** Modern FPGAs (Xilinx, Quartus) have dedicated carry chain logic that implements full adders very efficiently — often faster than generic LUT logic.
 
 **When to Use Each Module**
 

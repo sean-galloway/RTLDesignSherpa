@@ -3,7 +3,7 @@
 ## Purpose
 
 Measures the speed of dedicated carry-chain resources on FPGAs. Modern FPGAs
-have fast-carry logic (CARRY4/CARRY8 on Xilinx, ALM carry on Intel) that
+have fast-carry logic (CARRY4/CARRY8 on Xilinx, ALM carry on Quartus targets) that
 runs at sub-100ps per bit -- far faster than LUT-routed equivalents.
 
 ## Parameters

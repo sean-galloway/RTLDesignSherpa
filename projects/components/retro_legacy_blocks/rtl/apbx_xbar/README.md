@@ -62,7 +62,7 @@ Default Base Address: `0xFEC0_0000` (typical HPET/legacy range)
 
 **Address decode uses bits [14:12] for 8 slaves with 4KB regions.**
 
-### Standard Intel PC Architecture Compliance
+### Standard PC Architecture Compliance
 
 This crossbar is designed to work with **two separate address regions** for maximum compatibility:
 
@@ -81,9 +81,9 @@ This crossbar is designed to work with **two separate address regions** for maxi
 
 **Region 2 - HPET Block (Separate Instance Recommended):**
 
-For true Intel PC compatibility, instantiate HPET separately:
+For true legacy PC compatibility, instantiate HPET separately:
 ```systemverilog
-// HPET at standard Intel address
+// HPET at the standard legacy address
 apb4_hpet u_hpet (
     .s_apb_PADDR(hpet_paddr[11:0]),  // Decode for 0xFED0_0000 range
     // ...

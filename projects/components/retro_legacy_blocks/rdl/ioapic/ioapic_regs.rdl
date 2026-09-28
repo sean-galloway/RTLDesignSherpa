@@ -21,7 +21,7 @@
  * 1. Write register offset to IOREGSEL (0x00)
  * 2. Read/write register data via IOWIN (0x04)
  *
- * This matches the Intel IOAPIC specification for register access.
+ * This matches the 82093AA IOAPIC specification for register access.
  *
  * Address Layout:
  *   0x00: IOREGSEL      - Register select (indirect access)

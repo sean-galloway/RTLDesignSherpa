@@ -312,12 +312,12 @@ def test_fifo_sync(request, data_width, depth, wr_clk_period, rd_clk_period, reg
     extra_env['TEST_MODE'] = mode
     extra_env['TEST_KIND'] = 'sync'
 
-    vendor_env = os.getenv("VENDOR", "").upper()  # e.g., "XILINX", "INTEL", or empty
+    vendor_env = os.getenv("VENDOR", "").upper()  # e.g., "XILINX", "QUARTUS", or empty
 
     if vendor_env == "XILINX":
         vendor_flag = "-DXILINX"
-    elif vendor_env == "INTEL":
-        vendor_flag = "-DINTEL"
+    elif vendor_env == "QUARTUS":
+        vendor_flag = "-DSYNTH_PRAGMA"
     else:
         vendor_flag = None  # no vendor flags at all
 
@@ -337,7 +337,7 @@ def test_fifo_sync(request, data_width, depth, wr_clk_period, rd_clk_period, reg
     extra_args.extend(get_coverage_compile_args())
 
     # Append AFTER the list exists. This used to run before the assignment
-    # above, so any VENDOR=XILINX/INTEL run died with "local variable
+    # above, so any VENDOR=XILINX/QUARTUS run died with "local variable
     # 'extra_args' referenced before assignment" -- and had it survived, the
     # assignment on the next line discarded the flag anyway. Nothing in CI
     # sets VENDOR, which is why it sat here.

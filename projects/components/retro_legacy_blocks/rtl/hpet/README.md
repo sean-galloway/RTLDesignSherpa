@@ -772,7 +772,7 @@ Allows single PeakRDL generation (NUM_TIMERS=8) to correctly report timer count 
 
 - **PeakRDL**: https://github.com/SystemRDL/PeakRDL-regblock
 - **SystemRDL**: https://github.com/SystemRDL/systemrdl-compiler
-- **HPET Spec**: Intel IA-PC HPET Specification (for reference, not strictly compliant)
+- **HPET Spec**: IA-PC HPET Specification (for reference, not strictly compliant)
 - **Test Documentation**: `projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py` docstrings
 
 ## Contributing

@@ -59,7 +59,7 @@ module inverter_chain #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic r_input_flop;
@@ -84,7 +84,7 @@ module inverter_chain #(
 
             `ifdef XILINX
                 (* dont_touch = "true" *)
-            `elsif INTEL
+            `elsif SYNTH_PRAGMA
                 /* synthesis preserve */
             `endif
             logic w_node;
@@ -104,7 +104,7 @@ module inverter_chain #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic r_out_flop;

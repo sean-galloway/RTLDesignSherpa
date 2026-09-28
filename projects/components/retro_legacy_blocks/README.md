@@ -260,8 +260,8 @@ WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.p
 
 **Peripheral Specifications:**
 - ACPI HPET Specification 1.0a
-- Intel 8254 Programmable Interval Timer Datasheet
-- Intel 8259A Programmable Interrupt Controller Datasheet
+- 8254 Programmable Interval Timer Datasheet
+- 8259A Programmable Interrupt Controller Datasheet
 - SMBus Specification Version 2.0
 - I2C Specification (NXP)
 - 16550 UART Datasheet

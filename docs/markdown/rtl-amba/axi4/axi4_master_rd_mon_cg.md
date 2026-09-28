@@ -480,7 +480,7 @@ For power-specific verification:
 - Tool will infer clock enables automatically
 - Verify with post-synthesis power analysis
 
-**Intel (Altera):**
+**Quartus:**
 - Drive `cfg_cg_enable=1` and let synthesis map the ICG to `ALTCLKCTRL`
 - May need vendor-specific clock gating primitives
 - Check power reports for gating effectiveness

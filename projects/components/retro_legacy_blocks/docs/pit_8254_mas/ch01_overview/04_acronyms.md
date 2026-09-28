@@ -66,7 +66,7 @@
 ### Terminology
 
 **8254 Compatibility:**
-The Intel 8254 Programmable Interval Timer is the original reference specification. APB PIT 8254 maintains functional compatibility for Mode 0 operation while adapting the interface from port I/O to APB protocol.
+The 8254 Programmable Interval Timer is the original reference specification. APB PIT 8254 maintains functional compatibility for Mode 0 operation while adapting the interface from port I/O to APB protocol.
 
 **Active-Low Reset:**
 A reset signal that performs reset when driven to logic 0. The APB PIT uses `presetn` (active-low) following standard APB convention.
@@ -90,7 +90,7 @@ Transfer of signals between two asynchronous clock domains. When `CDC_ENABLE=1`,
 A signal (`i_clk_en`) that gates counter operation without stopping the clock. When `i_clk_en=0`, counters hold their current value.
 
 **Control Word:**
-An 8-bit value written to `PIT_CONTROL` register to configure counter operation. Format follows Intel 8254 specification:
+An 8-bit value written to `PIT_CONTROL` register to configure counter operation. Format follows 8254 specification:
 ```
 [7:6] SC   - Counter Select (00=Counter 0, 01=Counter 1, 10=Counter 2)
 [5:4] RW   - Read/Write mode (00=counter latch command, 01=LSB only, 10=MSB only, 11=LSB then MSB)
@@ -102,7 +102,7 @@ An 8-bit value written to `PIT_CONTROL` register to configure counter operation.
 A 16-bit down-counter that decrements on each clock cycle when enabled. The PIT contains three independent counters (Counter 0, Counter 1, Counter 2).
 
 **GATE Input:**
-Per-counter count enable, as on the Intel 8254 in Mode 0: while `gate_in[N]` is low the counter holds its value, and when it goes high again counting resumes from that value with no reload. A load is not gated. The pin passes a SYNC_STAGES-flop synchronizer (default 2) on the counting clock, so a transition takes effect two clocks after it happens.
+Per-counter count enable, as on the 8254 in Mode 0: while `gate_in[N]` is low the counter holds its value, and when it goes high again counting resumes from that value with no reload. A load is not gated. The pin passes a SYNC_STAGES-flop synchronizer (default 2) on the counting clock, so a transition takes effect two clocks after it happens.
 
 **Interrupt on Terminal Count (Mode 0):**
 Counter operation mode where OUT signal goes high when count reaches zero, typically used to generate interrupts.

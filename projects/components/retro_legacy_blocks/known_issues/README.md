@@ -195,10 +195,10 @@ grep -r "Severity.*High" projects/components/retro_legacy_blocks/known_issues/ac
 - **Overall:** 5/6 configurations at 100%, 1 config at 92%
 
 **Configurations Tested:**
-1. 2-timer Intel-like (no CDC): 12/12 tests (100%)
+1. 2-timer v4747 (no CDC): 12/12 tests (100%)
 2. 3-timer AMD-like (no CDC): 12/12 tests (100%)
 3. 8-timer custom (no CDC): 11/12 tests (92%) - minor stress test timeout
-4. 2-timer Intel-like (CDC): 12/12 tests (100%)
+4. 2-timer v4747 (CDC): 12/12 tests (100%)
 5. 3-timer AMD-like (CDC): 12/12 tests (100%)
 6. 8-timer custom (CDC): 12/12 tests (100%)
 

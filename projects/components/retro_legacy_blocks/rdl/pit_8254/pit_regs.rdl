@@ -2,7 +2,7 @@
  * SystemRDL Definition for 8254 PIT Configuration Registers
  *
  * This specification defines the register interface for the APB 8254 PIT,
- * providing a clean APB-based interface to the classic Intel 8254
+ * providing a clean APB-based interface to the classic 8254
  * Programmable Interval Timer functionality.
  *
  * Key differences from original 8254 I/O ports:

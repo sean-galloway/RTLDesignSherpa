@@ -152,7 +152,7 @@
 <path fill="white" stroke="transparent" d="M869,-100C869,-100 630,-100 630,-100 624,-100 618,-94 618,-88 618,-88 618,-12 618,-12 618,-6 624,0 630,0 630,0 869,0 869,0 875,0 881,-6 881,-12 881,-12 881,-88 881,-88 881,-94 875,-100 869,-100"/>
 <polygon fill="lightyellow" stroke="transparent" points="618.5,-75 618.5,-100 881.5,-100 881.5,-75 618.5,-75"/>
 <polygon fill="none" stroke="black" points="618.5,-75 618.5,-100 881.5,-100 881.5,-75 618.5,-75"/>
-<text text-anchor="start" x="658" y="-84.8" font-family="Arial" font-weight="bold" font-size="14.00">Intel Indirect Access Method</text>
+<text text-anchor="start" x="658" y="-84.8" font-family="Arial" font-weight="bold" font-size="14.00">Indirect Access Method</text>
 <polygon fill="none" stroke="black" points="618.5,-50 618.5,-75 881.5,-75 881.5,-50 618.5,-50"/>
 <text text-anchor="start" x="623.5" y="-58.8" font-family="Arial" font-size="14.00">1. Write offset to IOREGSEL</text>
 <polygon fill="none" stroke="black" points="618.5,-25 618.5,-50 881.5,-50 881.5,-25 618.5,-25"/>

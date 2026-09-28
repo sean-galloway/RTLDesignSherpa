@@ -2349,7 +2349,7 @@ tstProcessSigFree4 = [{'compilerDirective': '',
 
 tstBuildStr1 = '''
 // ************************************************************************
-// Company            : Intel Corporation, Folsom, CA
+// Company            : (vendor)
 // Module Name        : dfi_pmu_intr
 // File Name          : dfi_pmu_intr.sv
 // Author             : builder.py
@@ -2555,7 +2555,7 @@ endmodule'''
 
 tstBuildStr2 = '''
 // ************************************************************************
-// Company            : Intel Corporation, Folsom, CA
+// Company            : (vendor)
 // Module Name        : dfi_mmem
 // File Name          : dfi_mmem.sv
 // Author             : builder.py
@@ -2629,7 +2629,7 @@ endmodule'''
 
 tstBuildStr3 = '''
 // ************************************************************************
-// Company            : Intel Corporation, Folsom, CA
+// Company            : (vendor)
 // Module Name        : dfi_pmu
 // File Name          : dfi_pmu.sv
 // Author             : builder.py

@@ -229,7 +229,7 @@ retro_legacy_blocks/
 To bring a block from "Structure Created" to "Production Ready":
 
 ### Phase 1: Specification
-1. Research original Intel specification
+1. Research the original specification
 2. Define register map
 3. Create SystemRDL specification in `peakrdl/`
 4. Document architecture and features

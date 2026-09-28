@@ -12,7 +12,7 @@
 """
 PIT 8254 GitHub #52 Defect-Regression Test Suite
 
-These tests encode correct Intel 8254 behaviour against GitHub issue #52
+These tests encode correct 8254 behaviour against GitHub issue #52
 (body C1 + the 2026-09-08 re-verification comment + qc round_2 + qc
 round_3), checked against `rtl/pit_8254/` as ground truth.
 

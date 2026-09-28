@@ -43,13 +43,13 @@ unused, because all outputs reach observable pins.
 
 ### Layer 3: Synthesis Attributes
 
-RTL-level `dont_touch` (Xilinx) and `preserve` (Intel) attributes are applied
+RTL-level `dont_touch` (Xilinx) and `preserve` (Quartus) attributes are applied
 to combinational chain signals:
 
 ```systemverilog
 `ifdef XILINX
     (* dont_touch = "true" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis preserve */
 `endif
 logic w_chain [NUM_GATES+1];

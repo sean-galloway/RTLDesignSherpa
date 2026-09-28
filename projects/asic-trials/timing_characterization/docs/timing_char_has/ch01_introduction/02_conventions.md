@@ -46,7 +46,7 @@ All configurable parameters use `UPPER_CASE` naming:
 
 - **Reset:** Active-low asynchronous (`rst_n`), using `ALWAYS_FF_RST` macros
 - **Clock:** Single clock domain (`clk`)
-- **Synthesis attributes:** `dont_touch` (Xilinx) / `preserve` (Intel) on chain signals
+- **Synthesis attributes:** `dont_touch` (Xilinx) / `preserve` (Quartus) on chain signals
 - **Array syntax:** `[DEPTH]` (not `[0:DEPTH-1]`)
 
 ## Document Structure

@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: apb4_pit_8254
-// Purpose: APB wrapper for Intel 8254-compatible Programmable Interval Timer
+// Purpose: APB wrapper for 8254-compatible Programmable Interval Timer
 //
 // Top-level integration module providing:
 // - APB4 slave interface

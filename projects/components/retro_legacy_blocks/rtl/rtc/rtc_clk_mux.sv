@@ -42,7 +42,7 @@
 //           departing clock's next edge, which is the case a portable
 //           handshake cannot serve. Glitchless for a live clock_select change,
 //           including when the crystal has stopped.
-//   INTEL   ALTCLKCTRL, the equivalent dedicated clock-select buffer.
+//   SYNTH_PRAGMA  ALTCLKCTRL, the equivalent dedicated clock-select buffer.
 //   default The original combinational mux, bit-for-bit. Simulation and any
 //           non-FPGA target behave exactly as before, so the DV suite sees no
 //           change and the documented rtc_enable-low constraint STILL APPLIES
@@ -77,7 +77,7 @@ module rtc_clk_mux (
         .IGNORE0 (1'b1), .IGNORE1 (1'b1),
         .S0  (~sel),     .S1  (sel)
     );
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     ALTCLKCTRL #(
         .clock_type  ("AUTO"),
         .number_of_clocks (2)

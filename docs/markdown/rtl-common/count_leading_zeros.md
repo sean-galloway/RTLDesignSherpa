@@ -476,7 +476,7 @@ assert property (clz_correctness);
 // Xilinx: Prevent SRL inference for better timing
 (* SRL_STYLE = "register" *) logic [WIDTH-1:0] data_reg;
 
-// Intel/Altera: Use specific LUT implementation
+// Quartus: Use specific LUT implementation
 // synthesis attribute LUT_SIZE of clz_func is 6;
 ```
 

@@ -144,7 +144,7 @@ Reporting them again wastes the human triage that follows you.
   signals the way the TOOL names them, not the way the RTL declares them. A
   Vivado `set_false_path` targeting `r_sync_reg[0]` is correct for an RTL
   vector `r_sync` -- `_reg` is Vivado's suffix for the flops a vector
-  infers -- while the Intel/Quartus SDC block beside it correctly writes
+  infers -- while the Quartus SDC block beside it correctly writes
   `r_sync[0]`. Neither is a phantom register. The same holds for hierarchical
   separators and escaped names. Report a constraint only if it targets a
   signal that does not exist under ANY tool convention.

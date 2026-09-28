@@ -338,7 +338,7 @@
 //   - BRAM is 18Kb (2048 bytes) or 36Kb (4608 bytes) per block
 //   - Synthesis tool (Vivado) automatically selects based on size
 //
-//   **Intel FPGAs:**
+//   **Quartus FPGAs:**
 //   - DEPTH × DATA_WIDTH ≤ 640 bits → MLAB (Memory LAB, 32×20 bits)
 //   - DEPTH × DATA_WIDTH > 640 bits → M20K (20Kb block)
 //   - Example: DEPTH=32, DATA_WIDTH=16 → 512 bits → MLAB
@@ -352,7 +352,7 @@
 //   (* ram_style = "auto" *) logic [DATA_WIDTH-1:0] mem [DEPTH-1:0];         // Let tool decide
 //   ```
 //
-//   **Forcing Memory Type (Intel):**
+//   **Forcing Memory Type (Quartus):**
 //   ```systemverilog
 //   (* ramstyle = "mlab" *) logic [DATA_WIDTH-1:0] mem [DEPTH-1:0];    // Force MLAB
 //   (* ramstyle = "M20K" *) logic [DATA_WIDTH-1:0] mem [DEPTH-1:0];    // Force M20K
@@ -396,7 +396,7 @@
 //   # set_property LOC SLICE_X10Y20 [get_cells u_fifo/u_sync_wr_ptr/r_sync_reg[0][0]]
 //   ```
 //
-//   **Timing Constraints (SDC for Intel Quartus):**
+//   **Timing Constraints (SDC for Quartus):**
 //   ```tcl
 //   # Write pointer Gray code CDC constraint
 //   set_max_delay -from [get_registers {*u_wr_ptr|counter_gray_reg[*]}] \
@@ -470,12 +470,12 @@
 //   - Distributed RAM: Fmax ~600 MHz
 //   - REGISTERED=1 mode: Fmax ~550 MHz (BRAM), ~650 MHz (distributed)
 //
-//   Intel Cyclone V:
+//   Cyclone V:
 //   - M20K-based: Fmax ~300 MHz (both clocks)
 //   - MLAB-based: Fmax ~350 MHz
 //   - Bottleneck: Synchronizer and memory access
 //
-//   Intel Arria 10 / Stratix 10:
+//   Arria 10 / Stratix 10:
 //   - M20K-based: Fmax ~400 MHz (both clocks)
 //   - MLAB-based: Fmax ~450 MHz
 //   - HyperFlex mode: Can push >500 MHz with retiming
@@ -490,7 +490,7 @@
 //
 //   **When to Use Vendor FIFO IP Instead:**
 //
-//   Use Xilinx FIFO Generator or Intel DCFIFO when:
+//   Use Xilinx FIFO Generator or DCFIFO when:
 //   GOOD: DEPTH > 1024 (vendor IP better optimized for large FIFOs)
 //   GOOD: Need built-in ECC (error correction) for BRAM
 //   GOOD: Need built-in error flags (prog_full, prog_empty with configurable thresholds)
@@ -499,7 +499,7 @@
 //   GOOD: Maximum performance required (vendor IP hand-tuned for their FPGA)
 //
 //   Use this custom fifo_async when:
-//   GOOD: Need portable code (same RTL works on Xilinx, Intel, Lattice, etc.)
+//   GOOD: Need portable code (same RTL works on Xilinx, Quartus, Lattice, etc.)
 //   GOOD: DEPTH ≤ 256 (custom FIFO is simpler and just as fast)
 //   GOOD: Educational or research project (want to understand internals)
 //   GOOD: Need fine control over CDC methodology (custom N_FLOP_CROSS, etc.)
@@ -508,12 +508,12 @@
 //
 //   **Comparison: Custom vs Vendor IP (DEPTH=256, DATA_WIDTH=32):**
 //
-//   Feature                  | Custom fifo_async | Xilinx FIFO Gen | Intel DCFIFO
+//   Feature                  | Custom fifo_async | Xilinx FIFO Gen | DCFIFO
 //   -------------------------|-------------------|-----------------|-------------
 //   Resource (LUTs)          | ~100 LUTs         | ~120 LUTs       | ~110 LUTs
 //   Resource (BRAMs)         | 1 BRAM            | 1 BRAM          | 1 M20K
 //   Fmax (typical)           | ~400 MHz          | ~450 MHz        | ~350 MHz
-//   Portability              | GOOD: Portable        | BAD:  Xilinx only   | BAD:  Intel only
+//   Portability              | GOOD: Portable        | BAD:  Xilinx only   | BAD:  DCFIFO only
 //   ECC support              | BAD:  No              | GOOD: Optional      | GOOD: Optional
 //   Data count output        | BAD:  No              | GOOD: Yes           | GOOD: Yes
 //   Prog full/empty          | GOOD: Almost flags    | GOOD: Configurable  | GOOD: Configurable
@@ -522,7 +522,7 @@
 //   Simulation speed         | GOOD: Fast (simple)   | NOTE: Slower (IP)  | NOTE: Slower (IP)
 //
 //   **Verification on FPGA:**
-//   - Use ILA (Xilinx) or SignalTap (Intel) to capture:
+//   - Use ILA (Xilinx) or SignalTap to capture:
 //     * Write pointer (binary and Gray)
 //     * Read pointer (binary and Gray)
 //     * Synchronized pointers in opposite domains
@@ -592,7 +592,7 @@
 //   set_property SHREG_EXTRACT NO [get_cells u_fifo/u_sync_*/r_sync_reg*]
 //   ```
 //
-//   Intel Quartus (QSF file):
+//   Quartus (QSF file):
 //   ```tcl
 //   # Force M20K inference
 //   set_instance_assignment -name RAMSTYLE M20K -to u_fifo|mem
@@ -877,7 +877,7 @@ module fifo_async #(
         if (MEM_STYLE == FIFO_SRL) begin : gen_srl
             `ifdef XILINX
                 (* shreg_extract = "yes", ram_style = "distributed" *)
-            `elsif INTEL
+            `elsif SYNTH_PRAGMA
                 /* synthesis ramstyle = "MLAB" */
             `endif
             logic [DATA_WIDTH-1:0] mem [DEPTH];
@@ -908,7 +908,7 @@ module fifo_async #(
         else if (MEM_STYLE == FIFO_BRAM) begin : gen_bram
             `ifdef XILINX
                 (* ram_style = "block" *)
-            `elsif INTEL
+            `elsif SYNTH_PRAGMA
                 /* synthesis ramstyle = "M20K" */
             `endif
             logic [DATA_WIDTH-1:0] mem [DEPTH];

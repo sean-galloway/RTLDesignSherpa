@@ -232,7 +232,7 @@
 //   - Xilinx: Add (* ASYNC_REG = "TRUE" *) to r_q_array declaration
 //             Prevents SRL inference, ensures dedicated FF pairs
 //             Enables timing analysis exceptions for CDC paths
-//   - Intel:  Use (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION AUTO" *)
+//   - Quartus:  Use (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION AUTO" *)
 //             Or set_instance_assignment -name SYNCHRONIZER_IDENTIFICATION ON
 //   - Lattice: Use (* syn_preserve = 1 *) to prevent optimization
 //

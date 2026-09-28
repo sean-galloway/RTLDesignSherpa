@@ -93,7 +93,7 @@ The design follows RLB architecture standards with clear functional separation:
 2. **ioapic_config_regs.sv** (Register Interface)
    - PeakRDL adapter instantiation (peakrdl_to_cmdrsp)
    - Generated register block instantiation (ioapic_regs)
-   - Special logic for Intel indirect access (IOREGSEL/IOWIN): one selector
+   - Special logic for indirect access (IOREGSEL/IOWIN): one selector
      copy (the regblock field), a decode that admits only APB 0x000 and
      0x004, and local acknowledge for every dropped access
    - Hardware interface signal mapping (hwif_in/hwif_out to core)
@@ -147,9 +147,9 @@ CPU EOI → eoi_in + eoi_vector → [pulse synchronizer if CDC_ENABLE=1] → ioa
 → Those pins re-request if still asserted; other pins were never blocked
 ```
 
-### Intel Indirect Access Method
+### Indirect Access Method
 
-The IOAPIC uses Intel's two-step indirect register access:
+The IOAPIC uses the two-step indirect register access:
 
 **Step 1: Select Internal Register**
 ```
@@ -180,7 +180,7 @@ Read/Write IOWIN (APB address 0x04):
 
 This indirect access method:
 - Reduces address space (only 2 APB registers instead of 50+)
-- Matches Intel specification for software compatibility
+- Matches the 82093AA specification for software compatibility
 - Allows 256 internal registers with 8-bit offset
 - The IOREGSEL/IOWIN routing is handwritten in ioapic_config_regs.sv
   (the regblock's IOREGSEL field is the one and only selector, a case remaps
@@ -363,7 +363,7 @@ apb4_ioapic #(
 
 **Indirect vs Direct Access:**
 - **Chosen**: Indirect access (IOREGSEL/IOWIN)
-- **Reason**: Intel 82093AA compatibility, reduced address space
+- **Reason**: 82093AA compatibility, reduced address space
 - **Cost**: Extra APB cycle per access, more complex logic
 - **Benefit**: Software portability, scalable register space
 

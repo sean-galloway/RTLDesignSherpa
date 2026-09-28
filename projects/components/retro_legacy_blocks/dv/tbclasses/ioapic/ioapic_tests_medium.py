@@ -13,7 +13,7 @@ from cocotb.triggers import ClockCycles
 """
 IOAPIC GitHub #48 Defect-Regression Test Suite
 
-These tests encode the Intel 82093AA-style IOAPIC contract that GitHub
+These tests encode the 82093AA-style IOAPIC contract that GitHub
 issue #48 (body + qc round_1/round_2/round_3 comments) found the original
 RTL did not meet: exactly one delivery per edge, per-pin Remote IRR blocking
 instead of a global in-service wait, EOI matched against the delivered

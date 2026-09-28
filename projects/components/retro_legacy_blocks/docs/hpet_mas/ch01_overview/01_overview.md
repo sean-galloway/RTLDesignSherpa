@@ -113,7 +113,7 @@ Clean module hierarchy and well-defined interfaces enable easy integration. Opti
 
 ### Comparison with IA-PC HPET
 
-The APB HPET draws architectural inspiration from the IA-PC HPET specification (Intel/Microsoft) but is **not** a drop-in replacement. Key differences:
+The APB HPET draws architectural inspiration from the IA-PC HPET specification but is **not** a drop-in replacement. Key differences:
 
 | Feature | IA-PC HPET | APB HPET |
 |---------|-----------|----------|
@@ -199,10 +199,10 @@ The design scales linearly with timer count. Each additional timer adds approxim
 
 | Configuration | Basic | Medium | Full | Overall |
 |---------------|-------|--------|------|---------|
-| 2-timer Intel-like (no CDC) | 4/4 | 5/5 | 3/3 | 12/12 |
+| 2-timer v4747 (no CDC) | 4/4 | 5/5 | 3/3 | 12/12 |
 | 3-timer AMD-like (no CDC) | 4/4 | 5/5 | 3/3 | 12/12 |
 | 8-timer custom (no CDC) | 4/4 | 5/5 | 2/3 (known issue) | 11/12 (known issue) |
-| 2-timer Intel-like (CDC) | 4/4 | 5/5 | 3/3 | 12/12 |
+| 2-timer v4747 (CDC) | 4/4 | 5/5 | 3/3 | 12/12 |
 | 3-timer AMD-like (CDC) | 4/4 | 5/5 | 3/3 | 12/12 |
 | 8-timer custom (CDC) | 4/4 | 5/5 | 3/3 | 12/12 |
 

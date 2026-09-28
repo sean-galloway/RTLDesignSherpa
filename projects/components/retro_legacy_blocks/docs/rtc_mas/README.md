@@ -76,7 +76,7 @@ cd docs/
 
 ## References
 
-- Intel RTC datasheet
+- MC146818 datasheet
 - ACPI specification (if applicable)
 - Legacy peripheral architecture specifications
 - APB protocol specification

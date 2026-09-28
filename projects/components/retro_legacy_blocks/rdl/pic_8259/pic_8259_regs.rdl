@@ -2,7 +2,7 @@
  * SystemRDL Definition for 8259 PIC Configuration Registers
  *
  * This specification defines the register interface for the APB 8259 PIC,
- * providing a clean APB-based interface to the classic Intel 8259A
+ * providing a clean APB-based interface to the classic 8259A
  * Programmable Interrupt Controller functionality.
  *
  * Key differences from original 8259A I/O address space:

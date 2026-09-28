@@ -10,7 +10,7 @@
 // Description:
 //   Parameterizable ripple-carry adder between input and output flip-flops.
 //   Used to measure carry-chain propagation delay, which tests dedicated
-//   fast-carry logic on FPGAs (CARRY4 on Xilinx, carry chain in Intel ALMs)
+//   fast-carry logic on FPGAs (CARRY4 on Xilinx, carry chain in ALMs)
 //   versus generic LUT paths.
 //
 //   Structure:
@@ -61,14 +61,14 @@ module carry_chain #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [WIDTH-1:0] r_input_a;
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [WIDTH-1:0] r_input_b;
@@ -91,7 +91,7 @@ module carry_chain #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [WIDTH:0] w_sum;
@@ -104,7 +104,7 @@ module carry_chain #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [WIDTH:0] r_out_flops;

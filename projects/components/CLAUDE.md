@@ -95,7 +95,7 @@ Rationale: `vault/handbook/design/reset-and-clocking.md`.
 // Standard pattern for SRAM buffers (common in datapaths)
 `ifdef XILINX
     (* ram_style = "auto" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "AUTO" */
 `endif
 logic [DATA_WIDTH-1:0] sram_buffer [DEPTH];
@@ -103,7 +103,7 @@ logic [DATA_WIDTH-1:0] sram_buffer [DEPTH];
 // Small FIFOs - prefer distributed RAM
 `ifdef XILINX
     (* ram_style = "distributed" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "MLAB" */
 `endif
 logic [31:0] small_fifo [16];

@@ -323,7 +323,7 @@ set_max_delay -from [get_clocks i_src_clk] -to [get_pins -hierarchical *r_sync_r
 set_property ASYNC_REG TRUE [get_cells -hierarchical *r_sync_reg*]
 ```
 
-Timing constraints (Intel SDC):
+Timing constraints (Quartus SDC):
 
 ```tcl
 # Set false path for CDC

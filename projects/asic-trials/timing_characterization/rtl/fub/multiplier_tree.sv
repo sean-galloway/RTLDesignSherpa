@@ -76,14 +76,14 @@ module multiplier_tree #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [WIDTH-1:0] r_input_a;
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [WIDTH-1:0] r_input_b;
@@ -104,7 +104,7 @@ module multiplier_tree #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [2*WIDTH-1:0] w_product;
@@ -250,7 +250,7 @@ module multiplier_tree #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [2*WIDTH-1:0] r_out_flops;

@@ -58,7 +58,7 @@
 // ---------------------------------------------------------------------------
 // Synchronizer flops are marked (* ASYNC_REG = "TRUE" *) so Xilinx Vivado
 // keeps them in the same slice and back-annotates them for MTBF analysis.
-// Altera/Intel uses the equivalent /* synthesis preserve = 1 */ attribute -
+// Quartus uses the equivalent /* synthesis preserve = 1 */ attribute -
 // both are applied below.
 
 `timescale 1ns / 1ps

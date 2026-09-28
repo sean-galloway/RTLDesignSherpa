@@ -116,13 +116,13 @@ module axi_response_delay #(
     // compare, so it stays distributed RAM.
     `ifdef XILINX
         (* ram_style = "block" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "M20K" */
     `endif
     logic [DATA_WIDTH-1:0] r_data [CAPACITY];
     `ifdef XILINX
         (* ram_style = "distributed" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "MLAB" */
     `endif
     logic [CYC_W-1:0]      r_tin  [CAPACITY];

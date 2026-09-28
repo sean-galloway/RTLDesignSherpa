@@ -25,7 +25,7 @@
 
 ## Overview
 
-Forget the legacy two-port, A0-based interface of the original Intel 8259A --
+Forget the legacy two-port, A0-based interface of the original 8259A --
 this block doesn't have one. What you get is a fully-decoded, 32-bit-aligned
 APB register file: each ICW/OCW and every status register sits at its own
 dedicated offset, with no A0 pin and no OCW3 read-select multiplexing. The one

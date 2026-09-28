@@ -333,7 +333,7 @@ the state.
 
 With `KEEP_ATTRS = 1` (the default) the chain carries `ASYNC_REG = "TRUE"` and
 `SHREG_EXTRACT = "NO"` for Xilinx, `altera_attribute` forcing synchronizer
-identification for Intel, and `syn_preserve` for Synplify. These do two jobs:
+identification for Quartus, and `syn_preserve` for Synplify. These do two jobs:
 they stop the tool from packing the chain into an SRL primitive — which would
 quietly destroy your metastability margin — and they let CDC reports recognize
 it as a synchronizer. Set `KEEP_ATTRS = 0` only if your flow objects to the

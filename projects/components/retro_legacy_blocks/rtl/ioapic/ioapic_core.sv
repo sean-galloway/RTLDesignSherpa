@@ -25,7 +25,7 @@
  *
  * DESCRIPTION:
  *   Core I/O Advanced Programmable Interrupt Controller logic implementing
- *   Intel 82093AA-compatible interrupt routing and distribution:
+ *   82093AA-compatible interrupt routing and distribution:
  *   - NUM_IRQS interrupt input pins with programmable redirection
  *   - Edge and level trigger detection
  *   - Active high/low polarity handling

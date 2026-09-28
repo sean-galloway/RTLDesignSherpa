@@ -1416,7 +1416,6 @@ typedef struct packed {
 
 ### DMA Architecture
 
-9. [Intel DMA Descriptors](https://www.intel.com/content/www/us/en/docs/programmable/683821/22-1/descriptors.html) - PCIe DMA linked lists
 10. [DMA330 Microcode](https://www.systemonchips.com/implementing-linked-list-dma-transfers-with-dma330-microcode/) - Linked-list implementation
 
 ### Neural Network Accelerators

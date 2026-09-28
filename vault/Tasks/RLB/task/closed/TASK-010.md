@@ -31,7 +31,7 @@ durable lessons are in the handbook: [[cdc]] Rules 1-7 and
   entry named the real answer, a device-specific cell, and `rtc_clk_mux` is it:
   BUFGCTRL with IGNORE0/IGNORE1 on XILINX (the IGNOREs are the point -- they
   complete the switch without waiting for the departing clock's edge, which is
-  the stopped-crystal case), ALTCLKCTRL on INTEL, and the original expression
+  the stopped-crystal case), ALTCLKCTRL on SYNTH_PRAGMA, and the original expression
   bit for bit everywhere else.
 
   The fallback is deliberately IDENTICAL rather than improved: one that quietly

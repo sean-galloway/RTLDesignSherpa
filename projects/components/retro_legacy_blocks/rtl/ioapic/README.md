@@ -31,7 +31,7 @@
 
 ## Overview
 
-Intel 82093AA-compatible interrupt router: 24 IRQ inputs, a programmable
+82093AA-compatible interrupt router: 24 IRQ inputs, a programmable
 redirection table reached through the IOREGSEL/IOWIN indirect window, and a
 single valid/ready delivery interface to the CPU/LAPIC.
 

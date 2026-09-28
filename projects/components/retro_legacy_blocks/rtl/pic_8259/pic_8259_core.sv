@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: pic_8259_core
-// Purpose: Intel 8259A-compatible interrupt controller core, 8 IRQ inputs
+// Purpose: 8259A-compatible interrupt controller core, 8 IRQ inputs
 //
 // Parameters:
 //   - SYNC_STAGES: irq_in synchronizer depth, >= 2. Default 2.

@@ -78,7 +78,7 @@ cd docs/
 
 ### Reference Documents
 
-- Intel IOAPIC datasheet
+- IOAPIC datasheet
 - ACPI specification (if applicable)
 - Legacy peripheral architecture specifications
 - APB protocol specification

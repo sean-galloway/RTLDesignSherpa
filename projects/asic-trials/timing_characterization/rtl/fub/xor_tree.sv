@@ -65,7 +65,7 @@ module xor_tree #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic [ACTUAL_FLOPS-1:0] r_input_flops;
@@ -93,7 +93,7 @@ module xor_tree #(
 
             `ifdef XILINX
                 (* dont_touch = "true" *)
-            `elsif INTEL
+            `elsif SYNTH_PRAGMA
                 /* synthesis preserve */
             `endif
             logic w_node;
@@ -119,7 +119,7 @@ module xor_tree #(
 
     `ifdef XILINX
         (* dont_touch = "true" *)
-    `elsif INTEL
+    `elsif SYNTH_PRAGMA
         /* synthesis preserve */
     `endif
     logic r_out_flop;

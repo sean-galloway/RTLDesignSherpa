@@ -27,12 +27,12 @@
 
 ### Register Access Method
 
-The IOAPIC uses **indirect register access** following Intel 82093AA specification:
+The IOAPIC uses **indirect register access** following 82093AA specification:
 
 1. **Write to IOREGSEL** (APB address 0x00): Select internal register offset
 2. **Access IOWIN** (APB address 0x04): Read or write selected register data
 
-Two transactions for every internal register access. Yes, it's clunky. Yes, it's what Intel software expects, and that's the point.
+Two transactions for every internal register access. Yes, it's clunky. Yes, it's what legacy PC software expects, and that's the point.
 
 ## Functional Description
 

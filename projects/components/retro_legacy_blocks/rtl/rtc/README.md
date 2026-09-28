@@ -427,7 +427,7 @@ RTL and `rtc_regmap.py` are generated from.
 
 ## Known limitations
 
-- `selected_clk` comes from `rtc_clk_mux` (RLB TASK-010, was RLB-010). On a XILINX or INTEL
+- `selected_clk` comes from `rtc_clk_mux` (RLB TASK-010, was RLB-010). On a XILINX or SYNTH_PRAGMA
   target it is a device glitchless cell -- BUFGCTRL with `IGNORE0`/`IGNORE1`,
   or ALTCLKCTRL -- and `RTC_CONFIG.clock_select` may be changed live. On every
   other target, simulation included, it is the original combinational mux and

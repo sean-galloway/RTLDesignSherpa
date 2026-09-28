@@ -191,7 +191,7 @@ async def ioapic_test(dut):
 def generate_test_params():
     """Generate test parameter combinations for IOAPIC configurations
 
-    Note: IOAPIC RTL has fixed 24-IRQ architecture (like Intel 82093AA).
+    Note: IOAPIC RTL has fixed 24-IRQ architecture (like 82093AA).
     NUM_IRQS parameter is not fully supported in current RTL.
     """
 
@@ -237,7 +237,7 @@ def test_ioapic(request, cdc_enable, test_level, description):
     )
 
     # RTL parameters - only CDC_ENABLE is parameterized
-    # NUM_IRQS is fixed at 24 in the RTL (like Intel 82093AA)
+    # NUM_IRQS is fixed at 24 in the RTL (like 82093AA)
     rtl_parameters = {
         'CDC_ENABLE': str(cdc_enable),
     }
@@ -296,7 +296,7 @@ def test_ioapic(request, cdc_enable, test_level, description):
     cdc_mode = "CDC enabled (async clocks)" if cdc_enable else "No CDC (same clock)"
     print(f"\n{'='*80}")
     print(f"Running {test_level.upper()} IOAPIC test: {description}")
-    print(f"Configuration: 24 IRQs with redirection table (fixed, like Intel 82093AA)")
+    print(f"Configuration: 24 IRQs with redirection table (fixed, like 82093AA)")
     print(f"Clock domain: {cdc_mode}")
     print(f"{'='*80}")
 

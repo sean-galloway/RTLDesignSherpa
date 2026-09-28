@@ -133,7 +133,7 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 **Address:** `0x4000_1000 - 0x4000_1FFF` (4KB window)
 
 **Planned Features:**
-- Intel 8259A-compatible register interface
+- 8259A-compatible register interface
 - 8 interrupt request (IRQ) inputs
 - Cascadable (master/slave configuration)
 - Priority resolver (fixed and rotating priority)
@@ -157,7 +157,7 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 **Address:** `0x4000_2000 - 0x4000_2FFF` (4KB window)
 
 **Planned Features:**
-- Intel 8254-compatible register interface
+- 8254-compatible register interface
 - 3 independent 16-bit counters
 - 6 programmable counter modes
 - Binary and BCD counting
@@ -609,7 +609,7 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tb imp
 ```systemverilog
 `ifdef XILINX
     (* ram_style = "auto" *)
-`elsif INTEL
+`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "AUTO" */
 `endif
 logic [DATA_WIDTH-1:0] mem [DEPTH];

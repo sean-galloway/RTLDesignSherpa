@@ -27,13 +27,13 @@
 
 ### Introduction
 
-The APB I/O Advanced Programmable Interrupt Controller (IOAPIC) is the interrupt router you reach for when a plain 8259 won't cut it: 24 programmable interrupt inputs, flexible redirection to multiple CPUs, and both edge and level-triggered modes. Register access is Intel 82093AA-compatible (the IOREGSEL/IOWIN indirect dance), and the bus side is a standard AMBA APB4 interface, so it drops into the RLB architecture without any special pleading.
+The APB I/O Advanced Programmable Interrupt Controller (IOAPIC) is the interrupt router you reach for when a plain 8259 won't cut it: 24 programmable interrupt inputs, flexible redirection to multiple CPUs, and both edge and level-triggered modes. Register access is 82093AA-compatible (the IOREGSEL/IOWIN indirect dance), and the bus side is a standard AMBA APB4 interface, so it drops into the RLB architecture without any special pleading.
 
 ### Key Features
 
 - **24 Independent IRQ Inputs**: IRQ0-IRQ23 with individual configuration per interrupt source
 - **Programmable Redirection Table**: 64-bit entry per IRQ defining vector, mode, destination, trigger, polarity
-- **Indirect Register Access**: Intel-compatible IOREGSEL/IOWIN mechanism for register access
+- **Indirect Register Access**: 82093AA-compatible IOREGSEL/IOWIN mechanism for register access
 - **Dual Trigger Modes**: 
   - **Edge-triggered**: Latches interrupt on signal edge, delivered exactly
     once per edge - the pending latch clears on the CPU's accept, and a new
@@ -47,7 +47,7 @@ The APB I/O Advanced Programmable Interrupt Controller (IOAPIC) is the interrupt
 - **APB Interface**: Standard AMBA APB4 compliant with 12-bit addressing
 - **Clock Domain Crossing**: Optional CDC support via CDC_ENABLE parameter 
 - **PeakRDL Integration**: Register map generated from SystemRDL specification
-- **Intel 82093AA Compatible**: Register layout and behavior match Intel specification
+- **82093AA Compatible**: Register layout and behavior match the 82093AA specification
 
 ### Applications
 
@@ -79,8 +79,8 @@ The APB I/O Advanced Programmable Interrupt Controller (IOAPIC) is the interrupt
 
 ### Design Philosophy
 
-**Intel Compatibility:**
-The IOAPIC implements the Intel 82093AA indirect register access method (IOREGSEL/IOWIN) for compatibility with existing software. This allows software written for Intel chipsets to work with minimal modifications.
+**Software Compatibility:**
+The IOAPIC implements the 82093AA indirect register access method (IOREGSEL/IOWIN) for compatibility with existing software. This allows software written for legacy PC chipsets to work with minimal modifications.
 
 **Flexibility:**
 Each of the 24 IRQ inputs can be independently configured for trigger mode (edge/level), polarity (active-high/low), delivery mode, destination CPU, and interrupt vector. This flexibility supports diverse system architectures.
@@ -98,7 +98,7 @@ Each of the 24 IRQ inputs can be independently configured for trigger mode (edge
 **Standards Compliance:**
 - **APB Protocol**: Full AMBA APB4 specification compliance
 - **PeakRDL**: Industry-standard SystemRDL for register generation
-- **Intel 82093AA**: Register layout and access method compatibility
+- **82093AA**: Register layout and access method compatibility
 - **Reset Convention**: mixed -- hand-written logic uses active-low
   asynchronous reset; the generated ioapic_regs.sv resets SYNCHRONOUSLY
   (active-high, derived from the reset input)
@@ -106,11 +106,11 @@ Each of the 24 IRQ inputs can be independently configured for trigger mode (edge
 **Modularity:**
 Clean separation between interrupt routing logic (ioapic_core), register interface (ioapic_config_regs), and bus interface (apb4_ioapic) enables easy customization and integration.
 
-### Comparison with Intel 82093AA IOAPIC
+### Comparison with 82093AA IOAPIC
 
-The APB IOAPIC draws directly from the Intel 82093AA I/O APIC specification with RLB architecture enhancements:
+The APB IOAPIC draws directly from the 82093AA I/O APIC specification with RLB architecture enhancements:
 
-| Feature | Intel 82093AA | APB IOAPIC |
+| Feature | 82093AA | APB IOAPIC |
 | --- | --- | --- |
 | **Interface** | Memory-mapped | AMBA APB4 |
 | **Register Access** | Indirect (IOREGSEL/IOWIN) | Indirect (IOREGSEL/IOWIN) — Same |
@@ -152,7 +152,7 @@ The APB IOAPIC draws directly from the Intel 82093AA I/O APIC specification with
 - Modern SystemVerilog coding practices
 - Comprehensive validation framework
 
-### Intel 82093AA Register Compatibility
+### 82093AA Register Compatibility
 
 **Direct APB Registers:**
 - `0x00`: IOREGSEL - Register offset selector
@@ -171,7 +171,7 @@ Each redirection entry is 64 bits:
 - **LO register**: Vector, delivery mode, dest mode, polarity, trigger, mask, status fields
 - **HI register**: Destination CPU APIC ID
 
-This matches Intel's specification exactly for software compatibility.
+This matches the 82093AA specification exactly for software compatibility.
 
 ## Timing
 
@@ -197,7 +197,7 @@ This matches Intel's specification exactly for software compatibility.
 - BRAM: None (all logic-based)
 
 **Scalability:**
-Fixed 24 IRQ inputs per Intel specification. For more IRQs, use multiple IOAPIC instances with different APIC IDs.
+Fixed 24 IRQ inputs per the 82093AA specification. For more IRQs, use multiple IOAPIC instances with different APIC IDs.
 
 ## Waveforms
 
@@ -319,13 +319,13 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 - `vault/Tasks/RLB/closed.md` - RLB TASK-008 (was RLB-008), the IOAPIC feature arc (closed)
 - `../../rtl/ioapic/README.md` - Register generation guide
 - `../../../../../../vault/Tasks/RLB/RLB_STATUS_AND_ROADMAP.md` - System-wide planning
-- Intel 82093AA I/O APIC Datasheet
+- 82093AA I/O APIC Datasheet
 
 ## Navigation
 
 This specification document is organized as follows:
 
-- **Chapter 1 (this chapter)**: Overview, features, applications, Intel compatibility
+- **Chapter 1 (this chapter)**: Overview, features, applications, software compatibility
 - **Chapter 2**: Detailed block specifications (ioapic_core, config_regs, PeakRDL integration)
 - **Chapter 3**: Interface specifications (APB, indirect access, IRQ, EOI)
 - **Chapter 4**: Programming model (initialization, redirection table, edge/level handling)

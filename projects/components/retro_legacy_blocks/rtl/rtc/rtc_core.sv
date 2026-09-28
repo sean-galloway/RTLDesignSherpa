@@ -316,7 +316,7 @@
 //     setting the clock to the alarm time arms the alarm for the next time
 //     the counter REACHES that value, one full second later at the earliest.
 //   - `selected_clk` comes from rtc_clk_mux (RLB TASK-010, was RLB-010), which resolves per
-//     target. On XILINX/INTEL it is a device glitchless cell (BUFGCTRL with
+//     target. On XILINX/SYNTH_PRAGMA it is a device glitchless cell (BUFGCTRL with
 //     IGNORE0/IGNORE1, or ALTCLKCTRL) and a live RTC_CONFIG.clock_select
 //     change is safe, including away from a stopped crystal. On every other
 //     target -- simulation included -- it is the original combinational mux
@@ -728,7 +728,7 @@ module rtc_core #(
     // mux that makes the counter clock.
     //
     // The mux is rtc_clk_mux (RLB TASK-010, was RLB-010), which resolves to a device glitchless
-    // cell under XILINX/INTEL and to the original combinational expression
+    // cell under XILINX/SYNTH_PRAGMA and to the original combinational expression
     // otherwise. On the DEFAULT branch nothing about the hazard has changed,
     // so the "change clock_select only with rtc_enable low" constraint below
     // still applies there; a device branch removes it. The constraint text is

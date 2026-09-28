@@ -31,7 +31,7 @@
 
 ## Overview
 
-Intel 8259A-compatible Programmable Interrupt Controller with APB interface. Provides prioritized interrupt management with 8 IRQ inputs, cascade support for multi-level systems, and comprehensive priority control modes.
+8259A-compatible Programmable Interrupt Controller with APB interface. Provides prioritized interrupt management with 8 IRQ inputs, cascade support for multi-level systems, and comprehensive priority control modes.
 
 ## Features
 
@@ -383,7 +383,7 @@ rotation of the level index, not a reflection - with base = 3 the order is
 
 ## References
 
-- Intel 8259A Datasheet
+- 8259A Datasheet
 - IBM PC/AT Technical Reference
 - AMBA APB Protocol Specification
 
