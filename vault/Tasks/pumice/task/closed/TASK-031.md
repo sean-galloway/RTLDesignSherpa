@@ -35,3 +35,5 @@ over `git ls-files` returns nothing under pumice paths.
 instead of a raw `rm -rf local_sim_build` -- the last one in the repo. Landed
 with the rest of that branch; char-framework board gate 216 passed, 2 xfailed
 against it.
+
+> Branch `tooling-pumice-halves` was DELETED 2026-09-28 at Sean's request (never pushed; the pumice session did the work on main directly, so the branch was redundant). References to it above are historical.

@@ -125,3 +125,5 @@ verdict, and the invariant checker that fails the run when a relation excludes
 nothing or everything) and item 5's promotion to `bin/kmaps/` with a
 parameterised citation gate. The acceptance line ("a workbook where every map
 states...") is per component and lives on the two items above.
+
+> Branch `tooling-pumice-halves` was DELETED 2026-09-28 at Sean's request (never pushed; the pumice session did the work on main directly, so the branch was redundant). References to it above are historical.
