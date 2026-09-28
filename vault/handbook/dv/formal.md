@@ -1,6 +1,6 @@
 ---
 title: Formal
-summary: sv2v/SBY flow; in-RTL properties; mutation rule; vacuity traps.
+summary: sv2v/SBY flow; in-RTL properties; mutation rule; vacuity traps; solver choice.
 ---
 
 # Formal (SymbiYosys via sv2v)
@@ -344,3 +344,65 @@ simulators never complain, so the formal build is where it surfaces. Rule:
 per-slot storage that is read with a variable index is a PACKED array
 (`logic [N-1:0][W-1:0]`), and a function that needs a whole table takes it
 packed. The RTL is identical hardware; only the flat file changes.
+
+## A bound on one input can make a property about another vacuous (2026-09-28)
+
+`formal/pumice/global_timers` proves five JEDEC windows. One of them, tFAW,
+passed a mutation that broke the tFAW logic outright -- every ACT installed into
+slot 0, so the other three slots never fill and the sliding window never closes.
+Nothing caught it.
+
+The cause was not the property and not the RTL. It was the range assumed for a
+DIFFERENT input. tRRD already spaces the ACTs: one ACT reloads tRRD, the
+readiness flop needs another cycle to catch up, so the minimum achievable
+ACT-to-ACT spacing is 3. Four ACTs therefore span at least 9 cycles and the
+fifth arrives 12 cycles after the first -- so **any `t_faw` at or below 12 is
+satisfied by tRRD alone, whatever the tFAW logic does.** The assumed range was
+2..10. The property was checking tRRD twice and tFAW not at all.
+
+This is a vacuity the usual checks do not see:
+
+- **Cover points do not catch it.** `c_fifth_act` was reachable and reached, so
+  the antecedent fired -- the property was exercised. It was simply implied.
+- **`design.log` cell counts do not catch it** (see the section above).
+- **Only the mutation caught it**, and only because the mutation targeted the
+  logic the property names rather than something adjacent.
+
+THE HINT WAS THERE EARLIER AND WAS EXPLAINED AWAY. At the first ceiling (6),
+`c_faw_blocks` -- "the block actually refuses an ACT" -- was UNREACHABLE. That
+was recorded as "the bound is too small for the constraint to bind" and the
+bound was raised just far enough to make the cover reachable. The right reading
+is stronger: **an unreachable cover on the blocking condition means the
+constraint is not binding, which means the property that depends on it is being
+carried by something else.** Raise the bound past the point where the OTHER
+constraints stop implying it, not to the point where the cover first goes green.
+
+Practical rule: for every spacing or capacity property, work out what the other
+assumed ranges already guarantee, and set this input's range strictly beyond it.
+If you cannot make the mutation of the named logic fail, the property is not
+about that logic yet.
+
+Related: the "Mutate the PROPERTIES, not just the RTL" section above is about a
+mutation passing because the term was redundant IN THE RTL. This is the other
+direction: the term is load-bearing in the RTL, and the PROOF's own assumptions
+made it unobservable.
+
+## Pick the solver for the state, not by habit (2026-09-28)
+
+`formal/pumice/rd_return_ring` carries a real BRAM array (`DEPTH*BEATS` words)
+plus a `gaxi_fifo_sync` and an anyconst pair indexing that array. With
+`smtbmc z3` it reached step 17 and then took 3m48s for step 18, on a run whose
+depth was 28 -- it was never going to finish. With `smtbmc bitwuzla`, same
+design, same depth, same properties: **14 seconds total.**
+
+Nothing was wrong with the proof; z3 is simply poor at bit-vector BMC over
+arrays compared with the bitwuzla/boolector line. All of z3, boolector,
+bitwuzla, yices, cvc5 and btormc are installed in the oss-cad-suite here.
+
+When a proof's per-step time starts climbing steeply, change the engine before
+weakening the property or cutting the depth -- those are real losses of
+coverage, and the engine swap is free. Splitting one task into two (the
+expensive family separate from the cheap one, via `chparam` in the `.sby`) is
+the next lever, and also costs no coverage: an area Makefile must then run BOTH
+safety tasks from its `prove` target, or the split silently drops the expensive
+family from every area-level run.
