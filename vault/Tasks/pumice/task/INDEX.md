@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-017** — never recycle a number, even when its item closed.
+**Next ID: TASK-029** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -12,25 +12,39 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 11 | done (kept for history) |
-| [dropped/](dropped/) | 2 | ended without completing |
+| [closed/](closed/) | 23 | done (kept for history) |
+| [dropped/](dropped/) | 4 | ended without completing |
+| [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-000** — TEMPLATE — copy this file, never file against it
-- **TASK-014** — the adaptive page modes need a disposition: retire mode 4
-  (it IS fixed_open(tr_min)), re-plumb mode 5's verdict to the background
-  precharge, and add predictor observability first
 - **TASK-015** — test the DUT across configurations: 4-layer plan (reset-parity
   gate, pairwise covering array x gap, invariant oracles, seeded soak) with a
   reportable 2-way coverage number
+
+## Closed
+
+- **TASK-028** (was `PUMICE-KMAP`) — real K-maps for the scheduler, CAMs and DFI layer
+- **TASK-017** (was `PUMICE-005`) — Board reads WORK: validated tuple + honest measurement
+- **TASK-018** (was `PUMICE-007`) — Retire the deskew RTL + PHY_TIMING.deskew_lo/hi CSR
+- **TASK-020** (was `PUMICE-009`) — Generic AXI data-width gearing
+- **TASK-021** (was `PUMICE-010`) — Single-register AXI-address -> {bank,row,col} mapping
+- **TASK-022** (was `PUMICE-011`) — Full LPDDR2 mode-register init
+- **TASK-023** (was `PUMICE-014`) — retire ALL hand-poking of valid/ready interfaces in pumice DV
+- **TASK-024** (was `PUMICE-015`) — greppable structure trackers (CAMs / page policy / refresh / scheduler)
+- **TASK-026** (was `PUMICE-022`) — board validation: WRITE TARGET MET (570 MB/s), READ CEILING FOUND
+- **TASK-027** (was `PUMICE-026`) — finish the LiteDRAM same-harness A/B (it is already ~80% built)
+
 - **TASK-016** — nothing checks the DDR2 init sequence for JEDEC legality;
   the matrix excludes it because the init waits are shortened for sim, so
   init command order/content is unverified at every level
 
-## Closed
+- **TASK-014** — the adaptive page modes need a disposition: retire mode 4
+  (it IS fixed_open(tr_min)), re-plumb mode 5's verdict to the background
+  precharge, and add predictor observability first
 
 - **TASK-013** — page-policy campaign: closing pages early is worth up to +41.2%
   and the mechanism is the background precharge, not a predictor. Mode 4 is
@@ -54,6 +68,9 @@ exactly one state by construction rather than by discipline.
   compliant, and the gate it was deferred behind no longer applied
 
 ## Dropped
+
+- **TASK-019** (was `PUMICE-008`) — Per-beat DFI read deskew
+- **TASK-025** (was `PUMICE-016`) — adopt axi4_intf_master_observer (APB-configured) for perf observation
 
 - **TASK-003** — was a RULE filed as a task; moved to
   `vault/handbook/dv/running-regressions.md`

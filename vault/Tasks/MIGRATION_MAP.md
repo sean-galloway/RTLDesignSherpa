@@ -238,3 +238,65 @@ The flat per-state pages were split into one-file-per-item on 2026-09-27. Legacy
 | amba | `TASK-096` | bug/closed | `BUG-026` |
 | amba | `TASK-077` | bug/closed | `BUG-014` |
 | amba | `AMBA-PRD` | task/dropped | `TASK-040` |
+| pumice | `PUMICE-001` | bug/closed | `BUG-004` |
+| pumice | `PUMICE-002` | bug/closed | `BUG-005` |
+| pumice | `PUMICE-003` | bug/closed | `BUG-006` |
+| pumice | `PUMICE-004` | bug/closed | `BUG-007` |
+| pumice | `PUMICE-005` | task/closed | `TASK-017` |
+| pumice | `PUMICE-007` | task/closed | `TASK-018` |
+| pumice | `PUMICE-008` | task/dropped | `TASK-019` |
+| pumice | `PUMICE-009` | task/closed | `TASK-020` |
+| pumice | `PUMICE-010` | task/closed | `TASK-021` |
+| pumice | `PUMICE-011` | task/closed | `TASK-022` |
+| pumice | `PUMICE-012` | bug/closed | `BUG-008` |
+| pumice | `PUMICE-014` | task/closed | `TASK-023` |
+| pumice | `PUMICE-015` | task/closed | `TASK-024` |
+| pumice | `PUMICE-016` | task/dropped | `TASK-025` |
+| pumice | `PUMICE-017` | issue/closed | `ISSUE-005` |
+| pumice | `PUMICE-019` | bug/closed | `BUG-009` |
+| pumice | `PUMICE-020` | bug/closed | `BUG-010` |
+| pumice | `PUMICE-021` | issue/closed | `ISSUE-006` |
+| pumice | `PUMICE-022` | task/closed | `TASK-026` |
+| pumice | `PUMICE-024` | issue/closed | `ISSUE-007` |
+| pumice | `PUMICE-025` | bug/closed | `BUG-011` |
+| pumice | `PUMICE-026` | task/closed | `TASK-027` |
+| pumice | `PUMICE-027` | bug/closed | `BUG-012` |
+| pumice | `PUMICE-028` | issue/closed | `ISSUE-008` |
+| pumice | `PUMICE-031` | bug/closed | `BUG-013` |
+| pumice | `PUMICE-032` | issue/closed | `ISSUE-009` |
+| pumice | `PUMICE-033` | issue/dropped | `ISSUE-010` |
+| pumice | `PUMICE-036` | issue/closed | `ISSUE-011` |
+| pumice | `PUMICE-037` | bug/closed | `BUG-014` |
+| pumice | `PUMICE-038` | bug/dropped | `BUG-015` |
+| pumice | `PUMICE-040` | issue/closed | `ISSUE-012` |
+| pumice | `PUMICE-041` | bug/closed | `BUG-016` |
+| pumice | `PUMICE-042` | bug/closed | `BUG-017` |
+| pumice | `PUMICE-043` | bug/closed | `BUG-018` |
+| pumice | `PUMICE-044` | issue/dropped | `ISSUE-013` |
+| pumice | `PUMICE-KMAP` | task/closed | `TASK-028` |
+
+## pumice, 2026-09-27 -- the 35 historical flat items
+
+pumice was HYBRID until now: its three lanes already held one-file-per-item for
+everything still live, while `PUMICE-NNN` history sat in flat `closed.md` /
+`dropped.md` at the area root. The area INDEX explicitly promised that any
+`PUMICE-NNN` not already in its rename table "stays where it is, in the flat
+closed.md / dropped.md", so that promise is retired by this migration and the
+rows above replace it.
+
+**The legacy IDs were NOT rewritten at their call sites**, and that is a
+deliberate departure in scale rather than in kind. `PUMICE-NNN` is cited 533
+times across the repo (346 in `.md`, 148 in `.py`, 37 in `.sv`, 2 in `.rdl`) --
+RTL comments, DV code, handbook notes, board-measurement records and session
+memory. Rewriting that many live citations to chase a tracker rename would churn
+RTL and risk far more than the rename gains, so an old reference resolves through
+this table and through the provenance line at the top of each migrated file.
+
+**Lane assignment was made by reading each item's own Status line and opening,
+not its title.** A keyword pass over the 35 items misclassified 14 of them --
+"greppable structure trackers" scored as a defect, "hist total != txn_count"
+scored as planned work -- so the classifier was discarded and the mapping is
+hand-derived. Counts: 15 bug, 9 issue, 12 task -- 36 items, not the 35 the first pass found.
+`PUMICE-KMAP` is the only ID in this area whose suffix is a word rather than a
+number, and a `PUMICE-\\d+` parser skipped it silently. A peer session's
+independent count caught it.

@@ -66,3 +66,51 @@ Drop the task *with the evidence in it* -- premise by premise, with the
 measurement. A task deleted quietly gets re-proposed on the same reasoning by
 the next person who has the same good idea. See the entry in
 `vault/Tasks/pumice/dropped.md`.
+
+
+## A cross-item link encodes the OTHER item's state, and breaks on its move
+
+Related to the above, and the same shape: a tracker entry's *links* are claims
+with a timestamp too, and unlike its prose these ones DO go red -- just not in
+the session that broke them.
+
+Items live in state directories (`open/`, `active/`, `closed/`, `dropped/`,
+`deferred/`), and moving between states is a `git mv`. A relative link from one
+item to another therefore encodes the target's state in its path. Close one of
+the pair and the link breaks:
+
+```
+# written while both were in open/ -- a valid sibling link
+[pumice TASK-015](TASK-015.md)
+
+# TASK-016 git mv'd to closed/, TASK-015 still open -> now broken
+[pumice TASK-015](../open/TASK-015.md)     # the repair
+```
+
+**Either direction does it**: moving the file that holds the link, or moving the
+file it points at. The second is worse, because the session that closes
+TASK-015 has no reason to be looking at TASK-016.
+
+This is not an argument for bare `[[wikilinks]]`. Those never break because the
+checker does not resolve them -- and they are ambiguous repo-wide, since the same
+ID exists in several lanes (four `BUG-003.md`, four `TASK-015.md`). Resolving a
+bare `[[BUG-003]]` from a pumice directory landed on `tooling/`. Precision and
+durability genuinely trade off here; the path form is right, and the cost is that
+it needs maintaining.
+
+**What to do:** after any `git mv` between state directories, grep the moved
+file's links and check each one FROM ITS NEW DIRECTORY before committing:
+
+```
+cd <new state dir>
+for l in $(grep -oE '\]\([^)h][^)]*\)' ITEM.md | tr -d '])('); do
+    [ -e "$l" ] && echo "OK   $l" || echo "BROKEN $l"
+done
+```
+
+The tree-wide link ratchet is the backstop and it is loud -- `bin/check_broken_links.py`
+blocks the commit. But it blocks it for EVERY session, not just yours: a peer
+working elsewhere in the vault hit this red gate and had to commit with
+`--no-verify` while measuring that their own files contributed nothing, until the
+one broken link was repaired. A shared gate that one session breaks is one every
+session pays for, so repair it at the move rather than at the next commit.

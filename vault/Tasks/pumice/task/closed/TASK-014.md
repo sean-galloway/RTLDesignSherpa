@@ -1,5 +1,67 @@
 # TASK-014: the adaptive page modes need a disposition — retire mode 4, re-plumb mode 5
 
+**Status:** CLOSED 2026-09-27 — both adaptive modes REMOVED, on Sean's
+instruction: *"remove the adaptive modes as showing no benefit."*
+**Priority:** was P3.
+
+## What shipped, and the distinction that matters
+
+Modes 4 (`adapt_time`) and 5 (`adapt_access`) are gone, together with
+`pumice_row_pred_table.sv` and the `PAGE_ADAPT_CFG` register.
+
+**Mode 4 was removed on MEASUREMENT.** It is `fixed_open(tr_min)`: the mistake
+counter is dominated by the held-too-long case, so TR decays monotonically to
+the floor and stays, landing exactly on the matching fixed point at three
+different floors (2 -> 436.8 MB/s, 8 -> 338.5, 16 -> 327.7). Mode 3 is already
+its close path, so nothing functional was lost.
+
+**Mode 5 was removed as a DECISION, not a measurement.** This task's own
+analysis called it "unproven and mis-plumbed, not disproven", and proposed
+re-plumbing it onto the background precharge rather than deleting it. That
+alternative was not taken. What IS measured is the mechanism it drove:
+auto-precharge costs 4.9x the activations of a background precharge on
+identical traffic (160,006 vs 32,400 ACT) and double the read latency, and it
+commits at the column op before it is known whether more same-row requests are
+coming -- so on an FR-FCFS controller it fights the reordering that justifies
+the design. A perfect predictor driving AP is still bounded by that. The RTL
+comments, the RDL, the MAS and the retargeted test all say "decision", so no
+later reader mistakes it for a measured loss.
+
+## What came out
+
+| Area | Change |
+|---|---|
+| `pumice_page_policy.sv` | 361 -> 271 lines; mistake counter, TR registers, `policy_scope` select and the predictor instance removed |
+| `pumice_row_pred_table.sv` | DELETED (217 lines), with its filelist and every filelist entry |
+| scheduler / core / top | ~30 dead ports removed through all three levels |
+| lint | 34 -> 33 files, 51 -> 50 modules |
+| `pumice_csr.rdl` | `PAGE_ADAPT_CFG` deleted; `policy_scope`, `ctr_open_max`, `ctr_init`, `tr_min`, `tr_max`, `tr_step` RESERVED at their original bit positions |
+| host | `set_page_adapt_cfg` / `set_page_access_cfg` removed; 8 adapt configs and 7 adapt-only profiles deleted; 4 mixed profiles re-pointed |
+| docs | HAS ch01/02/03/05/06, MAS ch02/08, design-requirements, signal-contracts generator, HAS v0.8 revision row |
+
+## NOTHING MOVED IN THE REGISTER MAP
+
+Sean: *"you can leave reserved in the place so nothing moves."* Every register
+in this map carries an explicit absolute `@` offset, so deleting one shifts
+nothing -- and that was PROVEN rather than assumed: both generated regmaps were
+imported and diffed, giving **81 -> 80 registers, ZERO moved**, with exactly
+`PAGE_ADAPT_CFG` absent. 0x078 is left a hole, matching the house pattern
+already used at 0x07C for the retired `PAGE_RBL_CFG`.
+
+## The retirement is a CONTRACT, and it is regressed
+
+`policy_mode` is a 3-bit field, so software can still write 4..7. Those
+encodings must fall through to the build default and never auto-precharge.
+`test_page_predictor` (retargeted from the deleted mode-5 predictor test)
+asserts exactly that -- and also asserts that mode 2 DOES auto-precharge, so it
+can still tell "no AP" from a block that has stopped driving `ap_close_o`.
+`test_pumice_sched_matrix` sweeps the retired encodings as fallthrough arms
+across all 12 operating points.
+
+---
+
+*Original task text follows.*
+
 **Status:** open 2026-09-26  **Priority:** P3 — research/cleanup; the shipping
 default no longer depends on either mode
 
