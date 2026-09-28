@@ -10,23 +10,31 @@ per-lane `TASK`/`BUG`/`ISSUE` namespaces. 232 mappings are recorded in
 source, and those citations were NOT swept -- they still name IDs that no longer
 exist.
 
-**Known citations** (measured 2026-09-27; amba only, other areas not yet swept):
+**rtl/amba is DONE** -- the monitor-lite session repointed its six citations in
+`a1488f7bd`, each verified against MIGRATION_MAP.md by `<area> <ID>` and keeping the
+old id in parentheses (`amba BUG-030 (was AMBA-BLOCKMARGIN)`). Verified here 2026-09-27.
+
+**Remaining citations** (re-measured 2026-09-27; the first pass UNDERCOUNTED
+TASK-084 at 5 -- it is 13, and two files were missed entirely):
 
 | File | Cites | Now |
 |---|---|---|
-| `rtl/amba/includes/monitor_common_pkg.sv:125` | `[[AMBA-BLOCKMARGIN]]`, `[[AMBA-MONTRACK]]` | amba BUG-030, BUG-029 |
-| `rtl/amba/monitor/axi_monitor_base.sv:692` | `AMBA-BLOCKMARGIN` | amba BUG-030 |
-| `rtl/amba/monitor/apb_monitor_addr_check.sv:149` | `AMBA-MONBUS-STABILITY` | amba BUG-028 |
-| `rtl/amba/monitor/axi_monitor_reporter.sv:257` | `TASK-083` | amba BUG-035 |
-| `rtl/amba/KNOWN_ISSUES/axi_monitor_active_count_underflow.md:29,171` | `TASK-025` | amba TASK-039 |
-| `formal/amba/axi_monitor_addr_check/formal_axi_monitor_addr_check.sv:20,208` | `AMBA-MONBUS-STABILITY` | amba BUG-028 |
-| `projects/components/misc/rtl/axi4_intf_{slave,master}_observer.sv` | `AMBA-MONTRACK` | amba BUG-029 |
-| `projects/components/misc/dv/tests/fub/test_axi4_intf_observer.py` (5 lines) | `TASK-084` | amba BUG-036 |
+| `projects/components/misc/dv/tests/fub/test_axi4_intf_observer.py` (11 lines) | `TASK-084` | amba BUG-036 |
+| `projects/components/misc/rtl/axi4_intf_master_observer.sv:483` | `AMBA-MONTRACK` | amba BUG-029 |
+| `projects/components/misc/rtl/axi4_intf_slave_observer.sv:494` | `AMBA-MONTRACK` | amba BUG-029 |
 | `projects/components/dmas/stream/rtl/macro/stream_core.sv:123` | `[[AMBA-MONTRACK]]` | amba BUG-029 |
 | `projects/components/dmas/stream/dv/tests/top/test_stream_top_mon_cfg.py:20` | `[[AMBA-MONTRACK]]` | amba BUG-029 |
+| `projects/components/dmas/stream/dv/tbclasses/stream_core_tb.py:39` | `TASK-084` | amba BUG-036 |
+| `projects/fpga-systems/Genesys2/stream/build-mon/dv/tests/test_stream_mon.py:365` | `TASK-084` | amba BUG-036 |
+| `projects/fpga-systems/Genesys2/stream/stable-obs/MANIFEST.md:49` | `TASK-083` | amba BUG-035 |
+| `formal/amba/axi_monitor_addr_check/formal_axi_monitor_addr_check.sv:20,208` | `AMBA-MONBUS-STABILITY` | amba BUG-028 |
 | `vault/handbook/design/signal-contracts-and-kmaps.md:275` | `[[AMBA-MONTRACK]]` | amba BUG-029 |
 | `vault/handbook/dv/formal.md:82` | `AMBA-MONBUS-STABILITY` | amba BUG-028 |
-| `projects/fpga-systems/Genesys2/stream/stable-obs/MANIFEST.md:49` | `TASK-083` | amba BUG-035 |
+
+Roughly 21 citations in 9 files across misc, stream, Genesys2/stream, formal and the
+handbook. Only amba ids have been measured at all; other areas' legacy ids
+(COMMON-*, TOOL-*, BRIDGE-*, DOCREV-*, RLB-*, CONV-*, MATH-*, NEXYS-*, APBX-*) were
+renumbered too and have NOT been searched for.
 
 **Why it was not swept with the migration.** These are source files in four areas
 owned by other sessions, several of which were being actively edited during the
