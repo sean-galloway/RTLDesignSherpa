@@ -36,6 +36,46 @@ handbook. Only amba ids have been measured at all; other areas' legacy ids
 (COMMON-*, TOOL-*, BRIDGE-*, DOCREV-*, RLB-*, CONV-*, MATH-*, NEXYS-*, APBX-*) were
 renumbered too and have NOT been searched for.
 
+**bridge TASK-004 / TASK-005 (was BRIDGE-014 / BRIDGE-016) are a SEPARATE problem:
+the generator emits the id.** Measured 2026-09-27 after the monitor-lite session
+raised it; counts verified independently here.
+
+  279 files cite BRIDGE-014 or BRIDGE-016
+  157 of them are GENERATED (134 under projects/components/bridge/rtl/generated/,
+      23 under projects/fpga-systems/**/bridges/generated/)
+  122 are hand-written
+    5 of those 122 are already repointed (ce173c994, monitor-lite)
+
+The generated ones cannot be fixed by editing them -- the next regeneration puts the
+old id straight back. The id is written by the generator at six sites, all confirmed
+present:
+
+  bridge_pkg/width_utils.py:81                              BRIDGE-016
+  bridge_pkg/config_validator.py:200                        BRIDGE-014
+  bridge_pkg/config_validator.py:329                        BRIDGE-016
+  bridge_pkg/components/bridge_module_generator.py:217      BRIDGE-016
+  bridge_pkg/components/bridge_module_generator.py:301      BRIDGE-016
+  bridge_pkg/components/axi4_dwidth_converter_component.py:109  BRIDGE-016
+
+**So the fix is a Rule #0 operation, not a sweep**, and it is why this part is filed
+rather than done:
+
+1. edit the six generator sites
+2. `cd projects/components/bridge/bin && make regen`
+3. `python3 bridge_generator.py --bulk bridge_batch.csv --generate-tests`
+4. `make clean-all && make run-all-func` against the regenerated tree
+
+Step 2-3 also rewrite `projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/`,
+which the STREAM/Genesys owner holds, so it needs coordinating with that session
+rather than being run unilaterally. Hand-editing the 157 generated files instead would
+be reverted on the next regen -- exactly the inverse failure that
+`vault/handbook/design/generated-rtl-discipline.md` records (a hand fix to generated
+RTL that came back, unnoticed across 13 files for months).
+
+**Scope note.** The ~21 citations tabled above are amba ids ONLY. Adding bridge's 122
+hand-written ones, the real hand-pass scope is ~143 citations, and COMMON-*, TOOL-*,
+DOCREV-*, RLB-*, CONV-*, MATH-*, NEXYS-* and APBX-* have still never been searched.
+
 **Why it was not swept with the migration.** These are source files in four areas
 owned by other sessions, several of which were being actively edited during the
 migration. A 15-file comment sweep across RTL, formal and DV while peers hold those
