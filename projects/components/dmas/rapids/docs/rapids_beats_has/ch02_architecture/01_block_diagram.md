@@ -97,11 +97,15 @@ per-channel kick registers live at 0x000-0x03F inside that same block.
 `rapids_config_block` translates the register `hwif_out` into the core/monitor
 `cfg_*` signals.
 
-When `USE_AXI_MONITORS = 1`, AXI transaction monitors observe the read and write
-data masters; their packets are merged with the core descriptor-monitor packet
-by a `monbus_arbiter` and delivered through a `monbus_axil4_axil4_group` to an
-AXI-Lite error-drain slave, an AXI-Lite capture master, and a `mon_irq`
-interrupt.
+When `USE_AXI_MONITORS = 1`, each half carries two monitor-lites:
+`axi4_master_rd_monlite` on its descriptor read master and an AXIS monitor-lite
+on its network port (`axis4_slave_monlite` on the sink's `s_axis_*`,
+`axis4_master_monlite` on the source's `m_axis_*`; rapids TASK-015). Their
+packets join the scheduler groups' events in the half's 3:1 `monbus_arbiter`,
+the core merges the two halves, and the top delivers the stream through a
+`monbus_axil4_axil4_group` to an AXI-Lite error-drain slave, an AXI-Lite
+capture master, and a `mon_irq` interrupt. The data masters `m_axi_rd` and
+`m_axi_wr` carry no monitors.
 
 ```mermaid
 graph TB
@@ -110,15 +114,12 @@ graph TB
     REGS --> CFG["rapids_config_block<br/>(hwif_out -> cfg_*)"]
     CFG --> CORE["rapids_core_beats"]
 
-    CORE -->|"m_axi_rd"| RDMON["axi4_master_rd_monlite"]
-    CORE -->|"m_axi_wr"| WRMON["axi4_master_wr_monlite"]
-    RDMON --> MRD["m_axi_rd"]
-    WRMON --> MWR["m_axi_wr"]
+    CORE --> MRD["m_axi_rd"]
+    CORE --> MWR["m_axi_wr"]
+    SAXIS["s_axis_*"] -->|"axis4_slave_monlite (SNK)"| CORE
+    CORE -->|"axis4_master_monlite (SRC)"| MAXIS["m_axis_*"]
 
-    CORE -->|"desc mon pkt"| ARB["monbus_arbiter (3:1)"]
-    RDMON --> ARB
-    WRMON --> ARB
-    ARB --> GRP["monbus_axil4_axil4_group"]
+    CORE -->|"core_mon_* (per-half 3:1, core 2:1)"| GRP["monbus_axil4_axil4_group"]
     GRP --> ERR["s_axil_err_*<br/>(error drain)"]
     GRP --> CAP["m_axil_mon_*<br/>(capture master)"]
     GRP --> IRQ["mon_irq"]
@@ -183,6 +184,8 @@ rapids_core_beats
 │   │   ├── arbiter_round_robin [x3]
 │   │   ├── axi4_master_rd_monlite
 │   │   └── axi_bus_meter
+│   ├── monbus_arbiter (3:1)
+│   ├── axis4_master_monlite (source-egress AXIS monitor-lite)
 │   └── src_data_path_axis_beats
 │       └── src_data_path_beats
 │           ├── axi_read_engine_beats
@@ -195,6 +198,8 @@ rapids_core_beats
 │                       └── stream_latency_bridge
 └── rapids_snk_beats
     ├── scheduler_group_array_beats (same shape)
+    ├── monbus_arbiter (3:1)
+    ├── axis4_slave_monlite (sink-ingress AXIS monitor-lite)
     └── snk_data_path_axis_beats
         └── snk_data_path_beats
             ├── axi_write_engine_beats

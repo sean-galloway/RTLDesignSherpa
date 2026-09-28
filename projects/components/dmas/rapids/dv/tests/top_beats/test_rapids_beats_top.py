@@ -206,6 +206,22 @@ async def cocotb_test_sink_path(dut):
     tb.log.info("rapids_beats_top SINK path PASSED")
 
 
+@cocotb.test(timeout_time=90, timeout_unit="ms")
+async def cocotb_test_axis_monitors(dut):
+    """Both AXIS monitor-lites (sink ingress 0x09, source egress 0x0A) report a
+    completion per packet through the monbus group's capture master
+    (rapids TASK-015)."""
+    tb = RapidsBeatsTopTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+
+    ok, stats = await tb.test_axis_monitors(beats=_beats())
+
+    tb.finalize_test()
+    assert ok, f"AXIS monitor-lites failed: {stats.get('errors')}"
+    tb.log.info("rapids_beats_top AXIS monitor-lites PASSED")
+
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_mon_window_gated(dut):
     """Monitors-off build: the two MON register windows must ERROR, not answer
@@ -535,6 +551,16 @@ def test_rapids_beats_top_source(request, test_level):
 def test_rapids_beats_top_sink(request, test_level):
     """SINK datapath: AXIS -> memory, config + kick over APB (by name)."""
     _run_top("cocotb_test_sink_path", "test_rapids_beats_top_sink", test_level=test_level)
+
+
+@pytest.mark.top_beats
+@pytest.mark.rapids_beats_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_beats_top_axis_mon(request, test_level):
+    """AXIS monitor-lites on both network ports report through the monbus
+    group (rapids TASK-015): a completion record per packet, decoded from the
+    capture master's trace with the shared monbus decoder."""
+    _run_top("cocotb_test_axis_monitors", "test_rapids_beats_top_axis_mon", test_level=test_level)
 
 
 @pytest.mark.top_beats

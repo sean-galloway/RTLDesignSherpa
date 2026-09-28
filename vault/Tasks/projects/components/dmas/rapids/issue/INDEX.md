@@ -2,7 +2,7 @@
 
 # projects/components/dmas/rapids — issues
 
-**Next ID: ISSUE-005** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-006** — never recycle a number, even when its item closed.
 
 An observed problem that is not yet a diagnosed defect or a decided piece of work: an anomaly, a risk, an open question. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
+- **ISSUE-005** — scheduler and descriptor-engine completion packets ignore SCHED_CONFIG.COMPL_EN
 - **ISSUE-000** — reserved template; copy the file, do not file against it.
 - **ISSUE-004** — one board config reports zero ingress starvation where every other reports ~200
 

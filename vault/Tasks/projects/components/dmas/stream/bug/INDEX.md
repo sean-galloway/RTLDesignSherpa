@@ -2,7 +2,7 @@
 
 # projects/components/dmas/stream — bugs
 
-**Next ID: BUG-016** — never recycle a number, even when its item closed.
+**Next ID: BUG-017** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -21,6 +21,7 @@ by construction rather than by discipline.
 ## Open
 
 - **BUG-000** — reserved template; copy the file, do not file against it.
+- **BUG-016** — the monitor PKT_MASK registers say "1 = enable" and default to 0xFFFF, but the group drops on 1
 
 ## Closed
 

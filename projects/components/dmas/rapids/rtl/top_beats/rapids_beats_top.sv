@@ -64,6 +64,13 @@ module rapids_beats_top #(
     parameter int APB_DATA_WIDTH = 32,
     // Monitor sizing (in-core descriptor AXI monitors)
     parameter int MON_MAX_TRANSACTIONS = 16,
+    // AXIS data-path monitor-lites (rapids TASK-015): sink ingress in the SNK
+    // half (agent 0x09, configured by SNK.MON.WRMON_*), source egress in the SRC
+    // half (agent 0x0A, configured by SRC.MON.RDMON_*). Both gated by
+    // USE_AXI_MONITORS. ACLK_MHZ scales their microsecond timeout tick.
+    parameter int SNK_AXIS_MON_AGENT_ID = 9,
+    parameter int SRC_AXIS_MON_AGENT_ID = 10,
+    parameter int ACLK_MHZ             = 100,
     // Monitor synthesis gates (default 1 = production behavior unchanged).
     //   USE_AXI_MONITORS=0 omits the descriptor-AXI monitor hardware AND the
     //     top-level monbus_axil4_axil4_group (egress capture/err-drain/IRQ); the
@@ -1065,6 +1072,15 @@ module rapids_beats_top #(
     logic [7:0]     src_cfg_desc_mon_perf_mask;
     logic [7:0]     src_cfg_desc_mon_addr_mask;
     logic [7:0]     src_cfg_desc_mon_debug_mask;
+    // SRC.MON.RDMON_* -> source-egress AXIS monitor-lite (rapids TASK-015)
+    logic         src_cfg_rdeng_mon_enable;
+    logic         src_cfg_rdeng_mon_err_enable;
+    logic         src_cfg_rdeng_mon_compl_enable;
+    logic         src_cfg_rdeng_mon_perf_enable;
+    logic         src_cfg_rdeng_mon_timeout_enable;
+    logic [31:0]  src_cfg_rdeng_mon_timeout_cycles;
+    logic [31:0]  src_cfg_rdeng_mon_latency_thresh;
+    logic [15:0]  src_cfg_rdeng_mon_pkt_mask;
     logic [7:0]     src_cfg_axi_rd_xfer_beats;  // used by source half
     logic [7:0]     src_cfg_drain_size;         // used by source half
 
@@ -1103,6 +1119,15 @@ module rapids_beats_top #(
     logic [7:0]     snk_cfg_desc_mon_perf_mask;
     logic [7:0]     snk_cfg_desc_mon_addr_mask;
     logic [7:0]     snk_cfg_desc_mon_debug_mask;
+    // SNK.MON.WRMON_* -> sink-ingress AXIS monitor-lite (rapids TASK-015)
+    logic         snk_cfg_wreng_mon_enable;
+    logic         snk_cfg_wreng_mon_err_enable;
+    logic         snk_cfg_wreng_mon_compl_enable;
+    logic         snk_cfg_wreng_mon_perf_enable;
+    logic         snk_cfg_wreng_mon_timeout_enable;
+    logic [31:0]  snk_cfg_wreng_mon_timeout_cycles;
+    logic [31:0]  snk_cfg_wreng_mon_latency_thresh;
+    logic [15:0]  snk_cfg_wreng_mon_pkt_mask;
     logic [7:0]     snk_cfg_axi_wr_xfer_beats;  // used by sink half
     logic [7:0]     snk_cfg_alloc_size;         // used by sink half
 
@@ -1249,14 +1274,16 @@ module rapids_beats_top #(
         .cfg_desc_mon_perf_mask      (src_cfg_desc_mon_perf_mask),
         .cfg_desc_mon_addr_mask      (src_cfg_desc_mon_addr_mask),
         .cfg_desc_mon_debug_mask     (src_cfg_desc_mon_debug_mask),
-        // rd/wr engine monitor cfg outputs unused (taps live in halves later)
-        .cfg_rdeng_mon_enable        (),
-        .cfg_rdeng_mon_err_enable    (),
-        .cfg_rdeng_mon_perf_enable   (),
-        .cfg_rdeng_mon_timeout_enable(),
-        .cfg_rdeng_mon_timeout_cycles(),
-        .cfg_rdeng_mon_latency_thresh(),
-        .cfg_rdeng_mon_pkt_mask      (),
+        // RDMON_* -> the source-egress AXIS monitor-lite (rapids TASK-015); the
+        // SRC half has no write-side data monitor, so WRMON_* drives nothing here.
+        .cfg_rdeng_mon_enable        (src_cfg_rdeng_mon_enable),
+        .cfg_rdeng_mon_err_enable    (src_cfg_rdeng_mon_err_enable),
+        .cfg_rdeng_mon_perf_enable   (src_cfg_rdeng_mon_perf_enable),
+        .cfg_rdeng_mon_timeout_enable(src_cfg_rdeng_mon_timeout_enable),
+        .cfg_rdeng_mon_compl_enable  (src_cfg_rdeng_mon_compl_enable),
+        .cfg_rdeng_mon_timeout_cycles(src_cfg_rdeng_mon_timeout_cycles),
+        .cfg_rdeng_mon_latency_thresh(src_cfg_rdeng_mon_latency_thresh),
+        .cfg_rdeng_mon_pkt_mask      (src_cfg_rdeng_mon_pkt_mask),
         .cfg_rdeng_mon_err_select    (),
         .cfg_rdeng_mon_err_mask      (),
         .cfg_rdeng_mon_timeout_mask  (),
@@ -1269,6 +1296,7 @@ module rapids_beats_top #(
         .cfg_wreng_mon_err_enable    (),
         .cfg_wreng_mon_perf_enable   (),
         .cfg_wreng_mon_timeout_enable(),
+        .cfg_wreng_mon_compl_enable  (),
         .cfg_wreng_mon_timeout_cycles(),
         .cfg_wreng_mon_latency_thresh(),
         .cfg_wreng_mon_pkt_mask      (),
@@ -1421,6 +1449,7 @@ module rapids_beats_top #(
         .cfg_rdeng_mon_err_enable    (),
         .cfg_rdeng_mon_perf_enable   (),
         .cfg_rdeng_mon_timeout_enable(),
+        .cfg_rdeng_mon_compl_enable  (),
         .cfg_rdeng_mon_timeout_cycles(),
         .cfg_rdeng_mon_latency_thresh(),
         .cfg_rdeng_mon_pkt_mask      (),
@@ -1432,13 +1461,14 @@ module rapids_beats_top #(
         .cfg_rdeng_mon_perf_mask     (),
         .cfg_rdeng_mon_addr_mask     (),
         .cfg_rdeng_mon_debug_mask    (),
-        .cfg_wreng_mon_enable        (),
-        .cfg_wreng_mon_err_enable    (),
-        .cfg_wreng_mon_perf_enable   (),
-        .cfg_wreng_mon_timeout_enable(),
-        .cfg_wreng_mon_timeout_cycles(),
-        .cfg_wreng_mon_latency_thresh(),
-        .cfg_wreng_mon_pkt_mask      (),
+        .cfg_wreng_mon_enable        (snk_cfg_wreng_mon_enable),
+        .cfg_wreng_mon_err_enable    (snk_cfg_wreng_mon_err_enable),
+        .cfg_wreng_mon_perf_enable   (snk_cfg_wreng_mon_perf_enable),
+        .cfg_wreng_mon_timeout_enable(snk_cfg_wreng_mon_timeout_enable),
+        .cfg_wreng_mon_compl_enable  (snk_cfg_wreng_mon_compl_enable),
+        .cfg_wreng_mon_timeout_cycles(snk_cfg_wreng_mon_timeout_cycles),
+        .cfg_wreng_mon_latency_thresh(snk_cfg_wreng_mon_latency_thresh),
+        .cfg_wreng_mon_pkt_mask      (snk_cfg_wreng_mon_pkt_mask),
         .cfg_wreng_mon_err_select    (),
         .cfg_wreng_mon_err_mask      (),
         .cfg_wreng_mon_timeout_mask  (),
@@ -1489,6 +1519,9 @@ module rapids_beats_top #(
         .MON_MAX_TRANSACTIONS (MON_MAX_TRANSACTIONS),
         .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS     (USE_AXI_MONITORS),
+        .SNK_AXIS_MON_AGENT_ID (SNK_AXIS_MON_AGENT_ID),
+        .SRC_AXIS_MON_AGENT_ID (SRC_AXIS_MON_AGENT_ID),
+        .ACLK_MHZ             (ACLK_MHZ),
         .GEN_MON              (GEN_MON)
     ) u_core (
         .clk    (aclk),
@@ -1534,6 +1567,14 @@ module rapids_beats_top #(
         .src_cfg_desc_mon_perf_mask     (src_cfg_desc_mon_perf_mask),
         .src_cfg_desc_mon_addr_mask     (src_cfg_desc_mon_addr_mask),
         .src_cfg_desc_mon_debug_mask    (src_cfg_desc_mon_debug_mask),
+        .src_cfg_axis_mon_enable          (src_cfg_rdeng_mon_enable),
+        .src_cfg_axis_mon_err_enable      (src_cfg_rdeng_mon_err_enable),
+        .src_cfg_axis_mon_compl_enable    (src_cfg_rdeng_mon_compl_enable),
+        .src_cfg_axis_mon_perf_enable     (src_cfg_rdeng_mon_perf_enable),
+        .src_cfg_axis_mon_timeout_enable  (src_cfg_rdeng_mon_timeout_enable),
+        .src_cfg_axis_mon_timeout_cycles  (src_cfg_rdeng_mon_timeout_cycles),
+        .src_cfg_axis_mon_latency_thresh  (src_cfg_rdeng_mon_latency_thresh),
+        .src_cfg_axis_mon_pkt_mask        (src_cfg_rdeng_mon_pkt_mask),
         // Status (source)
         .src_system_idle                (src_system_idle),
         .src_descriptor_engine_idle     (src_desc_engine_idle),
@@ -1545,6 +1586,10 @@ module rapids_beats_top #(
         .src_cfg_sts_desc_mon_error_count   (),
         .src_cfg_sts_desc_mon_txn_count     (),
         .src_cfg_sts_desc_mon_conflict_error(),
+        .src_cfg_sts_axis_mon_busy         (),   // AXIS monitor-lite status: no register today (rapids TASK-015)
+        .src_cfg_sts_axis_mon_packet_count (),
+        .src_cfg_sts_axis_mon_error_count  (),
+        .src_cfg_sts_axis_mon_dropped_count(),
         .src_sts_desc_mon_win_active  (src_sts_desc_mon_win_active),
         .src_sts_desc_mon_win_cycles  (src_sts_desc_mon_win_cycles),
         .src_sts_desc_mon_prod_cycles (src_sts_desc_mon_prod_cycles),
@@ -1682,6 +1727,14 @@ module rapids_beats_top #(
         .snk_cfg_desc_mon_perf_mask     (snk_cfg_desc_mon_perf_mask),
         .snk_cfg_desc_mon_addr_mask     (snk_cfg_desc_mon_addr_mask),
         .snk_cfg_desc_mon_debug_mask    (snk_cfg_desc_mon_debug_mask),
+        .snk_cfg_axis_mon_enable          (snk_cfg_wreng_mon_enable),
+        .snk_cfg_axis_mon_err_enable      (snk_cfg_wreng_mon_err_enable),
+        .snk_cfg_axis_mon_compl_enable    (snk_cfg_wreng_mon_compl_enable),
+        .snk_cfg_axis_mon_perf_enable     (snk_cfg_wreng_mon_perf_enable),
+        .snk_cfg_axis_mon_timeout_enable  (snk_cfg_wreng_mon_timeout_enable),
+        .snk_cfg_axis_mon_timeout_cycles  (snk_cfg_wreng_mon_timeout_cycles),
+        .snk_cfg_axis_mon_latency_thresh  (snk_cfg_wreng_mon_latency_thresh),
+        .snk_cfg_axis_mon_pkt_mask        (snk_cfg_wreng_mon_pkt_mask),
         // Status (sink)
         .snk_system_idle                (snk_system_idle),
         .snk_descriptor_engine_idle     (snk_desc_engine_idle),
@@ -1693,6 +1746,10 @@ module rapids_beats_top #(
         .snk_cfg_sts_desc_mon_error_count   (),
         .snk_cfg_sts_desc_mon_txn_count     (),
         .snk_cfg_sts_desc_mon_conflict_error(),
+        .snk_cfg_sts_axis_mon_busy         (),   // AXIS monitor-lite status: no register today (rapids TASK-015)
+        .snk_cfg_sts_axis_mon_packet_count (),
+        .snk_cfg_sts_axis_mon_error_count  (),
+        .snk_cfg_sts_axis_mon_dropped_count(),
         .snk_sts_desc_mon_win_active  (snk_sts_desc_mon_win_active),
         .snk_sts_desc_mon_win_cycles  (snk_sts_desc_mon_win_cycles),
         .snk_sts_desc_mon_prod_cycles (snk_sts_desc_mon_prod_cycles),

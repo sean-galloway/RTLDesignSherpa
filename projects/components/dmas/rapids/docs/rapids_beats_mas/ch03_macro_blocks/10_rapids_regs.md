@@ -128,8 +128,8 @@ per-monitor performance counters.
 | 0x10CC | `MON.DAXMON_PKT_MASK` | RW | Descriptor-monitor packet mask |
 | 0x10D0 | `MON.DAXMON_ERR_CFG` | RW | Descriptor-monitor error select/mask |
 | 0x10D4-0x10DC | `MON.DAXMON_MASK1/2/3` | RW | Descriptor-monitor category masks |
-| 0x10E0-0x10FC | `MON.RDMON_*` | RW | Read-monitor config (same layout as DAXMON) |
-| 0x1100-0x111C | `MON.WRMON_*` | RW | Write-monitor config (same layout as DAXMON) |
+| 0x10E0-0x10FC | `MON.RDMON_*` | RW | Source-egress AXIS monitor-lite config (same layout as DAXMON; SRC instance, rapids TASK-015) |
+| 0x1100-0x111C | `MON.WRMON_*` | RW | Sink-ingress AXIS monitor-lite config (same layout as DAXMON; SNK instance, rapids TASK-015) |
 | 0x1150-0x1178 | `MON.DAXMON_PERF_*` | RO/RW | Descriptor-monitor performance counters |
 | 0x1180-0x11A8 | `MON.RDMON_PERF_*` | RO/RW | Read-monitor performance counters |
 | 0x11B0-0x11D8 | `MON.WRMON_PERF_*` | RO/RW | Write-monitor performance counters |

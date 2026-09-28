@@ -48,6 +48,8 @@ import cocotb
 from cocotb.triggers import RisingEdge
 
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.monbus import parse
+from TBClasses.monbus.monbus_types import ProtocolType, PktType
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.axi4.axi4_factories import (
     create_axi4_slave_rd, create_axi4_slave_wr)
@@ -71,6 +73,9 @@ class RapidsCoreBeatsTB(TBBase):
         random.seed(self.SEED)
 
         self.DESC_WIDTH = 256
+        # AXIS data-path monitor-lite agent ids (rapids TASK-015; HAS MonBus page)
+        self.SNK_AXIS_MON_AGENT_ID = 0x09
+        self.SRC_AXIS_MON_AGENT_ID = 0x0A
         self.STRB_WIDTH = self.DATA_WIDTH // 8
 
         # Clock / reset
@@ -176,10 +181,22 @@ class RapidsCoreBeatsTB(TBBase):
         s('cfg_desc_mon_timeout_enable', 0)
         s('cfg_desc_mon_timeout_cycles', 1_000_000)
         s('cfg_desc_mon_latency_thresh', 100_000)
-        s('cfg_desc_mon_pkt_mask', 0xFFFF)
+        s('cfg_desc_mon_pkt_mask', 0)        # bit[type] = 1 DROPS that type (rapids BUG-008)
         s('cfg_desc_mon_err_select', 0)
         for m in ('err', 'timeout', 'compl', 'thresh', 'perf', 'addr', 'debug'):
             getattr(d, f'{pfx}_cfg_desc_mon_{m}_mask').value = 0xFF
+
+        # AXIS data-path monitor-lite (rapids TASK-015): one Completion/STREAM_END
+        # per packet and the error classes on; perf (stream start/pause,
+        # backpressure) and the microsecond timeouts off for the basic tests.
+        s('cfg_axis_mon_enable', 1)
+        s('cfg_axis_mon_err_enable', 1)
+        s('cfg_axis_mon_compl_enable', 1)
+        s('cfg_axis_mon_perf_enable', 0)
+        s('cfg_axis_mon_timeout_enable', 0)
+        s('cfg_axis_mon_timeout_cycles', 0)
+        s('cfg_axis_mon_latency_thresh', 1000)
+        s('cfg_axis_mon_pkt_mask', 0)        # bit[type] = 1 DROPS that type
 
     def _configure(self):
         """Drive cfg_* before reset for BOTH halves + direction-unique cfg."""
@@ -366,9 +383,14 @@ class RapidsCoreBeatsTB(TBBase):
         self.captured_axis.setdefault(tid, []).append(int(pkt.fields.get('data', 0)))
 
     async def monbus_consumer(self):
+        """Hold mon_ready high and decode every accepted packet through the
+        shared decoder (TBClasses.monbus.parse) into self.mon_packets."""
         self.dut.mon_ready.value = 1
+        self.mon_packets = []
         while self._mon_active:
             await RisingEdge(self.dut.clk)
+            if int(self.dut.mon_valid.value) == 1:
+                self.mon_packets.append(parse(int(self.dut.mon_packet.value)))
 
     async def initialize_test(self):
         self._mon_active = True
@@ -377,6 +399,40 @@ class RapidsCoreBeatsTB(TBBase):
 
     def finalize_test(self):
         self._mon_active = False
+
+    def check_axis_mon(self, agent_id: int, channel: int, expect_beats: List[int], name: str) -> List[str]:
+        """rapids TASK-015: the AXIS monitor-lite with this agent id must have
+        reported one Completion/STREAM_END per AXIS packet just moved, each
+        carrying tid = channel and that packet's beat count (data =
+        {tid[16], tdest[16], beats[32]}), and nothing else. expect_beats lists
+        the packets: the sink ingress is one packet, the source egress cuts a
+        descriptor into drain-size packets (m_axis_tlast per drain burst).
+        Errors come back as strings so the caller's scoreboard owns the verdict."""
+        mine = [p for p in getattr(self, 'mon_packets', []) if p.agent_id == agent_id]
+        seen = [p for p in mine if p.protocol == ProtocolType.PROTOCOL_AXIS
+                and p.packet_type == PktType.PktTypeCompletion]
+        other = [p for p in mine if p not in seen]
+        errs = []
+        tids = [(p.event_data >> 48) & 0xFFFF for p in seen]
+        cnts = sorted(p.event_data & 0xFFFF_FFFF for p in seen)
+        if cnts != sorted(expect_beats):
+            errs.append(f"{name} AXIS monitor (agent 0x{agent_id:02X}): completion beat counts "
+                        f"{cnts}, expected {sorted(expect_beats)}")
+        if any(t != channel for t in tids):
+            errs.append(f"{name} AXIS monitor: completion tids {tids}, expected all {channel}")
+        if other:
+            errs.append(f"{name} AXIS monitor: {len(other)} unexpected packets: "
+                        + ", ".join(f"{p.get_packet_type_name()}/0x{p.event_code:02X}" for p in other[:4]))
+        self.log.info(f"  MONBUS: {name} AXIS monitor agent 0x{agent_id:02X}: "
+                      f"{len(seen)} completion {cnts}, {len(other)} other")
+        return errs
+
+    @staticmethod
+    def drain_chunks(beats: int, drain: int) -> List[int]:
+        """Beat counts of the AXIS packets a source descriptor of `beats` beats
+        leaves as, at drain size `drain` (the last one may be short)."""
+        drain = max(1, drain)
+        return [drain] * (beats // drain) + ([beats % drain] if beats % drain else [])
 
     # =========================================================================
     # STATUS HELPERS
@@ -441,6 +497,10 @@ class RapidsCoreBeatsTB(TBBase):
                 for i, (a, b) in enumerate(zip(got[:beats], pattern)):
                     if a != b:
                         self.log.error(f"  beat[{i}] got=0x{a:X} exp=0x{b:X}")
+        # rapids TASK-015: the source-egress AXIS monitor-lite saw this packet.
+        errors += self.check_axis_mon(self.SRC_AXIS_MON_AGENT_ID, channel,
+                                      self.drain_chunks(beats, int(self.dut.cfg_drain_size.value)),
+                                      'source-egress')
         stats = {'captured': len(got), 'expected': beats, 'errors': errors}
         if errors:
             for e in errors:
@@ -478,6 +538,8 @@ class RapidsCoreBeatsTB(TBBase):
             for i, (a, b) in enumerate(zip(got, pattern)):
                 if a != b:
                     self.log.error(f"  beat[{i}] got=0x{a:X} exp=0x{b:X}")
+        # rapids TASK-015: the sink-ingress AXIS monitor-lite saw this packet.
+        errors += self.check_axis_mon(self.SNK_AXIS_MON_AGENT_ID, channel, [beats], 'sink-ingress')
         stats = {'errors': errors}
         if errors:
             for e in errors:

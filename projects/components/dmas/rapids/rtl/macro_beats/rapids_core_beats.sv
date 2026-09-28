@@ -72,6 +72,9 @@ module rapids_core_beats #(
     parameter int DESC_MON_BASE_AGENT_ID = 16,   // 0x10 - Descriptor Engines (16-23)
     parameter int SCHED_MON_BASE_AGENT_ID = 48,  // 0x30 - Schedulers (48-55)
     parameter int DESC_AXI_MON_AGENT_ID = 8,     // 0x08 - Descriptor AXI Master Monitor
+    parameter int SNK_AXIS_MON_AGENT_ID = 9,     // 0x09 - Sink-ingress AXIS monitor (rapids TASK-015)
+    parameter int SRC_AXIS_MON_AGENT_ID = 10,    // 0x0A - Source-egress AXIS monitor (rapids TASK-015)
+    parameter int ACLK_MHZ = 100,                // clk in MHz: the AXIS monitors' microsecond tick
     parameter int MON_UNIT_ID = 1,               // 0x1
     parameter int MON_MAX_TRANSACTIONS = 16,
     // Monitor synthesis gates (default 1 = production unchanged); see
@@ -150,6 +153,16 @@ module rapids_core_beats #(
     input  logic [7:0]                          src_cfg_desc_mon_addr_mask,
     input  logic [7:0]                          src_cfg_desc_mon_debug_mask,
 
+    // AXIS data-path monitor-lite configuration (rapids TASK-015)
+    input  logic                                src_cfg_axis_mon_enable,
+    input  logic                                src_cfg_axis_mon_err_enable,
+    input  logic                                src_cfg_axis_mon_compl_enable,
+    input  logic                                src_cfg_axis_mon_perf_enable,
+    input  logic                                src_cfg_axis_mon_timeout_enable,
+    input  logic [31:0]                         src_cfg_axis_mon_timeout_cycles,
+    input  logic [31:0]                         src_cfg_axis_mon_latency_thresh,
+    input  logic [15:0]                         src_cfg_axis_mon_pkt_mask,
+
     // Status
     output logic                                src_system_idle,
     output logic [NC-1:0]                       src_descriptor_engine_idle,
@@ -163,6 +176,12 @@ module rapids_core_beats #(
     output logic [15:0]                         src_cfg_sts_desc_mon_error_count,
     output logic [31:0]                         src_cfg_sts_desc_mon_txn_count,
     output logic                                src_cfg_sts_desc_mon_conflict_error,
+
+    // AXIS data-path monitor-lite status (rapids TASK-015)
+    output logic                                src_cfg_sts_axis_mon_busy,
+    output logic [31:0]                         src_cfg_sts_axis_mon_packet_count,
+    output logic [15:0]                         src_cfg_sts_axis_mon_error_count,
+    output logic [15:0]                         src_cfg_sts_axis_mon_dropped_count,
 
     // Descriptor AXI Monitor perf window (feeds SRC_.MON.DAXMON_PERF_*).
     output logic                                src_sts_desc_mon_win_active,
@@ -322,6 +341,16 @@ module rapids_core_beats #(
     input  logic [7:0]                          snk_cfg_desc_mon_addr_mask,
     input  logic [7:0]                          snk_cfg_desc_mon_debug_mask,
 
+    // AXIS data-path monitor-lite configuration (rapids TASK-015)
+    input  logic                                snk_cfg_axis_mon_enable,
+    input  logic                                snk_cfg_axis_mon_err_enable,
+    input  logic                                snk_cfg_axis_mon_compl_enable,
+    input  logic                                snk_cfg_axis_mon_perf_enable,
+    input  logic                                snk_cfg_axis_mon_timeout_enable,
+    input  logic [31:0]                         snk_cfg_axis_mon_timeout_cycles,
+    input  logic [31:0]                         snk_cfg_axis_mon_latency_thresh,
+    input  logic [15:0]                         snk_cfg_axis_mon_pkt_mask,
+
     // Status
     output logic                                snk_system_idle,
     output logic [NC-1:0]                       snk_descriptor_engine_idle,
@@ -335,6 +364,12 @@ module rapids_core_beats #(
     output logic [15:0]                         snk_cfg_sts_desc_mon_error_count,
     output logic [31:0]                         snk_cfg_sts_desc_mon_txn_count,
     output logic                                snk_cfg_sts_desc_mon_conflict_error,
+
+    // AXIS data-path monitor-lite status (rapids TASK-015)
+    output logic                                snk_cfg_sts_axis_mon_busy,
+    output logic [31:0]                         snk_cfg_sts_axis_mon_packet_count,
+    output logic [15:0]                         snk_cfg_sts_axis_mon_error_count,
+    output logic [15:0]                         snk_cfg_sts_axis_mon_dropped_count,
 
     // Descriptor AXI Monitor perf window (feeds SNK_.MON.DAXMON_PERF_*).
     output logic                                snk_sts_desc_mon_win_active,
@@ -520,6 +555,8 @@ module rapids_core_beats #(
         .DESC_AXI_MON_AGENT_ID  (DESC_AXI_MON_AGENT_ID),
         .MON_UNIT_ID            (MON_UNIT_ID),
         .MON_MAX_TRANSACTIONS   (MON_MAX_TRANSACTIONS),
+        .AXIS_MON_AGENT_ID      (SRC_AXIS_MON_AGENT_ID),
+        .ACLK_MHZ               (ACLK_MHZ),
         .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS       (USE_AXI_MONITORS),
         .GEN_MON                (GEN_MON)
@@ -569,6 +606,14 @@ module rapids_core_beats #(
         .cfg_desc_mon_perf_mask     (src_cfg_desc_mon_perf_mask),
         .cfg_desc_mon_addr_mask     (src_cfg_desc_mon_addr_mask),
         .cfg_desc_mon_debug_mask    (src_cfg_desc_mon_debug_mask),
+        .cfg_axis_mon_enable          (src_cfg_axis_mon_enable),
+        .cfg_axis_mon_err_enable      (src_cfg_axis_mon_err_enable),
+        .cfg_axis_mon_compl_enable    (src_cfg_axis_mon_compl_enable),
+        .cfg_axis_mon_perf_enable     (src_cfg_axis_mon_perf_enable),
+        .cfg_axis_mon_timeout_enable  (src_cfg_axis_mon_timeout_enable),
+        .cfg_axis_mon_timeout_cycles  (src_cfg_axis_mon_timeout_cycles),
+        .cfg_axis_mon_latency_thresh  (src_cfg_axis_mon_latency_thresh),
+        .cfg_axis_mon_pkt_mask        (src_cfg_axis_mon_pkt_mask),
 
         // AXI Transfer Configuration (source-only)
         .cfg_axi_rd_xfer_beats      (cfg_axi_rd_xfer_beats),
@@ -585,6 +630,10 @@ module rapids_core_beats #(
         .cfg_sts_desc_mon_error_count   (src_cfg_sts_desc_mon_error_count),
         .cfg_sts_desc_mon_txn_count     (src_cfg_sts_desc_mon_txn_count),
         .cfg_sts_desc_mon_conflict_error(src_cfg_sts_desc_mon_conflict_error),
+        .cfg_sts_axis_mon_busy          (src_cfg_sts_axis_mon_busy),
+        .cfg_sts_axis_mon_packet_count  (src_cfg_sts_axis_mon_packet_count),
+        .cfg_sts_axis_mon_error_count   (src_cfg_sts_axis_mon_error_count),
+        .cfg_sts_axis_mon_dropped_count (src_cfg_sts_axis_mon_dropped_count),
         .sts_desc_mon_win_active   (src_sts_desc_mon_win_active),
         .sts_desc_mon_win_cycles   (src_sts_desc_mon_win_cycles),
         .sts_desc_mon_prod_cycles  (src_sts_desc_mon_prod_cycles),
@@ -723,6 +772,8 @@ module rapids_core_beats #(
         .DESC_AXI_MON_AGENT_ID  (DESC_AXI_MON_AGENT_ID),
         .MON_UNIT_ID            (MON_UNIT_ID),
         .MON_MAX_TRANSACTIONS   (MON_MAX_TRANSACTIONS),
+        .AXIS_MON_AGENT_ID      (SNK_AXIS_MON_AGENT_ID),
+        .ACLK_MHZ               (ACLK_MHZ),
         .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS       (USE_AXI_MONITORS),
         .GEN_MON                (GEN_MON)
@@ -772,6 +823,14 @@ module rapids_core_beats #(
         .cfg_desc_mon_perf_mask     (snk_cfg_desc_mon_perf_mask),
         .cfg_desc_mon_addr_mask     (snk_cfg_desc_mon_addr_mask),
         .cfg_desc_mon_debug_mask    (snk_cfg_desc_mon_debug_mask),
+        .cfg_axis_mon_enable          (snk_cfg_axis_mon_enable),
+        .cfg_axis_mon_err_enable      (snk_cfg_axis_mon_err_enable),
+        .cfg_axis_mon_compl_enable    (snk_cfg_axis_mon_compl_enable),
+        .cfg_axis_mon_perf_enable     (snk_cfg_axis_mon_perf_enable),
+        .cfg_axis_mon_timeout_enable  (snk_cfg_axis_mon_timeout_enable),
+        .cfg_axis_mon_timeout_cycles  (snk_cfg_axis_mon_timeout_cycles),
+        .cfg_axis_mon_latency_thresh  (snk_cfg_axis_mon_latency_thresh),
+        .cfg_axis_mon_pkt_mask        (snk_cfg_axis_mon_pkt_mask),
 
         // AXI Transfer Configuration (sink-only)
         .cfg_axi_wr_xfer_beats      (cfg_axi_wr_xfer_beats),
@@ -788,6 +847,10 @@ module rapids_core_beats #(
         .cfg_sts_desc_mon_error_count   (snk_cfg_sts_desc_mon_error_count),
         .cfg_sts_desc_mon_txn_count     (snk_cfg_sts_desc_mon_txn_count),
         .cfg_sts_desc_mon_conflict_error(snk_cfg_sts_desc_mon_conflict_error),
+        .cfg_sts_axis_mon_busy          (snk_cfg_sts_axis_mon_busy),
+        .cfg_sts_axis_mon_packet_count  (snk_cfg_sts_axis_mon_packet_count),
+        .cfg_sts_axis_mon_error_count   (snk_cfg_sts_axis_mon_error_count),
+        .cfg_sts_axis_mon_dropped_count (snk_cfg_sts_axis_mon_dropped_count),
         .sts_desc_mon_win_active   (snk_sts_desc_mon_win_active),
         .sts_desc_mon_win_cycles   (snk_sts_desc_mon_win_cycles),
         .sts_desc_mon_prod_cycles  (snk_sts_desc_mon_prod_cycles),

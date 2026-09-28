@@ -58,15 +58,26 @@ Routes scheduler, channel, and descriptor-engine configuration to the core:
 
 ### Monitor Configuration (hwif_out.MON.*)
 
-Three parallel groups map to the descriptor, read, and write AXI monitors:
+Three parallel groups map to the descriptor-read monitor and, since rapids
+TASK-015, the two AXIS data-path monitor-lites (one per half):
 
 | Register group | cfg_* target |
 |----------------|--------------|
 | `MON.DAXMON_*` | `cfg_desc_mon_*` (descriptor monitor) |
-| `MON.RDMON_*`  | `cfg_rdeng_mon_*` (read monitor) |
-| `MON.WRMON_*`  | `cfg_wreng_mon_*` (write monitor) |
+| `MON.RDMON_*`  | `cfg_rdeng_mon_*` (source-egress AXIS monitor-lite; wired in the SRC half only) |
+| `MON.WRMON_*`  | `cfg_wreng_mon_*` (sink-ingress AXIS monitor-lite; wired in the SNK half only) |
 
 : Table 3.11.1: Monitor Register-to-Config Mapping
+
+The `*_ENABLE` bits map onto the AXIS monitor-lite's class enables: `MON_EN`
+(gated by `GLOBAL_EN`), `ERR_EN` (error, channel-change and TSTRB checks),
+`COMPL_EN` (one Completion/STREAM_END per packet), `PERF_EN` (stream
+start/pause/resume and Credit/BACKPRESSURE stall reports), `TIMEOUT_EN`.
+`*_TIMEOUT` is MICROSECONDS in its low 16 bits (0 = never), `*_LATENCY_THRESH`
+the stall CYCLES that raise a backpressure report, and `*_PKT_MASK` is a DROP
+mask: bit[type] = 1 drops that packet type at the monitor-lite and again at the
+monbus group. The mask defaults to 0 (rapids BUG-008: it used to read
+"1 = enable" with a 0xFFFF default, which dropped every packet).
 
 Within each group the enable/timeout/latency/mask fields map 1:1, e.g.
 `cfg_desc_mon_enable = MON.DAXMON_ENABLE.MON_EN & GLOBAL_CTRL.GLOBAL_EN`,

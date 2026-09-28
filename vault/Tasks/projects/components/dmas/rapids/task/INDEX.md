@@ -12,16 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 14 | done (kept for history) |
+| [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
-- **TASK-015** — AXIS monitor-lite in each half (Option B), one arbiter entry per half
 
 ## Active
 
@@ -41,3 +40,4 @@ by construction rather than by discipline.
 - **TASK-013** — replace the hand-rolled protocol responders in the rapids TBs with framework BFMs (closed 2026-09-27)
 - **TASK-010** — 26 ASCII placeholder figures name dead signals; 2 figures have no test to capture from (closed 2026-09-27)
 - **TASK-014** — control engines drain on channel reset instead of abandoning the AXI transaction (closed 2026-09-27)
+- **TASK-015** — AXIS monitor-lite in each half (Option B), one arbiter entry per half (closed 2026-09-27)

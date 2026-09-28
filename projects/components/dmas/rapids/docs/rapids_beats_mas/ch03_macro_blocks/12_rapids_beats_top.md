@@ -64,16 +64,14 @@ and interrupt).
                          v
                 rapids_core_beats
                         |
-        core AXI rd/wr, descriptor-monitor packet
-                        |
-   USE_AXI_MONITORS ? insert axi4_master_rd_monlite / axi4_master_wr_monlite
+        core AXI rd/wr, AXIS in/out, ONE merged MonBus stream
+        (per half: scheduler groups + descriptor-read monlite +
+         AXIS monlite through a 3:1 monbus_arbiter; core merges 2:1)
                         |
      +------------------+------------------+
-     | m_axi_rd    m_axi_wr   rd/wr mon packets + core mon packet
-     |                        |
-     |                   monbus_arbiter (3:1)
-     |                        |
-     |               monbus_axil4_axil4_group
+     | m_axi_rd    m_axi_wr   s_axis / m_axis      core_mon_*
+     |                                                 |
+     |                                  monbus_axil4_axil4_group
      |                 |          |         |
      |          s_axil_err_*  m_axil_mon_*  mon_irq
      v
@@ -99,14 +97,24 @@ Because the monitor regfile is at `0x1000`, the APB address bus must be at least
 
 When `USE_AXI_MONITORS = 1` the top builds the `monbus_axil4_axil4_group` and
 feeds it the core's MonBus stream. That stream carries the scheduler groups'
-completion and error events and the one monitor-lite instance the design has:
-`axi4_master_rd_monlite` on each half's descriptor read master, inside
-`scheduler_group_array_beats`. The data masters `m_axi_rd` and `m_axi_wr` and
-the two AXIS ports carry NO monitors (an earlier revision of this page said
-rd/wr monitor-lite blocks sat on the data masters; the RTL has never had them).
-Data-path and AXIS observation live in the characterization harness as
-external instruments (`axi_bus_meter`, `axis_bus_meter`, and the interface
-observers on `USE_OBSERVERS` builds). The group provides:
+completion and error events and two monitor-lite instances per half:
+`axi4_master_rd_monlite` on the half's descriptor read master, inside
+`scheduler_group_array_beats` (agent 0x08), and an AXIS monitor-lite on the
+half's network port (rapids TASK-015): `axis4_slave_monlite` on the sink's
+`s_axis_*` (agent 0x09, configured by `SNK.MON.WRMON_*`) and
+`axis4_master_monlite` on the source's `m_axis_*` (agent 0x0A, configured by
+`SRC.MON.RDMON_*`). Each half merges its scheduler array, its AXIS monitor and
+a tied-off placeholder client in a 3:1 `monbus_arbiter`; the core merges the two
+halves 2:1. The AXIS wrappers also place an `axis4_slave` / `axis4_master` skid
+stage (depth 4) on the network port in every build; only the tap is gated by
+`USE_AXI_MONITORS`. The data masters `m_axi_rd` and `m_axi_wr` carry NO
+monitors (an earlier revision of this page said rd/wr monitor-lite blocks sat
+on the data masters; the RTL has never had them). Data-master observation lives
+in the characterization harness as external instruments (`axi_bus_meter`,
+`axis_bus_meter`, and the interface observers on `USE_OBSERVERS` builds). The
+group's AXIS filter slot is fed from `SRC.MON.RDMON_*`, so it filters both
+halves' AXIS packets; `*_PKT_MASK` is a DROP mask (bit[type] = 1 drops; rapids
+BUG-008). The group provides:
 
 - `s_axil_err_*` -- AXI-Lite (32-bit) **error-drain slave**: CPU reads captured
   error events from the error FIFO.
@@ -114,7 +122,8 @@ observers on `USE_OBSERVERS` builds). The group provides:
   trace to system memory (base/limit/watermark from `cfg_mon_*`).
 - `mon_irq` -- interrupt on error/threshold events.
 
-When `USE_AXI_MONITORS = 0` the descriptor monitor-lite is omitted, the core
+When `USE_AXI_MONITORS = 0` the descriptor and AXIS monitor-lites are omitted
+(the AXIS skid stages stay), the core
 MonBus is dropped (always-ready), and the AXI-Lite group outputs are tied off
 (`s_axil_err` read-inactive, `m_axil_mon` write-inactive, `mon_irq = 0`).
 

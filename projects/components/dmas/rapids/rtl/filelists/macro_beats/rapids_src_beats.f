@@ -8,6 +8,9 @@
 # Include source data path dependencies (AXIS-fronted; tid = channel)
 -f $REPO_ROOT/projects/components/dmas/rapids/rtl/filelists/macro_beats/src_data_path_axis_beats.f
 
+# Source-egress AXIS monitor-lite wrapper (axis4_master skid + axis_monitor_lite tap), rapids TASK-015
+-f $REPO_ROOT/rtl/amba/filelists/axis4_master_monlite.f
+
 # Includes
 +incdir+$REPO_ROOT/projects/components/dmas/rapids/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes

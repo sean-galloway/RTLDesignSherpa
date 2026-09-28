@@ -68,6 +68,8 @@ from CocoTBFramework.components.axi4.axi4_factories import (
     create_axi4_slave_rd, create_axi4_slave_wr)
 from CocoTBFramework.components.axis4.axis_factories import create_axis_master, create_axis_slave
 from CocoTBFramework.components.axil4.axil4_factories import create_axil4_slave_wr
+from TBClasses.monbus import parse_stream
+from TBClasses.monbus.monbus_types import ProtocolType, PktType
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -289,6 +291,11 @@ class RapidsBeatsTopTB(TBBase):
         self.axil_mon_slave = create_axil4_slave_wr(
             dut=d, clock=self.clk, prefix="m_axil_mon", log=self.log,
             multi_sig=True, data_width=64, addr_width=32)
+        # Every 64-bit beat the group's capture master writes, in order: the
+        # raw 24-byte trace records decode with TBClasses.monbus.parse_stream.
+        self.mon_w_beats: List[int] = []
+        self.axil_mon_slave['W'].add_callback(
+            lambda pkt: self.mon_w_beats.append(int(pkt.fields.get('data', 0))))
 
     async def init_apb4_master(self):
         """Bring up the framework APB master on s_apb_* (single clock = aclk)."""
@@ -971,6 +978,103 @@ class RapidsBeatsTopTB(TBBase):
                 self.log.error(f"  SCOREBOARD: {e}")
         else:
             self.log.info(f"  SCOREBOARD: sink verified ({beats} beats)")
+        return (len(errors) == 0), stats
+
+    # =========================================================================
+    # AXIS MONITOR-LITES THROUGH THE GROUP (rapids TASK-015)
+    # =========================================================================
+
+    SNK_AXIS_MON_AGENT_ID = 0x09
+    SRC_AXIS_MON_AGENT_ID = 0x0A
+
+    async def test_axis_monitors(self, beats=4) -> Tuple[bool, Dict[str, Any]]:
+        """Both AXIS monitor-lites report through the monbus group. Program the
+        source-egress monitor (SRC.MON.RDMON_*, agent 0x0A) and the sink-ingress
+        monitor (SNK.MON.WRMON_*, agent 0x09) for completion packets, move one
+        packet each way, then decode the raw 24-byte trace records the group's
+        capture master wrote to m_axil_mon_* and require exactly one
+        Completion/STREAM_END per monitor with the right tid and beat count.
+        PKT_MASK is a DROP mask (rapids BUG-008): 0 passes everything."""
+        self.log.info(f"=== AXIS monitor-lites: {beats} beats each way ===")
+        for half, reg in (('src', 'RDMON'), ('snk', 'WRMON')):
+            await self.write_fields(half, f'{reg}_ENABLE', MON_EN=1, ERR_EN=1, COMPL_EN=1)
+            await self.write_fields(half, f'{reg}_PKT_MASK', PKT_MASK=0)
+        n0 = len(self.mon_w_beats)
+
+        src_ch, snk_ch = 1, 2
+        ok_src, st_src = await self.test_source_path(channel=src_ch, beats=beats)
+        ok_snk, st_snk = await self.test_sink_path(channel=snk_ch, beats=beats)
+        errors = list(st_src['errors']) + list(st_snk['errors'])
+
+        # The source egress cuts a descriptor into drain-size AXIS packets
+        # (m_axis_tlast per drain burst); the sink ingress is one packet. The
+        # capture master writes one 3-beat record per packet through single-beat
+        # AXI-Lite writes, so it lags the traffic by thousands of cycles and the
+        # halves' own CORE completions ride the same stream: wait until the
+        # expected AXIS completions are in memory AND the stream has been quiet,
+        # under a 20000-cycle cap, rather than counting raw beats.
+        drain = (await self.read_reg('src', 'AXI_XFER_CONFIG') >> 24) & 0xFF
+        drain = max(1, drain)
+        n_src = -(-beats // drain)
+
+        def _axis_compl(agent):
+            ws = self.mon_w_beats[n0:]
+            ws = ws[:len(ws) - len(ws) % 3]
+            return sum(1 for r in parse_stream(ws, stride_bytes=24, ts_mode=1)
+                       if r.packet.agent_id == agent
+                       and r.packet.packet_type == PktType.PktTypeCompletion)
+
+        quiet, last = 0, len(self.mon_w_beats)
+        for _ in range(400):
+            await self.wait_clocks(self.clk_name, 50)
+            cur = len(self.mon_w_beats)
+            quiet, last = (quiet + 50 if cur == last else 0), cur
+            if (quiet >= 200 and _axis_compl(self.SRC_AXIS_MON_AGENT_ID) >= n_src
+                    and _axis_compl(self.SNK_AXIS_MON_AGENT_ID) >= 1):
+                break
+        words = self.mon_w_beats[n0:]
+        words = words[:len(words) - len(words) % 3]
+        pkts = [r.packet for r in parse_stream(words, stride_bytes=24, ts_mode=1)]
+        self.log.info(f"  capture master wrote {len(words)} beats -> {len(pkts)} records")
+        for p in pkts:
+            if p.agent_id not in (self.SRC_AXIS_MON_AGENT_ID, self.SNK_AXIS_MON_AGENT_ID):
+                self.log.info(f"    other record: agent 0x{p.agent_id:02X} unit {p.unit_id} "
+                              f"{p.get_protocol_name()}/{p.get_packet_type_name()}/0x{p.event_code:02X} "
+                              f"ch {p.channel_id} data 0x{p.event_data:X}")
+        # The lites' own counters (internal to the halves; no register yet).
+        for half, inst in (('src', 'u_axis_egress_mon'), ('snk', 'u_axis_ingress_mon')):
+            try:
+                m = getattr(getattr(self.dut.u_core, f'u_{half}'), inst)
+                self.log.info(f"  {half} AXIS lite: packet_count={int(m.packet_count.value)} "
+                              f"error_count={int(m.error_count.value)} dropped_count={int(m.dropped_count.value)}")
+            except (AttributeError, TypeError) as e:
+                self.log.info(f"  {half} AXIS lite counters not reachable: {e}")
+
+        # The source egress cuts a descriptor into drain-size AXIS packets
+        # (m_axis_tlast per drain burst); the sink ingress is one packet.
+        expect = {
+            self.SRC_AXIS_MON_AGENT_ID: (src_ch, 'source-egress',
+                                         [drain] * (beats // drain) + ([beats % drain] if beats % drain else [])),
+            self.SNK_AXIS_MON_AGENT_ID: (snk_ch, 'sink-ingress', [beats]),
+        }
+        for agent, (ch, name, want) in expect.items():
+            mine = [p for p in pkts if p.agent_id == agent]
+            compl = [p for p in mine if p.protocol == ProtocolType.PROTOCOL_AXIS
+                     and p.packet_type == PktType.PktTypeCompletion]
+            tids = [(p.event_data >> 48) & 0xFFFF for p in compl]
+            cnts = sorted(p.event_data & 0xFFFF_FFFF for p in compl)
+            if cnts != sorted(want):
+                errors.append(f"{name} AXIS monitor (agent 0x{agent:02X}): completion beat counts "
+                              f"{cnts}, expected {sorted(want)} (records for it: {len(mine)})")
+            if any(t != ch for t in tids):
+                errors.append(f"{name} AXIS monitor: completion tids {tids}, expected all {ch}")
+            self.log.info(f"  {name} agent 0x{agent:02X}: {len(mine)} records, {len(compl)} completion {cnts}")
+        stats = {'records': len(pkts), 'errors': errors}
+        if errors:
+            for e in errors:
+                self.log.error(f"  SCOREBOARD: {e}")
+        else:
+            self.log.info("  SCOREBOARD: both AXIS monitor-lites reported through the group")
         return (len(errors) == 0), stats
 
     async def test_control_path(self, half='src', gate_ch=0,

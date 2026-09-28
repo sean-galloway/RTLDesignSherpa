@@ -8,6 +8,9 @@
 # Include sink data path dependencies (AXIS-fronted; tid = channel)
 -f $REPO_ROOT/projects/components/dmas/rapids/rtl/filelists/macro_beats/snk_data_path_axis_beats.f
 
+# Sink-ingress AXIS monitor-lite wrapper (axis4_slave skid + axis_monitor_lite tap), rapids TASK-015
+-f $REPO_ROOT/rtl/amba/filelists/axis4_slave_monlite.f
+
 # Includes
 +incdir+$REPO_ROOT/projects/components/dmas/rapids/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes

@@ -202,6 +202,7 @@ module rapids_config_block #(
     output logic                        cfg_rdeng_mon_err_enable,
     output logic                        cfg_rdeng_mon_perf_enable,
     output logic                        cfg_rdeng_mon_timeout_enable,
+    output logic                        cfg_rdeng_mon_compl_enable,
     output logic [31:0]                 cfg_rdeng_mon_timeout_cycles,
     output logic [31:0]                 cfg_rdeng_mon_latency_thresh,
     output logic [15:0]                 cfg_rdeng_mon_pkt_mask,
@@ -219,6 +220,7 @@ module rapids_config_block #(
     output logic                        cfg_wreng_mon_err_enable,
     output logic                        cfg_wreng_mon_perf_enable,
     output logic                        cfg_wreng_mon_timeout_enable,
+    output logic                        cfg_wreng_mon_compl_enable,
     output logic [31:0]                 cfg_wreng_mon_timeout_cycles,
     output logic [31:0]                 cfg_wreng_mon_latency_thresh,
     output logic [15:0]                 cfg_wreng_mon_pkt_mask,
@@ -325,6 +327,7 @@ module rapids_config_block #(
     assign cfg_rdeng_mon_err_enable = reg_rdmon_enable_err_en;
     assign cfg_rdeng_mon_perf_enable = reg_rdmon_enable_perf_en;
     assign cfg_rdeng_mon_timeout_enable = reg_rdmon_enable_timeout_en;
+    assign cfg_rdeng_mon_compl_enable = reg_rdmon_enable_compl_en;
     assign cfg_rdeng_mon_timeout_cycles = reg_rdmon_timeout_timeout_cycles;
     assign cfg_rdeng_mon_latency_thresh = reg_rdmon_latency_thresh_latency_thresh;
     assign cfg_rdeng_mon_pkt_mask = reg_rdmon_pkt_mask_pkt_mask;
@@ -345,6 +348,7 @@ module rapids_config_block #(
     assign cfg_wreng_mon_err_enable = reg_wrmon_enable_err_en;
     assign cfg_wreng_mon_perf_enable = reg_wrmon_enable_perf_en;
     assign cfg_wreng_mon_timeout_enable = reg_wrmon_enable_timeout_en;
+    assign cfg_wreng_mon_compl_enable = reg_wrmon_enable_compl_en;
     assign cfg_wreng_mon_timeout_cycles = reg_wrmon_timeout_timeout_cycles;
     assign cfg_wreng_mon_latency_thresh = reg_wrmon_latency_thresh_latency_thresh;
     assign cfg_wreng_mon_pkt_mask = reg_wrmon_pkt_mask_pkt_mask;

@@ -19,6 +19,11 @@
 # Source data path dependencies (AXIS-fronted; tid = channel)
 -f $REPO_ROOT/projects/components/dmas/rapids/rtl/filelists/macro_beats/src_data_path_axis_beats.f
 
+# AXIS monitor-lite wrappers on each half's network port (rapids TASK-015); the
+# loader dedups, so the shared axis_monitor_lite.f pulled by both is compiled once
+-f $REPO_ROOT/rtl/amba/filelists/axis4_slave_monlite.f
+-f $REPO_ROOT/rtl/amba/filelists/axis4_master_monlite.f
+
 # Includes
 +incdir+$REPO_ROOT/projects/components/dmas/rapids/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes

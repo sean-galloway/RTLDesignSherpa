@@ -48,6 +48,11 @@ bits wide; `paddr[12]` selects the half and `paddr[11]` the monitor window.
 | +0x800-0x9FF | `rapids_mon_regs` | AXI-monitor config and performance |
 | 0x0000 / 0x1000 | half base | SRC half / SNK half |
 
+The three `*_PKT_MASK` registers are DROP masks: bit[type] = 1 drops that packet
+type, at the monitor-lite and again at the monbus group; they default to 0.
+(rapids BUG-008: they used to read "1 = enable" with a 0xFFFF default, which
+dropped every packet.) `*_TIMEOUT` counts MICROSECONDS in its low 16 bits.
+
 On a build with `USE_MON_REGS = 0` (the default when `USE_AXI_MONITORS = 0`) the
 two monitor windows keep their addresses but answer every access with `PSLVERR`
 and zero read data: the config blocks drive nothing from them, and a read-back
@@ -95,8 +100,8 @@ that succeeded would tell the host a monitor is configured that does not exist.
 | +0x800 | `MON_FIFO_STATUS` | RO | MonBus capture/error FIFO status |
 | +0x804 | `MON_FIFO_COUNT` | RO | MonBus FIFO occupancy |
 | +0x8C0-0x8DC | `DAXMON_*` | RW | Descriptor-monitor config (enable/timeout/latency/masks) |
-| +0x8E0-0x8FC | `RDMON_*` | RW | Read-monitor config (same layout) |
-| +0x900-0x91C | `WRMON_*` | RW | Write-monitor config (same layout, incl. `COMPRESS_EN`) |
+| +0x8E0-0x8FC | `RDMON_*` | RW | Source-egress AXIS monitor-lite config (same layout; live in the SRC half, rapids TASK-015) |
+| +0x900-0x91C | `WRMON_*` | RW | Sink-ingress AXIS monitor-lite config (same layout; live in the SNK half, rapids TASK-015; the SRC copy's `COMPRESS_EN` drives the group) |
 | +0x950-0x978 | `DAXMON_PERF_*` | RO/RW | Descriptor-monitor performance counters |
 | +0x980-0x9A8 | `RDMON_PERF_*` | RO/RW | Read-monitor performance counters |
 | +0x9B0-0x9D8 | `WRMON_PERF_*` | RO/RW | Write-monitor performance counters |

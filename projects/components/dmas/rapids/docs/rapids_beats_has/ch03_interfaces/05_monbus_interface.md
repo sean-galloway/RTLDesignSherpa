@@ -78,8 +78,8 @@ RAPIDS modules use the following Agent IDs:
 | Agent ID | Module | Description |
 |----------|--------|-------------|
 | 0x08 | Descriptor AXI monitor | `axi4_master_rd_monlite` on the descriptor read master (per half, `USE_AXI_MONITORS`) |
-| 0x09 | Sink-ingress AXIS monitor | reserved, rapids TASK-015 (`rapids_snk_beats`, `s_axis_*`) |
-| 0x0A | Source-egress AXIS monitor | reserved, rapids TASK-015 (`rapids_src_beats`, `m_axis_*`) |
+| 0x09 | Sink-ingress AXIS monitor | `axis4_slave_monlite` on `s_axis_*` in `rapids_snk_beats` (`USE_AXI_MONITORS`; config `SNK.MON.WRMON_*`) |
+| 0x0A | Source-egress AXIS monitor | `axis4_master_monlite` on `m_axis_*` in `rapids_src_beats` (`USE_AXI_MONITORS`; config `SRC.MON.RDMON_*`) |
 | 0x10-0x17 | Descriptor Engine | Channels 0-7 |
 | 0x20 | Control Read Engine | ctrlrd (one per half) |
 | 0x21 | Control Write Engine | ctrlwr (one per half) |
