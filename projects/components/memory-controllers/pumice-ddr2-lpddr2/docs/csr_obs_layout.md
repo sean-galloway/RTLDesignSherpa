@@ -23,10 +23,19 @@
 
 # CSR obs_* readout layout
 
-Status (refreshed 2026-08-27): IMPLEMENTED. The obs_* window is live in
-the PeakRDL CSR at 0x1C0-0x1E3 (`rtl/macro/pumice_csr.rdl`, generated docs
-in `regs/generated/docs/`); this file remains the authority for what each
-word's BITS mean, which the register description cannot carry.
+Status (corrected 2026-09-28): **NOT IMPLEMENTED -- the window reads zero.**
+The `OBS_WORDS[9]` registers exist in the PeakRDL CSR at 0x1C0-0x1E3
+(`rtl/macro/pumice_csr.rdl`), but NOTHING DRIVES THEM: `pumice_top` contains no
+`hwif_in.OBS_*` assignment, and the aggregator this file specifies
+(`command_scheduler_macro.obs_words_o` / `axi_frontend_macro.obs_words_o`) was
+removed in e8908eebf (2026-07-21, "retire three dead code trees"). `obs_words`
+appears nowhere in `rtl/` today. Tracked as pumice BUG-020.
+
+This file previously said "refreshed 2026-08-27: IMPLEMENTED ... live", which was
+already false when it was written -- the driver had been gone for five weeks. It
+is kept because it remains the authority for what each word's BITS mean, which
+the register description cannot carry, and that packing is what a restoration
+would have to reproduce.
 
 NOTE: the packing text below still names the pre-rearchitecture macros
 (`command_scheduler_macro`, `axi_frontend_macro`). The equivalent sources
