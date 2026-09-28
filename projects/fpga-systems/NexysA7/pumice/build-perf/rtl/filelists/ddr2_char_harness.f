@@ -13,7 +13,7 @@
 -f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_axil.f
 
 # ddr2_char_macro (WR pattern-gen + RD CRC-check + pumice controller top)
--f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.f
+-f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/filelists/ddr2_char_macro.f
 
 # AXIL SRAM slave used for debug_sram + dfi_mon_ram
 -f $REPO_ROOT/rtl/amba/filelists/axil4_slave_wr.f

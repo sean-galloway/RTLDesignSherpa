@@ -39,7 +39,7 @@
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/apb4_to_peakrdl.f
 
 # The generator config block.
--f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/chargen_regs.f
+-f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/filelists/chargen_regs.f
 
 # The generator unit: two write and two read generator blocks and the N:1 merge
 # that puts them on pumice's single s_axi port. Each generator spans

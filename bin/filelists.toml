@@ -207,9 +207,7 @@ filelist_dirs = [
     "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/dv/filelists",
     "projects/fpga-systems/NexysA7/pumice/build-perf/rtl/filelists",
     "projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart/rtl/filelists",
-    # ddr2_char_macro.f lives at the rtl root (not a filelists/ subdir);
-    # registered here so the blindspot ratchet sees it.
-    "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl",
+    "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/filelists",
 ]
 
 [[area]]

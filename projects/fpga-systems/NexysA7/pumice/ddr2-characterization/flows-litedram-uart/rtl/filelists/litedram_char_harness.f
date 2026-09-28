@@ -20,7 +20,7 @@
 # char_engine_block (chargen_regs + char_gen_unit generator array + perf) and
 # its deps. ddr2_char_macro.f is the list that owns them; pumice itself rides
 # along parsed-but-unreferenced (nothing under litedram_char_top reaches it).
--f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.f
+-f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/filelists/ddr2_char_macro.f
 
 # AXIL SRAM slave for the debug_sram / dfi_mon_ram slots
 -f $REPO_ROOT/rtl/amba/filelists/axil4_slave_wr.f

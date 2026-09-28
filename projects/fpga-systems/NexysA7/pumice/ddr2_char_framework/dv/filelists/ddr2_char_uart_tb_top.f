@@ -10,7 +10,7 @@
 
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/uart_axil_bridge.f
 -f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_axil.f
--f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.f
+-f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/filelists/ddr2_char_macro.f
 
 -f $REPO_ROOT/rtl/amba/filelists/axil4_slave_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axil4_slave_rd.f
