@@ -205,6 +205,14 @@ already 0x100). W beats stream from the ID-selected drain port
 and the B response two cycles later raises `sched_wr_commit_strobe`. At
 `PIPELINE = 0` the channel's next AW waits for that B.
 
+That wait is the throughput cost of `PIPELINE = 0`: with 8-beat bursts a
+channel spends the AW-to-B round trip idle, and on the Genesys 2 the
+8-channel sink write path measured 49.9 % engaged utilization at 4096
+beats per channel once BUG-005 made the engine honour one-in-flight (the
+pre-fix engine had run two by accident and read 100 %). The top and core
+therefore default `PIPELINE = 1`, which restores line rate; this page keeps
+the engine's own default of `0`.
+
 ---
 
 ## Error Handling

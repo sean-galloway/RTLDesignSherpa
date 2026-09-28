@@ -57,7 +57,7 @@ module rapids_core_beats #(
     parameter int AXI_ID_WIDTH = 8,
     parameter int SRAM_DEPTH = 512,
     parameter int SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1,
-    parameter int PIPELINE = 0,
+    parameter int PIPELINE = 1,             // write-engine pipelining; 1 is the perf design point (see rapids_beats_top)
     parameter int AR_MAX_OUTSTANDING = 8,
     parameter int AW_MAX_OUTSTANDING = 8,
     parameter int W_PHASE_FIFO_DEPTH = 64,

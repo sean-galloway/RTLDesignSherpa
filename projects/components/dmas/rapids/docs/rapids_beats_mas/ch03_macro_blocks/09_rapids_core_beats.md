@@ -94,6 +94,7 @@ parameter int SRAM_DEPTH = 512;
 // AXI Parameters
 parameter int AR_MAX_OUTSTANDING = 8;
 parameter int AW_MAX_OUTSTANDING = 8;
+parameter int PIPELINE = 1;             // write-engine pipelining: 1 = up to AW_MAX_OUTSTANDING bursts in flight per channel
 parameter int R_PHASE_FIFO_DEPTH = 64;
 parameter int W_PHASE_FIFO_DEPTH = 64;
 parameter int B_PHASE_FIFO_DEPTH = 16;

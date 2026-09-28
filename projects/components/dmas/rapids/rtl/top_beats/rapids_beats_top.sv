@@ -94,6 +94,13 @@ module rapids_beats_top #(
     parameter bit USE_MON_REGS         = (USE_AXI_MONITORS != 0),
     parameter int AR_MAX_OUTSTANDING   = 8,
     parameter int AW_MAX_OUTSTANDING   = 8,
+    // Write-engine pipelining. 0 = one burst in flight per channel (the engine's
+    // original contract); 1 = up to AW_MAX_OUTSTANDING per channel. The default
+    // is 1: once rapids BUG-005 made PIPELINE=0 honour its one-in-flight
+    // contract, the 8-channel Genesys 2 build measured 49.9% AXI4-wr utilization
+    // at 4096 beats/channel (it had read 100% only because the pre-fix engine ran
+    // two bursts in flight by accident). PIPELINE=1 is the perf design point.
+    parameter int PIPELINE             = 1,
     // AXIS network-interface parameters (tid carries the channel id)
     parameter int AXIS_ID_WIDTH   = 8,
     parameter int AXIS_DEST_WIDTH = 4,
@@ -1513,6 +1520,7 @@ module rapids_beats_top #(
         .SRAM_DEPTH           (SRAM_DEPTH),
         .AR_MAX_OUTSTANDING   (AR_MAX_OUTSTANDING),
         .AW_MAX_OUTSTANDING   (AW_MAX_OUTSTANDING),
+        .PIPELINE             (PIPELINE),
         .AXIS_ID_WIDTH        (AXIS_ID_WIDTH),
         .AXIS_DEST_WIDTH      (AXIS_DEST_WIDTH),
         .AXIS_USER_WIDTH      (AXIS_USER_WIDTH),

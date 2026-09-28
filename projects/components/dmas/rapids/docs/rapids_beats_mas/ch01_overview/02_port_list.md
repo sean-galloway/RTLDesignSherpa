@@ -45,7 +45,7 @@ what the port widths below are written in (`NC`, `AW`, `DW`, `IW`, `SCW`, `CIW`,
 | `AXI_ID_WIDTH` | int | `8` | - |
 | `SRAM_DEPTH` | int | `512` | - |
 | `SEG_COUNT_WIDTH` | int | `$clog2(SRAM_DEPTH) + 1` | - |
-| `PIPELINE` | int | `0` | - |
+| `PIPELINE` | int | `1` | write-engine pipelining; 1 is the perf design point (see rapids_beats_top) |
 | `AR_MAX_OUTSTANDING` | int | `8` | - |
 | `AW_MAX_OUTSTANDING` | int | `8` | - |
 | `W_PHASE_FIFO_DEPTH` | int | `64` | - |
@@ -702,4 +702,4 @@ The two halves' monitor outputs are merged through a top-level monbus_arbiter, s
 
 **Verified:** every row above is a declared port of `rapids_core_beats` and every
 declared port has a row (324 of 324), generated from the module declaration on
-2026-09-27. Regenerate rather than hand-edit when the interface changes.
+2026-09-28. Regenerate rather than hand-edit when the interface changes.

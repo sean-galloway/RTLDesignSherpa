@@ -93,6 +93,21 @@ Because the monitor regfile is at `0x1000`, the APB address bus must be at least
 
 ---
 
+## Write-engine pipelining (PIPELINE)
+
+`PIPELINE` reaches `axi_write_engine_beats` through the core and both halves.
+`0` is the engine's original contract, one burst in flight per channel; `1`
+allows up to `AW_MAX_OUTSTANDING` per channel. The top defaults to `1` since
+2026-09-28: once rapids BUG-005 made `PIPELINE = 0` honour one-in-flight, the
+8-channel Genesys 2 build measured 49.9 % AXI4-wr engaged utilization at 4096
+beats per channel (59.5 % at 1024), against 100 % on the bitstream before the
+fix -- which had reached line rate only because the pre-fix engine ran two
+bursts in flight by accident. The harness simulation reproduces the same
+numbers (82.4 % at 1024 beats with `PIPELINE = 0`, 99.9 % with `1`). One
+burst in flight cannot cover the write-response round trip at 8-beat bursts,
+so `1` is the performance design point; `0` remains available for a design
+that must bound each channel to a single outstanding write.
+
 ## AXI Monitors (USE_AXI_MONITORS)
 
 When `USE_AXI_MONITORS = 1` the top builds the `monbus_axil4_axil4_group` and
@@ -158,6 +173,7 @@ parameter bit USE_MON_REGS        = (USE_AXI_MONITORS != 0); // 0 = MON windows 
 parameter int MON_MAX_TRANSACTIONS = 16;
 parameter int AR_MAX_OUTSTANDING  = 8;
 parameter int AW_MAX_OUTSTANDING  = 8;
+parameter int PIPELINE            = 1;   // write-engine pipelining; see the note below
 ```
 
 : Table 3.12.2: RAPIDS Beats Top Parameters

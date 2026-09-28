@@ -12,9 +12,18 @@ set script_dir   [file dirname [file normalize [info script]]]
 set project_root [file normalize "$script_dir/.."]
 
 puts "========================================================================"
-puts "RAPIDS Characterization — ILA debug build (scheduler idle signals)"
+puts "RAPIDS Characterization -- ILA debug build (observation-window nets, rapids ISSUE-004)"
 puts "========================================================================"
 source "$script_dir/create_project.tcl"
+
+# The harness marks its observation-window nets only when RAPIDS_CHAR_ILA is
+# defined (rtl/rapids_char_harness.sv, `RC_DBG), so the perf build never carries
+# them. Append it to whatever the filelist already defines.
+set src_fs [get_filesets sources_1]
+set defs [get_property verilog_define $src_fs]
+lappend defs RAPIDS_CHAR_ILA=1
+set_property verilog_define $defs $src_fs
+puts "verilog_define: $defs"
 
 puts "\n--- Synthesis (keep MARK_DEBUG nets) ---"
 reset_run synth_1

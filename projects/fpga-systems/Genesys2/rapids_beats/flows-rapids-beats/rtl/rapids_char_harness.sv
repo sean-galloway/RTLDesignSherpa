@@ -33,6 +33,15 @@
 
 `include "reset_defs.svh"
 
+// ILA build only (tcl/build_ila.tcl defines RAPIDS_CHAR_ILA): mark the
+// observation-window nets so build_ila.tcl can find them. Expands to nothing
+// in the perf build, so the marks cost that build no logic and no timing.
+`ifdef RAPIDS_CHAR_ILA
+`define RC_DBG (* mark_debug = "true" *)
+`else
+`define RC_DBG
+`endif
+
 module rapids_char_harness #(
     // ---- DUT geometry (NUM_CHANNELS / DATA_WIDTH overridable) ----
     parameter int NUM_CHANNELS    = 8,
@@ -274,7 +283,7 @@ module rapids_char_harness #(
     logic [31:0]                r_kick_base_lo;    // descriptor base addr [31:0]
     logic [31:0]                r_kick_base_hi;    // descriptor base addr [63:32]
     logic [31:0]                r_kick_stride;     // per-channel byte stride
-    logic                       r_go;              // 1-cycle GO pulse
+    `RC_DBG logic                       r_go;              // 1-cycle GO pulse
     logic [31:0]                r_obs_target;      // freeze window at N productive beats
 
     // Descriptor-load holding registers
@@ -319,14 +328,14 @@ module rapids_char_harness #(
     logic                       wr_mem_busy;
     // Per-interface bus-meter buckets from the harness (AXI4 rd/wr + AXIS sin/sout).
     logic [31:0]                obs_rd_prod, obs_rd_bp, obs_rd_starv, obs_rd_idle;
-    logic [31:0]                obs_wr_prod, obs_wr_bp, obs_wr_starv, obs_wr_idle;
-    logic [31:0]                obs_sin_prod, obs_sin_bp, obs_sin_starv, obs_sin_idle;
+    `RC_DBG logic [31:0]                obs_wr_prod, obs_wr_bp, obs_wr_starv, obs_wr_idle;
+    `RC_DBG logic [31:0]                obs_sin_prod, obs_sin_bp, obs_sin_starv, obs_sin_idle;
     logic [31:0]                obs_sout_prod, obs_sout_bp, obs_sout_starv, obs_sout_idle;
     // AXIS-native throughput counters (axis_bus_meter): exact bytes + packets.
     logic [63:0]                obs_sin_bytes, obs_sout_bytes;
     logic [31:0]                obs_sin_packets, obs_sout_packets;
-    logic                       r_obs_arm;   // 1-cycle bus-meter re-arm pulse
-    logic                       src_system_idle, snk_system_idle;
+    `RC_DBG logic                       r_obs_arm;   // 1-cycle bus-meter re-arm pulse
+    `RC_DBG logic                       src_system_idle, snk_system_idle;
     logic [NUM_CHANNELS-1:0]    src_sched_error, snk_sched_error;
     logic                       mon_irq;
 
@@ -874,7 +883,7 @@ module rapids_char_harness #(
     logic rd_crc_lfsr_reset;
     logic wr_crc_reset;
     logic obs_arm;
-    logic [31:0] obs_target;
+    `RC_DBG logic [31:0] obs_target;
     logic [AXI_ID_WIDTH-1:0] desc_src_awid;
     logic [ADDR_WIDTH-1:0] desc_src_awaddr;
     logic [7:0] desc_src_awlen;
@@ -1147,11 +1156,11 @@ module rapids_char_harness #(
     // ---- AXIS ingress (harness gen -> DUT s_axis) ----
     logic [DATA_WIDTH-1:0]     s_axis_tdata;
     logic [SW-1:0]             s_axis_tstrb;
-    logic                      s_axis_tlast;
+    `RC_DBG logic                      s_axis_tlast;
     logic [AXIS_ID_WIDTH-1:0]  s_axis_tid;
     logic [AXIS_DEST_WIDTH-1:0] s_axis_tdest;
     logic [AXIS_USER_WIDTH-1:0] s_axis_tuser;
-    logic                      s_axis_tvalid, s_axis_tready;
+    `RC_DBG logic                      s_axis_tvalid, s_axis_tready;
 
     // ---- AXIS egress (DUT m_axis -> harness check) ----
     logic [DATA_WIDTH-1:0]     m_axis_tdata;
@@ -1968,12 +1977,12 @@ module rapids_char_harness #(
     // Busy is gated by the ACTIVE half only. Keying on both halves let a stuck
     // (non-idle) idle half from a prior run poison the window forever, so it
     // never closed and ran until the host read it (util diluted to ~0%).
-    logic obs_dut_busy;
+    `RC_DBG logic obs_dut_busy;
     assign obs_dut_busy = obs_active_half ? ~snk_system_idle : ~src_system_idle;
     // Completion trigger: productive beats on the LAST interface of the path.
     wire [31:0] w_obs_trigger = obs_active_half ? obs_wr_prod : obs_sout_prod;
     wire        w_obs_target_hit = (obs_target != 32'd0) && (w_obs_trigger >= obs_target);
-    logic        obs_win_active, obs_started;
+    `RC_DBG logic        obs_win_active, obs_started;
     logic [7:0]  obs_settle;
     logic        obs_meter_clear, obs_meter_freeze;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -2030,8 +2039,8 @@ module rapids_char_harness #(
     // it finishes from inflating the backpressure bucket "without bound". That
     // stays bounded here: the shared window closes deterministically on
     // wr_prod >= obs_target, so any trailing bp is bounded by the transfer.
-    logic obs_sin_armed, obs_sin_win_active;
-    logic obs_sin_open_now;
+    `RC_DBG logic obs_sin_armed, obs_sin_win_active;
+    `RC_DBG logic obs_sin_open_now;
     assign obs_sin_open_now = obs_sin_armed && s_axis_tvalid;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -2054,7 +2063,7 @@ module rapids_char_harness #(
             end
         end
     )
-    logic obs_sin_clear, obs_sin_freeze;
+    `RC_DBG logic obs_sin_clear, obs_sin_freeze;
     assign obs_sin_clear  = obs_arm;
     // Unfrozen from the very cycle the first beat is offered (combinational
     // open), so that beat's handshake is counted, not lost to a register delay.

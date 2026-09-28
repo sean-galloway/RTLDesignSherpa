@@ -8,7 +8,7 @@
 #==============================================================================
 set script_dir   [file dirname [file normalize [info script]]]
 set project_root [file normalize "$script_dir/.."]
-set repo_root    [file normalize "$project_root/../../../.."]
+set repo_root    [file normalize "$project_root/../../../../.."]   ;# flows -> rapids_beats -> Genesys2 -> fpga-systems -> projects -> repo
 set bit "$project_root/bitstream/rapids_char_ila.bit"
 set ltx "$project_root/bitstream/rapids_char_ila.ltx"
 set out   [expr {$argc >= 1 ? [lindex $argv 0] : "$project_root/reports/ila_commit_trace.csv"}]
