@@ -54,10 +54,22 @@ die()  { printf '\033[31mFAIL\033[0m %s\n' "$*"; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1; }
 for t in curl tar; do need $t || die "missing prerequisite: $t"; done
 
+# Privilege: a workstation user has sudo; a container or CI runner is usually
+# root with NO sudo binary at all. Measured 2026-09-27 on a clean ubuntu:24.04
+# container (tooling TASK-002): the unconditional `sudo apt-get` below died
+# with "sudo: command not found" before Verilator was even attempted, so the
+# "clean box" path this script exists for had never actually run. Escalate
+# only when not already root.
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+    need sudo || die "not root and no sudo: cannot install packages"
+    SUDO="sudo"
+fi
+
 # Fall back to a writable location rather than failing late on a sandbox that
 # does not expose /mnt/data.
 if ! mkdir -p "$PREFIX" 2>/dev/null; then
-    if sudo -n true 2>/dev/null && sudo mkdir -p "$PREFIX" 2>/dev/null; then
+    if [ -n "$SUDO" ] && sudo -n true 2>/dev/null && sudo mkdir -p "$PREFIX" 2>/dev/null; then
         sudo chown "$(id -u):$(id -g)" "$PREFIX"
     else
         PREFIX="$HOME/.rtlds-tools"
@@ -77,9 +89,9 @@ if ! need verilator; then
         # lives in the main Ubuntu archive; the good sources still refresh, so a
         # partial-update failure must NOT abort us under `set -e`. The install
         # below is the real success gate.
-        sudo apt-get update -qq \
+        $SUDO apt-get update -qq \
             || warn "apt-get update had partial failures (unreachable third-party repos); continuing"
-        sudo apt-get install -y -qq verilator build-essential ccache perl python3-venv \
+        $SUDO apt-get install -y -qq verilator build-essential ccache perl python3-venv unzip \
             || die "apt-get install verilator failed (main Ubuntu archive unreachable?)"
     else
         die "no apt-get and no verilator; build $WANT_VERILATOR from source"

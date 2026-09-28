@@ -33,6 +33,9 @@ $(error REPO_ROOT is not set. Source the repo's env file (env_python) or export 
 endif
 
 SELF_DIR         := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+# Marker-aware build-tree cleaner (tooling BUG-005): skips a directory a live
+# run owns instead of deleting it from under another session.
+PYTHON           ?= python3
 export REPO_ROOT
 export CHAR_ROOT := $(REPO_ROOT)/projects/fpga-systems/Genesys2/rapids_beats
 export FLOW_ROOT := $(SELF_DIR)
@@ -240,7 +243,7 @@ clean:
 
 clean-all: clean
 	@echo "[clean-all] removing sim caches, logs, and Python bytecode..."
-	rm -rf $(SELF_DIR)/dv/local_sim_build
+	$(PYTHON) $(REPO_ROOT)/bin/clean_sim_builds.py $(SELF_DIR)/dv
 	rm -rf $(SELF_DIR)/dv/logs
 	find $(SELF_DIR) -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find $(SELF_DIR) -type f -name "*.pyc"    -delete 2>/dev/null || true

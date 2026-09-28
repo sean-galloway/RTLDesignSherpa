@@ -12,16 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 6 | accepted, not started |
+| [open/](open/) | 5 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 7 | done (kept for history) |
+| [closed/](closed/) | 8 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
 - **TASK-013** — source comments still cite pre-migration task IDs
-- **TASK-002** — Finish validating the cloud bootstrap on a genuinely clean box
 - **TASK-003** — Two real gaps in the RDS-DV arbiter BFM
 - **TASK-005** — Tests resolve filelists through the toml registry, not hardcoded paths
 - **TASK-006** — emit CONTRACT TABLES (proofs), not K-map pictures
@@ -32,6 +31,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-002** — Finish validating the cloud bootstrap on a genuinely clean box -- CLOSED 2026-09-27: ran end to end in a clean ubuntu:24.04 container; fixed the unconditional sudo, added unzip, fixed the tool report
 - **TASK-001** — Migrate the remaining areas into /vault/Tasks/<area>/
 - **TASK-007** — Migrate the remaining method docs out of bin/ into the handbook
 - **TASK-008** — One gate that runs filelist_registry --check and --audit

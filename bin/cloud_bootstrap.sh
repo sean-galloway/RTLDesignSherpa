@@ -81,6 +81,12 @@ set -eu
 [ $SMOKE -eq 0 ] && ok "simulation works" || warn "smoke test failed (exit $SMOKE) -- see output above"
 
 say "Not available in this sandbox"
+# Look where install_tools.sh puts things, not only on the inherited PATH: this
+# shell never sourced env_python, so on the first clean-box run (2026-09-27)
+# this loop reported yosys and sby "missing" two screens after installing them.
+for d in /mnt/data/tools "$HOME/.rtlds-tools"; do
+    PATH="$d/oss-cad-suite/bin:$d/verible/bin:$d:$PATH"
+done
 for t in vivado yosys sby sv2v verible-verilog-lint; do
     command -v "$t" >/dev/null 2>&1 && ok "$t present" || warn "$t missing"
 done

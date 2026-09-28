@@ -55,6 +55,7 @@ TEST_FILE      = test_$(BRIDGE_NAME).py
 # ------------------------------------------------------------------------------
 # Pytest options
 # ------------------------------------------------------------------------------
+PYTHON           ?= python3
 PYTEST           = python3 -m pytest
 PYTEST_VERBOSE   = -v
 PYTEST_QUIET     = -q
@@ -213,7 +214,8 @@ rebuild: clean tests run
 .PHONY: clean
 clean:
 	@echo "Cleaning local sim artifacts..."
-	rm -rf __pycache__ .pytest_cache sim_build sim_build_* logs
+	rm -rf __pycache__ .pytest_cache logs
+	$(PYTHON) $(REPO_ROOT)/bin/clean_sim_builds.py $(CURDIR)
 	find . -name "*.pyc" -delete
 	find . -name "*.vcd" -delete
 	find . -name "*.fst" -delete
