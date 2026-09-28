@@ -765,7 +765,6 @@ module axi_monitor_lite (
 	wire [SW - 1:0] w_compl_slot = (IS_READ ? w_dslot : w_bslot);
 	wire w_compl_clean = (w_compl && !r_err[w_compl_slot]) && !(IS_READ ? data_resp[1] || w_last_early : resp_code[1]);
 	wire [TS_WIDTH - 1:0] w_latency = r_now - r_ts0[w_compl_slot * TS_WIDTH+:TS_WIDTH];
-	wire w_lat_evt = (w_compl_clean && cfg_threshold_enable) && ({{32 - TS_WIDTH {1'b0}}, w_latency} > cfg_latency_threshold);
 	wire w_free_has_next = r_has_next[w_compl_slot];
 	wire [SW - 1:0] w_free_next = r_next[w_compl_slot * SW+:SW];
 	reg [SW - 1:0] r_scan;
@@ -947,9 +946,11 @@ module axi_monitor_lite (
 	reg r_e_compl;
 	reg r_e_thresh;
 	reg r_lat_pend;
-	reg [SW - 1:0] r_lat_slot;
+	reg [IW - 1:0] r_lat_id;
+	reg [AW - 1:0] r_lat_addr;
 	reg [15:0] r_lat_latency;
 	wire w_lat_take;
+	wire w_lat_hit;
 	reg r_e_scan_phase;
 	reg r_e_data_decerr;
 	reg r_e_resp_decerr;
@@ -977,7 +978,8 @@ module axi_monitor_lite (
 			r_e_compl <= 1'b0;
 			r_e_thresh <= 1'b0;
 			r_lat_pend <= 1'b0;
-			r_lat_slot <= 1'sb0;
+			r_lat_id <= 1'sb0;
+			r_lat_addr <= 1'sb0;
 			r_lat_latency <= 1'sb0;
 			r_e_scan_phase <= 1'b0;
 			r_e_data_decerr <= 1'b0;
@@ -1007,10 +1009,11 @@ module axi_monitor_lite (
 			r_e_thresh <= w_thresh_evt && !clear;
 			if (clear)
 				r_lat_pend <= 1'b0;
-			else if (w_lat_evt && (!r_lat_pend || w_lat_take)) begin
+			else if (w_lat_hit && (!r_lat_pend || w_lat_take)) begin
 				r_lat_pend <= 1'b1;
-				r_lat_slot <= w_compl_slot;
-				r_lat_latency <= sv2v_cast_16(w_latency);
+				r_lat_id <= r_id[r_e_cslot * IW+:IW];
+				r_lat_addr <= r_addr[r_e_cslot * AW+:AW];
+				r_lat_latency <= r_e_latency;
 			end
 			else if (w_lat_take)
 				r_lat_pend <= 1'b0;
@@ -1028,6 +1031,7 @@ module axi_monitor_lite (
 			r_e_latency <= sv2v_cast_16(w_latency);
 			r_e_occupancy <= w_occupancy;
 		end
+	assign w_lat_hit = (r_e_compl && cfg_threshold_enable) && ({{16 {1'b0}}, r_e_latency} > cfg_latency_threshold);
 	function automatic type_allowed;
 		input reg [3:0] t;
 		type_allowed = !cfg_axi_pkt_mask[t];
@@ -1172,8 +1176,8 @@ module axi_monitor_lite (
 			end
 			else begin
 				w_evt_code = 8'h01;
-				w_evt_from_slot = 1'b1;
-				w_evt_slot = r_lat_slot;
+				w_evt_id_alt = r_lat_id;
+				w_evt_addr_alt = r_lat_addr;
 				w_evt_hi = r_lat_latency;
 			end
 		end
@@ -1184,7 +1188,7 @@ module axi_monitor_lite (
 	wire [3:0] w_offered = ((w_err_fired + sv2v_cast_4(w_tmo_fired)) + sv2v_cast_4(w_cmp_v)) + sv2v_cast_4(w_thr_fired);
 	wire w_take = w_evt_v && w_wr_ready;
 	assign w_lat_take = ((((w_take && w_thr_v) && !w_err_v) && !w_tmo_v) && !w_cmp_v) && !r_e_thresh;
-	wire w_lat_lost = ((w_lat_evt && cfg_threshold_enable) && r_lat_pend) && !w_lat_take;
+	wire w_lat_lost = (w_lat_hit && r_lat_pend) && !w_lat_take;
 	wire [3:0] w_lost = (w_offered - sv2v_cast_4(w_take)) + sv2v_cast_4(w_lat_lost);
 	reg [15:0] r_dropped;
 	reg [15:0] r_refused;

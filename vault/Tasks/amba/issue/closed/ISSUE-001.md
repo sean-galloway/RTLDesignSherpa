@@ -71,3 +71,8 @@ Verified: `val/amba` group suites 13/13 GATE, STREAM `test_stream_top_monbus`
 1/1 GATE, `formal/amba/monbus_group_core` prove (24 assertions, depth 14) and
 cover (14/14) PASS on the final RTL. `docs/markdown/rtl-amba/monitor/monbus_group.md`
 describes the four stages.
+
+**Later the same day:** monitor-lite ISSUE-002 was fixed too, and the fixture
+as a whole now meets: WNS +0.443 ns, zero failing endpoints, worst path the
+planner's stage 3 (`s2_beats_planned` -> `r_plan_addr`, 8.6 ns, 11 levels).
+The input-port path noted above is no longer in the failing set.

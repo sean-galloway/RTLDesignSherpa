@@ -294,6 +294,19 @@ rounding error against a microsecond tick -- and reported once. A command
 channel that holds VALID without READY for the same threshold reports
 `Timeout/CMD`.
 
+### Latency threshold
+
+A clean completion whose latency (cycle stamp at completion minus the cycle
+stamp at allocation) exceeds `cfg_latency_threshold` raises a
+`Threshold/LATENCY` packet. The compare is taken one stage after the
+completion, from the registered latency, and the event is then held with its
+own payload (id, address, latency) until the pick can take it -- so the
+completed slot may be reallocated meanwhile without the packet naming the
+wrong transaction. Until 2026-09-28 the compare and the hold were decided in
+the completion cycle itself, which chained the RRESP decode, the slot pick,
+the subtract, the compare and the drop-count adder into 21 logic levels
+(amba/monitor-lite ISSUE-002).
+
 ### Drop and count
 
 Events go into the output queue. If the queue is full when an event fires, or

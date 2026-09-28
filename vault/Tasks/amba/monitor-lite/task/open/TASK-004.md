@@ -42,3 +42,9 @@ stays as the report of last resort for a queue that is genuinely full.
 - [ ] the soak's accounting identity still closes exactly
       (`test_axi_monitor_soak_monlite`)
 - [ ] formal/amba/axi_monitor_lite prove + cover still pass
+
+**2026-09-28, later:** the LATENCY half is done under ISSUE-002 -- the latency
+event is now decided a stage after its completion and held with its own
+payload (id, address, latency). What remains here is the TIMEOUT half: hold
+the scan-hit event (with `r_id`/`r_addr` of the timed-out slot and its code)
+until the pick takes it, using the same shape.

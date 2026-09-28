@@ -354,8 +354,11 @@ module axi_monitor_lite
     // Latency threshold (the full monitor's second Threshold flavour): a clean
     // completion whose latency crossed cfg_latency_threshold. Gated by the same
     // runtime enable as the active-count threshold; STREAM arms it per port.
-    wire w_lat_evt = w_compl_clean && cfg_threshold_enable &&
-                     ({{(32-TS_WIDTH){1'b0}}, w_latency} > cfg_latency_threshold);
+    // The threshold compare itself is taken a cycle later, from the registered
+    // completion (r_e_compl / r_e_latency) -- see w_lat_hit in the event stage.
+    // Done here, it chained the RRESP decode, the slot pick, this subtract, a
+    // 32-bit compare and the drop-count adder into one cycle: 21 logic levels,
+    // 11.7 ns on an Artix-7 -1 (amba/monitor-lite ISSUE-002).
     // the freed head hands its flag to the next entry of its ID, if any
     wire           w_free_has_next = r_has_next[w_compl_slot];
     wire [SW-1:0]  w_free_next     = r_next[w_compl_slot];
@@ -524,13 +527,18 @@ module axi_monitor_lite
     logic               r_e_resp_orph, r_e_data_orph, r_e_early_ovf;
     logic               r_e_scan_hit, r_e_cmd_tmo, r_e_compl, r_e_thresh;
     // The latency-threshold event always coincides with its completion, and the
-    // pick takes one event a cycle: so it is HELD here (slot + latency) and offered
-    // on the following cycles. A second one arriving while one waits is lost and
-    // counted, like any event the queue could not take.
+    // pick takes one event a cycle: so it is HELD here and offered on the
+    // following cycles. It is decided one stage after the completion, from the
+    // registered latency, and holds its own PAYLOAD (id, address, latency)
+    // rather than a slot index: the completed slot is free from the next cycle
+    // and may be reallocated while the event waits. A second one arriving while
+    // one waits is lost and counted, like any event the queue could not take.
     logic               r_lat_pend;
-    logic [SW-1:0]      r_lat_slot;
+    logic [IW-1:0]      r_lat_id;
+    logic [AW-1:0]      r_lat_addr;
     logic [15:0]        r_lat_latency;
     logic               w_lat_take;   // the pick queued the held latency event this cycle
+    logic               w_lat_hit;    // stage 2: the registered completion crossed the threshold
     logic               r_e_scan_phase, r_e_data_decerr, r_e_resp_decerr;
     logic [SW-1:0]      r_e_dslot, r_e_bslot, r_e_tslot, r_e_cslot;
     logic [IW-1:0]      r_e_data_id, r_e_resp_id, r_e_cmd_id;
@@ -543,7 +551,7 @@ module axi_monitor_lite
             r_e_resp_err <= 1'b0; r_e_data_err <= 1'b0; r_e_last_early <= 1'b0; r_e_last_late <= 1'b0;
             r_e_resp_orph <= 1'b0; r_e_data_orph <= 1'b0; r_e_early_ovf <= 1'b0;
             r_e_scan_hit <= 1'b0; r_e_cmd_tmo <= 1'b0; r_e_compl <= 1'b0; r_e_thresh <= 1'b0;
-            r_lat_pend <= 1'b0; r_lat_slot <= '0; r_lat_latency <= '0;
+            r_lat_pend <= 1'b0; r_lat_id <= '0; r_lat_addr <= '0; r_lat_latency <= '0;
             r_e_scan_phase <= 1'b0; r_e_data_decerr <= 1'b0; r_e_resp_decerr <= 1'b0;
             r_e_dslot <= '0; r_e_bslot <= '0; r_e_tslot <= '0; r_e_cslot <= '0;
             r_e_data_id <= '0; r_e_resp_id <= '0; r_e_cmd_id <= '0; r_e_cmd_addr <= '0;
@@ -561,8 +569,11 @@ module axi_monitor_lite
             r_e_compl      <= w_compl_clean && !clear;
             r_e_thresh     <= w_thresh_evt && !clear;
             if (clear)                          r_lat_pend <= 1'b0;
-            else if (w_lat_evt && (!r_lat_pend || w_lat_take)) begin   // take the new one (the held one leaves or none held)
-                r_lat_pend <= 1'b1; r_lat_slot <= w_compl_slot; r_lat_latency <= 16'(w_latency);
+            else if (w_lat_hit && (!r_lat_pend || w_lat_take)) begin   // take the new one (the held one leaves or none held)
+                r_lat_pend    <= 1'b1;
+                r_lat_id      <= r_id[r_e_cslot];      // the slot still holds it: freed at t, rewritable from t+1's edge
+                r_lat_addr    <= r_addr[r_e_cslot];
+                r_lat_latency <= r_e_latency;
             end else if (w_lat_take)            r_lat_pend <= 1'b0;
             r_e_scan_phase <= r_phase[r_scan];
             r_e_data_decerr <= data_resp[0];
@@ -579,6 +590,10 @@ module axi_monitor_lite
             r_e_occupancy  <= w_occupancy;
         end
     )
+
+    // Stage 2 of the latency event: flops and quasi-static config only.
+    assign w_lat_hit = r_e_compl && cfg_threshold_enable &&
+                       ({{(32-16){1'b0}}, r_e_latency} > cfg_latency_threshold);
 
     // ------------------------------------------------------------------
     // Packet pick, from the registered events. Priority when events collide:
@@ -656,9 +671,9 @@ module axi_monitor_lite
                 w_evt_code = AXI_THRESH_ACTIVE_COUNT;
                 w_evt_addr_alt = AW'(r_e_occupancy);
             end else begin
-                // held latency event: the completed entry's address, its latency above
+                // held latency event: its own captured payload, not a table read
                 w_evt_code = AXI_THRESH_LATENCY;
-                w_evt_from_slot = 1'b1; w_evt_slot = r_lat_slot; w_evt_hi = r_lat_latency;
+                w_evt_id_alt = r_lat_id; w_evt_addr_alt = r_lat_addr; w_evt_hi = r_lat_latency;
             end
         end
     end
@@ -673,7 +688,7 @@ module axi_monitor_lite
     assign     w_lat_take = w_take && w_thr_v && !w_err_v && !w_tmo_v && !w_cmp_v && !r_e_thresh;   // the winner was the held latency event
     // lost: every fired event the pick could not queue this cycle, plus a latency
     // event that arrived while one was already held and not leaving
-    wire       w_lat_lost = w_lat_evt && cfg_threshold_enable && r_lat_pend && !w_lat_take;
+    wire       w_lat_lost = w_lat_hit && r_lat_pend && !w_lat_take;
     wire [3:0] w_lost    = w_offered - 4'(w_take) + 4'(w_lat_lost);
 
     logic [15:0] r_dropped, r_refused, r_completed, r_errors;

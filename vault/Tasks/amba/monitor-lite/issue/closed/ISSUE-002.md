@@ -1,7 +1,7 @@
 # ISSUE-002: the latency-threshold event reaches r_dropped combinationally from the R handshake: 11.7 ns, 21 levels on Artix-7 at 10 ns
 
 **Priority:** P3
-**Status:** open
+**Status:** CLOSED 2026-09-28 (fixed the same day)
 **Owner:** TBD (monitor-lite)
 **Found:** 2026-09-28, re-synthesizing `bridge_1x2_rd_lite_mon` on the Artix-7 100T -1 at 10 ns for amba ISSUE-001
 
@@ -44,6 +44,37 @@ touch the same event stage.
 
 ## Done when
 
-- [ ] `make -C projects/components/bridge/fpga BRIDGE=bridge_1x2_rd_lite_mon PART=xc7a100tcsg324-1 CLK_NS=10.0 synth`
+- [x] `make -C projects/components/bridge/fpga BRIDGE=bridge_1x2_rd_lite_mon PART=xc7a100tcsg324-1 CLK_NS=10.0 synth`
       shows no failing path into `r_dropped` (the worst lite path named and its slack recorded here)
-- [ ] `val/amba/monitor-lite` GATE from clean, `formal/amba/axi_monitor_lite` prove + cover, `test_axi_monitor_soak_monlite`
+- [x] `val/amba/monitor-lite` GATE from clean, `formal/amba/axi_monitor_lite` prove + cover, `test_axi_monitor_soak_monlite`
+
+---
+
+## CLOSED 2026-09-28 -- fixed
+
+Sean: "add the pipe stages and rerun all of the val/amba tests for all of
+these blocks." The latency-threshold compare now runs one stage after the
+completion, from the registered completion flag and latency
+(`w_lat_hit = r_e_compl && cfg_threshold_enable && r_e_latency > cfg_latency_threshold`),
+and the held event carries its own payload (`r_lat_id`, `r_lat_addr`,
+`r_lat_latency`) captured while the completed slot still holds it, instead of a
+slot index that a reallocation could overtake. `w_lat_lost` and the drop
+counter therefore depend on flops only. The event reaches the pick one cycle
+later than before; the packet is unchanged.
+
+Same fixture, part and period (`bridge_1x2_rd_lite_mon`, xc7a100tcsg324-1,
+10 ns, routed out of context):
+
+| | Before | After |
+|---|---|---|
+| WNS / failing endpoints | -3.609 ns / 114 | **+0.443 ns / 0** |
+| worst reg-to-reg path | R data -> lite `r_dropped`, 11.7 ns, 21 levels | group `s2_beats_planned` -> `r_plan_addr`, 8.6 ns, 11 levels (meets) |
+
+So the whole lite bridge fixture meets 100 MHz on the Artix-7 -1 for the
+first time since the lite grew the latency threshold on 2026-09-26.
+
+Verified on the final RTL from clean builds: `val/amba` GATE 839/839,
+`val/amba/monitor-lite` GATE 108/108, `formal/amba/axi_monitor_lite` prove +
+cover PASS; `val/amba/monitor-lite` FUNC 201/201; `val/amba` FUNC 1055/1055 (25 min, clean build). The AXIS
+lite was not changed: its events are shallow handshake and ID terms with no
+subtract/compare, and it has no fixture measurement either way.
