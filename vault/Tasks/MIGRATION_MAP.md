@@ -295,15 +295,29 @@ migration added 36 provenance lines and 36 map rows of its own):
 
 | Scope | Count | Is it debt? |
 |---|---|---|
-| all files | 652 | no -- includes this tracker's own bookkeeping |
-| inside `vault/Tasks/` | 327 | no -- cross-references, provenance lines and the rows above; self-resolving |
-| **outside `vault/Tasks/`** | **238** | **yes -- this is the actual stale-citation debt** |
+| everything on disk | 663 | no -- includes a git worktree's duplicate checkout |
+| inside `vault/Tasks/` (this tracker) | 339 | no -- provenance lines, the rows above, item-to-item links: self-resolving |
+| inside `.claude/worktrees/` | 152 | no -- a transient checkout of this same repo on its own branch |
+| **the real working tree, outside the tracker** | **173** | **yes -- this is the sweep** |
 
-The 238 break down as 151 `.py`, 46 `.md`, 39 `.sv`, 2 `.rdl`, across 29 distinct
-legacy IDs. The shape matters for whoever sweeps them: the bulk is DV and host
-Python, which is safe to rewrite mechanically; only 39 are RTL comments, which are
-the ones worth leaving alone. Excluding the tracker cuts the job by 64%, so
-anyone scoping from 652 would over-estimate it nearly threefold.
+By type: **104 `.py`, 43 `.md`, 26 `.sv`, 0 `.rdl`**, across 27 distinct legacy
+IDs. Only the 26 RTL comments are genuinely risky to rewrite; the rest is DV and
+host Python plus prose.
+
+**Three wrong numbers were published before this one, and the reason each was
+wrong is worth more than the figure.** 533: measured with `PUMICE-[0-9]{3}`,
+which cannot match `PUMICE-KMAP`, and taken before this migration added citations
+of its own. 651/652: correct as a total, but counts this tracker's own
+bookkeeping as debt -- the map rows and provenance lines ARE the resolution
+mechanism, so counting them double-counts the fix. 325: excluded the main
+`vault/Tasks` by a path prefix but left the worktree's copy of `vault/Tasks` in,
+because `grep -r .` emits paths without a leading `./` so the filter matched
+nothing. 238: excluded both trackers with `--exclude-dir=Tasks` but still counted
+the worktree's duplicated SOURCE.
+
+The lesson that generalises: **a repo containing a git worktree contains two
+copies of everything**, and a naive `grep -r` from the root counts both. Check
+`git worktree list` before quoting any repo-wide count.
 
 Rewriting live RTL comments to chase a tracker rename costs more than it gains,
 so an old reference resolves through this table and through the provenance line at

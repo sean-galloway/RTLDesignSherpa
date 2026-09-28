@@ -92,19 +92,19 @@ marking the Phase 1 per-entry issue-mask work. It has no tracker item and never
 did. If it ever needs one, file it in a lane with a lane ID rather than
 retrofitting a legacy number.
 
-**Legacy IDs were not rewritten at their call sites.** Measured after the
-migration: 652 `PUMICE-*` occurrences repo-wide, but 327 of those are this
-tracker's own cross-references and provenance lines. The real debt is the **238
-outside `vault/Tasks/`** -- 151 `.py`, 46 `.md`, 39 `.sv`, 2 `.rdl`, over 29
-distinct legacy IDs. Only 39 are RTL comments; the bulk is DV and host Python.
-Rewriting RTL to chase a tracker rename costs more than it gains, so old
-references resolve through the tables here and in
-[MIGRATION_MAP.md](../MIGRATION_MAP.md). tooling TASK-013 tracks the debt.
+**Legacy IDs were not rewritten at their call sites.** The sweep is **173
+citations** -- 104 `.py`, 43 `.md`, 26 `.sv`, 0 `.rdl`, over 27 distinct legacy
+IDs. Only the 26 RTL comments are risky; the rest is DV and host Python plus
+prose. tooling TASK-013 tracks it.
 
-An earlier version of this file said 533. That was measured with a
-`PUMICE-[0-9]{3}` pattern -- which cannot match `PUMICE-KMAP`, the one legacy ID
-here whose suffix is a word -- and before this migration added citations of its
-own. Scope from the 238, not from either of the bigger numbers.
+Bigger numbers are in circulation and all of them over-count. Of 663 `PUMICE-*`
+occurrences on disk, 339 are this tracker's own provenance lines and map rows
+(they ARE the resolution mechanism) and 152 are inside a git worktree at
+`.claude/worktrees/pumice-ataglance-modes` -- a transient checkout of this same
+repo on its own branch. **A repo with a worktree holds two copies of everything**,
+so check `git worktree list` before quoting any repo-wide count. Earlier
+revisions of this file said 533 and then 238; see
+[MIGRATION_MAP.md](../MIGRATION_MAP.md) for why each was wrong.
 
 ## ID reuse, resolved 2026-09-06 (kept: the numbers are still cited)
 
