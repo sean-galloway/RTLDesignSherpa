@@ -1,8 +1,39 @@
 # TASK-001: 8259 cascade (master/slave) support
 
 **Priority:** P2
-**Status:** open. Filed 2026-09-27 by the owner's direction while implementing
-RLB/hpet TASK-003: "If more than one 8259 are needed use more."
+**Status:** open, RTL LANDED, **no DV coverage yet**. Filed 2026-09-27 by the
+owner's direction while implementing RLB/hpet TASK-003: "If more than one 8259
+are needed use more."
+
+The cascade RTL (scope items 1-3) is committed and lint-clean -- the Verilator
+warning profile is byte-identical to HEAD's, 32 warnings in the same six
+classes, verified by linting HEAD's own copies of the three changed files
+through a redirected filelist. What is NOT done, by the owner's explicit
+decision on sequencing (2026-09-27, "Commit cascade RTL now, DV next session"):
+
+- **No test exercises the cascade path.** The block's DUT is the bare
+  `apb4_pic_8259`, so two PICs cannot be instantiated in the existing harness at
+  all. This needs a new `dv/tb/pic_8259_cascade_tb_top.sv` + `.f` (master and
+  slave cross-connected, the master's ports re-exported under their original
+  names so `PIC8259TB` binds unchanged -- the `ioapic_boot_intx_tb_top.sv`
+  pattern), a `pic_8259_cascade_tests.py`, and a `dv/tests/` entry.
+  `bin/filelists.toml` ALREADY registers
+  `projects/components/retro_legacy_blocks/dv/tb` as a filelist_dir, so no
+  registry edit is needed.
+- `initialize_pic` hardcodes `icw1 |= 0x02  # SNGL=1`. A keyword-only
+  `cascade=`/`slave_id=` pair defaulting to single mode leaves all 34 existing
+  call sites byte-identical.
+- **rlb_top integration (scope item 4) is not started.** Its `u_pic` cascade
+  pins are tied off EXPLICITLY (`cas_vector=0`, `cas_ack_in=0`, `cas_ack()`,
+  `inta_vector_o()`) so single-mode behaviour is bit-identical and no pin is
+  silently missing. Still to do: widen `pic_irq_in` to `[15:0]`, put the slave
+  PIC on crossbar slave 9, delete the three `rsvd_apb_*` tie-off assigns, and
+  cross-connect the pair.
+- Two rlb_top DV facts will then become false and must change in that same
+  commit: `SLAVE_RESERVED = 9` with `test_reserved_window_errors` (asserts
+  window 9 returns 0xDEADBEEF with PSLVERR), and `init_pic`'s docstring line
+  "ICW3 is not written -- ICW1 sets SNGL, so there is no cascade word".
+
 **Owner:** in progress
 
 **Why this exists:**
@@ -70,7 +101,10 @@ the pin did not offer.
    `pic_8259_mas_index.md` claims (32, 42) and `README.md:177`.
 
 **Completion Criteria:**
-- [ ] `ICW3.cascade` reaches the core; ICW3 still reads back 0 to software
+- [x] `ICW3.cascade` reaches the core; ICW3 still reads back 0 to software
+      (`config_regs` exports it from `hwif_out.PIC_ICW3.cascade.value`, which
+      the regblock already emitted at `pic_8259_regs.sv:531` -- no RDL change
+      and no regeneration were needed)
 - [ ] Slave `int_out` raises the master on its cascade level
 - [ ] A master `PIC_INTA` read on a cascade level returns the slave's vector
       and retires the level in BOTH controllers
