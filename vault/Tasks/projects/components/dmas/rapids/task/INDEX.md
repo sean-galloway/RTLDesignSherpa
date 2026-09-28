@@ -12,16 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 11 | done (kept for history) |
+| [closed/](closed/) | 12 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
-- **TASK-013** — replace the hand-rolled protocol responders in the rapids TBs with framework BFMs
 - **TASK-010** — 26 ASCII placeholder figures name dead signals; 2 figures have no test to capture from
 
 ## Active
@@ -39,3 +38,4 @@ by construction rather than by discipline.
 - **TASK-011** — 15 `// Module:` headers now match their filenames (closed 2026-09-27)
 - **TASK-012** — harness AXI observer timestamp FIFO 8 -> 32; latency sweep re-measured with no sample loss (closed 2026-09-27)
 - **TASK-003** — scrub the tests for completeness (rapids) (closed 2026-09-27; residue is TASK-013)
+- **TASK-013** — replace the hand-rolled protocol responders in the rapids TBs with framework BFMs (closed 2026-09-27)
