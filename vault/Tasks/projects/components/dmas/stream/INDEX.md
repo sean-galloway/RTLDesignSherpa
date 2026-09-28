@@ -11,11 +11,11 @@ is `git mv`, so an item is in exactly one state by construction.
 
 ## Lanes
 
-| Lane | For | Open | Active | Closed | Dropped |
+| Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | 4 | 1 | 7 | 0 |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | 0 | 0 | 15 | 0 |
-| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 1 | 0 | 0 | 1 |
+| [task/](task/INDEX.md) | 2 | 1 | 9 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 15 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 1 | 0 | 0 | 1 | 0 |
 
 Open counts include the reserved `-000` template in each lane, which is never a
 real item. **Each lane carries its own `Next ID`** — see the lane INDEXes.

@@ -110,7 +110,7 @@ currently holds a **pre-kick-refactor** bitstream (8ch, all cones, 90 MHz).
 
 ## Also filed
 
-`vault/Tasks/projects/components/dmas/stream/open.md` — tally decompression
+`vault/Tasks/projects/components/dmas/stream/task/open/` — tally decompression
 (LOW priority; `comp_sram` unblocks compression testing without it).
 
 ---
