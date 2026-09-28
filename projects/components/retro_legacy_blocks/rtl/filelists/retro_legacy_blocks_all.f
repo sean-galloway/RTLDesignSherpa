@@ -31,7 +31,7 @@
 # --- IOAPIC companions -----------------------------------------------------
 # Outside apb4_ioapic's port list and deliberately absent from its filelist
 # (they are not part of that block's closure), so they are named here or they
-# would be linted by nothing. See RLB-008.
+# would be linted by nothing. See RLB TASK-008 (was RLB-008).
 -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/filelists/ioapic_boot_intx.f
 -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/filelists/ioapic_deliv_merge.f
 -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/filelists/ioapic_lowest_pri_arb.f

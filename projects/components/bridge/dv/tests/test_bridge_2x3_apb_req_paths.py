@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-014 sign-off for APB REQUESTER ports.
+# HAND-WRITTEN (not generated): bridge TASK-004 (was BRIDGE-014) sign-off for APB REQUESTER ports.
 #
 # bridge_2x3_apb_req has an APB4 and an APB5 requester, each converted by
 # apb{4,5}_to_axi4 in its master adapter, in front of an AXI4 memory, an
@@ -91,7 +91,7 @@ async def cocotb_test_bridge_2x3_apb_req_pslverr(dut):
                 failures.append(f"m{m}: memory does not hold 0x{data:08X} at 0x{good:08X}")
 
     assert not failures, f"{len(failures)} failure(s):\n  " + "\n  ".join(failures[:20])
-    tb.log.info(f"BRIDGE-014 APB PSLVERR PASSED: {2 * n} unmapped accesses per master, "
+    tb.log.info(f"bridge TASK-004 (was BRIDGE-014) APB PSLVERR PASSED: {2 * n} unmapped accesses per master, "
                 f"port recovered every time")
 
 
@@ -158,7 +158,7 @@ async def cocotb_test_bridge_2x3_apb_req_prot_user(dut):
                 failures.append(f"round {i}: lregs saw {k}user={pkt.fields.get('user')} from the APB4 requester")
 
     assert not failures, f"{len(failures)} failure(s):\n  " + "\n  ".join(failures[:20])
-    tb.log.info(f"BRIDGE-014 APB prot/user PASSED: {n} rounds")
+    tb.log.info(f"bridge TASK-004 (was BRIDGE-014) APB prot/user PASSED: {n} rounds")
 
 
 @cocotb.test(timeout_time=8000, timeout_unit="ms")
@@ -208,7 +208,7 @@ async def cocotb_test_bridge_2x3_apb_req_apb_to_apb(dut):
     for m, slave, addr, data in plan:
         got = tb.slave_mem_read(slave, addr, byte_count=4)
         assert got == data, f"m{m}: slave {slave} holds 0x{got:08X} at 0x{addr:08X}, expected 0x{data:08X}"
-    tb.log.info(f"BRIDGE-014 APB-to-APB PASSED: {len(plan)} write+read pairs across two requesters")
+    tb.log.info(f"bridge TASK-004 (was BRIDGE-014) APB-to-APB PASSED: {len(plan)} write+read pairs across two requesters")
 
 
 def _run(request, test_level, testcase):

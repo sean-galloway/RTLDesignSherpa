@@ -32,7 +32,7 @@ The mirror of [AXI4 to APB](04_axi4_to_apb4.md). There an AXI4 requester is
 turned into an APB requester; here an APB requester -- a small CPU, a debug
 port, a register sequencer -- becomes an AXI4 requester. The bridge generator
 puts one of these in front of a master port declared `protocol = "apb"` or
-`"apb5"` (BRIDGE-014).
+`"apb5"` (bridge TASK-004, was BRIDGE-014).
 
 Two proven pieces and one small new one:
 

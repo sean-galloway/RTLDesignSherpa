@@ -71,7 +71,7 @@ async def arbiter_deficit_round_robin_test(dut):
         await tb.scenario_quantum_change(completions)
 
     # Framework compliance verdict - assert on it, never just log it
-    # (the COMMON-016..019 rule). The 'drr' mode flags zero-quantum grants
+    # (the common BUG-006 (was COMMON-016)..019 rule). The 'drr' mode flags zero-quantum grants
     # as errors and windowed served-cost deviations as drr_share_violation.
     tb.monitor.force_compliance_analysis("end_of_test")
     comp_warnings = tb.monitor.get_protocol_warnings()  # dict form

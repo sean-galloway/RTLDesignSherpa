@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: ioapic_lowest_pri_arb
-// Purpose: The consumer half of LowestPriority delivery (RLB-008).
+// Purpose: The consumer half of LowestPriority delivery (RLB TASK-008, was RLB-008).
 //
 // Documentation: projects/components/retro_legacy_blocks/docs/ioapic_mas/
 // Subsystem: retro_legacy_blocks/ioapic
@@ -22,7 +22,7 @@
 // destination mode, delivery mode -- and the only thing it lacked was being
 // told the choice FAILED. `ioapic_core.irq_out_retry` is that half.
 //
-// This module is the OTHER half: the arbitration itself, which RLB-008 records
+// This module is the OTHER half: the arbitration itself, which RLB TASK-008 (was RLB-008) records
 // as delegated to the consumer by design. It lives outside ioapic_core on
 // purpose. The delivery channel is a payload plus a valid/ready handshake plus
 // a status precisely so a bridge can carry that shape onto a bus (the retry

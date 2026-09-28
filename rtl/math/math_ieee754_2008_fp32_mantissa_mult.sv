@@ -81,7 +81,7 @@ wire w_sticky_nonorm = |ow_product[20:0];
 assign ow_guard_bit  = ow_needs_norm ? w_guard_norm  : w_guard_nonorm;
 assign ow_round_bit  = ow_needs_norm ? w_round_norm  : w_round_nonorm;
 // TRUE sticky, unfolded -- with the fold, G=1 makes the parenthesized term
-// always 1 and ties-at-even wrongly round up (MATH-001 family fix).
+// always 1 and ties-at-even wrongly round up (math ISSUE-001 (was MATH-001) family fix).
 assign ow_sticky_bit = ow_needs_norm ? w_sticky_norm : w_sticky_nonorm;
 
 endmodule

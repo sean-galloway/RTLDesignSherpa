@@ -64,7 +64,7 @@ Deriving the wrapper from the APB4 shim's actual port surface — rather than re
 ## Related Modules
 
 The bridge generator instantiates this shim for `protocol = "apb5"`
-slaves (BRIDGE-002 A5-3c) through the same component path as the APB4
+slaves (bridge TASK-002 (was BRIDGE-002) A5-3c) through the same component path as the APB4
 shim — the `Axi4ToApbShim` component takes `protocol='apb5'` and wires
 the five extra pairs. Verified by
 `projects/components/bridge/dv/tests/test_bridge_1x2_rw_apb5.py`

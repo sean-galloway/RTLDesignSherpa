@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Filelist for ioapic_boot_intx_tb_top -- the DV wrapper that wires
 # ioapic_boot_intx onto a real apb4_ioapic's mask export and enable register
-# (RLB-008).
+# (RLB TASK-008, was RLB-008).
 #
 # Pulls BOTH halves by their own filelists rather than hand-listing sources.
 # apb4_ioapic.f deliberately does not reference the companion (it is not part

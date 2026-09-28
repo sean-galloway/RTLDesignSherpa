@@ -731,7 +731,7 @@ class FPMultiplierTB(FPBaseTB):
             return sign_result << (self.fmt.bits - 1), False, False, False
 
         # Exact integer model of the RTL datapath. IEEE 754 detects underflow
-        # AFTER rounding (MATH-008): a pre-round exponent of exactly 0 whose
+        # AFTER rounding (math BUG-004, was MATH-008): a pre-round exponent of exactly 0 whose
         # mantissa rounds with carry lands on the minimum normal and is NOT
         # flushed. The previous float-based path flushed it. Sweep-proven
         # bit-exact against all five multiplier RTLs (exhaustive for fp8).
@@ -828,12 +828,12 @@ class FPMultiplierTB(FPBaseTB):
             b = random.choice(values)
             await self.test_single(a, b, f"random_{i}")
 
-        # Directed MATH-008 underflow-edge pair: must produce min-normal with
+        # Directed math BUG-004 (was MATH-008) underflow-edge pair: must produce min-normal with
         # no underflow flag (mutation check: pre-fix RTL flushed it to zero)
         pair = self._underflow_edge_pair()
         if pair is not None:
             await self.test_single(pair[0], pair[1],
-                                   "underflow_edge_rescued (MATH-008)")
+                                   "underflow_edge_rescued (math BUG-004, was MATH-008)")
 
         self.print_summary()
         assert self.fail_count == 0, f"{self.fail_count} tests failed"

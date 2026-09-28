@@ -94,7 +94,7 @@ Where the cycles go on the way through the bridge: address path, data path, resp
 > constant.
 >
 > With the registered crossbar (`[bridge] xbar_pipeline = true`,
-> BRIDGE-017) both figures are **3**: one skid stage each way inside the
+> bridge TASK-006 (was BRIDGE-017)) both figures are **3**: one skid stage each way inside the
 > xbar. `test_bridge_2x2_rw_pipe_latency` asserts 3/3 on `bridge_2x2_rw_pipe`
 > exactly as the baseline test asserts 2/2, and `test_bridge_2x2_rw_perf`
 > runs its four phases on both fixtures with the same floors -- the stage

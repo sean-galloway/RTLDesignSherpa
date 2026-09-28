@@ -15,7 +15,7 @@
 //   - Interrupt support, individually maskable via IER
 //   - Optional CDC for async pin domains
 //
-// Implemented (RLB-013, commit 3d6bd04e0): the character-timeout interrupt
+// Implemented (RLB TASK-012 (was RLB-013), commit 3d6bd04e0): the character-timeout interrupt
 // (IIR reads 0x0C), auto flow control on MCR[5] (CTS gates the START of a
 // character; RTS follows the RX FIFO level), 1.5 stop bits for a 5-bit word,
 // additive DLAB remapping (0x00/0x04 are the divisor latches while LCR[7] is

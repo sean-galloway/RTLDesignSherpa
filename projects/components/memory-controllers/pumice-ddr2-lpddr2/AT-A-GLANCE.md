@@ -543,7 +543,7 @@ thing to fix next.
   reaches 95%), so it is not yet in the regression.
 * ~~Two writers is unsafe in the characterization harness.~~ **RESOLVED
   2026-09-11**, by the bridge generator rather than by pumice. Master-unique
-  fabric IDs (BRIDGE-016) plus a slave-side CAM that deallocates on the
+  fabric IDs (bridge TASK-005, was BRIDGE-016) plus a slave-side CAM that deallocates on the
   returning BID replaced the AW-order FIFO, so response ownership no longer
   depends on return order. The two-writer `bank_parallel` test passes.
 * **KNOWN BUG: read latency is ~49 cycles against LiteDRAM's 24.7 on the same
@@ -746,7 +746,7 @@ Two caveats before anyone scales the array up:
   AW-order FIFO, which asks "who issued the oldest outstanding AW" rather than
   "who issued the AW whose ID this B carries". pumice returns B in FR-FCFS
   order, which is legal AXI4, so the head named the wrong generator.
-  BRIDGE-016 fixed it at the fabric: master-unique IDs (`{BRIDGE_ID, id}`) make
+  bridge TASK-005 (was BRIDGE-016) fixed it at the fabric: master-unique IDs (`{BRIDGE_ID, id}`) make
   every in-flight ID unambiguous, and the slave-side adapter now deallocates a
   `bridge_cam` on the returning BID. Nothing in pumice changed.
 * **Region placement IS the measurement.** Generators placed adjacently land in

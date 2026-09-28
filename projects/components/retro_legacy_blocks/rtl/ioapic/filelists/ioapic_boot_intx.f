@@ -6,7 +6,7 @@
 #
 # Filelist: ioapic_boot_intx.f
 # Purpose: Chipset boot-interrupt rerouting -- a masked IOAPIC pin also drives
-#          its mapped legacy 8259 input (RLB-008).
+#          its mapped legacy 8259 input (RLB TASK-008, was RLB-008).
 #
 # Usage: Source this file in simulation/synthesis tools
 #

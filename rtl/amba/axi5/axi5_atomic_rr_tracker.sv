@@ -3,7 +3,7 @@
 `include "reset_defs.svh"
 //
 // axi5_atomic_rr_tracker: per-ID return routing for read-return atomics
-// (BRIDGE-002 A5-3b)
+// (bridge TASK-002 (was BRIDGE-002) A5-3b)
 //
 // A read-return atomic (AWATOP[5] == 1: AtomicLoad, AtomicSwap and
 // AtomicCompare) is issued on the write address channel and answers with the
@@ -23,7 +23,7 @@
 // Keyed on ID alone. That is sound because AXI5 forbids an atomic from
 // sharing its ID with any transaction outstanding from the same Manager.
 // Two Managers may still present the same ID at one Subordinate; that
-// aliasing is a property of the surrounding fabric (BRIDGE-010), not of
+// aliasing is a property of the surrounding fabric (bridge BUG-008, was BRIDGE-010), not of
 // this block, and the generated adapter checks for it in simulation.
 //
 // No protocol state machine: a valid vector, two small arrays and two

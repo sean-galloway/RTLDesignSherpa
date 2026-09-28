@@ -170,7 +170,7 @@ module apb4_ioapic #(
     output logic [7:0]              irq_out_vector,     // Vector to deliver
     output logic [7:0]              irq_out_dest,       // Destination APIC ID or mask
     // How to read irq_out_dest: 0 = physical APIC ID, 1 = logical mask.
-    // The local APICs do the matching; the IOAPIC forwards both (RLB-008).
+    // The local APICs do the matching; the IOAPIC forwards both (RLB TASK-008, was RLB-008).
     output logic                    irq_out_dest_mode,
     output logic [2:0]              irq_out_deliv_mode, // Delivery mode
     input  logic                    irq_out_ready,      // handshake completes
@@ -179,14 +179,14 @@ module apb4_ioapic #(
     // Tie it low if the receiver always accepts and the channel behaves
     // exactly as it did before this existed. This is the half of
     // LowestPriority delivery the IOAPIC owns -- the local APICs do the
-    // arbitrating, as they did on the APIC bus (RLB-008).
+    // arbitrating, as they did on the APIC bus (RLB TASK-008, was RLB-008).
     input  logic                    irq_out_retry,
 
     // EOI (End of Interrupt) from CPU (pclk domain)
     input  logic                    eoi_in,             // EOI strobe
     input  logic [7:0]              eoi_vector,         // Vector being EOI'd
 
-    // MSI configuration, for the ioapic_msi_emit companion (RLB-008).
+    // MSI configuration, for the ioapic_msi_emit companion (RLB TASK-008, was RLB-008).
     //
     // These are the only ports this block has grown beyond the delivery
     // channel, and the distinction matters. Sean's 2026-09-11 decision was
@@ -199,7 +199,7 @@ module apb4_ioapic #(
     output logic [31:0]             cfg_msi_data,       // IOAPICMSIDATA, sel 0x05
 
     // Boot-interrupt support, for the ioapic_boot_intx companion
-    // (RLB-008). The mask vector is the per-pin IOREDTBL mask this block
+    // (RLB TASK-008, was RLB-008). The mask vector is the per-pin IOREDTBL mask this block
     // already holds, PACKED -- the companion wants a vector, and packed is
     // what the other companions take for per-element bits. Exporting it is
     // what lets the rerouting live outside: the block says which pins it is
@@ -404,7 +404,7 @@ module apb4_ioapic #(
     endgenerate
 
     // ========================================================================
-    // Dropped-delivery counter (RLB-008)
+    // Dropped-delivery counter (RLB TASK-008, was RLB-008)
     // ========================================================================
     //
     // WHERE THIS LIVES, AND WHY NOT IN THE CORE. The event is a refusal that

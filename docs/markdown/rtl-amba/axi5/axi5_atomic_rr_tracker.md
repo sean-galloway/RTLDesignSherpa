@@ -158,4 +158,4 @@ its hand-written `test_bridge_1x2_rw_axi5a_atomics.py`.
 
 - [`axi5_atomic_filter`](axi5_atomic_filter.md): the other half of the story,
   for a boundary that has no read path and must refuse the classes instead
-- Bridge MAS, AMBA5 boundary chapter (BRIDGE-002 A5-3b)
+- Bridge MAS, AMBA5 boundary chapter (bridge TASK-002 (was BRIDGE-002) A5-3b)

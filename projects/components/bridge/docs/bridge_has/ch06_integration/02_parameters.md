@@ -50,13 +50,13 @@ Every bridge the generator emits starts here: port counts, bus widths, per-port 
 | `arbitration` | `"rr"` / `"qos"` | `"rr"` | Per-slave arbitration policy. `"qos"` grants the highest `AxQOS` plus aging (MAS 2.3, Per-Slave Request Arbitration); it decides among requests pending at the arbiter, so it shows at a slave that backpressures AW, not at one that accepts every AW on arrival; equals share round-robin. |
 | `qos_aging_shift` | int 0..7 | 4 | With `"qos"`: a waiting request gains one priority level every `2**shift` cycles, so the worst wait for a QoS-0 request is `15 * 2**shift` cycles. |
 
-: Table 6.8a: Crossbar options (BRIDGE-017)
+: Table 6.8a: Crossbar options (bridge TASK-006, was BRIDGE-017)
 
 | TOML key (`[[bridge.slaves]]`) | Type | Default | Effect |
 |---|---|---|---|
 | `cdc` | bool | `false` | `true` gives this AXI4 slave port its own clock: `<name>_aclk` / `<name>_aresetn` on the top, `axi4_cdc_{wr,rd}` between the adapter's timing wrapper and the port (HAS 4.5a). Slave ports, `protocol = "axi4"` only. |
 
-: Table 6.8b: CDC slave port option (BRIDGE-017)
+: Table 6.8b: CDC slave port option (bridge TASK-006, was BRIDGE-017)
 
 | TOML key (`[bridge]`) | Type | Default | Effect |
 |---|---|---|---|

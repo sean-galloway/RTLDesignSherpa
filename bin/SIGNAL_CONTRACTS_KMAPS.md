@@ -13,7 +13,7 @@ Existing instances:
     projects/components/dmas/stream/docs/
         stream_signal_contracts.xlsx + gen_signal_contracts_kmaps.py
 
-TODO (TOOLING-KMAP step 5, vault/Tasks/tooling/open.md): the common generator machinery belongs in
+TODO (tooling TASK-006 (was TOOLING-KMAP) step 5, vault/Tasks/tooling/open.md): the common generator machinery belongs in
 bin/ so the per-project scripts hold only their signal tables and mirrored
 expressions; two diverging copies is the known copy-paste failure mode.
 
@@ -110,7 +110,7 @@ K-map pass similarly predated and informed its scheduler rework.
 
 ## Where the code lives
 
-The machinery is SHARED, in `bin/kmaps/` (promoted 2026-09-25, TOOLING-KMAP
+The machinery is SHARED, in `bin/kmaps/` (promoted 2026-09-25, tooling TASK-006 (was TOOLING-KMAP)
 step 5). `bin/` is already on PYTHONPATH via `env_python`:
 
     from kmaps.citations import verify_citations      # the citation gate

@@ -69,7 +69,7 @@ module cdc_4_phase_handshake #(
     parameter int DATA_WIDTH     = 8,   // Width of the data bus for transfer
     parameter int SYNC_STAGES    = 3,   // Synchronizer depth for req/ack (2 or 3)
     parameter int TIMEOUT_CYCLES = 0    // 0 = disabled; >0 asserts src_timeout
-    // FAST_PATH removed (CDC-002): it acknowledged transfers the receiver never
+    // FAST_PATH removed (cdc BUG-001, was CDC-002): it acknowledged transfers the receiver never
     // took. Made correct, it saved nothing, so the knob went rather than
     // remaining as a parameter that did nothing.
 ) (
@@ -135,7 +135,7 @@ module cdc_4_phase_handshake #(
     // r_timeout_cnt is declared inside g_timeout below: at TIMEOUT_CYCLES = 0
     // the counter does not exist rather than existing and being tied off, which
     // is what left an UNUSEDSIGNAL warning in every consumer of the disabled
-    // mode (RLB-010).
+    // mode (RLB TASK-010, was RLB-010).
 
     //-------------------------------------------------------------------------
     // Source Domain Synchronizer (Dest -> Source Ack)
@@ -254,7 +254,7 @@ module cdc_4_phase_handshake #(
                     r_ack_dst <= 1'b0;
                     if (w_req_sync) begin
                         r_dst_data <= r_src_data_hold;
-                        // CDC-002: always wait for an OBSERVED handshake.
+                        // cdc BUG-001 (was CDC-002): always wait for an OBSERVED handshake.
                         // The old FAST_PATH branch set dst_valid and r_ack_dst
                         // together on the NEXT cycle after sampling dst_ready,
                         // so a receiver that dropped ready in between was acked

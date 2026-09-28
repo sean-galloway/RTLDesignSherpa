@@ -67,7 +67,7 @@ module axi_data_upsize #(
     // historical aligned-only behavior. This is what lets a narrow burst
     // start mid-wide-word: the leading lanes stay zero in data AND
     // sideband, so in WSTRB (concat) mode the untouched bytes are
-    // byte-disabled rather than clobbered (CONV-006).
+    // byte-disabled rather than clobbered (projects/components/converters TASK-001, was CONV-006).
     input  logic [PTR_WIDTH-1:0]            start_lane,
 
     // Wide Output (to master or slave)
@@ -221,7 +221,7 @@ module axi_data_upsize #(
                 // AXI encoding (OKAY=00, EXOKAY=01, SLVERR=10, DECERR=11)
                 // SLVERR|EXOKAY = DECERR, inflating the error class the
                 // moment an exclusive-read beat mixes with a slave error
-                // (CONV-005). Numeric max IS severity order for RRESP, so
+                // (projects/components/converters BUG-005, was CONV-005). Numeric max IS severity order for RRESP, so
                 // the fold keeps the largest value instead. Sub-beats of
                 // one exclusive access should all carry the same response
                 // anyway; if they diverge, the worst one wins.

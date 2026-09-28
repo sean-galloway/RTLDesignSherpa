@@ -35,7 +35,7 @@ PROFILE = {
                                   # (11 variants hit 64, mix_d peaked at 58).
                                   # 2x depth makes saturation certain.
         sideband_beats=3,         # AMBA5 sideband/atomic sign-off rounds
-        overflow_per_master=20,   # BRIDGE-011: > FIFO_DEPTH in total
+        overflow_per_master=20,   # bridge BUG-009 (was BRIDGE-011): > FIFO_DEPTH in total
         latency_samples=1,
     ),
     'func': dict(

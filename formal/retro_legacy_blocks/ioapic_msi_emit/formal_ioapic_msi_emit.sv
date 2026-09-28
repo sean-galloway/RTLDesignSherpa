@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Formal proof for ioapic_msi_emit -- the MSI delivery companion (RLB-008).
+// Formal proof for ioapic_msi_emit -- the MSI delivery companion (RLB TASK-008, was RLB-008).
 //
 // The whole contract is a FORMAT MAPPING and it is entirely port-visible: this
 // module is combinational, has no submodules, and holds no state. That makes it

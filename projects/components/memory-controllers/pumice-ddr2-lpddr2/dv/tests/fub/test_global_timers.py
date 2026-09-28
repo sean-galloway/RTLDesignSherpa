@@ -139,7 +139,7 @@ _FULL = _FUNC
 # REG_LEVEL SELECTS THIS GRID. It used to read TEST_LEVEL, which held the
 # regression level only because the area conftest stamped REG_LEVEL into it --
 # and that stamp also overrode every per-cell value a wrapper exported, which is
-# TOOL-016. The stamp is gone, so REG_LEVEL is read here directly. TEST_LEVEL
+# tooling BUG-004 (was TOOL-016). The stamp is gone, so REG_LEVEL is read here directly. TEST_LEVEL
 # stays as a manual override for a bare `pytest` run.
 _TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
                or "FUNC").upper()

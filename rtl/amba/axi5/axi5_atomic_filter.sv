@@ -2,7 +2,7 @@
 
 `include "reset_defs.svh"
 //
-// axi5_atomic_filter: read-return atomic termination (BRIDGE-002 A5-3a)
+// axi5_atomic_filter: read-return atomic termination (bridge TASK-002 (was BRIDGE-002) A5-3a)
 //
 // Sits on the AW/W/B CONTROL path at an atomic-enabled boundary whose
 // fabric can transport store-class atomics but cannot route the R-channel

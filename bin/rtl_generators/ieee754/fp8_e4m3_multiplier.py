@@ -144,7 +144,7 @@ class FP8E4M3Multiplier(Module):
         self.comment('  - round_bit=1 AND (sticky_bit=1 OR LSB=1)')
         self.comment('mantissa_mult exports GUARD as round_bit and (R|S) as sticky_bit')
         self.comment('(see its NAMING NOTE), so this is textbook G & (R|S|LSB) RNE --')
-        self.comment('sweep-verified vs an exact-product reference (MATH-007, 2026-08-10).')
+        self.comment('sweep-verified vs an exact-product reference (math BUG-003 (was MATH-007), 2026-08-10).')
         self.instruction('')
         self.instruction('wire w_lsb = w_mant_mult_out[0];')
         self.instruction('wire w_round_up = w_round_bit & (w_sticky_bit | w_lsb);')
@@ -175,7 +175,7 @@ class FP8E4M3Multiplier(Module):
         self.instruction("                        (w_exp_final == 4'hF & w_mant_final == 3'h7);")
         self.instruction('')
 
-        self.comment('IEEE 754 detects underflow AFTER rounding (MATH-008): when the')
+        self.comment('IEEE 754 detects underflow AFTER rounding (math BUG-004, was MATH-008): when the')
         self.comment('pre-round exponent sum is exactly 0 (one below the normal range) and')
         self.comment('mantissa rounding carries out, the result is exactly the minimum')
         self.comment('normal (exp 1, mant 0) and must not be flushed. The exponent adder')

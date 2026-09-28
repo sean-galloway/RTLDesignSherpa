@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 //
-// axi4_to_apb5_shim: AXI4 slave -> APB5 requester (BRIDGE-002 A5-3c).
+// axi4_to_apb5_shim: AXI4 slave -> APB5 requester (bridge TASK-002 (was BRIDGE-002) A5-3c).
 //
 // Thin wrapper over axi4_to_apb5's workhorse, axi4_to_apb4_shim: the
 // protocol engine is identical (APB5 keeps the APB4 transfer protocol),

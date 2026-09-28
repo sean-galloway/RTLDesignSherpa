@@ -201,7 +201,7 @@ class BF16Multiplier(Module):
         self.instruction("wire w_final_overflow = w_exp_overflow | (w_exp_final == 8'hFF);")
         self.instruction('')
 
-        self.comment('IEEE 754 detects underflow AFTER rounding (MATH-008): when the')
+        self.comment('IEEE 754 detects underflow AFTER rounding (math BUG-004, was MATH-008): when the')
         self.comment('pre-round exponent sum is exactly 0 (one below the normal range) and')
         self.comment('mantissa rounding carries out, the result is exactly the minimum')
         self.comment('normal (exp 1, mant 0) and must not be flushed. The exponent adder')

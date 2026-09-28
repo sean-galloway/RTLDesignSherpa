@@ -52,7 +52,7 @@ def test_level():
 # caller's extra_env, so that stamp beat the per-cell value a wrapper passed.
 # test_dma_address_gen already exported a per-cell TEST_LEVEL and its TB has a
 # real gate/func/full table; the stamp overrode both, and all 48 cells ran at
-# one depth while the run reported three levels (TOOL-016).
+# one depth while the run reported three levels (tooling BUG-004, was TOOL-016).
 #
 # Every wrapper in this area now parametrizes test_level over
 # reg_level_grid() and exports it with level_env(), so the stamp is gone. The

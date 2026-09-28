@@ -131,7 +131,7 @@ These modules use `always_ff @(posedge aclk or negedge aresetn)` rather than
 the components-area `ALWAYS_FF_RST` macro, matching the AXI4-Lite converters
 they wrap. Using the macro here while the core stays manual would make one
 compiled design half synchronous-reset and half asynchronous -- Verilator says
-so with `SYNCASYNCNET`. Converting the whole area is tracked as CONV-009, with
+so with `SYNCASYNCNET`. Converting the whole area is tracked as projects/components/converters BUG-007 (was CONV-009), with
 what it actually costs recorded there.
 
 ## Verification

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
 // Formal proof for ioapic_deliv_merge -- multi-IOAPIC routing, N delivery
-// channels merged onto one (RLB-008).
+// channels merged onto one (RLB TASK-008, was RLB-008).
 //
 // Every property is on PORTS. The arbiter's state is internal and stays that
 // way: internal visibility fails on this toolchain for these blocks (see the

@@ -128,7 +128,7 @@ module shifter_beat_pack #(
     assign empty      = (r_count == '0);
     // Room for another whole chunk: post-push count would be <= storage.
     assign push_ready = (r_count <= COUNT_BITS'(STORAGE_BITS - CHUNK_BITS));
-    // COMMON-015: compare in the WIDER domain. This used to be
+    // common BUG-005 (was COMMON-015): compare in the WIDER domain. This used to be
     //     (r_count >= COUNT_BITS'(w_beat_bits))
     // and a runtime cfg_beat_bytes_m1 encoding a beat wider than
     // 2**COUNT_BITS-1 truncated to 0 -- pop_valid degenerated to

@@ -84,13 +84,13 @@ class IOAPICMediumTests:
     # =========================================================================
 
     async def test_rlb008_dest_mode_forwarded(self) -> bool:
-        """RLB-008: the destination MODE reaches the delivery interface.
+        """RLB TASK-008 (was RLB-008): the destination MODE reaches the delivery interface.
 
         An IOAPIC does not decode logical destinations itself - it forwards
         the destination field and the mode bit, and the local APICs do the
         matching. Forwarding only the field, as this did, makes logical
         delivery indistinguishable from physical at the receiver."""
-        self.log.info("=== RLB-008: destination mode forwarded ===")
+        self.log.info("=== RLB TASK-008 (was RLB-008): destination mode forwarded ===")
         try:
             results = {}
             for mode in (0, 1):
@@ -114,18 +114,18 @@ class IOAPICMediumTests:
             ok = all(results[m][0] and results[m][1] == m and
                      results[m][2] == 0xA5 for m in (0, 1))
             if ok:
-                self.log.info("RLB-008 destination mode GREEN")
+                self.log.info("RLB TASK-008 (was RLB-008) destination mode GREEN")
                 return True
             self.log.error(
-                f"RLB-008 destination mode: {results} (want each delivered, "
+                f"RLB TASK-008 (was RLB-008) destination mode: {results} (want each delivered, "
                 f"the pin equal to the programmed mode, destination 0xA5)")
             return False
         except Exception as e:
-            self.log.error(f"RLB-008 destination mode test error: {e}")
+            self.log.error(f"RLB TASK-008 (was RLB-008) destination mode test error: {e}")
             return False
 
     async def test_rlb008_lowest_priority_retry(self) -> bool:
-        """RLB-008: a refused delivery is offered again, not lost.
+        """RLB TASK-008 (was RLB-008): a refused delivery is offered again, not lost.
 
         LowestPriority delivery is DELEGATED: the IOAPIC forwards the mode and
         the destination set, the local APICs arbitrate among themselves, and
@@ -135,7 +135,7 @@ class IOAPICMediumTests:
         The thing that must hold is that a refusal retires nothing. An edge
         pin's pending latch has to survive it, or the interrupt is gone; and
         once the receiver stops refusing, the same vector has to arrive."""
-        self.log.info("=== RLB-008: delegated LowestPriority, retry path ===")
+        self.log.info("=== RLB TASK-008 (was RLB-008): delegated LowestPriority, retry path ===")
         try:
             await self.tb.reset_dut()
             irq, vector = 4, 0x44
@@ -178,16 +178,16 @@ class IOAPICMediumTests:
 
             ok = kept_offering and delivered and retired
             if ok:
-                self.log.info("RLB-008 delegated LowestPriority retry GREEN")
+                self.log.info("RLB TASK-008 (was RLB-008) delegated LowestPriority retry GREEN")
                 return True
             self.log.error(
-                f"RLB-008 retry: kept_offering_while_refused={kept_offering} "
+                f"RLB TASK-008 (was RLB-008) retry: kept_offering_while_refused={kept_offering} "
                 f"({len(refused)} offers, want >= 2) delivered_once_accepted="
                 f"{delivered} retired_after_accept={retired} "
                 f"({len(extra)} extra, want 0)")
             return False
         except Exception as e:
-            self.log.error(f"RLB-008 retry test error: {e}")
+            self.log.error(f"RLB TASK-008 (was RLB-008) retry test error: {e}")
             return False
         finally:
             self.tb.dut.irq_out_retry.value = 0
@@ -195,7 +195,7 @@ class IOAPICMediumTests:
             await self.tb.reset_dut()
 
     async def test_rlb008_priority_rotation(self) -> bool:
-        """RLB-008: round-robin arbitration behind IOAPICARBCFG.rr_enable.
+        """RLB TASK-008 (was RLB-008): round-robin arbitration behind IOAPICARBCFG.rr_enable.
 
         Arbitration was static: the lowest eligible IRQ number always won, so
         a continuously requesting low-numbered pin can starve every pin above
@@ -208,7 +208,7 @@ class IOAPICMediumTests:
         1 and 5 together and static picks 1 (lower number) while round robin
         picks 5 (the first one at or above 3). Same stimulus, opposite order,
         with the static run as its own control."""
-        self.log.info("=== RLB-008: priority rotation ===")
+        self.log.info("=== RLB TASK-008 (was RLB-008): priority rotation ===")
         try:
             async def order_for(policy_rr, primer, contenders):
                 """Serve `primer` alone to park the pointer just above it,
@@ -260,15 +260,15 @@ class IOAPICMediumTests:
             ok = (static_a[:2] == [1, 5] and rr_a[:2] == [5, 1] and
                   static_b[:2] == [3, 20] and rr_b[:2] == [20, 3])
             if ok:
-                self.log.info("RLB-008 priority rotation GREEN")
+                self.log.info("RLB TASK-008 (was RLB-008) priority rotation GREEN")
                 return True
             self.log.error(
-                f"RLB-008 rotation: case A static={static_a} (want [1, 5]) "
+                f"RLB TASK-008 (was RLB-008) rotation: case A static={static_a} (want [1, 5]) "
                 f"round robin={rr_a} (want [5, 1]); case B static={static_b} "
                 f"(want [3, 20]) round robin={rr_b} (want [20, 3])")
             return False
         except Exception as e:
-            self.log.error(f"RLB-008 rotation test error: {e}")
+            self.log.error(f"RLB TASK-008 (was RLB-008) rotation test error: {e}")
             return False
         finally:
             # Back to the 82093AA scheme, which every other test assumes.
@@ -768,7 +768,7 @@ class IOAPICMediumTests:
     # =========================================================================
 
     async def test_msi_drop_counter_counts_events_not_cycles(self) -> bool:
-        """RLB-008: IOAPICMSIDROP counts late refusals, ONCE each.
+        """RLB TASK-008 (was RLB-008): IOAPICMSIDROP counts late refusals, ONCE each.
 
         Sean, 2026-09-14: "Silently drop is bad. We at least need to count
         when that happens." This is that counter's own test.
@@ -891,7 +891,7 @@ class IOAPICMediumTests:
             # this test was written:
             #   0x00-0x02  IOAPICID / IOAPICVER / IOAPICARB (82093AA)
             #   0x03       IOAPICARBCFG   (added ae259c60b)
-            #   0x04-0x05  MSI addr/data  (added for RLB-008)
+            #   0x04-0x05  MSI addr/data  (added for RLB TASK-008 (was RLB-008))
             #   0x10-0x3F  IOREDTBL
             # It said 0x03 from ae259c60b onward, by which time 0x03 was
             # MAPPED -- so the IOWIN write landed in ARBCFG, never reached

@@ -7,7 +7,7 @@ name: Filelist checks
 #
 # --check and --audit are HARD gates: they pass today and must keep passing.
 # --blindspots is RATCHETED against bin/blindspots_baseline.json: it has a real
-# backlog (see TOOL-012), so it fails only when a count GROWS. A new hand-listed
+# backlog (see tooling TASK-011 (was TOOL-012)), so it fails only when a count GROWS. A new hand-listed
 # test breaks the build immediately; the existing ones block nobody.
 
 on:

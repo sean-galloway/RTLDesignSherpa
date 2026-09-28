@@ -13,7 +13,7 @@
 #     drop is proved;
 #   - reads through the converter return the seeded data AND the echoed
 #     trace=1: sideband cannot traverse the dwidth converter, but the adapter
-#     echoes the request's trace at the port (BRIDGE-012), so the master's
+#     echoes the request's trace at the port (bridge BUG-010, was BRIDGE-012), so the master's
 #     promise survives a path that cannot carry the bit at all;
 #   - reads into the AXI5 slave show the driven nsaid/trace/unique at its AR
 #     handshake and echo trace=1 on R;
@@ -89,7 +89,7 @@ async def cocotb_test_bridge_1x2_rd_axi5w_sideband(dut):
             f"converter path read @0x{addr:08x}: 0x{resp[0]['data']:08x} != 0x{expected:08x}")
         assert resp[0].get('trace', 0) == 1, (
             f"rtrace not echoed across the converter: got {resp[0].get('trace')} "
-            f"(BRIDGE-012 -- the bit cannot traverse the converter, so the adapter "
+            f"(bridge BUG-010 (was BRIDGE-012) -- the bit cannot traverse the converter, so the adapter "
             f"echoes the request's at the port)")
     # And the echo must FOLLOW the request: an untraced read comes back untraced.
     addr = DDR_BASE + offsets(0)[0]

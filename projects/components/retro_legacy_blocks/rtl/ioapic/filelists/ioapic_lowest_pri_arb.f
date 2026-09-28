@@ -5,7 +5,7 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Filelist: ioapic_lowest_pri_arb.f
-# Purpose: The consumer half of LowestPriority delivery (RLB-008).
+# Purpose: The consumer half of LowestPriority delivery (RLB TASK-008, was RLB-008).
 #
 # Usage: Source this file in simulation/synthesis tools
 #

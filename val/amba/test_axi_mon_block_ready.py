@@ -32,7 +32,7 @@
 # Measured so far: 0 on every wrapper that saturates, at every depth -- so the
 # single-wrapper level does not reproduce the observer-level 4096-vs-3073 gap.
 #
-# See [[AMBA-BLOCKMARGIN]].
+# See [[amba BUG-030 (was AMBA-BLOCKMARGIN)]].
 
 import contextlib
 import os

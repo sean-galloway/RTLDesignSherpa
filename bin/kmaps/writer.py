@@ -147,7 +147,7 @@ class KmapWriter:
         def _reachable(bits):
             return all(pr(*bits) for _t, pr, _c in constraining)
 
-        # ---- invariant CHECK (TOOLING-KMAP item 0) ------------------------
+        # ---- invariant CHECK (tooling TASK-006 (was TOOLING-KMAP) item 0) ------------------------
         # A relation that excludes nothing is a claim doing no work; one that
         # excludes everything is inverted. Either way the map silently stops
         # meaning what it says, so fail the run rather than emit it. Hardware

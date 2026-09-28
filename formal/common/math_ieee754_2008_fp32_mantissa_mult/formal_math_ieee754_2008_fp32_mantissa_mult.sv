@@ -87,7 +87,7 @@ module formal_math_ieee754_2008_fp32_mantissa_mult (
     end
 
     // =========================================================================
-    // Property 5: TRUE sticky (per MATH-001 contract -- unfolded, guard
+    // Property 5: TRUE sticky (per math ISSUE-001 (was MATH-001) contract -- unfolded, guard
     // exported separately)
     // needs_norm: |product[21:0]; not norm: |product[20:0]
     // =========================================================================

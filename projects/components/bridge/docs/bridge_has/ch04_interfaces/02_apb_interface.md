@@ -139,7 +139,7 @@ PRDATA xxxxxxxx|_____|xxxxxxxxxxxxxxxx
 
 ## APB Requester Ports
 
-Since BRIDGE-014 an APB port can also be a *master*: `protocol = "apb"` or
+Since bridge TASK-004 (was BRIDGE-014) an APB port can also be a *master*: `protocol = "apb"` or
 `"apb5"` in `[[bridge.masters]]`. The signal set is the same ten (fifteen
 for APB5) with the directions of the slave table reversed -- the bridge is
 the completer, so `PSEL`, `PENABLE`, `PADDR[31:0]`, `PWRITE`, `PWDATA`,

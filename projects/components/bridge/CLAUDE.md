@@ -663,7 +663,7 @@ mapping -- not a Phase-3 placeholder.
 **Q: "Can ports be AMBA5 (AXI5 / APB5)?"**
 
 **A: Yes — per port; every wrapper feature rides the fabric natively
-(BRIDGE-002, BRIDGE-014, BRIDGE-018):**
+(bridge TASK-002 (was BRIDGE-002), bridge TASK-004 (was BRIDGE-014), bridge TASK-007 (was BRIDGE-018)):**
 
 ```toml
 [[bridge.masters]]
@@ -686,7 +686,7 @@ DECERR. AXI5-Lite and APB5 are legal as MASTER protocols too (front-end
 converters). Details: `docs/bridge_has/ch04_interfaces/04_axi5_apb5_interfaces.md`
 and `docs/bridge_mas/ch02_blocks/10_amba5_boundary.md`.
 
-**Q: "Wishbone?"** `protocol = "wb4"` on either side (BRIDGE-019, HAS 4.6):
+**Q: "Wishbone?"** `protocol = "wb4"` on either side (bridge TASK-008 (was BRIDGE-019), HAS 4.6):
 `channels = "rw"`, `id_width = 0`, 8/16/32/64-bit. One Wishbone transfer is
 one single-beat AXI4 transaction; AXI bursts decompose to single Wishbone
 transfers; burst hints are carried, not formed. Best effort by decision --
@@ -839,7 +839,7 @@ branches on `REG_LEVEL` (GATE 72 / FUNC 144 / FULL 216 cells) and exports
 `TEST_LEVEL` + `SEED` per cell; the TB reads the depth profile from
 `dv/tbclasses/bridge_levels.py`. Do NOT stamp `TEST_LEVEL` into `os.environ`
 from a conftest -- cocotb_test lets the environment override `extra_env`,
-and that ran all 216 cells at one depth once (TOOL-016).
+and that ran all 216 cells at one depth once (tooling BUG-004, was TOOL-016).
 
 **Per-Config Functional Tests** (generated): basic connectivity, boundary
 probe, arbitration (multi-master). Every AXI5 master port carries an
@@ -849,7 +849,7 @@ probe, arbitration (multi-master). Every AXI5 master port carries an
 with monitor interfaces, monbus traffic / WRITE_BP / ERR_BP phases scaled
 by level.
 
-**Hand-written**: BRIDGE-011 tracking + latency on 2x2; the AMBA5 sign-off
+**Hand-written**: bridge BUG-009 (was BRIDGE-011) tracking + latency on 2x2; the AMBA5 sign-off
 tests (sideband values, sideband through arbitration, sideband across a
 width converter, atomics incl. Compare, AXI5 read BFM sign-off).
 
@@ -895,7 +895,7 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
 of them is built:
 - Out-of-order responses. Ordering is structural: one target slave per master
   at a time (`aw_gate_ok`), and each slave port must return B/R in request
-  order across all IDs (BRIDGE-010).
+  order across all IDs (bridge BUG-008, was BRIDGE-010).
 - Burst-locked arbitration. The grant releases at the address handshake, as
   item 4 above already said -- this bullet contradicted it directly.
 - Configurable arbitration policy. Round-robin is hard-coded.

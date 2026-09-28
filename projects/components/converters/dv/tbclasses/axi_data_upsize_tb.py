@@ -214,7 +214,7 @@ class AXIDataUpsizeTB(TBBase):
 
             if len(wide_beats) != 1:
                 # Dump handshake-level state so an intermittent hit diagnoses
-                # itself (CONV-002): did the narrow beats reach the DUT, and
+                # itself (projects/components/converters BUG-002, was CONV-002): did the narrow beats reach the DUT, and
                 # is the wide beat stuck at the output or never made?
                 self.log.error(
                     f"Transaction {txn}: Expected 1 wide beat, got {len(wide_beats)} | "
@@ -243,7 +243,7 @@ class AXIDataUpsizeTB(TBBase):
                 if self.sb_or_mode:
                     # Fold mode: worst-case (numeric max), NOT bitwise OR.
                     # The mode exists to fold RRESP, and OR inflates
-                    # SLVERR|EXOKAY to DECERR (CONV-005) -- the RTL now
+                    # SLVERR|EXOKAY to DECERR (projects/components/converters BUG-005, was CONV-005) -- the RTL now
                     # keeps the largest value.
                     expected_sb = 0
                     for _, sb in narrow_beats:
@@ -295,7 +295,7 @@ class AXIDataUpsizeTB(TBBase):
 
             if len(wide_beats) != 1:
                 # Dump handshake-level state so an intermittent hit diagnoses
-                # itself (CONV-002): did the narrow beats reach the DUT, and
+                # itself (projects/components/converters BUG-002, was CONV-002): did the narrow beats reach the DUT, and
                 # is the wide beat stuck at the output or never made?
                 self.log.error(
                     f"Transaction {txn}: Expected 1 wide beat, got {len(wide_beats)} | "
@@ -342,7 +342,7 @@ class AXIDataUpsizeTB(TBBase):
             wide_beats = self.get_wide_beats(count=1, clear=True)
             if len(wide_beats) != 1:
                 # Dump handshake-level state so an intermittent hit diagnoses
-                # itself (CONV-002): did the narrow beats reach the DUT, and
+                # itself (projects/components/converters BUG-002, was CONV-002): did the narrow beats reach the DUT, and
                 # is the wide beat stuck at the output or never made?
                 self.log.error(
                     f"Transaction {txn}: Expected 1 wide beat, got {len(wide_beats)} | "

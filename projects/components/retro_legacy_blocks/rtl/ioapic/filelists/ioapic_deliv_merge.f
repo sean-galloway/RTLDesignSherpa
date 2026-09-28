@@ -5,7 +5,7 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Filelist: ioapic_deliv_merge.f
-# Purpose: Multi-IOAPIC routing -- merge N delivery channels onto one (RLB-008).
+# Purpose: Multi-IOAPIC routing -- merge N delivery channels onto one (RLB TASK-008, was RLB-008).
 #
 # Usage: Source this file in simulation/synthesis tools
 #

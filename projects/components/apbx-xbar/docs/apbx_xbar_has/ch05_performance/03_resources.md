@@ -81,7 +81,7 @@ Three tables disagreed before that -- by up to 33% on the same file
 (2to4 as ~1000, ~751 and 751) -- because each was corrected on a different
 day. Even the most precise-looking set was stale: 165/314/384/751/570 was
 right when reconciled on 2026-08-27 and wrong two days later, once the
-APBX-005 decode-miss logic added lines. Numbers that must be hand-synced
+projects/components/apbx-xbar BUG-002 (was APBX-005) decode-miss logic added lines. Numbers that must be hand-synced
 across three pages will desync; keeping one and pointing at it is the fix.
 
 ## Power Considerations

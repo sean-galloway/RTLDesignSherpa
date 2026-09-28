@@ -119,7 +119,7 @@ math_ieee754_2008_fp32_exponent_adder u_exp_add (
 // (unfolded) from mantissa_mult.
 
 wire w_lsb = w_mant_mult_out[0];
-wire w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb);  // true RNE (MATH-001 family)
+wire w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb);  // true RNE (math ISSUE-001 (was MATH-001) family)
 
 // Apply rounding to mantissa
 wire [23:0] w_mant_rounded = {1'b0, w_mant_mult_out} + {23'b0, w_round_up};
@@ -137,7 +137,7 @@ wire [7:0] w_exp_final = w_mant_round_overflow ? (w_exp_sum + 8'd1) : w_exp_sum;
 // Check for exponent overflow after rounding adjustment
 wire w_final_overflow = w_exp_overflow | (w_exp_final == 8'hFF);
 
-// IEEE 754 detects underflow AFTER rounding (MATH-008): when the
+// IEEE 754 detects underflow AFTER rounding (math BUG-004, was MATH-008): when the
 // pre-round exponent sum is exactly 0 (one below the normal range) and
 // mantissa rounding carries out, the result is exactly the minimum
 // normal (exp 1, mant 0) and must not be flushed. The exponent adder

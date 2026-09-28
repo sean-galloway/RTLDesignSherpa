@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
 # Module: test_wb4_to_axi4
-# Purpose: wb4_to_axi4 converter test runner (BRIDGE-019)
+# Purpose: wb4_to_axi4 converter test runner (bridge TASK-008, was BRIDGE-019)
 #
 # Author: sean galloway
 # Created: 2026-09-11

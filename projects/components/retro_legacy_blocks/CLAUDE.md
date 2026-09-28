@@ -107,7 +107,7 @@ peakrdl, which skips the docs and regmap the wrapper emits in lockstep
 (`vault/handbook/design/generated-rtl-discipline.md`).
 
 Run it from the block's RDL directory and point `--copy-rtl` at the block's RTL
-directory, since the two are no longer parent and child (RLB-007):
+directory, since the two are no longer parent and child (RLB TASK-007, was RLB-007):
 
 ```bash
 cd rdl/{block}
@@ -144,7 +144,7 @@ rtl/{block}/
 
 The RDL lives outside `rtl/` on purpose: every SystemRDL source in the repo
 belongs in an `rdl` area rather than scattered under the RTL it generates
-(RLB-007, and MISC-001 repo-wide). There is no README beside it -- a file next
+(RLB TASK-007 (was RLB-007), and projects/components/misc TASK-001 (was MISC-001) repo-wide). There is no README beside it -- a file next
 to a tool restating how to run the tool is the copy nobody edits.
 
 **2. RTL, TB classes, test suites and runner** take the standard shapes:

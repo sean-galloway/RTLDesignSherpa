@@ -79,7 +79,7 @@ class ArbiterRoundRobinSimpleTB(TBBase):
             clock_period_ns=10,
             # This arbiter drives grant combinationally off request, so the
             # compliance check must be paired with the CURRENT request vector,
-            # not the previous one (COMMON-018).
+            # not the previous one (common BUG-008, was COMMON-018).
             registered_grant=False
         )
 
@@ -499,7 +499,7 @@ class ArbiterRoundRobinSimpleTB(TBBase):
             self.log.error(f"Monitor errors detected: {self.monitor_errors}")
             raise AssertionError(f"Monitor errors: {self.monitor_errors}")
 
-        # This TB did not consult the compliance model at all (COMMON-016), so
+        # This TB did not consult the compliance model at all (common BUG-006, was COMMON-016), so
         # the round-robin checker ran every cycle and its verdict went nowhere.
         # The sibling round-robin TB asserts on it; so does this one now.
         compliance = getattr(self.monitor, 'compliance', None)
@@ -513,7 +513,7 @@ class ArbiterRoundRobinSimpleTB(TBBase):
 
         # Every compliance error fails the test. The unexplained
         # round_robin_violations that appeared when this verdict was first read
-        # (COMMON-018) were the monitor pairing this cycle's grant with last
+        # (common BUG-008, was COMMON-018) were the monitor pairing this cycle's grant with last
         # cycle's requests; with registered_grant=False they are gone.
         assert summary['total_errors'] == 0, (
             f"Arbiter protocol compliance: {summary['total_errors']} error(s) "

@@ -485,7 +485,7 @@ def cmd_check(reg: dict, update_exempt_baseline: bool = False) -> int:
         for m in missing:
             # Name the directory the .f belongs in, not just the module. The
             # fix is "write a filelist HERE"; without the destination the
-            # reader has to go find where this area keeps them (TOOL-003).
+            # reader has to go find where this area keeps them (tooling TASK-008, was TOOL-003).
             dests = area.get("filelist_dirs") or [f"{r}/filelists" for r in roots]
             print(f"         uncovered module: {m}  -> add a .f under {dests[0]}")
         for p in dict.fromkeys(problems):
@@ -894,7 +894,7 @@ def cmd_blindspots(reg: dict, ratchet: bool = False,
         print()
         print("FAIL: the fix is to use a filelist, not to raise the baseline.")
         return 1
-    print(f"PASS (ratchet): no class grew. {findings} known finding(s) outstanding; see TOOL-012.")
+    print(f"PASS (ratchet): no class grew. {findings} known finding(s) outstanding; see tooling TASK-011 (was TOOL-012).")
     return 0
 
 

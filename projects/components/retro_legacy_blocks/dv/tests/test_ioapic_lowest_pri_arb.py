@@ -5,7 +5,7 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_ioapic_lowest_pri_arb
-# Purpose: Runner for the arbiter companion on a real IOAPIC channel (RLB-008).
+# Purpose: Runner for the arbiter companion on a real IOAPIC channel (RLB TASK-008, was RLB-008).
 #
 # Documentation: projects/components/retro_legacy_blocks/rtl/ioapic/README.md
 # Subsystem: retro_legacy_blocks/ioapic

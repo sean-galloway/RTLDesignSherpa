@@ -26,7 +26,7 @@
 ## Overview
 
 Wishbone B4 is the open bus of the FPGA world -- the fabric OpenCores cores
-speak and the one most soft CPUs ship with. Since BRIDGE-019 a bridge port
+speak and the one most soft CPUs ship with. Since bridge TASK-008 (was BRIDGE-019) a bridge port
 can be Wishbone on either side: a **slave port** with `protocol = "wb4"`
 makes the bridge the Wishbone requester toward an external completer; a
 **master port** with `protocol = "wb4"` makes the bridge the completer for an
@@ -110,7 +110,7 @@ between the crossbar and the converter, exactly as for APB slave ports.
 timing wrapper: `wb4_to_axil4` merges AXI's two response channels back into
 Wishbone's single in-order termination stream, and the wrapper promotes the
 AXI4-Lite face to AXI4 (`AxLEN = 0`, full-width `AxSIZE`, INCR, `WLAST = 1`,
-a constant ID -- the fabric prepends the master index, BRIDGE-016). From the
+a constant ID -- the fabric prepends the master index, bridge TASK-005 (was BRIDGE-016)). From the
 wrapper on, the port is an AXI4-Lite-shaped single-beat requester: decode,
 the width converters, the wide-slave aligner toward wider slaves and the
 response mux are the ones every other master uses. `SLVERR` and `DECERR`

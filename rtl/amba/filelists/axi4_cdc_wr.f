@@ -1,7 +1,7 @@
 # Filelist for axi4_cdc_wr
 # Location: rtl/amba/filelists/axi4_cdc_wr.f
 # Purpose: AXI4 write (AW, W, B) channels across a clock-domain boundary,
-#          one gaxi_fifo_async per channel (BRIDGE-017 CDC slave ports).
+#          one gaxi_fifo_async per channel (bridge TASK-006 (was BRIDGE-017) CDC slave ports).
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 

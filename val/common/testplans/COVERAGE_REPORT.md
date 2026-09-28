@@ -70,7 +70,7 @@ reported a plausible figure while measuring less than it claimed:
 3. **One wrapper built outside the glob.** `test_mod_3_compress.py` wrote to
    `logs/`, escaping both the merge and `make clean-all`.
 
-And two real scenario gaps were closed (COMMON-021):
+And two real scenario gaps were closed (common TASK-008, was COMMON-021):
 
 - **`counter_bin_load` 67.9% -> 92.9%.** The entire `add_enable` branch was
   dead -- the test only ever incremented by one. Now exercises variable

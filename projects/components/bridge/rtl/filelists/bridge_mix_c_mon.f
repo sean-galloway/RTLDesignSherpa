@@ -36,7 +36,7 @@ $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_mix_c_mon/subtractive
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f
 
 # Per-ID response tracking (bridge_cam): enable_ooo slaves, and every AXI
-# slave of a multi-master fabric, whose IDs are {master index, id} (BRIDGE-015/016)
+# slave of a multi-master fabric, whose IDs are {master index, id} (bridge BUG-012 (was BRIDGE-015)/016)
 -f $REPO_ROOT/projects/components/bridge/rtl/filelists_static/bridge_cam.f
 
 # GAXI skid buffers (used by wrappers and converters)

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-002 A5-3a sign-off test.
+# HAND-WRITTEN (not generated): bridge TASK-002 (was BRIDGE-002) A5-3a sign-off test.
 #
 # Real ATOP values through the fabric, driven per transaction by the AXI5
 # master BFM's atomic_operation (no pin poking since 2026-09-09):

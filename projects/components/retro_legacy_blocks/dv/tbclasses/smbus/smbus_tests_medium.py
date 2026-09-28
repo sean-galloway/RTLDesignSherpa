@@ -276,7 +276,7 @@ class SMBusMediumTests:
     # ==================================================================
 
     # ------------------------------------------------------------------
-    # RLB-011: slave (target) mode
+    # RLB TASK-011 (was RLB-011): slave (target) mode
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -299,13 +299,13 @@ class SMBusMediumTests:
         await ClockCycles(self.tb.pclk, 50)
 
     async def test_rlb011_slave_write_and_address_match(self) -> bool:
-        """RLB-011: a foreign master writes to us, and only to us.
+        """RLB TASK-011 (was RLB-011): a foreign master writes to us, and only to us.
 
         The address byte is answered by the engine, not by software, so the
         thing under test is the match itself: our own address is ACKed and
         the byte stream lands in the RX FIFO; a neighbour's address is NAKed
         and nothing lands at all."""
-        self.log.info("=== RLB-011: slave address match and write path ===")
+        self.log.info("=== RLB TASK-011 (was RLB-011): slave address match and write path ===")
         M = SMBusRegisterMap
         try:
             # --- addressed to us
@@ -353,28 +353,28 @@ class SMBusMediumTests:
 
             ok = ours_ok and theirs_ok and busy_ok and gc_ok
             if ok:
-                self.log.info("RLB-011 slave address match and write GREEN")
+                self.log.info("RLB TASK-011 (was RLB-011) slave address match and write GREEN")
                 return True
             self.log.error(
-                f"RLB-011 slave write: own_address={ours_ok} "
+                f"RLB TASK-011 (was RLB-011) slave write: own_address={ours_ok} "
                 f"other_address_ignored={theirs_ok} nack_all={busy_ok} "
                 f"general_call={gc_ok}")
             return False
         except Exception as e:
-            self.log.error(f"RLB-011 slave write test error: {e}")
+            self.log.error(f"RLB TASK-011 (was RLB-011) slave write test error: {e}")
             return False
         finally:
             await self._recover_and_reset()
 
     async def test_rlb011_slave_read_and_stretch(self) -> bool:
-        """RLB-011: a foreign master reads from us, with and without a queue.
+        """RLB TASK-011 (was RLB-011): a foreign master reads from us, with and without a queue.
 
         A target that is read has to produce bytes on somebody else's clock.
         With data already queued it just sends it. With the queue empty it has
         two honest answers, and which one it gives is
         SMBUS_SLAVE_CTRL.stretch_en: hold the clock until software catches up,
         or send 0xFF and let the bus carry on."""
-        self.log.info("=== RLB-011: slave read path and clock stretching ===")
+        self.log.info("=== RLB TASK-011 (was RLB-011): slave read path and clock stretching ===")
         M = SMBusRegisterMap
         try:
             # --- queued data
@@ -423,29 +423,29 @@ class SMBusMediumTests:
 
             ok = queued_ok and dry_ok and stretch_ok
             if ok:
-                self.log.info("RLB-011 slave read and stretch GREEN")
+                self.log.info("RLB TASK-011 (was RLB-011) slave read and stretch GREEN")
                 return True
             self.log.error(
-                f"RLB-011 slave read: queued={queued_ok} dry_sends_FF={dry_ok} "
+                f"RLB TASK-011 (was RLB-011) slave read: queued={queued_ok} dry_sends_FF={dry_ok} "
                 f"stretched_until_software_answered={stretch_ok} "
                 f"(held={saw_stretch} still_held={still_held} "
                 f"data={[hex(b) for b in data3]}, want [0x77])")
             return False
         except Exception as e:
-            self.log.error(f"RLB-011 slave read test error: {e}")
+            self.log.error(f"RLB TASK-011 (was RLB-011) slave read test error: {e}")
             return False
         finally:
             await self._recover_and_reset()
 
     async def test_rlb011_slave_pec_and_ownership(self) -> bool:
-        """RLB-011: the target's own PEC, and one engine on the wire.
+        """RLB TASK-011 (was RLB-011): the target's own PEC, and one engine on the wire.
 
         The slave PEC never counts bytes. On a write a correct trailing PEC
         drives the running CRC to zero, so 'good' is 'zero at the STOP'; on a
         read the running CRC IS the byte to send once the queue is dry. And
         while the target is answering, the master half must refuse to start,
         or this block would be on the bus twice."""
-        self.log.info("=== RLB-011: slave PEC and engine ownership ===")
+        self.log.info("=== RLB TASK-011 (was RLB-011): slave PEC and engine ownership ===")
         M = SMBusRegisterMap
         try:
             # --- a write with a correct PEC
@@ -502,16 +502,16 @@ class SMBusMediumTests:
             ok = ((not st_good['pec_error']) and st_bad['pec_error'] and
                   read_pec_ok and held and master_refused)
             if ok:
-                self.log.info("RLB-011 slave PEC and ownership GREEN")
+                self.log.info("RLB TASK-011 (was RLB-011) slave PEC and ownership GREEN")
                 return True
             self.log.error(
-                f"RLB-011 slave PEC: good_pec_clean={not st_good['pec_error']} "
+                f"RLB TASK-011 (was RLB-011) slave PEC: good_pec_clean={not st_good['pec_error']} "
                 f"bad_pec_flagged={st_bad['pec_error']} "
                 f"read_appends_pec={read_pec_ok} target_held={held} "
                 f"master_refused_while_target_busy={master_refused}")
             return False
         except Exception as e:
-            self.log.error(f"RLB-011 slave PEC test error: {e}")
+            self.log.error(f"RLB TASK-011 (was RLB-011) slave PEC test error: {e}")
             return False
         finally:
             await self._recover_and_reset()
@@ -1471,7 +1471,7 @@ class SMBusMediumTests:
             # unmapped per rdl/smbus/smbus_regs.rdl's own address-layout
             # comment. 0x03C and 0x040 were in this list until slave mode
             # gave them to SMBUS_SLAVE_CTRL and SMBUS_SLAVE_STATUS
-            # (RLB-011); 0x044 and 0x080 take their place, and 0x080 is the
+            # (RLB TASK-011, was RLB-011); 0x044 and 0x080 take their place, and 0x080 is the
             # first alias of SMBUS_CONTROL now that the generated block
             # decodes seven address bits rather than six.
             unmapped_addrs = [0x044, 0x080, 0x100, 0x200, 0x800, 0xFFC]
@@ -4057,7 +4057,7 @@ class SMBusMediumTests:
         # behind a try/except that returned TRUE when the import failed, so a
         # framework rename would have turned this test green while it drove
         # nothing at all -- a test that passes on the failure of its own
-        # precondition (RLB-006). The import is unconditional now: if the
+        # precondition (RLB TASK-006, was RLB-006). The import is unconditional now: if the
         # framework cannot provide it, the module fails to load and every
         # smbus test says so.
         try:
@@ -4114,14 +4114,14 @@ class SMBusMediumTests:
     # ==================================================================
 
     async def test_rlb011_arbitration_lost(self) -> bool:
-        """RLB-011: multi-master arbitration.
+        """RLB TASK-011 (was RLB-011): multi-master arbitration.
 
         Another master transmitting at the same time pulls SDA low while this
         one is sending a 1. That is arbitration lost: this master must release
         both lines at once - re-driving them would corrupt the winner's
         transfer - report SMBUS_STATUS.arb_lost, and go idle without framing
         a STOP. A later transaction must work normally."""
-        self.log.info("=== RLB-011: arbitration lost ===")
+        self.log.info("=== RLB TASK-011 (was RLB-011): arbitration lost ===")
         from .smbus_tb import SMBusRegisterMap as M
         try:
             await self._recover_and_reset()
@@ -4168,23 +4168,23 @@ class SMBusMediumTests:
 
             ok = lost and released and (not busy_after) and recovered
             if ok:
-                self.log.info("RLB-011 arbitration GREEN")
+                self.log.info("RLB TASK-011 (was RLB-011) arbitration GREEN")
                 return True
             self.log.error(
-                f"RLB-011 arbitration: arb_lost={lost} scl_released={released} "
+                f"RLB TASK-011 (was RLB-011) arbitration: arb_lost={lost} scl_released={released} "
                 f"busy_cleared={not busy_after} later_transaction={recovered}")
             return False
         except Exception as e:
-            self.log.error(f"RLB-011 arbitration test error: {e}")
+            self.log.error(f"RLB TASK-011 (was RLB-011) arbitration test error: {e}")
             return False
 
     async def test_rlb011_quick_command_read(self) -> bool:
-        """RLB-011: the read-direction Quick Command.
+        """RLB TASK-011 (was RLB-011): the read-direction Quick Command.
 
         The R/W bit IS the payload of a quick command, so both directions have
         to be reachable. Transaction type 0xA sends the address byte with
         R/W = 1 and nothing else; type 0x0 keeps the write direction."""
-        self.log.info("=== RLB-011: quick command, read direction ===")
+        self.log.info("=== RLB TASK-011 (was RLB-011): quick command, read direction ===")
         from .smbus_tb import SMBusRegisterMap as M
         try:
             results = {}
@@ -4210,15 +4210,15 @@ class SMBusMediumTests:
             write_ok = results["write"][0] and 1 not in results["write"][1]
             read_ok = results["read"][0] and 1 in results["read"][1]
             if write_ok and read_ok:
-                self.log.info("RLB-011 quick command read GREEN")
+                self.log.info("RLB TASK-011 (was RLB-011) quick command read GREEN")
                 return True
             self.log.error(
-                f"RLB-011 quick command: write={results['write']} (want "
+                f"RLB TASK-011 (was RLB-011) quick command: write={results['write']} (want "
                 f"completed with no R/W=1), read={results['read']} (want "
                 f"completed with an R/W=1 address byte)")
             return False
         except Exception as e:
-            self.log.error(f"RLB-011 quick command read test error: {e}")
+            self.log.error(f"RLB TASK-011 (was RLB-011) quick command read test error: {e}")
             return False
 
     async def test_gh58_r5_1_fifo_reset_clears_stale_tx_data(self) -> bool:

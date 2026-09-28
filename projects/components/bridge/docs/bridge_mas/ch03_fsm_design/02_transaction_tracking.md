@@ -81,7 +81,7 @@ end
 
 > **Not built.** There is no per-master outstanding-transaction counter and no
 > flow control derived from one. Outstanding depth is bounded by the per-slave
-> bridge_id FIFO, whose fullness gates the address handshake (BRIDGE-011).
+> bridge_id FIFO, whose fullness gates the address handshake (bridge BUG-009, was BRIDGE-011).
 > Searching the generated RTL for a response-pending counter returns nothing.
 
 ### Purpose

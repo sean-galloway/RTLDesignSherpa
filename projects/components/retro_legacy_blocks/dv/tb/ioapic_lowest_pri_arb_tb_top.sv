@@ -6,7 +6,7 @@
 //
 // Module: ioapic_lowest_pri_arb_tb_top
 // Purpose: DV wrapper that puts ioapic_lowest_pri_arb where it actually goes --
-//          on the far side of a real apb4_ioapic delivery channel (RLB-008).
+//          on the far side of a real apb4_ioapic delivery channel (RLB TASK-008, was RLB-008).
 //
 // The formal proof covers the arbiter's contract at its own ports. What it
 // CANNOT show is that the two halves fit: that the arbiter's deliv_ready and
@@ -97,12 +97,12 @@ module ioapic_lowest_pri_arb_tb_top #(
         .irq_out_retry      (irq_out_retry),
         .eoi_in             (eoi_in),
         .eoi_vector         (eoi_vector),
-        // MSI config outputs (RLB-008): this harness exercises the
+        // MSI config outputs (RLB TASK-008, was RLB-008): this harness exercises the
         // delivery channel, not MSI. Explicit and open -- omitting them
         // entirely is PINMISSING.
         .cfg_msi_addr       (),
         .cfg_msi_data       (),
-        // Boot-interrupt support (RLB-008): this harness does not
+        // Boot-interrupt support (RLB TASK-008, was RLB-008): this harness does not
         // exercise it. Explicit and open -- omitting them is
         // PINMISSING, which is an ERROR under cocotb's flags.
         .cfg_mask_vec       (),

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-002 A5-3b sign-off test.
+# HAND-WRITTEN (not generated): bridge TASK-002 (was BRIDGE-002) A5-3b sign-off test.
 #
 # Read-return atomics through the fabric, end to end. On this rw fixture the
 # master has no boundary filter: AtomicLoad/Swap/Compare ride the AW path
@@ -24,7 +24,7 @@
 #     DECERR on B and knows nothing about R. Without the master adapter's
 #     local answer that R beat never comes and, because the port's R-return
 #     tracker is holding a slot for it, every later read on the port is
-#     blocked behind it (the shape of BRIDGE-009, on the atomic path). The
+#     blocked behind it (the shape of bridge BUG-007 (was BRIDGE-009), on the atomic path). The
 #     master must see DECERR on BOTH B and R, and the port must still work.
 # The AXI5 compliance checker on the master port is armed throughout; it
 # knows a read-return atomic is an outstanding read and flags an R beat

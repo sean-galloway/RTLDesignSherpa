@@ -193,7 +193,7 @@ Source: `rtl/common/arbiter_single_client.sv`, with `rtl/common/arbiter_round_ro
 **No dedicated testbench, by decision.** A single-client arbiter grants its
 one requester unconditionally; the behaviour is verified in situ in STREAM
 rather than through a standalone bench. Recorded as exempt in the coverage
-baseline (COMMON-024).
+baseline (common TASK-010, was COMMON-024).
 
 Treat any behaviour described on this page as unverified by simulation.
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-002 A5-2 slice 2 sign-off test.
+# HAND-WRITTEN (not generated): bridge TASK-002 (was BRIDGE-002) A5-2 slice 2 sign-off test.
 #
 # Asserts sideband VALUES end-to-end through the fabric structs. The AXI5
 # master BFM drives ar{nsaid,trace,unique} per transaction (no pin poking
@@ -11,7 +11,7 @@
 #     present the SAME values at the AR handshake, and rtrace=1 comes back.
 #   - reads to ddr_rd (AXI4, drop path): that slave contributes nothing to
 #     the R mux, and rtrace=1 still comes back -- the adapter echoes the
-#     request's trace at the port (BRIDGE-012).
+#     request's trace at the port (bridge BUG-010, was BRIDGE-012).
 # Structural: the AXI4 slave port must not have sideband pins at all, which
 # is where the drop is proved.
 
@@ -143,7 +143,7 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
             f"expected 0x{expected:08x}")
     assert all(v == 1 for v in r_drop), (
         f"rtrace not echoed on the AXI4 drop path: {r_drop} -- the adapter echoes "
-        f"the request's trace at the port (BRIDGE-012)")
+        f"the request's trace at the port (bridge BUG-010, was BRIDGE-012)")
 
     await ClockCycles(tb.clock, 20)
     assert sampler.master_r_samples, "no master R beats on ddr reads"

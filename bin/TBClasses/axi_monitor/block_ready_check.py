@@ -261,7 +261,7 @@ class BlockReadyCheck:
             "discarded.\n"
             "BLOCK_MARGIN must cover every allocator that can fire during the "
             "stale cycle -- addr, data and resp, i.e. 3. See "
-            "[[AMBA-BLOCKMARGIN]].")
+            "[[amba BUG-030 (was AMBA-BLOCKMARGIN)]].")
 
     def summary(self) -> str:
         return (f"admitted={self.accepted} peak_occupancy="

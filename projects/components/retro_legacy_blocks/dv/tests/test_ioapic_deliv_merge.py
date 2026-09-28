@@ -6,7 +6,7 @@
 #
 # Module: test_ioapic_deliv_merge
 # Purpose: Runner for the multi-IOAPIC delivery merge on two real IOAPIC
-#          channels (RLB-008).
+#          channels (RLB TASK-008, was RLB-008).
 #
 # Documentation: projects/components/retro_legacy_blocks/rtl/ioapic/README.md
 # Subsystem: retro_legacy_blocks/ioapic

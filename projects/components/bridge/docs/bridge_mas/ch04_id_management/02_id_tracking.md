@@ -32,8 +32,8 @@ wr_fifo[wr_ptr[...]] <= xbar_bridge_id_aw;      // push on AW accept
 assign bid_bridge_id  = wr_fifo[rd_ptr[...]];   // route by the HEAD
 ```
 
-The consequence is a requirement the fabric does not check: **each slave port must return B/R in request order across ALL IDs.** AXI4 permits a slave to complete different-ID transactions out of order. Every generated slave adapter now carries a SIMULATION-ONLY check that compares the returned BID/RID against the FIFO head and $error()s on a mismatch (BRIDGE-010); it cannot fire in silicon --
-see BRIDGE-010.
+The consequence is a requirement the fabric does not check: **each slave port must return B/R in request order across ALL IDs.** AXI4 permits a slave to complete different-ID transactions out of order. Every generated slave adapter now carries a SIMULATION-ONLY check that compares the returned BID/RID against the FIFO head and $error()s on a mismatch (bridge BUG-008, was BRIDGE-010); it cannot fire in silicon --
+see bridge BUG-008 (was BRIDGE-010).
 
 The rest of this page documents an **ID tracking table** design that was specified but never built: extended IDs formed by prepending a Bridge ID, per-slave lookup tables, out-of-order completion. `bridge_cam.sv` exists in the tree and is instantiated in zero generated bridges. It is kept because the positional scheme above is easy to mistake for it, and because several other pages once described it as real.
 
@@ -57,7 +57,7 @@ is prepended. Each slave adapter instead keeps an **in-order FIFO** of the
 originating master's `bridge_id`, pushed on the address handshake and popped
 on the response, and routes by FIFO POSITION rather than by the returned
 BID/RID. The consequence -- each slave port must return B/R in request order
-across all IDs -- is tracked as BRIDGE-010.
+across all IDs -- is tracked as bridge BUG-008 (was BRIDGE-010).
 
 ### Per-Slave ID Table (historical)
 

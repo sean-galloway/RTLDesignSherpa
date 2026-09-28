@@ -107,7 +107,7 @@ def test_level():
 # This area used to stamp os.environ['TEST_LEVEL'] = REG_LEVEL at import.
 # cocotb_test.simulator.set_env copies every os.environ entry OVER the
 # caller's extra_env, so the stamp beats any per-cell value a wrapper exports
-# (TOOL-016). Here it was also inert: nothing in this area read TEST_LEVEL at
+# (tooling BUG-004, was TOOL-016). Here it was also inert: nothing in this area read TEST_LEVEL at
 # all, so every cell ran one depth whatever the make target said.
 #
 # Every wrapper now parametrizes test_level over reg_level_grid() and exports

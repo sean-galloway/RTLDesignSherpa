@@ -61,7 +61,7 @@ slave port shares `aclk` too.
 
 ### Clock Domain Crossing: CDC Slave Ports
 
-The FABRIC is one clock domain (`aclk`). Since BRIDGE-017 a slave port can
+The FABRIC is one clock domain (`aclk`). Since bridge TASK-006 (was BRIDGE-017) a slave port can
 live in another: `cdc = true` on an AXI4 slave adds `<slave>_aclk` /
 `<slave>_aresetn` to the bridge top, and the slave adapter carries AW, W and
 AR to the port and B, R back through `axi4_cdc_{wr,rd}` -- one Gray-pointer

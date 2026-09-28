@@ -34,11 +34,11 @@ $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_2x2_wb4/wbp_adapter.s
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f
 
-# Wishbone B4 requester front end (masters with protocol=wb4, BRIDGE-019)
+# Wishbone B4 requester front end (masters with protocol=wb4, bridge TASK-008 (was BRIDGE-019))
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/wb4_to_axi4.f
 
 # Per-ID response tracking (bridge_cam): enable_ooo slaves, and every AXI
-# slave of a multi-master fabric, whose IDs are {master index, id} (BRIDGE-015/016)
+# slave of a multi-master fabric, whose IDs are {master index, id} (bridge BUG-012 (was BRIDGE-015)/016)
 -f $REPO_ROOT/projects/components/bridge/rtl/filelists_static/bridge_cam.f
 
 # GAXI skid buffers (used by wrappers and converters)

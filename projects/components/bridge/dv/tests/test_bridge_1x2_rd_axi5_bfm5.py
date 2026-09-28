@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-002 A5-1 sign-off test.
+# HAND-WRITTEN (not generated): bridge TASK-002 (was BRIDGE-002) A5-1 sign-off test.
 #
 # Since 2026-09-09 every generated TB drives an AXI5 port with the AXI5 BFM
 # and arms an AXI5ComplianceChecker on it, so this test no longer needs its
@@ -66,7 +66,7 @@ async def cocotb_test_bridge_1x2_rd_axi5_bfm5(dut):
             assert resp[0].get('trace', 0) == 1, (
                 f"rtrace not echoed for slave {slave_idx}: got {resp[0].get('trace')}. "
                 f"Both slaves here are AXI4 and contribute no trace of their own; the "
-                f"adapter echoes the request's bit at the port (BRIDGE-012)")
+                f"adapter echoes the request's bit at the port (bridge BUG-010, was BRIDGE-012)")
             assert actual == expected, (
                 f"AXI5-BFM read mismatch slave {slave_idx} @ 0x{addr:08x}: "
                 f"got 0x{actual:08x}, expected 0x{expected:08x}"

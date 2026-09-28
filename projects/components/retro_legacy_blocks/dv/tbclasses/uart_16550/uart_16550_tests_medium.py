@@ -1324,11 +1324,11 @@ class UART16550MediumTests:
             return False
 
     async def test_rlb013_dlab_remap(self) -> bool:
-        """RLB-013: with LCR[7] (DLAB) set, 0x00 and 0x04 are the divisor
+        """RLB TASK-012 (was RLB-013): with LCR[7] (DLAB) set, 0x00 and 0x04 are the divisor
         latches, as a standard 16550 driver expects. The dedicated offsets
         at 0x24/0x28 keep working, so both forms address the same latches,
         and a divisor write must not be mistaken for a THR push."""
-        self.log.info("=== RLB-013: DLAB remapping ===")
+        self.log.info("=== RLB TASK-012 (was RLB-013): DLAB remapping ===")
         from .uart_16550_tb import UART16550RegisterMap
         M = UART16550RegisterMap
         try:
@@ -1372,25 +1372,25 @@ class UART16550MediumTests:
 
             ok = aliased_ok and flat_ok and no_push and ier_ok and thr_ok
             if ok:
-                self.log.info("RLB-013 DLAB remapping GREEN")
+                self.log.info("RLB TASK-012 (was RLB-013) DLAB remapping GREEN")
                 return True
             self.log.error(
-                f"RLB-013 DLAB: aliased_ok={aliased_ok} flat_ok={flat_ok} "
+                f"RLB TASK-012 (was RLB-013) DLAB: aliased_ok={aliased_ok} flat_ok={flat_ok} "
                 f"divisor_write_did_not_push={no_push} ier_ok={ier_ok} "
                 f"thr_ok={thr_ok}")
             return False
         except Exception as e:
-            self.log.error(f"RLB-013 DLAB test error: {e}")
+            self.log.error(f"RLB TASK-012 (was RLB-013) DLAB test error: {e}")
             return False
 
     async def test_rlb013_stop_bits_and_afe(self) -> bool:
-        """RLB-013: 1.5 stop bits for a 5-bit word, and auto flow control.
+        """RLB TASK-012 (was RLB-013): 1.5 stop bits for a 5-bit word, and auto flow control.
 
         A 5-bit character with LCR[2] set sends 1.5 stop bits, so the frame
         is half a bit time longer than the same character with one stop bit.
         With AFE set, CTS gates the start of a character and RTS is driven
         from the RX FIFO level rather than from MCR[1]."""
-        self.log.info("=== RLB-013: 1.5 stop bits and auto flow control ===")
+        self.log.info("=== RLB TASK-012 (was RLB-013): 1.5 stop bits and auto flow control ===")
         from .uart_16550_tb import UART16550RegisterMap
         M = UART16550RegisterMap
         try:
@@ -1478,25 +1478,25 @@ class UART16550MediumTests:
 
             ok = stop_ok and held and started and rts_ok
             if ok:
-                self.log.info("RLB-013 stop bits and AFE GREEN")
+                self.log.info("RLB TASK-012 (was RLB-013) stop bits and AFE GREEN")
                 return True
             self.log.error(
-                f"RLB-013: stop_ok={stop_ok} (delta {delta:.2f} bit times, "
+                f"RLB TASK-012 (was RLB-013): stop_ok={stop_ok} (delta {delta:.2f} bit times, "
                 f"want ~0.5) tx_held_while_cts_off={held} tx_started_on_cts={started} "
                 f"rts_ok={rts_ok} (idle={rts_idle} at_trigger={rts_full} "
                 f"drained={rts_drained})")
             return False
         except Exception as e:
-            self.log.error(f"RLB-013 stop-bits/AFE test error: {e}")
+            self.log.error(f"RLB TASK-012 (was RLB-013) stop-bits/AFE test error: {e}")
             return False
 
     async def test_rlb013_dma_mode(self) -> bool:
-        """RLB-013: FCR[3] selects the DMA handshake mode on rxrdy_n/txrdy_n.
+        """RLB TASK-012 (was RLB-013): FCR[3] selects the DMA handshake mode on rxrdy_n/txrdy_n.
 
         Mode 0 is one character at a time: receive is requested as soon as
         anything is in the RX FIFO. Mode 1 is block: the request waits for the
         trigger level. Both are active low."""
-        self.log.info("=== RLB-013: DMA mode select ===")
+        self.log.info("=== RLB TASK-012 (was RLB-013): DMA mode select ===")
         from .uart_16550_tb import UART16550RegisterMap
         M = UART16550RegisterMap
         try:
@@ -1528,26 +1528,26 @@ class UART16550MediumTests:
             mode1_ok = results[1] == (1, 1, 0)
             ok = mode0_ok and mode1_ok
             if ok:
-                self.log.info("RLB-013 DMA mode GREEN")
+                self.log.info("RLB TASK-012 (was RLB-013) DMA mode GREEN")
                 return True
             self.log.error(
-                f"RLB-013 DMA mode: mode0={results[0]} (want empty=1, "
+                f"RLB TASK-012 (was RLB-013) DMA mode: mode0={results[0]} (want empty=1, "
                 f"one_char=0, at_trigger=0) mode1={results[1]} (want "
                 f"empty=1, one_char=1, at_trigger=0)")
             return False
         except Exception as e:
-            self.log.error(f"RLB-013 DMA mode test error: {e}")
+            self.log.error(f"RLB TASK-012 (was RLB-013) DMA mode test error: {e}")
             return False
 
     async def test_rlb013_character_timeout(self) -> bool:
-        """RLB-013: the character-timeout interrupt.
+        """RLB TASK-012 (was RLB-013): the character-timeout interrupt.
 
         PC16550D: with the RX FIFO non-empty and neither a new character nor
         a read for four character times, the timeout asserts, IIR reads 0x0C
         and it clears on a read of RBR. It only exists in FIFO mode, where a
         partially filled FIFO below the trigger level would otherwise leave
         software with no interrupt to wait for."""
-        self.log.info("=== RLB-013: character timeout ===")
+        self.log.info("=== RLB TASK-012 (was RLB-013): character timeout ===")
         from .uart_16550_tb import UART16550RegisterMap
         M = UART16550RegisterMap
         try:
@@ -1604,17 +1604,17 @@ class UART16550MediumTests:
 
             ok = early_quiet and fired and cleared and char_mode_quiet and irq_now == 1
             if ok:
-                self.log.info("RLB-013 character timeout GREEN")
+                self.log.info("RLB TASK-012 (was RLB-013) character timeout GREEN")
                 return True
             self.log.error(
-                f"RLB-013: early_quiet={early_quiet} fired={fired} "
+                f"RLB TASK-012 (was RLB-013): early_quiet={early_quiet} fired={fired} "
                 f"irq={irq_now} cleared_on_read={cleared} "
                 f"character_mode_quiet={char_mode_quiet} "
                 f"(IIR early=0x{iir_early:02X} late=0x{iir_late:02X} "
                 f"after=0x{iir_after & 0xFF:02X})")
             return False
         except Exception as e:
-            self.log.error(f"RLB-013 character timeout test error: {e}")
+            self.log.error(f"RLB TASK-012 (was RLB-013) character timeout test error: {e}")
             return False
 
     async def test_gh60_r3_1_lsr7_is_a_fifo_aggregate(self) -> bool:
@@ -1823,10 +1823,10 @@ class UART16550MediumTests:
             ('GH60-R2-3 LSR error not per-character', self.test_gh60_r2_3_lsr_error_not_per_character),
             ('GH60-R2-4 continuous break floods FIFO', self.test_gh60_r2_4_continuous_break_floods_fifo),
             ('GH60-R3-1 LSR[7] is a FIFO aggregate', self.test_gh60_r3_1_lsr7_is_a_fifo_aggregate),
-            ('RLB-013 character timeout', self.test_rlb013_character_timeout),
-            ('RLB-013 DLAB remapping', self.test_rlb013_dlab_remap),
-            ('RLB-013 1.5 stop bits and AFE', self.test_rlb013_stop_bits_and_afe),
-            ('RLB-013 DMA mode select', self.test_rlb013_dma_mode),
+            ('RLB TASK-012 (was RLB-013) character timeout', self.test_rlb013_character_timeout),
+            ('RLB TASK-012 (was RLB-013) DLAB remapping', self.test_rlb013_dlab_remap),
+            ('RLB TASK-012 (was RLB-013) 1.5 stop bits and AFE', self.test_rlb013_stop_bits_and_afe),
+            ('RLB TASK-012 (was RLB-013) DMA mode select', self.test_rlb013_dma_mode),
             ('GH60-R2-5 TX FIFO reset truncates in-flight char', self.test_gh60_r2_5_tx_fifo_reset_truncates_inflight_char),
         ]
 

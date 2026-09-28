@@ -113,7 +113,7 @@ math_ieee754_2008_fp16_exponent_adder u_exp_add (
 //   - round_bit=1 AND (sticky_bit=1 OR LSB=1)
 // mantissa_mult exports GUARD as round_bit and (R|S) as sticky_bit
 // (see its NAMING NOTE), so this is textbook G & (R|S|LSB) RNE --
-// sweep-verified vs an exact-product reference (MATH-007, 2026-08-10).
+// sweep-verified vs an exact-product reference (math BUG-003 (was MATH-007), 2026-08-10).
 
 wire w_lsb = w_mant_mult_out[0];
 wire w_round_up = w_round_bit & (w_sticky_bit | w_lsb);
@@ -134,7 +134,7 @@ wire [4:0] w_exp_final = w_mant_round_overflow ? (w_exp_sum + 5'd1) : w_exp_sum;
 // Check for exponent overflow after rounding adjustment
 wire w_final_overflow = w_exp_overflow | (w_exp_final == 5'h1F);
 
-// IEEE 754 detects underflow AFTER rounding (MATH-008): when the
+// IEEE 754 detects underflow AFTER rounding (math BUG-004, was MATH-008): when the
 // pre-round exponent sum is exactly 0 (one below the normal range) and
 // mantissa rounding carries out, the result is exactly the minimum
 // normal (exp 1, mant 0) and must not be flushed. The exponent adder

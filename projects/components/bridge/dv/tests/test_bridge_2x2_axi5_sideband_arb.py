@@ -143,7 +143,7 @@ async def cocotb_test_bridge_2x2_axi5_sideband_arb(dut):
 
     # ---- phase 3: the drop path. The AXI4 slave contributes no trace and the
     # master still gets its own bit back -- the adapter echoes the request's
-    # trace at the port (BRIDGE-012), per master. The untraced write at the
+    # trace at the port (bridge BUG-010, was BRIDGE-012), per master. The untraced write at the
     # end is the negative half: the echo must FOLLOW the request, not tie high.
     tb.set_slave_response_delay(1, 0)
     for m in (0, 1):
@@ -166,7 +166,7 @@ async def cocotb_test_bridge_2x2_axi5_sideband_arb(dut):
                 "and an untraced request still returns trace=0")
 
     await ClockCycles(tb.clock, 20)
-    # Nothing to allow: BRIDGE-012 is fixed in the RTL, so every path -- native,
+    # Nothing to allow: bridge BUG-010 (was BRIDGE-012) is fixed in the RTL, so every path -- native,
     # drop, traced and untraced -- presents a compliant boundary.
     tb.assert_compliance()
     tb.log.info("=" * 80)

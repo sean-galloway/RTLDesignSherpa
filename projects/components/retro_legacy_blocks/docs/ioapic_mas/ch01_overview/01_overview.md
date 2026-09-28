@@ -138,7 +138,7 @@ The APB IOAPIC draws directly from the Intel 82093AA I/O APIC specification with
 - Fixed delivery mode only; the other modes are forwarded on
   `irq_out_deliv_mode` unmodified rather than acted on
 - Single IOAPIC in the block itself. Multi-IOAPIC routing is no longer
-  "future": `ioapic_deliv_merge` (RLB-008) merges N delivery channels outside
+  "future": `ioapic_deliv_merge` (RLB TASK-008, was RLB-008) merges N delivery channels outside
   the block, which is where it belongs -- apb4_ioapic's port list stays a
   single payload + valid/ready + status so a bridge can carry it onto a bus
 
@@ -290,7 +290,7 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
       alongside the destination; the local APICs do the matching)
 - [x] Round-robin arbitration behind `IOAPICARBCFG.rr_enable`
 
-**Feature history (RLB-008, closed 2026-09-14 in `vault/Tasks/RLB/closed.md`):**
+**Feature history (RLB TASK-008 (was RLB-008), closed 2026-09-14 in `vault/Tasks/RLB/closed.md`):**
 - [x] LowestPriority delivery mode, delegated: the IOAPIC forwards the mode
       and the destination set, the local APICs arbitrate, and `irq_out_retry`
       carries a failed arbitration back so the interrupt is re-offered
@@ -316,7 +316,7 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 ### Related Documentation
 
 - `../../rtl/ioapic/README.md` - Block summary and verification entry point
-- `vault/Tasks/RLB/closed.md` - RLB-008, the IOAPIC feature arc (closed)
+- `vault/Tasks/RLB/closed.md` - RLB TASK-008 (was RLB-008), the IOAPIC feature arc (closed)
 - `../../rtl/ioapic/README.md` - Register generation guide
 - `../../rtl/RLB_STATUS_AND_ROADMAP.md` - System-wide planning
 - Intel 82093AA I/O APIC Datasheet

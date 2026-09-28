@@ -100,7 +100,7 @@
 
 `include "reset_defs.svh"
 module fifo_control #(
-    // DEPTH defaulted to 16 against ADDR_WIDTH 3 (COMMON-014), i.e. the
+    // DEPTH defaulted to 16 against ADDR_WIDTH 3 (common BUG-004, was COMMON-014), i.e. the
     // module shipped defaults that broke its own DEPTH <= 2^ADDR_WIDTH
     // rule: pointers addressed 8 slots, (AW+1)'(D) truncated 16 to 0,
     // and AFT = 15 was unreachable at a max occupancy of 8, so

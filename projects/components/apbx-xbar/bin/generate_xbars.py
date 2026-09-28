@@ -54,7 +54,7 @@ def generate_all_standard():
         (2, 4),  # 2-to-4 full crossbar
     ]
 
-    # Mixed-version variant (APBX-001): m0=APB4, m1=APB5, s0=APB5,
+    # Mixed-version variant (projects/components/apbx-xbar TASK-001, was APBX-001): m0=APB4, m1=APB5, s0=APB5,
     # s1=APB4. The generator emits the final form (banner + reset
     # macros); rtl/*.sv are pure generator output — regenerate freely.
     mixed = [
@@ -104,13 +104,13 @@ def generate_all_standard():
             f.write(code)
         print(f"  {output_file}")
 
-    # Retro Legacy Blocks 1-to-10 (RLB-016). Unlike everything above, this
+    # Retro Legacy Blocks 1-to-10 (RLB BUG-003, was RLB-016). Unlike everything above, this
     # variant is CONSUMED BY ANOTHER COMPONENT, so it is emitted into that
     # component's tree rather than rtl/. It is registered here deliberately:
     # the RLB crossbar used to be hand-written, which meant it never received
     # the generator's decode-miss fix (an unmapped address completed with
     # PSLVERR instead of wedging the bus) and decoded on raw PADDR bits rather
-    # than the offset. That divergence is what RLB-016 recorded. Generating it
+    # than the offset. That divergence is what RLB BUG-003 (was RLB-016) recorded. Generating it
     # with the family is what stops it drifting a second time.
     #
     # NOTE the address map differs from the rtl/ family on purpose: the RLB

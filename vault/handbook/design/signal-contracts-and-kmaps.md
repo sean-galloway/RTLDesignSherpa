@@ -29,7 +29,7 @@ and Karnaugh maps for the key combinational decisions.
   first pass surfaced six findings the test suite had not (a retractable
   arvalid, an unlatched AW address contract, a transient error gate...).
 - **The shared machinery lives in `bin/kmaps/`** (promoted 2026-09-25,
-  TOOLING-KMAP step 5): `minimize` (Quine-McCluskey), `writer` (the
+  tooling TASK-006 (was TOOLING-KMAP) step 5): `minimize` (Quine-McCluskey), `writer` (the
   three-part contract-table emitter with `relations=` and its invariant
   check), `citations` (`verify_citations(cites, repo)`), `styles`. A new
   component's generator imports these and supplies only what is specific to
@@ -127,7 +127,7 @@ sufficiency argument below.
 ## The six criteria still apply — they are about EVIDENCE, not layout
 
 The audit below predates the format change and its numbering is still the
-reference used by [[TOOLING-KMAP]]. Criteria 1, 2, 5 and 6 carry over to the
+reference used by [[tooling TASK-006 (was TOOLING-KMAP)]]. Criteria 1, 2, 5 and 6 carry over to the
 table unchanged in spirit: computed cells, a defined ordering, explicit
 don't-cares, and derived-vs-RTL implicants. Criteria 3 and 4 are now
 STRUCTURAL — the term list and the invariant list are parts of the artifact
@@ -272,11 +272,11 @@ The stream workbook's first pass found six real defects, so the practice already
 pays even half-built. But "we have K-maps" currently reads as stronger evidence
 than it is, and that is the dangerous part -- the same shape as the monitor
 timeout that was believed covered at STREAM because a DIFFERENT timeout was
-tested ([[AMBA-MONTRACK]] and its sibling gap). A map with no sufficiency
+tested ([[amba BUG-029 (was AMBA-MONTRACK)]] and its sibling gap). A map with no sufficiency
 argument and no implicants is a picture of the code, not a check on it, and a
 picture agrees with the code by construction.
 
-Open work: [[TOOLING-KMAP]] (the emitter), then per component:
+Open work: [[tooling TASK-006 (was TOOLING-KMAP)]] (the emitter), then per component:
 STREAM [TASK-001](../../Tasks/projects/components/dmas/stream/task/closed/TASK-001.md) (DONE 2026-09-25: five priority targets discharged on all six criteria; 26 of 37 maps still render VERDICT: NOT CHECKED), RAPIDS [TASK-002](../../Tasks/projects/components/dmas/rapids/task/closed/TASK-002.md) (no
 workbook at all). [[PUMICE-KMAP]] is DONE (closed 2026-09-10, all six
 criteria discharged across 17 computed maps).

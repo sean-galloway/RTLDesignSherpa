@@ -4,7 +4,7 @@
 # Module: bin/kmaps/__init__.py
 # Purpose: Shared contract-table / K-map machinery for signal-contract workbooks
 #
-# Promoted here by TOOLING-KMAP step 5. Both the stream and pumice generators
+# Promoted here by tooling TASK-006 (was TOOLING-KMAP) step 5. Both the stream and pumice generators
 # carried a private copy of this code; the step was deliberately sequenced
 # AFTER items 1-4 so one implementation receives the improvements rather than
 # two drifting ones.

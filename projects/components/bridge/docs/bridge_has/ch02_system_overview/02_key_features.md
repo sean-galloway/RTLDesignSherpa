@@ -74,7 +74,7 @@ dma,1,0
 AMBA5 ports are declared per port (`protocol = "axi5"` / `"axil5"` /
 `"apb5"` with an optional `axi5_features` list); the fabric stays AXI4
 internally. Every protocol value is legal on a master port as well as a
-slave port (BRIDGE-014). See
+slave port (bridge TASK-004, was BRIDGE-014). See
 [AXI5 and APB5 Interfaces](../ch04_interfaces/04_axi5_apb5_interfaces.md).
 
 ### Protocol Features
@@ -82,7 +82,7 @@ slave port (BRIDGE-014). See
 - **AXI4 Full** - Complete 5-channel implementation with bursts
 - **AXI4-Lite** - Simplified single-beat transactions
 - **APB** - Low-power peripheral access
-- **Wishbone B4** - The open FPGA bus, pipelined mode, on either side (BRIDGE-019)
+- **Wishbone B4** - The open FPGA bus, pipelined mode, on either side (bridge TASK-008, was BRIDGE-019)
 
 ## Channel-Specific Masters
 

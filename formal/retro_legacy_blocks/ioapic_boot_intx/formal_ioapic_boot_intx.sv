@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Formal properties for ioapic_boot_intx (RLB-008).
+// Formal properties for ioapic_boot_intx (RLB TASK-008, was RLB-008).
 //
 // The module is combinational and dependency-free, so this harness pulls in
 // nothing but the DUT -- same shape as ioapic_lowest_pri_arb and

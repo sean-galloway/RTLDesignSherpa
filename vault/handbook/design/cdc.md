@@ -78,7 +78,7 @@ view that is a few cycles stale, and a FIFO shallower than that round trip
 already drained or an "empty" that has already filled. The sustained rate is
 roughly `DEPTH / round_trip`, whatever the clocks are.
 
-Measured on `axi4_cdc_wr` (BRIDGE-017, 2026-09-11): `CDC_DEPTH = 4`
+Measured on `axi4_cdc_wr` (bridge TASK-006 (was BRIDGE-017), 2026-09-11): `CDC_DEPTH = 4`
 streamed 0.58 beat per cycle with EQUAL clocks -- every beat correct, every
 burst complete, and the bridge port behind it ran at half speed. Nothing in
 the functional tests noticed, because correctness was fine; the bridge-level

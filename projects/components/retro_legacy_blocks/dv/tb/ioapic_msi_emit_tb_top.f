@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Filelist for ioapic_msi_emit_tb_top -- the DV wrapper that wires
 # ioapic_msi_emit onto a real apb4_ioapic delivery channel and a real
-# apb4_master_stub (RLB-008).
+# apb4_master_stub (RLB TASK-008, was RLB-008).
 #
 # Pulls each half by its OWN filelist rather than hand-listing sources.
 # apb4_ioapic.f deliberately does not reference the companion (it is not part

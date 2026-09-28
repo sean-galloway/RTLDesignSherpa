@@ -390,7 +390,7 @@ break the fold.
 
 Safe configurations are: an in-order master-side slave, or a single ID
 outstanding at a time. Nothing in the RTL enforces or detects a violation, so
-a breach corrupts data silently rather than failing (tracked as CONV-001).
+a breach corrupts data silently rather than failing (tracked as projects/components/converters BUG-001 (was CONV-001)).
 
 ## 2.5.8 AW/W Synchronization
 

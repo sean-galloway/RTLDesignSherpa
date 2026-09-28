@@ -6,7 +6,7 @@
 #
 # Module: ioapic_msi_tests
 # Purpose: The SEAM between apb4_ioapic, ioapic_msi_emit and a real APB master
-#          (RLB-008).
+#          (RLB TASK-008, was RLB-008).
 #
 # Created: 2026-09-14
 
@@ -318,7 +318,7 @@ class IOAPICMsiTests:
 
             if self.tb.retry_at_handshake == 0:
                 self.log.warning(
-                    "  RLB-008 posted-timing gap: deliv_retry asserted "
+                    "  RLB TASK-008 (was RLB-008) posted-timing gap: deliv_retry asserted "
                     f"{self.tb.retry_asserts} time(s) but NEVER at the delivery "
                     "handshake, so ioapic_core retired the edge as accepted "
                     "and the refused MSI is not re-offered. It is COUNTED "
@@ -328,7 +328,7 @@ class IOAPICMsiTests:
                 self.log.info(
                     f"  retry coincided with the handshake "
                     f"{self.tb.retry_at_handshake} time(s) -- the design now "
-                    "supports re-offer; RLB-008 should be updated.")
+                    "supports re-offer; RLB TASK-008 (was RLB-008) should be updated.")
 
             self.log.info(f"seam PSLVERR-to-retry GREEN ({checks} checks, "
                           f"retry_asserts={self.tb.retry_asserts}, "

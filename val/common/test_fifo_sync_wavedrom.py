@@ -147,7 +147,7 @@ class FifoSyncWaveDromTB(FifoBufferTB):
             # and the constraints below use. add_interface() would prefix every
             # binding with 'fifo_', so nothing would ever line up — that
             # mismatch is half of why this generator emitted no JSON
-            # (COMMON-020); the gaxi fifo wavedrom test is the pattern.
+            # (common BUG-010, was COMMON-020); the gaxi fifo wavedrom test is the pattern.
             for sig in ('clk', 'rst_n', 'write', 'wr_full', 'wr_almost_full',
                         'read', 'rd_empty', 'rd_almost_empty'):
                 self.wave_solver.add_signal_binding(sig, sig)
@@ -156,7 +156,7 @@ class FifoSyncWaveDromTB(FifoBufferTB):
                     sig, sig, self.field_config_wave.get_field(sig))
 
             # Register the temporal constraints — the other (and larger) half
-            # of COMMON-020: without at least one add_constraint() the sampling
+            # of common BUG-010 (was COMMON-020): without at least one add_constraint() the sampling
             # loop iterates an empty set and no window is ever captured. Each
             # constraint keys on a distinct single-signal transition that the
             # scenarios produce deterministically, so one long sampling session
@@ -395,7 +395,7 @@ async def fifo_sync_wavedrom_test(dut):
 
     # Set up WaveDrom. A failed setup nulls wave_solver and every wavedrom
     # step below is guarded on it, so without this assert a broken setup
-    # would sail through as a pass with no JSON — the COMMON-020 failure
+    # would sail through as a pass with no JSON — the common BUG-010 (was COMMON-020) failure
     # mode through a different door.
     tb.setup_wavedrom()
     assert tb.wave_solver is not None, \
@@ -424,12 +424,12 @@ async def fifo_sync_wavedrom_test(dut):
                 tb.log.warning(f"Unsatisfied: {results['failed_constraints']}")
             # The entire deliverable of this test is the wave JSON. Zero
             # solutions means the generator emitted nothing, which is exactly
-            # the silent failure COMMON-020 existed for — fail loudly.
+            # the silent failure common BUG-010 (was COMMON-020) existed for — fail loudly.
             assert n > 0, (
                 "NO wave JSON produced: the constraint solver found no "
                 "solutions. The generator's whole deliverable is the wave "
                 "JSON, so an empty result is a failure, never a pass "
-                "(COMMON-020).")
+                "(common BUG-010, was COMMON-020).")
             tb.log.info("Synchronous FIFO wavedrom generation complete")
 
     finally:

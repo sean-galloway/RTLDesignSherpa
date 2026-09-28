@@ -54,12 +54,12 @@ class PMACPIMediumTests:
         results = []
 
         test_methods = [
-            ('RLB-009 reset source pins', self.test_rlb009_reset_source_pins),
-            ('RLB-009 soft off state', self.test_rlb009_soft_off_state),
-            ('RLB-009 button debounce and override', self.test_rlb009_button_debounce_and_override),
-            ('RLB-009 PM timer extensions', self.test_rlb009_pm_timer_extensions),
-            ('RLB-009 power sequencing', self.test_rlb009_power_sequencer),
-            ('RLB-009 GPE event handling', self.test_rlb009_gpe_event_handling),
+            ('RLB TASK-009 (was RLB-009) reset source pins', self.test_rlb009_reset_source_pins),
+            ('RLB TASK-009 (was RLB-009) soft off state', self.test_rlb009_soft_off_state),
+            ('RLB TASK-009 (was RLB-009) button debounce and override', self.test_rlb009_button_debounce_and_override),
+            ('RLB TASK-009 (was RLB-009) PM timer extensions', self.test_rlb009_pm_timer_extensions),
+            ('RLB TASK-009 (was RLB-009) power sequencing', self.test_rlb009_power_sequencer),
+            ('RLB TASK-009 (was RLB-009) GPE event handling', self.test_rlb009_gpe_event_handling),
             ('PM Timer Divider Sweep', self.test_pm_timer_divider_sweep),
             ('PM Timer Extended Run', self.test_pm_timer_extended_run),
             ('GPE Enable Patterns', self.test_gpe_enable_patterns),
@@ -104,7 +104,7 @@ class PMACPIMediumTests:
     # ========================================================================
 
     async def test_rlb009_gpe_event_handling(self) -> bool:
-        """RLB-009: GPE level mode, the second bank, and the run/wake split.
+        """RLB TASK-009 (was RLB-009): GPE level mode, the second bank, and the run/wake split.
 
         GPE was rising-edge only, one bank of 32, with a single enable mask
         serving both the interrupt and the wake. Three things change. A source
@@ -114,7 +114,7 @@ class PMACPIMediumTests:
         bank on its own pins, which is what ACPI's two GPE blocks are. And the
         enables can be split, so a source can wake a sleeping machine without
         interrupting a running one."""
-        self.log.info("=== RLB-009: GPE level mode, bank 1, run/wake split ===")
+        self.log.info("=== RLB TASK-009 (was RLB-009): GPE level mode, bank 1, run/wake split ===")
         M = PMACPIRegisterMap
         try:
             async def fresh():
@@ -230,10 +230,10 @@ class PMACPIMediumTests:
                   bank1_cleared and asleep and run_irq and stayed_asleep and
                   asleep2 and woke and not wake_irq)
             if ok:
-                self.log.info("RLB-009 GPE event handling GREEN")
+                self.log.info("RLB TASK-009 (was RLB-009) GPE event handling GREEN")
                 return True
             self.log.error(
-                f"RLB-009 GPE: both_set={both_set} level_returned="
+                f"RLB TASK-009 (was RLB-009) GPE: both_set={both_set} level_returned="
                 f"{level_returned} edge_stayed_clear={edge_stayed_clear} "
                 f"level_cleared={level_cleared} bank1_set={bank1_set} "
                 f"bank0_quiet={bank0_quiet} bank1_irq={bank1_irq} "
@@ -243,7 +243,7 @@ class PMACPIMediumTests:
                 f"wake_irq={wake_irq} (want False)")
             return False
         except Exception as e:
-            self.log.error(f"RLB-009 GPE test error: {e}")
+            self.log.error(f"RLB TASK-009 (was RLB-009) GPE test error: {e}")
             return False
         finally:
             self.tb.dut.gpe_events.value = 0
@@ -256,7 +256,7 @@ class PMACPIMediumTests:
             await ClockCycles(self.tb.pclk, 20)
 
     async def test_rlb009_power_sequencer(self) -> bool:
-        """RLB-009: clock and power-rail sequencing.
+        """RLB TASK-009 (was RLB-009): clock and power-rail sequencing.
 
         Clock-gate and rail transitions used to be instant: every rail moved
         in the same cycle and the clocks moved with them. That is fine in
@@ -265,7 +265,7 @@ class PMACPIMediumTests:
         set the rails walk one at a time with a programmable gap, clocks stop
         before the rails drop and start again only after they are all back,
         and each step can wait for that rail to acknowledge."""
-        self.log.info("=== RLB-009: power and clock sequencing ===")
+        self.log.info("=== RLB TASK-009 (was RLB-009): power and clock sequencing ===")
         M = PMACPIRegisterMap
         mirror = None
         try:
@@ -382,10 +382,10 @@ class PMACPIMediumTests:
                   stall_idx == 7 and stall_dir and pwr_stalled == 0x7F and
                   released)
             if ok:
-                self.log.info("RLB-009 power sequencing GREEN")
+                self.log.info("RLB TASK-009 (was RLB-009) power sequencing GREEN")
                 return True
             self.log.error(
-                f"RLB-009 sequencer: down_order={order_down_ok} "
+                f"RLB TASK-009 (was RLB-009) sequencer: down_order={order_down_ok} "
                 f"({[hex(v) for v in rails_down]}) clocks_before_rails="
                 f"{clocks_first_ok} up_order={order_up_ok} "
                 f"({[hex(v) for v in rails_up]}) clocks_held={clocks_last_ok} "
@@ -395,7 +395,7 @@ class PMACPIMediumTests:
                 f"walk_completed={released}")
             return False
         except Exception as e:
-            self.log.error(f"RLB-009 sequencer test error: {e}")
+            self.log.error(f"RLB TASK-009 (was RLB-009) sequencer test error: {e}")
             return False
         finally:
             if mirror is not None:
@@ -412,7 +412,7 @@ class PMACPIMediumTests:
             await ClockCycles(self.tb.pclk, 20)
 
     async def test_rlb009_pm_timer_extensions(self) -> bool:
-        """RLB-009: PM timer prescaler, comparator, and 64-bit mode.
+        """RLB TASK-009 (was RLB-009): PM timer prescaler, comparator, and 64-bit mode.
 
         The divider is sixteen bits, so on its own the timer cannot reach the
         slow end of its range; a power-of-two prescaler ahead of it extends
@@ -421,7 +421,7 @@ class PMACPIMediumTests:
         64-bit mode moves the overflow to the carry out of bit 63 while
         leaving the low word where it was. Reading the low word snapshots the
         high word, so a pair of reads cannot straddle a carry."""
-        self.log.info("=== RLB-009: PM timer prescaler, comparator, 64-bit ===")
+        self.log.info("=== RLB TASK-009 (was RLB-009): PM timer prescaler, comparator, 64-bit ===")
         M = PMACPIRegisterMap
         try:
             async def fresh(config):
@@ -523,10 +523,10 @@ class PMACPIMediumTests:
                   no_false_match and ovf32 and not ovf64 and
                   hi_stale == 0 and hi_fresh == 1)
             if ok:
-                self.log.info("RLB-009 PM timer extensions GREEN")
+                self.log.info("RLB TASK-009 (was RLB-009) PM timer extensions GREEN")
                 return True
             self.log.error(
-                f"RLB-009 PM timer: prescale_ratio_ok={ratio_ok} "
+                f"RLB TASK-009 (was RLB-009) PM timer: prescale_ratio_ok={ratio_ok} "
                 f"(fast={d_fast} slow={d_slow}), match_status={matched} "
                 f"match_int={match_int} match_irq={saw_irq} "
                 f"no_false_match={no_false_match} ovf_32bit_mode={ovf32} "
@@ -534,7 +534,7 @@ class PMACPIMediumTests:
                 f"(want 0) hi_fresh={hi_fresh} (want 1)")
             return False
         except Exception as e:
-            self.log.error(f"RLB-009 PM timer test error: {e}")
+            self.log.error(f"RLB TASK-009 (was RLB-009) PM timer test error: {e}")
             return False
         finally:
             # Put PM_TIMER_CONFIG and the comparator back where reset left
@@ -551,14 +551,14 @@ class PMACPIMediumTests:
             await ClockCycles(self.tb.pclk, 20)
 
     async def test_rlb009_button_debounce_and_override(self) -> bool:
-        """RLB-009: button debounce and the power-button override.
+        """RLB TASK-009 (was RLB-009): button debounce and the power-button override.
 
         A three-flop synchronizer resolves metastability and does nothing
         about contact bounce, so one press was recorded as several. A level
         now has to hold for BUTTON_TIMING.debounce_cycles before an edge is
         reported, and holding the debounced button past the long-press
         threshold forces soft off - ACPI's four-second override."""
-        self.log.info("=== RLB-009: button debounce and override ===")
+        self.log.info("=== RLB TASK-009 (was RLB-009): button debounce and override ===")
         M = PMACPIRegisterMap
         try:
             async def fresh(debounce, shift):
@@ -631,15 +631,15 @@ class PMACPIMediumTests:
 
             ok = one_press and presses >= 2 and forced and not_forced
             if ok:
-                self.log.info("RLB-009 button debounce and override GREEN")
+                self.log.info("RLB TASK-009 (was RLB-009) button debounce and override GREEN")
                 return True
             self.log.error(
-                f"RLB-009 buttons: debounced_press={one_press} "
+                f"RLB TASK-009 (was RLB-009) buttons: debounced_press={one_press} "
                 f"undebounced_presses={presses} (want >= 2) "
                 f"long_press_forced_S5={forced} disabled_did_nothing={not_forced}")
             return False
         except Exception as e:
-            self.log.error(f"RLB-009 button test error: {e}")
+            self.log.error(f"RLB TASK-009 (was RLB-009) button test error: {e}")
             return False
         finally:
             # RESTORE THE RESET DEFAULTS, pass or fail. This is the only test
@@ -658,13 +658,13 @@ class PMACPIMediumTests:
             await ClockCycles(self.tb.pclk, 20)
 
     async def test_rlb009_soft_off_state(self) -> bool:
-        """RLB-009: S5 soft off.
+        """RLB TASK-009 (was RLB-009): S5 soft off.
 
         S5 is as dark as S3 - every clock gated, every domain but the
         always-on one powered down - but it retains nothing, so leaving it
         pulses sys_reset_req: a wake from soft off is a boot, not a resume.
         The two-bit state field reports encoding 2 for it, the free one."""
-        self.log.info("=== RLB-009: S5 soft off ===")
+        self.log.info("=== RLB TASK-009 (was RLB-009): S5 soft off ===")
         M = PMACPIRegisterMap
         try:
             await self.tb.assert_reset()
@@ -701,25 +701,25 @@ class PMACPIMediumTests:
             ok = (state == 2 and clocks == 0 and (rails & 0xFE) == 0
                   and bool(saw_reset) and back)
             if ok:
-                self.log.info("RLB-009 soft off GREEN")
+                self.log.info("RLB TASK-009 (was RLB-009) soft off GREEN")
                 return True
             self.log.error(
-                f"RLB-009 soft off: state_encoding={state} (want 2), "
+                f"RLB TASK-009 (was RLB-009) soft off: state_encoding={state} (want 2), "
                 f"clocks=0x{clocks:08X} (want 0), rails=0x{rails:02X} (want "
                 f"only bit 0), boot_pulse={bool(saw_reset)}, back_in_S0={back}")
             return False
         except Exception as e:
-            self.log.error(f"RLB-009 soft off test error: {e}")
+            self.log.error(f"RLB TASK-009 (was RLB-009) soft off test error: {e}")
             return False
 
     async def test_rlb009_reset_source_pins(self) -> bool:
-        """RLB-009: RESET_STATUS.wdt_reset and .ext_reset are observable.
+        """RLB TASK-009 (was RLB-009): RESET_STATUS.wdt_reset and .ext_reset are observable.
 
         Both used to read 0 always, because nothing carried the information
         into the block. They now come from device pins, and a source is
         LATCHED rather than sampled: the pulse that caused a reset is long
         gone by the time software reads the register."""
-        self.log.info("=== RLB-009: reset source pins ===")
+        self.log.info("=== RLB TASK-009 (was RLB-009): reset source pins ===")
         try:
             results = {}
             M = PMACPIRegisterMap
@@ -745,14 +745,14 @@ class PMACPIMediumTests:
 
             ok = all((not b) and a and h for (b, a, h) in results.values())
             if ok:
-                self.log.info("RLB-009 reset source pins GREEN")
+                self.log.info("RLB TASK-009 (was RLB-009) reset source pins GREEN")
                 return True
             self.log.error(
-                f"RLB-009 reset sources: {results} (want each False before the "
+                f"RLB TASK-009 (was RLB-009) reset sources: {results} (want each False before the "
                 f"pulse, True after it, and still True later)")
             return False
         except Exception as e:
-            self.log.error(f"RLB-009 reset source test error: {e}")
+            self.log.error(f"RLB TASK-009 (was RLB-009) reset source test error: {e}")
             return False
 
     async def test_pm_timer_divider_sweep(self) -> bool:

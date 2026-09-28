@@ -54,7 +54,7 @@ def pytest_ignore_collect(collection_path, config):
 #
 # The trap is what it does once wrappers DO pass a level. cocotb_test's set_env
 # applies extra_env first and then copies every os.environ entry over it, so a
-# process-level TEST_LEVEL beats whatever a wrapper exported -- TOOL-016, see
+# process-level TEST_LEVEL beats whatever a wrapper exported -- tooling BUG-004 (was TOOL-016), see
 # TBClasses.shared.test_levels.
 #
 # So this area now reads REG_LEVEL in each wrapper (the grids and the Group C

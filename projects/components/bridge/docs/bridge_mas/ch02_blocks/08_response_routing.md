@@ -78,7 +78,7 @@ end
 > untouched at equal width, and the return path is chosen by the POSITION of a
 > per-slave in-order FIFO holding a sideband master id. The returned BID/RID is
 > never consulted -- which is exactly why a slave that reorders between IDs
-> misroutes here (BRIDGE-010).
+> misroutes here (bridge BUG-008, was BRIDGE-010).
 
 For ID-based routing, Bridge ID is extracted from response:
 
@@ -102,7 +102,7 @@ end
 
 ### CAM-Based Extraction
 
-> **Built (BRIDGE-015/016, 2026-09-10).** Every real AXI slave of a
+> **Built (bridge BUG-012 (was BRIDGE-015)/016, 2026-09-10).** Every real AXI slave of a
 > multi-master bridge, and any slave declared `enable_ooo = true`, gets
 > `bridge_cam` for both channels and routes responses by ID; single-master
 > bridges, shim slaves and the subtractive slave keep the in-order per-slave
@@ -318,7 +318,7 @@ Response path can stall when:
    → Non-selected slaves stalled
    → Selected slave proceeds
 
-3. bridge_id tracking FIFO full -- the address handshake is gated on it (BRIDGE-011); there is no response DATA FIFO
+3. bridge_id tracking FIFO full -- the address handshake is gated on it (bridge BUG-009, was BRIDGE-011); there is no response DATA FIFO
    → Slave stalled until space available
 ```
 
@@ -580,7 +580,7 @@ Best for: Real-time systems
 
 ### Response Reordering (Future)
 
-> **Built (BRIDGE-015/016, 2026-09-10).** Every real AXI slave of a
+> **Built (bridge BUG-012 (was BRIDGE-015)/016, 2026-09-10).** Every real AXI slave of a
 > multi-master bridge, and any slave declared `enable_ooo = true`, gets
 > `bridge_cam` for both channels and routes responses by ID; single-master
 > bridges, shim slaves and the subtractive slave keep the in-order per-slave

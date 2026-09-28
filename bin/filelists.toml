@@ -108,7 +108,7 @@ filelist_dirs = ["projects/components/converters/rtl/filelists"]
 [[area]]
 name = "delta"
 kind = "component"
-# Registered 2026-09-23 (TOOL-019). delta had ONE module, zero filelists and no
+# Registered 2026-09-23 (tooling BUG-011, was TOOL-019). delta had ONE module, zero filelists and no
 # entry here, so its lint target linted a bare .sv with `|| true` and gated
 # nothing -- and an unregistered area owns nothing, so --audit could not see it
 # either. rtl_test/ holds other shapes from the same generator and is

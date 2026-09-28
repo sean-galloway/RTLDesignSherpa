@@ -350,7 +350,7 @@ MANIFEST = [
     # pit_8254's regmap was produced by the SUPERSEDED bin/peakrdl_to_regmap.py
     # and disagreed with its RDL on 14 fields (reserved bits sw='rw' where the
     # RDL says 'r'; four PIT_CONTROL fields 'rw' where PeakRDL emits 'wo').
-    # Regenerated and gated -- see RLB-017.
+    # Regenerated and gated -- see RLB TASK-014 (was RLB-017).
     {
         "name": "pit_8254 regmap (RLB)",
         "rdl": "projects/components/retro_legacy_blocks/rdl/pit_8254/pit_regs.rdl",

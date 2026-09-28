@@ -453,10 +453,10 @@ None of these is a defect in the block; they are the edges of what it does.
   an `rtc_resetn` pulse while `pclk` is stopped leaves the counters in reset
   until pclk returns.
 
-Both of RLB-010's deferred items have since landed: the shared CDC primitives
+Both of RLB TASK-010 (was RLB-010)'s deferred items have since landed: the shared CDC primitives
 are verilator `-Wall` clean as of dc4ea9db7, and the counter-clock source mux
 is now `rtc_clk_mux`, which supplies a device glitchless cell on XILINX and
-INTEL and the original combinational mux everywhere else. RLB-010 is tracked
+INTEL and the original combinational mux everywhere else. RLB TASK-010 (was RLB-010) is tracked
 in `vault/Tasks/RLB/`.
 
 ## History

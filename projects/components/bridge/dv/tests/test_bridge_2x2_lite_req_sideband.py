@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-014 sign-off for LITE REQUESTER ports.
+# HAND-WRITTEN (not generated): bridge TASK-004 (was BRIDGE-014) sign-off for LITE REQUESTER ports.
 #
 # bridge_2x2_lite_req has an AXI4-Lite master and an AXI5-Lite master (with
 # the two forwardable groups, 'user' and 'exclusive') in front of a 64-bit
@@ -21,7 +21,7 @@
 #     address selects (the wide-slave aligner), for BOTH Lite protocols;
 #   - two ID-less requesters can have transactions in flight at one slave
 #     at the same time and each gets its own response back (the fabric ID is
-#     the master index alone, BRIDGE-016).
+#     the master index alone, bridge TASK-005 (was BRIDGE-016)).
 
 import os
 import sys
@@ -84,7 +84,7 @@ async def cocotb_test_bridge_2x2_lite_req_user_lock(dut):
     tb.slave_rd[REGS].ar_channel.add_callback(_record(seen, 'ar'))
 
     tb.log.info("=" * 80)
-    tb.log.info(f"BRIDGE-014 lite requesters, sideband (level={tb.level}, {n} rounds)")
+    tb.log.info(f"bridge TASK-004 (was BRIDGE-014) lite requesters, sideband (level={tb.level}, {n} rounds)")
     tb.log.info("=" * 80)
 
     failures = []
@@ -150,7 +150,7 @@ async def cocotb_test_bridge_2x2_lite_req_user_lock(dut):
                                 f"and must be driven to 0")
 
     assert not failures, f"{len(failures)} sideband failure(s):\n  " + "\n  ".join(failures[:20])
-    tb.log.info(f"BRIDGE-014 lite sideband PASSED: {n} rounds, user/lock forwarded, "
+    tb.log.info(f"bridge TASK-004 (was BRIDGE-014) lite sideband PASSED: {n} rounds, user/lock forwarded, "
                 f"{len(TIED_AT_MASTER)} terminated groups at 0")
 
 
@@ -196,7 +196,7 @@ async def cocotb_test_bridge_2x2_lite_req_wide_lanes(dut):
                             f"expected 0x{hi:08X}/0x{lo:08X}")
 
     assert not failures, f"{len(failures)} lane failure(s):\n  " + "\n  ".join(failures[:20])
-    tb.log.info(f"BRIDGE-014 wide lanes PASSED: {n} rows, both halves, both Lite requesters")
+    tb.log.info(f"bridge TASK-004 (was BRIDGE-014) wide lanes PASSED: {n} rows, both halves, both Lite requesters")
 
 
 @cocotb.test(timeout_time=8000, timeout_unit="ms")
@@ -259,7 +259,7 @@ async def cocotb_test_bridge_2x2_lite_req_concurrent(dut):
            if results.get((m, addr)) != data]
     assert not bad, (f"{len(bad)} read(s) returned another transaction's data: "
                      + ", ".join(f"m{m}@0x{a:08X} got {g!r} want 0x{d:08X}" for m, a, g, d in bad[:6]))
-    tb.log.info(f"BRIDGE-014 concurrent PASSED: {len(plan)} writes + {len(plan)} reads "
+    tb.log.info(f"bridge TASK-004 (was BRIDGE-014) concurrent PASSED: {len(plan)} writes + {len(plan)} reads "
                 f"from two ID-less requesters, slave delay 6")
 
 

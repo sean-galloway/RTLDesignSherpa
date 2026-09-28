@@ -138,7 +138,7 @@ wire [7:0] w_exp_final = w_mant_round_overflow ? (w_exp_sum + 8'd1) : w_exp_sum;
 // Check for exponent overflow after rounding adjustment
 wire w_final_overflow = w_exp_overflow | (w_exp_final == 8'hFF);
 
-// IEEE 754 detects underflow AFTER rounding (MATH-008): when the
+// IEEE 754 detects underflow AFTER rounding (math BUG-004, was MATH-008): when the
 // pre-round exponent sum is exactly 0 (one below the normal range) and
 // mantissa rounding carries out, the result is exactly the minimum
 // normal (exp 1, mant 0) and must not be flushed. The exponent adder

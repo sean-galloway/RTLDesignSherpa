@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Formal proof for rtc_config_regs -- RLB-010's W1C strobe contract.
+// Formal proof for rtc_config_regs -- RLB TASK-010 (was RLB-010)'s W1C strobe contract.
 //
 // WHAT IS PROVED (at the port boundary):
 //   P1  clear_alarm_flag is never asserted two cycles running
@@ -17,7 +17,7 @@
 // these asserts fail (mutation-checked).
 //
 // WHAT IS NOT PROVED, AND WHY -- the seconds-read latch alignment.
-// RLB-010 names it alongside the W1C strobe. It is NOT provable here: the
+// RLB TASK-010 (was RLB-010) names it alongside the W1C strobe. It is NOT provable here: the
 // contract is about w_seconds_latch, an internal signal, and internal
 // visibility is unavailable for this block in this toolchain. Four routes were
 // tried and all fail:

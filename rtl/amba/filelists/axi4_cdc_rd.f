@@ -1,7 +1,7 @@
 # Filelist for axi4_cdc_rd
 # Location: rtl/amba/filelists/axi4_cdc_rd.f
 # Purpose: AXI4 read (AR, R) channels across a clock-domain boundary,
-#          one gaxi_fifo_async per channel (BRIDGE-017 CDC slave ports).
+#          one gaxi_fifo_async per channel (bridge TASK-006 (was BRIDGE-017) CDC slave ports).
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 

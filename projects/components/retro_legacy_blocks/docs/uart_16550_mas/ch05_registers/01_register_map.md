@@ -25,7 +25,7 @@
 
 ## Overview
 
-This is the definitive register reference, and it documents what the RTL actually does — not what a 16550 datasheet says it should do. The address map is **additive**: every register has its own unique offset, AND the Divisor Latch Access Bit (LCR[7]) remaps 0x00/0x04 to DLL/DLM while it is set, as a classic 16550 does. DLL/DLM also keep their dedicated offsets (0x24/0x28), so both access styles work (RLB-013). Register offsets are byte offsets; only `paddr[5:0]` is decoded (see Address Calculation).
+This is the definitive register reference, and it documents what the RTL actually does — not what a 16550 datasheet says it should do. The address map is **additive**: every register has its own unique offset, AND the Divisor Latch Access Bit (LCR[7]) remaps 0x00/0x04 to DLL/DLM while it is set, as a classic 16550 does. DLL/DLM also keep their dedicated offsets (0x24/0x28), so both access styles work (RLB TASK-012, was RLB-013). Register offsets are byte offsets; only `paddr[5:0]` is decoded (see Address Calculation).
 
 ## Functional Description
 
@@ -269,7 +269,7 @@ Example (BASE_ADDR = 0xFEC08000):
 
 ---
 
-## Implemented for RLB-013
+## Implemented for RLB TASK-012 (was RLB-013)
 
 The five 16550 features this block used to leave out are now built:
 

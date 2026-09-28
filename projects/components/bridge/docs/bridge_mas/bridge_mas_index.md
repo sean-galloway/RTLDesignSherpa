@@ -40,7 +40,7 @@ Bridge is a CSV-driven generator that produces AXI4 crossbars with automatic wid
 - **CSV-Driven Configuration:** Human-readable port and connectivity definitions
 - **Channel-Specific Masters:** Write-only (wr), read-only (rd), or full (rw) support
 - **Automatic Width Conversion:** Upsize/downsize for data width mismatches
-- **Out-of-Order Support:** NONE. Responses route by in-order bridge_id FIFO position; a slave that reorders between IDs misroutes (BRIDGE-010)
+- **Out-of-Order Support:** NONE. Responses route by in-order bridge_id FIFO position; a slave that reorders between IDs misroutes (bridge BUG-008, was BRIDGE-010)
 - **Custom Signal Prefixes:** Unique prefixes per port for clean integration
 
 That out-of-order bullet is the one people skim past and regret. The bridge does not sort responses back into order — it trusts the FIFO position, so the trust has to be mutual.
@@ -74,7 +74,7 @@ What happens to a transaction depends on the master/slave protocol pairing:
 **Version 1.2 (2026-09-07):** qc round_1/round_2 correctness pass. Retired the
 ID-extension architecture from every page that claimed it (IDs are
 pass-through; responses route by an in-order `bridge_id` FIFO -- see
-BRIDGE-010 for the ordering requirement that creates). Corrected the
+bridge BUG-008 (was BRIDGE-010) for the ordering requirement that creates). Corrected the
 out-of-range responder against `axi4_subtractive_slave` (RLAST on the final
 beat only, DECERR, 0xDEADBEEF), the monbus group instantiation, the transaction
 timeout that does not exist, and the strobe-mapping example. Documented the

@@ -322,7 +322,7 @@ it to S0.</p>
 
 #### pwrbtn_ovr field
 
-<p>ENABLES the power-button override (RLB-009): with this
+<p>ENABLES the power-button override (RLB TASK-009, was RLB-009): with this
 set, holding the debounced power button for
 2^BUTTON_TIMING.long_press_shift core-clock cycles forces
 the machine to S5 (soft off), which is ACPI's four-second
@@ -802,7 +802,7 @@ power-on reset here (GH#54 round_2 item 7).</p>
 core-clock cycles. The buttons used to get a plain three-flop
 synchronizer, which resolves metastability but does nothing
 about contact bounce: a single press could be recorded as
-several (RLB-009).</p>
+several (RLB TASK-009, was RLB-009).</p>
 
 | Bits|   Identifier   |Access|Reset|      Name      |
 |-----|----------------|------|-----|----------------|

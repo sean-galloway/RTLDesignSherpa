@@ -5,13 +5,13 @@
 # HAND-WRITTEN (not generated): response-tracking tests on bridge_2x2_rw.
 #
 # These two tests were first added INSIDE the generated test_bridge_2x2_rw.py
-# (c64660f47 for BRIDGE-011, b0cce57ca / 56a916a79 for latency). A generated
+# (c64660f47 for bridge BUG-009 (was BRIDGE-011), b0cce57ca / 56a916a79 for latency). A generated
 # file cannot carry hand-written tests: the next regenerate drops them
 # silently, and the file was never regenerated after that for exactly this
 # reason. They live here now, beside the generated file for the same DUT,
 # and use the same generated TB class.
 #
-#   outstanding_overflow -- BRIDGE-011: more concurrent writes than the
+#   outstanding_overflow -- bridge BUG-009 (was BRIDGE-011): more concurrent writes than the
 #       slave's response-tracking FIFO is deep; occupancy must never exceed
 #       DEPTH (awready gated on not-full), no B misroutes, every write lands.
 #   latency -- the bridge's structural request/response propagation, in
@@ -56,7 +56,7 @@ def _hi(sig):
 @cocotb.test(timeout_time=8000, timeout_unit="ms")
 async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
     """
-    BRIDGE-011: offer more concurrent writes to one slave than its
+    bridge BUG-009 (was BRIDGE-011): offer more concurrent writes to one slave than its
     response-tracking FIFO is deep, and require the bridge to hold the line.
 
     Each slave adapter records the ORIGINATING MASTER for every accepted AW in
@@ -93,7 +93,7 @@ async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
     B_DELAY    = 2 * PER_MASTER    # cycles; must outlast the issue phase
 
     tb.log.info("=" * 80)
-    tb.log.info(f"BRIDGE-011 (level={tb.level}): {2 * PER_MASTER} concurrent writes to slave 0 "
+    tb.log.info(f"bridge BUG-009 (was BRIDGE-011) (level={tb.level}): {2 * PER_MASTER} concurrent writes to slave 0 "
                 f"(tracking FIFO is {FIFO_DEPTH} deep)")
     tb.log.info("=" * 80)
 
@@ -114,7 +114,7 @@ async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
     # responses, and a watcher that misses traffic reports "no misroutes"
     # identically to a clean run. One sampler sees every cycle.
     async def _probe():
-        # BRIDGE-015/016: a multi-master bridge's AXI slaves track by ID in
+        # bridge BUG-012 (was BRIDGE-015)/016: a multi-master bridge's AXI slaves track by ID in
         # bridge_cam, so occupancy is the CAM's count rather than a pointer
         # difference. The invariant is the same either way: it never exceeds
         # DEPTH, because the AW handshake is gated on not-full.
@@ -177,7 +177,7 @@ async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
 
     # THE invariant. Gating awready on not-full makes this unconditional.
     assert fifo['peak'] <= FIFO_DEPTH, (
-        f"BRIDGE-011: slave 0's tracking FIFO reached {fifo['peak']} entries "
+        f"bridge BUG-009 (was BRIDGE-011): slave 0's tracking FIFO reached {fifo['peak']} entries "
         f"with only {FIFO_DEPTH} slots. Past {FIFO_DEPTH} a live entry is "
         f"overwritten and its response is routed to the wrong master; at "
         f"{2 * FIFO_DEPTH} the pointers lap, occupancy reads EMPTY and the "
@@ -198,7 +198,7 @@ async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
                 f"(best-effort; the occupancy invariant is the real detector)")
 
     assert not bad_route, (
-        f"BRIDGE-011: {len(bad_route)} response(s) delivered to the wrong "
+        f"bridge BUG-009 (was BRIDGE-011): {len(bad_route)} response(s) delivered to the wrong "
         f"master -- first, master port {bad_route[0][0]} received BID "
         f"0x{bad_route[0][1]:x}.")
 
@@ -207,7 +207,7 @@ async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
         for (m, _a, _d) in done:
             per_master[m] += 1
         raise AssertionError(
-            f"BRIDGE-011: only {len(done)}/{len(plan)} writes completed "
+            f"bridge BUG-009 (was BRIDGE-011): only {len(done)}/{len(plan)} writes completed "
             f"(master 0: {per_master[0]}/{PER_MASTER}, master 1: "
             f"{per_master[1]}/{PER_MASTER}). A response was dropped or "
             f"consumed by the wrong master.")
@@ -329,7 +329,7 @@ async def _measure_once(tb, d, sample, samples):
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_2x2_rw_outstanding_overflow(request, test_level):
-    """Pytest wrapper for the BRIDGE-011 outstanding-depth test"""
+    """Pytest wrapper for the bridge BUG-009 (was BRIDGE-011) outstanding-depth test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',

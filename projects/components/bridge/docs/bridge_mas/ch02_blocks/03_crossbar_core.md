@@ -118,7 +118,7 @@ This separation allows:
 - Independent grant decisions for AR vs. AW channels
 - Better throughput for mixed read/write workloads
 
-**Policy** (`[bridge] arbitration`, BRIDGE-017). `"rr"` (default) is
+**Policy** (`[bridge] arbitration`, bridge TASK-006 (was BRIDGE-017)). `"rr"` (default) is
 round-robin among the requesting masters, grant locked until the slave-side
 handshake. `"qos"` picks the requester with the highest *effective*
 priority: `AxQOS` plus an age term that climbs one level every
@@ -346,7 +346,7 @@ The crossbar maintains AXI ordering rules.
 
 
 **Allowed**: 
-- Read responses must return IN ORDER; a slave that reorders between RIDs misroutes (BRIDGE-010)
+- Read responses must return IN ORDER; a slave that reorders between RIDs misroutes (bridge BUG-008, was BRIDGE-010)
 - Reads to different slaves can complete in any order
 - Writes to different slaves can complete in any order
 
@@ -430,7 +430,7 @@ The paths that will bite you first:
 
 **Mitigation Strategies**:
 
-1. **Registered crossbar** -- BUILT (BRIDGE-017, `[bridge] xbar_pipeline = true`).
+1. **Registered crossbar** -- BUILT (bridge TASK-006 (was BRIDGE-017), `[bridge] xbar_pipeline = true`).
    Every slave-side channel gets a 2-deep `gaxi_skid_buffer` inside the
    xbar: the request stages (AW, W, AR) sit between the arbitrated mux and
    the slave port and carry the bridge id in their payload; the response

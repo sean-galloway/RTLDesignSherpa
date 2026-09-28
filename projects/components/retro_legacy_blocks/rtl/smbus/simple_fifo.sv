@@ -81,9 +81,9 @@ module simple_fifo #(
     // THIS COVERS THIS WRAPPER'S OWN FLOPS ONLY. It does not make the sink
     // polarity-correct: rtl/common's fifo_control.sv and counter_bin.sv
     // hardcode active-low in their bodies, so fifo_sync itself does not
-    // follow RESET_ACTIVE_HIGH (filed as COMMON-026). Driving w_rst_n at the
+    // follow RESET_ACTIVE_HIGH (filed as common BUG-012 (was COMMON-026)). Driving w_rst_n at the
     // build's asserted level is right for this module and is what a fixed
-    // fifo_sync will want; until COMMON-026 lands, the active-high build of
+    // fifo_sync will want; until common BUG-012 (was COMMON-026) lands, the active-high build of
     // the FIFO is broken below this line, not at it.
 `ifdef RESET_ACTIVE_HIGH
     localparam logic RST_ON = 1'b1;
@@ -207,7 +207,7 @@ module simple_fifo #(
     // always were.
     //
     // THAT CONSISTENCY IS AN ACTIVE-LOW-BUILD PROPERTY. Under
-    // RESET_ACTIVE_HIGH the storage never leaves reset (COMMON-026), so the
+    // RESET_ACTIVE_HIGH the storage never leaves reset (common BUG-012, was COMMON-026), so the
     // count runs past the depth against a permanently empty memory and no
     // amount of care here can reconcile them.
     assign full  = w_in_clear ? 1'b0 : w_wr_full;

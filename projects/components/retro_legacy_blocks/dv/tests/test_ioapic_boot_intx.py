@@ -5,7 +5,7 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_ioapic_boot_intx
-# Purpose: Runner for the boot-interrupt companion on a real IOAPIC (RLB-008).
+# Purpose: Runner for the boot-interrupt companion on a real IOAPIC (RLB TASK-008, was RLB-008).
 #
 # Documentation: projects/components/retro_legacy_blocks/rtl/ioapic/README.md
 # Subsystem: retro_legacy_blocks/ioapic

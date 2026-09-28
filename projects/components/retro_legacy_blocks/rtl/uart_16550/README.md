@@ -205,7 +205,7 @@ pointer and count arithmetic is modulo 2^(AW+1) while the memory indices take
 [AW-1:0], which is only the same thing at a power of two; and the RX trigger
 levels go up to 14, which a depth under 16 cannot express.
 
-## Features added for RLB-013
+## Features added for RLB TASK-012 (was RLB-013)
 
 The five 16550 features this block used to leave out are implemented:
 

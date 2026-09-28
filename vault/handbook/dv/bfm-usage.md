@@ -71,13 +71,13 @@ SLVERR; APB grew its memory. The bridge's boundary probe reached the right
 slave past its 4 KB model, got OKAY from an AXI4 slave and SLVERR from an
 AXIL one, and the TB comment that called the silent OKAY "the framework
 behaviour" was true of one slave type. The tests were first "fixed" by
-widening the model (BRIDGE-008); the disagreement stayed until this.*
+widening the model (bridge BUG-006, was BRIDGE-008); the disagreement stayed until this.*
 
 *Case 2 (2026-09-11): `WB4Slave` was written after the contract and did not
 follow it -- a bounds miss raised inside its sampling loop and the whole BFM
 died, and it addressed memory with the raw `ADR`, so it could not sit at a
 fabric address at all. Both surfaced the day a bridge put a Wishbone
-completer at 0x5000_0000 (BRIDGE-019). A new slave family is not done until
+completer at 0x5000_0000 (bridge TASK-008, was BRIDGE-019). A new slave family is not done until
 it has `base_addr` and the OOR path; the structural unit test in RDS-DV is
 the place to add the new class.*
 

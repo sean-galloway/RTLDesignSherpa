@@ -25,7 +25,7 @@
 
 ## Overview
 
-The register file implements the standard 16550 register set, generated with PeakRDL for APB compatibility. All registers occupy unique offsets, and LCR[7] (DLAB) additionally remaps 0x00/0x04 to DLL/DLM while it is set — the DLAB dance works as a 16550 driver expects, and the dedicated offsets 0x24/0x28 keep working either way (RLB-013).
+The register file implements the standard 16550 register set, generated with PeakRDL for APB compatibility. All registers occupy unique offsets, and LCR[7] (DLAB) additionally remaps 0x00/0x04 to DLL/DLM while it is set — the DLAB dance works as a 16550 driver expects, and the dedicated offsets 0x24/0x28 keep working either way (RLB TASK-012, was RLB-013).
 
 ## Ports
 

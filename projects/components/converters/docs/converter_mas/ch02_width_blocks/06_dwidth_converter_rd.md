@@ -239,7 +239,7 @@ so every burst is framed however they overlap.
 It is an inline circular buffer rather than a `fifo_sync` instance,
 deliberately: this converter is widely instantiated and a submodule here
 would add a filelist dependency to every consumer. It stores the narrow
-length AND the burst's start lane (mid-word INCR starts, CONV-006) —
+length AND the burst's start lane (mid-word INCR starts, projects/components/converters TASK-001 (was CONV-006)) —
 ID is carried on the AXI channels, not through this queue — and
 AR is back-pressured when full, so it cannot overflow.
 
@@ -364,7 +364,7 @@ break the fold.
 
 Safe configurations are: an in-order master-side slave, or a single ID
 outstanding at a time. Nothing in the RTL enforces or detects a violation, so
-a breach corrupts data silently rather than failing (tracked as CONV-001).
+a breach corrupts data silently rather than failing (tracked as projects/components/converters BUG-001 (was CONV-001)).
 
 ## 2.6.9 Resource Utilization
 

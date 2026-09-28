@@ -202,7 +202,7 @@ make run-apb4_hpet-func-waves
 ## Parallel Execution Details
 
 The Makefile uses pytest-xdist for parallel execution. It is now a four-line
-leaf including `make/tests.mk` (TOOL-008), so these are no longer set here:
+leaf including `make/tests.mk` (tooling TASK-009, was TOOL-008), so these are no longer set here:
 
 - **Threads:** derived per host -- `JOBS = min(nproc, MemTotalGB / GB_PER_WORKER)`,
   `GB_PER_WORKER ?= 2`. Run `make jobs` to see what your host resolves to.

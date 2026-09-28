@@ -163,7 +163,7 @@ Folds per-sub-beat responses into one wide-beat response by keeping the
 **numeric maximum**, not a bitwise OR. The distinction matters for the mode's
 primary use case, 2-bit RRESP: with the AXI encoding (OKAY=00, EXOKAY=01,
 SLVERR=10, DECERR=11), `SLVERR | EXOKAY = DECERR` — an OR inflates the error
-class the moment an exclusive-read beat mixes with a slave error (CONV-005).
+class the moment an exclusive-read beat mixes with a slave error (projects/components/converters BUG-005, was CONV-005).
 Numeric max is exactly severity order for RRESP, so the fold keeps the worst
 response instead:
 

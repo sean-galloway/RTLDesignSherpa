@@ -6,7 +6,7 @@
 #
 # Module: ioapic_merge_tb
 # Purpose: Testbench for ioapic_deliv_merge_tb_top -- TWO apb4_ioapic channels
-#          merged onto one receiver (RLB-008).
+#          merged onto one receiver (RLB TASK-008, was RLB-008).
 #
 # Created: 2026-09-14
 

@@ -324,7 +324,7 @@ in the `.sby` but missing from the Makefile is never run and reports NORESULT
 Caught the same day it was introduced: extending
 `formal/cdc/cdc_4_phase_handshake` from 2 sby tasks to 6 without adding the
 four matching make targets turned a previously-measured PASS into NORESULT,
-and would have hidden the CDC-002 data-loss finding entirely -- the failing
+and would have hidden the cdc BUG-001 (was CDC-002) data-loss finding entirely -- the failing
 proof simply would not have been run. The measurement caught it because the
 arithmetic did not add up: 28 mode-runs but only 24 results.
 

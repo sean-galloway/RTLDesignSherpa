@@ -37,7 +37,7 @@ protocol state, no ID logic and no reordering: each channel is an in-order
 FIFO, so what a channel accepts on one side it presents on the other, later.
 AW and W cross independently, as AXI permits.
 
-Built for the bridge generator's CDC slave ports (BRIDGE-017): a slave port
+Built for the bridge generator's CDC slave ports (bridge TASK-006, was BRIDGE-017): a slave port
 declared `cdc = true` gets these between the crossbar-side wrapper and its
 boundary, and its own `<slave>_aclk` / `<slave>_aresetn` pins on the bridge
 top. The pair stands on its own as an AXI4 clock converter.

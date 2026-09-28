@@ -55,7 +55,7 @@ Protocol conversion has five jobs:
 - For low-bandwidth peripherals
 - Simplified handshaking
 
-**APB and APB5 (Master-Side, BRIDGE-014)**:
+**APB and APB5 (Master-Side, bridge TASK-004 (was BRIDGE-014))**:
 - The bridge is the APB completer; `apb4_to_axi4` / `apb5_to_axi4`
   (converters component) turn each transfer into one single-beat AXI4
   transaction in front of the ordinary master timing wrapper
@@ -63,12 +63,12 @@ Protocol conversion has five jobs:
 - APB5: `PAUSER[0]`/`PWUSER[0]` ride the fabric's USER bit; `PWAKEUP` is
   accepted and terminated
 
-**AXI5-Lite (Master-Side, BRIDGE-014)**:
+**AXI5-Lite (Master-Side, bridge TASK-004 (was BRIDGE-014))**:
 - The AXI4-Lite path plus the AXI5-Lite sideband on the boundary
 - `exclusive` -> `AxLOCK` and `user` -> the 1-bit USER fields ride the
   fabric; every other group is terminated at the bridge top
 
-**Wishbone B4 (both sides, BRIDGE-019)**:
+**Wishbone B4 (both sides, bridge TASK-008 (was BRIDGE-019))**:
 - Slave port: `axi4_to_wb4` (the AXI4-Lite decomposers + `axil4_to_wb4`),
   one Wishbone transfer per AXI4 beat, ACK -> OKAY, ERR/RTY -> SLVERR
 - Master port: `wb4_to_axi4` (`wb4_to_axil4` + the single-beat AXI4
@@ -887,7 +887,7 @@ Use Case             Control registers          Peripherals
 - Minimal resource overhead acceptable
 - No burst performance needed
 
-**APB Master Front End** (`apb{4,5}_to_axi4`, BRIDGE-014):
+**APB Master Front End** (`apb{4,5}_to_axi4`, bridge TASK-004 (was BRIDGE-014)):
 - An APB requester that needs to reach AXI4 or AXI4-Lite completers
 - One-outstanding by nature of APB: one transfer per fabric round trip
 - Same lane behaviour as an AXI4-Lite master toward wider slaves (the
@@ -934,7 +934,7 @@ and no generated APB slave adapter instantiates `axi4_to_axil4`.
 
 ### Master-Side APB Front End
 
-When `protocol = "apb"` or `"apb5"` is specified on a **master** (BRIDGE-014):
+When `protocol = "apb"` or `"apb5"` is specified on a **master** (bridge TASK-004, was BRIDGE-014):
 - The master adapter's external surface is the APB completer set (the
   requester's `PSEL/PENABLE/PADDR/PWRITE/PWDATA/PSTRB/PPROT` are inputs;
   `PREADY/PRDATA/PSLVERR` outputs; `apb5` adds `PAUSER/PWUSER/PWAKEUP` in
@@ -945,16 +945,16 @@ When `protocol = "apb"` or `"apb5"` is specified on a **master** (BRIDGE-014):
   gets. From the wrapper onward the port is an AXI4-Lite-shaped single-beat
   requester: decode, the width converters and the wide-slave aligner, and
   the response mux are untouched.
-- The fabric ID is the master index alone (`id_width = 0`, BRIDGE-016).
+- The fabric ID is the master index alone (`id_width = 0`, bridge TASK-005 (was BRIDGE-016)).
 
 **Modules**: `projects/components/converters/rtl/apb4_to_axi4.sv`,
 `apb5_to_axi4.sv`, `apb_cmdrsp_to_axi4.sv` -- see the converters MAS.
 
 ### Wishbone B4 at Either Boundary
 
-When `protocol = "wb4"` is specified (BRIDGE-019):
+When `protocol = "wb4"` is specified (bridge TASK-008, was BRIDGE-019):
 - On a **slave**, the adapter instantiates `axi4_to_wb4` through the
-  `Axi4ToWb4Shim` component -- the same channel wiring, BRIDGE-011 not-full
+  `Axi4ToWb4Shim` component -- the same channel wiring, bridge BUG-009 (was BRIDGE-011) not-full
   gate and `converter_*` response intercepts as the APB shim, and the same
   `axi4_master_*_mon` sandwich in the monitored variant. The external
   surface is the thirteen-signal B4 requester set from
@@ -971,7 +971,7 @@ When `protocol = "wb4"` is specified (BRIDGE-019):
 
 ### Master-Side AXI5-Lite Sideband
 
-When `protocol = "axil5"` is specified on a **master** (BRIDGE-014), the
+When `protocol = "axil5"` is specified on a **master** (bridge TASK-004, was BRIDGE-014), the
 bridge top exposes the AXI4-Lite set plus every AXI5-Lite sideband group
 (from `bridge_pkg/axil5_sideband.py`, the one table the slave side also
 reads, with the directions flipped for a requester). The enabled forwardable
@@ -1016,7 +1016,7 @@ it.
 - Burst support
 - Suitable for moderate-bandwidth peripherals
 
-**Wishbone** -- NOT future work; BUILT (BRIDGE-019, 2026-09-11). `wb4` is a
+**Wishbone** -- NOT future work; BUILT (bridge TASK-008 (was BRIDGE-019), 2026-09-11). `wb4` is a
 legal `protocol` on master and slave ports alike; see "Wishbone B4 at Either
 Boundary" above. Not built: B4 standard (classic) mode from the TOML, and
 registered-feedback bursts (`CTI`/`BTE` are carried, not generated).

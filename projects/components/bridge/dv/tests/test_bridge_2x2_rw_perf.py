@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-017 performance characterization.
+# HAND-WRITTEN (not generated): bridge TASK-006 (was BRIDGE-017) performance characterization.
 #
 # The HAS performance chapter quotes "DATA_WIDTH per cycle" peak throughput
 # and "Peak / N" per-master scaling as formulas; until this file nothing in
@@ -47,7 +47,7 @@ from projects.components.bridge.dv.tbclasses.bridge2x2_rw_tb import Bridge2x2RwT
 from projects.components.bridge.dv.tbclasses.bridge2x2_rw_pipe_tb import Bridge2x2RwPipeTB
 
 # The same phases run on the combinational crossbar and on its registered
-# twin (BRIDGE-017 xbar_pipeline). The stage is a full-throughput skid, so
+# twin (bridge TASK-006 (was BRIDGE-017) xbar_pipeline). The stage is a full-throughput skid, so
 # the beat rates must be identical; the DUT is picked by the environment.
 FIXTURES = {
     'bridge_2x2_rw': Bridge2x2RwTB,

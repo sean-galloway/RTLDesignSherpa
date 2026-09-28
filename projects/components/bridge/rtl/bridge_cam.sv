@@ -214,7 +214,7 @@ module bridge_cam #(
     // serial "max count over the matching entries" scan -- DEPTH chained
     // comparators, which Vivado built as a 35-level chain hanging off the
     // arbitrated ARID straight out of the crossbar: 32 ns on an Artix-7 -1,
-    // the whole bridge capped at ~31 MHz (BRIDGE-017 synthesis run,
+    // the whole bridge capped at ~31 MHz (bridge TASK-006 (was BRIDGE-017) synthesis run,
     // 2026-09-11). Same value, shallow structure.
 
     logic [COUNT_WIDTH-1:0] w_dup_count;

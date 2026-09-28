@@ -957,7 +957,7 @@ now flattens and reads the shipped module, and drives each parameter from its
 own sby task. The timeout path is proven -- it never fires before a transfer is
 sent and always fires once one stalls past the programmed count.
 
-`FAST_PATH` no longer exists (CDC-002, 2026-09-16). Formal proved it unsound:
+`FAST_PATH` no longer exists (cdc BUG-001 (was CDC-002), 2026-09-16). Formal proved it unsound:
 `D_IDLE` sampled `dst_ready` and then raised `dst_valid` and the ack together on
 the NEXT cycle, so a receiver that dropped ready in between was acknowledged for
 a beat it never took -- silent data loss. Made correct it saved nothing, so the

@@ -71,7 +71,7 @@ and the port working after, a slow completer, pipelined and classic builds.
 ## Related Modules
 
 The bridge generator's master adapter instantiates this for a master port
-declared `protocol = "wb4"` (BRIDGE-019) and feeds the ordinary
+declared `protocol = "wb4"` (bridge TASK-008, was BRIDGE-019) and feeds the ordinary
 `axi4_slave_{wr,rd}` timing wrapper with its `m_axi` face, exactly as it
 does `apb4_to_axi4` for an APB requester.
 

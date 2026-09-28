@@ -6,7 +6,7 @@
 #
 # Module: ioapic_arb_tb
 # Purpose: Testbench for ioapic_lowest_pri_arb_tb_top -- the arbiter companion
-#          wired onto a real apb4_ioapic delivery channel (RLB-008).
+#          wired onto a real apb4_ioapic delivery channel (RLB TASK-008, was RLB-008).
 #
 # Documentation: projects/components/retro_legacy_blocks/docs/ioapic_mas/
 # Subsystem: retro_legacy_blocks/ioapic

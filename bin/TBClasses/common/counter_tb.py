@@ -301,7 +301,7 @@ class CounterTB(TBBase):
                 break
 
         # Test reset during tick. Disabled with `if False:` from 2025 until
-        # COMMON-011; tick is a registered output now.
+        # common BUG-001 (was COMMON-011); tick is a registered output now.
         #
         # Sampling uses wait_clocks, never a bare RisingEdge: the framework's
         # wait_clocks always delays past the edge before returning, so the

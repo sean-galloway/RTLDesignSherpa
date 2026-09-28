@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
-# axi5_atomic_rr_tracker (BRIDGE-002 A5-3b): per-ID (ID -> routing tag)
+# axi5_atomic_rr_tracker (bridge TASK-002 (was BRIDGE-002) A5-3b): per-ID (ID -> routing tag)
 # entries for read-return atomics. Allocated at the atomic's AW, looked up
 # combinationally from RID, freed on the R handshake's last beat.
 

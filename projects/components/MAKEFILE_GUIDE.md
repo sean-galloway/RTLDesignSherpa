@@ -398,7 +398,7 @@ All component Makefiles support parallel test execution using pytest-xdist:
 - Worker count: **derived per host** by `make/tests.mk` --
   `JOBS = min(nproc, MemTotalGB / GB_PER_WORKER)`, `GB_PER_WORKER ?= 2`.
   A fixed number is what this replaced: `-n 48` on an 8-core box is a 6x
-  oversubscription that has already forced a hard machine kill (TOOL-008 R1).
+  oversubscription that has already forced a hard machine kill (tooling TASK-009 (was TOOL-008) R1).
   Check what your host resolves to with `make jobs`.
 - Retry failed tests: **3 retries with 1 second delay**
 

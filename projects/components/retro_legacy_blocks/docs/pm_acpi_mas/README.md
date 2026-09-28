@@ -25,7 +25,7 @@
 
 **Status:** Written (chapters 1 and 5) -- see pm_acpi_mas_index.md for the
 authoritative status. The RTL is functional against issue #54 and carries the
-RLB-009 feature set (S5, button debouncer, PM timer extensions, rail
+RLB TASK-009 (was RLB-009) feature set (S5, button debouncer, PM timer extensions, rail
 sequencer, two GPE banks) as of 2026-09-10; the chapters describe it.
 
 ---

@@ -7,7 +7,7 @@
 // Module: ioapic_msi_emit_tb_top
 // Purpose: DV wrapper that puts ioapic_msi_emit where it actually goes --
 //          on the far side of a real apb4_ioapic delivery channel, driving
-//          a real apb4_master_stub (RLB-008).
+//          a real apb4_master_stub (RLB TASK-008, was RLB-008).
 //
 // The formal proof covers the emitter's mapping at its own ports, with
 // msi_addr_base and msi_data_template as FREE variables and rsp_data as
@@ -126,7 +126,7 @@ module ioapic_msi_emit_tb_top #(
         .eoi_vector         (eoi_vector),
         .cfg_msi_addr       (cfg_msi_addr),
         .cfg_msi_data       (cfg_msi_data),
-        // Boot-interrupt support (RLB-008): this harness does not
+        // Boot-interrupt support (RLB TASK-008, was RLB-008): this harness does not
         // exercise it. Explicit and open -- omitting them is
         // PINMISSING, which is an ERROR under cocotb's flags.
         .cfg_mask_vec       (),

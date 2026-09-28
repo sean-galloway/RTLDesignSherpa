@@ -5,7 +5,7 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_ioapic_msi_emit
-# Purpose: Runner for the MSI companion on a real IOAPIC channel (RLB-008).
+# Purpose: Runner for the MSI companion on a real IOAPIC channel (RLB TASK-008, was RLB-008).
 #
 # Documentation: projects/components/retro_legacy_blocks/rtl/ioapic/README.md
 # Subsystem: retro_legacy_blocks/ioapic

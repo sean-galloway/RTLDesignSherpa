@@ -56,7 +56,7 @@ wire [2:0] w_mant_normalized = w_needs_norm ? w_product[6:4] : w_product[5:3];
 // GUARD in G/R/S terms -- the FIRST bit below the kept mantissa -- and
 // w_sticky ORs everything below it (R|S). The multiplier computes
 // round & (sticky | LSB) == G & (R|S|LSB), which IS textbook RNE.
-// Sweep-verified vs an exact-product reference (MATH-007, 2026-08-10).
+// Sweep-verified vs an exact-product reference (math BUG-003 (was MATH-007), 2026-08-10).
 
 // Round bit (next bit after mantissa)
 wire w_round = w_needs_norm ? w_product[3] : w_product[2];

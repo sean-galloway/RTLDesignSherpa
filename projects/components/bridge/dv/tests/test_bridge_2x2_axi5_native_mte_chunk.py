@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
-# HAND-WRITTEN (not generated): the native-AXI5 fabric (BRIDGE-018) --
+# HAND-WRITTEN (not generated): the native-AXI5 fabric (bridge TASK-007, was BRIDGE-018) --
 # Memory Tagging and read-data chunking end to end, under contention.
 #
 # bridge_2x2_axi5_native is two 128-bit AXI5 masters and two 128-bit AXI5
@@ -118,7 +118,7 @@ async def cocotb_test_bridge_2x2_axi5_native_mte_chunk(dut):
     cocotb.start_soon(sampler.run())
     n = tb.level_cfg['arb_per_master']
     store = axi5_tag_store(tb.slave_memory[DDR])
-    tb.log.info(f"BRIDGE-018 native AXI5: MTE + chunking, {n} txn/master/phase (level={tb.level})")
+    tb.log.info(f"bridge TASK-007 (was BRIDGE-018) native AXI5: MTE + chunking, {n} txn/master/phase (level={tb.level})")
     # Slow the slave so the two masters genuinely contend at the arbiter.
     tb.set_slave_response_delay(DDR, 12)
 
@@ -263,7 +263,7 @@ async def cocotb_test_bridge_2x2_axi5_native_mte_chunk(dut):
     tb.log.info(f"phase 6: {permuted} bursts returned with reversed chunks, all reassembled; {len(ctl)} ordered controls beside them")
 
     tb.assert_compliance()
-    tb.log.info("BRIDGE-018 native AXI5 MTE + chunking PASSED")
+    tb.log.info("bridge TASK-007 (was BRIDGE-018) native AXI5 MTE + chunking PASSED")
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())

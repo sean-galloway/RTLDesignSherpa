@@ -109,7 +109,7 @@ module formal_pwm #(
     // integration (3218490c, 2026-07-23: ">= repeat" emitted repeat+1
     // periods); this shadow kept the OLD comparison and nobody re-ran the
     // proof, so pwm/prove failed silently for 18 days until the post-sweep
-    // re-verification caught it (COMMON-023). The shadow must track the
+    // re-verification caught it (common BUG-011, was COMMON-023). The shadow must track the
     // CONTRACT the RTL implements - exactly `repeat` periods then DONE.
     wire f_all_done        = (ch0_repeat == 0) ? 1'b0 : (f_repeat >= ch0_repeat - 1'b1);
 

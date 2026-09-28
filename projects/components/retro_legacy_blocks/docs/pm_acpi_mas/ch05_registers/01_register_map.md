@@ -620,7 +620,7 @@ register sweep.
 ### Deferred
 
 Legacy replacement routing (IRQ0 timer, IRQ8 RTC) and processor C/P-state
-hints are out of scope rather than deferred. RLB-009, the deferred-feature
+hints are out of scope rather than deferred. RLB TASK-009 (was RLB-009), the deferred-feature
 list, is otherwise closed.
 
 ---

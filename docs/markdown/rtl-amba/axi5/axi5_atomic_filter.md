@@ -168,7 +168,7 @@ axi5_atomic_filter #(
 
 ### Integration
 
-The bridge generator (BRIDGE-002 A5-3a) inserts this filter automatically in
+The bridge generator (bridge TASK-002 (was BRIDGE-002) A5-3a) inserts this filter automatically in
 the master adapter of any AXI5 master port with `atomic` in its
 `axi5_features`, between the `axi5_slave_wr` boundary wrapper (`pref_axi_*`)
 and the fabric-facing `fub_axi_*` namespace. Handshakes and the B payload go

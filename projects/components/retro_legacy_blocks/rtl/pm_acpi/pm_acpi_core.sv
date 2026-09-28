@@ -702,7 +702,7 @@ module pm_acpi_core #(
 
     // DEBOUNCE. The synchronizer resolves metastability; it does nothing
     // about contact bounce, and a bouncing push button was recorded as
-    // several presses (RLB-009). A candidate level has to hold for
+    // several presses (RLB TASK-009, was RLB-009). A candidate level has to hold for
     // cfg_debounce_cycles before it becomes the accepted level; any change
     // restarts the count. cfg_debounce_cycles = 0 accepts immediately, which
     // is the old behaviour.

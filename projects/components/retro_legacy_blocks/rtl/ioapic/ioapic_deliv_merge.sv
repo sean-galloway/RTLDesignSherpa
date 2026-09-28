@@ -6,7 +6,7 @@
 //
 // Module: ioapic_deliv_merge
 // Purpose: Multi-IOAPIC routing -- merge N delivery channels onto one
-//          (RLB-008).
+//          (RLB TASK-008, was RLB-008).
 //
 // Documentation: projects/components/retro_legacy_blocks/docs/ioapic_mas/
 // Subsystem: retro_legacy_blocks/ioapic
@@ -23,7 +23,7 @@
 // That is the whole of "multi-IOAPIC routing" at this level.
 //
 // It is a COMPANION, exactly like ioapic_lowest_pri_arb, and for the same
-// reason. RLB-008 records Sean's 2026-09-11 interface decision: the delivery
+// reason. RLB TASK-008 (was RLB-008) records Sean's 2026-09-11 interface decision: the delivery
 // channel stays a payload plus a valid/ready handshake plus a status so that a
 // bridge can carry that shape onto a bus. Merging inside the block would mean
 // apb4_ioapic growing N-1 sibling channels on its port list, which is the one

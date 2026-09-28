@@ -26,7 +26,7 @@
 ## Overview
 
 The bridge is AXI4-shaped internally with every AXI5 feature the library
-wrappers carry riding alongside in the channel structs — since BRIDGE-018
+wrappers carry riding alongside in the channel structs — since bridge TASK-007 (was BRIDGE-018)
 that includes Memory Tagging and read-data chunking, so there is no AXI5
 signal an `axi5` port can present that the fabric cannot carry natively
 to another `axi5` port. Any master or slave port can be declared AMBA5.
@@ -53,13 +53,13 @@ channels = "rw"                        # APB rules unchanged (rw-only, 32-bit)
 
 [[bridge.masters]]
 name = "lite5"
-protocol = "axil5"                     # AXI5-Lite requester (BRIDGE-014)
+protocol = "axil5"                     # AXI5-Lite requester (bridge TASK-004, was BRIDGE-014)
 id_width = 0                           # Lite has no ID pins
 axi5_features = ["user", "exclusive"]  # the two groups with an AXI4 destination
 
 [[bridge.masters]]
 name = "apb5m"
-protocol = "apb5"                      # APB5 requester (BRIDGE-014)
+protocol = "apb5"                      # APB5 requester (bridge TASK-004, was BRIDGE-014)
 id_width = 0
 addr_width = 32                        # the requester addresses the whole fabric
 channels = "rw"
@@ -83,8 +83,8 @@ off internally.
 | `unique` | `aw/arunique` | Droppable sideband |
 | `poison` | `wpoison`, `rpoison` | **Connectivity-gated** |
 | `atomic` | `awatop[5:0]` | **Connectivity-gated**; read-return classes native on rw ports, DECERR on write-only ports |
-| `mte` | `aw/artagop[1:0]`, `awtag`, `wtag`, `wtagupdate`, `btag`, `btagmatch`, `rtag`, `rtagmatch` (tag buses are 4 bits per 16 bytes of data, `wtagupdate` one bit per 16 bytes) | **Connectivity-gated**; 128-bit ports or wider (BRIDGE-018) |
-| `chunking` | `archunken`, `rchunkv`, `rchunknum[3:0]`, `rchunkstrb` (one bit per 128 bits of data) | Droppable sideband; 128-bit ports or wider (BRIDGE-018) |
+| `mte` | `aw/artagop[1:0]`, `awtag`, `wtag`, `wtagupdate`, `btag`, `btagmatch`, `rtag`, `rtagmatch` (tag buses are 4 bits per 16 bytes of data, `wtagupdate` one bit per 16 bytes) | **Connectivity-gated**; 128-bit ports or wider (bridge TASK-007, was BRIDGE-018) |
+| `chunking` | `archunken`, `rchunkv`, `rchunknum[3:0]`, `rchunkstrb` (one bit per 128 bits of data) | Droppable sideband; 128-bit ports or wider (bridge TASK-007, was BRIDGE-018) |
 
 ### APB5 Slave Surface
 
@@ -102,7 +102,7 @@ is a sideband wrapper over the APB4 conversion core; APB constraints
 
 ### AXI5-Lite Master Surface
 
-An `axil5` master port (BRIDGE-014) exposes the AXI4-Lite requester set plus
+An `axil5` master port (bridge TASK-004, was BRIDGE-014) exposes the AXI4-Lite requester set plus
 the **whole** AXI5-Lite sideband, every group whether or not it is enabled --
 the same rule as the slave surface, so the boundary keeps one shape. The
 directions flip relative to the slave table: requester-driven groups are

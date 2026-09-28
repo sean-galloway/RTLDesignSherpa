@@ -7,7 +7,7 @@
 // Module: ioapic_boot_intx_tb_top
 // Purpose: DV wrapper that puts ioapic_boot_intx where it actually goes --
 //          beside a real apb4_ioapic, fed by that block's own mask export
-//          and its own enable register (RLB-008).
+//          and its own enable register (RLB TASK-008, was RLB-008).
 //
 // The formal proof covers the companion's contract at its own ports, with
 // irq_in, cfg_mask and boot_intx_en as free variables. What it cannot show is

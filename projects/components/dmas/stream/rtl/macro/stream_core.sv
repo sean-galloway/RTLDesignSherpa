@@ -120,7 +120,7 @@ module stream_core #(
     //
     // 16 is therefore the floor that makes saturation RECOVERABLE
     // (cmd_entry_reserve()==2 only at >=16) while still closing timing. It does
-    // NOT make tracking complete -- see [[AMBA-MONTRACK]]. Closing that gap
+    // NOT make tracking complete -- see [[amba BUG-029 (was AMBA-MONTRACK)]]. Closing that gap
     // needs a pipelined CAM or fewer cones per bitstream, not more slots.
     parameter int MON_TRANS_MARGIN = 8,     // reporting backlog, not concurrency
     parameter int RD_MON_MAX_TRANS = ((NUM_CHANNELS * AR_MAX_OUTSTANDING + MON_TRANS_MARGIN) < 16)

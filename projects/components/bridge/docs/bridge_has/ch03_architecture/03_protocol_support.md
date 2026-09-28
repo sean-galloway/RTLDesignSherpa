@@ -32,7 +32,7 @@ Complete AMBA AXI4 protocol support:
 - **5 channels:** AW, W, B, AR, R
 - **Burst transactions:** FIXED, INCR, WRAP
 - **Transaction IDs:** Configurable width
-- **Out-of-order:** NOT supported -- responses must return in request order (BRIDGE-010)
+- **Out-of-order:** NOT supported -- responses must return in request order (bridge BUG-008, was BRIDGE-010)
 - **Data widths:** 32, 64, 128, 256, 512 bits
 
 ### AXI4-Lite
@@ -100,7 +100,7 @@ The shim modules live in `projects/components/converters/rtl/`; the generator in
 
 ## Automatic Conversion at the Master Boundary
 
-The same `protocol` values are legal on a master port (BRIDGE-014). The
+The same `protocol` values are legal on a master port (bridge TASK-004, was BRIDGE-014). The
 bridge presents the requester's own protocol on the boundary -- the AXI4-Lite
 signal set, the AXI5-Lite set with its sideband, or the APB completer set --
 and the master adapter converts to the AXI4 the crossbar speaks:
@@ -118,7 +118,7 @@ and the master adapter converts to the AXI4 the crossbar speaks:
 : Table 3.5: Master-port protocol values
 
 Rules the validator enforces on these ports: Lite masters have `id_width = 0`
-(no ID pins exist; the fabric ID is the master index, BRIDGE-016), APB and
+(no ID pins exist; the fabric ID is the master index, bridge TASK-005 (was BRIDGE-016)), APB and
 Wishbone masters have `addr_width = 32` (the requester addresses the whole fabric --
 an APB *slave* port's `PADDR` is a window offset, a master's is not), and
 `axi5_features` on an `axil5` master may name only `user` and `exclusive`,

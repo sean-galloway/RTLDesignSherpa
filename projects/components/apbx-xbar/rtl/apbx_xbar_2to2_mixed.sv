@@ -6,7 +6,7 @@
 //
 // Module: apbx_xbar_2to2_mixed
 // Purpose: Apbx Xbar 2to2 Mixed module
-//          Mixed-version ports (APBX-001): m0=apb4, m1=apb5; s0=apb5, s1=apb4.
+//          Mixed-version ports (projects/components/apbx-xbar TASK-001, was APBX-001): m0=apb4, m1=apb5; s0=apb5, s1=apb4.
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba

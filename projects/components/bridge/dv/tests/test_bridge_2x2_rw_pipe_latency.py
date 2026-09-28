@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-017 registered crossbar (xbar_pipeline).
+# HAND-WRITTEN (not generated): bridge TASK-006 (was BRIDGE-017) registered crossbar (xbar_pipeline).
 #
 # bridge_2x2_rw_pipe is bridge_2x2_rw with a skid stage on every slave-side
 # channel inside the crossbar. Two things define the option and both are
@@ -89,7 +89,7 @@ async def cocotb_test_bridge_2x2_rw_pipe_latency(dut):
             f"registered crossbar: B propagation is {rsp} cycles, expected exactly "
             f"{RSP_CYCLES} (baseline 2 + one response stage)")
         await ClockCycles(tb.clock, 20)
-    tb.log.info(f"BRIDGE-017 xbar_pipeline PASSED: {REQ_CYCLES}/{RSP_CYCLES} on {samples} sample(s)")
+    tb.log.info(f"bridge TASK-006 (was BRIDGE-017) xbar_pipeline PASSED: {REQ_CYCLES}/{RSP_CYCLES} on {samples} sample(s)")
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())

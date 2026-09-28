@@ -988,7 +988,7 @@ class WeightedRoundRobinTB(TBBase):
         # Read the compliance verdict. This TB touched the model in exactly one
         # place -- raising ack_timeout_cycles to 8000, i.e. only to make it
         # complain less -- and never asked what it found, which is the same
-        # shape as COMMON-016 in the non-weighted TB.
+        # shape as common BUG-006 (was COMMON-016) in the non-weighted TB.
         compliance = getattr(self.monitor, 'compliance', None)
         if compliance is None or not hasattr(compliance, 'get_warning_summary'):
             return

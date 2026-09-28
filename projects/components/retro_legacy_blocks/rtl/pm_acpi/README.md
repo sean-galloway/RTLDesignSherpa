@@ -264,7 +264,7 @@ not routed to `pm_acpi_core` - a register that does nothing should not look
 like a connected input nobody reads (issue #54 H3).
 
 `RESET_STATUS.wdt_reset` and `.ext_reset` come from the `wdt_reset_n` and
-`ext_reset_n` device pins (RLB-009). Both are active low, synchronized like
+`ext_reset_n` device pins (RLB TASK-009, was RLB-009). Both are active low, synchronized like
 the other board pins, and LATCHED rather than sampled: the pulse that caused
 a reset is long gone by the time software reads the register, so the bit has
 to survive until the next reset clears it. Tie either pin high if the system
@@ -335,7 +335,7 @@ runs on another clock.
 
 ## Not implemented
 
-Deferred work is recorded in `vault/Tasks/RLB/open.md` (RLB-009), not in a
+Deferred work is recorded in `vault/Tasks/RLB/open.md` (RLB TASK-009, was RLB-009), not in a
 tracker next to the code. What is left there is out of scope rather than
 deferred: legacy replacement routing (IRQ0 timer, IRQ8 RTC) and processor
 C/P-state hints.

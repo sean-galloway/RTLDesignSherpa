@@ -133,7 +133,7 @@ class AXI4SubtractiveSlaveTB(TBBase):
                 return bid, bresp
         raise AssertionError(
             f"no B response within 200 cycles for addr=0x{addr:x} id={wid} -- "
-            "this is the hang BRIDGE-009 exists to prevent")
+            "this is the hang bridge BUG-007 (was BRIDGE-009) exists to prevent")
 
     async def concurrent_write_and_read(self, waddr, raddr, wid=3, rid=4):
         """Present AW and AR in the SAME cycle, then drain both responses.

@@ -425,10 +425,10 @@ it terminates.
 **That is an active-low-build guarantee only.** Built with
 `RESET_ACTIVE_HIGH` the FIFO storage never leaves reset, because `rtl/common`'s
 `fifo_control.sv` and `counter_bin.sv` hardcode active-low in their bodies
-(**COMMON-026**, tracked for this block as **RLB-012**). The wrapper's own
+(**common BUG-012 (was COMMON-026)**, tracked for this block as **RLB BUG-001 (was RLB-012)**). The wrapper's own
 count then runs past the depth against a permanently empty memory, `empty`
 never falls, and the drain loop above does not terminate. No care inside this
-block can reconcile that; the active-high build is not usable until COMMON-026
+block can reconcile that; the active-high build is not usable until common BUG-012 (was COMMON-026)
 lands.
 
 **A `SMBUS_RX_FIFO` read with the FIFO empty returns the stale head** - the

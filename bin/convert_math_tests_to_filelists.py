@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert val/math tests from hand-listed verilog_sources to filelists (MATH-003).
+"""Convert val/math tests from hand-listed verilog_sources to filelists (math TASK-001, was MATH-003).
 
 Per test: find `dut_name = "math_X"`, verify rtl/math/filelists/<dut_name>.f
 exists, then:

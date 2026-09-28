@@ -133,12 +133,12 @@ priority.
 logical bitmask. An IOAPIC does not decode logical destinations itself - it
 forwards the field and the mode, and the local APICs do the matching - so
 forwarding the mode is the whole of this block's responsibility for logical
-delivery (RLB-008). Delivery modes other than Fixed are likewise forwarded on
+delivery (RLB TASK-008, was RLB-008). Delivery modes other than Fixed are likewise forwarded on
 `irq_out_deliv_mode` unmodified.
 
-## Feature history (RLB-008, closed 2026-09-14)
+## Feature history (RLB TASK-008 (was RLB-008), closed 2026-09-14)
 
-Nothing here is outstanding: RLB-008 closed 2026-09-14 with every feature
+Nothing here is outstanding: RLB TASK-008 (was RLB-008) closed 2026-09-14 with every feature
 built. The section is kept because both items it once listed as BLOCKED were
 wrong, and the corrections are worth keeping.
 

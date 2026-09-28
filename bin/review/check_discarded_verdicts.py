@@ -126,7 +126,7 @@ def scan(root):
 # Ratchet baseline, in the shape filelist_registry.py already uses: a count
 # per file that may shrink but never grow. A hard gate is not an option here --
 # there are 100 pre-existing discards in helpers (generate_test_report,
-# wait_for_channel_idle, _set), and CONV-002's own lesson is that turning on
+# wait_for_channel_idle, _set), and projects/components/converters BUG-002 (was CONV-002)'s own lesson is that turning on
 # a wall of red "diagnoses nothing and blocks everyone".
 BASELINE = pathlib.Path(__file__).resolve().parents[2] / "bin" / "review" / \
     "discarded_verdicts_baseline.json"
@@ -154,7 +154,7 @@ def _ratchet(findings) -> int:
     shrank = sum(base.get(f, 0) - cur.get(f, 0) for f in base)
     print(f"PASS (ratchet): no file grew. {sum(cur.values())} discard(s) "
           f"outstanding" + (f", {shrank} fewer than baseline" if shrank > 0 else "")
-          + ". See CONV-002.")
+          + ". See projects/components/converters BUG-002 (was CONV-002).")
     return 0
 
 

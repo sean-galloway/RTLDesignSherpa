@@ -87,7 +87,7 @@ input  logic [3:0]  cpu_axi4_awid     // master side
 output logic [3:0]  ddr_s_axi_awid    // slave side -- same width
 ```
 
-The slave-side ID is `{master index, master id}` (BRIDGE-016): the widest master's id_width plus `$clog2(NUM_MASTERS)` bits, so masters never alias at a slave and an `enable_ooo` slave can track by ID across them. For one master the prefix is empty and the slave sees the master's width unchanged.
+The slave-side ID is `{master index, master id}` (bridge TASK-005, was BRIDGE-016): the widest master's id_width plus `$clog2(NUM_MASTERS)` bits, so masters never alias at a slave and an `enable_ooo` slave can track by ID across them. For one master the prefix is empty and the slave sees the master's width unchanged.
 
 Earlier revisions of this page described a bridge-ID-prepend scheme, with
 `4'b0101` becoming `6'b00_0101` and the upper bits extracted on the response.
@@ -125,7 +125,7 @@ permits a slave to complete different-ID transactions out of order, and a
 multi-ported memory controller normally does; nothing in the fabric detects
 or prevents it. Two masters with writes outstanding at one slave are enough to
 expose it -- the response goes to the wrong master, carrying an ID that master
-never issued. Tracked as BRIDGE-010.
+never issued. Tracked as bridge BUG-008 (was BRIDGE-010).
 
 ## Ordering: what the fabric actually guarantees
 
@@ -142,7 +142,7 @@ transactions from several masters can wedge the heads against each other.
 Same-slave pipelining is unaffected.
 
 **Per slave -- responses must come back in order.** See "The requirement this
-creates" above, and BRIDGE-010.
+creates" above, and bridge BUG-008 (was BRIDGE-010).
 
 The sequence an earlier revision of this page offered as a worked example --
 master 0 issuing to slave 0 and slave 1 concurrently, then the fast slave

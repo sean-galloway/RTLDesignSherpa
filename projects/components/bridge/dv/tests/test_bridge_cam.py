@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # bridge_cam (Mode 2, ALLOW_DUPLICATES=1): the per-ID response tracker every
-# multi-master bridge slave adapter uses (BRIDGE-015/016). Duplicate tags are
+# multi-master bridge slave adapter uses (bridge BUG-012 (was BRIDGE-015)/016). Duplicate tags are
 # ordered by a per-entry count; deallocate frees the count-0 entry and
 # decrements the rest, so same-ID responses retire oldest-first.
 #

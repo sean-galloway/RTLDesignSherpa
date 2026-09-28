@@ -178,7 +178,7 @@ print(f"R routed to bridge_id: {dut.u_xbar.ddr_axi_rid_bridge_id.value}")
   detects it. This is the single most likely cause and it is a design
   constraint, not a bug in the bridge -- see FR-2 in the PRD.
 - ID width mismatch between master and slave ports
-- (Historical, before BRIDGE-016) Two masters using the same AXI ID to one
+- (Historical, before bridge TASK-005 (was BRIDGE-016)) Two masters using the same AXI ID to one
   slave: their IDs aliased at the
   slave, and only the `bridge_id` sideband keeps the responses apart
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
-# APBX-001: generated mixed-version crossbar apbx_xbar_2to2_mixed
+# projects/components/apbx-xbar TASK-001 (was APBX-001): generated mixed-version crossbar apbx_xbar_2to2_mixed
 # (m0=APB4, m1=APB5, s0=APB5, s1=APB4) through the real apb4/apb5
 # boundary IP (cmd/rsp fabric).
 #
@@ -89,10 +89,10 @@ async def _xfer(dut, m, addr, write, wdata=0, apb5_sideband=None, timeout=300,
 
 
 # This one has no transaction count to scale: it is a contract test (four
-# master/slave pairings, sideband gating, then the APBX-002 decode-miss
+# master/slave pairings, sideband gating, then the projects/components/apbx-xbar TASK-002 (was APBX-002) decode-miss
 # regression). So it grades by SECTION, and the decode-miss round count is
 # the one real knob -- repeating it is what would expose state left behind by
-# a miss, which is the bug APBX-002 was.
+# a miss, which is the bug projects/components/apbx-xbar TASK-002 (was APBX-002) was.
 _MISS_ROUNDS = {"gate": 0, "func": 1, "full": 4}[current_level()]
 
 
@@ -152,7 +152,7 @@ async def apbx_2to2_mixed_test(dut):
     dut._log.info("apbx_xbar_2to2_mixed: all four pairings OK "
                   f"(s0={len(dut._s0_log)} xfers, s1={len(dut._s1_log)})")
 
-    # 5. APBX-002 (qc round_7): decode miss must COMPLETE with PSLVERR.
+    # 5. projects/components/apbx-xbar TASK-002 (was APBX-002) (qc round_7): decode miss must COMPLETE with PSLVERR.
     #    An out-of-range access used to leave cmd_ready low forever,
     #    wedging that master with PREADY low and no error signature.
     #    Run last: on the old RTL the first miss wedges the crossbar.

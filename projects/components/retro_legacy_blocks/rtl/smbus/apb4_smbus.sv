@@ -11,7 +11,7 @@
 // - APB4 slave interface
 // - SMBus 2.0 protocol, MASTER MODE. Slave mode is a stub: the register
 //   surface exists but no slave FSM runs and this block never answers as a
-//   target. ARA, Host Notify and SMBALERT# are not implemented (RLB-011).
+//   target. ARA, Host Notify and SMBALERT# are not implemented (RLB TASK-011, was RLB-011).
 // - All standard transaction types (Quick, Byte, Word, Block)
 // - Packet Error Checking (PEC) with CRC-8
 // - TX/RX FIFOs, FIFO_DEPTH bytes each (parameter, 2..63; 32 by default)

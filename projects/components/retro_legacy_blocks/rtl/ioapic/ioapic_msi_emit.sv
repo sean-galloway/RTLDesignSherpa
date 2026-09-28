@@ -6,7 +6,7 @@
 //
 // Module: ioapic_msi_emit
 // Purpose: MSI delivery -- turn an IOAPIC delivery message into a posted
-//          write on a bus (RLB-008).
+//          write on a bus (RLB TASK-008, was RLB-008).
 //
 // Documentation: projects/components/retro_legacy_blocks/docs/ioapic_mas/
 // Subsystem: retro_legacy_blocks/ioapic
@@ -16,7 +16,7 @@
 //==============================================================================
 // WHY THIS IS A COMPANION AND NOT A PORT ON apb4_ioapic
 //==============================================================================
-// MSI is a posted memory WRITE of one data word to one address. RLB-008 called
+// MSI is a posted memory WRITE of one data word to one address. RLB TASK-008 (was RLB-008) called
 // it blocked because apb4_ioapic is an APB SLAVE with no initiator -- true, but
 // the wrong conclusion, and the entry's own text contained the right one in
 // parentheses: "add a master port, OR BRIDGE THE EXISTING DELIVERY CHANNEL ONTO
@@ -156,7 +156,7 @@ module ioapic_msi_emit #(
 
     // Qualified by the RESPONSE handshake -- which is NOT the handshake
     // ioapic_core samples. This comment used to claim they were the same, and
-    // that error is the whole of RLB-008's posted-timing finding: deliv_ready
+    // that error is the whole of RLB TASK-008 (was RLB-008)'s posted-timing finding: deliv_ready
     // is cmd_ready, so the DELIVERY handshake closes when the write queues,
     // while this response arrives strictly later. ioapic_core evaluates
     // w_deliv_accept = w_deliv_done && !irq_out_retry AT the delivery

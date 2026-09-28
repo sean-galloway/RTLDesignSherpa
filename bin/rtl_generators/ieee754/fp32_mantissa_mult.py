@@ -115,7 +115,7 @@ class FP32MantissaMult(Module):
         self.instruction('assign ow_guard_bit  = ow_needs_norm ? w_guard_norm  : w_guard_nonorm;')
         self.instruction('assign ow_round_bit  = ow_needs_norm ? w_round_norm  : w_round_nonorm;')
         self.comment('TRUE sticky, unfolded -- with the fold, G=1 makes the parenthesized term')
-        self.comment('always 1 and ties-at-even wrongly round up (MATH-001 family fix).')
+        self.comment('always 1 and ties-at-even wrongly round up (math ISSUE-001 (was MATH-001) family fix).')
         self.instruction('assign ow_sticky_bit = ow_needs_norm ? w_sticky_norm : w_sticky_nonorm;')
         self.instruction('')
 

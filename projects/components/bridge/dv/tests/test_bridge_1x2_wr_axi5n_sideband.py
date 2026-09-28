@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-002 A5-2 slice 2 sign-off test,
+# HAND-WRITTEN (not generated): bridge TASK-002 (was BRIDGE-002) A5-2 slice 2 sign-off test,
 # write channel — including connectivity-gated POISON.
 #
 # The AXI5 master BFM drives awtrace=1 / wpoison=1 per transaction (no pin
@@ -14,7 +14,7 @@
 #     must be NO awtrace/btrace pins on that port at all -- trace terminates
 #     mid-fabric with a generation-time warning. The master STILL gets
 #     btrace=1 back: the adapter echoes the request's trace at the boundary
-#     (BRIDGE-012), so the port keeps its promise whatever the slave carries.
+#     (bridge BUG-010, was BRIDGE-012), so the port keeps its promise whatever the slave carries.
 # This fixture also closes the slice-1 deferred item: a simulated
 # wr-channel AXI5-slave path.
 
@@ -39,7 +39,7 @@ from projects.components.bridge.dv.tbclasses.bridge1x2_wr_axi5n_tb import (
 )
 
 ECHO_NOTE = (
-    "the adapter echoes the request's trace onto B/R at the port (BRIDGE-012), "
+    "the adapter echoes the request's trace onto B/R at the port (bridge BUG-010, was BRIDGE-012), "
     "so the master sees its own trace bit back whatever the slave contributed"
 )
 
@@ -147,7 +147,7 @@ async def cocotb_test_bridge_1x2_wr_axi5n_sideband(dut):
     tb.log.info(f"  sram path OK: wpoison x{len(sampler.sram_w)}, "
                 f"btrace echoed x{len(sampler.master_b)}")
 
-    # Nothing to allow: BRIDGE-012 is fixed in the RTL, so the boundary is
+    # Nothing to allow: bridge BUG-010 (was BRIDGE-012) is fixed in the RTL, so the boundary is
     # compliant on the native path and the drop path alike.
     tb.assert_compliance()
     tb.log.info("=" * 80)

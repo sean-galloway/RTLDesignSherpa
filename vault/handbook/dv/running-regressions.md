@@ -73,7 +73,7 @@ make clean-all
 ls -d local_sim_build sim_build logs 2>/dev/null || echo "clean"
 ```
 
-**Case study, 2026-08-16 (BRIDGE-003).** Six monitor stress tests were rerun
+**Case study, 2026-08-16 (bridge BUG-002, was BRIDGE-003).** Six monitor stress tests were rerun
 with `make clean-all >/dev/null 2>&1` in front of them and reported 6/6 in
 7m22s. The clean had silently aborted; 18 GB and 88 build directories were
 still on disk. Rerun after a *verified* clean, the same six took **35m50s** —

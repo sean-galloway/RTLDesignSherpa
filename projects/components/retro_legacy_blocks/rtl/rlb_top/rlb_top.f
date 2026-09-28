@@ -62,7 +62,7 @@ $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/apbx_xbar/apbx_xbar_1to10
 
 # IOAPIC
 -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/filelists/apb4_ioapic.f
-# Boot-interrupt rerouting companion (RLB-008). apb4_ioapic.f does NOT
+# Boot-interrupt rerouting companion (RLB TASK-008, was RLB-008). apb4_ioapic.f does NOT
 # reference it -- it is not part of the block's closure -- so rlb_top,
 # which instantiates it, pulls it here.
 -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/filelists/ioapic_boot_intx.f

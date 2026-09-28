@@ -6,7 +6,7 @@
 //
 // Module: rtc_clk_mux
 // Purpose: The counter-clock source mux for rtc_core, with a device-specific
-//          glitchless cell where one is available (RLB-010).
+//          glitchless cell where one is available (RLB TASK-010, was RLB-010).
 //
 // Documentation: projects/components/retro_legacy_blocks/docs/rtc_mas/
 // Subsystem: retro_legacy_blocks/rtc
@@ -29,7 +29,7 @@
 // therefore cannot switch AWAY from a dead clock: it would replace the
 // documented constraint with a worse one.
 //
-// A device cell can, which is why RLB-010 recorded "a device-specific cell is
+// A device cell can, which is why RLB TASK-010 (was RLB-010) recorded "a device-specific cell is
 // the real answer". This module is that answer, isolated the way icg.sv
 // isolates a clock gate: the technology choice lives in one small file instead
 // of inside rtc_core's datapath.

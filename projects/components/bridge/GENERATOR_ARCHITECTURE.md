@@ -532,10 +532,10 @@ endmodule
 
 ---
 
-## AMBA5 Support (BRIDGE-002, BRIDGE-014, BRIDGE-018)
+## AMBA5 Support (bridge TASK-002 (was BRIDGE-002), bridge TASK-004 (was BRIDGE-014), bridge TASK-007 (was BRIDGE-018))
 
 The fabric is AXI4-shaped internally, and every AXI5 feature the library
-wrappers carry rides alongside in the channel structs -- since BRIDGE-018
+wrappers carry rides alongside in the channel structs -- since bridge TASK-007 (was BRIDGE-018)
 that includes Memory Tagging (`mte`) and read-data chunking (`chunking`), so
 there is no AXI5 signal an `axi5` port can present that the fabric cannot
 carry natively to another `axi5` port. AMBA5 is a per-port property.
@@ -818,7 +818,7 @@ endmodule
 
 > **HISTORICAL (stale):** this section and "Next Steps for Debugging"
 > describe a debugging snapshot that has long since been fixed (see
-> BRIDGE-001 in the vault). Kept for archaeology; do not act on it.
+> bridge BUG-001 (was BRIDGE-001) in the vault). Kept for archaeology; do not act on it.
 
 
 ### What I Changed
@@ -980,7 +980,7 @@ My changes broke the signal naming system by bypassing `SignalNaming` and direct
 **Solution:**
 Revert changes and regenerate, OR understand original architecture and implement proper fix.
 
-## Fabric Options and Newer Protocols (BRIDGE-017, BRIDGE-019)
+## Fabric Options and Newer Protocols (bridge TASK-006 (was BRIDGE-017), bridge TASK-008 (was BRIDGE-019))
 
 Config keys the generators honour beyond the port list; each is a
 `BridgeConfig` field parsed by `config_loader.py` and validated in

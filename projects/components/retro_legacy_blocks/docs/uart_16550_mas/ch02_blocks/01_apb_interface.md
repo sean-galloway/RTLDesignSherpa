@@ -73,7 +73,7 @@ and 0x04 to DLL/DLM while it is set. Only `paddr[5:0]` is decoded.
 
 #### DLAB (Divisor Latch Access Bit)
 
-LCR[7] remaps the address the register block sees: while it is set, 0x00 and 0x04 are DLL and DLM. The remap is additive - DLL and DLM remain accessible at their own offsets 0x24 and 0x28 either way - and every strobe decodes the same remapped address, so a divisor write cannot be mistaken for a THR push or an IER write (RLB-013).
+LCR[7] remaps the address the register block sees: while it is set, 0x00 and 0x04 are DLL and DLM. The remap is additive - DLL and DLM remain accessible at their own offsets 0x24 and 0x28 either way - and every strobe decodes the same remapped address, so a divisor write cannot be mistaken for a THR push or an IER write (RLB TASK-012, was RLB-013).
 
 ### Operation
 

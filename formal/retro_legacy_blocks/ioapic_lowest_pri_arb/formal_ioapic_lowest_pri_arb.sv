@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
 // Formal proof for ioapic_lowest_pri_arb -- the consumer half of
-// LowestPriority delivery (RLB-008).
+// LowestPriority delivery (RLB TASK-008, was RLB-008).
 //
 // Every property here is on PORTS. That is not a limitation in this case: the
 // module is combinational decision logic and its entire contract is visible at

@@ -37,7 +37,7 @@ LIMIT = 120_000 * 4  # chars per unit, same as the doc bundler
 # only knew TBClasses, so a bundle for such an area shipped its tests with no
 # testbenches and the reviewer could not see what the test actually drives.
 # That, plus main() only looking under val/, is why no projects/components
-# area has ever had a testqc round (BRIDGE-007, unrun since 2026-09-04).
+# area has ever had a testqc round (bridge TASK-003 (was BRIDGE-007), unrun since 2026-09-04).
 IMPORT_RE = re.compile(
     r"^\s*(?:from|import)\s+(TBClasses[\w.]*|CocoTBFramework[\w.]*|projects\.[\w.]*)", re.M)
 # Bare sibling imports, resolved against the area's own tests directory.

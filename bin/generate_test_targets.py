@@ -79,7 +79,7 @@ def gen_environment_targets(name: str, cfg: dict) -> list[str]:
     #
     # The recipe used to be a hand-built `cd <dir> && pytest ... -n 48 test_*.py`.
     # That re-implemented what make/tests.mk already does, and baked in a worker
-    # count (TOOL-008 R1: "every Makefile figures out its own thread count") --
+    # count (tooling TASK-009 (was TOOL-008) R1: "every Makefile figures out its own thread count") --
     # on a small host `-n 48` oversubscribes until the box dies. Delegating means
     # the area Makefile supplies JOBS = min(nproc, MemGB / GB_PER_WORKER), the
     # test glob, the reruns and the flags, so there is exactly one implementation.

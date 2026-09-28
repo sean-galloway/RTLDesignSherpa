@@ -61,7 +61,7 @@ assign ow_mant_out = ow_needs_norm ? ow_product[20:11] : ow_product[19:10];
 // the GUARD in G/R/S terms -- the FIRST bit below the kept mantissa -- and
 // ow_sticky_bit ORs everything below it (R|S). The multiplier computes
 // round_bit & (sticky | LSB) == G & (R|S|LSB), which IS textbook RNE.
-// Sweep-verified vs an exact-product reference (MATH-007, 2026-08-10).
+// Sweep-verified vs an exact-product reference (math BUG-003 (was MATH-007), 2026-08-10).
 
 // Round bit (first bit after mantissa)
 assign ow_round_bit = ow_needs_norm ? ow_product[10] : ow_product[9];

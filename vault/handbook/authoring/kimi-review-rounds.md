@@ -328,7 +328,7 @@ Each one is here because ignoring it cost real work.
 
     The validation rule stands: if the verifier's REFUTED set contains a
     finding human triage confirms, the brief or the evidence pack is too
-    weak - tune before trusting. DOCREV-012.
+    weak - tune before trusting. docs-review TASK-013 (was DOCREV-012).
 
     **The quote extractor is the whole pass.** Everything above assumes the
     verifier can SEE the text the finding quotes. When location fails the packer
@@ -766,14 +766,14 @@ the vendored proxy corpus (`docs/review/kimi/`) survives only in git history.
 The trigger: seven cdc rounds in two days (k3 rounds 4-10: 13, 16, 12, 10, 5,
 8, 7 findings) without converging - the area was being re-litigated, not
 closed, and every round was paying full re-review cost on an area whose fixes
-were being integrated between rounds. Backlog integration (DOCREV-001) is
+were being integrated between rounds. Backlog integration (docs-review TASK-015, was DOCREV-001) is
 dropped with it; fresh per-area rounds under the tightened REVIEWER_BRIEF
 (witness requirement) and second-model adjudication (`verify_findings.py`)
 replace it, in the order cdc, common, math, amba, projects/components
 (DOCREV-013). Round numbering restarts at round_1 in the fresh results dir;
 the pre-reset rounds cited in the rules above are the archived corpus.
 
-The historical FP-rate baseline for the adjudication validation (DOCREV-012)
+The historical FP-rate baseline for the adjudication validation (docs-review TASK-013, was DOCREV-012)
 is the archived cdc series above. Pre-reset integration status tables live in
 the git history of this note.
 

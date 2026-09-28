@@ -13,7 +13,7 @@ pass** — every wavedrom test must end with
 nulls `wave_solver`, and if every wavedrom step is guarded on it, a broken
 setup sails through green). Both doors were open in
 `val/common/test_fifo_sync_wavedrom.py`, which printed "GENERATION COMPLETE"
-over zero output for months (COMMON-020, closed 2026-08-09).
+over zero output for months (common BUG-010 (was COMMON-020), closed 2026-08-09).
 
 **The working reference is `val/amba/test_gaxi_fifo_sync.py`'s wavedrom test.**
 Port from it; do not write solver plumbing from scratch.

@@ -24,7 +24,7 @@ counted here.
 | **Total** | **288** | **0** | **0** | **7** | **2** | **297** |
 
 **No FAILs.** The cdc handshake proof that was held red on purpose is green:
-CDC-002 (the FAST_PATH lost-transfer defect it found) was fixed on 2026-09-16 by
+cdc BUG-001 (was CDC-002) (the FAST_PATH lost-transfer defect it found) was fixed on 2026-09-16 by
 removing the unsound fast path, and the parameter with it. What remains below is
 not failure:
 
@@ -163,7 +163,7 @@ green the same day. NOTE: formal/integ_common has the same no-Makefile gap
 
 ### New arbiters proved (2026-08-10)
 
-`arbiter_deficit_round_robin` and `arbiter_token_bucket` (the COMMON-007
+`arbiter_deficit_round_robin` and `arbiter_token_bucket` (the common TASK-015 (was COMMON-007)
 additions) now carry harnesses, registered in formal/common/Makefile:
 - DRR: family safety set (one-hot, subset-of-$past(request), id, reset)
   plus ap_zero_quantum (a disabled client is never granted) with req_cost
@@ -179,12 +179,12 @@ additions) now carry harnesses, registered in formal/common/Makefile:
   ignores-quantum, debit-removed, raw-token gate, inverted bypass each
   flipped prove to FAIL and back to PASS on restore.
 
-### pwm prove FAILS - RESOLVED 2026-08-11: stale harness (COMMON-023)
+### pwm prove FAILS - RESOLVED 2026-08-11: stale harness (common BUG-011, was COMMON-023)
 
 The post-prefix-sweep re-verification (11 of 12 touched modules PASS)
 exposed `pwm/prove: FAIL` - ap_done_matches_shadow and ap_duty_full at
 step 6. NOT the sweep: the pre-sweep RTL fails identically (verified by
-checking out the parent commit's pwm.sv). COMMON-021's audit only re-ran
+checking out the parent commit's pwm.sv). common TASK-008 (was COMMON-021)'s audit only re-ran
 counter_freq_invariant for common, so this failure has likely hidden
 behind stale results for months. The harness carried a shadow FSM
 with the PRE-FIX repeat comparison: the RTL's off-by-one repeat-done fix
@@ -231,7 +231,7 @@ re-run in the SAME commit.
 ### Run list for a machine WITH the toolchain (added 2026-08-08)
 
 **2026-08-09 (workstation): items 1, 2 and 4 are DONE — results inline below.
-Item 3 (cover tasks) remains, tracked as COMMON-021 for the common slice.**
+Item 3 (cover tasks) remains, tracked as common TASK-008 (was COMMON-021) for the common slice.**
 
 Everything below was blocked on `sv2v` / `yosys` / `sby`, which are not
 installed on the laptop (they ARE on the workstation). In order:
@@ -318,7 +318,7 @@ amba/axi_monitor_trans_mgr, converters/peakrdl_to_cmdrsp,
 Follow-up per area: regenerate, re-prove, commit flat+results together, and
 add the `check-flat` content-diff target (the counter_freq_invariant Makefile
 is the pattern) so this cannot silently recur. Only the common slice of this
-is COMMON-021; amba/stream/rapids/converters staleness belongs to those areas'
+is common TASK-008 (was COMMON-021); amba/stream/rapids/converters staleness belongs to those areas'
 task pages.
 
 **Same-day follow-on finding: the ENTIRE math formal suite was unrunnable.**
@@ -333,10 +333,10 @@ Spot-verified prove+cover PASS on math_adder_brent_kung_008,
 math_multiplier_dadda_tree_008, math_bf16_adder, and both fp8 fma modules
 (which also gained cover verification: 5 covers reached each, closing their
 "prove-only" rows below). The full 147-module re-run belongs to the math
-area's backlog, not COMMON-021.
+area's backlog, not common TASK-008 (was COMMON-021).
 
-**Full math re-run done 2026-08-10 (MATH-006): 157/171 configs PASS**, plus
-math_mod_3_compress newly added (MATH-005, prove + 7/7 covers,
+**Full math re-run done 2026-08-10 (math TASK-003, was MATH-006): 157/171 configs PASS**, plus
+math_mod_3_compress newly added (math TASK-002 (was MATH-005), prove + 7/7 covers,
 mutation-checked). Of the 14 non-passes at run time:
 
 - 6 known BMC-intractables (softmax_8 x5, bf16_exp2) still ERROR — recorded,
@@ -355,7 +355,7 @@ mutation-checked). Of the 14 non-passes at run time:
   wallace reconfirmed serially (low8 + boundary, ~35 min), dadda's
   prove_boundary does NOT converge (killed at 1 h parallel, 1 h serial and
   3 h serial z3) while its prove_low8 passes -- honest heavy-bucket entry,
-  sby dies loudly. Full disposition in vault/Tasks/math (MATH-006, closed).
+  sby dies loudly. Full disposition in vault/Tasks/math (math TASK-003 (was MATH-006), closed).
 
 Operational gotcha for the next sweep: `sby -f <dir>/<cfg>.sby` resolves the
 relative `[files]` paths against the CWD, not the .sby location — run from

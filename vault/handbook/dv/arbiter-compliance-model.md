@@ -35,22 +35,22 @@ equivalent and is not: that inference produced 40-60 false violations per run.
 
 ## The three defects
 
-1. **Wrong request vector** (COMMON-018). The check was always paired with the
+1. **Wrong request vector** (common BUG-008, was COMMON-018). The check was always paired with the
    *previous* cycle's requests. Correct for a DUT that registers its grant,
    wrong for one that drives it combinationally - and it made a correct
    arbiter look like it granted clients that never asked, 144-176 times per
    run. Now selected by the `registered_grant` constructor argument.
-2. **No `r_last_valid` mirror** (COMMON-017). Two grant-less cycles drop the
+2. **No `r_last_valid` mirror** (common BUG-007, was COMMON-017). Two grant-less cycles drop the
    RTL's priority mask back to reset; the model carried its pre-idle winner
    across the gap and reported a violation on the first grant after every
    `block_arb` interval.
-3. **ACKs processed live against a replay-built table** (COMMON-016).
+3. **ACKs processed live against a replay-built table** (common BUG-006, was COMMON-016).
    `pending_acks` is only written during replay, so an ACK handled at sample
    time looked at a table that did not contain its own grant - reported as
    `unexpected_ack`, 100-200 per run. ACKs are now queued (`queue_ack`) and
    replayed in one timestamp-ordered stream with the grants.
 
-The ACK path still loses a grant; see COMMON-019.
+The ACK path still loses a grant; see common BUG-009 (was COMMON-019).
 
 ## Measure the RTL, do not argue from it
 
@@ -72,7 +72,7 @@ ground truth once you have accounted for when its stimulus actually lands.**
 Both arbiter TBs used to carry a `MODEL_DEFECTS = {'round_robin_violation'}`
 exclusion so the suite would pass. That hid defect 1 for as long as it existed.
 The verdict is now asserted with no exclusions in BOTH modes. ACK mode was
-logged-not-asserted until COMMON-019 closed (RTLDesignSherpa-DV#50); it
+logged-not-asserted until common BUG-009 (was COMMON-019) closed (RTLDesignSherpa-DV#50); it
 asserts too, as of 2026-08-08.
 Print the whole record - `expected`, `actual`, `active_requests`,
 `current_mask`, `last_winner` - because the type name alone starts every debug

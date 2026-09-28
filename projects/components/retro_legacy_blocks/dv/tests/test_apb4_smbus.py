@@ -111,9 +111,9 @@ async def smbus_test(dut):
         # (RED) for a specific, mechanism-traced reason documented in
         # smbus_tests_medium.py; they are not skipped/xfail because the
         # RED result itself is the deliverable finding for rds-rtl-design.
-        ('RLB-011 Slave address match and write', gh58_tests.test_rlb011_slave_write_and_address_match),
-        ('RLB-011 Slave read and clock stretching', gh58_tests.test_rlb011_slave_read_and_stretch),
-        ('RLB-011 Slave PEC and engine ownership', gh58_tests.test_rlb011_slave_pec_and_ownership),
+        ('RLB TASK-011 (was RLB-011) Slave address match and write', gh58_tests.test_rlb011_slave_write_and_address_match),
+        ('RLB TASK-011 (was RLB-011) Slave read and clock stretching', gh58_tests.test_rlb011_slave_read_and_stretch),
+        ('RLB TASK-011 (was RLB-011) Slave PEC and engine ownership', gh58_tests.test_rlb011_slave_pec_and_ownership),
         ('GH58-1 (C4) SCL toggle / open-drain', gh58_tests.test_gh58_c4_scl_toggle_and_open_drain),
         ('GH58-2 (C3) Timeout via real SCL stretch / TIMEOUT=0 disables it', gh58_tests.test_gh58_c3_timeout_detection_dead),
         ('GH58-12 Short stretch (< TIMEOUT) completes without error', gh58_tests.test_gh58_12_short_stretch_completes_without_error),
@@ -155,8 +155,8 @@ async def smbus_test(dut):
         ('GH58-R4-8 (guard) full-density abort sweep', gh58_tests.test_gh58_r4_8_full_density_abort_sweep),
         ('GH58-R4-10 TX FIFO push honors PSTRB', gh58_tests.test_gh58_r4_10_tx_fifo_pstrb),
         ('GH58-R5-1 fifo_reset clears stale TX data', gh58_tests.test_gh58_r5_1_fifo_reset_clears_stale_tx_data),
-        ('RLB-011 quick command read', gh58_tests.test_rlb011_quick_command_read),
-        ('RLB-011 arbitration lost', gh58_tests.test_rlb011_arbitration_lost),
+        ('RLB TASK-011 (was RLB-011) quick command read', gh58_tests.test_rlb011_quick_command_read),
+        ('RLB TASK-011 (was RLB-011) arbitration lost', gh58_tests.test_rlb011_arbitration_lost),
         ('GH58-R6-1 fifo_reset during receive keeps level consistent', gh58_tests.test_gh58_r6_1_fifo_reset_during_receive_keeps_level_consistent),
         ('GH58-R6-2 fifo_reset TX side + longer-window harmless', gh58_tests.test_gh58_r6_2_fifo_reset_tx_and_width_harmless),
     ]

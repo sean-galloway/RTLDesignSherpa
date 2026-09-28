@@ -32,7 +32,7 @@ The `math_bf16_multiplier` module implements full BF16 multiplication by integra
 **Key Features:**
 - **BF16 format** - Same exponent range as FP32, reduced mantissa precision
 - **IEEE 754 special cases** - Zero, infinity, NaN handling
-- **Rounding** - textbook round-to-nearest-even, `G & (R | S | LSB)` (fixed in MATH-001)
+- **Rounding** - textbook round-to-nearest-even, `G & (R | S | LSB)` (fixed in math ISSUE-001 (was MATH-001))
 - **FTZ mode** - Flush-to-Zero for subnormal inputs and outputs
 - **Status flags** - Overflow, underflow, and invalid operation indicators
 
@@ -170,7 +170,7 @@ wire w_a_is_normal = ~w_a_eff_zero & ~w_a_is_inf & ~w_a_is_nan;
 
 ### Round-to-Nearest-Even
 
-> **Rounding boolean, as implemented (fixed 2026-08-09, MATH-001):**
+> **Rounding boolean, as implemented (fixed 2026-08-09, math ISSUE-001 (was MATH-001)):**
 > `w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb)` --
 > textbook RNE, verified by sweep: 0 mismatches in 5000 random pairs against
 > an exact behavioral reference. This page previously documented the pre-fix
@@ -224,7 +224,7 @@ always_comb begin
         //    w_uf_rescued covers the one edge this distinction changes: a
         //    pre-round exponent sum of exactly 0 whose mantissa rounds with
         //    carry is exactly the minimum normal (0x0080) and falls through
-        //    to the default assignment instead of flushing (MATH-008).
+        //    to the default assignment instead of flushing (math BUG-004, was MATH-008).
         ow_result = {w_sign_result, 8'h00, 7'h00};
         ow_underflow = 1'b1;
     end

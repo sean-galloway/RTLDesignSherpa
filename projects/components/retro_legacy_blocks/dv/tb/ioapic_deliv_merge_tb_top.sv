@@ -6,7 +6,7 @@
 //
 // Module: ioapic_deliv_merge_tb_top
 // Purpose: DV wrapper putting ioapic_deliv_merge where it goes -- between TWO
-//          real apb4_ioapic delivery channels and one receiver (RLB-008).
+//          real apb4_ioapic delivery channels and one receiver (RLB TASK-008, was RLB-008).
 //
 // The formal proof covers routing, retry routing and grant exclusivity at the
 // merge's own ports, with free inputs. What it cannot show is that the merge
@@ -107,11 +107,11 @@ module ioapic_deliv_merge_tb_top #(
         .irq_out_deliv_mode(w_src_deliv_mode[0]),
         .irq_out_ready(src_ready[0]),       .irq_out_retry(src_retry[0]),
         .eoi_in(eoi0_in), .eoi_vector(eoi0_vector),
-        // MSI config outputs (RLB-008): this harness exercises the
+        // MSI config outputs (RLB TASK-008, was RLB-008): this harness exercises the
         // delivery channel, not MSI. Explicit and open -- omitting them
         // entirely is PINMISSING.
         .cfg_msi_addr(), .cfg_msi_data(),
-        // Boot-interrupt support (RLB-008): this harness does not
+        // Boot-interrupt support (RLB TASK-008, was RLB-008): this harness does not
         // exercise it. Explicit and open -- omitting them is
         // PINMISSING, which is an ERROR under cocotb's flags.
         .cfg_mask_vec(), .cfg_boot_intx_en()
@@ -131,11 +131,11 @@ module ioapic_deliv_merge_tb_top #(
         .irq_out_deliv_mode(w_src_deliv_mode[1]),
         .irq_out_ready(src_ready[1]),       .irq_out_retry(src_retry[1]),
         .eoi_in(eoi1_in), .eoi_vector(eoi1_vector),
-        // MSI config outputs (RLB-008): this harness exercises the
+        // MSI config outputs (RLB TASK-008, was RLB-008): this harness exercises the
         // delivery channel, not MSI. Explicit and open -- omitting them
         // entirely is PINMISSING.
         .cfg_msi_addr(), .cfg_msi_data(),
-        // Boot-interrupt support (RLB-008): this harness does not
+        // Boot-interrupt support (RLB TASK-008, was RLB-008): this harness does not
         // exercise it. Explicit and open -- omitting them is
         // PINMISSING, which is an ERROR under cocotb's flags.
         .cfg_mask_vec(), .cfg_boot_intx_en()

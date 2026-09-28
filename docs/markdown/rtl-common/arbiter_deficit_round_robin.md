@@ -165,7 +165,7 @@ bandwidth, not the same grant count. Size quanta in the unit the downstream cons
 **The compliance model lives in the DV framework.** Round-robin order and fairness
 verdicts come from `CocoTBFramework`'s `ArbiterCompliance`; several historical
 "violations" in this family were defects in that model rather than in any arbiter
-(COMMON-016 through COMMON-019).
+(common BUG-006 (was COMMON-016) through common BUG-009 (was COMMON-019)).
 
 ---
 

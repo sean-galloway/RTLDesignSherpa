@@ -176,7 +176,7 @@ class FP32Multiplier(Module):
         self.comment('(unfolded) from mantissa_mult.')
         self.instruction('')
         self.instruction('wire w_lsb = w_mant_mult_out[0];')
-        self.instruction('wire w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb);  // true RNE (MATH-001 family)')
+        self.instruction('wire w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb);  // true RNE (math ISSUE-001 (was MATH-001) family)')
         self.instruction('')
 
         self.comment('Apply rounding to mantissa')
@@ -200,7 +200,7 @@ class FP32Multiplier(Module):
         self.instruction("wire w_final_overflow = w_exp_overflow | (w_exp_final == 8'hFF);")
         self.instruction('')
 
-        self.comment('IEEE 754 detects underflow AFTER rounding (MATH-008): when the')
+        self.comment('IEEE 754 detects underflow AFTER rounding (math BUG-004, was MATH-008): when the')
         self.comment('pre-round exponent sum is exactly 0 (one below the normal range) and')
         self.comment('mantissa rounding carries out, the result is exactly the minimum')
         self.comment('normal (exp 1, mant 0) and must not be flushed. The exponent adder')

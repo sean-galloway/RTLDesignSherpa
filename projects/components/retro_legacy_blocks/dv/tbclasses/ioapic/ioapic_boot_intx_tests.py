@@ -5,7 +5,7 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: ioapic_boot_intx_tests
-# Purpose: The SEAM between apb4_ioapic and ioapic_boot_intx (RLB-008).
+# Purpose: The SEAM between apb4_ioapic and ioapic_boot_intx (RLB TASK-008, was RLB-008).
 #
 # Created: 2026-09-14
 

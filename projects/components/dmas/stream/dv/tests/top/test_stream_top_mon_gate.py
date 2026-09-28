@@ -83,7 +83,7 @@ async def _xfer(tb, addr, write, wdata=0):
     )
     # busy_send blocks until PREADY; if the guard wedged the bus by holding
     # cmd_ready low, this never returns and the cocotb timeout fails the test.
-    # That is the failure apbx-xbar's APBX-002 found on its own decode miss, and
+    # That is the failure apbx-xbar's projects/components/apbx-xbar TASK-002 (was APBX-002) found on its own decode miss, and
     # it is the one this guard could plausibly reintroduce.
     await tb.apb4_master.busy_send(pkt)
     await RisingEdge(tb.clk)

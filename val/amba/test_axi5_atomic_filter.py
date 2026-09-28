@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
-# axi5_atomic_filter (BRIDGE-002 A5-3a): store-class atomics and plain
+# axi5_atomic_filter (bridge TASK-002 (was BRIDGE-002) A5-3a): store-class atomics and plain
 # writes pass through; read-return atomics (AWATOP[5]==1) are swallowed
 # — AW not forwarded, W burst discarded, local DECERR B with the AW ID.
 

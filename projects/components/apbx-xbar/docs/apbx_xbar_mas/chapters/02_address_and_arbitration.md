@@ -81,7 +81,7 @@ flagged, so a bad pointer surfaces as an APB error response rather than
 a hang.
 
 Earlier RTL left `cmd_ready` low on a miss, which wedged the master in
-ACCESS with PREADY low and no error signature (APBX-002). Regression:
+ACCESS with PREADY low and no error signature (projects/components/apbx-xbar TASK-002, was APBX-002). Regression:
 the decode-miss scenarios in `test_apbx_xbar_1to4.py`,
 `test_apbx_xbar_2to4.py`, and `test_apbx_xbar_2to2_mixed.py`.
 

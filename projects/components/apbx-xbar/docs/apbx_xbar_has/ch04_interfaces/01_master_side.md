@@ -148,7 +148,7 @@ Slave error response:
 - Propagated from the downstream slave, **or generated locally by this
   port** when the address decodes outside the map: on the decoding
   variants a miss completes here with `PSLVERR=1` and never reaches a
-  slave (APBX-005). The `1to1` and `2to1` variants have no decode and so
+  slave (projects/components/apbx-xbar BUG-002, was APBX-005). The `1to1` and `2to1` variants have no decode and so
   never generate it locally.
 
 ### PREADY (Output)

@@ -58,7 +58,7 @@ module smbus_trans_decode #(
     // quick command, so both directions have to be reachable; giving the
     // read form its own code keeps SMBUS_COMMAND's layout unchanged and
     // avoids an rw bit that would be meaningless for every other type
-    // (RLB-011).
+    // (RLB TASK-011, was RLB-011).
     localparam logic [3:0] TRANS_QUICK_CMD_RD = 4'hA;
 
     localparam logic [5:0] FIFO_DEPTH_6B = 6'(FIFO_DEPTH);

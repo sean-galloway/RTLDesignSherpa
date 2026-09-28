@@ -83,7 +83,7 @@ assign ow_round_bit  = ow_needs_norm ? w_round_norm  : w_round_nonorm;
 // TRUE sticky, unfolded. The old fold (guard|sticky) is algebraically fine
 // for R & (G|S|LSB) rounding but breaks G & (R|S|LSB): with the fold, G=1
 // makes the parenthesized term always 1, so ties-at-even wrongly round up
-// (round-half-up, not RNE). MATH-001 sweep caught it: ~2.4% of random pairs.
+// (round-half-up, not RNE). math ISSUE-001 (was MATH-001) sweep caught it: ~2.4% of random pairs.
 assign ow_sticky_bit = ow_needs_norm ? w_sticky_norm : w_sticky_nonorm;
 
 endmodule

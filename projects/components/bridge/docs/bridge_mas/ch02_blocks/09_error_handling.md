@@ -32,7 +32,7 @@
 > | `o_hit_irq` / `o_hit_count` | same | sticky flag and saturating count, both cleared by `i_hit_clear` |
 > | `o_hit_addr` | same | FIRST fault address; deliberately RETAINED across a clear so the evidence survives |
 > | monbus error packet | `*_mon` builds only | reports the fault to a monitor bus |
-> | response-ordering check | simulation only | `$error` on a BID/RID that does not match the FIFO head (BRIDGE-010) |
+> | response-ordering check | simulation only | `$error` on a BID/RID that does not match the FIFO head (bridge BUG-008, was BRIDGE-010) |
 >
 > Everything else this chapter describes -- a protocol checker, a
 > per-transaction watchdog, an error status register, an error history buffer,
@@ -262,7 +262,7 @@ Action: Truncate or error (configurable)
 > `protocol_check` / `proto_check` / `protocol_viol` across every file in
 > `rtl/generated/` returns nothing. The section below describes hardware that
 > was never implemented. Protocol violations by an attached master or slave are
-> not detected -- with one exception, the BRIDGE-010 response-ordering check,
+> not detected -- with one exception, the bridge BUG-008 (was BRIDGE-010) response-ordering check,
 > which is simulation-only and cannot fire in silicon.
 
 ```systemverilog
@@ -570,7 +570,7 @@ Error Logging:
 - Timeout detection enabled?
 - Slave responsiveness
 - Protocol violations upstream
-- bridge_id FIFO overflow (prevented by the not-full gate, BRIDGE-011)
+- bridge_id FIFO overflow (prevented by the not-full gate, bridge BUG-009 (was BRIDGE-011))
 
 **Symptom**: Error log filling quickly  
 **Check**:

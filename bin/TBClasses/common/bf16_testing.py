@@ -222,7 +222,7 @@ class BF16MultiplierTB(TBBase):
             return (sign_result << 15), False, False, False
 
         # Normal multiplication: exact integer model of the RTL datapath.
-        # IEEE 754 detects underflow AFTER rounding (MATH-008): a pre-round
+        # IEEE 754 detects underflow AFTER rounding (math BUG-004, was MATH-008): a pre-round
         # exponent of exactly 0 whose mantissa rounds with carry lands on the
         # minimum normal (0x0080) and is NOT flushed. The previous float-based
         # path both flushed that case and could emit subnormal encodings the
@@ -420,12 +420,12 @@ class BF16MultiplierTB(TBBase):
             (min_normal, pos_two, "min_normal * 2"),
             (max_normal, pos_two, "max_normal * 2 (overflow)"),
             (min_normal, half, "min_normal * 0.5 (underflow)"),
-            # MATH-008 underflow edge: pre-round exponent sum exactly 0 with a
+            # math BUG-004 (was MATH-008) underflow edge: pre-round exponent sum exactly 0 with a
             # mantissa rounding carry. IEEE detects underflow AFTER rounding,
             # so this is exactly min-normal (0x0080), not a flush to zero.
             # 0x0081 * 0x3F7E: ext mantissas 0x81*0xFE, product rounds with
             # carry. Random stimulus essentially never hits this band.
-            (0x0081, 0x3F7E, "underflow edge rescued to min_normal (MATH-008)"),
+            (0x0081, 0x3F7E, "underflow edge rescued to min_normal (math BUG-004, was MATH-008)"),
         ]
 
         # Powers of 2
@@ -1468,7 +1468,7 @@ class BF16AdderTB(TBBase):
         return failures
 
     async def underflow_ftz_test(self) -> list:
-        """Directed FTZ regression (MATH-002). A result whose normalized
+        """Directed FTZ regression (math BUG-006, was MATH-002). A result whose normalized
         exponent goes negative must flush to zero with ow_underflow -- never
         +inf with ow_overflow. Guards the wrap-bit bug where bit 8 of the
         exponent adjustment asserted BOTH flags and the higher-priority
@@ -1505,7 +1505,7 @@ class BF16AdderTB(TBBase):
         # Always run special values (all levels including 'simple')
         failures.extend(await self.special_values_test())
 
-        # Directed FTZ/overflow flag-separation regression (MATH-002)
+        # Directed FTZ/overflow flag-separation regression (math BUG-006, was MATH-002)
         failures.extend(await self.underflow_ftz_test())
 
         # Directed rounding cases -- small deltas, exact-match enforced

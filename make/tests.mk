@@ -1,5 +1,5 @@
 # ==============================================================================
-# RDS test-area master Makefile  (TOOL-008)
+# RDS test-area master Makefile  (tooling TASK-009, was TOOL-008)
 # ==============================================================================
 #
 # The ONLY place test-running logic lives. Every test area's Makefile is four

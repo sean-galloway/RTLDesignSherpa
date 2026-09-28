@@ -5,7 +5,7 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Filelist: ioapic_msi_emit.f
-# Purpose: MSI delivery -- delivery message to posted bus write (RLB-008).
+# Purpose: MSI delivery -- delivery message to posted bus write (RLB TASK-008, was RLB-008).
 #
 # Usage: Source this file in simulation/synthesis tools
 #

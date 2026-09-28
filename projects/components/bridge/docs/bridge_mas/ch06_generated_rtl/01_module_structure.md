@@ -148,7 +148,7 @@ Example (prefix = "ddr_s_axi"):
   ddr_s_axi_wdata
   ddr_s_axi_bvalid
 
-CDC slave port (cdc = true, BRIDGE-017) adds two clock pins for that port:
+CDC slave port (cdc = true, bridge TASK-006 (was BRIDGE-017)) adds two clock pins for that port:
   {name}_aclk            - the port's own clock
   {name}_aresetn         - its active-low reset
 ```

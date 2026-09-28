@@ -463,7 +463,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
                 self.log.error(f"   Collected data: {[hex(d) for d in collected_data]}")
             self.errors += 1
 
-        # Mid-wide-word burst start (CONV-006) -- lane-correct data + WSTRB.
+        # Mid-wide-word burst start (projects/components/converters TASK-001, was CONV-006) -- lane-correct data + WSTRB.
         if not await self.test_unaligned_wide_start():
             success = False
 

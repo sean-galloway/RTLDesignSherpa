@@ -150,7 +150,7 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
                 # samples, which ends the capture while the fill is still
                 # finishing -- so BFM reads, which can only follow the fill,
                 # never appeared. max_window_size alone changes nothing; the
-                # trailing context is the knob. (CDC-003)
+                # trailing context is the knob. (cdc BUG-002, was CDC-003)
                 max_window_size=300,
                 context_cycles_before=5,
                 context_cycles_after=150,
@@ -174,7 +174,7 @@ class FifoAsyncWaveDromTB(FifoBufferTB):
             self.wave_generator = None
 
 
-    # ---- CDC-003: reads go through the BFM, not the pin -------------------
+    # ---- cdc BUG-002 (was CDC-003): reads go through the BFM, not the pin -------------------
     # FifoBufferTB starts an auto-consuming FIFOSlave; poking dut.read by hand
     # contends with it. Instead give the slave an exact read_delay SEQUENCE.
     # FlexRandomizer takes a list and LOOPS it (value = sequence[0];

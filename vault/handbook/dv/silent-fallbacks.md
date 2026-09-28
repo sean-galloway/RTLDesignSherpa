@@ -172,7 +172,7 @@ is exactly the policy that discards those finds -- the suite does the search
 and then throws away the hits. `1 rerun` in a green summary is not a flake
 reported; it is a result deleted.
 
-**FIXED 2026-09-07** (commit 071711af, [[TOOL-015]]). One repo-root
+**FIXED 2026-09-07** (commit 071711af, [[tooling BUG-008 (was TOOL-015)]]). One repo-root
 `conftest.py` derives the seed from sha256(session base, node id), so a retry
 repeats the run it is retrying; `RDS_SEED_BASE` replays a whole run and prints
 in the pytest header. `--reruns 3` was deliberately left alone -- it also
@@ -322,7 +322,7 @@ nothing.
 A cocotb coroutine that watches a bus for violations and finds none is
 INDISTINGUISHABLE from one that never sampled. Both report clean.
 
-Measured on the bridge BRIDGE-011 test: a B-channel watcher checking that each
+Measured on the bridge bridge BUG-009 (was BRIDGE-011) test: a B-channel watcher checking that each
 response carried its owner's ID observed **16 of 80** responses. Four
 concurrent watchers each awaiting `ReadOnly()` were competing with the BFMs for
 the same phase. Consolidating all four probes into ONE coroutine raised it to
@@ -339,7 +339,7 @@ Three things follow:
 2. **Say what the check is worth.** If sampling is partial, the check reports
    only violations it SAW; it is not proof of absence. Label it supplementary
    in the code, and make the primary detector something that does not depend on
-   sampling at all -- for BRIDGE-011 that is the FIFO occupancy invariant read
+   sampling at all -- for bridge BUG-009 (was BRIDGE-011) that is the FIFO occupancy invariant read
    straight off the pointers, which cannot miss a cycle it is not watching for.
 3. **Prefer state over events.** An invariant on a register (`occupancy <=
    DEPTH`) is robust where counting handshakes is not. Events need every cycle;

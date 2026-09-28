@@ -6,13 +6,13 @@
 //
 // Module: ioapic_boot_intx
 // Description: Chipset boot-interrupt rerouting -- a masked IOAPIC pin also
-//              drives its mapped legacy 8259 input (RLB-008).
+//              drives its mapped legacy 8259 input (RLB TASK-008, was RLB-008).
 //
 // WHAT THIS IS, AND WHAT IT IS NOT. Boot interrupt is the CHIPSET behaviour
 // where a device's INTx is rerouted to the legacy PIC while the IOAPIC is
 // not delivering it, so an interrupt raised before the OS programs the
 // IOAPIC is not lost. It is NOT INIT-SIPI-SIPI: that is a local APIC's
-// AP-startup IPI and was never this block's business. RLB-008 carried that
+// AP-startup IPI and was never this block's business. RLB TASK-008 (was RLB-008) carried that
 // confusion for a while; this module is the corrected requirement.
 //
 // WHY A COMPANION. Same reason as ioapic_lowest_pri_arb, ioapic_deliv_merge

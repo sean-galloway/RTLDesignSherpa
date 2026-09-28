@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
-# HAND-WRITTEN (not generated): chunking is DROPPABLE sideband (BRIDGE-018).
+# HAND-WRITTEN (not generated): chunking is DROPPABLE sideband (bridge TASK-007, was BRIDGE-018).
 #
 # bridge_1x2_rd_axi5c: a 128-bit AXI5 master with read-data chunking, an
 # AXI5 slave that chunks (sram_rd, native path) and an AXI4 slave that
@@ -59,7 +59,7 @@ async def cocotb_test_bridge_1x2_rd_axi5c_chunk(dut):
     sampler = SramArSampler(dut, tb.clock)
     cocotb.start_soon(sampler.run())
     n = tb.level_cfg['arb_per_master']
-    tb.log.info(f"BRIDGE-018 chunking drop path: {n} reads per slave (level={tb.level})")
+    tb.log.info(f"bridge TASK-007 (was BRIDGE-018) chunking drop path: {n} reads per slave (level={tb.level})")
 
     for i in range(n):
         for slave, base in ((SRAM, SRAM_BASE), (DDR, DDR_BASE)):
@@ -77,7 +77,7 @@ async def cocotb_test_bridge_1x2_rd_axi5c_chunk(dut):
     assert sampler.ar == [1] * n, f"sram port saw ARCHUNKEN {sampler.ar}, expected {n} enabled ARs"
     assert sum(1 for v, _ in sampler.r if v) == n * BEATS, "sram port: chunk-valid beats != beats read"
     tb.assert_compliance()
-    tb.log.info("BRIDGE-018 chunking native-and-dropped PASSED")
+    tb.log.info("bridge TASK-007 (was BRIDGE-018) chunking native-and-dropped PASSED")
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())

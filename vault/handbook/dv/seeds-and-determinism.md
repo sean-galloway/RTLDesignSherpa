@@ -52,7 +52,7 @@ drawing fresh seeds to find the next one. See [[randomization]] for why
 randomized traffic alone proves nothing about fairness or arbitration, which is
 the same argument from the other side.
 
-## The cocotb seed, xdist clustering, and the binary (CONV-002, 2026-08-23)
+## The cocotb seed, xdist clustering, and the binary (projects/components/converters BUG-002 (was CONV-002), 2026-08-23)
 
 The repo's `SEED` convention above is the WRAPPER's seed. cocotb has its own:
 it seeds Python's global `random` at sim start with `RANDOM_SEED` from the

@@ -23,7 +23,7 @@
 
 # AMBA5 Boundary and Native Sideband
 
-How AXI5/APB5 ports ride the AXI4 fabric (BRIDGE-002 phases A5-1 through
+How AXI5/APB5 ports ride the AXI4 fabric (bridge TASK-002 (was BRIDGE-002) phases A5-1 through
 A5-3). One spec table drives every generator:
 `bin/bridge_pkg/sideband.py::SIDEBAND_FIELDS` maps each feature to its
 per-channel struct fields, widths, and wrapper port bases — package,
@@ -63,7 +63,7 @@ RTL stays byte-identical — the zero-drift invariant.
 The struct field for AWUNIQUE/ARUNIQUE is named `uniq` (`unique` is an SV
 keyword).
 
-### Data-scaled fields: Memory Tagging and chunking (BRIDGE-018)
+### Data-scaled fields: Memory Tagging and chunking (bridge TASK-007, was BRIDGE-018)
 
 The last two wrapper features, `mte` and `chunking`, joined the table on
 2026-09-13 and closed the native-AXI5 gap. Their fields are the only ones
@@ -143,7 +143,7 @@ takes the first slot, the AW the second, and the AW's own gate
 single-outstanding-target rule the read side already applies. The AW is
 the last entry pushed, so it becomes the active target. The B/W paths are
 unchanged. The trace tracker mirrors the dual push so the R beat echoes
-the AW's trace (BRIDGE-012).
+the AW's trace (bridge BUG-010, was BRIDGE-012).
 
 **Out of range.** A read-return atomic that decodes to the subtractive
 slave would otherwise wedge the port: that slave answers DECERR on B and
@@ -152,7 +152,7 @@ for the beat. The tracker entry therefore carries a `local` flag and the
 AW's ID, and when it reaches the head the R mux presents a single DECERR
 beat with that ID itself, holding every slave's `rready` off
 (`r_path_active && !r_local_head`) for that cycle. B and R both report
-DECERR, and the port keeps working. This is BRIDGE-009's rule applied to
+DECERR, and the port keeps working. This is bridge BUG-007 (was BRIDGE-009)'s rule applied to
 the atomic path.
 
 **The invariant underneath.** The crossbar's response mux is an OR-merge
@@ -170,7 +170,7 @@ reports the cycle the invariant slips.
 answers combinationally from `RID`. An R beat it claims is routed by its
 tag and does **not** pop the in-order read FIFO; every other beat routes by
 FIFO position as before. The atomic AW's `awready` is held while the
-tracker is full. The BRIDGE-010 in-order check skips tracked beats and
+tracker is full. The bridge BUG-008 (was BRIDGE-010) in-order check skips tracked beats and
 reports, in simulation, an R beat that matches both a tracked atomic and
 the FIFO head: that is two requesters aliasing one ID at this slave, which
 this fabric does not disambiguate.
@@ -178,7 +178,7 @@ this fabric does not disambiguate.
 **Validator.** An rw atomic master's connected atomic slaves must be `rw`
 (a write-only slave cannot return read data). The return tracker sits
 beside whichever read tracker the slave uses, the in-order FIFO or the
-`enable_ooo` CAM (BRIDGE-015 repaired that mode). A write-only atomic
+`enable_ooo` CAM (bridge BUG-012 (was BRIDGE-015) repaired that mode). A write-only atomic
 master is not subject to the rule; it keeps the filter.
 
 **Filelist.** `axi5_atomic_filter.f` is pulled only when a write-only
@@ -195,7 +195,7 @@ the APB4 shim — see the converters MAS), and the external surface adds
 (terminated). The generated TB drives the port with the APB4 BFM: APB5
 keeps the APB4 transfer protocol.
 
-## Lite and APB Requesters (BRIDGE-014)
+## Lite and APB Requesters (bridge TASK-004, was BRIDGE-014)
 
 Every protocol value is legal on a master port. Two of them needed work
 beyond the AXI4-Lite master path that already existed:

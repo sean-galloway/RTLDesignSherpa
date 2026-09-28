@@ -7,7 +7,7 @@
 # Author: sean galloway
 # Created: 2026-09-11
 
-"""AXI4 channels across a clock-domain boundary (BRIDGE-017 CDC slave ports).
+"""AXI4 channels across a clock-domain boundary (bridge TASK-006 (was BRIDGE-017) CDC slave ports).
 Requester on s_aclk, completer on m_aclk, at equal, requester-fast and
 requester-slow periods. See bin/TBClasses/amba/axi4_cdc_tb.py."""
 

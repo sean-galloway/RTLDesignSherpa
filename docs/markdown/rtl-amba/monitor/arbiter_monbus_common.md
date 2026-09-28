@@ -278,8 +278,8 @@ file where every neighbour uses the AMBA names.
 **The compliance model belongs to the DV framework, not here.** Round-robin
 order, starvation and fairness verdicts are computed in
 `CocoTBFramework`'s `ArbiterCompliance`; several historical "violations" were
-defects in that model rather than in any arbiter (COMMON-016 through
-COMMON-019).
+defects in that model rather than in any arbiter (common BUG-006 (was COMMON-016) through
+common BUG-009 (was COMMON-019)).
 
 ---
 

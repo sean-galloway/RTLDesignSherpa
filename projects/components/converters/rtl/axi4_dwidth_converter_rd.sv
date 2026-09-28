@@ -354,7 +354,7 @@ module axi4_dwidth_converter_rd #(
             // The issued address stays aligned DOWN (the slave returns
             // whole wide words); the R slicer starts at this lane for the
             // burst's first wide word, so the master gets the bytes it
-            // actually addressed (mid-word burst starts, CONV-006).
+            // actually addressed (mid-word burst starts, projects/components/converters TASK-001 (was CONV-006)).
             logic [9:0] w_ar_lane;
             assign w_ar_lane = 10'(int_araddr[ALIGN_BITS-1:0]) >> $clog2(S_STRB_WIDTH);
             // Wide beats = ceil((lane + narrow_beats) / RATIO); 10-bit

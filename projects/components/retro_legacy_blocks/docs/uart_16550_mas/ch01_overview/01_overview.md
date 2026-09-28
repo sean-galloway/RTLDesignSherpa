@@ -83,7 +83,7 @@ The APB UART 16550 is a 16550-compatible Universal Asynchronous Receiver/Transmi
 
 ### Register Summary
 
-Every register has a unique offset, and LCR[7] (DLAB) additionally remaps 0x00 and 0x04 to the divisor latches DLL/DLM while it is set, as a standard 16550 driver expects; the flat offsets 0x24/0x28 keep working either way (RLB-013).
+Every register has a unique offset, and LCR[7] (DLAB) additionally remaps 0x00 and 0x04 to the divisor latches DLL/DLM while it is set, as a standard 16550 driver expects; the flat offsets 0x24/0x28 keep working either way (RLB TASK-012, was RLB-013).
 
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|

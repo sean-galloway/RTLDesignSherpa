@@ -193,7 +193,7 @@ Mutation-checked: unregistering `rtl/cdc` in the toml makes it name all 14 of
 that area's filelists.
 
 It reported 516 findings when it was written, which is why CI ratchets it rather
-than demanding zero (see above). Burn-down is TOOL-012. Run it by hand after any
+than demanding zero (see above). Burn-down is tooling TASK-011 (was TOOL-012). Run it by hand after any
 move, split or new area -- exactly when this class of breakage appears, and
 sooner than the PR that would catch it.
 

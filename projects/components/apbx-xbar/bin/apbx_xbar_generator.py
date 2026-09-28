@@ -74,7 +74,7 @@ def generate_apbx_xbar(num_masters, num_slaves, base_addr=0x10000000,
     M = num_masters
     N = num_slaves
 
-    # APBX-001: per-port protocol versions ('apb4' | 'apb5'). Default all
+    # projects/components/apbx-xbar TASK-001 (was APBX-001): per-port protocol versions ('apb4' | 'apb5'). Default all
     # apb4 keeps every legacy config byte-compatible. apb5 ports swap in
     # the apb5_slave / apb5_master boundary IP; the cmd/rsp fabric grows
     # the sideband fields only where a versioned port needs them.
@@ -110,14 +110,14 @@ def generate_apbx_xbar(num_masters, num_slaves, base_addr=0x10000000,
 
     # Generate header
     # House banner + reset_defs include: the generator emits the FINAL
-    # form — regeneration must never need post-processing (APBX-001).
+    # form — regeneration must never need post-processing (projects/components/apbx-xbar TASK-001, was APBX-001).
     def _title(name):
         return ' '.join(w.capitalize() for w in name.split('_'))
     version_note = ""
     if any(m5) or any(s5):
         mv = ', '.join(f"m{i}={v}" for i, v in enumerate(master_versions))
         sv = ', '.join(f"s{i}={v}" for i, v in enumerate(slave_versions))
-        version_note = (f"//          Mixed-version ports (APBX-001): {mv}; {sv}.\n")
+        version_note = (f"//          Mixed-version ports (projects/components/apbx-xbar TASK-001, was APBX-001): {mv}; {sv}.\n")
     code = f"""// SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
@@ -429,7 +429,7 @@ module {module_name} #(
             slave_offset_bits = int(math.log2(slave_size))
             slave_sel_high = slave_offset_bits + slave_sel_width - 1
             slave_sel_low = slave_offset_bits
-            # APBX-004: the slave index comes from the OFFSET (PADDR - BASE_ADDR),
+            # projects/components/apbx-xbar BUG-001 (was APBX-004): the slave index comes from the OFFSET (PADDR - BASE_ADDR),
             # not from raw PADDR. Slicing raw PADDR rotates the whole slave map
             # whenever BASE_ADDR is not span-aligned -- e.g. with BASE_ADDR
             # 0x10010000 and 64KB slaves, an access to slave 0 decoded as slave 1.
@@ -533,7 +533,7 @@ module {module_name} #(
 
         # Master cmd_ready signals
         code += "    // Master cmd_ready signals\n"
-        # APBX-005 for the multi-master path. Same rule as the 1toN branch: an
+        # projects/components/apbx-xbar BUG-002 (was APBX-005) for the multi-master path. Same rule as the 1toN branch: an
         # out-of-range access must COMPLETE with PSLVERR rather than hold
         # cmd_ready low forever and wedge that master with no timeout.
         if N > 1:
@@ -643,7 +643,7 @@ module {module_name} #(
                 code += "\n"
 
 
-            # APBX-005: an out-of-range address must COMPLETE with PSLVERR.
+            # projects/components/apbx-xbar BUG-002 (was APBX-005): an out-of-range address must COMPLETE with PSLVERR.
             # Leaving cmd_ready low forever wedged the external master in
             # ACCESS with PREADY low, no error signature and no timeout --
             # recoverable only by reset. Emitting the decode without this is

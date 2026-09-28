@@ -7,7 +7,7 @@
 # Module: ioapic_msi_tb
 # Purpose: Testbench for ioapic_msi_emit_tb_top -- the MSI companion wired onto
 #          a real apb4_ioapic delivery channel and a real apb4_master_stub
-#          (RLB-008).
+#          (RLB TASK-008, was RLB-008).
 #
 # Documentation: projects/components/retro_legacy_blocks/docs/ioapic_mas/
 # Subsystem: retro_legacy_blocks/ioapic

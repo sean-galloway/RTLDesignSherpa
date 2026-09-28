@@ -271,10 +271,10 @@ def check_area(area: pathlib.Path) -> tuple[list[str], list[str]]:
             errs.append(f"{area_label(area)}: INDEX.md has no 'Next ID:' line "
                         f"(highest in use is {highest(ids)}); add one")
         else:
-            # NEXT_ID group 1 is the WHOLE id ("MATH-005"), not the prefix.
+            # NEXT_ID group 1 is the WHOLE id ("math TASK-002 (was MATH-005)"), not the prefix.
             # Passing it as the prefix matched nothing, so `hi` came back 0 and
             # every Next ID compared as valid -- the check passed vacuously and
-            # a deliberately broken MATH-005 against a live MATH-010 sailed
+            # a deliberately broken math TASK-002 (was MATH-005) against a live MATH-010 sailed
             # through. Caught by mutation, which is the only reason it was
             # caught at all.
             prefix = m.group(1).rsplit("-", 1)[0]

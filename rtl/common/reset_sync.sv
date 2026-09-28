@@ -262,7 +262,7 @@ module reset_sync #(
                 // up asserted on a device that has no reset before the first clock.
                 // PROCASSINIT is the linter objecting to exactly that deliberate
                 // combination, so the waiver is scoped to the declaration rather
-                // than the file (RLB-010).
+                // than the file (RLB TASK-010, was RLB-010).
                 /* verilator lint_off PROCASSINIT */
                 logic [N-1:0] r_sync_reg = '0 /* synthesis syn_preserve = 1 */;
                 /* verilator lint_on PROCASSINIT */
@@ -294,7 +294,7 @@ module reset_sync #(
                 // up asserted on a device that has no reset before the first clock.
                 // PROCASSINIT is the linter objecting to exactly that deliberate
                 // combination, so the waiver is scoped to the declaration rather
-                // than the file (RLB-010).
+                // than the file (RLB TASK-010, was RLB-010).
                 /* verilator lint_off PROCASSINIT */
                 logic [N-1:0] r_sync_reg = '0;
                 /* verilator lint_on PROCASSINIT */
@@ -318,7 +318,7 @@ module reset_sync #(
                 // up asserted on a device that has no reset before the first clock.
                 // PROCASSINIT is the linter objecting to exactly that deliberate
                 // combination, so the waiver is scoped to the declaration rather
-                // than the file (RLB-010).
+                // than the file (RLB TASK-010, was RLB-010).
                 /* verilator lint_off PROCASSINIT */
                 logic [N-1:0] r_sync_reg = '0 /* synthesis syn_preserve = 1 */;
                 /* verilator lint_on PROCASSINIT */
@@ -337,7 +337,7 @@ module reset_sync #(
                 // up asserted on a device that has no reset before the first clock.
                 // PROCASSINIT is the linter objecting to exactly that deliberate
                 // combination, so the waiver is scoped to the declaration rather
-                // than the file (RLB-010).
+                // than the file (RLB TASK-010, was RLB-010).
                 /* verilator lint_off PROCASSINIT */
                 logic [N-1:0] r_sync_reg = '0;
                 /* verilator lint_on PROCASSINIT */

@@ -426,7 +426,7 @@ module pm_acpi_config_regs
     // uses. Ask the macro whether reset is asserted rather than
     // inverting rst_n by hand: `~rst_n` is correct only while the
     // build is active-low, and under -DRESET_ACTIVE_HIGH it held the
-    // whole register file in reset forever (RLB-012).
+    // whole register file in reset forever (RLB BUG-001, was RLB-012).
     pm_acpi_regs u_pm_acpi_regs (
         .clk                (clk),
         .rst                (`RST_ASSERTED(rst_n)),

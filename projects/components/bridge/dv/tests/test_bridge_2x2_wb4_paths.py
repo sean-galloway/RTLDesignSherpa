@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-019 sign-off for Wishbone B4 ports.
+# HAND-WRITTEN (not generated): bridge TASK-008 (was BRIDGE-019) sign-off for Wishbone B4 ports.
 #
 # bridge_2x2_wb4 has a Wishbone requester (wbm) and an AXI4 requester (cpu)
 # in front of a 64-bit AXI4 memory (mem) and a 32-bit Wishbone completer
@@ -97,7 +97,7 @@ async def cocotb_test_bridge_2x2_wb4_err_fold(dut):
             if got != data:
                 failures.append(f"m{m} read back 0x{got:08X} after writing 0x{data:08X} at 0x{addr:08X}")
     assert not failures, f"{len(failures)} failure(s):\n  " + "\n  ".join(failures[:20])
-    tb.log.info(f"BRIDGE-019 error folding PASSED: {n} rounds")
+    tb.log.info(f"bridge TASK-008 (was BRIDGE-019) error folding PASSED: {n} rounds")
 
 
 @cocotb.test(timeout_time=4000, timeout_unit="ms")
@@ -135,7 +135,7 @@ async def cocotb_test_bridge_2x2_wb4_sel_lanes(dut):
             if rd != want:
                 failures.append(f"round {i}: wbm read 0x{rd:08X} at 0x{addr:08X}, expected 0x{want:08X}")
     assert not failures, f"{len(failures)} failure(s):\n  " + "\n  ".join(failures[:20])
-    tb.log.info(f"BRIDGE-019 SEL lanes PASSED: {2 * n} partial writes")
+    tb.log.info(f"bridge TASK-008 (was BRIDGE-019) SEL lanes PASSED: {2 * n} partial writes")
 
 
 @cocotb.test(timeout_time=6000, timeout_unit="ms")
@@ -167,7 +167,7 @@ async def cocotb_test_bridge_2x2_wb4_bursts(dut):
         if list(rd) != data:
             failures.append(f"burst {i}: read x{beats} returned {[hex(x) for x in rd]}, expected {[hex(x) for x in data]}")
     assert not failures, f"{len(failures)} failure(s):\n  " + "\n  ".join(failures[:20])
-    tb.log.info(f"BRIDGE-019 bursts PASSED: {n} bursts decomposed one transfer per beat")
+    tb.log.info(f"bridge TASK-008 (was BRIDGE-019) bursts PASSED: {n} bursts decomposed one transfer per beat")
 
 
 @cocotb.test(timeout_time=8000, timeout_unit="ms")
@@ -222,7 +222,7 @@ async def cocotb_test_bridge_2x2_wb4_concurrent(dut):
     for i in range(2 * n):
         got = tb.slave_mem_read(WBP, WBP_BASE + 0x8000 + 4 * i, byte_count=4)
         assert got == (0xD0 << 24) | i, f"wbm {i}: memory 0x{got:08X}"
-    tb.log.info(f"BRIDGE-019 concurrent PASSED: {n} cpu bursts + {2 * n} wbm transfers at the Wishbone completer")
+    tb.log.info(f"bridge TASK-008 (was BRIDGE-019) concurrent PASSED: {n} cpu bursts + {2 * n} wbm transfers at the Wishbone completer")
 
 
 def _run(request, test_level, testcase):

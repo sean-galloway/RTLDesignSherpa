@@ -32,7 +32,7 @@
 > `docs/{block}_mas/` (not `docs/{block}_spec/`), test runners live flat under
 > `dv/tests/test_apb4_{block}.py` (no per-block `dv/tests/{block}/`
 > subdirectories), SystemRDL sources live in `rdl/{block}/` (not
-> `rtl/{block}/peakrdl/`, RLB-007), and `BLOCK_STATUS.md` has been retired --
+> `rtl/{block}/peakrdl/`, RLB TASK-007 (was RLB-007)), and `BLOCK_STATUS.md` has been retired --
 > the live block table is in `CLAUDE.md`.
 
 ---

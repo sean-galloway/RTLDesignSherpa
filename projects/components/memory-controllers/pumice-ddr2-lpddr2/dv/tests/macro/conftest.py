@@ -22,6 +22,6 @@ def pytest_configure(config):
 # ----------------------------------------------------------------------
 # Nothing in this area reads the level -- not the three tests, not their
 # testbench classes -- so the stamp was never load-bearing here and removing it
-# changes nothing a run does. It is removed anyway so the TOOL-016 trap cannot
+# changes nothing a run does. It is removed anyway so the tooling BUG-004 (was TOOL-016) trap cannot
 # bite the first test here that does start exporting a level: cocotb_test copies
 # os.environ over extra_env, so a stamped TEST_LEVEL would silently override it.

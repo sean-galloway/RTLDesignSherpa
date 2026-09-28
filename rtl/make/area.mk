@@ -2,7 +2,7 @@
 # RTL area Makefile - shared body
 # ==============================================================================
 #
-# The counterpart of make/tests.mk (TOOL-008) for the RTL side. An area whose
+# The counterpart of make/tests.mk (tooling TASK-009, was TOOL-008) for the RTL side. An area whose
 # lint is "run the tools over my filelist" needs a four-line Makefile:
 #
 #     AREA     := cdc

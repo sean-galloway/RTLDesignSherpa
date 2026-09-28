@@ -15,13 +15,13 @@ says `AUTO-GENERATED - DO NOT EDIT MANUALLY`, but under deadline the .sv gets
 the fix and the .py does not — and nothing runs the generator again for
 months, so nothing notices.
 
-*Case (2026-08-10, found during MATH-007):* regenerating the bf16 + ieee754
+*Case (2026-08-10, found during math BUG-003 (was MATH-007)):* regenerating the bf16 + ieee754
 families into a temp dir and diffing against the tree found **13 generated
 files carrying tree-only hand-fixes**, three of them whole bug classes:
 
-- the MATH-001 RNE fix (guard export, true sticky, `G & (R|S|LSB)`) in
+- the math ISSUE-001 (was MATH-001) RNE fix (guard export, true sticky, `G & (R|S|LSB)`) in
   bf16/fp32 mantissa_mult + multiplier — the generators still emitted the
-  folded sticky that MATH-001 removed;
+  folded sticky that math ISSUE-001 (was MATH-001) removed;
 - the count_leading_zeros bit-reverse wrappers in five adder/FMA generators —
   dead wrong since d62b794d fixed CLZ to count from the MSB; a regen would
   have reintroduced reversed operands into working RTL;
@@ -194,7 +194,7 @@ wrong when something does — the fix there is the missing argument.
 
 ## A generator edit must be checked against every TOPOLOGY it emits, not every file
 
-Fixing BRIDGE-011 (gate `awready` on the tracking FIFO being not-full) took
+Fixing bridge BUG-009 (was BRIDGE-011) (gate `awready` on the tracking FIFO being not-full) took
 THREE regressions to land, and all three were the same mistake: I validated the
 change on `bridge_2x2_rw` -- one config, all-AXI4, read and write -- and
 generalised to 36 configs whose adapters are not shaped like it.
@@ -283,7 +283,7 @@ bridge generator had an AXI4-Lite *master* branch -- port emission, tie-off
 defaults, the wide-slave aligner -- and a TB-template branch that drove APB
 master ports through `master_apb[i].read/write`. No fixture in
 `bridge_batch.csv` had a non-AXI4 master, so neither branch had ever been
-generated, linted or simulated. When BRIDGE-014 added the first APB master
+generated, linted or simulated. When bridge TASK-004 (was BRIDGE-014) added the first APB master
 fixture the template's call went straight to `AttributeError`: the APB4
 master BFM had no `read`/`write` at all (only the APB5 subclass did), and
 nothing had ever asked.
@@ -411,7 +411,7 @@ The same shape, one level up, the day after: the bridge's shared
 (`master_wr`, `master_rd`, `master_apb`). The first Wishbone fixture put its
 requester in `master_wb`, the helper saw one master, skipped both phases --
 and its "refuse to pass on zero work" return value is what turned a silent
-skip into a failing test (BRIDGE-019). Two rules from one incident: a helper
+skip into a failing test (bridge TASK-008, was BRIDGE-019). Two rules from one incident: a helper
 that enumerates protocol families needs the new family added in the same
 commit as the family, and every such helper must return the work it did so a
 degenerate run cannot report success.
@@ -424,7 +424,7 @@ structs are per data width for W and R but width-independent for AW, AR
 and B (one struct type feeds every master's arbiter), so a tag field on AW
 cannot be "the port's width" -- it has one width for the whole bridge.
 
-What worked (BRIDGE-018, 2026-09-13): the one sideband table carries a
+What worked (bridge TASK-007 (was BRIDGE-018), 2026-09-13): the one sideband table carries a
 symbolic width (`WIDTH_TAGS`, `WIDTH_NTAGS`, `WIDTH_CHUNKSTRB`);
 `field_width(width, dw)` resolves it; width-independent structs size the
 field for the WIDEST port in the bridge; and every pack, mux and extract

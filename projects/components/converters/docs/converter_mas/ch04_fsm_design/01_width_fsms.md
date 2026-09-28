@@ -41,7 +41,7 @@ The real structure:
 
 - `r_beat_ptr` walks slots as narrow beats land in the accumulator.
   A fresh BURST's first beat lands at `start_lane` (mid-word INCR
-  starts, CONV-006), so the effective lane is
+  starts, projects/components/converters TASK-001 (was CONV-006)), so the effective lane is
   `w_lane = (ptr=='0) ? (burst_fresh ? start_lane : 0) : ptr`;
 - a group completes when the LANE reaches `WIDTH_RATIO-1` or on an
   early `narrow_last` — a mid-word burst's first wide group holds
@@ -78,7 +78,7 @@ With `TRACK_BURSTS=1` the condition narrows to `mid_burst_replace`,
 which excludes each burst's final beat — one bubble per burst
 boundary, not per beat. A beat pointer (`r_beat_ptr`) selects the slice
 driven onto the narrow side; on the burst's FIRST wide word it starts
-at `start_lane` (mid-word INCR starts, CONV-006 — the narrow master
+at `start_lane` (mid-word INCR starts, projects/components/converters TASK-001 (was CONV-006) — the narrow master
 receives the bytes it addressed, not the aligned-down word's bytes),
 and at lane 0 for every later wide word. `narrow_last` in tracked mode
 comes only from the beat counter reaching `burst_len + 1`.

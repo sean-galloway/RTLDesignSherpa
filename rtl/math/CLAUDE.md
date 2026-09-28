@@ -36,14 +36,14 @@ the same commit.
 ### Rounding and underflow are settled -- do not "fix" them
 
 - Every FP multiplier implements textbook RNE: round up iff
-  `guard & (round | sticky | LSB)`, with TRUE (unfolded) sticky (MATH-001).
+  `guard & (round | sticky | LSB)`, with TRUE (unfolded) sticky (math ISSUE-001, was MATH-001).
 - The fp16/fp8 mantissa_mults export the GUARD under the name `ow_round_bit`
   and (R|S) as `ow_sticky_bit` -- a naming convention, not a bug. Their
   `round & (sticky | LSB)` IS textbook RNE. The NAMING NOTE comments in those
-  files exist because this exact misreading once filed a P1 (MATH-007,
+  files exist because this exact misreading once filed a P1 (math BUG-003 (was MATH-007),
   closed false-alarm with exhaustive sweep evidence).
 - Underflow is detected AFTER rounding, per IEEE 754: a rounding carry out of
-  pre-round exponent 0 produces min-normal, not a flush (MATH-008, Sean's
+  pre-round exponent 0 produces min-normal, not a flush (math BUG-004 (was MATH-008), Sean's
   ruling). The adders/FMAs have NOT been audited for this corner.
 - E4M3 is OCP-style: exp=0xF is normal except mant=7 (NaN); overflow
   saturates to max normal (0x7E), and rounding carry at exp=0xF must be
@@ -51,7 +51,7 @@ the same commit.
 
 Verification precedent for any change in this space: sweep DUT vs an
 exact-integer-product reference (exhaustive for fp8), then mutation-check --
-see the MATH-007/008 records in `vault/Tasks/math/closed.md`.
+see the math BUG-003 (was MATH-007)/008 records in `vault/Tasks/math/closed.md`.
 
 ### Before adding a module here
 
@@ -69,7 +69,7 @@ see the MATH-007/008 records in `vault/Tasks/math/closed.md`.
 - Directed patterns for functional coverage, not exhaustive sweeps --
   non-exhaustive stimulus is never a finding here (Sean).
 - Every test builds from a filelist (`get_sources_from_filelist`); all 119
-  tests were converted (MATH-003) -- do not reintroduce hand-listed sources.
+  tests were converted (math TASK-001, was MATH-003) -- do not reintroduce hand-listed sources.
 - The TB expected-value models for the multipliers are exact integer models
   in `bin/TBClasses/common/{fp_testing,bf16_testing}.py`; float-threshold
   shortcuts were wrong at the underflow boundary three different ways.
@@ -78,7 +78,7 @@ see the MATH-007/008 records in `vault/Tasks/math/closed.md`.
 
 ### Formal
 
-All `formal/common/math_*` configs run against current RTL (MATH-006,
+All `formal/common/math_*` configs run against current RTL (math TASK-003 (was MATH-006),
 2026-08-11): 157 PASS. Known-heavy, recorded and not worth re-litigating:
 softmax_8 x5 and bf16_exp2 (BMC-intractable), dadda_4to2_011 /
 dadda_tree_032 / wallace_tree_csa_032 (never proven, priority 0), and

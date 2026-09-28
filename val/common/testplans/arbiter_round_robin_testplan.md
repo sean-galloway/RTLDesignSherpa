@@ -14,7 +14,7 @@
 | ARR-02 | All requesters | All clients requesting simultaneously | YES | - |
 | ARR-03 | Round-robin fairness | Verify fair rotation of grants | YES | - |
 | ARR-04 | Priority update | Mask updates after grant | YES | - |
-| ARR-05 | grant_ack handshake | Client acknowledges grant before next | YES | WAIT_GNT_ACK=1 is half of every REG_LEVEL grid, and the compliance verdict is asserted on in ACK mode since 2026-08-07 (COMMON-019). It was NOT checked before that: 1958 of ~1966 ACKs discarded their compliance check |
+| ARR-05 | grant_ack handshake | Client acknowledges grant before next | YES | WAIT_GNT_ACK=1 is half of every REG_LEVEL grid, and the compliance verdict is asserted on in ACK mode since 2026-08-07 (common BUG-009, was COMMON-019). It was NOT checked before that: 1958 of ~1966 ACKs discarded their compliance check |
 | ARR-06 | Pending client tracking | r_pending_client management | NO | r_pending_client uncovered |
 | ARR-07 | Other requests filter | w_other_requests excluding ACK'd | NO | w_other_requests uncovered |
 | ARR-08 | ~~REG_OUTPUT=0~~ | **WITHDRAWN — no such parameter.** `arbiter_round_robin` takes CLIENTS/WAIT_GNT_ACK/N only, and its grants are already registered in an `always_ff`. Nothing was ever enabled by it, so "YES" here was testing fiction | n/a | - |

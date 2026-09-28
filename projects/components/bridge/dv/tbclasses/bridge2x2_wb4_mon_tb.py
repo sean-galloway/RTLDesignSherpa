@@ -51,7 +51,7 @@ from CocoTBFramework.components.axil4.axil4_interfaces import (
 # and response-code violations that a data round-trip cannot see.
 from CocoTBFramework.components.axi4.axi4_compliance_checker import AXI4ComplianceChecker
 from CocoTBFramework.components.apb.apb_components import APBMaster, APBSlave
-# Wishbone B4 ports (BRIDGE-019): WB4Master drives a requester port, WB4Slave
+# Wishbone B4 ports (bridge TASK-008, was BRIDGE-019): WB4Master drives a requester port, WB4Slave
 # completes a completer port over its own MemoryModel (base_addr-relative,
 # out-of-range answers ERR). Terminations are ACK/ERR/RTY, never a code.
 from CocoTBFramework.components.wb4.wb4_components import WB4Master, WB4Slave
@@ -219,12 +219,12 @@ class Bridge2x2Wb4MonTB(TBBase):
     # access maps) = ~576 KB per slave, against the multi-GB windows the cap
     # exists to stop. A slave larger than this is still capped, and a probe
     # past the cap is answered by the ONE out-of-range contract every slave
-    # BFM now follows (RDS-DV shared/memory_model.py, BRIDGE-008 closed
+    # BFM now follows (RDS-DV shared/memory_model.py, bridge BUG-006 (was BRIDGE-008) closed
     # 2026-09-09): SLVERR, nothing written, 0xDEADDEAD data, one warning.
     # The probe still proves routing -- the error comes back from the slave
     # the address decodes to -- and is data-checked only inside the seeded
     # region. That is the model's limit; an address the bridge does not
-    # decode at all is the subtractive slave's DECERR (BRIDGE-009), a
+    # decode at all is the subtractive slave's DECERR (bridge BUG-007, was BRIDGE-009), a
     # different thing.
     SLAVE_MEM_CAP_BYTES = 64 * 1024
 
@@ -478,7 +478,7 @@ class Bridge2x2Wb4MonTB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=5,  # {master index, master id} (BRIDGE-016)
+            id_width=5,  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[0],
@@ -490,7 +490,7 @@ class Bridge2x2Wb4MonTB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=5,  # {master index, master id} (BRIDGE-016)
+            id_width=5,  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[0],
@@ -604,7 +604,7 @@ class Bridge2x2Wb4MonTB(TBBase):
         slave port and pops it on the response, so OUTSTANDING DEPTH is only
         reachable when a slave is slow. The default BFM slave answers in ~1
         cycle, which is why no test got anywhere near the depth where
-        BRIDGE-011 bit until this knob existed. APB slaves have no such
+        bridge BUG-009 (was BRIDGE-011) bit until this knob existed. APB slaves have no such
         attribute and are left alone.
         """
         for container in (self.slave_wr, self.slave_rd):

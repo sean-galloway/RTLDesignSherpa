@@ -26,7 +26,7 @@ false, and each had been falsified by *ordinary unrelated progress*:
 | The task said | What had happened |
 |---|---|
 | retire the harness's "hand-rolled" meters | they were never hand-rolled -- they are the shared `axi_bus_meter` / `axi_perf_latency_hist`, the same blocks the replacement wraps |
-| it sidesteps a shared-primitive bug | the bug (AMBA-HISTCH1) was fixed at source a day after the task was filed; and the sidestep was never real -- it described another consumer's parameterization |
+| it sidesteps a shared-primitive bug | the bug (amba BUG-034, was AMBA-HISTCH1) was fixed at source a day after the task was filed; and the sidestep was never real -- it described another consumer's parameterization |
 | it touches the bridge map | the bridge slot had been pre-reserved for it three weeks earlier |
 | the owner directed "no perf logic inside the controller" | already true; the logic was in the harness the whole time |
 | it unifies the throughput definition | already unified -- same primitive on both sides |

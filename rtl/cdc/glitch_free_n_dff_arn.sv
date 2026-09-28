@@ -360,7 +360,7 @@ module glitch_free_n_dff_arn #(
     // A flattened copy of the chain for waveform viewing. Nothing reads it and
     // nothing is meant to: synthesis drops it, and the warning it would
     // otherwise raise in every consumer of this primitive is the reason for the
-    // scoped waiver rather than deleting a debug aid people use (RLB-010).
+    // scoped waiver rather than deleting a debug aid people use (RLB TASK-010, was RLB-010).
     /* verilator lint_off UNUSEDSIGNAL */
     wire [(DW*FC)-1:0] flat_r_q;
     /* verilator lint_on UNUSEDSIGNAL */

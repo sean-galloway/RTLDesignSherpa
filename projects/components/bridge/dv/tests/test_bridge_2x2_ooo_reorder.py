@@ -2,16 +2,16 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-015 / BRIDGE-016 sign-off test.
+# HAND-WRITTEN (not generated): bridge BUG-012 (was BRIDGE-015) / bridge TASK-005 (was BRIDGE-016) sign-off test.
 #
 # Two masters issue reads with IDENTICAL AXI IDs to the same slave at the same
 # time, and that slave answers out of order across IDs. Two things have to be
 # true for every read to get its own data back:
-#   - the fabric's IDs are {master index, master id} (BRIDGE-016), so the two
+#   - the fabric's IDs are {master index, master id} (bridge TASK-005, was BRIDGE-016), so the two
 #     masters' id 3 are different IDs at the slave and the slave-side ARID
 #     stream must contain BOTH {0,3} and {1,3};
 #   - the slave adapter tracks by that full ID in bridge_cam (enable_ooo,
-#     BRIDGE-015), so a beat that comes back early is routed by who owns its
+#     bridge BUG-012 (was BRIDGE-015)), so a beat that comes back early is routed by who owns its
 #     ID, not by whose request happened to be oldest.
 # Each master checks every returned word against what it wrote there, and the
 # AXI4 compliance checker on both master ports is armed throughout.
@@ -102,7 +102,7 @@ async def cocotb_test_bridge_2x2_ooo_reorder(dut):
     n_reads = max(4, tb.level_cfg['arb_per_master'])
     ids = list(range(1 << MASTER_ID_W))      # every master ID, so the prefix is all that differs
     tb.log.info("=" * 80)
-    tb.log.info(f"BRIDGE-015/016 sign-off: level={tb.level}, {n_reads} reads per master per slave, "
+    tb.log.info(f"bridge BUG-012 (was BRIDGE-015)/016 sign-off: level={tb.level}, {n_reads} reads per master per slave, "
                 f"ids {ids[0]}..{ids[-1]} shared by both masters")
     tb.log.info("=" * 80)
 
@@ -122,7 +122,7 @@ async def cocotb_test_bridge_2x2_ooo_reorder(dut):
         assert all((w >> MASTER_ID_W) in (0, 1) for w in s.awid), f"slave {slave_idx} AWID prefix out of range"
     tb.assert_compliance()
     tb.log.info("=" * 80)
-    tb.log.info("BRIDGE-015/016 PASSED: out-of-order slaves routed shared-ID reads by master-unique ID")
+    tb.log.info("bridge BUG-012 (was BRIDGE-015)/016 PASSED: out-of-order slaves routed shared-ID reads by master-unique ID")
     tb.log.info("=" * 80)
 
 

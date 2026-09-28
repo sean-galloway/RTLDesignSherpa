@@ -203,7 +203,7 @@ module ioapic_core #(
     // logical destination register. An IOAPIC does not decode logical
     // destinations itself - it forwards the field and the mode, and the
     // local APICs match. Forwarding the mode is what makes logical
-    // delivery usable at all (RLB-008).
+    // delivery usable at all (RLB TASK-008, was RLB-008).
     output logic        irq_out_dest_mode,
     output logic [2:0]  irq_out_deliv_mode, // Delivery mode
     input  logic        irq_out_ready,      // the delivery handshake completes

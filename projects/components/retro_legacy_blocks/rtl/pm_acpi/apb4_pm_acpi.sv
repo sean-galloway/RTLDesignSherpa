@@ -133,7 +133,7 @@ module apb4_pm_acpi #(
 
     // Reset-source inputs. RESET_STATUS.wdt_reset and .ext_reset used to read
     // 0 always because nothing carried the information into the block; these
-    // are that information (RLB-009). Tie them high (inactive) if the system
+    // are that information (RLB TASK-009, was RLB-009). Tie them high (inactive) if the system
     // has no watchdog or no external reset button.
     input  logic                    wdt_reset_n,
     input  logic                    ext_reset_n,

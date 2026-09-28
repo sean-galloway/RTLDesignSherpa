@@ -353,7 +353,7 @@ module stream_harness #(
     // by awaddr's low bits. STREAM's 256b AXI4 reads pass through with
     // zero conversion. The previous axi4_to_axil4_rd/wr converters at
     // the bridge slave adapter are GONE — desc_ram is now AXI4 native.
-    // Slave-side IDs from the bridge are {master index, master id} (BRIDGE-016):
+    // Slave-side IDs from the bridge are {master index, master id} (bridge TASK-005, was BRIDGE-016):
     // four 8-bit masters give 10 bits here. Sized from the bridge's own package
     // so a change in master count cannot leave this harness silently truncating.
     localparam int DESC_RAM_ID_WIDTH = bridge_stream_mon_axil_pkg::XBAR_ID_WIDTH;

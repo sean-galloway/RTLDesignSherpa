@@ -171,7 +171,7 @@ module rlb_top #(
     // Qualified by the handshake: the receiver consumed the message and no
     // CPU could accept, so the interrupt is offered again. Tie low if the
     // receiver always accepts. This is the IOAPIC's half of delegated
-    // LowestPriority delivery (RLB-008).
+    // LowestPriority delivery (RLB TASK-008, was RLB-008).
     input  logic                  ioapic_irq_out_retry,
     input  logic                  ioapic_eoi_in,
     input  logic [7:0]            ioapic_eoi_vector,
@@ -521,7 +521,7 @@ module rlb_top #(
     );
 
     // ========================================================================
-    // Boot-interrupt rerouting (RLB-008)
+    // Boot-interrupt rerouting (RLB TASK-008, was RLB-008)
     // ========================================================================
     // The IOAPIC exports which pins it is NOT delivering; ioapic_boot_intx
     // turns that into legacy PIC inputs. Declared here because the 8259 is
@@ -689,13 +689,13 @@ module rlb_top #(
         .irq_out_retry    (ioapic_irq_out_retry),
         .eoi_in           (ioapic_eoi_in),
         .eoi_vector       (ioapic_eoi_vector),
-        // MSI config (RLB-008). Software can program these through
+        // MSI config (RLB TASK-008, was RLB-008). Software can program these through
         // IOWIN, but rlb_top does not yet instantiate ioapic_msi_emit,
         // so nothing here consumes them. Connected explicitly and left
         // open: omitting the pins is PINMISSING, which is how it hides.
         .cfg_msi_addr     (),
         .cfg_msi_data     (),
-        // Boot-interrupt support (RLB-008). rlb_top does not instantiate
+        // Boot-interrupt support (RLB TASK-008, was RLB-008). rlb_top does not instantiate
         // ioapic_boot_intx: rerouting needs a pin-to-legacy-IRQ map, which
         // is a board/chipset decision, and this subsystem has no INTx
         // concept of its own. Connected explicitly and left open so the

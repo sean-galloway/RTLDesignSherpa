@@ -40,11 +40,11 @@
 >
 > Two consequences follow, and both are tracked:
 > * each slave port REQUIRES responses in request order across all IDs; a slave
->   that reorders between IDs misroutes here (BRIDGE-010, now detected by a
+>   that reorders between IDs misroutes here (bridge BUG-008 (was BRIDGE-010), now detected by a
 >   simulation-only check that compares the returned BID/RID against the FIFO
 >   head);
 > * the FIFO is fixed-depth, so the address handshake is gated on it being
->   not-full (BRIDGE-011).
+>   not-full (bridge BUG-009, was BRIDGE-011).
 >
 > Out-of-order response routing is therefore NOT supported and NOT implemented.
 >
@@ -217,7 +217,7 @@ assign aw_ready = !cam_full && downstream_ready;
 2. Wait for responses to free entries
 3. Never drop transactions
 
-Worth repeating: none of this exists. The generated bridge gates the address handshake on the tracking FIFO being not-full instead (BRIDGE-011), and it routes responses strictly in order.
+Worth repeating: none of this exists. The generated bridge gates the address handshake on the tracking FIFO being not-full instead (bridge BUG-009, was BRIDGE-011), and it routes responses strictly in order.
 
 ## Related Modules
 

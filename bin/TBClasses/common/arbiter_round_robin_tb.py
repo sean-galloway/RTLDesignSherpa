@@ -310,7 +310,7 @@ class ArbiterRoundRobinTB(TBBase):
                 # grant_received flag it computes, so the TB cannot see the
                 # grant the BFM saw. The phase-level check below is the real
                 # assertion; this stays a warning until the framework exposes
-                # a per-request result. See COMMON-019.
+                # a per-request result. See common BUG-009 (was COMMON-019).
                 self.log.warning(
                     f"Client {i}: no grant counted within its own request "
                     f"window ({before_i} -> {after_i}, auto_ack="
@@ -1101,7 +1101,7 @@ class ArbiterRoundRobinTB(TBBase):
 
         # EVERY compliance error fails the test, in both modes.
         #
-        # ACK mode used to be logged and not asserted (COMMON-019): the model
+        # ACK mode used to be logged and not asserted (common BUG-009, was COMMON-019): the model
         # reported 1-6 round_robin_violations in 7 of 8 runs plus 114-146
         # unexpected_acks, all of them its own. The cause was a single monitor
         # bug -- an ACK-mode grant handed from one client to the next without

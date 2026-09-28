@@ -463,7 +463,7 @@ class AXI4DWidthConverterReadTB(TBBase):
                 self.log.error(f"   Read data: {[hex(d) for d in result]}")
             self.errors += 1
 
-        # Mid-wide-word burst start (CONV-006) -- addressed-lane data.
+        # Mid-wide-word burst start (projects/components/converters TASK-001, was CONV-006) -- addressed-lane data.
         if not await self.test_unaligned_wide_start():
             success = False
 
@@ -718,7 +718,7 @@ class AXI4DWidthConverterReadTB(TBBase):
         if not self.DOWNSIZE:
             return True
 
-        self.log.info("--- RRESP severity fold (CONV-005) ---")
+        self.log.info("--- RRESP severity fold (projects/components/converters BUG-005, was CONV-005) ---")
         addr = 0x50000
         narrow_bytes = self.M_AXI_DATA_WIDTH // 8
         # sub-beat 0 -> EXOKAY, sub-beat 1 -> SLVERR, rest OKAY

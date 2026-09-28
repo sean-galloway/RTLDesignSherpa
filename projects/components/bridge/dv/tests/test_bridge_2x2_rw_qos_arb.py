@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-017 QoS-with-aging arbitration.
+# HAND-WRITTEN (not generated): bridge TASK-006 (was BRIDGE-017) QoS-with-aging arbitration.
 #
 # bridge_2x2_rw_qos is bridge_2x2_rw with `arbitration = "qos"`: each slave
 # arbiter picks the requester with the highest effective priority (AxQOS +
@@ -153,7 +153,7 @@ async def cocotb_test_bridge_2x2_rw_qos_priority(dut):
         failures.append(f"cpu0/dma8: QoS-0 cpu waited {cpu_gap} cycles between AW grants; aging bounds it at {STARVE_BOUND}")
 
     assert not failures, f"{len(failures)} failure(s):\n  " + "\n  ".join(failures)
-    tb.log.info("BRIDGE-017 QoS priority PASSED (both orientations, no starvation)")
+    tb.log.info("bridge TASK-006 (was BRIDGE-017) QoS priority PASSED (both orientations, no starvation)")
 
 
 @cocotb.test(timeout_time=20000, timeout_unit="ms")
@@ -167,7 +167,7 @@ async def cocotb_test_bridge_2x2_rw_qos_equal(dut):
     assert rate >= SATURATED_FLOOR, f"equal QoS: port not saturated ({rate:.3f})"
     assert min(cpu_s, dma_s) >= EQUAL_SHARE_FLOOR, (
         f"equal QoS: shares {cpu_s:.3f}/{dma_s:.3f}; equals must share round-robin (floor {EQUAL_SHARE_FLOOR})")
-    tb.log.info("BRIDGE-017 QoS equal PASSED: round-robin among equals")
+    tb.log.info("bridge TASK-006 (was BRIDGE-017) QoS equal PASSED: round-robin among equals")
 
 
 def _run(request, test_level, testcase):

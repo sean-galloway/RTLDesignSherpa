@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate per-module filelists for rtl/math (MATH-003).
+"""Generate per-module filelists for rtl/math (math TASK-001, was MATH-003).
 
 Each math module gets rtl/math/filelists/<module>.f carrying its compile
 closure by CONVENTION, never hand-curated:

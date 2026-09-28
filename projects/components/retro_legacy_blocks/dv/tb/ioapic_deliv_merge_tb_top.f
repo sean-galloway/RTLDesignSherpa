@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Filelist for ioapic_deliv_merge_tb_top -- the DV wrapper that puts
-# ioapic_deliv_merge between two real apb4_ioapic delivery channels (RLB-008).
+# ioapic_deliv_merge between two real apb4_ioapic delivery channels (RLB TASK-008, was RLB-008).
 #
 # Pulls both halves by their own filelists rather than hand-listing sources:
 # apb4_ioapic.f deliberately does not reference the companion (it is not part

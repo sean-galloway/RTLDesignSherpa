@@ -89,7 +89,7 @@ module uart_16550_config_regs
     // is set. Both forms are supported: the remap is applied to the address
     // the register block sees, and every strobe below decodes the SAME
     // remapped address, so a divisor write can never be mistaken for a THR
-    // push or an IER write (RLB-013).
+    // push or an IER write (RLB TASK-012, was RLB-013).
     logic                    w_dlab;
     logic [5:0]              w_reg_addr;
     logic                    w_drop;
@@ -166,7 +166,7 @@ module uart_16550_config_regs
     // uses. Ask the macro whether reset is asserted rather than
     // inverting rst_n by hand: `~rst_n` is correct only while the
     // build is active-low, and under -DRESET_ACTIVE_HIGH it held the
-    // whole register file in reset forever (RLB-012).
+    // whole register file in reset forever (RLB BUG-001, was RLB-012).
     uart_16550_regs u_uart_regs (
         .clk        (clk),
         .rst        (`RST_ASSERTED(rst_n)),

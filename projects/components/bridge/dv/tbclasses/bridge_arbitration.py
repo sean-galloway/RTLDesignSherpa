@@ -58,7 +58,7 @@ def set_slave_response_delay(tb, slave_idx: int, cycles: int) -> None:
 # Single-handle master families (one BFM carries both directions). A family
 # missing here is invisible to this helper: the WB4 fixture's arbitration
 # test saw ONE master and skipped both phases -- and, to its credit, refused
-# to report success on zero work (BRIDGE-019).
+# to report success on zero work (bridge TASK-008, was BRIDGE-019).
 _RW_HANDLE_CONTAINERS = ('master_apb', 'master_wb')
 
 

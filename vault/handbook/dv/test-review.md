@@ -5,7 +5,7 @@ summary: Auditing test collateral with the review pipeline - what to grab from t
 
 # Test review rounds
 
-The test-audit half of the per-area work (DOCREV-013 phase (b), AUDIT-001
+The test-audit half of the per-area work (DOCREV-013 phase (b), site-audit TASK-001 (was AUDIT-001)
 part 4). Same pipeline shape as the doc review ([[kimi-review-rounds]]):
 bundle -> qc round -> `verify_findings.py` adjudication -> human triage ->
 integrate -> stop by the impact rule. What differs is WHAT gets bundled and
@@ -136,7 +136,7 @@ interface headers are enough for "does the test drive real ports".
    test that a43b032dd hand-edited into seven generated files (the template
    still emitted the TODO stub), two hand-written tests inside the generated
    2x2 file, and a TB method the template lacked -- and the template itself
-   had a defect that made regeneration impossible, the BRIDGE-009 internal
+   had a defect that made regeneration impossible, the bridge BUG-007 (was BRIDGE-009) internal
    subtractive slave templated as a real slave with a BFM on pins that do
    not exist. Nobody regenerated because regenerating broke everything, and
    because it broke everything nobody found out why. Measure it by rendering

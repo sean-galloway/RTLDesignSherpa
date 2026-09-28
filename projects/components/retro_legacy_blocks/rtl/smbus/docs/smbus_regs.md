@@ -36,7 +36,7 @@ Don't override. Generated from: $root
 <p>System Management Bus controller, MASTER MODE. Slave mode is a
 stub: the register surface exists and can be programmed, but no
 slave FSM runs and this block never answers as a target
-(ledger RLB-011).</p>
+(ledger RLB TASK-011 (was RLB-011)).</p>
 
 |Offset|    Identifier   |              Name             |
 |------|-----------------|-------------------------------|
@@ -203,7 +203,7 @@ and, where recovery applied, a STOP was generated.</p>
 #### arb_lost field
 
 <p>Multi-master arbitration lost. TIED LOW: arbitration is
-not implemented, so this bit never sets (ledger RLB-011).</p>
+not implemented, so this bit never sets (ledger RLB TASK-011 (was RLB-011)).</p>
 
 #### nak_received field
 
@@ -212,7 +212,7 @@ not implemented, so this bit never sets (ledger RLB-011).</p>
 #### slave_addressed field
 
 <p>Addressed as a slave. TIED LOW: slave mode is a stub, so
-this bit never sets (ledger RLB-011).</p>
+this bit never sets (ledger RLB TASK-011 (was RLB-011)).</p>
 
 #### complete field
 
@@ -399,9 +399,9 @@ depth, including across a fifo_reset or soft_reset, where all
 three are driven from one source for the whole clear window and
 nothing is accepted into or out of the FIFO. Built with
 RESET_ACTIVE_HIGH the FIFO storage never leaves reset
-(COMMON-026, tracked here as RLB-012), so the level counts past
+(common BUG-012 (was COMMON-026), tracked here as RLB BUG-001 (was RLB-012)), so the level counts past
 the depth against a permanently empty memory and none of this
-holds - that build is not usable until COMMON-026 lands.</p>
+holds - that build is not usable until common BUG-012 (was COMMON-026) lands.</p>
 
 | Bits|Identifier|Access|Reset|     Name    |
 |-----|----------|------|-----|-------------|

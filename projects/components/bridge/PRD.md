@@ -86,9 +86,9 @@ Features intentionally excluded for simplicity:
 - (Both of these WERE excluded once and no longer are: ID width and address
   width are per-port generation inputs. Left here as history because the
   "design differentiator" argument above still cites them.)
-- ~~No AXI4-Lite protocol variant~~ -- `axil` and `axil5` ARE supported, as slave protocols (converted at the boundary by `axi4_to_axil4_{rd,wr}` / `axi4_to_axil5_{rd,wr}`) and, since BRIDGE-014, as master protocols (tied-off promotion plus the AXI5-Lite sideband surface). `apb` / `apb5` likewise work on both sides (`axi4_to_apb{4,5}_shim` at a slave, `apb{4,5}_to_axi4` at a master), and so does Wishbone B4 since BRIDGE-019 (`axi4_to_wb4` / `wb4_to_axi4`).
+- ~~No AXI4-Lite protocol variant~~ -- `axil` and `axil5` ARE supported, as slave protocols (converted at the boundary by `axi4_to_axil4_{rd,wr}` / `axi4_to_axil5_{rd,wr}`) and, since bridge TASK-004 (was BRIDGE-014), as master protocols (tied-off promotion plus the AXI5-Lite sideband surface). `apb` / `apb5` likewise work on both sides (`axi4_to_apb{4,5}_shim` at a slave, `apb{4,5}_to_axi4` at a master), and so does Wishbone B4 since bridge TASK-008 (was BRIDGE-019) (`axi4_to_wb4` / `wb4_to_axi4`).
 - No ACE protocol extensions (cache coherency)
-- ~~No AXI5 features~~ -- interop-mode AXI5 sideband, native sideband through the structs, atomics of every class and APB5/AXI5-Lite ports were delivered by BRIDGE-002; what is NOT built is a fabric that is itself AXI5 (BRIDGE-018)
+- ~~No AXI5 features~~ -- interop-mode AXI5 sideband, native sideband through the structs, atomics of every class and APB5/AXI5-Lite ports were delivered by bridge TASK-002 (was BRIDGE-002); what is NOT built is a fabric that is itself AXI5 (bridge TASK-007, was BRIDGE-018)
 - QoS, Region and REQUEST-side User (AWUSER/ARUSER/WUSER) are routed since
   `c2955863`/`2b229516`. RESPONSE-side User is not: `BUSER`/`RUSER` exist as
   ports but the master adapters tie them to zero (`.fub_axi_buser(1'b0)`,
@@ -429,12 +429,12 @@ Masters (M)                                                    Slaves (S)
   the wrong master, so one master receives another's beats and the second
   starves. Nothing detects this.
 - Two masters never alias an ID at a slave: inside the fabric every ID is
-  `{master index, master id}` (BRIDGE-016), so a slave port carries the
+  `{master index, master id}` (bridge TASK-005, was BRIDGE-016), so a slave port carries the
   widest master's id_width plus `$clog2(NUM_MASTERS)` bits -- 8-bit masters
   behind a 16-master bridge give 12-bit IDs at the slaves. The `bridge_id`
   sideband still routes responses; the prefix is what makes per-ID tracking
   sound across masters, and every real AXI slave of a multi-master bridge is
-  tracked by ID in `bridge_cam` (BRIDGE-015). Single-master bridges add no
+  tracked by ID in `bridge_cam` (bridge BUG-012, was BRIDGE-015). Single-master bridges add no
   prefix and keep the in-order FIFO.
 
 **FR-3: Atomic Operations** (the bridge does NOT implement a monitor -- see below)
@@ -492,7 +492,7 @@ address_map = {
 **FR-9: Interleaving Constraints**
 - W channel follows the AW owner via a per-slave W-owner FIFO (not a held grant)
 - R channel routed by in-order `bridge_id` FIFO position, NOT by transaction ID. IDs are pass-through: the slave port is the same width as the master port. `bridge_cam.sv` exists but is instantiated in zero generated bridges.
-- ID-based interleaving is NOT supported. Each slave port must return B/R in request order across ALL IDs -- see BRIDGE-010.
+- ID-based interleaving is NOT supported. Each slave port must return B/R in request order across ALL IDs -- see bridge BUG-008 (was BRIDGE-010).
 
 ---
 
@@ -713,7 +713,7 @@ LUTs ≈ 500 + 150 × 16 + 20 × 16 × 4
 | **AXI4 (Bridge)** | 2 cycles each way | High (burst) | **High** | Memory-mapped I/O |
 | **AXI4 + Slices** | 4-6 cycles | High (burst) | Very High | >400 MHz designs |
 
-**Bridge Sweet Spot:** memory-mapped interconnects that need burst efficiency and mixed protocols. NOT a fit where out-of-order completion matters -- the fabric is in-order by construction (FR-9, BRIDGE-010).
+**Bridge Sweet Spot:** memory-mapped interconnects that need burst efficiency and mixed protocols. NOT a fit where out-of-order completion matters -- the fabric is in-order by construction (FR-9, bridge BUG-008 (was BRIDGE-010)).
 
 ---
 
@@ -1099,7 +1099,7 @@ The shell scripts will automatically:
 
 - [ ] **Optional pipeline stages** - For Fmax >400 MHz
 - [ ] **Weighted arbitration** - QoS support
-- [x] **Default slave** - unmapped address handling. Built 2026-09-07: a subtractive catch-all answers DECERR + 0xDEADBEEF, with a sticky status/IRQ cleared by the `unmapped_clear` INPUT PIN. There is no APB access to it -- the pin is the whole interface, and wiring it to a register is the integrator's job. See HAS 4.5 and BRIDGE-009.
+- [x] **Default slave** - unmapped address handling. Built 2026-09-07: a subtractive catch-all answers DECERR + 0xDEADBEEF, with a sticky status/IRQ cleared by the `unmapped_clear` INPUT PIN. There is no APB access to it -- the pin is the whole interface, and wiring it to a register is the integrator's job. See HAS 4.5 and bridge BUG-007 (was BRIDGE-009).
 - [ ] **Exclusive monitor** - Full atomic operation support
 
 ### 13.2 Long-Term
@@ -1116,7 +1116,7 @@ The shell scripts will automatically:
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
 | ~~ID table complexity~~ | -- | -- | Moot: no ID tables were built. The realised risk was the opposite -- the DOCS described tables for months while the RTL used an in-order FIFO. |
-| **Response-ordering assumption** | High | High | The fabric REQUIRES each slave to return B/R in request order across IDs and does not check it. Assert on a returned BID/RID that does not match the FIFO head -- see BRIDGE-010. |
+| **Response-ordering assumption** | High | High | The fabric REQUIRES each slave to return B/R in request order across IDs and does not check it. Assert on a returned BID/RID that does not match the FIFO head -- see bridge BUG-008 (was BRIDGE-010). |
 | **Fmax below target** | Low | Medium | Optional pipeline stages for timing closure |
 | **Resource usage exceeds** | Low | Low | Empirical formulas guide expectations |
 | **Burst interleaving bugs** | Medium | High | Separate test suite for burst scenarios |
@@ -1166,7 +1166,7 @@ The shell scripts will automatically:
 - **Burst:** Multi-beat transaction (AWLEN/ARLEN > 0)
 - **Crossbar:** Full M×N interconnect matrix
 - **ID:** AXI transaction identifier. Passed through this bridge unchanged; it is NOT used for response routing here.
-- **Out-of-order:** responses returning in a different order than requested. AXI4 permits it between IDs; **this bridge does not support it** and does not detect a slave that does (BRIDGE-010).
+- **Out-of-order:** responses returning in a different order than requested. AXI4 permits it between IDs; **this bridge does not support it** and does not detect a slave that does (bridge BUG-008, was BRIDGE-010).
 - **xlast:** WLAST (write) or RLAST (read) - last beat indicator
 
 ---

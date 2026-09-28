@@ -35,7 +35,7 @@ import sys
 import openpyxl
 from openpyxl.styles import Font
 
-# Shared machinery, promoted to bin/kmaps by TOOLING-KMAP step 5. What stays
+# Shared machinery, promoted to bin/kmaps by tooling TASK-006 (was TOOLING-KMAP) step 5. What stays
 # here is what describes STREAM specifically: the RTL path constants, the
 # CITES registry, and the build_* sheet builders.
 from kmaps.citations import verify_citations

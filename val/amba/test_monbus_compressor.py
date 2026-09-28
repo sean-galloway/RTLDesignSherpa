@@ -308,7 +308,7 @@ async def monbus_compressor_test(dut):
     tb.log.info(f"  sustained Tier-1 input rate: {handshakes}/{N_CYCLES} "
                 f"= {rate:.3f} records/cycle")
 
-    # MEASURED 2026-08-27: 200/200 = 1.000 at SKID_DEPTH=3 (AMBA-COMPTP).
+    # MEASURED 2026-08-27: 200/200 = 1.000 at SKID_DEPTH=3 (amba BUG-033, was AMBA-COMPTP).
     #
     # History worth keeping, because it is what this assertion defends: the
     # RTL header and docs claimed 1 record/cycle for a long time while the

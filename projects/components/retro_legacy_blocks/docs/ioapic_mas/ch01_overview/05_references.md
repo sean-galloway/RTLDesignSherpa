@@ -52,7 +52,7 @@ Everything this spec leans on: the standards, the sibling RLB documents, the too
 ### Related RLB Documentation
 
 **Module-Specific:**
-- `../../rtl/ioapic/README.md` - Block summary; the feature arc is RLB-008 in `vault/Tasks/RLB/closed.md`
+- `../../rtl/ioapic/README.md` - Block summary; the feature arc is RLB TASK-008 (was RLB-008) in `vault/Tasks/RLB/closed.md`
 - `../../rtl/ioapic/README.md` - PeakRDL register generation guide
 - `../../rdl/ioapic/ioapic_regs.rdl` - SystemRDL source specification
 

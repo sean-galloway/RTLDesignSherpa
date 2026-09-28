@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
-# HAND-WRITTEN (not generated): BRIDGE-017 CDC slave port, across clock ratios.
+# HAND-WRITTEN (not generated): bridge TASK-006 (was BRIDGE-017) CDC slave port, across clock ratios.
 #
 # bridge_2x2_rw_cdc has ddr on its own clock (ddr_aclk) behind axi4_cdc_{wr,rd}
 # and sram on the fabric clock. The generated tests run ddr_aclk at one
@@ -129,7 +129,7 @@ async def cocotb_test_bridge_2x2_rw_cdc_ratio(dut):
     b2, c2, r2 = s2.window_rate('sram_w')
     report(tb, "same-clock sram beside the CDC port", beats=b2, cycles=c2, beats_per_cycle=r2)
     assert b2 == 2 * n * BEATS and r2 >= 0.95, f"sram: {r2:.3f} beats/cycle beside a CDC port"
-    tb.log.info(f"BRIDGE-017 CDC ratio PASSED at ddr_aclk = {period} ns")
+    tb.log.info(f"bridge TASK-006 (was BRIDGE-017) CDC ratio PASSED at ddr_aclk = {period} ns")
 
 
 PERIODS = [3, 10, 23]   # slave faster, equal, slave much slower

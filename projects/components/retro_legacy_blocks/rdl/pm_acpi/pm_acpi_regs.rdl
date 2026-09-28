@@ -444,7 +444,7 @@ addrmap pm_acpi_regs {
 
         field {
             name = "Power Button Override";
-            desc = "ENABLES the power-button override (RLB-009): with this
+            desc = "ENABLES the power-button override (RLB TASK-009, was RLB-009): with this
                     set, holding the debounced power button for
                     2^BUTTON_TIMING.long_press_shift core-clock cycles forces
                     the machine to S5 (soft off), which is ACPI's four-second

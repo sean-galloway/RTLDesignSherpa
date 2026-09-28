@@ -17,7 +17,7 @@
 #   (1) the config never reached the cone          <-- THIS FILE
 #   (2) the packet was emitted and then dropped    <-- monbus/AXIL egress,
 #                                                      test_stream_top_monbus.py
-#                                                      and [[AMBA-MONTRACK]]
+#                                                      and [[amba BUG-029 (was AMBA-MONTRACK)]]
 #
 # stream_core already covers the middle: given config ON ITS PORTS, the cone
 # fires (dv/tests/macro/test_stream_core_mon_classes.py). What that test CANNOT
