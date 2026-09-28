@@ -17,17 +17,24 @@
 //     IF the scheduler issues only when this block says it may,
 //     THEN is JEDEC actually satisfied?
 //
-// THE ANSWER IS NO, and that is the result of this file. Asked with exactly
-// that assumption and nothing more, the engine produces a four-step
-// counterexample: the readiness outputs stay high for one cycle after the
-// command that should have cleared them, so a second command goes out inside
-// the window. The full trace, and the arbiter comments showing the consumer
-// already compensates for it, are at the assumption block below.
+// THE ANSWER IS NOW YES, and it was NO when this file was written. Asked with
+// only the published readiness as the environment contract, the engine produced
+// a four-step counterexample: the outputs were strict-flopped from the state
+// they were about to replace, so every gate stayed open for one cycle after the
+// command that should have closed it -- a tCCD of 2 and a tRTW of 1 both
+// honoured as 1. That was pumice ISSUE-018, and both consumers were quietly
+// compensating for it (the arbiter stopped using tccd_ok_i for gating at all and
+// added fire-history terms to the turnarounds, under its own comment headed
+// "ONE-CYCLE BLIND SPOT (board round 2)", found on a board ILA capture).
 //
-// What is proved here is therefore the contract the consumer actually
-// implements: the published flag PLUS one cycle of the consumer's own. The
-// assertions check the REAL JEDEC spacing against an independent history kept
-// in this wrapper -- nothing here reads a counter the DUT maintains; the
+// global_timers now derives its next state ONCE and feeds both the counter flops
+// and the readiness flops from it, so there is no second derivation to fall out
+// of step. The assumption block below therefore grants the environment EXACTLY
+// what the block publishes and nothing more -- no compensating term -- and every
+// JEDEC window still holds. That is the proof obligation for the fix.
+//
+// The assertions check the REAL JEDEC spacing against an independent history
+// kept in this wrapper: nothing here reads a counter the DUT maintains, the
 // wrapper times the commands itself.
 //
 // WHAT IS PROVED
@@ -66,18 +73,20 @@ module formal_global_timers #(
         // deliberately broken (mutation: install every ACT into slot 0, so the
         // other three never fill and the window never closes).
         //
-        // The reason is that tRRD already spaces the ACTs. One ACT reloads tRRD
-        // and the readiness flop needs a further cycle to catch up, so the
-        // minimum achievable ACT-to-ACT spacing here is t_rrd + 2 = 3. Four ACTs
-        // therefore span at least 9 cycles, and the fifth arrives 12 cycles
-        // after the first -- so ANY t_faw at or below 12 is satisfied by tRRD
-        // alone, whatever the tFAW logic does. The proof was checking tRRD
-        // twice and tFAW not at all.
+        // The reason is that tRRD already spaces the ACTs. The minimum
+        // achievable ACT-to-ACT spacing here is t_rrd + 1 = 2, so four ACTs span
+        // at least 6 cycles and the fifth arrives 8 after the first -- ANY t_faw
+        // at or below 8 is therefore satisfied by tRRD alone, whatever the tFAW
+        // logic does. At the original ceiling of 6 the proof was checking tRRD
+        // twice and tFAW not at all, and c_faw_blocks was unreachable, which
+        // was the hint.
         //
-        // A ceiling above that span is what makes tFAW the binding constraint,
-        // and the mutation now fails as it should. c_faw_blocks was also
-        // unreachable at the original ceiling of 6, which was the first hint.
-        assume (t_faw_i >= 2 && t_faw_i <= 20);
+        // 14 is comfortably past that span, so tFAW is the binding constraint
+        // and the "install every ACT into slot 0" mutation fails as it should.
+        // (Before the ISSUE-018 fix the minimum spacing was 3, not 2, because
+        // the readiness flop lagged the state by an extra cycle -- so the floor
+        // this bound has to clear moved when the RTL was fixed.)
+        assume (t_faw_i >= 2 && t_faw_i <= 14);
         assume (t_rrd_i >= 1 && t_rrd_i <= 3);
         assume (t_wtr_global_i >= 1 && t_wtr_global_i <= 3);
         assume (t_rtw_i >= 1 && t_rtw_i <= 3);
@@ -154,27 +163,18 @@ module formal_global_timers #(
     // it is not, and a future consumer that trusts the port list without adding
     // its own term will violate tCCD and tRTW. See pumice ISSUE-018.
     // =========================================================================
-    reg f_act_d, f_col_d;
-    always @(posedge mc_clk) begin
-        if (!mc_rst_n) begin f_act_d <= 1'b0; f_col_d <= 1'b0; end
-        else begin
-            f_act_d <= evt_act_i;
-            f_col_d <= evt_rd_i || evt_wr_i;
-        end
-    end
-
     always @(*) if (mc_rst_n) begin
         // One DRAM command per cycle: the DFI carries one command slot.
         assume ($countones({evt_act_i, evt_rd_i, evt_wr_i}) <= 1);
 
-        // An ACT needs a free tFAW slot and an elapsed tRRD -- plus the
-        // consumer's own one-cycle term, for the seam described above.
-        assume (!evt_act_i || (tfaw_window_ok_o[0] && trrd_window_ok_o[0]
-                               && !f_act_d));
-        // A column command needs tCCD, and a RD additionally needs the write
-        // recovery on the shared DQ bus while a WR needs the read turnaround.
-        assume (!evt_rd_i || (tccd_window_ok_o && twtr_global_ok_o && !f_col_d));
-        assume (!evt_wr_i || (tccd_window_ok_o && trtw_window_ok_o && !f_col_d));
+        // THE PUBLISHED FLAGS, AND NOTHING ELSE. No `!f_act_d` / `!f_col_d`
+        // term: since the readiness flops sample the NEXT state, a consumer that
+        // obeys these outputs alone satisfies every JEDEC window below. That is
+        // the whole content of the fix -- this assumption block is the proof
+        // obligation that closed pumice ISSUE-018.
+        assume (!evt_act_i || (tfaw_window_ok_o[0] && trrd_window_ok_o[0]));
+        assume (!evt_rd_i  || (tccd_window_ok_o && twtr_global_ok_o));
+        assume (!evt_wr_i  || (tccd_window_ok_o && trtw_window_ok_o));
     end
 
     // =========================================================================
@@ -259,21 +259,17 @@ module formal_global_timers #(
     // leads by exactly one cycle. A debug read that disagreed would misdirect
     // any investigation of a spacing violation.
     // =========================================================================
-    reg f_faw_nz_d, f_trrd_nz_d, f_twtr_nz_d, f_trtw_nz_d, f_tccd_nz_d;
-    always @(posedge mc_clk) begin
-        f_faw_nz_d  <= obs_faw_nz_o[0];
-        f_trrd_nz_d <= obs_trrd_nz_o[0];
-        f_twtr_nz_d <= obs_twtr_nz_o;
-        f_trtw_nz_d <= obs_trtw_nz_o;
-        f_tccd_nz_d <= obs_tccd_nz_o;
-    end
-
     always @(posedge mc_clk) if (mc_rst_n && f_past_valid > 3) begin
-        a_obs_faw:  assert (tfaw_window_ok_o[0] == !f_faw_nz_d);
-        a_obs_trrd: assert (trrd_window_ok_o[0] == !f_trrd_nz_d);
-        a_obs_twtr: assert (twtr_global_ok_o    == !f_twtr_nz_d);
-        a_obs_trtw: assert (trtw_window_ok_o    == !f_trtw_nz_d);
-        a_obs_tccd: assert (tccd_window_ok_o    == !f_tccd_nz_d);
+        // The debug view and the view the scheduler acts on are now the SAME
+        // CYCLE. They used to be one apart, because the readiness flop lagged
+        // the state by one while obs_* read it live -- the same lag that was the
+        // bug. A debug read that disagreed with the gate would misdirect any
+        // investigation of a spacing violation.
+        a_obs_faw:  assert (tfaw_window_ok_o[0] == !obs_faw_nz_o[0]);
+        a_obs_trrd: assert (trrd_window_ok_o[0] == !obs_trrd_nz_o[0]);
+        a_obs_twtr: assert (twtr_global_ok_o    == !obs_twtr_nz_o);
+        a_obs_trtw: assert (trtw_window_ok_o    == !obs_trtw_nz_o);
+        a_obs_tccd: assert (tccd_window_ok_o    == !obs_tccd_nz_o);
     end
 
     // =========================================================================

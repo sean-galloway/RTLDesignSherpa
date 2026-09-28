@@ -60,9 +60,25 @@ trtw_window_ok_o               // global : 1 = tRTW has elapsed
 tccd_window_ok_o               // global : 1 = tCCD has elapsed
 ```
 
-All five `_window_ok` outputs are strict-flop registered. Default after
-reset is `'1` / `1'b1` (all windows open), which is correct given no
-ACTs/WRs/RDs have been issued.
+All five `_window_ok` outputs are strict-flop registered, and they are
+registered from the **next** state of their counters, not the current one. That
+distinction is the block's contract: a consumer may gate on these outputs alone
+and every JEDEC window is satisfied. Nothing further is required of it.
+
+It was not always so. The outputs used to be flopped from `r_*_cnt == 0`, the
+state they were about to replace, which left every gate open for exactly one
+cycle after the command that should have closed it -- a tCCD of 2 and a tRTW of
+1 both honoured as 1. Both consumers had grown compensating logic for it
+(`pumice_cmd_arbiter` stopped using `tccd_ok_i` for gating altogether, and added
+fire-history terms to the turnarounds after a board ILA capture showed a tRTW of
+20 honoured as 1), while tFAW and tRRD had no compensation and were simply
+exposed. The counters and the readiness flags are now derived from one
+next-state function, so there is no second derivation to fall out of step. See
+pumice ISSUE-018 and `formal/pumice/global_timers`, whose proof assumes only
+what these outputs publish.
+
+Default after reset is `'1` / `1'b1` (all windows open), which is correct given
+no ACTs/WRs/RDs have been issued.
 
 ## Timer mechanics
 
@@ -77,13 +93,20 @@ All timers are 8-bit down-counters that saturate at 0 (they decrement each
 - **`evt_rd_i`**: reloads the global tRTW (`t_rtw_i`) *and* tCCD
   (`t_ccd_i`).
 
-`tfaw_window_ok_o[r]` is high when rank `r` has at least one tFAW slot at 0
-(i.e. fewer than 4 ACTs are still inside the window).
+`tfaw_window_ok_o[r]` is high when rank `r` will have at least one tFAW slot at
+0 next cycle (i.e. fewer than 4 ACTs will still be inside the window when a
+command issued now would land). On an ACT the slot being reloaded does not count
+as free, since it is about to hold `t_faw_i`.
 
 ## Observability
 
 Combinational `obs_*` "non-zero" flags mirror each counter for CSR/debug
-observation:
+observation. They read the current counter state, and because the `_window_ok`
+outputs are now registered from the next state, the two views are **aligned in
+the same cycle** -- `*_window_ok` equals `!obs_*_nz` throughout. They used to be
+one cycle apart, which is the same lag that was the bug; a debug read that
+disagreed with the gate would misdirect any investigation of a spacing
+violation. Asserted in `formal/pumice/global_timers`.
 
 ```
 obs_faw_nz_o  [NUM_RANKS]   obs_trrd_nz_o [NUM_RANKS]

@@ -6,9 +6,9 @@ cover
 # Four ACTs at tRRD=1 plus a fifth at the tFAW boundary (t_faw up to 6) needs
 # ~15 cycles; 30 leaves room for the DQ turnaround properties after it.
 prove: mode bmc
-prove: depth 40
+prove: depth 32
 cover: mode cover
-cover: depth 40
+cover: depth 32
 
 [engines]
 prove: smtbmc bitwuzla

@@ -141,7 +141,12 @@ compare-to-zero, one LUT layer.
 ### tRRD — `r_trrd_cnt[NUM_RANKS]`
 
 One 8-bit down-counter per rank, reloaded with `t_rrd_i` on each ACT to that rank
-(see the ACT block above). `trrd_window_ok_o[r]` is `(r_trrd_cnt[r] == 0)`.
+(see the ACT block above). `trrd_window_ok_o[r]` is registered from the counter's
+NEXT value, so it reads `(w_trrd_nxt[r] == 0)` -- written in the RTL as
+`w_act_rank[r] ? (t_rrd_i == 0) : (r_trrd_cnt[r] <= 1)`, which keeps the late
+`evt_act_i` on a one-bit mux select. It is **not** `(r_trrd_cnt[r] == 0)`: that
+was the old form, and flopping it left the gate open for a cycle after the ACT
+that should have closed it (pumice ISSUE-018).
 An ACT on rank 0 does not affect `r_trrd_cnt[1]`.
 
 ---

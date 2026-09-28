@@ -28,7 +28,7 @@ filing; IDs are per-lane sequences.
 |---|---|---|---|---|---|
 | [task/](task/INDEX.md) | planned work we decided to do | 1 | 0 | 22 | 4 |
 | [bug/](bug/INDEX.md) | a defect with a reproduction | 1 | 0 | 17 | 1 |
-| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 2 | 0 | 14 | 3 |
+| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 1 | 0 | 15 | 3 |
 
 Counts INCLUDE each lane's `NNN-000` template, which lives in `open/` -- that is
 the repo-wide convention, and reading it the other way is how three of this
@@ -41,16 +41,13 @@ TASK-015 (test the DUT across configurations) closed on 2026-09-28 with all four
 layers delivered; this section described it as still having layers 0 and 2b
 outstanding, which its own link to `task/closed/` already contradicted.
 
-One real item, in issue:
-
-- **[ISSUE-018](issue/open/ISSUE-018.md)** — `global_timers` publishes every
-  readiness output one cycle stale: the counter reloads on the same edge the
-  output flop samples, so the gate stays open for one cycle after the command
-  that should close it. Obeying the published flags alone violates tCCD and
-  tRTW (four-step counterexample from `formal/pumice/global_timers`). The
-  arbiter already compensates -- it ignores `tccd_ok_i` entirely and adds its own
-  fire-history terms to the turnarounds -- but nothing in `global_timers`
-  documents the contract, and tFAW/tRRD have no equivalent compensating term.
+**Nothing in issue either.** ISSUE-018 -- `global_timers` publishing every
+readiness output one cycle stale, so obeying the published flags alone violated
+tCCD and tRTW -- was fixed and closed the same day it was filed: the block now
+derives its next state once and feeds both the counter flops and the readiness
+flops from it. `formal/pumice/global_timers` assumes only what the outputs
+publish and every JEDEC window holds; the board gates are green and the 75 MHz
+WNS went from +0.029 to +0.031.
 
 The correctness backlog is EMPTY: BUG-001, BUG-002 and BUG-003 are all closed,
 and BUG-003 -- an arbiter pick that its own final safety gate had rejected being

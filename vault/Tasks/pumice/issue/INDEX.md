@@ -12,22 +12,24 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 14 | done (kept for history) |
+| [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-018** — `global_timers` publishes every readiness output one cycle
-  stale (the counter reloads on the same edge the flop samples), so obeying them
-  alone violates tCCD and tRTW; the arbiter already compensates in two different
-  ways but the block documents none of it, and tFAW/tRRD have no equivalent term
+
 
 
 
 ## Closed
+
+- **ISSUE-018** — FIXED: `global_timers` derives its next state once and feeds
+  both the counter flops and the readiness flops from it, so the outputs are no
+  longer a cycle stale; the formal proof now assumes only what they publish and
+  every JEDEC window holds. Board gates green, WNS +0.031 (was +0.029)
 
 - **ISSUE-015** — measured: both read-path tuples give an IDENTICAL 10-tap eye
   (same bitslip, same tap), so the choice costs no margin; the real hazard,

@@ -65,6 +65,14 @@ Priority:
    - drive `evt_*` to `pumice_bank_timers` + `global_timers`; drive
      `wr commit` (WR issued) / `rd issue` (RD issued) back to the CAMs.
 
+   `global_timers`' readiness outputs are registered from their counters' NEXT
+   state, so ANDing them into the pick is sufficient for the JEDEC windows they
+   cover (pumice ISSUE-018). The arbiter's own extra guards -- the forward tCCD
+   counter and the `!(w_fire_out && r_do_rd)` turnaround terms -- remain
+   necessary for a DIFFERENT hazard: the ~3 pick-pipeline cycles between a
+   command being classified and it actually firing, which no timer in
+   `global_timers` can see.
+
 **Page policy is configurable** (CSR): CLOSED (every column op is RDA/WRA,
 auto-precharge) | HYBRID (page_predictor hint) | OPEN (leave rows open, PRE on
 conflict/refresh/idle). OPEN is the target for the row-hit / 8.8x streaming case.
