@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 28 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |

@@ -111,6 +111,17 @@ def repo_root() -> pathlib.Path:
 
 STATES = ("open", "active", "closed", "deferred", "dropped")
 ITEM_ID = re.compile(r"^([A-Z][A-Z0-9]*-\d+(?:\.\d+)?)$")
+# <PREFIX>-000 is the reserved template every area keeps in open/ so the next
+# filing can copy it. It is not work. Counting it made every "what is left"
+# answer overstate by one per area -- a lane whose real backlog was EMPTY still
+# reported "1 open", and a session reported it that way (2026-09-28). There are
+# 86 of these, one per area, so the error was 86 phantom open items repo-wide.
+TEMPLATE_ID = re.compile(r"^[A-Z][A-Z0-9]*-0+(?:\.\d+)?$")
+
+
+def is_template(fid: str) -> bool:
+    """A reserved <PREFIX>-000 placeholder, not a tracked item."""
+    return bool(TEMPLATE_ID.match(fid))
 H1 = re.compile(r"^#\s+([A-Z][A-Z0-9]*-[A-Z0-9]+(?:\.\d+)?)\s*[—\-–:]")
 INDEX_ITEM = re.compile(r"^\s*-\s+\*\*([A-Z][A-Z0-9]*-\d+(?:\.\d+)?)\*\*", re.M)
 # The per-state count table in a lane INDEX: `| [open/](open/) | 3 | ... |`.
@@ -141,7 +152,11 @@ def scan_items(area: pathlib.Path):
                 errs.append(f"{area_label(area)}: {state}/{f.name} is not named "
                             f"<ID>.md (e.g. BUG-001.md)")
                 continue
-            ids[fid].append(f"{state}/{f.name}")
+            # The template is still checked for a well-formed name/heading
+            # below -- it just is not an ITEM, so it stays out of ids and
+            # therefore out of the counts and the INDEX cross-check.
+            if not is_template(fid):
+                ids[fid].append(f"{state}/{f.name}")
             text = f.read_text()
             head = next((ln for ln in text.split("\n") if ln.startswith("# ")), "")
             hm = H1.match(head)
@@ -294,7 +309,8 @@ def check_area(area: pathlib.Path) -> tuple[list[str], list[str]]:
     # directory exists to prevent -- and an index nobody reconciles is the copy
     # the next session trusts. Cheap to check, so check it.
     if is_item_layout(area) and index.exists():
-        listed = set(INDEX_ITEM.findall(index.read_text()))
+        listed = {i for i in INDEX_ITEM.findall(index.read_text())
+                  if not is_template(i)}
         present = set(ids)
         for missing in sorted(present - listed):
             errs.append(f"{area_label(area)}: {missing} exists on disk but "
@@ -308,13 +324,17 @@ def check_area(area: pathlib.Path) -> tuple[list[str], list[str]]:
     # still sat in open/, and this checker passed (RLB session; tooling
     # TASK-014). The item list above catches a MISSING line, not a wrong
     # number, and the number is what every rollup and every "what is left"
-    # answer reads. Count what is on disk (templates included -- they are
-    # files in the directory and the tables have always counted them).
+    # answer reads. Count the ITEMS on disk. Templates are excluded: they are
+    # files in the directory, and the tables always used to count them, but
+    # "the tables have always done it" is inertia, not a reason -- and the
+    # number is read as "what is left", which a reserved placeholder is not.
     if is_item_layout(area) and index.exists():
         rows = {st: int(n) for st, n in COUNT_ROW.findall(index.read_text())}
         for st in STATES:
             d = area / st
-            on_disk = len([f for f in d.glob("*.md") if ITEM_ID.match(f.stem)]) if d.is_dir() else 0
+            on_disk = len([f for f in d.glob("*.md")
+                           if ITEM_ID.match(f.stem) and not is_template(f.stem)]) \
+                      if d.is_dir() else 0
             if st not in rows:
                 if on_disk:
                     errs.append(f"{area_label(area)}: INDEX.md has no count row for "
