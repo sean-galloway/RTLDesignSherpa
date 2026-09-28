@@ -330,10 +330,33 @@ def modules_in(path: Path) -> set[str]:
         return set()
 
 
+def _config_text(path: Path) -> str | None:
+    """The bytes of a configuration file from the SAME tree as the file set.
+
+    Inside a git hook `GIT_INDEX_FILE` names the index being committed -- for a
+    pathspec commit, HEAD plus the named paths. The tracked `.f` set is read
+    from that index (git ls-files honours it), but until 2026-09-28 the toml
+    and the baselines came from the WORKTREE. A peer with a filelist move
+    staged and the toml edited unstaged therefore made every other session's
+    commit fail: the hook saw the .f files at their HEAD paths against a toml
+    that had already dropped those directories ("unregistered_filelists
+    0 -> 6", tooling TASK-017 -- twice in one day). In hook context read the
+    config from the index; a path absent from the index (a brand-new file)
+    falls back to disk. Standalone runs read disk as before.
+    """
+    if os.environ.get("GIT_INDEX_FILE"):
+        r = subprocess.run(["git", "show", f":{path.relative_to(REPO_ROOT).as_posix()}"],
+                           cwd=REPO_ROOT, capture_output=True, text=True)
+        if r.returncode == 0:
+            return r.stdout
+    return path.read_text() if path.is_file() else None
+
+
 def load_registry() -> dict:
-    if not REGISTRY.is_file():
+    text = _config_text(REGISTRY)
+    if text is None:
         sys.exit(f"registry not found: {rel(REGISTRY)}")
-    return tomllib.loads(REGISTRY.read_text())
+    return tomllib.loads(text)
 
 
 def area_filelists(area: dict) -> list[Path]:
@@ -393,9 +416,10 @@ def _exempt_ratchet(seen: dict) -> int:
     area may carry the exemptions it has, it may not add one unnoticed.
     """
     import json
-    if not EXEMPT_BASELINE.exists():
+    text = _config_text(EXEMPT_BASELINE)
+    if text is None:
         return 0
-    base = json.loads(EXEMPT_BASELINE.read_text())
+    base = json.loads(text)
     grew = [(a, base.get(a, 0), n) for a, n in sorted(seen.items())
             if n > base.get(a, 0)]
     if not grew:
@@ -873,10 +897,11 @@ def cmd_blindspots(reg: dict, ratchet: bool = False,
     # real backlog -- a NEW violation fails immediately while the existing ones
     # block nobody. Gating on zero when the count is in the hundreds just
     # teaches people to pass --no-verify.
-    if not BASELINE.is_file():
+    base_text = _config_text(BASELINE)
+    if base_text is None:
         print(f"no baseline at {rel(BASELINE)}; write one with --update-baseline")
         return 1
-    base = json.loads(BASELINE.read_text())
+    base = json.loads(base_text)
     worse, better = [], []
     for k, now in sorted(counts.items()):
         was = base.get(k, 0)
@@ -1016,7 +1041,8 @@ def cmd_placement(reg: dict, update_baseline: bool = False) -> int:
         print(f"[placement] baseline rewritten: {len(loose)} straggler(s)")
         return 0
 
-    base = set(json.loads(PLACEMENT_BASELINE.read_text())) if PLACEMENT_BASELINE.exists() else set()
+    base_text = _config_text(PLACEMENT_BASELINE)
+    base = set(json.loads(base_text)) if base_text is not None else set()
     new = [p for p in loose if p not in base]
     gone = sorted(base - set(loose))
     for p in loose:

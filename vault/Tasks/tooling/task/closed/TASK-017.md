@@ -1,7 +1,7 @@
 # TASK-017: filelist_registry reads the toml and baselines from the worktree while the hook's file set comes from the temporary index -- a peer's staged move fails everyone's commit
 
 **Priority:** P2
-**Status:** open
+**Status:** CLOSED 2026-09-28
 **Owner:** TBD (tooling)
 **Filed:** 2026-09-28, after it blocked every session twice in one day
 
@@ -32,8 +32,35 @@ index; it has the same toml-from-disk hole for `placement_ok`.
 
 ## Done when
 
-- [ ] with a peer's filelist move staged and toml edited in the worktree, an
+- [x] with a peer's filelist move staged and toml edited in the worktree, an
       unrelated pathspec commit passes the hook (reproduce with a scratch
       clone: stage a rename, edit the toml unstaged, commit another file)
-- [ ] the standalone `--blindspots` / `--placement` / `--check` verdicts are
+- [x] the standalone `--blindspots` / `--placement` / `--check` verdicts are
       unchanged
+
+---
+
+## CLOSED 2026-09-28
+
+`bin/filelist_registry.py` gained `_config_text()`: when `GIT_INDEX_FILE` is
+set (hook context) the toml and the three baselines are read from the index
+being committed via `git show :<path>`, falling back to disk only for a path
+the index does not have; standalone runs read disk as before. All four
+readers use it (`load_registry`, the exempt ratchet, the blind-spot baseline,
+the placement baseline); the writers still write disk.
+
+Reproduced in a scratch clone (a clone, not a branch of the shared tree) the
+way the peers had it: an area's only `filelists/` dir renamed and staged, the
+toml edited to the new dir but left unstaged, then a temporary index built
+from HEAD the way `git commit -- <paths>` does:
+
+| | old script | new script |
+|---|---|---|
+| under the hook's index | REGRESSED, unregistered_filelists 0 -> 11 | PASS |
+| standalone in that worktree | REGRESSED (the move was incomplete -- correct) | REGRESSED (same, correct) |
+
+So the hook now judges a commit against the tree it is committing, and a
+peer's half-staged move is that peer's own standalone failure, not everyone
+else's. Standalone verdicts on the real tree are unchanged: `--check`,
+`--audit`, `--blindspots --ratchet` and `--placement` all PASS. CI runs on a
+plain checkout (no `GIT_INDEX_FILE`) and is untouched.

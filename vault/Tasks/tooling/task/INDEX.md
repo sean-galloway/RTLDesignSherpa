@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 14 | done (kept for history) |
+| [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,7 +22,6 @@ by construction rather than by discipline.
 
 - **TASK-015** — check_task_ids.py runs only in pre-commit; no CI step validates the tracker, so a --no-verify commit or an uninstalled hook lands a lying tracker unchecked.
 - **TASK-016** — fan out the 8 doc-example findings the widened gate surfaced (converters x3, stream/regs, fpga-systems/boards); each needs its owner to triage as defect or illustrative.
-- **TASK-017** — filelist_registry reads the toml and baselines from the worktree while the hook's file set comes from the temporary index -- a peer's staged move fails everyone's commit
 
 
 ## Active
@@ -30,6 +29,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-017** — filelist_registry reads the toml and baselines from the worktree while the hook's file set comes from the temporary index -- a peer's staged move fails everyone's commit -- CLOSED 2026-09-28: in hook context the toml and baselines come from the index being committed; reproduced old-fail/new-pass in a scratch clone
 - **TASK-014** — check_task_ids.py reconciles INDEX state counts against the directories -- CLOSED 2026-09-28: count rows are errors when they disagree with disk; mutation-tested 3 ways
 - **TASK-004** — Project-area cleanup — apply the RTL-area pattern to projects/ -- CLOSED 2026-09-28: --placement ratchet in CI, RLB filelists moved, 4 stale shared guides retired; per-unit remainder filed as rapids TASK-017, pumice TASK-032, stream TASK-013, bridge TASK-012, converters TASK-003, misc TASK-004, RLB TASK-016, timing_characterization TASK-005
 - **TASK-006** — emit CONTRACT TABLES (proofs), not K-map pictures -- CLOSED 2026-09-27: the bin/kmaps emitter is complete; per-unit remainder filed as pumice TASK-029 and stream TASK-012
