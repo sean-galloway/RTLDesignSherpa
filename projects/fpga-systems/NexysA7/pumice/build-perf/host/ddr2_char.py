@@ -358,18 +358,57 @@ class DDR2CharDriver:
     # Sim repro: test_ddr2_char_char_families_x16.
     BOARD_BURST_COLS = BOARD_DRAM_BL
 
+    # DDR2 MR0[2:0] burst length: 010 = BL4, 011 = BL8 (JESD79-2F).
+    _MR0_BL_FIELD = {4: 0b010, 8: 0b011}
+
     def program_geometry(self, rd_phase: int = 0, wr_phase: int = 0,
                          restart_init: bool = True) -> None:
         """Program the DFI/burst geometry this bitstream was built for.
+
+        The geometry is READ FROM THE HARDWARE (`build_info()`), not taken from
+        the BOARD_* environment constants. Those constants are a default for a
+        board that cannot report, and getting them wrong is not a small error:
+        `CTRL.soft_reset` reverts every pumice CSR to RTL resets that describe a
+        1:4/BL8 geometry, so on a 1:2/BL4 bitstream the controller silently
+        reverts on every reset until something re-programs it. A host script
+        that got this wrong once ran an entire sweep at the wrong geometry and
+        reported `beats_mismatched=0` -- a clean sweep that measured nothing
+        (pumice ISSUE-016).
+
+        `BUILD_CONFIG.{gear_ratio,dram_bl}` are elaboration-time constants
+        driven from the harness's own parameters, so they cannot drift from the
+        hardware. Reading them turns "is the geometry right" from an assumption
+        into a fact. The BOARD_* constants remain as the fallback for a harness
+        too old to carry the build registers.
 
         restart_init pulses CTRL.init_force_restart so the MRS chain re-runs
         with the MR0 just written -- without it the DRAM keeps the burst length
         from the reset-value init that soft_reset already kicked off.
         """
+        gear, bl, mr0 = self.BOARD_GEAR_RATIO, self.BOARD_DRAM_BL, self.BOARD_MR0
+        try:
+            b = self.build_info()
+            hw_gear, hw_bl = int(b["gear_ratio"]), int(b["dram_bl"])
+            if hw_bl in self._MR0_BL_FIELD:
+                gear, bl = hw_gear, hw_bl
+                # Keep the part-specific CL/tWR bits of MR0 and take BL from the
+                # hardware, so MR0 and DFI_PHASE.bl cannot disagree.
+                mr0 = (self.BOARD_MR0 & ~0x7) | self._MR0_BL_FIELD[hw_bl]
+                if (hw_gear, hw_bl) != (self.BOARD_GEAR_RATIO, self.BOARD_DRAM_BL):
+                    print(f"[geometry] board reports gear_ratio={hw_gear} "
+                          f"dram_bl={hw_bl}; BOARD_* said "
+                          f"{self.BOARD_GEAR_RATIO}/{self.BOARD_DRAM_BL} -- "
+                          f"using the hardware's values")
+            else:
+                print(f"[geometry] BUILD_CONFIG.dram_bl={hw_bl} is not a DDR2 "
+                      f"burst length; falling back to BOARD_* constants")
+        except Exception as exc:                  # harness without build regs
+            print(f"[geometry] build registers unreadable ({exc!r}); "
+                  f"falling back to BOARD_* constants")
+
         self.set_dfi_phase(rd_phase=rd_phase, wr_phase=wr_phase,
-                           gear_ratio=self.BOARD_GEAR_RATIO,
-                           bl=self.BOARD_DRAM_BL)
-        self.set_mr0(self.BOARD_MR0)
+                           gear_ratio=gear, bl=bl)
+        self.set_mr0(mr0)
         if restart_init:
             self.init_restart()
 

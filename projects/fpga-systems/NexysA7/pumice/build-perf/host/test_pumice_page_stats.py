@@ -136,3 +136,54 @@ def test_absolute_read_would_understate_a_later_scenario():
     assert s1.row_hit_rate == pytest.approx(0.0)
     assert s2_abs.row_hit_rate == pytest.approx(0.453, abs=1e-3)  # fiction
     assert (s2_abs - s1).row_hit_rate == pytest.approx(0.906, abs=1e-3)  # truth
+
+
+# --------------------------------------------------------------------------
+# Direct row-hit counters (pumice ISSUE-014 / BUG-020)
+# --------------------------------------------------------------------------
+def test_direct_counters_are_preferred_over_the_derivation():
+    """OBS_ROW_HIT[8] counts hits at the bank; the derivation is a lower bound.
+
+    Board-measured shape: 32000 column ops, 183 activations, 31819 direct hits
+    against a `col_ops - acts` bound of 31817. The two differ because a row can
+    be opened, closed by the timeout precharge and reopened without a column op
+    in between, which inflates acts."""
+    s = mk(col_ops=32000, miss=175, empty=8, acts=183, pres=183)
+    s = PageStats(**{**s.__dict__, "row_hits": 31819})
+    assert s.row_hit_rate == pytest.approx(31819 / 32000)
+    # and NOT the bound
+    assert s.row_hit_rate != pytest.approx((32000 - 183) / 32000)
+
+
+def test_without_direct_counters_the_bound_is_used_and_clamped():
+    s = mk(col_ops=48, miss=1, empty=48, acts=49, pres=49)
+    assert s.row_hits is None
+    assert s.row_hit_rate == pytest.approx(0.0)      # bound is -1/48, clamped
+
+
+def test_direct_rate_is_not_clamped_so_a_defect_stays_visible():
+    """The clamp exists because the DERIVATION can legitimately go negative.
+    The direct count cannot, so an out-of-range value there is a real defect and
+    must not be hidden."""
+    s = mk(col_ops=100, miss=10, empty=0, acts=10, pres=10)
+    s = PageStats(**{**s.__dict__, "row_hits": 150})
+    assert s.row_hit_rate == pytest.approx(1.5)
+
+
+def test_delta_subtracts_the_direct_counters():
+    a = PageStats(**{**mk(col_ops=100, miss=5, empty=5, acts=10, pres=10).__dict__,
+                     "row_hits": 90})
+    b = PageStats(**{**mk(col_ops=40, miss=2, empty=2, acts=4, pres=4).__dict__,
+                     "row_hits": 36})
+    d = a - b
+    assert d.row_hits == 54 and d.col_ops == 60
+    assert d.row_hit_rate == pytest.approx(54 / 60)
+
+
+def test_a_dead_counter_reports_none_not_a_confident_zero():
+    """A harness predating BUG-020 read these registers as zero. Summing that to
+    0 and reporting a 0.0 hit rate would be a measured-looking lie, so the reader
+    returns None when the registers are absent and the bound is used instead."""
+    s = mk(col_ops=1000, miss=1, empty=0, acts=1, pres=1)
+    assert s.row_hits is None
+    assert s.row_hit_rate == pytest.approx(999 / 1000)   # the bound, not 0.0

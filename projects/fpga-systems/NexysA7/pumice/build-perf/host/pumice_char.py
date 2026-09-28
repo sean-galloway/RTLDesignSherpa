@@ -874,6 +874,12 @@ class PageStats:
     # tREFI in MC cycles, as programmed. Carried so `refs` can be judged
     # against the window it is quoted beside -- see refs_are_wall_clock.
     t_refi:  int = 0
+    # Direct per-bank row hits, summed (OBS_ROW_HIT[8]). None when the caller
+    # did not read them -- older captures and any harness predating pumice
+    # BUG-020, where those registers were undriven and read zero. `None` is the
+    # important part: a summed zero from a dead counter must not be mistaken for
+    # a measured zero (handbook: read the config register, don't default).
+    row_hits: Optional[int] = None
 
     def __sub__(self, other: "PageStats") -> "PageStats":
         """Delta across a phase. 32-bit counters, so wrap is masked rather than
@@ -884,7 +890,9 @@ class PageStats:
                          m(self.empty, other.empty), m(self.acts, other.acts),
                          m(self.pres, other.pres), m(self.refs, other.refs),
                          refs_busy=m(self.refs_busy, other.refs_busy),
-                         t_refi=self.t_refi or other.t_refi)
+                         t_refi=self.t_refi or other.t_refi,
+                         row_hits=(None if (self.row_hits is None or other.row_hits is None)
+                                   else m(self.row_hits, other.row_hits)))
 
     @property
     def row_hit_rate(self) -> Optional[float]:
@@ -894,6 +902,17 @@ class PageStats:
         (see [[feedback_checker_verdict_needs_a_count]])."""
         if self.col_ops <= 0:
             return None
+        if self.row_hits is not None:
+            # DIRECT: OBS_ROW_HIT[8] counts hits at the bank, so no clamp is
+            # needed and none is applied -- a value out of range here would be a
+            # real defect and should not be hidden.
+            return self.row_hits / self.col_ops
+        # FALLBACK, and it is a LOWER BOUND, not the rate: `col_ops - acts`
+        # undercounts whenever a row was opened, closed by the timeout and
+        # reopened without a column op in between, which makes acts too large.
+        # Measured on the board: 31819 direct hits against a bound of 31817.
+        # Clamped because a negative rate propagates as a plausible small number
+        # (pumice ISSUE-014).
         return max(0.0, (self.col_ops - self.acts) / self.col_ops)
 
     @property
@@ -1032,7 +1051,29 @@ def read_page_stats(drv: DDR2CharDriver) -> PageStats:
         refs=   int(f("REF_STATS_REF",    "VAL")),
         refs_busy=int(f("REF_STATS_REF_BUSY", "VAL")),
         t_refi= int(f("TIMINGS_RFC_REFI",  "tREFI")),
+        row_hits=_read_row_hits(drv),
     )
+
+
+def _read_row_hits(drv: DDR2CharDriver) -> "Optional[int]":
+    """Sum OBS_ROW_HIT[8] -- the DIRECT per-bank row-hit count.
+
+    Eight extra register reads per snapshot, which is why this is worth stating:
+    it is the only sound hit count. `col_ops - acts` undercounts whenever a row
+    was opened, closed by the timeout precharge and reopened without a column op
+    in between (pumice ISSUE-014); measured on the board, 31819 direct hits
+    against a bound of 31817.
+
+    Returns None rather than 0 if the registers are not present, so a harness
+    predating pumice BUG-020 -- where these were undriven and read zero -- does
+    not report a confident zero hit rate. A dead counter and a genuine zero must
+    not look the same.
+    """
+    try:
+        f = drv.pumice.regs.field
+        return sum(int(f(f"OBS_ROW_HIT{b}_ROW_HIT", "VAL")) for b in range(8))
+    except Exception:
+        return None
 
 
 @dataclass(frozen=True)

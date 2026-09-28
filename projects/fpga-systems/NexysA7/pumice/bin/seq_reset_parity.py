@@ -68,6 +68,29 @@ class ResetParity(Sequence):
         man = _load(_MANIFEST, "_rp_manifest")
         regmap = _load(_REGMAP, "_rp_regmap").top_block
 
+        # CLOCK PARITY, against the BOARD rather than against a file.
+        # csr_reset_parity.py checks the declared clock against the host source
+        # that sets it -- two files agreeing. It cannot see what the bitstream
+        # actually runs at, and on 2026-09-28 that gap bit: two bitstreams were
+        # built without PUMICE_SYS_75=1, so the board came up on the 66.67 MHz
+        # profile while every declaration said 75 MHz. Board results were taken
+        # from it and the WNS was compared against a 75 MHz baseline. The board
+        # reports its own clock from an elaboration-time constant, so this is a
+        # comparison, not an assumption.
+        clk = getattr(man, "CLOCK", None)
+        if clk and ctx.param("check_clock", True):
+            want = int(clk["hz"])
+            got = int(drv.build_info()["clk_hz"])
+            ctx.say(f"[reset_parity] board clock {got} Hz (manifest declares {want} Hz)")
+            if got != want:
+                raise AssertionError(
+                    f"CLOCK MISMATCH: the board is running {got} Hz but the CSR "
+                    f"reset-parity manifest declares {want} Hz. Every timing CSR "
+                    f"reset in that manifest is derived for {want} Hz, so the "
+                    f"resets on this board are for a different operating point. "
+                    f"If this is the 66.67 MHz profile, rebuild with "
+                    f"PUMICE_SYS_75=1; do not measure against it.")
+
         # Fields the manifest says ship at their reset value. `swept` fields are
         # varied by DV on purpose and `waived` ones are strobes or counters, so
         # neither has a reset worth asserting here -- but they are COUNTED, so a

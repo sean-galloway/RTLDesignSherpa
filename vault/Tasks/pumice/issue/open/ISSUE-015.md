@@ -47,3 +47,37 @@ integrity on all 24 cells with the re-program happening mid-run.
   75 MHz, not on which file was edited last.
 * `csr_reset_parity.py`'s `PHY_TIMING.t_rddata_en` note is updated to cite that
   measurement instead of the tiebreak.
+
+---
+
+## Measurement attempted 2026-09-28 -- and what it takes to do properly
+
+`host_sweep_rddata_delay.py` looked like the instrument: it sweeps
+`rddata_delay` 0..15 and reports `beats_mismatched` per setting, so the width of
+the clean window is the eye. Run at both candidate points it would settle this.
+
+**It hardcoded the stale tuple.** `t_phy_wrlat=0, t_rddata_en=6` -- the pair that
+on 2026-09-21 corrupted data on all four cells of the page-policy A/B while still
+reporting healthy bandwidth. The instrument for measuring the read path was
+itself carrying a known-bad setting. Now `--wrlat` / `--rden` arguments,
+defaulting to what `init` programs.
+
+**It still cannot answer the question as written.** Run at `--rden 6` and
+`--rden 1`, both reported 16/16 beats mismatched at every delay 0..15 -- no eye
+at either point. That is the tool, not the tuples:
+
+* it never LEVELS. `init` scans bitslip x IDELAY tap to find the capture point;
+  this tool programs a fixed geometry and sweeps only the coarse delay, so
+  without the leveled bitslip/tap the read path does not capture at any delay.
+* it forces `rd_phase=1`, while the board ships `rd_phase=0`.
+
+So a fair comparison needs a per-point eye scan: for each `t_rddata_en`, level
+(bitslip x tap) and THEN sweep `rddata_delay`, reporting the width of the clean
+window -- three nested loops on hardware, not one. `host_bringup_joint_probe.py`
+is the closest existing shape (it does an inner bitslip scan per outer latency
+point at a fixed mid tap) and is probably what to extend.
+
+Recorded rather than guessed at: the honest state is that the two tuples are both
+known to WORK and their relative margin is still unmeasured. Do not close this on
+the strength of "both pass integrity" -- that was already true, and is exactly
+what makes the question worth answering.

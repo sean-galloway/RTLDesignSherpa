@@ -28,6 +28,16 @@ def main():
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--lo", type=int, default=0)
     ap.add_argument("--hi", type=int, default=15)
+    # These used to be hardcoded at wrlat=0 / rden=6. That pair is the STALE
+    # tuple: on 2026-09-21 pinning it corrupted data on all four cells of the
+    # page-policy A/B while still reporting healthy bandwidth. Both board host
+    # paths program wrlat=1. Exposed as arguments so the instrument that
+    # measures the read path is not itself carrying a known-bad setting, and so
+    # the eye can be compared ACROSS t_rddata_en (pumice ISSUE-015).
+    ap.add_argument("--wrlat", type=int, default=1,
+                    help="t_phy_wrlat (default 1: what both host paths program)")
+    ap.add_argument("--rden", type=int, default=6,
+                    help="t_rddata_en (default 6: what `init` programs)")
     args = ap.parse_args()
 
     board = get_board(args.board)
@@ -37,8 +47,9 @@ def main():
     print(f"BUILD_ID=0x{d.build_id():08X} cmd_delay={d.get_dfi_cmd_delay()}",
           flush=True)
     d.soft_reset(); time.sleep(0.01)
-    d.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=0,
-                         t_rddata_en=6, rd_in_order=True)
+    d.set_controller_cfg(memtype=dc.MEMTYPE_DDR2, t_phy_wrlat=args.wrlat,
+                         t_rddata_en=args.rden, rd_in_order=True)
+    print(f"t_phy_wrlat={args.wrlat} t_rddata_en={args.rden}", flush=True)
     # a7ddrphy rdphase=1: place the READ command on DFI phase 1 so the whole BL4
     # burst (both DFI cycles) returns aligned. Without this only the first DFI
     # cycle reads correctly (8/16). See project_ddr2_ila_read_valid_skew.
