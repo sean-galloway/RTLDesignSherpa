@@ -207,6 +207,67 @@ async def cocotb_test_sink_path(dut):
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_mon_window_gated(dut):
+    """Monitors-off build: the two MON register windows must ERROR, not answer
+    (rapids ISSUE-003, the STREAM TASK-002 contract).
+
+    With USE_AXI_MONITORS=0 (and USE_MON_REGS defaulting from it) the config
+    blocks strap every cfg_*mon_* output off, so a MON register that accepted a
+    write and read it back would be telling the host a monitor is configured
+    that does not exist. The top's guard answers SRC MON (0x0800+) and SNK MON
+    (0x1800+) with PSLVERR instead. Checked through the BFM packet's pslverr
+    (read_reg discards it), with a non-MON positive control before and after so
+    a wedged or broken bus cannot read as a pass.
+    """
+    from CocoTBFramework.components.apb.apb_packet import APBPacket
+    tb = RapidsBeatsTopTB(dut)
+    await tb.setup_clocks_and_reset()
+
+    async def xfer(addr, write, wdata=0):
+        pkt = APBPacket(pwrite=1 if write else 0, paddr=addr, pwdata=wdata, pstrb=0xF, pprot=0,
+                        data_width=tb.apb_data_width, addr_width=tb.apb_addr_width, strb_width=4)
+        await tb.apb4_master.busy_send(pkt)          # never returns if the guard wedges the bus
+        await tb.wait_clocks(tb.clk_name, 1)
+        return int(pkt.fields.get('prdata', 0)), int(pkt.fields.get('pslverr', 0))
+
+    # Vacuity guard: if PSLVERR did not bind on the master, every check below
+    # would pass while checking nothing.
+    assert tb.apb4_master.is_signal_present('PSLVERR'), \
+        "PSLVERR did not bind on the APB master; an error response would be invisible"
+
+    failures = []
+    for half in ('src', 'snk'):
+        ctrl = tb.reg_abs(half, 'GLOBAL_CTRL')
+        _, err = await xfer(ctrl, write=1, wdata=1)
+        rb, rerr = await xfer(ctrl, write=0)
+        if err or rerr or (rb & 1) != 1:
+            failures.append(f"{half}: GLOBAL_CTRL (positive control, before) failed: "
+                            f"werr={err} rerr={rerr} rb=0x{rb:X}")
+        for reg in ('DAXMON_ENABLE', 'DAXMON_ERR_CFG', 'DAXMON_LATENCY_THRESH'):
+            addr = tb.reg_abs(half, reg)
+            if not (addr >> 11) & 1:
+                failures.append(f"{half}: {reg} at 0x{addr:X} does not set paddr[11]; the guard "
+                                f"decodes on that bit, so this would not exercise it")
+                continue
+            _, werr = await xfer(addr, write=1, wdata=0x1)
+            rb, rerr = await xfer(addr, write=0)
+            if not werr:
+                failures.append(f"{half}: {reg} WRITE at 0x{addr:X} completed without PSLVERR "
+                                f"on a monitors-off build")
+            if not rerr:
+                failures.append(f"{half}: {reg} READ at 0x{addr:X} completed without PSLVERR")
+            if rb == 0x1:
+                failures.append(f"{half}: {reg} read back the value just written with the "
+                                f"monitors not built -- 'not built' must not look like 'built and set'")
+        rb, rerr = await xfer(ctrl, write=0)
+        if rerr or (rb & 1) != 1:
+            failures.append(f"{half}: GLOBAL_CTRL (positive control, after) failed: "
+                            f"rerr={rerr} rb=0x{rb:X} -- the guard wedged or corrupted the bus")
+    assert not failures, "monitor register windows are not gated:\n  " + "\n  ".join(failures)
+    tb.log.info("both MON windows error with the monitors not built; GLOBAL_CTRL unaffected")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_control_path(dut):
     """PRODUCER/CONSUMER control path through the split TOP with a real semaphore
     memory on the control masters. A CTRL_READ gate is held off until a CTRL_WRITE
@@ -474,6 +535,17 @@ def test_rapids_beats_top_source(request, test_level):
 def test_rapids_beats_top_sink(request, test_level):
     """SINK datapath: AXIS -> memory, config + kick over APB (by name)."""
     _run_top("cocotb_test_sink_path", "test_rapids_beats_top_sink", test_level=test_level)
+
+
+@pytest.mark.top_beats
+@pytest.mark.rapids_beats_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_beats_top_mon_gate(request, test_level):
+    """Monitors-off build: SRC and SNK MON register windows must return PSLVERR
+    (rapids ISSUE-003). A contract test: REG_LEVEL selects how many cells run
+    it, not how much work each does."""
+    _run_top("cocotb_test_mon_window_gated", "test_rapids_beats_top_mon_gate",
+             extra_params={'USE_AXI_MONITORS': 0}, test_level=test_level)
 
 
 @pytest.mark.top_beats

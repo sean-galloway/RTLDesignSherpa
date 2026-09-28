@@ -115,6 +115,20 @@ straight through to `m_axi_rd`/`m_axi_wr`), the core MonBus is dropped
 (always-ready), and the AXI-Lite group outputs are tied off (`s_axil_err`
 read-inactive, `m_axil_mon` write-inactive, `mon_irq = 0`).
 
+### Monitor registers on a monitors-off build (USE_MON_REGS)
+
+`USE_MON_REGS` defaults to `USE_AXI_MONITORS != 0` and is passed to both config
+blocks. When it is 0 the blocks strap every `cfg_*mon_*` output off, and the APB
+path answers the two MON register windows -- SRC MON at 0x0800-0x0FFF and SNK MON
+at 0x1800-0x1FFF, i.e. `paddr[11]` set in either 4 KB half -- with `PSLVERR` and
+zero read data instead of letting the registers accept a write and read it back.
+The address map does not change, so one host image still addresses both builds;
+what changes is that "not built" is distinguishable from "built and set to zero".
+A blocked access is still accepted (holding `cmd_ready` low would hang the bus)
+and the guard's error beat replaces the adapter's response for that one transfer
+(rapids ISSUE-003; the shape is STREAM's TASK-002 guard). With `USE_MON_REGS = 1`
+the guard folds away to the straight-through wiring.
+
 ---
 
 ## Parameters
@@ -128,6 +142,7 @@ parameter int SRAM_DEPTH          = 4096;
 parameter int APB_ADDR_WIDTH      = 12;   // must be >= 13 to reach MON regfile @ 0x1000
 parameter int APB_DATA_WIDTH      = 32;
 parameter bit USE_AXI_MONITORS    = 0;    // 1 = insert rd/wr monitors + MonBus group
+parameter bit USE_MON_REGS        = (USE_AXI_MONITORS != 0); // 0 = MON windows answer PSLVERR
 parameter int MON_MAX_TRANSACTIONS = 16;
 parameter int AR_MAX_OUTSTANDING  = 8;
 parameter int AW_MAX_OUTSTANDING  = 8;

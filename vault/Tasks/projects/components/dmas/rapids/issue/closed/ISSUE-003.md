@@ -1,6 +1,6 @@
 # ISSUE-003: RAPIDS monitor registers answer normally when the monitors are not built
 
-**Status:** open 2026-09-24. Raised while fixing the same shape in STREAM
+**Status:** CLOSED 2026-09-27 (closing note at the end); was open 2026-09-24. Raised while fixing the same shape in STREAM
 (stream TASK-002), which is where the parameter pattern was copied FROM.
 
 `rapids_config_block.sv:45` has `parameter bit USE_MON_REGS = 1'b1`, and lines
@@ -49,3 +49,20 @@ failed from inside it -- that constraint applies to RAPIDS identically.
 **Scope note.** Raised from STREAM work under the standing rule that RAPIDS is
 in scope for STREAM ports; not acted on here because nothing asked for it and
 the address-map tradeoff is a design decision.
+
+## Closing note (2026-09-27)
+
+Taken up on Sean's "port it". `rapids_beats_top` gains `USE_MON_REGS`
+(default `USE_AXI_MONITORS != 0`), passes it to both config blocks (they were
+hardwired to 1), and guards the two MON windows in front of the PeakRDL adapter
+exactly as STREAM does: `paddr[11]` set in either 4 KB half is refused with
+PSLVERR and zero read data, the access is still accepted so the bus cannot
+wedge, and with `USE_MON_REGS=1` the guard folds away. Verification:
+`test_rapids_beats_top_mon_gate` (monitors-off build; PSLVERR proven observable
+first; GLOBAL_CTRL positive control before and after in both halves; DAXMON
+enable/err/latency registers must error on write and read and must not read
+back the written value). It fails on the pre-change top and passes on the new
+one (A/B swap). Clean full rapids regression 2253/2253 at FULL. Docs: MAS top
+page (USE_MON_REGS section and parameter list); the HAS register-map page,
+which still described a single-half layout with MON at 0x1000, now shows the
+two halves with MON at +0x800 and the monitors-off behaviour.

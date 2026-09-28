@@ -28,22 +28,30 @@
 RAPIDS Beats provides a memory-mapped register interface for configuration and
 status. All registers are accessed through the single top-level APB slave
 (`s_apb_*`) and are implemented by the PeakRDL-generated `rapids_regs` register
-block. A single addrmap (one APB slave) contains a base regfile at 0x100-0x3FF
-and a nested monitor regfile (`rapids_mon_regs`) at 0x1000. Descriptor kick-off
-is part of this same register block: the staged descriptor addresses occupy
-0x000-0x03F and the launch register `KICK_ENABLE` sits at 0x040.
+block. One addrmap holds two independent halves of the same layout
+(`rapids_engine_regs`): **SRC at 0x0000** and **SNK at 0x1000**, 4 KB each.
+Within a half, the staged descriptor addresses occupy +0x000-0x03F, the launch
+register `KICK_ENABLE` sits at +0x040, configuration and status at +0x100-0x3FF,
+and the nested monitor regfile (`rapids_mon_regs`) at +0x800. Every offset
+below is relative to its half; add 0x1000 for the SNK copy.
 
-Because the monitor regfile lives at 0x1000, the APB address bus must be at
-least 13 bits wide.
+Because the SNK half lives at 0x1000, the APB address bus must be at least 13
+bits wide; `paddr[12]` selects the half and `paddr[11]` the monitor window.
 
 ## Address Space Layout
 
-| Range | Target | Purpose |
+| Range (per half) | Target | Purpose |
 |-------|--------|---------|
-| 0x000-0x03F | `rapids_regs` base regfile | Per-channel staged descriptor addresses |
-| 0x040 | `rapids_regs` base regfile | `KICK_ENABLE` per-channel launch bits |
-| 0x100-0x3FF | `rapids_regs` base regfile | Configuration and status |
-| 0x1000+ | `rapids_regs` monitor regfile | AXI-monitor config and performance |
+| +0x000-0x03F | `rapids_engine_regs` | Per-channel staged descriptor addresses |
+| +0x040 | `rapids_engine_regs` | `KICK_ENABLE` per-channel launch bits |
+| +0x100-0x3FF | `rapids_engine_regs` | Configuration and status |
+| +0x800-0x9FF | `rapids_mon_regs` | AXI-monitor config and performance |
+| 0x0000 / 0x1000 | half base | SRC half / SNK half |
+
+On a build with `USE_MON_REGS = 0` (the default when `USE_AXI_MONITORS = 0`) the
+two monitor windows keep their addresses but answer every access with `PSLVERR`
+and zero read data: the config blocks drive nothing from them, and a read-back
+that succeeded would tell the host a monitor is configured that does not exist.
 
 : Address Space Layout
 
@@ -80,21 +88,21 @@ least 13 bits wide.
 
 : Base Registers
 
-## Monitor Registers (0x1000)
+## Monitor Registers (+0x800 within each half)
 
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|
-| 0x1000 | `MON_FIFO_STATUS` | RO | MonBus capture/error FIFO status |
-| 0x1004 | `MON_FIFO_COUNT` | RO | MonBus FIFO occupancy |
-| 0x10C0-0x10DC | `DAXMON_*` | RW | Descriptor-monitor config (enable/timeout/latency/masks) |
-| 0x10E0-0x10FC | `RDMON_*` | RW | Read-monitor config (same layout) |
-| 0x1100-0x111C | `WRMON_*` | RW | Write-monitor config (same layout, incl. `COMPRESS_EN`) |
-| 0x1150-0x1178 | `DAXMON_PERF_*` | RO/RW | Descriptor-monitor performance counters |
-| 0x1180-0x11A8 | `RDMON_PERF_*` | RO/RW | Read-monitor performance counters |
-| 0x11B0-0x11D8 | `WRMON_PERF_*` | RO/RW | Write-monitor performance counters |
-| 0x11E0-0x11F4 | `{RD,WR}MON_PERF_CH_*` | RO | Per-channel producer/backpressure/starve/idle/overflow |
+| +0x800 | `MON_FIFO_STATUS` | RO | MonBus capture/error FIFO status |
+| +0x804 | `MON_FIFO_COUNT` | RO | MonBus FIFO occupancy |
+| +0x8C0-0x8DC | `DAXMON_*` | RW | Descriptor-monitor config (enable/timeout/latency/masks) |
+| +0x8E0-0x8FC | `RDMON_*` | RW | Read-monitor config (same layout) |
+| +0x900-0x91C | `WRMON_*` | RW | Write-monitor config (same layout, incl. `COMPRESS_EN`) |
+| +0x950-0x978 | `DAXMON_PERF_*` | RO/RW | Descriptor-monitor performance counters |
+| +0x980-0x9A8 | `RDMON_PERF_*` | RO/RW | Read-monitor performance counters |
+| +0x9B0-0x9D8 | `WRMON_PERF_*` | RO/RW | Write-monitor performance counters |
+| +0x9E0-0x9F4 | `{RD,WR}MON_PERF_CH_*` | RO | Per-channel producer/backpressure/starve/idle/overflow |
 
-: Monitor Registers (base 0x1000)
+: Monitor Registers (+0x800 within each half; SRC at 0x0800, SNK at 0x1800)
 
 ## Key Register Fields
 
@@ -208,8 +216,10 @@ staged addresses at 0x000-0x03F (`CH*_DESC_ADDR_{LOW,HIGH}`, stride 0x8) and the
 `KICK_ENABLE` launch register at 0x040.
 
 ```
-0x000 - 0x03F: Staged descriptor addresses (CH*_DESC_ADDR_{LOW,HIGH})
-0x040        : KICK_ENABLE (per-channel launch, singlepulse)
-0x100 - 0x3FF: Base configuration / status registers
-0x1000+      : Monitor configuration / performance registers
++0x000 - 0x03F: Staged descriptor addresses (CH*_DESC_ADDR_{LOW,HIGH})
++0x040        : KICK_ENABLE (per-channel launch, singlepulse)
++0x100 - 0x3FF: Base configuration / status registers
++0x800 - 0x9FF: Monitor configuration / performance registers
+SRC half at 0x0000, SNK half at 0x1000 (paddr[12]); PSLVERR on the monitor
+window when USE_MON_REGS = 0.
 ```

@@ -78,6 +78,13 @@ module rapids_beats_top #(
     // linear addressing verbatim.
     parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,
     parameter bit GEN_MON              = 1'b1,
+    //   USE_MON_REGS: whether the MON register windows (SRC and SNK, each at
+    //   +0x800 of its 4 KB regfile) are wired to monitor logic. Defaults to
+    //   USE_AXI_MONITORS, as in STREAM. When 0 the config blocks strap every
+    //   cfg_*mon_* output off AND the APB path answers the two windows with
+    //   PSLVERR (rapids ISSUE-003), so a host can tell "not built" from "built
+    //   and set to zero" -- the address map itself does not change.
+    parameter bit USE_MON_REGS         = (USE_AXI_MONITORS != 0),
     parameter int AR_MAX_OUTSTANDING   = 8,
     parameter int AW_MAX_OUTSTANDING   = 8,
     // AXIS network-interface parameters (tid carries the channel id)
@@ -418,12 +425,53 @@ module rapids_beats_top #(
     logic [APB_DATA_WIDTH-1:0]     peakrdl_rsp_prdata;
     logic                          peakrdl_rsp_pslverr;
 
-    assign peakrdl_cmd_valid = apb_cmd_valid;
-    assign apb_cmd_ready     = peakrdl_cmd_ready;
-    assign apb_rsp_valid     = peakrdl_rsp_valid;
-    assign apb_rsp_prdata    = peakrdl_rsp_prdata;
-    assign apb_rsp_pslverr   = peakrdl_rsp_pslverr;
-    assign peakrdl_rsp_ready = apb_rsp_ready;
+    // MON-window guard (rapids ISSUE-003, the STREAM TASK-002 shape). With
+    // USE_MON_REGS=0 the monitor registers configure nothing -- both config
+    // blocks strap their cfg_*mon_* outputs off -- so answering them normally
+    // would let a host arm a monitor register, read the written value back and
+    // conclude a monitor is configured that does not exist. The two windows
+    // (SRC MON at 0x0800-0x0FFF, SNK MON at 0x1800-0x1FFF: paddr[11] set in
+    // either 4 KB half) return an error response instead. It cannot live in the
+    // regblock: generated rapids_regs ties cpuif_wr_err to '0.
+    //
+    // Decode is combinational, the selection is registered when the command is
+    // accepted and cleared when the response is accepted, and the response is
+    // muxed on the REGISTERED select. Safe because apb4_slave is strictly
+    // one-outstanding. With USE_MON_REGS=1 (the default) w_mon_blocked is a
+    // constant 0 and this folds to the straight-through wiring it replaces.
+    localparam int MON_WINDOW_BIT = 11;
+
+    logic w_mon_blocked;
+    logic r_mon_err_pending;
+
+    generate
+        if (APB_ADDR_WIDTH > MON_WINDOW_BIT) begin : g_mon_guard
+            assign w_mon_blocked = !USE_MON_REGS && apb_cmd_paddr[MON_WINDOW_BIT];
+        end else begin : g_no_mon_window
+            assign w_mon_blocked = 1'b0;   // bus too narrow to reach a MON window
+        end
+    endgenerate
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_mon_err_pending <= 1'b0;
+        end else if (apb_cmd_valid && apb_cmd_ready && w_mon_blocked) begin
+            r_mon_err_pending <= 1'b1;
+        end else if (apb_rsp_valid && apb_rsp_ready) begin
+            r_mon_err_pending <= 1'b0;
+        end
+    )
+
+    // A blocked access never reaches the adapter but is still ACCEPTED: APB
+    // cannot express "ignored", and holding cmd_ready low would hang the bus.
+    assign peakrdl_cmd_valid = apb_cmd_valid && !w_mon_blocked;
+    assign apb_cmd_ready     = w_mon_blocked ? !r_mon_err_pending : peakrdl_cmd_ready;
+    // The guard's error beat wins while pending; the adapter is held off so it
+    // cannot double-respond.
+    assign apb_rsp_valid     = r_mon_err_pending ? 1'b1 : peakrdl_rsp_valid;
+    assign peakrdl_rsp_ready = !r_mon_err_pending && apb_rsp_ready;
+    assign apb_rsp_prdata    = r_mon_err_pending ? '0   : peakrdl_rsp_prdata;
+    assign apb_rsp_pslverr   = r_mon_err_pending ? 1'b1 : peakrdl_rsp_pslverr;
 
     //=========================================================================
     // SOURCE channel descriptor requests (driven from the staged
@@ -1087,7 +1135,7 @@ module rapids_beats_top #(
     rapids_config_block #(
         .NUM_CHANNELS (NUM_CHANNELS),
         .ADDR_WIDTH   (ADDR_WIDTH),
-        .USE_MON_REGS (1)
+        .USE_MON_REGS (USE_MON_REGS)
     ) u_cfg_src (
         .clk    (aclk),
         .rst_n  (aresetn),
@@ -1255,7 +1303,7 @@ module rapids_beats_top #(
     rapids_config_block #(
         .NUM_CHANNELS (NUM_CHANNELS),
         .ADDR_WIDTH   (ADDR_WIDTH),
-        .USE_MON_REGS (1)
+        .USE_MON_REGS (USE_MON_REGS)
     ) u_cfg_snk (
         .clk    (aclk),
         .rst_n  (aresetn),

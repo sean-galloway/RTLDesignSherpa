@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,8 +22,8 @@ by construction rather than by discipline.
 
 - **ISSUE-000** — reserved template; copy the file, do not file against it.
 - **ISSUE-001** — after TASK-082, snkGB/s reports ingress latency, not datapath rate
-- **ISSUE-003** — monitor registers answer normally when the monitors are not built
 
 ## Closed
 
+- **ISSUE-003** — monitor registers answer normally when the monitors are not built (closed 2026-09-27)
 - **ISSUE-002** — backpressure runs record meter numbers that cannot mean anything
