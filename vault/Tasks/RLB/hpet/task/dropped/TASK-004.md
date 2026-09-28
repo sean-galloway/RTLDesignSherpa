@@ -3,9 +3,10 @@
 
 **Priority:** P3
 **Status:** DROPPED 2026-09-27 -- **the premise is wrong. This is the specified
-behaviour, not a gap.** Sean, who wrote this block at Intel: "a read had never been
-atomic to this register even at Intel. It is a 64-bit register and must be read with
-two reads."
+behaviour, not a gap.** The owner's ruling: "a read had never been atomic to this register. It is a
+64-bit register and must be read with two reads." The IA-PC HPET specification
+agrees: the main counter is 64 bits behind a 32-bit interface, so software uses
+the hi/lo/hi retry loop.
 
 The design agrees. `apb4_hpet.sv` instantiates the register interface with
 `DATA_WIDTH(32)` against a 64-bit counter, so two accesses are structural -- there is

@@ -175,7 +175,7 @@ The design scales linearly with timer count. Each additional timer adds approxim
 - Legacy mode emulation (not needed in modern designs)
 - 64-bit atomic counter reads -- NOT a shortfall and not planned: the counter is
   64 bits behind a 32-bit APB, so two reads are structural, and a non-atomic read
-  is the IA-PC HPET behaviour (confirmed by the block's original author). Software
+  is the IA-PC HPET behaviour, and a deliberate design ruling here. Software
   uses the hi/lo/hi retry loop; see ch01_overview/03_clocks_and_reset.md
 
 ---
