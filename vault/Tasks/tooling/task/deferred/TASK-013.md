@@ -1,7 +1,7 @@
 # TASK-013: source comments still cite pre-migration task IDs
 
 **Priority:** P3. Nothing is broken; the references are stale, not dangling.
-**Status:** open 2026-09-27.
+**Status:** DEFERRED 2026-09-27 -- every non-pumice citation swept and committed; pumice's 173 wait for the pumice session (board campaign first, then their own sweep from their worktree).
 **Owner:** TBD
 
 **What.** The flat-page migration (TOOL-001) renumbered every legacy ID into the
@@ -125,6 +125,31 @@ Four areas now have a TASK-015 and several have a BUG-003. Sweep by `<area> <ID>
 against MIGRATION_MAP.md, never by bare ID.
 
 **Completion criteria:**
-- [ ] Each citation above names an ID that exists, or names the area explicitly
-- [ ] Other areas' citations swept the same way (only amba was measured)
-- [ ] No bare-ID rewrite performed without confirming which area it meant
+- [x] Each citation above names an ID that exists, or names the area explicitly
+- [x] Other areas' citations swept the same way -- all areas except pumice (below)
+- [x] No bare-ID rewrite performed without confirming which area it meant
+
+## Sweep as performed (2026-09-27, tooling session)
+
+Two commits, both pushed:
+
+- `c50be80d7` -- the hand-written half: 1,199 citations in 370 tracked files
+  repointed to their migrated ids, keyed `<area> <OLD>` -> `<area> <NEW>` against
+  `vault/Tasks/MIGRATION_MAP.md` (annotation form `<area> <NEW> (was <OLD>)`).
+  Bare `TASK-nnn` / `PUMICE-nnn` citations with no area were NOT rewritten (the
+  sweep skipped them by construction). 19 map rows whose target file no longer
+  exists (the nexysa7 area was deleted the same day) were skipped and are listed
+  in the scratch sweep log, not rewritten to a dead target. The duplicate
+  `DOCREV-001` row was skipped as ambiguous.
+- `89536ba8e` -- the generator half: the bridge generator emits 20 tracker-id
+  strings into its output, so those were repointed in the generator and EVERY
+  bridge regenerated (Rule #0: `make regen`, `--bulk bridge_batch.csv
+  --generate-tests`, clean-all + run-all-func, 533 paths in one commit, blobs
+  cmp-verified). Genesys bridges were confirmed comment-only by the rapids
+  session before the regen was accepted.
+
+Excluded by decision (repo-cleanup session, 2026-09-27): pumice's 173 citations.
+Pumice's files are being edited from the pumice session's worktree during its
+board campaign; a sweep from here would collide. Deferred, not closed, until
+that sweep lands -- the condition is "pumice session sweeps its 173 from its own
+worktree and reports the count".

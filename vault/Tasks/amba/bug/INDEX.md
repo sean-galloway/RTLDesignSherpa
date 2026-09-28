@@ -2,7 +2,7 @@
 
 # amba — bugs
 
-**Next ID: BUG-037** — never recycle a number, even when its item closed.
+**Next ID: BUG-038** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 34 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
+- **BUG-037** — ID filter still loses an owned write's completion at some seeds (TASK-073 symptom back); deterministic at SEED=94641
 - **BUG-035** — monitor TIMEOUT packets saturate at ~table depth per reset
 - **BUG-036** — SOFT_RESET does not fully reset the monitor subsystem
 - **BUG-000** — reserved template; copy the file, do not file against it.

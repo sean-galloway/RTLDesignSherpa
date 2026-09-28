@@ -12,16 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 0 | parked pending a named condition |
+| [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
 - **BUG-004** — Twelve component conftests stamp TEST_LEVEL into os.environ, which kills every per-cell depth export
-- **BUG-005** — INTERMITTENT — OPEN on the durable fix (root cause proven 2026-08-28: concurrent deletion of local_sim_build)
 - **BUG-000** — reserved template; copy the file, do not file against it.
 
 ## Closed
@@ -36,3 +35,7 @@ by construction rather than by discipline.
 - **BUG-003** — `RegisterMap.walk()` crashes on an ERROR response, so the MON-window guard silently disabled the board register walk on every `USE_AXI_MONITORS=0` build since 2026-09-24 (walker fixed; host-side skip still open)
 - **BUG-001** — checker attribution: multi-module declarations + 46 pages silently unchecked (fixed; threshold was NOT the defect)
 - **BUG-002** — `--blindspots` read the index and disk in one subtraction, so a tracked+registered filelist absent from the worktree was reported unregistered (fixed; the rename-commit block it was filed for was CORRECT)
+
+## Deferred
+
+- **BUG-005** — concurrent deletion of local_sim_build -- DEFERRED 2026-09-27: marker-aware cleaner on every clean target on main; the ddr2_char Makefile line is on branch tooling-pumice-halves (pumice merges)

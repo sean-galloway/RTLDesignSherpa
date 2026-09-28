@@ -49,7 +49,7 @@ Work, in the order that pays:
    Emit the minimal sum-of-products, then DIFF it against the mirrored RTL
    expression and label the result identical / RTL-redundant / RTL-differs.
    The third case is the defect finder.
-5. **Promote to bin/.** **DONE for stream, 2026-09-25 -- pumice remains.**
+5. **Promote to bin/.** **DONE for stream 2026-09-25; DONE for pumice 2026-09-27 on branch `tooling-pumice-halves` (pumice session merges).**
    The machinery now lives in `bin/kmaps/` (`minimize`, `writer`, `citations`,
    `styles`, 544 lines across 5 modules) and stream's generator imports it,
    dropping 2006 -> 1581 lines. Sequenced correctly: items 0-4 were discharged
@@ -78,3 +78,31 @@ Work, in the order that pays:
 Acceptance: a workbook where every map states its axis equations, its
 sufficiency argument, its don't-cares with citations, and a derived-vs-RTL
 verdict.
+
+## Status 2026-09-27 (tooling session): emitter work complete, content is per lane
+
+Items 0-4 were discharged by STREAM TASK-001 on the one implementation; item 5
+is now both halves. The pumice conversion sits on branch `tooling-pumice-halves`
+(a git worktree, at the pumice session's request -- their files, their push):
+
+- `gen_pumice_signal_contracts.py` 2068 -> 1848 lines: private `ScKmapWriter`,
+  `_prime_implicants`, `_sop`, `_sc_glabel` and the `SC_*` styles deleted;
+  `KmapWriter` and `verify_citations` imported from `bin/kmaps`; the four
+  `axis_eqs=` lists folded into `varnames` triples (`guard0 / guard1` notes
+  attached to both axes); a 28-entry `CITES` registry generated from every
+  `file:line` the maps cite (one range cite began on a blank line -- registered
+  on its first real line) and gated in `main()`.
+- Behaviour-neutral where it must be: a layout-independent dump of every map
+  (name, axes, relation texts, expression, all 364 cells over 17 maps, 4
+  tables, 20 sheets) is identical old vs new; `check_kmap_rtl_sync.py` output
+  is byte-identical (16 checked, 0 drifted, 1 not machine-checkable).
+- Different where it should be: every pumice map now renders
+  `DEPENDS ONLY ON: not stated` and `VERDICT: NOT CHECKED` because pumice never
+  supplied `depends_only_on=` / `rtl_sop=`. That is content, filed as pumice
+  TASK-029 on the same branch. STREAM's equivalent remainder (26 of 37 maps
+  NOT CHECKED) is recorded under STREAM TASK-001.
+
+This task is the EMITTER: form, invariant check, don't-cares, implicants,
+verdict, one shared implementation. It is deferred rather than closed only
+until the branch is on main; the acceptance line ("a workbook where every map
+states...") is then owned per component by pumice TASK-029 and STREAM's lane.

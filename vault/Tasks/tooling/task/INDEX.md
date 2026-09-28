@@ -12,18 +12,14 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 5 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 8 | done (kept for history) |
+| [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 1 | parked pending a named condition |
+| [deferred/](deferred/) | 3 | parked pending a named condition |
 
 ## Open
 
-- **TASK-013** — source comments still cite pre-migration task IDs
-- **TASK-003** — Two real gaps in the RDS-DV arbiter BFM
-- **TASK-005** — Tests resolve filelists through the toml registry, not hardcoded paths
-- **TASK-006** — emit CONTRACT TABLES (proofs), not K-map pictures
 - **TASK-000** — reserved template; copy the file, do not file against it.
 
 ## Active
@@ -31,6 +27,8 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-005** — Tests resolve filelists through the toml registry, not hardcoded paths -- CLOSED 2026-09-27: filelist_for() + module= mode, 353 val tests migrated, 6 unit tests
+- **TASK-003** — Two real gaps in the RDS-DV arbiter BFM -- CLOSED 2026-09-27: both fixed in RDS-DV 784f905 (real RR scoring + burst detection, shared-catalogue and saturating profiles); venv refresh is the owner's call
 - **TASK-002** — Finish validating the cloud bootstrap on a genuinely clean box -- CLOSED 2026-09-27: ran end to end in a clean ubuntu:24.04 container; fixed the unconditional sudo, added unzip, fixed the tool report
 - **TASK-001** — Migrate the remaining areas into /vault/Tasks/<area>/
 - **TASK-007** — Migrate the remaining method docs out of bin/ into the handbook
@@ -42,4 +40,6 @@ by construction rather than by discipline.
 
 ## Deferred
 
+- **TASK-006** — emit CONTRACT TABLES (proofs), not K-map pictures -- DEFERRED 2026-09-27: emitter complete, pumice generator converted on branch tooling-pumice-halves; closes when pumice merges it (content gaps: pumice TASK-029, STREAM TASK-001)
+- **TASK-013** — source comments still cite pre-migration task IDs -- DEFERRED 2026-09-27: all areas swept except pumice's 173 (pumice session, after the board campaign)
 - **TASK-004** — Project-area cleanup — apply the RTL-area pattern to projects/ -- DEFERRED by Sean until the RTL area is complete

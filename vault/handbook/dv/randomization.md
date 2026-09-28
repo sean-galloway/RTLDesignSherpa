@@ -65,18 +65,27 @@ So for any shared-resource arbiter, scheduler or picker:
    restore. An assertion that never fails on the bug it was written for is
    decoration. Same rule as [[formal]].
 
-## Known gaps in the framework
+## Known gaps in the framework (both closed 2026-09-27)
 
-- `ArbiterMaster._setup_default_profiles` defines its **own** private profiles
-  (`default`, `fast`, `slow`, `disabled`, `manual`) and is not wired to
-  `FlexConfigGen`. None of them saturate - even `fast` carries a 1-3 cycle
-  inter-request delay. There is no `backtoback` equivalent available via
-  `set_client_profile`; use `force_client_request` instead.
-- `ArbiterCompliance.analyze_round_robin_compliance()` is a **stub**: it returns
-  a hardcoded `rr_efficiency: 1.0` regardless of the observed grant sequence.
-  It cannot detect a rotation defect. Do not treat a clean report from it as
-  evidence. `check_starvation()` in the same class IS real (it reports clients
-  with zero grants) - use that.
+Both gaps below were fixed in RTLDesignSherpa-DV commit `784f905` (tooling
+TASK-003). They stay recorded because the main repo's venv carries an editable
+install of an OLDER framework checkout until someone runs `pip install -e` on
+the DV repo again -- a session that sees the old behaviour is on the old
+install, not on a regression.
+
+- `ArbiterMaster` had its **own** private profiles (`default`, `fast`, `slow`,
+  `disabled`, `manual`), none of which saturated -- even `fast` carried a 1-3
+  cycle inter-request delay. Now `ArbiterMaster.catalogue_client_profiles()`
+  exposes the shared `FlexConfigGen` `DEFAULT_PROFILES` (so `backtoback` is
+  reachable) and a `saturate` profile holds every enabled client's request
+  high. `force_client_request(c, enable=True)` remains as the per-client
+  override.
+- `ArbiterCompliance.analyze_round_robin_compliance()` was a **stub** returning
+  `rr_efficiency: 1.0` unconditionally. It now scores the recorded grant
+  history with `rr_checks` / `rr_violations` counters and reports
+  `status: 'no_checks'` when it observed nothing -- a verdict needs a count
+  ([[checker-verdict-needs-a-count]]). `detect_burst_behavior()` is real for
+  the same reason. `check_starvation()` was always real; keep using it too.
 
 ## A per-test delay enum duplicates the catalogue
 
