@@ -34,7 +34,7 @@ appear in commit messages and handbook notes, so the map is kept:
 | `RAPIDS-OBS` | [TASK-001](task/closed/TASK-001.md) |
 | `RAPIDS-KMAP` | [TASK-002](task/closed/TASK-002.md) |
 | `TASK-080` | [TASK-003](task/closed/TASK-003.md) |
-| `TASK-086` | [ISSUE-001](issue/open/ISSUE-001.md) |
+| `TASK-086` | [ISSUE-001](issue/closed/ISSUE-001.md) |
 | `TASK-057` | [TASK-004](task/closed/TASK-004.md) |
 | `TASK-084` | [TASK-005](task/closed/TASK-005.md) |
 | `TASK-083` | [TASK-006](task/closed/TASK-006.md) |

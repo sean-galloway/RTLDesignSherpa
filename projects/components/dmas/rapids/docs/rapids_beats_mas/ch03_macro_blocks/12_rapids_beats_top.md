@@ -97,12 +97,16 @@ Because the monitor regfile is at `0x1000`, the APB address bus must be at least
 
 ## AXI Monitors (USE_AXI_MONITORS)
 
-When `USE_AXI_MONITORS = 1`, an `axi4_master_rd_monlite` is inserted on the read
-master (`m_axi_rd`) and an `axi4_master_wr_monlite` on the write master
-(`m_axi_wr`). Their `monitor_packet_t` outputs are combined with the core's
-descriptor-monitor packet (zero-extended to 128 bits) by a 3-input
-`monbus_arbiter` (round-robin, with input/output skid buffers). The combined
-stream feeds `monbus_axil4_axil4_group`, which provides:
+When `USE_AXI_MONITORS = 1` the top builds the `monbus_axil4_axil4_group` and
+feeds it the core's MonBus stream. That stream carries the scheduler groups'
+completion and error events and the one monitor-lite instance the design has:
+`axi4_master_rd_monlite` on each half's descriptor read master, inside
+`scheduler_group_array_beats`. The data masters `m_axi_rd` and `m_axi_wr` and
+the two AXIS ports carry NO monitors (an earlier revision of this page said
+rd/wr monitor-lite blocks sat on the data masters; the RTL has never had them).
+Data-path and AXIS observation live in the characterization harness as
+external instruments (`axi_bus_meter`, `axis_bus_meter`, and the interface
+observers on `USE_OBSERVERS` builds). The group provides:
 
 - `s_axil_err_*` -- AXI-Lite (32-bit) **error-drain slave**: CPU reads captured
   error events from the error FIFO.
@@ -110,10 +114,9 @@ stream feeds `monbus_axil4_axil4_group`, which provides:
   trace to system memory (base/limit/watermark from `cfg_mon_*`).
 - `mon_irq` -- interrupt on error/threshold events.
 
-When `USE_AXI_MONITORS = 0` the monitor taps are bypassed (core AXI passes
-straight through to `m_axi_rd`/`m_axi_wr`), the core MonBus is dropped
-(always-ready), and the AXI-Lite group outputs are tied off (`s_axil_err`
-read-inactive, `m_axil_mon` write-inactive, `mon_irq = 0`).
+When `USE_AXI_MONITORS = 0` the descriptor monitor-lite is omitted, the core
+MonBus is dropped (always-ready), and the AXI-Lite group outputs are tied off
+(`s_axil_err` read-inactive, `m_axil_mon` write-inactive, `mon_irq = 0`).
 
 ### Monitor registers on a monitors-off build (USE_MON_REGS)
 

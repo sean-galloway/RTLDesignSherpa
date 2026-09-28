@@ -2008,23 +2008,57 @@ module rapids_char_harness #(
     // meter). Confirmed on a waveform: 32 handshakes complete 78 clocks BEFORE
     // the counted window opens.
     //
-    // So s_axis gets its own window that opens at ARM -- the same cycle CSR_GO
-    // pulses cfg_gen_start, i.e. before the generator can emit anything -- and
-    // closes WITH the shared window so sin and wr still describe the same span.
+    // So s_axis gets its own window. TASK-082 opened it at ARM, which counted
+    // every beat but also counted the ARM-to-first-beat dead zone (~200 cycles
+    // on the board: descriptor fetch and generator start-up) as ingress
+    // starvation, so `sin` was the direction's minimum on nearly every row and
+    // snkGB/s reported launch latency, not datapath rate (rapids ISSUE-001).
+    //
+    // The window now ARMS at GO, OPENS on the first cycle the generator
+    // presents s_axis_tvalid (a DUT not yet ready shows as backpressure, which
+    // IS ingress behaviour), and CLOSES the cycle after the target-th ingress
+    // beat -- first beat to last beat, which is what "ingress utilisation"
+    // means. Closing with the shared window instead (the first fix tried)
+    // left the same constant starvation, because that tail is the sink
+    // draining to the write side AFTER ingress has finished: the shared window
+    // waits for wr_prod to reach the target, and ingress sits ready-and-idle
+    // for the whole drain (117 cycles in sim, ~200 on the board, independent
+    // of transfer size). The shared-window close stays as the fallback when
+    // obs_target is 0.
     //
     // The original busy-gating existed to stop the generator holding tvalid after
     // it finishes from inflating the backpressure bucket "without bound". That
     // stays bounded here: the shared window closes deterministically on
     // wr_prod >= obs_target, so any trailing bp is bounded by the transfer.
-    logic obs_sin_win_active;
+    logic obs_sin_armed, obs_sin_win_active;
+    logic obs_sin_open_now;
+    assign obs_sin_open_now = obs_sin_armed && s_axis_tvalid;
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn))                obs_sin_win_active <= 1'b0;
-        else if (obs_arm)                          obs_sin_win_active <= 1'b1;
-        else if (obs_started && !obs_win_active)   obs_sin_win_active <= 1'b0;
+        if (`RST_ASSERTED(aresetn)) begin
+            obs_sin_armed      <= 1'b0;
+            obs_sin_win_active <= 1'b0;
+        end else begin
+            // ARM wins: obs_started stays set from the PREVIOUS run's window until
+            // this arm clears it, so the close term below is true on the arm
+            // cycle itself and must not override the arm.
+            if (obs_arm) begin
+                obs_sin_armed      <= 1'b1;
+                obs_sin_win_active <= 1'b0;
+            end else if (((obs_target != 32'd0) && (obs_sin_prod >= obs_target))
+                         || (obs_started && !obs_win_active)) begin
+                obs_sin_armed      <= 1'b0;   // last ingress beat counted (or fallback)
+                obs_sin_win_active <= 1'b0;
+            end else if (obs_sin_open_now) begin
+                obs_sin_armed      <= 1'b0;
+                obs_sin_win_active <= 1'b1;
+            end
+        end
     )
     logic obs_sin_clear, obs_sin_freeze;
     assign obs_sin_clear  = obs_arm;
-    assign obs_sin_freeze = ~obs_sin_win_active;
+    // Unfrozen from the very cycle the first beat is offered (combinational
+    // open), so that beat's handshake is counted, not lost to a register delay.
+    assign obs_sin_freeze = ~(obs_sin_win_active || obs_sin_open_now);
 
     // ---- AXI4 meters: rd (source read) + wr (sink write) --------------------
     logic [15:0] rd_ch_p[1], rd_ch_b[1], rd_ch_s[1], rd_ch_i[1]; logic [3:0] rd_ch_o;
