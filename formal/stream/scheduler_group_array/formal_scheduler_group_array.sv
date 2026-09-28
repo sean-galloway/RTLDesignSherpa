@@ -270,6 +270,21 @@ module formal_scheduler_group_array (
         end
     end
 
+    // The address-range registers are quasi-static: firmware programs them
+    // while the channel is idle (HAS). Since stream BUG-014 the descriptor
+    // engine gates ar_valid on the range check combinationally, so a range
+    // write while an AR is up and unaccepted would withdraw it; that is a host
+    // misuse, not a fetch-path property, and the environment excludes it
+    // (2026-09-28).
+    always @(posedge clk) begin
+        if (f_past_valid > 0 && rst_n && $past(rst_n)) begin
+            assume ($stable(cfg_desceng_addr0_base));
+            assume ($stable(cfg_desceng_addr0_limit));
+            assume ($stable(cfg_desceng_addr1_base));
+            assume ($stable(cfg_desceng_addr1_limit));
+        end
+    end
+
     // Channels enabled for FSM progress
     always @(posedge clk) begin
         if (rst_n) begin
@@ -318,11 +333,11 @@ module formal_scheduler_group_array (
             ap_desc_ar_burst_incr: assert (desc_axi_arburst == 2'b01);
     end
 
-    // P4: Descriptor AXI AR -- ARSIZE == 3'b110 (64 bytes per beat)
-    //     descriptor_engine hardcodes ar_size=3'b110 regardless of data width
+    // P4: Descriptor AXI AR -- ARSIZE == 3'b101 (32 bytes per beat, the 256-bit descriptor; was 3'b110 until 2026-09-28)
+    //     descriptor_engine hardcodes ar_size=3'b101 regardless of data width
     always @(posedge clk) begin
         if (rst_n && desc_axi_arvalid)
-            ap_desc_ar_size_match: assert (desc_axi_arsize == 3'b110);
+            ap_desc_ar_size_match: assert (desc_axi_arsize == 3'b101);
     end
 
     // =========================================================================

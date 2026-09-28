@@ -31,7 +31,7 @@ module counter_bin (
 		else
 			counter_bin_next = counter_bin_curr;
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			counter_bin_curr <= 'b0;
 		else
@@ -54,7 +54,7 @@ module fifo_control (
 	rd_almost_empty
 );
 	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 16;
+	parameter signed [31:0] DEPTH = 8;
 	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
 	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
 	parameter signed [31:0] REGISTERED = 0;
@@ -108,7 +108,7 @@ module fifo_control (
 	generate
 		if (REGISTERED == 1) begin : gen_flop_mode
 			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk)
+			always @(posedge rd_clk or negedge rd_rst_n)
 				if (!rd_rst_n)
 					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
@@ -199,7 +199,7 @@ module drain_ctrl_beats (
 		input reg [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
 		sv2v_cast_2BB65 = inp;
 	endfunction
-	always @(posedge axi_aclk)
+	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn)
 			r_rd_ptr_bin <= 1'sb0;
 		else if (w_read && !r_rd_empty)
@@ -233,4 +233,7 @@ module drain_ctrl_beats (
 	assign wr_almost_full = r_wr_almost_full;
 	assign rd_empty = r_rd_empty;
 	assign rd_almost_empty = r_rd_almost_empty;
+	always @(posedge axi_aclk)
+		if (((axi_aresetn && rd_valid) && !r_rd_empty) && (sv2v_cast_2BB65(rd_size) > data_available))
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/rapids/rtl/fub_beats/drain_ctrl_beats.sv:177:13 - drain_ctrl_beats.<unnamed_block>.<unnamed_block>\n msg: ", $time, "drain_ctrl_beats: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
 endmodule

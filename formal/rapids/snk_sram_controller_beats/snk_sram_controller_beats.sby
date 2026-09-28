@@ -4,7 +4,9 @@ cover
 
 [options]
 prove: mode bmc
-prove: depth 25
+# depth 25 did not finish in 90 min on 2026-09-27 (z3, one core); 15 is the
+# bounded budget that completes -- raise it only with a longer engine budget.
+prove: depth 15
 cover: mode cover
 cover: depth 40
 

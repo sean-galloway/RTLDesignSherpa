@@ -2,7 +2,7 @@
 
 # projects/components/dmas/rapids — tasks
 
-**Next ID: TASK-016** — never recycle a number, even when its item closed.
+**Next ID: TASK-017** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 15 | done (kept for history) |
+| [closed/](closed/) | 16 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -41,3 +41,4 @@ by construction rather than by discipline.
 - **TASK-010** — 26 ASCII placeholder figures name dead signals; 2 figures have no test to capture from (closed 2026-09-27)
 - **TASK-014** — control engines drain on channel reset instead of abandoning the AXI transaction (closed 2026-09-27)
 - **TASK-015** — AXIS monitor-lite in each half (Option B), one arbiter entry per half (closed 2026-09-27)
+- **TASK-016** — re-prove the rapids and stream formal suites after the engine fixes; prove the control engines (closed 2026-09-28)

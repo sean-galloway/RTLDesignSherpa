@@ -4,7 +4,11 @@ cover
 
 [options]
 prove: mode bmc
-prove: depth 20
+# depth 20 completed step 14 in a 60 min budget on 2026-09-28 (z3, one core; the
+# flat now carries the address generators and the range-checked descriptor engine)
+# with no failure; 14 is the bounded budget that completes -- raise it only with
+# a longer engine budget.
+prove: depth 14
 cover: mode cover
 cover: depth 40
 

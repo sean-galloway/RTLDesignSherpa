@@ -135,13 +135,21 @@ module formal_sram_controller #(
     // Safety properties
     // =========================================================================
 
-    // P1: After reset, all channels have space_free == SRAM_DEPTH
-    //     (axi_rd_alloc_space_free is registered and its reset value is SD)
+    // P1: Out of reset, every channel reports space_free == SRAM_DEPTH.
+    //     The wrapper flops axi_rd_alloc_space_free at its boundary and resets
+    //     that flop to ZERO on purpose ("no free space" until the first
+    //     post-reset cycle latches the units' combinational values -- see the
+    //     rationale in sram_controller.sv). So the first cycle after reset
+    //     reads 0 and the one after reads SD; the property checks both
+    //     (2026-09-28: the old form asserted SD one cycle early and failed at
+    //     step 0 once the boundary register landed).
     //     Labels omitted inside generate blocks to avoid yosys duplicate-name errors.
     generate
         for (gi = 0; gi < NC; gi = gi + 1) begin : gen_p1
             always @(posedge clk) begin
                 if (f_past_valid > 0 && $past(!rst_n))
+                    assert (axi_rd_alloc_space_free[gi] == '0);
+                if (f_past_valid > 1 && $past(!rst_n, 2) && $past(rst_n))
                     assert (axi_rd_alloc_space_free[gi] == SD);
             end
         end

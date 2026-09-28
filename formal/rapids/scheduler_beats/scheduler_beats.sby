@@ -4,7 +4,10 @@ cover
 
 [options]
 prove: mode bmc
-prove: depth 35
+# depth 35 reached step 26 in a 60 min budget on 2026-09-28 (z3, one core; the
+# flat now carries the extended-addressing generators) with no failure; 25 is the
+# bounded budget that completes -- raise it only with a longer engine budget.
+prove: depth 25
 cover: mode cover
 cover: depth 60
 

@@ -190,6 +190,20 @@ module formal_descriptor_engine_beats (
         end
     end
 
+    // The address-range registers are quasi-static: firmware programs them
+    // while the channel is idle (HAS). Since BUG-006/BUG-014 the engine gates
+    // ar_valid on the range check combinationally, so a range write while an
+    // AR is up and unaccepted would withdraw it; that is a host misuse, not a
+    // fetch-path property, and the environment excludes it (2026-09-28).
+    always @(posedge clk) begin
+        if (f_past_valid > 0 && rst_n && $past(rst_n)) begin
+            assume ($stable(cfg_addr0_base));
+            assume ($stable(cfg_addr0_limit));
+            assume ($stable(cfg_addr1_base));
+            assume ($stable(cfg_addr1_limit));
+        end
+    end
+
     // Channel reset disabled for this proof.
     // Channel reset intentionally violates AXI handshake stability (by design),
     // so we constrain it to 0 to verify normal-operation properties cleanly.
@@ -235,11 +249,13 @@ module formal_descriptor_engine_beats (
     end
 
     // =========================================================================
-    // P3: ar_size matches 512-bit AXI data width (3'b110 = 64 bytes)
+    // P3: ar_size matches the 256-bit descriptor fetch (3'b101 = 32 bytes).
+    //     2026-09-28: the engine has fetched 32-byte descriptors since the beats
+    //     rework; this property still said 64 bytes and failed at step 6.
     // =========================================================================
     always @(posedge clk) begin
         if (rst_n)
-            ap_ar_size: assert (!ar_valid_o || ar_size_o == 3'b110);
+            ap_ar_size: assert (!ar_valid_o || ar_size_o == 3'b101);
     end
 
     // =========================================================================

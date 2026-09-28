@@ -20,8 +20,13 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(CURDIR)/monitor_pkg_stub.sv \
         $(REPO_ROOT)/projects/components/dmas/rapids/rtl/includes/rapids_pkg.sv
 
-# RTL dependencies (scheduler_beats is pure logic + FSM, no submodule instantiations)
-DEPS :=
+# RTL dependencies: the extended-addressing generators and the FIFO stack they use
+# The extended-addressing generators (rapids TASK-015 port of STREAM TASK-101)
+DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
+        $(REPO_ROOT)/rtl/common/fifo_control.sv \
+        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
+        $(REPO_ROOT)/projects/components/misc/rtl/dma_address_gen.sv \
+        $(REPO_ROOT)/projects/components/misc/rtl/stream_run_addr_gen.sv
 
 # Device under test
 DUT := $(REPO_ROOT)/projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv
@@ -34,8 +39,8 @@ prove: scheduler_beats_flat.v
 cover: scheduler_beats_flat.v
 	sby -f scheduler_beats.sby cover
 
-scheduler_beats_flat.v: $(DUT) $(PKGS)
-	$(SV2V) $(INC) $(PKGS) $(DUT) > $@
+scheduler_beats_flat.v: $(DUT) $(PKGS) $(DEPS)
+	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v *_prove *_cover

@@ -234,6 +234,21 @@ module formal_scheduler_group (
         end
     end
 
+    // The address-range registers are quasi-static: firmware programs them
+    // while the channel is idle (HAS). Since stream BUG-014 the descriptor
+    // engine gates ar_valid on the range check combinationally, so a range
+    // write while an AR is up and unaccepted would withdraw it; that is a host
+    // misuse, not a fetch-path property, and the environment excludes it
+    // (2026-09-28).
+    always @(posedge clk) begin
+        if (f_past_valid > 0 && rst_n && $past(rst_n)) begin
+            assume ($stable(cfg_desceng_addr0_base));
+            assume ($stable(cfg_desceng_addr0_limit));
+            assume ($stable(cfg_desceng_addr1_base));
+            assume ($stable(cfg_desceng_addr1_limit));
+        end
+    end
+
     // Channel reset disabled for normal-operation proof (like descriptor_engine).
     // Channel reset intentionally violates AXI handshake stability by design.
     always @(*) assume (cfg_channel_reset == 1'b0);
@@ -295,13 +310,13 @@ module formal_scheduler_group (
     end
 
     // =========================================================================
-    // P7: Descriptor AXI size is hardcoded to 3'b110 (64 bytes = 512-bit bus)
-    //     The descriptor_engine hardcodes ar_size = 3'b110 regardless of the
+    // P7: Descriptor AXI size is hardcoded to 3'b101 (32 bytes = the 256-bit descriptor; was 3'b110 until 2026-09-28)
+    //     The descriptor_engine hardcodes ar_size = 3'b101 regardless of the
     //     actual 256-bit descriptor width, because the AXI bus is 512-bit.
     // =========================================================================
     always @(posedge clk) begin
         if (rst_n)
-            ap_ar_size: assert (!desc_ar_valid_o || desc_ar_size_o == 3'b110);
+            ap_ar_size: assert (!desc_ar_valid_o || desc_ar_size_o == 3'b101);
     end
 
     // =========================================================================

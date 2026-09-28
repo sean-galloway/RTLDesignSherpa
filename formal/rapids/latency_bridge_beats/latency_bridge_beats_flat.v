@@ -31,7 +31,7 @@ module counter_bin (
 		else
 			counter_bin_next = counter_bin_curr;
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			counter_bin_curr <= 'b0;
 		else
@@ -54,7 +54,7 @@ module fifo_control (
 	rd_almost_empty
 );
 	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 16;
+	parameter signed [31:0] DEPTH = 8;
 	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
 	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
 	parameter signed [31:0] REGISTERED = 0;
@@ -108,7 +108,7 @@ module fifo_control (
 	generate
 		if (REGISTERED == 1) begin : gen_flop_mode
 			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk)
+			always @(posedge rd_clk or negedge rd_rst_n)
 				if (!rd_rst_n)
 					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
@@ -150,7 +150,6 @@ module gaxi_fifo_sync (
 	rd_valid,
 	rd_data
 );
-	reg _sv2v_0;
 	parameter signed [31:0] MEM_STYLE = 32'sd0;
 	parameter signed [31:0] REGISTERED = 0;
 	parameter signed [31:0] DATA_WIDTH = 4;
@@ -179,7 +178,6 @@ module gaxi_fifo_sync (
 	wire r_wr_almost_full;
 	wire r_rd_empty;
 	wire r_rd_almost_empty;
-	reg [DW - 1:0] w_rd_data;
 	wire w_write;
 	wire w_read;
 	assign w_write = wr_valid && wr_ready;
@@ -236,18 +234,16 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 		else if (MEM_STYLE == 32'sd2) begin : gen_bram
@@ -255,11 +251,13 @@ module gaxi_fifo_sync (
 			always @(posedge axi_aclk)
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
-			always @(posedge axi_aclk)
+			reg [DATA_WIDTH - 1:0] r_rd_data;
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
-					w_rd_data <= 1'sb0;
+					r_rd_data <= 1'sb0;
 				else
-					w_rd_data <= mem[r_rd_addr];
+					r_rd_data <= mem[r_rd_addr];
+			assign rd_data = r_rd_data;
 		end
 		else begin : gen_auto
 			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
@@ -267,29 +265,25 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
-				always @(posedge axi_aclk)
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 	endgenerate
-	assign rd_data = w_rd_data;
 	always @(posedge axi_aclk) begin
 		if (w_write && r_wr_full)
 			;
 		if (w_read && r_rd_empty)
 			;
 	end
-	initial _sv2v_0 = 0;
 endmodule
 module latency_bridge_beats (
 	clk,
@@ -333,7 +327,7 @@ module latency_bridge_beats (
 	wire w_room_available = pending_count < sv2v_cast_3_signed(SKID_DEPTH);
 	assign s_ready = w_room_available || w_draining_now;
 	wire w_drain_fifo = s_valid && s_ready;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			r_drain_ip <= 1'b0;
 		else

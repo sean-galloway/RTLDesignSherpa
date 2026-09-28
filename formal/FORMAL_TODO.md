@@ -454,16 +454,58 @@ These have prove PASS but no cover task defined, or cover not yet run:
 | axi_monitor_base | amba | prove PASS + cover PASS (harness un-vacuumed 2026-08-31) |
 | axi_monitor_filtered | amba | prove PASS + cover PASS (harness un-vacuumed 2026-08-31) |
 | axi_monitor_trans_mgr | amba | prove PASS + cover PASS (harness un-vacuumed 2026-08-31) |
-| axi_read_engine | stream | prove_boundary+prove_low8 PASS, no cover |
-| axi_read_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
-| axi_write_engine | stream | prove_boundary+prove_low8 PASS, no cover |
-| axi_write_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
+| axi_read_engine | stream | re-proved 2026-09-28 on the BUG-012/013 flat: PASS |
+| axi_read_engine_beats | rapids | re-proved 2026-09-28 on the BUG-004/005 flat: PASS |
+| axi_write_engine | stream | re-proved 2026-09-28: PASS |
+| axi_write_engine_beats | rapids | re-proved 2026-09-28: PASS |
 | datapath_rd_test | stream | **2026-09-24:** same three errors as datapath_wr_test. Could not even elaborate (missing `stream_run_addr_gen`/`dma_address_gen`). Fixed + property corrected (TASK-092): prove depth-8 PASS, cover PASS (4 covers), **full depth-20 PASS** (sby status `PASS 0 9426`, 20/20 steps, 2:37:06 process time). |
 | datapath_wr_test | stream | **2026-09-24: row was wrong 3 ways.** Flat was stale since 2026-07-17; `prove_boundary`/`prove_low8` are not tasks in this unit's .sby (only `prove`/`cover`); cover EXISTS and PASSES (5 covers). Rebuilt + property fixed (TASK-092): prove depth-8 PASS, cover PASS, **full depth-20 PASS** (sby status `PASS 0 13818`, 20/20 steps, 3:50:18 process time). |
-| descriptor_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
+| descriptor_engine_beats | rapids | **2026-09-28:** `ap_ar_size` still said 3'b110 (the fetch has been 32 bytes since the beats rework) and the address-range registers were free every cycle, so a range write withdrew an unaccepted AR (since BUG-006 the engine gates ar_valid on the range). Property corrected, ranges assumed quasi-static; depth bounded 20 -> 16 (step 16 in 60 min): PASS in 35 min |
 | scheduler | stream | **2026-09-24:** same three errors. `DEPS :=` was empty; `cfg_rd_prefetch_enable` was UNCONNECTED (undriven -> proof meaning undefined). Fixed + property corrected (TASK-092): prove depth-8 PASS, cover PASS (5 covers), full depth-35 **INCONCLUSIVE** -- 30/35 steps (reached 29), timed out after 6h with no counterexample and no sby status file. Not a pass; not re-run, since 6h bought 29 steps and the last steps cost most. |
-| scheduler_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
-| scheduler_group_array | stream | prove_boundary+prove_low8 PASS, no cover |
+| scheduler_beats | rapids | **2026-09-28:** the flat rule never passed DEPS to sv2v and DEPS was empty, so `stream_run_addr_gen` (rapids TASK-015 port) was missing and the proof had been ERROR since the port. Makefile fixed (address generators + FIFO stack); depth bounded 35 -> 25 (step 26 in 60 min): PASS in 31 min |
+| scheduler_group_array | stream | **2026-09-28:** MON_DEPS still named the retired full-monitor stack; the array carries `axi4_master_rd_monlite` since amba/monitor-lite TASK-001. Deps replaced with the lite closure, `ap_desc_ar_size_match` corrected to 3'b101, ranges assumed quasi-static: PASS |
+
+**2026-09-28 rapids/stream formal pass (after the rapids TASK-013/014/015 and
+BUG-004..007 / stream BUG-012..015 RTL changes).** Every flat that was newer than
+its last status was re-proved; each failure was a harness or flow defect, not RTL:
+
+- `stream/perf_profiler` FAIL was `ap_count_dec_bounded`: `cfg_clear` resets the
+  FIFO through its ASYNC reset, so the count collapses in the same cycle the
+  clear rises; the property excluded only the cycle after. Fixed: PASS.
+- `stream/sram_controller` FAIL was P1: the wrapper flops `axi_rd_alloc_space_free`
+  at its boundary and resets that flop to ZERO on purpose (rationale in the RTL);
+  the property asserted SD one cycle early. Now checks 0 then SD. Depth bounded
+  25 -> 18 (step 19 in 60 min): PASS in 31 min.
+- `scheduler_group` (stream): `ap_ar_size` 3'b110 -> 3'b101, address generators
+  added to DEPS, ranges assumed quasi-static; depth bounded 20 -> 14 (step 14 in
+  60 min): PASS in 14 min. `stream/descriptor_engine`: same ar_size and range
+  fixes, depth 20 -> 16: PASS in 24 min.
+- `stream/scheduler`: depth bounded 35 -> 20 (35 ran 5 h 43 min on 2026-09-24
+  without finishing): PASS in 13 min.
+- `rapids/snk_sram_controller_beats`, `src_sram_controller_beats`: depth bounded
+  25 -> 15 (25 did not finish in 90 min): both PASS.
+- NEW `rapids/ctrlrd_engine` and `rapids/ctrlwr_engine` tasks: port-level
+  harnesses for the Phase-2 control engines stating the TASK-014 drain contract
+  in fabric terms (AR/AW/W held until accepted across a channel reset, no second
+  issue while a response is owed, r_ready/b_ready only while owed, idle means
+  nothing outstanding); prove PASS, both covers reached (drain after a
+  mid-transaction channel reset; return to idle).
+- The two descriptor-engine harnesses and both scheduler-group harnesses let the
+  address-range registers change every cycle; since BUG-006/BUG-014 the engine
+  gates ar_valid on the range combinationally, so a range write during an
+  unaccepted AR withdrew it. Firmware programs ranges while the channel is idle
+  (HAS); the harnesses now assume them stable after reset.
+
+Result 2026-09-28: rapids 11/11 PASS (alloc_ctrl_beats, axi_read/write_engine_beats,
+descriptor_engine_beats, drain_ctrl_beats, latency_bridge_beats, scheduler_beats,
+snk/src_sram_controller_beats, ctrlrd_engine, ctrlwr_engine); stream 9 re-proved
+PASS (axi_read/write_engine, descriptor_engine, scheduler, scheduler_group,
+scheduler_group_array, stream_config_block, perf_profiler, sram_controller), the
+2026-09-24 results for datapath_rd/wr_test, sram_controller_unit, stream_core and
+stream_latency_bridge stand. Not touched: `stream/monbus_axil_group` (flat and
+status from 2026-04-11; the top now instantiates `monbus_axil4_axil4_group`, so
+that task may target a retired module -- audit it separately) and the deferred
+`stream_top_ch8`.
 
 ### Deferred (not tractable for BMC)
 

@@ -172,7 +172,10 @@ module formal_perf_profiler #(
     //     The FIFO count is combinational from pointer next-values, so
     //     changes are visible in the same cycle as the triggering event.
     always @(posedge clk) begin
-        if (f_past_valid > 0 && rst_n && $past(rst_n) && !$past(cfg_clear)) begin
+        // cfg_clear resets the FIFO through its ASYNC reset (axi_aresetn = rst_n &&
+        // !cfg_clear), so the count collapses in the SAME cycle cfg_clear rises,
+        // not the cycle after: exclude the current cycle too (2026-09-28).
+        if (f_past_valid > 0 && rst_n && $past(rst_n) && !cfg_clear && !$past(cfg_clear)) begin
             // Count can increase by at most 1 (single priority-encoded write)
             ap_count_inc_bounded: assert (
                 perf_fifo_count <= $past(perf_fifo_count) + 16'd1

@@ -20,6 +20,8 @@ MODULES := \
 	alloc_ctrl_beats \
 	axi_read_engine_beats \
 	axi_write_engine_beats \
+	ctrlrd_engine \
+	ctrlwr_engine \
 	descriptor_engine_beats \
 	drain_ctrl_beats \
 	latency_bridge_beats \
