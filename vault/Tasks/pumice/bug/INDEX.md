@@ -12,9 +12,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 18 | done (kept for history) |
+| [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,9 +22,11 @@ exactly one state by construction rather than by discipline.
 
 
 - **BUG-000** — TEMPLATE — copy this file, never file against it
-- **BUG-019** — DV wrappers have no depth axis: 23 of 36 never export TEST_LEVEL, so FULL == GATE for them; conversion ready (not simulated) on branch tooling-pumice-halves
 
 ## Closed
+
+- **BUG-019** — DV wrappers had no depth axis; one profile now drives gate/func/full
+  and the regression goes 376 -> 580 passed
 
 - **BUG-020** — 35 undriven `OBS_*` registers: `OBS_ROW_HIT[8]` wired (the only
   sound row-hit count), the other 27 removed with their addresses left as holes

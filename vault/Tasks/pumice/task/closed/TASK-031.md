@@ -1,6 +1,6 @@
 # TASK-031: ddr2_char's clean target must use the marker-aware cleaner
 
-**Status:** open 2026-09-27  **Priority:** P2 -- this is the last raw
+**Status:** CLOSED 2026-09-28  **Priority:** P2 -- this is the last raw
 `rm -rf local_sim_build` in any tracked Makefile, and it is the exact mechanism
 tooling BUG-005 proved deletes a build directory a peer is simulating in.
 Filed from tooling BUG-005 when that global item closed (the cleaner exists and
@@ -26,3 +26,12 @@ branch `tooling-pumice-halves`, commit `eeec017fb`, dry-run checked with
 
 Acceptance: `grep -rn 'rm -rf.*sim_build' --include=Makefile --include='*.mk'`
 over `git ls-files` returns nothing under pumice paths.
+
+---
+
+## Closed 2026-09-28 -- landed from tooling-pumice-halves
+
+`ddr2_char`'s `dv/tests` clean target now calls `bin/clean_sim_builds.py`
+instead of a raw `rm -rf local_sim_build` -- the last one in the repo. Landed
+with the rest of that branch; char-framework board gate 216 passed, 2 xfailed
+against it.

@@ -12,9 +12,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 24 | done (kept for history) |
+| [closed/](closed/) | 25 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,12 +24,14 @@ exactly one state by construction rather than by discipline.
 - **TASK-029** — give the 17 signal-contract maps their sufficiency argument
   (depends_only_on) and RTL verdict (rtl_sop); the generator moved onto bin/kmaps
   in this commit, so what remains is the maps' own evidence
-- **TASK-031** — ddr2_char dv/tests Makefile: clean target onto bin/clean_sim_builds.py (last raw rm -rf local_sim_build in the repo); ready on the same branch
 - **TASK-015** — test the DUT across configurations: 4-layer plan (reset-parity
   gate, pairwise covering array x gap, invariant oracles, seeded soak) with a
   reportable 2-way coverage number
 
 ## Closed
+
+- **TASK-031** — ddr2_char's clean target uses the marker-aware cleaner (the last
+  raw `rm -rf local_sim_build` in the repo)
 
 - **TASK-030** — repointed 162 of 171 legacy tracker-id citations
   against MIGRATION_MAP.md (59 files; lint clean, comment-only in RTL). 9 left
