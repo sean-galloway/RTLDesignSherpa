@@ -2,7 +2,7 @@
 
 **Priority:** P3. Cosmetic on art already marked for replacement -- but the
 missing test sources are real.
-**Status:** open 2026-09-26.
+**Status:** CLOSED 2026-09-27 (closing note at the end); was open 2026-09-26.
 
 **Part A -- the placeholder figures.** 26 fenced ASCII figures across the MAS/HAS
 books still label signals that no module has: `drain_gnt`, `drain_beats`,
@@ -56,3 +56,19 @@ ch04 x6, HAS ch05 wavedrom) need macro/top-level wave captures; same recipe.
 disk. Remaining 14: 2.9.3 (ctrlwr doorbell), 3.5.2/3.8.2 (SRAM controller drain select),
 3.6.3/3.7.3 (source path, AXIS egress), ch04 x6 interface figures, HAS ch05 wavedrom --
 each needs its own WAVES=1 capture from the named test; recipe unchanged (mkwave.py).
+
+## Closing note (2026-09-27)
+
+Part A complete: all 26 placeholder figures are simulation-generated WaveDrom renders
+(PNG plus WaveJSON under `docs/rapids_beats_mas/assets/wavedrom/`, each page naming
+the test, configuration and level it was cut from). The last nine came from four
+WAVES=1 captures made today: the core sink and source paths at 4 beats (AXI4 write
+and read bursts, descriptor fetch, AXIS ingress and egress, the source transfer),
+ctrlwr's doorbell, and the snk/src SRAM controllers' multi-channel drain selection;
+the monbus group figure came from the basic_flow dump. Part B (the engine unit
+tests) closed earlier today and found BUG-004/005. `TODO.md` carries the per-figure
+table with sources. Two of the captures record behaviour worth knowing when reading
+the pages: the source half's `system_idle` returns on the done strobe while words
+are still draining to AXIS (the sink half waits for write commits), and the source
+egress packetises per drain request, so `tlast` marks every beat when words arrive
+singly.
