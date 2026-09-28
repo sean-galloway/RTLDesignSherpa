@@ -2,7 +2,13 @@
 
 **Priority:** P3 -- deferred scope, not defects. Nothing here is wrong today;
 it is work the RTL says out loud it has not done.
-**Status:** open 2026-09-28
+**Status:** DEFERRED 2026-09-28 -- parked pending the DDR3/LPDDR3 project
+(`scoria`). Sean: several of these are likely to be taken up there rather than
+retrofitted here, and the ones that are not become dead comments to delete. The
+named condition for unparking: scoria's design-requirements pass reaching the
+power / mode-register surface, at which point each row below is either inherited
+by scoria, implemented in pumice because scoria needs pumice to have it, or
+removed from the RTL comment.
 **Owner:** TBD
 **Filed:** after a sweep for untracked TODO/FIXME markers found 9, of which 6 are
 real deferred scope, 2 were stale docstrings (corrected in the same commit as
@@ -54,7 +60,9 @@ Each row is either implemented, or has its own item with a reason, or is deleted
 from the RTL comment because it is not going to happen. A TODO that survives
 three release cycles unexamined is not a plan.
 
-Suggested order, cheapest and most load-bearing first:
+If it is unparked, suggested order -- cheapest and most load-bearing first.
+Note that item 1 does NOT depend on scoria and could be done at any time; it is
+a test against an assumption that is live in pumice today:
 
 1. The `dfi_init_complete` interlock -- prove it or fix it. A test, not a feature.
 2. LPDDR2 BL16 (`bl_o` widening) -- self-contained, and the only one with a

@@ -12,19 +12,23 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 28 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
-| [deferred/](deferred/) | 0 | parked pending a named condition |
+| [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
-- **TASK-033** — the v2/v3 power and mode-register deferrals (6 RTL TODO markers),
-  incl. DPD blocked across two files and an unverified `dfi_init_complete`
-  interlock that is the one entry which could be wrong today
 
 
+
+## Deferred
+
+- **TASK-033** — the v2/v3 power and mode-register deferrals (6 RTL TODO markers).
+  Parked pending the DDR3/LPDDR3 (`scoria`) project, where several are likely to
+  be taken up instead. The `dfi_init_complete` interlock inside it does NOT
+  depend on scoria and is a test, not a feature
 
 ## Closed
 
