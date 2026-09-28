@@ -17,6 +17,7 @@ summary: RTL rules with the failures that taught them.
 - [[priority-logic-depth]] - serialized scans vs parallel selects
 - [[area-measure-by-hierarchy]] - after every synthesis pass, the hierarchy report and the worst path pick the next edit; five passes of axi_monitor_lite
 - [[always-comb-block-fusion]] - a block is one scheduling node; mixing independent signals invents dependencies and fakes combinational loops
+- [[registered-status-outputs]] - a registered readiness/status flag must sample the NEXT state; sampling `r_state == X` publishes it a cycle late and every consumer then compensates (pumice ISSUE-018)
 - [[naming-and-style]] - module/signal conventions, headers
 - [[signal-prefixes]] - r_ = flopped, w_ = combinational; what it promises and where it lies
 - [[filelists]] - every module MUST have a .f and be registered; the two silent failures
