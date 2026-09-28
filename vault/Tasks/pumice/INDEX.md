@@ -77,10 +77,19 @@ each item's own Status line, because a keyword pass misclassified 14 of the 35.
 every commit message before 2026-09-24 still refers to them by the old number.
 The highest legacy number ever issued in this area is 050.
 
-**Legacy IDs were not rewritten at their call sites.** `PUMICE-NNN` is cited 533
-times across the repo -- RTL comments, DV code, docs, handbook notes and session
-memory. Rewriting that to chase a tracker rename would churn RTL for no
-engineering gain, so old references resolve through the tables instead.
+**Legacy IDs were not rewritten at their call sites.** Measured after the
+migration: 652 `PUMICE-*` occurrences repo-wide, but 327 of those are this
+tracker's own cross-references and provenance lines. The real debt is the **238
+outside `vault/Tasks/`** -- 151 `.py`, 46 `.md`, 39 `.sv`, 2 `.rdl`, over 29
+distinct legacy IDs. Only 39 are RTL comments; the bulk is DV and host Python.
+Rewriting RTL to chase a tracker rename costs more than it gains, so old
+references resolve through the tables here and in
+[MIGRATION_MAP.md](../MIGRATION_MAP.md). tooling TASK-013 tracks the debt.
+
+An earlier version of this file said 533. That was measured with a
+`PUMICE-[0-9]{3}` pattern -- which cannot match `PUMICE-KMAP`, the one legacy ID
+here whose suffix is a word -- and before this migration added citations of its
+own. Scope from the 238, not from either of the bigger numbers.
 
 ## ID reuse, resolved 2026-09-06 (kept: the numbers are still cited)
 

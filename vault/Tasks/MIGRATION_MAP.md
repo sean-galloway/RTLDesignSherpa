@@ -285,12 +285,29 @@ closed.md / dropped.md", so that promise is retired by this migration and the
 rows above replace it.
 
 **The legacy IDs were NOT rewritten at their call sites**, and that is a
-deliberate departure in scale rather than in kind. `PUMICE-NNN` is cited 533
-times across the repo (346 in `.md`, 148 in `.py`, 37 in `.sv`, 2 in `.rdl`) --
-RTL comments, DV code, handbook notes, board-measurement records and session
-memory. Rewriting that many live citations to chase a tracker rename would churn
-RTL and risk far more than the rename gains, so an old reference resolves through
-this table and through the provenance line at the top of each migrated file.
+deliberate departure in scale rather than in kind.
+
+Measured at 2026-09-27, after this migration: **652** `PUMICE-*` occurrences
+across the repo. But that headline number is the wrong one to scope work from,
+and an earlier version of this note quoted a wrong one (533, taken with a
+`PUMICE-[0-9]{3}` pattern that cannot match `PUMICE-KMAP`, and taken BEFORE this
+migration added 36 provenance lines and 36 map rows of its own):
+
+| Scope | Count | Is it debt? |
+|---|---|---|
+| all files | 652 | no -- includes this tracker's own bookkeeping |
+| inside `vault/Tasks/` | 327 | no -- cross-references, provenance lines and the rows above; self-resolving |
+| **outside `vault/Tasks/`** | **238** | **yes -- this is the actual stale-citation debt** |
+
+The 238 break down as 151 `.py`, 46 `.md`, 39 `.sv`, 2 `.rdl`, across 29 distinct
+legacy IDs. The shape matters for whoever sweeps them: the bulk is DV and host
+Python, which is safe to rewrite mechanically; only 39 are RTL comments, which are
+the ones worth leaving alone. Excluding the tracker cuts the job by 64%, so
+anyone scoping from 652 would over-estimate it nearly threefold.
+
+Rewriting live RTL comments to chase a tracker rename costs more than it gains,
+so an old reference resolves through this table and through the provenance line at
+the top of each migrated file. tooling TASK-013 tracks the debt.
 
 **Lane assignment was made by reading each item's own Status line and opening,
 not its title.** A keyword pass over the 35 items misclassified 14 of them --
