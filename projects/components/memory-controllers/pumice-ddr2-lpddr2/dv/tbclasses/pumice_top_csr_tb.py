@@ -285,6 +285,27 @@ class PumiceTopCsrTB:
         addr = int(self._REGMAP[register]["address"], 16)
         return await self._cpuif_read(addr)
 
+    # Counters the layer-2b telemetry invariants use (pumice TASK-015). Read by
+    # NAME -- offsets churn every respin.
+    TELEMETRY_COUNTERS = (
+        "PAGE_STATS_HIT", "PAGE_STATS_MISS", "PAGE_STATS_EMPTY",
+        "SCHED_STATS_ACT", "SCHED_STATS_PRE",
+        "REF_STATS_REF", "REF_STATS_REF_BUSY",
+    ) + tuple(f"OBS_ROW_HIT{_b}_ROW_HIT" for _b in range(8))
+
+    async def read_telemetry(self) -> dict:
+        """Every exported counter the layer-2b invariants use, keyed by name.
+
+        These clear only on aresetn and free-run otherwise, so a caller wanting
+        a per-scenario figure must subtract two reads and mask the 32-bit wrap
+        rather than read absolutely -- absolute reads let an earlier scenario's
+        traffic inflate a later one.
+        """
+        out = {}
+        for name in self.TELEMETRY_COUNTERS:
+            out[name] = await self.csr_read_register(name)
+        return out
+
     async def csr_read_field(self, register: str, field: str) -> int:
         addr, lsb, mask = self._field_loc(register, field)
         return (await self._cpuif_read(addr) & mask) >> lsb

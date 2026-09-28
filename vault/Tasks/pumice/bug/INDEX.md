@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-020** — never recycle a number, even when its item closed.
+**Next ID: BUG-021** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,13 +12,17 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **BUG-020** — all 35 `OBS_*` registers are undriven (`pumice_top` has zero
+  `hwif_in.OBS_*` assignments) and read 0 forever; caught on the board when a
+  99.4%-row-hit workload reported 0 per-bank hits
 
 - **BUG-000** — TEMPLATE — copy this file, never file against it
 - **BUG-019** — DV wrappers have no depth axis: 23 of 36 never export TEST_LEVEL, so FULL == GATE for them; conversion ready (not simulated) on branch tooling-pumice-halves

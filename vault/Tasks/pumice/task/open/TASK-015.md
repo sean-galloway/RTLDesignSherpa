@@ -266,3 +266,76 @@ Related: [[BUG-003]] (the defect that motivated this), [[TASK-013]] (the campaig
 that surfaced it), [[TASK-011]] and [[TASK-007]] (two more of the same class),
 [[feedback_parameter_off_state_needs_its_own_test]] (a parameter's OFF state
 needs its own test -- this plan is that rule made systematic).
+
+---
+
+## Delivered 2026-09-27: layers 0 and 2b
+
+**Layer 0 -- reset parity.** `bin/check_csr_reset_parity.py` (213 lines) plus the
+manifest `dv/csr_reset_parity.py`. All **73** `sw=rw` fields are now a written
+decision: 3 `swept` (with `by=` the artifact, `drives=` the RTL port it moves,
+and `oracle=` what fails if a value is wrong), 55 `ships` (the reset IS the
+shipping value), 15 `waived` (7 CTRL command strobes, 8 `OBS_ROW_HIT` counters
+that are `rw` only because a write clears them). Registered in
+`bin/hooks/pre-commit` on `.rdl` / manifest / regmap edits. Tested by
+`bin/tests/test_check_csr_reset_parity.py` -- 15 tests, one per rule, each
+proven by mutating a fixture until the rule fires, plus a guard that the real
+pumice manifest passes and covers every writable field.
+
+The `oracle=` requirement is the load-bearing one. A CSR read/write walk touches
+every field with two values and proves nothing about behaviour, so a `swept`
+claim that cannot name what breaks is not a sweep.
+
+**What the gate found on its first run**, which is the whole return on it:
+
+* `PHY_TIMING.t_phy_wrlat` reset to **0** while BOTH board host paths program
+  **1**. Reset changed to 1.
+* `PHY_TIMING.t_rddata_en` reset to 6, and the two host paths disagree --
+  `init` (`pumice_master.SimpleTest`) programs 6 with `rddata_delay=7`, the
+  ILA-validated tuple, while `pumice_char.ControllerConfig` programs 1 with
+  `rddata_delay=2`. Both sit on the measured clean diagonal
+  `rddata_delay = t_rddata_en + 1`. Filed as [[ISSUE-015]]; the reset follows
+  `init`. **I changed this reset to 1 first, on ControllerConfig alone, before
+  reading what `init` actually programs** -- one host default is not evidence of
+  the shipping value, and the gate cannot tell you which of two callers is
+  authoritative.
+* Two false alarms from the checker itself, both fixed: a textual `sw = rw`
+  count does not equal the elaborated field count (`OBS_ROW_HIT` is one reg
+  definition instantiated 8 times, so 66 declarations become 73 fields) -- that
+  miscount failed the gate against a perfectly current regmap, and staleness is
+  now left to `bin/check_rdl_regen.py`, which already owns it. And a sweep that
+  drives an RTL port rather than the CSR field name needs `drives=`.
+
+Clock parity is in the manifest (`CLOCK`: 75 MHz, the env var and the file that
+declares it), closing the TASK-013 hole where a 100 MHz sim was compared against
+a 75 MHz board and the difference blamed on silicon.
+
+**Layer 2b -- telemetry invariants.**
+`dv/tbclasses/pumice_telemetry_invariants.py`: five relations over the exported
+counters, family-neutral, with `arming()` so a rule that never had its counters
+cannot contribute to a clean verdict and `assert_clean(require=...)` refusing a
+vacuous pass. Nothing in sim read these counters before this -- the telemetry was
+exported and only the board host ever looked at it.
+
+Consumers: `dv/tests/fub/test_pumice_telemetry_invariants.py` (15 unit tests),
+`dv/tests/top/test_pumice_top.py::cocotb_test_telemetry_invariants` (real
+counters over three per-pattern windows at proven quiescence), and on the board
+`projects/fpga-systems/NexysA7/pumice/bin/seq_telemetry.py` -- the SAME module
+in both places. Layer 0 gets a board sequence too, `seq_reset_parity.py`, which
+reads every `ships` field back over UART before `init` touches anything: the
+file-level gate cannot speak for what the flops in the part come up holding.
+
+**TASK-015's drafted invariant was wrong and correct hardware disproved it.**
+The draft says `hit + miss + empty == ACT`. `PAGE_STATS_HIT` does not count hits
+-- the RTL bumps it on every column op and the RDL says so at the field -- so the
+relation that holds is `miss + empty == ACT`, and it held EXACTLY in every
+measured window (1+47=48, 0+64=64, 1+48=49). Two further drafted relations,
+`ACT <= col_ops` and `col_ops - ACT >= 0`, are violated by correct hardware:
+under a background-close mode a row can be opened, timed out and reopened before
+its column command issues. Measured -- a bank-spreading pattern gave 49 ACTs for
+48 column ops while two other patterns gave exactly 48/48 and 64/64. Replaced
+with the bounds that hold, and the consequence for the RDL's documented
+`hits = col_ops - ACT` derivation is [[ISSUE-014]].
+
+Layer 2a is DROPPED (no assertions in RTL). Layer 1 is partly built. Layer 3
+untouched.

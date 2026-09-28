@@ -2,7 +2,7 @@
 
 # pumice — issues
 
-**Next ID: ISSUE-014** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-017** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,13 +12,25 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **ISSUE-016** — `DFI_PHASE.gear_ratio`, `DFI_PHASE.bl` and `MR0.VAL` reset to a
+  1:4/BL8 geometry on a 1:2/BL4 build; every soft_reset reverts them and the
+  driver re-programs. A script that forgot once measured nothing, cleanly
+
+- **ISSUE-015** — `init` programs the read path as wrlat=1/rden=6/delay=7 and
+  levels against it; `char` then re-programs 1/1/2 underneath that leveling.
+  Both are on the clean diagonal, so it works -- with unmeasured margin
+
+- **ISSUE-014** — the RDL's `hits = col_ops - ACT` derivation goes negative
+  under background-close paging; the board clamps it and blames a window
+  boundary, but it reproduces inside one quiescent window (re-activation race)
 
 - **ISSUE-000** — TEMPLATE — copy this file, never file against it
 

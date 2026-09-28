@@ -1094,6 +1094,132 @@ async def cocotb_test_patho(dut):
 
 
 @cocotb.test(timeout_time=180, timeout_unit="ms")
+async def cocotb_test_telemetry_invariants(dut):
+    """TASK-015 layer 2b: the exported counters must be arithmetically consistent.
+
+    Nothing in sim read these counters before this test -- the telemetry was
+    exported and only the board host ever looked at it, so a counter could be
+    wired to the wrong event and every sim run would still pass. With layer 2a
+    dropped (no assertions in RTL) these relations are the oracle a config sweep
+    needs in order to be able to FAIL rather than merely run.
+
+    The stimulus deliberately spans all eight banks and re-visits rows, so that
+    hits, row misses AND empty-bank opens all occur -- an invariant that never
+    armed proves nothing, so `require=` names every rule and refuses a vacuous
+    pass. Refresh is left at the bring-up interval so the refresh counters move.
+
+    The relations are in dv/tbclasses/pumice_telemetry_invariants.py, which also
+    records why TASK-015's drafted `hit + miss + empty == ACT` is NOT one of
+    them: PAGE_STATS_HIT counts every column op, not hits.
+    """
+    import importlib.util as _ilu
+    _ti_path = os.path.join(_DV_DIR, "tbclasses", "pumice_telemetry_invariants.py")
+    _sp = _ilu.spec_from_file_location("pumice_telemetry_invariants", _ti_path)
+    ti = _ilu.module_from_spec(_sp)
+    _sp.loader.exec_module(ti)
+
+    # policy_mode 3 (fixed_open) is the SHIPPING reset default, so this runs the
+    # configuration the board runs rather than a TB-only one.
+    tb = await _bringup(dut, page_policy=3, profile="backtoback")
+
+    before = await tb.read_telemetry()
+
+    # Two of the shared pathological patterns, chosen because each guarantees
+    # BOTH hits and misses: page_close_boundary is miss + 5 same-row hits x 4
+    # clusters, hit_miss_oscillation is 5 hits then 3 fresh rows x 4. Every
+    # build_patho_addresses kind lives on bank 0 (the docstring's "bank_hazard"
+    # walks ROWS, not banks), so a third, bank-spreading list is added here --
+    # otherwise seven of the eight per-bank hit counters stay at zero and
+    # per_bank_hits_reconcile passes while checking one bank.
+    BANK_STRIDE = 0x2000                     # bank is addr[15:13], row-major
+    bank_spread = [BASE + b * BANK_STRIDE + h * BL_WORDS * 8
+                   for b in range(8) for h in range(3)]
+    patterns = [("page_close_boundary",
+                 build_patho_addresses("page_close_boundary", burst_len=BL, base_addr=BASE)),
+                ("hit_miss_oscillation",
+                 build_patho_addresses("hit_miss_oscillation", burst_len=BL, base_addr=BASE)),
+                ("bank_spread", bank_spread)]
+
+    async def _quiesce():
+        prev = await tb.read_telemetry()
+        for _ in range(12):
+            await ClockCycles(dut.aclk, 256)
+            cur = await tb.read_telemetry()
+            if cur == prev:
+                return cur
+            prev = cur
+        raise AssertionError(f"telemetry never went quiescent: {prev}")
+
+    # Per-pattern windows, so an accounting discrepancy can be ATTRIBUTED to a
+    # pattern and measured for scale instead of showing up as one aggregate
+    # number that could be a constant or a proportion.
+    per_pattern = []
+    mark = await _quiesce()
+    for name, addrs in patterns:
+        wr, rd, _ = build_addr_pattern_sequences(
+            burst_len=BL_WORDS, data_width=DW, addresses=addrs,
+            rd_axid_fn=lambda bi: bi & 0xF)
+        await _wr_rd_check(tb, wr, rd, drain=400)
+        now = await _quiesce()
+        d = {k: (now[k] - mark[k]) & 0xFFFFFFFF for k in now}
+        per_pattern.append((name, len(addrs), d))
+        tb.log.info(f"  window {name}: bursts={len(addrs)} col_ops={d['PAGE_STATS_HIT']} "
+                    f"ACT={d['SCHED_STATS_ACT']} PRE={d['SCHED_STATS_PRE']} "
+                    f"miss={d['PAGE_STATS_MISS']} empty={d['PAGE_STATS_EMPTY']} "
+                    f"ACT-col_ops={d['SCHED_STATS_ACT'] - d['PAGE_STATS_HIT']}")
+        mark = now
+
+    # Read at PROVEN quiescence, not after a magic drain. The counters are read
+    # one APB transaction at a time, so a design still in flight can report ACT
+    # ahead of its own column op -- the first run of this test saw ACT=161
+    # against col_ops=160, exactly one apart, which is a window edge and not a
+    # defect. Sampling until two consecutive full reads agree removes the edge
+    # without weakening the relation, which is the alternative (a tolerance
+    # equal to the in-flight depth would mask a real off-by-one forever).
+    after = await tb.read_telemetry()
+    for settle in range(12):
+        await ClockCycles(dut.aclk, 256)
+        again = await tb.read_telemetry()
+        if again == after:
+            break
+        after = again
+    else:
+        raise AssertionError(
+            f"telemetry never went quiescent after 12 x 256 cycles -- something "
+            f"is still issuing commands with no traffic offered: {after}")
+    tb.log.info(f"telemetry quiescent after {settle} settle round(s)")
+
+    # The counters clear only on aresetn and free-run, so compare the WINDOW.
+    # Mask the 32-bit wrap rather than letting a delta go negative.
+    delta = {k: (after[k] - before[k]) & 0xFFFFFFFF for k in after}
+
+    tb.log.info("TASK-015 layer 2b -- telemetry window:")
+    for k in sorted(delta):
+        tb.log.info(f"    {k:<26} {delta[k]}")
+    hits = delta["PAGE_STATS_HIT"] - delta["SCHED_STATS_ACT"]
+    tb.log.info(f"    derived row hits            {hits}")
+
+    # Nothing moved => the stimulus did not reach the DUT, which must not read
+    # as a clean pass.
+    assert delta["PAGE_STATS_HIT"] > 0, (
+        f"no column ops counted in the window -- the telemetry is not wired or "
+        f"the traffic never ran: {delta}")
+    assert delta["SCHED_STATS_ACT"] > 0, f"no activations counted: {delta}"
+
+    armed = ti.assert_clean(delta, require=tuple(r.name for r in ti.RULES),
+                            context="cocotb_test_telemetry_invariants")
+    # require= above already refuses a vacuous pass, but pin the count too: this
+    # test passing must mean every rule was evaluated against real counters, not
+    # that the rule list shrank.
+    assert armed == len(ti.RULES) >= 5, (
+        f"{armed} of {len(ti.RULES)} rules armed -- a rule was added without "
+        f"counters, or the rule set shrank below the five that layer 2b ships")
+    tb.log.info(f"PASS telemetry invariants: {armed}/{len(ti.RULES)} rules armed "
+                f"and clean over {delta['PAGE_STATS_HIT']} column ops, "
+                f"{delta['SCHED_STATS_ACT']} activations, {hits} row hits")
+
+
+@cocotb.test(timeout_time=180, timeout_unit="ms")
 async def cocotb_test_refpb(dut):
     """TASK-001 Axis 3: refpb_rr (REF_CTRL.mode=2, LPDDR2 per-bank refresh).
 
@@ -1409,6 +1535,11 @@ def test_pumice_top_nr2(request):
     _run(request, "cocotb_test_pumice_top",
          extra_env={"TEST_TYPE": "workload_mix", "MEM_TYPE": "DDR2"},
          params_over={"NUM_RANKS": "2"})
+
+
+def test_pumice_top_telemetry_invariants(request):
+    """TASK-015 layer 2b: arithmetic consistency of the exported counters."""
+    _run(request, "cocotb_test_telemetry_invariants")
 
 
 def test_pumice_top_refpb(request):

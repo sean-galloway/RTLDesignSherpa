@@ -1821,7 +1821,7 @@ module pumice_csr (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.PHY_TIMING.t_phy_wrlat.value <= 8'h0;
+            field_storage.PHY_TIMING.t_phy_wrlat.value <= 8'h1;
         end else begin
             if(field_combo.PHY_TIMING.t_phy_wrlat.load_next) begin
                 field_storage.PHY_TIMING.t_phy_wrlat.value <= field_combo.PHY_TIMING.t_phy_wrlat.next;

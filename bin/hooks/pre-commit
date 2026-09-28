@@ -103,6 +103,22 @@ if echo "$STAGED" | grep -qE '\.rdl$'; then
     fi
 fi
 
+# --- a writable CSR field must be a decision, not a default -----------------
+# pumice BUG-003 shipped because the reset values and the configuration anyone
+# actually ran had diverged and nobody had written down that they should agree.
+# Five of the six defects in that class on record are the same shape: a field
+# resets to a value that disables the feature and nothing ever writes it. The
+# manifest makes each field a signed-for decision -- ships / swept+oracle /
+# waived -- and this gate fails when one goes undeclared or a reset drifts off
+# the declared shipping value. See pumice TASK-015 layer 0.
+if echo "$STAGED" | grep -qE '\.rdl$|csr_reset_parity\.py$|_regmap\.py$'; then
+    echo "[pre-commit] Checking CSR reset parity..."
+    if ! out=$("$PY" "$REPO_ROOT/bin/check_csr_reset_parity.py" 2>&1); then
+        echo "$out" >&2
+        fail=1
+    fi
+fi
+
 # --- a doc example must name ports the module actually has -------------------
 # Twenty-eight pages carried instantiations with invented ports. Every qc round
 # had the RTL and the example in the SAME bundle unit and missed them; two were

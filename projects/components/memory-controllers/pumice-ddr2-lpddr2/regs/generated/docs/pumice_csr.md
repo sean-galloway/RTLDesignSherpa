@@ -743,14 +743,26 @@ when DFI_RATE &lt; the field width.</p>
 - Base Offset: 0x64
 - Size: 0x4
 
-<p>t_phy_wrlat: WRITE command -&gt; dfi_wrdata_en (0 for a7ddrphy
-pre-pull). t_rddata_en: RD command -&gt; dfi_rddata_en window.
+<p>t_phy_wrlat: WRITE command -&gt; dfi_wrdata_en. t_rddata_en:
+RD command -&gt; dfi_rddata_en window.
+t_phy_wrlat resets to 1 because BOTH board host paths program 1,
+and the old reset of 0 agreed with neither (TASK-015 layer 0).
+t_rddata_en resets to 6 -- what <code>init</code> programs
+(pumice_master.SimpleTest: the ILA-validated tuple wrlat=1,
+rden=6, rddata_delay=7). pumice_char.ControllerConfig programs 1
+with rddata_delay=2 instead, a DIFFERENT valid point on the
+measured diagonal rddata_delay = t_rddata_en + 1 (the a7ddrphy
+data-vs-valid offset is a fixed 1 cycle). Two host paths
+programming two points is pumice ISSUE-015; the reset follows
+<code>init</code>, the bring-up authority. Do NOT pin a stale tuple here:
+overriding these to 0/6 on 2026-09-21 corrupted data on all four
+cells while still reporting healthy bandwidth.
 memtype: 0=DDR2, 1=LPDDR2. refresh_burst: 1..8 REFs drained per
 request. All hw-readable so they drive the controller core.</p>
 
 | Bits|  Identifier |Access|Reset|Name|
 |-----|-------------|------|-----|----|
-| 7:0 | t_phy_wrlat |  rw  | 0x0 |  — |
+| 7:0 | t_phy_wrlat |  rw  | 0x1 |  — |
 | 15:8| t_rddata_en |  rw  | 0x6 |  — |
 |  16 |   memtype   |  rw  | 0x0 |  — |
 |19:17|    RSVD0    |   r  | 0x0 |  — |
