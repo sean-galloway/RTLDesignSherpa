@@ -1,6 +1,6 @@
 ---
 title: Multi-agent shared worktree discipline
-summary: One working tree, several agents - the four ways uncommitted state crosses agent boundaries, and the staged-set check that actually holds.
+summary: One working tree, several agents - the six ways uncommitted state crosses agent boundaries, and the staged-set check that actually holds.
 ---
 
 # Multi-agent shared worktree discipline
@@ -38,6 +38,18 @@ The incidents, each a different leak path:
    the intended message (1de8ad18, 2026-08-23). The fix is symmetrical:
    pathspec'd commits + the staged-SET check catch it on the committer's
    side; there is NO defense on the victim's side except committing fast.
+6. **A peer's staged work fails YOUR pre-commit gate.** The inverse of 1/2/5:
+   nothing of theirs contaminates your commit, but you cannot commit at all.
+   The pumice session was mid-MOVE of two `.f` files into a registered
+   directory (its TASK-032 part 1). While that move sat staged-but-uncommitted
+   the files existed on disk outside any registered dir, so the RLB session's
+   four unrelated commit attempts were blocked by the filelist ratchet with
+   `unregistered_filelists 0 -> 2` - a blind spot belonging to neither the
+   commit nor its author. It cleared the instant the owner committed
+   (11281e91d) and the identical commit then landed unchanged (570f7f742,
+   2026-09-28). The gate was RIGHT: the files genuinely were unregistered at
+   that moment. Incident 4's lesson generalises - the victim again spent the
+   longest stretch assuming the failure was their own.
 
 The rules:
 
@@ -81,3 +93,16 @@ The rules:
 - When a suite breaks unexpectedly, **check `git status` on shared
   infrastructure before debugging your own change** - incident 4's cost was
   mostly misattribution time.
+- **A gate failure naming files you did not touch is a peer's in-flight work.**
+  Wait for their commit, then retry unchanged. NEVER `--no-verify` (CI runs the
+  same check and cannot be bypassed), never register their files, never raise
+  the baseline - all three ship a real blind spot so that YOUR unrelated commit
+  can pass. Two diagnostic traps cost an hour on incident 6, both worth knowing:
+  the hook runs `filelist_registry.py --blindspots --ratchet`, while its own
+  error text tells you to run plain `--blindspots`, which PASSES - the same
+  second, opposite answers, which reads as a contradiction and is not one. And
+  `--ratchet` reads `bin/blindspots_baseline.json`, whereas
+  `bin/filelist_placement_baseline.json` is a DIFFERENT check's baseline, so
+  diffing its bytes proves nothing about the ratchet. Read `.git/hooks/pre-commit`
+  for the command it actually runs before theorising about why it disagrees with
+  you. See [[filelists]].
