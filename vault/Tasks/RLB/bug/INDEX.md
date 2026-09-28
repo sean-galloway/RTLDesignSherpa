@@ -2,7 +2,7 @@
 
 # RLB — bugs
 
-**Next ID: BUG-004** — never recycle a number, even when its item closed.
+**Next ID: BUG-006** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -21,6 +21,8 @@ by construction rather than by discipline.
 ## Open
 
 - **BUG-000** — reserved template; copy the file, do not file against it.
+- **BUG-004** — PRD.md gives the subsystem base as 0x4000_0000 in three places; the RTL uses BASE_ADDR 0xFEC00000, which the PRD never mentions.
+- **BUG-005** — the apb4_hpet example in PRD.md connects 9 ports the module does not have; check_doc_examples.py never scans a component PRD/README, so the CI gate passes it.
 
 ## Closed
 
