@@ -1,7 +1,7 @@
 # TASK-014: check_task_ids.py reconciles INDEX state counts against the directories
 
 **Priority:** P2
-**Status:** open
+**Status:** CLOSED 2026-09-28
 **Owner:** TBD (tooling)
 **Filed:** 2026-09-28
 
@@ -25,5 +25,19 @@ nine lane indexes the same day and had to verify each with
 
 ## Done when
 
-- [ ] a deliberately wrong count fails the checker (mutation-tested)
-- [ ] tree-wide run passes with zero mismatches
+- [x] a deliberately wrong count fails the checker (mutation-tested)
+- [x] tree-wide run passes with zero mismatches
+
+## CLOSED 2026-09-28
+
+`bin/check_task_ids.py` now reads every `| [<state>/](<state>/) | N |` row of a
+lane INDEX and compares N with the `<ID>.md` files in that directory
+(templates included, as the tables always counted them). A row that
+disagrees, a missing row for a non-empty directory, and a row naming an
+unknown state are ERRORS. Mutation-tested three ways on tooling/task before
+committing: closed 13 -> 15 (FAIL, names both numbers), the open/ row deleted
+(FAIL, "no count row for open/ but 2 item(s)"), and TASK-014 moved to active/
+with no table edit (FAIL twice: open 2 vs 1, active 0 vs 1). Restored, the
+tree-wide run passes on all 86 areas with zero mismatches, so no lane was
+carrying a wrong count at the time this landed. The check inherits the
+pre-commit hook and CI because both already run this script.

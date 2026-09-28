@@ -11,6 +11,10 @@ Three failure modes this catches, all of which have actually happened:
    number. If it is missing or <= the highest ID in use, the next person
    writing a task will collide again -- which is exactly how the pumice
    collisions happened.
+4. **A count table that lies.** A lane INDEX's per-state table said
+   `closed: 15` while the file sat in open/; passed until 2026-09-28
+   (tooling TASK-014). Now every row must equal the files on disk.
+
 3. **Status/page mismatch.** A task filed into closed.md whose body still
    says `**Status:** open`. Found on two pumice entries: filed but never
    re-statused, so they read as live work inside the closed page.
@@ -109,6 +113,8 @@ STATES = ("open", "active", "closed", "deferred", "dropped")
 ITEM_ID = re.compile(r"^([A-Z][A-Z0-9]*-\d+(?:\.\d+)?)$")
 H1 = re.compile(r"^#\s+([A-Z][A-Z0-9]*-[A-Z0-9]+(?:\.\d+)?)\s*[—\-–:]")
 INDEX_ITEM = re.compile(r"^\s*-\s+\*\*([A-Z][A-Z0-9]*-\d+(?:\.\d+)?)\*\*", re.M)
+# The per-state count table in a lane INDEX: `| [open/](open/) | 3 | ... |`.
+COUNT_ROW = re.compile(r"^\|\s*\[(\w+)/\]\(\1/\)\s*\|\s*(\d+)\s*\|", re.M)
 
 
 def is_item_layout(area: pathlib.Path) -> bool:
@@ -296,6 +302,31 @@ def check_area(area: pathlib.Path) -> tuple[list[str], list[str]]:
         for ghost in sorted(listed - present):
             errs.append(f"{area_label(area)}: INDEX.md lists {ghost} but no "
                         f"such file exists")
+
+    # The count TABLE is the third thing a filing must keep true, and until
+    # 2026-09-28 nothing checked it: an INDEX said `closed: 15` while the file
+    # still sat in open/, and this checker passed (RLB session; tooling
+    # TASK-014). The item list above catches a MISSING line, not a wrong
+    # number, and the number is what every rollup and every "what is left"
+    # answer reads. Count what is on disk (templates included -- they are
+    # files in the directory and the tables have always counted them).
+    if is_item_layout(area) and index.exists():
+        rows = {st: int(n) for st, n in COUNT_ROW.findall(index.read_text())}
+        for st in STATES:
+            d = area / st
+            on_disk = len([f for f in d.glob("*.md") if ITEM_ID.match(f.stem)]) if d.is_dir() else 0
+            if st not in rows:
+                if on_disk:
+                    errs.append(f"{area_label(area)}: INDEX.md has no count row for "
+                                f"{st}/ but {on_disk} item(s) are there")
+                continue
+            if rows[st] != on_disk:
+                errs.append(f"{area_label(area)}: INDEX.md says {st}: {rows[st]} "
+                            f"but {st}/ holds {on_disk} -- fix the count table")
+        for st in rows:
+            if st not in STATES:
+                errs.append(f"{area_label(area)}: INDEX.md counts an unknown state "
+                            f"'{st}/'")
 
     for tid, page, status in blocks:
         want = TERMINAL_PAGES.get(page)

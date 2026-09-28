@@ -12,16 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 13 | done (kept for history) |
+| [closed/](closed/) | 14 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
-- **TASK-014** — check_task_ids.py reconciles INDEX state counts against the directories
 
 
 ## Active
@@ -29,6 +28,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-014** — check_task_ids.py reconciles INDEX state counts against the directories -- CLOSED 2026-09-28: count rows are errors when they disagree with disk; mutation-tested 3 ways
 - **TASK-004** — Project-area cleanup — apply the RTL-area pattern to projects/ -- CLOSED 2026-09-28: --placement ratchet in CI, RLB filelists moved, 4 stale shared guides retired; per-unit remainder filed as rapids TASK-017, pumice TASK-032, stream TASK-013, bridge TASK-012, converters TASK-003, misc TASK-004, RLB TASK-016, timing_characterization TASK-005
 - **TASK-006** — emit CONTRACT TABLES (proofs), not K-map pictures -- CLOSED 2026-09-27: the bin/kmaps emitter is complete; per-unit remainder filed as pumice TASK-029 and stream TASK-012
 - **TASK-013** — source comments still cite pre-migration task IDs -- CLOSED 2026-09-27: 1,199 + generator citations swept; pumice's 173 filed as pumice TASK-030
