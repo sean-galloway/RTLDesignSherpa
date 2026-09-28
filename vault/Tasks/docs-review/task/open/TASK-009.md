@@ -1,0 +1,1389 @@
+# TASK-009: Fresh per-area qc rounds under the adjudication pipeline
+
+> Migrated 2026-09-27 from `vault/Tasks/docs-review/open.md` as **DOCREV-013** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
+**Status:** open 2026-07-28
+**Priority:** P1
+**Owner:** TBD
+
+The corpus reset (2026-07-28) cleared every prior round; this task is the
+replacement for backlog integration (DOCREV-001, dropped). Each area gets a
+fresh qc round under the tightened REVIEWER_BRIEF, adjudicated by
+`verify_findings.py` (validated 2026-07-28 on cdc round_1, DOCREV-012).
+
+**Area order (Sean, 2026-07-28; math moved ahead of common 2026-07-29 --
+"easiest first"):** cdc DONE, then **math**, common, amba (broken down
+further when we get there), projects/components (also broken down when we
+get there). After those, assess whether the fpga-specific areas need it.
+
+**Per-area startup checklist** (Sean, 2026-07-28 — the Makefile step is part
+of starting each area, not optional prep):
+
+1. **Four-line Makefiles.** The RTL area gets the four-line Makefile
+   delegating to `rtl/make/area.mk` (lint/etc. over
+   `filelists/$(AREA)_all.f`); the val area gets the four-line Makefile
+   delegating to `make/tests.mk` (clean-all + glob-discovered test running,
+   TOOL-008). Already in place for cdc/common/math/amba/integ_*; CHECK when
+   each new area starts — projects/components areas will need them added.
+2. Rebuild the WHOLE bundle from the current tree (rule 1), then regenerate
+   the area's `_meta` unit immediately — the bundler deletes it. Then run
+   `bin/review/augment_golden_deps.py` on the area's PART units (never the
+   `_meta` unit — its RTL.sv is an inventory): doc-referenced but
+   non-instantiated modules (reset_sync class) join the bundle as GOLDEN
+   ground truth — evidence for claims docs make about them, never finding
+   targets (Sean, 2026-07-28; the reset_sync REFUTED-a-real-finding case).
+3. qc round for the area, serial, large max_tokens (rules 2-4).
+4. Adjudicate the round's findings with `bin/review/verify_findings.py`,
+   then human-triage what the verifier does not REFUTE.
+5. Integrate; re-round until near-empty — the near-empty round is the
+   evidence. Humanize only after correctness is clean.
+
+**Stopping rule (Sean, 2026-07-28): impact, not emptiness.** "Near-empty or
+nothing-but-FPs" stays the aspiration, but an area STOPS when the current
+round produces nothing trap-class (a claim a user could trust into a design
+bug); remaining nit-class stragglers are the AUDIT-001 closing pass's job.
+Rationale: three reset-corpus cdc rounds produced 12 real findings with 0
+FP and rising subtlety, and amba is ~10x cdc's size — a strict near-empty
+rule per area does not terminate. cdc round_4 is its final round under this
+policy: triage and fix what it finds, then cdc is DONE.
+
+**After correctness, per area (Sean, 2026-07-28):** (a) humanize the area's
+docs ([[humanization-voice]]; correctness first, always); (b) audit the
+area's TESTS in a similar fashion — details to be scoped when cdc gets
+there (folds into AUDIT-001 part 4).
+
+One area at a time, to completion — the multitasking failure (nothing gets
+fixed while a second area runs) is documented in [[kimi-review-rounds]].
+
+### Progress log — DOCREV-013
+
+**cdc (rounds 1-2, 2026-07-28).** round_1: 3 findings, 0 FP, all doc-only
+(SYNC_STAGES->N_FLOP_CROSS, 1.25x->1.2x, duplicate `r_q_array` declaration) —
+fixed, and DOCREV-012 validated the adjudication pass on them. Confirmation
+round_2: 5 findings; triage + verifier: **4 real, 1 FP** (overview.md
+"omission" was a non-exhaustive sentence, correct REFUTED). The 4: cdc.md
+reset table 4-phase cell (prose said "repeated or dropped"), skid_buffer doc
+missing the `DW = DATA_WIDTH` alias line, `reset_sync #(.STAGES(3))` +
+`.async_rst_n` example against a module whose params are `N`/`rst_n` (the
+verifier REFUTED this one on absent-file grounds — VERIFIER_BRIEF rule 4 now
+makes absent-cited-file an automatic UNCERTAIN), johnson2bin "emptying from
+the left" vs its own "from the right" (RTL confirms right). All fixed. No RTL
+changes in either round.
+
+**cdc (round_3, 2026-07-28) — first golden-deps round.** 5 findings, ALL 5
+real (0 FP; verifier: 2 UPHELD, 2 UNCERTAIN, 1 REFUTED — human triage upheld
+all five):
+
+- cdc.md read-side-reset "benign, reads empty" — the crossed write-pointer
+  copy is a LIVE synchronizer; after any traffic it re-samples gray(K) and the
+  K consumed entries are REPLAYED. Rewrote the paragraph + summary-table row
+  (the same claim the old backlog fixed on the apb5 pages; cdc.md still had
+  it).
+- cdc.md mistake #4: "the first transfer is silently lost" — inverted; the
+  `src_valid && !src_busy` guard drops the NEW pulse, the first completes.
+- fifo_async.md "Multi-stage sync: Reduces MTBF exponentially" — inverted
+  (raises MTBF); same claim fixed in TestTutorial/gaxi_multi_field_integration.
+- apb4_slave_cdc_cg.md `*_cg_idle` scenario unreachable: APB holds PSEL until
+  PREADY, and PREADY waits for the response, so a stalled backend keeps
+  pclk_user_valid high — idle never asserts mid-stall. Note rewritten.
+- apb5_slave_cdc_cg.md "twice (APB, APB5, AXI5-Stream)" — wrong for APB:
+  apb4_slave_cdc_cg has no wrapper r_wakeup (single stage); apb5 does (two).
+
+The REFUTED one (last above) was the absent-evidence failure again:
+apb4_slave_cdc_cg.sv was golden in part_01 but the finding was in part_02.
+`augment_golden_deps.py` now unions refs across ALL units given (and is
+idempotent — re-runs replace the golden section instead of appending).
+
+**cdc (round_4, 2026-07-28) — FINAL under the impact-stop policy.** 5
+findings, all real, 0 FP (verifier: 2 UPHELD, 3 UNCERTAIN, 0 REFUTED — rule
+4 is routing borderline cases to UNCERTAIN as designed; all three UNCERTAIN
+were real on triage):
+
+- cdc.md open-loop "minimum spacing SYNC_STAGES + 1 destination clocks" —
+  TRAP-class: at defaults (STRETCH_CYCLES=8, SYNC_STAGES=2) a 3-clock
+  spacing is silently swallowed by the capture guard; the real rule is
+  STRETCH_CYCLES source clocks. Both occurrences fixed (round_3's
+  first-vs-new fix had preserved the bad spacing claim).
+- counter_johnson.md shift direction backwards ("lower bits" — the slice
+  lands in next_state[WIDTH-1:1]).
+- gaxi_fifo_async.md Key Features "2-3 flop" vs its own "4 /
+  Ultra-critical" row and "3 or 4" advice (RTL range is 2-5).
+- cdc.md two stale line citations into cdc_2_phase_handshake.sv (:182 -> :261
+  for w_req_event; :250-251 -> :252-253 for the resets).
+- clock_pulse.md example testbench off-by-one vs its own NBA analysis:
+  pulses are visible at edges WIDTH+1, 2W+1, 3W+1, so WIDTH*3 edges catch
+  only 2 and the example $errors as written. Loop now runs WIDTH*3+1 edges
+  with a comment pointing at the NBA trace.
+
+**cdc is DONE (Sean, 2026-07-28):** round_4 was declared the final round up
+front; everything it found is fixed above. Honest footnote: it DID produce
+one trap-class finding, so a strict reading of the impact rule would argue
+for round_5 — the residual risk is accepted and falls to the AUDIT-001
+closing pass. Four reset-corpus rounds: 3+4+5+5 = 17 real findings, 1 FP,
+0 RTL changes. Next per the plan: humanize cdc, then the test audit
+([[test-review]]).
+
+**cdc humanized (2026-07-28, humanize round_3).** All 17 pages of the cdc
+review area (12 rtl-cdc pages + glitch_free_n_dff_arn + clock_pulse + the
+four apb/apb5 cdc wrappers) rewritten in voice with the unify-structure
+prompt; applied after tag-survival passed (0 links/anchors/captions lost in
+all 3 units; length ratios 0.97-1.08; 0 broken links after apply).
+**Process lesson, now in the handbook:** the round ran from the round_4 qc
+bundle, built BEFORE round_4's fixes -- the apply reverted all five. They
+were re-applied by hand (the humanizer incidentally fixed the johnson shift
+direction itself). The humanize bundle is now ALWAYS rebuilt after the last
+correctness integration.
+
+**cdc TEST audit (round_1, 2026-07-29).** 51 findings over 8 units; verdicts
+14 UPHELD / 8 REFUTED / 29 UNCERTAIN after three evidence fixes (see
+[[test-review]] lessons). Integrated so far: SEED env honored in 179
+wrappers (commit 86c91bfc). Remaining batches: (3) REG_LEVEL grids missing
+on ~7 cdc tests + 2 docstring/grid mismatches; (4) silent-pass findings
+(scoreboard-never-fails, log-only errors, fitted golden, driver
+self-filter, reset-read-never-compared) -- the highest-value class, each
+needs per-test care; (5) smalls: filelist includes discarded by 3 tests,
+Clock stacked per subtest. REFUTED set: 1 wrong (2_phase REG_LEVEL, blob
+conflation -- real), 1 defensible (bingray wavedrom HAS TEST_LEVEL), rest
+correct.
+
+**math (round_1, 2026-07-29).** 20 findings (7+7+6 across 3 parts; meta had
+3), ALL real, 0 FP; verdicts 8 UPHELD / 12 UNCERTAIN / 0 REFUTED with human
+triage upholding every UNCERTAIN. Notable: carry_save multi-operand examples
+systematically violated the page's own carry-weight rule (fixed and
+SIM-VERIFIED against the RTL: 1+1+1+1→4, 7x255→1785, 3x200→600); addsub
+ALU_INC computed A not A+1; bf16 latency off by one both ends (RTL banner
+comment fixed too -- the only RTL touch, comment-only); BK diagram's black
+root is gray in the RTL; bf16 rounding is NOT 'RNE except at ties' (37.5%
+of inexact patterns round wrong -- owner decision filed as MATH-001 in the
+new vault/Tasks/math area). math needs round_2 under the impact rule.
+
+**math (round_2, 2026-07-29).** 12 findings, integrated at `3a9564a9`. **Two
+were my own round_1 defects** -- the dsp `product_pipe` declared in the wrong
+example, and bf16 latency's two single-stage rows left at 2 cycles after the
+quoted row was fixed to 1. Both are rule-6 sweep-for-the-claim failures, in a
+round whose whole job was to confirm round_1. The rest: Kogge-Stone left in
+the overview's methodology framing (round_1 under-sweep), HC 16-bit figure
+stage-3/4 positions vs the RTL generate conditions, the dadda snippet naming a
+non-existent instance, bf16 examples implying a NaN input asserts
+`ow_invalid` (it asserts only on 0*inf / inf-inf), and an overview page count
+of 29 against 27 module pages.
+
+**math (round_3, 2026-07-29) -- FINAL under the impact rule.** 6 findings,
+integrated at `c78bb824`. Two were again mine from earlier rounds (the BK
+reverse-fill set missing position 11 -- my transcription of round_2's
+enumeration; `math_subtractor` "shares NO port names" overstated -- it shares
+`i_a`/`i_b`). One real class the earlier rounds missed: the han_carlson widths
+table was **aspirational** -- HC-032 and HC-044 have no users at all, since the
+ieee754 adders do exponents and accumulation behaviorally. The table now
+carries a measured-usage column. `math_bf16_adder`'s FTZ promise vs the RTL's
+wrap-bit overflow priority is filed as **MATH-002** (possible RTL defect).
+
+**math is DONE (2026-07-29):** three rounds, 20 -> 12 -> 6, 38 findings, all
+real, 0 FP, one RTL banner comment, two owner decisions (MATH-001/-002).
+Still owed per the per-area rule: humanize the math docs, then the math test
+audit. Next area per the plan: **common**.
+
+**common (round_1, 2026-07-30).** 5 units (4 parts + `common_meta`), sent as
+round_8 of the reset corpus. **18 findings; 17 real, 1 FP.** Verifier after the
+evidence fix below: 6 UPHELD / 4 REFUTED / 8 UNCERTAIN — and **2 of the 4
+REFUTED were wrong** (`shifter_barrel` modulo, `shifter_universal` WIDTH>=2,
+both confirmed against the RTL), so the rule-10 validation rule fired again.
+The single FP: `sync_pulse.md`'s Xilinx constraints target `r_sync_reg[0]`,
+which is Vivado's name for a registered vector, not a phantom register — the
+Intel SDC block correctly uses `r_sync[0]`. Tool-convention class, worth adding
+to the brief's known-FP list.
+
+**The `_meta` unit earned its place**: 6 of the 18 came from it, all in pages no
+part unit can see. **Two trap-class findings**, both in files a reader acts on:
+
+- `arbiter_round_robin_weighted.md`'s dynamic-weight example writes `4'd15`
+  into `r_qos_weights[7:0]`, zero-extending bits `[7:4]`, which sets client 1's
+  weight to 0 — and `w_valid_clients[j] = (client_weight[j] > 0)` makes that
+  client permanently ineligible. **The identical snippet was in the RTL header
+  comment** (`arbiter_round_robin_weighted.sv:228`), which is where the doc had
+  copied it from; fixed in both, per rule 6.
+- `rtl/common/CLAUDE.md` claimed "all modules use `i_rst_n` or `aresetn`".
+  Measured: **28 modules expose `rst_n`, 1 exposes `aresetn`, none expose
+  `i_rst_n`.** Its own five examples wrote `.i_rst_n(...)`, which cannot
+  elaborate.
+
+Pulling that thread found much more than the round did: **CLAUDE.md's whole
+"Common Integration Patterns" section documented modules that do not exist as
+described.** `counter_bin` is a FIFO-pointer counter (`clk`/`rst_n`/`enable`/
+`counter_bin_curr`/`counter_bin_next`, param `MAX`) with no overflow output,
+documented as `.i_clk`/`.o_count`/`.o_overflow` with `MAX_VALUE`;
+`counter_freq_invariant` is a microsecond tick generator (`freq_sel`/`tick`),
+documented as a timeout timer with `CLK_FREQ_MHZ`/`TIMEOUT_MS`;
+`arbiter_round_robin` used `.N`/`.REG_OUTPUT` for `CLIENTS`/`WAIT_GNT_ACK`; and
+`dataint_crc` treated `POLY`/`POLY_INIT`/`XOROUT` as parameters when they are
+input ports. All four rewritten against the RTL, plus 9 more stale occurrences
+swept from the same file. **The `_meta` unit could not have caught these — its
+`RTL.sv` is an inventory with no port information.** Closed at `b398f8ae`:
+`make_meta_unit.py` now appends the parameter/port header of every module the
+meta-docs instantiate (15 interfaces for common), so the confirmation round can
+check the corrected examples instead of taking them on trust.
+
+Two process fixes went in with the startup checklist and both are the same
+defect class the round hunts:
+- The REVIEWER_BRIEF's own book table was stale -- it told the reviewer
+  `common` had 57 docs / 56 modules when the tree has 50 / 49 (the math and
+  cdc splits). Regenerated from the bundle for every book, with a note that a
+  multi-part book means the reviewer is holding a SUBSET, so a count gap is
+  not a missing module.
+- The `_meta` unit is now built by **`bin/review/make_meta_unit.py`**, not by
+  the inline snippet in [[kimi-review-rounds]] that got re-derived per area.
+  It picks up index/overview/quickstart/`_book_*_index`/`CLAUDE.md`, and
+  `--also-list` records where moved modules went (common's inventory is 49
+  plus the 183 now in `rtl/cdc` and `rtl/math`), so "the doc says X lives
+  here" stays separable from "X does not exist".
+
+**common (round_2, 2026-07-31).** 23 findings, all `finish=stop` (part_01
+escalated once and succeeded). Verifier: **11 UPHELD / 3 REFUTED / 9
+UNCERTAIN** — a far healthier spread than round_1's pre-fix 1/4/13, which is
+the evidence-packer fix working. **One REFUTED was wrong again** (credits
+initialize to the weight — the RTL resets `r_credit_counter[i] <= MTW'(1)`),
+making it three wrong REFUTEDs across two rounds. Treat the verifier as a
+filter, never an authority.
+
+**Three of the 23 were my own round_1 work**, which is rule 6's confirmation-
+round lesson landing on this area:
+- the Fibonacci "walks to zero and freezes" sentence I wrote is seed-dependent
+  (3 of 15 seeds reach zero; 12 enter a short cycle);
+- my "one module exposes `aresetn` (`icg`)" named the wrong module — `icg` has
+  no reset port at all, `clock_gate_ctrl` is the one;
+- the weighted-arbiter `request` vs `w_req_post` finding was UPHELD in round_1
+  and I did not fix it.
+
+The `_meta` interface change paid immediately: `quickstart.md` and `index.md`
+carried the same broken integration examples `CLAUDE.md` did, and round_1 could
+not see them. That class is now checked mechanically by
+**`bin/review/check_doc_instantiations.py`** (`5a9ab654`) — for every
+fenced `systemverilog` block, resolve the instantiated module and report
+parameter or port names it does not declare. Measured after integration:
+
+| area | undeclared names |
+|---|---|
+| rtl-common, rtl-cdc, rtl-integ-amba, projects, TestTutorial | 0 |
+| rtl-math | 4 |
+| **rtl-amba** | **161** |
+
+Run it at the START of each area's round — the amba number is the argument.
+Two parser traps are recorded in the tool's docstring; both were found by
+disbelieving its own output, and both would have made it cry wolf on correct
+docs (a direction keyword carrying across commas, and a paramless module's
+opening paren swallowing the port list).
+
+Also fixed: three malformed links (`](../index.md]`). The reviewer found one;
+the other two were invisible to the link checker, which needs a closing paren
+to match at all. Repo-wide sweep now 0.
+
+**Where common stands.** Two rounds, 41 findings, 2 FP. Round_2 produced no
+trap-class finding — the two in round_1 (the arbiter weight slice and the
+`i_rst_n` claim) have no round_2 counterpart — so under the impact rule common
+is a candidate to STOP. Against that: 3 of 23 were my own integration defects,
+and a third of round_2 was a class round_1 structurally could not see. A
+round_3 would mostly audit this integration.
+
+**common round_2 leftovers, swept 2026-07-31** (second pass over the same
+critiques; the integration above covered the doc pages it opened, these were in
+files it did not):
+
+- **The Galois zero-seed lockout was the wrongly-REFUTED finding, and it
+  shipped.** `shifter_lfsr_galois.sv` has no `|r_lfsr` guard, so a loaded
+  `seed_data = 0` parks the register at zero permanently AND parks `lfsr_done`
+  high forever (it is the equality `lfsr_out == seed_data`). The verifier's own
+  reason said the module's source was not in its evidence — which its brief
+  rule 4 makes an automatic UNCERTAIN, not a REFUTED. Documented now. This is
+  exactly the cost rule 10 predicts: a wrongly-REFUTED finding is only found by
+  the next round, unless someone re-reads the critique.
+- `debounce.md` never gave `PRESSED_STATE`'s default (1 = normally open).
+- **Five RTL header comments** the reviewer filed under POSSIBLE RTL BUGS, all
+  rule-6 sources the doc pages were copied from: `arbiter_round_robin`'s mask
+  formula (`~((1 << N) - 1)` where the code computes `~((1 << (i+1)) - 1)`),
+  `clock_divider` claiming `counter_bin` is "used internally" when it
+  instantiates nothing, `cam_tag`'s `ENABLE = 0` described as "always empty"
+  when it gates insertion only, `arbiter_round_robin_weighted`'s
+  `.max_thresh({4'd3, 4'd5})` under `MAX_LEVELS(8)` (3-bit fields, so it
+  truncates to weights [5, 6] rather than the commented [5, 3]) and its
+  "credit counter initialized to its weight value", and `dataint_crc`'s
+  "Reset: Asynchronous (immediate to POLY_INIT)" when the `crc` output register
+  resets to 0. Swept repo-wide: these were the only occurrences, and every
+  other "used internally" claim checked out.
+- Two RTL corners filed rather than fixed: **COMMON-014** (`fifo_control`
+  defaults `ADDR_WIDTH=3`/`DEPTH=16` violate its own `DEPTH == 2^ADDR_WIDTH`
+  constraint; latent, both parents override) and **COMMON-015**
+  (`shifter_beat_pack` truncates an over-wide runtime `cfg_beat_bytes_m1` to 0
+  in `COUNT_BITS'(w_beat_bits)`, giving silent corruption instead of a stall).
+
+Verified: `make -C rtl/common lint` passes all 49 files,
+`check_doc_instantiations.py` is 0 across rtl-common's 53 files.
+
+**common HUMANIZED — 2026-07-31, humanize round_4.** All 55 pages (4 part units
++ `common_meta`), bundle rebuilt after the last correctness commit so the cdc
+revert-on-apply trap could not recur. `check_tag_survival.py` gated it and
+earned its place on the first real use: `dataint_checksum.md` came back with
+`](../index.md]`, the malformed-link class swept to zero that morning,
+reintroduced by the voice pass and **invisible to a link checker** (which needs
+a closing paren to match at all). It registered only as a link target missing
+from the parsed set. 0 pages dropped across both applies.
+
+Three things measured during the apply that change how the next area is run:
+
+- **The humanizer is inconsistent about emoji.** Same round, same brief: the
+  four module-page units kept all 56 glyphs, the `_meta` unit removed most of
+  its own (`quickstart` 8 -> 0, `CLAUDE.md` 33 -> 12). Never assume either way.
+- **A prose-only defect class exists that no checker catches.**
+  `check_doc_instantiations.py` reads ```systemverilog blocks, so round_2's
+  `REG_OUTPUT` phantom survived in two prose bullets ("Enable pipelining
+  (REG_OUTPUT=1) for timing") after the instantiation examples were fixed. No
+  arbiter declares it and `arbiter_round_robin`'s grants are already registered
+  -- fiction twice. Sweep the CLAIM in prose, not just the code fences.
+- **Correctness content must be verified BEFORE apply, not after.** Done here
+  by grepping the round output for each fix; the reset tally, counter_bin's real
+  ports and the galois zero-seed paragraph all survived, and `debounce`'s
+  PRESSED_STATE default came back improved (bullet list -> parameter table with
+  a real Default column).
+
+**common emoji: 0 across all 55 files.** See DOCREV-014 for the two scoping
+gaps this exposed (beside-code docs were never in any denominator; a
+`rtl/common/*.md` glob misses `known_issues/` entirely) and for the corrected
+repo-wide figure.
+
+**common TEST AUDIT — bundle built 2026-07-31, NEVER DISPATCHED. Corrected
+2026-08-05.** The line here used to read "round_1 dispatched"; it was not. The
+evidence: `testqc-kimi-k3/round_1` holds cdc only (8 units) and `round_2` holds
+math — there is no `common_*.md` in either, and no `_bundle_snapshot` entry for
+common, which is written at dispatch time. There is a `testqc_cdc_r1.log` and a
+`testqc_math_r1.log` and never was a common one. What actually happened is what
+the rest of this block describes: 48 tests -> 13 units were BUILT at
+`~/rtl-test-review/common` and the mechanical baseline was measured. The send
+never followed.
+
+Everything the 2026-08-01..05 work fixed in the common test collateral — the
+three-level grids, the TB/runner separation, the seeds, the arbiter and
+clock_gate defects — therefore came from that mechanical baseline plus local
+auditing, **not** from an external reviewer. Common's test collateral had never
+been externally reviewed at all.
+
+Dispatched for real 2026-08-05 as `testqc-kimi-k3/round_3` (round numbering in
+that results tree is global across areas: cdc=1, math=2), against a bundle
+rebuilt the same day — necessary, since 93 of the 98 files in the corpus had
+changed since the July build, 37 of them newly created. Bundle rebuilt after the
+seed fixes so the reviewer sees the current TBs. Mechanical baseline measured
+BEFORE sending, so triage can tell new findings from known state:
+
+| class | val/common |
+|---|---|
+| no REG_LEVEL grid | 6 of 48 |
+| no TEST_LEVEL gating | 16 of 48 |
+| randomize with nothing seeding | 0 (was 2, fixed) |
+| hand-listed sources, no filelist | 6 of 48 (4 are wavedrom) |
+
+REG_LEVEL and TEST_LEVEL match the 2026-07-28 snapshot exactly (42/48, 32/48),
+so nothing has drifted there since.
+
+**Process hazard, recorded because it nearly cost a round:** the doc bundle root
+`~/rtl-doc-review/books` is SHARED and `build_review_bundle.py` is `rm -rf` by
+design. A second agent rebuilt it mid-round, which deleted the hand-built
+`common_meta` and killed unit 5 of the humanize round. No damage -- the four
+part snapshots proved byte-identical to the rebuild, so what was sent matched
+what the gate compared against, and the regenerated `common_meta` was identical
+to its snapshot before resuming. Two agents cannot share one bundle root; give
+each its own, or serialise.
+
+**Pipeline review — 2026-07-31.** Reading the whole process end to end before
+starting amba produced four changes, all recorded in [[kimi-review-rounds]]:
+
+- **The adjudication pass is demoted to advisory.** Measured over the reset
+  corpus, the reviewer's FP rate is 2 in 72 findings, while **4 of the ~7
+  REFUTED verdicts the verifier has issued were wrong** (cdc r2 reset_sync, cdc
+  r3 apb5 wrapper, common r1 shifter_barrel and shifter_universal). It is not a
+  filter and must not be run as one: a REFUTED never drops a finding by itself.
+  Its real value is settling mechanical classes, ranking the triage queue, and
+  naming missing evidence — three evidence-pack bugs were found that way. The
+  verdicts file now says so in its own header.
+- **The extractor measurement is tooled.** `verify_findings.py` locates quotes
+  before sending and prints the share, so `--dry-run` is the rule-10 pre-flight
+  and costs nothing; each verdict block records the evidence it was decided on,
+  so a BLIND verdict stays identifiable. Measured post-hoc on round_7 (math
+  round_3): 5/6 located, 1 blind.
+- **The brief's book table is generated and gated.**
+  `bin/review/update_brief_table.py` rewrites it from the built bundle;
+  `run_batch.py qc` refuses to dispatch against a stale one. Run it AFTER
+  golden augmentation — that is what the reviewer receives (common's parts:
+  ~247k -> ~356k tokens).
+- **Tool-convention false positives** (the `sync_pulse` Vivado `r_sync_reg[0]`
+  case) are now a named class in `REVIEWER_BRIEF.md`.
+
+Process debt noted while measuring: **math round_3 was integrated on human
+triage alone — step 4 was skipped**, no `verdicts-*.md` exists for round_7. The
+findings were all real so nothing was lost, but the step is unconditional.
+
+### DV-TODO (P3, low): test_fifo_async_wavedrom hand-drives the read side
+
+`val/cdc/test_fifo_async_wavedrom.py` drives `dut.read` directly in all three
+scenarios instead of going through the FIFOSlave BFM (test-audit round_1,
+clause 5). Parked 2026-07-31 (Sean: low priority): it is a wavedrom
+doc-asset generator, so the hand-driving IS the scenario content, and a BFM
+rewrite buys little. Revisit only if the FIFO's read protocol changes.
+
+**common TEST AUDIT round_3 — dispatched and integrated 2026-08-06.** The area's
+FIRST external test review (see the correction above: the July round was built
+and never sent). 13 units, `testqc-kimi-k3/round_3`, against a bundle rebuilt
+that day — necessary, since 93 of the 98 files in the corpus had changed since
+July, 37 of them newly created.
+
+**35 findings: 30 CONFIRMED, 5 SUSPECTED. Adjudication: 25 UPHELD, 9 UNCERTAIN,
+1 REFUTED.** Extractor located 33/35 quotes (94%), one BLIND. Every finding
+triaged; none dropped on a verdict alone.
+
+**The round's headline was a tool that lied.** `check_test_levels.py` decided
+the depth half with `'TEST_LEVEL' in <test text + TB text>` — a substring
+search satisfied by the name in a comment — and reported common **48 of 48
+compliant**. The true figure was **32 of 48**: seven wrappers never exported
+TEST_LEVEL, eight pinned `test_levels = ['full']` in all three REG_LEVEL
+branches, and one exported a varying value to a TB that never read it. The
+reviewer found them one file at a time; the tool had certified every one, and
+its green line had been quoted for four days. Rewritten to check EXPORTED,
+VARYING and CONSUMED on the AST — its 16 then matched the reviewer's list
+exactly, arrived at independently.
+
+Defect classes found, all fixed:
+
+| class | n | note |
+|---|---|---|
+| dead depth mechanism | 16 | incl. cam_tag's LEVEL_MULT, written days earlier against a variable nothing exported |
+| silent pass / cannot fail | 6 | weighted 80% pass-rate over DIRECTED scenarios; two assertions on cumulative counters; a wavedrom generator emitting zero JSON while logging "COMPLETE" |
+| duplicate method definitions | 5 | CamTB and CRCTB each defined the async contract pair twice, shadowed by sync versions defined later |
+| hand-listed sources | 6 | converted to filelists |
+| naming / crash / seed | 4 | VENDOR=XILINX crashed the wrapper outright |
+
+**Two lessons worth carrying to the next area.**
+
+*Wiring a dead mechanism surfaces real failures.* Exporting TEST_LEVEL for the
+first time broke all four wavedrom wrappers with `NameError` — their
+`reg_level` lives in a module-level helper, not the test function. Checking
+that the definition preceded the use by LINE NUMBER said it was fine; they are
+different scopes.
+
+*A parser and a reviewer catch different things, and both are needed.* An AST
+scan for duplicate method definitions found `CamTB.main_loop` defined twice,
+which the reviewer missed; the reviewer found every semantic gap the parser
+could not express. Where they overlapped they agreed exactly.
+
+**The single REFUTED verdict was wrong** — the fourth on record. It refuted
+"weighted FULL is GATE re-labelled"; `LEVEL_MULT` genuinely had one call site
+and the seven weight scenarios genuinely ran at a fixed `target_grants=1000`
+at every level. Rule 10 (a REFUTED never drops a finding by itself) paid for
+itself again.
+
+Left open: COMMON-020 (wavedrom constraints, P3, no consumer broken today).
+Verification after integration: gate 75/75, func 208/208, full 925/925.
+
+**common TEST AUDIT round_4 — 2026-08-06/07.** Re-round after integrating
+round_3, scoped with the new `build_test_review_bundle.py --tests` filter to
+the 22 tests whose runner OR TB chain changed: 9 units instead of 13. The list
+must be computed from the TB chain, not from changed test files — `cam_testing`
+and `crc_testing` were the two most heavily rewritten files and sit under
+wrappers that barely moved.
+
+**7 findings, against round_3's 35** — the shape a re-round should have.
+
+| disposition | n |
+|---|---|
+| known and tracked (COMMON-019 x2, COMMON-020) | 3 |
+| already fixed while the round was in flight | 1 |
+| genuinely new | 3 |
+
+**Two of the three new ones were defects I introduced integrating round_3**,
+which is the entire argument for re-rounding:
+
+- The ACK-mode grant target I scaled to 2500 for FULL is counted by filtering
+  `monitor.transactions` — a `deque(maxlen=1000)`. The count SATURATES, so the
+  target was unreachable and every ACK scenario exited on its 25,000-cycle
+  safety cap instead. Weighted full 252s -> 132s once it stopped burning
+  cycles against a cap it could never clear.
+- `shifter_lfsr_galois_sequence`'s depth mechanism was still dead after I
+  "fixed" it: I exported TEST_LEVEL to satisfy check_test_levels.py, the TB
+  read it, and nothing used the result — `LEVEL_MULT` computed and never
+  referenced, and the level-dependent default on COUNT unreachable because the
+  wrapper always passes TEST_COUNT.
+
+That second one is the same lesson a THIRD time. The check has gone *is the
+string present* -> *is the name read* -> *is it exported, varying and read*,
+and a mechanism still passed all three while driving no work. **Exported and
+read is not DRIVES WORK.** The next refinement worth making is a dead-store
+check: a name derived from TEST_LEVEL that is never subsequently referenced.
+
+Third new finding: the weighted walking test logged "successful" for every
+client unconditionally, because `ArbiterMaster.manual_request` returns normally
+when no grant arrives. Now asserts the client's grant count moved;
+mutation-checked.
+
+**Blocked mid-round by a shared-infrastructure break from another agent.** An
+uncommitted edit to `bin/TBClasses/shared/tbbase.py` inserted a new method
+directly beneath `convert_to_int`'s `@staticmethod`, giving the new method a
+doubled decorator and stripping `convert_to_int`'s. 118 TB files call
+`self.convert_to_int`; every test in the repo raised
+`TypeError: takes 1 positional argument but 2 were given`. Repaired in place
+(their function untouched, decorator restored) and left UNCOMMITTED, since the
+file carries their in-flight work. **Two agents editing one shared file is the
+same hazard as the shared bundle root, and it cost longer here because the
+failure looked at first like my own change.**
+
+Verification: gate 75/75, func 208/208, full 925/925, no skips or reruns.
+
+
+**math TEST audit (round_1, 2026-08-06).** 173 findings over 34 units;
+triaged by class and integrated: SEED two-line variant swept repo-wide (124
+files); filelist class closed as MATH-003 (all 119 tests build from
+filelists now); levels class closed as MATH-004 (level normalizer +
+grid fixes); semantic class fixed with mutation checks (RNE checker,
+clamp bit-exact, Goldschmidt zero-window + flag checks, carry_save i_c
+stimulus, vacuous main_loop, sigmoid prose, create_view_cmd FST name,
+johnson2bin/4-phase/open_loop/gaxi cdc items from the earlier cdc round).
+carry_save PARAM_N was a false alarm (fixed module is 1-bit by design).
+Remaining: MATH-001 (bf16 multiplier RNE, RTL fix directed by Sean).
+
+**common TEST AUDIT round_5 — 2026-08-08. FINAL for this area.** Scoped with
+`--tests` to the six common tests whose logic changed since round_4, plus
+`test_sync_pulse` from val/cdc -- a test I wrote from scratch and common's own
+until that morning. 4 units. The 48 wrappers whose only change was the
+identical 3-line coverage insertion were deliberately excluded, as was
+`bf16_testing.py` (the math agent's file).
+
+**5 findings. One of them is wrong, and finding that out cost a live break.**
+
+`sync_pulse` came back **CLEAN** -- the unit I most wanted checked, being the
+only module test I authored outright. The reviewer verified both level
+mechanisms move real work (8/24/80 pulses), the seed chain is intact and
+actually consumed, the assertions can fail ("a DUT that drops, duplicates,
+stretches, or invents pulses fails"), the monitor samples clear of the clock
+edge, and the timeout is ~100x the worst-case runtime. It also noted the one
+EXCLUDED scenario -- back-to-back toggling, which a toggle synchroniser cannot
+sustain by construction -- is disclaimed in the docstring rather than silently
+omitted. A documented scope decision reads differently from a hidden hole, and
+that distinction is the whole point of this exercise.
+
+**The walking-requests finding was real and the carve-out was hiding a genuine
+defect.** The ACK branch warned instead of asserting, on the recorded grounds
+that the per-client counter was "a measurement artifact, not starvation". It
+was not. Disabling every client while one still owed an ACK stranded
+`grant_valid` for the rest of the run -- the same root cause fixed in the
+weighted TB's saturation phase -- so the arbiter genuinely never granted.
+Measured: `[27,27,25,32] -> [27,27,27,32]`, one client of four served, while
+the compliance model reported ZERO errors throughout because the arbiter was
+behaving correctly with nothing to arbitrate. With a drain in place:
+`[27,32,31,31] -> [30,34,33,33]`, all four served, 6/6 clean, and a mutation
+that skips one client's window fails with `client(s) [1]`.
+
+**The stacked-clock finding is FALSE, and acting on it broke every suite.** It
+reported that six `@cocotb.test` functions each start a Clock on one dut.clk
+and leave six unsynchronised drivers. cocotb CANCELS every coroutine a test
+started when that test ends -- the clocks do not stack, and the per-test start
+is the mechanism, not a bug. A class-level guard in `TBBase.start_clock` left
+tests 2..N with no clock: counter_bin_load went from 1.4s to spinning at 100%
+CPU on an edge that never came. Reverted, with the reasoning recorded on the
+method. **Third plausible-but-wrong claim of the week to survive reading and
+die on execution**, after the shifter_universal X-select test that passed while
+exercising select=00 and ACK mode's "0 errors" that meant "not checking".
+
+Remaining three were mine and small: shifter_universal's FUNC row mapped to
+TEST_LEVEL='full' (orphaning every 'func' branch in its TB), counter_freq_
+invariant's docstring still described the pre-strategy grid, and an
+unrecognised REG_LEVEL built the FULL parameter set at gate depth.
+
+**Process hazard, recorded because it reached main:** the broken guard was
+UNCOMMITTED in the working tree when the math agent committed MATH-004. Their
+`git add` swept it into da911640 and pushed it -- a broken change of mine, in
+the history under someone else's commit message, live for about twenty
+minutes. Two agents sharing one working tree means an uncommitted experiment
+is not private.
+
+
+---
+
+## State of the areas -- cdc and math (logged 2026-08-09, Sean's request)
+
+### cdc -- DONE
+
+| Phase | State | Evidence |
+|---|---|---|
+| Critique (qc rounds) | 4 rounds, 17 real findings, 1 FP, 0 RTL logic changes | rounds 1-4 of the reset corpus |
+| Doc correctness | all integrated | commits d121f123 and predecessors |
+| Humanize | 17 pages applied; tag-survival clean (0 links/anchors/captions lost), 0 broken links, prose emoji stripped | humanize round_3; 43abf412, 18d0f7a6 |
+| Tests (testqc round_1) | 51 findings triaged, all batches integrated; regression green gate/func/full | SEED sweeps (86c91bfc, 29900e1b), grids+vocabulary (dfe2e457, d6c72890), silent-pass class (4af3708b, 5d6d9b23, f0e68e06, 69cf2a7a, 0eeb0a8f, 97b86eed, c44c94f1), smalls (f798b801, 4c9bb752) |
+| Open items | one P3 deferred (test_fifo_async_wavedrom hand-drives the read side -- wavedrom generator, Sean parked it) | docs-review open.md DV-TODO |
+
+### math -- RE-SCRUBBED AND RE-HUMANIZED 2026-08-19..21 (post-update cycle)
+
+The 2026-08-10..13 RTL wave (MATH-001/008/009, generator back-ports, header
+sweep) invalidated the July certification, so the full loop re-ran:
+
+| Phase | State | Evidence |
+|---|---|---|
+| Critique | rounds 5/6/7 of the corpus: 11 -> 10 -> 6 findings, STOP per the impact rule (nothing trap-class; part_03 clean twice) | commits 16e4c18b, 43b26620, c6e2ffc5 |
+| RTL found | shifter_barrel no-wrap shifts wrong at/beyond WIDTH -- carried a PASSING formal proof whose model restated the RTL's mod arithmetic ("matching RTL"); fixed with IEEE saturation, un-tautologized formal + directed TB, mutation-proven both ways. En route: the mixed-signedness ternary trap (>>> silently degrades) caught by the new independent model | shifter_barrel fix commit |
+| New page | mod_3_compress.md was OUTSIDE the book index, the PDF build and every prior review round; round_6 added it, round_7 gave it its first critique | c6e2ffc5 |
+| Humanize | 32 pages applied incl. CLAUDE.md; fix-survival verified per unit BEFORE apply and re-confirmed on the tree; tag-survival caught the humanizer's recurring '](../index.md]' malformed-link class (1 FATAL, repaired, re-gated); post-apply checks all zero | e0ff79ee |
+| Ops notes | large humanize units need KIMI_TIMEOUT=7200 (die thinking on the 1h default); run_batch --resume fills gaps only | |
+
+### common + cdc -- POST-JULY-28 UPDATE CYCLE DONE 2026-08-22 (Sean: "run the common/cdc files updated since July 28 throught the critique/humanize flows")
+
+| Phase | State | Evidence |
+|---|---|---|
+| common critique | rounds 8/9: 12 -> 6, converged (round_9 all doc nits) | 2f3ae653, 45c7fcc3 |
+| common RTL found | shifter_barrel npo2 rotate fold was plain $clog2-truncation (modulo 2^k, NOT modulo WIDTH); fixed with truncate + one conditional subtract (exact since trunc < 2*WIDTH), permanent WIDTH=11 FULL-grid row, pre-fix directed test FAILED 10/10 | 2f3ae653 |
+| common notable | LFSR seed-behavior claims ENUMERATED not patched: WIDTH=4 [4,3] Fibonacci = 3 freeze (1..3) / 3 revisit so lfsr_done asserts (6,11,13) / 9 cycle; the galois page's copy described the FIBONACCI module, and Galois itself measures MAXIMAL (all 15 seeds full period) | 45c7fcc3 |
+| common humanize | 31 pages; fix-survival grep-verified pre-apply; tag-survival caught the recurring `](../index.md]` class again (1 FATAL, repaired) | 465ab9f3 |
+| cdc critique | rounds 10/11 (first full review of the standalone cdc book incl. sync_pulse.md): 8 -> 4, meta unit clean, zero RTL logic | 516d43d0, 2763905a |
+| cdc notable | apb4_slave_cdc.md's DEPTH-elaboration analysis predated the gaxi_skid_buffer {2,4,6,8} guard (raw DEPTH bypasses the FIFO floor and hits the skids; legal set {2,4,6,8}, Johnson only buys 6); round_11 then caught round_10's own kept shorthand -- pointer widths follow the FLOORED max(DEPTH,4), so default DEPTH=2 pays 4-vs-3 bits, not 2-vs-2. Same fixes mirrored into 5 wrapper .sv header comments (comment-only, diff-verified) | 516d43d0, 2763905a |
+| cdc humanize | 19 pages + brief table (unit scope pulls in 4 APB slave-CDC pages + rtl-common clock_pulse); fix-survival verified; tag-survival caught `](../index.md])` -- THIRD consecutive humanize round with this defect class, gate catches it every time | 42630ad3 |
+| Ops notes | run_batch refuses a qc dispatch on a stale brief table (rebuild bundle -> make_meta_unit -> update_brief_table -> dispatch, in that order); one engine_overloaded transport failure resent via --resume per the client's remedy text | |
+
+### math -- DONE; all MATH-001..009 closed (open.md/active.md empty; stale rows below corrected 2026-08-22)
+
+| Phase | State | Evidence |
+|---|---|---|
+| Critique (qc rounds) | 3 rounds, 38 findings, all real, 0 FP; converged 20->12->6 | rounds 5-7 of the reset corpus |
+| Doc correctness | all integrated (carry_save rewrite sim-verified against RTL; addsub INC; bf16 latency both ends; BK diagrams; Kogge-Stone sweep; HC usage table) | 3b0513db, 6725c6dc, d5880a05, b2deeb75, 16d3959b, 9b1604ba, aef82d2d |
+| Humanize | 29 pages applied; tag-survival clean; 0 broken links; prose emoji stripped | humanize round_5; 11f32089 |
+| Tests (testqc round_1) | 173 findings triaged by class and integrated | SEED two-line variant (29900e1b), MATH-003 filelists CLOSED (134 generated + 24 repaired; all 119 tests converted; gate 119/119 func 134/134; 276de494), MATH-004 levels CLOSED (normalize_test_level sweep of 22 sites + grid fixes; b3c0aa23), semantic class (RNE checker shift-aware + directed cases; clamp bit-exact; Goldschmidt zero-window + flags; carry_save i_c stimulus; vacuous main_loop; sigmoid prose; create_view_cmd FST name) |
+| MATH-002 | CLOSED -- bf16 adder underflow reported +inf (wrap bit shared by both flags); RTL fixed, directed FTZ regression added, mutation-checked | 650fe622 |
+| MATH-001 | CLOSED -- bf16 multiplier textbook RNE (guard + true sticky export, G & (R\|S\|LSB)); sweep-verified 0/5000 vs exact reference; fp32 pair fixed identically; docs updated | vault/Tasks/math/closed.md |
+| MATH-005 | CLOSED -- math_mod_3_compress final formal checks done | vault/Tasks/math/closed.md |
+| MATH-006 | CLOSED -- (this row misdescribed it: the fp16/fp8 RNE sweep was MATH-007, closed false-alarm with exhaustive evidence). MATH-006 = full math formal suite re-run after the .sby path repair: 157 PASS 2026-08-11 | vault/Tasks/math/closed.md |
+| False alarms | carry_save PARAM_N (fixed module is 1-bit by design) | triage note in round_2 record |
+
+### Cross-area process state
+
+- Pipeline proven: tightened reviewer brief + golden deps + second-model
+  adjudication (verify_findings.py with per-finding blocks, normalized quote
+  location, identifier grep, test skeleton) -- 0 FP across the last five doc
+  rounds, verifier REFUTED-set errors all traced to evidence gaps now fixed.
+- Stopping rule: impact-based, near-empty aspiration (Sean 2026-07-28).
+- Hard requirements recorded 2026-08-03: TB separate from runner; every test
+  has gate/func/full (both REG_LEVEL grid and honest TEST_LEVEL depth).
+- math test style: directed patterns for full functional coverage, not
+  exhaustive sweeps; non-exhaustive stimulus is never a finding.
+- Next area per the order: common (with the other agent), then amba
+  (decomposed), then projects/components, then assess fpga areas.
+
+---
+
+## State of the areas -- gaxi and shared (logged 2026-08-11, Sean's request)
+
+amba is being taken one book at a time rather than as one unit; `gaxi` and
+`shared` were split out of the old combined book (58967753) so they round-trip
+independently.
+
+### gaxi -- DONE (RTL, tests, docs, humanize)
+
+| Phase | State | Evidence |
+|---|---|---|
+| Critique (qc rounds) | 2 rounds, 13 then 7 findings. round_2 was worth running: 5 of its 7 were residue of round_1's own claims (the phrase was spread wider than the findings enumerated) and one was a regression I introduced while fixing an overgeneralization | rounds 1-2, `~/rtl-doc-review-amba` |
+| RTL | mux-mode addressing bug fixed: `r_rd_addr` took the NEXT pointer, so `rd_ready` re-pointed memory past the entry being accepted -- written A B C D read back C D 00. Every RTL instantiation uses REGISTERED(0), so the broken mode was the only one shipping. Mutation-checked | 37cc9cce |
+| Doc correctness | both rounds integrated: zero-latency-bypass claim (5 files, gone since the 2026-04-23 refactor), phantom almost_full/empty ports, false min(N,count) clamp, wrong defaults/widths, undocumented MEM_STYLE, per-module power-of-2 rule | 5725969b, a0694c20 |
+| Book structure | own `_book_gaxi_index.md`; all 6 modules linked from BOTH entry points (regslice was an orphan, index.md listed 2 of 6) | 58967753, a7373cc0 |
+| Tests | the TB returned its own shadow model as the DUT's answer, so `assert data == expected` compared the stimulus list to itself -- that is what hid the RTL bug through 5 tests x 2 modes x 3 levels. Fixed to read the pin; streaming-drain and fill/random-drop tests added; 8/8 wrappers REG_LEVEL/TEST_LEVEL compliant (area is 40/119) | 37cc9cce, 5725969b, ec15a931, d4ecb410 |
+| Coverage | 100% on all five modules at REG_LEVEL=FULL. Earned by stimulus where reachable (slow_consumer profile + random drop took drop_fifo 91.3 -> 100), waived only where illegal-by-construction, each waiver carrying a DEFENSIVE comment | 27b9d981, 17b8abe8, 233a3393 |
+| Humanize | round_1 applied: 8 pages, 84 links resolving, 0 emoji | bf63573c |
+| Open items | none for gaxi itself |
+
+### monitor -- round_27 2026-08-31 (post-arc round; the arc was called early)
+
+The 2026-08-27 "ARC COMPLETE" was premature -- not because the rounds were
+wrong, but because FEATURE WORK LANDED AFTER THE VOICE PASS and nothing swept
+it. TASK-015's address filter and runtime ID filter (9cfd06e8, 576c26c1,
+94e0eb72, fd3b9646) plus their docs (63153b1b) all postdate humanize round_9.
+That is the DOCREV-017 failure shape appearing inside a book that had just
+been declared finished: **an arc is complete as of a COMMIT, not forever, and
+anything merged after the voice pass is un-reviewed by construction.**
+
+Round_27 (4 units, parts 1-4 rebuilt from the current tree) confirmed it.
+**COMPLETE: 4 ok, 0 failed, 126.5 min.** Every unit escalated 32768 -> 65536
+once and finished `finish=stop`, outputs 5.8k-8.7k chars with no
+truncation-shaped outlier (rule 4 checked on all four, not just the empty
+ones). **5 RTL defects and 12 doc findings.**
+
+**CONVERGENCE CALL: parts 3 and 4 returned ZERO RTL defects** -- all five came
+from parts 1-2. The RTL side of this book is exhausted for this reviewer and
+the doc side is down to single sentences and unit labels. The book is
+correctness-clean as of b7e68972.
+
+**Humanize is NOT owed for this round.** The round_9 voice pass still stands
+over the pages it covered; what round_27 corrected was either post-humanize
+content (the TASK-015 filter sections) or single factual sentences inside
+already-humanized prose. A second full voice pass would rewrite 36 pages to
+fix wording that was never the problem -- and per the fix-survival lesson
+below, every rewrite risks dropping a correction. Re-humanize only the pages
+that gained substantial NEW prose: axi_monitor_base.md, axi_monitor_filtered.md
+and axi_monitor_reporter.md.
+
+**FIVE RTL DEFECTS, three of them one class the previous round had declared
+closed.** `ae61c9f1` called its fix the "second and LAST instance" of
+AMBA-MONBUS-STABILITY. It was the second of five:
+
+  3. `apb_monitor_addr_check` had the identical unguarded payload overwrite.
+     The AXI fix was never propagated to the module its own page calls a
+     "deliberate mirror", and the module had NO test of its own at all.
+  4. BOTH checkers let the emit SELECTION move under a held valid (first-match
+     pick; in the AXI variant a MISS also preempts a MATCH), changing the
+     packet's identity rather than its payload.
+  5. `axi_monitor_addr_check`'s MISS slot kept its unconditional write --
+     `ae61c9f1` shadowed the MATCH ranges only.
+
+Defect 5 was found by the new directed test, not by the reviewer. Defect 4 was
+raised by the reviewer under "POSSIBLE RTL BUGS" and explicitly deferred "for
+the author's judgment"; it was real and reachable -- 7 violations in a
+two-range run.
+
+**A formal property now covers the class.** `formal_axi_monitor_addr_check`
+proved P6 (valid is sticky) and passed through all five instances, because
+sticky VALID is not sticky PAYLOAD. Added P7 (`ap_payload_stable`) plus a
+held-beat cover; it FAILS at step 5 against the unfixed RTL and passes with
+the fix. That is the durable fix -- the directed tests catch these two
+modules, P7 catches the class.
+
+**A separate, larger defect the round did not find, the regression did.**
+`94e0eb72` "expose cfg_addr_filter_* on all twelve wrappers" missed the twelve
+`*_mon_cg` clock-gated wrappers that instantiate them. Four failed to compile;
+the other eight PASSED because their tests carry `-Wno-PINMISSING`, so they
+built with the filter inputs floating (read as 0 = filter off). The same flag
+hid the same class in `axi_monitor_pktgen_dut`. Threaded both filters through
+all twelve and removed the flag from those tests. **A suppressed warning is a
+defect detector someone switched off; the AXI4/AXI5 side looked green for a
+week.** 61 files in val/amba still carry `-Wno-PINMISSING` -- unswept.
+
+**Doc findings, all integrated.** The addr filter was undocumented end-to-end:
+`axi_monitor_base.md` documented the parameter but none of the three runtime
+ports that arm it; `axi_monitor_filtered.md` claimed to be "a complete
+inventory" while omitting `ADDR_FILTER_ENABLE` and nine real ports including
+`block_ready`/`busy`/`active_count`. `axi_monitor_reporter.md` said
+threshold/perf/debug packets are "dropped rather than queued" -- only debug is
+lossy; perf and threshold DEFER, and the perf page said so, so the two pages
+contradicted each other. `apb_monitor_addr_check.md` claimed no violation is
+lost under backpressure when repeat hits on one range coalesce newest-wins.
+
+**Rule 6, measured FOUR times in one round.** Every single claim the reviewer
+cited was under-counted, and the ratio is the point -- 1:20, 1:9, 1:6, 1:3:
+
+| cited | actual | claim |
+|---|---|---|
+| 1 | 20 across 16 files | stale `monbus_axil_group` (35036222 rename leftover) |
+| 1 (as a passing "observation", not a finding) | 9 across 4 files | skid depth "2, 4, 6, or 8" vs the real 2..8 guard |
+| 1 | 6 in one file | `state_change` on the trans_mgr page |
+| 1 | 3 across 3 files | compressor "one slot per record" (tier-0 emits three) |
+
+Two of those trace back to an RTL HEADER COMMENT the docs were copied from
+(`monbus_arbiter.sv`'s depth line, `monbus_compressor.sv`'s throughput line) --
+fix the source or the doc error regrows, exactly as the rule says.
+
+The stale-name sweep also shows the OTHER half of rule 6:
+And fixing them mechanically CORRUPTED a page -- `monbus_group.md`'s migration
+section legitimately names the old module under a `// Old` heading, and the
+sweep renamed it. `check_doc_instantiations.py` caught that, which is the
+argument for running the checkers after a sweep rather than trusting it.
+
+**Two tooling defects fixed on the way:**
+  * `check_doc_instantiations.py` could not see `parameter logic [7:0] NAME`
+    -- its regex missed packed dimensions, so EVERY vector-typed parameter
+    read as undeclared and a doc that misnamed one was indistinguishable from
+    one that got it right. 8 false positives in the monitor book; 96 -> 48
+    reported names repo-wide. Mutation-checked.
+  * Rule 9 again, and it is the highest-yield rule in the list: the two docs
+    the bundle NEVER sees were both wrong. `rtl-amba/overview.md` claimed "86+
+    modules" with AXI4-Lite at 8 (really 16) and monitoring at 10 (really 30),
+    and listed AXI4-to-APB shims that moved to `projects/components/converters`
+    entirely; `rtl-amba/index.md` had 10 links pointing at `apb/` instead of
+    `apb4/`. **rtl-amba is now at zero broken links.** No reviewer would ever
+    have found either -- they are not in any bundle.
+
+### monitor -- ARC COMPLETE 2026-08-27 (first-ever review + humanize)
+
+32 pages, 4 units. qc rounds 24/25/26: 44 -> 24 -> 15 findings, then
+humanize round_9 applied over 36 pages with 0 fatal.
+
+SIX RTL DEFECTS, all mutation-witnessed (RED against the unfixed RTL,
+GREEN after):
+  1. r_protocol_violation_count declared, exported, NEVER WRITTEN --
+     an undriven net on a debug output.
+  2. ENABLE_DEBUG_MODULE=1 removed the only driver of the debug monbus
+     nets (a tie-off with no matching gen branch) -- setting the
+     parameter broke the design.
+  3. Compressor throughput claimed 1 record/cycle in both the RTL header
+     and the docs; MEASURED 0.67. Filed as [[AMBA-COMPTP]].
+  4. monbus_pkt_tally valid/ready violation: a packet arriving on a
+     clear cycle saw its handshake COMPLETE and was then silently
+     dropped.
+  5. arbiter_rr_pwm_monbus never forwarded WAIT_GNT_ACK to its monitor,
+     so an ACK-protocol build monitored a different protocol.
+  6. Two stale monbus_axil4_axil4_group comments (PH_LOW consume).
+
+WHAT THIS ARC TAUGHT, beyond the defects:
+
+* HALF A CONFIRMATION ROUND CAN BE YOUR OWN WORK. Round_25 had 10 of 24
+  findings that were my round_24 fixes. Recorded in
+  [[kimi-review-rounds]] rule 6 with the three distinct shapes it
+  exposed: missed sibling, BOTCHED SPLICE (replace the cited span, leave
+  the rest of the sentence -- 'they wrap at 2^32 ... so a capture never
+  rolls back to 0'), and NEW ARITHMETIC UNCHECKED (I replaced a
+  fabricated tick table and inverted the arithmetic in my own worked
+  example).
+* PREFER THE PROTOCOL-VISIBLE CONSEQUENCE OVER A HIERARCHICAL PROBE.
+  The WAIT_GNT_ACK test took three attempts: ports impossible (values
+  hardcoded, output unconnected), internal probe SKIPPED silently (a
+  passing test that tested nothing), and finally the monbus packet
+  stream -- build-independent, and what a real consumer sees.
+* A FIX-SURVIVAL CHECK IS WORTH BUILDING once a book carries corrections
+  a voice pass could silently drop. Script kept at
+  scratchpad/fix_survival.py as the pattern; it needed two fixes of its
+  own (scope to returned units; don't ban 'LUT levels').
+
+Also swept during the arc, at Sean's direction: FABRICATED AREA AND
+GATE-COUNT ESTIMATES REMOVED REPO-WIDE (32 files, six books). Kept what
+is real -- LUT levels from actual xc7a100t runs, the CDC comparison
+derived from Xilinx primitive geometry, and countable structural gate
+counts. Watch for prose forms; one page opened 'Fifty LUTs.'
+
+### monitor -- qc round_26 integrated 2026-08-27 (convergence round)
+
+44 -> 24 -> 15 findings. Character changed decisively: no wrong-module
+pages, no fabricated models, no self-contradicting migrations. What is
+left is narrow -- port-list gaps, off-by-one thresholds, and single
+sentences contradicting their own page.
+
+ONE REAL RTL DEFECT, and a good one: `arbiter_rr_pwm_monbus` forwards
+WAIT_GNT_ACK to its ARBITER but not to its MONITOR. The monitor
+therefore defaulted to WAIT_GNT_ACK=0 and compiled its
+gen_no_ack_monitoring branch, which ties ack-timeout and spurious-ack
+detection to 0 and counts completions on GRANT instead of grant_ack. So
+a wrapper built with WAIT_GNT_ACK=1 ran the ACK protocol on the arbiter
+while its monitor silently reported on a different protocol. The WRR
+wrapper always forwarded it, which is what made this an omission rather
+than a design choice. One-line fix.
+
+The TEST for it took three attempts, and the failures are the lesson:
+  1. probe cfg_mon_ack_timeout_thresh / debug_ack_timeout at the ports
+     -- IMPOSSIBLE: the wrapper hardcodes the threshold (16'h40) and
+     leaves debug_ack_timeout unconnected;
+  2. probe the monitor's internal r_ack_timeout_detected hierarchically
+     -- the path is not reachable in this build, so the check SKIPPED
+     and passed. A skipped assertion is decoration, exactly what the
+     handbook warns about; caught it because the log said "(internal
+     probe unavailable - skipped)" rather than reporting a value;
+  3. observe the MONBUS PACKET STREAM for a TIMEOUT packet carrying
+     ARB_TIMEOUT_GRANT_ACK -- port-visible, and the evidence a real
+     consumer would use. RED (seen=False) before the fix, GREEN after.
+The general point: when a signal is not at the ports, prefer the
+protocol-visible consequence over a hierarchical probe -- it survives
+build settings AND it is what the integrator actually sees.
+
+Doc findings closed: DEFAULT_ACK_TIMEOUT documented as live but dead
+(the real knob is the cfg_mon_ack_timeout_thresh PORT); the WRR page
+contradicting itself on the legal weight range (Key Features said 1..
+MAX_LEVELS, but the field is $clog2(MAX_LEVELS) bits so MAX_LEVELS
+itself truncates to 0 and DISABLES the client); the WRR Operation Flow
+still saying "grants highest-priority request" against its own
+credit-based algorithm section; "three orders of magnitude" for what the
+page's own table computes as 256x; base/filtered port tables missing
+five real outputs (perf_completed_count, perf_error_count, block_ready,
+busy, active_count); the reporter page claiming all six sub-blocks pipe
+into the FIFO when only error/timeout/compl are queued and
+threshold/perf/debug load the output register directly (which is WHY
+those three are dropped rather than buffered under congestion); the
+timer Key Features bullet still advertising a configurable tick period;
+CFI_NUM_FREQ_ENTRIES described as sizing cfg_freq_sel on base/filtered
+where it is a fixed 4-bit port; the undocumented ID_WIDTH <= 8
+elaboration limit; monbus_arbiter's "zero-latency combinational
+pass-through" when grant_valid is a REGISTERED arbiter output; the
+compressor's overflow thresholds off by one (doc ">", RTL ">="); and a
+"hit_any" signal in a timing sketch that the module does not have.
+
+Two were mine again, both from round_25 sweeps: the timer Key Features
+bullet contradicting the body I had just rewritten, and
+monbus_group_core still saying r_wr_addr "only moves in WR_W" after I
+documented the WR_IDLE moves on the sibling page.
+
+Clean-rebuild regression 65/65. Checkers clean.
+
+CONVERGENCE CALL: the RTL side is exhausted for this reviewer (three
+rounds, six defects, all fixed and witnessed) and the doc side is down
+to single sentences. Proceeding to humanize.
+
+### monitor -- qc round_25 integrated 2026-08-27 (confirmation round)
+
+Findings 44 -> 24 across the four units (11->7, 13->5, 12->7, 8->5). The
+reviewer independently verified the round_24 work held, calling the
+arbiter pages "unusually honest" for disclosing the dead WEIGHTED_MODE
+parameter, the FIFO drop-on-full behavior and the cumulative fairness
+measurement. None of the three RTL defects or the wrong-module page came
+back.
+
+TWO NEW RTL FINDINGS, both real:
+* monbus_pkt_tally VALID/READY CONTRACT VIOLATION. in_ready was
+  (ST_RUN && !i_freeze) with no clear term, while the ST_RUN branch
+  prioritises the clear over the accept -- so a packet arriving on a
+  clear cycle saw its handshake COMPLETE while the FSM jumped to
+  ST_CLEAR without latching the bin or doing the RMW. Packet silently
+  swallowed behind a completed handshake. The documented host protocol
+  (freeze, sweep, clear) hides it because i_freeze already drops
+  in_ready -- which is why it survived. Fixed + phase 7 added:
+  RED reported handshake_on_clear_cycle=1 bin=0, GREEN after.
+* Two stale monbus_axil4_axil4_group.sv comments claiming the leaf R beat
+  is consumed on the HIGH half; drv_rready is PH_LOW only (verified at
+  line 296), with the high half replayed from r_hi_half.
+
+THE HEADLINE DOC FINDING was a genuine integration hazard:
+apb_monitor_addr_check.md claimed to be a "deliberate mirror" of the AXI
+checker whose "only intentional divergence is the preserved is_read
+bit". The two have INVERTED RANGE POLARITY -- APB errors on an in-range
+HIT (blocklist), AXI on an allowlist MISS. An integrator carrying the
+AXI convention across would flag every access inside their intended-legal
+window while real violations passed silently. Replaced with a six-row
+comparison table.
+
+HALF THE ROUND WAS AUDITING ME. Ten of the 24 findings were my own
+round_24 partial fixes -- the handbook's rule-6 prediction landing
+squarely:
+  * an INVERTED ARITHMETIC ERROR I introduced: I wrote the timer tick
+    period as f_clk/divisor when it is divisor/f_clk, so all three rows
+    of my new Configuration Strategy table had both the value and the
+    DIRECTION of the error wrong;
+  * two botched splices where I replaced the cited text and left the
+    surrounding clause -- "They **wrap** at 2^32 ... so a capture never
+    silently rolls back to 0" (mutually exclusive) and "Throughput stays
+    at **1 / 0.67 records/cycle**" (stale 1 left on the previous line);
+  * a second throughput claim in monbus_compressor.sv I never swept
+    (I fixed the top-of-file header, missed the pipeline-stage block);
+  * the alloc pseudocode where I added the mask to the addr and data
+    branches and not resp;
+  * a parameter table still describing the page's OLD subject after I
+    rewrote its overview; a dangling "see the note below" for a note I
+    never wrote; the ENABLE_PERF_LOGIC row on the filtered page after
+    fixing the base page; the 9 parameters I documented on base and not
+    on filtered; the bucket identity stated unconditionally when the RTL
+    qualifies it "until a counter saturates"; and a doc sentence still
+    promising the geom_valid interlock after I corrected the RTL comment.
+
+The lesson is not new but it is now measured: fixing the passage in front
+of you is not closing the class. This round's integration was done by
+sweeping each claim across all three surfaces (RTL comment, module page,
+sibling page) before moving on -- e.g. the broken repo-root reference
+paths turned out to be 13 across 12 files, not the 2 cited.
+
+Also fixed: reporter_perf documented pkt_taken as unused and "tied to an
+unused net" -- that is axi_monitor_reporter_debug; in perf it HOLDS THE
+FSM (tie it low and the FSM deadlocks); a phantom PerfWin/PerfHist
+emitter row; the ADDR_RANGE payload described as a range index when it is
+always the 4'hF no-range sentinel; ADDR_WIDTH>32 truncation and ID_WIDTH>8
+$error undocumented on trans_mgr; monbus_cam still presenting itself as
+the production CAM; and the N_ADDR_RANGES=0 zero-area claims, which
+describe the PARENT's generate guard (this module has no N==0 guard at
+all). Swept 32 check-mark emoji out while here -- axi4/axi5 were cleaned
+to zero last arc and these break the LaTeX PDF path.
+
+Clean-rebuild regression 65/65. Checkers: 0 emoji, 0 broken references
+(link checker extended to catch backticked repo-root paths, the class it
+had been blind to).
+
+### monitor -- qc round_24 integrated 2026-08-27 (first-ever review of the book)
+
+32 pages, 4 units, ~44 doc findings + 10 RTL observations -- the largest
+first-round yield of any book so far, and the RTL side was the valuable
+half. THREE REAL RTL DEFECTS, all confirmed against the source:
+
+1. `r_protocol_violation_count` (arbiter_monbus_common) was declared and
+   exported on debug_protocol_violations but NEVER WRITTEN -- an undriven
+   net, X in sim, arbitrary tie in synthesis. Detection existed; only the
+   tally was missing. Fixed (edge-counted, saturating -- a violation count
+   that wraps to 0 reads as "clean", the one wrong answer it must never
+   give). Mutation-proven: the test's protocol_violation phase already
+   drove 30 violations and asserted nothing; it now counts them
+   (0/30 RED before, 30/30 after).
+2. `ENABLE_DEBUG_MODULE=1` removed the ONLY driver of the debug monbus
+   nets -- an `if (!ENABLE_DEBUG_MODULE)` tie-off with no matching
+   gen_debug branch, so setting the parameter broke the design. Every
+   instantiation passes 0, so it was a latent trap. Tie-off made
+   unconditional; parameter documented as inert (removing it + the dead
+   DEBUG_FIFO_DEPTH / cfg_debug_level / cfg_debug_mask is an API change
+   across 13 files -- flagged, not taken).
+3. Compressor throughput: claimed 1 record/cycle in BOTH the RTL header
+   and the docs; MEASURED 0.67 (134/200). Reviewer called it on paper as
+   SUSPECTED; a new phase-4 measurement confirmed it exactly. Filed as
+   [[AMBA-COMPTP]] with a bounded regression assertion.
+
+Doc classes closed: a page describing an ENTIRELY DIFFERENT MODULE
+(arbiter_monbus_common.md documented an N:1 stream arbiter/mux; the RTL
+is a snooping telemetry block with no arbitration at all -- that is
+monbus_arbiter); the timer page's whole timing model (a fabricated
+power-of-2 cycle table -- cfg_freq_sel actually selects a CLOCK FREQUENCY
+IN MHz and the tick is always 1 us); the perf-window end-event selector
+still transposed the way the RTL explicitly un-transposed it; timeout
+widths 4-bit/8-bit vs the real 16-bit microseconds; phantom interfaces
+(CACHE_DEPTH parameter, a debug sub-module, ACTION_NONE/TOUCH/INSTALL CAM
+actions the pipelined CAM self-derives); a port list omitting three
+alloc_mask inputs whose omission makes the CAM never allocate; the
+compressor's halfway migration (headline sections describing the
+superseded global-r_last_ts design its own later sections correct).
+
+RULE-6 SOURCE DELETIONS (docs get rewritten from RTL comments, so the
+comment is the real fix): the 60-bit packet-layout banner in
+arbiter_monbus_common.sv, "at most one packet"/"mutually exclusive" in
+axi_monitor_addr_check.sv (per-range DEBUG/ERROR flavors make both fire),
+the slice-0-plus-buffered-record claim over fub_s_arready in
+monbus_group_core.sv (code is plain `!r_rd_in_burst` -- the doc was
+written FROM this comment), PROFILE_MODE/direct-mapped in
+monbus_pkt_tally.sv, the 1-record/cycle throughput claim, two 64-bit
+ASCII diagrams, and the r_geom_settle comment that promised a reset the
+code does not do (traced benign by two independent readings; comment now
+states the real invariant and why it is tolerable).
+
+Also documented the parameter gap the reviewer flagged as a class:
+USE_WDATA_ORDER_Q / NUM_BANKS (with the bank-sizing rule and the
+write-monitor elaboration error), the ID-range filter, and the CFI_*
+timer LUT -- all load-bearing, none previously in the docs.
+
+### axi4 + axi5 -- ARC REOPENED; rounds 28/29 were never logged (2026-09-01)
+
+The "ARC COMPLETE 2026-08-26" below stood while two more rounds ran, found a
+real RTL defect and 29 findings, got integrated, and were never written down.
+Rule 11 again, in its quietest form: the log said finished, the tree said
+otherwise, and nothing reconciled the two. Recording them now, with the state
+that measurement exposed.
+
+**qc round_28 (axi4, 3 parts) + round_29 (axi5, 3 parts), integrated
+`ae3029fa`.** Six units, all `finish=stop`, 29 findings, one real RTL defect
+-- and sweeping it found more than the reviewer saw. The reviewer cited
+`axi5_slave_wr_mon_cg` not forwarding the timer-calibration parameters; they
+were UNDECLARED on all twelve `_mon_cg` wrappers (ACLK_MHZ, CFI_MIN/MAX_FREQ_MHZ,
+USE_WDATA_ORDER_Q, NUM_BANKS), so a gated build could not state its clock and
+every microsecond timeout was miscalibrated off 100 MHz, silently; and a banked
+write monitor was unbuildable through a wrapper at all. Auditing the whole
+parameter surface rather than the cited one turned up a sixth,
+ADDR_RANGE_IS_ERROR on the four axi4 wrappers. Doc classes were swept, not
+patched at the citation: filter interface onto 12 pages, reserve 2->4 on 12,
+"3-level filtering hierarchy" in 11 files, cycles->microseconds in 16, phantom
+`cfg_cg_idle_threshold`/`cg_cycles_saved` ports off the axil4 `_cg` pages.
+
+**So the arc is NOT converged.** A round that returns a real RTL defect and 29
+findings is not a stopping point under the DOCREV-013 rule, and the 24 pages
+that round changed have not been voiced -- humanize round_8 predates them.
+
+**Two structural gaps found while measuring, both invisible to the pipeline
+by construction:**
+
+1. **`rtl-amba/overview.md` has never been reviewed, in twenty-nine rounds.**
+   The bundle carries only what a `_book_*_index` links, and no index links
+   the library overview. Every integration example on it was fiction: an
+   apb5 port that does not exist, the monitor reporting through per-metric
+   counter pins instead of the monbus, `axil4_master_rd` with the wrong
+   parameter prefix and a phantom `_axi_` infix, `axis5_master` wired with a
+   TKEEP that axis5 does not have, `gaxi_fifo_async` sized by ADDR_WIDTH and
+   clocked by `s_clk`/`m_clk`, `apb5_master_cg` with a scan-enable and a
+   gated-clock port, and two pipelines built on `axi5s_if`/`axi4s_if`
+   interfaces this library does not define. 40 undeclared names across the
+   four RTL books attributed to exactly two pages -- this one (34) and
+   `axis4/axis4_master.md` (6). Fixed in `5c3daeb8`; all four books now report
+   zero. **The page a newcomer reads first is the page the process cannot
+   see.** Worth a checker gate rather than a memory.
+
+2. **`axi5/axi5_atomic_filter.md` was linked from nothing.** A real 6.5 KB
+   module with a full page, absent from `_book_axi5_index.md`, therefore
+   absent from the AXI5 PDF and from every review bundle ever built. Linked
+   now. Audited by hand against the RTL since no round has ever seen it:
+   ports, parameters, the `AWATOP[5]` discrimination, the W-stalls-until-AW
+   rule, DECERR-not-SLVERR, downstream-B-priority and the local-B pop guard
+   (`!m_bvalid && !w_resp_empty && s_bready`) all check out, and both cited
+   tests exist. The page was correct; its defect was invisibility. Swept the
+   same class across all four RTL books' indexes -- it is the only orphan.
+
+**qc round_31 (axi4 + axi5, 6 units) — COMPLETE 2026-09-01.** 6 ok, 0 failed;
+all six `finish=stop` after `axi5_part_03` was resumed (rule 4 checked on all
+six). **1 RTL defect, 16 doc findings**, integrated in `f317e4a9`; the RTL fix
+shipped separately in `ad97d5d9`.
+
+**The RTL defect was on a page I had just declared correct.** Round_30 flagged
+`axi5_atomic_filter.md` as orphaned; I linked it, hand-checked every claim
+against the RTL, and wrote "the page was correct". It was — the page accurately
+described logic that violated AXI. I checked the documentation against the
+logic and never checked the logic against the protocol. The B mux switched
+source combinationally, so a downstream response arriving under a stalled
+`s_bvalid` changed BID/BRESP mid-beat. Fixed with the selection hold this repo
+already uses in `apb_monitor_addr_check`. The existing test could not catch it
+— it holds `s_bready` high throughout, so the window never opens; proved that
+by reverting the fix and watching it still pass, then added a stalling phase
+that fails at cycle 0 without the hold.
+
+**Trap-class:** read monitors documented as detecting `EVT_PROTOCOL` and
+`EVT_RESP_TIMEOUT`, both unreachable with `IS_READ=1` (nine pages claimed it,
+the reviewer cited one); and per-phase timeouts described as stall detectors
+when the timers zero only while their phase is not pending — a beat handshake
+does not reset them, so a long healthy burst trips `EVT_DATA_TIMEOUT`. The
+second one inverts advice: the pages told readers steady progress keeps a phase
+alive forever. I wrote that line in an earlier round.
+
+**Estimates sitting next to counted figures.** Round_30 recounted the monitor
+row of the resource table from the RTL and left the clock-gating row beside it
+as an inherited "+30 FFs". It is 5 (`r_wakeup` + `r_idle_counter` at
+`IDLE_CNTR_WIDTH=4`). Same table, same commit, one row measured and one
+guessed. Also "~5-8% area" for a monitored slave, against the same books'
+counted >5,000 FF floor.
+
+**Mechanised the recurring class.** Round_30 found twelve `_cg` pages missing
+six parameters; round_31 found a page dropping eight more and examples dropping
+`cfg_freq_sel`/`cam_clear`. Same defect twice, found by hand both times, so
+`bin/audit_doc_port_coverage.py` now cross-checks every page against its
+module's port and parameter lists. It found 53 pages missing the derived
+parameter aliases — the class that broke the axil5 tests when overridden — and
+13 examples that would leave `cam_clear` dangling against their own page's
+"do not leave unconnected".
+
+**A closure I got wrong mid-integration.** I measured `cfg_freq_sel` as already
+documented and closed the finding, having checked only table rows. The
+instantiation examples are enumerations too, and sixteen of them dropped it.
+Rule 7 says integration status is measured, not inferred — but the measurement
+has to cover every form the claim takes, and a table-row grep is not that.
+
+**Filed CONV-010** (converters/open.md; filed as CONV-001 in amba/open.md and
+renumbered when it moved to the converters area 2026-09-14): the dwidth
+converter's split fold pops one
+FIFO entry per downstream B — exact within an ID, wrong if a downstream
+interleaves B across IDs, which AXI4 permits. Documented as a constraint rather
+than fixed; it touches the converter pumice's host gearing depends on.
+
+**qc round_30 (axi4 + axi5, 6 units) — COMPLETE 2026-09-01.** 6 ok, 0 failed,
+137.1 min; three units escalated 32768 -> 65536 once, all six finished
+`finish=stop`, outputs 7,205-10,778 chars with no truncation-shaped outlier
+(rule 4 checked on all six). **Zero RTL defects. 15 doc findings**, integrated
+in `f667e868`.
+
+**The pre-audit paid.** Four of the fifteen — the `_cg` parameter-table
+omissions on axi5 and axil4 — were ALREADY FIXED by `8c19bfc1` before the
+round returned, because I audited my own `ae3029fa` integration first instead
+of waiting to be told. That is rule 6's confirmation-round lesson used
+forward rather than learned again: the round then spent its budget on things I
+had not found.
+
+**Trap-class, all new:** two phantom detections (`RID != ARID` / `BID != AWID`
+ID-mismatch checks, and a whole-transaction `AW to B` / `AR to RLAST` timeout —
+neither exists; the RTL has three per-phase timers and eight event codes);
+`ENABLE_PERF_LOGIC` described on five pages as dropping the perfmon window and
+counters when it gates only the reporter's `g_perf` cone (three of those pages
+contradicted their own table one section away); and `ap_disabled_never_stalls`
+cited as an in-RTL property on twelve pages when it exists on exactly four.
+That last one the reviewer filed SUSPECTED, guessing an external harness —
+measuring found it HALF true, which no verdict category would have produced.
+
+**Order-of-magnitude:** the axi4 README budgeted monitor overhead at +800 FF.
+Counted from the RTL it is over 10,000 (`bus_transaction_t` = 285 bits x 16,
+twice, since the reporter keeps `r_trans_table_local`, plus timers and
+threshold latency). 13x low; axil4's +600 was 9x low. Both now carry the
+contributor table so the number is recheckable. Their "40-50% smaller"
+comparison survived — exactly 50%, because MAX_TRANSACTIONS is halved.
+
+**One RTL lead, filed not fixed: [[TASK-073]].** `axi_monitor_base` filters
+each channel by ID, and the four AXI4/AXI5 write monitors wire `data_id` to
+the LIVE `AWID` — AXI4 has no WID, so with more than one outstanding write the
+AW on the bus belongs to a later transaction than the W beats in flight. With
+the runtime filter on, an owned transaction's W beats can be dropped, its data
+phase never completes, and it reports a `DATA_TIMEOUT` that never happened.
+Reachable by CSR write on any shipped bitstream (`cfg_id_filter_enable` alone
+arms `id_owned`). Filed rather than fixed: the change is in the shared base
+module and the scope call is Sean's.
+
+**NOT converged.** Round_30 found zero RTL defects and no finding the reviewer
+rated above the trap classes above, but fifteen doc findings including four
+trap-class is not a stopping point under the DOCREV-013 rule. Round_31 next,
+from a bundle rebuilt after `f667e868`; it will be the first round to carry
+`axi5_atomic_filter.md`. Humanize only after a round comes back with nothing
+trap-class.
+
+### axi4 + axi5 -- ARC COMPLETE 2026-08-26 (first-ever reviews + double humanize)
+
+qc rounds 20-23: 74 -> 44 -> 24 -> class-closed (zero RTL findings after
+round_20; round_23's assessment: 'nothing that would send an integrator
+down a wrong design path'). The plateau at 24 taught the closure lesson:
+fix by CLASS exhaustively, not by citation -- per-citation fixes leave
+twins and create fresh inconsistencies. RTL fixed: 8 dead clock-gates
+(peer-READY activity terms, family-wide, mon_cg siblings' rule), undriven
+stub AR counts (both families, widened to [3:0]), WSTRB forwarding, stale
+4-bit timeout comment blocks deleted from all 8 mon wrappers (the doc
+corruption source), filtered.sv err_select routing myth, buckets identity
+comment. Headline doc classes: phantom CG interface (8 pages), phantom
+safety capabilities (poison/MTE/ATOP/WLAST/WSTRB/burst checks), inverted+
+mismapped filter masks, 4-bit->16-bit-us timeouts, stays-awake/flushed
+gating guarantees -> freeze/drop warnings, idle-count power-of-2 tables
+(16x sizing error), event_data payload truth (32-bit address only).
+Humanize round_8: 44 pages, gates clean (twelve bracket-links repaired --
+fifth consecutive round with the class). TASK-070 = remaining RTL
+follow-up. Incidents: two more staged-set sweeps by concurrent sessions
+(69d220e3 + one earlier), provenance commits pushed both times.
+
+### apb4 -- ARC COMPLETE 2026-08-25 (first-ever review + humanize); apb5 spillover integrated
+
+Rounds 17/18/19: 13 -> 10 -> 5, converged ('well above average in accuracy
+and candor'; round_19 independently re-derived every round_18 correction).
+Headline doc fixes: both stub pages' paddr/pwdata packing order (guaranteed
+integration failure), the slave's latency mis-model (>=4 wait states /
+6-cycle minimum through both registered skid rd_valids, not 2/4), README
+one-sided-reset claim, monitor page brought forward a generation. RTL fixed:
+STRB_WIDTH = 32/8 -> DATA_WIDTH/8 (slave + cg). RTL FILED with traces:
+TASK-066 (monitor slot leaks, +disabled-config trigger), TASK-067 (stub
+framing FIFO overflow), TASK-068 (P1 CONFIRMED master
+response-backpressure bus deadlock -- holds PENABLE forever), TASK-069
+(monitor protocol-check false positives on pipelined traffic + live-command
+event pairing + active_count drift). Humanize round_7: 10 pages, emoji
+38 -> 0, fourth consecutive round emitting the bracket-for-paren footer
+link (gate caught it). apb5 spillover (4 findings) integrated ca941b2b.
+Skid contract correction (2..8 inclusive, Sean) swept 24 pages + 3 guards
+mid-arc, 21c51b36.
+
+### gaxi -- RE-SCRUB COMPLETE 2026-08-24 (post-drift confirmation)
+
+First review since the 08-10 humanize (the signal-prefix sweep and skid
+DEPTH guard landed after it). Round_15 -> round_16: substantive -> 3 nits.
+
+| Item | Outcome |
+|---|---|
+| RTL: dbldrn rd_valid corner | double drain from EXACTLY 2 held rd_valid on empty; streaming consumer's accept underflowed count 0->15, wedged until reset. Fixed (count==2 term excludes dbl-drain-without-write), RED 4/4 -> GREEN 4/4 via new double-drain-to-empty scenario (8b760a10) |
+| RTL: dbldrn DEPTH guard | added, mirroring base module; verified firing at -GDEPTH=16 (was comment-only with the same 4-bit wrap) |
+| RTL: drop FIFO bounds check | the header PROMISED 'checked in simulation'; no check existed. Now a real capture-edge $error; header + doc disclosure synced (5f240490) |
+| Docs | 9 findings across the two rounds: self-contradicting ALMOST-margins guidance, dbldrn storage-style claim, regslice latency-differentiation contradiction, README drop-FIFO latency row (flop=2), phantom 'transaction logging' feature, DEPTH=1 'any depth' overstatement (verified failing), + 3 example/format nits |
+| Humanize | NOT re-run -- the 08-10 voice pass stands; integration edits are localized and voice-matched |
+| Suites | dbldrn/skid/drop/regslice 18/18 clean builds |
+
+### shared -- ARC COMPLETE 2026-08-24 (correctness + tests + humanize)
+
+Resumed post-observer-unblock as rounds 12/13/14 (qc rounds 5-7 of the arc):
+14 -> 8 -> 8. Round_12 = docs lagging 537c7af8 (14 findings) + the splitters'
+two-process sticky-overflow write (fixed, single dedicated process,
+c3b84d0c). Round_13 = residue/nits (5a5d82c8). Round_14 caught the REAL one:
+the rd splitter's owed-beat RLAST counter is single-transaction state and a
+second admission mid-flight reloaded it -- fixed with the r_rbeats_active
+acceptance fence mirroring the wr side, mutation-proven via a new
+back-to-back TB scenario (landed inside the converters session's 426e2fb8 --
+see incident 5 in the worktree note; provenance commit 1de8ad18). Humanize:
+28 pages, all survival gates clean first pass (da44a07c). Arc totals:
+correctness rounds 2/3/4 + 12/13/14, SEVEN mutation-proven RTL fixes, all 21
+modules tested (TASK-062), TASK-060/061/063/064 closed.
+
+(Previous save-state record follows for history:)
+
+### shared -- CORRECTNESS NEARLY DONE (updated 2026-08-13, Sean's "save state")
+
+Fresh rounds re-run from this machine's tree (the round_1 collateral lived
+only on the other machine; per Sean, if the mods can't be found, nothing was
+done -- so the cycle restarted clean). Convergence: **29 -> 14 -> 10**.
+
+| Phase | State | Evidence |
+|---|---|---|
+| Critique | rounds 2/3/4 dispatched, adjudicated (r2: 19 UPHELD/0 REFUTED/12 UNCERTAIN, extractor 100%), triaged, integrated | `~/rtl-doc-review/results/qc-kimi-k2/round_{2,3,4}` |
+| RTL defects fixed | SIX, each mutation-proven RED->GREEN on clean rebuilds: (1) master CRC accumulate strobe tied off -- constant 0x00000000, integrity compare vacuous; (2) writer CRC captured 2 cycles early; (3) LFSR tap defaults not maximal, 8-bit ID set parks at zero from seed 0x01 -- library-table primitive sets now, family-wide incl. dma_slaves/AXIS pair; (4) convert dropped WSTRB (blocking-order guard) -- partial writes clobbered whole APB words; (5) sdpram_core WRAP mask shrank mid-burst (len = remainder, now latched); (6) rd_crc_check stray-beat drain detected pin-side, parked the stray in the skid, poisoned the next run | 494fe520, 058b3ae0 + suite evidence in messages |
+| RTL defects filed | TASK-060 (observer, left alone per Sean), TASK-061+063 (splitter cluster: block_ready duplication, final-split BRESP lost, per-split RLAST, silent FIFO drop, unfenced consolidation, leading-W), TASK-064 (read-path PSLVERR loss; peakrdl held-req contract) | vault/Tasks/amba/open.md |
+| Tests | ALL 21 shared modules covered (Sean: "all of the shared modules need tests"): 8 new suites over the 7 uncovered (TASK-062 CLOSED -- board-deployed sdpram axil_axil now simulated); software mirrors, REG/TEST_LEVEL grids, SEED, mutation evidence per suite; area sweep **246/246** clean build | ed1319a6 |
+| Doc integration | rounds 2/3/4 fully integrated with read-back verification; README 996-line second copy -> pointer map; STATUS tracking un-rotted; shims Location fixed (all four pages pointed at a directory with no RTL) | e8ba4962, 27ce2732, 058b3ae0 |
+| Guard rails added | gaxi_skid_buffer DEPTH elaboration guard ({2,4,6,8} is the PERMANENT contract -- Sean: "skid buffer will never be more than 8 deep"); shim partial-strobe regression; stray-beat scenario | 058b3ae0 |
+| Humanize | NOT STARTED (correctness first, and round_5 is deliberately held) | -- |
+
+**UNBLOCKED 2026-08-21: the observer rework LANDED as a deletion.**
+axi4_dma_observer (module + doc page) is gone, replaced by
+axi4_intf_master/slave_observer in projects/components/misc; TASK-060 closed
+obsolete. The dedicated-observer-unit plan below is MOOT for shared -- the
+successors belong to the misc book and get reviewed there. Shared's round_5
+re-critique can proceed with the current 24-page book. (Original held plan,
+for context:) Plan agreed: (a) wait for the update to land; (b) re-sync
+axi4_dma_observer.md; (c) build a DEDICATED observer unit carrying its FULL
+monitor cone -- part_01's closure did NOT include axi_monitor_base/filtered or
+axi_perf_latency_hist (documented in another part), which is exactly why the
+observer's own o_cmd_block defect was invisible to its reviewer; golden-deps
+auto-skips shared (47 > 25 scale guard), so hand-scope the unit like a _meta;
+(d) spin that unit alone (--only, rebuild-all-send-subset) until clean --
+likely a couple of rounds; (e) round_5 over the rest of shared; (f) humanize
+from a bundle rebuilt AFTER the last correctness commit. Close TASK-060
+against the measured tree only (elaboration passes, the 249th GATE test
+green), not the incoming commit message.
+
+**Monitor-restore incident (context, not mine):** 1e6b1d9d (stream agent,
+2026-08-12) stripped the ID-range filter feature from axi_monitor_base
+(6e95cbab's feature -- per-instance ID slices are the only way parallel
+monitor snooping closes timing). Restoration was in-flight, uncommitted, in
+the shared tree as of 2026-08-13; my footprint has zero overlap. See
+[[multi-agent-worktree]] for the discipline this week bought.
+
+### Process changes made while doing this
+
+- **The no-emoji rule was never in the humanize prompt.** It lived in the
+  handbook, a commit message, and the reviewer's head. The gaxi round came back
+  having ADDED 20 glyphs and failed the gate with 3 FATAL. Both rules -- no
+  emoji, and a NAMED canonical `##` section list -- now sit in
+  `kimi_humanization_style_guide.md` and the `run_batch.py` wrapper. "Unify the
+  headings" without naming the target set had let each round invent its own
+  self-consistent scheme, which is why the finished areas are internally tidy
+  and mutually inconsistent.
+- **`bin/review/check_doc_structure.py`** added: reports per-area heading drift
+  so "does this area need re-humanizing?" has a number. Its answer for
+  common/cdc/math/gaxi is **no** -- the deltas are mechanical renames
+  (`Implementation Details` -> `Functional Description` x30 in common) plus one
+  real content gap (DOCREV-016), and a scripted rename is cheaper and safer than
+  a voice pass that rewrites everything to fix section names.
+- **Framework upgraded 0.6.1 -> 0.6.3** on this box; `val/amba` could not
+  collect before it (`create_apb4_wavejson_generator` missing).
+
+### What comes next on amba
+
+*(This section was written 2026-08-13 and its list is long superseded --
+monitor, axi4, axi5, apb and apb5 have all had rounds since. Corrected
+coverage below, measured 2026-09-01 by listing the units in every round
+directory rather than reading any status line.)*
+
+**Books ever reviewed, across all 30 qc rounds:** apb, apb5, axi4, axi5, cdc,
+common, gaxi, math, monitor, shared.
+
+**Books NEVER reviewed: `axil4`, `axis4`, `axis5`.** Not once. `axil4` is 18
+pages and 16 modules -- the third-largest amba book -- and every axil4 defect
+found so far was found INCIDENTALLY by an axi4 or axi5 round that happened to
+carry shared monitor RTL. Round_30 alone found four that way, which is a
+strong prior for what a dedicated round would turn up.
+
+That incidental-discovery pattern is the thing to notice. A book with no
+round of its own is not merely unreviewed; it looks reviewed, because
+findings about it keep arriving and getting fixed. `axil4` has been edited in
+four commits this session and had never been the subject of a single round.
+
+A hand audit against the already-known classes (`f4700d69`) found all four
+axil4 `_mon` pages missing real parameters -- `ACLK_MHZ` among them, so the
+silent-timeout-miscalibration trap was live in the docs even after the RTL
+fix -- plus four more instances of the `ENABLE_PERF_LOGIC` falsehood worded
+differently enough to survive the previous sweep. That audit only covers
+classes we already know to look for, which is precisely why it is not a
+substitute for a round.
+
+**Order (Sean, 2026-09-01): axi4/axi5 to convergence, then axil as a BATCH,
+then axis4 + axis5 as a batch.** One round per family with all its members in
+it, the way rounds 30/31 sent axi4 and axi5 together, rather than the
+one-book-per-round shape of 28/29.
+
+One wrinkle on the AXI-Lite batch, and it is now OUT OF DATE -- corrected
+below rather than deleted, because the reasoning was right at the time and the
+way it went stale is the useful part.
+
+*What this said (2026-09-01, morning):* there is no axil5 book because there
+is no axil5 IP -- `rtl/amba/axil5/` held exactly one file,
+`test-modules/axil5_opt_slave.sv`, labelled TEST COLLATERAL by its own
+filelist header. So the AXI-Lite batch was axil4 alone.
+
+*What changed the same afternoon:* the axil5 family was BUILT -- sixteen
+modules mirroring axil4 one for one, commits 4de615c1 / e8a8473e / 54792f17 /
+f01d5380. The premise of the note was retired by the work recorded three
+sections down, and nobody reconciled the two. Sean corrected it.
+
+**So the AXI-Lite batch is axil4 AND axil5, as originally set.** The blocker
+is documentation, not IP: axil5 has no doc directory and no `_book_axil5_index`,
+so the review bundler has nothing to carry. axil4 has 18 pages. Writing the
+axil5 book is a PREREQUISITE for the batch, not a follow-on.
+
+The axis batch is genuinely two books: `axis4` (6 pages) and `axis5` (5).
+
+Both batches are FIRST-EVER rounds for every book in them.
+
+---
