@@ -2,7 +2,7 @@
 
 # projects/components/dmas/rapids — tasks
 
-**Next ID: TASK-018** — never recycle a number, even when its item closed.
+**Next ID: TASK-019** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 16 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
+- **TASK-018** — an interleaved-channel mode for the harness AXIS generator, so the sink's aggregate window can be measured
 - **TASK-000** — reserved template; copy the file, do not file against it.
 - **TASK-017** — rapids placement pass: 6 loose filelists (dv/tb + Genesys2 flists/) and 13 loose markdown files
 

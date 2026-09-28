@@ -14,7 +14,9 @@
 > = 8 per channel) is the design point from here on and is what this version
 > reports. Rapids ISSUE-004 (one row reading zero ingress starvation) closed on
 > this re-measurement plus an ILA trace of that row: every row now shows the
-> same single trailing starvation cycle.
+> same single trailing starvation cycle. The 7.5 sink column measures one
+> channel's window because the generator feeds channels one at a time (rapids
+> ISSUE-006, closed the same day; an interleaved mode is rapids TASK-018).
 >
 > **v1.3 (2026-09-27).** Latency sweep (7.5) re-measured on a bitstream whose
 > AXI observer keeps 32 timestamps per channel instead of 8: no histogram
@@ -442,14 +444,19 @@ i.e. six to seven 9-beat bursts of the eight `AR_MAX_OUTSTANDING` allows (v1.3
 measured ~20 per channel at PIPELINE = 0). The SINK write path holds 99.9 % to
 48 cycles, knees at 64 (92.8 %) and then falls as `0.752 x 96 = 72`,
 `0.637 x 128 = 82`, `0.347 x 256 = 89`, `0.182 x 512 = 93` -- an asymptote of
-**~93 beats in flight, ~12 per channel**, well short of the 64 per channel that
-eight 8-beat AWs could hold. So the write side's in-flight window is bounded by
-something other than the AW count; the sink SRAM's per-channel allocation and
-commit accounting is the candidate, and it is filed as rapids ISSUE-006 rather
-than guessed at here. STREAM's window on the same knobs is ~128 beats per channel
-(8 outstanding x 16-beat bursts) and its knee sits at 96-112 cycles. Wider bursts
-remain a lever on both sides, and section 7.4 shows the DUT already runs 32- and
-64-beat bursts at line rate.
+**~93 beats in flight**. That is ONE channel's window, not eight: the harness's
+AXIS generator streams channels sequentially (finish one channel, then the next,
+so each channel's LFSR run stays contiguous for the golden CRC), so only one sink
+channel ever holds data, and the write engine's whole `AW_MAX_OUTSTANDING = 8`
+window (8 x 8 = 64 beats, plus the bursts in their W phase) sits on that channel.
+Rapids ISSUE-006 reproduced this row in simulation (34.7 %, the board's number)
+and read it off the engine's outstanding counters. The source column reflects
+all eight channels reading concurrently, so the two columns are not comparable
+as measured; an interleaved-channel generator mode (rapids TASK-018) would put
+the sink on the same footing. STREAM's window on the same knobs is ~128 beats per
+channel (8 outstanding x 16-beat bursts) and its knee sits at 96-112 cycles. Wider
+bursts remain a lever on both sides, and section 7.4 shows the DUT already runs
+32- and 64-beat bursts at line rate.
 
 Two notes from the instruments themselves. First, the latency columns are
 histogram means over log2 bins (bin b holds [2^b, 2^(b+1)), reported at its

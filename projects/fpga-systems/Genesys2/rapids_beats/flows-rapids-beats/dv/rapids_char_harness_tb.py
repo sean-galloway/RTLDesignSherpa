@@ -201,10 +201,18 @@ class RapidsCharHarnessTB(TBBase):
     async def run_sink_selfcheck(self, active_channels, beats):
         active = list(active_channels)
 
+        # Memory-latency model (STREAM knob 5) from the environment, so the
+        # board's RESP_DELAY sweep can be reproduced in sim (rapids ISSUE-006):
+        # TEST_RESP_DELAY_RD / TEST_RESP_DELAY_WR in aclk cycles, default 0.
+        rd_delay = int(os.environ.get('TEST_RESP_DELAY_RD', '0'))
+        wr_delay = int(os.environ.get('TEST_RESP_DELAY_WR', '0'))
+
         def prog():
             # Stale scheduler/descriptor state wedges a second run (board-
             # confirmed: baseline 1/4, with reset 5/5), so reset first.
             self.campaign.reset_channels()
+            if rd_delay or wr_delay:
+                self.campaign.set_resp_delay(rd_delay, wr_delay)
             return self.campaign.run_sink_selfcheck(active, beats,
                                                     SIM_POLL_TIMEOUT_S)
         ok, detail = await cocotb.external(prog)()

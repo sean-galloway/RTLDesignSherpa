@@ -128,7 +128,9 @@ def _run_harness(testcase, test_name):
         'DATA_WIDTH': 512,
         'ADDR_WIDTH': 64,
         'AXI_ID_WIDTH': 8,
-        'SRAM_DEPTH': 512,
+        # 512 by default; the Genesys 2 build is 256 (rapids_char_genesys2_top), so
+        # TEST_SRAM_DEPTH=256 reproduces the board's sink buffering (rapids ISSUE-006).
+        'SRAM_DEPTH': int(os.environ.get('TEST_SRAM_DEPTH', '512')),
         'APB_ADDR_WIDTH': 13,
         'APB_DATA_WIDTH': 32,
         # Shared interface observers (rapids TASK-001). Default OUT, as on the
