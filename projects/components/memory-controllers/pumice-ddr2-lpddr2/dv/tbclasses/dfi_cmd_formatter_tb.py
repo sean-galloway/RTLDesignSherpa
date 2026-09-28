@@ -16,8 +16,12 @@ Scoreboard rules:
   * Phases 1..DFI_RATE-1 ALWAYS emit NOP (cs_n=1, ras_n=cas_n=we_n=1).
   * cs_n[rank] = 0 for the targeted rank; '1 elsewhere.
   * A10 = 1 for RDA/WRA/PREA (auto-precharge or all-bank precharge).
-  * When memtype = LPDDR2, phase 0 should also be NOP (TODO marker in
-    the FUB — LPDDR2 CA encoding not yet implemented).
+  * When memtype = LPDDR2 the DDR2 truth table does not apply at all: the
+    command rides the 20-bit CA bus per JESD209-2F Table 60, and a NOP stays
+    fully deselected. That encoding IS implemented and is checked bit-exact by
+    the `lpddr2_ca` scenario (walking-ones plus random field values, round-
+    tripped through the decoder). This comment used to say it was a TODO and
+    "not yet implemented"; it had been done for some time.
 """
 
 import os

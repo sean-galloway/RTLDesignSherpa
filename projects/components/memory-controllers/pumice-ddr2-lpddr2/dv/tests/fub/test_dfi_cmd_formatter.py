@@ -12,7 +12,8 @@ Scenarios (all scoreboarded via DfiCmdFormatterTB.drive_and_check):
   multi_rank       verify per-rank cs_n decode under NUM_RANKS=2
   a10_auto_pre     verify A10 bit set for RDA/WRA/PREA, cleared for RD/WR/PRE
   cmd_invalid      cmd_valid=0 → bus must be all-deselected NOP every phase
-  lpddr2_nop       memtype = LPDDR2 → bus must be all-deselected NOP (TODO)
+  lpddr2_ca        memtype = LPDDR2 → bit-exact CA-bus conformance (JESD209-2F
+                   Table 60), NOP fully deselected; runs at GATE
   random_soak      random ops + addresses; check vs reference each cycle
 """
 

@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-033** — never recycle a number, even when its item closed.
+**Next ID: TASK-034** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -12,13 +12,17 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 28 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **TASK-033** — the v2/v3 power and mode-register deferrals (6 RTL TODO markers),
+  incl. DPD blocked across two files and an unverified `dfi_init_complete`
+  interlock that is the one entry which could be wrong today
 
 
 
