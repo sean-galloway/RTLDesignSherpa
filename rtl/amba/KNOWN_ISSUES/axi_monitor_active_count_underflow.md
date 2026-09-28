@@ -26,7 +26,7 @@
 **Status:** FIXED (2026-07-18) — `active_count` now derived as a registered
 CAM-occupancy pop-count (structurally `[0, N]`, cannot underflow).
 **Severity:** MEDIUM–HIGH — corrupted `active_count`, `busy`, and `block_ready`
-**Date Reported:** 2026-07-18 (found by formal proof during TASK-025)
+**Date Reported:** 2026-07-18 (found by formal proof during amba TASK-039, then numbered TASK-025)
 **Date Fixed:** 2026-07-18
 **Affects:** `rtl/amba/monitor/axi_monitor_trans_mgr.sv` (`r_active_count`), and by
 propagation `rtl/amba/monitor/axi_monitor_base.sv` (`busy`, `block_ready`,
@@ -168,4 +168,4 @@ in `formal/amba/axi_monitor_trans_mgr` and `formal/amba/axi_monitor_base`.  The
 trans_mgr proof also gained a port-only `ap_clear_zeroes_count` property (the
 synchronous CAM clear zeroes `active_count` next cycle).  The stale DEPS,
 `block_ready` polarity, and pipeline-latency issues found alongside this were also
-fixed (see TASK-025).
+fixed (see amba TASK-039, then numbered TASK-025).

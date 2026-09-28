@@ -146,7 +146,7 @@ module apb_monitor_addr_check
     // is valid/ready, so the payload has to hold until the beat is accepted.
     // The newer hit is buffered here and installed on accept, which keeps
     // "newest wins" for every beat except the one already on the wire.
-    // Mirrors the axi_monitor_addr_check fix (AMBA-MONBUS-STABILITY); this
+    // Mirrors the axi_monitor_addr_check fix (amba BUG-028, was AMBA-MONBUS-STABILITY); this
     // module is the same structure and had the same defect.
     logic [N_ADDR_RANGES-1:0]        r_shadow_valid;
     logic [N_ADDR_RANGES-1:0][M-1:0] r_shadow_addr;

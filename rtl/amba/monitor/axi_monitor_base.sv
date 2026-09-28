@@ -689,7 +689,7 @@ module axi_monitor_base
     //     so occupancy parks at 14 and the gate never recovers -- the
     //     permanent wedge the reserve exists to prevent, worse than the loss.
     //
-    // History and measurements in vault/Tasks/amba (AMBA-BLOCKMARGIN, closed).
+    // History and measurements in vault/Tasks/amba/bug/closed/BUG-030.md (was AMBA-BLOCKMARGIN).
     // Enforced: val/amba/test_axi_mon_block_ready.py asserts no command is
     // admitted without an allocation (assert_no_untracked_admissions) and
     // that occupancy never exceeds the table depth, on every wrapper; the

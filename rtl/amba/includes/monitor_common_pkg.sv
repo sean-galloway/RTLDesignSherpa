@@ -122,7 +122,7 @@ package monitor_common_pkg;
         // up to three allocations against it. That is the mechanism behind the
         // observer-level tracking loss (4096 observed vs 3073 tracked): the
         // discarded data beats are the symptom, admitting a command with no
-        // free slot is the defect. See [[AMBA-BLOCKMARGIN]] / [[AMBA-MONTRACK]].
+        // free slot is the defect. See amba BUG-030 (was AMBA-BLOCKMARGIN) / amba BUG-029 (was AMBA-MONTRACK).
         //
         // Raising the margin alone does NOT work and was measured to wedge the
         // gate (active_count parks at 14/16 and block_ready never re-asserts);

@@ -254,7 +254,7 @@ module axi_monitor_reporter
     // -------------------------------------------------------------------------
     // FIFO write arbitration across the three reporting classes.
     //
-    // TASK-083: this used to be a STRICT priority chain, error > timeout >
+    // amba BUG-035 (was TASK-083): this used to be a STRICT priority chain, error > timeout >
     // compl. Strict priority starves the lower classes outright whenever a
     // higher one is CONTINUOUSLY pending, and the starvation is permanent
     // rather than merely unfair: trans_mgr frees a terminal slot only once
