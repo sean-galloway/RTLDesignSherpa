@@ -97,7 +97,7 @@ DRAM_CONFIGS = {
     # bank_timer contract folds WL + BL/2 into t_wr and t_wtr, so BL8 moves both
     # 4 -> 5 with nothing else moving. That derivation was wrong once
     # (65968b9b4). It is also the geometry where one DRAM burst is FOUR AXI beats
-    # instead of one, which is how PUMICE-025's 2x read throttle shipped green.
+    # instead of one, which is how pumice BUG-011 (was PUMICE-025)'s 2x read throttle shipped green.
     "board_ddr2_300_bl8": dict(family="DDR2", part=PART_MT47H64M16, mc_clk_hz=75e6,
                           ck_per_mc=2, CL=3, BL=8, data_rate_mtps=300,
                           label="DDR2-300 CL3 BL8"),

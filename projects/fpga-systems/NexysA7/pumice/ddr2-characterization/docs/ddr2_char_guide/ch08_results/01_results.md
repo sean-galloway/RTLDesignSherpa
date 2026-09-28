@@ -212,7 +212,7 @@ is the same fact Figure 8.1 shows as a flat line, seen from the cause side.
 
 All 192 gap-sweep points completed. **22 of them returned mismatching data**,
 and they are not scattered: they are a specific configuration, tracked as
-PUMICE-037.
+pumice BUG-014 (was PUMICE-037).
 
 Concurrent read+write with the **reader's** gap at 8 or above returns wrong
 data, and when the two address ranges overlap it leaves genuinely corrupted
@@ -229,7 +229,7 @@ its own run from a verified-clean 128 MiB prefill:
 | reader gap **>= 8** with a concurrent writer | 1.5k-7k of 32000 beats wrong |
 | 4+4 concurrent at gap 0 and gap 4 | clean, cells clean |
 
-: PUMICE-037 — narrowing the failing configuration
+: pumice BUG-014 (was PUMICE-037) — narrowing the failing configuration
 
 Neither engine alone does it at any gap, and the writer's own gap never does
 it. **Everything in this chapter is at gap 0-7 and is unaffected**, but no

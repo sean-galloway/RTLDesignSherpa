@@ -31,7 +31,7 @@
 // Depth discipline: the cross-bank pick is a balanced TOURNAMENT TREE
 // (clog2(NUM_BANKS) key compares), and the refresh precharge target is a
 // lowest-set isolate + reduce, never a serial `if pri>best` / priority scan
-// (PUMICE-017).
+// (pumice ISSUE-005 (was PUMICE-017)).
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

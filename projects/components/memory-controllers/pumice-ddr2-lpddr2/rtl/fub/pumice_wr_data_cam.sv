@@ -423,7 +423,7 @@ module pumice_wr_data_cam #(
     // That is not theoretical. It was the worst path in the whole design on
     // the first synthesis since the mode work landed: 63.6 ns against a 15 ns
     // period, 89 logic levels, 30 carry chains, and 17.8 ns of LOGIC alone --
-    // unfixable by placement. See PUMICE-017.
+    // unfixable by placement. See pumice ISSUE-005 (was PUMICE-017).
     //
     // The matrix is registered and its compares are 1 bit, so finding the
     // oldest costs a shallow NUM_ENTRIES^2 AND-reduce; only the winner's

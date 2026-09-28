@@ -114,7 +114,7 @@ def _idle(dut):
     dut.t_rddata_en_i.value = 1
     # NO s_axi_* here. The master BFMs own every signal on that port,
     # including bready/rready -- a second driver on a BFM-owned signal is a
-    # conflict, not a convenience (PUMICE-014).
+    # conflict, not a convenience (pumice TASK-023 (was PUMICE-014)).
     dut.dfi_rddata_i.value = 0
     dut.dfi_rddata_valid_i.value = 0
     dut.dfi_init_complete_i.value = 0

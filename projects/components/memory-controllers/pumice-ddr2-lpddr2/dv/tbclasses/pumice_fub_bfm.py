@@ -7,7 +7,7 @@
 
 """GAXI master/slave BFMs for pumice's fub-internal valid/ready ports.
 
-PUMICE-014's rule is not AXI-specific: "None of the environments should
+pumice TASK-023 (was PUMICE-014)'s rule is not AXI-specific: "None of the environments should
 EVER hand poke on any standard interface or valid ready interface." The
 fub TBs drive interfaces like `aw_push_*`, `wdata_*`, `snarf_rd_*` and
 `dfi_rd_*` -- plain valid/ready handshakes with side-band payload, not an
@@ -156,7 +156,7 @@ def fub_pulse_producer(dut, title: str, clock, *, valid: str, ready: str,
     Some fub request ports are just `x_valid_i` / `x_ready_o` with no data
     at all (pumice_dfi_rd_aligner's `op_*` is one: the aligner needs to know
     a read was issued, nothing more). They are still handshakes -- the DUT
-    can backpressure -- so they are in scope for PUMICE-014, but there is no
+    can backpressure -- so they are in scope for pumice TASK-023 (was PUMICE-014), but there is no
     payload to map.
 
     Modelled as a single 1-bit field bound to the VALID signal itself. The

@@ -49,7 +49,7 @@ async def cocotb_test_pumice_top_geared(dut):
     await tb.wait_for_init_done()
     # bready/rready are NOT tied high here: init_axi_masters() builds the
     # master BFMs, which own every signal on s_axi including the response
-    # readies. Poking them first only creates a second driver (PUMICE-014).
+    # readies. Poking them first only creates a second driver (pumice TASK-023 (was PUMICE-014)).
     tb.init_axi_masters()
     tb.set_axi_timing_profile("backtoback")
 
@@ -117,11 +117,11 @@ def _run_geared(request, host_w, extra=None):
               "ROW_WIDTH": str(ROW_WIDTH), "COL_WIDTH": str(COL_WIDTH),
               "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT),
               "DRAM_BL": str(BL), "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
-    # Distinct sim_build per burst length: same RTL params, but PUMICE-019
+    # Distinct sim_build per burst length: same RTL params, but pumice BUG-009 (was PUMICE-019)
     # says one sim_build per process only.
     _bb = (extra or {}).get("GEARED_BURST_BEATS", "full")
     sim_build = sim_build_path(tests_dir, f"geared_h{host_w}_b{_bb}")
-    # PUMICE-019: echo the seed so a one-off red is reproducible.
+    # pumice BUG-009 (was PUMICE-019): echo the seed so a one-off red is reproducible.
     def _seed_echo(hw):
         sd = os.environ.get("PUMICE_SEED", str(random.randint(0, 100000)))
         print(f"[seed] geared_h{hw} PUMICE_SEED={sd}")

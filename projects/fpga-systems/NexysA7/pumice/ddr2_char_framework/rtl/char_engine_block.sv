@@ -657,7 +657,7 @@ module char_engine_block
     // with o_cmd_block unconsumed here the FIFO must cover the WHOLE
     // engine-side admission domain: pumice CAM (8) + front skid stages +
     // generator lookahead. Depth 8 lost up to 31/64 samples in the sim
-    // multiid_min profile (PUMICE-020 MISSING side); 32 covers it.
+    // multiid_min profile (pumice BUG-010 (was PUMICE-020) MISSING side); 32 covers it.
     axi_perf_latency_hist #(
         .ID_WIDTH        (PIW),   // pumice side, {master index, id}
         .NUM_CHANNELS    (1),

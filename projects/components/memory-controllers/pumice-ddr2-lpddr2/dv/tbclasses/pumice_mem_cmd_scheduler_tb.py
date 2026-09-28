@@ -118,7 +118,7 @@ class PumiceMemCmdSchedulerTB(TBBase):
         # DERIVED from the operating point. The keys are the derivation's own
         # (JEDEC) names; the ports are the RTL's. t_rtw is the one term that is
         # not a pure JEDEC delay -- it carries a measured PHY read-pipeline floor
-        # (PUMICE-037) -- and it comes from the same derivation so it cannot
+        # (pumice BUG-014 (was PUMICE-037)) -- and it comes from the same derivation so it cannot
         # drift from the rest.
         t = self._ctrl_t
         self.dut.t_rcd_i.value  = t['tRCD']
@@ -242,7 +242,7 @@ class PumiceMemCmdSchedulerTB(TBBase):
         # Stamp the CYCLE each command issues on. Without it a caller reasoning
         # about JEDEC spacing has only the list index, which is the number of
         # commands in between -- not cycles. That distinction silently turned a
-        # PUMICE-037 "PRE 1 cycle after RD" into a false positive.
+        # pumice BUG-014 (was PUMICE-037) "PRE 1 cycle after RD" into a false positive.
         cyc = 0
         while True:
             await RisingEdge(self.dut.aclk)

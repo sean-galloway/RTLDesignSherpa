@@ -16,11 +16,11 @@ Steps, in order, because each answers the question the previous one raises:
      direction switch -- pumice's equivalent of LiteDRAM staying in READ until
      reads are exhausted. Shipped disabled, no host accessor until 6ba9dba62,
      and it corrupted when first enabled because the DFI-side pacer ignored
-     direction (PUMICE-042, fixed 91db52b47).
+     direction (pumice BUG-017 (was PUMICE-042), fixed 91db52b47).
   2. REPEATS at the chosen setting. A single pass cannot distinguish 0% from a
-     low-rate intermittent; that is exactly how PUMICE-037's first closure
+     low-rate intermittent; that is exactly how pumice BUG-014 (was PUMICE-037)'s first closure
      failed (a point clean ~20% of the time passed a one-rep sweep).
-  3. the aggressive setting, repeated, to characterise PUMICE-043's residue
+  3. the aggressive setting, repeated, to characterise pumice BUG-018 (was PUMICE-043)'s residue
      (1 beat in 1/8 runs at hi=8/lo=4).
 """
 

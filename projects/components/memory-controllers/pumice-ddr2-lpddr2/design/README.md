@@ -128,7 +128,7 @@ cross-bank ACT pipelining (waves/04), i.e. ~500–600 MB/s.
 | `waves/11_write_same_bank_wedge_ref` | the write-path wedge this design CLOSED (historical reference; drain FIFO fills, commit_ready drops) |
 | `waves/12_rd_return_ring` | reads in flight beyond the scheduling window (ticket ring) |
 | **BAD PERF -- correct, just slow** | *what a healthy-looking but underperforming capture looks like* |
-| `waves/13_bad_admit_gate_half_rate` | the AR admit gate at half rate: one sub-command every two cycles, 291.7 MB/s against a 570 write, integrity perfect (PUMICE-025, fixed) |
+| `waves/13_bad_admit_gate_half_rate` | the AR admit gate at half rate: one sub-command every two cycles, 291.7 MB/s against a 570 write, integrity perfect (pumice BUG-011 (was PUMICE-025), fixed) |
 | `waves/14_bad_ring_depth_bound` | reads bounded by RD_RET_DEPTH/round-trip rather than tCCD: 32/49 = 0.78 col/cyc = 470.9 MB/s |
 | `waves/15_bad_page_thrash_col_major` | PRE+tRP+ACT+tRCD per column: 102.4 MB/s against 571.3 for row_major |
 | `waves/16_bad_rw_turnaround_thrash` | tWTR/tRTW paid on every direction switch -- the workload the reorder window exists for |
@@ -646,7 +646,7 @@ Verified (clean builds, DFI_CMD_TRACE on):
   * core_dfi (OPEN, the run that deadlocked with the earlier f_ap-only attempt): PASS.
   * test_pumice_arbiter_issue_rate: 200 fires / 200 cycles = 1.000 (HEAD ~0.5).
   * cmd_arbiter FUB: PASS.
-  * top suite (make clean-all && make run-all-full-parallel): 114 passed, 1 failed = the pre-existing perf_paging_sched_cross (static_close x in_order 37.8%, byte-identical to HEAD, PUMICE-021).
+  * top suite (make clean-all && make run-all-full-parallel): 114 passed, 1 failed = the pre-existing perf_paging_sched_cross (static_close x in_order 37.8%, byte-identical to HEAD, pumice ISSUE-006 (was PUMICE-021)).
 Open design point: `f_ap(b)` is evaluated at classify time but the emitted op's
 AP bit is decided at the output stage; with the adaptive page-policy modes
 (`ap_close_i[b]` changing mid-pipeline) there is a <=3-cycle window where a
@@ -979,7 +979,7 @@ Restoration findings:
      mode's definition, so an ACT-ready entry takes the one cycle in tCCD (4 at
      BL8) when the next column becomes eligible: 5-cycle period, 4/5. It was
      100% only while the test poked tCCD=1. Exempted with a 0.75 floor (same
-     treatment as in_order). The in_order floor failure (PUMICE-021, 37.87%)
+     treatment as in_order). The in_order floor failure (pumice ISSUE-006 (was PUMICE-021), 37.87%)
      is unchanged and gains the two close-biased restored modes.
   3. Host: Pumice.set_page_access_cfg / set_page_rbl_cfg (shadowed full-word
      writes, shape BEFORE mode), presets adapt_access / rbl_static / rbl_dyn
@@ -988,7 +988,7 @@ Restoration findings:
 
 Results (restored tree):
   * pumice suites (clean-all, run-all-full-parallel): fub 96 / macro 3 /
-    top 117 pass, 1 fail = PUMICE-021 (in_order floor, pre-existing).
+    top 117 pass, 1 fail = pumice ISSUE-006 (was PUMICE-021) (in_order floor, pre-existing).
   * char sim, TEST_CHAR_PROFILE=paging: families + families_x16 pass.
   * 75 MHz post-route, PUMICE_SYS_75=1: WNS +0.020 ns, 0 failing of 72888
     endpoints, LUT 52.9% (33550), worst path unchanged in kind -- the
@@ -1001,14 +1001,14 @@ Tier A result (PUMICE_ENHANCED=1, same 75 MHz flow): does NOT close.
   Failing endpoints = the cross-CAM global-oldest cone (u_rd_cam/r_older ->
   u_arbiter/r_{rd,wr}_col_q, 16 levels) the arbiter's BASIC/ENHANCED note
   names, plus the base build's own r_*_pop -> r_bank paths that sit within
-  +-0.05 ns of zero in every build (placement noise). Tracked as PUMICE-024
+  +-0.05 ns of zero in every build (placement noise). Tracked as pumice ISSUE-007 (was PUMICE-024)
   with the candidate fix (register the head compare one stage earlier); the
   overlays stay an env opt-in and the board build is the base tier.
 
 ### ORDER MODES IN THE BASE BUILD (2026-09-09): in_order per channel, age_threshold registered
 
 Sean: "full in-order can be a CSR mode on top of FR-FCFS and age should also
-work" -- build it, straight to bitstream. The enhanced-tier miss (PUMICE-024)
+work" -- build it, straight to bitstream. The enhanced-tier miss (pumice ISSUE-007 (was PUMICE-024))
 was entirely the GLOBAL read-vs-write age compare; in_order itself is two
 logic levels off the older matrix FR-FCFS already reads. So:
 
@@ -1037,7 +1037,7 @@ logic levels off the older matrix FR-FCFS already reads. So:
 endpoints (flow placer), -0.085 ns on 12 (ExtraTimingOpt) -- all the
 arbiter's own r_*_pop -> r_bank pre-pick path, the +-0.05 ns band seen in
 every build today. The -0.046 build is in the tree for the board run;
-PUMICE-024 carries the real fix (shorten the pre-pick stage).
+pumice ISSUE-007 (was PUMICE-024) carries the real fix (shorten the pre-pick stage).
 
 
 ### CONFIG CLEANUP (2026-09-09): the CSR map and the host presets match the current architecture
@@ -1112,7 +1112,7 @@ something. Measured, not argued:
    (4) pin both edges so a window that shifts or narrows fails loudly, and the
    strict-xfail negative model moves to lat 10.
 
-2. PUMICE-021's in_order floor is a MISCALIBRATED FLOOR. Discriminator across
+2. pumice ISSUE-006 (was PUMICE-021)'s in_order floor is a MISCALIBRATED FLOOR. Discriminator across
    the eight paging modes under in_order is exact: every mode that drives
    auto-precharge reads 37.87-44.14%, every mode that does not reads exactly
    80.33% / stall=94. A command-cadence probe on the same window gives the
@@ -1130,16 +1130,16 @@ something. Measured, not argued:
    The 0.45 floor and its "expected 56.3%" note predate the pipelined arbiter.
    Fix: floors split by mechanism, 0.75 non-AP / 0.30 AP, with the probe
    numbers in the comment and an assertion that the AP modes are present so
-   the split cannot cover an empty set. PUMICE-021 closed.
+   the split cannot cover an empty set. pumice ISSUE-006 (was PUMICE-021) closed.
 
 The col->ACT head advance is the one real performance lead here: shortening it
 lifts every AP-paging number under strict ordering. It is the same pre-pick
 stage that owns the 75 MHz critical path, so it is one change with both
-payoffs -- tracked under PUMICE-024, not treated as a defect.
+payoffs -- tracked under pumice ISSUE-007 (was PUMICE-024), not treated as a defect.
 
 ### PRE-PICK OPERAND MUXING (2026-09-09): the ENHANCED tier closes 75 MHz
 
-The order-mode overlays missed 75 MHz by 21-53 ps (PUMICE-024). The overlays
+The order-mode overlays missed 75 MHz by 21-53 ps (pumice ISSUE-007 (was PUMICE-024)). The overlays
 were not the problem. The arbiter's output stage indexed the CAMs' flat
 {bank,row,col} vectors with the REGISTERED pre-pick slot, so six
 NUM_ENTRIES:1 muxes sat AFTER the pre-pick flop feeding r_bank/r_row/r_col.
@@ -1162,14 +1162,14 @@ Post-route at 75 MHz, same flow:
 | ENHANCED | -0.021 ns, 4 failing | +0.005 ns, 0 failing of 72896 |
 
 About +144 flops, +0.19% LUT. The base tier was already closing so it does not
-move; the enhanced tier closes for the first time, which retires PUMICE-024
-and -- with the earlier pipelining work -- PUMICE-017, whose -48.861 ns
+move; the enhanced tier closes for the first time, which retires pumice ISSUE-007 (was PUMICE-024)
+and -- with the earlier pipelining work -- pumice ISSUE-005 (was PUMICE-017), whose -48.861 ns
 premise no longer exists at a HIGHER clock than it was filed against.
 
 What this does NOT fix is the throughput half of the same cone: the
 column-to-next-ACT head advance is still 8 cycles, so strict in-order under
 the auto-precharge paging modes still pays the pick pipeline twice per access
-(PUMICE-021). That is a deeper change than moving a mux.
+(pumice ISSUE-006 (was PUMICE-021)). That is a deeper change than moving a mux.
 
 ### ON SILICON (2026-09-10): write target MET at 570 MB/s; read pinned at 48.7% of peak
 
@@ -1193,7 +1193,7 @@ or scheduling mode. Identical numbers at bl16 rule out any
 transaction-concurrency or Little's-law bound -- more bytes per transaction
 would have moved it. So it is a per-cycle rate below the transaction layer.
 48.7% of peak against a write path at 95.7% points at a return path moving one
-AXI beat every other cycle. Tracked as PUMICE-025, which says to rule out the
+AXI beat every other cycle. Tracked as pumice BUG-011 (was PUMICE-025), which says to rule out the
 harness's read CRC engine FIRST (it is the generator, not the controller) and
 explicitly not to tune the scheduler, since every scheduling mode gives the
 identical number.

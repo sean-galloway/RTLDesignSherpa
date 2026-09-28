@@ -266,7 +266,7 @@ def failure_stale_image_wedge():
 
 # --- BAD PERF: correct, just slow ------------------------------------------
 def bad_admit_gate_half_rate():
-    """The AR admit gate (PUMICE-025, fixed 2026-09-10). Correct data, half
+    """The AR admit gate (pumice BUG-011 (was PUMICE-025), fixed 2026-09-10). Correct data, half
     the command rate -- the hardest class to notice, because nothing fails."""
     return {
         "signal": [

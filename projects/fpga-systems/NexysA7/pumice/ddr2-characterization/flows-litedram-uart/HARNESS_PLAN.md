@@ -209,5 +209,5 @@ chosen approach: extract a shared engine block.
 
 DONE the same day: bitstream (timing met after the CRG reset-strobe false
 path), programmed, `--char-profile matrix --char-scale 1000` 14/14, CSV +
-findings saved beside the pumice results (PUMICE-026). Reads 564-579 MB/s vs
+findings saved beside the pumice results (pumice TASK-027 (was PUMICE-026)). Reads 564-579 MB/s vs
 pumice 291.7 on identical RTL: the pumice read ceiling is pumice's.

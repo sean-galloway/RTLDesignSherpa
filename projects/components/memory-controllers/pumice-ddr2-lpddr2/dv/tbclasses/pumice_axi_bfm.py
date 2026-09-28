@@ -7,7 +7,7 @@
 
 """Shared AXI4 master driving for every pumice DUT that exposes `s_axi_*`.
 
-Exists because of a HARD RULE (PUMICE-014): no environment may hand-poke a
+Exists because of a HARD RULE (pumice TASK-023 (was PUMICE-014)): no environment may hand-poke a
 standard or valid/ready interface. Hand-rolled `dut.s_axi_awvalid = 1`
 helpers skip the BFM's protocol timing -- valid/ready randomization,
 per-channel profiles, outstanding and interleaved bursts -- so they miss

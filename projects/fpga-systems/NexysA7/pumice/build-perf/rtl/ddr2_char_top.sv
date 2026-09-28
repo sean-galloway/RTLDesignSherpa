@@ -293,7 +293,7 @@ module ddr2_char_top #(
 `endif
         // Reader debug stream. 0 (not built) on the production bitstream; the
         // ILA build defines PUMICE_RD_DBG_FIFO so rd_dbg_mismatch exists to
-        // trigger on (PUMICE-037).
+        // trigger on (pumice BUG-014 (was PUMICE-037)).
 `ifdef PUMICE_RD_DBG_FIFO
         .RD_DBG_FIFO_DEPTH(`PUMICE_RD_DBG_FIFO),
 `else

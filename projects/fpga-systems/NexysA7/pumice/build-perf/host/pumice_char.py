@@ -313,7 +313,7 @@ class ControllerConfig:
     # The RTL CSR resets to 0 (disabled) and had no host accessor until
     # 6ba9dba62, so this had NEVER run on hardware -- and when first enabled it
     # corrupted, because the DFI-side pacer did not enforce direction
-    # turnaround (PUMICE-042, fixed 91db52b47).
+    # turnaround (pumice BUG-017 (was PUMICE-042), fixed 91db52b47).
     #
     # DEFAULT 0 = DISABLED. It was briefly defaulted to 2/1 on the strength of
     # gap 12 and gap 15 being clean (+29.9% / +25.0%, 0 mismatched over 8 reps).
@@ -330,7 +330,7 @@ class ControllerConfig:
     # script after a gap-12-only check showed no timeouts. Same defect.
     #
     # Do not re-enable by default until the stall is understood. Two gaps is not
-    # coverage -- the same sampling error closed PUMICE-037 prematurely.
+    # coverage -- the same sampling error closed pumice BUG-014 (was PUMICE-037) prematurely.
     # TEST_WR_HIGH_WM=2 opts in.
     # Tracks the CSR reset value (2/1, batching ON). Config.apply() PROGRAMS
     # this register, so leaving it at 0/0 would silently defeat the hardware
@@ -365,7 +365,7 @@ class ControllerConfig:
     # 75/DDR2-300 value = 7 (ILA 2026-09-05: data arrived 1 cycle after valid
     # at 8; razor-sharp single-cycle optimum 6->fail,7->clean,8->fail). Was
     # MISSING from apply() -> stayed 0 -> every read mismatched.
-    # 2, paired with t_rddata_en=1 -- PUMICE-040.
+    # 2, paired with t_rddata_en=1 -- pumice ISSUE-012 (was PUMICE-040).
     #
     # A joint (t_rddata_en x rddata_delay) board sweep found EVERY clean pair on
     # the diagonal rddata_delay = t_rddata_en + 1: the a7ddrphy's data-vs-valid
@@ -385,7 +385,7 @@ class ControllerConfig:
     # Does NOT reduce tRTW: occupancy is set by the DRAM driving DQ at CL after
     # the READ command, not by when pumice samples. Proven on the board -- at
     # this alignment with tRTW=8 gaps 13/15 failed exactly as before the
-    # PUMICE-037 fix, while tRTW=20 is clean at BOTH alignments.
+    # pumice BUG-014 (was PUMICE-037) fix, while tRTW=20 is clean at BOTH alignments.
     rddata_delay:  int = int(os.environ.get("TEST_RDDATA_DELAY", "2"))
     rd_phase:      int = 0
     wr_phase:      int = 0
@@ -406,7 +406,7 @@ class ControllerConfig:
     # cycle count computed for a faster clock buys MORE real time -- but tREFI
     # errs the other way: 780 cycles is 7.8 us at 100 MHz and 10.8 us at the
     # measured 72 MHz, so the part was refreshed ~38% less often than JEDEC
-    # allows, for the whole PUMICE-037 investigation. Deriving it from the
+    # allows, for the whole pumice BUG-014 (was PUMICE-037) investigation. Deriving it from the
     # board (see check_mc_clk_hz) beats trusting this number.
     mc_clk_hz:     int = int(float(os.environ.get("PUMICE_MC_CLK_HZ", "75000000")))
 
@@ -1961,7 +1961,7 @@ RUN_PROFILES: Dict[str, dict] = {
                      families=(FAM_COL_MAJOR,)),
     "close_page_min": dict(configs=["close_page"], level="basic",
                          families=(FAM_COL_MAJOR,)),
-    # PUMICE-020 repro: the multiid (LFSR-id) scenario only — medium level is
+    # pumice BUG-010 (was PUMICE-020) repro: the multiid (LFSR-id) scenario only — medium level is
     # what adds col_major_bl8_multiid to the suite. baseline config; the 1:1
     # hist-vs-txn_count check is the assertion under investigation.
     "multiid_min": dict(configs=["close_page"], level="medium",
@@ -2193,7 +2193,7 @@ RUN_PROFILES: Dict[str, dict] = {
                        concurrent=(1, 1)),
     # Multi-master: two readers against one writer, all on disjoint regions.
     # Loads the generator array and both crossbars. NOTE two WRITERS is not
-    # safe on pumice yet -- PUMICE-027, B returns out of AW order while the
+    # safe on pumice yet -- pumice BUG-012 (was PUMICE-027), B returns out of AW order while the
     # write bridge routes by position -- so writers stay at one.
     "multigen": dict(configs=["open_page"], level="basic", families=None,
                      concurrent=(1, 2)),

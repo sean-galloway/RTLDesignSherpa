@@ -28,7 +28,7 @@ already there and a reader is right to expect them no matter who wrote them
 last. A reader sampling an address a writer is mid-burst on is therefore not a
 race -- both agree on the value.
 
-That distinction is load-bearing. The 2026-09-14 investigation of PUMICE-037
+That distinction is load-bearing. The 2026-09-14 investigation of pumice BUG-014 (was PUMICE-037)
 spent a pass on the theory that overlap explained the mismatches; it does not,
 and the proof is that the 4+4 point has maximum overlap and stays clean while
 the 1+1 point has the least and does not.
@@ -78,7 +78,7 @@ SEED = 0x5EED_0B01
 #
 # Points are not independent otherwise, and that is not a theory: a concurrent
 # read+write point with the reader gap at 8 or above leaves genuinely wrong
-# data in cells (2026-09-14, PUMICE-037). Every later point then reads that
+# data in cells (2026-09-14, pumice BUG-014 (was PUMICE-037)). Every later point then reads that
 # damage and reports it as its own mismatch -- which is exactly what made the
 # first full run unreadable, where row_major g1 reported an identical 3694
 # mismatched beats at eight consecutive gaps. Those 3694 were the *previous*

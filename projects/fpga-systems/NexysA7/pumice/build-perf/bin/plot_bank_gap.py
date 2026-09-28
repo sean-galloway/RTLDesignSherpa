@@ -112,7 +112,7 @@ def line_family(rows, order, series, outdir):
                 color=cmap[k], label=f"{n}+{n} gens")
         # Ring any point whose data did not verify. The bandwidth number is
         # still a real measurement -- those bytes did move -- but the point
-        # ran a configuration that returns wrong data (PUMICE-037, reader gap
+        # ran a configuration that returns wrong data (pumice BUG-014 (was PUMICE-037), reader gap
         # >= 8 with a concurrent writer), and a curve that does not say so
         # invites someone to quote it as a clean operating point.
         bad = [r for r in sub if r.get("mism")]

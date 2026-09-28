@@ -70,7 +70,7 @@ class PumiceAxi4IfcTB(TBBase):
         cocotb.start_soon(self._drain_cm())
 
     def _build_bfms(self, profile="backtoback"):
-        """Every interface on this DUT comes from a BFM (PUMICE-014):
+        """Every interface on this DUT comes from a BFM (pumice TASK-023 (was PUMICE-014)):
         AXI4 masters on s_axi, GAXI masters on the two scheduler-side
         request ports and the DFI return stream, and a GAXI slave on the
         commit read-back. The BFMs drive valid/ready AND the payload."""

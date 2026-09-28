@@ -170,8 +170,8 @@ def test_addr_mapper(request, test_type):
     # Board geometry is ROW_WIDTH=13 (MT47H64M16, A0-A12); the suite has always
     # elaborated 14. Overridable so the shipping row width is reachable without
     # changing the default -- same convention as TEST_DRAM_BEAT / TEST_DRAM_BL
-    # (PUMICE-028). Both the env (testbench) and the parameters (RTL) read this
-    # ONE value: splitting them is exactly how PUMICE-041 built the wrong DUT.
+    # (pumice ISSUE-008 (was PUMICE-028)). Both the env (testbench) and the parameters (RTL) read this
+    # ONE value: splitting them is exactly how pumice BUG-016 (was PUMICE-041) built the wrong DUT.
     row_width = os.environ.get("TEST_ROW_WIDTH", "14")
 
     sim_build = sim_build_path(tests_dir, test_name)

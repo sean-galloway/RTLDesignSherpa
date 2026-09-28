@@ -247,7 +247,7 @@ async def _wait_restart_done(dut, done_signal: str, timeout: int = 2_000_000,
     `_wait_done` alone is wrong the moment an engine runs twice in one test:
     the previous run leaves `done` high, so it returns on the stale flag
     immediately and everything after it inspects the PREVIOUS run's state.
-    That is not hypothetical -- the PUMICE-037 concurrent test prefills with
+    That is not hypothetical -- the pumice BUG-014 (was PUMICE-037) concurrent test prefills with
     the writer and then runs it again, and with the plain wait it "passed" a
     deliberately corrupted configuration in a quarter of the runtime, because
     it never waited for the real run at all.
@@ -511,7 +511,7 @@ async def cocotb_test_ddr2_char_macro(dut):
 
         # DERIVE the span from the hardware rather than hardcoding it. The
         # generator count is an area trade that has already moved twice (8 -> 4
-        # -> 2 for PUMICE-017); the invariant that does not move is that the
+        # -> 2 for pumice ISSUE-005 (was PUMICE-017)); the invariant that does not move is that the
         # generators between them cover every bank.
         shape = await drv.gen_config()
         NUM_GEN  = shape["num_wr_gen"]
@@ -574,7 +574,7 @@ async def cocotb_test_ddr2_char_macro(dut):
                     NUM_GEN * BANKS_PER_GEN)
 
     elif test_type == "concurrent_gap":
-        # PUMICE-037: read and write running AT THE SAME TIME, with a gap.
+        # pumice BUG-014 (was PUMICE-037): read and write running AT THE SAME TIME, with a gap.
         #
         # This is the one combination the suite has never run. Both gap-bearing
         # suites here (pacing_sweep_b2b, ooo_pacing_schmoo) already cover
@@ -666,7 +666,7 @@ async def cocotb_test_ddr2_char_macro(dut):
         tb.log.info("concurrent_gap OK wr_gap=%d rd_gap=%d", wr_gap, rd_gap)
 
     elif test_type == "hash_probe":
-        # PUMICE-038 diagnostic. In THIS build a reader in data_mode=1
+        # pumice BUG-015 (was PUMICE-038) diagnostic. In THIS build a reader in data_mode=1
         # (ADDR_HASH) never reports a mismatch: a deliberately wrong hash seed
         # passes, and so does a reader pointed at a page nobody wrote. The same
         # mutations in LFSR mode fail loudly, so the compare path works and the
@@ -718,7 +718,7 @@ async def cocotb_test_ddr2_char_macro(dut):
         st = await gen.reader_status(0)
         mism = st.get("beats_mismatched")
         assert mism, (
-            "PUMICE-038 REPRODUCED: reader in data_mode=1 (ADDR_HASH) reports "
+            "pumice BUG-015 (was PUMICE-038) REPRODUCED: reader in data_mode=1 (ADDR_HASH) reports "
             f"beats_mismatched={mism} despite BOTH mutations being active -- "
             f"hash_seed0 programmed 0x{BAD_SEED:08X} while the writer used "
             f"0x5EED0B01, AND the reader points at 0x{RD_BASE:X} which was "
@@ -728,7 +728,7 @@ async def cocotb_test_ddr2_char_macro(dut):
             "If the CSRs read back correct, the config path is fine and the "
             "break is downstream -- w_cp_expected/w_byte_addr_for_beat in "
             "axi4_master_rd_crc_check, or the r_data_mode latch timing. "
-            "This assert FLIPS TO PASSING when PUMICE-038 is fixed.")
+            "This assert FLIPS TO PASSING when pumice BUG-015 (was PUMICE-038) is fixed.")
         tb.log.info("HASH_PROBE beats_mismatched=%s -- hash compare IS armed", mism)
 
         # (3) THE OTHER HALF OF THE PAIR. "Non-zero on a mutation" alone does
@@ -1132,7 +1132,7 @@ def test_ddr2_char_macro_pacing_sweep(request, wr_gap, rd_gap):
 
 
 # ============================================================================
-# PUMICE-037 -- read and write concurrent, with a gap.
+# pumice BUG-014 (was PUMICE-037) -- read and write concurrent, with a gap.
 #
 # The gap values are not a guess: on the board, reader gap 0..7 is clean and
 # 8..15 returns wrong data, with a hard edge at 8. This matrix straddles it and
@@ -1159,7 +1159,7 @@ def test_ddr2_char_macro_concurrent_gap(request, wr_gap, rd_gap):
     """Both directions in flight at once, with inter-burst pacing.
 
     The suite's other gap tests drain the writer first, so this combination
-    has never been simulated -- which is how PUMICE-037 reached hardware.
+    has never been simulated -- which is how pumice BUG-014 (was PUMICE-037) reached hardware.
     """
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "ddr2_char_macro_tb_top"
@@ -1719,7 +1719,7 @@ def test_ddr2_char_1wr1rd(request):
 
 
 def test_ddr2_char_macro_hash_probe(request):
-    """PUMICE-038 diagnostic: is the ADDR_HASH compare armed in this build?
+    """pumice BUG-015 (was PUMICE-038) diagnostic: is the ADDR_HASH compare armed in this build?
 
     Not a pass/fail test. Programs a reader in data_mode=1 with BOTH known
     mutations (a wrong hash seed AND an unwritten page), then logs the CSR

@@ -50,14 +50,14 @@ thrash" for LiteDRAM at every burst length).
 
 ## What this settles
 
-- PUMICE-025's framing ("BL4 at this operating point needs a column every MC
+- pumice BUG-011 (was PUMICE-025)'s framing ("BL4 at this operating point needs a column every MC
   cycle, so the read ceiling is a property of the operating point") is
   disproven: LiteDRAM at the same BL4 / 75 MHz / 1:2 reads at 579 MB/s
   through identical engines. The 48.6% read ceiling is pumice's.
 - It is read-specific and command-path-shaped: pumice's write path already
   matches LiteDRAM, so the DFI/PHY/data path is not the limit. The read side
   loses half its column slots somewhere between AR accept and R return
-  (the return ring / rd CAM / AR-order commit are the suspects; PUMICE-025
+  (the return ring / rd CAM / AR-order commit are the suspects; pumice BUG-011 (was PUMICE-025)
   already exonerated the generator and the RD data path).
 - The 24.7-cycle LiteDRAM read latency is a useful floor: pumice's 49.2 is
   ~25 cycles of extra pipeline for the same DRAM access.
@@ -144,7 +144,7 @@ its own write path. The area comparison below is unchanged in substance (ring
 pumice still spends about 5x the LUTs of LiteDRAM's controller and PHY, and
 its read latency is ~49 cycles against LiteDRAM's 24.7.
 
-Two smaller gaps remain and are tracked in PUMICE-025: AxLEN=4 reads 360.4
+Two smaller gaps remain and are tracked in pumice BUG-011 (was PUMICE-025): AxLEN=4 reads 360.4
 while writing 570.3 and did not move with ring depth, so it is per-AR overhead
 rather than a per-column limit; and read latency did not improve with either
 fix.
@@ -198,7 +198,7 @@ adjacently, so `row_major` is the trustworthy multi-generator row.
 Both profiles use ONE writer, because at the time of measurement a second one
 was unsafe: the generated write bridge resolved response ownership from an
 AW-order FIFO head, and pumice returns B in FR-FCFS order, which is legal AXI4.
-**Fixed 2026-09-11** (PUMICE-027), by master-unique fabric IDs plus a
+**Fixed 2026-09-11** (pumice BUG-012 (was PUMICE-027)), by master-unique fabric IDs plus a
 slave-side CAM keyed on the returning BID -- a bridge-generator change, with no
 pumice edit. A two-writer comparison is now possible; it has not been run, so
 these numbers remain single-writer.
@@ -215,7 +215,7 @@ writes and 0.01 MB/s on reads. The extraction changed nothing measurable.
 ## Method notes
 
 - One writer, one reader (generator 0) on both sides; the multi-writer
-  bank_parallel scenario was excluded here because PUMICE-027 (B out of AW
+  bank_parallel scenario was excluded here because pumice BUG-012 (was PUMICE-027) (B out of AW
   order against the then position-routed write bridge) was open; it was
   resolved 2026-09-11 and that test now passes.
 - LiteDRAM has no runtime knobs; its "config" is what `litedram_hp.yml`

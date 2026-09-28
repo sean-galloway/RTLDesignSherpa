@@ -35,7 +35,7 @@ Scheduler sheet had accumulated 8 duplicate rows that way):
     python3 docs/gen_pumice_signal_contracts.py
 
 Coverage is not yet complete against vault/handbook/design/signal-contracts-and-kmaps.md
--- see PUMICE-KMAP for what is still missing (axis equations and implicants on
+-- see pumice TASK-028 (was PUMICE-KMAP) for what is still missing (axis equations and implicants on
 the grid pages).
 """
 from __future__ import annotations
@@ -837,7 +837,7 @@ def build_read_path_sheet(wb):
          "every board build ran the default. At ~49 cycles of read latency that caps reads near "
          "0.78 of the DRAM rate -- exactly where the admit fix left them (470.9 MB/s)."),
         ("after both fixes", "read 571.3 MB/s at ring 64 = write parity (570.2) and 95% of peak. "
-         "Timing improved (+0.285 vs +0.039 ns). PUMICE-025."),
+         "Timing improved (+0.285 vs +0.039 ns). pumice BUG-011 (was PUMICE-025)."),
         ("guard", "dv/tests/top/test_pumice_core_dfi.py::perf_intake_admit_rate conditions on "
          "'could this intake have admitted', so it is geometry-independent, with the write "
          "intake as the control."),
@@ -1431,7 +1431,7 @@ class ScKmapWriter:
             c = ws.cell(self.row, 1,
                         "RELATIONS: none stated -- every combination is treated "
                         "as reachable. If two of these axes are in fact related, "
-                        "the map is over-claiming (PUMICE-KMAP).")
+                        "the map is over-claiming (pumice TASK-028 (was PUMICE-KMAP)).")
             c.font = Font(italic=True, color="B45309"); c.alignment = SC_WRAP
             self.row += 1
 

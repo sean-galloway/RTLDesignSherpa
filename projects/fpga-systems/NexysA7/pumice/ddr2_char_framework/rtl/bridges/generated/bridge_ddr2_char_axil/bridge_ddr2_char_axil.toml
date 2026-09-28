@@ -29,7 +29,7 @@
 #                                              is APB with a 12-bit PADDR — so
 #                                              4 KB is exactly its window.
 #                                              Added 2026-08-28 so adopting the
-#                                              observer ([[PUMICE-016]]) is an
+#                                              observer ([[pumice TASK-025 (was PUMICE-016)]]) is an
 #                                              instantiation rather than a
 #                                              bridge regen on the DDR2
 #                                              critical path.

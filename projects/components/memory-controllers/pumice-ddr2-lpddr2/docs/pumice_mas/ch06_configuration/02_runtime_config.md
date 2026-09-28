@@ -135,7 +135,7 @@ csr_write(ADDR_MAP,        BANK_LSB(COL_WIDTH) | HASH_EN | HASH_SEED(seed));  //
 // in_order = per-channel FIFO (global rd-vs-wr age order needs an
 // ENHANCED build). Expect a bandwidth cost: under the auto-precharge paging
 // modes each access is two dependent commands, so it pays the arbiter's pick
-// pipeline twice -- see ch02 §7 and PUMICE-021.
+// pipeline twice -- see ch02 §7 and pumice ISSUE-006 (was PUMICE-021).
 csr_write(SCHED_POLICY,   ORDER_MODE(1 /*in_order*/));
 csr_write(REFRESH_TUNING, PAGE_POLICY_OR(2 /*CLOSE*/));
 csr_write(REF_CTRL,       POSTPONE_LIMIT(0) | PULLIN_LIMIT(0));   // strict tREFI

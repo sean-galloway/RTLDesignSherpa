@@ -199,7 +199,7 @@ async def cocotb_test_rd_aligner_phy_preamble(dut):
 
     # The preamble: valid asserted, data NOT driven by the device. Modelled as
     # all-ones, which is what an undriven DQ bus reads as on the board (59% of
-    # the PUMICE-037 failing beats). The original ILA saw zeros; either way it
+    # the pumice BUG-014 (was PUMICE-037) failing beats). The original ILA saw zeros; either way it
     # is not real data and must not be captured.
     PREAMBLE = (1 << DFI_DW) - 1
     dut.dfi_rddata_i.value = PREAMBLE
@@ -226,17 +226,17 @@ async def cocotb_test_rd_aligner_phy_preamble(dut):
     await RisingEdge(dut.dfi_clk)
 
     assert not captured_preamble, (
-        "PUMICE-037: the aligner CAPTURED the a7ddrphy preamble valid "
+        "pumice BUG-014 (was PUMICE-037): the aligner CAPTURED the a7ddrphy preamble valid "
         f"(data {PREAMBLE:#x}, one cycle before the enable window). rd_last then "
         "fires a word early and every read's real word becomes the next read's "
         "word 0 -- the whole read stream shifts. This is what the reverted "
         "enable-window credit (2f08eb23e) prevented; `r_outstanding != 0` does "
         "not, because the read IS outstanding when the preamble arrives.")
     assert got == words, (
-        f"PUMICE-037: read stream SHIFTED by the preamble. got "
+        f"pumice BUG-014 (was PUMICE-037): read stream SHIFTED by the preamble. got "
         f"{[hex(x) for x in got]} != {[hex(x) for x in words]}")
     assert last_at == [BL_WORDS - 1], (
-        f"PUMICE-037: rd_last at {last_at}, expected only [{BL_WORDS-1}] -- "
+        f"pumice BUG-014 (was PUMICE-037): rd_last at {last_at}, expected only [{BL_WORDS-1}] -- "
         f"an early last is the shift signature.")
 
 

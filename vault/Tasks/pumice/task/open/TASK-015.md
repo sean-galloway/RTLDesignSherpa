@@ -185,16 +185,24 @@ exactly where they pay: rings, CAMs, the history checker. Extend them to the
 remaining accounting sites: write-data CAM occupancy, the DFI CDC FIFO
 level, refresh credit counters, bank-timer `r_ap_pending`.
 
-> **This collides with a standing repo rule and needs an explicit decision.**
-> `vault/handbook` records *"No assertions in RTL -- they break some tools;
-> properties go in external formal/ blocks, never in the module."* Followed
-> strictly, that rule deletes the only detector that found BUG-003. And it cannot
-> simply move to formal: `reference_formal_internal_visibility` records that
-> formal binds on PeakRDL blocks see **only ports**, so an internal invariant like
-> "issue_q must be non-empty when a return beat lands" is not checkable there.
-> Recommended resolution: allow `ifndef SYNTHESIS` accounting assertions in FUBs,
-> keep the no-assertion rule for anything synthesizable, and record the exception
-> with BUG-003 as its justification.
+> **DECIDED 2026-09-27 (Sean): no assertions in RTL. Layer 2a is DROPPED.**
+> The standing rule stands without exception -- `vault/handbook` records *"No
+> assertions in RTL -- they break some tools; properties go in external formal/
+> blocks, never in the module."* No new accounting assertions are to be added to
+> any pumice FUB. The `ifndef SYNTHESIS` carve-out proposed above was declined.
+>
+> What this costs, recorded so nobody re-argues it from the benefit side alone:
+> the detector that caught BUG-003 (`pumice_rd_return_ring.sv:273`) is the kind
+> of check this rule forbids, and it cannot move to formal --
+> `reference_formal_internal_visibility` records that binds on PeakRDL blocks see
+> **only ports**, so an internal invariant like "issue_q must be non-empty when a
+> return beat lands" is not checkable there. The detection burden therefore falls
+> entirely on **Layer 2b**, which is sim-side arithmetic on already-exported
+> counters and breaks no tool. 2b is no longer merely "what makes the rest
+> meaningful" -- it is the only oracle this plan gets.
+>
+> OPEN: the 15 assertions already present in 6 RTL files predate this ruling.
+> Whether they are grandfathered or removed is not decided here.
 
 **(b) Telemetry invariants**, checkable in sim with no performance model. These
 hold for EVERY config and are pure arithmetic on counters already exported:
@@ -224,11 +232,21 @@ pinned regression cell.
 | 0 reset parity gate | ~1 day | the whole "disabling reset nobody writes" family, permanently, at commit time |
 | 2b telemetry invariants | ~1 day | an oracle, without which layers 1 and 3 cannot fail |
 | 1 pairwise array | ~3 days | all 105 2-way mode interactions x 4 gaps, with a coverage number |
-| 2a more assertions | ~2 days, needs the rule decision | the interaction class the way BUG-003 was actually caught |
+| ~~2a more assertions~~ | **DROPPED 2026-09-27** | no assertions in RTL; the rule stands without exception |
 | 3 random soak | ~2 days | 3-way and deeper; a growing corpus of pinned seeds |
 
-**Do 0 and 2b first.** Layer 0 is the highest value per hour and needs no
-decision from anyone; 2b is what makes the rest meaningful.
+**Do 0 and 2b first**, and with 2a dropped they are the whole detection story.
+Layer 0 is the highest value per hour and needs no decision from anyone; 2b is
+the only oracle the plan has left.
+
+**Layer 1 is partly built already.** `dv/tests/macro/test_pumice_sched_matrix.py`
+crosses the 12 named operating points in `dv/tbclasses/pumice_dram_configs.py`
+against 7 paging arms x 8 patterns -- 672 arms, 1,376,256 requests, 3,151,054
+commands, 0 violations at FULL. That covers the config x hazard crossing AT THE
+SCHEDULER LAYER with the JEDEC command-stream checker as its oracle. What Layer 1
+still owes: the same crossing at `top` with a covering array and a stated
+coverage number, and the value fields (the 49 non-mode CSRs) which the matrix
+does not vary.
 
 ## What this plan will NOT catch, stated plainly
 

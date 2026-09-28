@@ -75,7 +75,7 @@ def main(argv=None) -> int:
     ap.add_argument("--wb-reps", type=int, default=8,
                     help="wr_batch: repeats per (watermark, gap) point. "
                          "A single pass cannot tell 0%% from a low-rate "
-                         "intermittent -- that is how PUMICE-037 was "
+                         "intermittent -- that is how pumice BUG-014 (was PUMICE-037) was "
                          "closed prematurely.")
     ap.add_argument("--wb-gaps", default="12,15",
                     help="wr_batch: reader gaps to test")

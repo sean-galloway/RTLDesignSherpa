@@ -102,7 +102,7 @@ module pumice_dfi_cmd_path
     input  memtype_e                   memtype_i,
     input  logic [PHW-1:0]             rd_phase_i,
     input  logic [PHW-1:0]             wr_phase_i,
-    // Direction-turnaround pacing (PUMICE-042), in DFI cycles. Driven from the
+    // Direction-turnaround pacing (pumice BUG-017 (was PUMICE-042)), in DFI cycles. Driven from the
 
     // ---- runtime sub-DFI-word framing (from bl+gear CSRs; <= compile MAX) ----
     // n_subcmd_i        : active sub-column commands packed into one DFI word (>=1).
@@ -159,12 +159,12 @@ module pumice_dfi_cmd_path
     //
     // That is not a theoretical risk, it is the TASK-007 failure. The previous
     // revision paced columns here (DQ occupancy + a direction-aware tRTW/tWTR
-    // hold, added for PUMICE-042). Holding a column for tRTW=20 at the head of an
+    // hold, added for pumice BUG-017 (was PUMICE-042)). Holding a column for tRTW=20 at the head of an
     // 8-deep in-order FIFO backed the queue up, and the ACT/PRE/REF behind it --
     // which need no DQ bus and were correctly spaced by the arbiter -- drained
     // back to back on release. Board ILA: REF -> ACT compressed from 15 cycles to
     // 3, inside tRFC. The DRAM discarded the activate, the bank never opened, and
-    // 180 consecutive reads returned an undriven DQ bus. PUMICE-042's own comment
+    // 180 consecutive reads returned an undriven DQ bus. pumice BUG-017 (was PUMICE-042)'s own comment
     // had already named FIFO compression as the mechanism; re-enforcing at the
     // wire treated the symptom and supplied the stall that caused it.
     //

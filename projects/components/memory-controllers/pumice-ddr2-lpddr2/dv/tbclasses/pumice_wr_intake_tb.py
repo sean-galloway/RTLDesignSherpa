@@ -12,7 +12,7 @@ Contract under test (see rtl/PUMICE_AXI4_IFC_UARCH.md):
     wr_done — one B per burst, bid == awid.
   * Ragged burst ((awlen+1)*GEAR != BL) -> aw_push_err + bresp=SLVERR.
 
-Everything is BFM-driven (PUMICE-014) -- the TB sets no interface signals:
+Everything is BFM-driven (pumice TASK-023 (was PUMICE-014)) -- the TB sets no interface signals:
   * `s_axi_*` write channels: AXI4MasterWrite via PumiceAxiBfm (owns bready).
   * `aw_push_*` / `wdata_*`: GAXI SLAVE BFMs. They drive `ready` with a real
     randomizer profile instead of a hardwired 1, and capture the payload --

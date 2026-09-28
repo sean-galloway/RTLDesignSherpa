@@ -59,14 +59,14 @@ operational short list.
 - **Sweep points are not independent unless you re-fill.** A point that leaves
   wrong data in cells is inherited by every later point that reads the region,
   and the inherited damage is reported as the later point's own result. This
-  made the first 192-point gap sweep unreadable (PUMICE-037).
+  made the first 192-point gap sweep unreadable (pumice BUG-014 (was PUMICE-037)).
 - **A constant repeated across runs is stale state, not a race.** A race varies.
   An identical mismatch count at eight consecutive gaps means one artifact is
   being re-read eight times.
 - **Writers and readers on disjoint banks means nobody verifies the writers'
   banks.** A defect can sit there for a whole run and surface only when a later
   configuration happens to put a reader on a bank earlier points wrote — which
-  is exactly how PUMICE-037 appeared, in the last block of a 192-point sweep.
+  is exactly how pumice BUG-014 (was PUMICE-037) appeared, in the last block of a 192-point sweep.
 - Keep board runs `txn ≤ 1024` (read-engine CAM ceiling) for clean completion;
   the *rate* stays valid at scale.
 - `col_major` stride × large txn can alias past the 128 MB device — bound it.

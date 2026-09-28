@@ -47,7 +47,7 @@ AXI_BEATS_PER_BURST = 4          # AXI beats per DRAM burst (must match the para
 
 
 async def _reset(dut):
-    """Reset, and build the BFMs that own both sides (PUMICE-014).
+    """Reset, and build the BFMs that own both sides (pumice TASK-023 (was PUMICE-014)).
 
     `fub_aw`/`fub_w` are AXI-SHAPED but this fub carries NO B channel -- one
     B per ORIGINAL burst is emitted downstream by pumice_wr_data_cam

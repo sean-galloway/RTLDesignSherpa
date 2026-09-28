@@ -129,7 +129,7 @@ NUM_BANKS      = 8
 # asserting "BL8 is what the board runs".
 #
 # Consequence: no test in this suite could reach the geometry silicon ships,
-# and "the char sim does not reproduce PUMICE-037" was recorded as a property
+# and "the char sim does not reproduce pumice BUG-014 (was PUMICE-037)" was recorded as a property
 # of the DEFECT when it was a property of the TEST. Worse, a wrapper asking
 # for BL4 got a BL4 *RTL* build with the HOST still programming BL8 through
 # set_dfi_phase(bl=...) and bank_lsb -- a configuration matching neither.
@@ -152,7 +152,7 @@ DRAM_DEVICE_BYTES = int(os.environ.get("TEST_DRAM_DEVICE_BYTES", "2"))  # board:
 # makes BL/K look obviously correct.
 #
 # It is not. First attempt was CONFOUNDED -- it appeared to break both families
-# tests, but that was the PUMICE-040 board default (t_rddata_en 6 -> 1) leaking
+# tests, but that was the pumice ISSUE-012 (was PUMICE-040) board default (t_rddata_en 6 -> 1) leaking
 # into the sim because _run pinned two of the three read-path knobs. With
 # TEST_T_RDDATA_EN pinned and the confound gone, re-tested cleanly:
 #
@@ -161,7 +161,7 @@ DRAM_DEVICE_BYTES = int(os.environ.get("TEST_DRAM_DEVICE_BYTES", "2"))  # board:
 #     concurrent_gap_board (BL4, K=2, 4 -> 2)                      still xfail
 #
 # So the formula is wrong on its own merits: it breaks the one test whose value
-# it changes and does not fix BL4 (PUMICE-041). Whatever the BFM means by
+# it changes and does not fix BL4 (pumice BUG-016 (was PUMICE-041)). Whatever the BFM means by
 # beats_per_burst here, these tests want DRAM_BL. Do not re-derive it from K
 # without first explaining why families_x16 passes at 8 and fails at 4.
 # ---------------------------------------------------------------------------
@@ -313,7 +313,7 @@ def _make_dfi_slave(dut):
         # = 2 cycles against BL8's 4, so a model that only presents data
         # INSIDE that window has half the slack to hit it.
         read_en_gated=(os.environ.get("CHAR_READ_EN_GATED", "1") != "0"),
-        # PUMICE-041 probe. DEFAULT 0 = unchanged, so no existing cell moves.
+        # pumice BUG-016 (was PUMICE-041) probe. DEFAULT 0 = unchanged, so no existing cell moves.
         #
         # The BFM models a short burst under-filling its DFI phases: the phases
         # the burst does NOT drive hold the PREVIOUS read's beats (stale), which
@@ -534,7 +534,7 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 32,
         "TEST_RDDATA_DELAY": os.environ.get("TEST_RDDATA_DELAY", "0"),
         # PIN t_rddata_en TOO. These three are ONE tuple describing the read/
         # write path, and only two were pinned -- so when the BOARD default
-        # moved 6 -> 1 (PUMICE-040, a real board win) it silently changed this
+        # moved 6 -> 1 (pumice ISSUE-012 (was PUMICE-040), a real board win) it silently changed this
         # sim's read capture window and broke both families tests. The failure
         # looked like it came from an unrelated edit in this file, and a
         # correct hypothesis about BEATS_PER_BURST got reverted chasing it.
@@ -592,7 +592,7 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 32,
                     # the RTL at BL8 and told the DRAM model BL4: the BFM
                     # returned one DFI word per read while the aligner waited
                     # for BL_WORDS=2, no read ever retired, and the cell failed
-                    # with "hist total 8 != 64". That is PUMICE-041, and it was
+                    # with "hist total 8 != 64". That is pumice BUG-016 (was PUMICE-041), and it was
                     # a harness bug, not the BL4 read path.
                     "DRAM_BL": str(bl),
                     # DFI-WIRE command-history scoreboard. Off unless asked,
@@ -623,7 +623,7 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 32,
 
 @cocotb.test(timeout_time=6000, timeout_unit="ms")
 async def cocotb_test_char_concurrent_gap(dut):
-    """The PUMICE-037 shape, driven by the REAL hardware engines.
+    """The pumice BUG-014 (was PUMICE-037) shape, driven by the REAL hardware engines.
 
     Everything about the stimulus here is the silicon datapath: the same
     axi4_master_wr_pattern_gen / axi4_master_rd_crc_check instances inside
@@ -734,7 +734,7 @@ def test_ddr2_char_char_concurrent_gap_board(request):
 
 
 def test_ddr2_char_char_concurrent_gap_board_bl8(request):
-    """PUMICE-041 CONTROL: the BL4 cell's twin, identical except dram_bl=8.
+    """pumice BUG-016 (was PUMICE-041) CONTROL: the BL4 cell's twin, identical except dram_bl=8.
 
     Not a coverage cell -- a controlled comparison. concurrent_gap_board (BL4)
     fails and families_x16 (BL8) passes, but those differ in BOTH burst length

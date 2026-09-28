@@ -36,7 +36,7 @@ of the raw ceiling** (270 of 572 MiB/s) while its write reaches 88%. pumice
 now sits at 48.6% read / 95.0% write. A mature, widely-deployed controller
 hitting the same read fraction on this exact board and device is evidence that
 the read ceiling is a property of this operating point rather than a pumice
-defect — see PUMICE-025.
+defect — see pumice BUG-011 (was PUMICE-025).
 
 ## Working tooling recipe (2026-09-10) — the part worth keeping
 
@@ -80,4 +80,4 @@ with a user port, not a SoC.
 `litedram_gen` a standalone DDR2 core (AXI or native user port, built-in init)
 against this board's pin-out, wrap it as `litedram_char_top` behind the same
 AXI the pumice harness drives, and reuse the existing generators, perf
-counters and host program unchanged. Tracked as PUMICE-026.
+counters and host program unchanged. Tracked as pumice TASK-027 (was PUMICE-026).

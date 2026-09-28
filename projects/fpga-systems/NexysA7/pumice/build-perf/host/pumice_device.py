@@ -113,7 +113,7 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
     # MC cycles after the RD command (6 + 2 = 8 here). A WRITE issued before
     # that drives DQ into returning read data: the beats are correctly FRAMED
     # and their CONTENTS are wrong, with zero stray beats -- the measured
-    # PUMICE-037 signature. LiteDRAM ties the same edge to the PHY rather than
+    # pumice BUG-014 (was PUMICE-037) signature. LiteDRAM ties the same edge to the PHY rather than
     # to JEDEC (multiplexer.py: delayed_enter("RTW","WRITE", read_latency-1))
     # and lands on 8 for this build; taking the max of the two reproduces that
     # from pumice's OWN parameters instead of copying the constant.

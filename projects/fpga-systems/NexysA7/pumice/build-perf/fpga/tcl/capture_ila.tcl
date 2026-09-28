@@ -59,7 +59,7 @@ set ila [get_hw_ilas -of_objects [current_hw_device]]
 # an EARLY trigger position so the post-trigger window captures the write burst +
 # command columns (and the following reads) — to check writes land beats at the
 # right DRAM columns with the bl-scaling split. "rd" triggers on rddata_valid.
-# "mism" triggers on rd_dbg_mismatch -- the PUMICE-037 data corruption itself
+# "mism" triggers on rd_dbg_mismatch -- the pumice BUG-014 (was PUMICE-037) data corruption itself
 # (needs a PUMICE_RD_DBG_FIFO>0 bitstream). "ref" triggers on a REFRESH command (ras_n AND cas_n both asserted — the unique
 # DDR2 REF encoding vs ACT=ras-only / RD|WR=cas-only), positioned MID-buffer so the
 # window shows the ACT before + the RD after the refresh — to see a refresh
@@ -89,7 +89,7 @@ if {$trig eq "ref"} {
     }
     set_property CONTROL.TRIGGER_POSITION [expr {[get_property CONTROL.DATA_DEPTH $ila] / 2}] $ila
 } elseif {$trig eq "mism"} {
-    # PUMICE-037: trigger on the CORRUPTION itself.
+    # pumice BUG-014 (was PUMICE-037): trigger on the CORRUPTION itself.
     #
     # w_rd_dbg_mismatch pulses on the exact beat whose returned data did not
     # match what the reader expected. Every other trigger here fires on normal
@@ -113,7 +113,7 @@ if {$trig eq "ref"} {
     set_property CONTROL.TRIGGER_POSITION [expr {[get_property CONTROL.DATA_DEPTH $ila] / 2}] $ila
     set _pw [get_property WIDTH $p]
     set_property TRIGGER_COMPARE_VALUE "eq${_pw}'h1" $p
-    puts "ILA armed (trigger: rd_dbg_mismatch == 1 -- the PUMICE-037 corruption)."
+    puts "ILA armed (trigger: rd_dbg_mismatch == 1 -- the pumice BUG-014 (was PUMICE-037) corruption)."
     puts "Now run the failing workload: a concurrent read+write with reader gap >= 8."
 } elseif {$trig eq "rd"} {
     set p [get_hw_probes -of_objects $ila *w_dfi_rddata_valid*]

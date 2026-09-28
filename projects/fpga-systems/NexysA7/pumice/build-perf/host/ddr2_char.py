@@ -423,7 +423,7 @@ class DDR2CharDriver:
         t_rddata_en + rddata_delay + BL/DFI_RATE -- so a caller that programs
         one alignment while this derives tRTW from the DEFAULT of another gets
         a turnaround for a read window the controller is not using. That is not
-        hypothetical: it is the PUMICE-037 failure mode, one layer up."""
+        hypothetical: it is the pumice BUG-014 (was PUMICE-037) failure mode, one layer up."""
         from pumice_device import ddr2_timings_mc_cycles
         return self.pumice.set_jedec_timings(
             ddr2_timings_mc_cycles(mc_clk_hz, **align))

@@ -79,7 +79,7 @@ class PumiceRdIntakeTB(TBBase):
     def _build_bfms(self, profile="backtoback"):
         """AXI4 read master on s_axi, a GAXI slave on the ar_push output and
         GAXI masters on the two read-data sources. Nothing here is driven by
-        hand (PUMICE-014); the BFMs own valid/ready AND the payload."""
+        hand (pumice TASK-023 (was PUMICE-014)); the BFMs own valid/ready AND the payload."""
         self.axi = PumiceAxiBfm(self.dut, data_width=self.AXI_DATA_WIDTH,
                                 bl_words=self.EXP_BEATS, clock=self.dut.aclk,
                                 profile=profile, write=False, log=self.log)

@@ -32,7 +32,7 @@ _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
 
 @cocotb.test(timeout_time=5, timeout_unit="ms")
 async def cocotb_test_refresh_vs_inflight_read(dut):
-    """PUMICE-037 at the scheduler layer: refresh landing on an in-flight read.
+    """pumice BUG-014 (was PUMICE-037) at the scheduler layer: refresh landing on an in-flight read.
 
     On the board, a refresh arriving while reads are outstanding corrupts them:
     the ILA shows RD(bank4) -> PRE(bank4) -> REF -> ACT(bank4) with the read
@@ -104,12 +104,12 @@ async def cocotb_test_refresh_vs_inflight_read(dut):
         pre_i, pre_c = pre_after[0]
         d_rd_pre = at(pre_c, pre_i) - at(last_rd[1], last_rd[0])
         assert d_rd_pre >= t_rtp, (
-            f"PUMICE-037: PRE(bank {BANK}) issued {d_rd_pre} cycles after RD to "
+            f"pumice BUG-014 (was PUMICE-037): PRE(bank {BANK}) issued {d_rd_pre} cycles after RD to "
             f"the same bank, tRTP={t_rtp}. The DRAM is precharged while its read "
             f"burst is still being driven out.")
         d_pre_ref = at(ref_c, ref_i) - at(pre_c, pre_i)
         assert d_pre_ref >= t_rp, (
-            f"PUMICE-037: REF issued {d_pre_ref} cycles after PRE, tRP={t_rp}.")
+            f"pumice BUG-014 (was PUMICE-037): REF issued {d_pre_ref} cycles after PRE, tRP={t_rp}.")
 
     tb.log.info(
         f"refresh vs in-flight read: {len(rds)} RD, {len(pres)} PRE, "
@@ -261,7 +261,7 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
 async def cocotb_test_refresh_vs_read_stream(dut):
-    """PUMICE-037: a SUSTAINED read stream across a refresh.
+    """pumice BUG-014 (was PUMICE-037): a SUSTAINED read stream across a refresh.
 
     The first attempt at this had ONE read outstanding, which is not the board's
     state at all -- there a queue of reads is in flight when the refresh lands,
@@ -331,7 +331,7 @@ async def cocotb_test_refresh_vs_read_stream(dut):
                 open_row.pop(bk, None)
 
     assert not bad, (
-        f"PUMICE-037: {len(bad)} column command(s) issued to a bank with no open "
+        f"pumice BUG-014 (was PUMICE-037): {len(bad)} column command(s) issued to a bank with no open "
         f"row, across {len(refs)} refresh(es) and {len(cols)} columns. "
         f"First: cycle {bad[0][0]} op={bad[0][1]} bank={bad[0][2]} ({bad[0][3]}). "
         f"A read to a closed row returns undriven DQ -- the board's all-ones.")
@@ -341,14 +341,14 @@ async def cocotb_test_refresh_vs_read_stream(dut):
 
 
 def test_pumice_mem_cmd_scheduler_refresh_read_stream(request):
-    """PUMICE-037: sustained read stream across a refresh."""
+    """pumice BUG-014 (was PUMICE-037): sustained read stream across a refresh."""
     _run_scheduler(request, "cocotb_test_refresh_vs_read_stream")
 
 
 def test_pumice_mem_cmd_scheduler_refresh_inflight_read(request):
     """Refresh vs an in-flight read: JEDEC spacing holds. PASSES.
 
-    Written to reproduce PUMICE-037 and it does NOT: the refresh path respects
+    Written to reproduce pumice BUG-014 (was PUMICE-037) and it does NOT: the refresh path respects
     tRTP from the last same-bank column and tRP into the REF. Kept as a
     regression guard on that property, and as the record that the
     scheduler's command spacing is NOT the mechanism.

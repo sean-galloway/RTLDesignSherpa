@@ -258,7 +258,7 @@ module pumice_cmd_arbiter
     logic [PTRW-1:0] rd_col_s, wr_col_s, rd_act_s, wr_act_s, rd_pre_s, wr_pre_s;
     logic            rd_col_ap, wr_col_ap;   // AP verdict carried with the column pick
 
-    // Pre-MUXED pick operands (PUMICE-017, 2026-09-09). The output stage used
+    // Pre-MUXED pick operands (pumice ISSUE-005 (was PUMICE-017), 2026-09-09). The output stage used
     // to index the CAM's flat {bank,row,col} vectors with the REGISTERED slot
     // -- six wide NUM_ENTRIES:1 muxes sitting AFTER the pre-pick flop and
     // feeding r_bank/r_row/r_col, which is the arbiter's 75 MHz critical path
@@ -331,7 +331,7 @@ module pumice_cmd_arbiter
     // latch into the pre-pick flop): the mask build reads rd_col_f, which is
     // still stale during that cycle, so the selection signal is the only view
     // of the incoming pick. This block has produced two silicon double-issue
-    // bugs from exactly this registered-feedback latency (PUMICE-KMAP); the
+    // bugs from exactly this registered-feedback latency (pumice TASK-028 (was PUMICE-KMAP)); the
     // guard mirrors the proven output-stage mask rather than inventing a new
     // mechanism, extended by one stage for the added snapshot. It also keeps
     // tCCD spacing, since the blanket column mask is what enforces it.
@@ -801,7 +801,7 @@ module pumice_cmd_arbiter
     // in_order: read-head vs write-head decided by comparing the two CAMs'
     // oldest relative ages (w_rd_head_wins). That compare -- CAM older
     // matrix -> oldest select -> 16-bit rel-age mux -> export -> compare ->
-    // mask -> pick -- is the cone that missed 75 MHz by 21 ps (PUMICE-024);
+    // mask -> pick -- is the cone that missed 75 MHz by 21 ps (pumice ISSUE-007 (was PUMICE-024));
     // without the define the sch_head_rel export constant-propagates away.
     // On a base bitstream in_order therefore orders WITHIN each channel and
     // may issue a read behind a younger write (or vice versa) at the
@@ -1023,7 +1023,7 @@ module pumice_cmd_arbiter
     // clean register-to-register hop. The result (w_sel_*) feeds the existing
     // pre-pick flop (rd_col_f/... below), so the pick is now
     //   CAM-match+mask -> FLOP(1a) -> arg_sel -> FLOP(pre-pick) -> ...
-    // i.e. +1 pipeline cycle vs PUMICE-017; throughput is unchanged.
+    // i.e. +1 pipeline cycle vs pumice ISSUE-005 (was PUMICE-017); throughput is unchanged.
     //
     // DOUBLE-ISSUE RE-VALIDATION (critical). The snapshot mask is 1 cycle
     // stale, so a slot committed/issued in the gap -- its CAM sch_valid dropped
@@ -1110,7 +1110,7 @@ module pumice_cmd_arbiter
     // (w_out_ready): it HOLDS its decision under cmd-FIFO backpressure rather
     // than dropping or re-deriving it, which is why a plain flop is right here
     // and a skid buffer would be wrong (the pre-pick is a re-evaluated
-    // decision, not a stream that must not lose a beat). See PUMICE-017/018.
+    // decision, not a stream that must not lose a beat). See pumice ISSUE-005 (was PUMICE-017)/018.
     // (Declared near the output register above, because the schedulable mask
     // must see what is queued here.)
     `ALWAYS_FF_RST(aclk, aresetn,

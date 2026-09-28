@@ -113,12 +113,12 @@ module ddr2_char_harness
     // Reads in flight through pumice_rd_return_ring. Sustained read rate is
     // bounded by RD_RET_DEPTH / (ticket alloc -> R drain), and this board's
     // PHY read latency is long enough for that to bind: with the read intake
-    // fixed (PUMICE-025) reads sit at 78.5% of peak while writes reach 95%.
+    // fixed (pumice BUG-011 (was PUMICE-025)) reads sit at 78.5% of peak while writes reach 95%.
     parameter int RD_RET_DEPTH        = 32,
     // Reader debug stream depth. 0 = NOT BUILT, which is the normal build:
     // the stream costs a FIFO and a pair of DW-wide buses and nothing reads it
     // on a production bitstream. Set > 0 for the ILA build, where
-    // rd_dbg_mismatch is the only signal that can TRIGGER on the PUMICE-037
+    // rd_dbg_mismatch is the only signal that can TRIGGER on the pumice BUG-014 (was PUMICE-037)
     // corruption at the moment it happens -- a free-running capture at a ~15%
     // beat error rate is a lottery, and one that tells you nothing about which
     // address lost.
@@ -270,7 +270,7 @@ module ddr2_char_harness
     // Slave 4 (obs_apb) — APB 32b, EXPANSION SLOT, currently UNUSED.
     //
     // Reserved at 0x00090000 for axi4_intf_master_observer's obs_regs block
-    // ([[PUMICE-016]]), whose APB slave has a 12-bit PADDR — so the bridge's
+    // ([[pumice TASK-025 (was PUMICE-016)]]), whose APB slave has a 12-bit PADDR — so the bridge's
     // 4 KB window is exactly its size. Wiring the slot now means adopting the
     // observer is an instantiation, not a bridge regen on the DDR2 critical
     // path.

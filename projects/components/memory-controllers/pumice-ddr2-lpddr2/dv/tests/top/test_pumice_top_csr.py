@@ -110,7 +110,7 @@ async def cocotb_test_pumice_top_csr(dut):
     dut.s_cpuif_addr.value = 0; dut.s_cpuif_wr_data.value = 0; dut.s_cpuif_wr_biten.value = 0
     # NO s_axi_* idle poking: the master BFMs own that whole port, bready and
     # rready included. A second driver on a BFM-owned signal is a conflict
-    # (PUMICE-014). The cpuif above is a plain request/ack CSR port, not a
+    # (pumice TASK-023 (was PUMICE-014)). The cpuif above is a plain request/ack CSR port, not a
     # valid/ready interface, so it stays hand-driven.
     bfm = PumiceAxiBfm(dut, data_width=DW, bl_words=BL_WORDS)
     dut.aresetn.value = 0; dut.dfi_rstn.value = 0
@@ -133,7 +133,7 @@ async def cocotb_test_pumice_top_csr(dut):
     # runtime CSR fields (DFI_PHASE[8:7]/[12:9]) in the config-not-param
     # work; this hand-packed write predates them, and leaving them 0
     # programs a zero-beat burst — the read path then never returns data
-    # (PUMICE-002's zero-R-beats signature).
+    # (pumice BUG-005 (was PUMICE-002)'s zero-R-beats signature).
     await _csr_wr(dut, DFI_PHASE, pk((0, 0), (0, 4),
                                      (DFI_RATE.bit_length() - 1, 7), (BL, 9)))
     await _csr_wr(dut, PHY_TIMING, pk((1, 0), (2, 8), (0, 16), (1, 20))) # wrlat,rddata_en,memtype,refresh_burst

@@ -61,7 +61,7 @@ _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
 # Selected per TEST by the wrapper (see GEOMETRIES), not by a global env knob
 # nobody sets. BL4-on-x16 is the BOARD's shape and BL8 is the historical sim
 # point; both are now real pytest parameters so the board geometry actually
-# runs instead of being merely "overridable" (PUMICE-028).
+# runs instead of being merely "overridable" (pumice ISSUE-008 (was PUMICE-028)).
 DFI_RATE   = int(os.environ.get("DFI_RATE", "2"))
 DRAM_BEAT  = int(os.environ.get("DRAM_BEAT_WIDTH", "64"))
 # Read DRAM_BL, which is what the wrapper actually exports. This used to read
@@ -117,11 +117,11 @@ async def _bringup(dut, *, mem_type="DDR2", page_policy=2, profile="backtoback",
     await tb.wait_for_init_done()
     # bready/rready are NOT tied high here: init_axi_masters() builds the
     # master BFMs, which own every signal on s_axi including the response
-    # readies. Poking them first only creates a second driver (PUMICE-014).
+    # readies. Poking them first only creates a second driver (pumice TASK-023 (was PUMICE-014)).
     tb.init_axi_masters()
     tb.set_axi_timing_profile(profile)
 
-    # PUMICE-012/013: opt-in trackers. This is the MEANINGFUL place to
+    # pumice BUG-008 (was PUMICE-012)/013: opt-in trackers. This is the MEANINGFUL place to
     # measure AXI utilization -- the masters here are real BFMs at the
     # 'backtoback' randomizer profile (zero inter-beat delay), so a low
     # utilization number reflects the DUT, not a lazy driver. (The core
@@ -155,7 +155,7 @@ async def _dq_collision_monitor(dut, stop, hits):
     """Flag every cycle where the controller drives WRITE data while a READ is
     still returning.
 
-    This is the PUMICE-037 mechanism, and the reason it never showed up in
+    This is the pumice BUG-014 (was PUMICE-037) mechanism, and the reason it never showed up in
     simulation before: DFI carries wrdata and rddata on SEPARATE buses, so the
     overlap is perfectly legal AT THE DFI BOUNDARY and only becomes destructive
     on the PHY's shared DQ pins, one layer below anything a DFI-level model
@@ -599,7 +599,7 @@ async def cocotb_test_pumice_top(dut):
         return
 
     # ---- write+read each bank ----
-    # ---- concurrent read + write, reader paced (PUMICE-037) ----------------
+    # ---- concurrent read + write, reader paced (pumice BUG-014 (was PUMICE-037)) ----------------
     if test_type == "concurrent_rw":
         # Reproduce the board defect at the CONTROLLER, not through the char
         # harness: concurrent read and write with the READER pacing itself.
@@ -608,7 +608,7 @@ async def cocotb_test_pumice_top(dut):
         # corrupts cells. The char-framework sim does not reproduce it, and the
         # leading explanation is geometry: that build is BL8 where the board is
         # BL4, so one DRAM burst is 2 AXI beats there against 1 on silicon
-        # (PUMICE-028). This test lives where the geometry is an env knob, so
+        # (pumice ISSUE-008 (was PUMICE-028)). This test lives where the geometry is an env knob, so
         # the board point is actually reachable:
         #     TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16
         #
@@ -870,7 +870,7 @@ async def cocotb_test_pumice_top(dut):
             # cost this investigation repeatedly (SCHED_WR_WM had no host
             # accessor at all; CMD_HISTORY_EN was unbuildable; the char suite
             # could not reach the board's BL). Verify, do not trust.
-            # wr_batch_max BOUNDS the drain (PUMICE-043/047). The RTL gates
+            # wr_batch_max BOUNDS the drain (pumice BUG-018 (was PUMICE-043)/047). The RTL gates
             # batch-done on `sched_wr_batch_max_i != 0`, so 0 means UNBOUNDED:
             # once writes win they never yield and reads starve. That makes 0
             # the mutation that proves the knob is wired -- see the
@@ -954,7 +954,7 @@ async def cocotb_test_pumice_top(dut):
         if os.environ.get("GEN_DQ_STRICT", "0") == "1":
             assert not dq_hits, (
                 f"gen_replica gap={gap}: {len(dq_hits)} cycle(s) drove WRITE "
-                f"data while a READ was still returning -- the PUMICE-037 "
+                f"data while a READ was still returning -- the pumice BUG-014 (was PUMICE-037) "
                 f"mechanism (first at {dq_hits[0][0]}ns: wrdata_en={dq_hits[0][1]:#x} "
                 f"rddata_en={dq_hits[0][2]:#x} rddata_valid={dq_hits[0][3]:#x}). "
                 f"Legal on DFI's separate buses; destructive on the PHY's "
@@ -1203,7 +1203,7 @@ def _run(request, testcase, extra_env=None, params_over=None):
     # cocotb testcase is selected at runtime), so the full suite compiles ~twice
     # (nr1 + nr2) instead of once per test — the run is otherwise recompile-bound.
     #
-    # PUMICE-019: sharing is only safe WITHIN one process. cocotb_test's
+    # pumice BUG-009 (was PUMICE-019): sharing is only safe WITHIN one process. cocotb_test's
     # Verilator path re-runs `verilator -cc` + make UNCONDITIONALLY on every
     # run() call (no staleness check), so two processes in one sim_build
     # regenerate the sources under each other's compiles/sims and destroy the
@@ -1225,7 +1225,7 @@ def _run(request, testcase, extra_env=None, params_over=None):
                  + (f"_{_worker}" if _worker else ""))
     sim_build = sim_build_path(tests_dir, "shared_" + build_key)
     os.makedirs(sim_build, exist_ok=True)
-    # PUMICE-019: echo the per-test seed. pytest shows captured stdout for
+    # pumice BUG-009 (was PUMICE-019): echo the per-test seed. pytest shows captured stdout for
     # FAILING tests, so a one-off red is reproducible with PUMICE_SEED=<n>
     # even after logs/ are cleaned.
     seed = os.environ.get("PUMICE_SEED", str(random.randint(0, 100000)))
@@ -1267,10 +1267,10 @@ _FUNC = ["smoke", "configure_via_csr", "axi_write_smoke", "wr_rd_roundtrip",
          "random_soak"]
 
 
-# ---- PUMICE-037: concurrent read + write, reader paced ---------------------
+# ---- pumice BUG-014 (was PUMICE-037): concurrent read + write, reader paced ---------------------
 # Geometry is a PARAMETER, not an env override. The board is BL4 on an x16
 # device (one DRAM burst = one AXI beat); the historical sim point is BL8 with
-# device == beat (one burst = four beats). PUMICE-028's whole point is that the
+# device == beat (one burst = four beats). pumice ISSUE-008 (was PUMICE-028)'s whole point is that the
 # board shape was reachable in principle and never actually run, so both shapes
 # run here and the board one is not opt-in.
 #

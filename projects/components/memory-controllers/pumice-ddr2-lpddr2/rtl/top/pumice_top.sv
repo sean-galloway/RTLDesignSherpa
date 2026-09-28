@@ -190,7 +190,7 @@ module pumice_top
 
     // ---- tRTW FLOOR: a read owns DQ until its capture window closes --------
     //
-    // PUMICE-037. tRTW is nominally the JEDEC read-to-write turnaround, and a
+    // pumice BUG-014 (was PUMICE-037). tRTW is nominally the JEDEC read-to-write turnaround, and a
     // host that derives it from JESD79-2 alone gets a DRAM-internal number
     // that says nothing about how long the PHY keeps returning data. On the
     // Nexys A7 that produced tRTW=3 while the read was still on DQ, and an ILA

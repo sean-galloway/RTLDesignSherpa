@@ -114,7 +114,7 @@ Two things have NOT moved yet, so they are still referenced in place:
 - `ddr2_char_framework/dv/` -- the whole-harness sim. `build-perf` points
   `SIM_TESTS` at it; `build-perf/dv/` stays scaffold until it moves.
 
-The LiteDRAM flow is wired but not yet board-brought-up (PUMICE-026). Remaining migrations are NEXYS-003 in
+The LiteDRAM flow is wired but not yet board-brought-up (pumice TASK-027 (was PUMICE-026)). Remaining migrations are NEXYS-003 in
 the retired `vault/Tasks/nexysa7/` area (deleted 2026-09-27; see
 `vault/Tasks/MIGRATION_MAP.md`). NEXYS-002 moved the rest of `projects/NexysA7/`
 under `projects/fpga-systems/`.

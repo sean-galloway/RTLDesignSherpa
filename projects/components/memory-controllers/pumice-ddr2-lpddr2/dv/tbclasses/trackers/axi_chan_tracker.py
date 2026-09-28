@@ -31,7 +31,7 @@ Answers two questions the golden-data tests cannot:
 NOTE ON SCOPE: this lives in DV, not RTL. Per the 2026-08-26 direction
 ("no monitor or perf logic inside pumice -- an external block does that"),
 silicon-side measurement belongs to `axi4_intf_master_observer`
-(PUMICE-008). This tracker is the SIM equivalent and adds no gates.
+(pumice TASK-019 (was PUMICE-008)). This tracker is the SIM equivalent and adds no gates.
 
 ## Signals → events table
 

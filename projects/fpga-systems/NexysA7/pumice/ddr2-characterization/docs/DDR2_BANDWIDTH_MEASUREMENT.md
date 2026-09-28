@@ -249,7 +249,7 @@ Each of these has produced a wrong or misleading number in this area.
   can leave memory in a wrong state. A point that corrupts cells is inherited by
   every later point that reads the same region, and the inherited damage is
   reported as the later point's own result. This is not hypothetical: it made
-  the first `bank_gap_sweep` run unreadable (PUMICE-037). Re-fill before every
+  the first `bank_gap_sweep` run unreadable (pumice BUG-014 (was PUMICE-037)). Re-fill before every
   point unless you are deliberately studying accumulation.
 - **A constant repeated across runs is stale state, not a race.** A race varies.
   When `row_major g1` reported an identical 3694 mismatched beats at eight
@@ -265,7 +265,7 @@ Each of these has produced a wrong or misleading number in this area.
   on disjoint banks means nobody ever verifies the writers' banks. A defect can
   sit there for a whole run and only appear when some later configuration
   happens to place a reader on a bank that earlier points wrote — which is
-  exactly how PUMICE-037 surfaced, at the very last block of a 192-point sweep.
+  exactly how pumice BUG-014 (was PUMICE-037) surfaced, at the very last block of a 192-point sweep.
   Audit the whole device, not just the read side.
 
 ---

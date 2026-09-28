@@ -12,9 +12,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 5 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 23 | done (kept for history) |
+| [closed/](closed/) | 24 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,7 +22,6 @@ exactly one state by construction rather than by discipline.
 
 - **TASK-000** — TEMPLATE — copy this file, never file against it
 - **TASK-029** — move gen_pumice_signal_contracts.py onto bin/kmaps and arm its 17 maps (depends_only_on / rtl_sop; the derived-vs-RTL gate is inert today); conversion ready on branch tooling-pumice-halves
-- **TASK-030** — repoint pumice's 173 legacy tracker-id citations (104 .py, 43 .md, 26 .sv) against MIGRATION_MAP.md
 - **TASK-031** — ddr2_char dv/tests Makefile: clean target onto bin/clean_sim_builds.py (last raw rm -rf local_sim_build in the repo); ready on the same branch
 - **TASK-015** — test the DUT across configurations: 4-layer plan (reset-parity
   gate, pairwise covering array x gap, invariant oracles, seeded soak) with a
@@ -30,6 +29,10 @@ exactly one state by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-030** — repointed 162 of 171 legacy tracker-id citations
+  against MIGRATION_MAP.md (59 files; lint clean, comment-only in RTL). 9 left
+  with no migration target (`PUMICE-018` x7, `PUMICE-PERF` x2) — needs a
+  disposition, not a sweep
 - **TASK-028** (was `PUMICE-KMAP`) — real K-maps for the scheduler, CAMs and DFI layer
 - **TASK-017** (was `PUMICE-005`) — Board reads WORK: validated tuple + honest measurement
 - **TASK-018** (was `PUMICE-007`) — Retire the deskew RTL + PHY_TIMING.deskew_lo/hi CSR

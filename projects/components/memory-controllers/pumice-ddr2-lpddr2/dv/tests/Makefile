@@ -113,7 +113,7 @@ help:
 	@echo "  make run-all-func              the usual regression"
 	@echo "  make run-all-full              sign-off (the 210-test suite)"
 	@echo "  make run-all-func-both         BOTH geometries (default + board BL4/x16)"
-	@echo "  make run-board-geom            board geometry only (PUMICE-028)"
+	@echo "  make run-board-geom            board geometry only (pumice ISSUE-008 (was PUMICE-028))"
 	@echo ""
 	@echo "Per area, from make/tests.mk:"
 	@echo "  run-all-<gate|func|full>[-serial|-parallel][-waves]"
@@ -131,20 +131,20 @@ help:
 	@echo "================================================================================"
 
 # ------------------------------------------------------------------------------
-# BOARD GEOMETRY (PUMICE-028)
+# BOARD GEOMETRY (pumice ISSUE-008 (was PUMICE-028))
 # ------------------------------------------------------------------------------
 # The suite's defaults are DRAM_BEAT=64 / BL8 / device==beat. The shipping board
 # is DRAM_BEAT=32 / BL4 / x16, where one DRAM burst is ONE AXI beat instead of
 # four. That difference is not cosmetic: every per-sub-command rate limit is
 # divided by four before a bandwidth assertion can see it, which is how a 2x
-# read throttle once shipped green (PUMICE-025), and it is why PUMICE-041's
+# read throttle once shipped green (pumice BUG-011 (was PUMICE-025)), and it is why pumice BUG-016 (was PUMICE-041)'s
 # pinned burst length went unnoticed -- the suite could not express the
 # geometry it ships.
 #
 # It has to be a SECOND INVOCATION, not a pytest parametrization: the geometry
 # is read at import time into module constants that size the elaborated RTL, so
 # one process holds exactly one geometry. That is the same property that made
-# PUMICE-041 invisible, used deliberately here.
+# pumice BUG-016 (was PUMICE-041) invisible, used deliberately here.
 BOARD_GEOM := TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16
 
 .PHONY: run-board-geom
@@ -173,7 +173,7 @@ areas:
 # Forward any goal not defined above. Must stay LAST: a match-anything rule
 # shadows anything defined after it.
 # ------------------------------------------------------------------------------
-# BOARD GEOMETRY IS PART OF THE DEFAULT REGRESSION (PUMICE-028)
+# BOARD GEOMETRY IS PART OF THE DEFAULT REGRESSION (pumice ISSUE-008 (was PUMICE-028))
 # ------------------------------------------------------------------------------
 # These three names are what projects/components/Makefile invokes, so they are
 # the only place "covered by default" can mean anything. Each runs the normal
@@ -186,13 +186,13 @@ areas:
 #
 # Why a second invocation: the geometry is read at IMPORT time into module
 # constants, so one process holds exactly one geometry. That is the property
-# that made PUMICE-041 invisible -- a per-test value that reached the testbench
+# that made pumice BUG-016 (was PUMICE-041) invisible -- a per-test value that reached the testbench
 # but not the elaborated RTL -- used deliberately here.
 #
 # The cost is real (top/ is ~20 min per geometry) and it is the point: the
 # default suite could not express the shape that ships, so a 2x read throttle
-# shipped green (PUMICE-025) and a pinned burst length went unnoticed
-# (PUMICE-041). Use run-all-gate for the quick loop.
+# shipped green (pumice BUG-011 (was PUMICE-025)) and a pinned burst length went unnoticed
+# (pumice BUG-016 (was PUMICE-041)). Use run-all-gate for the quick loop.
 .PHONY: run-all-gate run-all-func run-all-full
 run-all-gate run-all-func run-all-full:
 	@rc=0; 	echo "==== 1/2 default geometry ($@) ===="; 	$(MAKE) --no-print-directory _dispatch TARGET=$@ || rc=1; 	echo "==== 2/2 board geometry ($@, top only): $(BOARD_GEOM) ===="; 	$(BOARD_GEOM) $(MAKE) --no-print-directory -C top $@ || rc=1; 	if [ $$rc -ne 0 ]; then 	    echo -e "$(RED)FAILED: at least one geometry$(RESET)"; exit 1; fi; 	echo -e "$(GREEN)OK: $@ passed at BOTH geometries$(RESET)"

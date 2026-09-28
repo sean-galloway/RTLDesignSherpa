@@ -264,7 +264,7 @@ module pumice_rd_intake #(
     // saw it -- but the board runs BL4 on x16 with a 32-bit beat, where one
     // burst is ONE beat, and there the gate IS the bandwidth: reads measured
     // 291.7 MB/s against 570 for writes, 97% of the 300 MB/s such a gate
-    // allows, while LiteDRAM on the same board and PHY read 579. PUMICE-025.
+    // allows, while LiteDRAM on the same board and PHY read 579. pumice BUG-011 (was PUMICE-025).
     //
     // Instead, stage the AR: the skid head is the AR being probed, the stage
     // holds the AR being admitted, and the two advance together, so a

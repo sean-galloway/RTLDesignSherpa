@@ -83,7 +83,7 @@ This is the arbiter's pick pipeline, and it is the reason strict in-order
 scheduling costs bandwidth under the auto-precharge paging modes: those modes
 need two dependent commands per access (activate, then column-with-
 auto-precharge), so each access pays the pick-pipeline traversal twice. See the
-scheduler chapter and PUMICE-021.
+scheduler chapter and pumice ISSUE-006 (was PUMICE-021).
 
 ## Combinational feedthroughs
 

@@ -216,7 +216,7 @@ module pumice_rd_cmd_cam #(
     // NUM_ENTRIES x (AGE_WIDTH subtract + compare + mux) that puts the
     // free-running r_age_ctr straight onto the w_sys_i scheduling path (63.6 ns
     // against a 15 ns period on the first synthesis after the mode work,
-    // PUMICE-017). The matrix is registered and its compares are 1 bit, so the
+    // pumice ISSUE-005 (was PUMICE-017)). The matrix is registered and its compares are 1 bit, so the
     // oldest costs a shallow NUM_ENTRIES^2 AND-reduce; only the winner's
     // relative age needs the AGE_WIDTH subtract.
     logic            w_sho_found;

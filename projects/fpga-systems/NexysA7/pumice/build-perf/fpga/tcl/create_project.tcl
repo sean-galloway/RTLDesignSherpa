@@ -154,7 +154,7 @@ if {[info exists ::env(PUMICE_SYS_75)] && $::env(PUMICE_SYS_75) ne "" && $::env(
 #
 # It exists for the ILA build. rd_dbg_mismatch pulses on the exact beat whose
 # data did not match, which is the only thing that can TRIGGER on the
-# PUMICE-037 corruption as it happens; a free-running capture would be a
+# pumice BUG-014 (was PUMICE-037) corruption as it happens; a free-running capture would be a
 # lottery and would not say WHICH address lost.
 if {[info exists ::env(PUMICE_RD_DBG_FIFO)] && $::env(PUMICE_RD_DBG_FIFO) ne "" && $::env(PUMICE_RD_DBG_FIFO) ne "0"} {
     lappend current_defines "PUMICE_RD_DBG_FIFO=$::env(PUMICE_RD_DBG_FIFO)"

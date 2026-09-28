@@ -226,7 +226,7 @@ class PumiceCmdArbiterTB(TBBase):
         # (1 cycle); the arg_sel INPUT SET in the STAGE-1a snapshot (1 cycle,
         # added by PUMICE-018 to cut the mask-build -> argmax cone so the argmax
         # runs on registered inputs); the per-class SELECTION in the pre-pick
-        # register (1 cycle, PUMICE-017); then the DECISION at its OUTPUT
+        # register (1 cycle, pumice ISSUE-005 (was PUMICE-017)); then the DECISION at its OUTPUT
         # (1 cycle). So a pick reflecting freshly-set bank state / CAM entries
         # appears 4 edges later (was 3 before PUMICE-018 added the snapshot
         # stage). Advance all four, then settle combinational. INIT and REFRESH

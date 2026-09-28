@@ -470,7 +470,7 @@ the tables below is **169 points across 11 profiles, all integrity-clean**.
 > WNS is the intended operating point (see `vault/handbook`), and 0.000 was the
 > last value before negative.
 
-**Re-validated 2026-09-14 after the harness rewrite (PUMICE-036).** The figures
+**Re-validated 2026-09-14 after the harness rewrite (pumice ISSUE-011 (was PUMICE-036)).** The figures
 above were taken before the data bridges were removed, the generator data
 function was replaced, the array went 2+2 -> 4+4 and the AXI id scheme moved
 inside 8 bits. All of that touches the measured path, so none of it could be
@@ -478,7 +478,7 @@ assumed free. Re-measured on the board: **no regression** — reads still ~95% o
 peak, and the Little's-law fit still holds (see the AxLEN table below). The
 4+4 bitstream closes at WNS +0.016 ns, 0 failing of 101 116 endpoints.
 
-That run also found a P0 correctness defect, **PUMICE-037** — see *What is NOT
+That run also found a P0 correctness defect, **pumice BUG-014 (was PUMICE-037)** — see *What is NOT
 done*. It does not touch the numbers on this page (gap 0..7 is clean, including
 the full 4+4 concurrent case), but it is open and it is a data-integrity bug,
 so the "correctness backlog is empty" line that stood here since 2026-08-25 is
@@ -517,7 +517,7 @@ thing to fix next.
 
 **What is NOT done — read this before trusting a number:**
 
-* **KNOWN BUG (P0, PUMICE-037): concurrent read+write with the READER's gap at
+* **KNOWN BUG (P0, pumice BUG-014 (was PUMICE-037)): concurrent read+write with the READER's gap at
   8 or above returns wrong data, and corrupts cells when the two address ranges
   overlap.** Found on the board 2026-09-14. Narrowed by elimination, each line
   its own run from a verified-clean 128 MiB prefill: the reader ALONE is clean
@@ -837,7 +837,7 @@ Read MB/s from gap 0 to gap 15: 1+1 row_major 574 -> 206 (36% retained), 2+2
   becomes the binding constraint. Its flatness is the expected result, not a
   missing measurement.
 * 22 of the 192 points carry mismatches and must not be read as clean operating
-  points; they are the PUMICE-037 configuration above. The plotter rings them.
+  points; they are the pumice BUG-014 (was PUMICE-037) configuration above. The plotter rings them.
   The bandwidth numbers themselves are real — those bytes did move.
 
 ### Both directions at once, in ONE measurement window

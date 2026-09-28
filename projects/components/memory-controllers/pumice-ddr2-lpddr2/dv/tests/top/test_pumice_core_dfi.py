@@ -73,7 +73,7 @@ NUM_BANKS, ROW_WIDTH, COL_WIDTH = 8, 14, 10
 # that admits half a sub-command per cycle still supplies 2 beats/cycle and
 # looks healthy. The board (BL4 on x16, 32b beat) gets ONE beat per burst, so
 # the same path measures exactly half the DRAM rate. That is how a 2x read
-# throttle reached silicon with this suite green -- see PUMICE-025.
+# throttle reached silicon with this suite green -- see pumice BUG-011 (was PUMICE-025).
 #   board:  TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16
 DFI_RATE   = int(os.environ.get("TEST_DFI_RATE", "2"))
 DRAM_BEAT  = int(os.environ.get("TEST_DRAM_BEAT", "64"))
@@ -95,7 +95,7 @@ BYTE_OFFSET = max(0, (DRAM_DEV_W // 8).bit_length() - 1)   # == clog2(bytes)
 # access", and beats-per-access IS BL_WORDS. They were tuned at BL_WORDS=4, so
 # on the board (BL_WORDS=1, one DFI burst per AXI beat) the same hardware reads
 # a quarter of the number with nothing wrong. Scale them rather than carry a
-# second set. See PUMICE-028.
+# second set. See pumice ISSUE-008 (was PUMICE-028).
 GEOM_UTIL_SCALE = BL_WORDS / 4.0
 # PHY-to-DRAM ratio: how many DEVICE words ride in one DFI phase. K=1 when the
 # beat is the device word (the default sim geometry); K=2 for a 32-bit beat
@@ -242,7 +242,7 @@ async def _bring_up(dut, page_policy=0, read_latency=0, strict_read=False):
     # a lazy driver starves the DUT and the numbers grade the testbench.
     _masters_init(dut)
 
-    # PUMICE-012: opt-in structure trackers. PUMICE_TRACKERS=1 wires the
+    # pumice BUG-008 (was PUMICE-012): opt-in structure trackers. PUMICE_TRACKERS=1 wires the
     # passive per-FUB trackers and each writes <sim_build>/<short>.out at
     # end of sim -- one greppable markdown table per structure, so a
     # paging / refresh / scheduling decision can be followed across them:
@@ -265,7 +265,7 @@ async def _bring_up(dut, page_policy=0, read_latency=0, strict_read=False):
             "rdalign": "u_core.u_dfi.u_rd",
         })
         # AXI-side utilization + handshake run lengths (DV-side only; the
-        # silicon equivalent is the external observer, PUMICE-008).
+        # silicon equivalent is the external observer, pumice TASK-019 (was PUMICE-008)).
         from tbclasses.trackers import wire_axi_channels
         wire_axi_channels(dut, prefix="s_axi_", log=dut._log,
                           clk_signal="aclk")   # writes axi_util.out at exit
@@ -1324,7 +1324,7 @@ async def cocotb_test_pumice_core_perf_intake_admit_rate(dut):
 
     One admitted sub-command is one DRAM burst, so this rate multiplies read
     bandwidth and nothing downstream can win it back. Two things conspired to
-    hide a 2x read throttle here until 2026-09-10 (PUMICE-025), and the
+    hide a 2x read throttle here until 2026-09-10 (pumice BUG-011 (was PUMICE-025)), and the
     measurement is shaped to defeat both:
 
       * At this testbench's geometry one DRAM burst is BL_WORDS=4 AXI beats,
@@ -1918,7 +1918,7 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
     # 5-cycle period, 4/5 = 80%. Under the open-page modes no ACT competes
     # and the row stays 100%. It measured 100% only while this test poked
     # the unphysical tCCD=1 (a column eligible every cycle cannot lose its
-    # slot); the physical tCCD exposed the cost (2026-09-09, PUMICE-021).
+    # slot); the physical tCCD exposed the cost (2026-09-09, pumice ISSUE-006 (was PUMICE-021)).
     ROW_FIRST = "pref_row_first"
     # 0.75 is the BL_WORDS=4 number: ACT-over-COL costs one column slot in
     # five there (a 5-cycle period, 4/5 = 80%). At BL_WORDS=1 an access is ONE
@@ -1964,7 +1964,7 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
     # ...but in_order must still be REPORTED and floored, so a regression that
     # tanks it further is caught rather than excused by the exemption.
     # in_order floors, SPLIT BY MECHANISM. Measured on this exact window with
-    # a command-cadence probe (2026-09-09, PUMICE-021):
+    # a command-cadence probe (2026-09-09, pumice ISSUE-006 (was PUMICE-021)):
     #   non-AP paging: one ACT per row, then a column every tCCD. ONE command
     #     per access, every gap 4 cycles -> 80-90%.
     #   AP paging (static_close, rbl_*): every access is ACT + column-with-
@@ -2013,7 +2013,7 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
 
 
 def _echo_seed(tag):
-    # PUMICE-019: pytest shows captured stdout for FAILING tests, so a
+    # pumice BUG-009 (was PUMICE-019): pytest shows captured stdout for FAILING tests, so a
     # one-off red is reproducible with SEED=<n> after the fact.
     sd = os.environ.get('SEED', str(random.randint(0, 100000)))
     print(f"[seed] {tag} SEED={sd}")
@@ -2087,7 +2087,7 @@ def test_pumice_core_sched_order_base(request):
 
 def test_pumice_core_refresh_collide(request):
     # CMD_HISTORY_EN arms the scheduler's command-history scoreboard -- the
-    # sequencing half of the PUMICE-004 detector. Without it the docstring's
+    # sequencing half of the pumice BUG-007 (was PUMICE-004) detector. Without it the docstring's
     # "expected RED" was vacuous: the generate block was off, and the loopback
     # DFI slave serves golden data regardless, so the data compare alone
     # cannot see a refresh-vs-open-row collision.
