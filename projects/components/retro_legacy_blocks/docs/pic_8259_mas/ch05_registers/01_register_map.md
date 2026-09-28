@@ -159,7 +159,8 @@ Write-only to software, which is the real 8259A behaviour -- a read returns 0.
 This block has no CAS or SP/EN pins: it acknowledges by an APB read of
 PIC_INTA, so there is no second INTA pulse on which a master could broadcast a
 slave ID. The equivalent is that a master whose acknowledged level is marked
-here returns the SLAVE's vector and forwards the acknowledge down. The cascade RTL has no DV coverage yet (RLB/pic_8259 TASK-001).
+here returns the SLAVE's vector and forwards the acknowledge down. Covered by
+`dv/tests/test_pic_8259_cascade.py` (RLB/pic_8259 TASK-001).
 
 **Master mode:**
 | Bits | Description |

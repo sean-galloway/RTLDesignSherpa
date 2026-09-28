@@ -198,7 +198,8 @@ Slave INT connects to master IR2. During INTA, master outputs cascade select
 > pair, so there is no second pulse on which to broadcast a slave ID. The
 > equivalent, and what the RTL does: when the acknowledged level is one ICW3
 > marks as cascaded, the master returns the SLAVE's vector and forwards the
-> acknowledge down. The cascade RTL has no DV coverage yet (RLB/pic_8259 TASK-001).
+> acknowledge down. Covered by `dv/tests/test_pic_8259_cascade.py`
+> (RLB/pic_8259 TASK-001).
 
 ### Waveform 1.5: Priority Rotation
 

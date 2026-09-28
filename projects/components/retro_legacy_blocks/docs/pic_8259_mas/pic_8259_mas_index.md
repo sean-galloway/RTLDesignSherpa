@@ -30,7 +30,8 @@
 fully nested priority, all EOI/rotation variants, special mask mode, strict
 address decode with PSLVERR and a synchronized `irq_in` (issue #50 fixes,
 2026-09-09). Cascade is implemented without CAS or SP/EN pins (RLB/pic_8259
-TASK-001, no DV coverage yet). Buffered mode, SFNM and OCW3 poll/read-select
+TASK-001, covered by dv/tests/test_pic_8259_cascade.py). Buffered mode, SFNM
+and OCW3 poll/read-select
 remain software-visible storage only.
 
 ## Overview

@@ -479,7 +479,11 @@ class PIC8259TB(TBBase):
 
     async def initialize_pic(self, vector_base: int = 0x20,
                            edge_triggered: bool = True,
-                           auto_eoi: bool = False):
+                           auto_eoi: bool = False,
+                           *,
+                           cascade: int = 0,
+                           slave_id: int = None,
+                           base_addr: int = 0x000):
         """
         Initialize PIC with standard configuration.
 
@@ -487,7 +491,22 @@ class PIC8259TB(TBBase):
             vector_base: Interrupt vector base address
             edge_triggered: True for edge, False for level
             auto_eoi: True to enable auto-EOI mode
+
+        Keyword-only (RLB/pic_8259 TASK-001) -- these three are keyword-only
+        and default to single mode SPECIFICALLY so every existing call site
+        stays byte-identical and keeps writing ICW1.SNGL=1 with no ICW3:
+            cascade:   MASTER's ICW3 bitmap -- one bit per IR line that has a
+                       slave hanging off it (PC/AT uses 0x04, i.e. IR2).
+            slave_id:  SLAVE's ICW3 -- the IR line it hangs off (PC/AT: 2).
+            base_addr: register-window offset, for a harness that puts two
+                       PICs behind one APB port (the cascade wrapper selects
+                       the slave with PADDR[11], i.e. base_addr=0x800).
+
+        Passing either cascade or slave_id clears SNGL, which is what makes
+        the core wait for ICW3 instead of skipping it.
         """
+        cascade_mode = (cascade != 0) or (slave_id is not None)
+        icw3_value = slave_id if slave_id is not None else cascade
         self.log.info("Initializing PIC...")
         self.log.info(f"  Vector base: 0x{vector_base:02X}")
         self.log.info(f"  Trigger mode: {'edge' if edge_triggered else 'level'}")
@@ -495,7 +514,7 @@ class PIC8259TB(TBBase):
 
         # Enable PIC - do NOT set init_mode bit as it prevents operation after init
         # Setting init_mode=1 causes PIC to return to INIT_IDLE after reaching INIT_COMPLETE
-        await self.write_register(PIC8259RegisterMap.PIC_CONFIG, 0x00000001)  # pic_enable=1, init_mode=0, auto_reset_init=0
+        await self.write_register(base_addr | PIC8259RegisterMap.PIC_CONFIG, 0x00000001)  # pic_enable=1, init_mode=0, auto_reset_init=0
         await self.wait_clocks('pclk', 5)  # Wait for config write to propagate
 
         # ICW1: edge/level, single mode, ICW4 needed
@@ -504,26 +523,37 @@ class PIC8259TB(TBBase):
             icw1 |= 0x00  # LTIM=0 for edge-triggered
         else:
             icw1 |= 0x08  # LTIM=1 for level-triggered
-        icw1 |= 0x02  # SNGL=1 (single mode)
+        if not cascade_mode:
+            icw1 |= 0x02  # SNGL=1 (single mode) -- the historical default
         icw1 |= 0x01  # IC4=1 (ICW4 needed)
 
-        await self.write_register(PIC8259RegisterMap.PIC_ICW1, icw1)
+        await self.write_register(base_addr | PIC8259RegisterMap.PIC_ICW1, icw1)
         await self.wait_clocks('pclk', 5)  # Wait for ICW1 write to propagate
 
         # ICW2: vector base
-        await self.write_register(PIC8259RegisterMap.PIC_ICW2, vector_base)
+        await self.write_register(base_addr | PIC8259RegisterMap.PIC_ICW2, vector_base)
         await self.wait_clocks('pclk', 5)  # Wait for ICW2 write to propagate
+
+        # ICW3: cascade word. Only exists when SNGL=0 -- the core's init state
+        # machine SKIPS the ICW3 wait in single mode, so writing it there would
+        # be consumed as ICW4 and corrupt the sequence.
+        if cascade_mode:
+            self.log.info(f"  ICW3: 0x{icw3_value:02X} "
+                          f"({'slave id' if slave_id is not None else 'master bitmap'})")
+            await self.write_register(base_addr | PIC8259RegisterMap.PIC_ICW3,
+                                      icw3_value)
+            await self.wait_clocks('pclk', 5)
 
         # ICW4: 8086 mode, auto-EOI
         icw4 = 0x01  # UPM=1 (8086/8088 mode)
         if auto_eoi:
             icw4 |= 0x02  # AEOI=1
 
-        await self.write_register(PIC8259RegisterMap.PIC_ICW4, icw4)
+        await self.write_register(base_addr | PIC8259RegisterMap.PIC_ICW4, icw4)
         await self.wait_clocks('pclk', 10)  # Wait for ICW4 write to propagate and state machine to transition
 
         # Verify initialization complete
-        _, status = await self.read_register(PIC8259RegisterMap.PIC_STATUS)
+        _, status = await self.read_register(base_addr | PIC8259RegisterMap.PIC_STATUS)
         init_complete = status & 1  # init_complete is bit 0
 
         if init_complete:

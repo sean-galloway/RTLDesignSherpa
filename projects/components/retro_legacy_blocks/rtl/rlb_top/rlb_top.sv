@@ -21,7 +21,7 @@
 //   0x6000 - 0x6FFF: IOAPIC
 //   0x7000 - 0x7FFF: GPIO
 //   0x8000 - 0x8FFF: UART 16550
-//   0x9000 - 0x9FFF: Reserved
+//   0x9000 - 0x9FFF: 8259 PIC (SLAVE of the cascaded pair)
 //
 // Documentation: projects/components/retro_legacy_blocks/docs/
 // Created: 2025-11-30
@@ -115,7 +115,12 @@ module rlb_top #(
     // ========================================================================
     // 8259 PIC External Interface
     // ========================================================================
-    input  logic [7:0]            pic_irq_in,       // IRQ inputs (IRQ0-7)
+    // IRQ0-7 go to the MASTER 8259, IRQ8-15 to the SLAVE (RLB/pic_8259
+    // TASK-001). NOTE pic_irq_in[2] IS IGNORED: in a PC/AT pair master IR2 is
+    // consumed by the cascade -- it carries the slave's INT, not an external
+    // device -- so driving it here reaches nothing. That is why IRQ8 exists at
+    // all, and IRQ8 is the slot HPET timer 1 replaces in legacy mode.
+    input  logic [15:0]           pic_irq_in,       // IRQ0-7 master, IRQ8-15 slave
     output logic                  pic_int_out,      // Interrupt output
 
     // ========================================================================
@@ -328,21 +333,21 @@ module rlb_top #(
     logic        uart_apb_PREADY;
 
     // Reserved slot APB (tie off)
-    logic        rsvd_apb_PSEL;
-    logic        rsvd_apb_PENABLE;
-    logic [31:0] rsvd_apb_PADDR;
-    logic        rsvd_apb_PWRITE;
-    logic [31:0] rsvd_apb_PWDATA;
-    logic [3:0]  rsvd_apb_PSTRB;
-    logic [2:0]  rsvd_apb_PPROT;
-    logic [31:0] rsvd_apb_PRDATA;
-    logic        rsvd_apb_PSLVERR;
-    logic        rsvd_apb_PREADY;
-
-    // Reserved slot tie-off
-    assign rsvd_apb_PRDATA  = 32'hDEADBEEF;
-    assign rsvd_apb_PSLVERR = 1'b1;  // Error for reserved access
-    assign rsvd_apb_PREADY  = 1'b1;
+    // Slave 9 was the Reserved window, tied to PSLVERR. It is now the SLAVE
+    // 8259 (RLB/pic_8259 TASK-001). The window was ALREADY DECODED by the
+    // generated apbx_xbar_1to10, so taking it needs NO crossbar regeneration --
+    // only these wires change owner, and the three tie-off assigns go away.
+    // There is consequently NO reserved window left in the address map.
+    logic        spic_apb_PSEL;
+    logic        spic_apb_PENABLE;
+    logic [31:0] spic_apb_PADDR;
+    logic        spic_apb_PWRITE;
+    logic [31:0] spic_apb_PWDATA;
+    logic [3:0]  spic_apb_PSTRB;
+    logic [2:0]  spic_apb_PPROT;
+    logic [31:0] spic_apb_PRDATA;
+    logic        spic_apb_PSLVERR;
+    logic        spic_apb_PREADY;
 
     // ========================================================================
     // APB Crossbar
@@ -490,16 +495,16 @@ module rlb_top #(
         .s8_apb_PREADY   (uart_apb_PREADY),
 
         // Slave 9: Reserved
-        .s9_apb_PSEL     (rsvd_apb_PSEL),
-        .s9_apb_PENABLE  (rsvd_apb_PENABLE),
-        .s9_apb_PADDR    (rsvd_apb_PADDR),
-        .s9_apb_PWRITE   (rsvd_apb_PWRITE),
-        .s9_apb_PWDATA   (rsvd_apb_PWDATA),
-        .s9_apb_PSTRB    (rsvd_apb_PSTRB),
-        .s9_apb_PPROT    (rsvd_apb_PPROT),
-        .s9_apb_PRDATA   (rsvd_apb_PRDATA),
-        .s9_apb_PSLVERR  (rsvd_apb_PSLVERR),
-        .s9_apb_PREADY   (rsvd_apb_PREADY)
+        .s9_apb_PSEL     (spic_apb_PSEL),
+        .s9_apb_PENABLE  (spic_apb_PENABLE),
+        .s9_apb_PADDR    (spic_apb_PADDR),
+        .s9_apb_PWRITE   (spic_apb_PWRITE),
+        .s9_apb_PWDATA   (spic_apb_PWDATA),
+        .s9_apb_PSTRB    (spic_apb_PSTRB),
+        .s9_apb_PPROT    (spic_apb_PPROT),
+        .s9_apb_PRDATA   (spic_apb_PRDATA),
+        .s9_apb_PSLVERR  (spic_apb_PSLVERR),
+        .s9_apb_PREADY   (spic_apb_PREADY)
     );
 
     // ========================================================================
@@ -547,6 +552,20 @@ module rlb_top #(
     logic                          w_ioapic_boot_intx_en;
     logic [IOAPIC_NUM_IRQS-1:0]    w_boot_intx_reroute;
 
+    // Cascade cross-connect (RLB/pic_8259 TASK-001)
+    logic                          w_spic_int;      // slave INT -> master IR2
+    logic                          w_pic_cas_ack;   // master ack -> slave
+    logic [7:0]                    w_spic_vector;   // slave vector -> master
+    logic [7:0]                    w_master_pic_irq;
+
+    // Master IR2 is FORCED from the slave's INT, not OR-ed: in a PC/AT pair
+    // that level belongs to the cascade, so masking it off first (& 8'hFB)
+    // stops an external IRQ2 -- or a boot-intx reroute onto pin 2 --
+    // impersonating the slave. Every other master level is unchanged, the
+    // boot-interrupt OR included.
+    assign w_master_pic_irq = ((pic_irq_in[7:0] | w_boot_intx_pic_irq) & 8'hFB)
+                            | {5'b0, w_spic_int, 2'b0};
+
     // 8259 PIC (Programmable Interrupt Controller)
     apb4_pic_8259 u_pic (
         .pclk          (pclk),
@@ -563,19 +582,41 @@ module rlb_top #(
         .s_apb_PSLVERR (pic_apb_PSLVERR),
         // Boot interrupt ORs in here: a masked IOAPIC pin also drives
         // its mapped legacy input. Zero unless software enables it.
-        .irq_in        (pic_irq_in | w_boot_intx_pic_irq),
+        .irq_in        (w_master_pic_irq),
         .int_out       (pic_int_out),
-        // Cascade (RLB/pic_8259 TASK-001) is not wired yet: rlb_top still has
-        // ONE 8259, so this is single mode and the pins tie off. Connected
-        // EXPLICITLY rather than omitted -- omitting a pin is PINMISSING, which
-        // is how a real gap hides (same reason as the IOAPIC's cfg_msi_* above).
-        // The slave PIC lands on crossbar slave 9 (0xFEC09000, currently
-        // Reserved) when the integration half of TASK-001 goes in, and
-        // pic_irq_in widens to [15:0] to carry IRQ8-15.
-        .cas_vector    (8'h00),
+        // Cascade (RLB/pic_8259 TASK-001): this is the MASTER. It receives the
+        // slave's vector and emits the acknowledge; cas_ack_in ties low because
+        // nothing acknowledges the master from above.
+        .cas_vector    (w_spic_vector),
         .cas_ack_in    (1'b0),
-        .cas_ack       (),
+        .cas_ack       (w_pic_cas_ack),
         .inta_vector_o ()
+    );
+
+    // 8259 PIC -- SLAVE half of the PC/AT pair, on window 9 (0xFEC09000).
+    // IRQ8-15 live here, which is what makes IRQ8 exist for HPET timer 1 to
+    // replace in legacy mode (RLB/hpet TASK-003).
+    apb4_pic_8259 u_pic_slave (
+        .pclk          (pclk),
+        .presetn       (presetn),
+        .s_apb_PSEL    (spic_apb_PSEL),
+        .s_apb_PENABLE (spic_apb_PENABLE),
+        .s_apb_PREADY  (spic_apb_PREADY),
+        .s_apb_PADDR   (spic_apb_PADDR[11:0]),
+        .s_apb_PWRITE  (spic_apb_PWRITE),
+        .s_apb_PWDATA  (spic_apb_PWDATA),
+        .s_apb_PSTRB   (spic_apb_PSTRB),
+        .s_apb_PPROT   (spic_apb_PPROT),
+        .s_apb_PRDATA  (spic_apb_PRDATA),
+        .s_apb_PSLVERR (spic_apb_PSLVERR),
+        .irq_in        (pic_irq_in[15:8]),
+        .int_out       (w_spic_int),
+        // slave: acknowledged by the MASTER's PIC_INTA read, exports its
+        // vector upward so the master returns it in place of its own.
+        .cas_vector    (8'h00),
+        .cas_ack_in    (w_pic_cas_ack),
+        .cas_ack       (),
+        .inta_vector_o (w_spic_vector)
     );
 
     // 8254 PIT (Programmable Interval Timer)
@@ -733,9 +774,18 @@ module rlb_top #(
     // THE MAP: IOAPIC pin n -> legacy PIC input n for n in 0..7, and no
     // reroute above that. This is the 82093AA convention the ioapic overview
     // already states -- pins 0-15 mirror the legacy IRQs -- narrowed to the
-    // eight inputs a single 8259 has. It encodes the boot-interrupt semantic
+    // eight inputs the MASTER 8259 has. It encodes the boot-interrupt semantic
     // exactly: one source, two possible destinations, chosen by whether the
     // IOAPIC is delivering that pin.
+    //
+    // PIN 2 IS A DEAD ENTRY since RLB/pic_8259 TASK-001. The map still names
+    // legacy input 2, but master IR2 is masked off the external inputs and
+    // driven from the SLAVE 8259's INT (see w_master_pic_irq), because in a
+    // PC/AT pair that level belongs to the cascade. So a boot-interrupt
+    // reroute onto pin 2 reaches nothing. It is left in the map rather than
+    // recoded so the table still reads as the 82093AA identity mapping; an
+    // integrator who needs pin 2 rerouted must pick a different legacy input
+    // via PIC_MAP.
     //
     // Pins 8 and above carry the no-reroute code, so a board that drives
     // them sees no change. An integrator wanting a different assignment

@@ -52,7 +52,7 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb i
 
 
 class RLBTopTB(TBBase):
-    """Testbench for rlb_top: the nine peripherals behind the APB crossbar."""
+    """Testbench for rlb_top: the ten peripherals behind the APB crossbar."""
 
     BASE_ADDR = 0xFEC00000
     WINDOW = 0x1000
@@ -60,7 +60,9 @@ class RLBTopTB(TBBase):
     # Slave index == PADDR[15:12], per the generated apbx_xbar_1to10.
     SLAVE_HPET, SLAVE_PIC, SLAVE_PIT, SLAVE_RTC, SLAVE_SMBUS = 0, 1, 2, 3, 4
     SLAVE_PM, SLAVE_IOAPIC, SLAVE_GPIO, SLAVE_UART = 5, 6, 7, 8
-    SLAVE_RESERVED = 9
+    # Window 9 was Reserved (PSLVERR tie-off). It is the SLAVE 8259 since
+    # RLB/pic_8259 TASK-001, so there is NO reserved window left in the map.
+    SLAVE_PIC_SLAVE = 9
 
     # Read-safe probe register per window. The UART is probed at its SCRATCH
     # register, NOT offset 0x000: reading 0x000 there pops the RX FIFO.
@@ -74,6 +76,7 @@ class RLBTopTB(TBBase):
         'ioapic': (SLAVE_IOAPIC, 0x000),   # IOREGSEL
         'gpio':   (SLAVE_GPIO,   0x000),   # GPIO_CONTROL
         'uart':   (SLAVE_UART,   0x020),   # UART_SCR -- see above
+        'pic_slave': (SLAVE_PIC_SLAVE, 0x000),  # PIC_CONFIG on the slave 8259
     }
 
     # Isolation sweep targets: ONLY registers whose writable width is
@@ -101,7 +104,7 @@ class RLBTopTB(TBBase):
         # 32, not the blocks' 12: rlb_top's PADDR is the full system address.
         self.apb_addr_width = 32
         self.apb4_master = None
-        self.log.info("RLB top testbench initialized (9 windows behind the xbar)")
+        self.log.info("RLB top testbench initialized (10 windows behind the xbar)")
 
     # ------------------------------------------------------------------
     # Address helpers
@@ -275,8 +278,14 @@ class RLBTopTB(TBBase):
         subsystem window instead of the block's own APB port. Reusing the
         block's recipe rather than inventing one from the datasheet matters:
         PIC_CONFIG must set pic_enable WITHOUT init_mode, because init_mode
-        sends the FSM back to INIT_IDLE after it completes. ICW3 is not
-        written -- ICW1 sets SNGL, so there is no cascade word.
+        sends the FSM back to INIT_IDLE after it completes.
+
+        This brings up the MASTER only, and deliberately in SINGLE mode: ICW1
+        sets SNGL so no ICW3 is written. rlb_top does now carry a cascaded pair
+        (RLB/pic_8259 TASK-001), but a smoke test that only needs INT to assert
+        does not need the cascade configured -- and single mode is still a legal
+        configuration of that hardware. The cascade PATH is covered properly by
+        dv/tests/test_pic_8259_cascade.py, not here.
         """
         await self.pic_write(PIC8259RegisterMap.PIC_CONFIG, 0x1)
         # ICW1: marker | SNGL | IC4, edge-triggered (LTIM=0)

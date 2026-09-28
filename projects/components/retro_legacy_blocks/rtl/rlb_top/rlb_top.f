@@ -12,7 +12,7 @@
 #   Slave 6: IOAPIC       [0xFEC06000 - 0xFEC06FFF]
 #   Slave 7: GPIO         [0xFEC07000 - 0xFEC07FFF]
 #   Slave 8: UART 16550   [0xFEC08000 - 0xFEC08FFF]
-#   Slave 9: Reserved     [0xFEC09000 - 0xFEC09FFF]
+#   Slave 9: PIC 8259 (SLAVE of the cascaded pair) [0xFEC09000 - 0xFEC09FFF]
 
 # Include directories for SystemVerilog header files
 +incdir+$REPO_ROOT/rtl/amba/includes

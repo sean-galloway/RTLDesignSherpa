@@ -11,8 +11,10 @@
 
 """What these tests are for, and what they deliberately do NOT do.
 
-Each of the nine blocks has its own suite -- 75 cells across the area -- and
-none of it is repeated here. These tests cover only what no per-block test
+Each of the nine block TYPES has its own suite -- 54 cells across the area,
+measured with `pytest --collect-only -q test_*.py` rather than remembered --
+and none of it is repeated here. (Nine types, ten instances: RLB/pic_8259
+TASK-001 put a SECOND 8259 on window 9 as the cascade slave.) These tests cover only what no per-block test
 can see: that the blocks are WIRED UP. Until now nothing elaborated rlb_top,
 so a port could be added to a block and left unconnected here while the suite
 stayed green. That is precisely how two PINMISSING breaks reached the tree.
@@ -92,31 +94,49 @@ class RLBTopTests:
     # ------------------------------------------------------------------
     # func
     # ------------------------------------------------------------------
-    async def test_reserved_window_errors(self) -> bool:
-        """Window 9 is reserved: it answers, and it answers with an error.
+    async def test_slave_pic_window_responds(self) -> bool:
+        """Window 9 is the SLAVE 8259 now, and it answers cleanly.
 
-        rlb_top ties that port to PRDATA=0xDEADBEEF, PSLVERR=1, PREADY=1. It
-        matters that it READY-s at all: a reserved window that simply never
-        responded would hang the bus rather than report a bad access.
+        REPLACES test_reserved_window_errors. That test asserted window 9
+        returned 0xDEADBEEF with PSLVERR, which was true while the slot was a
+        tie-off. RLB/pic_8259 TASK-001 put the slave 8259 there, so there is no
+        reserved window left in the map and the old assertion is now exactly
+        backwards -- it would fail against correct hardware.
+
+        The window was ALREADY DECODED by the generated crossbar, which is why
+        taking it needed no regeneration; this checks the decode actually
+        reaches a real block rather than a dangling port.
         """
-        self.log.info("=== smoke: reserved window errors ===")
+        self.log.info("=== smoke: slave PIC window responds ===")
         try:
-            addr = self.tb.window_addr(self.tb.SLAVE_RESERVED, 0x000)
+            addr = self.tb.window_addr(self.tb.SLAVE_PIC_SLAVE, 0x000)
             _, value, slverr = await self.tb.apb_read(addr)
             checks = 0
-            if not slverr:
+            if slverr:
                 self.log.error(
-                    f"  reserved window returned PSLVERR=0 (data 0x{value:08X}) "
-                    "-- a reserved access must be reported, not silently served")
+                    f"  slave PIC window returned PSLVERR=1 (data 0x{value:08X}) "
+                    "-- window 9 is a real block now, not a reserved tie-off")
                 return False
             checks += 1
-            if value != 0xDEADBEEF:
+            if value == 0xDEADBEEF:
                 self.log.error(
-                    f"  reserved window data 0x{value:08X}, want 0xDEADBEEF")
+                    "  slave PIC window still returns 0xDEADBEEF -- the reserved "
+                    "tie-off is still driving it, so the slave PIC is not wired")
                 return False
             checks += 1
-            self.log.info(f"smoke reserved-window GREEN ({checks} checks, "
-                          f"0x{value:08X} with PSLVERR)")
+            # Prove it is the PIC and not merely something that READYs: writing
+            # pic_enable must read back, which a tie-off could never do.
+            await self.tb.apb_write(addr, 0x1)
+            await self.tb.wait_clocks('pclk', 5)
+            _, readback, rb_err = await self.tb.apb_read(addr)
+            if rb_err or (readback & 0x1) != 0x1:
+                self.log.error(
+                    f"  slave PIC PIC_CONFIG readback 0x{readback:08X} "
+                    f"(pslverr={rb_err}) -- expected pic_enable to stick")
+                return False
+            checks += 1
+            self.log.info(f"smoke slave-PIC-window GREEN ({checks} checks, "
+                          f"PIC_CONFIG 0x{readback:08X})")
             return True
         except Exception as e:
             self.log.error(f"reserved-window test error: {e}")

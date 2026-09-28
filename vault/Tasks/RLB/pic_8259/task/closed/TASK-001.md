@@ -1,7 +1,8 @@
 # TASK-001: 8259 cascade (master/slave) support
 
 **Priority:** P2
-**Status:** open, RTL LANDED, **no DV coverage yet**. Filed 2026-09-27 by the
+**Status:** CLOSED 2026-09-28 -- cascade DV, rlb_top integration and docs all
+landed; three suites green. Filed 2026-09-27 by the
 owner's direction while implementing RLB/hpet TASK-003: "If more than one 8259
 are needed use more."
 
@@ -34,7 +35,7 @@ decision on sequencing (2026-09-27, "Commit cascade RTL now, DV next session"):
   window 9 returns 0xDEADBEEF with PSLVERR), and `init_pic`'s docstring line
   "ICW3 is not written -- ICW1 sets SNGL, so there is no cascade word".
 
-**Owner:** in progress
+**Owner:** done
 
 **Why this exists:**
 RLB/hpet TASK-003 routes HPET timer 1 to **IRQ8** when
@@ -105,13 +106,19 @@ the pin did not offer.
       (`config_regs` exports it from `hwif_out.PIC_ICW3.cascade.value`, which
       the regblock already emitted at `pic_8259_regs.sv:531` -- no RDL change
       and no regeneration were needed)
-- [ ] Slave `int_out` raises the master on its cascade level
-- [ ] A master `PIC_INTA` read on a cascade level returns the slave's vector
+- [x] Slave `int_out` raises the master on its cascade level
+      (`test_slave_int_raises_master`: slave INT high, master INT high, master
+      IRR bit 2 latched)
+- [x] A master `PIC_INTA` read on a cascade level returns the slave's vector
       and retires the level in BOTH controllers
-- [ ] IRQ8-15 exist in `rlb_top`; slave PIC on crossbar slave 9, xbar NOT
-      regenerated
-- [ ] All 33 existing PIC tests still pass
-- [ ] Docs no longer claim cascade is unimplemented
+      (`test_master_inta_returns_slave_vector`: vector 0x28 not 0x22, master
+      ISR[2] and slave ISR[0] both set)
+- [x] IRQ8-15 exist in `rlb_top`; slave PIC on crossbar slave 9, xbar NOT
+      regenerated (confirmed: `apbx_xbar_1to10.sv` untouched)
+- [x] All 33 existing PIC tests still pass (`run-apb4_pic_8259-full` 3/3 cells,
+      and the two suite files have a ZERO diff -- the new init arguments are
+      keyword-only, so all 34 call sites are byte-identical)
+- [x] Docs no longer claim cascade is unimplemented or uncovered
 
 **Blocks:** RLB/hpet TASK-003 (needs IRQ8 to exist before timer 1 can replace
 the RTC there).
@@ -119,3 +126,69 @@ the RTC there).
 **Dependencies:** None.
 
 ---
+
+## Outcome (2026-09-28)
+
+**The cascade RTL landed in `fd330cb0b` with no test able to reach it** -- the
+block's DUT is a bare `apb4_pic_8259`, so two PICs could not be instantiated in
+the existing harness at all. That harness is now
+`dv/tb/pic_8259_cascade_tb_top.sv`: master and slave cross-connected, the
+slave's `int_out` driving master IR2, and **both PICs behind ONE APB port** with
+`PADDR[11]` as a wrapper-level chip select (slave at +0x800). One interface
+means `PIC8259TB` binds unchanged rather than needing a second master BFM. Bit
+11 is masked off before the address reaches either block -- each decodes only
+0x000-0x02C and would have answered an unmasked 0x80C with PSLVERR instead of
+writing ICW3.
+
+**What makes the tests mean something:** the master's own IR2 vector is 0x22 and
+the slave's IR0 vector is 0x28 -- different numbers on purpose, so "the master
+returned the SLAVE's vector" is a positive assertion rather than a coincidence.
+RTL that forgot to divert would return 0x22 and fail loudly. The wrapper also
+FORCES master IR2 from the slave rather than OR-ing it, so a test cannot fake
+"the slave raised the master" by driving `irq_in[2]`. A sixth test covers the
+OFF state -- a non-cascade level must still return the master's own vector --
+because RTL returning `cas_vector` for every level would otherwise pass
+everything else here.
+
+**`initialize_pic` gained `cascade=`/`slave_id=`/`base_addr=`, all KEYWORD-ONLY**
+so the 34 existing call sites keep writing ICW1.SNGL=1 with no ICW3 and did not
+change by a byte. `base_addr` is what lets the same recipe program the slave
+through the wrapper's +0x800 window.
+
+**rlb_top integration.** The slave PIC took crossbar slave 9 (0xFEC09000), which
+was already decoded and merely tied to PSLVERR -- so `apbx_xbar_1to10` was NOT
+regenerated, exactly as scoped. `pic_irq_in` widened to `[15:0]` (IRQ0-7 master,
+IRQ8-15 slave), the three `rsvd_apb_*` tie-off assigns are gone, and **there is
+no reserved window left in the map**.
+
+**CONSEQUENCE worth knowing, beyond the stated scope:** master IR2 is masked off
+the external inputs (`& 8'hFB`) and driven from the slave's INT, because in a
+PC/AT pair that level belongs to the cascade. So a boot-interrupt reroute of
+IOAPIC **pin 2** now reaches nothing. `BOOT_INTX_PIC_MAP` still names legacy
+input 2 -- left as the 82093AA identity mapping -- and the comment there records
+the dead entry. The existing boot-intx smoke test passes only because it uses
+IRQ3; this was checked, not assumed.
+
+**Two rlb_top DV facts were false the moment the slave PIC landed**, and both
+changed in the same commit: `SLAVE_RESERVED = 9` became `SLAVE_PIC_SLAVE`, and
+`test_reserved_window_errors` was REPLACED by `test_slave_pic_window_responds`.
+The old test asserted window 9 returns 0xDEADBEEF with PSLVERR -- against correct
+hardware it now asserts exactly backwards. The replacement also writes
+`pic_enable` and reads it back, which a tie-off could never do. `init_pic`'s
+docstring now says single mode is a deliberate choice for a smoke test rather
+than an absence of hardware.
+
+**Verification.** `run-pic_8259_cascade-full` 3/3 cells with per-tier method
+counts 6/6, 4/4, 2/2 -- every method actually ran, not just every cell.
+`run-rlb_top-full` 3/3 (5/5, 4/4, 1/1), with the new window-9 test executing in
+func and full and reporting three checks green. `run-apb4_pic_8259-full` 3/3.
+All three RC=0 after `clean-all`. Verilator: rlb_top elaborates with SIX FEWER
+warnings -- seven `rsvd_apb_*` UNUSEDSIGNAL entries gone, one
+`spic_apb_PADDR[31:12]` added (the same benign upper-bits message the master PIC
+and IOAPIC already carry) -- and all ten new signals are flagged-unused = 0, so
+the slave is wired rather than dangling.
+
+**Also corrected while here:** `rlb_top_tests.py` claimed "75 cells across the
+area". Measured with `pytest --collect-only`: 54. The number was already stale
+before this task added a root, so it was replaced with a measured figure and a
+note saying how to re-measure it.

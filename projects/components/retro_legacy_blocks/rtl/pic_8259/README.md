@@ -182,7 +182,11 @@ in this list - both follow the datasheet, as described above.
   acknowledge down. ICW4 buffered-mode and ICW4 SFNM remain software-visible
   storage with no hardware effect, and Special Fully Nested Mode is NOT
   implemented; the ordinary nesting rule runs regardless of the bit.
-  The cascade RTL has no DV coverage yet (RLB/pic_8259 TASK-001).
+  The cascade path is covered by dv/tests/test_pic_8259_cascade.py: six
+  tests on a two-PIC PC/AT wrapper (dv/tb/pic_8259_cascade_tb_top.sv),
+  covering the slave raising the master, the master returning the SLAVE's
+  vector rather than its own, a masked cascade level, EOI to both, and the
+  non-cascade off-state (RLB/pic_8259 TASK-001).
 - **OCW3 poll and read-register-select are storage only.** IRR and ISR have
   their own read-only registers (0x020, 0x024), which is what makes the
   register-select command moot here.

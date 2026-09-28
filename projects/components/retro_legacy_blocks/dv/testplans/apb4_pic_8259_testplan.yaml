@@ -99,10 +99,10 @@ functional_scenarios:
   - id: PIC-10
     name: "Cascade Mode Operation"
     description: Verify master/slave PIC cascade configuration
-    test_function: "test_cascade_mode (full - NOT IMPLEMENTED)"
+    test_function: "PIC8259CascadeTests (dv/tests/test_pic_8259_cascade.py)"
     test_level: full
     priority: high
-    status: not_implemented
+    status: verified
 
   - id: PIC-11
     name: "All IRQs Stress Test"
@@ -165,7 +165,11 @@ notes: |
   Current Status:
   - Basic tests: 100% complete (5/5 tests passing)
   - Medium tests: NOT IMPLEMENTED (need multiple IRQs, specific EOI, edge/level)
-  - Full tests: NOT IMPLEMENTED (need cascade mode, stress tests)
+  - Full tests: cascade mode VERIFIED (RLB/pic_8259 TASK-001) -- six tests in
+    dv/tests/test_pic_8259_cascade.py against a two-PIC PC/AT wrapper, covering
+    the slave raising the master, the master returning the SLAVE vector rather
+    than its own, a masked cascade level, EOI to both, and the non-cascade
+    off-state. Stress tests remain NOT IMPLEMENTED.
 
   Key Missing Tests:
   1. Multiple simultaneous IRQ handling

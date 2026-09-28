@@ -12,13 +12,16 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
-- **TASK-001** — 8259 cascade (master/slave) support; IRQ8-15 do not exist today, which blocks RLB/hpet TASK-003 from routing timer 1 to IRQ8.
+
+## Closed
+
+- **TASK-001** — 8259 cascade complete: a two-PIC PC/AT DV wrapper with six tests, the slave PIC on rlb_top window 9 (xbar NOT regenerated), IRQ8-15 now exist. 3 suites green, closed 2026-09-28.

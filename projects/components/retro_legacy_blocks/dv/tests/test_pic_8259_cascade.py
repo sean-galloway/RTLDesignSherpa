@@ -4,25 +4,27 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_rlb_top
-# Purpose: Light integration smoke tests for rlb_top -- every peripheral
-#          present, decoded and answering on its own 4KB window.
+# Module: test_pic_8259_cascade
+# Purpose: Runner for the 8259 PC/AT cascade pair (RLB/pic_8259 TASK-001).
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/rlb_top/
-# Subsystem: retro_legacy_blocks/rlb_top
+# Documentation: projects/components/retro_legacy_blocks/rtl/pic_8259/README.md
+# Subsystem: retro_legacy_blocks/pic_8259
 #
-# Created: 2026-09-14
+# Created: 2026-09-28
 
-"""Integration smoke tests for the whole RLB subsystem.
+"""Cascade test for the 8259 master/slave pair.
 
-WHY THIS EXISTS: until now NOTHING elaborated rlb_top -- no test, no make
-target. Ports could be added to a block and left unconnected here and the
-suite stayed green; that is exactly how two PINMISSING breaks reached the
-tree. These tests are deliberately LIGHT. Each block already has its own
-suite (75 cells across the area); re-verifying them here would be slow and
-would duplicate coverage. What is NOT covered anywhere else is the
-integration: that all ten windows decode to the right slave, that each slave
-is actually wired up and answers, and that the cross-block paths work.
+The DUT is pic_8259_cascade_tb_top (dv/tb/), which instantiates TWO
+apb4_pic_8259 in the PC/AT arrangement: the slave's int_out drives master IR2,
+and cas_ack / cas_vector cross-connect so the master's PIC_INTA read returns
+the slave's vector and retires the level in both controllers.
+
+This exists because the block's own DUT is a BARE apb4_pic_8259 -- two PICs
+cannot be instantiated in that harness at all, which is why the cascade RTL
+landed with no coverage.
+
+Both PICs sit behind ONE APB port: PADDR[11] is the wrapper's chip select, so
+the slave's registers are at +0x800 and PIC8259TB binds unchanged.
 
 Pattern B per GLOBAL_REQUIREMENTS 2.x: the cocotb entry point is prefixed
 `cocotb_test_` so pytest does not collect it, and the pytest wrapper names it
@@ -44,20 +46,20 @@ from TBClasses.shared.test_levels import level_env, reg_level_grid
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.rlb_top.rlb_top_tb import RLBTopTB
-from projects.components.retro_legacy_blocks.dv.tbclasses.rlb_top.rlb_top_tests import (
-    RLBTopTests,
+from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import PIC8259TB
+from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_cascade_tests import (
+    PIC8259CascadeTests,
 )
 
 
 @cocotb.test(timeout_time=500, timeout_unit="us")
-async def cocotb_test_rlb_top_smoke(dut):
+async def cocotb_test_pic_cascade(dut):
     """Single comprehensive test; TEST_LEVEL selects the depth."""
-    tb = RLBTopTB(dut)
+    tb = PIC8259TB(dut)
 
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'RLB top integration smoke test with seed: {seed}')
+    tb.log.info(f'PIC 8259 cascade test with seed: {seed}')
 
     test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
     if test_level not in ('gate', 'func', 'full'):
@@ -67,22 +69,28 @@ async def cocotb_test_rlb_top_smoke(dut):
     await tb.setup_clocks_and_reset()
     await tb.setup_components()
 
-    tests = RLBTopTests(tb)
+    tests = PIC8259CascadeTests(tb)
 
+    # The two criteria the cascade RTL landed WITHOUT coverage for are the
+    # gate pair: the slave raising the master, and the master's read returning
+    # the slave's vector. Everything else builds on those.
     gate_methods = [
-        ('Every window answers', tests.test_every_window_answers),
+        ('Cascade init: both PICs, ICW3 written, SNGL clear',
+         tests.test_cascade_initialization),
+        ('Slave INT raises the master on its cascade level',
+         tests.test_slave_int_raises_master),
     ]
     func_methods = [
-        ('Slave PIC answers on window 9',
-         tests.test_slave_pic_window_responds),
-        ('Decode isolation across windows',
-         tests.test_decode_isolation),
-        ('Unmapped address errors instead of hanging',
-         tests.test_unmapped_address_errors),
+        ('Master INTA returns the SLAVE vector, not its own',
+         tests.test_master_inta_returns_slave_vector),
+        ('Masking the cascade level blocks the slave',
+         tests.test_masked_cascade_level_blocks_slave),
     ]
     full_methods = [
-        ('Boot interrupt reaches the 8259',
-         tests.test_boot_interrupt_reaches_the_pic),
+        ('EOI retires the level in BOTH controllers',
+         tests.test_eoi_retires_both),
+        ('A non-cascade master level still returns the MASTER vector',
+         tests.test_non_cascade_level_unaffected),
     ]
 
     if test_level == 'gate':
@@ -92,7 +100,7 @@ async def cocotb_test_rlb_top_smoke(dut):
     else:
         methods = gate_methods + func_methods + full_methods
 
-    tb.log.info(f"Starting {test_level.upper()} RLB top smoke test "
+    tb.log.info(f"Starting {test_level.upper()} PIC cascade test "
                 f"({len(methods)} test(s))")
 
     results = []
@@ -106,31 +114,31 @@ async def cocotb_test_rlb_top_smoke(dut):
     tb.log.info("TEST SUMMARY")
     tb.log.info("=" * 80)
     for name, ok in results:
-        tb.log.info(f"{name:52s} {'PASSED' if ok else 'FAILED'}")
+        tb.log.info(f"{name:58s} {'PASSED' if ok else 'FAILED'}")
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)
     tb.log.info(f"\nPassed: {passed}/{total}")
 
     # A run that asked nothing is not a pass.
-    assert total > 0, "no smoke tests selected -- TEST_LEVEL produced an empty list"
+    assert total > 0, "no cascade tests selected -- TEST_LEVEL produced an empty list"
     if passed != total:
-        assert False, f"RLB top smoke test failed: {passed}/{total} passed"
-    tb.log.info("\nAll RLB top integration smoke tests PASSED!")
+        assert False, f"PIC 8259 cascade test failed: {passed}/{total} passed"
+    tb.log.info("\nAll PIC 8259 cascade tests PASSED!")
 
 
 def generate_test_params():
     """REG_LEVEL selects the grid; TEST_LEVEL gates the depth."""
-    return [(lvl, f"RLB top smoke {lvl}") for lvl in reg_level_grid()]
+    return [(lvl, f"PIC 8259 cascade {lvl}") for lvl in reg_level_grid()]
 
 
 @pytest.mark.parametrize("test_level, description", generate_test_params())
-def test_rlb_top(request, test_level, description):
-    """Pytest wrapper -- calls cocotb_test_rlb_top_smoke."""
+def test_pic_8259_cascade(request, test_level, description):
+    """Pytest wrapper -- calls cocotb_test_pic_cascade."""
     module, repo_root_local, tests_dir, log_dir, rtl_dict = get_paths({})
 
-    dut_name = "rlb_top"
-    test_name_plus_params = f"test_rlb_top_{test_level}"
+    dut_name = "pic_8259_cascade_tb_top"
+    test_name_plus_params = f"test_pic_8259_cascade_{test_level}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
@@ -140,14 +148,11 @@ def test_rlb_top(request, test_level, description):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_local,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.f'
+        filelist_path='projects/components/retro_legacy_blocks/dv/tb/pic_8259_cascade_tb_top.f'
     )
 
     rtl_parameters = {
-        'IOAPIC_NUM_IRQS':  '24',
-        'HPET_NUM_TIMERS':  '2',
-        'PIT_NUM_COUNTERS': '3',
-        'GPIO_WIDTH':       '32',
+        'SYNC_STAGES': '2',
     }
 
     extra_env = {
@@ -171,7 +176,6 @@ def test_rlb_top(request, test_level, description):
         "-Wno-BLKANDNBLK", "-Wno-MULTIDRIVEN", "-Wno-TIMESCALEMOD",
         "-Wno-MODDUP", "-Wno-GENUNNAMED", "-Wno-PINCONNECTEMPTY",
         "-Wno-UNUSEDSIGNAL", "-Wno-UNUSEDPARAM", "-Wno-SYNCASYNCNET",
-        "-Wno-DECLFILENAME", "-Wno-VARHIDDEN",
     ]
 
     run(
@@ -180,7 +184,7 @@ def test_rlb_top(request, test_level, description):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cocotb_test_rlb_top_smoke",
+        testcase="cocotb_test_pic_cascade",
         parameters=rtl_parameters,
         sim_build=sim_build,
         extra_env=extra_env,
