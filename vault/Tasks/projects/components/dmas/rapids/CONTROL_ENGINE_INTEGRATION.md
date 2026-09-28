@@ -293,7 +293,7 @@ semaphore memory) are all verified end-to-end at the top through the real APB re
 (config by name, per-half RegisterMap). Two wholly-separate engines, single shared APB, merged monbus.
 
 STAGE G step 4 (characterization harness) STARTED:
-- [x] rapids_char_harness.sv (+ flists/rapids_char_harness.f) built + LINT-CLEAN (RC 0). Location:
+- [x] rapids_char_harness.sv (+ filelists/rapids_char_harness.f) built + LINT-CLEAN (RC 0). Location:
       projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/. Wraps rapids_beats_top with:
       axis4_master_pattern_gen -> s_axis (sink stimulus); axis4_slave_pattern_check <- m_axis (source
       check); axi4_slave_rd_pattern_gen <- m_axi_rd (source data, 512b); axi4_slave_wr_crc_check <-
@@ -329,7 +329,7 @@ STAGE G step 4 (characterization harness) STARTED:
       Confirmed DUT tags per-channel IDs (m_axi_rd.arid / m_axi_wr.awid / m_axis.tid = channel) -- else
       the per-channel CRCs would collapse to ch0. No RTL/harness edits needed.
 STAGE G step 4 / task 55 (FPGA enablement) — BOARD RTL DONE + LINT-CLEAN:
-- [x] rapids_char_top.sv (NexysA7 pin-top) + rapids_char_top.xdc + flists/rapids_char_top.f, under
+- [x] rapids_char_top.sv (NexysA7 pin-top) + rapids_char_top.xdc + filelists/rapids_char_top.f, under
       projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/. Lint RC 0 (clean even w/o -Wno-fatal,
       98 sources). uart_axil_bridge -> AXIL router: 0x0_0000 DUT-REG (apb4_master -> harness s_apb ->
       SRC/SNK reg spaces + kick windows); 0x1_0000 DESC-LOAD (8x32b -> 256b descriptor -> AXI4 write to
@@ -341,7 +341,7 @@ STAGE G step 4 / task 55 (FPGA enablement) — BOARD RTL DONE + LINT-CLEAN:
       NUM_CHANNELS default 8 (overridable; note drop to 4 for 100T area); DESC_RAM_ENTRIES 256 for BRAM fit.
 - [x] Build flow + host stack (task 55 tail) DONE. Under flows-rapids-beats/:
       tcl/{filelist_utils,create_project,build_all,program_fpga,report_worst_paths,report_bram_hier}.tcl
-      (adapted from stream_char: project rapids_char / top rapids_char_top / flists+xdc / part
+      (adapted from stream_char: project rapids_char / top rapids_char_top / filelists+xdc / part
       xc7a100tcsg324-1); bin/gen.sh (Vivado-batch wrapper: project/bitstream/program). host/:
       rapids_char_io.py (region map over the REUSED UARTAxiBridge host counterpart), descriptor_builder.py
       (256b RAPIDS DATA/CTRL_READ/CTRL_WRITE per rapids_pkg), run_characterization.py (config SRC+SNK

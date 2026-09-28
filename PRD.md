@@ -996,7 +996,7 @@ See `CLAUDE.md` for comprehensive guide on:
 ### 12.2 Design Guides
 
 - `docs/user-guides/AXI_Monitor_Configuration_Guide.md` - Monitor setup best practices
-- `projects/components/dmas/rapids/docs/RAPIDS_Validation_Status_Report.md` - RAPIDS test status
+- `vault/Tasks/projects/components/dmas/rapids/RAPIDS_Validation_Status_Report.md` - RAPIDS test status (pre-beats snapshot)
 - `projects/components/dmas/rapids/docs/rapids_beats_has/`, `.../rapids_beats_mas/` - RAPIDS architecture specification
 
 ### 12.3 External Resources

@@ -848,7 +848,7 @@ class CtrlwrEngineTB(TBBase):
         is asserted, so there is no dangling B to race the recovery write. The
         harder mid-AXI-burst abort scenario (reset with an outstanding B, which
         needs either engine drain-on-reset or a fabric-drain TB model) is tracked
-        separately in projects/components/dmas/rapids/CONTROL_ENGINE_INTEGRATION.md.
+        separately in vault/Tasks/projects/components/dmas/rapids/CONTROL_ENGINE_INTEGRATION.md.
 
         Scenario:
         1. Baseline write (addr A / data D1) completes and commits.

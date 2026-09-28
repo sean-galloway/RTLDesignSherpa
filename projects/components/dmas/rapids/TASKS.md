@@ -402,7 +402,7 @@ projects/components/dmas/rapids/dv/tests/integration_tests/
 **Related Files:**
 - Create: Test files in `projects/components/dmas/rapids/dv/tests/integration_tests/`
 - Use: TB classes from `bin/TBClasses/rapids/` (from TASK-003)
-- Update: `docs/RAPIDS_Validation_Status_Report.md`
+- Update: `vault/Tasks/projects/components/dmas/rapids/RAPIDS_Validation_Status_Report.md`
 
 **Dependencies:**
 - TASK-003 (TB classes must exist first)
@@ -481,7 +481,7 @@ projects/components/dmas/rapids/dv/tests/system_tests/
 **Related Files:**
 - Create: Test files in `projects/components/dmas/rapids/dv/tests/system_tests/`
 - Use: TB classes from `bin/TBClasses/rapids/` (from TASK-003)
-- Update: `docs/RAPIDS_Validation_Status_Report.md`
+- Update: `vault/Tasks/projects/components/dmas/rapids/RAPIDS_Validation_Status_Report.md`
 
 **Dependencies:**
 - TASK-003 (TB classes)
@@ -595,12 +595,12 @@ Update validation status report with current test coverage, known issues, and te
 **Verification Steps:**
 1. Run full test suite: `pytest projects/components/dmas/rapids/dv/tests/ -v`
 2. Collect coverage data: `pytest projects/components/dmas/rapids/dv/tests/ --cov=projects/components/dmas/rapids/rtl/ --cov-report=html`
-3. Update `docs/RAPIDS_Validation_Status_Report.md`
+3. Update `vault/Tasks/projects/components/dmas/rapids/RAPIDS_Validation_Status_Report.md`
 4. Generate test matrix
 5. Review completeness
 
 **Related Files:**
-- Update: `docs/RAPIDS_Validation_Status_Report.md`
+- Update: `vault/Tasks/projects/components/dmas/rapids/RAPIDS_Validation_Status_Report.md`
 - Reference: Test results from `projects/components/dmas/rapids/dv/tests/`
 
 **Dependencies:**

@@ -242,7 +242,7 @@ def _run_beats_drain_ctrl_test(request, testcase_name, depth, almost_wr_margin, 
     # Get Verilog sources from file list
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/dmas/rapids/dv/tb/drain_ctrl_beats_tb_top.f'
+        filelist_path='projects/components/dmas/rapids/dv/filelists/drain_ctrl_beats_tb_top.f'
     )
 
     # Format parameters for unique test name (AMBA pattern with TBBase.format_dec())

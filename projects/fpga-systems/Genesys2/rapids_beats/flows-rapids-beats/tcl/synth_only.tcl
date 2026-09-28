@@ -3,7 +3,7 @@
 #==============================================================================
 # For fast "will this fit?" / "is the build clean?" iteration without paying
 # for place+route. Invoked by `make synth`. Sources the flow's create_project.tcl
-# (self-contained: references $REPO_ROOT + flists/rapids_char_top.f).
+# (self-contained: references $REPO_ROOT + filelists/rapids_char_top.f).
 #==============================================================================
 
 set script_dir   [file dirname [file normalize [info script]]]

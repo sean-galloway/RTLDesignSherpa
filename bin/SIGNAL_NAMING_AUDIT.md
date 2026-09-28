@@ -130,7 +130,7 @@ The `--markdown` option generates a structured report suitable for documentation
 - Impact analysis
 - Recommended solutions
 
-**Example:** See `projects/components/dmas/rapids/rtl/signal_conflicts_report.md` for a complete example.
+**Example:** generate one with `--markdown <path>`; the report is tool output and is not committed.
 
 ---
 
@@ -418,7 +418,7 @@ chmod +x bin/audit_signal_naming_conflicts.py
 - **Signal Helper Implementation:** `src/CocoTBFramework/components/shared/signal_mapping_helper.py` (RTLDesignSherpa-DV repo)
 - **AXI Factory Functions:** `src/CocoTBFramework/components/axi4/axi4_factories.py` (RTLDesignSherpa-DV repo)
 - **Known Issues:** `projects/components/dmas/rapids/known_issues/scheduler_group_signal_naming_conflicts.md`
-- **Example Report:** `projects/components/dmas/rapids/rtl/signal_conflicts_report.md`
+- **Example Report:** generate with `--markdown <path>` (tool output, not committed)
 
 ---
 

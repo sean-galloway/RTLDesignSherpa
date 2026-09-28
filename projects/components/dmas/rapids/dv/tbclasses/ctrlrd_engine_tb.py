@@ -799,7 +799,7 @@ class CtrlrdEngineTB(TBBase):
         cannot do: ctrlrd_engine only raises r_ready in READ_WAIT_DATA, so a
         response landing after the abort would sit on the bus forever. That
         mid-read abort needs engine drain-on-reset (or a fabric-drain model) and
-        is tracked in CONTROL_ENGINE_INTEGRATION.md; here the framework slave
+        is tracked in vault/Tasks/projects/components/dmas/rapids/CONTROL_ENGINE_INTEGRATION.md; here the framework slave
         stays honest and the reset is applied with the engine idle.
 
         Scenario:

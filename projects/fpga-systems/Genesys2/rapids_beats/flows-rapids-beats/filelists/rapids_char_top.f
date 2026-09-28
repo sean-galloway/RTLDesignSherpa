@@ -1,5 +1,5 @@
 # Filelist for rapids_char_top — FPGA synthesis / lint target for Nexys A7-100T.
-# Location: projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/flists/rapids_char_top.f
+# Location: projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/filelists/rapids_char_top.f
 #
 # Wraps rapids_char_harness with board I/O (clock, reset button, UART, LEDs,
 # 7-seg) plus the host front-end (UART->AXIL bridge, AXIL slave decode/router,
@@ -7,7 +7,7 @@
 # converter filelists resolve to the same absolute path and are de-duplicated.
 
 # ---- The characterization harness (+ DUT + pattern/mem blocks + incdirs) ----
--f $REPO_ROOT/projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/flists/rapids_char_harness.f
+-f $REPO_ROOT/projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/filelists/rapids_char_harness.f
 
 # ---- Host front-end: UART <-> AXIL master (uart_rx/tx, axil4_master_wr/rd,
 #      gaxi_skid_buffer) ----

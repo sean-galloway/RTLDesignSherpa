@@ -98,7 +98,7 @@ def _run_harness(testcase, test_name):
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_local,
         filelist_path=('projects/fpga-systems/Genesys2/rapids_beats/'
-                       'flows-rapids-beats/flists/rapids_char_harness.f')
+                       'flows-rapids-beats/filelists/rapids_char_harness.f')
     )
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

@@ -20,7 +20,7 @@ rapids_beats/                    ← this directory (umbrella)
 │   └── assets/{mmd,png}/                     mermaid + matplotlib figures
 └── flows-rapids-beats/                      the build + host flow
     ├── rtl/       rapids_char_harness.sv, rapids_char_top.sv (pin top)
-    ├── flists/    filelists      constraints/  NexysA7 XDC
+    ├── filelists/ filelists      constraints/  NexysA7 XDC
     ├── tcl/       Vivado create_project / build_all / program
     ├── host/      rapids_char_io.py, descriptor_builder.py,
     │              rapids_char_golden.py, run_characterization.py, dump_status.py

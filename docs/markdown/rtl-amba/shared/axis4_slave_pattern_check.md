@@ -243,7 +243,7 @@ Treat any behaviour described on this page as unverified by simulation.
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Index: `docs/markdown/rtl-amba/index.md`
-- Harness: `projects/components/dmas/rapids/CONTROL_ENGINE_INTEGRATION.md`
+- Harness: `vault/Tasks/projects/components/dmas/rapids/CONTROL_ENGINE_INTEGRATION.md`
 
 ---
 

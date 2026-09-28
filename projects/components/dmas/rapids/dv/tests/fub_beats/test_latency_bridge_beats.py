@@ -141,7 +141,7 @@ def test_beats_latency_bridge(request, test_type, data_width, timing_profile, te
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/dmas/rapids/dv/tb/latency_bridge_beats_tb_top.f'
+        filelist_path='projects/components/dmas/rapids/dv/filelists/latency_bridge_beats_tb_top.f'
     )
 
     sim_build = sim_build_path(tests_dir, test_name)

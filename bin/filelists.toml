@@ -132,7 +132,7 @@ kind = "component"
 rtl_roots = ["projects/components/dmas/rapids/rtl"]
 filelist_dirs = [
     "projects/components/dmas/rapids/rtl/filelists",
-    "projects/components/dmas/rapids/dv/tb",
+    "projects/components/dmas/rapids/dv/filelists",
 ]
 
 [[area]]
@@ -214,7 +214,7 @@ filelist_dirs = [
 name = "genesys2_rapids_beats_char"
 kind = "board"
 rtl_roots = []
-filelist_dirs = ["projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/flists"]
+filelist_dirs = ["projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/filelists"]
 
 [[area]]
 name = "nexys_cdc_display"

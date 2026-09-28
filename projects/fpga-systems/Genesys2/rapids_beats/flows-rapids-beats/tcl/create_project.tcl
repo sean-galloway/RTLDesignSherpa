@@ -137,7 +137,7 @@ if {[lsearch -exact [get_board_parts] $board_part_str] >= 0} {
 # ----------------------------------------------------------------------------
 source "$script_dir/filelist_utils.tcl"
 
-set top_filelist "$project_root/flists/$top_flist_name"
+set top_filelist "$project_root/filelists/$top_flist_name"
 puts "\nExpanding filelist: $top_filelist"
 lassign [filelist::flatten $top_filelist] sv_sources incdirs defines
 

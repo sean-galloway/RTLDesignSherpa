@@ -1,5 +1,5 @@
 # Filelist for rapids_char_harness (RAPIDS beats characterization harness)
-# Location: projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/flists/rapids_char_harness.f
+# Location: projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/filelists/rapids_char_harness.f
 #
 # Builds the synthesizable characterization harness that wraps the split
 # rapids_beats_top DUT with on-chip pattern generators/checkers + memories:
