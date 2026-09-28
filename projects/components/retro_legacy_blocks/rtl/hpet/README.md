@@ -155,9 +155,25 @@ To modify the register map:
 1. Edit `projects/components/retro_legacy_blocks/rdl/hpet/hpet_regs.rdl`
 2. Regenerate:
    ```bash
-   cd projects/components/retro_legacy_blocks/rtl/hpet/peakrdl
-   python ../../../../../../bin/peakrdl_generate.py hpet_regs.rdl --copy-rtl ..
+   source $REPO_ROOT/env_python
+   cd $REPO_ROOT/projects/components/retro_legacy_blocks/rdl/hpet
+   python3 $REPO_ROOT/bin/peakrdl_generate.py hpet_regs.rdl \
+       --copy-rtl ../../rtl/hpet --no-html
    ```
+
+   The recipe above was verified 2026-09-27 by regenerating the UNMODIFIED
+   `hpet_regs.rdl` and byte-comparing: `hpet_regs.sv` and `hpet_regs_pkg.sv`
+   come back identical to the checked-in copies, so a regeneration after an
+   RDL edit differs only by that edit. Do that check first whenever the
+   PeakRDL version may have moved -- if a no-change regen does not reproduce
+   HEAD, the checked-in files were made some other way and must not be
+   overwritten.
+
+   `hpet_regmap.py` is generated too (`peakrdl_generate.py --regmap`, see its
+   own DO-NOT-EDIT header) and must be regenerated in the same pass, or the
+   Python register map and the RTL diverge. The generator names it
+   `hpet_regs_regmap.py`; the checked-in copy is `hpet_regmap.py` and the two
+   differ only in that filename and the import line.
 3. Generated files:
    - `../hpet_regs.sv` (register block)
    - `../hpet_regs_pkg.sv` (package)
@@ -680,7 +696,10 @@ Allows single PeakRDL generation (NUM_TIMERS=8) to correctly report timer count 
 1. **Timer Spacing**: Timer registers use 32-byte spacing (only 12 bytes used per timer)
    - **Reason**: Allows future expansion without address map changes
 
-2. **PeakRDL Generation**: Requires manual regeneration when modifying `hpet_regs.rdl`
+2. **PeakRDL Generation**: Requires manual regeneration when modifying
+   `../../rdl/hpet/hpet_regs.rdl` -- see "Regenerating Registers" above for the
+   verified command. `rtl/hpet/peakrdl/` does NOT exist; earlier revisions of this
+   README named it.
    - **Mitigation**: the RDL is the single source of truth; regeneration is `bin/peakrdl_generate.py`
 
 3. **CDC Latency**: CDC version adds ~2-4 cycles latency for APB transactions
