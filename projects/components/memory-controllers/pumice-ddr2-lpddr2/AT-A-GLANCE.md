@@ -610,7 +610,7 @@ thing to fix next.
   the board and the sweep exists; nobody has gone through the results and
   picked defaults per workload class.
 
-Detailed work items live in `vault/Tasks/pumice/` and `vault/Tasks/nexysa7/`.
+Detailed work items live in `vault/Tasks/pumice/`. (The `nexysa7` area was retired 2026-09-27; its board-campaign items were misfiled and are in git history.)
 
 ---
 

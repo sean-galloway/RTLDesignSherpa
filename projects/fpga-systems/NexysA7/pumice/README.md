@@ -115,7 +115,8 @@ Two things have NOT moved yet, so they are still referenced in place:
   `SIM_TESTS` at it; `build-perf/dv/` stays scaffold until it moves.
 
 The LiteDRAM flow is wired but not yet board-brought-up (PUMICE-026). Remaining migrations are NEXYS-003 in
-`vault/Tasks/nexysa7/open.md`; NEXYS-002 moves the rest of `projects/NexysA7/`
+the retired `vault/Tasks/nexysa7/` area (deleted 2026-09-27; see
+`vault/Tasks/MIGRATION_MAP.md`). NEXYS-002 moved the rest of `projects/NexysA7/`
 under `projects/fpga-systems/`.
 
 Nothing here has been run against a board yet.

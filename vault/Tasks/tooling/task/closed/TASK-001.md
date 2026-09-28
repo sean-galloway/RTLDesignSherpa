@@ -47,7 +47,8 @@ its seven open items are misfiled -- four are pumice work, one belongs to
 asic-trials/timing_characterization, one names a deleted `projects/NexysA7/
 stream_characterization` path, and one describes the rehome that has already happened.
 Migrating an area proved nothing about whether its items belonged there. Raised with
-Sean 2026-09-27; not re-filed unilaterally.
+Sean 2026-09-27, who chose to DELETE the area outright rather than rehome the items;
+done 2026-09-27.
 
 **Owner:** Claude (assist) / Sean (review)
 
@@ -77,7 +78,8 @@ procedure for each so they all come out identical.
       The rtl/{ioapic,pm_acpi,smbus}/TODO.md files named here no longer exist.
 - [x] memory-controllers — DONE 2026-09-25 (pumice DONE 2026-07-23 -> vault/Tasks/pumice/).
       This row contradicted the two [x] entries below it for four days; corrected.
-- [x] nexysa7 — DONE -> vault/Tasks/nexysa7/. NOTE: the timing_characterization
+- [x] nexysa7 — migrated, then the AREA WAS DELETED 2026-09-27 (its items were misfiled;
+      see the note below). Originally -> vault/Tasks/nexysa7/. NOTE: the timing_characterization
       TASKS.md named here was not migrated with it -- the area moved to
       projects/asic-trials/ and its file is still live (see below).
 - [x] formal — DONE 2026-09-25, and the answer is NO AREA. All five open items were

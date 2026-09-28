@@ -26,15 +26,15 @@ The flat per-state pages were split into one-file-per-item on 2026-09-27. Legacy
 | projects/components/apbx-xbar | `APBX-002` | task/closed | `TASK-002` |
 | projects/components/apbx-xbar | `APBX-001` | task/closed | `TASK-001` |
 | projects/components/apbx-xbar | `APBX-006` | bug/dropped | `BUG-003` |
-| nexysa7 | `NEXYS-004` | task/open | `TASK-004` |
-| nexysa7 | `NEXYS-001` | task/open | `TASK-001` |
-| nexysa7 | `NEXYS-002` | task/open | `TASK-002` |
-| nexysa7 | `NEXYS-008` | task/open | `TASK-007` |
-| nexysa7 | `NEXYS-005` | task/open | `TASK-005` |
-| nexysa7 | `NEXYS-006` | task/open | `TASK-006` |
-| nexysa7 | `NEXYS-007` | bug/open | `BUG-001` |
-| nexysa7 | `NEXYS-003` | task/closed | `TASK-003` |
-| nexysa7 | `NEXYSA7-STREAM` | issue/dropped | `ISSUE-001` |
+| nexysa7 | `NEXYS-004` | task/open | `TASK-004`   **AREA DELETED 2026-09-27** -- in git history only |
+| nexysa7 | `NEXYS-001` | task/open | `TASK-001`   **AREA DELETED 2026-09-27** -- in git history only |
+| nexysa7 | `NEXYS-002` | task/open | `TASK-002`   **AREA DELETED 2026-09-27** -- in git history only |
+| nexysa7 | `NEXYS-008` | task/open | `TASK-007`   **AREA DELETED 2026-09-27** -- in git history only |
+| nexysa7 | `NEXYS-005` | task/open | `TASK-005`   **AREA DELETED 2026-09-27** -- in git history only |
+| nexysa7 | `NEXYS-006` | task/open | `TASK-006`   **AREA DELETED 2026-09-27** -- in git history only |
+| nexysa7 | `NEXYS-007` | bug/open | `BUG-001`   **AREA DELETED 2026-09-27** -- in git history only |
+| nexysa7 | `NEXYS-003` | task/closed | `TASK-003`   **AREA DELETED 2026-09-27** -- in git history only |
+| nexysa7 | `NEXYSA7-STREAM` | issue/dropped | `ISSUE-001`   **AREA DELETED 2026-09-27** -- in git history only |
 | math | `MATH-010` | task/open | `TASK-004` |
 | math | `MATH-003` | task/closed | `TASK-001` |
 | math | `MATH-004` | bug/closed | `BUG-002` |
