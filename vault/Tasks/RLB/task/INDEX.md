@@ -2,7 +2,7 @@
 
 # RLB — tasks
 
-**Next ID: TASK-015** — never recycle a number, even when its item closed.
+**Next ID: TASK-016** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 14 | done (kept for history) |
+| [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -38,3 +38,4 @@ by construction rather than by discipline.
 - **TASK-012** — UART 16550 features deferred past the #60 fix
 - **TASK-013** — the 800-line core cap is honored in the breach
 - **TASK-014** — pit_regmap.py regenerated to match its RDL
+- **TASK-015** — rlb_top interrupt fabric: block IRQs reach both 8259s and the IOAPIC internally, plus the aggregated `rlb_irq_out`; GPIO proven end to end, closed 2026-09-28.

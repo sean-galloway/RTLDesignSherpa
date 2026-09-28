@@ -323,6 +323,59 @@ class RLBTopTB(TBBase):
     def pic_int_out(self) -> int:
         return int(self.dut.pic_int_out.value)
 
+    def rlb_irq_out(self) -> int:
+        """The aggregated interrupt output (RLB TASK-015, PRD.md:515)."""
+        return int(self.dut.rlb_irq_out.value)
+
+    async def gpio_write(self, offset: int, value: int):
+        """Write a GPIO register through the subsystem window."""
+        await self.apb_write(self.window_addr(self.SLAVE_GPIO, offset), value)
+        await self.wait_clocks('pclk', 5)
+
+    async def spic_write(self, offset: int, value: int):
+        """Write a SLAVE-8259 register (window 9)."""
+        await self.apb_write(self.window_addr(self.SLAVE_PIC_SLAVE, offset), value)
+        await self.wait_clocks('pclk', 5)
+
+    async def init_pic_cascade(self, master_base: int = 0x20,
+                               slave_base: int = 0x28) -> bool:
+        """Bring up BOTH 8259s as a PC/AT cascaded pair.
+
+        init_pic() above brings up the MASTER ONLY, in single mode -- which is
+        fine for a smoke test but useless for anything arriving on IRQ8-15.
+        Those land on the SLAVE, and the slave's INT only reaches the CPU if
+        the master is in cascade mode with ICW3 marking IR2, the slave knows
+        its ID, and IR2 is unmasked. Every one of those is a separate write, and
+        omitting any of them looks exactly like a broken interrupt fabric.
+
+        SNGL is CLEAR here (unlike init_pic), so ICW3 must be written -- the
+        core waits for it in cascade mode.
+        """
+        # ---- MASTER (window 1)
+        await self.pic_write(PIC8259RegisterMap.PIC_CONFIG, 0x1)
+        await self.pic_write(PIC8259RegisterMap.PIC_ICW1, 0x10 | 0x01)  # marker|IC4, SNGL=0
+        await self.pic_write(PIC8259RegisterMap.PIC_ICW2, master_base)
+        await self.pic_write(PIC8259RegisterMap.PIC_ICW3, 0x04)         # a slave on IR2
+        await self.pic_write(PIC8259RegisterMap.PIC_ICW4, 0x01)         # 8086 mode
+        await self.pic_write(PIC8259RegisterMap.PIC_OCW1, 0x00)         # unmask all
+
+        # ---- SLAVE (window 9)
+        await self.spic_write(PIC8259RegisterMap.PIC_CONFIG, 0x1)
+        await self.spic_write(PIC8259RegisterMap.PIC_ICW1, 0x10 | 0x01)
+        await self.spic_write(PIC8259RegisterMap.PIC_ICW2, slave_base)
+        await self.spic_write(PIC8259RegisterMap.PIC_ICW3, 0x02)        # I hang off IR2
+        await self.spic_write(PIC8259RegisterMap.PIC_ICW4, 0x01)
+        await self.spic_write(PIC8259RegisterMap.PIC_OCW1, 0x00)
+
+        _, m_status, _ = await self.apb_read(
+            self.window_addr(self.SLAVE_PIC, PIC8259RegisterMap.PIC_STATUS))
+        _, s_status, _ = await self.apb_read(
+            self.window_addr(self.SLAVE_PIC_SLAVE, PIC8259RegisterMap.PIC_STATUS))
+        ok = bool(m_status & 1) and bool(s_status & 1)
+        self.log.info(f"cascade init: master STATUS=0x{m_status:08X} "
+                      f"slave STATUS=0x{s_status:08X} -> {'OK' if ok else 'FAILED'}")
+        return ok
+
     async def pulse_pic_irq(self, irq: int) -> bool:
         """Drive the legacy input directly; did the 8259 raise INT?"""
         return await self._pulse_and_watch(self.dut.pic_irq_in, irq)

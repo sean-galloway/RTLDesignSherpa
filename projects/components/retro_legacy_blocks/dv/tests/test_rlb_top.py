@@ -79,10 +79,17 @@ async def cocotb_test_rlb_top_smoke(dut):
          tests.test_decode_isolation),
         ('Unmapped address errors instead of hanging',
          tests.test_unmapped_address_errors),
+        ('Aggregated interrupt output', tests.test_aggregated_irq_output),
     ]
     full_methods = [
         ('Boot interrupt reaches the 8259',
          tests.test_boot_interrupt_reaches_the_pic),
+        # RLB TASK-015. The routing test must run BEFORE the vector test --
+        # the latter acknowledges the interrupt the former raises.
+        ('Fabric routes GPIO to the 8259',
+         tests.test_fabric_routes_gpio_to_the_pic),
+        ('GPIO acknowledges as a slave vector',
+         tests.test_fabric_gpio_returns_the_slave_vector),
     ]
 
     if test_level == 'gate':

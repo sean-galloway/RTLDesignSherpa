@@ -49,6 +49,12 @@ rather than leaving it as a written-down finding.
 
 from cocotb.triggers import ClockCycles
 
+# RLB TASK-015: the fabric tests acknowledge through the 8259, so they need
+# the register map the TB already uses.
+from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import (
+    PIC8259RegisterMap,
+)
+
 
 class RLBTopTests:
     """Integration smoke tests for rlb_top."""
@@ -94,6 +100,126 @@ class RLBTopTests:
     # ------------------------------------------------------------------
     # func
     # ------------------------------------------------------------------
+    async def test_aggregated_irq_output(self) -> bool:
+        """rlb_irq_out asserts while any block interrupt is (PRD.md:515).
+
+        Uses the EXTERNAL pic_irq_in deliberately: it needs no block
+        programming, so a failure here is the aggregate being unwired rather
+        than a peripheral that would not assert.
+        """
+        self.log.info("=== smoke: aggregated interrupt output ===")
+        try:
+            if not await self.tb.reset_and_init_pic():
+                self.log.error("  PIC init failed; cannot proceed")
+                return False
+            if self.tb.rlb_irq_out():
+                self.log.error("  rlb_irq_out already high after reset+init")
+                return False
+            if not await self.tb.pulse_pic_irq(3):
+                self.log.error("  IRQ3 did not raise pic_int_out")
+                return False
+            if not self.tb.rlb_irq_out():
+                self.log.error("  pic_int_out is high but rlb_irq_out is LOW -- "
+                               "the aggregate does not see the PIC")
+                return False
+            self.log.info("smoke aggregated-irq GREEN (low at rest, high with "
+                          "pic_int_out)")
+            return True
+        except Exception as e:
+            self.log.error(f"aggregated irq test failed: {e}")
+            return False
+
+    async def test_fabric_routes_gpio_to_the_pic(self) -> bool:
+        """A GPIO interrupt reaches the 8259 with NOTHING driven externally.
+
+        This is the fabric's actual claim. pic_irq_in is held at 0 for the whole
+        test, so the only path from GPIO to pic_int_out is the internal routing:
+        gpio_irq -> IRQ11 -> slave 8259 IR3 -> slave INT -> master IR2.
+        """
+        self.log.info("=== smoke: fabric routes GPIO to the 8259 ===")
+        try:
+            await self.tb.assert_reset()
+            await self.tb.wait_clocks('pclk', 10)
+            await self.tb.deassert_reset()
+            await self.tb.wait_clocks('pclk', 10)
+            self.tb._idle_inputs()          # pic_irq_in = 0 and stays 0
+            await self.tb.wait_clocks('pclk', 5)
+
+            if not await self.tb.init_pic_cascade():
+                self.log.error("  cascade init failed; IRQ8-15 cannot arrive")
+                return False
+            if self.tb.pic_int_out():
+                self.log.error("  pic_int_out already high before the stimulus")
+                return False
+
+            # GPIO: global enable + global int enable, pin 0 rising edge.
+            await self.tb.gpio_write(0x000, 0x3)          # gpio_enable|int_enable
+            await self.tb.gpio_write(0x010, 0x1)          # INT_ENABLE  pin 0
+            await self.tb.gpio_write(0x014, 0x0)          # INT_TYPE    edge
+            await self.tb.gpio_write(0x018, 0x1)          # INT_POLARITY rising
+            await self.tb.gpio_write(0x01C, 0x0)          # INT_BOTH    off
+
+            self.tb.dut.gpio_in.value = 0
+            await self.tb.wait_clocks('pclk', 5)
+            self.tb.dut.gpio_in.value = 1                 # rising edge on pin 0
+            await self.tb.wait_clocks('pclk', 40)
+
+            if int(self.tb.dut.pic_irq_in.value) != 0:
+                self.log.error("  pic_irq_in is non-zero -- the test would not "
+                               "be proving internal routing")
+                return False
+            if not self.tb.pic_int_out():
+                self.log.error("  GPIO asserted but pic_int_out stayed LOW -- "
+                               "the internal fabric did not deliver IRQ11")
+                return False
+            if not self.tb.rlb_irq_out():
+                self.log.error("  rlb_irq_out LOW while a block interrupt is "
+                               "asserted")
+                return False
+
+            self.log.info("smoke fabric-GPIO GREEN (gpio_irq reached the 8259 "
+                          "with pic_irq_in held at 0)")
+            return True
+        except Exception as e:
+            self.log.error(f"fabric GPIO routing test failed: {e}")
+            return False
+
+    async def test_fabric_gpio_returns_the_slave_vector(self) -> bool:
+        """The GPIO interrupt is acknowledged as a SLAVE vector, not the master's.
+
+        GPIO is IRQ11 -> slave IR3. With slave base 0x28 that is vector 0x2B,
+        while the master's own IR2 vector would be 0x22. Different numbers on
+        purpose: this distinguishes "the cascade delivered it" from "the master
+        answered for itself".
+        """
+        self.log.info("=== smoke: GPIO acknowledges as a slave vector ===")
+        try:
+            if not self.tb.pic_int_out():
+                self.log.error("  precondition: no interrupt pending "
+                               "(run the routing test first)")
+                return False
+            addr = self.tb.window_addr(self.tb.SLAVE_PIC,
+                                       PIC8259RegisterMap.PIC_INTA)
+            _, raw, _ = await self.tb.apb_read(addr)
+            valid, vector = (raw >> 8) & 1, raw & 0xFF
+            self.log.info(f"  master INTA: valid={valid} vector=0x{vector:02X} "
+                          f"(slave IR3 expects 0x2B, master IR2 would be 0x22)")
+            if not valid:
+                self.log.error("  INTA returned valid=0 with an interrupt pending")
+                return False
+            if vector == 0x22:
+                self.log.error("  master returned its OWN IR2 vector -- the "
+                               "cascade diversion did not happen")
+                return False
+            if vector != 0x2B:
+                self.log.error(f"  vector 0x{vector:02X}, expected the slave's 0x2B")
+                return False
+            self.log.info("smoke slave-vector GREEN (0x2B via the cascade)")
+            return True
+        except Exception as e:
+            self.log.error(f"slave vector test failed: {e}")
+            return False
+
     async def test_slave_pic_window_responds(self) -> bool:
         """Window 9 is the SLAVE 8259 now, and it answers cleanly.
 

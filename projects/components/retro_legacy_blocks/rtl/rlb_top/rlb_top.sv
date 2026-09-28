@@ -23,6 +23,32 @@
 //   0x8000 - 0x8FFF: UART 16550
 //   0x9000 - 0x9FFF: 8259 PIC (SLAVE of the cascaded pair)
 //
+// Interrupt Map (RLB TASK-015). Block interrupts are routed INTERNALLY to both
+// 8259s and the IOAPIC on their conventional legacy lines, and are ALSO still
+// brought out on their own pins. The external pic_irq_in / ioapic_irq_in stay
+// inputs and are OR-ed with these, so a board keeps the external path.
+//
+//   IRQ0   8254 PIT counter 0, and HPET timer 0 in legacy replacement mode
+//   IRQ2   CASCADE -- never driven by the fabric. It carries the slave 8259's
+//          INT (RLB/pic_8259 TASK-001); anything routed here reaches nothing
+//   IRQ4   UART 16550          (COM1 by convention)
+//   IRQ8   RTC alarm + periodic, and HPET timer 1 in legacy replacement mode
+//   IRQ9   PM/ACPI             (ACPI by convention)
+//   IRQ10  SMBus               (CHOICE -- no traditional line exists)
+//   IRQ11  GPIO                (CHOICE -- no traditional line exists)
+//
+// IRQ0/4/8/9 come from the "Typical IRQ Assignments" table in
+// docs/ioapic_mas/ch05_registers/01_register_map.md. SMBus and GPIO have no
+// traditional assignment there, so those two are this subsystem's choice and
+// live in localparams meant to be changed.
+//
+// The general HPET timers (hpet_timer_irq) are deliberately NOT routed: they
+// have no conventional legacy line, which is the same reason
+// TIMER_INT_ROUTE_CAP reads 0. They reach rlb_irq_out and their own pins.
+//
+// rlb_irq_out is the aggregated output PRD.md:515 asks for: one line asserted
+// while ANY block interrupt is, including pic_int_out.
+//
 // Documentation: projects/components/retro_legacy_blocks/docs/
 // Created: 2025-11-30
 
@@ -57,7 +83,15 @@ module rlb_top #(
     parameter int UART_SYNC_STAGES = 2,
 
     // SMBus parameters
-    parameter int SMBUS_FIFO_DEPTH = 32
+    parameter int SMBUS_FIFO_DEPTH = 32,
+    // Interrupt fabric (RLB TASK-015). SMBus and GPIO have NO traditional
+    // legacy IRQ -- the published table offers only "Available" -- so these
+    // two are this subsystem's choice and are overridable here. The other four
+    // lines (timer 0, COM1 4, RTC 8, ACPI 9) come straight from that table and
+    // stay localparams inside: making them overridable would invite silently
+    // diverging from the spec every driver already assumes.
+    parameter int IRQ_SMBUS = 10,
+    parameter int IRQ_GPIO  = 11
 ) (
     // ========================================================================
     // Clock and Reset
@@ -217,7 +251,16 @@ module rlb_top #(
     output logic                  uart_txrdy_n,
     output logic                  uart_out1_n,
     output logic                  uart_out2_n,
-    output logic                  uart_irq
+    output logic                  uart_irq,
+
+    // ========================================================================
+    // Aggregated Interrupt Output (RLB TASK-015)
+    // ========================================================================
+    // PRD.md:515 -- "Aggregated interrupt output combining all block IRQs".
+    // ONE line asserted while ANY block interrupt is asserted, for a SoC that
+    // wants a single input to its own controller rather than ten pins. This is
+    // a pure OR and takes no part in the internal routing below.
+    output logic                  rlb_irq_out
 );
 
     // ========================================================================
@@ -558,12 +601,82 @@ module rlb_top #(
     logic [7:0]                    w_spic_vector;   // slave vector -> master
     logic [7:0]                    w_master_pic_irq;
 
+    // ========================================================================
+    // Interrupt fabric (RLB TASK-015)
+    // ========================================================================
+    // Until now every block's interrupt LEFT rlb_top on its own pin while
+    // pic_irq_in and ioapic_irq_in arrived from outside, so a board had to wire
+    // all ten back in. This routes them internally, on the conventional legacy
+    // lines from docs/ioapic_mas/ch05_registers/01_register_map.md.
+    //
+    // OR-ED INTO the external inputs, NOT replacing them. pic_irq_in and
+    // ioapic_irq_in stay inputs, so an integrator keeps the external path and
+    // every existing test keeps its direct drive. Same shape as
+    // w_boot_intx_pic_irq above. Replacing them would be a silent
+    // port-contract change.
+    //
+    // IRQ2 IS DELIBERATELY NEVER DRIVEN. It is the 8259 cascade input, carried
+    // from the slave PIC's INT (see w_master_pic_irq), so anything routed there
+    // reaches nothing. QEMU shipped exactly that bug.
+    //
+    // pic_int_out is NOT a source: feeding the PIC's own output back into its
+    // inputs is a combinational loop. It appears only in the aggregate below,
+    // which drives no logic.
+    //
+    // WHICH ASSIGNMENTS ARE CONVENTION AND WHICH ARE CHOICE: IRQ0 timer, IRQ4
+    // COM1, IRQ8 RTC and IRQ9 ACPI come straight from that table. SMBus and
+    // GPIO have no traditional legacy line -- the table offers only
+    // "Available" -- so those two are a CHOICE, parameterised here rather than
+    // hardcoded as though the table dictated them.
+    localparam int IRQ_TIMER = 0;    // System Timer   (convention)
+    localparam int IRQ_UART  = 4;    // COM1           (convention)
+    localparam int IRQ_RTC   = 8;    // RTC Alarm      (convention)
+    localparam int IRQ_ACPI  = 9;    // ACPI           (convention)
+    // IRQ_SMBUS and IRQ_GPIO are MODULE PARAMETERS (see the parameter list):
+    // they are choices, not convention, so an integrator can move them.
+
+    logic [15:0] w_fabric_irq;
+
+    always_comb begin
+        w_fabric_irq = 16'h0000;
+        // IRQ0: the 8254 channel-0 tick, and HPET timer 0 when legacy
+        // replacement is on -- that mode exists precisely to REPLACE the tick,
+        // and hpet_core suppresses timer 0 on hpet_timer_irq while it is set,
+        // so the two can never both drive this line for the same event.
+        w_fabric_irq[IRQ_TIMER] = pit_timer_irq[0] | hpet_legacy_irq0;
+        w_fabric_irq[IRQ_UART]  = uart_irq;
+        // IRQ8: the RTC's own interrupts, and HPET timer 1 in legacy mode
+        // (which replaces the RTC periodic interrupt).
+        w_fabric_irq[IRQ_RTC]   = rtc_alarm_irq | rtc_second_irq | hpet_legacy_irq8;
+        w_fabric_irq[IRQ_ACPI]  = pm_interrupt;
+        w_fabric_irq[IRQ_SMBUS] = smb_interrupt;
+        w_fabric_irq[IRQ_GPIO]  = gpio_irq;
+    end
+
+    // The IOAPIC sees the same sources on the same pin numbers. Zero-extended:
+    // the fabric defines 16 legacy lines and the IOAPIC has IOAPIC_NUM_IRQS
+    // (24) pins, the upper ones being PCI/additional devices this subsystem
+    // does not source.
+    logic [IOAPIC_NUM_IRQS-1:0] w_ioapic_irq;
+    assign w_ioapic_irq = ioapic_irq_in
+                        | {{(IOAPIC_NUM_IRQS-16){1'b0}}, w_fabric_irq};
+
+    // PRD.md:515: one line, asserted while ANY block interrupt is. pic_int_out
+    // belongs here -- it is the 8259's delivered output, which is exactly what
+    // a single-line consumer wants to see -- and including it is safe because
+    // this signal drives nothing internally.
+    assign rlb_irq_out = |{hpet_timer_irq, hpet_legacy_irq0, hpet_legacy_irq8,
+                           pic_int_out, pit_timer_irq,
+                           rtc_alarm_irq, rtc_second_irq, smb_interrupt,
+                           pm_interrupt, gpio_irq, uart_irq};
+
     // Master IR2 is FORCED from the slave's INT, not OR-ed: in a PC/AT pair
     // that level belongs to the cascade, so masking it off first (& 8'hFB)
     // stops an external IRQ2 -- or a boot-intx reroute onto pin 2 --
     // impersonating the slave. Every other master level is unchanged, the
     // boot-interrupt OR included.
-    assign w_master_pic_irq = ((pic_irq_in[7:0] | w_boot_intx_pic_irq) & 8'hFB)
+    assign w_master_pic_irq = ((pic_irq_in[7:0] | w_boot_intx_pic_irq
+                                | w_fabric_irq[7:0]) & 8'hFB)
                             | {5'b0, w_spic_int, 2'b0};
 
     // 8259 PIC (Programmable Interrupt Controller)
@@ -609,7 +722,7 @@ module rlb_top #(
         .s_apb_PPROT   (spic_apb_PPROT),
         .s_apb_PRDATA  (spic_apb_PRDATA),
         .s_apb_PSLVERR (spic_apb_PSLVERR),
-        .irq_in        (pic_irq_in[15:8]),
+        .irq_in        (pic_irq_in[15:8] | w_fabric_irq[15:8]),
         .int_out       (w_spic_int),
         // slave: acknowledged by the MASTER's PIC_INTA read, exports its
         // vector upward so the master returns it in place of its own.
@@ -743,7 +856,7 @@ module rlb_top #(
         .s_apb_PPROT      (ioapic_apb_PPROT),
         .s_apb_PRDATA     (ioapic_apb_PRDATA),
         .s_apb_PSLVERR    (ioapic_apb_PSLVERR),
-        .irq_in           (ioapic_irq_in),
+        .irq_in           (w_ioapic_irq),
         .irq_out_valid    (ioapic_irq_out_valid),
         .irq_out_vector   (ioapic_irq_out_vector),
         .irq_out_dest     (ioapic_irq_out_dest),
@@ -809,6 +922,7 @@ module rlb_top #(
         .reroute      (w_boot_intx_reroute),
         .pic_irq      (w_boot_intx_pic_irq)
     );
+
 
     // GPIO Controller
     apb4_gpio #(
