@@ -323,11 +323,23 @@ module axi_monitor_lite
     // ------------------------------------------------------------------
     wire w_data_err   = data_hs &&  w_dhit && IS_READ && (data_resp[1]) && !r_err[w_dslot];
     wire w_data_orph  = data_hs && !w_dhit && IS_READ;                  // R with no owner
-    wire w_last_early = data_hs &&  w_dhit && data_last  && !w_dbeats_zero;
+    // A W beat in the SAME cycle as an AW, with no AW already awaiting data,
+    // belongs to the AW being allocated now (AXI4 write data is in AW order).
+    // It is absorbed at allocation, not counted as early: counted, it would
+    // sit in the early-burst register while its own entry waited in the
+    // AW-order queue for beats that had already passed, and the B would then
+    // report a response orphan (found by the inherited same-cycle suite,
+    // amba/monitor-lite TASK-002). While an EARLIER early burst is pending
+    // the same-cycle beat is a later transaction's and is queued as early.
+    wire w_same_w     = cmd_hs && w_have_free && data_hs && !w_dhit && !IS_READ && !r_early_any;
+    wire w_last_early = data_hs && ((w_dhit && data_last && !w_dbeats_zero) ||
+                                    (w_same_w && data_last && (cmd_len != 8'd0)));
     wire w_last_late  = data_hs &&  w_dhit && !data_last &&  w_dbeats_zero;
     wire w_data_done  = data_hs &&  w_dhit && data_last;
-    wire w_early_w    = data_hs && !w_dhit && !IS_READ;                 // W ahead of its AW
-    wire w_early_ovf  = w_early_w && r_early_last;                      // a second early burst
+    wire w_early_w    = data_hs && !w_dhit && !IS_READ && !w_same_w;    // W ahead of its AW
+    // a second early burst -- unless the pending one is being absorbed by an
+    // AW this very cycle, in which case this beat simply starts the next one
+    wire w_early_ovf  = w_early_w && r_early_last && !(cmd_hs && w_have_free);
     wire w_resp_err   = resp_hs &&  w_bhit && resp_code[1] && !r_err[w_bslot];
     wire w_resp_orph  = resp_hs && !w_bhit;
     wire w_resp_done  = resp_hs &&  w_bhit;
@@ -377,9 +389,15 @@ module axi_monitor_lite
     // Table update
     // ------------------------------------------------------------------
     wire w_alloc = cmd_hs && w_have_free;
-    // A write whose AW finds counted early beats absorbs them.
-    wire [7:0] w_alloc_beats = (!IS_READ && r_early_any) ? (cmd_len - r_early_beats + 8'd1) : cmd_len;
-    wire       w_alloc_done  = (!IS_READ && r_early_any && r_early_last);   // early burst was complete
+    // r_beats holds the beats still expected AFTER the next one (cmd_len for a
+    // fresh burst: AXI len is beats-1). A write whose AW finds e counted early
+    // beats has len+1-e beats left, so len-e after the next; a write taking
+    // its first beat this same cycle has len left, so len-1 after the next
+    // (0 when that beat was the last -- the entry goes straight to phase 1).
+    wire [7:0] w_alloc_beats = (!IS_READ && r_early_any) ? (cmd_len - r_early_beats) :
+                               (w_same_w && (cmd_len != 8'd0)) ? (cmd_len - 8'd1) : cmd_len;
+    wire       w_alloc_done  = (!IS_READ && r_early_any && r_early_last)     // early burst was complete
+                            || (w_same_w && data_last);                        // single-beat AW+W together
     wire       w_dprogress   = data_hs && w_dhit;
 
     // The live tail of cmd_id's list (one-hot; empty if no live same-ID entry).
@@ -415,7 +433,7 @@ module axi_monitor_lite
                 r_addr[w_free_idx]  <= cmd_addr;
                 r_beats[w_free_idx] <= w_alloc_beats;
                 r_phase[w_free_idx] <= w_alloc_done;          // write with its data already seen
-                r_err[w_free_idx]   <= 1'b0;
+                r_err[w_free_idx]   <= w_same_w && w_last_early;   // LAST on the first beat of a longer burst
                 r_tmo[w_free_idx]   <= 1'b0;
                 r_ts0[w_free_idx]   <= r_now;
                 r_us0[w_free_idx]   <= r_us;
@@ -451,11 +469,13 @@ module axi_monitor_lite
                     end
                 end
             end
-            // early write data (no AW yet)
+            // early write data (no AW yet). If an AW is absorbing the pending
+            // burst this cycle, this beat starts a fresh one (the allocate
+            // branch above cleared the registers; do not add to the stale count).
             if (w_early_w && !w_early_ovf) begin
                 r_early_any   <= 1'b1;
-                r_early_beats <= r_early_beats + 8'd1;
-                if (data_last) r_early_last <= 1'b1;
+                r_early_beats <= (w_alloc ? 8'd0 : r_early_beats) + 8'd1;
+                r_early_last  <= data_last || (r_early_last && !w_alloc);
             end
 
             // response on an owned entry
@@ -547,7 +567,7 @@ module axi_monitor_lite
             r_e_scan_phase <= r_phase[r_scan];
             r_e_data_decerr <= data_resp[0];
             r_e_resp_decerr <= resp_code[0];
-            r_e_dslot      <= w_dslot;
+            r_e_dslot      <= w_dhit ? w_dslot : w_free_idx;   // same-cycle LAST-early names the new entry
             r_e_bslot      <= w_bslot;
             r_e_tslot      <= r_scan;
             r_e_cslot      <= w_compl_slot;

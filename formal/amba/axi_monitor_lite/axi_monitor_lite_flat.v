@@ -751,11 +751,12 @@ module axi_monitor_lite (
 	wire w_dbeats_zero = w_beats_zero[w_dslot];
 	wire w_data_err = (((data_hs && w_dhit) && IS_READ) && data_resp[1]) && !r_err[w_dslot];
 	wire w_data_orph = (data_hs && !w_dhit) && IS_READ;
-	wire w_last_early = ((data_hs && w_dhit) && data_last) && !w_dbeats_zero;
+	wire w_same_w = ((((cmd_hs && w_have_free) && data_hs) && !w_dhit) && !IS_READ) && !r_early_any;
+	wire w_last_early = data_hs && (((w_dhit && data_last) && !w_dbeats_zero) || ((w_same_w && data_last) && (cmd_len != 8'd0)));
 	wire w_last_late = ((data_hs && w_dhit) && !data_last) && w_dbeats_zero;
 	wire w_data_done = (data_hs && w_dhit) && data_last;
-	wire w_early_w = (data_hs && !w_dhit) && !IS_READ;
-	wire w_early_ovf = w_early_w && r_early_last;
+	wire w_early_w = ((data_hs && !w_dhit) && !IS_READ) && !w_same_w;
+	wire w_early_ovf = (w_early_w && r_early_last) && !(cmd_hs && w_have_free);
 	wire w_resp_err = ((resp_hs && w_bhit) && resp_code[1]) && !r_err[w_bslot];
 	wire w_resp_orph = resp_hs && !w_bhit;
 	wire w_resp_done = resp_hs && w_bhit;
@@ -799,8 +800,8 @@ module axi_monitor_lite (
 	wire w_over_thresh = (sv2v_cast_16(w_occupancy) >= cfg_active_trans_threshold) && (cfg_active_trans_threshold != 16'd0);
 	wire w_thresh_evt = (cfg_threshold_enable && w_over_thresh) && !r_over_thresh;
 	wire w_alloc = cmd_hs && w_have_free;
-	wire [7:0] w_alloc_beats = (!IS_READ && r_early_any ? (cmd_len - r_early_beats) + 8'd1 : cmd_len);
-	wire w_alloc_done = (!IS_READ && r_early_any) && r_early_last;
+	wire [7:0] w_alloc_beats = (!IS_READ && r_early_any ? cmd_len - r_early_beats : (w_same_w && (cmd_len != 8'd0) ? cmd_len - 8'd1 : cmd_len));
+	wire w_alloc_done = ((!IS_READ && r_early_any) && r_early_last) || (w_same_w && data_last);
 	wire w_dprogress = data_hs && w_dhit;
 	reg [N - 1:0] w_same_tail;
 	always @(*) begin
@@ -865,7 +866,7 @@ module axi_monitor_lite (
 				r_addr[w_free_idx * AW+:AW] <= cmd_addr;
 				r_beats[w_free_idx * 8+:8] <= w_alloc_beats;
 				r_phase[w_free_idx] <= w_alloc_done;
-				r_err[w_free_idx] <= 1'b0;
+				r_err[w_free_idx] <= w_same_w && w_last_early;
 				r_tmo[w_free_idx] <= 1'b0;
 				r_ts0[w_free_idx * TS_WIDTH+:TS_WIDTH] <= r_now;
 				r_us0[w_free_idx * AGE_WIDTH+:AGE_WIDTH] <= r_us;
@@ -904,9 +905,8 @@ module axi_monitor_lite (
 			end
 			if (w_early_w && !w_early_ovf) begin
 				r_early_any <= 1'b1;
-				r_early_beats <= r_early_beats + 8'd1;
-				if (data_last)
-					r_early_last <= 1'b1;
+				r_early_beats <= (w_alloc ? 8'd0 : r_early_beats) + 8'd1;
+				r_early_last <= data_last || (r_early_last && !w_alloc);
 			end
 			if (resp_hs && w_bhit)
 				r_valid[w_bslot] <= 1'b0;
@@ -1017,7 +1017,7 @@ module axi_monitor_lite (
 			r_e_scan_phase <= r_phase[r_scan];
 			r_e_data_decerr <= data_resp[0];
 			r_e_resp_decerr <= resp_code[0];
-			r_e_dslot <= w_dslot;
+			r_e_dslot <= (w_dhit ? w_dslot : w_free_idx);
 			r_e_bslot <= w_bslot;
 			r_e_tslot <= r_scan;
 			r_e_cslot <= w_compl_slot;

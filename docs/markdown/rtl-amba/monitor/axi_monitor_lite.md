@@ -260,8 +260,23 @@ issue order; the FIFO pops on `WLAST`. A B belongs to the oldest matching
 entry that has finished its data phase.
 
 A write burst that arrives before its AW (legal on a slave-side monitor) is
-buffered as a beat count and applied when the AW allocates; a second early
-burst before that AW is an `Error/WRITE_BEFORE_ADDR` and is dropped.
+buffered as a beat count and applied when the AW allocates: with `e` beats
+already seen, the entry expects `len + 1 - e` more. A second early burst
+before that AW is an `Error/WRITE_BEFORE_ADDR` and is dropped -- unless the
+AW absorbing the first burst arrives in that same cycle, in which case the
+new beat simply starts the next early burst.
+
+A W beat in the same cycle as an AW, with no AW already awaiting data,
+belongs to the AW being allocated (AXI4 write data is in AW order) and is
+absorbed at allocation: a single-beat write goes straight to its response
+phase; a longer burst expects `len` more beats; a LAST on that first beat of
+a longer burst is an `Error/BURST_LENGTH` on the new entry. While an earlier
+early burst is still pending the same-cycle beat is a later transaction's and
+is counted as early instead. Until 2026-09-28 the same-cycle beat was counted
+as early while its own AW queued for beats that had already passed, and the B
+then reported `RESP_ORPHAN`; the inherited same-cycle suite found it
+(amba/monitor-lite TASK-002), along with an off-by-one in the absorbed count
+that made a legal two-beat write with one early beat report `BURST_LENGTH`.
 
 ### Errors, once per transaction
 
@@ -304,6 +319,21 @@ many events it did not see.
   threshold and a full table (the proof is not vacuous).
 - The bridge's generated monitor stress tests run unchanged on
   `bridge_1x2_rd_lite_mon` (`mon_preset = "lite"`).
+- The full monitor's own suites in `val/amba`, each with lite cells in its
+  grid (amba/monitor-lite TASK-002, 2026-09-28). Nothing is skipped by file;
+  where the lite has no equivalent of a full-monitor signal the check is the
+  lite's own contract instead:
+
+  | Suite | Lite cells | What the lite is held to |
+  |---|---|---|
+  | `test_axi4_monitor` | 6 (`axi_monitor_lite` core: AXI4/AXI-Lite x rd/wr, small table, 256 IDs) | all six phases: basic, bursts, response errors, orphans, sustained, zero-delay |
+  | `test_axi_monitor_wr_same_cycle` | 2 | same-cycle AW+W single and first-of-burst, control, AW during an open burst, a partial early burst (phase 5, new for both cores) |
+  | `test_axi_monitor_runtime_disable` | 1 | table drains with a class runtime-disabled and under backpressure; `refused_count` stays 0 (no `block_ready` to wedge) |
+  | `test_axi_mon_block_ready` | 16 cells on 11 wrappers (`LiteRefuseCheck`) | the table filled and refused, `admitted == transaction_count + refused_count + live` exactly, occupancy never above the depth. Depth follows the TB's bus-measured concurrency (the AXI-Lite and AXI5 read BFMs hold at most 4 in flight, the AXI-Lite write BFM 2), and `axil4_master_wr_monlite` is not claimed: its core taps behind the write skid and never sees two outstanding |
+  | `test_axi_monitor_soak` | 1 (`monitor_soak_monlite`) | 60k-200k cycles of random reads with errors, stalls and 15 % consumer backpressure: generated completions + errors + timeouts == delivered + drops reported + drops pending, exactly (60k cycles: 10,655 = 7,648 + 1,909 + 965 + 133) |
+  | `test_axi_monitor_pktgen` | 2 (timeout starvation) | one stalled read against an SLVERR flood: accounting exact; the victim's timeout is delivered at a 1-in-2 error duty and LOST (counted) at 1-per-cycle -- see amba/monitor-lite TASK-004 |
+
+  Every check reports its count, not a bare verdict.
 
 ## Related
 
