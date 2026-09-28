@@ -1,0 +1,24 @@
+[tasks]
+prove
+cover
+
+[options]
+# Four ACTs at tRRD=1 plus a fifth at the tFAW boundary (t_faw up to 6) needs
+# ~15 cycles; 30 leaves room for the DQ turnaround properties after it.
+prove: mode bmc
+prove: depth 40
+cover: mode cover
+cover: depth 40
+
+[engines]
+prove: smtbmc bitwuzla
+cover: smtbmc bitwuzla
+
+[script]
+read_verilog -formal global_timers_flat.v
+read -formal -sv formal_global_timers.sv
+prep -top formal_global_timers
+
+[files]
+formal_global_timers.sv
+global_timers_flat.v

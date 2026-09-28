@@ -26,9 +26,9 @@ filing; IDs are per-lane sequences.
 
 | Lane | For | open | active | closed | dropped |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | 2 | 0 | 22 | 4 |
+| [task/](task/INDEX.md) | planned work we decided to do | 1 | 0 | 22 | 4 |
 | [bug/](bug/INDEX.md) | a defect with a reproduction | 1 | 0 | 17 | 1 |
-| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 1 | 0 | 10 | 3 |
+| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 2 | 0 | 14 | 3 |
 
 Counts INCLUDE each lane's `NNN-000` template, which lives in `open/` -- that is
 the repo-wide convention, and reading it the other way is how three of this
@@ -36,18 +36,28 @@ area's counts went wrong on 2026-09-27.
 
 ## What is actually open
 
-Nothing in bug or issue. In task, one real item plus the template:
+**Nothing in task or bug** -- both lanes hold only their `NNN-000` template.
+TASK-015 (test the DUT across configurations) closed on 2026-09-28 with all four
+layers delivered; this section described it as still having layers 0 and 2b
+outstanding, which its own link to `task/closed/` already contradicted.
 
-- **[TASK-015](task/closed/TASK-015.md)** — test the DUT across configurations: a
-  4-layer plan (reset-parity gate, pairwise covering array x gap, invariant
-  oracles, seeded soak) with a reportable 2-way coverage number. Layers 1 and 3
-  are now largely delivered by the 12 named DRAM operating points and the
-  scheduler-layer JEDEC matrix; what remains is layer 0 (reset parity) and
-  layer 2b (telemetry invariants).
+One real item, in issue:
+
+- **[ISSUE-018](issue/open/ISSUE-018.md)** — `global_timers` publishes every
+  readiness output one cycle stale: the counter reloads on the same edge the
+  output flop samples, so the gate stays open for one cycle after the command
+  that should close it. Obeying the published flags alone violates tCCD and
+  tRTW (four-step counterexample from `formal/pumice/global_timers`). The
+  arbiter already compensates -- it ignores `tccd_ok_i` entirely and adds its own
+  fire-history terms to the turnarounds -- but nothing in `global_timers`
+  documents the contract, and tFAW/tRRD have no equivalent compensating term.
 
 The correctness backlog is EMPTY: BUG-001, BUG-002 and BUG-003 are all closed,
 and BUG-003 -- an arbiter pick that its own final safety gate had rejected being
 pushed to the DRAM anyway -- was fixed 2026-09-27.
+
+TASK-033 (the v2/v3 deferrals) is in `task/deferred/`, parked pending the
+DDR3/LPDDR3 project rather than dropped.
 
 ## Legacy ID resolution
 

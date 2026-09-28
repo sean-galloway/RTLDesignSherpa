@@ -2,7 +2,7 @@
 
 # pumice — issues
 
-**Next ID: ISSUE-018** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-019** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 14 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
@@ -20,8 +20,10 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
-
-
+- **ISSUE-018** — `global_timers` publishes every readiness output one cycle
+  stale (the counter reloads on the same edge the flop samples), so obeying them
+  alone violates tCCD and tRTW; the arbiter already compensates in two different
+  ways but the block documents none of it, and tFAW/tRRD have no equivalent term
 
 
 
