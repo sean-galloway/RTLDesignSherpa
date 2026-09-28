@@ -1,0 +1,10 @@
+[
+  "projects/components/dmas/rapids/dv/tb/alloc_ctrl_beats_tb_top.f",
+  "projects/components/dmas/rapids/dv/tb/drain_ctrl_beats_tb_top.f",
+  "projects/components/dmas/rapids/dv/tb/latency_bridge_beats_tb_top.f",
+  "projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/flists/rapids_char_genesys2_top.f",
+  "projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/flists/rapids_char_harness.f",
+  "projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/flists/rapids_char_top.f",
+  "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/chargen_regs.f",
+  "projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.f"
+]

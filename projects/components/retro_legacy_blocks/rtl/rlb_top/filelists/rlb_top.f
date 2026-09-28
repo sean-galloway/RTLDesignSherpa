@@ -1,5 +1,5 @@
 # RLB Top Integration File List
-# Location: projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.f
+# Location: projects/components/retro_legacy_blocks/rtl/rlb_top/filelists/rlb_top.f
 # Purpose: Complete Retro Legacy Block peripheral subsystem with APB crossbar
 #
 # Address Map (4KB windows from BASE_ADDR 0xFEC00000):

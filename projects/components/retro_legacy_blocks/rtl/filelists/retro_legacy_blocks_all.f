@@ -38,4 +38,4 @@
 -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/filelists/ioapic_msi_emit.f
 
 # --- Top-level integration (pulls the generated 1to10 crossbar) ------------
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.f
+-f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/rlb_top/filelists/rlb_top.f

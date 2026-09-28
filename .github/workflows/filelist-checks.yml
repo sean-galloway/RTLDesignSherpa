@@ -37,6 +37,9 @@ jobs:
       - name: No NEW blind spots (unregistered .f, hand-listed test, dead .sby path)
         run: python3 bin/filelist_registry.py --blindspots --ratchet
 
+      - name: No NEW filelist outside a filelists/ dir
+        run: python3 bin/filelist_registry.py --placement
+
       - name: No doc example names a port the module lacks
         run: python3 bin/check_doc_examples.py
 

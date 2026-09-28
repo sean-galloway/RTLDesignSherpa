@@ -98,6 +98,9 @@ filelist_dirs = [
     "projects/components/bridge/rtl/filelists",
     "projects/components/bridge/rtl/filelists_static",
 ]
+# --placement accepts filelists_static/ as a placed dir for the reason above;
+# every other .f must sit in a filelists/ subdir.
+placement_ok = ["projects/components/bridge/rtl/filelists_static"]
 
 [[area]]
 name = "converters"
@@ -138,7 +141,7 @@ kind = "component"
 rtl_roots = ["projects/components/retro_legacy_blocks/rtl"]
 filelist_dirs = [
     "projects/components/retro_legacy_blocks/rtl",
-    "projects/components/retro_legacy_blocks/dv/tb",
+    "projects/components/retro_legacy_blocks/dv/filelists",
 ]
 
 [[area]]

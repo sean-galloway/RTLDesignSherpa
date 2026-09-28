@@ -108,10 +108,12 @@ def staged_sv(root: Path) -> list[str]:
 CONSUMER_GLOBS = (
     "rtl/*/lint_reports/verilator/*.f",
     # Recursive, because the components tree has at least a dozen filelist
-    # layouts -- rtl/<block>/filelists/, rtl/filelists/<tier>/, and
+    # layouts -- rtl/<block>/filelists/, rtl/filelists/<tier>/, dv/filelists/
+    # for TB wrappers, and (until tooling TASK-004 moved it, 2026-09-28)
     # rtl/rlb_top/rlb_top.f sitting loose in its own directory. An enumerated
     # set of patterns missed that last one on the first attempt, which is the
-    # same class of miss this whole check exists to stop.
+    # same class of miss this whole check exists to stop; keep the recursion
+    # even now that every list sits in some filelists/ dir.
     "projects/components/**/*.f",
 )
 

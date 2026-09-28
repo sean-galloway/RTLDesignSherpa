@@ -23,8 +23,15 @@ closure contract, and the two failure modes it prevents are both silent.
 `bin/filelists.toml` is a REGISTRY/index of where the lists live -- it does not
 store them. Every `.f` lives in the owning area's **`filelists/` dir** (the
 canonical location); the toml just records the area so the checker can find it.
-Placement is currently inconsistent in a few spots -- see
-AMBA-FILELIST-CONSISTENCY.
+`bin/filelist_registry.py --placement` enforces this (CI, ratcheted against
+`bin/filelist_placement_baseline.json`): a NEW `.f` outside a `filelists/` dir
+fails; the eight stragglers still in the baseline (2026-09-28) are filed on
+their units as rapids TASK-017 and pumice TASK-032, and each move shrinks the
+baseline with `--update-placement-baseline`. A differently-named dir needs a
+`placement_ok` entry in the toml with its reason (bridge's `filelists_static/`).
+*Case: `rlb_top.f` sat loose beside its RTL for a year; nothing flagged it
+because a loose list still resolves, and the port-consumer check had to grow a
+recursive glob to find it (tooling TASK-004).*
 
 New module -> new (or extended) `.f` in the owning area's `filelists/` dir, in
 the same commit. Not "before the test lands" - in the same commit, because a

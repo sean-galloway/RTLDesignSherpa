@@ -134,7 +134,7 @@ def test_ioapic_lowest_pri_arb(request, test_level, description):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_local,
-        filelist_path='projects/components/retro_legacy_blocks/dv/tb/ioapic_lowest_pri_arb_tb_top.f'
+        filelist_path='projects/components/retro_legacy_blocks/dv/filelists/ioapic_lowest_pri_arb_tb_top.f'
     )
 
     rtl_parameters = {

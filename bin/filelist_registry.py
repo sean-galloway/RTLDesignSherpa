@@ -20,6 +20,7 @@ questions that previously required hand-rolling a parser:
     --blindspots        what the above CANNOT see: unregistered filelists,
                         tests building their own source array, .sby dead paths
     --resolve FILELIST  the fully expanded source list for one .f
+    --placement         every tracked .f sits in a filelists/ dir (ratcheted)
 
 Path/variable handling matches the cocotb consumer
 (bin/TBClasses/shared/filelist_utils.get_sources_from_filelist): $REPO_ROOT and
@@ -974,6 +975,66 @@ def cmd_dupes(reg: dict, top: int = 10) -> int:
     return 0
 
 
+PLACEMENT_BASELINE = REPO_ROOT / "bin" / "filelist_placement_baseline.json"
+
+
+def cmd_placement(reg: dict, update_baseline: bool = False) -> int:
+    """Every tracked .f lives in a `filelists/` dir; ratcheted against a baseline.
+
+    The rule ([[filelists]]): a list sits in the owning dir's `filelists/`
+    subdir -- rtl/<block>/filelists/, dv/filelists/ for a TB wrapper, never
+    loose beside the RTL or the TB. --check cannot see a placement miss (a
+    loose .f still resolves) and --blindspots only asks whether SOME area
+    registers the directory, so until tooling TASK-004 (2026-09-28) the rule
+    was kept by whoever remembered. rtl/rlb_top/rlb_top.f sat loose for a
+    year and the consumer check had to grow a recursive glob to find it.
+
+    An area may justify a differently-named dir with `placement_ok` in the
+    registry (bridge's filelists_static/, kept apart from the generated
+    filelists/ so `make regen` cannot delete it). Everything else outside a
+    filelists/ dir is a straggler. Ratcheted like the exempt ledger: the
+    stragglers already filed against their units may stay, a NEW one fails.
+    """
+    import json
+    ok_dirs = [REPO_ROOT / d
+               for area in reg.get("area", [])
+               for d in area.get("placement_ok", [])]
+
+    def _placed(p: Path) -> bool:
+        parts = p.relative_to(REPO_ROOT).parts[:-1]
+        if "filelists" in parts:
+            return True
+        return any(d == p.parent or d in p.parents for d in ok_dirs)
+
+    tracked = subprocess.run(["git", "ls-files", "*.f"], cwd=REPO_ROOT,
+                             capture_output=True, text=True).stdout.split()
+    loose = sorted(rel(p) for p in (REPO_ROOT / t for t in tracked)
+                   if not _placed(p))
+
+    if update_baseline:
+        PLACEMENT_BASELINE.write_text(json.dumps(loose, indent=2) + "\n")
+        print(f"[placement] baseline rewritten: {len(loose)} straggler(s)")
+        return 0
+
+    base = set(json.loads(PLACEMENT_BASELINE.read_text())) if PLACEMENT_BASELINE.exists() else set()
+    new = [p for p in loose if p not in base]
+    gone = sorted(base - set(loose))
+    for p in loose:
+        tag = "NEW " if p in new else "    "
+        print(f"[placement] {tag}{p}")
+    if gone:
+        print(f"[placement] {len(gone)} baseline entry(ies) no longer loose; "
+              f"re-baseline with --update-placement-baseline")
+    if new:
+        print()
+        print(f"[placement] FAIL: {len(new)} NEW filelist(s) outside a filelists/ dir. "
+              f"Move it into the owning dir's filelists/ (see vault/handbook/design/filelists.md), "
+              f"or justify the directory with placement_ok in bin/filelists.toml.")
+        return 1
+    print(f"[placement] ratchet OK: {len(loose)} known straggler(s) (filed against their units), none new")
+    return 0
+
+
 def cmd_resolve(path: str) -> int:
     fl = Path(path)
     if not fl.is_absolute():
@@ -1003,10 +1064,17 @@ def main() -> int:
                         "(harmless where the consumer dedupes; fatal on a raw -f)")
     g.add_argument("--find", metavar="MODULE", help="show which filelist provides a module")
     g.add_argument("--resolve", metavar="FILELIST", help="expand a filelist to its source list")
+    g.add_argument("--placement", action="store_true",
+                   help="verify every tracked .f sits in a filelists/ dir "
+                        "(ratcheted against bin/filelist_placement_baseline.json)")
     ap.add_argument("--ratchet", action="store_true",
                     help="with --blindspots: fail only if a class GREW vs the baseline")
     ap.add_argument("--update-baseline", action="store_true",
                     help="with --blindspots: rewrite the baseline from the current counts")
+    ap.add_argument("--update-placement-baseline", action="store_true",
+                    dest="update_placement_baseline",
+                    help="with --placement: rewrite bin/filelist_placement_baseline.json "
+                         "from the current straggler list")
     ap.add_argument("--update-exempt-baseline", action="store_true",
                     dest="update_exempt_baseline",
                     help="with --check: rewrite bin/filelist_exempt_baseline.json "
@@ -1029,6 +1097,8 @@ def main() -> int:
         return cmd_blindspots(reg, args.ratchet, args.update_baseline)
     if args.check_dup:
         return cmd_dupes(reg)
+    if args.placement:
+        return cmd_placement(reg, args.update_placement_baseline)
     if args.find:
         return cmd_find(reg, args.find)
     return 0

@@ -147,7 +147,7 @@ def test_rlb_top(request, test_level, description):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_local,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.f'
+        filelist_path='projects/components/retro_legacy_blocks/rtl/rlb_top/filelists/rlb_top.f'
     )
 
     rtl_parameters = {
