@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,6 @@ by construction rather than by discipline.
 
 ## Open
 
-- **TASK-014** — the sink write path halves at PIPELINE=0 now that BUG-013 enforces one burst in flight; build with PIPELINE=1
 - **TASK-000** — reserved template; copy the file, do not file against it.
 - **TASK-012** — arm the 26 signal-contract maps still rendering VERDICT: NOT CHECKED (rtl_sop / depends_only_on); the derived-vs-RTL gate is inert on them
 - **TASK-013** — stream placement pass: 9 loose markdown files (status page, coverage and perf reports beside the tests)
