@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 6 | accepted, not started |
+| [open/](open/) | 5 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 33 | done (kept for history) |
+| [closed/](closed/) | 34 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,7 +24,6 @@ by construction rather than by discipline.
 - **TASK-035** — Make APB Crossbar Variants Functional
 - **TASK-036** — Write Monitor System Whitepaper
 - **TASK-037** — Lighten the gate-heavy monitor modules
-- **TASK-038** — scrub the tests for completeness (amba)
 - **TASK-000** — reserved template; copy the file, do not file against it.
 
 ## Active
@@ -33,6 +32,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-038** — scrub the tests for completeness (amba)
 - **TASK-001** — Validate axi_monitor Base Functionality
 - **TASK-002** — Integrate axi_monitor in AXI4 Master Read
 - **TASK-003** — Integrate axi_monitor in AXI4 Master Write

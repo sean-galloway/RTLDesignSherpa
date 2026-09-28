@@ -12,19 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 11 | done (kept for history) |
+| [closed/](closed/) | 12 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
-- **TASK-011** — scrub the tests for completeness (common)
 - **TASK-000** — reserved template; copy the file, do not file against it.
 
 ## Closed
 
+- **TASK-011** — scrub the tests for completeness (common)
 - **TASK-001** — Improve test coverage to 95%
 - **TASK-002** — Waveform save files for all modules
 - **TASK-003** — Integration examples (became the technique index)

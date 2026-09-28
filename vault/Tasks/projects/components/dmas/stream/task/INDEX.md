@@ -12,16 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 9 | done (kept for history) |
+| [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
-- **TASK-003** — scrub the tests for completeness (stream)
 
 ## Active
 
@@ -29,6 +28,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-003** — scrub the tests for completeness (stream)
 - **TASK-002** — gate the monitor regfile on a parameter (present + decoded)
 - **TASK-001** — finish the STREAM workbook so its maps prove the decisions
 - **TASK-005** — RLB blocks brought under the .rdl regen gate

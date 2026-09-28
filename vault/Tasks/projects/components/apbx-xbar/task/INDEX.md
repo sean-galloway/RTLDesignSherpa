@@ -12,19 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-004** — scrub the tests for completeness (apbx crossbar)
 - **TASK-000** — reserved template; copy the file, do not file against it.
 
 ## Closed
 
+- **TASK-004** — scrub the tests for completeness (apbx crossbar)
 - **TASK-001** — Generalize apbx_xbar to apbx_xbar (APB4 / APB5 / mixed)
 - **TASK-002** — Formal coverage for the APB4/APB5 version gating
 - **TASK-003** — APB5 parity across the fabric

@@ -13,7 +13,7 @@ is `git mv`, so an item is in exactly one state by construction.
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 2 | 1 | 9 | 0 | 0 |
+| [task/](task/INDEX.md) | 1 | 1 | 10 | 0 | 0 |
 | [bug/](bug/INDEX.md) | 1 | 0 | 15 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 1 | 0 | 0 | 1 | 0 |
 
@@ -35,7 +35,7 @@ handbook notes, so the map is kept:
 |---|---|
 | `STREAM-KMAP` | [TASK-001](task/closed/TASK-001.md) |
 | `STREAM-MONREGS` | [TASK-002](task/closed/TASK-002.md) |
-| `TASK-079` | [TASK-003](task/open/TASK-003.md) |
+| `TASK-079` | [TASK-003](task/closed/TASK-003.md) |
 | `TASK-056` | [TASK-004](task/active/TASK-004.md) |
 | `TASK-080` | [BUG-001](bug/closed/BUG-001.md) |
 | `TASK-090` | [BUG-002](bug/closed/BUG-002.md) |

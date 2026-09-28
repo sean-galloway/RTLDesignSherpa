@@ -12,14 +12,17 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-001** — all RDL lives in the rdl directory
-- **TASK-002** — scrub the tests for completeness (misc)
 - **TASK-000** — reserved template; copy the file, do not file against it.
+
+## Closed
+
+- **TASK-002** — scrub the tests for completeness (misc)
