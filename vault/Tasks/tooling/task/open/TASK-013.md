@@ -76,22 +76,42 @@ RTL that came back, unnoticed across 13 files for months).
 hand-written ones, the real hand-pass scope is ~143 citations, and COMMON-*, TOOL-*,
 DOCREV-*, RLB-*, CONV-*, MATH-*, NEXYS-* and APBX-* have still never been searched.
 
-**pumice is the largest citation cluster, and it is deliberately NOT swept.**
-Measured 2026-09-27: **651 `PUMICE-*` occurrences across 173 files** (.md 459, .py 151,
-.sv 39, .rdl 2). None of those are the tracker's own provenance lines -- excluding
-`vault/Tasks/` leaves the count unchanged at 651. The pumice session reported 533; the
-measured figure is higher, and 651 is the number to plan against.
+**pumice: the real sweep scope is 173, not 533/651/325/238.** Four wrong numbers were
+quoted before this one; the causes are the transferable part and the pumice session
+recorded them in MIGRATION_MAP (959d1c276). Verified here 2026-09-27 with `git ls-files`
+rather than `grep -r`, which is immune to both bugs below:
 
-Their reasoning for leaving it here rather than sweeping it, which I agree with: the
-references are in live RTL comments and board-measurement records, and rewriting those
-to chase a tracker rename costs more than it gains. `MIGRATION_MAP.md` plus each file's
-provenance line make an old `PUMICE-NNN` resolvable. If this is swept it should be a
-deliberate mechanical pass with its own gate, not a side effect of a migration.
+| | occurrences |
+|---|---|
+| `.py` | 104 |
+| `.md` | 43 |
+| `.sv` | 26 |
+| `.rdl` | 0 |
+| **real sweep scope** | **173** over 27 distinct legacy ids |
+| inside `vault/Tasks` (provenance lines + map rows) | 338 -- NOT debt, this IS the resolution mechanism |
 
-Note the scale relative to the rest of this ticket: pumice alone (651) dwarfs the ~143
-hand-written amba and bridge citations tabled above, and `bridge`'s 157 generated ones
-need a Rule #0 regeneration rather than editing. A single "sweep the citations" task is
-therefore not one job -- it is at least three with different methods.
+**Why every earlier figure was wrong:**
+
+- **533** -- a `PUMICE-\d+` pattern cannot match `PUMICE-KMAP`, whose suffix is a word.
+  Worse, the guard was `assert len(items) == 35` with the 35 derived from the same
+  parser, so it confirmed the wrong assumption instead of contradicting it.
+- **651** -- counted the tracker's own provenance lines and map rows as debt, i.e. counted
+  the fix as the problem.
+- **325** -- `grep -r .` emits paths WITHOUT a leading `./`, so a `grep -v '^\./vault/Tasks/'`
+  filter matched nothing and the exclusion was inert. The same inert filter also failed to
+  exclude `.claude/worktrees/`.
+- **238** -- `--exclude-dir=Tasks` dropped BOTH `vault/Tasks` trees, removing the worktree's
+  87 tracker citations while keeping its duplicated source.
+
+**The repo contains a GIT WORKTREE, and it doubles every repo-wide count.**
+`.claude/worktrees/pumice-ataglance-modes` is a full checkout on its own branch with its
+own `vault/Tasks`, `projects/` and `rtl/`; it contributes 152 `PUMICE-*` occurrences.
+325 - 152 = 173 exactly. **Run `git worktree list` before quoting any repo-wide count,**
+or scope the count with `git ls-files`, which only sees the current worktree's tracked
+files.
+
+**Risky fraction is small:** 26 RTL comments. The other 147 are DV and host Python plus
+markdown, mechanically safe to rewrite.
 
 **Why it was not swept with the migration.** These are source files in four areas
 owned by other sessions, several of which were being actively edited during the
