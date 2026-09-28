@@ -100,6 +100,8 @@ async def cocotb_test_rlb_top_smoke(dut):
          tests.test_fabric_routes_rtc_to_the_pic),
         ('Fabric routes SMBus to the 8259',
          tests.test_fabric_routes_smbus_to_the_pic),
+        ('Overlapping asserts (GPIO + PM/ACPI coincident)',
+         tests.test_fabric_handles_overlapping_asserts),
     ]
 
     if test_level == 'gate':

@@ -510,6 +510,107 @@ class RLBTopTests:
             self.log.error(f"SMBus fabric routing test failed: {e}")
             return False
 
+    async def test_fabric_handles_overlapping_asserts(self) -> bool:
+        """Two blocks assert COINCIDENTLY, with a randomised overlap.
+
+        Criterion 4's actual point. Varying when a single edge lands still
+        leaves one clean edge per test; a level-sensitive OR fabric is where
+        coincident and OVERLAPPING asserts bite, so two sources must be high
+        at once with the second arriving at a random offset INSIDE the first's
+        assertion.
+
+        GPIO (IRQ11) and PM/ACPI (IRQ9) are both driven by DUT INPUTS, so the
+        overlap is controlled exactly rather than inferred from register
+        timing. Both land on the SLAVE 8259, so this also exercises the OR
+        into the slave and the single cascade line up to master IR2: one INT
+        must represent both, and IR2 must still equal w_spic_int.
+        """
+        self.log.info("=== smoke: overlapping asserts (GPIO + PM/ACPI) ===")
+        try:
+            if not await self._fabric_preamble():
+                return False
+            await self.tb.arm_ioapic_for_fabric(11)
+            await self.tb.arm_ioapic_for_fabric(9)
+
+            # GPIO: global enable + int enable, pin 0 rising edge.
+            await self.tb.gpio_write(0x000, 0x3)
+            await self.tb.gpio_write(0x010, 0x1)
+            await self.tb.gpio_write(0x014, 0x0)
+            await self.tb.gpio_write(0x018, 0x1)
+            await self.tb.gpio_write(0x01C, 0x0)
+            # PM/ACPI: ACPI+GPE enable, GPE interrupt, unmask GPE bit 0.
+            P = self.tb.SLAVE_PM
+            await self.tb.apb_write(self.tb.window_addr(P, 0x000), 0x1 | 0x4)
+            await self.tb.apb_write(self.tb.window_addr(P, 0x008), 1 << 5)
+            await self.tb.apb_write(self.tb.window_addr(P, 0x038), 0x1)
+            self.tb.dut.gpio_in.value = 0
+            self.tb.dut.pm_gpe_events.value = 0
+            await self.tb.wait_clocks('pclk', 5)
+
+            # The overlap itself: GPIO goes high and STAYS high while PM
+            # asserts a random number of cycles later.
+            gap = random.randint(1, 20)
+            self.log.info(f"  overlap gap: {gap} pclk (PM asserts while GPIO "
+                          "is still high)")
+            self.tb.dut.gpio_in.value = 1
+            await self.tb.wait_clocks('pclk', gap)
+            self.tb.dut.pm_gpe_events.value = 1
+            await self.tb.wait_clocks('pclk', 40)
+
+            ok = True
+            if int(self.tb.dut.pic_irq_in.value) != 0:
+                self.log.error("  pic_irq_in is non-zero -- not proving "
+                               "internal routing")
+                ok = False
+            for name in ('gpio_irq', 'pm_interrupt'):
+                mon = self.tb.irqs.monitors.get(name)
+                if mon is None or mon.assert_count == 0:
+                    self.log.error(f"  {name} never asserted under overlap")
+                    ok = False
+            if ok and not self.tb.pic_int_out():
+                self.log.error("  both sources high but pic_int_out LOW -- "
+                               "the OR into the slave did not hold")
+                ok = False
+            if ok and not self.tb.cascade_invariant_ok():
+                self.log.error("  IRQ2 violated while two slave-side sources "
+                               "were coincident")
+                ok = False
+            if ok:
+                good, missing, unexpected = self.tb.irqs.expect_only(
+                    ['gpio_irq', 'pm_interrupt', 'pic_int_out', 'rlb_irq_out'])
+                if not good:
+                    self.log.error(f"  IRQ lines wrong: missing={missing} "
+                                   f"unexpected={unexpected}")
+                    for pkt in self.tb.irqs.all_events():
+                        self.log.error(f"    {pkt}")
+                    ok = False
+            if ok:
+                vectors = [int(getattr(pk, 'vector', -1))
+                           for pk in self.tb.ioapic_deliveries()]
+                for want in (0x4B, 0x49):
+                    if want not in vectors:
+                        self.log.error(
+                            f"  IOAPIC did not deliver 0x{want:02X} under "
+                            f"overlap (saw {[f'0x{v:02X}' for v in vectors]})")
+                        ok = False
+                if ok:
+                    self.log.info("  IOAPIC delivered both 0x4B and 0x49 with "
+                                  "the sources coincident")
+
+            self.tb.dut.gpio_in.value = 0
+            self.tb.dut.pm_gpe_events.value = 0
+            if not ok:
+                return False
+            self.log.info("smoke overlap GREEN (GPIO and PM/ACPI coincident; "
+                          "both reached the 8259 and the IOAPIC, and IR2 still "
+                          "equalled the slave INT)")
+            return True
+        except Exception as e:
+            self.log.error(f"overlapping-assert test failed: {e}")
+            self.tb.dut.gpio_in.value = 0
+            self.tb.dut.pm_gpe_events.value = 0
+            return False
+
     async def test_fabric_gpio_returns_the_slave_vector(self) -> bool:
         """The GPIO interrupt is acknowledged as a SLAVE vector, not the master's.
 
