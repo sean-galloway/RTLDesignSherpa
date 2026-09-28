@@ -67,7 +67,7 @@
  *     w_timer_match_raw[i] = counter >= comparator      (at the compare width)
  *     w_timer_match[i]     = w_timer_match_raw[i] & ~r_comp_next_epoch[i]
  *     w_timer_fire[i]      = w_timer_match[i] & r_timer_armed[i]
- *                            & timer_enable[i] & hpet_enable
+ *                            & hpet_enable
  *   The comparison is >= , never == : an equal-or-passed comparator is due,
  *   which is what makes a deficit (counter already past the target) fire
  *   rather than be missed. Every consumer below uses the EPOCH-GATED
@@ -84,11 +84,16 @@
  *                  of the counter. This is the only re-arm path at period 1,
  *                  where the advance never pulls away from the counter and
  *                  the match therefore never falls on its own.
- *     A3 EXPLICIT  a comparator write strobe WHILE THE TIMER IS STOPPED
- *                  (timer_enable[i] = 0 or hpet_enable = 0).
+ *     A3 EXPLICIT  a comparator write strobe WHILE THE COUNTER IS HALTED
+ *                  (hpet_enable = 0). There is no per-timer stop: RLB/hpet
+ *                  TASK-006 removed timer_enable because the published spec
+ *                  defines no such bit, so "stopped" is a property of the
+ *                  whole block now.
  *   CLEARED by w_timer_fire[i] when no set condition holds.
  *
- *     CONTRACT (A3): a comparator write on a STOPPED timer ALWAYS re-arms,
+ *     CONTRACT (A3): a comparator write while the COUNTER IS HALTED (that is
+ *     hpet_enable = 0 -- there is no per-timer stop since RLB/hpet TASK-006)
+ *     ALWAYS re-arms,
  *     whatever value it writes. If the written value is at or below the
  *     counter the timer fires as soon as it is enabled - deliberately, and
  *     consistently with the >= match everywhere else. That is what lets
@@ -124,7 +129,7 @@
  *   PERIODIC CATCH-UP
  *     w_timer_catchup[i] = timer_type[i] & ~r_timer_armed[i] & w_timer_match[i]
  *                          & ~w_timer_comp_write[i] & w_timer_period_nz[i]
- *                          & w_timer_running[i]
+ *                          & w_timer_running[i]   (= hpet_enable)
  *   A periodic timer that is RUNNING, has already fired on this match and is
  *   STILL at or behind the counter advances its comparator by one period per
  *   cycle WITHOUT firing, until the advance lands at or ahead of the counter.
@@ -283,8 +288,9 @@ module hpet_core #(
     input  logic [63:0]             counter_wdata,
     output logic [63:0]             counter_rdata,
 
-    // Timer Configuration
-    input  logic [NUM_TIMERS-1:0]   timer_enable,
+    // Timer Configuration. NO timer_enable: the spec defines no per-timer RUN
+    // enable, so a timer is live whenever the main counter runs and
+    // timer_int_enable gates only the interrupt (RLB/hpet TASK-006).
     input  logic [NUM_TIMERS-1:0]   timer_int_enable,
     input  logic [NUM_TIMERS-1:0]   timer_type,
     input  logic [NUM_TIMERS-1:0]   timer_size,
@@ -332,7 +338,7 @@ module hpet_core #(
     logic                  w_counter_incr;      // the counter counts this cycle
     logic [NUM_TIMERS-1:0] w_counter_wrap;      // counter wraps at compare width
     logic [NUM_TIMERS-1:0] w_timer_comp_write;  // either half of timer i written
-    logic [NUM_TIMERS-1:0] w_timer_running;     // timer_enable[i] & hpet_enable
+    logic [NUM_TIMERS-1:0] w_timer_running;     // = hpet_enable (block-wide)
     logic [NUM_TIMERS-1:0] w_comp_write_rearm;  // comp write on a STOPPED timer
     logic [NUM_TIMERS-1:0] w_timer_size_chg;    // compare width just moved
 
@@ -403,7 +409,7 @@ module hpet_core #(
     // ========================================================================
     assign w_counter_sw_write = counter_write_lo | counter_write_hi;
     assign w_timer_comp_write = timer_comp_write_lo | timer_comp_write_hi;
-    assign w_timer_running    = timer_enable & {NUM_TIMERS{hpet_enable}};
+    assign w_timer_running    = {NUM_TIMERS{hpet_enable}};
     assign w_comp_write_rearm = w_timer_comp_write & ~w_timer_running;
 
     // The counter counts exactly when it is enabled and software is not
@@ -659,7 +665,7 @@ module hpet_core #(
         end
     )
 
-    assign w_timer_fire = w_timer_match & r_timer_armed & timer_enable &
+    assign w_timer_fire = w_timer_match & r_timer_armed &
                           {NUM_TIMERS{hpet_enable}};
 
     // ========================================================================

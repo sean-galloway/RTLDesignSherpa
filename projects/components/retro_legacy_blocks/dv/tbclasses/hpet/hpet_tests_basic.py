@@ -168,8 +168,7 @@ class HPETBasicTests:
             await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_HI, 0x00000000)
 
             # Configure timer for one-shot mode
-            timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                        (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
+            timer_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
                         (0 << HPETRegisterMap.TIMER_TYPE)  # One-shot
 
             config_addr = HPETRegisterMap.get_timer_config_addr(timer_id)
@@ -248,8 +247,7 @@ class HPETBasicTests:
             await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_HI, 0x00000000)
 
             # Configure timer for quick interrupt
-            timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                        (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
+            timer_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
                         (0 << HPETRegisterMap.TIMER_TYPE)  # One-shot
 
             config_addr = HPETRegisterMap.get_timer_config_addr(timer_id)
@@ -289,6 +287,147 @@ class HPETBasicTests:
             self.log.error(f"Interrupt clearing test failed: {e}")
             return False
 
+    async def test_spec_register_layout(self) -> bool:
+        """RLB/hpet TASK-006: the register interface must match the published spec.
+
+        Asserts the fields that MOVED, which is the point -- test_register_access
+        checks num_tim_cap[12:8], the one field whose position did not change, so
+        it would pass against either layout and proves nothing here.
+
+        GCAP_ID[31:0] (HPET_ID, 0x000):
+            [31:16] vendor_id        full 16 bits, not the old truncated byte
+            [15]    leg_rt_cap       0 -- routing not implemented. Drivers GATE on
+                                     this bit, so its position is load-bearing
+            [13]    count_size_cap   1 -- 64-bit counter
+            [12:8]  num_tim_cap      NUM_TIMERS-1
+            [7:0]   rev_id
+        GCAP_ID[63:32] (HPET_PERIOD, 0x004): femtoseconds per tick, which must
+        equal the clock the counter actually ticks on.
+        TN_CONF: per_int_cap[4] and size_cap[5] are READ-ONLY 1; fsb_int_del_cap
+        [15] is READ-ONLY 0 (no message delivery, so no FSB route registers).
+        """
+        self.log.info("=== RLB/hpet TASK-006: published-spec register layout ===")
+        self.tb.test_phase = "SPEC_REGISTER_LAYOUT"
+
+        # HALT THE COUNTER for the whole test. Everything here is a register
+        # read plus one read-only probe, so nothing needs the counter running --
+        # and the probe below writes 0xFFFFFFFF to TN_CONF, which SETS
+        # INT_ENB[2] and TYPE[3]. On a running counter that arms a PERIODIC
+        # timer against whatever comparator the previous test left behind, and
+        # it fires after this test ends, leaving the scoreboard with an
+        # unmatched assert. Writing TN_CONF = 0 afterwards does NOT stop it:
+        # RLB/hpet TASK-006 removed the per-timer enable, so the only stop is
+        # hpet_enable. Halting here removes the hazard at its source.
+        await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000000)
+
+        try:
+            passed = True
+
+            _, id_value = await self.tb.read_register(HPETRegisterMap.HPET_ID)
+            vendor = (id_value >> 16) & 0xFFFF
+            leg_rt = (id_value >> 15) & 0x1
+            cnt_sz = (id_value >> 13) & 0x1
+            ntim   = (id_value >> 8) & 0x1F
+            rev    = id_value & 0xFF
+            self.log.info(f"HPET_ID = 0x{id_value:08X}: vendor=0x{vendor:04X} "
+                          f"leg_rt_cap={leg_rt} count_size_cap={cnt_sz} "
+                          f"num_tim_cap={ntim} rev_id=0x{rev:02X}")
+
+            if vendor != (self.tb.VENDOR_ID & 0xFFFF):
+                self.log.error(f"vendor_id[31:16] = 0x{vendor:04X}, expected "
+                               f"0x{self.tb.VENDOR_ID & 0xFFFF:04X} -- the spec field "
+                               "is 16 bits; a truncated byte means the old layout")
+                passed = False
+            if rev != (self.tb.REVISION_ID & 0xFF):
+                self.log.error(f"rev_id[7:0] = 0x{rev:02X}, expected "
+                               f"0x{self.tb.REVISION_ID & 0xFF:02X}")
+                passed = False
+            if ntim != self.tb.NUM_TIMERS - 1:
+                self.log.error(f"num_tim_cap = {ntim}, expected {self.tb.NUM_TIMERS - 1}")
+                passed = False
+            if cnt_sz != 1:
+                self.log.error(f"count_size_cap[13] = {cnt_sz}, expected 1 "
+                               "(64-bit counter)")
+                passed = False
+            if leg_rt != 0:
+                self.log.error(f"leg_rt_cap[15] = {leg_rt}, expected 0 -- the "
+                               "routing is not implemented, and advertising it "
+                               "would be a lie a driver acts on")
+                passed = False
+
+            _, period = await self.tb.read_register(HPETRegisterMap.HPET_PERIOD)
+            self.log.info(f"HPET_PERIOD = {period} fs "
+                          f"(expected {self.tb.COUNTER_CLK_PERIOD_FS}, "
+                          f"core clock {self.tb.CORE_CLOCK_PERIOD} ns)")
+            if period != self.tb.COUNTER_CLK_PERIOD_FS:
+                self.log.error(f"HPET_PERIOD = {period}, expected "
+                               f"{self.tb.COUNTER_CLK_PERIOD_FS} fs")
+                passed = False
+            if period == 0 or period > 0x05F5E100:
+                self.log.error(f"HPET_PERIOD = {period} violates the spec bounds "
+                               "(non-zero, <= 0x05F5E100 = 100 ns)")
+                passed = False
+            if period != self.tb.CORE_CLOCK_PERIOD * 1_000_000:
+                self.log.error(f"HPET_PERIOD {period} fs does not match the clock "
+                               f"the counter ticks on ({self.tb.CORE_CLOCK_PERIOD} ns "
+                               f"= {self.tb.CORE_CLOCK_PERIOD * 1_000_000} fs)")
+                passed = False
+
+            cfg_addr = HPETRegisterMap.get_timer_config_addr(0)
+            _, tn_conf = await self.tb.read_register(cfg_addr)
+            per_cap = (tn_conf >> HPETRegisterMap.TIMER_PER_INT_CAP) & 0x1
+            sz_cap  = (tn_conf >> HPETRegisterMap.TIMER_SIZE_CAP) & 0x1
+            fsb_cap = (tn_conf >> HPETRegisterMap.TIMER_FSB_CAP) & 0x1
+            self.log.info(f"TIMER0 TN_CONF = 0x{tn_conf:08X}: per_int_cap={per_cap} "
+                          f"size_cap={sz_cap} fsb_int_del_cap={fsb_cap}")
+            if per_cap != 1:
+                self.log.error(f"per_int_cap[4] = {per_cap}, expected 1 "
+                               "(periodic mode is implemented)")
+                passed = False
+            if sz_cap != 1:
+                self.log.error(f"size_cap[5] = {sz_cap}, expected 1 (64-bit capable)")
+                passed = False
+            if fsb_cap != 0:
+                self.log.error(f"fsb_int_del_cap[15] = {fsb_cap}, expected 0 "
+                               "(no message delivery)")
+                passed = False
+
+            # The capability bits are READ-ONLY: writing them must not stick.
+            await self.tb.write_register(cfg_addr, 0xFFFFFFFF)
+            _, after = await self.tb.read_register(cfg_addr)
+            if ((after >> HPETRegisterMap.TIMER_PER_INT_CAP) & 0x1) != 1 or \
+               ((after >> HPETRegisterMap.TIMER_SIZE_CAP) & 0x1) != 1 or \
+               ((after >> HPETRegisterMap.TIMER_FSB_CAP) & 0x1) != 0:
+                self.log.error(f"after writing 0xFFFFFFFF, TN_CONF = 0x{after:08X}: "
+                               "a read-only capability bit changed")
+                passed = False
+            await self.tb.write_register(cfg_addr, 0x00000000)
+
+            _, route_cap = await self.tb.read_register(
+                HPETRegisterMap.get_timer_int_route_cap_addr(0))
+            if route_cap != 0:
+                self.log.error(f"TIMER_INT_ROUTE_CAP = 0x{route_cap:08X}, expected 0 "
+                               "while no routing is implemented")
+                passed = False
+
+            # Leave the block quiescent: counter halted, every timer's config
+            # cleared, status clear. The 0xFFFFFFFF probe above touched TIMER0's
+            # TN_CONF, and a stale armed timer would corrupt whatever runs next.
+            await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000000)
+            for timer_id in range(self.tb.NUM_TIMERS):
+                await self.tb.write_register(
+                    HPETRegisterMap.get_timer_config_addr(timer_id), 0x00000000)
+            await self.tb.write_register(HPETRegisterMap.HPET_STATUS, 0xFF)
+
+            if passed:
+                self.log.info("PASS RLB/hpet TASK-006: register layout matches the spec")
+            return passed
+
+        except Exception as e:
+            self.log.error(f"spec register layout test failed with exception: {e}")
+            await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000000)
+            return False
+
     async def run_all_basic_tests(self) -> bool:
         """Run all basic tests."""
         self.log.info("=== Scenario HPET-07: Interrupt Clear (W1C) ===")
@@ -301,6 +440,7 @@ class HPETBasicTests:
             ("Counter Functionality", self.test_counter_functionality()),
             ("Timer 0 One-Shot", self.test_timer_one_shot(0)),
             ("Interrupt Clearing", self.test_interrupt_clearing()),
+            ("TASK-006 spec register layout", self.test_spec_register_layout()),
         ]
 
         results = []

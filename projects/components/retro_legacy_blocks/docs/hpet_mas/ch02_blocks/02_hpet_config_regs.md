@@ -49,8 +49,9 @@ The `hpet_config_regs` module is the bridge between the PeakRDL-generated regist
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| `VENDOR_ID` | int | 1 | 0-255 | Drives HPET_ID[31:24] via `hwif_in`; an 8-bit field, so a wider value shows only its low byte (0x8086 reads 0x86) |
-| `REVISION_ID` | int | 1 | 0-255 | Drives HPET_ID[23:16] via `hwif_in` (8-bit field, low byte only) |
+| `VENDOR_ID` | int | 1 | 0-65535 | Drives HPET_ID[31:16] via `hwif_in` -- the spec's full 16-bit vendor field |
+| `REVISION_ID` | int | 1 | 0-255 | Drives HPET_ID[7:0] via `hwif_in` |
+| `COUNTER_CLK_PERIOD_FS` | int | 10000000 | non-zero, <= 0x05F5E100 | Drives HPET_PERIOD (GCAP_ID[63:32]) via `hwif_in`, in femtoseconds |
 | `NUM_TIMERS` | int | 2 | 2, 3, 8 | Number of independent timers in array |
 
 ---
@@ -98,10 +99,9 @@ The `hpet_config_regs` module is the bridge between the PeakRDL-generated regist
 **Per-Timer Configuration:**
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
-| **timer_enable[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer enable bits (from TIMER_CONFIG[2]) |
-| **timer_int_enable[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer interrupt enable (from TIMER_CONFIG[3]) |
-| **timer_type[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer mode: 0=One-shot, 1=Periodic (from TIMER_CONFIG[4]) |
-| **timer_size[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer size: 0=32-bit, 1=64-bit (from TIMER_CONFIG[5]) |
+| **timer_int_enable[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer interrupt enable (from TIMER_CONFIG[2]). The ONLY per-timer enable the spec defines -- there is no per-timer RUN enable |
+| **timer_type[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer mode: 0=One-shot, 1=Periodic (from TIMER_CONFIG[3]) |
+| **timer_size[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Compare WIDTH for hpet_core: 1=64-bit. Derived as `~TIMER_CONFIG[8]` -- the spec's 32MODE bit FORCES 32-bit, so its polarity is the inverse |
 | **timer_value_set[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | From TIMER_CONFIG[6]. Currently unconsumed: the wire dead-ends at the top level (hpet_core has no such input), so the bit stores and reads back with no hardware effect |
 
 **Per-Timer Comparator (Dedicated Buses):**
@@ -260,10 +260,10 @@ Per-timer array mapping:
 ```systemverilog
 generate
     for (genvar i = 0; i < NUM_TIMERS; i++) begin : g_timer_mapping
-        assign timer_enable[i]     = hwif_out.TIMER[i].TIMER_CONFIG.timer_enable.value;
         assign timer_int_enable[i] = hwif_out.TIMER[i].TIMER_CONFIG.timer_int_enable.value;
         assign timer_type[i]       = hwif_out.TIMER[i].TIMER_CONFIG.timer_type.value;
-        assign timer_size[i]       = hwif_out.TIMER[i].TIMER_CONFIG.timer_size.value;
+        // POLARITY INVERSION: 32MODE = 1 FORCES 32-bit, timer_size = 1 means 64-bit
+        assign timer_size[i]       = ~hwif_out.TIMER[i].TIMER_CONFIG.timer_32mode.value;
         assign timer_value_set[i]  = hwif_out.TIMER[i].TIMER_CONFIG.timer_value_set.value;
     end
 endgenerate
@@ -354,7 +354,7 @@ rather than through `swmod` (whose extra `|biten` term makes it a different
 decode); a simulation-only assertion guards the two against drifting apart.
 
 ```systemverilog
-// Mirror of the regblock's decode for HPET_STATUS (offset 0x008)
+// Mirror of the regblock's decode for HPET_STATUS (offset 0x020)
 assign w_status_sw_wr = regblk_req && regblk_req_is_wr &&
                         (regblk_addr[8:0] == ADDR_HPET_STATUS);
 
@@ -389,7 +389,7 @@ HPET_STATUS:     ----+
                                    +---
 
 SW Write (lvl):  ----------+     +-----
-regblk_req, addr 0x008     +-----+
+regblk_req, addr 0x020     +-----+
 
 Clear Pulse:     ----------+ +---------
 timer_int_clear[i]         +-
@@ -405,7 +405,7 @@ is one cycle wide, for the bits written with 1 only
 1. **hpet_enable:** Level signal, directly gates counter incrementing
 2. **counter_write_lo / counter_write_hi:** Pulse (1 cycle) per counter half written
 3. **counter_wdata:** The field values, valid for the strobed half in the strobe cycle
-4. **timer_enable[i]:** Level signal per timer
+4. **timer_int_enable[i]:** Level signal per timer (no per-timer RUN enable exists)
 5. **timer_comp_write_lo/hi[i]:** Pulse (1 cycle) per comparator half written
 6. **timer_comp_wdata[i]:** Per-timer dedicated data bus (corruption-proof)
 7. **timer_int_clear[i]:** Pulse (1 cycle) for the status bits written with 1

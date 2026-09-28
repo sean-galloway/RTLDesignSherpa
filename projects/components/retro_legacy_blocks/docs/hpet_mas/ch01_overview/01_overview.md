@@ -98,7 +98,7 @@ The APB High Precision Event Timer (HPET) is a configurable multi-timer peripher
 Every block makes trade-offs; here's where this one landed.
 
 **Configurability:**
-The HPET component prioritizes configurability to support diverse use cases. Timer count and CDC enablement are parameterizable at synthesis time, so you can tailor an instance for your application without touching the RTL. (The `VENDOR_ID`/`REVISION_ID` parameters reach HPET_ID through the register block's hardware interface; both fields are 8 bits wide, so a 16-bit PCI-style vendor reads back as its low byte. See Chapter 5.)
+The HPET component prioritizes configurability to support diverse use cases. Timer count and CDC enablement are parameterizable at synthesis time, so you can tailor an instance for your application without touching the RTL. (The `VENDOR_ID`/`REVISION_ID` parameters reach HPET_ID through the register block's hardware interface. `vendor_id` is the published spec's full 16 bits at GCAP_ID[31:16], so a PCI-style value such as 0x8086 reads back complete; `rev_id` is 8 bits at GCAP_ID[7:0]. See Chapter 5.)
 
 **Reliability:**
 Extensive testing (5/6 configurations at 100% pass rate) validates core functionality. The design includes per-timer data buses to prevent corruption. (Note: the register block never raises PSLVERR -- unmapped addresses alias or read 0.)
@@ -166,6 +166,7 @@ The design scales linearly with timer count. Each additional timer adds approxim
 - Per-timer write data buses (corruption fix)
 - Comprehensive test suite (3-level hierarchy)
 - Live comparator readback -- reads return hpet_core's working comparator, including the periodic advance (RLB/hpet TASK-002)
+- Published-spec register interface: spec offsets (GEN_CONF 0x010, GINTR_STA 0x020, MAIN_CNT 0x0F0, timer N at 0x100+0x20N with the comparator at +0x08), GCAP_ID and TN_CONF field positions, a 16-bit vendor field, and HPET_PERIOD reporting the counter tick period in femtoseconds (RLB/hpet TASK-006)
 
 **Outstanding Items:**
 - 8-timer stress test timeout (minor, likely test configuration)

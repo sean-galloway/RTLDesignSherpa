@@ -73,17 +73,18 @@ Each timer has 4 registers with 0x20 byte stride:
 
 ### Key Register Fields
 
-#### HPET_ID (0x000) - Read Only
-- **bits[4:0]**: Reserved
-- **bit[5]**: leg_rt_cap (reads 0; legacy replacement is storage only, so the capability is not advertised)
-- **bit[6]**: Reserved
-- **bit[7]**: count_size_cap (1 = 64-bit counter)
+#### HPET_ID (0x000) - Read Only, GCAP_ID[31:0]
+- **bits[7:0]**: rev_id (the REVISION_ID parameter)
 - **bits[12:8]**: num_tim_cap - Number of timers minus 1
-- **bits[15:13]**: Reserved
-- **bits[23:16]**: rev_id (low byte of the REVISION_ID parameter)
-- **bits[31:24]**: vendor_id (low byte of the VENDOR_ID parameter; 0x8086 reads 0x86)
+- **bit[13]**: count_size_cap (1 = 64-bit counter)
+- **bit[14]**: Reserved
+- **bit[15]**: leg_rt_cap (reads 0; the routing is not implemented, and drivers gate on this bit)
+- **bits[31:16]**: vendor_id (the VENDOR_ID parameter, full 16 bits)
 
-#### HPET_CONFIG (0x004)
+#### HPET_PERIOD (0x004) - Read Only, GCAP_ID[63:32]
+- **bits[31:0]**: counter_clk_period - femtoseconds per main-counter tick
+
+#### HPET_CONFIG (0x010)
 - **bit[0]**: hpet_enable - Enable HPET globally
 - **bit[1]**: legacy_replacement - stored, no hardware effect
 - **bits[31:2]**: Reserved

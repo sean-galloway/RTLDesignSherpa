@@ -65,8 +65,7 @@ class HPETMediumTests:
             await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_HI, 0x00000000)
 
             # Configure timer for periodic mode
-            timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                        (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
+            timer_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
                         (1 << HPETRegisterMap.TIMER_TYPE)  # Periodic
 
             config_addr = HPETRegisterMap.get_timer_config_addr(timer_id)
@@ -269,10 +268,9 @@ class HPETMediumTests:
             await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_LO, 0x00000000)
             await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_HI, 0x00000000)
 
-            # Configure timer for 64-bit mode
-            timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                        (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
-                        (1 << HPETRegisterMap.TIMER_SIZE) | \
+            # Configure timer for 64-bit mode. 64-bit is TIMER_32MODE CLEAR:
+            # the spec bit FORCES 32-bit, inverting the old TIMER_SIZE sense.
+            timer_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
                         (0 << HPETRegisterMap.TIMER_TYPE)  # One-shot, 64-bit
 
             config_addr = HPETRegisterMap.get_timer_config_addr(timer_id)
@@ -332,15 +330,20 @@ class HPETMediumTests:
             await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_LO, 0x00000000)
             await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_HI, 0x00000000)
 
-            # Reset all timers to clear state from previous tests
+            # Reset all timers to clear state from previous tests. Halt the
+            # counter first: a comparator write only re-arms while
+            # hpet_enable = 0 (RLB/hpet TASK-006 -- block-wide, not per-timer).
+            await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000000)
             for timer_id in range(self.tb.NUM_TIMERS):
                 config_addr = HPETRegisterMap.get_timer_config_addr(timer_id)
                 comp_lo_addr = HPETRegisterMap.get_timer_comp_lo_addr(timer_id)
                 comp_hi_addr = HPETRegisterMap.get_timer_comp_hi_addr(timer_id)
 
-                # Disable timer and clear configuration
+                # Clear the timer's config, then reset its comparator. The
+                # counter must be HALTED for the comparator write to re-arm
+                # (RLB/hpet TASK-006: clearing TN_CONF is not a per-timer
+                # stop -- the spec defines none), so halt it once below.
                 await self.tb.write_register(config_addr, 0x00000000)
-                # Reset comparator to 0 (triggers write strobe)
                 await self.tb.write_register(comp_lo_addr, 0x00000000)
                 await self.tb.write_register(comp_hi_addr, 0x00000000)
 
@@ -352,8 +355,7 @@ class HPETMediumTests:
                 # Different periods for each timer
                 period = 300 + (timer_id * 200)  # 300, 500, 700, etc.
 
-                timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                            (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
+                timer_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
                             (0 << HPETRegisterMap.TIMER_TYPE)  # One-shot
 
                 config_addr = HPETRegisterMap.get_timer_config_addr(timer_id)
@@ -434,8 +436,7 @@ class HPETMediumTests:
             comparator_value = 200
             await self.tb.write_register(comp_lo_addr, comparator_value)
 
-            one_shot_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                            (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
+            one_shot_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
                             (0 << HPETRegisterMap.TIMER_TYPE)  # One-shot
 
             await self.tb.write_register(config_addr, one_shot_config)
@@ -467,8 +468,7 @@ class HPETMediumTests:
             periodic_comparator = 300
             await self.tb.write_register(comp_lo_addr, periodic_comparator)
 
-            periodic_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                            (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
+            periodic_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
                             (1 << HPETRegisterMap.TIMER_TYPE)  # Periodic
 
             await self.tb.write_register(config_addr, periodic_config)
@@ -523,8 +523,7 @@ class HPETMediumTests:
         await self.tb.write_register(comp_lo_addr, comparator & 0xFFFFFFFF)
         await self.tb.write_register(comp_hi_addr, 0x00000000)
 
-        timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                    ((1 << HPETRegisterMap.TIMER_INT_ENABLE) if int_enable else 0) | \
+        timer_config = ((1 << HPETRegisterMap.TIMER_INT_ENABLE) if int_enable else 0) | \
                     ((1 << HPETRegisterMap.TIMER_TYPE) if periodic else 0)
         await self.tb.write_register(config_addr, timer_config)
 
@@ -930,7 +929,8 @@ class HPETMediumTests:
 
         RTL today (hpet_core.sv): `w_timer_fire = w_timer_match &
         ~r_timer_match_prev`, and `w_timer_match` is forced to 0 whenever
-        `timer_enable[i] && hpet_enable` is false. There is no
+        `hpet_enable` is false -- RLB/hpet TASK-006 removed the per-timer
+        enable, which the published spec does not define. There is no
         already-fired latch, so disabling (either signal) drops match to 0,
         and re-enabling with the counter still past the comparator creates
         a fresh 0->1 edge on match -- a brand new fire pulse. This is
@@ -1444,9 +1444,11 @@ class HPETMediumTests:
         target (0x2_00000000) is far beyond what the counter reaches in
         this test.
 
-        A documented-flow leg follows in the same test: disable the timer,
-        write BOTH halves of a reachable comparator, re-enable -- the timer
-        must still arm and fire normally.
+        A documented-flow leg follows in the same test: HALT THE COUNTER
+        (hpet_enable = 0 -- RLB/hpet TASK-006 removed the per-timer enable,
+        which the published spec does not define), write BOTH halves of a
+        reachable comparator, restart -- the timer must still arm and fire
+        normally.
         """
         timer_id = 0
         self.log.info("=== issue #46 review: live 64-bit comparator reprogram must not tear ===")
@@ -1468,9 +1470,7 @@ class HPETMediumTests:
             initial_comparator = 5
             await self.tb.write_register(comp_lo_addr, initial_comparator)
             await self.tb.write_register(comp_hi_addr, 0x00000000)
-            timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                        (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
-                        (1 << HPETRegisterMap.TIMER_SIZE)
+            timer_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE)  # 64-bit = TIMER_32MODE clear
             await self.tb.write_register(config_addr, timer_config)
 
             await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000001)
@@ -1764,7 +1764,9 @@ class HPETMediumTests:
     async def test_periodic_advance_overflow_no_lockup(self) -> bool:
         """issue #46 review round_2, hole #2: catch-up's advance-by-period
         addition is a full 64-bit adder with NO width awareness, so in
-        32-bit compare mode (timer_size=0) an advance that overflows 32
+        32-bit compare mode (internal `timer_size=0`, which software selects
+        by SETTING the register's `timer_32mode` bit -- the spec field forces
+        32-bit, so its polarity is inverted) an advance that overflows 32
         bits carries straight into comparator[63:32] -- corrupting a field
         the 32-bit-mode comparison never even reads -- and there is
         currently no per-timer "this comparator now belongs to the next
@@ -1849,8 +1851,9 @@ class HPETMediumTests:
             comp_hi_addr = HPETRegisterMap.get_timer_comp_hi_addr(timer_id)
             await self.tb.write_register(comp_lo_addr, comparator_start)
             await self.tb.write_register(comp_hi_addr, 0x00000000)
-            # TIMER_SIZE left 0 -> 32-bit compare mode.
-            timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
+            # 32-bit compare mode: the spec bit FORCES 32-bit, so it must be
+            # SET here. The old TIMER_SIZE achieved this by being left 0.
+            timer_config = (1 << HPETRegisterMap.TIMER_32MODE) | \
                         (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
                         (1 << HPETRegisterMap.TIMER_TYPE)
             await self.tb.write_register(config_addr, timer_config)
@@ -2137,8 +2140,11 @@ class HPETMediumTests:
             comp_hi_addr = HPETRegisterMap.get_timer_comp_hi_addr(timer_id)
             await self.tb.write_register(comp_lo_addr, comparator_start)
             await self.tb.write_register(comp_hi_addr, 0x00000000)
-            # TIMER_SIZE left 0 -> 32-bit compare mode.
-            timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) |                         (1 << HPETRegisterMap.TIMER_INT_ENABLE) |                         (1 << HPETRegisterMap.TIMER_TYPE)
+            # 32-bit compare mode: the spec bit FORCES 32-bit, so it must be
+            # SET here. The old TIMER_SIZE achieved this by being left 0.
+            timer_config = (1 << HPETRegisterMap.TIMER_32MODE) | \
+                           (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
+                           (1 << HPETRegisterMap.TIMER_TYPE)
             await self.tb.write_register(config_addr, timer_config)
             await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000001)
 
@@ -2296,7 +2302,9 @@ class HPETMediumTests:
             comp_hi_addr = HPETRegisterMap.get_timer_comp_hi_addr(timer_id)
             await self.tb.write_register(comp_lo_addr, comp_lo_val)
             await self.tb.write_register(comp_hi_addr, comp_hi_val)
-            timer_config64 = (1 << HPETRegisterMap.TIMER_ENABLE) |                           (1 << HPETRegisterMap.TIMER_INT_ENABLE) |                           (1 << HPETRegisterMap.TIMER_TYPE) |                           (1 << HPETRegisterMap.TIMER_SIZE)  # periodic, 64-bit
+            # periodic; 64-bit is TIMER_32MODE CLEAR (spec inverts TIMER_SIZE)
+            timer_config64 = (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
+                             (1 << HPETRegisterMap.TIMER_TYPE)
             await self.tb.write_register(config_addr, timer_config64)
             await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000001)
 
@@ -2384,15 +2392,20 @@ class HPETMediumTests:
         Leg A (documented flow -- disable before reprogramming): a
         64-bit-mode one-shot TIMER0 has already fired once (counter
         ~0x0000_0003_0000_0005, old comparator 0x0000_0003_0000_0000,
-        armed clear, status cleared). TIMER0 is disabled (TIMER_ENABLE
-        cleared), LO is written to 0xFFFF_FFFF then HI to 2 (final
+        armed clear, status cleared). The COUNTER IS HALTED (hpet_enable
+        cleared -- RLB/hpet TASK-006 removed the per-timer enable, which the
+        published spec does not define), LO is written to 0xFFFF_FFFF then HI
+        to 2 (final
         0x0000_0002_FFFF_FFFF -- BELOW the live counter), and the timer is
         re-enabled.
 
-        CONTRACT (decided): a comparator write while the timer is stopped
-        ALWAYS re-arms it (module header rule A3), whatever value is
-        written. A value at or below the counter is therefore due
-        immediately once the timer is (re-)enabled -- consistent with the
+        CONTRACT (decided): a comparator write while THE COUNTER IS HALTED
+        (hpet_enable = 0) ALWAYS re-arms the timer (module header rule A3),
+        whatever value is written. RLB/hpet TASK-006 made this block-wide:
+        the published spec defines no per-timer run enable, so clearing
+        TN_CONF does NOT stop a timer and does not enable the re-arm.
+        A value at or below the counter is therefore due
+        immediately once the counter restarts -- consistent with the
         >= match used everywhere else in this block, and with every
         deficit case exercised by the other tests in this file. There is
         no "waits for wrap" reading: "program it and it goes off
@@ -2432,9 +2445,7 @@ class HPETMediumTests:
         config_addr = HPETRegisterMap.get_timer_config_addr(timer_id)
         comp_lo_addr = HPETRegisterMap.get_timer_comp_lo_addr(timer_id)
         comp_hi_addr = HPETRegisterMap.get_timer_comp_hi_addr(timer_id)
-        timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                    (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
-                    (1 << HPETRegisterMap.TIMER_SIZE)  # 64-bit mode, one-shot
+        timer_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE)  # one-shot; 64-bit = TIMER_32MODE clear
 
         async def _clear_and_wait(deadline_cycles: int = 20) -> None:
             await self.tb.write_register(HPETRegisterMap.HPET_STATUS, 1 << timer_id)
@@ -2461,12 +2472,17 @@ class HPETMediumTests:
                 return False
             await _clear_and_wait()
 
-            # ---- Leg A part 1: disable, LOWER below the live counter, re-enable. ----
-            await self.tb.write_register(config_addr, 0x00000000)
+            # ---- Leg A part 1: HALT THE COUNTER, LOWER below the live
+            #      counter, restart. RLB/hpet TASK-006 removed the per-timer
+            #      enable (the published spec defines none), so "stopped" is
+            #      now hpet_enable = 0 -- clearing TN_CONF alone leaves
+            #      w_timer_running high and the A3 re-arm never fires. ----
+            await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000000)
             below_hi, below_lo = 0x00000002, 0xFFFFFFFF
             await self.tb.write_register(comp_lo_addr, below_lo)
             await self.tb.write_register(comp_hi_addr, below_hi)
             await self.tb.write_register(config_addr, timer_config)
+            await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000001)
 
             below_window_ns = self.tb.CORE_CLOCK_PERIOD * 50
             fired_below = await self._wait_for_fire(timer_id, below_window_ns)
@@ -2494,15 +2510,16 @@ class HPETMediumTests:
                     passed = False
                     await _clear_and_wait()
 
-            # ---- Leg A part 2: disable, reset counter, RAISE to a small
-            #      reachable value above it, re-enable -- must fire once. ----
-            await self.tb.write_register(config_addr, 0x00000000)
+            # ---- Leg A part 2: HALT THE COUNTER, reset it, RAISE to a small
+            #      reachable value above it, restart -- must fire once. ----
+            await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000000)
             await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_LO, 0x00000000)
             await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_HI, 0x00000000)
             above_comparator = 40
             await self.tb.write_register(comp_lo_addr, above_comparator)
             await self.tb.write_register(comp_hi_addr, 0x00000000)
             await self.tb.write_register(config_addr, timer_config)
+            await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000001)
 
             above_window_ns = self.tb.CORE_CLOCK_PERIOD * (above_comparator + 50)
             fired_above = await self._wait_for_fire(timer_id, above_window_ns)

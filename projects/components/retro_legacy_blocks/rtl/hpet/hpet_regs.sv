@@ -67,16 +67,16 @@ module hpet_regs (
     //--------------------------------------------------------------------------
     typedef struct {
         logic HPET_ID;
+        logic HPET_PERIOD;
         logic HPET_CONFIG;
         logic HPET_STATUS;
-        logic RESERVED_0C;
         logic HPET_COUNTER_LO;
         logic HPET_COUNTER_HI;
         struct {
             logic TIMER_CONFIG;
+            logic TIMER_INT_ROUTE_CAP;
             logic TIMER_COMPARATOR_LO;
             logic TIMER_COMPARATOR_HI;
-            logic RESERVED;
         } TIMER[8];
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
@@ -87,16 +87,16 @@ module hpet_regs (
 
     always_comb begin
         decoded_reg_strb.HPET_ID = cpuif_req_masked & (cpuif_addr == 9'h0);
-        decoded_reg_strb.HPET_CONFIG = cpuif_req_masked & (cpuif_addr == 9'h4);
-        decoded_reg_strb.HPET_STATUS = cpuif_req_masked & (cpuif_addr == 9'h8);
-        decoded_reg_strb.RESERVED_0C = cpuif_req_masked & (cpuif_addr == 9'hc);
-        decoded_reg_strb.HPET_COUNTER_LO = cpuif_req_masked & (cpuif_addr == 9'h10);
-        decoded_reg_strb.HPET_COUNTER_HI = cpuif_req_masked & (cpuif_addr == 9'h14);
+        decoded_reg_strb.HPET_PERIOD = cpuif_req_masked & (cpuif_addr == 9'h4);
+        decoded_reg_strb.HPET_CONFIG = cpuif_req_masked & (cpuif_addr == 9'h10);
+        decoded_reg_strb.HPET_STATUS = cpuif_req_masked & (cpuif_addr == 9'h20);
+        decoded_reg_strb.HPET_COUNTER_LO = cpuif_req_masked & (cpuif_addr == 9'hf0);
+        decoded_reg_strb.HPET_COUNTER_HI = cpuif_req_masked & (cpuif_addr == 9'hf4);
         for(int i0=0; i0<8; i0++) begin
             decoded_reg_strb.TIMER[i0].TIMER_CONFIG = cpuif_req_masked & (cpuif_addr == 9'h100 + (9)'(i0) * 9'h20);
-            decoded_reg_strb.TIMER[i0].TIMER_COMPARATOR_LO = cpuif_req_masked & (cpuif_addr == 9'h104 + (9)'(i0) * 9'h20);
-            decoded_reg_strb.TIMER[i0].TIMER_COMPARATOR_HI = cpuif_req_masked & (cpuif_addr == 9'h108 + (9)'(i0) * 9'h20);
-            decoded_reg_strb.TIMER[i0].RESERVED = cpuif_req_masked & (cpuif_addr == 9'h10c + (9)'(i0) * 9'h20);
+            decoded_reg_strb.TIMER[i0].TIMER_INT_ROUTE_CAP = cpuif_req_masked & (cpuif_addr == 9'h104 + (9)'(i0) * 9'h20);
+            decoded_reg_strb.TIMER[i0].TIMER_COMPARATOR_LO = cpuif_req_masked & (cpuif_addr == 9'h108 + (9)'(i0) * 9'h20);
+            decoded_reg_strb.TIMER[i0].TIMER_COMPARATOR_HI = cpuif_req_masked & (cpuif_addr == 9'h10c + (9)'(i0) * 9'h20);
         end
     end
 
@@ -143,7 +143,7 @@ module hpet_regs (
                 struct {
                     logic next;
                     logic load_next;
-                } timer_enable;
+                } timer_int_type;
                 struct {
                     logic next;
                     logic load_next;
@@ -155,11 +155,19 @@ module hpet_regs (
                 struct {
                     logic next;
                     logic load_next;
-                } timer_size;
+                } timer_value_set;
                 struct {
                     logic next;
                     logic load_next;
-                } timer_value_set;
+                } timer_32mode;
+                struct {
+                    logic [4:0] next;
+                    logic load_next;
+                } timer_int_route;
+                struct {
+                    logic next;
+                    logic load_next;
+                } timer_fsb_en;
             } TIMER_CONFIG;
             struct {
                 struct {
@@ -205,7 +213,7 @@ module hpet_regs (
             struct {
                 struct {
                     logic value;
-                } timer_enable;
+                } timer_int_type;
                 struct {
                     logic value;
                 } timer_int_enable;
@@ -214,10 +222,16 @@ module hpet_regs (
                 } timer_type;
                 struct {
                     logic value;
-                } timer_size;
+                } timer_value_set;
                 struct {
                     logic value;
-                } timer_value_set;
+                } timer_32mode;
+                struct {
+                    logic [4:0] value;
+                } timer_int_route;
+                struct {
+                    logic value;
+                } timer_fsb_en;
             } TIMER_CONFIG;
             struct {
                 struct {
@@ -360,29 +374,29 @@ module hpet_regs (
     assign hwif_out.HPET_COUNTER_HI.counter_hi.value = field_storage.HPET_COUNTER_HI.counter_hi.value;
     assign hwif_out.HPET_COUNTER_HI.counter_hi.swmod = decoded_reg_strb.HPET_COUNTER_HI && decoded_req_is_wr && |(decoded_wr_biten[31:0]);
     for(genvar i0=0; i0<8; i0++) begin
-        // Field: hpet_regs.TIMER[].TIMER_CONFIG.timer_enable
+        // Field: hpet_regs.TIMER[].TIMER_CONFIG.timer_int_type
         always_comb begin
             automatic logic [0:0] next_c;
             automatic logic load_next_c;
-            next_c = field_storage.TIMER[i0].TIMER_CONFIG.timer_enable.value;
+            next_c = field_storage.TIMER[i0].TIMER_CONFIG.timer_int_type.value;
             load_next_c = '0;
             if(decoded_reg_strb.TIMER[i0].TIMER_CONFIG && decoded_req_is_wr) begin // SW write
-                next_c = (field_storage.TIMER[i0].TIMER_CONFIG.timer_enable.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+                next_c = (field_storage.TIMER[i0].TIMER_CONFIG.timer_int_type.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
                 load_next_c = '1;
             end
-            field_combo.TIMER[i0].TIMER_CONFIG.timer_enable.next = next_c;
-            field_combo.TIMER[i0].TIMER_CONFIG.timer_enable.load_next = load_next_c;
+            field_combo.TIMER[i0].TIMER_CONFIG.timer_int_type.next = next_c;
+            field_combo.TIMER[i0].TIMER_CONFIG.timer_int_type.load_next = load_next_c;
         end
         always_ff @(posedge clk) begin
             if(rst) begin
-                field_storage.TIMER[i0].TIMER_CONFIG.timer_enable.value <= 1'h0;
+                field_storage.TIMER[i0].TIMER_CONFIG.timer_int_type.value <= 1'h0;
             end else begin
-                if(field_combo.TIMER[i0].TIMER_CONFIG.timer_enable.load_next) begin
-                    field_storage.TIMER[i0].TIMER_CONFIG.timer_enable.value <= field_combo.TIMER[i0].TIMER_CONFIG.timer_enable.next;
+                if(field_combo.TIMER[i0].TIMER_CONFIG.timer_int_type.load_next) begin
+                    field_storage.TIMER[i0].TIMER_CONFIG.timer_int_type.value <= field_combo.TIMER[i0].TIMER_CONFIG.timer_int_type.next;
                 end
             end
         end
-        assign hwif_out.TIMER[i0].TIMER_CONFIG.timer_enable.value = field_storage.TIMER[i0].TIMER_CONFIG.timer_enable.value;
+        assign hwif_out.TIMER[i0].TIMER_CONFIG.timer_int_type.value = field_storage.TIMER[i0].TIMER_CONFIG.timer_int_type.value;
         // Field: hpet_regs.TIMER[].TIMER_CONFIG.timer_int_enable
         always_comb begin
             automatic logic [0:0] next_c;
@@ -390,7 +404,7 @@ module hpet_regs (
             next_c = field_storage.TIMER[i0].TIMER_CONFIG.timer_int_enable.value;
             load_next_c = '0;
             if(decoded_reg_strb.TIMER[i0].TIMER_CONFIG && decoded_req_is_wr) begin // SW write
-                next_c = (field_storage.TIMER[i0].TIMER_CONFIG.timer_int_enable.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+                next_c = (field_storage.TIMER[i0].TIMER_CONFIG.timer_int_enable.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
                 load_next_c = '1;
             end
             field_combo.TIMER[i0].TIMER_CONFIG.timer_int_enable.next = next_c;
@@ -413,7 +427,7 @@ module hpet_regs (
             next_c = field_storage.TIMER[i0].TIMER_CONFIG.timer_type.value;
             load_next_c = '0;
             if(decoded_reg_strb.TIMER[i0].TIMER_CONFIG && decoded_req_is_wr) begin // SW write
-                next_c = (field_storage.TIMER[i0].TIMER_CONFIG.timer_type.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+                next_c = (field_storage.TIMER[i0].TIMER_CONFIG.timer_type.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
                 load_next_c = '1;
             end
             field_combo.TIMER[i0].TIMER_CONFIG.timer_type.next = next_c;
@@ -429,29 +443,6 @@ module hpet_regs (
             end
         end
         assign hwif_out.TIMER[i0].TIMER_CONFIG.timer_type.value = field_storage.TIMER[i0].TIMER_CONFIG.timer_type.value;
-        // Field: hpet_regs.TIMER[].TIMER_CONFIG.timer_size
-        always_comb begin
-            automatic logic [0:0] next_c;
-            automatic logic load_next_c;
-            next_c = field_storage.TIMER[i0].TIMER_CONFIG.timer_size.value;
-            load_next_c = '0;
-            if(decoded_reg_strb.TIMER[i0].TIMER_CONFIG && decoded_req_is_wr) begin // SW write
-                next_c = (field_storage.TIMER[i0].TIMER_CONFIG.timer_size.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
-                load_next_c = '1;
-            end
-            field_combo.TIMER[i0].TIMER_CONFIG.timer_size.next = next_c;
-            field_combo.TIMER[i0].TIMER_CONFIG.timer_size.load_next = load_next_c;
-        end
-        always_ff @(posedge clk) begin
-            if(rst) begin
-                field_storage.TIMER[i0].TIMER_CONFIG.timer_size.value <= 1'h0;
-            end else begin
-                if(field_combo.TIMER[i0].TIMER_CONFIG.timer_size.load_next) begin
-                    field_storage.TIMER[i0].TIMER_CONFIG.timer_size.value <= field_combo.TIMER[i0].TIMER_CONFIG.timer_size.next;
-                end
-            end
-        end
-        assign hwif_out.TIMER[i0].TIMER_CONFIG.timer_size.value = field_storage.TIMER[i0].TIMER_CONFIG.timer_size.value;
         // Field: hpet_regs.TIMER[].TIMER_CONFIG.timer_value_set
         always_comb begin
             automatic logic [0:0] next_c;
@@ -475,6 +466,75 @@ module hpet_regs (
             end
         end
         assign hwif_out.TIMER[i0].TIMER_CONFIG.timer_value_set.value = field_storage.TIMER[i0].TIMER_CONFIG.timer_value_set.value;
+        // Field: hpet_regs.TIMER[].TIMER_CONFIG.timer_32mode
+        always_comb begin
+            automatic logic [0:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.TIMER[i0].TIMER_CONFIG.timer_32mode.value;
+            load_next_c = '0;
+            if(decoded_reg_strb.TIMER[i0].TIMER_CONFIG && decoded_req_is_wr) begin // SW write
+                next_c = (field_storage.TIMER[i0].TIMER_CONFIG.timer_32mode.value & ~decoded_wr_biten[8:8]) | (decoded_wr_data[8:8] & decoded_wr_biten[8:8]);
+                load_next_c = '1;
+            end
+            field_combo.TIMER[i0].TIMER_CONFIG.timer_32mode.next = next_c;
+            field_combo.TIMER[i0].TIMER_CONFIG.timer_32mode.load_next = load_next_c;
+        end
+        always_ff @(posedge clk) begin
+            if(rst) begin
+                field_storage.TIMER[i0].TIMER_CONFIG.timer_32mode.value <= 1'h0;
+            end else begin
+                if(field_combo.TIMER[i0].TIMER_CONFIG.timer_32mode.load_next) begin
+                    field_storage.TIMER[i0].TIMER_CONFIG.timer_32mode.value <= field_combo.TIMER[i0].TIMER_CONFIG.timer_32mode.next;
+                end
+            end
+        end
+        assign hwif_out.TIMER[i0].TIMER_CONFIG.timer_32mode.value = field_storage.TIMER[i0].TIMER_CONFIG.timer_32mode.value;
+        // Field: hpet_regs.TIMER[].TIMER_CONFIG.timer_int_route
+        always_comb begin
+            automatic logic [4:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.TIMER[i0].TIMER_CONFIG.timer_int_route.value;
+            load_next_c = '0;
+            if(decoded_reg_strb.TIMER[i0].TIMER_CONFIG && decoded_req_is_wr) begin // SW write
+                next_c = (field_storage.TIMER[i0].TIMER_CONFIG.timer_int_route.value & ~decoded_wr_biten[13:9]) | (decoded_wr_data[13:9] & decoded_wr_biten[13:9]);
+                load_next_c = '1;
+            end
+            field_combo.TIMER[i0].TIMER_CONFIG.timer_int_route.next = next_c;
+            field_combo.TIMER[i0].TIMER_CONFIG.timer_int_route.load_next = load_next_c;
+        end
+        always_ff @(posedge clk) begin
+            if(rst) begin
+                field_storage.TIMER[i0].TIMER_CONFIG.timer_int_route.value <= 5'h0;
+            end else begin
+                if(field_combo.TIMER[i0].TIMER_CONFIG.timer_int_route.load_next) begin
+                    field_storage.TIMER[i0].TIMER_CONFIG.timer_int_route.value <= field_combo.TIMER[i0].TIMER_CONFIG.timer_int_route.next;
+                end
+            end
+        end
+        assign hwif_out.TIMER[i0].TIMER_CONFIG.timer_int_route.value = field_storage.TIMER[i0].TIMER_CONFIG.timer_int_route.value;
+        // Field: hpet_regs.TIMER[].TIMER_CONFIG.timer_fsb_en
+        always_comb begin
+            automatic logic [0:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.TIMER[i0].TIMER_CONFIG.timer_fsb_en.value;
+            load_next_c = '0;
+            if(decoded_reg_strb.TIMER[i0].TIMER_CONFIG && decoded_req_is_wr) begin // SW write
+                next_c = (field_storage.TIMER[i0].TIMER_CONFIG.timer_fsb_en.value & ~decoded_wr_biten[14:14]) | (decoded_wr_data[14:14] & decoded_wr_biten[14:14]);
+                load_next_c = '1;
+            end
+            field_combo.TIMER[i0].TIMER_CONFIG.timer_fsb_en.next = next_c;
+            field_combo.TIMER[i0].TIMER_CONFIG.timer_fsb_en.load_next = load_next_c;
+        end
+        always_ff @(posedge clk) begin
+            if(rst) begin
+                field_storage.TIMER[i0].TIMER_CONFIG.timer_fsb_en.value <= 1'h0;
+            end else begin
+                if(field_combo.TIMER[i0].TIMER_CONFIG.timer_fsb_en.load_next) begin
+                    field_storage.TIMER[i0].TIMER_CONFIG.timer_fsb_en.value <= field_combo.TIMER[i0].TIMER_CONFIG.timer_fsb_en.next;
+                end
+            end
+        end
+        assign hwif_out.TIMER[i0].TIMER_CONFIG.timer_fsb_en.value = field_storage.TIMER[i0].TIMER_CONFIG.timer_fsb_en.value;
         // Field: hpet_regs.TIMER[].TIMER_COMPARATOR_LO.timer_comp_lo
         always_comb begin
             automatic logic [31:0] next_c;
@@ -548,33 +608,37 @@ module hpet_regs (
 
     // Assign readback values to a flattened array
     logic [31:0] readback_array[38];
-    assign readback_array[0][4:0] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 5'h0 : '0;
-    assign readback_array[0][5:5] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h0 : '0;
-    assign readback_array[0][6:6] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h0 : '0;
-    assign readback_array[0][7:7] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h1 : '0;
+    assign readback_array[0][7:0] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? hwif_in.HPET_ID.rev_id.next : '0;
     assign readback_array[0][12:8] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? hwif_in.HPET_ID.num_tim_cap.next : '0;
-    assign readback_array[0][15:13] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 3'h0 : '0;
-    assign readback_array[0][23:16] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? hwif_in.HPET_ID.rev_id.next : '0;
-    assign readback_array[0][31:24] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? hwif_in.HPET_ID.vendor_id.next : '0;
-    assign readback_array[1][0:0] = (decoded_reg_strb.HPET_CONFIG && !decoded_req_is_wr) ? field_storage.HPET_CONFIG.hpet_enable.value : '0;
-    assign readback_array[1][1:1] = (decoded_reg_strb.HPET_CONFIG && !decoded_req_is_wr) ? field_storage.HPET_CONFIG.legacy_replacement.value : '0;
-    assign readback_array[1][31:2] = (decoded_reg_strb.HPET_CONFIG && !decoded_req_is_wr) ? 30'h0 : '0;
-    assign readback_array[2][7:0] = (decoded_reg_strb.HPET_STATUS && !decoded_req_is_wr) ? field_storage.HPET_STATUS.timer_int_status.value : '0;
-    assign readback_array[2][31:8] = (decoded_reg_strb.HPET_STATUS && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[3][31:0] = (decoded_reg_strb.RESERVED_0C && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[0][13:13] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h1 : '0;
+    assign readback_array[0][14:14] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h0 : '0;
+    assign readback_array[0][15:15] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h0 : '0;
+    assign readback_array[0][31:16] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? hwif_in.HPET_ID.vendor_id.next : '0;
+    assign readback_array[1][31:0] = (decoded_reg_strb.HPET_PERIOD && !decoded_req_is_wr) ? hwif_in.HPET_PERIOD.counter_clk_period.next : '0;
+    assign readback_array[2][0:0] = (decoded_reg_strb.HPET_CONFIG && !decoded_req_is_wr) ? field_storage.HPET_CONFIG.hpet_enable.value : '0;
+    assign readback_array[2][1:1] = (decoded_reg_strb.HPET_CONFIG && !decoded_req_is_wr) ? field_storage.HPET_CONFIG.legacy_replacement.value : '0;
+    assign readback_array[2][31:2] = (decoded_reg_strb.HPET_CONFIG && !decoded_req_is_wr) ? 30'h0 : '0;
+    assign readback_array[3][7:0] = (decoded_reg_strb.HPET_STATUS && !decoded_req_is_wr) ? field_storage.HPET_STATUS.timer_int_status.value : '0;
+    assign readback_array[3][31:8] = (decoded_reg_strb.HPET_STATUS && !decoded_req_is_wr) ? 24'h0 : '0;
     assign readback_array[4][31:0] = (decoded_reg_strb.HPET_COUNTER_LO && !decoded_req_is_wr) ? field_storage.HPET_COUNTER_LO.counter_lo.value : '0;
     assign readback_array[5][31:0] = (decoded_reg_strb.HPET_COUNTER_HI && !decoded_req_is_wr) ? field_storage.HPET_COUNTER_HI.counter_hi.value : '0;
     for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 4 + 6][1:0] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? 2'h0 : '0;
-        assign readback_array[i0 * 4 + 6][2:2] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_CONFIG.timer_enable.value : '0;
-        assign readback_array[i0 * 4 + 6][3:3] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_CONFIG.timer_int_enable.value : '0;
-        assign readback_array[i0 * 4 + 6][4:4] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_CONFIG.timer_type.value : '0;
-        assign readback_array[i0 * 4 + 6][5:5] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_CONFIG.timer_size.value : '0;
+        assign readback_array[i0 * 4 + 6][0:0] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? 1'h0 : '0;
+        assign readback_array[i0 * 4 + 6][1:1] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_CONFIG.timer_int_type.value : '0;
+        assign readback_array[i0 * 4 + 6][2:2] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_CONFIG.timer_int_enable.value : '0;
+        assign readback_array[i0 * 4 + 6][3:3] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_CONFIG.timer_type.value : '0;
+        assign readback_array[i0 * 4 + 6][4:4] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? 1'h1 : '0;
+        assign readback_array[i0 * 4 + 6][5:5] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? 1'h1 : '0;
         assign readback_array[i0 * 4 + 6][6:6] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_CONFIG.timer_value_set.value : '0;
-        assign readback_array[i0 * 4 + 6][31:7] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? 25'h0 : '0;
-        assign readback_array[i0 * 4 + 7][31:0] = (decoded_reg_strb.TIMER[i0].TIMER_COMPARATOR_LO && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_COMPARATOR_LO.timer_comp_lo.value : '0;
-        assign readback_array[i0 * 4 + 8][31:0] = (decoded_reg_strb.TIMER[i0].TIMER_COMPARATOR_HI && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_COMPARATOR_HI.timer_comp_hi.value : '0;
-        assign readback_array[i0 * 4 + 9][31:0] = (decoded_reg_strb.TIMER[i0].RESERVED && !decoded_req_is_wr) ? 32'h0 : '0;
+        assign readback_array[i0 * 4 + 6][7:7] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? 1'h0 : '0;
+        assign readback_array[i0 * 4 + 6][8:8] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_CONFIG.timer_32mode.value : '0;
+        assign readback_array[i0 * 4 + 6][13:9] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_CONFIG.timer_int_route.value : '0;
+        assign readback_array[i0 * 4 + 6][14:14] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_CONFIG.timer_fsb_en.value : '0;
+        assign readback_array[i0 * 4 + 6][15:15] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? 1'h0 : '0;
+        assign readback_array[i0 * 4 + 6][31:16] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ? 16'h0 : '0;
+        assign readback_array[i0 * 4 + 7][31:0] = (decoded_reg_strb.TIMER[i0].TIMER_INT_ROUTE_CAP && !decoded_req_is_wr) ? 32'h0 : '0;
+        assign readback_array[i0 * 4 + 8][31:0] = (decoded_reg_strb.TIMER[i0].TIMER_COMPARATOR_LO && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_COMPARATOR_LO.timer_comp_lo.value : '0;
+        assign readback_array[i0 * 4 + 9][31:0] = (decoded_reg_strb.TIMER[i0].TIMER_COMPARATOR_HI && !decoded_req_is_wr) ? field_storage.TIMER[i0].TIMER_COMPARATOR_HI.timer_comp_hi.value : '0;
     end
 
     // Reduce the array

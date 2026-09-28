@@ -65,8 +65,7 @@ class HPETFullTests:
                 base_period = 200 + (timer_id * 100)
                 period = base_period + random.randint(-50, 50)  # Add some randomness
 
-                timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                            (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
+                timer_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
                             (int(is_periodic) << HPETRegisterMap.TIMER_TYPE)
 
                 config_addr = HPETRegisterMap.get_timer_config_addr(timer_id)
@@ -242,8 +241,7 @@ class HPETFullTests:
 
             # Configure timer for predictable firing
             period = 1000  # 1000 HPET clocks
-            timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                        (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
+            timer_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
                         (0 << HPETRegisterMap.TIMER_TYPE)  # One-shot
 
             config_addr = HPETRegisterMap.get_timer_config_addr(timer_id)
@@ -320,8 +318,7 @@ class HPETFullTests:
             await self.tb.write_register(comp_lo_addr, 0x00000000)  # Zero comparator
             await self.tb.write_register(comp_hi_addr, 0x00000000)
 
-            timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                        (1 << HPETRegisterMap.TIMER_INT_ENABLE)
+            timer_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE)
             await self.tb.write_register(config_addr, timer_config)
 
             # NOW enable HPET
@@ -368,17 +365,22 @@ class HPETFullTests:
             await self.tb.write_register(HPETRegisterMap.HPET_STATUS, 1 << timer_id)
             await self.tb.write_register(config_addr, 0x00000000)
 
-            # Test 3: Rapid enable/disable
-            self.log.info("Testing rapid timer enable/disable")
+            # Test 3: Rapid TN_CONF write cycling
+            # NOTE: this toggles the INTERRUPT enable,
+            # not a run enable -- RLB/hpet TASK-006 removed the per-timer
+            # enable because the published spec defines none, so the comparator
+            # stays live throughout. The assertion is only that the block does
+            # not hang under rapid register traffic, which still holds.
+            self.log.info("Testing rapid TN_CONF write cycling")
             rapid_cycles = 10
             for i in range(rapid_cycles):
-                await self.tb.write_register(config_addr, timer_config)  # Enable
+                await self.tb.write_register(config_addr, timer_config)  # int enable
                 await Timer(10, units="ns")
-                await self.tb.write_register(config_addr, 0x00000000)   # Disable
+                await self.tb.write_register(config_addr, 0x00000000)    # int mask
                 await Timer(10, units="ns")
 
             results.append(True)  # If we get here without hanging, it's a pass
-            self.log.info("Rapid enable/disable test completed")
+            self.log.info("Rapid TN_CONF write cycling completed")
 
             # Test 4: Invalid register addresses (if address space allows)
             self.log.info("Testing invalid register access")
@@ -446,8 +448,7 @@ class HPETFullTests:
 
             await self.tb.write_register(comp_lo_addr, small_period)
 
-            timer_config = (1 << HPETRegisterMap.TIMER_ENABLE) | \
-                        (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
+            timer_config = (1 << HPETRegisterMap.TIMER_INT_ENABLE) | \
                         (0 << HPETRegisterMap.TIMER_TYPE)  # One-shot
 
             resolution_start = get_sim_time('ns')
@@ -606,7 +607,7 @@ class HPETFullTests:
                 comp_lo_j = HPETRegisterMap.get_timer_comp_lo_addr(bit_j)
                 comp_hi_j = HPETRegisterMap.get_timer_comp_hi_addr(bit_j)
 
-                timer_cfg = (1 << HPETRegisterMap.TIMER_ENABLE) | (1 << HPETRegisterMap.TIMER_INT_ENABLE)
+                timer_cfg = (1 << HPETRegisterMap.TIMER_INT_ENABLE)
 
                 await self.tb.write_register(comp_lo_i, small)
                 await self.tb.write_register(comp_hi_i, 0x00000000)

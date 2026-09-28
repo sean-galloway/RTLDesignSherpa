@@ -60,15 +60,17 @@ from TBClasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
 class HPETRegisterMap:
     """HPET Register address definitions - fixed address space for 2-8 timers."""
 
-    # Global registers (fixed addresses)
-    HPET_ID = 0x000         # 0x000: Identification register
-    HPET_CONFIG = 0x004     # 0x004: Global configuration
-    HPET_STATUS = 0x008     # 0x008: Interrupt status
-    HPET_RESERVED = 0x00C   # 0x00C: Reserved
+    # Global registers, at the PUBLISHED SPEC offsets (RLB/hpet TASK-006).
+    # GCAP_ID is 64-bit: its low half is HPET_ID, its high half is the counter
+    # clock period, which is why the period sits at 0x004.
+    HPET_ID = 0x000         # GCAP_ID[31:0]  - identification + capabilities
+    HPET_PERIOD = 0x004     # GCAP_ID[63:32] - femtoseconds per counter tick, RO
+    HPET_CONFIG = 0x010     # GEN_CONF       - global configuration
+    HPET_STATUS = 0x020     # GINTR_STA      - interrupt status, W1C
 
-    # Main Counter (64-bit split into two 32-bit registers)
-    HPET_COUNTER_LO = 0x010 # 0x010: Counter low 32 bits
-    HPET_COUNTER_HI = 0x014 # 0x014: Counter high 32 bits
+    # Main Counter (64-bit, two 32-bit halves at the spec offset)
+    HPET_COUNTER_LO = 0x0F0 # MAIN_CNT[31:0]
+    HPET_COUNTER_HI = 0x0F4 # MAIN_CNT[63:32]
 
     # Timer base address (fixed layout)
     HPET_TIMER_BASE = 0x100 # 0x100: Timer registers start here
@@ -78,11 +80,22 @@ class HPETRegisterMap:
     CONFIG_ENABLE = 0
     CONFIG_LEGACY_REPLACEMENT = 1
 
-    TIMER_ENABLE = 2
-    TIMER_INT_ENABLE = 3
-    TIMER_TYPE = 4  # 0=one-shot, 1=periodic
-    TIMER_SIZE = 5  # 0=32-bit, 1=64-bit
+    # TN_CONF bits, at the PUBLISHED SPEC positions. There is deliberately NO
+    # TIMER_ENABLE: the spec defines no per-timer run enable -- a timer compares
+    # whenever the main counter runs, and TIMER_INT_ENABLE gates only the
+    # interrupt.
+    TIMER_INT_TYPE = 1       # 0=edge, 1=level (storage only in this core)
+    TIMER_INT_ENABLE = 2     # interrupt enable
+    TIMER_TYPE = 3           # 0=one-shot, 1=periodic
+    TIMER_PER_INT_CAP = 4    # READ-ONLY capability: periodic supported
+    TIMER_SIZE_CAP = 5       # READ-ONLY capability: 64-bit capable
     TIMER_VALUE_SET = 6
+    # NOTE THE POLARITY: 32MODE=1 FORCES 32-bit on a 64-bit timer, so 64-bit
+    # operation is this bit CLEAR. The old TIMER_SIZE meant the opposite.
+    TIMER_32MODE = 8
+    TIMER_INT_ROUTE_SHIFT = 9   # [13:9], storage until RLB/hpet TASK-003
+    TIMER_FSB_EN = 14        # storage only; FSB delivery is not implemented
+    TIMER_FSB_CAP = 15       # READ-ONLY capability: reads 0
 
     @classmethod
     def get_timer_config_addr(cls, timer_id: int) -> int:
@@ -91,18 +104,19 @@ class HPETRegisterMap:
 
     @classmethod
     def get_timer_comp_lo_addr(cls, timer_id: int) -> int:
-        """Get timer comparator low register address."""
-        return cls.HPET_TIMER_BASE + (timer_id * cls.TIMER_BLOCK_SIZE) + 0x4
-
-    @classmethod
-    def get_timer_comp_hi_addr(cls, timer_id: int) -> int:
-        """Get timer comparator high register address."""
+        """Get timer comparator low register address (spec: +0x08)."""
         return cls.HPET_TIMER_BASE + (timer_id * cls.TIMER_BLOCK_SIZE) + 0x8
 
     @classmethod
-    def get_timer_reserved_addr(cls, timer_id: int) -> int:
-        """Get timer reserved register address."""
+    def get_timer_comp_hi_addr(cls, timer_id: int) -> int:
+        """Get timer comparator high register address (spec: +0x0C)."""
         return cls.HPET_TIMER_BASE + (timer_id * cls.TIMER_BLOCK_SIZE) + 0xC
+
+    @classmethod
+    def get_timer_int_route_cap_addr(cls, timer_id: int) -> int:
+        """TN_CONF[63:32]: the legal-I/O-APIC-input bitmap. Reads 0 until
+        RLB/hpet TASK-003 implements routing."""
+        return cls.HPET_TIMER_BASE + (timer_id * cls.TIMER_BLOCK_SIZE) + 0x4
 
     @classmethod
     def get_required_addr_width(cls) -> int:
@@ -118,8 +132,8 @@ class HPETRegisterMap:
             return "HPET_CONFIG"
         elif addr == cls.HPET_STATUS:
             return "HPET_STATUS"
-        elif addr == cls.HPET_RESERVED:
-            return "HPET_RESERVED"
+        elif addr == cls.HPET_PERIOD:
+            return "HPET_PERIOD"
         elif addr == cls.HPET_COUNTER_LO:
             return "HPET_COUNTER_LO"
         elif addr == cls.HPET_COUNTER_HI:
@@ -133,8 +147,8 @@ class HPETRegisterMap:
                     return f"HPET_T{timer_id}_COMP_LO"
                 elif addr == cls.get_timer_comp_hi_addr(timer_id):
                     return f"HPET_T{timer_id}_COMP_HI"
-                elif addr == cls.get_timer_reserved_addr(timer_id):
-                    return f"HPET_T{timer_id}_RESERVED"
+                elif addr == cls.get_timer_int_route_cap_addr(timer_id):
+                    return f"HPET_T{timer_id}_INT_ROUTE_CAP"
 
         return f"UNKNOWN_0x{addr:02X}"
 
@@ -210,10 +224,10 @@ class HPETScoreboard:
             for timer_id in range(self.num_timers):
                 if addr == HPETRegisterMap.get_timer_config_addr(timer_id):
                     self.config_state[f'timer_{timer_id}'] = {
-                        'enable': bool(data & (1 << HPETRegisterMap.TIMER_ENABLE)),
                         'int_enable': bool(data & (1 << HPETRegisterMap.TIMER_INT_ENABLE)),
                         'type': bool(data & (1 << HPETRegisterMap.TIMER_TYPE)),  # 0=one-shot, 1=periodic
-                        'size': bool(data & (1 << HPETRegisterMap.TIMER_SIZE)),  # 0=32-bit, 1=64-bit
+                        # 64-bit is 32MODE CLEAR -- the spec bit forces 32-bit
+                        'size': not bool(data & (1 << HPETRegisterMap.TIMER_32MODE)),
                         'value_set': bool(data & (1 << HPETRegisterMap.TIMER_VALUE_SET))
                     }
                     break
@@ -388,6 +402,12 @@ class HPETTB(TBBase):
         # CORE_CLOCK_PERIOD is that domain's period -- tests that predict
         # exact fire timing (issue #46 races) use it instead of guessing.
         self.CDC_ENABLE = int(os.environ.get('TEST_CDC_ENABLE', '0'))
+        # GCAP_ID contents, mirrored from the RTL parameters so a test can
+        # assert the published-spec field positions (RLB/hpet TASK-006).
+        self.VENDOR_ID = int(os.environ.get('TEST_VENDOR_ID', '1'))
+        self.REVISION_ID = int(os.environ.get('TEST_REVISION_ID', '1'))
+        self.COUNTER_CLK_PERIOD_FS = int(
+            os.environ.get('TEST_COUNTER_CLK_PERIOD_FS', '10000000'))
         self.CORE_CLOCK_PERIOD = self.HPET_CLOCK_PERIOD if self.CDC_ENABLE else self.APB_CLOCK_PERIOD
 
         # Test configuration

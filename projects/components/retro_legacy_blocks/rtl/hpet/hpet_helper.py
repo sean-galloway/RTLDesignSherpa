@@ -24,8 +24,7 @@ Example Usage:
     hpet.enable_main_counter(True)
     
     # Configure timer 0 as periodic with 100ms period at 10MHz
-    hpet.configure_timer(timer_id=0, 
-                        enable=True,
+    hpet.configure_timer(timer_id=0,
                         periodic=True, 
                         size_64bit=True,
                         comparator_value=1000000)  # 100ms at 10MHz
@@ -114,8 +113,7 @@ class HPETHelper:
         self.reg_map.write('HPET_STATUS', 'timer_int_status', 1 << timer_id)
         self.log.info(f"Cleared interrupt for timer {timer_id}")
         
-    def configure_timer(self, timer_id: int, 
-                       enable: bool = True,
+    def configure_timer(self, timer_id: int,
                        interrupt_enable: bool = True,
                        periodic: bool = False,
                        size_64bit: bool = True,
@@ -125,8 +123,10 @@ class HPETHelper:
         
         Args:
             timer_id: Timer number (0-7)
-            enable: Enable the timer
-            interrupt_enable: Enable interrupt generation
+            interrupt_enable: Enable interrupt generation. There is NO per-timer
+                RUN enable -- the published spec defines none, so a timer
+                compares whenever the main counter runs (RLB/hpet TASK-006).
+                Halt HPET_CONFIG.hpet_enable to stop everything.
             periodic: True for periodic mode, False for one-shot
             size_64bit: True for 64-bit comparator, False for 32-bit
             comparator_value: Optional comparator value to set (64-bit)
@@ -138,10 +138,11 @@ class HPETHelper:
         config_reg = f"TIMER{timer_id}_TIMER_CONFIG"
         
         # Configure timer settings
-        self.reg_map.write(config_reg, 'timer_enable', 1 if enable else 0)
         self.reg_map.write(config_reg, 'timer_int_enable', 1 if interrupt_enable else 0)
         self.reg_map.write(config_reg, 'timer_type', 1 if periodic else 0)
-        self.reg_map.write(config_reg, 'timer_size', 1 if size_64bit else 0)
+        # POLARITY: timer_32mode = 1 FORCES 32-bit, so 64-bit is the bit CLEAR.
+        # The retired timer_size field meant the opposite.
+        self.reg_map.write(config_reg, 'timer_32mode', 0 if size_64bit else 1)
         
         # Set comparator if provided
         if comparator_value is not None:
@@ -183,7 +184,6 @@ class HPETHelper:
             period_ticks: Number of main counter ticks per period
         """
         self.configure_timer(timer_id=timer_id,
-                           enable=True,
                            interrupt_enable=True,
                            periodic=True,
                            size_64bit=True,
@@ -199,7 +199,6 @@ class HPETHelper:
             timeout_ticks: Number of main counter ticks until interrupt
         """
         self.configure_timer(timer_id=timer_id,
-                           enable=True,
                            interrupt_enable=True,
                            periodic=False,
                            size_64bit=True,
@@ -232,7 +231,8 @@ class HPETHelper:
         # Disable all timers
         for timer_id in range(self.num_timers):
             config_reg = f"TIMER{timer_id}_TIMER_CONFIG"
-            self.reg_map.write(config_reg, 'timer_enable', 0)
+            # No per-timer run enable exists; masking the interrupt is the
+            # per-timer quiesce, and hpet_enable halts the counter itself.
             self.reg_map.write(config_reg, 'timer_int_enable', 0)
             
         # Clear all interrupts

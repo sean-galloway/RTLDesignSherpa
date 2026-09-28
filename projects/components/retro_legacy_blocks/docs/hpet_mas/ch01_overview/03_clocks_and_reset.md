@@ -128,7 +128,8 @@ end
 | `HPET_STATUS` | 32'h0 | Mirror of the core's `r_interrupt_status`; both reset to 0 |
 | `HPET_COUNTER_LO` | 32'h0 | Read/write; reads return the live counter |
 | `HPET_COUNTER_HI` | 32'h0 | Read/write; reads return the live counter |
-| `HPET_ID` | Constant | RO identification: vendor/revision are the low byte of `VENDOR_ID`/`REVISION_ID`, `num_tim_cap` = NUM_TIMERS-1, `leg_rt_cap` = 0 |
+| `HPET_ID` | Constant | RO GCAP_ID[31:0]: `vendor_id` = VENDOR_ID (16 bits, [31:16]), `rev_id` = REVISION_ID ([7:0]), `num_tim_cap` = NUM_TIMERS-1 ([12:8]), `count_size_cap` = 1 ([13]), `leg_rt_cap` = 0 ([15]) |
+| `HPET_PERIOD` | Constant | RO GCAP_ID[63:32]: femtoseconds per counter tick, from `COUNTER_CLK_PERIOD_FS` |
 | `TIMER[i]_CONFIG` | 32'h0 | Timer disabled, one-shot mode |
 | `TIMER[i]_COMPARATOR_LO` | 32'h0 | Read/write; reads return the live comparator (includes the periodic advance) |
 | `TIMER[i]_COMPARATOR_HI` | 32'h0 | Read/write; reads return the live comparator (includes the periodic advance) |

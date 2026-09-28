@@ -34,7 +34,10 @@
 addrmap hpet_regs #(
     longint VENDOR_ID = 1,      // Vendor ID parameter
     longint REVISION_ID = 1,    // Revision ID parameter
-    longint NUM_TIMERS = 8      // Number of timers (2-8), generate with maximum
+    longint NUM_TIMERS = 8,     // Number of timers (2-8), generate with maximum
+    // GCAP_ID[63:32], femtoseconds per main-counter tick. Default 10 ns
+    // (100 MHz hpet_clk). Spec: non-zero and <= 0x05F5E100 (100 ns).
+    longint COUNTER_CLK_PERIOD_FS = 10000000
 ) {
     name = "HPET Configuration Registers";
     desc = "High Precision Event Timer configuration and status registers";
@@ -53,75 +56,94 @@ addrmap hpet_regs #(
         desc = "Contains vendor ID, revision, and capability information";
 
         field {
-            name = "Reserved";
-            desc = "Reserved bits";
+            name = "Revision ID";
+            desc = "GCAP_ID[7:0]. Implementation revision, driven from the
+                    REVISION_ID parameter so one generated regblock serves every
+                    instantiation.";
             sw = r;
-            hw = na;
-        } reserved_low[4:0] = 5'h0;
-
-        field {
-            name = "Legacy Replacement Capable";
-            desc = "Reports 0: this implementation has NO legacy replacement
-                    routing. HPET_CONFIG.legacy_replacement is storage that
-                    reaches no hardware, so advertising the capability here
-                    would be a lie a driver could act on. Set this to 1 only
-                    when the routing is actually implemented.";
-            sw = r;
-            hw = na;
-        } leg_rt_cap[5:5] = 1'b0;
-
-        field {
-            name = "Reserved";
-            desc = "Reserved bit";
-            sw = r;
-            hw = na;
-        } reserved_mid[6:6] = 1'b0;
-
-        field {
-            name = "Counter Size";
-            desc = "1 = 64-bit counter capable";
-            sw = r;
-            hw = na;
-        } count_size_cap[7:7] = 1'b1;
+            hw = w;
+            reset = REVISION_ID;
+        } rev_id[7:0];
 
         field {
             name = "Number of Timers";
-            desc = "Number of timers minus 1 (N-1)";
+            desc = "GCAP_ID[12:8]. Number of timers MINUS ONE (N-1).";
             sw = r;
             hw = w;
             reset = NUM_TIMERS - 1;
         } num_tim_cap[12:8];
 
         field {
-            name = "Reserved";
-            desc = "Reserved bits";
+            name = "Counter Size Capability";
+            desc = "GCAP_ID[13]. 1 = the main counter is 64 bits wide.";
             sw = r;
             hw = na;
-        } reserved_upper[15:13] = 3'h0;
+        } count_size_cap[13:13] = 1'b1;
 
         field {
-            name = "Revision ID";
-            desc = "Implementation revision identifier. Driven from the
-                    hpet_config_regs REVISION_ID parameter (low 8 bits) so a
-                    single generated regblock serves every instantiation.";
+            name = "Reserved";
+            desc = "GCAP_ID[14].";
             sw = r;
-            hw = w;
-            reset = REVISION_ID;
-        } rev_id[23:16];
+            hw = na;
+        } reserved_14[14:14] = 1'b0;
+
+        field {
+            name = "Legacy Replacement Capable";
+            desc = "GCAP_ID[15]. Reports 0: no legacy replacement routing is
+                    implemented, and HPET_CONFIG.legacy_replacement reaches no
+                    hardware. This bit position is load-bearing -- real drivers
+                    gate on it (FreeBSD: if ((caps & HPET_CAP_LEG_RT) == 0)
+                    legacy_route = 0), so a driver reading 0 here will not use
+                    legacy mode at all. Set to 1 only when RLB/hpet TASK-003
+                    implements the routing.";
+            sw = r;
+            hw = na;
+        } leg_rt_cap[15:15] = 1'b0;
 
         field {
             name = "Vendor ID";
-            desc = "Vendor identifier. Driven from the hpet_config_regs
-                    VENDOR_ID parameter (low 8 bits). NOTE: this field is 8
-                    bits wide, unlike the 16-bit vendor field of the real
-                    HPET GCAP_ID, so a wider parameter reads back truncated
-                    (e.g. VENDOR_ID=0x8086 reads 0x86).";
+            desc = "GCAP_ID[31:16]. Sixteen bits, per the spec, driven from the
+                    VENDOR_ID parameter -- so a PCI-style vendor such as 0x8086
+                    now reads back in full rather than truncated to its low
+                    byte.";
             sw = r;
             hw = w;
             reset = VENDOR_ID;
-        } vendor_id[31:24];
+        } vendor_id[31:16];
 
     } HPET_ID @ 0x000;
+
+    reg {
+        name = "HPET Counter Clock Period";
+        desc = "GCAP_ID[63:32] -- the main counter tick period in FEMTOSECONDS.
+                Not a separate register in the spec: it is the high half of the
+                64-bit capability register, which at a 32-bit access width lands
+                here at 0x004. Software derives frequency as 1e15 / period.
+
+                Driven from the COUNTER_CLK_PERIOD_FS parameter. The counter
+                ticks on CDC_ENABLE[0] ? hpet_clk : pclk, so an instantiation
+                MUST pass the period of whichever clock that is -- a wrong value
+                makes every software time conversion wrong while the hardware
+                looks correct.
+
+                Spec bounds: non-zero, and at most 0x05F5E100 (100_000_000 fs =
+                100 ns), i.e. a 10 MHz minimum counter frequency.";
+
+        field {
+            name = "Counter Clock Period";
+            desc = "Femtoseconds per main-counter tick. HARDWARE-DRIVEN (hw = w),
+                    not an RDL reset value: PeakRDL bakes RDL parameters into the
+                    generated package as localparams, so one regblock is built
+                    for every instantiation and a per-instance period could not
+                    come through that path. hpet_config_regs drives it from its
+                    own COUNTER_CLK_PERIOD_FS parameter, exactly as it drives
+                    num_tim_cap, rev_id and vendor_id.";
+            sw = r;
+            hw = w;
+            reset = COUNTER_CLK_PERIOD_FS;
+        } counter_clk_period[31:0];
+
+    } HPET_PERIOD @ 0x004;
 
     reg {
         name = "HPET Configuration Register";
@@ -148,7 +170,7 @@ addrmap hpet_regs #(
             hw = na;
         } reserved[31:2] = 30'h0;
 
-    } HPET_CONFIG @ 0x004;
+    } HPET_CONFIG @ 0x010;
 
     reg {
         name = "HPET Interrupt Status Register";
@@ -175,18 +197,10 @@ addrmap hpet_regs #(
             hw = na;
         } reserved[31:NUM_TIMERS] = 32'h0;
 
-    } HPET_STATUS @ 0x008;
+    } HPET_STATUS @ 0x020;
 
     // Reserved space
-    reg {
-        name = "Reserved";
-        desc = "Reserved register";
-        field {
-            sw = r;
-            hw = na;
-        } reserved[31:0] = 32'h0;
-    } RESERVED_0C @ 0x00C;
-
+    
     reg {
         name = "Main Counter Low";
         desc = "Main counter value - low 32 bits";
@@ -202,7 +216,7 @@ addrmap hpet_regs #(
             swmod;      // Write STROBE into hpet_core (issue #46 C3)
         } counter_lo[31:0] = 32'h0;
 
-    } HPET_COUNTER_LO @ 0x010;
+    } HPET_COUNTER_LO @ 0x0F0;
 
     reg {
         name = "Main Counter High";
@@ -219,7 +233,7 @@ addrmap hpet_regs #(
             swmod;      // Write STROBE into hpet_core (issue #46 C3)
         } counter_hi[31:0] = 32'h0;
 
-    } HPET_COUNTER_HI @ 0x014;
+    } HPET_COUNTER_HI @ 0x0F4;
 
     //========================================================================
     // Timer Registers (0x100-0x1FF)
@@ -238,59 +252,141 @@ addrmap hpet_regs #(
 
             field {
                 name = "Reserved";
-                desc = "Reserved bits";
+                desc = "TN_CONF[0].";
                 sw = r;
                 hw = na;
-            } reserved_low[1:0] = 2'b0;
+            } reserved_0[0:0] = 1'b0;
 
             field {
-                name = "Timer Enable";
-                desc = "Enable this timer";
+                name = "Interrupt Type";
+                desc = "TN_CONF[1]. 0 = edge-triggered, 1 = level-triggered.
+                        STORAGE ONLY: this core always delivers the sticky
+                        level-plus-W1C behaviour HPET_STATUS implements, so
+                        nothing consumes the bit. Kept at its spec position so a
+                        spec-written driver's write lands where it expects.";
                 sw = rw;
                 hw = r;
-            } timer_enable[2:2] = 1'b0;
+            } timer_int_type[1:1] = 1'b0;
 
             field {
-                name = "Timer Interrupt Enable";
-                desc = "Enable interrupt generation";
+                name = "Interrupt Enable";
+                desc = "TN_CONF[2]. 1 = a match on this timer raises its
+                        interrupt. This is the ONLY per-timer enable the spec
+                        defines: a timer's comparator is live whenever the main
+                        counter runs.";
                 sw = rw;
                 hw = r;
-            } timer_int_enable[3:3] = 1'b0;
+            } timer_int_enable[2:2] = 1'b0;
 
             field {
                 name = "Timer Type";
-                desc = "0=one-shot, 1=periodic";
+                desc = "TN_CONF[3]. 0 = one-shot, 1 = periodic.";
                 sw = rw;
                 hw = r;
-            } timer_type[4:4] = 1'b0;
+            } timer_type[3:3] = 1'b0;
 
             field {
-                name = "Timer Size";
-                desc = "0=32-bit, 1=64-bit";
-                sw = rw;
-                hw = r;
-            } timer_size[5:5] = 1'b0;
+                name = "Periodic Interrupt Capability";
+                desc = "TN_CONF[4], READ-ONLY. 1 = this timer supports periodic
+                        mode. Every timer here does.";
+                sw = r;
+                hw = na;
+            } per_int_cap[4:4] = 1'b1;
 
             field {
-                name = "Timer Value Set";
-                desc = "NOT IMPLEMENTED. Stored and readable, but no logic
-                        consumes it. On a real HPET this selects whether a
-                        periodic comparator write loads the accumulator or
-                        the period; this core always loads both, so the bit
-                        has nothing to select. Kept so the register layout
-                        matches the documented map.";
+                name = "Size Capability";
+                desc = "TN_CONF[5], READ-ONLY. 1 = this timer is 64-bit capable.";
+                sw = r;
+                hw = na;
+            } size_cap[5:5] = 1'b1;
+
+            field {
+                name = "Value Set";
+                desc = "TN_CONF[6]. NOT IMPLEMENTED -- stored and readable, but
+                        no logic consumes it. On a spec HPET this selects whether
+                        a periodic comparator write loads the accumulator or the
+                        period; this core always loads both, so the bit has
+                        nothing to select.";
                 sw = rw;
                 hw = r;
             } timer_value_set[6:6] = 1'b0;
 
             field {
                 name = "Reserved";
-                desc = "Reserved bits";
+                desc = "TN_CONF[7].";
                 sw = r;
                 hw = na;
-            } reserved_high[31:7] = 25'h0;
+            } reserved_7[7:7] = 1'b0;
+
+            field {
+                name = "32-bit Mode";
+                desc = "TN_CONF[8]. 1 = FORCE 32-bit operation on this 64-bit
+                        timer. NOTE THE POLARITY: the spec's sense is the inverse
+                        of the compare-width signal the core takes, so
+                        hpet_config_regs drives timer_size = ~timer_32mode.
+
+                        CONTRACT: change this only while the main counter is
+                        halted, and rewrite the comparator afterwards. The old
+                        width's comparator lattice is not the new width's.";
+                sw = rw;
+                hw = r;
+            } timer_32mode[8:8] = 1'b0;
+
+            field {
+                name = "Interrupt Route";
+                desc = "TN_CONF[13:9]. Which I/O APIC input this timer drives,
+                        as a bit NUMBER selected from TIMER_INT_ROUTE_CAP.
+                        STORAGE ONLY until RLB/hpet TASK-003 implements routing;
+                        TIMER_INT_ROUTE_CAP reads 0 meanwhile, so a driver that
+                        consults the capability first will not pick a route.";
+                sw = rw;
+                hw = r;
+            } timer_int_route[13:9] = 5'h0;
+
+            field {
+                name = "FSB Interrupt Enable";
+                desc = "TN_CONF[14]. STORAGE ONLY -- FSB (message) delivery is
+                        not implemented, which fsb_int_del_cap reports as 0.";
+                sw = rw;
+                hw = r;
+            } timer_fsb_en[14:14] = 1'b0;
+
+            field {
+                name = "FSB Interrupt Delivery Capability";
+                desc = "TN_CONF[15], READ-ONLY. 0 = no FSB/message delivery, so
+                        the spec's optional TN_FSB_VAL/TN_FSB_ADDR registers at
+                        +0x10/+0x14 are deliberately not implemented.";
+                sw = r;
+                hw = na;
+            } fsb_int_del_cap[15:15] = 1'b0;
+
+            field {
+                name = "Reserved";
+                desc = "TN_CONF[31:16].";
+                sw = r;
+                hw = na;
+            } reserved_high[31:16] = 16'h0;
 
         } TIMER_CONFIG @ 0x00;
+
+        reg {
+            name = "Timer Interrupt Route Capability";
+            desc = "TN_CONF[63:32]: bitmap of the I/O APIC inputs this timer may
+                    be routed to. READS 0 TODAY -- no routing is implemented, so
+                    advertising legal routes would be a lie a driver could act
+                    on. RLB/hpet TASK-003 sets this alongside
+                    HPET_ID.leg_rt_cap when the routing lands. Software selects
+                    a route by writing TIMER_CONFIG.timer_int_route with a bit
+                    number from this mask.";
+
+            field {
+                name = "Interrupt Route Capability";
+                desc = "One bit per legal I/O APIC input. 0 = none legal yet.";
+                sw = r;
+                hw = na;
+            } int_route_cap[31:0] = 32'h0;
+
+        } TIMER_INT_ROUTE_CAP @ 0x04;
 
         reg {
             name = "Timer Comparator Low";
@@ -319,7 +415,7 @@ addrmap hpet_regs #(
                 swmod;      // Write STROBE into hpet_core (issue #46 round_3)
             } timer_comp_lo[31:0] = 32'h0;
 
-        } TIMER_COMPARATOR_LO @ 0x04;
+        } TIMER_COMPARATOR_LO @ 0x08;
 
         reg {
             name = "Timer Comparator High";
@@ -348,17 +444,9 @@ addrmap hpet_regs #(
                 swmod;      // Write STROBE into hpet_core (issue #46 round_3)
             } timer_comp_hi[31:0] = 32'h0;
 
-        } TIMER_COMPARATOR_HI @ 0x08;
+        } TIMER_COMPARATOR_HI @ 0x0C;
 
-        reg {
-            name = "Reserved";
-            desc = "Reserved register";
-            field {
-                sw = r;
-                hw = na;
-            } reserved[31:0] = 32'h0;
-        } RESERVED @ 0x0C;
-
+        
     }; // timer_regfile
 
     // Instantiate timer register blocks for each timer

@@ -390,7 +390,7 @@ assign readback_array[5][31:0] = (decoded_reg_strb.HPET_COUNTER_HI && !decoded_r
 // Per-timer registers
 for(genvar i0=0; i0<8; i0++) begin
     assign readback_array[i0 * 4 + 6][2:2] = (decoded_reg_strb.TIMER[i0].TIMER_CONFIG && !decoded_req_is_wr) ?
-                                             field_storage.TIMER[i0].TIMER_CONFIG.timer_enable.value : '0;
+                                             field_storage.TIMER[i0].TIMER_CONFIG.timer_int_enable.value : '0;
     // ... additional timer fields ...
 end
 
@@ -487,11 +487,11 @@ addrmap hpet_regs {
         field {
             hw = w;              // Driven from the VENDOR_ID parameter
             sw = r;              // Software read-only
-        } vendor_id[31:24] = VENDOR_ID;   // 8-bit field: low byte only
+        } vendor_id[31:16] = VENDOR_ID;   // spec's full 16-bit vendor field
 
         field {
             hw = w; sw = r;      // Driven from the REVISION_ID parameter
-        } rev_id[23:16] = REVISION_ID;
+        } rev_id[7:0] = REVISION_ID;
 
         field {
             hw = w;              // Hardware controls value
@@ -515,7 +515,7 @@ addrmap hpet_regs {
             sw = rw; hw = r;
         } legacy_replacement[1:1] = 1'b0;
 
-    } HPET_CONFIG @ 0x004;
+    } HPET_CONFIG @ 0x010;
 
     // Write-1-to-clear status: a MIRROR of hpet_core's sticky status
     reg {
@@ -527,7 +527,7 @@ addrmap hpet_regs {
             swmod;               // Drift guard for the wrapper's decode
         } timer_int_status[NUM_TIMERS-1:0] = 0;   // no sticky, no hwset
 
-    } HPET_STATUS @ 0x008;
+    } HPET_STATUS @ 0x020;
 
     // Hardware-written counter with software override
     reg {
@@ -538,25 +538,30 @@ addrmap hpet_regs {
             swmod;               // Write STROBE into hpet_core
         } counter_lo[31:0] = 32'h0;
 
-    } HPET_COUNTER_LO @ 0x010;
+    } HPET_COUNTER_LO @ 0x0F0;
 
     // Per-timer array
     regfile {
         reg {
-            field { sw = rw; hw = r; } timer_enable[2:2] = 1'b0;
-            field { sw = rw; hw = r; } timer_int_enable[3:3] = 1'b0;
-            field { sw = rw; hw = r; } timer_type[4:4] = 1'b0;
-            field { sw = rw; hw = r; } timer_size[5:5] = 1'b0;
+            field { sw = rw; hw = r; } timer_int_type[1:1] = 1'b0;
+            field { sw = rw; hw = r; } timer_int_enable[2:2] = 1'b0;
+            field { sw = rw; hw = r; } timer_type[3:3] = 1'b0;
+            field { sw = r;  hw = na; } per_int_cap[4:4] = 1'b1;   // RO capability
+            field { sw = r;  hw = na; } size_cap[5:5] = 1'b1;      // RO capability
             field { sw = rw; hw = r; } timer_value_set[6:6] = 1'b0;
+            field { sw = rw; hw = r; } timer_32mode[8:8] = 1'b0;   // 1 FORCES 32-bit
+            field { sw = rw; hw = r; } timer_int_route[13:9] = 5'h0;
+            field { sw = rw; hw = r; } timer_fsb_en[14:14] = 1'b0;
+            field { sw = r;  hw = na; } fsb_int_del_cap[15:15] = 1'b0;  // RO, no FSB
         } TIMER_CONFIG @ 0x00;
 
         reg {
             field { sw = rw; hw = rw; precedence = sw; swmod; } timer_comp_lo[31:0] = 32'h0;  // live readback + write strobe
-        } TIMER_COMPARATOR_LO @ 0x04;
+        } TIMER_COMPARATOR_LO @ 0x08;
 
         reg {
             field { sw = rw; hw = rw; precedence = sw; swmod; } timer_comp_hi[31:0] = 32'h0;
-        } TIMER_COMPARATOR_HI @ 0x08;
+        } TIMER_COMPARATOR_HI @ 0x0C;
 
     } TIMER[NUM_TIMERS] @ 0x100 += 0x20;  // 32-byte spacing
 };

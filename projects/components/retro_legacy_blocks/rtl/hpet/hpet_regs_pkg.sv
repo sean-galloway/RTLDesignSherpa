@@ -9,24 +9,33 @@ package hpet_regs_pkg;
     localparam VENDOR_ID = 'h1;
     localparam REVISION_ID = 'h1;
     localparam NUM_TIMERS = 'h8;
-
-    typedef struct {
-        logic [4:0] next;
-    } hpet_regs__HPET_ID__num_tim_cap__in_t;
+    localparam COUNTER_CLK_PERIOD_FS = 'h989680;
 
     typedef struct {
         logic [7:0] next;
     } hpet_regs__HPET_ID__rev_id__in_t;
 
     typedef struct {
-        logic [7:0] next;
+        logic [4:0] next;
+    } hpet_regs__HPET_ID__num_tim_cap__in_t;
+
+    typedef struct {
+        logic [15:0] next;
     } hpet_regs__HPET_ID__vendor_id__in_t;
 
     typedef struct {
-        hpet_regs__HPET_ID__num_tim_cap__in_t num_tim_cap;
         hpet_regs__HPET_ID__rev_id__in_t rev_id;
+        hpet_regs__HPET_ID__num_tim_cap__in_t num_tim_cap;
         hpet_regs__HPET_ID__vendor_id__in_t vendor_id;
     } hpet_regs__HPET_ID__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } hpet_regs__HPET_PERIOD__counter_clk_period__in_t;
+
+    typedef struct {
+        hpet_regs__HPET_PERIOD__counter_clk_period__in_t counter_clk_period;
+    } hpet_regs__HPET_PERIOD__in_t;
 
     typedef struct {
         logic [7:0] next;
@@ -75,6 +84,7 @@ package hpet_regs_pkg;
 
     typedef struct {
         hpet_regs__HPET_ID__in_t HPET_ID;
+        hpet_regs__HPET_PERIOD__in_t HPET_PERIOD;
         hpet_regs__HPET_STATUS__in_t HPET_STATUS;
         hpet_regs__HPET_COUNTER_LO__in_t HPET_COUNTER_LO;
         hpet_regs__HPET_COUNTER_HI__in_t HPET_COUNTER_HI;
@@ -122,7 +132,7 @@ package hpet_regs_pkg;
 
     typedef struct {
         logic value;
-    } hpet_regs__timer_regfile__TIMER_CONFIG__timer_enable__out_t;
+    } hpet_regs__timer_regfile__TIMER_CONFIG__timer_int_type__out_t;
 
     typedef struct {
         logic value;
@@ -134,18 +144,28 @@ package hpet_regs_pkg;
 
     typedef struct {
         logic value;
-    } hpet_regs__timer_regfile__TIMER_CONFIG__timer_size__out_t;
-
-    typedef struct {
-        logic value;
     } hpet_regs__timer_regfile__TIMER_CONFIG__timer_value_set__out_t;
 
     typedef struct {
-        hpet_regs__timer_regfile__TIMER_CONFIG__timer_enable__out_t timer_enable;
+        logic value;
+    } hpet_regs__timer_regfile__TIMER_CONFIG__timer_32mode__out_t;
+
+    typedef struct {
+        logic [4:0] value;
+    } hpet_regs__timer_regfile__TIMER_CONFIG__timer_int_route__out_t;
+
+    typedef struct {
+        logic value;
+    } hpet_regs__timer_regfile__TIMER_CONFIG__timer_fsb_en__out_t;
+
+    typedef struct {
+        hpet_regs__timer_regfile__TIMER_CONFIG__timer_int_type__out_t timer_int_type;
         hpet_regs__timer_regfile__TIMER_CONFIG__timer_int_enable__out_t timer_int_enable;
         hpet_regs__timer_regfile__TIMER_CONFIG__timer_type__out_t timer_type;
-        hpet_regs__timer_regfile__TIMER_CONFIG__timer_size__out_t timer_size;
         hpet_regs__timer_regfile__TIMER_CONFIG__timer_value_set__out_t timer_value_set;
+        hpet_regs__timer_regfile__TIMER_CONFIG__timer_32mode__out_t timer_32mode;
+        hpet_regs__timer_regfile__TIMER_CONFIG__timer_int_route__out_t timer_int_route;
+        hpet_regs__timer_regfile__TIMER_CONFIG__timer_fsb_en__out_t timer_fsb_en;
     } hpet_regs__timer_regfile__TIMER_CONFIG__out_t;
 
     typedef struct {

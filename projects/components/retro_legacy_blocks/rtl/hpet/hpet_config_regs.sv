@@ -117,7 +117,13 @@
 module hpet_config_regs #(
     parameter int VENDOR_ID = 1,
     parameter int REVISION_ID = 1,
-    parameter int NUM_TIMERS = 2
+    parameter int NUM_TIMERS = 2,
+    // GCAP_ID[63:32], femtoseconds per main-counter tick, published read-only at
+    // HPET_PERIOD (0x004). It must be the period of whichever clock the counter
+    // actually ticks on -- apb4_hpet selects CDC_ENABLE[0] ? hpet_clk : pclk --
+    // or every software time conversion is wrong while the hardware looks right.
+    // Spec: non-zero and <= 0x05F5E100 (100 ns, a 10 MHz floor).
+    parameter int COUNTER_CLK_PERIOD_FS = 10000000
 )(
     // Clock and Reset
     input  logic                    clk,
@@ -146,9 +152,13 @@ module hpet_config_regs #(
     input  logic [63:0]             counter_rdata,
     input  logic [63:0]             timer_comp_rdata [NUM_TIMERS],
 
-    output logic [NUM_TIMERS-1:0]   timer_enable,
+    // NO timer_enable: the spec defines no per-timer RUN enable. A timer's
+    // comparator is live whenever the main counter runs, and TN_CONF.INT_ENB
+    // gates only the interrupt (RLB/hpet TASK-006).
     output logic [NUM_TIMERS-1:0]   timer_int_enable,
     output logic [NUM_TIMERS-1:0]   timer_type,
+    // Compare WIDTH for hpet_core: 1 = 64-bit. Derived as ~TN_CONF.32MODE,
+    // whose spec polarity is the inverse (1 = force 32-bit).
     output logic [NUM_TIMERS-1:0]   timer_size,
     output logic [NUM_TIMERS-1:0]   timer_value_set,
 
@@ -166,7 +176,7 @@ module hpet_config_regs #(
     // Register offsets, as decoded by the generated regblock (it is handed
     // regblk_addr[8:0], so these are the 9-bit forms that appear in
     // hpet_regs.sv's decoded_reg_strb).
-    localparam logic [8:0] ADDR_HPET_STATUS = 9'h008;
+    localparam logic [8:0] ADDR_HPET_STATUS = 9'h020;
 
     // The generated regblock is always built for 8 timers and a 32-bit
     // register width, independent of NUM_TIMERS.
@@ -340,10 +350,22 @@ module hpet_config_regs #(
     // ========================================================================
     generate
         for (genvar i = 0; i < NUM_TIMERS; i++) begin : g_timer_mapping
-            assign timer_enable[i]     = hwif_out.TIMER[i].TIMER_CONFIG.timer_enable.value;
             assign timer_int_enable[i] = hwif_out.TIMER[i].TIMER_CONFIG.timer_int_enable.value;
             assign timer_type[i]       = hwif_out.TIMER[i].TIMER_CONFIG.timer_type.value;
-            assign timer_size[i]       = hwif_out.TIMER[i].TIMER_CONFIG.timer_size.value;
+
+            // POLARITY INVERSION, deliberate: TN_CONF.32MODE = 1 means FORCE
+            // 32-bit on a 64-bit timer, while hpet_core's timer_size = 1 means
+            // compare at 64 bits. size_cap reads 1, so the inversion is total.
+            assign timer_size[i]       = ~hwif_out.TIMER[i].TIMER_CONFIG.timer_32mode.value;
+
+            // TN_CONF.INT_TYPE, INT_ROUTE and FSB_EN are DELIBERATELY NOT READ
+            // here: they are storage only and nothing downstream consumes them,
+            // so exporting them would create ports no logic drives anything
+            // with. Their hwif_out members are simply left unread. INT_ROUTE
+            // becomes load-bearing at RLB/hpet TASK-003, and INT_TYPE/FSB_EN
+            // stay storage while this core delivers only the sticky
+            // level-plus-W1C behaviour and has no message delivery. See their
+            // field descriptions in hpet_regs.rdl.
 
             // timer_value_set has NO effect: nothing downstream consumes it.
             // See the field description in hpet_regs.rdl.
@@ -392,8 +414,18 @@ module hpet_config_regs #(
     // HPET_ID - driven from this module's parameters
     // ========================================================================
     assign hwif_in.HPET_ID.num_tim_cap.next = 5'(NUM_TIMERS - 1);
-    assign hwif_in.HPET_ID.vendor_id.next   = 8'(VENDOR_ID);
+    // Sixteen bits now, per GCAP_ID[31:16]: a PCI-style vendor such as 0x8086
+    // reads back in full rather than truncated to its low byte.
+    assign hwif_in.HPET_ID.vendor_id.next   = 16'(VENDOR_ID);
     assign hwif_in.HPET_ID.rev_id.next      = 8'(REVISION_ID);
+
+    // ========================================================================
+    // HPET_PERIOD - GCAP_ID[63:32], from this module's parameter
+    // ========================================================================
+    // Driven rather than an RDL reset because PeakRDL bakes RDL parameters into
+    // the generated package as localparams, so one regblock serves every
+    // instantiation and a per-instance period cannot arrive that way.
+    assign hwif_in.HPET_PERIOD.counter_clk_period.next = 32'(COUNTER_CLK_PERIOD_FS);
 
     // ========================================================================
     // Counter Readback
@@ -417,7 +449,7 @@ module hpet_config_regs #(
     assign hwif_in.HPET_STATUS.timer_int_status.next = w_timer_int_status_reg;
 
     // Mirror of the regblock's own write decode. hpet_regs.sv decodes
-    //   decoded_reg_strb.HPET_STATUS = cpuif_req_masked & (cpuif_addr == 9'h8)
+    //   decoded_reg_strb.HPET_STATUS = cpuif_req_masked & (cpuif_addr == 9'h20)
     // on the same 9 address bits this module feeds it, and both cpuif stalls
     // are tied low inside the regblock, so cpuif_req_masked == regblk_req.
     // a_status_swmod_mirrored below fires if a regenerated regblock changes

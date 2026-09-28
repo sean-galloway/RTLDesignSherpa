@@ -180,7 +180,13 @@ module apb4_hpet #(
     // Async-FIFO pointer encoding, forwarded to the CDC block: 0 = Gray
     // (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit pointers).
     // Gray by default -- Johnson is opt-in.
-    parameter int USE_JOHNSON = 0
+    parameter int USE_JOHNSON = 0,
+    // GCAP_ID[63:32], femtoseconds per main-counter tick, published read-only at
+    // HPET_PERIOD (0x004). MUST be the period of the clock the counter actually
+    // ticks on, which is CDC_ENABLE[0] ? hpet_clk : pclk -- pass the matching
+    // value per instantiation or software's time conversions are all wrong.
+    // Spec: non-zero, <= 0x05F5E100 (100 ns = a 10 MHz floor). 10 ns default.
+    parameter int COUNTER_CLK_PERIOD_FS = 10000000
 )(
     // ========================================================================
     // Clock and Reset - Dual Domain
@@ -241,7 +247,6 @@ logic                    r_counter_write_hi;
 logic [63:0]             w_counter_wdata;
 logic [63:0]             w_counter_rdata;
 logic [63:0]             w_timer_comp_rdata [NUM_TIMERS];
-logic [NUM_TIMERS-1:0]   w_timer_enable;
 logic [NUM_TIMERS-1:0]   w_timer_int_enable;
 logic [NUM_TIMERS-1:0]   w_timer_type;
 logic [NUM_TIMERS-1:0]   w_timer_size;
@@ -349,9 +354,10 @@ endgenerate
 // CDC_ENABLE=1: Uses hpet_clk (async clock)
 // ============================================================================
 hpet_config_regs #(
-    .VENDOR_ID        (VENDOR_ID),
-    .REVISION_ID      (REVISION_ID),
-    .NUM_TIMERS       (NUM_TIMERS)
+    .VENDOR_ID             (VENDOR_ID),
+    .REVISION_ID           (REVISION_ID),
+    .NUM_TIMERS            (NUM_TIMERS),
+    .COUNTER_CLK_PERIOD_FS (COUNTER_CLK_PERIOD_FS)
 ) u_hpet_config_regs (
     // Clock and Reset - conditional based on CDC_ENABLE
     .clk               (CDC_ENABLE[0] ? hpet_clk : pclk),
@@ -378,7 +384,6 @@ hpet_config_regs #(
     .counter_wdata        (w_counter_wdata),
     .counter_rdata        (w_counter_rdata),
     .timer_comp_rdata     (w_timer_comp_rdata),
-    .timer_enable         (w_timer_enable),
     .timer_int_enable     (w_timer_int_enable),
     .timer_type           (w_timer_type),
     .timer_size           (w_timer_size),
@@ -409,7 +414,6 @@ hpet_core #(
     .counter_wdata        (w_counter_wdata),
     .counter_rdata        (w_counter_rdata),
     .timer_comp_rdata     (w_timer_comp_rdata),
-    .timer_enable         (w_timer_enable),
     .timer_int_enable     (w_timer_int_enable),
     .timer_type           (w_timer_type),
     .timer_size           (w_timer_size),

@@ -55,13 +55,20 @@ APB HPET top-level architecture showing APB interface, configuration registers, 
 
 | Offset | Register Name | Access | Width | Description |
 |--------|---------------|--------|-------|-------------|
-| 0x000 | HPET_ID | RO | 32b | Identification register (vendor, revision, capabilities) |
-| 0x004 | HPET_CONFIG | RW | 32b | Global configuration and control |
-| 0x008 | HPET_STATUS | RW/W1C | 32b | Interrupt status for all timers (write-1-to-clear) |
-| 0x00C | RESERVED | RO | 32b | Reserved |
-| 0x010 | HPET_COUNTER_LO | RW | 32b | Main counter bits [31:0] |
-| 0x014 | HPET_COUNTER_HI | RW | 32b | Main counter bits [63:32] |
-| 0x018-0x0FF | RESERVED | RO | - | Reserved for future use |
+| 0x000 | HPET_ID | RO | 32b | GCAP_ID[31:0] - identification and capabilities |
+| 0x004 | HPET_PERIOD | RO | 32b | GCAP_ID[63:32] - main counter period in femtoseconds |
+| 0x008-0x00F | RESERVED | RO | - | Reserved |
+| 0x010 | HPET_CONFIG | RW | 32b | GEN_CONF - global configuration and control |
+| 0x014-0x01F | RESERVED | RO | - | Reserved |
+| 0x020 | HPET_STATUS | RW/W1C | 32b | GINTR_STA - interrupt status (write-1-to-clear) |
+| 0x024-0x0EF | RESERVED | RO | - | Reserved |
+| 0x0F0 | HPET_COUNTER_LO | RW | 32b | MAIN_CNT bits [31:0] |
+| 0x0F4 | HPET_COUNTER_HI | RW | 32b | MAIN_CNT bits [63:32] |
+| 0x0F8-0x0FF | RESERVED | RO | - | Reserved |
+
+These are the PUBLISHED SPEC offsets (RLB/hpet TASK-006). Reserved space is not
+decoded and answers with PSLVERR rather than reading 0; that predates this
+change and is recorded as a known deviation in the task.
 
 #### Per-Timer Registers
 
@@ -71,19 +78,19 @@ Each timer (N = 0 to NUM_TIMERS-1) has a 32-byte register block at base address 
 
 | Offset | Register Name | Access | Width | Description |
 |--------|---------------|--------|-------|-------------|
-| +0x00 | TIMER_CONFIG | RW | 32b | Timer configuration and control |
-| +0x04 | TIMER_COMPARATOR_LO | RW | 32b | Timer comparator bits [31:0] |
-| +0x08 | TIMER_COMPARATOR_HI | RW | 32b | Timer comparator bits [63:32] |
-| +0x0C | RESERVED | RO | 32b | Reserved |
-| +0x10-0x1F | RESERVED | RO | - | Reserved for timer expansion |
+| +0x00 | TIMER_CONFIG | RW | 32b | TN_CONF[31:0] - configuration and control |
+| +0x04 | TIMER_INT_ROUTE_CAP | RO | 32b | TN_CONF[63:32] - legal I/O APIC inputs (reads 0) |
+| +0x08 | TIMER_COMPARATOR_LO | RW | 32b | Timer comparator bits [31:0] |
+| +0x0C | TIMER_COMPARATOR_HI | RW | 32b | Timer comparator bits [63:32] |
+| +0x10-0x1F | RESERVED | RO | - | The spec's FSB route registers live here; not implemented, and fsb_int_del_cap reads 0 to say so |
 
 **Example Timer Addresses:**
 
 | Timer | Base Address | CONFIG | COMPARATOR_LO | COMPARATOR_HI |
 |-------|--------------|--------|---------------|---------------|
-| 0 | 0x100 | 0x100 | 0x104 | 0x108 |
-| 1 | 0x120 | 0x120 | 0x124 | 0x128 |
-| 2 | 0x140 | 0x140 | 0x144 | 0x148 |
+| 0 | 0x100 | 0x100 | 0x108 | 0x10C |
+| 1 | 0x120 | 0x120 | 0x128 | 0x12C |
+| 2 | 0x140 | 0x140 | 0x148 | 0x14C |
 | 3 | 0x160 | 0x160 | 0x164 | 0x168 |
 | 4 | 0x180 | 0x180 | 0x184 | 0x188 |
 | 5 | 0x1A0 | 0x1A0 | 0x1A4 | 0x1A8 |
@@ -100,27 +107,35 @@ Each timer (N = 0 to NUM_TIMERS-1) has a 32-byte register block at base address 
 Contains capability information and identification fields. `vendor_id`,
 `rev_id` and `num_tim_cap` are all driven from the top-level parameters
 through the register block's hardware interface, so one generated block
-serves every instantiation. The two ID fields are 8 bits wide -- narrower
-than the 16-bit vendor field of a real HPET's GCAP_ID -- so a PCI-style
-`VENDOR_ID(16'h8086)` reads back as 0x86.
+serves every instantiation. This is GCAP_ID[31:0] at the published spec field
+positions (RLB/hpet TASK-006); `vendor_id` is the spec's full 16 bits, so a
+PCI-style `VENDOR_ID(16'h8086)` now reads back complete rather than truncated
+to its low byte. GCAP_ID[63:32] is the counter clock period, at 0x004.
 
 | Bits | Field | Access | Reset | Description |
 |------|-------|--------|-------|-------------|
-| [31:24] | vendor_id | RO | VENDOR_ID[7:0] | Vendor identifier (low byte of the parameter) |
-| [23:16] | rev_id | RO | REVISION_ID[7:0] | Revision identifier (low byte of the parameter) |
-| [15:13] | reserved | RO | 0 | Reserved |
+| [31:16] | vendor_id | RO | VENDOR_ID | Vendor identifier, full 16 bits per the spec |
+| [15] | leg_rt_cap | RO | 0 | Legacy-replacement capability. Reads 0: the routing is NOT implemented (the HPET_CONFIG bit is storage only). The POSITION matters -- drivers gate on this bit, so a 0 here means legacy mode is not used at all |
+| [14] | reserved | RO | 0 | Reserved |
+| [13] | count_size_cap | RO | 1 | Counter size capability (1 = 64-bit counter) |
 | [12:8] | num_tim_cap | RO | NUM_TIMERS-1 | Number of timers minus 1 (e.g., 7 for 8 timers) |
-| [7] | count_size_cap | RO | 1 | Counter size capability (1 = 64-bit counter) |
-| [6] | reserved | RO | 0 | Reserved |
-| [5] | leg_rt_cap | RO | 0 | Legacy-replacement capability: reads 0 because the feature is NOT implemented (the HPET_CONFIG bit is storage only; see HPET_CONFIG below) |
-| [4:0] | reserved | RO | 0 | Reserved |
+| [7:0] | rev_id | RO | REVISION_ID | Revision identifier |
 
-**Example Values (32-bit register, default VENDOR_ID/REVISION_ID = 1):**
-- 2 timers: `0x01010180` (num_tim_cap=1)
-- 3 timers: `0x01010280` (num_tim_cap=2)
-- 8 timers: `0x01010780` (num_tim_cap=7)
+**Example Values**, computed for the parameters the DV grid actually passes
+(the previous table claimed the parameter DEFAULT of 1 while the suite has
+always driven 0x8086/0x1022/0xABCD, so those constants never matched a real
+readback):
 
-#### HPET_CONFIG (0x004) - Configuration Register
+| Config | VENDOR_ID | REVISION_ID | HPET_ID reads |
+|---|---|---|---|
+| 2 timers | 0x8086 | 0x01 | `0x80862101` |
+| 3 timers | 0x1022 | 0x02 | `0x10222202` |
+| 8 timers | 0xABCD | 0x10 | `0xABCD2710` |
+
+Decoding the 8-timer value: vendor 0xABCD, leg_rt_cap 0, count_size_cap 1
+(bit 13), num_tim_cap 7 (bits 12:8), rev_id 0x10.
+
+#### HPET_CONFIG (0x010) - Configuration Register
 
 **Access:** Read-Write
 **Reset Value:** 0x00000000
@@ -155,7 +170,7 @@ WRITE(HPET_COUNTER_HI, 0x0);
 WRITE(HPET_CONFIG, 0x1);
 ```
 
-#### HPET_STATUS (0x008) - Interrupt Status Register
+#### HPET_STATUS (0x020) - Interrupt Status Register
 
 **Access:** Read-Write (Write-1-to-Clear)
 **Reset Value:** 0x00000000
@@ -199,7 +214,7 @@ if (status & 0x1) {
 }
 ```
 
-#### HPET_COUNTER_LO (0x010) - Main Counter Low
+#### HPET_COUNTER_LO (0x0F0) - Main Counter Low
 
 **Access:** Read-Write
 **Reset Value:** 0x00000000
@@ -238,7 +253,7 @@ Lower 32 bits of the 64-bit free-running main counter.
 - Counter write takes effect immediately (on next `hpet_clk`)
 - All timers compare against this counter value
 
-#### HPET_COUNTER_HI (0x014) - Main Counter High
+#### HPET_COUNTER_HI (0x0F4) - Main Counter High
 
 **Access:** Read-Write
 **Reset Value:** 0x00000000
@@ -288,32 +303,39 @@ Configuration and control for individual timer.
 
 | Bits | Field | Access | Reset | Description |
 |------|-------|--------|-------|-------------|
-| [31:7] | reserved | RO | 0 | Reserved |
-| [6] | timer_value_set | RW | 0 | Stores and reads back, but has NO hardware effect (the signal dead-ends at the top level) |
-| [5] | timer_size | RW | 0 | Timer size (0=32-bit, 1=64-bit) |
-| [4] | timer_type | RW | 0 | Timer mode (0=one-shot, 1=periodic) |
-| [3] | timer_int_enable | RW | 0 | Interrupt enable (0=disabled, 1=enabled) |
-| [2] | timer_enable | RW | 0 | Timer enable (0=disabled, 1=enabled) |
-| [1:0] | reserved | RO | 0 | Reserved |
+| [31:16] | reserved | RO | 0 | Reserved |
+| [15] | fsb_int_del_cap | RO | 0 | FSB (message) delivery capability. Reads 0, so the spec's FSB route registers at +0x10/+0x14 are not implemented |
+| [14] | timer_fsb_en | RW | 0 | FSB delivery enable. Storage only -- see fsb_int_del_cap |
+| [13:9] | timer_int_route | RW | 0 | I/O APIC input to drive, as a bit NUMBER chosen from TIMER_INT_ROUTE_CAP. Storage until RLB/hpet TASK-003 |
+| [8] | timer_32mode | RW | 0 | FORCE 32-bit operation. **Note the polarity:** 1 = 32-bit, so 64-bit operation is this bit CLEAR. The retired `timer_size` meant the opposite |
+| [7] | reserved | RO | 0 | Reserved |
+| [6] | timer_value_set | RW | 0 | Stores and reads back, but has NO hardware effect: this core always loads both the accumulator and the period, so the bit has nothing to select |
+| [5] | size_cap | RO | 1 | READ-ONLY capability: this timer is 64-bit capable |
+| [4] | per_int_cap | RO | 1 | READ-ONLY capability: this timer supports periodic mode |
+| [3] | timer_type | RW | 0 | Timer mode (0=one-shot, 1=periodic) |
+| [2] | timer_int_enable | RW | 0 | Interrupt enable. The ONLY per-timer enable the spec defines |
+| [1] | timer_int_type | RW | 0 | 0=edge, 1=level. Storage only: this core always delivers the sticky level-plus-W1C behaviour HPET_STATUS implements |
+| [0] | reserved | RO | 0 | Reserved |
+
+These are the published spec's TN_CONF positions (RLB/hpet TASK-006). **There is
+no per-timer RUN enable** -- the spec defines none, so a timer's comparator is
+live whenever the main counter runs and `timer_int_enable` gates only the
+interrupt.
 
 **Field Descriptions:**
 
-**timer_enable (bit 2):**
-- 0 = Timer disabled (comparator inactive)
-- 1 = Timer enabled (comparator active)
-- Timer only fires when enabled AND `HPET_CONFIG.hpet_enable=1`
-
-**timer_int_enable (bit 3):**
+**timer_int_enable (bit 2):**
 - 0 = Interrupt generation disabled (timer fires but no interrupt)
 - 1 = Interrupt generation enabled (sets `HPET_STATUS` bit on fire)
 
-**timer_type (bit 4):**
+**timer_type (bit 3):**
 - 0 = **One-shot mode:** Timer fires once when counter >= comparator, then stays idle
 - 1 = **Periodic mode:** Timer fires repeatedly, auto-increments comparator by period
 
-**timer_size (bit 5):**
-- 0 = 32-bit timer (uses only COMPARATOR_LO, ignores COMPARATOR_HI)
-- 1 = 64-bit timer (uses full 64-bit comparator)
+**timer_32mode (bit 8):**
+- 1 = FORCE 32-bit (uses only COMPARATOR_LO, ignores COMPARATOR_HI)
+- 0 = 64-bit (uses the full 64-bit comparator) -- the DEFAULT
+- The polarity is the spec's and is the inverse of the retired `timer_size`
 - APB HPET supports 64-bit by default
 - Change it only on a stopped timer, and rewrite the comparator
   afterwards. The change clears the next-epoch hold, but a comparator
@@ -359,8 +381,9 @@ Lower 32 bits of the 64-bit timer comparator value.
 - Each half loads the core on its own write; writing the value the
   register already holds still counts (the internal comparator reloads,
   discarding any periodic advance)
-- The write re-arms the timer only while the timer is stopped
-  (`timer_enable=0` or `HPET_CONFIG.hpet_enable=0`). On a running timer
+- The write re-arms the timer only while the COUNTER IS HALTED
+  (`HPET_CONFIG.hpet_enable=0`). There is no per-timer stop: the published
+  spec defines no per-timer run enable. On a running counter
   the half loads but the timer re-arms only when the completed value
   moves the match low -- see Reprogramming a Running Timer below
 - Software writes to set initial comparator value
@@ -396,10 +419,11 @@ WRITE(TIMER1_COMPARATOR_HI, 0x00000001);
 
 #### Reprogramming a Running Timer
 
-A comparator write re-arms the timer only while the timer is stopped
-(`timer_enable=0` or `HPET_CONFIG.hpet_enable=0`), and then it always
-re-arms, whatever the value: a comparator at or below the counter fires
-as soon as the timer is enabled (the `>=` match, the same rule that makes
+A comparator write re-arms the timer only while the COUNTER IS HALTED
+(`HPET_CONFIG.hpet_enable=0` -- there is no per-timer run enable in the
+spec), and then it always re-arms, whatever the value: a comparator at or
+below the counter fires as soon as the counter restarts (the `>=` match,
+the same rule that makes
 a deficit fire rather than be missed -- there is no wait for a wrap).
 That is how software arms to an already-passed target: a zero comparator,
 or a periodic phase restarted after a counter reset.
@@ -441,7 +465,8 @@ A software write landing in the same cycle as a fire on a running timer
 yields exactly one fire; the software value wins, and the periodic advance
 is skipped that cycle.
 
-The same rule covers `timer_size`: change it only on a stopped timer,
+The same rule covers `timer_32mode`: change it only while the counter is
+halted,
 and rewrite the comparator afterwards. The next-epoch hold clears on the
 change, but a comparator that was advanced at the old width is not on
 the new width's lattice, and a live 0->1 switch can leave the timer
@@ -535,7 +560,7 @@ Periodic timer operation flow showing counter increment, comparator match, auto-
    keeps the wrapped low bits and the timer is held -- no fire, no
    catch-up -- until the counter wraps at that width, or software writes
    the comparator, the counter (which re-bases the epoch, so a comparator
-   now behind the counter fires promptly) or `timer_size`. The write
+   now behind the counter fires promptly) or `timer_32mode`. The write
    clears are evaluated at the compare width: a 32-bit timer is released
    only by a write to HPET_COUNTER_LO or TIMERn_COMPARATOR_LO, and a
    write to either HI half leaves it held; a 64-bit timer is released by
@@ -612,8 +637,10 @@ void timer1_isr(void) {
 #### Reset Values
 
 - **Global registers:** Reset to 0x00000000 (except HPET_ID)
-- **HPET_ID:** Constant: vendor/revision from the low byte of
-  VENDOR_ID/REVISION_ID, num_tim_cap = NUM_TIMERS-1, leg_rt_cap = 0
+- **HPET_ID:** Constant GCAP_ID[31:0]: vendor_id = VENDOR_ID (full 16 bits at
+  [31:16]), rev_id = REVISION_ID ([7:0]), num_tim_cap = NUM_TIMERS-1 ([12:8]),
+  count_size_cap = 1 ([13]), leg_rt_cap = 0 ([15])
+- **HPET_PERIOD:** Constant GCAP_ID[63:32]: COUNTER_CLK_PERIOD_FS femtoseconds
 - **All timers:** Reset to disabled state (0x00000000)
 - **Main counter:** Reset to 0x00000000_00000000
 

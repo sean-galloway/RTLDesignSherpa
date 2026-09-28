@@ -2,7 +2,7 @@
 
 # RLB/hpet — tasks
 
-**Next ID: TASK-006** — never recycle a number, even when its item closed.
+**Next ID: TASK-007** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -27,6 +27,7 @@ by construction rather than by discipline.
 
 - **TASK-001** — Timer 2+ not firing in multi-timer tests; a test-cleanup defect, fixed 2025-10-17.
 - **TASK-002** — comparator reads returned the last software-written value, not hpet_core's live advancing comparator; fixed with `hw=rw` + `precedence=sw`, closed 2026-09-27.
+- **TASK-006** — HPET register interface now matches the published spec: spec offsets, GCAP_ID/TIMn_CONF field positions, 16-bit vendor, HPET_PERIOD, and `timer_enable` dropped. 18/18 green, closed 2026-09-28.
 
 ## Dropped
 

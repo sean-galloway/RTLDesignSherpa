@@ -187,8 +187,9 @@ To modify the register map:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `VENDOR_ID` | int | 1 | Drives HPET_ID[31:24]. The field is 8 bits, so only the low byte of a wider value is visible |
-| `REVISION_ID` | int | 1 | Drives HPET_ID[23:16] (8-bit field, low byte only) |
+| `VENDOR_ID` | int | 1 | Drives HPET_ID[31:16] -- GCAP_ID's full 16-bit vendor field, so 0x8086 reads back complete |
+| `REVISION_ID` | int | 1 | Drives HPET_ID[7:0] -- GCAP_ID's revision field |
+| `COUNTER_CLK_PERIOD_FS` | int | 10000000 | Femtoseconds per main-counter tick, published at HPET_PERIOD (0x004). Must match the clock the counter ticks on: `CDC_ENABLE[0] ? hpet_clk : pclk` |
 | `NUM_TIMERS` | int | 2 | Number of timer channels (2-8) |
 | `CDC_ENABLE` | int | 0 | Clock domain crossing enable (0=same clock, 1=async clocks) |
 
@@ -250,12 +251,15 @@ apb4_hpet #(
 
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|
-| 0x000 | HPET_ID | RO | Capabilities and identification |
-| 0x004 | HPET_CONFIG | RW | Global configuration |
-| 0x008 | HPET_STATUS | RW/W1C | Interrupt status (W1C) |
-| 0x00C | RESERVED | - | Reserved |
-| 0x010 | HPET_COUNTER_LO | RW | Main counter low 32 bits |
-| 0x014 | HPET_COUNTER_HI | RW | Main counter high 32 bits |
+| 0x000 | HPET_ID | RO | GCAP_ID[31:0] -- capabilities and identification |
+| 0x004 | HPET_PERIOD | RO | GCAP_ID[63:32] -- counter tick period in femtoseconds |
+| 0x010 | HPET_CONFIG | RW | GEN_CONF -- global configuration |
+| 0x020 | HPET_STATUS | RW/W1C | GINTR_STA -- interrupt status (W1C) |
+| 0x0F0 | HPET_COUNTER_LO | RW | MAIN_CNT low 32 bits |
+| 0x0F4 | HPET_COUNTER_HI | RW | MAIN_CNT high 32 bits |
+
+These are the published spec offsets (RLB/hpet TASK-006). Undeclared space in
+between is not decoded and answers with PSLVERR.
 
 ### Timer Registers (0x100-0x1FF)
 
@@ -263,9 +267,10 @@ Each timer occupies 32 bytes (0x20) starting at 0x100:
 
 | Offset | Register | Access | Description |
 |--------|----------|--------|-------------|
-| +0x00 | TIMER_CONFIG | RW | Timer configuration |
-| +0x04 | TIMER_COMPARATOR_LO | RW | Comparator low 32 bits |
-| +0x08 | TIMER_COMPARATOR_HI | RW | Comparator high 32 bits |
+| +0x00 | TIMER_CONFIG | RW | TN_CONF[31:0] -- configuration and control |
+| +0x04 | TIMER_INT_ROUTE_CAP | RO | TN_CONF[63:32] -- legal I/O APIC inputs (reads 0) |
+| +0x08 | TIMER_COMPARATOR_LO | RW | Comparator low 32 bits |
+| +0x0C | TIMER_COMPARATOR_HI | RW | Comparator high 32 bits |
 | +0x0C | RESERVED | - | Reserved for expansion |
 
 **Timer Base Addresses**:
@@ -282,30 +287,28 @@ Each timer occupies 32 bytes (0x20) starting at 0x100:
 
 #### HPET_ID (0x000) - Read Only
 ```
-[31:24] VENDOR_ID     - Low 8 bits of the VENDOR_ID parameter (hardware-driven)
-[23:16] REV_ID        - Low 8 bits of the REVISION_ID parameter (hardware-driven)
-[15:13] Reserved
+[31:16] VENDOR_ID     - the VENDOR_ID parameter, full 16 bits (hardware-driven)
+[15]    LEG_RT_CAP    - Reads 0: legacy replacement routing is NOT implemented.
+                        Drivers GATE on this bit, so a 0 here means legacy mode
+                        is not used at all (the HPET_CONFIG bit is storage)
+[14]    Reserved
+[13]    COUNT_SIZE_CAP - 1 = 64-bit counter capable
 [12:8]  NUM_TIM_CAP   - Number of timers - 1 (hardware-driven)
-[7]     COUNT_SIZE_CAP - 1 = 64-bit counter capable
-[6]     Reserved
-[5]     LEG_RT_CAP    - Reads 0: legacy replacement is NOT implemented, so
-                        the capability is not advertised (the HPET_CONFIG
-                        bit stores and dead-ends)
-[4:0]   Reserved
+[7:0]   REV_ID        - the REVISION_ID parameter (hardware-driven)
 ```
 
 **Note**: `NUM_TIM_CAP`, `VENDOR_ID` and `REV_ID` are all **hardware-written**
 from the module parameters, so one generated register block serves every
 instantiation.
 
-#### HPET_CONFIG (0x004) - Read/Write
+#### HPET_CONFIG (0x010) - Read/Write
 ```
 [31:2] Reserved
-[1]    LEGACY_REPLACEMENT - Storage only, no hardware effect (HPET_ID[5] = 0)
+[1]    LEGACY_REPLACEMENT - Storage only, no hardware effect (HPET_ID[15] = 0)
 [0]    HPET_ENABLE        - Enable main counter
 ```
 
-#### HPET_STATUS (0x008) - Read/Write (W1C)
+#### HPET_STATUS (0x020) - Read/Write (W1C)
 ```
 [31:NUM_TIMERS] Reserved
 [NUM_TIMERS-1:0] TIMER_INT_STATUS - Interrupt status (write 1 to clear)
@@ -561,14 +564,16 @@ endmodule
 ```c
 // Register definitions
 #define HPET_BASE        0x10000000
-#define HPET_ID          (HPET_BASE + 0x000)
-#define HPET_CONFIG      (HPET_BASE + 0x004)
-#define HPET_STATUS      (HPET_BASE + 0x008)
-#define HPET_COUNTER_LO  (HPET_BASE + 0x010)
-#define HPET_COUNTER_HI  (HPET_BASE + 0x014)
-#define TIMER0_CONFIG    (HPET_BASE + 0x100)
-#define TIMER0_COMP_LO   (HPET_BASE + 0x104)
-#define TIMER0_COMP_HI   (HPET_BASE + 0x108)
+#define HPET_ID          (HPET_BASE + 0x000)  // GCAP_ID[31:0]
+#define HPET_PERIOD      (HPET_BASE + 0x004)  // GCAP_ID[63:32], femtoseconds
+#define HPET_CONFIG      (HPET_BASE + 0x010)  // GEN_CONF
+#define HPET_STATUS      (HPET_BASE + 0x020)  // GINTR_STA
+#define HPET_COUNTER_LO  (HPET_BASE + 0x0F0)  // MAIN_CNT[31:0]
+#define HPET_COUNTER_HI  (HPET_BASE + 0x0F4)  // MAIN_CNT[63:32]
+#define TIMER0_CONFIG    (HPET_BASE + 0x100)  // TN_CONF[31:0]
+#define TIMER0_ROUTE_CAP (HPET_BASE + 0x104)  // TN_CONF[63:32]
+#define TIMER0_COMP_LO   (HPET_BASE + 0x108)
+#define TIMER0_COMP_HI   (HPET_BASE + 0x10C)
 
 // Initialize HPET
 void hpet_init(void) {

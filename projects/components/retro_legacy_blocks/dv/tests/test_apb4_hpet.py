@@ -226,11 +226,21 @@ def test_hpet(request, num_timers, vendor_id, revision_id, cdc_enable, test_leve
     )
 
     # RTL parameters - NUM_TIMERS, VENDOR_ID, REVISION_ID, CDC_ENABLE are parameterized
+    # The main counter ticks on CDC_ENABLE[0] ? hpet_clk : pclk, and HPET_PERIOD
+    # (GCAP_ID[63:32]) publishes that tick period in femtoseconds. It MUST match
+    # the clock actually driving the counter, or every software time conversion
+    # is wrong while the hardware looks correct. The TB's own CORE_CLOCK_PERIOD
+    # makes the same choice -- keep the two in step.
+    #   CDC cells  : hpet_clk 10 ns -> 10_000_000 fs
+    #   non-CDC    : pclk     20 ns -> 20_000_000 fs
+    counter_clk_period_fs = 10_000_000 if cdc_enable else 20_000_000
+
     rtl_parameters = {
         'NUM_TIMERS': str(num_timers),
         'VENDOR_ID': str(vendor_id),
         'REVISION_ID': str(revision_id),
         'CDC_ENABLE': str(cdc_enable),
+        'COUNTER_CLK_PERIOD_FS': str(counter_clk_period_fs),
     }
 
     # Calculate timeout based on test complexity and timer count
@@ -261,6 +271,11 @@ def test_hpet(request, num_timers, vendor_id, revision_id, cdc_enable, test_leve
 
         # DUT-specific parameters
         'TEST_NUM_TIMERS': str(num_timers),
+        # Mirrored so a test can assert the GCAP_ID readback: the RTL parameters
+        # alone are invisible to the TB (RLB/hpet TASK-006).
+        'TEST_VENDOR_ID': str(vendor_id),
+        'TEST_REVISION_ID': str(revision_id),
+        'TEST_COUNTER_CLK_PERIOD_FS': str(counter_clk_period_fs),
         # Mirror the CDC_ENABLE RTL parameter into the sim env so the TB can
         # know which clock domain drives hpet_core/hpet_config_regs without
         # guessing (parameters aren't readable off the dut hierarchy the way
@@ -376,6 +391,11 @@ if __name__ == "__main__":
         'SEED': '12345',
         **level_env(test_level),
         'TEST_NUM_TIMERS': str(num_timers),
+        # Mirrored so a test can assert the GCAP_ID readback: the RTL parameters
+        # alone are invisible to the TB (RLB/hpet TASK-006).
+        'TEST_VENDOR_ID': str(vendor_id),
+        'TEST_REVISION_ID': str(revision_id),
+        'TEST_COUNTER_CLK_PERIOD_FS': str(counter_clk_period_fs),
         'TEST_APB_CLOCK_PERIOD': '20',  # Fixed
         'TEST_HPET_CLOCK_PERIOD': '10',  # Fixed
         'HPET_DEBUG_MODE': 'true'

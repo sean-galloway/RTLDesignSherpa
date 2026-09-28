@@ -412,8 +412,9 @@ When integrating APB HPET:
 
 **1. Parameter Selection:**
 - [ ] `NUM_TIMERS`: 2, 3, or 8 timers
-- [ ] `VENDOR_ID`: reported in HPET_ID[31:24]; an 8-bit field, so a wider value shows only its low byte
-- [ ] `REVISION_ID`: reported in HPET_ID[23:16]; likewise 8 bits
+- [ ] `VENDOR_ID`: reported in HPET_ID[31:16]; the spec's full 16-bit field
+- [ ] `REVISION_ID`: reported in HPET_ID[7:0]
+- [ ] `COUNTER_CLK_PERIOD_FS`: femtoseconds per counter tick, at HPET_PERIOD (0x004). Must match `CDC_ENABLE[0] ? hpet_clk : pclk`
 - [ ] `CDC_ENABLE`: 0 for synchronous, 1 for asynchronous clocks
 
 **2. Clock Configuration:**

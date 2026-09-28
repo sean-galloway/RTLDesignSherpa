@@ -68,8 +68,9 @@ apb4_hpet
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| **VENDOR_ID** | int | 1 | 0-255 | Reported in HPET_ID[31:24]; the field is 8 bits, so a wider value shows only its low byte (0x8086 reads 0x86) |
-| **REVISION_ID** | int | 1 | 0-255 | Reported in HPET_ID[23:16] (8-bit field, low byte only) |
+| **VENDOR_ID** | int | 1 | 0-65535 | Reported in HPET_ID[31:16] -- GCAP_ID's full 16-bit vendor field, so 0x8086 reads back complete |
+| **REVISION_ID** | int | 1 | 0-255 | Reported in HPET_ID[7:0] -- GCAP_ID's revision field |
+| **COUNTER_CLK_PERIOD_FS** | int | 10000000 | non-zero, <= 0x05F5E100 | Femtoseconds per counter tick, published at HPET_PERIOD (0x004) |
 | **NUM_TIMERS** | int | 2 | 2, 3, 8 | Number of independent timers in array |
 | **USE_JOHNSON** | int | 0 | 0, 1 | CDC counter encoding (forwarded to apb4_slave_cdc) |
 | **CDC_ENABLE** | int | 0 | 0, 1 | Clock domain crossing: 0=synchronous, 1=asynchronous |
@@ -77,9 +78,9 @@ apb4_hpet
 **Parameter Notes:**
 - **VENDOR_ID** and **REVISION_ID**: forwarded to `hpet_config_regs`, which
   drives them into HPET_ID through the register block's hardware
-  interface -- no regeneration involved. Both HPET_ID fields are 8 bits
-  wide (the real HPET's vendor field is 16), so pass an 8-bit value or
-  expect the low byte.
+  interface -- no regeneration involved. `vendor_id` is the published spec's
+  full 16 bits at HPET_ID[31:16] and `rev_id` is 8 bits at HPET_ID[7:0], so a
+  PCI-style vendor reads back complete (RLB/hpet TASK-006).
 - **NUM_TIMERS**: Instantiation-time choice (2, 3, or 8). The generated
   register block is fixed at 8 timer slots and reports the instantiated
   count through HPET_ID.num_tim_cap -- no regeneration needed
