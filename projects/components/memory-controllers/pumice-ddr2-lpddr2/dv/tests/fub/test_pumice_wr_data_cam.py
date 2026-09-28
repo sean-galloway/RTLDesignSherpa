@@ -7,11 +7,13 @@ import os
 import sys
 import random
 
+import pytest
 import cocotb
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
@@ -19,6 +21,7 @@ if _DV_DIR not in sys.path:
 
 from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa: E402
 from tbclasses.pumice_wr_data_cam_tb import PumiceWrDataCamTB  # noqa: E402
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/fub/pumice_wr_data_cam.f")
@@ -121,60 +124,74 @@ async def cocotb_test_pumice_wr_data_cam(dut):
     # pace fills the FIFO -> commit_ready drops -> the arbiter's WR issue stalls
     # (the write-BW wedge).
     from cocotb.triggers import RisingEdge
-    await tb.assert_reset()
-    await tb.deassert_reset()
-    tb.set_cm_rd_ready(True)                 # DFI accepts continuously
-    N = 8
-    for k in range(N):
-        await tb.write_entry(bank=0, row=0x33, col=0x10 + k, wid=k & 0xF,
-                             data=mkdata(0x10 + k))
-    await tb.wait_clocks('aclk', 2)
-    base = len(tb.cm_out)
-    ndone = [0]
+    # N = 8 is NOT scalable: it is NUM_ENTRIES, the CAM fills exactly and a 9th
+    # write would wait on a commit that only starts after the writes. What
+    # scales is how many times the wave-10 scenario runs -- it begins with a
+    # reset, so every round starts from the same empty CAM.
+    wave10_rounds = _profile_depth('wr_data_cam_wave10_rounds')
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    tb.log.info("depth: TEST_LEVEL=%s wr_data_cam_wave10_rounds=%d",
+                os.environ.get("TEST_LEVEL", "gate"), wave10_rounds)
+    for _round in range(wave10_rounds):
+        await tb.assert_reset()
+        await tb.deassert_reset()
+        tb.set_cm_rd_ready(True)                 # DFI accepts continuously
+        N = 8
+        for k in range(N):
+            await tb.write_entry(bank=0, row=0x33, col=0x10 + k, wid=k & 0xF,
+                                 data=mkdata(0x10 + k))
+        await tb.wait_clocks('aclk', 2)
+        base = len(tb.cm_out)
+        ndone = [0]
 
-    async def _count_b():
-        while True:
+        async def _count_b(ndone=ndone):
+            while True:
+                await RisingEdge(tb.dut.aclk)
+                if int(tb.dut.commit_done_valid_o.value):
+                    ndone[0] += 1
+
+        async def _commit_all():
+            for slot in range(N):
+                await tb.commit_issue(slot)     # BFM paces on commit_ready_o
+
+        counter = cocotb.start_soon(_count_b())
+        cocotb.start_soon(_commit_all())
+        low = 0
+        budget = N * tb.BL * 2 + 60
+        for _ in range(budget):
             await RisingEdge(tb.dut.aclk)
-            if int(tb.dut.commit_done_valid_o.value):
-                ndone[0] += 1
-
-    async def _commit_all():
-        for slot in range(N):
-            await tb.commit_issue(slot)     # BFM paces on commit_ready_o
-
-    cocotb.start_soon(_count_b())
-    cocotb.start_soon(_commit_all())
-    low = 0
-    budget = N * tb.BL * 2 + 60
-    for _ in range(budget):
-        await RisingEdge(tb.dut.aclk)
-        if int(tb.dut.commit_ready_o.value) == 0:
-            low += 1
-        if ndone[0] >= N:                # wait for the LAST B (consume-last)
-            break
-    drained = len(tb.cm_out) - base
-    tb.log.info("WAVE10: drained=%d/%d  commit_ready_low=%d/%d  B=%d",
-                drained, N, low, budget, ndone[0])
-    assert drained == N, f"wave10: only {drained}/{N} bursts drained -- drain wedged"
-    # RATE-MATCHED commit (2026-09-09): commit_ready is LOW while the drain
-    # queue already holds WR_DRAIN_AHEAD bursts, i.e. it follows the drain's
-    # own pace (one burst per BL beats) instead of a FIFO's room. A wedge
-    # would show as low >> N*BL (commit_ready pinned); the contract is that it
-    # never drops for longer than one burst's fetch per committed burst.
-    assert low <= N * tb.BL + N, (f"wave10: commit_ready low {low} cycles for {N} "
-                                  f"bursts of {tb.BL} beats -- drain not keeping pace "
-                                  f"(rate-matched budget {N * tb.BL + N})")
-    assert ndone[0] == N, f"wave10: {ndone[0]} B strobes for {N} bursts (one B/burst expected)"
+            if int(tb.dut.commit_ready_o.value) == 0:
+                low += 1
+            if ndone[0] >= N:                # wait for the LAST B (consume-last)
+                break
+        counter.kill()                       # one B counter per round
+        drained = len(tb.cm_out) - base
+        tb.log.info("WAVE10: drained=%d/%d  commit_ready_low=%d/%d  B=%d",
+                    drained, N, low, budget, ndone[0])
+        assert drained == N, f"wave10: only {drained}/{N} bursts drained -- drain wedged"
+        # RATE-MATCHED commit (2026-09-09): commit_ready is LOW while the drain
+        # queue already holds WR_DRAIN_AHEAD bursts, i.e. it follows the drain's
+        # own pace (one burst per BL beats) instead of a FIFO's room. A wedge
+        # would show as low >> N*BL (commit_ready pinned); the contract is that it
+        # never drops for longer than one burst's fetch per committed burst.
+        assert low <= N * tb.BL + N, (f"wave10: commit_ready low {low} cycles for {N} "
+                                      f"bursts of {tb.BL} beats -- drain not keeping pace "
+                                      f"(rate-matched budget {N * tb.BL + N})")
+        assert ndone[0] == N, f"wave10: {ndone[0]} B strobes for {N} bursts (one B/burst expected)"
 
     tb.log.info("PASS: insert/fill, oldest port, snarf youngest (WAW), snarf "
                 "limits (id/len/scheduled), sched oldest-match, commit+evict, "
                 "wave10 pipelined drain")
 
 
-def test_pumice_wr_data_cam(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_wr_data_cam(request, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_wr_data_cam"
-    test_name = "cocotb_test_pumice_wr_data_cam"
+    test_name = f"cocotb_test_pumice_wr_data_cam_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST
@@ -200,7 +217,7 @@ def test_pumice_wr_data_cam(request):
         "LOG_PATH": log_path,
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": results_path,
-        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
+        **level_env(test_level),
     }
     extra_env.update(params)
 

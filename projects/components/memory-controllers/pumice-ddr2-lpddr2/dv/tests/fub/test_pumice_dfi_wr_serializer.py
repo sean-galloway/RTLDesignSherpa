@@ -14,6 +14,7 @@ import sys
 import random
 from collections import deque
 
+import pytest
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
@@ -21,11 +22,13 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 from tbclasses.pumice_fub_bfm import fub_producer      # noqa: E402
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/fub/pumice_dfi_wr_serializer.f")
@@ -151,11 +154,19 @@ async def cocotb_test_wr_serializer_tccd_paced(dut):
     for _ in range(3):
         await RisingEdge(dut.dfi_clk)
 
-    WRLAT, TCCD, NWR = 3, 2, 3
+    # NWR (paced single-word writes) is pure repetition; WRLAT and TCCD are
+    # the timing under test and stay literal.
+    WRLAT, TCCD, NWR = 3, 2, _profile_depth('wr_serializer_paced_writes')
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    dut._log.info("depth: TEST_LEVEL=%s wr_serializer_paced_writes=%d",
+                  os.environ.get("TEST_LEVEL", "gate"), NWR)
     dut.t_phy_wrlat_i.value = WRLAT
     strb = (1 << DFI_SW) - 1
-    words = [0xA1, 0xB2, 0xC3]             # 3 single-word bursts
-    fire_cycles = [i * TCCD for i in range(NWR)]   # 0, 2, 4 — tCCD-paced
+    words = [0xA1 + 0x11 * i for i in range(NWR)]  # NWR single-word bursts (0xA1, 0xB2, 0xC3, ...)
+    fire_cycles = [i * TCCD for i in range(NWR)]   # 0, 2, 4, ... — tCCD-paced
     en_cycles = []
     # Each word is its own single-word burst, so every packet carries last=1.
     async def _stream_words():
@@ -183,18 +194,19 @@ async def cocotb_test_wr_serializer_tccd_paced(dut):
     dut._log.info("PASS: wrdata_en follows tCCD write cadence %s (gaps %s)", en_cycles, gaps)
 
 
-def _run_wr_fub(testcase: str):
+def _run_wr_fub(testcase: str, test_level: str = 'gate'):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_dfi_wr_serializer"
+    test_name = f"{testcase}_{test_level}"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = sim_build_path(tests_dir, testcase)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"DFI_DATA_WIDTH": str(DFI_DW), "DFI_RATE": str(DFI_RATE)}
-    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{testcase}.log"),
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
-                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml"),
-                 "SEED": os.environ.get('SEED', str(random.randint(0, 100000)))}
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 **level_env(test_level)}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase=testcase,
@@ -202,11 +214,13 @@ def _run_wr_fub(testcase: str):
         compile_args=["+define+USE_ASYNC_RESET"], waves=False, keep_files=True, timescale="1ns/1ps")
 
 
-def test_pumice_dfi_wr_serializer(request):
-    _run_wr_fub("cocotb_test_pumice_dfi_wr_serializer")
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_dfi_wr_serializer(request, test_level):
+    _run_wr_fub("cocotb_test_pumice_dfi_wr_serializer", test_level=test_level)
 
 
-def test_pumice_dfi_wr_serializer_tccd_paced(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_dfi_wr_serializer_tccd_paced(request, test_level):
     # x16 BL4 single-word bursts paced at tCCD > DQ occupancy, t_phy_wrlat>0.
     # Reproduces the latent write-serializer cadence bug at the FUB level.
-    _run_wr_fub("cocotb_test_wr_serializer_tccd_paced")
+    _run_wr_fub("cocotb_test_wr_serializer_tccd_paced", test_level=test_level)

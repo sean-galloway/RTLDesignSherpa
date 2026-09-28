@@ -17,6 +17,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
@@ -24,6 +25,7 @@ if _DV_DIR not in sys.path:
 
 from tbclasses.pumice_top_csr_tb import PumiceTopCsrTB  # noqa: E402
 from tbclasses.pumice_sequences import build_b2b_wr_rd_sequences  # noqa: E402
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 # core geometry (fixed)
 DFI_RATE  = 2
@@ -62,11 +64,16 @@ async def cocotb_test_pumice_top_geared(dut):
     # and what nothing here previously covered: host_beats is always a whole
     # burst, so the down-gear path had only ever seen aligned traffic.
     burst_beats = int(os.environ.get("GEARED_BURST_BEATS", "0")) or host_beats
+    # Bursts per direction is pure repetition (the round-trip check below is
+    # written over whatever was issued); the write drain scales with it so the
+    # per-burst allowance is what it was at the old literal (4 bursts / 300).
+    n_bursts = _profile_depth('top_geared_bursts')
     tb.log.info(f"GEARED: host={host_w}b DW={DW}b -> {host_beats} host "
-                f"beats/burst, issuing {burst_beats}")
+                f"beats/burst, issuing {burst_beats}, {n_bursts} bursts "
+                f"(TEST_LEVEL={os.environ.get('TEST_LEVEL', 'gate')})")
 
     wr, rd, _ = build_b2b_wr_rd_sequences(
-        n_bursts=4, burst_len=burst_beats, base_addr=BASE, data_width=host_w)
+        n_bursts=n_bursts, burst_len=burst_beats, base_addr=BASE, data_width=host_w)
 
     # Direct round-trip: what we wrote at each host byte-addr must read back.
     bpw = host_w // 8
@@ -78,7 +85,7 @@ async def cocotb_test_pumice_top_geared(dut):
         for ki, val in enumerate(b.data):
             exp[b.addr + ki * bpw] = val & hmask
 
-    await tb.run_writes(wr, drain_cycles=300)
+    await tb.run_writes(wr, drain_cycles=75 * n_bursts)
     rd_dicts = await tb.run_sequence(rd)
 
     n_checked = 0
@@ -105,7 +112,7 @@ _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
 
 # host widths: 64 = down-gear (2:1), 128 = GEAR-1 (converters bypassed),
 # 256 = up-gear (1:2). All map to one DW=128 DRAM burst.
-def _run_geared(request, host_w, extra=None):
+def _run_geared(request, host_w, extra=None, test_level='gate'):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_top_geared_tb_top"
     verilog_sources, includes = get_sources_from_filelist(
@@ -117,21 +124,23 @@ def _run_geared(request, host_w, extra=None):
               "ROW_WIDTH": str(ROW_WIDTH), "COL_WIDTH": str(COL_WIDTH),
               "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT),
               "DRAM_BL": str(BL), "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
-    # Distinct sim_build per burst length: same RTL params, but pumice BUG-009 (was PUMICE-019)
-    # says one sim_build per process only.
+    # Distinct sim_build per burst length and per level: same RTL params, but
+    # pumice BUG-009 (was PUMICE-019) says one sim_build per process only.
     _bb = (extra or {}).get("GEARED_BURST_BEATS", "full")
-    sim_build = sim_build_path(tests_dir, f"geared_h{host_w}_b{_bb}")
-    # pumice BUG-009 (was PUMICE-019): echo the seed so a one-off red is reproducible.
-    def _seed_echo(hw):
-        sd = os.environ.get("PUMICE_SEED", str(random.randint(0, 100000)))
-        print(f"[seed] geared_h{hw} PUMICE_SEED={sd}")
-        return sd
+    sim_build = sim_build_path(tests_dir, f"geared_h{host_w}_b{_bb}_{test_level}")
     os.makedirs(sim_build, exist_ok=True)
+    # The seed comes from level_env(): the repo-root conftest has pinned SEED
+    # per test node, and an explicit SEED is a reproduction request that is
+    # never overridden. PUMICE_SEED=<n> is this tier's older repro spelling
+    # (test_pumice_top still uses it) and keeps working as an override.
+    # pumice BUG-009 (was PUMICE-019) wanted the seed echoed; it still is, below.
+    repro = {"SEED": os.environ["PUMICE_SEED"]} if "PUMICE_SEED" in os.environ else {}
     env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{tag}.log"),
            "COCOTB_LOG_LEVEL": "INFO",
            "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),
-           "SEED": _seed_echo(host_w),
+           **level_env(test_level, **repro),
            "HOST_AXI_DATA_WIDTH": str(host_w)}
+    print(f"[seed] geared_h{host_w} SEED={env['SEED']} TEST_LEVEL={env['TEST_LEVEL']}")
     env.update(params)
     if extra:
         env.update(extra)
@@ -146,8 +155,9 @@ def _run_geared(request, host_w, extra=None):
 # host widths: 64 = down-gear (2:1), 128 = GEAR-1 (converters bypassed),
 # 256 = up-gear (1:2). All map to one DW=128 DRAM burst.
 @pytest.mark.parametrize("host_w", [64, 128, 256])
-def test_pumice_top_geared(request, host_w):
-    _run_geared(request, host_w)
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_top_geared(request, host_w, test_level):
+    _run_geared(request, host_w, test_level=test_level)
 
 # The ddr2-char harness runs host_w=64 with AxLEN=0 -- ONE 64-bit host beat
 # against a DRAM burst that is (BL*DRAM_BEAT)/64 = 8 host beats wide. Nothing
@@ -155,5 +165,7 @@ def test_pumice_top_geared(request, host_w):
 # harness's exact geometry, so a hang here is a pumice bug and a hang only in
 # the harness is a harness bug.
 @pytest.mark.parametrize("beats", [1, 2, 4])
-def test_pumice_top_geared_short_burst(request, beats):
-    _run_geared(request, host_w=64, extra={"GEARED_BURST_BEATS": str(beats)})
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_top_geared_short_burst(request, beats, test_level):
+    _run_geared(request, host_w=64, extra={"GEARED_BURST_BEATS": str(beats)},
+                test_level=test_level)

@@ -7,11 +7,13 @@ import os
 import sys
 import random
 
+import pytest
 import cocotb
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
@@ -19,6 +21,7 @@ if _DV_DIR not in sys.path:
 
 from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa: E402
 from tbclasses.pumice_rd_cmd_cam_tb import PumiceRdCmdCamTB  # noqa: E402
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/fub/pumice_rd_cmd_cam.f")
@@ -75,31 +78,44 @@ async def cocotb_test_pumice_rd_cmd_cam(dut):
     assert tb.sch_valid() == 0 and tb.oldest()[0] == 0, "window not empty after issuing all"
     tb.iss_out.clear()
 
-    # ---- window full: N inserts block the (N+1)th until an issue frees one --
-    for k in range(N):
-        await tb.insert(bank=k % tb.NUM_BANKS, row=100 + k, col=k, rid=0x20 + k, ticket=k)
-    await tb.wait_clocks('aclk', 2)
-    assert tb.sch_valid() == (1 << N) - 1
-    assert tb.ins_ready() == 0, f"ins_ready still 1 with {N}/{N} entries"
-    await tb.issue(3)
-    await tb.wait_iss(1)
-    assert list(tb.iss_out) == [3]
-    await tb.wait_clocks('aclk', 1)
-    assert tb.ins_ready() == 1, "ins_ready did not return after an issue freed a slot"
-    tb.iss_out.clear()
+    # The fill-to-full and backpressure blocks start from an EMPTY window and
+    # leave it empty, so they can repeat -- the file's only pure-repetition
+    # count (N and the 8-cycle age gap below are sized by the RTL and by an
+    # assertion respectively).
+    fill_rounds = _profile_depth('rd_cmd_cam_fill_rounds')
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    tb.log.info("depth: TEST_LEVEL=%s rd_cmd_cam_fill_rounds=%d",
+                os.environ.get("TEST_LEVEL", "gate"), fill_rounds)
+    for _round in range(fill_rounds):
+        # ---- window full: N inserts block the (N+1)th until an issue frees one --
+        for k in range(N):
+            await tb.insert(bank=k % tb.NUM_BANKS, row=100 + k, col=k, rid=0x20 + k, ticket=k)
+        await tb.wait_clocks('aclk', 2)
+        assert tb.sch_valid() == (1 << N) - 1
+        assert tb.ins_ready() == 0, f"ins_ready still 1 with {N}/{N} entries"
+        await tb.issue(3)
+        await tb.wait_iss(1)
+        assert list(tb.iss_out) == [3]
+        await tb.wait_clocks('aclk', 1)
+        assert tb.ins_ready() == 1, "ins_ready did not return after an issue freed a slot"
+        tb.iss_out.clear()
 
-    # ---- downstream backpressure on iss_* holds issue_ready (no ticket lost) --
-    tb.set_iss_ready(False)
-    await tb.wait_clocks('aclk', 2)
-    assert int(dut.issue_ready_o.value) == 0, "issue_ready must follow iss_ready (ring issue_q)"
-    tb.set_iss_ready(True)
-    for k in range(N):
-        if k != 3:
-            await tb.issue(k)
-    await tb.wait_iss(N - 1)
-    assert sorted(tb.iss_out) == sorted(k for k in range(N) if k != 3), f"tickets {list(tb.iss_out)}"
-    await tb.wait_clocks('aclk', 1)
-    assert tb.sch_valid() == 0
+        # ---- downstream backpressure on iss_* holds issue_ready (no ticket lost) --
+        tb.set_iss_ready(False)
+        await tb.wait_clocks('aclk', 2)
+        assert int(dut.issue_ready_o.value) == 0, "issue_ready must follow iss_ready (ring issue_q)"
+        tb.set_iss_ready(True)
+        for k in range(N):
+            if k != 3:
+                await tb.issue(k)
+        await tb.wait_iss(N - 1)
+        assert sorted(tb.iss_out) == sorted(k for k in range(N) if k != 3), f"tickets {list(tb.iss_out)}"
+        await tb.wait_clocks('aclk', 1)
+        assert tb.sch_valid() == 0
+        tb.iss_out.clear()
 
     # =====================================================================
     # sch_head_rel_o -- the scheduler's cross-CAM ordering key
@@ -144,10 +160,11 @@ async def cocotb_test_pumice_rd_cmd_cam(dut):
                 "full window / iss backpressure / oldest + sched lookups / head_rel")
 
 
-def test_pumice_rd_cmd_cam(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_rd_cmd_cam(request, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_rd_cmd_cam"
-    test_name = "cocotb_test_pumice_rd_cmd_cam"
+    test_name = f"cocotb_test_pumice_rd_cmd_cam_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST
@@ -172,7 +189,7 @@ def test_pumice_rd_cmd_cam(request):
         "LOG_PATH": log_path,
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": results_path,
-        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
+        **level_env(test_level),
     }
     extra_env.update(params)
 

@@ -16,6 +16,7 @@ import sys
 import random
 from collections import deque
 
+import pytest
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
@@ -23,11 +24,13 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer   # noqa: E402
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 from tbclasses.pumice_top_csr_tb import board_clock_periods  # noqa: E402
 _ACLK_NS, _DFI_NS = board_clock_periods()   # BOARD parity, not literals
@@ -112,7 +115,6 @@ async def cocotb_test_pumice_dfi_layer(dut):
         await RisingEdge(dut.ctl_clk)
 
     rng = random.Random(int(os.environ.get("SEED", "1")))
-    burst = [rng.randrange(1 << DFI_DW) for _ in range(BL_WORDS)]
     captured = []          # words captured off dfi_wrdata
     rd_out = []            # words received back on the ctl rddata stream
     bad_en = []            # (cycle kind, value) of any partially-masked enable
@@ -171,36 +173,53 @@ async def cocotb_test_pumice_dfi_layer(dut):
         hand-rolled version needed is gone with the hand driving."""
         await cmd_src.send(cmd_src.create_packet(data=v))
 
-    # Queue-and-go so the write-data drive stays BUBBLE-FREE, which is what
-    # the comment above this loop asks for: awaiting each beat would leave a
-    # gap between them.
-    for i, w in enumerate(burst):
-        await wd_src._driver_send(wd_src.create_packet(
-            data=pack_wd(w, (1 << DFI_SW) - 1, 1 if i == BL_WORDS - 1 else 0)))
+    # Round trips are pure repetition: the DFI model hands back whatever it has
+    # captured, so both capture lists are emptied before each round's write.
+    # BL_WORDS (the burst shape) is geometry and stays.
+    roundtrips = _profile_depth('dfi_layer_roundtrips')
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    dut._log.info("depth: TEST_LEVEL=%s dfi_layer_roundtrips=%d",
+                  os.environ.get("TEST_LEVEL", "gate"), roundtrips)
+    for rnd in range(roundtrips):
+        burst = [rng.randrange(1 << DFI_DW) for _ in range(BL_WORDS)]
+        captured.clear()
+        rd_out.clear()
 
-    await push_cmd(pack_cmd(OP_WR, bank=3, row=0x123, col=0x40))
-    for _ in range(40):
-        await RisingEdge(dut.ctl_clk)
-    await push_cmd(pack_cmd(OP_RD, bank=3, row=0x123, col=0x40))
+        # Queue-and-go so the write-data drive stays BUBBLE-FREE, which is what
+        # the comment above this loop asks for: awaiting each beat would leave a
+        # gap between them.
+        for i, w in enumerate(burst):
+            await wd_src._driver_send(wd_src.create_packet(
+                data=pack_wd(w, (1 << DFI_SW) - 1, 1 if i == BL_WORDS - 1 else 0)))
 
-    for _ in range(400):
-        if len(rd_out) >= BL_WORDS:
-            break
-        await RisingEdge(dut.ctl_clk)
+        await push_cmd(pack_cmd(OP_WR, bank=3, row=0x123, col=0x40))
+        for _ in range(40):
+            await RisingEdge(dut.ctl_clk)
+        await push_cmd(pack_cmd(OP_RD, bank=3, row=0x123, col=0x40))
 
-    assert not bad_en, \
-        f"DFI enables not all-phase at gear == MAX (want {FULL_EN:#x}): {bad_en[:4]}"
-    assert captured == burst, \
-        f"write burst on DFI {[hex(x) for x in captured]} != {[hex(x) for x in burst]}"
-    assert rd_out[:BL_WORDS] == burst, \
-        f"read burst back {[hex(x) for x in rd_out[:BL_WORDS]]} != {[hex(x) for x in burst]}"
-    dut._log.info(f"PASS: wrote {BL_WORDS} words to DFI, read them back through the CDC")
+        for _ in range(400):
+            if len(rd_out) >= BL_WORDS:
+                break
+            await RisingEdge(dut.ctl_clk)
+
+        assert not bad_en, \
+            f"DFI enables not all-phase at gear == MAX (want {FULL_EN:#x}): {bad_en[:4]}"
+        assert captured == burst, \
+            f"round {rnd}: write burst on DFI {[hex(x) for x in captured]} != {[hex(x) for x in burst]}"
+        assert rd_out[:BL_WORDS] == burst, \
+            f"round {rnd}: read burst back {[hex(x) for x in rd_out[:BL_WORDS]]} != {[hex(x) for x in burst]}"
+    dut._log.info(f"PASS: wrote {BL_WORDS} words to DFI, read them back through the CDC, "
+                  f"x{roundtrips}")
 
 
-def test_pumice_dfi_layer(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_dfi_layer(request, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_dfi_layer"
-    test_name = "cocotb_test_pumice_dfi_layer"
+    test_name = f"cocotb_test_pumice_dfi_layer_{test_level}"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -211,7 +230,7 @@ def test_pumice_dfi_layer(request):
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
-                 "SEED": os.environ.get('SEED', str(random.randint(0, 100000)))}
+                 **level_env(test_level)}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_pumice_dfi_layer",

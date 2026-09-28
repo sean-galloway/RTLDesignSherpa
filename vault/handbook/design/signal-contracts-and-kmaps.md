@@ -36,12 +36,19 @@ and Karnaugh maps for the key combinational decisions.
   its block: RTL path constants, its `CITES` registry, and its `build_*`
   sheet builders.
 - Reference implementation: stream `docs/gen_signal_contracts_kmaps.py`,
-  which imports the shared package. **pumice's
-  `docs/gen_pumice_signal_contracts.py` still carries its own private copy**
-  and has NOT been repointed -- its API diverged (`axis_eqs=` as a separate
-  argument where the shared writer folds equations into `varnames` triples,
-  and no citation gate at all), so converting it is a real refactor of a
-  green workbook, not a rename. That is the remaining half of step 5.
+  which imports the shared package. pumice's
+  `docs/gen_pumice_signal_contracts.py` imports it too since 2026-09-27
+  (tooling TASK-006 item 5, second half): its private writer, minimiser and
+  styles (269 lines) are gone, its `axis_eqs=` lists are folded into
+  `varnames` triples, and it runs `verify_citations` over a 28-entry `CITES`
+  registry it never had. The conversion was checked the only way a refactor
+  of a green workbook can be: a layout-independent dump of every map's cells,
+  relations and expressions (17 maps, 364 cells) is identical before and
+  after, and `check_kmap_rtl_sync.py` reports the same 16 checked / 0 drifted.
+  The shared writer now shows, honestly, what pumice's maps never supplied --
+  `DEPENDS ONLY ON: not stated` and `VERDICT: NOT CHECKED` on every map --
+  which is pumice TASK-029. One implementation exists; the CONTENT gaps are
+  per component (pumice: 17 maps; stream: 26 of 37 still NOT CHECKED).
 
 ## The required artifact is a CONTRACT TABLE, not a grid
 

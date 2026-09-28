@@ -14,6 +14,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
@@ -25,6 +26,7 @@ _CTRL_T = dram_config()[1]      # the operating point this suite runs
 from tbclasses.pumice_mem_cmd_scheduler_tb import (  # noqa: E402
     PumiceMemCmdSchedulerTB, OP_ACT, OP_RD, OP_WR, OP_PRE, OP_REF, OP_MRS,
 )
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/macro/pumice_mem_cmd_scheduler.f")
@@ -202,7 +204,19 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
     tb.dut.t_refi_i.value = 0x40
     tb.cmds.clear()
     issued = 0
-    for i in range(40):
+    # Reads under refresh pressure: pure repetition, and the exact RD count
+    # below scales with it. The floor stays at 40 at gate and func because the
+    # `refs >= 3` / `acts >= 10` floors are sized against that many reads at
+    # tREFI=0x40; only full grows.
+    n_reads = _profile_depth('sched_refresh_reads')
+    n_pairs = _profile_depth('sched_mixed_pairs')
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    tb.log.info("depth: TEST_LEVEL=%s sched_refresh_reads=%d sched_mixed_pairs=%d",
+                os.environ.get("TEST_LEVEL", "gate"), n_reads, n_pairs)
+    for i in range(n_reads):
         tb.rd_entry = {'bank': i % 8, 'row': 0x100 + i, 'col': 0x10,
                        'id': i & 0xF, 'age': i, 'slot': i % 8}
         for _ in range(400):
@@ -217,8 +231,8 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
     assert refs >= 3, f"phase-5 expected recurring REFs, saw {refs}"
     # exactly one RD column per injected entry (1:1); ACT/REF counts vary
     # with refresh interleave so stay bounded-below.
-    assert len(tb.ops_of(OP_RD)) == 40, \
-        f"phase-5 expected exactly 40 RD columns, saw {len(tb.ops_of(OP_RD))}"
+    assert len(tb.ops_of(OP_RD)) == n_reads, \
+        f"phase-5 expected exactly {n_reads} RD columns, saw {len(tb.ops_of(OP_RD))}"
     assert acts >= 10, f"phase-5 expected recurring ACTs, saw {acts}"
     tb.log.info(f"phase 5: {issued} reads under refresh pressure "
                 f"({refs} REF, {acts} ACT) with the history checker armed")
@@ -234,7 +248,7 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
     tb.dut.t_refi_i.value = 0x0800          # calm refresh for this phase
     tb.cmds.clear()
     mixed = 0
-    for i in range(30):
+    for i in range(n_pairs):                 # concurrent pairs: pure repetition
         tb.wr_entry = {'bank': (2 * i) % 8, 'row': 0x200 + i, 'col': 0x20,
                        'id': i & 0xF, 'age': i, 'slot': i % 8}
         tb.rd_entry = {'bank': (2 * i + 1) % 8, 'row': 0x300 + i, 'col': 0x30,
@@ -250,7 +264,8 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
     wrs = len(tb.ops_of(OP_WR))
     # 1:1 accounting: each injected entry issues EXACTLY once — too many
     # columns (re-issue/duplicate) is as much an error as too few.
-    assert rds == 30 and wrs == 30, f"expected exactly 30/30 mixed columns, {rds}/{wrs}"
+    assert rds == n_pairs and wrs == n_pairs, \
+        f"expected exactly {n_pairs}/{n_pairs} mixed columns, {rds}/{wrs}"
     tb.log.info(f"phase 6: {mixed} concurrent wr+rd pairs "
                 f"({rds} RD, {wrs} WR) under the global tWTR/tRTW audit")
 
@@ -340,12 +355,14 @@ async def cocotb_test_refresh_vs_read_stream(dut):
                 f"every column on an open row")
 
 
-def test_pumice_mem_cmd_scheduler_refresh_read_stream(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_mem_cmd_scheduler_refresh_read_stream(request, test_level):
     """pumice BUG-014 (was PUMICE-037): sustained read stream across a refresh."""
-    _run_scheduler(request, "cocotb_test_refresh_vs_read_stream")
+    _run_scheduler(request, "cocotb_test_refresh_vs_read_stream", test_level=test_level)
 
 
-def test_pumice_mem_cmd_scheduler_refresh_inflight_read(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_mem_cmd_scheduler_refresh_inflight_read(request, test_level):
     """Refresh vs an in-flight read: JEDEC spacing holds. PASSES.
 
     Written to reproduce pumice BUG-014 (was PUMICE-037) and it does NOT: the refresh path respects
@@ -353,11 +370,12 @@ def test_pumice_mem_cmd_scheduler_refresh_inflight_read(request):
     regression guard on that property, and as the record that the
     scheduler's command spacing is NOT the mechanism.
     """
-    _run_scheduler(request, "cocotb_test_refresh_vs_inflight_read")
+    _run_scheduler(request, "cocotb_test_refresh_vs_inflight_read", test_level=test_level)
 
 
-def test_pumice_mem_cmd_scheduler(request):
-    _run_scheduler(request, "cocotb_test_pumice_mem_cmd_scheduler")
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_mem_cmd_scheduler(request, test_level):
+    _run_scheduler(request, "cocotb_test_pumice_mem_cmd_scheduler", test_level=test_level)
 
 
 
@@ -507,8 +525,11 @@ async def cocotb_test_timeout_pre_vs_pending_column(dut):
         cbase = max(guards) if guards else 0
         # Sweep the gap so the next request lands at every phase relative to the
         # timeout PRE. TR=2 expires almost immediately once the bank goes idle.
+        # The GAP sweep (0..12) is the stimulus shape; the reps per gap are
+        # pure repetition. Reps must stay >= 2 so the >= 100-push vacuity floor
+        # below still holds (13 gaps x reps x 4 reads, ~1 push per read).
         for gap in range(0, 13):
-            for rep in range(3):
+            for rep in range(reps_per_gap):
                 for k in range(4):
                     tb.rd_entry = {'bank': BANK, 'row': ROW,
                                    'col': 0x40 + 4 * k, 'id': 0xA,
@@ -539,6 +560,10 @@ async def cocotb_test_timeout_pre_vs_pending_column(dut):
         return dict(label=label, stream=stream, pstream=pstream, rej=rej,
                     supp=supp, tmo_cyc=tmo_cyc,
                     bad=[(i, c, stream, pstream, rej) for i, c in bad])
+
+    reps_per_gap = _profile_depth('sched_timeout_reps')
+    tb.log.info("depth: TEST_LEVEL=%s sched_timeout_reps=%d",
+                os.environ.get("TEST_LEVEL", "gate"), reps_per_gap)
 
     # baseline 1: open page, timeout OFF -> must be clean
     base_open = await arm(0, 0, "open_page_no_timeout")
@@ -672,14 +697,15 @@ async def cocotb_test_timeout_pre_vs_pending_column(dut):
             f"  guard trace logged above.")
 
 
-def test_pumice_mem_cmd_scheduler_timeout_pre_vs_pending_column(request):
-    _run_scheduler(request, "cocotb_test_timeout_pre_vs_pending_column")
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_mem_cmd_scheduler_timeout_pre_vs_pending_column(request, test_level):
+    _run_scheduler(request, "cocotb_test_timeout_pre_vs_pending_column", test_level=test_level)
 
 
-def _run_scheduler(request, testcase):
+def _run_scheduler(request, testcase, test_level='gate'):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_mem_cmd_scheduler"
-    test_name = testcase
+    test_name = f"{testcase}_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST
@@ -705,7 +731,7 @@ def _run_scheduler(request, testcase):
     }
     extra_env = {
         "DUT": dut_name, "LOG_PATH": log_path, "COCOTB_LOG_LEVEL": "INFO",
-        "COCOTB_RESULTS_FILE": results_path, "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
+        "COCOTB_RESULTS_FILE": results_path, **level_env(test_level),
     }
     extra_env.update(params)
     # Command-history scoreboard: generate-gated INSIDE the scheduler

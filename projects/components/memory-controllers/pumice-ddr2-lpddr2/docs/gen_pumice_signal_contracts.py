@@ -47,6 +47,47 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.abspath(os.path.join(HERE, *([".."] * 5)))
+sys.path.insert(0, os.path.join(REPO, "bin"))
+# Shared machinery promoted to bin/kmaps (tooling TASK-006 item 5); what stays
+# here is what describes pumice: the RTL cites, the CITES registry, the builders.
+from kmaps.citations import verify_citations  # noqa: E402
+from kmaps.writer import KmapWriter  # noqa: E402
+
+# Citation registry (bin/kmaps/citations.py): every file:line a map cites, with
+# the text that line carried when the map was written. Generation fails if
+# the RTL moved under a quote -- a stale citation reads as evidence.
+CITES = [
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 88, ');'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 96, 'logic w_ap_fire;'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 106, "else if (r_rcd != '0)  r_rcd <= r_rcd - 1'b1;"),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 115, 'if (set_pre_i || w_ap_fire) r_rp <= t_rp_i;'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 116, "else if (r_rp != '0)        r_rp <= r_rp - 1'b1;"),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 120, 'else if (set_wr_i)         r_preblk <= t_wr_i;'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 133, "r_ap_pending <= 1'b0;"),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 135, 'r_ap_pending <= set_ap_i;'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 138, ')'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/bank_timer.sv', 144, "assign safe_rd_o  = r_row_valid && (r_rcd == '0) && !r_ap_pe"),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 300, '// enforced HERE; everything upstream is advisory.'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 302, '// A rejected pick is DROPPED, never held. Holding it would '),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 346, '//  - an in-flight (registered) ACT/PRE keeps ITS bank guard'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 361, '// the ONE exception is an auto-precharge column, which does'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 383, '//'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 421, "w_if_preact_out = w_inflight_preact ? (NUM_BANKS'(1) << r_ba"),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 562, '// FIFO frees) WHILE a same-bank PRE is already committed in'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 574, '// The global turnaround oks are FLOPPED in global_timers (a'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 581, '// flopped ok reflects the event. Same-direction pacing rema'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 1052, '// covering across the added stage; precharge is per-bank (g'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv', 1054, 'assign w_act_gate_live = !w_rfc_busy && tfaw_ok_i[RK0] && tr'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv', 79, "// mirrors the DEVICE'S internal counter, which advances per"),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv', 98, ');'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv', 126, '// accumulator to exceed it:'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv', 133, '//   number, so any latency between the request and the gran'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/refresh_ctrl.sv', 186, "else if (pend_n < MAX_PENDING) pend_n = pend_n + 4'd1;"),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_mem_cmd_scheduler.sv', 529, '.stall_turnaround_o        (stall_turnaround_o),'),
+    ('projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/macro/pumice_mem_cmd_scheduler.sv', 576, 'end else begin : g_cmd_nodelay'),
+]
+
 XLSX = os.path.join(HERE, "pumice_signal_contracts.xlsx")
 
 # shared styling for the index + carried contract sheets
@@ -1272,276 +1313,9 @@ def write_path_sheets(wb):
         _wp_row(ws, r, x, flag=(5, ok)); r += 1
 
 
-SC_GREEN = PatternFill("solid", fgColor="C6EFCE")
-SC_GREY = PatternFill("solid", fgColor="F2F2F2")
-SC_DC = PatternFill("solid", fgColor="FDE68A")   # unreachable -> don't-care
-SC_TITLE = Font(bold=True, size=12)
-SC_HDR = Font(bold=True)
-SC_MONO = Font(name="Consolas", size=10)
-SC_WRAP = Alignment(wrap_text=True, vertical="top")
-SC_CENTER = Alignment(horizontal="center", vertical="center")
-SC_THIN = Border(*[Side(style="thin")] * 4)
+# The K-map writer, minimiser and styles are the shared bin/kmaps machinery
+# (tooling TASK-006 item 5); what stays here is pumice-specific content.
 
-SC_GRAY2 = [(0, 0), (0, 1), (1, 1), (1, 0)]  # gray-code order of 2 bits
-
-
-def _sc_glabel(bits):
-    return "".join(str(b) for b in bits)
-
-
-
-def _prime_implicants(n, ones, dcs):
-    """Quine-McCluskey. Returns cubes as tuples of 0/1/None per variable.
-
-    Don't-cares are allowed INTO an implicant but never need covering -- which
-    is the whole point of marking unreachable cells as X rather than 0: a 0
-    there would force the cover to work around a state the hardware cannot be
-    in, and the implicant list would not match the RTL.
-    """
-    terms = sorted(set(ones) | set(dcs))
-    if not terms:
-        return []
-    cubes = {(tuple((t >> (n - 1 - i)) & 1 for i in range(n))) for t in terms}
-    primes = set()
-    while cubes:
-        merged, used = set(), set()
-        key = lambda c: tuple(-1 if v is None else v for v in c)
-        cl = sorted(cubes, key=key)
-        for i in range(len(cl)):
-            for j in range(i + 1, len(cl)):
-                a, b = cl[i], cl[j]
-                diff = [k for k in range(n) if a[k] != b[k]]
-                if len(diff) == 1 and all(
-                        (a[k] is None) == (b[k] is None) for k in range(n)):
-                    k = diff[0]
-                    if a[k] is None or b[k] is None:
-                        continue
-                    new = list(a)
-                    new[k] = None
-                    merged.add(tuple(new))
-                    used.add(a)
-                    used.add(b)
-        primes |= (cubes - used)
-        cubes = merged
-    # keep only primes needed to cover the ONE-set
-    def covers(cube, m):
-        bits = tuple((m >> (n - 1 - i)) & 1 for i in range(n))
-        return all(c is None or c == b for c, b in zip(cube, bits))
-    need, chosen = set(ones), []
-    for cube in sorted(primes, key=lambda c: (sum(x is not None for x in c),
-                                              tuple(-1 if v is None else v for v in c))):
-        hit = {m for m in need if covers(cube, m)}
-        if hit:
-            chosen.append(cube)
-            need -= hit
-        if not need:
-            break
-    return chosen
-
-
-def _sop(cubes, names):
-    if not cubes:
-        return "0  (never asserted)"
-    out = []
-    for c in cubes:
-        lits = [(names[i] if v else "!" + names[i])
-                for i, v in enumerate(c) if v is not None]
-        out.append(" & ".join(lits) if lits else "1")
-    return "  |  ".join(out)
-
-
-class ScKmapWriter:
-    def __init__(self, ws):
-        self.ws = ws
-        self.row = 1
-
-    def sheet_intro(self, title, lines):
-        ws = self.ws
-        ws.cell(self.row, 1, title).font = SC_TITLE
-        self.row += 1
-        for ln in lines:
-            c = ws.cell(self.row, 1, ln)
-            c.alignment = SC_WRAP
-            self.row += 1
-        self.row += 1
-
-    def kmap(self, name, source, expr, varnames, fn, check, values=None,
-             relations=None, axis_eqs=None):
-        """One K-map block. varnames: MSB-first list (2..6). fn(*bits)->0/1
-        (or a short string when `values` mapping is wanted). Pages over
-        varnames[4:].
-
-        `relations` is the SUFFICIENCY half of the map: a list of
-        (text, reachable_predicate, citation). A cell whose bits fail ANY
-        predicate cannot occur in hardware, so it is emitted as an explicit
-        don't-care X rather than as a 0 -- a 0 there would claim the logic
-        was checked in a state it can never be in, and a later edit that
-        makes the state reachable would not show up. Every relation carries
-        the RTL that makes it true; an uncited relation is an assumption
-        wearing a proof's clothes.
-        """
-        ws = self.ws
-        ws.cell(self.row, 1, name).font = SC_TITLE
-        ws.cell(self.row, 4, source).font = SC_MONO
-        self.row += 1
-        c = ws.cell(self.row, 1, expr)
-        c.font = SC_MONO
-        c.alignment = SC_WRAP
-        self.row += 1
-        n = len(varnames)
-        rowv = varnames[0:min(2, n)]                  # grid row variables
-        colv = varnames[min(2, n):min(4, n)]          # grid col variables
-        pagev = varnames[4:]                          # page variables
-        ws.cell(self.row, 1,
-                f"rows = {'/'.join(rowv)}   cols = {'/'.join(colv)}"
-                + (f"   pages = {'/'.join(pagev)}" if pagev else ""))
-        self.row += 1
-
-        # ---- relations: why whole regions of the grid are skipped ----------
-        # ---- axis terms: each axis its OWN equation + citation (criterion 3)
-        if axis_eqs:
-            c = ws.cell(self.row, 1, "AXIS TERMS -- each axis is itself a "
-                                     "signal, with its own equation:")
-            c.font = SC_HDR
-            self.row += 1
-            for axis, eq, cite in axis_eqs:
-                ws.cell(self.row, 1, "    " + axis).font = SC_MONO
-                ws.cell(self.row, 2, eq).alignment = SC_WRAP
-                ws.cell(self.row, 4, cite).font = SC_MONO
-                self.row += 1
-
-        rels = relations or []
-        # a relation with no predicate is an INDEPENDENCE note: the pair was
-        # examined and is genuinely unconstrained. Saying so is part of the
-        # sufficiency argument; silence is not.
-        constraining = [r for r in rels if r[1] is not None]
-        if rels:
-            c = ws.cell(self.row, 1,
-                        "RELATIONS between axis signals (these make cells "
-                        "UNREACHABLE -- shown as X, a don't-care, never as 0):")
-            c.font = SC_HDR; c.alignment = SC_WRAP
-            self.row += 1
-            for text, _pred, cite in rels:
-                mark = "    " if _pred is not None else "    (independent) "
-                c = ws.cell(self.row, 1, mark + text)
-                c.alignment = SC_WRAP
-                ws.cell(self.row, 4, cite).font = SC_MONO
-                self.row += 1
-        else:
-            c = ws.cell(self.row, 1,
-                        "RELATIONS: none stated -- every combination is treated "
-                        "as reachable. If two of these axes are in fact related, "
-                        "the map is over-claiming (pumice TASK-028 (was PUMICE-KMAP)).")
-            c.font = Font(italic=True, color="B45309"); c.alignment = SC_WRAP
-            self.row += 1
-
-        def _reachable(bits):
-            return all(bool(pred(*bits)) for _t, pred, _c in constraining)
-
-        ws.cell(self.row, 1, f"CHECK BY INSPECTION: {check}").alignment = SC_WRAP
-        ws.cell(self.row, 1).font = Font(italic=True)
-        self.row += 2
-
-        rows = SC_GRAY2 if len(rowv) == 2 else ([(0,), (1,)] if len(rowv) == 1
-                                             else [()])
-        cols = SC_GRAY2 if len(colv) == 2 else ([(0,), (1,)] if len(colv) == 1
-                                             else [()])
-        pages = [()]
-        for _ in pagev:
-            pages = [p + (b,) for p in pages for b in (0, 1)]
-
-        n_dc = 0
-        n_tot = len(rows) * len(cols) * len(pages)
-        ones, dcs = [], []          # minterms for the implicant derivation
-        for page in pages:
-            base = self.row
-            if pagev:
-                lbl = ", ".join(f"{v}={b}" for v, b in zip(pagev, page))
-                ws.cell(base, 1, f"[{lbl}]").font = SC_HDR
-                base += 1
-            # column headers
-            for j, cb in enumerate(cols):
-                cc = ws.cell(base, 2 + j, _sc_glabel(cb) or "-")
-                cc.font = SC_HDR
-                cc.alignment = SC_CENTER
-            for i, rb in enumerate(rows):
-                rc = ws.cell(base + 1 + i, 1, _sc_glabel(rb) or "-")
-                rc.font = SC_HDR
-                rc.alignment = SC_CENTER
-                for j, cb in enumerate(cols):
-                    bits = tuple(rb) + tuple(cb) + tuple(page)
-                    cell = ws.cell(base + 1 + i, 2 + j)
-                    idx = 0
-                    for bit in bits:
-                        idx = (idx << 1) | int(bool(bit))
-                    if not _reachable(bits):
-                        dcs.append(idx)
-                        cell.value = "X"
-                        cell.fill = SC_DC
-                        cell.font = Font(italic=True)
-                        n_dc += 1
-                    else:
-                        v = fn(*bits)
-                        if not values and bool(v):
-                            ones.append(idx)
-                        if values:                    # multi-valued map
-                            cell.value = values.get(v, str(v))
-                            benign = str(v) in ("0", "-", "wait", "hold", "IDLE")
-                            cell.fill = SC_GREY if benign else SC_GREEN
-                        else:
-                            cell.value = int(bool(v))
-                            cell.fill = SC_GREEN if v else SC_GREY
-                    cell.alignment = SC_CENTER
-                    cell.border = SC_THIN
-            self.row = base + 1 + len(rows) + 1
-        if constraining:
-            c = ws.cell(self.row, 1,
-                        f"cells: {n_tot - n_dc} reachable, {n_dc} don't-care "
-                        f"(X) of {n_tot}. Read the CHECK over the reachable "
-                        f"cells only.")
-            c.font = Font(italic=True); c.alignment = SC_WRAP
-            self.row += 1
-
-        # ---- implicants derived from the grid (criterion 6) ---------------
-        if not values and n == len(varnames):
-            cubes = _prime_implicants(n, ones, dcs)
-            c = ws.cell(self.row, 1, "IMPLICANTS (derived from the cells above, "
-                                     "don't-cares used where they help):")
-            c.font = SC_HDR; c.alignment = SC_WRAP
-            self.row += 1
-            ws.cell(self.row, 1, "    " + _sop(cubes, varnames)).font = SC_MONO
-            self.row += 1
-            c = ws.cell(self.row, 1,
-                        "    Compare against the documented equation above. A "
-                        "difference means the grid and the RTL expression "
-                        "disagree -- one of them is wrong, and the cells are "
-                        "computed, so it is the equation.")
-            c.font = Font(italic=True); c.alignment = SC_WRAP
-            self.row += 1
-        self.row += 1
-
-    def table(self, name, source, headers, rows, note=""):
-        ws = self.ws
-        ws.cell(self.row, 1, name).font = SC_TITLE
-        ws.cell(self.row, 4, source).font = SC_MONO
-        self.row += 1
-        if note:
-            c = ws.cell(self.row, 1, note)
-            c.alignment = SC_WRAP
-            c.font = Font(italic=True)
-            self.row += 1
-        for j, h in enumerate(headers):
-            c = ws.cell(self.row, 1 + j, h)
-            c.font = SC_HDR
-            c.border = SC_THIN
-        self.row += 1
-        for r in rows:
-            for j, v in enumerate(r):
-                c = ws.cell(self.row, 1 + j, v)
-                c.border = SC_THIN
-                c.alignment = SC_WRAP
-            self.row += 1
-        self.row += 2
 
 
 def build_arbiter_sheet(wb):
@@ -1550,7 +1324,7 @@ def build_arbiter_sheet(wb):
     ws = wb.create_sheet("K-maps arbiter")
     for col, w in zip("ABCDEFGH", (26, 9, 9, 9, 9, 9, 9, 9)):
         ws.column_dimensions[col].width = w
-    km = ScKmapWriter(ws)
+    km = KmapWriter(ws)
     km.sheet_intro(
         "pumice_cmd_arbiter — decision K-maps (rtl/fub/pumice_cmd_arbiter.sv)",
         ["Each grid is computed from a python mirror of the exact RTL "
@@ -1566,7 +1340,21 @@ def build_arbiter_sheet(wb):
         "w_ref_safe = !w_any_active && !w_inflight_preact && (r_guard0=='0) && "
         "(r_guard1=='0) && !w_rfc_busy && !r_grant   [guards collapsed: "
         "guards_nz = |r_guard0 | |r_guard1]",
-        ["any_active", "inflight_preact", "guards_nz", "rfc_busy", "grant"],
+        [('any_active',
+          '|r_bank_row_active[RK0]',
+          'pumice_cmd_arbiter.sv:1052'),
+         ('inflight_preact',
+          'r_pick_valid && (r_do_act || r_do_pre)',
+          'pumice_cmd_arbiter.sv:302'),
+         ('guards_nz',
+          "(r_guard0 != '0) || (r_guard1 != '0)",
+          'pumice_cmd_arbiter.sv (guard stages)'),
+         ('rfc_busy',
+          'w_rfc_busy -- r_rfc_cnt != 0, reloaded on each fired REF',
+          'pumice_cmd_arbiter.sv'),
+         ('grant',
+          'r_grant -- a REF was granted this cycle',
+          'pumice_cmd_arbiter.sv')],
         lambda a, i, g, r, gr: ((not a) and (not i) and (not g) and (not r)
                                 and (not gr)),
         "EXACTLY ONE 1-cell, at all-zeros (on the grant=0 page; the "
@@ -1580,17 +1368,6 @@ def build_arbiter_sheet(wb):
              "so all four combinations occur.",
              None,
              "pumice_cmd_arbiter.sv (r_guard0/1 are registered off the pick)"),
-        ],
-        axis_eqs=[
-            ("any_active", "|r_bank_row_active[RK0]", "pumice_cmd_arbiter.sv:1052"),
-            ("inflight_preact", "r_pick_valid && (r_do_act || r_do_pre)",
-             "pumice_cmd_arbiter.sv:302"),
-            ("guards_nz", "(r_guard0 != '0) || (r_guard1 != '0)",
-             "pumice_cmd_arbiter.sv (guard stages)"),
-            ("rfc_busy", "w_rfc_busy -- r_rfc_cnt != 0, reloaded on each fired REF",
-             "pumice_cmd_arbiter.sv"),
-            ("grant", "r_grant -- a REF was granted this cycle",
-             "pumice_cmd_arbiter.sv"),
         ])
 
     # 2. refresh branch action (multi-valued)
@@ -1599,7 +1376,15 @@ def build_arbiter_sheet(wb):
         "pumice_cmd_arbiter.sv (priority 2)",
         "if (any_active) { if (rfsh_pre_found) PRE else wait } "
         "else if (ref_safe) REF else wait",
-        ["any_active", "rfsh_pre_found", "ref_safe"],
+        [('any_active',
+          '|r_bank_row_active[RK0]',
+          'pumice_cmd_arbiter.sv:1052'),
+         ('rfsh_pre_found',
+          'any j with r_bank_row_active[j] && r_bank_pre_ready[j] && !w_guarded[j]',
+          'pumice_cmd_arbiter.sv:1054-1058'),
+         ('ref_safe',
+          'w_ref_safe -- see its own map above',
+          'pumice_cmd_arbiter.sv (refresh pick gate)')],
         lambda a, f, s: ("PRE" if (a and f) else
                          ("REF" if ((not a) and s) else "wait")),
         "REF appears ONLY where any_active=0 AND ref_safe=1. PRE only where "
@@ -1617,14 +1402,6 @@ def build_arbiter_sheet(wb):
              "implies 'a row is open'.",
              lambda a, f, sfe: (not f) or a,
              "pumice_cmd_arbiter.sv:1054-1058"),
-        ],
-        axis_eqs=[
-            ("any_active", "|r_bank_row_active[RK0]", "pumice_cmd_arbiter.sv:1052"),
-            ("rfsh_pre_found", "any j with r_bank_row_active[j] && "
-             "r_bank_pre_ready[j] && !w_guarded[j]",
-             "pumice_cmd_arbiter.sv:1054-1058"),
-            ("ref_safe", "w_ref_safe -- see its own map above",
-             "pumice_cmd_arbiter.sv (refresh pick gate)"),
         ])
 
     # 3. column masks (6 vars -> 4 pages)
@@ -1639,8 +1416,24 @@ def build_arbiter_sheet(wb):
         "col_guard = r_ap_closing[rb] | w_ref_col_block[rb] | "
         "w_rd_turn_block | w_ap_col_guard[rb] | w_pre_col_guard[rb] | "
         "w_preact_bank_guard[rb]]",
-        ["rhit", "rdwr_ready", "tccd_ok", "twtr_ok",
-         "dbl_issue", "col_guard"],
+        [('rhit',
+          'r_bank_row_active[RK0][rb] && (row == r_bank_open_row[RK0][rb])',
+          'pumice_cmd_arbiter.sv:562-563'),
+         ('rdwr_ready',
+          "r_bank_rdwr_ready[RK0][rb] = safe_rd_o = r_row_valid && (r_rcd=='0) && !r_ap_pending",
+          'bank_timer.sv:135'),
+         ('tccd_ok',
+          'w_tccd_fwd_ok -- FORWARD tCCD at classify time, not the flopped tccd_ok_i',
+          'pumice_cmd_arbiter.sv:420-432'),
+         ('twtr_ok',
+          'twtr_ok_i -- write-to-read turnaround, from global_timers',
+          'global_timers.sv'),
+         ('dbl_issue',
+          '(f_ap(rb) && w_col_inflight_bank[rb]) | w_rd_col_inflight_ent[e]',
+          'pumice_cmd_arbiter.sv:361-371,383-385'),
+         ('col_guard',
+          'r_ap_closing[rb] | w_ref_col_block[rb] | w_rd_turn_block | w_ap_col_guard[rb] | w_pre_col_guard[rb] | w_preact_bank_guard[rb]',
+          'pumice_cmd_arbiter.sv:574-580')],
         lambda h, r, c, w, f, t: h and r and c and w and (not f) and (not t),
         "1s ONLY on the page [dbl_issue=0, col_guard=0], single all-ones "
         "cell. A 1 anywhere on a col_guard=1 page would mean a RD issued "
@@ -1652,21 +1445,6 @@ def build_arbiter_sheet(wb):
              "the other: a hit can be pending tRCD (rdwr_ready=0), and a ready "
              "bank can hold the WRONG row (rhit=0). All four occur.",
              None, "pumice_cmd_arbiter.sv:562-565 + bank_timer.sv:135"),
-        ],
-        axis_eqs=[
-            ("rhit", "r_bank_row_active[RK0][rb] && (row == r_bank_open_row[RK0][rb])",
-             "pumice_cmd_arbiter.sv:562-563"),
-            ("rdwr_ready", "r_bank_rdwr_ready[RK0][rb] = safe_rd_o = "
-             "r_row_valid && (r_rcd=='0) && !r_ap_pending", "bank_timer.sv:135"),
-            ("tccd_ok", "w_tccd_fwd_ok -- FORWARD tCCD at classify time, not the "
-             "flopped tccd_ok_i", "pumice_cmd_arbiter.sv:420-432"),
-            ("twtr_ok", "twtr_ok_i -- write-to-read turnaround, from global_timers",
-             "global_timers.sv"),
-            ("dbl_issue", "(f_ap(rb) && w_col_inflight_bank[rb]) | "
-             "w_rd_col_inflight_ent[e]", "pumice_cmd_arbiter.sv:361-371,383-385"),
-            ("col_guard", "r_ap_closing[rb] | w_ref_col_block[rb] | "
-             "w_rd_turn_block | w_ap_col_guard[rb] | w_pre_col_guard[rb] | "
-             "w_preact_bank_guard[rb]", "pumice_cmd_arbiter.sv:574-580"),
         ])
     km.kmap(
         "wr_col_m[e]  (given wr_sch_valid_i[e] && wr_commit_ready)",
@@ -1769,8 +1547,21 @@ def build_arbiter_sheet(wb):
         "bank_match = w_if_preact_out[b] | w_if_col_out[b], the in-flight "
         "shadow's OUT stage -- each is (inflight_class ? 1<<r_bank : 0), so "
         "their OR is the old ((preact||col) && r_bank==b) term by construction]",
-        ["guard0", "guard1", "pick_guards_nz", "inflight_rowop_or_col",
-         "bank_match"],
+        [('guard0',
+          'r_guard0[b] / r_guard1[b] -- the two registered guard stages a pick walks through',
+          'pumice_cmd_arbiter.sv (guard fold)'),
+         ('guard1',
+          'r_guard0[b] / r_guard1[b] -- the two registered guard stages a pick walks through',
+          'pumice_cmd_arbiter.sv (guard fold)'),
+         ('pick_guards_nz',
+          'w_prepick_guard[b] | w_col_inflight_guard[b]',
+          'pumice_cmd_arbiter.sv:346-350'),
+         ('inflight_rowop_or_col',
+          'w_inflight_preact || w_inflight_col',
+          'pumice_cmd_arbiter.sv:300-302'),
+         ('bank_match',
+          'r_bank == b -- the in-flight pick targets THIS bank',
+          'pumice_cmd_arbiter.sv')],
         lambda g0, g1, pg, i, m: g0 or g1 or pg or (i and m),
         "Zero ONLY when both guard stages are clear AND no in-flight "
         "row-affecting/column op targets this bank. Columns are included "
@@ -1781,17 +1572,6 @@ def build_arbiter_sheet(wb):
              "four combinations as a pick moves through; bank_match is an "
              "address compare independent of all of them.",
              None, "pumice_cmd_arbiter.sv (guard fold)"),
-        ],
-        axis_eqs=[
-            ("guard0 / guard1", "r_guard0[b] / r_guard1[b] -- the two registered "
-             "guard stages a pick walks through",
-             "pumice_cmd_arbiter.sv (guard fold)"),
-            ("pick_guards_nz", "w_prepick_guard[b] | w_col_inflight_guard[b]",
-             "pumice_cmd_arbiter.sv:346-350"),
-            ("inflight_rowop_or_col", "w_inflight_preact || w_inflight_col",
-             "pumice_cmd_arbiter.sv:300-302"),
-            ("bank_match", "r_bank == b -- the in-flight pick targets THIS bank",
-             "pumice_cmd_arbiter.sv"),
         ])
 
     # 7. output stage
@@ -1855,7 +1635,7 @@ def build_bank_timer_sheet(wb):
     ws = wb.create_sheet("K-maps bank timer")
     for col, w in zip("ABCDEFGH", (26, 9, 9, 9, 9, 9, 9, 9)):
         ws.column_dimensions[col].width = w
-    km = ScKmapWriter(ws)
+    km = KmapWriter(ws)
     km.sheet_intro(
         "bank_timer — safe-signal K-maps (rtl/fub/bank_timer.sv)",
         ["Flags: rv=r_row_valid, ap=r_ap_pending, X0=(timer X == 0). "
@@ -1964,7 +1744,7 @@ def build_refresh_sheet(wb):
     ws = wb.create_sheet("K-maps refresh+top")
     for col, w in zip("ABCDEFGH", (26, 9, 9, 9, 9, 9, 9, 9)):
         ws.column_dimensions[col].width = w
-    km = ScKmapWriter(ws)
+    km = KmapWriter(ws)
     km.sheet_intro(
         "refresh_ctrl + scheduler top — K-maps (rtl/fub/refresh_ctrl.sv, "
         "rtl/macro/pumice_mem_cmd_scheduler.sv)",
@@ -2025,7 +1805,7 @@ def build_refresh_sheet(wb):
             ("cmd_rd_valid is the command FIFO's read-valid and is not gated "
              "on init_done, and any_row_active is a registered image, so all "
              "sixteen combinations are reachable.",
-             None, "pumice_mem_cmd_scheduler.sv:527,574"),
+             None, "pumice_mem_cmd_scheduler.sv:529,576"),
         ])
     return ws
 
@@ -2046,6 +1826,7 @@ def main():
                   "(SKIP_KMAP_RTL_CHECK=1 overrides, and you should not).")
             return 1
 
+    verify_citations(CITES, REPO)
     wb = Workbook()
     wb.remove(wb.active)
     build_index(wb)

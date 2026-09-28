@@ -35,10 +35,13 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
+
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 OP_NOP, OP_ACT, OP_RD, OP_WR, OP_PRE = 0x0, 0x1, 0x2, 0x4, 0x6
 
@@ -92,8 +95,18 @@ async def cocotb_test_page_predictor(dut):
     ROW = 0x1234
     BANK = 3
     open_vec = (ROW << (BANK * 14))
+    # ACTs per mode before the verdict is read: pure repetition, so it scales
+    # with the level. Mode 2 keeps its own literal (2) -- static_close's AP
+    # verdict is checked after exactly two, that is the scenario.
+    n_acts = _profile_depth('page_policy_acts')
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    dut._log.info("depth: TEST_LEVEL=%s page_policy_acts=%d",
+                  os.environ.get("TEST_LEVEL", "gate"), n_acts)
 
-    async def drive_acts(n=8):
+    async def drive_acts(n=n_acts):
         for _ in range(n):
             await tb.cmd(OP_ACT, bank=BANK, row=ROW, active_mask=(1 << BANK),
                          open_row=open_vec)
@@ -140,10 +153,11 @@ async def cocotb_test_page_predictor(dut):
 
 
 @pytest.mark.parametrize("test_type", ["directed"])
-def test_page_predictor(request, test_type):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_page_predictor(request, test_type, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_page_policy"
-    test_name = f"test_page_predictor_{test_type}"
+    test_name = f"test_page_predictor_{test_type}_{test_level}"
 
     filelist_path = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
                      "rtl/filelists/fub/pumice_page_policy.f")
@@ -157,7 +171,7 @@ def test_page_predictor(request, test_type):
     extra_env = {
         "DUT": dut_name,
         "TEST_TYPE": test_type,
-        "SEED": os.environ.get('SEED', "1"),
+        **level_env(test_level),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),

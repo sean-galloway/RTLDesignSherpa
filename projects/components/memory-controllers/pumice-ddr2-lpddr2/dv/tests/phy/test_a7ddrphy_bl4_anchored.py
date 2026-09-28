@@ -39,6 +39,9 @@ so this is not a hand-rolled model — it is the exact rule the fix must encode.
 import os
 import sys
 
+import pytest
+
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 # Import the shared phase-mask contract from the RDS-DV framework (editable
 # install => PYTHONPATH has it; env_python sets this up).
 from CocoTBFramework.components.dfi.dfi_timing import bl_anchored_slot_mask
@@ -51,6 +54,26 @@ from CocoTBFramework.components.dfi.dfi_slave_phy import deinterleave_read_windo
 _TB = os.path.join(os.path.dirname(__file__), "..", "..", "tbclasses")
 sys.path.insert(0, os.path.abspath(_TB))
 from axi_rd_device_word_check import check_beat_device_words  # noqa: E402
+# dv/ on sys.path so the area's depth profile resolves as `tbclasses.*`.
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
+
+# Every test carries the gate/func/full cell like a simulator wrapper does
+# (tooling BUG-004). No simulator here, so the same level_env() entries go
+# into THIS process's environment, where pumice_levels.depth() reads them.
+pytestmark = pytest.mark.parametrize("test_level", reg_level_grid())
+
+
+def _ntxn(monkeypatch, test_level):
+    """This cell's BL4 read count (always even: the proofs pack reads in pairs)."""
+    for k, v in level_env(test_level).items():
+        monkeypatch.setenv(k, v)
+    assert os.environ.get("TEST_LEVEL") == test_level, "level did not reach the depth reader"
+    n = _profile_depth('phy_bl4_txns')
+    assert n % 2 == 0 and n >= 2, f"phy_bl4_txns must be an even count >= 2, got {n}"
+    return n
 
 
 # ---- Board config (rate4_x16): the EXACT DFI geometry the bitstream was built
@@ -98,7 +121,9 @@ def _anchored_bl4(window_slots, first_slot):
     return [window_slots[(first_slot + i) % WORDS_PER_CYC] for i in range(BL)]
 
 
-NTXN = 8   # page-hit BL4 reads, like the board run (mism == 2*txn == 16)
+# The board run drove 8 page-hit BL4 reads (mism == 2*txn == 16); that is the
+# func depth of `phy_bl4_txns`, read per cell by _ntxn(). Pure repetition:
+# every expectation below is written in terms of the count.
 
 
 def _pack_two_reads(readA, readB):
@@ -114,7 +139,7 @@ def _pack_two_reads(readA, readB):
     return win
 
 
-def test_grab_all_phases_reproduces_board_two_of_four():
+def test_grab_all_phases_reproduces_board_two_of_four(monkeypatch, test_level):
     """CURRENT aligner (rd_data_o = whole dfi_rddata_i) captures each BL4 read as
     the FULL 8-slot BL8-shaped word. Two consecutive BL4 reads pack into one
     window (A -> slots[0:4], B -> slots[4:8]); the controller hands BOTH captured
@@ -124,6 +149,7 @@ def test_grab_all_phases_reproduces_board_two_of_four():
     OTHER read's) data -> per BL4 AXI beat 2 of 4 device-words wrong ==
     beats_mismatched == 2*txn. PHASE-DISTINCT pattern so a stale slot can never
     alias the expected value."""
+    NTXN = _ntxn(monkeypatch, test_level)
     bad_total = 0
     viols = []
     npairs = NTXN // 2
@@ -165,12 +191,13 @@ def test_grab_all_phases_reproduces_board_two_of_four():
     assert all(not b["class"].startswith("zero") for b in a_bad.values()), a_bad
 
 
-def test_anchored_selection_is_bit_exact_the_fix():
+def test_anchored_selection_is_bit_exact_the_fix(monkeypatch, test_level):
     """THE FIX (hand AXI exactly the BL anchored run per read, per the shared
     contract): from the SAME shared 8-slot window, read A takes its anchored
     slots[0:4] and read B its anchored slots[4:8] -> each returns its own 4
     device-words, ZERO stale. Demonstrated without touching RTL — the contract
     (bl_anchored_slot_mask) IS the fix."""
+    NTXN = _ntxn(monkeypatch, test_level)
     bad = 0
     npairs = NTXN // 2
     for p in range(npairs):
@@ -194,12 +221,13 @@ def test_anchored_selection_is_bit_exact_the_fix():
     assert bad == 0, f"anchored selection must be exact; got {bad} bad device-words"
 
 
-def test_bfm_deinterleaver_one_read_reproduces_stale():
+def test_bfm_deinterleaver_one_read_reproduces_stale(monkeypatch, test_level):
     """Drive the ACTUAL BFM de-interleaver (deinterleave_read_window, the same
     code the integration sim runs) with the BUG cadence: ONE BL4 RD per DFI
     cycle. Consecutive reads at alternating phase-pairs leave the non-anchored
     half holding the PREVIOUS read's REAL data (stale) -> per captured window
     4 real + 4 stale == the on-silicon beats_mismatched == 2*txn."""
+    NTXN = _ntxn(monkeypatch, test_level)
     bad_total = 0
     prev = []                       # first read: window starts zero
     reads = [(_phase_distinct(0x0100 * (i + 1)),
@@ -222,10 +250,11 @@ def test_bfm_deinterleaver_one_read_reproduces_stale():
         f"expected {BL*(NTXN-1)} stale device-words, got {bad_total}")
 
 
-def test_bfm_deinterleaver_two_reads_pack_zero_stale():
+def test_bfm_deinterleaver_two_reads_pack_zero_stale(monkeypatch, test_level):
     """Drive the ACTUAL BFM de-interleaver with the FIX cadence: TWO BL4 RDs per
     DFI cycle at phases {0, 2}. Both anchored runs land in ONE window ->
     slots[0:4]=readA, slots[4:8]=readB, ZERO stale — bit-exact, the fix."""
+    NTXN = _ntxn(monkeypatch, test_level)
     for p in range(NTXN // 2):
         A = _phase_distinct(0x0100 * (2 * p + 1))
         B = _phase_distinct(0x0100 * (2 * p + 2))
@@ -242,7 +271,7 @@ def test_bfm_deinterleaver_two_reads_pack_zero_stale():
                        for i in range(WORDS_PER_CYC))
 
 
-def test_contract_full_burst_degenerates_to_identity():
+def test_contract_full_burst_degenerates_to_identity(test_level):
     """A FULL BL8 read (bl == 2*nphases) fills ALL 8 slots — no stale slots, so
     grab-all == anchored. This is why full-BL reads NEVER showed the board bug
     and only BL4 (sub-DFI-word) did."""
@@ -251,17 +280,16 @@ def test_contract_full_burst_degenerates_to_identity():
     assert (wpc, first, nslots) == (WORDS_PER_CYC, 0, WORDS_PER_CYC)
 
 
-def test_pattern_is_phase_distinct_not_aliased():
+def test_pattern_is_phase_distinct_not_aliased(test_level):
     """Guard the guard: the proof pattern MUST be phase-distinct, else a stale
     slot could equal the expected slot and hide the corruption (the a5a0 trap)."""
     dws = _phase_distinct(0x0100)
     assert len(set(dws)) == BL, f"pattern aliases: {[hex(x) for x in dws]}"
 
 
-def test_contract_rejects_illegal_geometry():
+def test_contract_rejects_illegal_geometry(test_level):
     """The contract asserts its power-of-two / burst-size requirements so the RTL
     assertion can mirror them verbatim."""
-    import pytest
     with pytest.raises(AssertionError):
         bl_anchored_slot_mask(bl=4, nphases=3, words_per_beat=2, rd_phase=0)   # nphases not pow2
     with pytest.raises(AssertionError):

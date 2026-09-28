@@ -21,7 +21,9 @@ exactly one state by construction rather than by discipline.
 ## Open
 
 - **TASK-000** — TEMPLATE — copy this file, never file against it
-- **TASK-029** — move gen_pumice_signal_contracts.py onto bin/kmaps and arm its 17 maps (depends_only_on / rtl_sop; the derived-vs-RTL gate is inert today); conversion ready on branch tooling-pumice-halves
+- **TASK-029** — give the 17 signal-contract maps their sufficiency argument
+  (depends_only_on) and RTL verdict (rtl_sop); the generator moved onto bin/kmaps
+  in this commit, so what remains is the maps' own evidence
 - **TASK-031** — ddr2_char dv/tests Makefile: clean target onto bin/clean_sim_builds.py (last raw rm -rf local_sim_build in the repo); ready on the same branch
 - **TASK-015** — test the DUT across configurations: 4-layer plan (reset-parity
   gate, pairwise covering array x gap, invariant oracles, seeded soak) with a

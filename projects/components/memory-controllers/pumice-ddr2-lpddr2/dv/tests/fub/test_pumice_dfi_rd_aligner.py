@@ -21,11 +21,13 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 from tbclasses.pumice_fub_bfm import fub_consumer, fub_pulse_producer  # noqa: E402
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/fub/pumice_dfi_rd_aligner.f")
@@ -272,7 +274,16 @@ async def cocotb_test_rd_aligner_tccd_paced(dut):
         await RisingEdge(dut.dfi_clk)
 
     assert BL_WORDS == 1, f"tCCD-bubble case needs BL_WORDS=1 (x16 BL4); got {BL_WORDS}"
-    RDEN, TCCD, NREADS = 4, 2, 3
+    # NREADS is pure repetition; it must stay <= MAX_OUTSTANDING (8, the
+    # wrapper default) because no read data is ever returned here, so the
+    # aligner would stop admitting past that and the fire count would fall short.
+    RDEN, TCCD, NREADS = 4, 2, _profile_depth('rd_aligner_paced_reads')
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    dut._log.info("depth: TEST_LEVEL=%s rd_aligner_paced_reads=%d",
+                  os.environ.get("TEST_LEVEL", "gate"), NREADS)
     dut.t_rddata_en_i.value = RDEN
     # Space the requests by tCCD using the randomizer -- upstream pacing is a
     # TIMING PROFILE, which is what a randomizer is for. Whatever spacing the
@@ -376,19 +387,20 @@ async def cocotb_test_rd_aligner_backpressure(dut):
     dut._log.info("PASS: backpressure at MAX_OUTSTANDING, in-order multi-outstanding capture")
 
 
-def _run_fub(testcase: str, bl_words: int, max_outstanding: int = 8):
+def _run_fub(testcase: str, bl_words: int, max_outstanding: int = 8, test_level: str = 'gate'):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_dfi_rd_aligner"
+    test_name = f"{testcase}_{test_level}"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = sim_build_path(tests_dir, testcase)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"DFI_DATA_WIDTH": str(DFI_DW), "DFI_RATE": str(DFI_RATE),
               "BL_WORDS": str(bl_words), "MAX_OUTSTANDING": str(max_outstanding)}
-    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{testcase}.log"),
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
-                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml"),
-                 "SEED": os.environ.get('SEED', str(random.randint(0, 100000)))}
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 **level_env(test_level)}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase=testcase,
@@ -396,22 +408,27 @@ def _run_fub(testcase: str, bl_words: int, max_outstanding: int = 8):
         compile_args=["+define+USE_ASYNC_RESET"], waves=False, keep_files=True, timescale="1ns/1ps")
 
 
-def test_pumice_dfi_rd_aligner(request):
-    _run_fub("cocotb_test_pumice_dfi_rd_aligner", bl_words=4)
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_dfi_rd_aligner(request, test_level):
+    _run_fub("cocotb_test_pumice_dfi_rd_aligner", bl_words=4, test_level=test_level)
 
 
-def test_pumice_dfi_rd_aligner_phy_preamble(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_dfi_rd_aligner_phy_preamble(request, test_level):
     # x16 BL4 (BL_WORDS=1), the board's shape: inject the a7ddrphy preamble
     # valid one cycle before the enable window and check it is not captured.
-    _run_fub("cocotb_test_rd_aligner_phy_preamble", bl_words=1)
+    _run_fub("cocotb_test_rd_aligner_phy_preamble", bl_words=1, test_level=test_level)
 
 
-def test_pumice_dfi_rd_aligner_tccd_paced(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_dfi_rd_aligner_tccd_paced(request, test_level):
     # x16 BL4 (BL_WORDS=1): reads paced at tCCD > DQ occupancy. Reproduces the
     # on-silicon read failure at the FUB level (no PHY model needed).
-    _run_fub("cocotb_test_rd_aligner_tccd_paced", bl_words=1)
+    _run_fub("cocotb_test_rd_aligner_tccd_paced", bl_words=1, test_level=test_level)
 
 
-def test_pumice_dfi_rd_aligner_backpressure(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_dfi_rd_aligner_backpressure(request, test_level):
     # Multi-outstanding + op_ready backpressure with a small tracking depth.
-    _run_fub("cocotb_test_rd_aligner_backpressure", bl_words=1, max_outstanding=2)
+    _run_fub("cocotb_test_rd_aligner_backpressure", bl_words=1, max_outstanding=2,
+             test_level=test_level)

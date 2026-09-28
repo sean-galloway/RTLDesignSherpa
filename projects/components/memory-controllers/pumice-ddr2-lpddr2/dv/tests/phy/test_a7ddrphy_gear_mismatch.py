@@ -34,16 +34,24 @@ proves, with zero board access:
   - gear=2 (gather 4 of 8 slots)  -> HALF the reads lost  (the board's 2*txn)
   - gear=4 (gather all 8 slots)   -> every read exact     (the fix)
 """
+import os
 import random
+import sys
 
 import pytest
 
+from TBClasses.shared.test_levels import level_env, reg_level_grid
+
 # SUPERSEDED: the gear-ratio theory was disproven on silicon (see the header).
 # Skip so these disproven assertions cannot be read as ground truth; the current
-# proof is test_a7ddrphy_bl4_anchored.py.
-pytestmark = pytest.mark.skip(
-    reason="Gear-ratio theory disproven on silicon (board DFI_RATE=4 still read "
-           "2/4 wrong). Superseded by test_a7ddrphy_bl4_anchored.py.")
+# proof is test_a7ddrphy_bl4_anchored.py. The gate/func/full cell is still
+# carried (tooling BUG-004) so the area's level checker sees one shape.
+pytestmark = [
+    pytest.mark.skip(
+        reason="Gear-ratio theory disproven on silicon (board DFI_RATE=4 still read "
+               "2/4 wrong). Superseded by test_a7ddrphy_bl4_anchored.py."),
+    pytest.mark.parametrize("test_level", reg_level_grid()),
+]
 
 # The model lives in the project tbclasses; import via file path to avoid a
 # package-name dependency (dv trees aren't always importable packages).
@@ -54,6 +62,21 @@ _MODEL = _os.path.join(
 _spec = _ilu.spec_from_file_location("a7ddrphy_read_window", _MODEL)
 _m = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_m)
+
+# dv/ on sys.path so the area's depth profile resolves as `tbclasses.*`.
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
+
+
+def _npairs(monkeypatch, test_level):
+    """This cell's packed read-pair count (no simulator: the level goes into this
+    process's environment, where pumice_levels.depth() reads it)."""
+    for k, v in level_env(test_level).items():
+        monkeypatch.setenv(k, v)
+    assert os.environ.get("TEST_LEVEL") == test_level, "level did not reach the depth reader"
+    return _profile_depth('phy_gear_pairs')
 
 
 DW_BITS = 16          # x16 device word
@@ -89,12 +112,14 @@ def _golden128(readA, readB):
     return _golden64(readA) | (_golden64(readB) << (4 * DW_BITS))
 
 
-NPAIRS = 8   # 16 reads = 8 tCCD pairs = 32 device-word beats, like the board run
+# The board run: 16 reads = 8 tCCD pairs = 32 device-word beats. That 8 is the
+# func depth of `phy_gear_pairs`; the pair count is pure repetition.
 
 
-def test_gear2_drops_half_the_reads():
+def test_gear2_drops_half_the_reads(monkeypatch, test_level):
     """GEAR MISMATCH (pumice DFI_RATE=2 vs fixed PHY nphases=4): the 2nd read of
     every packed pair is lost -> exactly the board's beats_mismatched == 2*txn."""
+    NPAIRS = _npairs(monkeypatch, test_level)
     mismatched = 0
     total = 0
     for p in range(NPAIRS):
@@ -121,9 +146,10 @@ def test_gear2_drops_half_the_reads():
     # command B gathers the same slots -> also A: the "pair returns same beat".
 
 
-def test_gear4_matches_phy_reads_every_command_exact():
+def test_gear4_matches_phy_reads_every_command_exact(monkeypatch, test_level):
     """GEAR MATCH (DFI_RATE=4 == nphases=4): the controller gathers all 8 slots,
     so both packed reads are recovered -> ZERO mismatches. THE FIX."""
+    NPAIRS = _npairs(monkeypatch, test_level)
     mismatched = 0
     total = 0
     for p in range(NPAIRS):

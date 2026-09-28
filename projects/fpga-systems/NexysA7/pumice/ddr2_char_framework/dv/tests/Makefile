@@ -88,8 +88,10 @@ run-full-parallel-waves:
 .PHONY: clean
 clean:
 	@echo "Cleaning local artifacts..."
-	rm -rf __pycache__ .pytest_cache *.pyc
-	rm -rf local_sim_build logs
+	rm -rf __pycache__ .pytest_cache *.pyc logs
+	# Marker-aware: a build directory another session is simulating in right
+	# now carries .sim_busy and is left alone (tooling BUG-005).
+	python3 $(REPO_ROOT)/bin/clean_sim_builds.py $(CURDIR)
 	find . -name '*.pyc' -delete
 
 .PHONY: clean-all

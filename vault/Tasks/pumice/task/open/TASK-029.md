@@ -1,49 +1,59 @@
-# TASK-029: move gen_pumice_signal_contracts.py onto bin/kmaps and arm its maps
+# TASK-029: give the 17 signal-contract maps their sufficiency argument and RTL verdict
 
 **Status:** open 2026-09-27  **Priority:** P3 -- documentation evidence, no RTL
-change. Filed from tooling TASK-006 when that global item closed: the shared
-K-map emitter (`bin/kmaps/`) is done; what remains is pumice's own use of it.
+change. Filed by the tooling session when `gen_pumice_signal_contracts.py` moved
+onto the shared `bin/kmaps` machinery (tooling TASK-006 item 5).
 
-## Part 1 -- the conversion (ready-made on a branch)
+## What changed underneath
 
-`docs/gen_pumice_signal_contracts.py` still carries a private copy of the writer,
-minimiser and styles that stream retired on 2026-09-25. A converted version is
-on branch `tooling-pumice-halves`, commit `e8fc555c4` (+ `b50495fde` for this
-task's wording): 2068 -> 1848 lines, the four `axis_eqs=` lists folded into
-`varnames` triples, and a 28-entry `CITES` registry gated by
-`bin/kmaps/citations.py` -- the workbook had no citation check before. It was
-verified the only way a refactor of a green workbook can be: a
-layout-independent dump of every map (17 maps, 364 cells, relations,
-expressions, 4 tables, 20 sheets) is identical old vs new, and
-`check_kmap_rtl_sync.py` output is byte-identical (16 checked / 0 drifted / 1
-not machine-checkable). Rebase it, regenerate, diff the workbook, push. Or
-redo it by hand from the stream generator's shape; the branch is a starting
-point, not a requirement.
+`docs/gen_pumice_signal_contracts.py` no longer carries its own K-map writer,
+minimiser and styles; it imports `KmapWriter` from `bin/kmaps/writer.py` and
+runs the citation gate (`bin/kmaps/citations.py`) over a `CITES` registry of
+the 28 `file:line` quotes its maps make. The workbook's cells, relations and
+expressions are unchanged -- verified cell for cell (17 maps, 364 cells) against
+the old writer -- and `check_kmap_rtl_sync.py` reports the same 16 checked / 0
+drifted / 1 not machine-checkable.
 
-## Part 2 -- plainly: the derived-vs-RTL gate is INERT on all 17 maps today
+The shared writer renders two things the old one never asked for, and every
+pumice map now shows them as HONEST GAPS rather than silently omitting them:
 
-Once on the shared writer every pumice map renders `DEPENDS ONLY ON: not
-stated` and `VERDICT: NOT CHECKED`, because no map ever supplied
-`depends_only_on=` or `rtl_sop=`. Before the conversion the same was true but
-invisible -- the old writer never asked. The relations, don't-cares, implicants
-and the citation gate ARE live; the one defect-finding criterion (derived cover
-vs the RTL as written) checks nothing. Treat NOT CHECKED the way TASK-028
-taught: a map that is not gated is not evidence.
+- `DEPENDS ONLY ON: not stated -- this map is a SLICE with no sufficiency
+  argument` -- the old writer's `relations=` say which cells are unreachable,
+  but not why the mapped function ignores every input NOT on the axes.
+- `VERDICT: NOT CHECKED -- supply rtl_sop= to diff the RTL against the derived
+  cover` -- the minimal sum-of-products is derived from the grid, but with no
+  `rtl_sop=` there is nothing to diff it against, so the one criterion that
+  finds defects (RTL-differs) is unarmed.
+
+## Plainly: the derived-vs-RTL gate is INERT on all 17 maps today
+
+Not "content to add later" -- the workbook's one defect-finding check (criterion
+6, derived cover vs the RTL as written) currently checks nothing on any pumice
+map, and the sufficiency argument (criterion 3) is absent on all 17. Before the
+conversion the same was true but invisible, because the old writer never asked;
+now it is printed on every map. The relations, don't-cares, implicants and the
+citation gate ARE live. Treat NOT CHECKED the way pumice TASK-028 (was PUMICE-051) / TASK-028 taught:
+a map that is not gated is not evidence.
+
+## The work
 
 For each of the 17 `km.kmap(...)` calls:
 
-1. `depends_only_on=`: why the function depends on the axes alone (what is
-   held constant, which guards are folded into an axis, where the fold is).
-2. `rtl_sop=`: the RTL expression as a sum-of-products over the axis names, so
-   the emitter renders IDENTICAL / DIFFERS. A DIFFERS verdict is a finding --
-   redundant RTL terms (say why they stay), an unstated invariant, or a bug --
-   and goes to this lane's bug list, not smoothed over.
+1. `depends_only_on=`: one sentence saying why the function depends on the
+   axes alone (what is held constant, which other guards are folded into an
+   axis, and where that fold is written).
+2. `rtl_sop=`: the RTL expression as a sum-of-products over the axis names,
+   so the emitter renders IDENTICAL / DIFFERS. A DIFFERS verdict is a finding
+   -- either redundant RTL terms (say why they stay) or an unstated invariant
+   or a bug -- and belongs in this lane's bug list, not smoothed over.
 
 Multi-valued maps (the four with `values=`) get item 1 only; a minimal SOP is
 undefined for them and the writer skips the verdict on purpose.
 
-Spec: [[signal-contracts-and-kmaps]]. STREAM's equivalent is stream TASK-012.
+Spec and the six criteria: [[signal-contracts-and-kmaps]]. STREAM did the same
+pass for its five priority maps under STREAM TASK-001; 26 of its 37 still
+render NOT CHECKED, so this is not a pumice-only gap.
 
-Acceptance: generator imports `bin/kmaps`; regenerated workbook has no
-`not stated` and no `NOT CHECKED` row; any DIFFERS is justified in the map's
-check text or filed as a pumice BUG.
+Acceptance: the regenerated workbook has no `not stated` and no `NOT CHECKED`
+row, and any DIFFERS verdict is either justified in the map's check text or
+filed as a pumice BUG.

@@ -32,6 +32,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
@@ -39,6 +40,7 @@ if _DV_DIR not in sys.path:
 
 from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa: E402
 from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer   # noqa: E402
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/fub/pumice_wr_splitter.f")
@@ -143,18 +145,28 @@ async def cocotb_test_wr_splitter_single(dut):
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
     aw_src, w_src, aw_sink, w_sink = await _reset(dut)
     nbeats = AXI_BEATS_PER_BURST
-    subs, wlasts, _ = await _collect(dut, aw_sink, w_sink, 1, nbeats)
-    await _drive_burst(aw_src, w_src, nbeats - 1)
-    for _ in range(20):
+    # How many identical host bursts stream through is pure repetition; the
+    # per-burst shape (nbeats, the sub-command contract) is not.
+    nbursts = _profile_depth('wr_splitter_bursts')
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    dut._log.info("depth: TEST_LEVEL=%s wr_splitter_bursts=%d",
+                  os.environ.get("TEST_LEVEL", "gate"), nbursts)
+    subs, wlasts, _ = await _collect(dut, aw_sink, w_sink, nbursts, nbursts * nbeats)
+    for _ in range(nbursts):
+        await _drive_burst(aw_src, w_src, nbeats - 1)
+    for _ in range(20 * nbursts):
         await RisingEdge(dut.aclk)
-    assert len(subs) == 1, f"expected 1 sub-command, got {subs}"
-    awlen, agg, last = subs[0]
-    assert awlen == AXI_BEATS_PER_BURST - 1, f"sub awlen {awlen} != {AXI_BEATS_PER_BURST-1}"
-    assert agg == 0, "single (unsplit) burst must NOT set agg"
-    assert last == 1, "single burst must set last"
-    assert wlasts.count(1) == 1 and wlasts[-1] == 1, \
-        f"exactly one WLAST at the end, got {wlasts}"
-    dut._log.info("PASS: AxLEN=%d -> 1 DRAM burst (no split)", nbeats - 1)
+    assert len(subs) == nbursts, f"expected {nbursts} sub-command(s), got {subs}"
+    for awlen, agg, last in subs:
+        assert awlen == AXI_BEATS_PER_BURST - 1, f"sub awlen {awlen} != {AXI_BEATS_PER_BURST-1}"
+        assert agg == 0, "single (unsplit) burst must NOT set agg"
+        assert last == 1, "single burst must set last"
+    assert wlasts == ([0] * (nbeats - 1) + [1]) * nbursts, \
+        f"exactly one WLAST at the end of each burst, got {wlasts}"
+    dut._log.info("PASS: AxLEN=%d -> 1 DRAM burst (no split), x%d", nbeats - 1, nbursts)
 
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
@@ -163,19 +175,23 @@ async def cocotb_test_wr_splitter_split(dut):
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
     aw_src, w_src, aw_sink, w_sink = await _reset(dut)
     nbeats = 2 * AXI_BEATS_PER_BURST
-    subs, wlasts, _ = await _collect(dut, aw_sink, w_sink, 2, nbeats)
-    await _drive_burst(aw_src, w_src, nbeats - 1)
-    for _ in range(20):
+    nbursts = _profile_depth('wr_splitter_bursts')     # host bursts: pure repetition
+    dut._log.info("depth: TEST_LEVEL=%s wr_splitter_bursts=%d",
+                  os.environ.get("TEST_LEVEL", "gate"), nbursts)
+    subs, wlasts, _ = await _collect(dut, aw_sink, w_sink, 2 * nbursts, nbursts * nbeats)
+    for _ in range(nbursts):
+        await _drive_burst(aw_src, w_src, nbeats - 1)
+    for _ in range(20 * nbursts):
         await RisingEdge(dut.aclk)
-    assert len(subs) == 2, f"expected 2 sub-commands, got {subs}"
+    assert len(subs) == 2 * nbursts, f"expected {2 * nbursts} sub-commands, got {subs}"
     for i, (awlen, agg, last) in enumerate(subs):
         assert awlen == AXI_BEATS_PER_BURST - 1, f"sub{i} awlen {awlen} != {AXI_BEATS_PER_BURST-1}"
         assert agg == 1, f"sub{i} of a split must set agg"
-        assert last == (1 if i == 1 else 0), f"sub{i} last wrong: {last}"
+        assert last == (1 if i % 2 == 1 else 0), f"sub{i} last wrong: {last}"
     # WLAST re-framed every AXI_BEATS_PER_BURST: at beat AXI_BEATS_PER_BURST-1 and 2*AXI_BEATS_PER_BURST-1
-    want = [1 if (j + 1) % AXI_BEATS_PER_BURST == 0 else 0 for j in range(nbeats)]
+    want = [1 if (j + 1) % AXI_BEATS_PER_BURST == 0 else 0 for j in range(nbeats)] * nbursts
     assert wlasts == want, f"WLAST re-framing {wlasts} != {want}"
-    dut._log.info("PASS: AxLEN=%d -> 2 DRAM bursts (split)", nbeats - 1)
+    dut._log.info("PASS: AxLEN=%d -> 2 DRAM bursts (split), x%d", nbeats - 1, nbursts)
 
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
@@ -247,10 +263,10 @@ async def cocotb_test_wr_splitter_single_beat(dut):
 # ---------------------------------------------------------------------------
 # Pytest wrappers
 # ---------------------------------------------------------------------------
-def _run(request, testcase):
+def _run(request, testcase, test_level='gate'):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_wr_splitter"
-    test_name = testcase
+    test_name = f"{testcase}_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST)
@@ -267,6 +283,7 @@ def _run(request, testcase):
         "DUT": dut_name,
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+        **level_env(test_level),
     }
     extra_env.update(params)
     compile_args = ["+define+USE_ASYNC_RESET"] + get_coverage_compile_args()
@@ -280,17 +297,21 @@ def _run(request, testcase):
         timescale="1ns/1ps")
 
 
-def test_pumice_wr_splitter_single(request):
-    _run(request, "cocotb_test_wr_splitter_single")
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_wr_splitter_single(request, test_level):
+    _run(request, "cocotb_test_wr_splitter_single", test_level=test_level)
 
 
-def test_pumice_wr_splitter_split(request):
-    _run(request, "cocotb_test_wr_splitter_split")
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_wr_splitter_split(request, test_level):
+    _run(request, "cocotb_test_wr_splitter_split", test_level=test_level)
 
 
-def test_pumice_wr_splitter_ragged(request):
-    _run(request, "cocotb_test_wr_splitter_ragged")
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_wr_splitter_ragged(request, test_level):
+    _run(request, "cocotb_test_wr_splitter_ragged", test_level=test_level)
 
 
-def test_pumice_wr_splitter_single_beat(request):
-    _run(request, "cocotb_test_wr_splitter_single_beat")
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_wr_splitter_single_beat(request, test_level):
+    _run(request, "cocotb_test_wr_splitter_single_beat", test_level=test_level)

@@ -7,12 +7,14 @@ import os
 import sys
 import random
 
+import pytest
 import cocotb
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
@@ -20,6 +22,7 @@ if _DV_DIR not in sys.path:
 
 from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa: E402
 from tbclasses.pumice_dfi_cdc_tb import PumiceDfiCdcTB  # noqa: E402
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/fub/pumice_dfi_cdc.f")
@@ -31,7 +34,13 @@ async def cocotb_test_pumice_dfi_cdc(dut):
     await tb.start(ctl_ns=10, dfi_ns=4)   # asynchronous, different rates
     rng = random.Random(int(os.environ.get("SEED", "1")))
 
-    n = 24
+    n = _profile_depth('dfi_cdc_items')      # items per stream: pure repetition
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    tb.log.info("depth: TEST_LEVEL=%s dfi_cdc_items=%d",
+                os.environ.get("TEST_LEVEL", "gate"), n)
     cmds = [rng.randrange(1 << tb.CMD_DW) for _ in range(n)]
     wds  = [rng.randrange(1 << tb.WD_DW) for _ in range(n)]
     rds  = [rng.randrange(1 << tb.RD_DW) for _ in range(n)]
@@ -77,10 +86,11 @@ async def cocotb_test_pumice_dfi_cdc(dut):
                 "lossless in-order across async clocks; init_start/complete tokens latched")
 
 
-def test_pumice_dfi_cdc(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_dfi_cdc(request, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_dfi_cdc"
-    test_name = "cocotb_test_pumice_dfi_cdc"
+    test_name = f"cocotb_test_pumice_dfi_cdc_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST
@@ -98,7 +108,7 @@ def test_pumice_dfi_cdc(request):
     }
     extra_env = {
         "DUT": dut_name, "LOG_PATH": log_path, "COCOTB_LOG_LEVEL": "INFO",
-        "COCOTB_RESULTS_FILE": results_path, "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
+        "COCOTB_RESULTS_FILE": results_path, **level_env(test_level),
     }
     extra_env.update(params)
     compile_args = ["+define+USE_ASYNC_RESET"] + get_coverage_compile_args()

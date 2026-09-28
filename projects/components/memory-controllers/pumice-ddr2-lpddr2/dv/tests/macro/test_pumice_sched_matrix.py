@@ -59,6 +59,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 _DV_DIR = os.path.abspath(os.path.join(_TESTS_DIR, "..", ".."))
@@ -212,8 +213,10 @@ PATTERNS = (
 )
 
 # REG_LEVEL scales the cross-product, not the rigour: every level runs the same
-# oracle, and a smaller level runs fewer arms. conftest's TEST_LEVEL stamp wins
-# over a per-cell export (feedback_conftest_test_level_stamp), so read both.
+# oracle, and a smaller level runs fewer arms. The DEPTH of a cell is the
+# TEST_LEVEL its wrapper exports through level_env() (tooling BUG-004: the
+# conftest stamp is gone, so the per-cell export is what the simulator sees);
+# REG_LEVEL is read second only so a bare `pytest` still picks a sane table.
 # REG_LEVEL scales the cross-product AND THE DEPTH. The first version of this
 # file drove 16-32 requests per pattern at every level, so "12 configs, 504 arms"
 # finished in 37 seconds -- which is the correct amount of time to find nothing.
@@ -397,10 +400,11 @@ def _matrix_configs():
 
 
 @pytest.mark.parametrize("config", _matrix_configs())
-def test_pumice_sched_matrix(request, config):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_sched_matrix(request, config, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_mem_cmd_scheduler"
-    test_name = f"sched_matrix_{config}"
+    test_name = f"sched_matrix_{config}_{test_level}"
 
     _model, ctrl, meta = dram_config(config)
     verilog_sources, includes = get_sources_from_filelist(
@@ -428,7 +432,7 @@ def test_pumice_sched_matrix(request, config):
         "DUT": dut_name, "LOG_PATH": log_path, "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": results_path,
         "DRAM_CONFIG": config,
-        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
+        **level_env(test_level),
     }
     extra_env.update(params)
     compile_args = ["+define+USE_ASYNC_RESET", "--assert"] + get_coverage_compile_args()

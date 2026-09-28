@@ -16,6 +16,7 @@ import sys
 import random
 from collections import deque
 
+import pytest
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
@@ -23,6 +24,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/top/pumice_core.f")
@@ -33,6 +35,7 @@ if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
 from tbclasses.pumice_axi_bfm import PumiceAxiBfm      # noqa: E402
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 from tbclasses.pumice_top_csr_tb import board_clock_periods  # noqa: E402
 _ACLK_NS, _DFI_NS = board_clock_periods()   # BOARD parity, not literals
@@ -73,22 +76,35 @@ async def cocotb_test_pumice_core(dut):
     assert int(dut.init_done_o.value) == 1, "init never completed"
 
     rng = random.Random(int(os.environ.get("SEED", "1")))
-    data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
-    addr = 0x2000
+    # Round trips are pure repetition. The DFI model returns whatever it has
+    # captured, so the capture list is emptied before each round's write and
+    # each round targets a fresh address with fresh data. BL_WORDS is geometry.
+    roundtrips = _profile_depth('core_roundtrips')
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    dut._log.info("depth: TEST_LEVEL=%s core_roundtrips=%d",
+                  os.environ.get("TEST_LEVEL", "gate"), roundtrips)
+    for rnd in range(roundtrips):
+        data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+        addr = 0x2000 + rnd * 0x1000
+        captured.clear()
 
-    # ---- AXI write burst, then read the same address back ----
-    # Both go through the master BFMs, which own the handshakes and block
-    # through B / collect R for us -- so the old poll-for-bvalid and
-    # background _r_sink loops are gone with the hand driving.
-    await bfm.write(addr, data, wid=1)
-    rd = await bfm.read(addr, rid=1)
+        # ---- AXI write burst, then read the same address back ----
+        # Both go through the master BFMs, which own the handshakes and block
+        # through B / collect R for us -- so the old poll-for-bvalid and
+        # background _r_sink loops are gone with the hand driving.
+        await bfm.write(addr, data, wid=1)
+        rd = await bfm.read(addr, rid=1)
 
-    assert len(captured) >= BL_WORDS, f"only {len(captured)} words hit the DFI write bus"
-    assert captured[:BL_WORDS] == data, \
-        f"DFI write burst {[hex(x) for x in captured[:BL_WORDS]]} != {[hex(x) for x in data]}"
-    assert rd[:BL_WORDS] == data, \
-        f"AXI read-back {[hex(x) for x in rd[:BL_WORDS]]} != {[hex(x) for x in data]}"
-    dut._log.info("PASS: init done; AXI write burst -> DFI -> read burst back == written data")
+        assert len(captured) >= BL_WORDS, f"round {rnd}: only {len(captured)} words hit the DFI write bus"
+        assert captured[:BL_WORDS] == data, \
+            f"round {rnd}: DFI write burst {[hex(x) for x in captured[:BL_WORDS]]} != {[hex(x) for x in data]}"
+        assert rd[:BL_WORDS] == data, \
+            f"round {rnd}: AXI read-back {[hex(x) for x in rd[:BL_WORDS]]} != {[hex(x) for x in data]}"
+    dut._log.info("PASS: init done; AXI write burst -> DFI -> read burst back == written data, x%d",
+                  roundtrips)
 
 
 def _idle(dut):
@@ -154,10 +170,11 @@ def _init_masters(dut):
     return PumiceAxiBfm(dut, data_width=DW, bl_words=BL_WORDS)
 
 
-def test_pumice_core(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_core(request, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_core"
-    test_name = "cocotb_test_pumice_core"
+    test_name = f"cocotb_test_pumice_core_{test_level}"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -170,7 +187,7 @@ def test_pumice_core(request):
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
-                 "SEED": os.environ.get('SEED', str(random.randint(0, 100000)))}
+                 **level_env(test_level)}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_pumice_core",

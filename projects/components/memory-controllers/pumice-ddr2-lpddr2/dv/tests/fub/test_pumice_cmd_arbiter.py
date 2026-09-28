@@ -7,12 +7,14 @@ import os
 import sys
 import random
 
+import pytest
 import cocotb
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
@@ -23,6 +25,7 @@ from tbclasses.pumice_cmd_arbiter_tb import (  # noqa: E402
     PumiceCmdArbiterTB, OP_ACT, OP_RD, OP_WR, OP_PRE, OP_REF,
     PAGE_OPEN, PAGE_CLOSE,
 )
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 OP_MRS = 0xA
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
@@ -460,10 +463,21 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
         dut.rd_sch_qos_i.value = 0
         return None
 
-    slot = await _qos_pick(0)
-    assert slot == 5, f"qos_en=0 must pick the OLDEST (slot 5), got {slot}"
-    slot = await _qos_pick(1)
-    assert slot == 6, f"qos_en=1 must pick oldest-of-max-QoS (slot 6), got {slot}"
+    # The only depth knob in this directed file: every other count here is a
+    # bounded poll window or a scenario shape. The QoS scenario re-idles and
+    # flushes the pipeline on every call, so repeating it is self-contained.
+    qos_reps = _profile_depth('cmd_arbiter_qos_repeats')
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    tb.log.info("depth: TEST_LEVEL=%s cmd_arbiter_qos_repeats=%d",
+                os.environ.get("TEST_LEVEL", "gate"), qos_reps)
+    for _ in range(qos_reps):
+        slot = await _qos_pick(0)
+        assert slot == 5, f"qos_en=0 must pick the OLDEST (slot 5), got {slot}"
+        slot = await _qos_pick(1)
+        assert slot == 6, f"qos_en=1 must pick oldest-of-max-QoS (slot 6), got {slot}"
 
     tb.log.info("PASS: init, refresh(PRE->REF+grant), read-priority, oldest "
                 "tie-break, write pick, CLOSE auto-PRE, ACT idle bank, backpressure, "
@@ -471,13 +485,15 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
                 "order-mode overlay (in_order / age_threshold)")
 
 
-def test_pumice_cmd_arbiter(request):
-    _run_arbiter(request, "cocotb_test_pumice_cmd_arbiter")
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_cmd_arbiter(request, test_level):
+    _run_arbiter(request, "cocotb_test_pumice_cmd_arbiter", test_level=test_level)
 
 
-def _run_arbiter(request, test_name):
+def _run_arbiter(request, testcase, test_level='gate'):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_cmd_arbiter"
+    test_name = f"{testcase}_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST
@@ -494,7 +510,7 @@ def _run_arbiter(request, test_name):
     }
     extra_env = {
         "DUT": dut_name, "LOG_PATH": log_path, "COCOTB_LOG_LEVEL": "INFO",
-        "COCOTB_RESULTS_FILE": results_path, "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
+        "COCOTB_RESULTS_FILE": results_path, **level_env(test_level),
     }
     extra_env.update(params)
     # This fub test hand-drives order_mode 1/3 (in_order / age_threshold) and
@@ -505,7 +521,7 @@ def _run_arbiter(request, test_name):
 
     run(
         python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
-        toplevel=dut_name, module=module, testcase=test_name,
+        toplevel=dut_name, module=module, testcase=testcase,
         sim_build=sim_build, simulator="verilator", extra_env=extra_env,
         parameters=params, compile_args=compile_args,
         waves=bool(int(os.environ.get("WAVES", "0"))), keep_files=True, timescale="1ns/1ps",

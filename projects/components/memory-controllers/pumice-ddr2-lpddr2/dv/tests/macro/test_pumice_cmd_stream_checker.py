@@ -17,6 +17,8 @@ import sys
 
 import pytest
 
+from TBClasses.shared.test_levels import level_env, reg_level_grid
+
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
@@ -28,9 +30,22 @@ from tbclasses.pumice_cmd_stream_checker import (             # noqa: E402
     CmdStreamChecker, assert_clean, ALL_RULES,
     OP_ACT, OP_RD, OP_WR, OP_PRE, OP_PREA, OP_REF, OP_REFPB,
 )
+from tbclasses.pumice_levels import depth as _profile_depth   # noqa: E402
 
 BOARD = 'board_ddr2_300'
 FAST = 'ddr2_800_cl6_bl4'
+
+# Every test here carries the gate/func/full cell like a simulator wrapper does
+# (tooling BUG-004), so `make run-all-<level>` grades this oracle too. There is
+# no simulator process to hand extra_env to; the same level_env() entries go
+# into THIS process's environment, where pumice_levels.depth() reads them.
+pytestmark = pytest.mark.parametrize("test_level", reg_level_grid())
+
+
+def _enter_level(monkeypatch, test_level):
+    for k, v in level_env(test_level).items():
+        monkeypatch.setenv(k, v)
+    assert os.environ.get("TEST_LEVEL") == test_level, "level did not reach the depth reader"
 
 
 def _t(cfg):
@@ -51,23 +66,30 @@ def _rules(cmds, cfg=BOARD):
 # from literals, so they stay legal as the table grows.
 # --------------------------------------------------------------------------
 @pytest.mark.parametrize("cfg", ALL_CONFIGS)
-def test_pumice_cmd_stream_checker_legal_open_page(cfg):
-    """ACT, columns after tRCD, PRE after tRAS/tRTP, re-ACT after tRP/tRC."""
+def test_pumice_cmd_stream_checker_legal_open_page(cfg, monkeypatch, test_level):
+    """ACT, columns after tRCD, PRE after tRAS/tRTP, re-ACT after tRP/tRC.
+
+    The number of back-to-back columns on the open row is the one pure
+    repetition in this file (each is another tRCD/tCCD evaluation); the PRE is
+    placed from the LAST column so the stream stays legal at every count.
+    """
+    _enter_level(monkeypatch, test_level)
+    n_cols = _profile_depth('cmd_checker_legal_cols')
     t = _t(cfg)
-    pre = max(t['tRAS'], t['tRCD'] + 1 + t['tRTP'])
+    last_col = t['tRCD'] + n_cols - 1
+    pre = max(t['tRAS'], last_col + t['tRTP'])
     act2 = max(pre + t['tRP'], t['tRC'])
-    cmds = [C(0, OP_ACT),
-            C(t['tRCD'], OP_RD),
-            C(t['tRCD'] + 1, OP_RD),
-            C(pre, OP_PRE),
-            C(act2, OP_ACT, row=0x20),
-            C(act2 + t['tRCD'], OP_RD, row=0x20)]
+    cmds = ([C(0, OP_ACT)]
+            + [C(t['tRCD'] + k, OP_RD) for k in range(n_cols)]
+            + [C(pre, OP_PRE),
+               C(act2, OP_ACT, row=0x20),
+               C(act2 + t['tRCD'], OP_RD, row=0x20)])
     bad, _ = _rules(cmds, cfg)
-    assert bad == [], f"{cfg}: a legal open-page stream was flagged {bad}"
+    assert bad == [], f"{cfg}: a legal open-page stream ({n_cols} columns) was flagged {bad}"
 
 
 @pytest.mark.parametrize("cfg", ALL_CONFIGS)
-def test_pumice_cmd_stream_checker_legal_auto_precharge(cfg):
+def test_pumice_cmd_stream_checker_legal_auto_precharge(cfg, test_level):
     """RDA at tRCD is LEGAL at every point; the next ACT waits for the device.
 
     JESD79-2F 3.8.1: the device starts the auto-precharge (AL + BL/2) after the
@@ -93,7 +115,7 @@ def test_pumice_cmd_stream_checker_legal_auto_precharge(cfg):
 # --------------------------------------------------------------------------
 # Each rule must FIRE on a stream that breaks it.
 # --------------------------------------------------------------------------
-def test_pumice_cmd_stream_checker_col_on_closed_bank():
+def test_pumice_cmd_stream_checker_col_on_closed_bank(test_level):
     """The pumice BUG-003 signature: a column issued after a PRE, with no ACT."""
     t = _t(BOARD)
     bad, _ = _rules([C(0, OP_ACT), C(t['tRCD'], OP_RD),
@@ -101,7 +123,7 @@ def test_pumice_cmd_stream_checker_col_on_closed_bank():
     assert 'col_on_closed' in bad
 
 
-def test_pumice_cmd_stream_checker_col_on_wrong_row():
+def test_pumice_cmd_stream_checker_col_on_wrong_row(test_level):
     """A stale row image issues a column against a row the bank does not hold.
 
     The oracle this replaces tracked open-vs-closed ONLY, so this case -- just as
@@ -113,37 +135,37 @@ def test_pumice_cmd_stream_checker_col_on_wrong_row():
     assert bad == ['col_on_wrong_row']
 
 
-def test_pumice_cmd_stream_checker_act_on_open_bank():
+def test_pumice_cmd_stream_checker_act_on_open_bank(test_level):
     bad, _ = _rules([C(0, OP_ACT), C(_t(BOARD)['tRC'], OP_ACT)])
     assert 'act_on_open' in bad
 
 
-def test_pumice_cmd_stream_checker_trcd():
+def test_pumice_cmd_stream_checker_trcd(test_level):
     bad, _ = _rules([C(0, OP_ACT), C(_t(BOARD)['tRCD'] - 1, OP_RD)])
     assert bad == ['tRCD']
 
 
-def test_pumice_cmd_stream_checker_tras_and_trtp():
+def test_pumice_cmd_stream_checker_tras_and_trtp(test_level):
     """A PRE too soon after its ACT breaks tRAS, and too soon after a RD tRTP."""
     t = _t(BOARD)
     bad, _ = _rules([C(0, OP_ACT), C(t['tRCD'], OP_RD), C(t['tRCD'] + 1, OP_PRE)])
     assert 'tRAS' in bad and 'tRTP' in bad
 
 
-def test_pumice_cmd_stream_checker_trp():
+def test_pumice_cmd_stream_checker_trp(test_level):
     t = _t(BOARD)
     bad, _ = _rules([C(0, OP_ACT), C(t['tRAS'], OP_PRE),
                      C(t['tRAS'] + t['tRP'] - 1, OP_ACT)])
     assert 'tRP' in bad
 
 
-def test_pumice_cmd_stream_checker_trrd():
+def test_pumice_cmd_stream_checker_trrd(test_level):
     bad, _ = _rules([C(0, OP_ACT, bank=0),
                      C(_t(BOARD)['tRRD'] - 1, OP_ACT, bank=1)])
     assert 'tRRD' in bad
 
 
-def test_pumice_cmd_stream_checker_tfaw():
+def test_pumice_cmd_stream_checker_tfaw(test_level):
     """tFAW needs a config where it can BIND.
 
     On the board tFAW=4 and tRRD=2, so tRRD alone already spaces four ACTs
@@ -164,7 +186,7 @@ def test_pumice_cmd_stream_checker_tfaw():
     assert 'tFAW' in bad and stats['tFAW'] == 5
 
 
-def test_pumice_cmd_stream_checker_refresh_needs_precharged_banks():
+def test_pumice_cmd_stream_checker_refresh_needs_precharged_banks(test_level):
     t = _t(BOARD)
     bad, _ = _rules([C(0, OP_ACT), C(t['tRCD'], OP_RD), C(t['tRC'] + 4, OP_REF)])
     assert 'ref_with_open_bank' in bad
@@ -173,18 +195,18 @@ def test_pumice_cmd_stream_checker_refresh_needs_precharged_banks():
     assert 'refpb_on_open_bank' in bad
 
 
-def test_pumice_cmd_stream_checker_trfc():
+def test_pumice_cmd_stream_checker_trfc(test_level):
     t = _t(BOARD)
     bad, _ = _rules([C(0, OP_REF), C(t['tRFC'] - 1, OP_ACT)])
     assert 'tRFC' in bad
 
 
-def test_pumice_cmd_stream_checker_one_command_per_cycle():
+def test_pumice_cmd_stream_checker_one_command_per_cycle(test_level):
     bad, _ = _rules([C(0, OP_ACT, bank=0), C(0, OP_ACT, bank=1)])
     assert 'two_cmds_one_cycle' in bad
 
 
-def test_pumice_cmd_stream_checker_prea_closes_every_bank():
+def test_pumice_cmd_stream_checker_prea_closes_every_bank(test_level):
     """PREA must close all banks -- a later column anywhere is then illegal."""
     t = _t(BOARD)
     cmds = [C(0, OP_ACT, bank=0), C(t['tRRD'], OP_ACT, bank=1),
@@ -197,7 +219,7 @@ def test_pumice_cmd_stream_checker_prea_closes_every_bank():
 # --------------------------------------------------------------------------
 # The vacuity guard itself.
 # --------------------------------------------------------------------------
-def test_pumice_cmd_stream_checker_rejects_a_vacuous_pass():
+def test_pumice_cmd_stream_checker_rejects_a_vacuous_pass(test_level):
     """assert_clean must refuse a verdict when a required rule never armed."""
     t = _t(BOARD)
     legal = [C(0, OP_ACT), C(t['tRCD'], OP_RD)]
@@ -208,7 +230,7 @@ def test_pumice_cmd_stream_checker_rejects_a_vacuous_pass():
         assert_clean([], t, label="empty", min_cmds=1)
 
 
-def test_pumice_cmd_stream_checker_since_replays_from_zero():
+def test_pumice_cmd_stream_checker_since_replays_from_zero(test_level):
     """`since` must gate REPORTING only -- the replay still starts at index 0.
 
     This is the false-positive that the matrix's first run produced: check only
@@ -232,7 +254,7 @@ def test_pumice_cmd_stream_checker_since_replays_from_zero():
     assert stats['col_on_closed'] == 1
 
 
-def test_pumice_cmd_stream_checker_every_rule_is_reachable():
+def test_pumice_cmd_stream_checker_every_rule_is_reachable(test_level):
     """No rule may be dead code. Each ALL_RULES entry must arm somewhere here.
 
     A rule nobody can trigger is indistinguishable from a rule that is broken,

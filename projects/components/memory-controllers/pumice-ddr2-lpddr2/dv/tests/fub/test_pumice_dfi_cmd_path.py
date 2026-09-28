@@ -8,6 +8,7 @@ import sys
 import random
 import subprocess
 
+import pytest
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
@@ -15,11 +16,13 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 from tbclasses.pumice_fub_bfm import fub_producer      # noqa: E402
+from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 _repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode().strip()
 
@@ -83,8 +86,18 @@ async def cocotb_test_pumice_dfi_cmd_path(dut):
                 rd_fires.append(1)
     cocotb.start_soon(mon())
 
+    # The 6-op sequence is the scenario; how many times it is streamed is pure
+    # repetition (this block formats commands, it holds no bank state), and the
+    # fire expectations are derived from the streamed list so they scale with it.
+    reps = _profile_depth('dfi_cmd_path_seq_reps')
+    # The wrapper reads TEST_LEVEL itself, beside its knob: bin/review/check_test_levels.py
+    # follows only TBClasses/projects imports, and this area imports tbclasses.* (a
+    # hyphenated component path cannot be a package import), so a read hidden inside
+    # pumice_levels.depth() would be invisible to the gate. Forced, not chosen (BUG-004).
+    dut._log.info("depth: TEST_LEVEL=%s dfi_cmd_path_seq_reps=%d",
+                  os.environ.get("TEST_LEVEL", "gate"), reps)
     seq = [(OP_ACT, 3, 0x123, 0), (OP_WR, 3, 0, 0x40), (OP_RD, 3, 0, 0x80),
-           (OP_WRA, 2, 0, 0x10), (OP_RDA, 2, 0, 0x20), (OP_PRE, 3, 0, 0)]
+           (OP_WRA, 2, 0, 0x10), (OP_RDA, 2, 0, 0x20), (OP_PRE, 3, 0, 0)] * reps
     exp_wr = sum(1 for s in seq if s[0] in (OP_WR, OP_WRA))
     exp_rd = sum(1 for s in seq if s[0] in (OP_RD, OP_RDA))
 
@@ -175,19 +188,20 @@ async def cocotb_test_pumice_dfi_cmd_path_pack(dut):
     dut._log.info("PASS: 2 RD sub-commands packed into one DFI cycle at phases {0,2}, 1 rd_fire")
 
 
-def _run_cmd_path(testcase, params, extra_params=None):
+def _run_cmd_path(testcase, params, extra_params=None, test_level='gate'):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_dfi_cmd_path"
+    test_name = f"{testcase}_{test_level}"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = sim_build_path(tests_dir, testcase)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     if extra_params:
         params = {**params, **extra_params}
-    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{testcase}.log"),
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
-                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml"),
-                 "SEED": os.environ.get('SEED', str(random.randint(0, 100000)))}
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 **level_env(test_level)}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase=testcase,
@@ -195,15 +209,17 @@ def _run_cmd_path(testcase, params, extra_params=None):
         compile_args=["+define+USE_ASYNC_RESET"], waves=False, keep_files=True, timescale="1ns/1ps")
 
 
-def test_pumice_dfi_cmd_path(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_dfi_cmd_path(request, test_level):
     params = {"NUM_RANKS": "1", "NUM_BANKS": "8", "ROW_WIDTH": "14", "COL_WIDTH": "10",
               "DFI_RATE": "4", "DFI_ADDR_WIDTH": "14", "DFI_BANK_WIDTH": "3"}
-    _run_cmd_path("cocotb_test_pumice_dfi_cmd_path", params)
+    _run_cmd_path("cocotb_test_pumice_dfi_cmd_path", params, test_level=test_level)
 
 
-def test_pumice_dfi_cmd_path_pack(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_pumice_dfi_cmd_path_pack(request, test_level):
     """Build for the sub-DFI-word regime (N_SUBCMD=2) and prove same-cycle packing."""
     params = {"NUM_RANKS": "1", "NUM_BANKS": "8", "ROW_WIDTH": "14", "COL_WIDTH": "10",
               "DFI_RATE": "4", "DFI_ADDR_WIDTH": "14", "DFI_BANK_WIDTH": "3",
               "N_SUBCMD": "2", "SUB_PHASE_STRIDE": "2", "SUB_COL_STRIDE": "4"}
-    _run_cmd_path("cocotb_test_pumice_dfi_cmd_path_pack", params)
+    _run_cmd_path("cocotb_test_pumice_dfi_cmd_path_pack", params, test_level=test_level)
