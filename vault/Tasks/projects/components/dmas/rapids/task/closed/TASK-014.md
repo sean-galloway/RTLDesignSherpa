@@ -1,7 +1,7 @@
 # TASK-014: control engines drain on channel reset instead of abandoning the AXI transaction
 
 **Priority:** P2. Sean picked drain-on-reset over quiesce-then-reset (2026-09-27).
-**Status:** open 2026-09-27. Raised when TASK-013 turned ctrlrd's channel-reset test
+**Status:** CLOSED 2026-09-27 (closing note at the end); was open 2026-09-27. Raised when TASK-013 turned ctrlrd's channel-reset test
 into a between-operations clear: the old mid-read version only passed because its
 hand-rolled responder withdrew the R beat, which no real slave does.
 
@@ -30,4 +30,15 @@ properties `no_new_request_while_draining` and `drain_holds_*` added under `ifde
   with a fresh operation that must return or land its own data.
 - Existing suites unchanged; clean full rapids regression after the tests land.
 
-Tests follow the rapids dv hand-back from the tooling session's conftest conversion.
+## Closing note (2026-09-27)
+
+RTL in cd9d46c9f, tests in the commit after the dv hand-back.
+`test_ctrlrd_engine_reset_mid_read` (AR raised / AR accepted with the beat owed) and
+`test_ctrlwr_engine_reset_mid_write` (AW raised / AW accepted with W pending / W
+accepted with B owed) pass on the new engines and, in an A/B swap against the
+pre-change RTL, fail for exactly the reasons filed: a raised phase withdrawn, the owed
+beat never taken, idle reported with it owed, the issued write never landing. Clean
+full rapids regression after the tests, at the new 2250-cell FULL depth: fub 162,
+fub_beats 1275, macro 36, macro_beats 747, top_beats 30, 0 failures. The earlier
+"drain-on-reset backfired" note in CONTROL_ENGINE_INTEGRATION.md is explained there:
+it fought the hand-rolled responders of the time, not the fabric.
