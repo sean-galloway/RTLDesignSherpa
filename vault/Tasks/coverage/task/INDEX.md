@@ -21,7 +21,6 @@ by construction rather than by discipline.
 ## Open
 
 - **TASK-002** — Bring the last three test areas onto the base coverage path
-- **TASK-000** — reserved template; copy the file, do not file against it.
 
 ## Closed
 

@@ -20,7 +20,6 @@ by construction rather than by discipline.
 
 ## Open
 
-- **TASK-000** — reserved template; copy the file, do not file against it.
 - **TASK-001** — Parameter Sweep Automation Scripts
 - **TASK-002** — Cross-Technology Comparison Reports
 - **TASK-003** — Additional FUBs

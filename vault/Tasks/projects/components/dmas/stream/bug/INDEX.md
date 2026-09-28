@@ -20,7 +20,6 @@ by construction rather than by discipline.
 
 ## Open
 
-- **BUG-000** — reserved template; copy the file, do not file against it.
 - **BUG-017** — the in-core monbus group filtered every packet with DAXMON's registers (the order-dependent addr_error of amba BUG-036) -- FIXED, board evidence owed
 
 ## Closed

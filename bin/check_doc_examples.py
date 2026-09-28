@@ -163,6 +163,13 @@ def main() -> int:
                           if fn.endswith('.md')]
     page_list += [q for q in subprocess.check_output(
         ['git', 'ls-files', '*CLAUDE.md'], text=True).split() if os.path.isfile(q)]
+    # Same blind spot, one file-class later (RLB BUG-005, 2026-09-28): a
+    # component's PRD.md and README.md are in no docs/ tree either, and the
+    # apb4_hpet example in retro_legacy_blocks/PRD.md named nine ports the
+    # module does not have while this gate reported 0 fabricated examples.
+    page_list += [q for q in subprocess.check_output(
+        ['git', 'ls-files', '*PRD.md', '*README.md'], text=True).split()
+        if os.path.isfile(q)]
     for path in page_list:
         if True:
             if not path.endswith('.md'):
@@ -331,7 +338,16 @@ def main() -> int:
     # mis-structured) and TASK-009 (07_beats_latency_bridge.md documents the wrong
     # concept entirely). Leaving them unchecked to keep a 0 would be choosing a
     # prettier number over coverage. Drop this to 0 as those two close.
-    BASELINE = 2
+    # 2026-09-28: widening the walk to beside-code PRD.md/README.md (RLB
+    # BUG-005) brought 79 more pages into scope and surfaced 8 findings, all
+    # in units this change does not own -- converters/README.md (3 examples),
+    # dmas/stream/regs/README.md and fpga-systems/boards/README.md. RLB's own
+    # three were FIXED in the same commit rather than baselined, which is why
+    # retro_legacy_blocks does not appear here. The floor records filed debt,
+    # exactly as the 2 above did: tooling TASK-016 fans these out to their
+    # owners, and each one that closes drops this number. Do NOT raise it to
+    # make an unrelated commit pass.
+    BASELINE = 8
     if bad > BASELINE:
         print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} -- a doc example\n          names a port its module does not have. The backlog this ratchet\n          tracked (amba TASK-077) is CLOSED and the floor is 0, so any\n          finding here is NEW.')
         return 1

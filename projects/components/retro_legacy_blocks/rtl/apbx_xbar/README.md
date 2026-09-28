@@ -85,7 +85,7 @@ For true Intel PC compatibility, instantiate HPET separately:
 ```systemverilog
 // HPET at standard Intel address
 apb4_hpet u_hpet (
-    .paddr(hpet_paddr),  // Decode for 0xFED0_0000 range
+    .s_apb_PADDR(hpet_paddr[11:0]),  // Decode for 0xFED0_0000 range
     // ...
 );
 ```

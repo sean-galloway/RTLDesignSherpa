@@ -20,4 +20,3 @@ by construction rather than by discipline.
 
 ## Open
 
-- **ISSUE-000** — reserved template; copy the file, do not file against it.

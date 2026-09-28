@@ -425,20 +425,22 @@ apb4_hpet #(
     .REVISION_ID(16'h0001),
     .CDC_ENABLE(0)
 ) u_hpet (
-    .pclk         (apb_clk),
-    .presetn      (apb_rst_n),
-    // APB interface
-    .paddr        (paddr),
-    .psel         (psel_hpet),
-    .penable      (penable),
-    .pwrite       (pwrite),
-    .pwdata       (pwdata),
-    .prdata       (prdata_hpet),
-    .pready       (pready_hpet),
-    .pslverr      (pslverr_hpet),
+    .pclk           (apb_clk),
+    .presetn        (apb_rst_n),
+    // APB interface -- the ports are s_apb_P*, not bare p*
+    .s_apb_PSEL     (psel_hpet),
+    .s_apb_PENABLE  (penable),
+    .s_apb_PREADY   (pready_hpet),
+    .s_apb_PADDR    (paddr[11:0]),
+    .s_apb_PWRITE   (pwrite),
+    .s_apb_PWDATA   (pwdata),
+    .s_apb_PSTRB    (pstrb),
+    .s_apb_PPROT    (pprot),
+    .s_apb_PRDATA   (prdata_hpet),
+    .s_apb_PSLVERR  (pslverr_hpet),
     // HPET-specific
-    .hpet_clk     (timer_clk),
-    .hpet_rst_n   (timer_rst_n),
+    .hpet_clk       (timer_clk),
+    .hpet_resetn    (timer_rst_n),
     .timer_irq    (timer_irq[2:0])
 );
 ```

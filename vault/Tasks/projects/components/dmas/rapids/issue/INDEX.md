@@ -21,7 +21,6 @@ by construction rather than by discipline.
 ## Open
 
 - **ISSUE-005** — scheduler and descriptor-engine completion packets ignore SCHED_CONFIG.COMPL_EN
-- **ISSUE-000** — reserved template; copy the file, do not file against it.
 
 ## Closed
 

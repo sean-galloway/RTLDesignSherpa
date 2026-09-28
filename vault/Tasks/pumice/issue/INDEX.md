@@ -24,7 +24,6 @@ exactly one state by construction rather than by discipline.
 
 
 
-- **ISSUE-000** — TEMPLATE — copy this file, never file against it
 
 ## Closed
 

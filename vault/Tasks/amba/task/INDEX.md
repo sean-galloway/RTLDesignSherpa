@@ -23,7 +23,6 @@ by construction rather than by discipline.
 - **TASK-034** — Performance Characterization
 - **TASK-035** — Make APB Crossbar Variants Functional
 - **TASK-036** — Write Monitor System Whitepaper
-- **TASK-000** — reserved template; copy the file, do not file against it.
 
 ## Active
 

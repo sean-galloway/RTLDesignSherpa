@@ -23,7 +23,6 @@ by construction rather than by discipline.
 - **BUG-013** — `check_port_consumers.py` cannot see unpacked-array ports, so it
   filters out the `PINMISSING` it exists to report; pumice lost 16 tests to it
 
-- **BUG-000** — reserved template; copy the file, do not file against it.
 
 ## Closed
 

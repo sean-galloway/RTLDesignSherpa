@@ -216,21 +216,23 @@ apb4_hpet #(
     .REVISION_ID(16'h0001),
     .CDC_ENABLE(0)  // 0=synchronous clocks, 1=async CDC
 ) u_hpet (
-    // APB interface
-    .pclk         (apb_clk),
-    .presetn      (apb_rst_n),
-    .paddr        (paddr),
-    .psel         (psel),
-    .penable      (penable),
-    .pwrite       (pwrite),
-    .pwdata       (pwdata),
-    .prdata       (prdata),
-    .pready       (pready),
-    .pslverr      (pslverr),
+    // APB interface -- the ports are s_apb_P*, not bare p*
+    .pclk           (apb_clk),
+    .presetn        (apb_rst_n),
+    .s_apb_PSEL     (psel),
+    .s_apb_PENABLE  (penable),
+    .s_apb_PREADY   (pready),
+    .s_apb_PADDR    (paddr[11:0]),
+    .s_apb_PWRITE   (pwrite),
+    .s_apb_PWDATA   (pwdata),
+    .s_apb_PSTRB    (pstrb),
+    .s_apb_PPROT    (pprot),
+    .s_apb_PRDATA   (prdata),
+    .s_apb_PSLVERR  (pslverr),
 
     // HPET clock (can be async if CDC_ENABLE=1)
-    .hpet_clk     (timer_clk),
-    .hpet_rst_n   (timer_rst_n),
+    .hpet_clk       (timer_clk),
+    .hpet_resetn    (timer_rst_n),
 
     // Interrupts
     .timer_irq    (timer_irq[2:0])  // 3 timers

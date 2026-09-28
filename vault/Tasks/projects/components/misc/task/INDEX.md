@@ -22,7 +22,6 @@ by construction rather than by discipline.
 
 - **TASK-001** — all RDL lives in the rdl directory
 - **TASK-003** — axis4_intf_observer instantiates axis_monitor_lite instead of its private per-port tap (one implementation of the AXIS event set)
-- **TASK-000** — reserved template; copy the file, do not file against it.
 - **TASK-004** — misc placement pass: FUTURE.md is a work list at the component root
 
 

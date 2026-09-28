@@ -20,7 +20,6 @@ by construction rather than by discipline.
 
 ## Open
 
-- **TASK-000** — reserved template; copy the file, do not file against it.
 - **TASK-004** — timeout and latency events lose the one-per-cycle pick to a sustained error stream; hold the payload until queued
 
 

@@ -21,4 +21,3 @@ by construction rather than by discipline.
 ## Open
 
 - **TASK-001** — Stand up the Reed-Solomon component
-- **TASK-000** — reserved template; copy the file, do not file against it.

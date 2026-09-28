@@ -20,7 +20,6 @@ by construction rather than by discipline.
 
 ## Open
 
-- **TASK-000** — reserved template; copy the file, do not file against it.
 - **TASK-003** — converters placement pass: 2 loose analysis notes at the component root
 
 

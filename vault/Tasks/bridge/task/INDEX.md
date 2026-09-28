@@ -20,7 +20,6 @@ by construction rather than by discipline.
 
 ## Open
 
-- **TASK-000** — reserved template; copy the file, do not file against it.
 - **TASK-012** — bridge placement pass: 9 loose markdown files (generator design notes beside bin/, a bug write-up at the root)
 
 

@@ -12,20 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-000** — reserved template; copy the file, do not file against it.
 - **BUG-004** — PRD.md gives the subsystem base as 0x4000_0000 in three places; the RTL uses BASE_ADDR 0xFEC00000, which the PRD never mentions.
-- **BUG-005** — the apb4_hpet example in PRD.md connects 9 ports the module does not have; check_doc_examples.py never scans a component PRD/README, so the CI gate passes it.
 
 ## Closed
 
 - **BUG-001** — regblock reset polarity composed by hand
 - **BUG-002** — SYNCASYNCNET under -DRESET_ACTIVE_HIGH, family-wide
 - **BUG-003** — an unmapped APB address hung the RLB bus
+- **BUG-005** — the apb4_hpet example connected 9 nonexistent ports in PRD.md, README.md and rtl/apbx_xbar/README.md; fixed, and check_doc_examples.py widened to scan beside-code PRD/README, closed 2026-09-28.

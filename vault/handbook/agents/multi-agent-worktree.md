@@ -1,6 +1,6 @@
 ---
 title: Multi-agent shared worktree discipline
-summary: One working tree, several agents - the six ways uncommitted state crosses agent boundaries, and the staged-set check that actually holds.
+summary: One working tree, several agents - the seven ways uncommitted state crosses agent boundaries, and the staged-set check that actually holds.
 ---
 
 # Multi-agent shared worktree discipline
@@ -50,6 +50,23 @@ The incidents, each a different leak path:
    2026-09-28). The gate was RIGHT: the files genuinely were unregistered at
    that moment. Incident 4's lesson generalises - the victim again spent the
    longest stretch assuming the failure was their own.
+7. **Their commit is validated by YOUR uncommitted tooling, and HEAD ends up
+   failing its own gate.** The subtlest one, and the inverse of 6. A pre-commit
+   hook runs the WORKING TREE's checker, not the committed one. On 2026-09-28
+   an uncommitted change to `check_task_ids.py` (stop counting the reserved
+   -000 templates) sat in the tree alongside 86 edited INDEX counts. The amba
+   session then committed one of those INDEX files as a side effect of a
+   pathspec commit -- their message is about formal proofs and says nothing
+   about counting -- and it PASSED, because the hook used the uncommitted
+   checker. For the minutes until the tooling change landed, HEAD paired the
+   OLD checker with a NEW count (3 against 4 files on disk): a tree that fails
+   the gate it ships. Nobody would have seen it except by checking out that
+   commit alone.
+   The lesson is not "commit tooling first" -- it is that a green hook proves
+   the WORKTREE is consistent, never that HEAD is. When a tooling change and
+   the data it governs must move together, they belong in ONE commit; when a
+   peer's commit touches a file your uncommitted tooling governs, check what
+   actually landed.
 
 The rules:
 

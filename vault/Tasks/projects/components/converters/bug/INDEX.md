@@ -21,7 +21,6 @@ by construction rather than by discipline.
 ## Open
 
 - **BUG-008** — dwidth converter split-fold assumes in-order B across IDs
-- **BUG-000** — reserved template; copy the file, do not file against it.
 
 ## Closed
 

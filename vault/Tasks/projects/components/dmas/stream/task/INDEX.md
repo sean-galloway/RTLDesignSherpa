@@ -20,7 +20,6 @@ by construction rather than by discipline.
 
 ## Open
 
-- **TASK-000** — reserved template; copy the file, do not file against it.
 - **TASK-012** — arm the 26 signal-contract maps still rendering VERDICT: NOT CHECKED (rtl_sop / depends_only_on); the derived-vs-RTL gate is inert on them
 - **TASK-013** — stream placement pass: 9 loose markdown files (status page, coverage and perf reports beside the tests)
 

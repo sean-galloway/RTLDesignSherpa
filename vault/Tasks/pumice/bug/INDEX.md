@@ -21,7 +21,6 @@ exactly one state by construction rather than by discipline.
 ## Open
 
 
-- **BUG-000** — TEMPLATE — copy this file, never file against it
 
 ## Closed
 

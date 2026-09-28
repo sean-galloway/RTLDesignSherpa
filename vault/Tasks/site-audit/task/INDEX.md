@@ -22,4 +22,3 @@ by construction rather than by discipline.
 
 - **TASK-001** — Site-wide audit: RTL correct, docs match, docs humanized, verification covers it
 - **TASK-002** — teach the checker to see BOTH directions (the 11-task triage is done)
-- **TASK-000** — reserved template; copy the file, do not file against it.
