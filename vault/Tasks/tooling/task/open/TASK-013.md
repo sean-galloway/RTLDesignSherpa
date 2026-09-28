@@ -76,6 +76,23 @@ RTL that came back, unnoticed across 13 files for months).
 hand-written ones, the real hand-pass scope is ~143 citations, and COMMON-*, TOOL-*,
 DOCREV-*, RLB-*, CONV-*, MATH-*, NEXYS-* and APBX-* have still never been searched.
 
+**pumice is the largest citation cluster, and it is deliberately NOT swept.**
+Measured 2026-09-27: **651 `PUMICE-*` occurrences across 173 files** (.md 459, .py 151,
+.sv 39, .rdl 2). None of those are the tracker's own provenance lines -- excluding
+`vault/Tasks/` leaves the count unchanged at 651. The pumice session reported 533; the
+measured figure is higher, and 651 is the number to plan against.
+
+Their reasoning for leaving it here rather than sweeping it, which I agree with: the
+references are in live RTL comments and board-measurement records, and rewriting those
+to chase a tracker rename costs more than it gains. `MIGRATION_MAP.md` plus each file's
+provenance line make an old `PUMICE-NNN` resolvable. If this is swept it should be a
+deliberate mechanical pass with its own gate, not a side effect of a migration.
+
+Note the scale relative to the rest of this ticket: pumice alone (651) dwarfs the ~143
+hand-written amba and bridge citations tabled above, and `bridge`'s 157 generated ones
+need a Rule #0 regeneration rather than editing. A single "sweep the citations" task is
+therefore not one job -- it is at least three with different methods.
+
 **Why it was not swept with the migration.** These are source files in four areas
 owned by other sessions, several of which were being actively edited during the
 migration. A 15-file comment sweep across RTL, formal and DV while peers hold those
