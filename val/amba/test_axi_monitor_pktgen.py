@@ -596,7 +596,7 @@ def _run_pktgen(request, testcase, n_slots=N_SLOTS):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_monitor_pktgen_dut.f")
+        module='axi_monitor_pktgen_dut')
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")

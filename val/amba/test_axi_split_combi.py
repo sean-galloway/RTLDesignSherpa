@@ -90,7 +90,7 @@ def test_axi_split_realistic(request, params):
     toplevel = dut_name
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_split_combi.f")
+        module='axi_split_combi')
 
     # Create test identifier following pattern: test_<module>_<params>
     t_aw = params['AW']
@@ -193,7 +193,7 @@ def test_axi_split_realistic(request, params):
     toplevel = dut_name
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_split_combi.f")
+        module='axi_split_combi')
 
     # Create test identifier following pattern: test_<module>_<params>
     t_aw = params['AW']

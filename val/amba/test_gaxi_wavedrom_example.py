@@ -717,7 +717,7 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
     dut_name = "gaxi_skid_buffer"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/gaxi_skid_buffer.f")
+        module='gaxi_skid_buffer')
     parameters = {
         'DATA_WIDTH': data_width,
         'DEPTH': depth

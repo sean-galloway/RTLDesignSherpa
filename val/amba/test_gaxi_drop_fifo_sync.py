@@ -215,7 +215,7 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
     dut_name = "gaxi_drop_fifo_sync"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/gaxi_drop_fifo_sync.f")
+        module='gaxi_drop_fifo_sync')
     toplevel = dut_name
 
     # Create human-readable test identifier

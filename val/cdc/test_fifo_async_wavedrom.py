@@ -201,7 +201,7 @@ def test_fifo_async_wavedrom(request, data_width, depth, wr_clk_period, rd_clk_p
     # and broke silently when the CDC modules moved to rtl/cdc.
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/cdc/filelists/fifo_async.f")
+        module='fifo_async')
 
     w_str = TBBase.format_dec(data_width, 3)
     d_str = TBBase.format_dec(depth, 3)

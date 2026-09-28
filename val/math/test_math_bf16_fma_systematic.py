@@ -84,7 +84,7 @@ def test_math_bf16_fma_systematic(request, params):
 
         repo_root=repo_root,
 
-        filelist_path='rtl/math/filelists/math_bf16_fma.f'
+        module='math_bf16_fma'
 
     )
 

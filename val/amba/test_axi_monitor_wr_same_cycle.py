@@ -248,7 +248,7 @@ def test_axi_monitor_wr_same_cycle(iw, aw, max_transactions, seed):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_monitor_base.f")
+        module='axi_monitor_base')
 
     rtl_parameters = {
         'ID_WIDTH': str(iw),

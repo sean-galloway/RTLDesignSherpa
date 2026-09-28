@@ -234,7 +234,7 @@ def test_axi_monitor_addr_filter(request, addr_width, id_width):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_monitor_base.f")
+        module='axi_monitor_base')
 
     run(
         python_search=[tests_dir],

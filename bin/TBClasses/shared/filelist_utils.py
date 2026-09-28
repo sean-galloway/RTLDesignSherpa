@@ -44,7 +44,77 @@ import sys
 from pathlib import Path
 
 
-def get_sources_from_filelist(repo_root, filelist_path):
+def _registry_filelist_dirs(repo_root):
+    """Every filelist directory bin/filelists.toml registers, as absolute Paths."""
+    import tomllib
+    reg = Path(repo_root) / 'bin' / 'filelists.toml'
+    if not reg.is_file():
+        raise FileNotFoundError(f"filelist registry not found: {reg}")
+    data = tomllib.loads(reg.read_text())
+    dirs = []
+    for area in data.get('area', []):
+        for d in area.get('filelist_dirs', []):
+            dirs.append(Path(repo_root) / d)
+    return dirs
+
+
+def _direct_sources(filelist, repo_root):
+    """Source files a .f names DIRECTLY (not through -f), as absolute Paths."""
+    out = []
+    for raw in Path(filelist).read_text(errors='ignore').splitlines():
+        line = raw.split('#', 1)[0].split('//', 1)[0].strip()
+        if not line or line.startswith(('-f', '+incdir+', '-')):
+            continue
+        out.append(Path(line.replace('$REPO_ROOT', str(repo_root))
+                            .replace('${REPO_ROOT}', str(repo_root))))
+    return out
+
+
+def filelist_for(repo_root, module):
+    """The repo-relative .f that provides `module`, resolved through the registry.
+
+    tooling TASK-005 (was TOOL-011): tests used to hardcode
+    filelist_path='rtl/common/filelists/fifo_async.f', so moving a module's .f
+    (the CDC reorg moved twelve) meant editing every test that named the old
+    path -- and a missed one resolved to nothing and the test "passed" against
+    no DUT. A test now names the MODULE; where its filelist lives is the
+    registry's concern.
+
+    Resolution, cheapest first:
+      1. a filelist named exactly `<module>.f` under a registered filelist dir
+         (the repo convention: one filelist per module, named after it);
+      2. otherwise every registered .f whose DIRECT sources include
+         `<module>.sv`.
+    Exactly one answer is required. None raises FileNotFoundError, several
+    raise ValueError naming them -- never a silent guess, because a wrong
+    filelist is the failure this exists to remove.
+    """
+    repo_root = Path(repo_root)
+    dirs = _registry_filelist_dirs(repo_root)
+    named = sorted({p for d in dirs if d.is_dir() for p in d.rglob(f'{module}.f')})
+    if len(named) == 1:
+        return str(named[0].relative_to(repo_root))
+    if len(named) > 1:
+        raise ValueError(f"filelist_for({module!r}): {len(named)} filelists named {module}.f: "
+                         + ', '.join(str(p.relative_to(repo_root)) for p in named))
+    providers = []
+    for d in dirs:
+        if not d.is_dir():
+            continue
+        for fl in sorted(d.rglob('*.f')):
+            if any(src.name == f'{module}.sv' for src in _direct_sources(fl, repo_root)):
+                providers.append(str(fl.relative_to(repo_root)))
+    if len(providers) == 1:
+        return providers[0]
+    if not providers:
+        raise FileNotFoundError(f"filelist_for({module!r}): no registered filelist is named "
+                                f"{module}.f or lists {module}.sv directly (bin/filelists.toml)")
+    raise ValueError(f"filelist_for({module!r}): {len(providers)} registered filelists list "
+                     f"{module}.sv directly: " + ', '.join(providers)
+                     + " -- name the one you mean with filelist_path=")
+
+
+def get_sources_from_filelist(repo_root, filelist_path=None, *, module=None):
     """
     Process an RTL file list and return verilog_sources and includes for CocoTB.
 
@@ -75,6 +145,11 @@ def get_sources_from_filelist(repo_root, filelist_path):
         - Automatically resolves -f directives (hierarchical inclusion)
         - Removes duplicates from final lists
     """
+    if (filelist_path is None) == (module is None):
+        raise ValueError("get_sources_from_filelist: pass exactly one of filelist_path= or module=")
+    if module is not None:
+        filelist_path = filelist_for(repo_root, module)
+
     # Import FileListProcessor (add to path if needed)
     filelist_processor_dir = Path(repo_root) / 'bin' / 'FileFolderFunctions'
     if str(filelist_processor_dir) not in sys.path:

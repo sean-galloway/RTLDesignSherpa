@@ -419,7 +419,7 @@ def test_monbus_pkt_tally(request, addr_bits, count_width, num_latch, n_profile)
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="projects/components/misc/rtl/filelists/monbus_pkt_tally.f")
+        module='monbus_pkt_tally')
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")

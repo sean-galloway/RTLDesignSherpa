@@ -168,7 +168,7 @@ def test_arbiter_round_robin_simple(request, clients):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/arbiter_round_robin_simple.f'
+        module='arbiter_round_robin_simple'
     )
 
     # Create a human readable test identifier

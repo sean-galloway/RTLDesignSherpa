@@ -81,7 +81,7 @@ def test_monbus_cam_pipe(request):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/monbus_cam_pipe_dut.f")
+        module='monbus_cam_pipe_dut')
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")

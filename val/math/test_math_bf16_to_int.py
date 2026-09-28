@@ -103,7 +103,7 @@ def test_math_bf16_to_int(request, params):
     # BF16 to INT8 converter is standalone (no dependencies)
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_to_int.f'
+        module='math_bf16_to_int'
     )
 
     # Define simulation build and log paths

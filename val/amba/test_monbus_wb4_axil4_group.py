@@ -182,7 +182,7 @@ def test_monbus_wb4_axil4_group(request, test_type, fifo_depth_err, fifo_depth_w
     # don't instantiate it).
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/monbus_wb4_axil4_group.f")
+        module='monbus_wb4_axil4_group')
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")

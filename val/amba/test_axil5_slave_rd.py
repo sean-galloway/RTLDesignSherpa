@@ -345,7 +345,7 @@ def test_axil5_slave_read(request, addr_width, data_width, ar_depth, r_depth, te
     # Verilog sources - include dependencies
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil5_slave_rd.f")
+        module='axil5_slave_rd')
 
     # Check that files exist
     for src in verilog_sources:
@@ -483,7 +483,7 @@ if __name__ == "__main__":
     # Verilog sources - include dependencies
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil5_slave_rd.f")
+        module='axil5_slave_rd')
 
     # Check that files exist
     for src in verilog_sources:

@@ -240,7 +240,7 @@ def test_gaxi_regslice(request, data_width, clk_period, test_level):
     # RTL sources - single file for regslice
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/gaxi_regslice.f")
+        module='gaxi_regslice')
 
     # Include directories
     includes=includes

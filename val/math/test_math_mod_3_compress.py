@@ -47,7 +47,7 @@ def test_math_mod_3_compress(request, test_level):
     # and a dependency added to the module is invisible to it ([[filelists]]).
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_mod_3_compress.f')
+        module='math_mod_3_compress')
     # This wrapper passed no compile args at all, so it could never collect
     # coverage even once COVERAGE=1 was honoured elsewhere.
     extra_args = get_coverage_compile_args()

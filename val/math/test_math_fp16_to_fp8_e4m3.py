@@ -62,7 +62,7 @@ def test_math_fp16_to_fp8_e4m3(request, params):
 
         repo_root=repo_root,
 
-        filelist_path='rtl/math/filelists/math_fp16_to_fp8_e4m3.f'
+        module='math_fp16_to_fp8_e4m3'
 
     )
     sim_build = sim_build_path(tests_dir, test_name_plus_params)

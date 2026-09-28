@@ -561,7 +561,7 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
     # Verilog sources
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/arbiter_monbus_common.f")
+        module='arbiter_monbus_common')
 
     # Create a human readable test identifier
     c_str = TBBase.format_dec(clients, 2)

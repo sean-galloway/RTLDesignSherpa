@@ -507,7 +507,7 @@ def test_apb5_monitor(request, addr_width, data_width, auser_width, wuser_width,
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb5_monitor.f")
+        module='apb5_monitor')
 
     # Test identifier
     aw_str = TBBase.format_dec(addr_width, 2)
@@ -604,7 +604,7 @@ def test_apb5_monitor_timeout_edge(request):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb5_monitor.f")
+        module='apb5_monitor')
 
     test_name_plus_params = f"test_{worker_id}_apb5_monitor_timeout_edge"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
@@ -687,7 +687,7 @@ def test_apb5_monitor_addr_range(request, addr_width, n_addr_ranges):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb5_monitor.f")
+        module='apb5_monitor')
 
     aw_str = TBBase.format_dec(addr_width, 2)
     nr_str = TBBase.format_dec(n_addr_ranges, 2)
@@ -769,7 +769,7 @@ def test_apb5_monitor_backtoback(request):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb5_monitor.f")
+        module='apb5_monitor')
 
     test_name_plus_params = f"test_{worker_id}_apb5_monitor_backtoback"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')

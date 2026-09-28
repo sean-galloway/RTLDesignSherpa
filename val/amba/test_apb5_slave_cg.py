@@ -120,7 +120,7 @@ def test_apb5_slave_cg(request, addr_width, data_width, auser_width, enable_pari
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb5_slave_cg.f")
+        module='apb5_slave_cg')
 
     # Test identifier
     aw_str = TBBase.format_dec(addr_width, 2)

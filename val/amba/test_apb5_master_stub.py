@@ -93,7 +93,7 @@ def test_apb5_master_stub(request, addr_width, data_width, auser_width, enable_p
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb5_master_stub.f")
+        module='apb5_master_stub')
 
     # Test identifier
     aw_str = TBBase.format_dec(addr_width, 2)

@@ -335,7 +335,7 @@ def test_axi_monitor_trans_mgr_wr_bank(max_transactions, num_banks, use_wq):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_monitor_base.f")
+        module='axi_monitor_base')
 
     rtl_parameters = {
         'CFI_MIN_FREQ_MHZ': '5',
@@ -423,7 +423,7 @@ def test_banked_write_without_widq_is_refused():
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_monitor_base.f")
+        module='axi_monitor_base')
 
     rtl_parameters = {
         'CFI_MIN_FREQ_MHZ': '5',

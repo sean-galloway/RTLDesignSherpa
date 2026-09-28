@@ -202,7 +202,7 @@ def test_shifter_lfsr_galois(request, params):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/shifter_lfsr_galois.f'
+        module='shifter_lfsr_galois'
     )
 
     # Create a human-readable test identifier

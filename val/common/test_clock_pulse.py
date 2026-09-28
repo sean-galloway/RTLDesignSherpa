@@ -122,7 +122,7 @@ def test_clock_pulse(request, width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/clock_pulse.f'
+        module='clock_pulse'
     )
     toplevel = dut_name
 

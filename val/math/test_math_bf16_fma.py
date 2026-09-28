@@ -108,7 +108,7 @@ def test_math_bf16_fma(request, params):
     # BF16 FMA depends on these modules (in dependency order):
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_fma.f'
+        module='math_bf16_fma'
     )
 
     # Define simulation build and log paths

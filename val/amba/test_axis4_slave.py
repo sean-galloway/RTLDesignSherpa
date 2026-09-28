@@ -170,7 +170,7 @@ def test_axis4_slave(request, skid_depth, data_width, id_width, dest_width, user
     # Verilog sources for AXIS slave
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axis4_slave.f")
+        module='axis4_slave')
 
     # Create a human readable test identifier
     sd_str = TBBase.format_dec(skid_depth, 1)
@@ -295,7 +295,7 @@ def test_axis4_slave(request, skid_depth, data_width, id_width, dest_width, user
     # Verilog sources for AXIS slave
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axis4_slave.f")
+        module='axis4_slave')
 
     # Create a human readable test identifier
     sd_str = TBBase.format_dec(skid_depth, 1)

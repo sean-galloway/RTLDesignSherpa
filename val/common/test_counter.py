@@ -137,7 +137,7 @@ def test_counter(request, max_value, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/counter.f'
+        module='counter'
     )
     toplevel = dut_name
 

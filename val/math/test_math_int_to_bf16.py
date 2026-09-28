@@ -105,7 +105,7 @@ def test_math_int_to_bf16(request, params):
     # INT to BF16 converter depends on count_leading_zeros
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_int_to_bf16.f'
+        module='math_int_to_bf16'
     )
 
     # RTL parameters

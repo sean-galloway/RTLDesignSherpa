@@ -932,7 +932,7 @@ def test_monitor_trans_cam(request, id_width, payload_width, depth):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/monitor_trans_cam.f")
+        module='monitor_trans_cam')
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")

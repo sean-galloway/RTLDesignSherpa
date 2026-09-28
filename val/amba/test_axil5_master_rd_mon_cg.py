@@ -127,7 +127,7 @@ def test_axil5_master_rd_mon_cg(test_level):
     # Verilog sources (includes axil5_master_rd_mon which the CG version instantiates)
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil5_master_rd_mon_cg.f")
+        module='axil5_master_rd_mon_cg')
 
     # Check files exist
     for src in verilog_sources:

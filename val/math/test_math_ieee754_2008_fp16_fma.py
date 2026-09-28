@@ -67,7 +67,7 @@ def test_math_ieee754_2008_fp16_fma(request, params):
 
         repo_root=repo_root,
 
-        filelist_path='rtl/math/filelists/math_ieee754_2008_fp16_fma.f'
+        module='math_ieee754_2008_fp16_fma'
 
     )
 

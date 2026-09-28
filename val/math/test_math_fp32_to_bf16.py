@@ -62,7 +62,7 @@ def test_math_fp32_to_bf16(request, params):
 
         repo_root=repo_root,
 
-        filelist_path='rtl/math/filelists/math_fp32_to_bf16.f'
+        module='math_fp32_to_bf16'
 
     )
     sim_build = sim_build_path(tests_dir, test_name_plus_params)

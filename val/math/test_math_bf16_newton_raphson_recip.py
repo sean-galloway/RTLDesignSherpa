@@ -105,7 +105,7 @@ def test_math_bf16_newton_raphson_recip(request, params):
     # multiplier and adder for iterations
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_newton_raphson_recip.f'
+        module='math_bf16_newton_raphson_recip'
     )
 
     # RTL parameters

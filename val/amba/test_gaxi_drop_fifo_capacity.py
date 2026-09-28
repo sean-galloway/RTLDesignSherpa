@@ -149,7 +149,7 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
     dut_name = "gaxi_drop_fifo_sync"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/gaxi_drop_fifo_sync.f")
+        module='gaxi_drop_fifo_sync')
 
     mode_str = 'mux' if registered == 0 else 'flop'
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
@@ -245,7 +245,7 @@ if __name__ == "__main__":
     dut_name = "gaxi_drop_fifo_sync"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/gaxi_drop_fifo_sync.f")
+        module='gaxi_drop_fifo_sync')
 
     mode_str = 'mux' if registered == 0 else 'flop'
     test_name = f"test_{worker_id}_capacity_dw{data_width}_d{depth}_{mode_str}"

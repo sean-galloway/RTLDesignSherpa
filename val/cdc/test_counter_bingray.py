@@ -144,7 +144,7 @@ def test_counter_bingray(request, width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/cdc/filelists/counter_bingray.f'
+        module='counter_bingray'
     )
     toplevel = dut_name
 

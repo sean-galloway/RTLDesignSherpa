@@ -104,7 +104,7 @@ def test_math_bf16_multiplier(request, params):
     # BF16 multiplier depends on these modules (in dependency order):
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_multiplier.f'
+        module='math_bf16_multiplier'
     )
 
     # Define simulation build and log paths

@@ -123,7 +123,7 @@ def test_bin_to_bcd(request, width, digits, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/bin_to_bcd.f'
+        module='bin_to_bcd'
     )
     toplevel = dut_name
 

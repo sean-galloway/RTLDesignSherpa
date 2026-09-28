@@ -178,7 +178,7 @@ def test_axi4_subtractive_slave(request, id_width, addr_width, data_width):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi4_subtractive_slave.f")
+        module='axi4_subtractive_slave')
 
     rtl_parameters = {
         'AXI_ID_WIDTH': id_width,

@@ -803,7 +803,7 @@ def test_amba_clock_gate_ctrl(request, params):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/amba_clock_gate_ctrl.f")
+        module='amba_clock_gate_ctrl')
 
     # Create a human-readable test identifier
     t_clk = params['clk_period_ns']

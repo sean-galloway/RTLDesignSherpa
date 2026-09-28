@@ -198,7 +198,7 @@ def test_axi_monitor_addr_check(request, n_ranges):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_monitor_addr_check.f")
+        module='axi_monitor_addr_check')
 
     run(
         python_search=[tests_dir],

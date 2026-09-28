@@ -473,7 +473,7 @@ def test_axi4_master_read_cg(id_width, addr_width, data_width, user_width, ar_de
     # RTL files for clock gated master read
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi4_master_rd_cg.f")
+        module='axi4_master_rd_cg')
 
     # Check that files exist
     for src in verilog_sources:

@@ -67,7 +67,7 @@ def test_math_bf16_silu(request, params):
 
         repo_root=repo_root,
 
-        filelist_path='rtl/math/filelists/math_bf16_silu.f'
+        module='math_bf16_silu'
 
     )
 

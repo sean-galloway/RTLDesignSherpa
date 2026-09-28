@@ -1153,7 +1153,7 @@ def test_apb4_master(request, addr_width, data_width, cmd_depth, rsp_depth):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb4_master.f")
+        module='apb4_master')
 
     # create a human readable test identifier
     aw_str = TBBase.format_dec(addr_width, 3)
@@ -1272,7 +1272,7 @@ def test_apb4_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_de
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb4_master.f")
+        module='apb4_master')
 
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)

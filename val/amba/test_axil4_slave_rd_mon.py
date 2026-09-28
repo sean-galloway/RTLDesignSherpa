@@ -119,7 +119,7 @@ def test_axil4_slave_rd_mon(test_level):
     # Verilog sources
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil4_slave_rd_mon.f")
+        module='axil4_slave_rd_mon')
 
     # Check files exist
     for src in verilog_sources:

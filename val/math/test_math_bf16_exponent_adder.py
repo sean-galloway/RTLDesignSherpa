@@ -83,7 +83,7 @@ def test_math_bf16_exponent_adder(request, params):
     # BF16 exponent adder - standalone module
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_exponent_adder.f'
+        module='math_bf16_exponent_adder'
     )
 
     sim_build = sim_build_path(tests_dir, test_name_plus_params)

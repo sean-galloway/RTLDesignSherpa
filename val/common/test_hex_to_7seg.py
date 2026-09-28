@@ -112,7 +112,7 @@ def test_hex_to_7seg(request, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/hex_to_7seg.f'
+        module='hex_to_7seg'
     )
     toplevel = dut_name
 

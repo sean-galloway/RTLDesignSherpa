@@ -193,7 +193,7 @@ def test_counter_freq_invariant_wavedrom(request, counter_width):
     # and a dependency added to the module is invisible to it ([[filelists]]).
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/counter_freq_invariant.f')
+        module='counter_freq_invariant')
 
     cw_str = TBBase.format_dec(counter_width, 3)
     test_name_plus_params = f"test_{dut_name}_wavedrom_cw{cw_str}"

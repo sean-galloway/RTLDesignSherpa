@@ -67,7 +67,7 @@ def test_math_fp8_e5m2_gelu(request, params):
 
         repo_root=repo_root,
 
-        filelist_path='rtl/math/filelists/math_fp8_e5m2_gelu.f'
+        module='math_fp8_e5m2_gelu'
 
     )
 

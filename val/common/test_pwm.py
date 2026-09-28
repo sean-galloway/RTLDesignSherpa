@@ -111,7 +111,7 @@ def test_pwm(request, width, channels, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/pwm.f'
+        module='pwm'
     )
     toplevel = dut_name
 

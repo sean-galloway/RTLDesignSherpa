@@ -103,7 +103,7 @@ def test_axi_gen_addr(request, params):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_gen_addr.f")
+        module='axi_gen_addr')
 
     # Create a human-readable test identifier
     t_aw = params['AW']

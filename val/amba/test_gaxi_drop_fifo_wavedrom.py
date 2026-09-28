@@ -432,7 +432,7 @@ def test_gaxi_drop_fifo_wavedrom(data_width, depth):
     dut_name = "gaxi_drop_fifo_sync"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/gaxi_drop_fifo_sync.f")
+        module='gaxi_drop_fifo_sync')
 
     test_name = f"test_{worker_id}_gaxi_drop_fifo_wavedrom_dw{data_width}_d{depth}"
     log_path = os.path.join(log_dir, f'{test_name}.log')

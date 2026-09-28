@@ -128,7 +128,7 @@ def test_wb4_master_slave_loop(request, addr_width, data_width, m_depth, s_depth
     dut_name = "wb4_master_slave_loop"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/wb4_master_slave_loop.f")
+        module='wb4_master_slave_loop')
 
     tag = (f"aw{TBBase.format_dec(addr_width, 3)}_dw{TBBase.format_dec(data_width, 3)}"
            f"_md{m_depth}_sd{s_depth}_mo{max_outstanding}_{'classic' if classic else 'pipe'}"

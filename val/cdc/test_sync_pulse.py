@@ -69,7 +69,7 @@ def test_sync_pulse(request, sync_stages, src_period, dst_period, test_level):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/cdc/filelists/sync_pulse.f')
+        module='sync_pulse')
 
     s_str = TBBase.format_dec(sync_stages, 1)
     sp_str = TBBase.format_dec(src_period, 2)

@@ -103,7 +103,7 @@ def test_math_bf16_log2(request, params):
     # Log2 is standalone (no complex dependencies)
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_log2.f'
+        module='math_bf16_log2'
     )
 
     # RTL parameters

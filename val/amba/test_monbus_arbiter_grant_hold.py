@@ -183,7 +183,7 @@ def test_monbus_arbiter_grant_hold(request, test_type, clients,
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="val/amba/filelists/monbus_arbiter_grant_hold_dut.f")
+        module='monbus_arbiter_grant_hold_dut')
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")

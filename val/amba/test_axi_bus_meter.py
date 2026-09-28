@@ -36,7 +36,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
-from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.filelist_utils import get_sources_from_filelist, filelist_for
 from TBClasses.amba.axi_bus_meter_tb import AxiBusMeterTB
 
 
@@ -271,7 +271,7 @@ def test_axi_bus_meter(request, test_type):
     dut_name = "axi_bus_meter"
     test_name = f"test_axi_bus_meter_{test_type}"
 
-    filelist_path = "rtl/amba/filelists/axi_bus_meter.f"
+    filelist_path = filelist_for(repo_root, 'axi_bus_meter')
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 

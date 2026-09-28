@@ -202,7 +202,7 @@ def test_counter_bingray_wavedrom(request, wave_cfg):
     # broke silently when counter_bingray moved to rtl/cdc.
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/cdc/filelists/counter_bingray.f")
+        module='counter_bingray')
     toplevel = dut_name
 
     # Test parameters

@@ -217,7 +217,7 @@ def test_axi4_master_rd_mon_fault_classes(case, txn_count):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi4_master_rd_mon.f")
+        module='axi4_master_rd_mon')
 
     # Every cone built: this test is about whether they FIRE, not whether the
     # parameter gates them (that is the enable sweep's job).

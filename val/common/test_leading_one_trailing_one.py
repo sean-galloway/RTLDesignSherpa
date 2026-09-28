@@ -107,7 +107,7 @@ def test_leading_one_trailing_one(request, width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/leading_one_trailing_one.f'
+        module='leading_one_trailing_one'
     )
     toplevel = dut_name
 

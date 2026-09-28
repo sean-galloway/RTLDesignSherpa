@@ -63,10 +63,10 @@ def test_axis4_pattern_pair(request, num_ch, dw, lfsr_w):
 
     gen_sources, gen_inc = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axis4_master_pattern_gen.f")
+        module='axis4_master_pattern_gen')
     chk_sources, chk_inc = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axis4_slave_pattern_check.f")
+        module='axis4_slave_pattern_check')
 
     # Harness last: it instantiates both DUTs.
     verilog_sources = list(dict.fromkeys(list(gen_sources) + list(chk_sources)))

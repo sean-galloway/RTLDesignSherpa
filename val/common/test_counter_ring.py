@@ -133,7 +133,7 @@ def test_counter_ring(request, width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/counter_ring.f'
+        module='counter_ring'
     )
     toplevel = dut_name
 

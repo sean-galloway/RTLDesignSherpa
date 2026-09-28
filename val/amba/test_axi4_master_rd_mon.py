@@ -185,7 +185,7 @@ def test_axi4_master_rd_mon(id_width, addr_width, data_width, user_width, max_tr
     # Verilog sources
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi4_master_rd_mon.f")
+        module='axi4_master_rd_mon')
 
     # Check files exist
     for src in verilog_sources:
@@ -502,7 +502,7 @@ def test_axi4_master_rd_mon_wavedrom(id_width, addr_width, data_width):
     # Verilog sources (same as main test)
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi4_master_rd_mon.f")
+        module='axi4_master_rd_mon')
 
     rtl_parameters = {
         'AXI_ID_WIDTH': str(id_width),

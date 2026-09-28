@@ -107,7 +107,7 @@ def test_glitch_free_n_dff_arn(request, flop_count, width, test_mode):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/cdc/filelists/glitch_free_n_dff_arn.f'
+        module='glitch_free_n_dff_arn'
     )
 
     # Format parameters for unique test name

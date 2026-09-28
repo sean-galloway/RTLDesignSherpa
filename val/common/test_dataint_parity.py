@@ -146,7 +146,7 @@ def test_dataint_parity(request, data_width, chunks, parity_type, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/dataint_parity.f'
+        module='dataint_parity'
     )
     toplevel = dut_name
 

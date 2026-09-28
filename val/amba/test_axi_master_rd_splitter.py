@@ -133,7 +133,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
     # Get verilog sources
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_master_rd_splitter.f")
+        module='axi_master_rd_splitter')
 
     # RTL parameters
     rtl_parameters = {
@@ -281,7 +281,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
     # Get verilog sources
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_master_rd_splitter.f")
+        module='axi_master_rd_splitter')
 
     # RTL parameters
     rtl_parameters = {

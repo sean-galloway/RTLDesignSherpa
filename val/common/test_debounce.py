@@ -112,7 +112,7 @@ def test_debounce(request, num_buttons, debounce_delay, pressed_state, test_leve
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/debounce.f'
+        module='debounce'
     )
     toplevel = dut_name
 

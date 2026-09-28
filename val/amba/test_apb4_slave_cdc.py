@@ -416,7 +416,7 @@ def test_apb4_slave_cdc_robust(request, addr_width, data_width, depth):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb4_slave_cdc.f")
+        module='apb4_slave_cdc')
 
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
@@ -528,7 +528,7 @@ def generate_apb4_slave_cdc_wavedrom_params():
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb4_slave_cdc.f")
+        module='apb4_slave_cdc')
 
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
@@ -654,7 +654,7 @@ def test_apb4_slave_cdc_wavedrom(request, addr_width, data_width, rsp_depth, cmd
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb4_slave_cdc.f")
+        module='apb4_slave_cdc')
 
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)

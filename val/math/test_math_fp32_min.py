@@ -67,7 +67,7 @@ def test_math_fp32_min(request, params):
 
         repo_root=repo_root,
 
-        filelist_path='rtl/math/filelists/math_fp32_min.f'
+        module='math_fp32_min'
 
     )
 

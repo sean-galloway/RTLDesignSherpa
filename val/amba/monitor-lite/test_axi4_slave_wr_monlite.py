@@ -326,7 +326,7 @@ def test_axi4_slave_wr_mon(id_width, addr_width, data_width, user_width, wstrb_w
     # Verilog sources
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi4_slave_wr_monlite.f")
+        module='axi4_slave_wr_monlite')
 
     # Check files exist
     for src in verilog_sources:

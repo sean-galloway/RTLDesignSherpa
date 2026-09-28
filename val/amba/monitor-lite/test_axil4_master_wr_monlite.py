@@ -129,7 +129,7 @@ def test_axil4_master_wr_mon(test_level):
     # Verilog sources
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil4_master_wr_monlite.f")
+        module='axil4_master_wr_monlite')
 
     # Check files exist
     for src in verilog_sources:

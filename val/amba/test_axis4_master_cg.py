@@ -296,7 +296,7 @@ def test_axis4_master_cg(skid_depth, data_width, id_width, dest_width, user_widt
     # RTL files for clock gated AXIS master
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axis4_master_cg.f")
+        module='axis4_master_cg')
 
     # Check that files exist
     for src in verilog_sources:

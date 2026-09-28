@@ -28,7 +28,7 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
-from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.filelist_utils import get_sources_from_filelist, filelist_for
 from TBClasses.axi4.axi4_master_wr_pattern_gen_tb import WrPatternGenTB
 
 
@@ -565,7 +565,7 @@ def test_axi4_master_wr_pattern_gen(request, test_type, slave_profile):
     dut_name = "axi4_master_wr_pattern_gen"
     test_name = f"test_axi4_master_wr_pattern_gen_{test_type}_{slave_profile}"
 
-    filelist_path = "rtl/amba/filelists/axi4_master_wr_pattern_gen.f"
+    filelist_path = filelist_for(repo_root, 'axi4_master_wr_pattern_gen')
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 

@@ -173,7 +173,7 @@ def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz, strate
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/counter_freq_invariant.f',
+        module='counter_freq_invariant',
     )
 
     # Derive DIV_WIDTH and PRESCALER_MAX to match RTL localparams

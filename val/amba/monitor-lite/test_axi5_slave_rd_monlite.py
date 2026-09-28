@@ -127,7 +127,7 @@ def test_axi5_slave_rd_mon(id_width, addr_width, data_width, user_width, max_tra
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi5_slave_rd_monlite.f")
+        module='axi5_slave_rd_monlite')
 
     for src in verilog_sources:
         if not os.path.exists(src):

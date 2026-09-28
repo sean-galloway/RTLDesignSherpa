@@ -130,7 +130,7 @@ def test_math_bf16_adder(request, params):
     # BF16 adder dependencies (in dependency order):
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_adder.f'
+        module='math_bf16_adder'
     )
 
     # Define simulation build and log paths

@@ -131,7 +131,7 @@ def test_arbiter_deficit_round_robin(request, clients, max_quantum,
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/arbiter_deficit_round_robin.f')
+        module='arbiter_deficit_round_robin')
 
     c_str = TBBase.format_dec(clients, 2)
     q_str = TBBase.format_dec(max_quantum, 2)

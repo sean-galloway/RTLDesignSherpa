@@ -483,7 +483,7 @@ def test_arbiter_wrr_pwm_monbus(request, clients, max_levels, wait_gnt_ack, agen
     # RTL sources - all components needed for weighted integration
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/arbiter_wrr_pwm_monbus.f")
+        module='arbiter_wrr_pwm_monbus')
 
     # Create a human readable test identifier following repo pattern
     c_str = TBBase.format_dec(clients, 2)
@@ -613,7 +613,7 @@ if __name__ == "__main__":
     # RTL sources - all components needed for weighted integration
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/arbiter_wrr_pwm_monbus.f")
+        module='arbiter_wrr_pwm_monbus')
 
     # Create a human readable test identifier following repo pattern
     c_str = TBBase.format_dec(clients, 2)

@@ -178,7 +178,7 @@ def test_axi4_master_wr_mon_cg(id_width, addr_width, data_width, user_width, wst
     # Verilog sources (includes axi4_master_wr_mon which the CG version instantiates)
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi4_master_wr_mon_cg.f")
+        module='axi4_master_wr_mon_cg')
 
     # Check files exist
     for src in verilog_sources:

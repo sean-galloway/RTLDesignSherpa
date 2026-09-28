@@ -119,7 +119,7 @@ def test_arbiter_priority_encoder(request, clients, test_mode):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/arbiter_priority_encoder.f'
+        module='arbiter_priority_encoder'
     )
 
     # Format parameters for unique test name

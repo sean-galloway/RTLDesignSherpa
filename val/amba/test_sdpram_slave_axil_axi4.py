@@ -75,7 +75,7 @@ def test_sdpram_slave_axil_axi4(request, test_level, data_width, mem_depth):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/sdpram_slave_axil_axi4.f")
+        module='sdpram_slave_axil_axi4')
 
     parameters = {
         "AXI_ID_WIDTH": 4,

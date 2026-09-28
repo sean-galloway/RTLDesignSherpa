@@ -63,7 +63,7 @@ def test_axi_gen_addr(request, aw, dw, odw, len_w):
     toplevel = dut_name
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_gen_addr.f")
+        module='axi_gen_addr')
 
     test_level = os.environ.get('TEST_LEVEL', 'gate')
     test_name_plus_params = (f"test_{worker_id}_{dut_name}_aw{aw:03d}"

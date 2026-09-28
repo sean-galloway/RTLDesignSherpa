@@ -355,7 +355,7 @@ def test_cam_tag(request, n, depth):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/cam_tag.f'
+        module='cam_tag'
     )
 
     # Get REG_LEVEL before creating test name

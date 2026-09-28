@@ -310,7 +310,7 @@ def test_axi_perf_latency_hist(request, is_read, num_channels):
     dut_name = "axi_perf_latency_hist"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/amba/filelists/axi_perf_latency_hist.f',
+        module='axi_perf_latency_hist',
     )
     toplevel = dut_name
 

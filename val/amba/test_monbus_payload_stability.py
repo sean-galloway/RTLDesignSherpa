@@ -244,7 +244,7 @@ def test_monbus_payload_stability(request, max_trans):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_monitor_base.f")
+        module='axi_monitor_base')
 
     run(
         python_search=[tests_dir],

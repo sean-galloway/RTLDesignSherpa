@@ -67,7 +67,7 @@ def test_math_ieee754_2008_fp16_adder(request, params):
 
         repo_root=repo_root,
 
-        filelist_path='rtl/math/filelists/math_ieee754_2008_fp16_adder.f'
+        module='math_ieee754_2008_fp16_adder'
 
     )
 

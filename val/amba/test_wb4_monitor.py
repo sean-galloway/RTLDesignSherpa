@@ -254,7 +254,7 @@ def test_wb4_monitor(request, addr_width, data_width, max_transactions, n_addr_r
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amba': 'rtl/amba', 'rtl_amba_includes': 'rtl/amba/includes'})
     verilog_sources, includes = get_sources_from_filelist(
-        repo_root=repo_root, filelist_path="rtl/amba/filelists/wb4_monitor.f")
+        repo_root=repo_root, module='wb4_monitor')
     name = f"test_{worker_id}_wb4_monitor_{tag}"
     log_path = os.path.join(log_dir, f'{name}.log')
     sim_build = sim_build_path(tests_dir, name)

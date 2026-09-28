@@ -287,7 +287,7 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     # Verilog sources - include dependencies for gaxi_skid_buffer
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil5_master_rd.f")
+        module='axil5_master_rd')
 
     # Check that files exist
     for src in verilog_sources:
@@ -425,7 +425,7 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     # Verilog sources - include dependencies for gaxi_skid_buffer
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil5_master_rd.f")
+        module='axil5_master_rd')
 
     # Check that files exist
     for src in verilog_sources:

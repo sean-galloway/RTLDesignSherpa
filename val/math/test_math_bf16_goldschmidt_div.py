@@ -113,7 +113,7 @@ def test_math_bf16_goldschmidt_div(request, params):
     # Goldschmidt depends on fast_reciprocal, multiplier, and adder
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_goldschmidt_div.f'
+        module='math_bf16_goldschmidt_div'
     )
 
     # RTL parameters

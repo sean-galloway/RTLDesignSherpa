@@ -235,3 +235,31 @@ them). The registry audit cannot see the third; only the consumer's lint can.
 Related: [[naming-and-style]] (module/file naming), [[test-runner]] (tests
 consume filelists via `get_sources_from_filelist`, never a hand-listed array),
 [[generated-rtl-discipline]] (regenerate every fixture after a generator change).
+
+## Tests name the module, not the filelist path (2026-09-27)
+
+`get_sources_from_filelist(repo_root, module='counter_bin')` resolves the
+`.f` through `bin/filelists.toml`: first a filelist named exactly
+`<module>.f` under a registered filelist directory (the one-filelist-per-module
+convention), otherwise the one registered filelist whose DIRECT sources include
+`<module>.sv`. Exactly one answer or an exception -- none raises
+`FileNotFoundError`, several raise `ValueError` naming them -- because a wrong
+filelist is the failure this exists to remove. About 5 ms a lookup.
+
+Why: every test used to carry `filelist_path='rtl/common/filelists/fifo_async.f'`.
+The CDC reorg moved twelve modules' filelists to `rtl/cdc/` and had to edit ~10
+tests that named the old paths; a missed one resolved to nothing and the test
+"passed" against no DUT (tooling TASK-005, was TOOL-011). With the module as
+the key, a move updates the registry's `filelist_dirs` and no test at all.
+
+The 353 `val/` tests that named a filelist whose stem is the module now use
+`module=`. The migration script only rewrote a path when the registry resolved
+the stem to that exact path (388 rewrites, 0 skipped). `filelist_path=` stays
+for harness and consumer tests that assemble a specific `.f` rather than
+naming one module -- the bridge tests, whose generator computes the path, and
+the STREAM/RAPIDS component suites, which are their owners' to migrate.
+
+`bin/tests/test_filelist_utils.py` pins the resolver: a moved module
+(`fifo_async` -> `rtl/cdc/`), an unknown module raising, module mode and path
+mode returning identical sources.
+

@@ -80,7 +80,7 @@ def test_math_bf16_mantissa_mult(request, params):
     # BF16 mantissa multiplier dependencies
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_mantissa_mult.f'
+        module='math_bf16_mantissa_mult'
     )
 
     sim_build = sim_build_path(tests_dir, test_name_plus_params)

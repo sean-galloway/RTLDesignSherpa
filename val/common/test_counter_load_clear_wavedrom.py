@@ -200,7 +200,7 @@ def test_counter_load_clear_wavedrom(request, max_value):
     # and a dependency added to the module is invisible to it ([[filelists]]).
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/counter_load_clear.f')
+        module='counter_load_clear')
 
     m_str = TBBase.format_dec(max_value, 3)
     test_name_plus_params = f"test_{dut_name}_wavedrom_m{m_str}"

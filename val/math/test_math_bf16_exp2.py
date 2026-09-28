@@ -104,7 +104,7 @@ def test_math_bf16_exp2(request, params):
     # Exp2 is standalone (no complex dependencies)
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_exp2.f'
+        module='math_bf16_exp2'
     )
 
     # RTL parameters

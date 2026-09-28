@@ -498,7 +498,7 @@ def test_gaxi_fifo_sync(request, data_width, depth, registered, clk_period, test
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/gaxi_fifo_sync.f")
+        module='gaxi_fifo_sync')
 
     # Create human-readable test identifier
     mode_name = 'mux' if registered == 0 else 'flop'
@@ -636,7 +636,7 @@ def test_gaxi_fifo_sync_wavedrom(request, data_width, depth, registered, clk_per
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/gaxi_fifo_sync.f")
+        module='gaxi_fifo_sync')
 
     test_name_plus_params = f"test_{worker_id}_gaxi_fifo_sync_{mode_name}_wavedrom"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')

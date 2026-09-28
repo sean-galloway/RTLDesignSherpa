@@ -105,7 +105,7 @@ def test_math_bf16_max_tree(request, params):
     # BF16 max tree is self-contained with inline logic
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_max_tree.f'
+        module='math_bf16_max_tree'
     )
 
     # RTL parameters

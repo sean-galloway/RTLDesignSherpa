@@ -396,7 +396,7 @@ def test_axil4_slave_write(request, addr_width, data_width, aw_depth, w_depth, b
     # Verilog sources - include dependencies
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil4_slave_wr.f")
+        module='axil4_slave_wr')
 
     # Check that files exist
     for src in verilog_sources:
@@ -537,7 +537,7 @@ if __name__ == "__main__":
     # Verilog sources - include dependencies
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil4_slave_wr.f")
+        module='axil4_slave_wr')
 
     # Check that files exist
     for src in verilog_sources:

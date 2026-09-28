@@ -111,7 +111,7 @@ def test_reverse_vector(request, width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/reverse_vector.f'
+        module='reverse_vector'
     )
     toplevel = dut_name
 

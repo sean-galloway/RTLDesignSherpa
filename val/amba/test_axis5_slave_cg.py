@@ -95,7 +95,7 @@ def test_axis5_slave_cg(request, skid_depth, data_width, enable_wakeup, enable_p
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axis5_slave_cg.f")
+        module='axis5_slave_cg')
 
     # Test identifier
     sd_str = TBBase.format_dec(skid_depth, 1)

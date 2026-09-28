@@ -108,7 +108,7 @@ def test_count_trailing_zeros(request, width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/count_trailing_zeros.f'
+        module='count_trailing_zeros'
     )
     toplevel = dut_name
 

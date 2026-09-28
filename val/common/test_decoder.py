@@ -115,7 +115,7 @@ def test_decoder(request, input_width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/decoder.f'
+        module='decoder'
     )
     toplevel = dut_name
 

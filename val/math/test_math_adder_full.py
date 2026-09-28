@@ -78,7 +78,7 @@ def test_math_adder_full(request, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_adder_full.f'
+        module='math_adder_full'
     )
 
     # Define test parameters

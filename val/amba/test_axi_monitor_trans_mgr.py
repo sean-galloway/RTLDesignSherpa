@@ -886,7 +886,7 @@ def test_axi_monitor_trans_mgr(iw, aw, max_transactions, seed):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_monitor_base.f")
+        module='axi_monitor_base')
 
     rtl_parameters = {
         # Timer LUT: a 5 MHz table gives a 5-clock tick, which keeps the

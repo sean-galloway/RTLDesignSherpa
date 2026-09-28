@@ -513,7 +513,7 @@ def test_axil4_master_write_cg(addr_width, data_width, aw_depth, w_depth, b_dept
     # RTL files for clock gated master write
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil4_master_wr_cg.f")
+        module='axil4_master_wr_cg')
 
     # Check that files exist
     for src in verilog_sources:

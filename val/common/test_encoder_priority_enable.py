@@ -119,7 +119,7 @@ def test_encoder_priority_enable(request, input_width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/encoder_priority_enable.f'
+        module='encoder_priority_enable'
     )
     toplevel = dut_name
 

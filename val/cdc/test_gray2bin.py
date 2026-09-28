@@ -103,7 +103,7 @@ def test_gray2bin(request, width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/cdc/filelists/gray2bin.f'
+        module='gray2bin'
     )
     toplevel = dut_name
 

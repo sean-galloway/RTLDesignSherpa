@@ -196,7 +196,7 @@ def test_cdc_open_loop(request, params):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/cdc/filelists/cdc_open_loop.f")
+        module='cdc_open_loop')
 
     includes=includes
 

@@ -27,7 +27,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
-from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.filelist_utils import get_sources_from_filelist, filelist_for
 from TBClasses.axi4.axi4_dma_slaves_tb import DmaSlavesTB
 
 
@@ -158,7 +158,7 @@ def test_axi4_dma_slaves(request, test_type, test_level):
     dut_name = "axi4_dma_slaves"
     test_name = f"test_axi4_dma_slaves_{test_type}_{test_level}_{_REG_LEVEL.lower()}"
 
-    filelist_path = "rtl/amba/filelists/axi4_dma_slaves.f"
+    filelist_path = filelist_for(repo_root, 'axi4_dma_slaves')
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 

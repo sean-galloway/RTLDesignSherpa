@@ -77,7 +77,7 @@ def test_math_adder_ripple_carry(request, n):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_adder_ripple_carry.f'
+        module='math_adder_ripple_carry'
     )
 
     # Define test parameters

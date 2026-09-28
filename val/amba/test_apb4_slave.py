@@ -113,7 +113,7 @@ def test_apb_gaxi_refactor_debug(request, addr_width, data_width, depth):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb4_slave.f")
+        module='apb4_slave')
 
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)

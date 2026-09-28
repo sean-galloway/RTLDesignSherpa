@@ -93,7 +93,7 @@ def test_reset_sync(n, test_mode):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/reset_sync.f'
+        module='reset_sync'
     )
 
     rtl_parameters = {

@@ -151,7 +151,7 @@ def test_monbus_group_soft_reset(request, fifo_depth_err, fifo_depth_write,
     dut_name = "monbus_axil4_axil4_group"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/monbus_axil4_axil4_group.f")
+        module='monbus_axil4_axil4_group')
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")

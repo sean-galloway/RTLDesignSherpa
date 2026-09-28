@@ -105,7 +105,7 @@ def test_math_bf16_log2_scale(request, params):
     # BF16 log2 scale is standalone (no dependencies)
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_log2_scale.f'
+        module='math_bf16_log2_scale'
     )
 
     # RTL parameters (none for this module)

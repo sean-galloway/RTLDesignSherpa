@@ -110,7 +110,7 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/dataint_checksum.f'
+        module='dataint_checksum'
     )
 
     # Create a human-readable test identifier

@@ -105,7 +105,7 @@ def test_math_bf16_scale_to_int8(request, params):
     # BF16 scale-to-INT8 is standalone (no dependencies)
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_scale_to_int8.f'
+        module='math_bf16_scale_to_int8'
     )
 
     # RTL parameters (none for this module)

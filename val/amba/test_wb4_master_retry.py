@@ -82,7 +82,7 @@ def test_wb4_master_retry(request, addr_width, data_width, inflight, classic, te
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amba': 'rtl/amba', 'rtl_amba_includes': 'rtl/amba/includes'})
     verilog_sources, includes = get_sources_from_filelist(
-        repo_root=repo_root, filelist_path="rtl/amba/filelists/wb4_master_retry.f")
+        repo_root=repo_root, module='wb4_master_retry')
     name = f"test_{worker_id}_wb4_master_retry_{tag}"
     log_path = os.path.join(log_dir, f'{name}.log')
     sim_build = sim_build_path(tests_dir, name)

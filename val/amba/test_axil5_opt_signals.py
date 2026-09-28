@@ -136,7 +136,7 @@ def test_axil5_opt_signals(request, addr_width, data_width, test_level,
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil5_opt_slave.f")
+        module='axil5_opt_slave')
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")

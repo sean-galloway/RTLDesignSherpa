@@ -67,7 +67,7 @@ def test_math_fp16_silu(request, params):
 
         repo_root=repo_root,
 
-        filelist_path='rtl/math/filelists/math_fp16_silu.f'
+        module='math_fp16_silu'
 
     )
 

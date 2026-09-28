@@ -109,7 +109,7 @@ def test_math_bf16_fast_reciprocal(request, params):
     # BF16 fast reciprocal is standalone (no dependencies)
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_bf16_fast_reciprocal.f'
+        module='math_bf16_fast_reciprocal'
     )
 
     # RTL parameters

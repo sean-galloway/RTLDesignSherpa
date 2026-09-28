@@ -189,7 +189,7 @@ def test_counter_bin_wavedrom(request, width, max_val):
     # and a dependency added to the module is invisible to it ([[filelists]]).
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/counter_bin.f')
+        module='counter_bin')
 
     w_str = TBBase.format_dec(width, 3)
     m_str = TBBase.format_dec(max_val, 3)

@@ -105,7 +105,7 @@ def test_apb4_monitor():
     # NOTE: Monitor packages must be in dependency order!
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb4_monitor.f")
+        module='apb4_monitor')
 
     # Parameters
     parameters = {
@@ -436,7 +436,7 @@ def test_apb4_monitor_addr_range():
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb4_monitor.f")
+        module='apb4_monitor')
 
     parameters = {
         'UNIT_ID': str(unit_id),
@@ -588,7 +588,7 @@ def test_apb4_monitor_slot_retire():
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb4_monitor.f")
+        module='apb4_monitor')
 
     parameters = {
         'UNIT_ID': str(unit_id),
@@ -676,7 +676,7 @@ def test_apb4_monitor_backtoback(registered):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb4_monitor.f")
+        module='apb4_monitor')
 
     parameters = {
         'UNIT_ID': str(unit_id),

@@ -248,7 +248,7 @@ def test_fifo_sync(request, data_width, depth, wr_clk_period, rd_clk_period, reg
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/fifo_sync.f'
+        module='fifo_sync'
     )
 
     # create a human readable test identifier with test level

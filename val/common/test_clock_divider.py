@@ -156,7 +156,7 @@ def test_clock_divider(request, n, po_width, counter_width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/clock_divider.f'
+        module='clock_divider'
     )
     toplevel = dut_name
 

@@ -435,7 +435,7 @@ def test_sdpram_slave(request, wr_protocol, rd_protocol, data_width, mem_depth):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=_repo_root,
-        filelist_path="rtl/amba/filelists/sdpram_slave_axi4_axi4.f")
+        module='sdpram_slave_axi4_axi4')
 
     extra_env = {
         "DUT_DATA_WIDTH":   str(data_width),

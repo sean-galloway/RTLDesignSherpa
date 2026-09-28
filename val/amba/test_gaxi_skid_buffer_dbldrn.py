@@ -154,7 +154,7 @@ def test_gaxi_skid_buffer_dbldrn(request, data_width, depth, clk_period, test_le
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/gaxi_skid_buffer_dbldrn.f")
+        module='gaxi_skid_buffer_dbldrn')
 
     # Create human-readable test identifier
     w_str = TBBase.format_dec(data_width, 3)

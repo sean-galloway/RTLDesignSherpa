@@ -354,7 +354,7 @@ def test_axil4_write_master(request, addr_width, data_width, aw_depth, w_depth, 
     # Verilog sources - include dependencies for gaxi_skid_buffer
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil4_master_wr.f")
+        module='axil4_master_wr')
 
     # Check that files exist
     for src in verilog_sources:
@@ -499,7 +499,7 @@ def test_axil4_write_master(request, addr_width, data_width, aw_depth, w_depth, 
     # Verilog sources - include dependencies for gaxi_skid_buffer
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil4_master_wr.f")
+        module='axil4_master_wr')
 
     # Check that files exist
     for src in verilog_sources:

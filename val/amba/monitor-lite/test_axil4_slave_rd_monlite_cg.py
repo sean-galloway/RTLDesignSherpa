@@ -125,7 +125,7 @@ def test_axil4_slave_rd_monlite_cg(test_level):
     # Verilog sources (includes axil4_slave_rd_mon which the CG version instantiates)
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil4_slave_rd_monlite_cg.f")
+        module='axil4_slave_rd_monlite_cg')
 
     # Check files exist
     for src in verilog_sources:

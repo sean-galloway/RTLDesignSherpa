@@ -91,7 +91,7 @@ def test_math_multiplier_carry_save(request, params):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_multiplier_carry_save.f'
+        module='math_multiplier_carry_save'
     )
 
     # Get REG_LEVEL before creating test name

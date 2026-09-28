@@ -79,7 +79,7 @@ def test_math_adder_half(request, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/math/filelists/math_adder_half.f'
+        module='math_adder_half'
     )
 
     # Define test parameters

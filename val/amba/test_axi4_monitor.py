@@ -550,7 +550,7 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi_monitor_base.f")
+        module='axi_monitor_base')
 
     rtl_parameters = {
         'ID_WIDTH': str(iw),

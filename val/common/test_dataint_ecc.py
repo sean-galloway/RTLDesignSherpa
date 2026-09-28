@@ -130,14 +130,14 @@ def test_dataint_ecc(request, data_width, module_type, test_level):
         # Get verilog sources and includes from filelist
         verilog_sources, includes = get_sources_from_filelist(
             repo_root=repo_root,
-            filelist_path='rtl/common/filelists/dataint_ecc_hamming_encode_secded.f'
+            module='dataint_ecc_hamming_encode_secded'
         )
     else:  # decoder
         dut_name = "dataint_ecc_hamming_decode_secded"
         # Get verilog sources and includes from filelist
         verilog_sources, includes = get_sources_from_filelist(
             repo_root=repo_root,
-            filelist_path='rtl/common/filelists/dataint_ecc_hamming_decode_secded.f'
+            module='dataint_ecc_hamming_decode_secded'
         )
 
     toplevel = dut_name

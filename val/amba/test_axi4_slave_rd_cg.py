@@ -403,7 +403,7 @@ def test_axi4_slave_read_cg(id_width, addr_width, data_width, user_width, ar_dep
     # RTL files for clock gated slave read
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi4_slave_rd_cg.f")
+        module='axi4_slave_rd_cg')
 
     # Check that files exist
     for src in verilog_sources:

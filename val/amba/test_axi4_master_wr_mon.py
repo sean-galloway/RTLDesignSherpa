@@ -337,7 +337,7 @@ def test_axi4_master_wr_mon(id_width, addr_width, data_width, user_width, wstrb_
     # Verilog sources
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi4_master_wr_mon.f")
+        module='axi4_master_wr_mon')
 
     # Check files exist
     for src in verilog_sources:

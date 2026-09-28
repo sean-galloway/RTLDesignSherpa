@@ -92,7 +92,7 @@ def test_sdpram_slave_axil_axil(request, test_level, data_width, mem_depth, use_
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/sdpram_slave_axil_axil.f")
+        module='sdpram_slave_axil_axil')
 
     # No AXI_ID_WIDTH / USER_WIDTH on this wrapper -- AXIL has neither.
     parameters = {

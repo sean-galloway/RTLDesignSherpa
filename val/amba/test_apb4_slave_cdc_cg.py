@@ -123,7 +123,7 @@ def test_apb4_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idl
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb4_slave_cdc_cg.f")
+        module='apb4_slave_cdc_cg')
 
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
@@ -233,7 +233,7 @@ def test_apb4_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idl
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/apb4_slave_cdc_cg.f")
+        module='apb4_slave_cdc_cg')
 
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)

@@ -231,7 +231,7 @@ def test_cdc_2_phase_handshake(request, params):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/cdc/filelists/cdc_2_phase_handshake.f")
+        module='cdc_2_phase_handshake')
 
     # Extract test parameters
     src_period = params['clk_src_period_ns']

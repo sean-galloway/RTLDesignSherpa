@@ -108,7 +108,7 @@ def test_arbiter_token_bucket(request, clients, max_tokens, rate_width,
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/arbiter_token_bucket.f')
+        module='arbiter_token_bucket')
 
     c_str = TBBase.format_dec(clients, 2)
     t_str = TBBase.format_dec(max_tokens, 2)

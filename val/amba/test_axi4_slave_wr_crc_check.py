@@ -35,7 +35,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
-from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.filelist_utils import get_sources_from_filelist, filelist_for
 from TBClasses.axi4.axi4_slave_wr_crc_check_tb import SlaveWrCrcCheckTB
 
 
@@ -215,7 +215,7 @@ def test_axi4_slave_wr_crc_check(request, test_type, test_level):
     dut_name = "axi4_slave_wr_crc_check"
     test_name = f"test_axi4_slave_wr_crc_check_{test_type}_{test_level}_{_REG_LEVEL.lower()}"
 
-    filelist_path = "rtl/amba/filelists/axi4_slave_wr_crc_check.f"
+    filelist_path = filelist_for(repo_root, 'axi4_slave_wr_crc_check')
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 

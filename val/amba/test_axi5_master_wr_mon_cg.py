@@ -103,7 +103,7 @@ def test_axi5_master_wr_mon_cg(id_width, addr_width, data_width, user_width, max
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axi5_master_wr_mon_cg.f")
+        module='axi5_master_wr_mon_cg')
 
     for src in verilog_sources:
         if not os.path.exists(src):

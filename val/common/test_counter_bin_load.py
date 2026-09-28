@@ -278,7 +278,7 @@ def test_counter_bin_load(request, width, max_value, test_id):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/counter_bin_load.f'
+        module='counter_bin_load'
     )
     toplevel = dut_name
 

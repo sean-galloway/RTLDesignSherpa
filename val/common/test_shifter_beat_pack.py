@@ -181,7 +181,7 @@ def test_shifter_beat_pack(request, test_type, chunk_bits, max_beat_bytes,
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/shifter_beat_pack.f')
+        module='shifter_beat_pack')
 
     test_name = (
         f"test_{dut_name}_{test_type}_c{chunk_bits}"

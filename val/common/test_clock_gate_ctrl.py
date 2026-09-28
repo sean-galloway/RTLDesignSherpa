@@ -116,7 +116,7 @@ def test_clock_gate_ctrl(request, counter_width):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/clock_gate_ctrl.f'
+        module='clock_gate_ctrl'
     )
 
     # Create a human readable test identifier

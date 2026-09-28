@@ -430,7 +430,7 @@ def test_monbus_axil4_axil4_group_serializer(request, test_type, fifo_depth_err,
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/monbus_axil4_axil4_group.f")
+        module='monbus_axil4_axil4_group')
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")

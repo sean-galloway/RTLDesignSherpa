@@ -153,7 +153,7 @@ def test_counter_bin(request, width, max_val, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/counter_bin.f'
+        module='counter_bin'
     )
     toplevel = dut_name
 

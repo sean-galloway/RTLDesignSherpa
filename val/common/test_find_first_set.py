@@ -116,7 +116,7 @@ def test_find_first_set(request, width, test_level):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/find_first_set.f'
+        module='find_first_set'
     )
     toplevel = dut_name
 
