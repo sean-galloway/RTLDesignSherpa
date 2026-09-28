@@ -61,10 +61,16 @@ binding for new chapters and for edits to existing ones.
 
 ## Captions and lists
 
-- Table captions use the pandoc form `: Table N.M: ...` after the
-  table; figure/waveform headings use `Figure N:` / `Waveform N:` —
-  these populate the LoT/LoF/LoW in the built document. A caption
-  dropped in an edit silently breaks book generation.
+- Table captions use the pandoc form `: Table N.M: ...` on the line after
+  the table; figures and waveforms are `### Figure N.M: Title` /
+  `### Waveform N.M: Title` HEADINGS (chapter.number; `md_to_docx.py`'s
+  detector accepts any dotted number, so a bare `Figure 3:` also lands).
+  These populate the LoT/LoF/LoW in the built document; a caption written
+  any other way is silently absent from its list, and one dropped in an edit
+  silently breaks book generation. This was the whole point of the retired
+  `projects/components/DOCUMENTATION_STANDARDS.md` (tooling TASK-004,
+  2026-09-28); the flags and styles-YAML mechanics it also carried live in
+  `bin/DOC_GENERATION.md`.
 - No emoji anywhere in spec sources (breaks the LaTeX path).
 
 ## Voice

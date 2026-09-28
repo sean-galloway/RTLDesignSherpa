@@ -208,7 +208,7 @@ When adding new projects:
 - [rtldesignsherpa README](../README.md) - Repository overview
 - [Common Library Guide](../rtl/common/CLAUDE.md) - Module reference
 - [CocoTB Framework](../bin/TBClasses/) - Testbench infrastructure
-- [Components Quick Status](components/PROJECT_QUICK_STATUS.md) - status of all components
+- [Components index](components/index.md) - component list with status; live work items in [vault/Tasks/INDEX.md](../vault/Tasks/INDEX.md)
 
 ### Component documentation
 

@@ -45,8 +45,10 @@ This directory contains production-ready and in-development component projects f
 | **RAPIDS** | Functional | [rapids/](dmas/rapids/) | [Specification](dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md) |
 | **Bridge** | Development | [bridge/](bridge/) | See [bridge/docs/](bridge/docs/) |
 | **Converters** | Development | [converters/](converters/) | See [converters/docs/](converters/docs/) |
-| **Delta** | Development | [delta/](delta/) | [Specification](delta/docs/delta_spec/delta_index.md) |
-| **Hive** | Development | [hive/](hive/) | [Specification](hive/docs/hive_spec/hive_index.md) |
+| **pumice (DDR2/LPDDR2 memory controller)** | Production (at rest 2026-09-10) | [memory-controllers/pumice-ddr2-lpddr2/](memory-controllers/pumice-ddr2-lpddr2/) | [Specification](memory-controllers/pumice-ddr2-lpddr2/docs/pumice_mas/pumice_mas_index.md) |
+| **misc** | Production | [misc/](misc/) | [README](misc/README.md) |
+| **Delta** | Retired 2026-09-27 (no tests, spec unwritten) | [delta/](delta/) | [Specification](delta/docs/delta_spec/delta_index.md) |
+| **Hive** | Retired 2026-09-27 (nothing begun) | [hive/](hive/) | [Specification](hive/docs/hive_spec/hive_index.md) |
 
 ---
 
@@ -115,10 +117,13 @@ Each component follows this standard structure:
 ### Documentation
 - **[Project README](README.md)** - Overview and getting started
 - **[Project PRD](PRD.md)** - Requirements and goals
-- **[Project Status](PROJECT_QUICK_STATUS.md)** - Current status
-- **[Project CLAUDE Guide](CLAUDE.md)** - AI assistance
-- **[Makefile Guide](MAKEFILE_GUIDE.md)** - Build system
-- **[Makefile Hierarchy](MAKEFILE_HIERARCHY.md)** - Build organization
+- **[Project CLAUDE Guide](CLAUDE.md)** - area facts for agents
+- **Status** - the live tracker is [vault/Tasks/INDEX.md](../../vault/Tasks/INDEX.md);
+  the table above is the only status summary kept here (one source per fact)
+- **Running tests** - [vault/handbook/dv/running-regressions.md](../../vault/handbook/dv/running-regressions.md);
+  every `dv/tests/Makefile` is four lines that include [make/tests.mk](../../make/tests.mk),
+  and this directory's [Makefile](Makefile) drives them all (`make help`)
+- **Coverage** - [vault/handbook/dv/coverage.md](../../vault/handbook/dv/coverage.md)
 
 ### Testing
 - **[Makefile](Makefile)** - Central build and test control
@@ -136,4 +141,4 @@ Each component follows this standard structure:
 ---
 
 **Maintained By:** RTL Design Sherpa Project
-**Last Review:** 2025-10-25
+**Last Review:** 2026-09-28 (tooling TASK-004: retired the shared guides that duplicated the handbook)
