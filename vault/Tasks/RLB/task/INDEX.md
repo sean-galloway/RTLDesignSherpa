@@ -2,7 +2,7 @@
 
 # RLB — tasks
 
-**Next ID: TASK-016** — never recycle a number, even when its item closed.
+**Next ID: TASK-017** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -21,6 +21,8 @@ by construction rather than by discipline.
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
+- **TASK-016** — RLB placement pass: 7 loose markdown files (status/roadmap/audit beside the RTL, a Makefile README beside the tests)
+
 
 ## Closed
 

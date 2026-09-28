@@ -2,7 +2,7 @@
 
 # projects/asic-trials/timing_characterization — tasks
 
-**Next ID: TASK-005** — never recycle a number, even when its item closed.
+**Next ID: TASK-006** — never recycle a number, even when its item closed.
 
 planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 5 | accepted, not started |
+| [open/](open/) | 6 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -25,3 +25,4 @@ by construction rather than by discipline.
 - **TASK-002** — Cross-Technology Comparison Reports
 - **TASK-003** — Additional FUBs
 - **TASK-004** — PDF Generation for Synthesis Guide
+- **TASK-005** — timing_characterization placement pass: 3 loose how-to guides

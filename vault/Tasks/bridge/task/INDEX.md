@@ -2,7 +2,7 @@
 
 # bridge — tasks
 
-**Next ID: TASK-012** — never recycle a number, even when its item closed.
+**Next ID: TASK-013** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
@@ -21,6 +21,8 @@ by construction rather than by discipline.
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
+- **TASK-012** — bridge placement pass: 9 loose markdown files (generator design notes beside bin/, a bug write-up at the root)
+
 
 ## Dropped
 
