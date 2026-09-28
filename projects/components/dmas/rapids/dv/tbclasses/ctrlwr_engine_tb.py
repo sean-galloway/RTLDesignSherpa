@@ -674,7 +674,8 @@ class CtrlwrEngineTB(TBBase):
         2. AXI write returns SLVERR response on B channel
         3. Engine completes with error
 
-        Uses manual AW/W/B channel driving to inject error.
+        The framework slave injects the error: the address is outside its
+        memory model, which the shared out-of-range contract answers with SLVERR.
 
         Args:
             profile: Delay profile for timing coverage
@@ -690,54 +691,11 @@ class CtrlwrEngineTB(TBBase):
         test_addr = 0x1000
         test_data = 0xDEADBEEF
 
-        monitor_active = [True]
-
-        async def aw_w_monitor_and_b_error_responder():
-            """Monitor AW/W channels and respond with SLVERR on B channel"""
-            # Assert AW and W ready
-            self.dut.aw_ready.value = 1
-            self.dut.w_ready.value = 1
-            aw_received = False
-            w_received = False
-            captured_aw_id = 0
-
-            while monitor_active[0]:
-                await self.wait_clocks(self.clk_name, 1)
-
-                # Check for AW handshake
-                if int(self.dut.aw_valid.value) == 1 and int(self.dut.aw_ready.value) == 1:
-                    captured_aw_id = int(self.dut.aw_id.value)
-                    captured_addr = int(self.dut.aw_addr.value)
-                    self.log.info(f"  AW handshake - addr=0x{captured_addr:X}, id={captured_aw_id}")
-                    aw_received = True
-
-                # Check for W handshake
-                if int(self.dut.w_valid.value) == 1 and int(self.dut.w_ready.value) == 1:
-                    captured_data = int(self.dut.w_data.value)
-                    self.log.info(f"  W handshake - data=0x{captured_data:08X}")
-                    w_received = True
-
-                # Once both AW and W received, respond with SLVERR
-                if aw_received and w_received:
-                    self.log.info(f"  → Returning SLVERR on B channel")
-
-                    await self.wait_clocks(self.clk_name, 2)
-                    self.dut.b_valid.value = 1
-                    self.dut.b_id.value = captured_aw_id
-                    self.dut.b_resp.value = 2  # SLVERR
-
-                    # Wait for B ready
-                    while monitor_active[0]:
-                        await self.wait_clocks(self.clk_name, 1)
-                        if int(self.dut.b_ready.value) == 1:
-                            break
-
-                    # Clear B channel
-                    self.dut.b_valid.value = 0
-                    break
-
-        # Start manual responder
-        responder_task = cocotb.start_soon(aw_w_monitor_and_b_error_responder())
+        # Framework write slave; the address lies outside its memory model and
+        # the shared out-of-range contract (shared/memory_model.py) answers the
+        # write with SLVERR on B -- no hand-rolled AW/W/B driving (rapids TASK-013).
+        await self.initialize_axi_slave(profile)
+        test_addr = 0x8000     # beyond the 8 KB model
 
         # Use GAXI Master to send ctrlwr request
         packet = self.ctrlwr_master.create_packet(
@@ -750,7 +708,6 @@ class CtrlwrEngineTB(TBBase):
             self.log.info(f"  ✓ Ctrlwr request sent for AXI error test")
         except Exception as e:
             self.log.error(f"❌ Failed to send ctrlwr request: {str(e)}")
-            monitor_active[0] = False
             return False
 
         # Wait for operation to complete with error
@@ -771,9 +728,6 @@ class CtrlwrEngineTB(TBBase):
             if int(self.dut.ctrlwr_engine_idle.value) == 1 and cycles > 20:
                 break
 
-        # Stop responder
-        monitor_active[0] = False
-        await self.wait_clocks(self.clk_name, 2)
 
         if error_detected:
             self.log.info("✅ AXI error test PASSED - error correctly detected")

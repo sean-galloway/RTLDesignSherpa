@@ -44,6 +44,7 @@ from cocotb.triggers import RisingEdge, Timer
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
+from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd, create_axi4_slave_wr
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.shared.memory_model import MemoryModel
@@ -215,8 +216,38 @@ class SchedulerGroupBeatsTB(TBBase):
             log=self.log
         )
 
-        # Set default ready signals
-        self.dut.desc_ar_ready.value = 1
+        # Framework slaves own the three AXI ports the group masters (rapids
+        # TASK-013; the TB used to drive AR/R, AW/W/B by hand):
+        #   desc_*   256-bit read slave backed by descriptor_memory (register_descriptor)
+        #   ctrlrd_* 32-bit read slave backed by ctrlrd_memory (poll values)
+        #   ctrlwr_* 32-bit write slave backed by ctrlwr_memory (doorbells)
+        self.ctrlrd_memory = MemoryModel(num_lines=4096, bytes_per_line=4, log=self.log)
+        self.ctrlwr_memory = MemoryModel(num_lines=4096, bytes_per_line=4, log=self.log)
+        self.desc_fetches, self._desc_fetch_seen = 0, 0
+        self.ctrlrd_polls, self._ctrlrd_poll_seen = [], 0
+        self.ctrlwr_doorbells, self._ctrlwr_seen, self._ctrlwr_pending_aw = [], 0, []
+        self.desc_slave = create_axi4_slave_rd(
+            dut=self.dut, clock=self.clk, prefix="desc_", log=self.log,
+            data_width=256, id_width=self.TEST_AXI_ID_WIDTH, addr_width=self.TEST_ADDR_WIDTH,
+            user_width=1, multi_sig=True, memory_model=self.descriptor_memory)
+        self.ctrlrd_slave = create_axi4_slave_rd(
+            dut=self.dut, clock=self.clk, prefix="ctrlrd_", log=self.log,
+            data_width=32, id_width=self.TEST_AXI_ID_WIDTH, addr_width=self.TEST_ADDR_WIDTH,
+            user_width=1, multi_sig=True, memory_model=self.ctrlrd_memory)
+        self.ctrlwr_slave = create_axi4_slave_wr(
+            dut=self.dut, clock=self.clk, prefix="ctrlwr_", log=self.log,
+            data_width=32, id_width=self.TEST_AXI_ID_WIDTH, addr_width=self.TEST_ADDR_WIDTH,
+            user_width=1, multi_sig=True, memory_model=self.ctrlwr_memory)
+        for comp in (self.desc_slave['AR'], self.desc_slave['R'], self.ctrlrd_slave['AR'],
+                     self.ctrlrd_slave['R'], self.ctrlwr_slave['AW'], self.ctrlwr_slave['W'],
+                     self.ctrlwr_slave['B']):
+            await comp.reset_bus()
+        self.desc_slave['AR'].add_callback(self._on_desc_ar)
+        self.ctrlrd_slave['AR'].add_callback(self._on_ctrlrd_ar)
+        self.ctrlwr_slave['AW'].add_callback(self._on_ctrlwr_aw)
+        self.ctrlwr_slave['W'].add_callback(self._on_ctrlwr_w)
+
+        # Set default ready signals (scheduler-side consumers the TB models by level)
         self.dut.sched_wr_ready.value = 1
         self.dut.mon_ready.value = 1
         if not getattr(self, '_mon_capture_started', False):
@@ -256,111 +287,34 @@ class SchedulerGroupBeatsTB(TBBase):
         self.log.warning(f"APB request timeout: addr=0x{addr:X}")
         return False
 
-    async def respond_to_descriptor_read(self, data: int) -> bool:
-        """Respond to descriptor AXI read request.
+    # -- framework-slave hooks (AR/AW/W monitor callbacks) ---------------------
+    def _on_desc_ar(self, pkt):
+        self.desc_fetches += 1
+        self.log.info(f"descriptor fetch #{self.desc_fetches}: addr=0x{int(getattr(pkt, 'addr', 0)):X}")
 
-        Args:
-            data: 256-bit descriptor data to return
+    def _on_ctrlrd_ar(self, pkt):
+        self.ctrlrd_polls.append(int(getattr(pkt, 'addr', 0)))
 
-        Returns:
-            True if response sent, False on timeout
-        """
-        # Wait for AR valid with debug logging
-        for i in range(100):
-            ar_valid = int(self.dut.desc_ar_valid.value)
-            ar_ready = int(self.dut.desc_ar_ready.value)
-            if ar_valid == 1 and ar_ready == 1:
-                self.log.info(f"AR handshake at cycle {i}")
-                break
-            # Print debug info every 10 cycles
-            if i % 10 == 0 and i > 0:
-                try:
-                    # Access internal signals for debug
-                    desc_eng = self.dut.u_descriptor_engine
-                    fsm_state = int(desc_eng.r_current_state.value)
-                    apb_ip = int(desc_eng.r_apb_ip.value)
-                    channel_reset = int(desc_eng.r_channel_reset_active.value)
-                    chan_idle = int(self.dut.channel_idle.value)
-                    sched_idle = int(self.dut.scheduler_idle.value)
-                    # FIFO signals
-                    fifo_wr_valid = int(desc_eng.w_desc_addr_fifo_wr_valid.value)
-                    fifo_wr_ready = int(desc_eng.w_desc_addr_fifo_wr_ready.value)
-                    fifo_rd_valid = int(desc_eng.w_desc_addr_fifo_rd_valid.value)
-                    fifo_rd_ready = int(desc_eng.w_desc_addr_fifo_rd_ready.value)
-                    # Skid buffer signals
-                    skid_wr_valid = int(desc_eng.w_apb_skid_valid_in.value)
-                    skid_wr_ready = int(desc_eng.w_apb_skid_ready_in.value)
-                    skid_rd_valid = int(desc_eng.w_apb_skid_valid_out.value)
-                    skid_rd_ready = int(desc_eng.w_apb_skid_ready_out.value)
-                    self.log.info(f"[DEBUG cycle {i}] FSM={fsm_state} apb_ip={apb_ip} chan_reset={channel_reset} "
-                                  f"chan_idle={chan_idle} sched_idle={sched_idle}")
-                    self.log.info(f"[DEBUG cycle {i}] FIFO: wr={fifo_wr_valid}/{fifo_wr_ready} "
-                                  f"rd={fifo_rd_valid}/{fifo_rd_ready}")
-                    self.log.info(f"[DEBUG cycle {i}] SKID: wr={skid_wr_valid}/{skid_wr_ready} "
-                                  f"rd={skid_rd_valid}/{skid_rd_ready}")
-                    self.log.info(f"[DEBUG cycle {i}] ar_valid={ar_valid} ar_ready={ar_ready}")
-                except Exception as e:
-                    self.log.warning(f"[DEBUG cycle {i}] Could not access internal signals: {e}")
-            await self.wait_clocks(self.clk_name, 1)
-        else:
-            return False
+    def _on_ctrlwr_aw(self, pkt):
+        self._ctrlwr_pending_aw.append(int(getattr(pkt, 'addr', 0)))
 
-        # Get request info
-        ar_addr = int(self.dut.desc_ar_addr.value)
-        ar_id = int(self.dut.desc_ar_id.value)
-        ar_len = int(self.dut.desc_ar_len.value)
+    def _on_ctrlwr_w(self, pkt):
+        addr = self._ctrlwr_pending_aw.pop(0) if self._ctrlwr_pending_aw else None
+        self.ctrlwr_doorbells.append((addr, int(getattr(pkt, 'data', 0)) & 0xFFFFFFFF))
 
-        await self.wait_clocks(self.clk_name, 2)
+    def register_descriptor(self, addr: int, data: int):
+        """Place a 256-bit descriptor in the memory the desc_* read slave serves.
+        Must precede the APB kick: the engine fetches within a few cycles."""
+        self.descriptor_memory.write(addr, bytearray((data & ((1 << 256) - 1)).to_bytes(32, 'little')))
 
-        # Send read response (single beat for 256-bit descriptor)
-        self.dut.desc_r_valid.value = 1
-        self.dut.desc_r_data.value = data
-        self.dut.desc_r_resp.value = 0  # OKAY
-        self.dut.desc_r_last.value = 1
-        self.dut.desc_r_id.value = ar_id
-
-        # Wait for ready with debug logging
-        self.log.info(f"R channel: asserting r_valid with id={ar_id}")
-
-        # After setting r_valid, use Timer(0) to let combinational logic settle
-        # This ensures the DUT sees r_valid=1 and updates r_ready accordingly
-        await Timer(0, units='ns')
-
-        # Check r_ready - should now reflect the combinational response to r_valid=1
-        for i in range(50):
-            r_ready = int(self.dut.desc_r_ready.value)
-
-            if r_ready == 1:
-                # Handshake detected! Wait for clock edge to complete the transfer
-                await self.wait_clocks(self.clk_name, 1)
-                self.descriptors_served += 1
-                self.log.info(f"Descriptor served: addr=0x{ar_addr:X}, data=0x{data:X}")
-                self.dut.desc_r_valid.value = 0
+    async def wait_descriptor_fetch(self, timeout: int = 200) -> bool:
+        """Wait for the next descriptor AR the read slave serves (one per call)."""
+        for _ in range(timeout):
+            if self.desc_fetches > self._desc_fetch_seen:
+                self._desc_fetch_seen += 1
                 return True
-
-            # Print debug info for first 5 cycles, then every 10
-            if i < 5 or i % 10 == 0:
-                try:
-                    desc_eng = self.dut.u_descriptor_engine
-                    fsm_state = int(desc_eng.r_current_state.value)
-                    r_id_dut = int(self.dut.desc_r_id.value)
-                    r_valid_dut = int(self.dut.desc_r_valid.value)
-                    r_resp_dut = int(self.dut.desc_r_resp.value)
-                    our_axi_resp = int(desc_eng.w_our_axi_response.value)
-                    axi_resp_ok = int(desc_eng.w_axi_response_ok.value)
-                    chan_reset = int(desc_eng.r_channel_reset_active.value)
-                    self.log.info(f"[R DEBUG cycle {i}] FSM={fsm_state} r_ready={r_ready} "
-                                  f"r_valid={r_valid_dut} r_resp={r_resp_dut} r_id={r_id_dut} "
-                                  f"our_axi_resp={our_axi_resp} axi_ok={axi_resp_ok} chan_reset={chan_reset}")
-                except Exception as e:
-                    self.log.warning(f"[R DEBUG cycle {i}] Could not access internal signals: {e}")
-
-            # Wait for clock edge, let combinational logic settle, then check again
             await self.wait_clocks(self.clk_name, 1)
-            await Timer(0, units='ns')
-
-        self.log.error(f"R channel timeout: r_ready never asserted")
-        self.dut.desc_r_valid.value = 0
+        self.log.error(f"no descriptor fetch within {timeout} cycles")
         return False
 
     async def wait_for_rd_command(self, timeout: int = 100) -> Optional[Tuple[int, int]]:
@@ -515,15 +469,14 @@ class SchedulerGroupBeatsTB(TBBase):
 
             self.log.info(f"Descriptor {i+1}: src=0x{src_addr:X}, dst=0x{dst_addr:X}, len={length}")
 
-            # Send APB request
+            # Descriptor in memory first, then the kick; the read slave serves it.
+            self.register_descriptor(desc_addr, desc_data)
             if not await self.send_apb_request(desc_addr):
                 self.log.error(f"APB request failed for descriptor {i+1}")
                 errors += 1
                 continue
-
-            # Respond to AXI read
-            if not await self.respond_to_descriptor_read(desc_data):
-                self.log.error(f"Descriptor AXI response failed for descriptor {i+1}")
+            if not await self.wait_descriptor_fetch():
+                self.log.error(f"Descriptor {i+1} was never fetched")
                 errors += 1
                 continue
 
@@ -570,73 +523,29 @@ class SchedulerGroupBeatsTB(TBBase):
         d |= ((opcode & 0x3) << 208)
         return d
 
-    async def _respond_ctrlwr(self, timeout: int = 300):
-        """Inline single-beat AXI write responder for the ctrlwr engine.
-        Returns (addr, data) of the doorbell write, or None if none issued."""
-        addr = None
-        awid = 0
+    async def _wait_ctrlwr_doorbell(self, timeout: int = 300):
+        """Next doorbell (addr, data) the ctrlwr_* write slave accepted, or None."""
         for _ in range(timeout):
-            if int(self.dut.ctrlwr_aw_valid.value) == 1:
-                addr = int(self.dut.ctrlwr_aw_addr.value)
-                awid = int(self.dut.ctrlwr_aw_id.value)
-                break
+            if len(self.ctrlwr_doorbells) > self._ctrlwr_seen:
+                got = self.ctrlwr_doorbells[self._ctrlwr_seen]
+                self._ctrlwr_seen += 1
+                return got
             await self.wait_clocks(self.clk_name, 1)
-        if addr is None:
-            return None
-        self.dut.ctrlwr_aw_ready.value = 1
-        await self.wait_clocks(self.clk_name, 1)
-        self.dut.ctrlwr_aw_ready.value = 0
-        # W beat
-        data = None
-        self.dut.ctrlwr_w_ready.value = 1
-        for _ in range(timeout):
-            if int(self.dut.ctrlwr_w_valid.value) == 1:
-                data = int(self.dut.ctrlwr_w_data.value)
-                await self.wait_clocks(self.clk_name, 1)
-                break
-            await self.wait_clocks(self.clk_name, 1)
-        self.dut.ctrlwr_w_ready.value = 0
-        # B response (OKAY)
-        self.dut.ctrlwr_b_valid.value = 1
-        self.dut.ctrlwr_b_id.value = awid
-        self.dut.ctrlwr_b_resp.value = 0
-        for _ in range(timeout):
-            if int(self.dut.ctrlwr_b_ready.value) == 1:
-                await self.wait_clocks(self.clk_name, 1)
-                break
-            await self.wait_clocks(self.clk_name, 1)
-        self.dut.ctrlwr_b_valid.value = 0
-        return (addr, data)
+        return None
 
-    async def _respond_ctrlrd(self, value: int, timeout: int = 300):
-        """Inline single-beat AXI read responder for the ctrlrd engine.
-        Drives R = value (OKAY). Returns the poll address, or None if none issued."""
-        addr = None
-        arid = 0
+    async def _wait_ctrlrd_poll(self, timeout: int = 300):
+        """Address of the next poll the ctrlrd_* read slave served, or None.
+        The value returned to the engine is whatever ctrlrd_memory holds."""
         for _ in range(timeout):
-            if int(self.dut.ctrlrd_ar_valid.value) == 1:
-                addr = int(self.dut.ctrlrd_ar_addr.value)
-                arid = int(self.dut.ctrlrd_ar_id.value)
-                break
+            if len(self.ctrlrd_polls) > self._ctrlrd_poll_seen:
+                got = self.ctrlrd_polls[self._ctrlrd_poll_seen]
+                self._ctrlrd_poll_seen += 1
+                return got
             await self.wait_clocks(self.clk_name, 1)
-        if addr is None:
-            return None
-        self.dut.ctrlrd_ar_ready.value = 1
-        await self.wait_clocks(self.clk_name, 1)
-        self.dut.ctrlrd_ar_ready.value = 0
-        # R beat
-        self.dut.ctrlrd_r_valid.value = 1
-        self.dut.ctrlrd_r_data.value = value & 0xFFFFFFFF
-        self.dut.ctrlrd_r_id.value = arid
-        self.dut.ctrlrd_r_resp.value = 0
-        self.dut.ctrlrd_r_last.value = 1
-        for _ in range(timeout):
-            if int(self.dut.ctrlrd_r_ready.value) == 1:
-                await self.wait_clocks(self.clk_name, 1)
-                break
-            await self.wait_clocks(self.clk_name, 1)
-        self.dut.ctrlrd_r_valid.value = 0
-        return addr
+        return None
+
+    def _set_poll_value(self, addr: int, value: int):
+        self.ctrlrd_memory.write(addr, bytearray((value & 0xFFFFFFFF).to_bytes(4, 'little')))
 
     async def _tick_generator(self, period: int = 8):
         """Free-running tick_1us pulse generator (models the periodic 1us tick that
@@ -655,14 +564,15 @@ class SchedulerGroupBeatsTB(TBBase):
         door_data = 0xABCD1234
         desc = self._build_descriptor(opcode=2, src=door_addr, dst=door_data)
 
+        self.register_descriptor(64, desc)
         if not await self.send_apb_request(64):
             self.log.error("APB kick failed")
             return False
-        if not await self.respond_to_descriptor_read(desc):
-            self.log.error("descriptor read response failed")
+        if not await self.wait_descriptor_fetch():
+            self.log.error("descriptor was never fetched")
             return False
 
-        captured = await self._respond_ctrlwr()
+        captured = await self._wait_ctrlwr_doorbell()
         if captured is None:
             self.log.error("ctrlwr engine never issued a write (routing failed)")
             return False
@@ -692,11 +602,13 @@ class SchedulerGroupBeatsTB(TBBase):
         mask = 0x1
         desc = self._build_descriptor(opcode=1, src=poll_addr, dst=((mask << 32) | expected))
 
+        self._set_poll_value(poll_addr, 0x0)     # first poll must NOT match
+        self.register_descriptor(96, desc)
         if not await self.send_apb_request(96):
             self.log.error("APB kick failed")
             return False
-        if not await self.respond_to_descriptor_read(desc):
-            self.log.error("descriptor read response failed")
+        if not await self.wait_descriptor_fetch():
+            self.log.error("descriptor was never fetched")
             return False
 
         # Free-running tick paces the engine's retries.
@@ -704,7 +616,7 @@ class SchedulerGroupBeatsTB(TBBase):
         tick_task = cocotb.start_soon(self._tick_generator())
         try:
             # First poll returns a NON-matching value -> engine must retry (gate held).
-            addr1 = await self._respond_ctrlrd(0x0)
+            addr1 = await self._wait_ctrlrd_poll()
             if addr1 != poll_addr:
                 self.log.error(f"ctrlrd poll addr mismatch: 0x{addr1} vs 0x{poll_addr:X}")
                 return False
@@ -715,7 +627,8 @@ class SchedulerGroupBeatsTB(TBBase):
             self.log.info("  ✓ Gate held after mismatch (data engines idle)")
 
             # Next retry poll returns a MATCHING value -> gate opens.
-            addr2 = await self._respond_ctrlrd(0x1)
+            self._set_poll_value(poll_addr, 0x1)
+            addr2 = await self._wait_ctrlrd_poll()
             if addr2 != poll_addr:
                 self.log.error(f"ctrlrd retry poll addr mismatch: 0x{addr2} vs 0x{poll_addr:X}")
                 return False

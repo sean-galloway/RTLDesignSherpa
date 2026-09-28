@@ -46,6 +46,7 @@ from cocotb.triggers import RisingEdge, Timer
 from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.shared.memory_model import MemoryModel
+from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd, create_axi4_slave_wr
 
 
 class SchedulerGroupArrayBeatsTB(TBBase):
@@ -259,9 +260,37 @@ class SchedulerGroupArrayBeatsTB(TBBase):
             log=self.log
         )
 
-        # Set default ready signals
-        # desc_axi_arready is controlled by respond_to_descriptor_read - start low
-        self.dut.desc_axi_arready.value = 0
+        # Framework slaves own the three shared AXI masters' ports (rapids
+        # TASK-013; the TB used to drive AR/R, AW/W/B by hand):
+        #   desc_axi_*   256-bit read slave backed by descriptor_memory
+        #   ctrlrd_axi_* 32-bit read slave backed by ctrlrd_memory (poll values)
+        #   ctrlwr_axi_* 32-bit write slave backed by ctrlwr_memory (doorbells)
+        self.ctrlrd_memory = MemoryModel(num_lines=4096, bytes_per_line=4, log=self.log)
+        self.ctrlwr_memory = MemoryModel(num_lines=4096, bytes_per_line=4, log=self.log)
+        self.desc_fetches, self._desc_fetch_seen = 0, 0
+        self.ctrlwr_doorbells, self._ctrlwr_pending_aw = [], []
+        self.ctrlrd_reads = []
+        self.desc_slave = create_axi4_slave_rd(
+            dut=self.dut, clock=self.clk, prefix="desc_axi_", log=self.log,
+            data_width=256, id_width=self.TEST_AXI_ID_WIDTH, addr_width=self.ADDR_WIDTH,
+            user_width=1, multi_sig=True, memory_model=self.descriptor_memory)
+        self.ctrlrd_slave = create_axi4_slave_rd(
+            dut=self.dut, clock=self.clk, prefix="ctrlrd_axi_", log=self.log,
+            data_width=32, id_width=self.TEST_AXI_ID_WIDTH, addr_width=self.ADDR_WIDTH,
+            user_width=1, multi_sig=True, memory_model=self.ctrlrd_memory)
+        self.ctrlwr_slave = create_axi4_slave_wr(
+            dut=self.dut, clock=self.clk, prefix="ctrlwr_axi_", log=self.log,
+            data_width=32, id_width=self.TEST_AXI_ID_WIDTH, addr_width=self.ADDR_WIDTH,
+            user_width=1, multi_sig=True, memory_model=self.ctrlwr_memory)
+        for comp in (self.desc_slave['AR'], self.desc_slave['R'], self.ctrlrd_slave['AR'],
+                     self.ctrlrd_slave['R'], self.ctrlwr_slave['AW'], self.ctrlwr_slave['W'],
+                     self.ctrlwr_slave['B']):
+            await comp.reset_bus()
+        self.desc_slave['AR'].add_callback(self._on_desc_ar)
+        self.ctrlrd_slave['AR'].add_callback(self._on_ctrlrd_ar)
+        self.ctrlwr_slave['AW'].add_callback(self._on_ctrlwr_aw)
+        self.ctrlwr_slave['W'].add_callback(self._on_ctrlwr_w)
+
         # sched_wr_ready is a packed array - set all channels ready
         self.dut.sched_wr_ready.value = (1 << self.NUM_CHANNELS) - 1
         self.dut.mon_ready.value = 1
@@ -369,93 +398,47 @@ class SchedulerGroupArrayBeatsTB(TBBase):
             data: 256-bit descriptor data
         """
         self.descriptor_lookup[addr] = data
+        self.descriptor_memory.write(addr, bytearray((data & ((1 << 256) - 1)).to_bytes(32, 'little')))
         self.log.debug(f"Registered descriptor at addr=0x{addr:X}")
 
     def clear_descriptor_lookup(self):
         """Clear the descriptor lookup table."""
         self.descriptor_lookup.clear()
 
+    # -- framework-slave hooks (AR/AW/W monitor callbacks) ---------------------
+    def _on_desc_ar(self, pkt):
+        self.desc_fetches += 1
+        ar_id = int(getattr(pkt, 'id', 0))
+        channel = ar_id & (self.NUM_CHANNELS - 1)
+        self.descriptors_served[channel] += 1
+        self.log.info(f"descriptor fetch #{self.desc_fetches}: channel={channel} "
+                      f"addr=0x{int(getattr(pkt, 'addr', 0)):X}")
+
+    def _on_ctrlrd_ar(self, pkt):
+        self.ctrlrd_reads.append((int(getattr(pkt, 'id', 0)) & (self.NUM_CHANNELS - 1),
+                                  int(getattr(pkt, 'addr', 0))))
+
+    def _on_ctrlwr_aw(self, pkt):
+        self._ctrlwr_pending_aw.append((int(getattr(pkt, 'id', 0)) & (self.NUM_CHANNELS - 1),
+                                        int(getattr(pkt, 'addr', 0))))
+
+    def _on_ctrlwr_w(self, pkt):
+        ch, addr = self._ctrlwr_pending_aw.pop(0) if self._ctrlwr_pending_aw else (None, None)
+        self.ctrlwr_doorbells.append((ch, addr, int(getattr(pkt, 'data', 0)) & 0xFFFFFFFF))
+
     async def respond_to_descriptor_read(self, data: int = None) -> bool:
-        """Respond to shared descriptor AXI read request.
+        """Wait for the desc_axi_* read slave to serve the next descriptor fetch.
 
-        When 'data' is provided explicitly, uses that data (backward compatible).
-        When 'data' is None, looks up the response data from descriptor_lookup
-        table based on the actual request address - this handles arbitration
-        order correctly in multi-channel scenarios.
-
-        Args:
-            data: 256-bit descriptor data to return (None = use lookup table)
-
-        Returns:
-            True if response sent, False on timeout
+        The slave answers from descriptor_memory, so the descriptor must be
+        register_descriptor()'d BEFORE the kick; `data` is accepted only for
+        call compatibility and is ignored (rapids TASK-013).
         """
-        # Hold AR ready low until we're ready to process
-        self.dut.desc_axi_arready.value = 0
-
-        # Wait for AR valid (increased timeout for multi-channel scenarios where
-        # arbiter needs time to cycle through all pending requests)
-        for i in range(200):
-            ar_valid = int(self.dut.desc_axi_arvalid.value)
-            if ar_valid == 1:
-                # Capture request info before acknowledging
-                ar_addr = int(self.dut.desc_axi_araddr.value)
-                ar_id = int(self.dut.desc_axi_arid.value)
-                # Now assert ready to complete handshake
-                self.dut.desc_axi_arready.value = 1
-                await self.wait_clocks(self.clk_name, 1)
-                self.dut.desc_axi_arready.value = 0  # De-assert for next request
-                self.log.info(f"AR handshake at cycle {i}")
-                break
-            await self.wait_clocks(self.clk_name, 1)
-        else:
-            self.log.warning("AR handshake timeout - no AR valid in 200 cycles")
-            self.dut.desc_axi_arready.value = 1  # Restore default
-            return False
-
-        # Determine response data
-        if data is None:
-            # Use lookup table based on actual request address
-            if ar_addr in self.descriptor_lookup:
-                response_data = self.descriptor_lookup[ar_addr]
-                self.log.info(f"Lookup hit: addr=0x{ar_addr:X}")
-            else:
-                self.log.error(f"Descriptor lookup miss: addr=0x{ar_addr:X} not registered")
-                self.log.error(f"Registered addresses: {[hex(a) for a in self.descriptor_lookup.keys()]}")
-                return False
-        else:
-            # Use explicitly provided data (backward compatible)
-            response_data = data
-
-        await self.wait_clocks(self.clk_name, 2)
-
-        # Send read response (single beat for 256-bit descriptor)
-        self.dut.desc_axi_rvalid.value = 1
-        self.dut.desc_axi_rdata.value = response_data
-        self.dut.desc_axi_rresp.value = 0  # OKAY
-        self.dut.desc_axi_rlast.value = 1
-        self.dut.desc_axi_rid.value = ar_id
-
-        # Wait for ready
-        await Timer(0, units='ns')
-
-        for i in range(50):
-            r_ready = int(self.dut.desc_axi_rready.value)
-
-            if r_ready == 1:
-                await self.wait_clocks(self.clk_name, 1)
-                # Extract channel from ID (lower bits)
-                channel = ar_id & ((1 << 3) - 1)  # 3 bits for 8 channels
-                if channel < self.NUM_CHANNELS:
-                    self.descriptors_served[channel] += 1
-                self.log.info(f"Descriptor served: channel={channel}, addr=0x{ar_addr:X}")
-                self.dut.desc_axi_rvalid.value = 0
+        for _ in range(200):
+            if self.desc_fetches > self._desc_fetch_seen:
+                self._desc_fetch_seen += 1
                 return True
-
             await self.wait_clocks(self.clk_name, 1)
-            await Timer(0, units='ns')
-
-        self.log.error(f"R channel timeout: r_ready never asserted")
-        self.dut.desc_axi_rvalid.value = 0
+        self.log.warning("AR handshake timeout - no descriptor fetch in 200 cycles")
         return False
 
     async def wait_for_rd_command(self, channel: int, timeout: int = 100) -> Optional[Tuple[int, int]]:
@@ -614,68 +597,37 @@ class SchedulerGroupArrayBeatsTB(TBBase):
     # CONTROL-DESCRIPTOR SUPPORT (Phase 2 - shared masters, arbitration proof)
     # ==========================================================================
 
-    async def _ctrlwr_shared_responder(self):
-        """Background responder for the SINGLE shared ctrlwr master. Captures each
-        doorbell as (channel_from_awid, addr, data). Proves the write SERIALIZER:
-        multiple channels' writes arrive one-at-a-time; B is routed back by ID."""
-        self.ctrlwr_doorbells = []
-        while self._ctrl_resp_active:
+    async def _wait_busy_then_idle(self, channels, start_cycles: int = 300, timeout: int = 800) -> bool:
+        """Each channel must LEAVE idle (its descriptor arrived) and then return
+        to idle. Polling for idle alone right after the fetch returned true while
+        the scheduler had not yet seen the descriptor (rapids TASK-013 bring-up)."""
+        pending = set(channels)
+        for _ in range(start_cycles):
+            pending = {ch for ch in pending if self.is_scheduler_idle(ch)}
+            if not pending:
+                break
             await self.wait_clocks(self.clk_name, 1)
-            if int(self.dut.ctrlwr_axi_awvalid.value) != 1:
-                continue
-            addr = int(self.dut.ctrlwr_axi_awaddr.value)
-            awid = int(self.dut.ctrlwr_axi_awid.value)
-            self.dut.ctrlwr_axi_awready.value = 1
+        if pending:
+            self.log.error(f"channels {sorted(pending)} never left idle after their kick")
+            return False
+        for _ in range(timeout):
+            if all(self.is_scheduler_idle(ch) for ch in channels):
+                return True
             await self.wait_clocks(self.clk_name, 1)
-            self.dut.ctrlwr_axi_awready.value = 0
-            # W beat
-            self.dut.ctrlwr_axi_wready.value = 1
-            data = None
-            for _ in range(100):
-                if int(self.dut.ctrlwr_axi_wvalid.value) == 1:
-                    data = int(self.dut.ctrlwr_axi_wdata.value)
-                    await self.wait_clocks(self.clk_name, 1)
-                    break
-                await self.wait_clocks(self.clk_name, 1)
-            self.dut.ctrlwr_axi_wready.value = 0
-            # B response (OKAY), echo awid
-            self.dut.ctrlwr_axi_bvalid.value = 1
-            self.dut.ctrlwr_axi_bid.value = awid
-            self.dut.ctrlwr_axi_bresp.value = 0
-            for _ in range(100):
-                if int(self.dut.ctrlwr_axi_bready.value) == 1:
-                    await self.wait_clocks(self.clk_name, 1)
-                    break
-                await self.wait_clocks(self.clk_name, 1)
-            self.dut.ctrlwr_axi_bvalid.value = 0
-            self.ctrlwr_doorbells.append((awid & (self.NUM_CHANNELS - 1), addr, data))
+        return False
 
-    async def _ctrlrd_shared_responder(self, match_value: int = 0x1):
-        """Background responder for the SINGLE shared ctrlrd master. Returns
-        match_value (OKAY) for every poll, echoing ARID->RID so the array demuxes R
-        back to the right channel. Captures (channel_from_arid, addr)."""
+    def _arm_ctrlwr_capture(self):
+        """Start a fresh doorbell capture: (channel_from_awid, addr, data) per
+        write the ctrlwr_axi_* slave accepts. B is routed back by ID by the slave."""
+        self.ctrlwr_doorbells = []
+        self._ctrlwr_pending_aw = []
+
+    def _arm_ctrlrd_capture(self, match_value: int, addrs):
+        """Preload match_value at every poll address the ctrlrd_axi_* slave will
+        serve and start a fresh (channel_from_arid, addr) capture."""
+        for a in addrs:
+            self.ctrlrd_memory.write(a, bytearray((match_value & 0xFFFFFFFF).to_bytes(4, 'little')))
         self.ctrlrd_reads = []
-        while self._ctrl_resp_active:
-            await self.wait_clocks(self.clk_name, 1)
-            if int(self.dut.ctrlrd_axi_arvalid.value) != 1:
-                continue
-            addr = int(self.dut.ctrlrd_axi_araddr.value)
-            arid = int(self.dut.ctrlrd_axi_arid.value)
-            self.dut.ctrlrd_axi_arready.value = 1
-            await self.wait_clocks(self.clk_name, 1)
-            self.dut.ctrlrd_axi_arready.value = 0
-            self.dut.ctrlrd_axi_rvalid.value = 1
-            self.dut.ctrlrd_axi_rdata.value = match_value & 0xFFFFFFFF
-            self.dut.ctrlrd_axi_rid.value = arid
-            self.dut.ctrlrd_axi_rresp.value = 0
-            self.dut.ctrlrd_axi_rlast.value = 1
-            for _ in range(100):
-                if int(self.dut.ctrlrd_axi_rready.value) == 1:
-                    await self.wait_clocks(self.clk_name, 1)
-                    break
-                await self.wait_clocks(self.clk_name, 1)
-            self.dut.ctrlrd_axi_rvalid.value = 0
-            self.ctrlrd_reads.append((arid & (self.NUM_CHANNELS - 1), addr))
 
     async def test_ctrl_multi_channel_doorbell(self, channels: List[int] = None) -> Tuple[bool, Dict[str, Any]]:
         """Multiple channels issue CTRL_WRITE doorbells through the SINGLE shared
@@ -685,8 +637,7 @@ class SchedulerGroupArrayBeatsTB(TBBase):
             channels = [0, 1]
         self.log.info(f"=== Control Multi-Channel Doorbell Test: channels={channels} ===")
         self.clear_descriptor_lookup()
-        self._ctrl_resp_active = True
-        cocotb.start_soon(self._ctrlwr_shared_responder())
+        self._arm_ctrlwr_capture()
         try:
             expected = {}
             for ch in channels:
@@ -725,8 +676,7 @@ class SchedulerGroupArrayBeatsTB(TBBase):
             channels = [0, 1]
         self.log.info(f"=== Control Multi-Channel Gate Test: channels={channels} ===")
         self.clear_descriptor_lookup()
-        self._ctrl_resp_active = True
-        cocotb.start_soon(self._ctrlrd_shared_responder(match_value=0x1))
+        self._arm_ctrlrd_capture(0x1, [0x3000 + ch * 0x100 for ch in channels])
         try:
             for ch in channels:
                 poll_addr = 0x3000 + ch * 0x100
@@ -737,10 +687,7 @@ class SchedulerGroupArrayBeatsTB(TBBase):
                 await self.send_apb_request(ch, 32 * (ch + 1))
             for _ in channels:
                 await self.respond_to_descriptor_read()
-            for _ in range(800):
-                await self.wait_clocks(self.clk_name, 1)
-                if all(self.is_scheduler_idle(ch) for ch in channels):
-                    break
+            await self._wait_busy_then_idle(channels)
             errors = 0
             for ch in channels:
                 if not self.is_scheduler_idle(ch):
@@ -783,6 +730,7 @@ class SchedulerGroupArrayBeatsTB(TBBase):
         length = random.randint(1, 64)
         desc_data = self.create_descriptor(src_addr, dst_addr, length)
         desc_addr = 32  # Non-zero, 32-byte aligned
+        self.register_descriptor(desc_addr, desc_data)
 
         self.log.info(f"Descriptor: src=0x{src_addr:X}, dst=0x{dst_addr:X}, len={length}")
 
@@ -927,6 +875,7 @@ class SchedulerGroupArrayBeatsTB(TBBase):
             dst_addr = random.randint(0x2000, 0xFFFF) * 0x100
             desc_data = self.create_descriptor(src_addr, dst_addr, 16)
             desc_addr = (ch + 1) * 32
+            self.register_descriptor(desc_addr, desc_data)
 
             if await self.send_apb_request(ch, desc_addr):
                 if await self.respond_to_descriptor_read(desc_data):
@@ -965,6 +914,7 @@ class SchedulerGroupArrayBeatsTB(TBBase):
                 length = random.randint(1, 32)
                 desc_data = self.create_descriptor(src_addr, dst_addr, length)
                 desc_addr = (ch * 16 + op + 1) * 32
+                self.register_descriptor(desc_addr, desc_data)
 
                 if await self.send_apb_request(ch, desc_addr):
                     if await self.respond_to_descriptor_read(desc_data):

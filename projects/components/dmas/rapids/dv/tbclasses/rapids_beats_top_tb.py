@@ -66,7 +66,8 @@ from TBClasses.apb.register_map import RegisterMap
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.axi4.axi4_factories import (
     create_axi4_slave_rd, create_axi4_slave_wr)
-from CocoTBFramework.components.axis4.axis_factories import create_axis_master
+from CocoTBFramework.components.axis4.axis_factories import create_axis_master, create_axis_slave
+from CocoTBFramework.components.axil4.axil4_factories import create_axil4_slave_wr
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -194,19 +195,13 @@ class RapidsBeatsTopTB(TBBase):
 
         # AXIS ingress idle until the master BFM takes over.
         d.s_axis_tvalid.value = 0
-        # AXIS egress consumer held ready.
-        d.m_axis_tready.value = 1
+        # m_axis_tready and m_axil_mon_* belong to the AXIS / AXI-Lite slave BFMs.
 
-        # MonBus AXI-Lite group: err-drain slave quiescent, capture-master sink
-        # holds ready high (the _axil_mon_sink coroutine completes B responses).
+        # MonBus AXI-Lite group: err-drain slave quiescent.
         d.s_axil_err_arvalid.value = 0
         d.s_axil_err_araddr.value = 0
         d.s_axil_err_arprot.value = 0
         d.s_axil_err_rready.value = 1
-        d.m_axil_mon_awready.value = 1
-        d.m_axil_mon_wready.value = 1
-        d.m_axil_mon_bvalid.value = 0
-        d.m_axil_mon_bresp.value = 0
 
         # Monitor group flush window: sane constants (never 0/0, which stalls the
         # master path). With monitors disabled these see no traffic anyway.
@@ -280,6 +275,20 @@ class RapidsBeatsTopTB(TBBase):
         self.axis_master = create_axis_master(
             dut=d, clock=self.clk, prefix="s_axis_", log=self.log,
             data_width=self.DATA_WIDTH, id_width=8, dest_width=4, user_width=1)
+
+        # AXIS slave consumes m_axis_* (source egress): owns tready, files each
+        # beat under its tid via the framework callback (rapids TASK-013).
+        self.axis_slave = create_axis_slave(
+            dut=d, clock=self.clk, prefix="m_axis_", log=self.log,
+            data_width=self.DATA_WIDTH, id_width=8, dest_width=4, user_width=1)
+        self.axis_slave['slave'].add_callback(self._on_axis_egress)
+
+        # AXI-Lite write slave on m_axil_mon_* (the monbus group's bulk-capture
+        # master): always-accept, OKAY responses -- the same framework slave the
+        # monbus group TB uses, replacing a hand-rolled ready/B coroutine.
+        self.axil_mon_slave = create_axil4_slave_wr(
+            dut=d, clock=self.clk, prefix="m_axil_mon", log=self.log,
+            multi_sig=True, data_width=64, addr_width=32)
 
     async def init_apb4_master(self):
         """Bring up the framework APB master on s_apb_* (single clock = aclk)."""
@@ -663,53 +672,16 @@ class RapidsBeatsTopTB(TBBase):
             )
             await axis.send(pkt)
 
-    async def axis_egress_monitor(self):
-        """Background: hold m_axis_tready high, capture source-egress beats."""
-        self.dut.m_axis_tready.value = 1
-        while self._mon_active:
-            await RisingEdge(self.clk)
-            try:
-                if (int(self.dut.m_axis_tvalid.value) == 1 and
-                        int(self.dut.m_axis_tready.value) == 1):
-                    tid = int(self.dut.m_axis_tid.value) & (self.NUM_CHANNELS - 1)
-                    self.captured_axis.setdefault(tid, []).append(
-                        int(self.dut.m_axis_tdata.value))
-            except Exception:
-                pass
-
-    async def axil_mon_sink(self):
-        """Trivial always-accept AXI-Lite write responder on m_axil_mon_* so the
-        monbus group's bulk-capture master never backpressures the core. Holds
-        aw/w ready high and returns OKAY B responses for matched AW+W pairs."""
-        d = self.dut
-        d.m_axil_mon_awready.value = 1
-        d.m_axil_mon_wready.value = 1
-        d.m_axil_mon_bvalid.value = 0
-        d.m_axil_mon_bresp.value = 0
-        aw_seen = 0
-        w_seen = 0
-        while self._mon_active:
-            await RisingEdge(self.clk)
-            try:
-                if int(d.m_axil_mon_awvalid.value) and int(d.m_axil_mon_awready.value):
-                    aw_seen += 1
-                if int(d.m_axil_mon_wvalid.value) and int(d.m_axil_mon_wready.value):
-                    w_seen += 1
-                if int(d.m_axil_mon_bvalid.value):
-                    if int(d.m_axil_mon_bready.value):
-                        d.m_axil_mon_bvalid.value = 0
-                elif aw_seen > 0 and w_seen > 0:
-                    d.m_axil_mon_bvalid.value = 1
-                    d.m_axil_mon_bresp.value = 0
-                    aw_seen -= 1
-                    w_seen -= 1
-            except Exception:
-                pass
+    def _on_axis_egress(self, pkt):
+        """AXIS slave callback: file each egress beat under its tid."""
+        tid = int(pkt.fields.get('id', 0)) & (self.NUM_CHANNELS - 1)
+        self.captured_axis.setdefault(tid, []).append(int(pkt.fields.get('data', 0)))
 
     async def initialize_test(self):
         self._mon_active = True
-        cocotb.start_soon(self.axis_egress_monitor())
-        cocotb.start_soon(self.axil_mon_sink())
+        # The AXI-Lite slave's ready/B drivers come up on reset_bus (async).
+        for comp in (self.axil_mon_slave['AW'], self.axil_mon_slave['W'], self.axil_mon_slave['B']):
+            await comp.reset_bus()
         await self.wait_clocks(self.clk_name, 2)
 
     def finalize_test(self):

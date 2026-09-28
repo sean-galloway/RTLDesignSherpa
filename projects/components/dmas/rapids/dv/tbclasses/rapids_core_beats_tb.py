@@ -131,8 +131,7 @@ class RapidsCoreBeatsTB(TBBase):
         d.snk_apb_addr.value = 0
         # AXIS ingress idle until the master BFM takes over.
         d.s_axis_tvalid.value = 0
-        # AXIS egress + monitor consumers held ready.
-        d.m_axis_tready.value = 1
+        # Monitor consumer held ready (m_axis_tready belongs to the AXIS slave BFM).
         d.mon_ready.value = 1
 
     async def deassert_reset(self):
@@ -248,6 +247,14 @@ class RapidsCoreBeatsTB(TBBase):
             dut=d, clock=self.clk, prefix="s_axis_", log=self.log,
             data_width=self.DATA_WIDTH, id_width=8, dest_width=4, user_width=1)
 
+        # AXIS slave consumes m_axis_* (source egress): it owns tready and every
+        # accepted beat lands in captured_axis[tid] through the framework
+        # callback (rapids TASK-013; this was a hand-rolled monitor).
+        self.axis_slave = create_axis_slave(
+            dut=d, clock=self.clk, prefix="m_axis_", log=self.log,
+            data_width=self.DATA_WIDTH, id_width=8, dest_width=4, user_width=1)
+        self.axis_slave['slave'].add_callback(self._on_axis_egress)
+
     # =========================================================================
     # PACKED-BUS HELPERS (apb_valid/apb_addr are [NC] / [NC][AW])
     # =========================================================================
@@ -353,20 +360,10 @@ class RapidsCoreBeatsTB(TBBase):
             )
             await axis.send(pkt)
 
-    async def axis_egress_monitor(self):
-        """Background: hold m_axis_tready high, capture source-egress beats."""
-        self._mon_active = True
-        self.dut.m_axis_tready.value = 1
-        while self._mon_active:
-            await RisingEdge(self.dut.clk)
-            try:
-                if (int(self.dut.m_axis_tvalid.value) == 1 and
-                        int(self.dut.m_axis_tready.value) == 1):
-                    tid = int(self.dut.m_axis_tid.value) & (self.NUM_CHANNELS - 1)
-                    self.captured_axis.setdefault(tid, []).append(
-                        int(self.dut.m_axis_tdata.value))
-            except Exception:
-                pass
+    def _on_axis_egress(self, pkt):
+        """AXIS slave callback: file each egress beat under its tid."""
+        tid = int(pkt.fields.get('id', 0)) & (self.NUM_CHANNELS - 1)
+        self.captured_axis.setdefault(tid, []).append(int(pkt.fields.get('data', 0)))
 
     async def monbus_consumer(self):
         self.dut.mon_ready.value = 1
@@ -375,7 +372,6 @@ class RapidsCoreBeatsTB(TBBase):
 
     async def initialize_test(self):
         self._mon_active = True
-        cocotb.start_soon(self.axis_egress_monitor())
         cocotb.start_soon(self.monbus_consumer())
         await self.wait_clocks(self.clk_name, 2)
 

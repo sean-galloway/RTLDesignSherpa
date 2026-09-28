@@ -248,17 +248,18 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
         self.set_axis_timing(os.environ.get('AXIS_PROFILE', axi_base))
 
     def set_axis_timing(self, profile_name='fixed'):
-        """Install a ready-backpressure randomizer for the AXIS egress, consumed
-        by _axis_output_monitor (which drives m_axis_tready). 'default'/'fixed'
-        and GAXI-only names leave the egress always-ready (preserve baseline)."""
+        """Install the ready-backpressure randomizer on the AXIS slave BFM that
+        owns m_axis_tready. 'default'/'fixed' and GAXI-only names leave the
+        egress always-ready (preserve baseline)."""
         from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
         from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
         p = 'constrained' if profile_name == 'mixed' else profile_name
+        slave = self.axis_slave['slave']
         if p in (None, 'default', 'fixed') or p not in AXI_RANDOMIZER_CONFIGS:
-            self._axis_ready_randomizer = None  # always ready
+            slave.set_randomizer(FlexRandomizer({'ready_delay': ([(0, 0)], [1])}))  # always ready
             self.log.info(f"AXIS slave timing profile: {profile_name} (always ready)")
             return
-        self._axis_ready_randomizer = FlexRandomizer(AXI_RANDOMIZER_CONFIGS[p]['slave'])
+        slave.set_randomizer(FlexRandomizer(AXI_RANDOMIZER_CONFIGS[p]['slave']))
         self.log.info(f"AXIS slave timing profile: {p}")
 
     def set_axi_timing(self, ar='fixed', r='fixed'):
@@ -308,57 +309,30 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
         # Pre-load memory with test data
         await self._preload_memory()
 
-        # Start AXIS output monitoring (drives tready, captures packets)
+        # Every beat the AXIS slave BFM accepts is filed by the framework
+        # callback (rapids TASK-013; this was a hand-rolled tready/capture loop).
+        if not getattr(self, '_axis_cb_installed', False):
+            self.axis_slave['slave'].add_callback(self._on_axis_beat)
+            self._axis_cb_installed = True
         self._axis_monitor_active = True
-        self._axis_monitor_task = cocotb.start_soon(self._axis_output_monitor())
 
         self.log.info("Test initialization complete")
 
-    async def _axis_output_monitor(self):
-        """Background task to monitor AXIS output and drive tready.
-
-        This task drives m_axis_tready high and captures output packets.
-        Without this, the datapath will stall due to backpressure.
-        """
-        self.log.info("AXIS output monitor started")
-
-        # Optional ready-backpressure randomizer (from the AXIS timing profile).
-        # When None, tready is held high (baseline behavior).
-        rnd = getattr(self, '_axis_ready_randomizer', None)
-
-        # Drive tready high to accept data
-        self.dut.m_axis_tready.value = 1
-
-        while self._axis_monitor_active:
-            # Apply profile-driven ready backpressure (deassert tready for N cycles)
-            if rnd is not None:
-                delay = rnd.get_delay('ready_delay')
-                if delay > 0:
-                    self.dut.m_axis_tready.value = 0
-                    await self.wait_clocks(self.clk_name, int(delay))
-                    self.dut.m_axis_tready.value = 1
-
-            await self.wait_clocks(self.clk_name, 1)
-
-            # Check for valid handshake
-            if (int(self.dut.m_axis_tvalid.value) == 1 and
-                int(self.dut.m_axis_tready.value) == 1):
-                # Capture packet data
-                packet_data = {
-                    'tdata': int(self.dut.m_axis_tdata.value),
-                    'tstrb': int(self.dut.m_axis_tstrb.value),
-                    'tlast': int(self.dut.m_axis_tlast.value),
-                    'tid': int(self.dut.m_axis_tid.value),
-                    'tdest': int(self.dut.m_axis_tdest.value),
-                }
-                self.received_packets.append(packet_data)
-                self.test_stats['axis_packets_received'] += 1
-
-                if packet_data['tlast']:
-                    self.log.debug(f"AXIS packet complete: tid={packet_data['tid']}, "
-                                   f"tdest={packet_data['tdest']}")
-
-        self.log.info(f"AXIS output monitor stopped, received {len(self.received_packets)} beats")
+    def _on_axis_beat(self, pkt):
+        """AXIS slave callback: record the accepted egress beat."""
+        f = pkt.fields
+        packet_data = {
+            'tdata': int(f.get('data', 0)),
+            'tstrb': int(f.get('strb', 0)),
+            'tlast': int(f.get('last', 0)),
+            'tid': int(f.get('id', 0)),
+            'tdest': int(f.get('dest', 0)),
+        }
+        self.received_packets.append(packet_data)
+        self.test_stats['axis_packets_received'] += 1
+        if packet_data['tlast']:
+            self.log.debug(f"AXIS packet complete: tid={packet_data['tid']}, "
+                           f"tdest={packet_data['tdest']}")
 
     def stop_axis_monitor(self):
         """Stop the AXIS output monitor"""
@@ -690,6 +664,7 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
                 channel = i % self.NUM_CHANNELS
                 addr = self.BASE_ADDRESS + channel * self.CHANNEL_OFFSET + (i % 64) * (self.DATA_WIDTH // 8)
                 beats = random.randint(2, 8)
+                n_before = len(self.received_packets)
 
                 # Send descriptor
                 await self.send_descriptor(channel, addr, beats, eos=(i == num_transfers - 1))
@@ -703,12 +678,30 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
                     waited += 10
                     current_axis_beats = int(self.dut.dbg_axis_beats_sent.value)
 
-                # Check AXIS output
+                # Check AXIS output, then the payload itself: the beats this
+                # descriptor put on the egress must be the words preloaded at
+                # addr.. (expected_data), in order, under this channel's tid.
                 if current_axis_beats > initial_axis_beats:
+                    # Under a backpressure profile the slave BFM accepts the
+                    # beats slowly; give the whole burst time to drain.
+                    for _ in range(2000):
+                        got = [q['tdata'] for q in self.received_packets[n_before:] if q['tid'] == channel]
+                        if len(got) >= beats:
+                            break
+                        await self.wait_clocks(self.clk_name, 1)
+                    bpl = self.DATA_WIDTH // 8
+                    want = [self.expected_data.get(addr + k * bpl) for k in range(beats)]
+                    if got[:beats] != want:
+                        failed += 1
+                        self.test_stats['failed_operations'] += 1
+                        self.log.error(f"E2E transfer {i} ch{channel}: egress payload differs from memory "
+                                       f"({len(got)} beats captured, {beats} expected); "
+                                       f"first={got[:1]} want={want[:1]}")
+                        continue
                     successful += 1
                     self.test_stats['successful_operations'] += 1
                     initial_axis_beats = current_axis_beats
-                    self.log.debug(f"E2E transfer {i} successful: ch{channel} (waited {waited} clks)")
+                    self.log.debug(f"E2E transfer {i} successful: ch{channel} (waited {waited} clks, payload verified)")
                 else:
                     failed += 1
                     self.test_stats['failed_operations'] += 1
@@ -731,6 +724,7 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
                 self.test_stats['failed_operations'] += 1
 
         self.test_stats['total_operations'] += num_transfers
+        self.log.info(f"end-to-end: payload verified against memory on {successful}/{num_transfers} transfers")
 
         stats = {
             'successful': successful,

@@ -308,6 +308,42 @@ class CtrlrdEngineTB(TBBase):
         self.errors_detected.append("timeout_waiting_for_completion")
         return (False, 0, False)
 
+    async def _ensure_axi_slave(self):
+        """Create the framework AXI4 read slave once and reset its bus.
+
+        Memory-backed; every test address is a multiple of the bus width so
+        the word sits on lane 0 (the shared slave BFM returns narrow reads in
+        the low word -- see the narrow-read note in the handbook/memory).
+        resp_override lets a test force SLVERR without a hand-rolled R driver:
+        set self._forced_resp = 2 for the duration (rapids TASK-013).
+        """
+        if self.axi_slave is None:
+            self.axi_slave = create_axi4_slave_rd(
+                dut=self.dut, clock=self.clk, prefix="", log=self.log,
+                data_width=self.axi_data_width, id_width=8, addr_width=64,
+                user_width=1, multi_sig=True, memory_model=self.memory_model,
+                resp_override=lambda addr: getattr(self, '_forced_resp', None))
+            await self.axi_slave['AR'].reset_bus()
+            await self.axi_slave['R'].reset_bus()
+            self.axi_slave['AR'].add_callback(self._on_ar)
+        return self.axi_slave
+
+    def _on_ar(self, pkt):
+        """AR monitor callback (framework hook): count reads, expose the address."""
+        self._ar_count = getattr(self, '_ar_count', 0) + 1
+        self._last_ar_addr = int(getattr(pkt, 'addr', 0))
+        hook = getattr(self, '_ar_hook', None)
+        if hook is not None:
+            # Runs before the slave generates this AR's response (the framework
+            # schedules generation with start_soon from its own AR callback,
+            # registered ahead of this one), so a memory swap here is seen by
+            # THIS read.
+            hook(self._last_ar_addr, self._ar_count)
+
+    def _word(self, value: int) -> bytearray:
+        return bytearray((value & 0xFFFFFFFF).to_bytes(4, byteorder='little'))
+
+
     async def test_basic_read_match(self, profile: DelayProfile, use_manual_responders=False):
         """
         Test basic read-and-match operation (first read matches).
@@ -319,7 +355,8 @@ class CtrlrdEngineTB(TBBase):
 
         Args:
             profile: Delay profile to use
-            use_manual_responders: If True, use manual responders instead of AXI factory
+            use_manual_responders: accepted for call compatibility; the framework
+                AXI4 slave is always used (rapids TASK-013)
         """
         self.log.info("="*70)
         self.log.info(f"TEST: Basic Read-Match (Profile: {profile.value})")
@@ -330,80 +367,20 @@ class CtrlrdEngineTB(TBBase):
         mask = 0xFFFFFFFF  # Full match required
         read_data = 0x12345678  # Matches expected
 
-        if use_manual_responders:
-            # Use manual responders with surgical control
-            self.log.info("  Using manual responders (surgical control)")
-            monitor_active = [True]
+        await self._ensure_axi_slave()
 
-            async def simple_ar_responder():
-                """Simple AR/R responder for basic test"""
-                self.dut.ar_ready.value = 1
+        # Write data to memory model (AXI slave will return this)
+        data_bytes = bytearray(read_data.to_bytes(4, byteorder='little'))
+        self.memory_model.write(test_addr, data_bytes)
 
-                while monitor_active[0]:
-                    await self.wait_clocks(self.clk_name, 1)
+        # Send ctrlrd request
+        success = await self.send_ctrlrd_request(test_addr, expected_data, mask, profile)
+        if not success:
+            self.log.error("Failed to send ctrlrd request")
+            return False
 
-                    if int(self.dut.ar_valid.value) == 1 and int(self.dut.ar_ready.value) == 1:
-                        ar_id = int(self.dut.ar_id.value)
-                        await self.wait_clocks(self.clk_name, 2)
-
-                        # Drive R channel with matching data
-                        self.dut.r_valid.value = 1
-                        self.dut.r_data.value = self._lane_place(test_addr, read_data)
-                        self.dut.r_id.value = ar_id
-                        self.dut.r_resp.value = 0
-                        self.dut.r_last.value = 1
-
-                        while True:
-                            await self.wait_clocks(self.clk_name, 1)
-                            if int(self.dut.r_ready.value) == 1:
-                                break
-
-                        self.dut.r_valid.value = 0
-
-            responder_task = cocotb.start_soon(simple_ar_responder())
-
-            # Send request
-            success = await self.send_ctrlrd_request(test_addr, expected_data, mask, profile)
-            if not success:
-                monitor_active[0] = False
-                await self.wait_clocks(self.clk_name, 2)
-                return False
-
-            # Wait for completion
-            (success, result_data, error) = await self.wait_for_completion(timeout_cycles=500)
-
-            # Stop responder
-            monitor_active[0] = False
-            await self.wait_clocks(self.clk_name, 2)
-
-        else:
-            # Create AXI4 factory slave for this test
-            if self.axi_slave is None:
-                self.axi_slave = create_axi4_slave_rd(
-                    dut=self.dut,
-                    clock=self.clk,
-                    prefix="",  # No prefix - signals are ar_*, r_*
-                    log=self.log,
-                    data_width=self.axi_data_width,  # AXI_DATA_WIDTH
-                    id_width=8,     # AXI_ID_WIDTH
-                    addr_width=64,  # ADDR_WIDTH
-                    user_width=1,
-                    multi_sig=True,
-                    memory_model=self.memory_model
-                )
-
-            # Write data to memory model (AXI slave will return this)
-            data_bytes = bytearray(read_data.to_bytes(4, byteorder='little'))
-            self.memory_model.write(test_addr, data_bytes)
-
-            # Send ctrlrd request
-            success = await self.send_ctrlrd_request(test_addr, expected_data, mask, profile)
-            if not success:
-                self.log.error("Failed to send ctrlrd request")
-                return False
-
-            # Wait for completion
-            (success, result_data, error) = await self.wait_for_completion(timeout_cycles=500)
+        # Wait for completion
+        (success, result_data, error) = await self.wait_for_completion(timeout_cycles=500)
 
         if not success:
             self.log.error(f"Ctrlrd operation failed: error={error}")
@@ -440,8 +417,6 @@ class CtrlrdEngineTB(TBBase):
         # Configure max retries
         self.dut.cfg_ctrlrd_max_try.value = max_retries
 
-        # Counter for AR transactions
-        read_count = [0]
         monitor_active = [True]  # Control flag for debug monitor
 
         # State name mapping for debug
@@ -494,79 +469,31 @@ class CtrlrdEngineTB(TBBase):
                 except Exception as e:
                     self.log.debug(f"Debug monitor error: {e}")
 
-        # AR request queue and R response handler (separate concurrent tasks)
-        ar_queue = []  # Queue of AR requests to respond to
+        # Framework read slave. Memory holds the NON-matching word; the AR hook
+        # swaps the matching word in as read max_retries+1 is accepted, so the
+        # engine sees exactly max_retries mismatches and then a match.
+        await self._ensure_axi_slave()
+        wrong, right = 0x00000000, 0xABCDEF55
+        self.memory_model.write(test_addr, self._word(right if max_retries == 0 else wrong))
+        self._ar_count = 0
 
-        async def ar_monitor():
-            """Continuously monitor for AR handshakes (runs concurrently with R responder)"""
-            # Assert ar_ready (always ready)
-            self.dut.ar_ready.value = 1
+        def _swap_on_nth(addr, count):
+            # Count-exact, not time-based: after the first tick the engine
+            # retries back-to-back, so read N+1 can follow read N within cycles.
+            if count == max_retries + 1:
+                self.memory_model.write(test_addr, self._word(right))
+                self.log.info(f"  -> matching data 0x{right:08X} armed for read {count}")
+        self._ar_hook = _swap_on_nth
 
-            while monitor_active[0]:
-                await self.wait_clocks(self.clk_name, 1)
-
-                # Detect AR handshake
-                if int(self.dut.ar_valid.value) == 1 and int(self.dut.ar_ready.value) == 1:
-                    read_count[0] += 1
-                    ar_id = int(self.dut.ar_id.value)
-                    ar_addr = int(self.dut.ar_addr.value)
-
-                    self.log.info(f"  AR transaction #{read_count[0]} - addr=0x{ar_addr:X}, id={ar_id}")
-
-                    # Add to queue for R responder
-                    ar_queue.append((read_count[0], ar_id, ar_addr))
-
-        async def r_responder():
-            """Respond to AR requests from queue (runs concurrently with AR monitor)"""
-            while monitor_active[0]:
-                await self.wait_clocks(self.clk_name, 1)
-
-                # Check if there's an AR request to respond to
-                if ar_queue:
-                    (transaction_num, ar_id, ar_addr) = ar_queue.pop(0)
-
-                    # Return wrong data for first max_retries reads, correct data on (max_retries+1)th read
-                    if transaction_num <= max_retries:
-                        # First N reads: return non-matching data (engine will retry)
-                        response_data = 0x00000000
-                        self.log.info(f"  → Returning NON-matching data: 0x{response_data:08X} (retry {transaction_num}/{max_retries})")
-                    else:
-                        # (N+1)th read: return matching data (engine will complete)
-                        response_data = 0xABCDEF55
-                        self.log.info(f"  → Returning MATCHING data: 0x{response_data:08X}")
-
-                    # Wait a few cycles before responding (realistic delay)
-                    await self.wait_clocks(self.clk_name, 2)
-
-                    # Drive R channel
-                    self.dut.r_valid.value = 1
-                    self.dut.r_data.value = self._lane_place(ar_addr, response_data)
-                    self.dut.r_id.value = ar_id
-                    self.dut.r_resp.value = 0  # OKAY
-                    self.dut.r_last.value = 1
-
-                    # Wait for R ready
-                    while True:
-                        await self.wait_clocks(self.clk_name, 1)
-                        if int(self.dut.r_ready.value) == 1:
-                            break
-
-                    # Clear R channel
-                    self.dut.r_valid.value = 0
-
-        # Background task for 1µs tick
+        # Background task for 1us tick (paces the engine's retries)
         async def tick_1us_driver():
-            """Drive 1µs tick signal for retry timing"""
             while monitor_active[0]:
-                await self.wait_clocks(self.clk_name, 100)  # Simulate 1µs tick every 100 cycles
+                await self.wait_clocks(self.clk_name, 100)  # 1us tick every 100 cycles
                 self.dut.tick_1us.value = 1
                 await self.wait_clocks(self.clk_name, 1)
                 self.dut.tick_1us.value = 0
 
-        # Start background tasks (concurrent AR monitor and R responder)
         debug_task = cocotb.start_soon(debug_state_monitor())
-        ar_monitor_task = cocotb.start_soon(ar_monitor())
-        r_responder_task = cocotb.start_soon(r_responder())
         tick_task = cocotb.start_soon(tick_1us_driver())
 
         # Send ctrlrd request
@@ -578,6 +505,7 @@ class CtrlrdEngineTB(TBBase):
 
         # Wait for completion (needs more time for retry delay)
         (success, result_data, error) = await self.wait_for_completion(timeout_cycles=2000)
+        self._ar_hook = None
 
         # Stop background tasks
         monitor_active[0] = False
@@ -589,12 +517,12 @@ class CtrlrdEngineTB(TBBase):
 
         # Verify we got exactly max_retries + 1 reads (N wrong + 1 correct)
         expected_reads = max_retries + 1
-        if read_count[0] != expected_reads:
-            self.log.error(f"Expected exactly {expected_reads} reads, got {read_count[0]}")
+        if self._ar_count != expected_reads:
+            self.log.error(f"Expected exactly {expected_reads} reads, got {self._ar_count}")
             return False
 
         self.log.info(f"✓ Read-retry-match completed successfully")
-        self.log.info(f"  Retries: {read_count[0] - 1}, Result: 0x{result_data:08X}")
+        self.log.info(f"  Retries: {self._ar_count - 1}, Result: 0x{result_data:08X}")
 
         return True
 
@@ -615,8 +543,8 @@ class CtrlrdEngineTB(TBBase):
         self.log.info(f"TEST: Null Address (Profile: {profile.value})")
         self.log.info("="*70)
 
-        # Create AXI4 factory slave for this test (though it shouldn't be used)
-        # Skip if running in MIXED mode with manual responders
+        # The framework slave is created if a test needs it; a null address never
+        # issues an AR, so MIXED mode may skip creating it here.
         if not skip_axi_slave_creation and self.axi_slave is None:
             self.axi_slave = create_axi4_slave_rd(
                 dut=self.dut,
@@ -700,8 +628,11 @@ class CtrlrdEngineTB(TBBase):
         # instead of on the address-selected lanes (CocoTBFramework
         # axi4_interfaces.py _generate_read_response -- its master/write path DOES
         # lane-position, the slave read path does not). Lane coverage therefore
-        # lives in test_back_to_back, whose manual responder this TB controls and
-        # which walks addr[2] across 0x7000..0x7010.
+        # is NOT covered by this TB any more: since rapids TASK-013 every test
+        # rides the framework slave, and test_back_to_back strides its addresses
+        # by the bus width for the same reason. Lane select on a wide bus needs
+        # the slave read path to lane-position (a cross-repo RTLDesignSherpa-DV
+        # change, tracked in TASK-013's closing note) before it can be tested here.
         bus_stride = max(4, self.axi_data_width // 8)
         test_cases = [
             # (addr, expected, mask, actual_data, should_match)
@@ -833,49 +764,22 @@ class CtrlrdEngineTB(TBBase):
         expected_data = 0xDEADBEEF
         mask = 0xFFFFFFFF
 
-        monitor_active = [True]
-
-        async def ar_monitor():
-            """Monitor for AR handshakes and return error response"""
-            self.dut.ar_ready.value = 1
-
-            while monitor_active[0]:
-                await self.wait_clocks(self.clk_name, 1)
-
-                if int(self.dut.ar_valid.value) == 1 and int(self.dut.ar_ready.value) == 1:
-                    ar_id = int(self.dut.ar_id.value)
-                    ar_addr = int(self.dut.ar_addr.value)
-                    self.log.info(f"  AR transaction - addr=0x{ar_addr:X}, returning SLVERR")
-
-                    await self.wait_clocks(self.clk_name, 2)
-                    self.dut.r_valid.value = 1
-                    self.dut.r_data.value = self._lane_place(ar_addr, 0x00000000)
-                    self.dut.r_id.value = ar_id
-                    self.dut.r_resp.value = 2  # SLVERR
-                    self.dut.r_last.value = 1
-
-                    while True:
-                        await self.wait_clocks(self.clk_name, 1)
-                        if int(self.dut.r_ready.value) == 1:
-                            break
-                    self.dut.r_valid.value = 0
-
-        # Start background task
-        ar_task = cocotb.start_soon(ar_monitor())
+        # Framework read slave with the response forced to SLVERR through its
+        # resp_override hook (no hand-rolled AR/R driving; rapids TASK-013).
+        await self._ensure_axi_slave()
+        self.memory_model.write(test_addr, self._word(0))
+        self._forced_resp = 2
 
         # Send ctrlrd request
         success = await self.send_ctrlrd_request(test_addr, expected_data, mask, profile)
         if not success:
-            monitor_active[0] = False
-            await self.wait_clocks(self.clk_name, 2)
+            self._forced_resp = None
             return False
 
         # Wait for completion
         (success, result_data, error) = await self.wait_for_completion(timeout_cycles=500)
 
-        # Stop background task
-        monitor_active[0] = False
-        await self.wait_clocks(self.clk_name, 2)
+        self._forced_resp = None
 
         # Should have error due to AXI SLVERR
         if error == 1:
@@ -887,98 +791,65 @@ class CtrlrdEngineTB(TBBase):
 
     async def test_channel_reset(self, profile: DelayProfile):
         """
-        Test channel reset during operation.
+        Test channel reset as a BETWEEN-OPERATIONS channel clear -- the realistic
+        use of cfg_channel_reset (same model as ctrlwr's test_channel_reset).
+
+        The old version asserted reset with a read outstanding and had its
+        hand-rolled responder WITHDRAW the R beat afterwards, which a real slave
+        cannot do: ctrlrd_engine only raises r_ready in READ_WAIT_DATA, so a
+        response landing after the abort would sit on the bus forever. That
+        mid-read abort needs engine drain-on-reset (or a fabric-drain model) and
+        is tracked in CONTROL_ENGINE_INTEGRATION.md; here the framework slave
+        stays honest and the reset is applied with the engine idle.
 
         Scenario:
-        1. Start ctrlrd operation
-        2. Assert channel reset mid-operation
-        3. Verify engine returns to idle
-        4. Deassert reset and verify normal operation
+        1. A read-match at addr A completes.
+        2. With the engine idle, assert channel reset; idle reads 0 by design
+           while reset is held.
+        3. Release reset; the engine must be idle within a few cycles.
+        4. A fresh, DISTINCT read-match at addr B completes -> recovery proven.
         """
         self.log.info("="*70)
-        self.log.info(f"TEST: Channel Reset (Profile: {profile.value})")
+        self.log.info(f"TEST: Channel Reset (between-ops clear) (Profile: {profile.value})")
         self.log.info("="*70)
-
-        test_addr = 0x6000
-        expected_data = 0xCAFEBABE
+        await self._ensure_axi_slave()
         mask = 0xFFFFFFFF
+        addr_a, data_a = 0x6000, 0xCAFEBABE
+        addr_b, data_b = 0x6100, 0x0BADF00D
 
-        monitor_active = [True]
+        async def _read_and_match(addr: int, data: int, tag: str) -> bool:
+            self.memory_model.write(addr, self._word(data))
+            if not await self.send_ctrlrd_request(addr, data, mask, profile):
+                self.log.error(f"{tag} request was not accepted")
+                return False
+            ok, got, err = await self.wait_for_completion(timeout_cycles=500)
+            if not ok or err or got != data:
+                self.log.error(f"{tag} read-match failed: ok={ok} err={err} got=0x{got:08X}")
+                return False
+            self.log.info(f"  {tag} read-match completed: 0x{got:08X}")
+            return True
 
-        async def ar_monitor():
-            """Monitor for AR handshakes but delay response"""
-            self.dut.ar_ready.value = 1
-
-            while monitor_active[0]:
-                await self.wait_clocks(self.clk_name, 1)
-
-                if int(self.dut.ar_valid.value) == 1 and int(self.dut.ar_ready.value) == 1:
-                    ar_id = int(self.dut.ar_id.value)
-                    # Delay response to allow reset to be asserted mid-transaction
-                    await self.wait_clocks(self.clk_name, 10)
-
-                    # Check if we should still respond (reset may have been asserted)
-                    if not monitor_active[0]:
-                        return
-
-                    self.dut.r_valid.value = 1
-                    self.dut.r_data.value = self._lane_place(test_addr, expected_data)
-                    self.dut.r_id.value = ar_id
-                    self.dut.r_resp.value = 0
-                    self.dut.r_last.value = 1
-
-                    while True:
-                        await self.wait_clocks(self.clk_name, 1)
-                        if int(self.dut.r_ready.value) == 1 or not monitor_active[0]:
-                            break
-                    self.dut.r_valid.value = 0
-
-        # Start background task
-        ar_task = cocotb.start_soon(ar_monitor())
-
-        # Send ctrlrd request
-        success = await self.send_ctrlrd_request(test_addr, expected_data, mask, profile)
-        if not success:
-            monitor_active[0] = False
-            await self.wait_clocks(self.clk_name, 2)
+        if not await _read_and_match(addr_a, data_a, "baseline"):
             return False
 
-        # Wait a few cycles then assert channel reset
         await self.wait_clocks(self.clk_name, 5)
-        self.log.info("  Asserting channel reset...")
+        self.log.info("  Asserting channel reset with the engine idle...")
         self.dut.cfg_channel_reset.value = 1
         await self.wait_clocks(self.clk_name, 5)
-
-        # While cfg_channel_reset is high the engine reports idle=0 by design
-        # (ctrlrd_engine_idle = READ_IDLE && !r_channel_reset_active && fifo
-        # empty); the check that matters is that it is idle once reset drops.
         idle = int(self.dut.ctrlrd_engine_idle.value)
-        self.log.info(f"  Engine idle while reset held: {idle} (0 expected)")
-
-        # Deassert reset
+        self.log.info(f"  Engine idle while reset held: {idle} (0 expected by design)")
         self.dut.cfg_channel_reset.value = 0
         await self.wait_clocks(self.clk_name, 5)
-        idle = int(self.dut.ctrlrd_engine_idle.value)
-        self.log.info(f"  Engine idle after reset released: {idle}")
-        if idle != 1:
+        if int(self.dut.ctrlrd_engine_idle.value) != 1:
             self.log.error("Engine did not return to idle within 5 cycles of releasing cfg_channel_reset")
-            monitor_active[0] = False
             return False
 
-        # Stop background task
-        monitor_active[0] = False
-        await self.wait_clocks(self.clk_name, 2)
-
-        # Now verify normal operation works after reset
         self.log.info("  Verifying normal operation after reset...")
-        result = await self.test_basic_read_match(profile, use_manual_responders=True)
-
-        if result:
-            self.log.info(f"✓ Channel reset handled correctly")
-            return True
-        else:
-            self.log.error(f"Normal operation failed after channel reset")
+        if not await _read_and_match(addr_b, data_b, "post-reset"):
+            self.log.error("Normal operation failed after channel reset")
             return False
+        self.log.info("Channel reset handled correctly")
+        return True
 
     async def test_back_to_back(self, profile: DelayProfile, num_operations=5):
         """
@@ -993,54 +864,19 @@ class CtrlrdEngineTB(TBBase):
         self.log.info(f"TEST: Back-to-Back ({num_operations} ops, Profile: {profile.value})")
         self.log.info("="*70)
 
-        monitor_active = [True]
+        # Framework read slave answers from memory: each operation's word is
+        # its own address, preloaded here. Addresses are strided by the bus
+        # width so every word sits on lane 0 (rapids TASK-013).
+        await self._ensure_axi_slave()
         operations_complete = [0]
-        ar_queue = []  # Queue of AR requests to respond to
-
-        async def ar_monitor():
-            """Monitor for AR handshakes (non-blocking)"""
-            self.dut.ar_ready.value = 1
-
-            while monitor_active[0]:
-                await self.wait_clocks(self.clk_name, 1)
-
-                if int(self.dut.ar_valid.value) == 1 and int(self.dut.ar_ready.value) == 1:
-                    ar_id = int(self.dut.ar_id.value)
-                    ar_addr = int(self.dut.ar_addr.value)
-                    self.log.info(f"  AR transaction - addr=0x{ar_addr:X}, id={ar_id}")
-                    ar_queue.append((ar_id, ar_addr))
-
-        async def r_responder():
-            """Respond to AR requests from queue"""
-            while monitor_active[0]:
-                await self.wait_clocks(self.clk_name, 1)
-
-                if ar_queue:
-                    (ar_id, ar_addr) = ar_queue.pop(0)
-
-                    # Return data based on address
-                    response_data = ar_addr & 0xFFFFFFFF
-
-                    await self.wait_clocks(self.clk_name, 2)
-                    self.dut.r_valid.value = 1
-                    self.dut.r_data.value = self._lane_place(ar_addr, response_data)
-                    self.dut.r_id.value = ar_id
-                    self.dut.r_resp.value = 0
-                    self.dut.r_last.value = 1
-
-                    while True:
-                        await self.wait_clocks(self.clk_name, 1)
-                        if int(self.dut.r_ready.value) == 1:
-                            break
-                    self.dut.r_valid.value = 0
-
-        # Start background tasks
-        ar_task = cocotb.start_soon(ar_monitor())
-        r_task = cocotb.start_soon(r_responder())
+        bus_stride = max(4, self.axi_data_width // 8)
+        for i in range(num_operations):
+            a = 0x7000 + i * bus_stride
+            self.memory_model.write(a, self._word(a))
 
         # Run multiple operations
         for i in range(num_operations):
-            test_addr = 0x7000 + (i * 4)
+            test_addr = 0x7000 + i * bus_stride
             expected_data = test_addr & 0xFFFFFFFF  # Expect address as data
             mask = 0xFFFFFFFF
 
@@ -1049,15 +885,11 @@ class CtrlrdEngineTB(TBBase):
             success = await self.send_ctrlrd_request(test_addr, expected_data, mask, profile)
             if not success:
                 self.log.error(f"Failed to send request for operation {i+1}")
-                monitor_active[0] = False
-                await self.wait_clocks(self.clk_name, 2)
                 return False
 
             (success, result_data, error) = await self.wait_for_completion(timeout_cycles=500)
             if not success or error:
                 self.log.error(f"Operation {i+1} failed: success={success}, error={error}")
-                monitor_active[0] = False
-                await self.wait_clocks(self.clk_name, 2)
                 return False
 
             operations_complete[0] += 1
@@ -1066,9 +898,6 @@ class CtrlrdEngineTB(TBBase):
             # Small delay between operations
             await self.wait_clocks(self.clk_name, 3)
 
-        # Stop background task
-        monitor_active[0] = False
-        await self.wait_clocks(self.clk_name, 2)
 
         if operations_complete[0] == num_operations:
             self.log.info(f"✓ All {num_operations} back-to-back operations completed successfully")
@@ -1092,18 +921,12 @@ class CtrlrdEngineTB(TBBase):
 
         # Helper to reset AXI interface between scenarios
         async def reset_axi_interface():
-            """Reset AXI interface signals to known state"""
-            self.dut.ar_ready.value = 0
-            self.dut.r_valid.value = 0
-            self.dut.r_data.value = 0
-            self.dut.r_id.value = 0
-            self.dut.r_resp.value = 0
-            self.dut.r_last.value = 0
+            """Let the framework slave settle between scenarios (it owns AR/R)."""
             await self.wait_clocks(self.clk_name, 5)
 
         # Test 1: Basic read-match
         self.log.info("\n--- Scenario 1: Basic Read-Match ---")
-        result &= await self.test_basic_read_match(profile, use_manual_responders=True)
+        result &= await self.test_basic_read_match(profile)
         if not result:
             return False
         await reset_axi_interface()
@@ -1154,12 +977,12 @@ class CtrlrdEngineTB(TBBase):
             return await self.test_masked_comparison(profile)
         elif scenario == TestScenario.MIXED:
             # Run all scenarios sequentially
-            # NOTE: MIXED mode uses manual responders for ALL tests to avoid signal conflicts
-            # Manual responders have complete surgical control over AR/R responses
+            # MIXED mode runs the scenarios back to back on the one framework
+            # AXI4 read slave (rapids TASK-013).
             result = True
 
-            # Test 1: Basic read-match (use manual responders)
-            result &= await self.test_basic_read_match(profile, use_manual_responders=True)
+            # Test 1: Basic read-match
+            result &= await self.test_basic_read_match(profile)
             if not result:
                 return False
             await self.wait_clocks(self.clk_name, 10)  # Allow RTL to fully settle
@@ -1170,15 +993,13 @@ class CtrlrdEngineTB(TBBase):
                 return False
             await self.wait_clocks(self.clk_name, 10)
 
-            # Test 3: Masked comparison (use manual responders)
-            # TODO: Add manual responder support to masked comparison test
-            self.log.info("="*70)
-            self.log.info("SKIPPED: Masked comparison (needs manual responder support)")
-            self.log.info("  Masked comparison validated in standalone test")
-            self.log.info("="*70)
+            # Test 3: Masked comparison
+            result &= await self.test_masked_comparison(profile)
+            if not result:
+                return False
             await self.wait_clocks(self.clk_name, 10)
 
-            # Test 4: Retry test (already uses manual responders)
+            # Test 4: Retry test
             # Wait for RTL to return to complete idle
             for _ in range(100):
                 await self.wait_clocks(self.clk_name, 1)
@@ -1189,18 +1010,9 @@ class CtrlrdEngineTB(TBBase):
             self.dut.cfg_ctrlrd_max_try.value = 3
             await self.wait_clocks(self.clk_name, 5)
 
-            # Reset AXI interface signals to known state before retry test
-            # This ensures clean state after previous manual responder tests
-            self.dut.ar_ready.value = 0
-            self.dut.r_valid.value = 0
-            self.dut.r_data.value = 0
-            self.dut.r_id.value = 0
-            self.dut.r_resp.value = 0
-            self.dut.r_last.value = 0
+            # The framework slave owns AR/R; just let it settle between scenarios.
             await self.wait_clocks(self.clk_name, 2)
 
-            # Run retry test - manual responders provide complete surgical control
-            # They can easily return zeros hundreds of times before returning match
             result &= await self.test_read_retry_match(profile)
 
             return result
