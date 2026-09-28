@@ -415,7 +415,7 @@ module cpu_wr_adapter
                           ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]
                           : '0;
 
-    // -------- AW->B trace tracking (BRIDGE-012) --------
+    // -------- AW->B trace tracking (bridge BUG-010, was BRIDGE-012) --------
     // Same push/pop as the slave_select FIFO above, so the head is the
     // request being answered. Echoed onto btrace at the port below.
     logic aw_trk_trace [AW_TRK_DEPTH];
@@ -529,7 +529,7 @@ module cpu_wr_adapter
 
     // Write response MUX (B channel - uses b_slave_select FIFO head)
     // btrace is NOT driven here: the mux records what the SLAVE said
-    // (checked below) while the port echoes the request (BRIDGE-012).
+    // (checked below) while the port echoes the request (bridge BUG-010, was BRIDGE-012).
     logic b_slave_trace;
     always_comb begin
         fub_axi_bid = 4'd0;
@@ -563,7 +563,7 @@ module cpu_wr_adapter
     end
 
 
-    // BRIDGE-012: the port promises trace; echo the request's bit.
+    // bridge BUG-010 (was BRIDGE-012): the port promises trace; echo the request's bit.
     assign fub_axi_btrace = b_trk_trace;
 
 `ifndef SYNTHESIS
@@ -575,7 +575,7 @@ module cpu_wr_adapter
         if (aresetn && fub_axi_bvalid && fub_axi_bready &&
             |(b_slave_select & B_TRACE_CAPABLE) &&
             (b_slave_trace !== b_trk_trace)) begin
-            $error("%m: BRIDGE-012: trace-capable slave returned btrace=%b for a request with trace=%b",
+            $error("%m: bridge BUG-010 (was BRIDGE-012): trace-capable slave returned btrace=%b for a request with trace=%b",
                    b_slave_trace, b_trk_trace);
         end
     end

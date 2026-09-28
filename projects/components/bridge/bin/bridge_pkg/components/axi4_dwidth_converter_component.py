@@ -106,7 +106,7 @@ class Axi4DwidthConverter:
         if self.direction != 'wr':
             raise RuntimeError("connect_s_axi_write requires direction='wr'")
         pairs = [
-            # BRIDGE-016: the adapter may substitute its master-unique
+            # bridge TASK-005 (was BRIDGE-016): the adapter may substitute its master-unique
             # {BRIDGE_ID, id} net for the wrapper's own id.
             ('s_axi_awid', s_awid_signal or f'{fub_prefix}awid'),
             ('s_axi_awaddr', f'{fub_prefix}awaddr'),

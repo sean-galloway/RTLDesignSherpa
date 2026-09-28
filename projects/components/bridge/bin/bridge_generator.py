@@ -261,7 +261,7 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
         # Build template context.
         #
         # The TB drives PINS, so it sees external ports only. The subtractive
-        # catch-all (BRIDGE-009) is appended to config.slaves as an INTERNAL
+        # catch-all (bridge BUG-007, was BRIDGE-009) is appended to config.slaves as an INTERNAL
         # slave with no boundary pins; templating it as a real slave emitted
         # an AXI4SlaveWrite on prefix "subtractive" and probes into a 4 GB
         # window at 0x0 -- every regenerated test failed at TB construction,
@@ -287,7 +287,7 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
         addr_width = max((m.addr_width for m in config.masters), default=32)
 
         id_width = max((m.id_width for m in config.masters), default=4)
-        # BRIDGE-016: slave-side ports carry {master index, master id}; the
+        # bridge TASK-005 (was BRIDGE-016): slave-side ports carry {master index, master id}; the
         # slave BFMs must be built at that width or they mis-decode every ID.
         from bridge_pkg.width_utils import xbar_id_width
         slave_id_width = xbar_id_width(config.masters)
@@ -815,9 +815,9 @@ def _emit_bridge_variant(
         # [bridge.mon_group]: selects the monbus_<p1>_<p2>_group variant
         # (axil/axi4 on each port) the internal aggregator instantiates.
         mon_group=getattr(config, 'mon_group', None),
-        # BRIDGE-017: [bridge].xbar_pipeline -> registered crossbar.
+        # bridge TASK-006 (was BRIDGE-017): [bridge].xbar_pipeline -> registered crossbar.
         xbar_pipeline=getattr(config, 'xbar_pipeline', False),
-        # BRIDGE-017: [bridge].arbitration = "rr" | "qos" (+ qos_aging_shift).
+        # bridge TASK-006 (was BRIDGE-017): [bridge].arbitration = "rr" | "qos" (+ qos_aging_shift).
         arbitration=getattr(config, 'arbitration', 'rr'),
         qos_aging_shift=getattr(config, 'qos_aging_shift', 4),
     )
@@ -973,7 +973,7 @@ def _emit_bridge_variant(
     filelist_lines.append("")
 
     # The subtractive (catch-all) slave: terminates unmapped addresses with
-    # DECERR instead of leaving the master hanging (BRIDGE-009).
+    # DECERR instead of leaving the master hanging (bridge BUG-007, was BRIDGE-009).
     filelist_lines.append("# Subtractive catch-all slave (unmapped-address terminator)")
     filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_subtractive_slave.f")
     filelist_lines.append("")
@@ -1063,7 +1063,7 @@ def _emit_bridge_variant(
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_wr.f")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_rd.f")
 
-    # APB requester ports (BRIDGE-014): the master adapter puts
+    # APB requester ports (bridge TASK-004, was BRIDGE-014): the master adapter puts
     # apb4_to_axi4 / apb5_to_axi4 (converters component) in front of its
     # timing wrapper. Each filelist is the converter's own closure (the
     # rtl/amba apb{4,5}_slave front end included) -- never hand-list it.
@@ -1080,7 +1080,7 @@ def _emit_bridge_variant(
 
     if any(m.protocol.lower() == 'wb4' for m in config.masters):
         filelist_lines.append("")
-        filelist_lines.append("# Wishbone B4 requester front end (masters with protocol=wb4, BRIDGE-019)")
+        filelist_lines.append("# Wishbone B4 requester front end (masters with protocol=wb4, bridge TASK-008 (was BRIDGE-019))")
         filelist_lines.append(
             "-f $REPO_ROOT/projects/components/converters/rtl/filelists/wb4_to_axi4.f")
 
@@ -1110,7 +1110,7 @@ def _emit_bridge_variant(
         filelist_lines.append("# AXI5 atomic read-return tracker (per-ID R routing for AtomicLoad/Swap/Compare, A5-3b)")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_atomic_rr_tracker.f")
 
-    # Out-of-order slaves (BRIDGE-015): their adapters track responses in
+    # Out-of-order slaves (bridge BUG-012, was BRIDGE-015): their adapters track responses in
     # bridge_cam, the component's own hand-written IP. Never emitted before,
     # because no fixture used enable_ooo; the mode broke in c64660f47 and
     # nothing compiled it to notice.
@@ -1123,7 +1123,7 @@ def _emit_bridge_variant(
     if uses_cam:
         filelist_lines.append("")
         filelist_lines.append("# Per-ID response tracking (bridge_cam): enable_ooo slaves, and every AXI")
-        filelist_lines.append("# slave of a multi-master fabric, whose IDs are {master index, id} (BRIDGE-015/016)")
+        filelist_lines.append("# slave of a multi-master fabric, whose IDs are {master index, id} (bridge BUG-012 (was BRIDGE-015)/016)")
         filelist_lines.append("-f $REPO_ROOT/projects/components/bridge/rtl/filelists_static/bridge_cam.f")
 
     # AXI5 slave ports (A5-2 slice 1): the slave adapter instantiates
@@ -1204,7 +1204,7 @@ def _emit_bridge_variant(
         filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil5_rd.f")
         filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil5_wr.f")
 
-    # CDC slave ports (BRIDGE-017): axi4_cdc_{wr,rd} between the crossbar-side
+    # CDC slave ports (bridge TASK-006, was BRIDGE-017): axi4_cdc_{wr,rd} between the crossbar-side
     # wrapper and the boundary; their closures bring rtl/cdc's async FIFO.
     if any(getattr(slave, 'cdc', False) for slave in config.slaves):
         filelist_lines.append("")
@@ -1212,7 +1212,7 @@ def _emit_bridge_variant(
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_cdc_wr.f")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_cdc_rd.f")
 
-    # Wishbone B4 slaves (BRIDGE-019): axi4_to_wb4, whose closure brings the
+    # Wishbone B4 slaves (bridge TASK-008, was BRIDGE-019): axi4_to_wb4, whose closure brings the
     # AXI4-Lite decomposers and axil4_to_wb4 (and through it the rtl/amba
     # wb4 family).
     if any(slave.protocol.lower() == 'wb4' for slave in config.slaves):

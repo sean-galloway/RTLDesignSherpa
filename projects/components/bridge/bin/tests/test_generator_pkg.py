@@ -289,7 +289,7 @@ def test_invalid_channels_is_error_not_silent_downgrade(tmp_path):
 
 
 # ---------------------------------------------------------------------
-# AXI5 master ports (BRIDGE-002 phase A5-1)
+# AXI5 master ports (bridge TASK-002 (was BRIDGE-002) phase A5-1)
 # ---------------------------------------------------------------------
 
 
@@ -321,7 +321,7 @@ def test_axi5_atomic_accepted_native_both_ends(tmp_path):
 
 @pytest.mark.parametrize("feat", ["mte", "chunking"])
 def test_axi5_wide_features_need_128_bits(tmp_path, feat):
-    """BRIDGE-018: mte/chunking are native now, but tags are per 16 bytes
+    """bridge TASK-007 (was BRIDGE-018): mte/chunking are native now, but tags are per 16 bytes
     and chunks are 128 bits -- a 32-bit port asking for them is an error."""
     toml, conn = _write_min_toml(
         tmp_path,
@@ -483,7 +483,7 @@ def test_axi5_generation_smoke(tmp_path):
 
 
 # ---------------------------------------------------------------------
-# AXI5 slave ports (BRIDGE-002 phase A5-2 slice 1) -- mirror of A5-1
+# AXI5 slave ports (bridge TASK-002 (was BRIDGE-002) phase A5-2 slice 1) -- mirror of A5-1
 # ---------------------------------------------------------------------
 
 
@@ -846,7 +846,7 @@ def test_axil5_sideband_table_matches_converter_ports():
 
 
 # ---------------------------------------------------------------------
-# AXI5 read-return atomics (BRIDGE-002 phase A5-3b)
+# AXI5 read-return atomics (bridge TASK-002 (was BRIDGE-002) phase A5-3b)
 # ---------------------------------------------------------------------
 
 
@@ -896,7 +896,7 @@ def test_axi5_rr_atomic_master_needs_rw_slave(tmp_path):
 
 
 def test_axi5_rr_atomic_with_ooo_slave_accepted(tmp_path):
-    """A5-3b + BRIDGE-015: the per-ID return tracker sits beside whichever
+    """A5-3b + bridge BUG-012 (was BRIDGE-015): the per-ID return tracker sits beside whichever
     read tracker the slave uses, so an enable_ooo slave is accepted."""
     toml, conn = _write_rw_atomic_toml(tmp_path, slave_extra="enable_ooo = true")
     cfg = load_config(toml, conn)
@@ -904,7 +904,7 @@ def test_axi5_rr_atomic_with_ooo_slave_accepted(tmp_path):
 
 
 def test_ooo_slave_adapter_generates_and_gates(tmp_path):
-    """BRIDGE-015: CAM-mode tracking lost its not-full nets in c64660f47 and
+    """bridge BUG-012 (was BRIDGE-015): CAM-mode tracking lost its not-full nets in c64660f47 and
     could not elaborate. The CAM paths must declare wr_trk_full / rd_trk_full
     and drive them from tags_full, and an atomic slave must get the return
     tracker beside the CAM."""
@@ -923,7 +923,7 @@ def test_ooo_slave_adapter_generates_and_gates(tmp_path):
 
 
 # ---------------------------------------------------------------------
-# Master-unique transaction IDs (BRIDGE-016)
+# Master-unique transaction IDs (bridge TASK-005, was BRIDGE-016)
 # ---------------------------------------------------------------------
 
 
@@ -980,7 +980,7 @@ def test_id_prefix_generated_on_multi_master(tmp_path):
 
 
 def test_multi_master_axi_slaves_track_by_id(tmp_path):
-    """BRIDGE-015/016: with more than one master a real AXI slave tracks by
+    """bridge BUG-012 (was BRIDGE-015)/016: with more than one master a real AXI slave tracks by
     ID in bridge_cam even without enable_ooo (the FIFO needs the slave to
     complete in request order across all IDs); the subtractive slave and a
     single-master bridge keep the FIFO."""
@@ -1074,7 +1074,7 @@ def test_axi5_wr_atomic_keeps_filter(tmp_path):
 
 
 # ---------------------------------------------------------------------
-# Lite and APB REQUESTER ports (BRIDGE-014)
+# Lite and APB REQUESTER ports (bridge TASK-004, was BRIDGE-014)
 # ---------------------------------------------------------------------
 
 def _write_req_toml(tmp_path, master_block, slave_block=None):
@@ -1281,7 +1281,7 @@ def test_apb_req_generation_smoke(tmp_path):
 
 
 # ---------------------------------------------------------------------
-# Wishbone B4 ports, both sides (BRIDGE-019)
+# Wishbone B4 ports, both sides (bridge TASK-008, was BRIDGE-019)
 # ---------------------------------------------------------------------
 
 def test_wb4_port_must_be_rw(tmp_path):
@@ -1368,7 +1368,7 @@ def test_wb4_generation_smoke(tmp_path):
 
 
 # ---------------------------------------------------------------------
-# Registered crossbar (BRIDGE-017 xbar_pipeline)
+# Registered crossbar (bridge TASK-006 (was BRIDGE-017) xbar_pipeline)
 # ---------------------------------------------------------------------
 
 def test_xbar_pipeline_off_by_default(tmp_path):
@@ -1403,7 +1403,7 @@ def test_xbar_pipeline_generation_smoke(tmp_path):
 
 
 # ---------------------------------------------------------------------
-# QoS-with-aging arbitration (BRIDGE-017 arbitration = "qos")
+# QoS-with-aging arbitration (bridge TASK-006 (was BRIDGE-017) arbitration = "qos")
 # ---------------------------------------------------------------------
 
 def test_arbitration_defaults_to_rr(tmp_path):
@@ -1464,7 +1464,7 @@ def test_qos_generation_smoke(tmp_path):
 
 
 # ---------------------------------------------------------------------
-# CDC slave ports (BRIDGE-017 cdc = true)
+# CDC slave ports (bridge TASK-006 (was BRIDGE-017) cdc = true)
 # ---------------------------------------------------------------------
 
 def test_cdc_on_master_rejected(tmp_path):
@@ -1527,7 +1527,7 @@ def test_cdc_generation_smoke(tmp_path):
 
 
 # ---------------------------------------------------------------------
-# BRIDGE-018: native AXI5 -- MTE and chunking through the fabric
+# bridge TASK-007 (was BRIDGE-018): native AXI5 -- MTE and chunking through the fabric
 # ---------------------------------------------------------------------
 
 def test_axi5_native_generation_smoke(tmp_path):

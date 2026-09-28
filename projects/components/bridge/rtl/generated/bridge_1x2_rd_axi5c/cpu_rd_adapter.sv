@@ -311,7 +311,7 @@ module cpu_rd_adapter
                           ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
                           : '0;
 
-    // -------- AR->R trace tracking (BRIDGE-012) --------
+    // -------- AR->R trace tracking (bridge BUG-010, was BRIDGE-012) --------
     // Same push/pop as the slave_select FIFO above, so the head is the
     // request being answered. Echoed onto rtrace at the port below.
     logic ar_trk_trace [AR_TRK_DEPTH];
@@ -368,7 +368,7 @@ module cpu_rd_adapter
     end
 
     // Read response MUX (R channel - uses r_slave_select FIFO head)
-    // rtrace is NOT driven here -- see the B-channel note (BRIDGE-012).
+    // rtrace is NOT driven here -- see the B-channel note (bridge BUG-010, was BRIDGE-012).
     logic r_slave_trace;
     always_comb begin
         fub_axi_rid = 4'd0;
@@ -422,7 +422,7 @@ module cpu_rd_adapter
     end
 
 
-    // BRIDGE-012: the port promises trace; echo the request's bit.
+    // bridge BUG-010 (was BRIDGE-012): the port promises trace; echo the request's bit.
     assign fub_axi_rtrace = r_trk_trace;
 
 `ifndef SYNTHESIS
@@ -434,7 +434,7 @@ module cpu_rd_adapter
         if (aresetn && fub_axi_rvalid && fub_axi_rready &&
             |(r_slave_select & R_TRACE_CAPABLE) &&
             (r_slave_trace !== r_trk_trace)) begin
-            $error("%m: BRIDGE-012: trace-capable slave returned rtrace=%b for a request with trace=%b",
+            $error("%m: bridge BUG-010 (was BRIDGE-012): trace-capable slave returned rtrace=%b for a request with trace=%b",
                    r_slave_trace, r_trk_trace);
         end
     end

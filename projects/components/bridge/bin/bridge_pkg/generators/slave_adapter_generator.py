@@ -51,14 +51,14 @@ class SlaveAdapterGenerator:
         self.slave = slave_config
         self.channels = channels
         self.id_width = id_width
-        # BRIDGE-016: with more than one master the fabric IDs are
+        # bridge TASK-005 (was BRIDGE-016): with more than one master the fabric IDs are
         # {master index, master id} and unique across masters, so a real AXI
         # slave is tracked by ID in bridge_cam regardless of enable_ooo. The
         # in-order FIFO requires the slave to complete in AW/AR order across
         # ALL IDs, which a compliant AXI slave need not do -- and with masters
         # now carrying distinct IDs, a slave that serialises per ID completes
         # across masters out of request order routinely (the mix_b / mix_d
-        # arbitration tests tripped BRIDGE-010 the moment IDs became unique).
+        # arbitration tests tripped bridge BUG-008 (was BRIDGE-010) the moment IDs became unique).
         # Single-master bridges keep the FIFO and stay byte-identical; shim
         # slaves (apb/axil, in order by construction) and the internal
         # subtractive slave keep it too.
@@ -110,7 +110,7 @@ class SlaveAdapterGenerator:
         elif self.slave.protocol in ('apb', 'apb5'):
             lines.extend(self._generate_apb_converter())
         elif self.slave.protocol == 'wb4':
-            # BRIDGE-019: axi4_to_wb4 (the AXI4-Lite decomposers plus
+            # bridge TASK-008 (was BRIDGE-019): axi4_to_wb4 (the AXI4-Lite decomposers plus
             # axil4_to_wb4) at the boundary, same mon-sandwich as APB.
             lines.extend(self._generate_wb4_converter())
         elif self.slave.protocol in ('axil', 'axil5'):
@@ -183,7 +183,7 @@ class SlaveAdapterGenerator:
         lines.append("    input  logic aclk,")
         lines.append("    input  logic aresetn,")
         if self.is_cdc:
-            lines.append("    // BRIDGE-017: this slave's own clock domain (the external port,")
+            lines.append("    // bridge TASK-006 (was BRIDGE-017): this slave's own clock domain (the external port,")
             lines.append("    // downstream of axi4_cdc_{wr,rd}).")
             lines.append("    input  logic s_aclk,")
             lines.append("    input  logic s_aresetn,")
@@ -302,7 +302,7 @@ class SlaveAdapterGenerator:
             req_chs = (['aw', 'w'] if has_wr else []) + (['ar'] if has_rd else [])
             rsp_chs = (['b'] if has_wr else []) + (['r'] if has_rd else [])
             sb_lines = []
-            # Sized for THIS port's data bus (BRIDGE-018: tag and chunk
+            # Sized for THIS port's data bus (bridge TASK-007 (was BRIDGE-018): tag and chunk
             # fields scale with it); the crossbar fits the struct field
             # to this width on its side.
             for ch in req_chs:
@@ -699,10 +699,10 @@ class SlaveAdapterGenerator:
         lines = []
 
         lines.append("    // Write Channel CAM")
-        lines.append("    // BRIDGE-011 not-full gating, CAM form: the CAM's own tags_full masks")
+        lines.append("    // bridge BUG-009 (was BRIDGE-011) not-full gating, CAM form: the CAM's own tags_full masks")
         lines.append("    // the sub-block's ready before it reaches the crossbar. (These two nets")
         lines.append("    // are what the wrapper override below binds; the FIFO path declares")
-        lines.append("    // its own. Missing here since c64660f47 -- BRIDGE-015.)")
+        lines.append("    // its own. Missing here since c64660f47 -- bridge BUG-012 (was BRIDGE-015).)")
         lines.append("    logic wr_trk_full;")
         lines.append("    logic w_sub_awready;")
         if self.rr_atomic:
@@ -765,7 +765,7 @@ class SlaveAdapterGenerator:
             pop_condition = f"{crossbar_prefix}bvalid && {crossbar_prefix}bready"
             lines.append("    // Write Channel FIFO (In-Order) - AXI4 Protocol")
 
-        lines.append("    // BRIDGE-011 not-full gating: w_sub_awready is the sub-block's")
+        lines.append("    // bridge BUG-009 (was BRIDGE-011) not-full gating: w_sub_awready is the sub-block's")
         lines.append("    // own ready, masked before it reaches the crossbar.")
         lines.append("    logic wr_trk_full;")
         lines.append("    logic w_sub_awready;")
@@ -802,7 +802,7 @@ class SlaveAdapterGenerator:
         lines.append("    assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];")
         lines.append("    assign bid_valid     = (wr_ptr != rd_ptr);")
         lines.append("")
-        lines.append("    // BRIDGE-011: this FIFO routes B by POSITION, so overrunning it")
+        lines.append("    // bridge BUG-009 (was BRIDGE-011): this FIFO routes B by POSITION, so overrunning it")
         lines.append("    // misroutes responses -- past WR_FIFO_DEPTH a live entry is")
         lines.append("    // overwritten and its B goes to the wrong master; at twice the")
         lines.append("    // depth the pointers lap, (wr_ptr != rd_ptr) reads EMPTY and the")
@@ -820,7 +820,7 @@ class SlaveAdapterGenerator:
         else:
             lines.append(f"    assign {crossbar_prefix}awready = w_sub_awready && !wr_trk_full;")
         lines.append("")
-        lines.append("    // BRIDGE-010: this port routes B by FIFO POSITION, so it REQUIRES")
+        lines.append("    // bridge BUG-008 (was BRIDGE-010): this port routes B by FIFO POSITION, so it REQUIRES")
         lines.append("    // the slave to return B in AW order across all IDs. AXI4 permits a")
         lines.append("    // slave to reorder between IDs; such a slave silently misroutes")
         lines.append("    // here. Nothing detected that, so record the AWID alongside the")
@@ -837,7 +837,7 @@ class SlaveAdapterGenerator:
         lines.append(f"                wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= {crossbar_prefix}awid;")
         lines.append(f"            if ({crossbar_prefix}bvalid && {crossbar_prefix}bready) begin")
         lines.append(f"                if ({crossbar_prefix}bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin")
-        lines.append("                    $error({\"BRIDGE-010: slave returned B out of AW order -- \",")
+        lines.append("                    $error({\"bridge BUG-008 (was BRIDGE-010): slave returned B out of AW order -- \",")
         lines.append("                            \"got BID=%0h, expected %0h. This bridge routes \",")
         lines.append("                            \"responses by FIFO position and does not support \",")
         lines.append("                            \"ID-based reordering; the response has gone to the \",")
@@ -858,7 +858,7 @@ class SlaveAdapterGenerator:
         lines = []
 
         lines.append("    // Read Channel CAM")
-        lines.append("    // BRIDGE-011 not-full gating, CAM form -- see the write channel.")
+        lines.append("    // bridge BUG-009 (was BRIDGE-011) not-full gating, CAM form -- see the write channel.")
         lines.append("    logic rd_trk_full;")
         lines.append("    logic w_sub_arready;")
         lines.append(f"    assign {crossbar_prefix}arready = w_sub_arready && !rd_trk_full;")
@@ -932,7 +932,7 @@ class SlaveAdapterGenerator:
                 pop_condition += " && !atom_hit"
             lines.append("    // Read Channel FIFO (In-Order) - AXI4 Protocol")
 
-        lines.append("    // BRIDGE-011 not-full gating -- see the write channel.")
+        lines.append("    // bridge BUG-009 (was BRIDGE-011) not-full gating -- see the write channel.")
         lines.append("    logic rd_trk_full;")
         lines.append("    logic w_sub_arready;")
         lines.append("    localparam RD_FIFO_DEPTH = 16;")
@@ -974,12 +974,12 @@ class SlaveAdapterGenerator:
             lines.append("    assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];")
             lines.append("    assign rid_valid     = (ar_ptr != r_ptr);")
         lines.append("")
-        lines.append("    // BRIDGE-011, read side -- see the write comment above.")
+        lines.append("    // bridge BUG-009 (was BRIDGE-011), read side -- see the write comment above.")
         lines.append("    assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&")
         lines.append("                         (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);")
         lines.append(f"    assign {crossbar_prefix}arready = w_sub_arready && !rd_trk_full;")
         lines.append("")
-        lines.append("    // BRIDGE-010, read side -- see the write channel. Checked on the")
+        lines.append("    // bridge BUG-008 (was BRIDGE-010), read side -- see the write channel. Checked on the")
         lines.append("    // LAST beat, since that is when the FIFO entry is retired.")
         lines.append("`ifndef SYNTHESIS")
         lines.append("    // synthesis translate_off")
@@ -992,7 +992,7 @@ class SlaveAdapterGenerator:
         lines.append(f"            if ({crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast"
                      + (" && !atom_hit" if self.rr_atomic else "") + ") begin")
         lines.append(f"                if ({crossbar_prefix}rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin")
-        lines.append("                    $error({\"BRIDGE-010: slave returned R out of AR order -- \",")
+        lines.append("                    $error({\"bridge BUG-008 (was BRIDGE-010): slave returned R out of AR order -- \",")
         lines.append("                            \"got RID=%0h, expected %0h. This bridge routes \",")
         lines.append("                            \"responses by FIFO position and does not support \",")
         lines.append("                            \"ID-based reordering; the data has gone to the \",")
@@ -1010,7 +1010,7 @@ class SlaveAdapterGenerator:
 
     @property
     def is_cdc(self) -> bool:
-        """BRIDGE-017: the external port runs on s_aclk; the wrapper's m_axi
+        """bridge TASK-006 (was BRIDGE-017): the external port runs on s_aclk; the wrapper's m_axi
         face crosses to it through axi4_cdc_{wr,rd}."""
         return bool(getattr(self.slave, 'cdc', False))
 
@@ -1105,7 +1105,7 @@ class SlaveAdapterGenerator:
 
     @property
     def rr_atomic(self) -> bool:
-        """BRIDGE-002 A5-3b: this slave can be sent read-return atomics
+        """bridge TASK-002 (was BRIDGE-002) A5-3b: this slave can be sent read-return atomics
         (AtomicLoad/Swap/Compare) natively. They arrive on AW and answer on
         R with the AW's ID, which no AR-fed tracker knows about, so the
         adapter adds a per-ID return tracker (axi5_atomic_rr_tracker) beside
@@ -1173,7 +1173,7 @@ class SlaveAdapterGenerator:
             native_sideband=bool(self._sb_feats()),
         )
         wrapper.connect_clocks_and_resets()
-        # BRIDGE-011: hold AW off while the bridge_id tracking FIFO is full.
+        # bridge BUG-009 (was BRIDGE-011): hold AW off while the bridge_id tracking FIFO is full.
         # Both directions must be gated -- masking only the ready returned to
         # the crossbar would let the wrapper accept the beat anyway, and the
         # FIFO would still be overrun.
@@ -1233,7 +1233,7 @@ class SlaveAdapterGenerator:
             native_sideband=bool(self._sb_feats()),
         )
         wrapper.connect_clocks_and_resets()
-        # BRIDGE-011, read side -- see the write wrapper above.
+        # bridge BUG-009 (was BRIDGE-011), read side -- see the write wrapper above.
         wrapper.connect_bridge_internal(
             connector_prefix=crossbar_prefix,
             overrides={
@@ -1457,12 +1457,12 @@ class SlaveAdapterGenerator:
         return lines
 
     def _generate_wb4_converter(self) -> List[str]:
-        """axi4_to_wb4 at the slave boundary (BRIDGE-019).
+        """axi4_to_wb4 at the slave boundary (bridge TASK-008, was BRIDGE-019).
 
         Structurally _generate_apb_converter with the Wishbone shim: with
         monitoring on, the axi4_master_*_mon wrappers sit between the
         crossbar and the shim and the shim reads the intermediate nets;
-        with monitoring off it faces the crossbar and owns the BRIDGE-011
+        with monitoring off it faces the crossbar and owns the bridge BUG-009 (was BRIDGE-011)
         not-full gate. B/R come back through the converter_* intercepts so
         the tracking FIFO pops when the shim produces the response."""
         from ..components.axi4_to_wb4_shim_component import Axi4ToWb4Shim

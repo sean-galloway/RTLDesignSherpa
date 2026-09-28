@@ -367,7 +367,7 @@ module bridge_1x2_rd_axi5s_mon
 
     // ---- Slave 2: subtractive (subtractive catch-all, internal) ----
     // Unmapped addresses land here instead of selecting nothing and
-    // stalling the master forever (BRIDGE-009). Always answers DECERR.
+    // stalling the master forever (bridge BUG-007, was BRIDGE-009). Always answers DECERR.
     logic [3:0]  subtractive_arid;
     logic [31:0]  subtractive_araddr;
     logic [7:0]  subtractive_arlen;

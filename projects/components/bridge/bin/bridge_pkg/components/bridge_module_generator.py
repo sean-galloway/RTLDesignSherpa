@@ -121,9 +121,9 @@ class BridgeModuleGenerator:
         # slave, and instantiates the peakrdl-generated cfg regblock
         # (task 90.2) whose hwif_out fields drive the internal cfg nets.
         self.use_cfg_regblock = use_cfg_regblock
-        # BRIDGE-017: registered crossbar (see CrossbarGenerator.pipeline).
+        # bridge TASK-006 (was BRIDGE-017): registered crossbar (see CrossbarGenerator.pipeline).
         self.xbar_pipeline = bool(xbar_pipeline)
-        # BRIDGE-017: arbitration policy for every slave arbiter in the xbar.
+        # bridge TASK-006 (was BRIDGE-017): arbitration policy for every slave arbiter in the xbar.
         self.arbitration = arbitration
         self.qos_aging_shift = qos_aging_shift
         # Defaults for the bridge-top USE_ALL_MONITORS / USE_NO_MONITORS
@@ -214,7 +214,7 @@ class BridgeModuleGenerator:
         # came back as 0x04 and the response never matched its waiter).
         # Same rationale as addr_width below. Floor of 1 so an all-AXIL
         # bridge (id_width=0) doesn't declare a [-1:0] field.
-        # BRIDGE-016: the struct id is {master index, master id}; see
+        # bridge TASK-005 (was BRIDGE-016): the struct id is {master index, master id}; see
         # width_utils.xbar_id_width for the one definition.
         from bridge_pkg.width_utils import xbar_id_width, master_id_width
         id_width = xbar_id_width(self.masters)
@@ -298,9 +298,9 @@ class BridgeModuleGenerator:
         # Compute crossbar internal width (max of all master widths)
         crossbar_data_width = max(m.data_width for m in self.masters) if self.masters else 32
         from bridge_pkg.width_utils import xbar_id_width
-        crossbar_id_width = xbar_id_width(self.masters)   # {master index, id} (BRIDGE-016)
+        crossbar_id_width = xbar_id_width(self.masters)   # {master index, id} (bridge TASK-005, was BRIDGE-016)
 
-        # BRIDGE-013: an INTERNAL slave gets no monitor. The subtractive
+        # bridge BUG-011 (was BRIDGE-013): an INTERNAL slave gets no monitor. The subtractive
         # catch-all has no top-level pins, and the bridge top never wired its
         # monbus or cfg -- so a _mon build elaborated a full axi4_master_*_mon
         # behind 24 ports that went nowhere: dead area, packets lost, cfg
@@ -311,7 +311,7 @@ class BridgeModuleGenerator:
         #
         # Nothing is lost: an unmapped access is still reported through the
         # subtractive slave's own sticky SUBTRACTIVE_STATUS / SUBTRACTIVE_ADDR
-        # cfg registers and unmapped_irq (BRIDGE-009), which the top does
+        # cfg registers and unmapped_irq (bridge BUG-007, was BRIDGE-009), which the top does
         # wire. Putting unmapped accesses on monbus as well would be a
         # feature, not a repair -- it needs an extra arbiter source and moves
         # the _mon tests' packet expectations.
@@ -1119,7 +1119,7 @@ class BridgeModuleGenerator:
             lines.append(f"    // Slave {i}: {slave.name}")
             slave_ports = self._generate_slave_ports(slave)
             if getattr(slave, 'cdc', False):
-                # BRIDGE-017: the port's own clock domain.
+                # bridge TASK-006 (was BRIDGE-017): the port's own clock domain.
                 slave_ports = [f"    input  logic                  {slave.name}_aclk,",
                                f"    input  logic                  {slave.name}_aresetn,"] + slave_ports
             if n < len(external_slaves) - 1:
@@ -1212,7 +1212,7 @@ class BridgeModuleGenerator:
         lines.append(f"    // Master: {master.name} ({master.protocol}, {master.channels})")
 
         if master.protocol == 'wb4':
-            # Wishbone B4 requester port (BRIDGE-019): the bridge is the
+            # Wishbone B4 requester port (bridge TASK-008, was BRIDGE-019): the bridge is the
             # completer, so the requester-driven signals are inputs and
             # STALL/ACK/ERR/RTY/DAT_R outputs. One table for every emitter.
             from ..wb4_signals import port_decl_lines
@@ -1223,7 +1223,7 @@ class BridgeModuleGenerator:
             return lines
 
         if master.protocol in ('apb', 'apb5'):
-            # APB requester port (BRIDGE-014): the bridge is the APB
+            # APB requester port (bridge TASK-004, was BRIDGE-014): the bridge is the APB
             # COMPLETER here, so the requester-driven signals are inputs and
             # PREADY/PRDATA/PSLVERR outputs -- the mirror of the APB slave
             # port block in _generate_slave_ports. apb5 adds the requester's
@@ -1258,7 +1258,7 @@ class BridgeModuleGenerator:
             # qos/region/user/last). Mirror of the AXIL slave port handling
             # in _generate_slave_ports.
             #
-            # axil5 (BRIDGE-014) follows the AXIL set with the AXI5-Lite
+            # axil5 (bridge TASK-004, was BRIDGE-014) follows the AXIL set with the AXI5-Lite
             # sideband from the one shared table, EVERY group whether or not
             # it is enabled -- same rule as the axil5 slave port: a boundary
             # whose shape changes with a feature knob cannot be wired to a
@@ -1408,7 +1408,7 @@ class BridgeModuleGenerator:
                          f"(subtractive catch-all, internal) ----")
             lines.append("    // Unmapped addresses land here instead of "
                          "selecting nothing and")
-            lines.append("    // stalling the master forever (BRIDGE-009). "
+            lines.append("    // stalling the master forever (bridge BUG-007, was BRIDGE-009). "
                          "Always answers DECERR.")
 
             # Port decls -> net decls. `input logic [7:0] foo` becomes
@@ -1428,7 +1428,7 @@ class BridgeModuleGenerator:
             lines.append(f"    logic {pfx}_monbus_valid;")
             lines.append(f"    logic {pfx}_monbus_ready;")
             lines.append(f"    monitor_common_pkg::monitor_packet_t {pfx}_monbus_packet;")
-            # BRIDGE-016: the subtractive slave sits on the fabric side and
+            # bridge TASK-005 (was BRIDGE-016): the subtractive slave sits on the fabric side and
             # sees {master index, master id} like every other slave.
             from bridge_pkg.width_utils import xbar_id_width
             master_id_width = xbar_id_width(self.masters)
@@ -1476,7 +1476,7 @@ class BridgeModuleGenerator:
             lines.append(f"        .o_hit_count   (unmapped_count),")
             lines.append(f"        .i_hit_clear   ({pfx}_hit_clear)")
             lines.append("    );")
-            # TODO(BRIDGE-009): make this an extra monbus_arbiter client so an
+            # TODO(bridge BUG-007, was BRIDGE-009): make this an extra monbus_arbiter client so an
             # unmapped access raises mon_irq_out. Until then the packet is
             # produced and consumed here: sinking it keeps the DECERR
             # behaviour (which is what stops the hang) independent of the
@@ -1501,7 +1501,7 @@ class BridgeModuleGenerator:
     def _generate_slave_ports(self, slave: SlaveInfo) -> List[str]:
         """Generate slave port declarations (AXI4 or APB based on protocol).
 
-        The slave-side ID is {master index, master id} (BRIDGE-016): the
+        The slave-side ID is {master index, master id} (bridge TASK-005, was BRIDGE-016): the
         widest master's id_width plus $clog2(NUM_MASTERS) bits, zero of them
         for a single master. Eight-bit masters behind a 16-master bridge give
         the slaves 12-bit IDs. The TOML's slave id_width must be at least
@@ -1523,7 +1523,7 @@ class BridgeModuleGenerator:
 
         # Check protocol and generate appropriate ports
         if slave.protocol == 'wb4':
-            # Wishbone B4 completer port (BRIDGE-019): the bridge drives the
+            # Wishbone B4 completer port (bridge TASK-008, was BRIDGE-019): the bridge drives the
             # bus, so CYC/STB/WE/ADR/DAT_W/SEL/CTI/BTE are outputs.
             from ..wb4_signals import port_decl_lines
             lines.append(f"    // WB4 Slave: {slave.name}")
@@ -1756,7 +1756,7 @@ class BridgeModuleGenerator:
         # Add crossbar-to-slave AXI4 signals for ALL slaves
         # These are internal wires connecting crossbar slave outputs to slave adapters.
         # The AXI4 *id signals (awid/bid/arid/rid) between crossbar and slave
-        # adapters carry {master index, master id} (BRIDGE-016): the widest
+        # adapters carry {master index, master id} (bridge TASK-005, was BRIDGE-016): the widest
         # master's id_width plus $clog2(NUM_MASTERS) bits, from the one helper
         # every other site uses. (Was: the master width pass-through, floored
         # at 1 -- Bugs A/B in legacy TASK-011.)
@@ -1995,7 +1995,7 @@ class BridgeModuleGenerator:
                 'aruser':   "1'b0",
             }
 
-            # AXI5-Lite master (BRIDGE-014): the enabled forwardable groups
+            # AXI5-Lite master (bridge TASK-004, was BRIDGE-014): the enabled forwardable groups
             # join the Lite surface and reach the adapter's AXI4 face
             # (awlock/arlock for 'exclusive'; aw/w/b/ar/r user for 'user').
             # The rest of the sideband is exposed but has no AXI4 home:

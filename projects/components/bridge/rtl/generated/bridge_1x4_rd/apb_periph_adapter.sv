@@ -81,7 +81,7 @@ module apb_periph_adapter
     // Read Channel FIFO (In-Order) - APB Protocol
     // NOTE: Monitors converter output (converter_rvalid), not crossbar input
     //       This ensures FIFO pops when converter actually produces response
-    // BRIDGE-011 not-full gating -- see the write channel.
+    // bridge BUG-009 (was BRIDGE-011) not-full gating -- see the write channel.
     logic rd_trk_full;
     logic w_sub_arready;
     localparam RD_FIFO_DEPTH = 16;
@@ -117,12 +117,12 @@ module apb_periph_adapter
     assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
     assign rid_valid     = (ar_ptr != r_ptr);
 
-    // BRIDGE-011, read side -- see the write comment above.
+    // bridge BUG-009 (was BRIDGE-011), read side -- see the write comment above.
     assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&
                          (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);
     assign xbar_apb_periph_axi_arready = w_sub_arready && !rd_trk_full;
 
-    // BRIDGE-010, read side -- see the write channel. Checked on the
+    // bridge BUG-008 (was BRIDGE-010), read side -- see the write channel. Checked on the
     // LAST beat, since that is when the FIFO entry is retired.
 `ifndef SYNTHESIS
     // synthesis translate_off
@@ -134,7 +134,7 @@ module apb_periph_adapter
                 rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_apb_periph_axi_arid;
             if (xbar_apb_periph_axi_rvalid && xbar_apb_periph_axi_rready && xbar_apb_periph_axi_rlast) begin
                 if (xbar_apb_periph_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
-                    $error({"BRIDGE-010: slave returned R out of AR order -- ",
+                    $error({"bridge BUG-008 (was BRIDGE-010): slave returned R out of AR order -- ",
                             "got RID=%0h, expected %0h. This bridge routes ",
                             "responses by FIFO position and does not support ",
                             "ID-based reordering; the data has gone to the ",

@@ -424,7 +424,7 @@ module bridge_2x2_rw_qos_pipe_xbar
     assign ddr_aw_arb_req = {dma_32b_aw_to_ddr && dma_32b_awvalid, cpu_32b_aw_to_ddr && cpu_32b_awvalid};
     logic [0:0] ddr_aw_arb_lock, ddr_aw_arb_rr;
     logic ddr_aw_arb_locked;
-    // QoS with aging (BRIDGE-017): effective priority = AxQOS + age,
+    // QoS with aging (bridge TASK-006, was BRIDGE-017): effective priority = AxQOS + age,
     // age climbing one level every 2**4 cycles a request waits, saturating
     // at 15, cleared on grant. The highest effective priority wins; equals
     // share round-robin. A QoS-0 requester behind a QoS-15 one is served
@@ -544,7 +544,7 @@ module bridge_2x2_rw_qos_pipe_xbar
     assign ddr_ar_arb_req = {dma_32b_ar_to_ddr && dma_32b_arvalid, cpu_32b_ar_to_ddr && cpu_32b_arvalid};
     logic [0:0] ddr_ar_arb_lock, ddr_ar_arb_rr;
     logic ddr_ar_arb_locked;
-    // QoS with aging (BRIDGE-017): effective priority = AxQOS + age,
+    // QoS with aging (bridge TASK-006, was BRIDGE-017): effective priority = AxQOS + age,
     // age climbing one level every 2**4 cycles a request waits, saturating
     // at 15, cleared on grant. The highest effective priority wins; equals
     // share round-robin. A QoS-0 requester behind a QoS-15 one is served
@@ -644,7 +644,7 @@ module bridge_2x2_rw_qos_pipe_xbar
     assign sram_aw_arb_req = {dma_32b_aw_to_sram && dma_32b_awvalid, cpu_32b_aw_to_sram && cpu_32b_awvalid};
     logic [0:0] sram_aw_arb_lock, sram_aw_arb_rr;
     logic sram_aw_arb_locked;
-    // QoS with aging (BRIDGE-017): effective priority = AxQOS + age,
+    // QoS with aging (bridge TASK-006, was BRIDGE-017): effective priority = AxQOS + age,
     // age climbing one level every 2**4 cycles a request waits, saturating
     // at 15, cleared on grant. The highest effective priority wins; equals
     // share round-robin. A QoS-0 requester behind a QoS-15 one is served
@@ -764,7 +764,7 @@ module bridge_2x2_rw_qos_pipe_xbar
     assign sram_ar_arb_req = {dma_32b_ar_to_sram && dma_32b_arvalid, cpu_32b_ar_to_sram && cpu_32b_arvalid};
     logic [0:0] sram_ar_arb_lock, sram_ar_arb_rr;
     logic sram_ar_arb_locked;
-    // QoS with aging (BRIDGE-017): effective priority = AxQOS + age,
+    // QoS with aging (bridge TASK-006, was BRIDGE-017): effective priority = AxQOS + age,
     // age climbing one level every 2**4 cycles a request waits, saturating
     // at 15, cleared on grant. The highest effective priority wins; equals
     // share round-robin. A QoS-0 requester behind a QoS-15 one is served
@@ -864,7 +864,7 @@ module bridge_2x2_rw_qos_pipe_xbar
     assign subtractive_aw_arb_req = {dma_32b_aw_to_subtractive && dma_32b_awvalid, cpu_32b_aw_to_subtractive && cpu_32b_awvalid};
     logic [0:0] subtractive_aw_arb_lock, subtractive_aw_arb_rr;
     logic subtractive_aw_arb_locked;
-    // QoS with aging (BRIDGE-017): effective priority = AxQOS + age,
+    // QoS with aging (bridge TASK-006, was BRIDGE-017): effective priority = AxQOS + age,
     // age climbing one level every 2**4 cycles a request waits, saturating
     // at 15, cleared on grant. The highest effective priority wins; equals
     // share round-robin. A QoS-0 requester behind a QoS-15 one is served
@@ -984,7 +984,7 @@ module bridge_2x2_rw_qos_pipe_xbar
     assign subtractive_ar_arb_req = {dma_32b_ar_to_subtractive && dma_32b_arvalid, cpu_32b_ar_to_subtractive && cpu_32b_arvalid};
     logic [0:0] subtractive_ar_arb_lock, subtractive_ar_arb_rr;
     logic subtractive_ar_arb_locked;
-    // QoS with aging (BRIDGE-017): effective priority = AxQOS + age,
+    // QoS with aging (bridge TASK-006, was BRIDGE-017): effective priority = AxQOS + age,
     // age climbing one level every 2**4 cycles a request waits, saturating
     // at 15, cleared on grant. The highest effective priority wins; equals
     // share round-robin. A QoS-0 requester behind a QoS-15 one is served

@@ -1,5 +1,5 @@
 # Bridge Configuration: Wishbone B4 on both sides of an AXI4 fabric
-# (BRIDGE-019).
+# (bridge TASK-008, was BRIDGE-019).
 #
 # One Wishbone requester and one AXI4 requester share a 64-bit AXI4 memory
 # and a 32-bit Wishbone completer. The Wishbone master port is the bridge as
@@ -15,7 +15,7 @@
 [bridge]
 name = "bridge_2x2_wb4"
 variants = ["no", "mon"]
-description = "WB4 + AXI4 masters x AXI4 (64b) + WB4 slaves rw bridge (BRIDGE-019)"
+description = "WB4 + AXI4 masters x AXI4 (64b) + WB4 slaves rw bridge (bridge TASK-008, was BRIDGE-019)"
 
 [[bridge.masters]]
 name = "wbm"
@@ -40,7 +40,7 @@ protocol = "axi4"
 [[bridge.slaves]]
 name = "mem"
 prefix = "mem_axi_"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
 addr_width = 32
 data_width = 64
 user_width = 1

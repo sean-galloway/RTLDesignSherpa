@@ -91,7 +91,7 @@ module sram_wr_adapter
     // ================================================================
 
     // Write Channel FIFO (In-Order) - AXI4 Protocol
-    // BRIDGE-011 not-full gating: w_sub_awready is the sub-block's
+    // bridge BUG-009 (was BRIDGE-011) not-full gating: w_sub_awready is the sub-block's
     // own ready, masked before it reaches the crossbar.
     logic wr_trk_full;
     logic w_sub_awready;
@@ -128,7 +128,7 @@ module sram_wr_adapter
     assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
     assign bid_valid     = (wr_ptr != rd_ptr);
 
-    // BRIDGE-011: this FIFO routes B by POSITION, so overrunning it
+    // bridge BUG-009 (was BRIDGE-011): this FIFO routes B by POSITION, so overrunning it
     // misroutes responses -- past WR_FIFO_DEPTH a live entry is
     // overwritten and its B goes to the wrong master; at twice the
     // depth the pointers lap, (wr_ptr != rd_ptr) reads EMPTY and the
@@ -139,7 +139,7 @@ module sram_wr_adapter
                          (wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0] == rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]);
     assign xbar_sram_wr_axi_awready = w_sub_awready && !wr_trk_full;
 
-    // BRIDGE-010: this port routes B by FIFO POSITION, so it REQUIRES
+    // bridge BUG-008 (was BRIDGE-010): this port routes B by FIFO POSITION, so it REQUIRES
     // the slave to return B in AW order across all IDs. AXI4 permits a
     // slave to reorder between IDs; such a slave silently misroutes
     // here. Nothing detected that, so record the AWID alongside the
@@ -156,7 +156,7 @@ module sram_wr_adapter
                 wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_sram_wr_axi_awid;
             if (xbar_sram_wr_axi_bvalid && xbar_sram_wr_axi_bready) begin
                 if (xbar_sram_wr_axi_bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin
-                    $error({"BRIDGE-010: slave returned B out of AW order -- ",
+                    $error({"bridge BUG-008 (was BRIDGE-010): slave returned B out of AW order -- ",
                             "got BID=%0h, expected %0h. This bridge routes ",
                             "responses by FIFO position and does not support ",
                             "ID-based reordering; the response has gone to the ",

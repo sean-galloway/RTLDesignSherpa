@@ -70,7 +70,7 @@ name        = "host"
 prefix      = "host_axi_"
 protocol    = "axil"
 channels    = "rw"
-# id_width MUST be 0 on an AXI-Lite MASTER (config_validator, BRIDGE-014,
+# id_width MUST be 0 on an AXI-Lite MASTER (config_validator, bridge TASK-004 -- was BRIDGE-014,
 # 2026-09-11): a Lite requester has no boundary ID ports, so a non-zero
 # width here sizes ports that do not exist. The adapter's internal face
 # uses a placeholder sized by the bridge (fub_id_width) and the fabric
@@ -154,7 +154,7 @@ name        = "desc_ram"
 prefix      = "desc_ram_axi_"
 protocol    = "axi4"
 channels    = "rw"
-id_width    = 10  # {master index, master id}: three 8-bit masters -> 10 bits at the slave (BRIDGE-016)
+id_width    = 10  # {master index, master id}: three 8-bit masters -> 10 bits at the slave (bridge TASK-005, was BRIDGE-016)
 addr_width  = 32
 # Descriptor fetches are 256-bit end-to-end by design (one descriptor =
 # one beat at the slave). Slave is now AXI4 256-bit (was AXIL): the

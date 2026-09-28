@@ -42,7 +42,7 @@ class PackageGenerator:
         """
         self.bridge_name = bridge_name
         self.id_width = id_width
-        # BRIDGE-016: struct ids are {master index, master id}. id_width is
+        # bridge TASK-005 (was BRIDGE-016): struct ids are {master index, master id}. id_width is
         # the fabric (xbar) width; master_id_width the widest master's own.
         self.master_id_width = master_id_width if master_id_width is not None else id_width
         self.addr_width = addr_width  # Configurable address width
@@ -123,7 +123,7 @@ class PackageGenerator:
             f"    localparam int NUM_MASTERS = {self.num_masters};",
             f"    localparam int BRIDGE_ID_WIDTH = {bridge_id_width};  // $clog2(NUM_MASTERS)",
             "    // Transaction IDs inside the fabric are {master index, master id}",
-            "    // (BRIDGE-016), so two masters cannot alias an ID at a slave. The",
+            "    // (bridge TASK-005, was BRIDGE-016), so two masters cannot alias an ID at a slave. The",
             "    // prefix is 0 bits for a single master.",
             f"    localparam int MASTER_ID_WIDTH = {self.master_id_width};  // widest master-side ID",
             f"    localparam int ID_PREFIX_WIDTH = {prefix_width};  // master-index bits prepended",
@@ -137,7 +137,7 @@ class PackageGenerator:
 
     def _sideband_lines(self, channel: str, dw: int) -> List[str]:
         """AXI5 native-sideband field declarations for `channel` (A5-2
-        slice 2), sized for a `dw`-bit data bus (BRIDGE-018: tag and chunk
+        slice 2), sized for a `dw`-bit data bus (bridge TASK-007 (was BRIDGE-018): tag and chunk
         fields scale with it). Empty for pure-AXI4 bridges so their
         packages stay byte-identical."""
         lines = []

@@ -10,7 +10,7 @@ package bridge_stream_mon_axil_pkg;
     localparam int NUM_MASTERS = 4;
     localparam int BRIDGE_ID_WIDTH = 2;  // $clog2(NUM_MASTERS)
     // Transaction IDs inside the fabric are {master index, master id}
-    // (BRIDGE-016), so two masters cannot alias an ID at a slave. The
+    // (bridge TASK-005, was BRIDGE-016), so two masters cannot alias an ID at a slave. The
     // prefix is 0 bits for a single master.
     localparam int MASTER_ID_WIDTH = 8;  // widest master-side ID
     localparam int ID_PREFIX_WIDTH = 2;  // master-index bits prepended

@@ -133,7 +133,7 @@ class PortSpec:
     # mon_remove subtracts cones from the preset (rarely needed).
     mon_add: List[str] = field(default_factory=list)
     mon_remove: List[str] = field(default_factory=list)
-    # AXI5 feature list (BRIDGE-002 phases A5-1 / A5-2 slice 1). Only
+    # AXI5 feature list (bridge TASK-002 (was BRIDGE-002) phases A5-1 / A5-2 slice 1). Only
     # legal on ports with protocol="axi5". Each entry names an AXI5
     # sideband feature whose signals are exposed on the bridge's external
     # boundary and terminated at the boundary wrapper -- axi5_slave_{wr,rd}
@@ -143,7 +143,7 @@ class PortSpec:
     # (poison/mte/chunking -> A5-2 native sideband) and atomics
     # (atomic -> A5-3) are rejected by validate_axi5.
     axi5_features: List[str] = field(default_factory=list)
-    # BRIDGE-017: this slave port runs on its own clock. The bridge top gains
+    # bridge TASK-006 (was BRIDGE-017): this slave port runs on its own clock. The bridge top gains
     # `<name>_aclk` / `<name>_aresetn` and the slave adapter carries the AXI4
     # channels across with axi4_cdc_{wr,rd} between the crossbar-side wrapper
     # and the boundary. Slave ports only, protocol axi4 (the CDC pair carries
@@ -250,12 +250,12 @@ class BridgeConfig:
     use_no_monitors: bool = False
     # Task 90.3: opt-in PeakRDL regblock-backed cfg subsystem.
     use_cfg_regblock: bool = False
-    # BRIDGE-017: registered crossbar. False keeps the combinational xbar
+    # bridge TASK-006 (was BRIDGE-017): registered crossbar. False keeps the combinational xbar
     # (2/2-cycle propagation, bridge_2x2_rw's measured figure); True puts a
     # skid stage on every slave-side channel inside the xbar (+1 each way,
     # same throughput) for high-fanout or wide configs that miss timing.
     xbar_pipeline: bool = False
-    # BRIDGE-017: per-slave arbitration policy, 'rr' (default) or 'qos'
+    # bridge TASK-006 (was BRIDGE-017): per-slave arbitration policy, 'rr' (default) or 'qos'
     # (AxQOS + aging, round-robin among equals). qos_aging_shift: a waiting
     # request gains one priority level every 2**shift cycles.
     arbitration: str = 'rr'

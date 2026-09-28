@@ -2,7 +2,7 @@
 # sideband) into a 64b AXI4 slave (width converter, sideband DROPS) and a
 # 32b AXI5 slave (native).
 #
-# The first AXI5 fixture with a width mismatch (BRIDGE-007 finding 6,
+# The first AXI5 fixture with a width mismatch (bridge TASK-003 (was BRIDGE-007) finding 6,
 # 2026-09-09): droppable sideband terminating at a dwidth-converter path was
 # a generation-time warning that no simulation ever exercised. A hand-written
 # test drives sideband from the AXI5 BFM into both slaves and checks the wide

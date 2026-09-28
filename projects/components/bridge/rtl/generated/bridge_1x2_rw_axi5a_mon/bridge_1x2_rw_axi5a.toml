@@ -1,5 +1,5 @@
 # Bridge Configuration: 1x2 read/write bridge with NATIVE read-return
-# ATOMICS (BRIDGE-002 phase A5-3b).
+# ATOMICS (bridge TASK-002 (was BRIDGE-002) phase A5-3b).
 #
 # The rw twin of bridge_1x2_wr_axi5a. Because the master has a read path,
 # its AtomicLoad/Swap/Compare are NOT filtered at the boundary: the AW rides

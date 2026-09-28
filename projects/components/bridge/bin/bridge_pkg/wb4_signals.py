@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
 # Wishbone B4 port surface, shared by the bridge top, the master adapter, the
-# slave adapter and the slave-adapter instance component (BRIDGE-019).
+# slave adapter and the slave-adapter instance component (bridge TASK-008, was BRIDGE-019).
 #
 # One table, one order, everywhere -- the discipline axil5_sideband.py set.
 # A Wishbone port on the bridge is either the REQUESTER side (a slave port:

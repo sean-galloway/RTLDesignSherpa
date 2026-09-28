@@ -1,5 +1,5 @@
 # Bridge Configuration: 1x2 Read-Only Bridge with an AXI5 MASTER port
-# (BRIDGE-002 phase A5-1).
+# (bridge TASK-002 (was BRIDGE-002) phase A5-1).
 #
 # Geometry copies bridge_1x2_rd_matched: one read-only master, two
 # matched-width AXI4 slaves. The master is protocol="axi5" with the

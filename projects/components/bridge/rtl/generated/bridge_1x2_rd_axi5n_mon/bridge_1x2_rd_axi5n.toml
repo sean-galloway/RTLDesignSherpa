@@ -1,5 +1,5 @@
 # Bridge Configuration: 1x2 read-only bridge with NATIVE AXI5 sideband
-# (BRIDGE-002 phase A5-2 slice 2).
+# (bridge TASK-002 (was BRIDGE-002) phase A5-2 slice 2).
 #
 # Geometry copies bridge_1x2_rd_axi5s, but BOTH ends of the sram path
 # are AXI5 and width-matched, so the enabled sideband (nsaid, trace,

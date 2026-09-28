@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Typed instantiation of `axi4_to_wb4` (BRIDGE-019).
+"""Typed instantiation of `axi4_to_wb4` (bridge TASK-008, was BRIDGE-019).
 
 The AXI4 side is the same five-channel slave face `axi4_to_apb4_shim` has,
-so the channel wiring, the BRIDGE-011 not-full gate and the converter_*
+so the channel wiring, the bridge BUG-009 (was BRIDGE-011) not-full gate and the converter_*
 intercepts are inherited from Axi4ToApbShim unchanged. What differs is the
 module (a composition of the AXI4-Lite decomposers and axil4_to_wb4), its
 parameter list, a single clock domain, and the Wishbone requester surface,

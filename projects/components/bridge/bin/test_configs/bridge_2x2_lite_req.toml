@@ -1,7 +1,7 @@
-# Bridge Configuration: two LITE requesters into an AXI4 fabric (BRIDGE-014).
+# Bridge Configuration: two LITE requesters into an AXI4 fabric (bridge TASK-004, was BRIDGE-014).
 #
 # Masters are an AXI4-Lite port and an AXI5-Lite port -- neither carries a
-# transaction ID, so the fabric ID is entirely the master index (BRIDGE-016)
+# transaction ID, so the fabric ID is entirely the master index (bridge TASK-005, was BRIDGE-016)
 # and the slaves see 2-bit IDs from a bridge whose masters have none. The
 # AXI5-Lite master enables the two forwardable groups: 'user' rides the
 # fabric's 1-bit USER fields and 'exclusive' rides awlock/arlock, both to the
@@ -16,7 +16,7 @@
 [bridge]
 name = "bridge_2x2_lite_req"
 variants = ["no", "mon"]
-description = "AXI4-Lite + AXI5-Lite masters x AXI4 (64b) + AXI5-Lite slaves rw bridge (BRIDGE-014)"
+description = "AXI4-Lite + AXI5-Lite masters x AXI4 (64b) + AXI5-Lite slaves rw bridge (bridge TASK-004, was BRIDGE-014)"
 
 [[bridge.masters]]
 name = "lite4"
@@ -42,7 +42,7 @@ axi5_features = ["user", "exclusive"]
 [[bridge.slaves]]
 name = "mem"
 prefix = "mem_axi_"
-id_width = 2  # {master index, master id}: 1-bit placeholder ID + 1 prefix bit (BRIDGE-016)
+id_width = 2  # {master index, master id}: 1-bit placeholder ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
 addr_width = 32
 data_width = 64
 user_width = 1

@@ -78,7 +78,7 @@ def get_masters_connecting_to_slave(slave, masters, slaves) -> list:
 
 
 # ---------------------------------------------------------------------------
-# Transaction-ID widths (BRIDGE-016). ONE place for the arithmetic: the
+# Transaction-ID widths (bridge TASK-005, was BRIDGE-016). ONE place for the arithmetic: the
 # package, the crossbar, the master and slave adapters, the TB generator and
 # the validator all size IDs from these three functions.
 # ---------------------------------------------------------------------------

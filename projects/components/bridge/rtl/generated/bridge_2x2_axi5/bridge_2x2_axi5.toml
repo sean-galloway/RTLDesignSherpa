@@ -1,7 +1,7 @@
 # Bridge Configuration: 2x2 read/write bridge, BOTH masters AXI5 with native
 # sideband, one AXI5 slave (native path) + one AXI4 slave (drop path).
 #
-# The first multi-master AXI5 fixture (BRIDGE-007 finding 6, 2026-09-09):
+# The first multi-master AXI5 fixture (bridge TASK-003 (was BRIDGE-007) finding 6, 2026-09-09):
 # until it existed no test drove AXI5 sideband THROUGH the arbiter, so the
 # crossbar's b/r sideband return mux was never exercised under contention.
 # Both masters carry nsaid/trace/unique; a hand-written test drives distinct
@@ -39,7 +39,7 @@ axi5_features = ["nsaid", "trace", "unique"]
 [[bridge.slaves]]
 name = "ddr"  # stays AXI4: the sideband drop path
 prefix = "ddr_axi_"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (BRIDGE-016)
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (bridge TASK-005, was BRIDGE-016)
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -50,7 +50,7 @@ addr_range = "0x80000000"
 [[bridge.slaves]]
 name = "sram"  # AXI5, same features + width as the masters: native path
 prefix = "sram_axi_"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (BRIDGE-016)
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (bridge TASK-005, was BRIDGE-016)
 addr_width = 32
 data_width = 32
 user_width = 1

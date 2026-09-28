@@ -139,7 +139,7 @@ class Axi4ToAxilShim:
         if not self.has_write:
             raise RuntimeError("Axi4ToAxilShim: cannot connect write channel when has_write=False")
         pfx = crossbar_prefix
-        # BRIDGE-011: when this shim is the block FACING THE CROSSBAR
+        # bridge BUG-009 (was BRIDGE-011): when this shim is the block FACING THE CROSSBAR
         # (no timing wrapper ahead of it), it owns the not-full gate.
         # With a wrapper present the wrapper is gated instead and these
         # are the plain internal nets -- gating both would collapse two
@@ -189,7 +189,7 @@ class Axi4ToAxilShim:
         if not self.has_read:
             raise RuntimeError("Axi4ToAxilShim: cannot connect read channel when has_read=False")
         pfx = crossbar_prefix
-        # BRIDGE-011: when this shim is the block FACING THE CROSSBAR
+        # bridge BUG-009 (was BRIDGE-011): when this shim is the block FACING THE CROSSBAR
         # (no timing wrapper ahead of it), it owns the not-full gate.
         # With a wrapper present the wrapper is gated instead and these
         # are the plain internal nets -- gating both would collapse two

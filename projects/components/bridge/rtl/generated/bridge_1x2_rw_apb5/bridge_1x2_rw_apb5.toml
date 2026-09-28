@@ -1,5 +1,5 @@
 # Bridge Configuration: 1x2 read-write bridge with an APB5 slave
-# (BRIDGE-002 phase A5-3c).
+# (bridge TASK-002 (was BRIDGE-002) phase A5-3c).
 #
 # One AXI4 master, one AXI4 slave, one APB5 peripheral slave. The APB5
 # port goes through the axi4_to_apb5_shim (protocol engine identical to

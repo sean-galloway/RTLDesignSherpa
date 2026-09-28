@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # AXI5 native-sideband spec shared by the package / adapter / crossbar /
-# slave-adapter generators (BRIDGE-002 phase A5-2 slice 2).
+# slave-adapter generators (bridge TASK-002 (was BRIDGE-002) phase A5-2 slice 2).
 #
 # One table drives everything: which struct fields exist per channel,
 # their widths, which feature enables them, and the axi5_* wrapper port
@@ -14,7 +14,7 @@
 # Struct field naming: the AWUNIQUE/ARUNIQUE bit is named `uniq` because
 # `unique` is a SystemVerilog keyword.
 #
-# Slice-2 policy (see vault BRIDGE-002 design note):
+# Slice-2 policy (see vault bridge TASK-002 (was BRIDGE-002) design note):
 #   - Struct fields are the UNION of features on any AXI5 port. Bridges
 #     with no AXI5 ports get no fields, so pure-AXI4 RTL stays
 #     byte-identical (the zero-drift invariant).
@@ -33,7 +33,7 @@ from typing import Iterable, List, Optional, Set, Tuple
 # (channel, field, width, feature, wrapper_port_base)
 #
 # Width is an int, or one of the symbolic widths below that scale with the
-# DATA width of the struct/port the field lives on (BRIDGE-018): MTE carries
+# DATA width of the struct/port the field lives on (bridge TASK-007, was BRIDGE-018): MTE carries
 # one 4-bit tag per 16 bytes of data and chunking one strobe bit per 128-bit
 # chunk, so their widths are a function of the data bus. Resolve with
 # field_width(width, data_width); channel_fields(..., dw=) does it for you.
@@ -96,7 +96,7 @@ def field_width(width, dw: int) -> int:
 def fit_expr(src: str, src_w: int, dst_w: int) -> str:
     """`src` (src_w bits) as a dst_w-bit expression: as-is, zero-extended
     or sliced. Widths are decided in Python so the emitted RTL carries
-    explicit widths and no casts (BRIDGE-018: the width-independent aw/ar/b
+    explicit widths and no casts (bridge TASK-007 (was BRIDGE-018): the width-independent aw/ar/b
     structs size their tag fields for the widest port, so a narrower MTE
     port packs and extracts through this)."""
     if src_w == dst_w:
@@ -107,10 +107,10 @@ def fit_expr(src: str, src_w: int, dst_w: int) -> str:
 
 
 # Features whose sideband can ride the fabric structs. `poison` (A5-2
-# slice 2), `atomic` (A5-3a/b) and `mte` (BRIDGE-018) are legal ONLY under
+# slice 2), `atomic` (A5-3a/b) and `mte` (bridge TASK-007, was BRIDGE-018) are legal ONLY under
 # the validator's connectivity rule (every connected path direct +
 # feature-enabled both ends): dropping any of them silently changes what
-# a transaction means. `chunking` (BRIDGE-018) is droppable like trace --
+# a transaction means. `chunking` (bridge TASK-007, was BRIDGE-018) is droppable like trace --
 # ARCHUNKEN is permission, not demand, so a chunking master reaching a
 # slave that cannot chunk simply gets ordered data with RCHUNKV low.
 NATIVE_SIDEBAND_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'unique',

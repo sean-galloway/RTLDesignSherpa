@@ -1,5 +1,5 @@
 # Bridge Configuration: 1x2 Read-Only Bridge with an AXI5 SLAVE port
-# (BRIDGE-002 phase A5-2 slice 1 -- exact mirror of the A5-1 master
+# (bridge TASK-002 (was BRIDGE-002) phase A5-2 slice 1 -- exact mirror of the A5-1 master
 # fixture bridge_1x2_rd_axi5).
 #
 # Geometry copies bridge_1x2_rd_matched: one read-only AXI4 master, two

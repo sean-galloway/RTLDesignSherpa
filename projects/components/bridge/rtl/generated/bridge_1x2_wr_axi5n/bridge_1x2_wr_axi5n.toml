@@ -1,5 +1,5 @@
 # Bridge Configuration: 1x2 write-only bridge with NATIVE AXI5 sideband
-# including POISON (BRIDGE-002 phase A5-2 slice 2).
+# including POISON (bridge TASK-002 (was BRIDGE-002) phase A5-2 slice 2).
 #
 # poison is connectivity-gated: it is legal here ONLY because every
 # connected slave is AXI5, poison-enabled, and width-matched. trace is

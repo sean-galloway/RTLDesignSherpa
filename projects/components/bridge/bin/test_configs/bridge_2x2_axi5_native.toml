@@ -1,7 +1,7 @@
 # Bridge Configuration: 2x2 read/write bridge, every port AXI5 at 128 bits
-# with the NATIVE-AXI5 feature set through the fabric (BRIDGE-018).
+# with the NATIVE-AXI5 feature set through the fabric (bridge TASK-007, was BRIDGE-018).
 #
-# The two features the fabric could not carry until BRIDGE-018 -- Memory
+# The two features the fabric could not carry until bridge TASK-007 (was BRIDGE-018) -- Memory
 # Tagging (mte: AWTAGOP/AWTAG, WTAG/WTAGUPDATE, BTAG/BTAGMATCH, ARTAGOP,
 # RTAG/RTAGMATCH) and read-data chunking (chunking: ARCHUNKEN,
 # RCHUNKV/RCHUNKNUM/RCHUNKSTRB) -- ride the channel structs here from two
@@ -16,7 +16,7 @@
 [bridge]
 name = "bridge_2x2_axi5_native"
 variants = ["no"]
-description = "2 AXI5 masters x 2 AXI5 slaves, 128-bit, MTE + chunking native through the fabric (BRIDGE-018)"
+description = "2 AXI5 masters x 2 AXI5 slaves, 128-bit, MTE + chunking native through the fabric (bridge TASK-007, was BRIDGE-018)"
 
 [[bridge.masters]]
 name = "cpu"
@@ -43,7 +43,7 @@ axi5_features = ["nsaid", "trace", "unique", "poison", "mte", "chunking"]
 [[bridge.slaves]]
 name = "ddr"
 prefix = "ddr_axi_"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
 addr_width = 32
 data_width = 128
 user_width = 1
@@ -56,7 +56,7 @@ addr_range = "0x80000000"
 [[bridge.slaves]]
 name = "sram"
 prefix = "sram_axi_"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
 addr_width = 32
 data_width = 128
 user_width = 1

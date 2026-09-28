@@ -1,6 +1,6 @@
 # Bridge Configuration: 1x2 read bridge, 128-bit AXI5 master with read-data
 # CHUNKING, one AXI5 slave that chunks (native path) and one AXI4 slave that
-# cannot (drop path) -- BRIDGE-018.
+# cannot (drop path) -- bridge TASK-007 (was BRIDGE-018).
 #
 # chunking is droppable sideband: ARCHUNKEN is permission, not demand. To
 # sram_rd the request arrives with ARCHUNKEN and the slave answers with
@@ -13,7 +13,7 @@
 [bridge]
 name = "bridge_1x2_rd_axi5c"
 variants = ["no"]
-description = "128-bit AXI5 chunking master x (1 AXI5 chunking + 1 AXI4) slaves rd bridge (BRIDGE-018)"
+description = "128-bit AXI5 chunking master x (1 AXI5 chunking + 1 AXI4) slaves rd bridge (bridge TASK-007, was BRIDGE-018)"
 
 [[bridge.masters]]
 name = "cpu_rd"

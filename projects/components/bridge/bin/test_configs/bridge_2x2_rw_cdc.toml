@@ -1,5 +1,5 @@
 # Bridge Configuration: bridge_2x2_rw with the ddr slave on ITS OWN CLOCK
-# (BRIDGE-017 cdc = true).
+# (bridge TASK-006 (was BRIDGE-017) cdc = true).
 #
 # The same two 32-bit AXI4 masters and two 32-bit AXI4 slaves as
 # bridge_2x2_rw. ddr is a CDC slave port: the bridge top gains ddr_aclk /
@@ -36,7 +36,7 @@ channels = "rw"
 [[bridge.slaves]]
 name = "ddr"
 prefix = "ddr_s_axi"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -48,7 +48,7 @@ addr_range = "0x80000000"
 [[bridge.slaves]]
 name = "sram"
 prefix = "sram_s_axi"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
 addr_width = 32
 data_width = 32
 user_width = 1

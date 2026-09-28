@@ -141,7 +141,7 @@ module subtractive_adapter
     // ================================================================
 
     // Write Channel FIFO (In-Order) - AXI4 Protocol
-    // BRIDGE-011 not-full gating: w_sub_awready is the sub-block's
+    // bridge BUG-009 (was BRIDGE-011) not-full gating: w_sub_awready is the sub-block's
     // own ready, masked before it reaches the crossbar.
     logic wr_trk_full;
     logic w_sub_awready;
@@ -178,7 +178,7 @@ module subtractive_adapter
     assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
     assign bid_valid     = (wr_ptr != rd_ptr);
 
-    // BRIDGE-011: this FIFO routes B by POSITION, so overrunning it
+    // bridge BUG-009 (was BRIDGE-011): this FIFO routes B by POSITION, so overrunning it
     // misroutes responses -- past WR_FIFO_DEPTH a live entry is
     // overwritten and its B goes to the wrong master; at twice the
     // depth the pointers lap, (wr_ptr != rd_ptr) reads EMPTY and the
@@ -189,7 +189,7 @@ module subtractive_adapter
                          (wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0] == rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]);
     assign xbar_subtractive_axi_awready = w_sub_awready && !wr_trk_full;
 
-    // BRIDGE-010: this port routes B by FIFO POSITION, so it REQUIRES
+    // bridge BUG-008 (was BRIDGE-010): this port routes B by FIFO POSITION, so it REQUIRES
     // the slave to return B in AW order across all IDs. AXI4 permits a
     // slave to reorder between IDs; such a slave silently misroutes
     // here. Nothing detected that, so record the AWID alongside the
@@ -206,7 +206,7 @@ module subtractive_adapter
                 wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_subtractive_axi_awid;
             if (xbar_subtractive_axi_bvalid && xbar_subtractive_axi_bready) begin
                 if (xbar_subtractive_axi_bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin
-                    $error({"BRIDGE-010: slave returned B out of AW order -- ",
+                    $error({"bridge BUG-008 (was BRIDGE-010): slave returned B out of AW order -- ",
                             "got BID=%0h, expected %0h. This bridge routes ",
                             "responses by FIFO position and does not support ",
                             "ID-based reordering; the response has gone to the ",
@@ -220,7 +220,7 @@ module subtractive_adapter
 `endif
 
     // Read Channel FIFO (In-Order) - AXI4 Protocol
-    // BRIDGE-011 not-full gating -- see the write channel.
+    // bridge BUG-009 (was BRIDGE-011) not-full gating -- see the write channel.
     logic rd_trk_full;
     logic w_sub_arready;
     localparam RD_FIFO_DEPTH = 16;
@@ -256,12 +256,12 @@ module subtractive_adapter
     assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
     assign rid_valid     = (ar_ptr != r_ptr);
 
-    // BRIDGE-011, read side -- see the write comment above.
+    // bridge BUG-009 (was BRIDGE-011), read side -- see the write comment above.
     assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&
                          (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);
     assign xbar_subtractive_axi_arready = w_sub_arready && !rd_trk_full;
 
-    // BRIDGE-010, read side -- see the write channel. Checked on the
+    // bridge BUG-008 (was BRIDGE-010), read side -- see the write channel. Checked on the
     // LAST beat, since that is when the FIFO entry is retired.
 `ifndef SYNTHESIS
     // synthesis translate_off
@@ -273,7 +273,7 @@ module subtractive_adapter
                 rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_subtractive_axi_arid;
             if (xbar_subtractive_axi_rvalid && xbar_subtractive_axi_rready && xbar_subtractive_axi_rlast) begin
                 if (xbar_subtractive_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
-                    $error({"BRIDGE-010: slave returned R out of AR order -- ",
+                    $error({"bridge BUG-008 (was BRIDGE-010): slave returned R out of AR order -- ",
                             "got RID=%0h, expected %0h. This bridge routes ",
                             "responses by FIFO position and does not support ",
                             "ID-based reordering; the data has gone to the ",

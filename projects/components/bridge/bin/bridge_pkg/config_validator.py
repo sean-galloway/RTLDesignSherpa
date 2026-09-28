@@ -77,7 +77,7 @@ def validate_protocol(protocol: str, port_name: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# AXI5 (BRIDGE-002 phases A5-1 / A5-2 slice 1) — AXI5 ports on the AMBA4
+# AXI5 (bridge TASK-002 (was BRIDGE-002) phases A5-1 / A5-2 slice 1) — AXI5 ports on the AMBA4
 # fabric, interop mode.
 #
 # A bridge MASTER port with protocol="axi5" gets axi5_slave_{wr,rd}
@@ -92,14 +92,14 @@ def validate_protocol(protocol: str, port_name: str) -> None:
 
 # Droppable sideband: legal on any AXI5 port; terminates (with a
 # generation-time warning) on a path whose other end cannot carry it.
-# 'chunking' (BRIDGE-018) is droppable because ARCHUNKEN is permission,
+# 'chunking' (bridge TASK-007, was BRIDGE-018) is droppable because ARCHUNKEN is permission,
 # not demand: a slave that cannot chunk answers with ordered data and
 # RCHUNKV low, which is exactly what the requester must be able to accept.
 AXI5_ALLOWED_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'unique',
                          'chunking')
 
 # Features that exist in the axi5 wrappers but are NOT deliverable on this
-# fabric. Empty since BRIDGE-018 closed the native-AXI5 gap (mte and
+# fabric. Empty since bridge TASK-007 (was BRIDGE-018) closed the native-AXI5 gap (mte and
 # chunking were the last two); kept so a future feature has a place to
 # name its delivering phase.
 AXI5_PHASED_FEATURES: dict = {}
@@ -112,7 +112,7 @@ AXI5_PHASED_FEATURES: dict = {}
 # 'atomic' (A5-3a): store-class atomics ride the structs natively;
 # the master boundary's axi5_atomic_filter DECERRs read-return classes
 # (AtomicLoad/Swap/Compare), which this fabric cannot route.
-# 'mte' (BRIDGE-018): a tag operation dropped on the way to a slave turns
+# 'mte' (bridge TASK-007, was BRIDGE-018): a tag operation dropped on the way to a slave turns
 # a tagged write into an untagged one and a Match into a plain access,
 # with the requester none the wiser -- so every path must carry it.
 AXI5_CONNECTIVITY_GATED_FEATURES = ('poison', 'atomic', 'mte')
@@ -197,7 +197,7 @@ AXIL5_TIED_FEATURES = ('trace', 'loop', 'mpam', 'mecid', 'nsaid', 'poison')
 def validate_axil5_features(ports: List[PortSpec]) -> None:
     """Only the forwardable groups may be named on an axil5 port.
 
-    Masters and slaves alike (BRIDGE-014): on a master port the same two
+    Masters and slaves alike (bridge TASK-004, was BRIDGE-014): on a master port the same two
     groups are the only ones with an AXI4 destination -- 'exclusive' rides
     awlock/arlock and 'user' the 1-bit USER fields; the rest is exposed on
     the boundary and terminated at the bridge top."""
@@ -299,7 +299,7 @@ def validate_axi5_poison_connectivity(masters: List[PortSpec],
 def validate_axi5_atomic_read_return(masters: List[PortSpec],
                                      slaves: List[PortSpec],
                                      connectivity) -> None:
-    """BRIDGE-002 A5-3b. An rw AXI5 master that enables 'atomic' forwards
+    """bridge TASK-002 (was BRIDGE-002) A5-3b. An rw AXI5 master that enables 'atomic' forwards
     read-return atomics (AtomicLoad/Swap/Compare) natively -- there is no
     boundary filter on such a port -- and they answer on the READ data
     channel with the AW's ID. Every connected atomic slave must therefore be
@@ -326,7 +326,7 @@ def validate_axi5_atomic_read_return(masters: List[PortSpec],
 
 
 def validate_slave_id_widths(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
-    """BRIDGE-016. Inside the fabric every transaction ID is {master index,
+    """bridge TASK-005 (was BRIDGE-016). Inside the fabric every transaction ID is {master index,
     master id}, so a slave sees the widest master's id_width plus
     $clog2(NUM_MASTERS) bits (zero for one master). The slave's declared
     id_width is the width of its external port and must be at least that, or
@@ -381,7 +381,7 @@ def warn_axi5_dropped_sideband(masters: List[PortSpec],
 
 
 def validate_axi5_wide_features(port: PortSpec) -> None:
-    """BRIDGE-018: mte and chunking are only meaningful on a data bus of at
+    """bridge TASK-007 (was BRIDGE-018): mte and chunking are only meaningful on a data bus of at
     least 128 bits (one 4-bit tag per 16 bytes; one 128-bit chunk per
     strobe bit). A narrower port asking for them is a config error, not a
     warning -- the wrappers would size the tag bus to one tag and the DV
@@ -400,7 +400,7 @@ def validate_axi5_wide_features(port: PortSpec) -> None:
 
 
 def validate_cdc_constraints(port: PortSpec) -> None:
-    """BRIDGE-017 CDC slave ports: `cdc = true` is legal on an external
+    """bridge TASK-006 (was BRIDGE-017) CDC slave ports: `cdc = true` is legal on an external
     AXI4 slave port only. The crossing is axi4_cdc_{wr,rd}, which carries the
     AXI4 signal set; a master port, an AXI5 port's sideband and the shim
     protocols would each need their own crossing, and none has one yet."""
@@ -419,7 +419,7 @@ def validate_cdc_constraints(port: PortSpec) -> None:
 
 
 def validate_wb4_constraints(port: PortSpec) -> None:
-    """Wishbone B4 port rules (BRIDGE-019), master or slave.
+    """Wishbone B4 port rules (bridge TASK-008, was BRIDGE-019), master or slave.
 
     One bus carries both directions, so a port is always rw; B4 has no
     transaction ID; the data bus is one of the B4 port sizes. (B4 pipelined

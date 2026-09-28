@@ -352,14 +352,14 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
               f"(slave={mon_group.slave_protocol}, "
               f"master={mon_group.master_protocol})")
 
-    # BRIDGE-017: registered crossbar (skid stage on every slave-side
+    # bridge TASK-006 (was BRIDGE-017): registered crossbar (skid stage on every slave-side
     # channel inside the xbar). Off by default: existing fabrics keep their
     # measured 2/2-cycle propagation.
     xbar_pipeline = bool(bridge_data.get('xbar_pipeline', False))
     if xbar_pipeline:
         print("  xbar_pipeline: True (registered crossbar, +1 cycle each way)")
 
-    # BRIDGE-017: arbitration policy. 'qos' makes every slave arbiter pick
+    # bridge TASK-006 (was BRIDGE-017): arbitration policy. 'qos' makes every slave arbiter pick
     # by AxQOS + aging; 'rr' is the round-robin default.
     arbitration = str(bridge_data.get('arbitration', 'rr'))
     if arbitration not in ('rr', 'qos'):
@@ -540,7 +540,7 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
     # Appended LAST so the decode chain ends in an `else` that always matches.
     # Without it the one-hot select is all-zero for an unmapped address, no
     # slave sees AWVALID/ARVALID, READY never rises, and the master waits
-    # forever -- BRIDGE-009. A hang is the worst failure here because it
+    # forever -- bridge BUG-007 (was BRIDGE-009). A hang is the worst failure here because it
     # destroys the evidence: no response to inspect and no error bit to read.
     #
     # It is `internal`, so it is routable exactly like any other slave but

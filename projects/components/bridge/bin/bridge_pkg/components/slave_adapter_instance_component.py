@@ -99,7 +99,7 @@ class SlaveAdapterInstance:
     def connect_clocks_and_resets(self, aclk: str = 'aclk', aresetn: str = 'aresetn') -> None:
         pairs = [('aclk', aclk), ('aresetn', aresetn)]
         if self.cdc:
-            # BRIDGE-017: the slave's own domain, from the bridge-top pins.
+            # bridge TASK-006 (was BRIDGE-017): the slave's own domain, from the bridge-top pins.
             pairs += [('s_aclk', f'{self.slave_name}_aclk'),
                       ('s_aresetn', f'{self.slave_name}_aresetn')]
         self._sections.append((None, pairs))

@@ -1013,7 +1013,7 @@ addrmap bridge_stream_char_axil_mon_cfg {
     } MON_GROUP_COMPRESS_EN;
 
     // ----------------------------------------------------------------
-    // Unmapped-address status (subtractive catch-all slave, BRIDGE-009).
+    // Unmapped-address status (subtractive catch-all slave, bridge BUG-007 (was BRIDGE-009)).
     //
     // The STICKY bit lives in axi4_subtractive_slave, not here: one owner
     // for one piece of state. These fields are a window onto it plus a

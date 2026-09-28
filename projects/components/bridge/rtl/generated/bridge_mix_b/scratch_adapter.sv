@@ -141,10 +141,10 @@ module scratch_adapter
     // ================================================================
 
     // Write Channel CAM
-    // BRIDGE-011 not-full gating, CAM form: the CAM's own tags_full masks
+    // bridge BUG-009 (was BRIDGE-011) not-full gating, CAM form: the CAM's own tags_full masks
     // the sub-block's ready before it reaches the crossbar. (These two nets
     // are what the wrapper override below binds; the FIFO path declares
-    // its own. Missing here since c64660f47 -- BRIDGE-015.)
+    // its own. Missing here since c64660f47 -- bridge BUG-012 (was BRIDGE-015).)
     logic wr_trk_full;
     logic w_sub_awready;
     assign xbar_scratch_axi_awready = w_sub_awready && !wr_trk_full;
@@ -178,7 +178,7 @@ module scratch_adapter
     );
 
     // Read Channel CAM
-    // BRIDGE-011 not-full gating, CAM form -- see the write channel.
+    // bridge BUG-009 (was BRIDGE-011) not-full gating, CAM form -- see the write channel.
     logic rd_trk_full;
     logic w_sub_arready;
     assign xbar_scratch_axi_arready = w_sub_arready && !rd_trk_full;

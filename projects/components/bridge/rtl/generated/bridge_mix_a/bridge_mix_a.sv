@@ -482,7 +482,7 @@ module bridge_mix_a
 
     // ---- Slave 3: subtractive (subtractive catch-all, internal) ----
     // Unmapped addresses land here instead of selecting nothing and
-    // stalling the master forever (BRIDGE-009). Always answers DECERR.
+    // stalling the master forever (bridge BUG-007, was BRIDGE-009). Always answers DECERR.
     logic [4:0]  subtractive_awid;
     logic [31:0]  subtractive_awaddr;
     logic [7:0]  subtractive_awlen;

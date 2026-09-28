@@ -48,7 +48,7 @@ class CrossbarGenerator:
         self.bridge_name = bridge_name
         self.masters = masters
         self.slaves = slaves
-        # BRIDGE-017: registered crossbar. When set, every slave-side request
+        # bridge TASK-006 (was BRIDGE-017): registered crossbar. When set, every slave-side request
         # channel (AW/W/AR, carrying the bridge id) and response channel (B/R,
         # carrying the bridge id and the route-open flag) passes through a
         # 2-deep gaxi_skid_buffer inside the xbar. The routing and mux logic
@@ -57,7 +57,7 @@ class CrossbarGenerator:
         # request cone (decode -> arbiter -> N-way mux) and the response
         # OR-merge end at a register, at full throughput, +1 cycle each way.
         self.pipeline = bool(pipeline)
-        # BRIDGE-017: per-slave arbitration policy. 'rr' is the round-robin
+        # bridge TASK-006 (was BRIDGE-017): per-slave arbitration policy. 'rr' is the round-robin
         # the fabric has always had. 'qos' picks the requester with the
         # highest EFFECTIVE priority -- AxQOS plus an age term that grows
         # while a request waits (one level every 2**qos_aging_shift cycles,
@@ -74,7 +74,7 @@ class CrossbarGenerator:
         # sideband signals exist.
         from bridge_pkg.sideband import sideband_union, port_features
         self.sb_union = sideband_union(self.masters, self.slaves)
-        # BRIDGE-018: the width-independent aw/ar/b structs size their
+        # bridge TASK-007 (was BRIDGE-018): the width-independent aw/ar/b structs size their
         # data-scaled sideband (MTE tags) for the widest port in the bridge;
         # the crossbar fits those fields to each slave port's own width.
         self.bridge_max_dw = max([m.data_width for m in self.masters]
@@ -297,7 +297,7 @@ class CrossbarGenerator:
 
     def _sb_struct_to_port(self, channel, width, struct_expr, slave_dw):
         """A channel-struct sideband field as a slave-port-width expression
-        (BRIDGE-018). Struct fields are sized by struct_dw (per path for
+        (bridge TASK-007, was BRIDGE-018). Struct fields are sized by struct_dw (per path for
         w/r -- the path width IS the slave's -- and bridge-wide max for
         aw/ar/b); port signals by the slave's own data width."""
         from bridge_pkg.sideband import field_width, fit_expr, struct_dw
@@ -338,7 +338,7 @@ class CrossbarGenerator:
         # AXI4 *id width is master pass-through, not a fixed crossbar constant
         # (Bug B in TASK-011 — was hardcoded to 4). Floor at 1 to avoid the
         # invalid `[-1:0]` SV range when id_width=0 (Bug A).
-        # BRIDGE-016: slave-side IDs are {master index, master id}.
+        # bridge TASK-005 (was BRIDGE-016): slave-side IDs are {master index, master id}.
         from bridge_pkg.width_utils import xbar_id_width
         master_id_width = xbar_id_width(self.masters)
 
@@ -638,7 +638,7 @@ class CrossbarGenerator:
         pick_vec = f"{arb}_req"
         if qos:
             sh = self.qos_aging_shift
-            lines.append(f"    // QoS with aging (BRIDGE-017): effective priority = AxQOS + age,")
+            lines.append(f"    // QoS with aging (bridge TASK-006, was BRIDGE-017): effective priority = AxQOS + age,")
             lines.append(f"    // age climbing one level every 2**{sh} cycles a request waits, saturating")
             lines.append(f"    // at 15, cleared on grant. The highest effective priority wins; equals")
             lines.append(f"    // share round-robin. A QoS-0 requester behind a QoS-15 one is served")
@@ -1367,7 +1367,7 @@ class CrossbarGenerator:
         return lines
 
     # ------------------------------------------------------------------
-    # BRIDGE-017: registered crossbar stages
+    # bridge TASK-006 (was BRIDGE-017): registered crossbar stages
     # ------------------------------------------------------------------
 
     def _stage_request_signals(self, slave: SlaveInfo, ch: str) -> List[str]:
@@ -1438,7 +1438,7 @@ class CrossbarGenerator:
 
     def _generate_pipeline_stages(self) -> List[str]:
         """Join the xs_<slave>_axi_* nets the routing drives to the slave
-        ports through 2-deep skid buffers (BRIDGE-017).
+        ports through 2-deep skid buffers (bridge TASK-006, was BRIDGE-017).
 
         Request stages (AW, W, AR): the arbiter's lock-until-handshake and
         the W-owner FIFO already key on `{xs}awvalid && {xs}awready`, which

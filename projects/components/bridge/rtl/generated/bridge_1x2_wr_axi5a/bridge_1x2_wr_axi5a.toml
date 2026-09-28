@@ -1,5 +1,5 @@
 # Bridge Configuration: 1x2 write-only bridge with NATIVE store-class
-# ATOMICS (BRIDGE-002 phase A5-3a).
+# ATOMICS (bridge TASK-002 (was BRIDGE-002) phase A5-3a).
 #
 # 'atomic' is connectivity-gated like poison: legal here because every
 # connected slave is AXI5, atomic-enabled, and width-matched. aw.atop

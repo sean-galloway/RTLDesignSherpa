@@ -78,7 +78,7 @@ class SlaveInfo:
     addr_width: int  # Address width in bits
     protocol: str = 'axi4'  # Protocol type: 'axi4', 'axi5', 'apb', or 'axil'
     enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
-    cdc: bool = False  # BRIDGE-017: own clock; axi4_cdc_{wr,rd} before the boundary
+    cdc: bool = False  # bridge TASK-006 (was BRIDGE-017): own clock; axi4_cdc_{wr,rd} before the boundary
     use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
     # Internal slaves have no top-level pins -- the bridge instantiates
     # something for them and wires the crossbar to it. See PortSpec.internal.
@@ -161,7 +161,7 @@ class AdapterGenerator:
         # unconditionally.
         from bridge_pkg.sideband import sideband_union, port_features
         self.sb_union = sideband_union(self.all_masters, self.slaves)
-        # BRIDGE-018: the width-independent aw/ar/b structs size their
+        # bridge TASK-007 (was BRIDGE-018): the width-independent aw/ar/b structs size their
         # data-scaled sideband (MTE tags) for the widest port in the bridge;
         # this adapter fits its own-width fub wires to that.
         self.bridge_max_dw = max([m.data_width for m in (all_masters or [master_config])]
@@ -426,8 +426,8 @@ class AdapterGenerator:
         return lines
 
     # ------------------------------------------------------------------
-    # Requester ports with a protocol FRONT END (BRIDGE-014 APB/APB5,
-    # BRIDGE-019 WB4): the adapter is the completer on the boundary and a
+    # Requester ports with a protocol FRONT END (bridge TASK-004 (was BRIDGE-014) APB/APB5,
+    # bridge TASK-008 (was BRIDGE-019) WB4): the adapter is the completer on the boundary and a
     # converter produces the AXI4 face the ordinary axi4_slave_{wr,rd}
     # timing wrapper consumes. One net prefix per family, declared and
     # connected from the one helper below.
@@ -550,7 +550,7 @@ class AdapterGenerator:
         """Instantiate the port's protocol front end (apb4_to_axi4 /
         apb5_to_axi4 / wb4_to_axi4) between its completer surface and the
         AXI4 timing wrapper. Named for the family that came first; WB4
-        (BRIDGE-019) rides the same path.
+        (bridge TASK-008, was BRIDGE-019) rides the same path.
 
         The converter (projects/components/converters) is the requester
         half of the bridge's APB story: one APB transfer -> one single-beat
@@ -687,7 +687,7 @@ class AdapterGenerator:
 
     def _sb_struct_to_fub(self, channel, width, struct_expr, path_dw):
         """A response-struct sideband field as this master's fub-width
-        expression (BRIDGE-018: struct fields are sized by struct_dw --
+        expression (bridge TASK-007 (was BRIDGE-018): struct fields are sized by struct_dw --
         the path's width for r, the bridge-wide max for b -- and the fub
         wires by this master's own data width)."""
         from bridge_pkg.sideband import field_width, fit_expr, struct_dw
@@ -695,7 +695,7 @@ class AdapterGenerator:
         fw = field_width(width, self.master.data_width)
         return fit_expr(struct_expr, sw, fw)
 
-    # --- BRIDGE-012: response trace is echoed at the boundary ---------------
+    # --- bridge BUG-010 (was BRIDGE-012): response trace is echoed at the boundary ---------------
     # AXI5 wants the response trace bit to follow the request's. From this
     # master's port the BRIDGE is the Subordinate, and this port advertises
     # trace, so the promise is the adapter's to keep -- whatever sits behind
@@ -705,7 +705,7 @@ class AdapterGenerator:
     # the AXI5 checker at the port called each one a violation.
     #
     # The AW/AR tracking FIFO already holds one entry per outstanding request,
-    # in the order responses return (the in-order contract, BRIDGE-010), so
+    # in the order responses return (the in-order contract, bridge BUG-008 (was BRIDGE-010)), so
     # the request's trace rides in the entry that routes its response. Echo
     # from there; keep the slave's own bit for a check rather than trusting it.
     #
@@ -716,7 +716,7 @@ class AdapterGenerator:
     def _trace_echo(self) -> bool:
         return 'trace' in self.sb_own
 
-    # --- BRIDGE-002 A5-3b: read-return atomics ride natively ---------------
+    # --- bridge TASK-002 (was BRIDGE-002) A5-3b: read-return atomics ride natively ---------------
     # A read-return atomic (AWATOP[5]: AtomicLoad/Swap/Compare) is issued on
     # AW and answers with the location's original data on R, using the AW
     # ID. Every R-return tracker in this fabric learns from ARs, so A5-3a
@@ -729,7 +729,7 @@ class AdapterGenerator:
     def rr_atomic(self) -> bool:
         return 'atomic' in self.sb_own and self.master.channels == 'rw'
 
-    # --- BRIDGE-016: master-unique IDs ---------------------------------------
+    # --- bridge TASK-005 (was BRIDGE-016): master-unique IDs ---------------------------------------
     # Inside the fabric every ID is {master index, master id}. The wrapper's
     # fub_axi_*id is this master's own width; the fabric-facing copy carries
     # BRIDGE_ID on top. Responses come back with the prefix and the existing
@@ -756,7 +756,7 @@ class AdapterGenerator:
         answers DECERR on B and knows nothing about R, and without a local
         answer the port's R-return tracker would hold a slot for a beat that
         never comes -- every later read blocked behind it, which is the shape
-        of BRIDGE-009 on the atomic path."""
+        of bridge BUG-007 (was BRIDGE-009) on the atomic path."""
         if not self.rr_atomic:
             return None
         for i, s in enumerate(self.slaves):
@@ -780,7 +780,7 @@ class AdapterGenerator:
         up = chan.upper()
         return [
             "",
-            f"    // -------- {up}->{resp.upper()} trace tracking (BRIDGE-012) --------",
+            f"    // -------- {up}->{resp.upper()} trace tracking (bridge BUG-010, was BRIDGE-012) --------",
             f"    // Same push/pop as the slave_select FIFO above, so the head is the",
             f"    // request being answered. Echoed onto {resp}trace at the port below.",
             f"    logic {chan}_trk_trace [{up}_TRK_DEPTH];",
@@ -815,7 +815,7 @@ class AdapterGenerator:
         sel = f"{resp}_slave_select" if resp == 'b' else "r_slave_select"
         return [
             "",
-            f"    // BRIDGE-012: the port promises trace; echo the request's bit.",
+            f"    // bridge BUG-010 (was BRIDGE-012): the port promises trace; echo the request's bit.",
             f"    assign fub_axi_{resp}trace = {resp}_trk_trace;",
             "",
             "`ifndef SYNTHESIS",
@@ -827,7 +827,7 @@ class AdapterGenerator:
             f"        if (aresetn && fub_axi_{resp}valid && fub_axi_{resp}ready &&",
             f"            |({sel} & {resp.upper()}_TRACE_CAPABLE) &&",
             f"            ({resp}_slave_trace !== {resp}_trk_trace)) begin",
-            f'            $error("%m: BRIDGE-012: trace-capable slave returned {resp}trace=%b for a request with trace=%b",',
+            f'            $error("%m: bridge BUG-010 (was BRIDGE-012): trace-capable slave returned {resp}trace=%b for a request with trace=%b",',
             f"                   {resp}_slave_trace, {resp}_trk_trace);",
             "        end",
             "    end",
@@ -1067,9 +1067,9 @@ class AdapterGenerator:
         # AXI5 native-sideband fub wires (A5-2 slice 2)
         lines.extend(self._sb_wire_decls())
 
-        # BRIDGE-016: fabric-facing IDs carry this master's index on top.
+        # bridge TASK-005 (was BRIDGE-016): fabric-facing IDs carry this master's index on top.
         if self.id_prefix_width:
-            lines.append("    // Master-unique fabric IDs: {BRIDGE_ID, id} (BRIDGE-016). Responses")
+            lines.append("    // Master-unique fabric IDs: {BRIDGE_ID, id} (bridge TASK-005, was BRIDGE-016). Responses")
             lines.append("    // return with the prefix; the response muxes select the low bits.")
             if self.master.channels in ("wr", "rw"):
                 lines.append("    logic [XBAR_ID_WIDTH-1:0] xbar_axi_awid;")
@@ -1631,7 +1631,7 @@ class AdapterGenerator:
             lines.append("            r_aw_active_target <= comb_slave_select_aw;")
             lines.append("        end")
             lines.append("    )")
-            # BRIDGE-011: the tracking FIFO has no full check of its own, and
+            # bridge BUG-009 (was BRIDGE-011): the tracking FIFO has no full check of its own, and
             # push is unconditional on the AW handshake. Past AW_TRK_DEPTH a
             # live entry is overwritten; at 2*AW_TRK_DEPTH the pointers lap and
             # `wr != rd` reads EMPTY, so b_slave_select falls to '0 and B stops
@@ -1777,7 +1777,7 @@ class AdapterGenerator:
                 lines.append("            r_ar_active_target <= comb_slave_select_ar;")
                 lines.append("        end")
             lines.append("    )")
-            # BRIDGE-011, read side -- see the aw_gate_ok comment above.
+            # bridge BUG-009 (was BRIDGE-011), read side -- see the aw_gate_ok comment above.
             lines.append("    logic ar_trk_full;")
             lines.append("    assign ar_trk_full = (ar_trk_wptr[AR_TRK_AW] != ar_trk_rptr[AR_TRK_AW]) &&")
             lines.append("                         (ar_trk_wptr[AR_TRK_AW-1:0] == ar_trk_rptr[AR_TRK_AW-1:0]);")
@@ -1874,7 +1874,7 @@ class AdapterGenerator:
             lines.append("    // Write response MUX (B channel - uses b_slave_select FIFO head)")
             if self._trace_echo:
                 lines.append("    // btrace is NOT driven here: the mux records what the SLAVE said")
-                lines.append("    // (checked below) while the port echoes the request (BRIDGE-012).")
+                lines.append("    // (checked below) while the port echoes the request (bridge BUG-010, was BRIDGE-012).")
                 lines.append("    logic b_slave_trace;")
             lines.append("    always_comb begin")
 
@@ -1970,7 +1970,7 @@ class AdapterGenerator:
 
             lines.append("    // Read response MUX (R channel - uses r_slave_select FIFO head)")
             if self._trace_echo:
-                lines.append("    // rtrace is NOT driven here -- see the B-channel note (BRIDGE-012).")
+                lines.append("    // rtrace is NOT driven here -- see the B-channel note (bridge BUG-010, was BRIDGE-012).")
                 lines.append("    logic r_slave_trace;")
             lines.append("    always_comb begin")
 
@@ -2200,7 +2200,7 @@ class AdapterGenerator:
                     instance_name=f'u_wr_conv_{suffix}',
                     s_data_width=master_width,
                     m_data_width=slave_width,
-                    id_width=self.xbar_id_width,  # fabric side: {master index, id} (BRIDGE-016)
+                    id_width=self.xbar_id_width,  # fabric side: {master index, id} (bridge TASK-005, was BRIDGE-016)
                     user_width=getattr(self.master, 'user_width', 1) or 1,
                     addr_width=getattr(self.master, 'addr_width', 32),
                     suffix=suffix,
@@ -2212,7 +2212,7 @@ class AdapterGenerator:
                     instance_name=f'u_wr_conv_{suffix}',
                     s_data_width=master_width,
                     m_data_width=slave_width,
-                    id_width=self.xbar_id_width,  # fabric side: {master index, id} (BRIDGE-016)
+                    id_width=self.xbar_id_width,  # fabric side: {master index, id} (bridge TASK-005, was BRIDGE-016)
                 )
                 conv_wr.connect_clocks_and_resets()
                 conv_wr.connect_s_axi_write(s_awid_signal=self.xid('aw'), 
@@ -2238,7 +2238,7 @@ class AdapterGenerator:
                     instance_name=f'u_rd_conv_{suffix}',
                     s_data_width=master_width,
                     m_data_width=slave_width,
-                    id_width=self.xbar_id_width,  # fabric side: {master index, id} (BRIDGE-016)
+                    id_width=self.xbar_id_width,  # fabric side: {master index, id} (bridge TASK-005, was BRIDGE-016)
                     user_width=getattr(self.master, 'user_width', 1) or 1,
                     addr_width=getattr(self.master, 'addr_width', 32),
                     suffix=suffix,
@@ -2250,7 +2250,7 @@ class AdapterGenerator:
                     instance_name=f'u_rd_conv_{suffix}',
                     s_data_width=master_width,
                     m_data_width=slave_width,
-                    id_width=self.xbar_id_width,  # fabric side: {master index, id} (BRIDGE-016)
+                    id_width=self.xbar_id_width,  # fabric side: {master index, id} (bridge TASK-005, was BRIDGE-016)
                 )
                 conv_rd.connect_clocks_and_resets()
                 conv_rd.connect_s_axi_read(s_arid_signal=self.xid('ar'), 

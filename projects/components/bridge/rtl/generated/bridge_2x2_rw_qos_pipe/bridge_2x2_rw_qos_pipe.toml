@@ -1,5 +1,5 @@
 # Bridge Configuration: bridge_2x2_rw_qos with the registered crossbar as
-# well (BRIDGE-017: arbitration = "qos" AND xbar_pipeline = true).
+# well (bridge TASK-006 (was BRIDGE-017): arbitration = "qos" AND xbar_pipeline = true).
 #
 # The two options together, because the synthesis sweep (HAS 6.4) showed the
 # QoS arbiter's compare in series with the grant, the AW/AR mux and the slave
@@ -37,7 +37,7 @@ channels = "rw"
 [[bridge.slaves]]
 name = "ddr"
 prefix = "ddr_s_axi"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -48,7 +48,7 @@ addr_range = "0x80000000"
 [[bridge.slaves]]
 name = "sram"
 prefix = "sram_s_axi"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
 addr_width = 32
 data_width = 32
 user_width = 1

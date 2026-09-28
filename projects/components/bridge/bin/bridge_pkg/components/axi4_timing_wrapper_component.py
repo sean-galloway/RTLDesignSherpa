@@ -20,7 +20,7 @@ from rtl_generators.verilog.module import Module
 
 
 # ---------------------------------------------------------------------------
-# AXI5 feature tables (BRIDGE-002 phases A5-1 / A5-2 slice 1).
+# AXI5 feature tables (bridge TASK-002 (was BRIDGE-002) phases A5-1 / A5-2 slice 1).
 #
 # The axi5_{slave,master}_{wr,rd} modules declare every feature port
 # unconditionally; ENABLE_<FEATURE> parameters gate the logic. The
@@ -109,7 +109,7 @@ _AXI5_RD_RESP_EXTRAS = (            # R-side (after rready)
 # means the signal flows master->slave: on an AXI5 MASTER port (bridge
 # is the slave) it is a bridge-top INPUT; on an AXI5 SLAVE port (bridge
 # is the master) it is a bridge-top OUTPUT.
-# BRIDGE-018: the MTE and chunking signals scale with the data bus (one
+# bridge TASK-007 (was BRIDGE-018): the MTE and chunking signals scale with the data bus (one
 # tag per 16 bytes, one chunk strobe per 128 bits); their widths are the
 # symbolic specs from sideband.py and axi5_exposed_ext_signals() resolves
 # them for the port's data width.
@@ -479,7 +479,7 @@ class Axi4TimingWrapper:
             if v is not None:
                 defaults[k] = v
         # Arbitrary per-port overrides, applied last. Used to splice a gate
-        # into a handshake -- BRIDGE-011 binds awvalid/arvalid through a
+        # into a handshake -- bridge BUG-009 (was BRIDGE-011) binds awvalid/arvalid through a
         # not-full term rather than straight to the crossbar signal.
         if overrides:
             defaults.update(overrides)

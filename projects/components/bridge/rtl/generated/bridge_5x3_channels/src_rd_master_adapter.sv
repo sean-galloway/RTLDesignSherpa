@@ -90,7 +90,7 @@ module src_rd_master_adapter
 
     logic         wrapper_rd_busy;
 
-    // Master-unique fabric IDs: {BRIDGE_ID, id} (BRIDGE-016). Responses
+    // Master-unique fabric IDs: {BRIDGE_ID, id} (bridge TASK-005, was BRIDGE-016). Responses
     // return with the prefix; the response muxes select the low bits.
     logic [XBAR_ID_WIDTH-1:0] xbar_axi_arid;
     assign xbar_axi_arid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_arid)};

@@ -176,7 +176,7 @@ module dma_adapter
     logic         fub_axi_arunique;  // AXI5 sideband (unique)
     logic         fub_axi_rtrace;  // AXI5 sideband (trace)
 
-    // Master-unique fabric IDs: {BRIDGE_ID, id} (BRIDGE-016). Responses
+    // Master-unique fabric IDs: {BRIDGE_ID, id} (bridge TASK-005, was BRIDGE-016). Responses
     // return with the prefix; the response muxes select the low bits.
     logic [XBAR_ID_WIDTH-1:0] xbar_axi_awid;
     assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};
@@ -561,7 +561,7 @@ module dma_adapter
                           ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]
                           : '0;
 
-    // -------- AW->B trace tracking (BRIDGE-012) --------
+    // -------- AW->B trace tracking (bridge BUG-010, was BRIDGE-012) --------
     // Same push/pop as the slave_select FIFO above, so the head is the
     // request being answered. Echoed onto btrace at the port below.
     logic aw_trk_trace [AW_TRK_DEPTH];
@@ -664,7 +664,7 @@ module dma_adapter
                           ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
                           : '0;
 
-    // -------- AR->R trace tracking (BRIDGE-012) --------
+    // -------- AR->R trace tracking (bridge BUG-010, was BRIDGE-012) --------
     // Same push/pop as the slave_select FIFO above, so the head is the
     // request being answered. Echoed onto rtrace at the port below.
     logic ar_trk_trace [AR_TRK_DEPTH];
@@ -741,7 +741,7 @@ module dma_adapter
 
     // Write response MUX (B channel - uses b_slave_select FIFO head)
     // btrace is NOT driven here: the mux records what the SLAVE said
-    // (checked below) while the port echoes the request (BRIDGE-012).
+    // (checked below) while the port echoes the request (bridge BUG-010, was BRIDGE-012).
     logic b_slave_trace;
     always_comb begin
         fub_axi_bid = 4'd0;
@@ -775,7 +775,7 @@ module dma_adapter
     end
 
 
-    // BRIDGE-012: the port promises trace; echo the request's bit.
+    // bridge BUG-010 (was BRIDGE-012): the port promises trace; echo the request's bit.
     assign fub_axi_btrace = b_trk_trace;
 
 `ifndef SYNTHESIS
@@ -787,7 +787,7 @@ module dma_adapter
         if (aresetn && fub_axi_bvalid && fub_axi_bready &&
             |(b_slave_select & B_TRACE_CAPABLE) &&
             (b_slave_trace !== b_trk_trace)) begin
-            $error("%m: BRIDGE-012: trace-capable slave returned btrace=%b for a request with trace=%b",
+            $error("%m: bridge BUG-010 (was BRIDGE-012): trace-capable slave returned btrace=%b for a request with trace=%b",
                    b_slave_trace, b_trk_trace);
         end
     end
@@ -816,7 +816,7 @@ module dma_adapter
     end
 
     // Read response MUX (R channel - uses r_slave_select FIFO head)
-    // rtrace is NOT driven here -- see the B-channel note (BRIDGE-012).
+    // rtrace is NOT driven here -- see the B-channel note (bridge BUG-010, was BRIDGE-012).
     logic r_slave_trace;
     always_comb begin
         fub_axi_rid = 4'd0;
@@ -858,7 +858,7 @@ module dma_adapter
     end
 
 
-    // BRIDGE-012: the port promises trace; echo the request's bit.
+    // bridge BUG-010 (was BRIDGE-012): the port promises trace; echo the request's bit.
     assign fub_axi_rtrace = r_trk_trace;
 
 `ifndef SYNTHESIS
@@ -870,7 +870,7 @@ module dma_adapter
         if (aresetn && fub_axi_rvalid && fub_axi_rready &&
             |(r_slave_select & R_TRACE_CAPABLE) &&
             (r_slave_trace !== r_trk_trace)) begin
-            $error("%m: BRIDGE-012: trace-capable slave returned rtrace=%b for a request with trace=%b",
+            $error("%m: bridge BUG-010 (was BRIDGE-012): trace-capable slave returned rtrace=%b for a request with trace=%b",
                    r_slave_trace, r_trk_trace);
         end
     end

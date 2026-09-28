@@ -10,7 +10,7 @@ package bridge_5x3_channels_pkg;
     localparam int NUM_MASTERS = 5;
     localparam int BRIDGE_ID_WIDTH = 3;  // $clog2(NUM_MASTERS)
     // Transaction IDs inside the fabric are {master index, master id}
-    // (BRIDGE-016), so two masters cannot alias an ID at a slave. The
+    // (bridge TASK-005, was BRIDGE-016), so two masters cannot alias an ID at a slave. The
     // prefix is 0 bits for a single master.
     localparam int MASTER_ID_WIDTH = 8;  // widest master-side ID
     localparam int ID_PREFIX_WIDTH = 3;  // master-index bits prepended
