@@ -13,19 +13,9 @@
 # Author: sean galloway
 # Created: 2025-10-18
 
-import sys
-import os
-import subprocess
-
-# Get the directory containing verilog_parser.py
-module_dir = os.path.abspath("/home/sean/github/RTL_Design_Projects/tools/rtl_generators/")
-
-# Add the directory to the sys.path
-sys.path.append(module_dir)
-
 import unittest
 from verilog.verilog_parser import Parser, ParserHelper
-from data_str import tstSimpleModule, tstSimpleModuleName, \
+from unittests.data_str import tstSimpleModule, tstSimpleModuleName, \
     tstSimpleParams, tstSimplePorts, tstCompilerDirectiveModule, \
     tstCompilerDirectiveModuleName, tstCompilerDirectiveParams, \
     tstCompilerDirectivePorts,\

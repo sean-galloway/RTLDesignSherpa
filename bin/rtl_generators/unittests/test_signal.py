@@ -13,18 +13,9 @@
 # Author: sean galloway
 # Created: 2025-10-18
 
-import sys
 import os
-import subprocess
 import io
-
-base_path = '/home/sean/github/RTL_Design_Projects/tools/rtl_generators/'
-
-# Get the directory containing verilog_parser.py
-module_dir = os.path.abspath(base_path)
-
-# Add the directory to the sys.path
-sys.path.append(module_dir)
+import tempfile
 
 import unittest
 from verilog.signal import Signal
@@ -37,8 +28,9 @@ class SignalTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        os.makedirs('tools/rtl_generators/unittest_logs', exist_ok=True)
-        cls.file = open('tools/rtl_generators/unittest_logs/test_signal.txt', 'w')
+        log_dir = os.path.join(tempfile.gettempdir(), 'rtl_generator_unittest_logs')
+        os.makedirs(log_dir, exist_ok=True)
+        cls.file = open(os.path.join(log_dir, 'test_signal.txt'), 'w')
 
 
     @classmethod

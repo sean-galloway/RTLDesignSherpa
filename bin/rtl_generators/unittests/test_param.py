@@ -13,18 +13,9 @@
 # Author: sean galloway
 # Created: 2025-10-18
 
-import sys
 import os
-import subprocess
 import io
-
-base_path = '/home/sean/github/RTL_Design_Projects/tools/rtl_generators/'
-
-# Get the directory containing verilog_parser.py
-module_dir = os.path.abspath(base_path)
-
-# Add the directory to the sys.path
-sys.path.append(module_dir)
+import tempfile
 
 import unittest
 from verilog.param import Param
@@ -37,8 +28,9 @@ class ParamTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        os.makedirs('tools/rtl_generators/unittest_logs', exist_ok=True)
-        cls.file = open('tools/rtl_generators/unittest_logs/test_param.txt', 'w')
+        log_dir = os.path.join(tempfile.gettempdir(), 'rtl_generator_unittest_logs')
+        os.makedirs(log_dir, exist_ok=True)
+        cls.file = open(os.path.join(log_dir, 'test_param.txt'), 'w')
 
 
     @classmethod
@@ -84,6 +76,6 @@ class ParamTest(unittest.TestCase):
         ans_str = param_create_param_string_01_gold
         self.write_log('test_param_create_param_string_01', tst_str)
         # pprint(tstList)
-        self.assertEqual(tst_str, ans_str, 'Issue with test_signal_create_port_string_01: ')
+        self.assertEqual(tst_str, ans_str, 'Issue with test_param_create_param_string_01: ')
 
 

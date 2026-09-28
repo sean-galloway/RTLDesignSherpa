@@ -42,8 +42,7 @@ param_add_param_string_01_gold = """[   ParameterRecord(sig_type='',
 """
 param_create_param_string_01_gold = """parameter         add_extra_instr = 1,
 parameter string  add_select_instr = "M144k,auto",
-parameter         shorten_pipeline = 3 
-"""
+parameter         shorten_pipeline = 3 """
 
 tstSignal01 = """
     input         clk, enable, is_signed,
@@ -57,25 +56,25 @@ tstSignal01 = """
     output [31:0] out
 """
 
-signal_create_port_string_01_gold = """input  logic                                 clk,
-input  logic                                 enable,
-input  logic                                 is_signed,
-input  logic                                 enacc,
-input  logic                                 sub_nadd,
-input  logic                                 selacc,
-input  logic                                 resetrs0,
-input  logic [31:0]                          rs0,
-input  logic [31:0]                          rs1,
-input  logic [31:0]                          imm,
-input  logic                                 mulmux,
-input  logic                                 selop0,
-input  logic                                 selop1,
-input  logic [1:0][(shorten_pipeline-1)*4:0] selshift  [(add_extra_instr-1):0],
-input  logic [1:0]                           cmode,
-input  logic [2:0]                           opcode1,
-input  logic [2:0]                           opcode2,
-output logic                                 out_en,
-output logic [31:0]                          out
+signal_create_port_string_01_gold = """    input  logic                                 clk,
+    input  logic                                 enable,
+    input  logic                                 is_signed,
+    input  logic                                 enacc,
+    input  logic                                 sub_nadd,
+    input  logic                                 selacc,
+    input  logic                                 resetrs0,
+    input  logic [31:0]                          rs0,
+    input  logic [31:0]                          rs1,
+    input  logic [31:0]                          imm,
+    input  logic                                 mulmux,
+    input  logic                                 selop0,
+    input  logic                                 selop1,
+    input  logic [1:0][(shorten_pipeline-1)*4:0] selshift  [(add_extra_instr-1):0],
+    input  logic [1:0]                           cmode,
+    input  logic [2:0]                           opcode1,
+    input  logic [2:0]                           opcode2,
+    output logic                                 out_en,
+    output logic [31:0]                          out
 """
 
 signal_create_wire_string_01_gold = """logic                                 clk;
