@@ -12,31 +12,34 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 7 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 6 | done (kept for history) |
+| [open/](open/) | 6 | accepted, not started |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 0 | parked pending a named condition |
+| [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
 - **TASK-013** — source comments still cite pre-migration task IDs
 - **TASK-002** — Finish validating the cloud bootstrap on a genuinely clean box
 - **TASK-003** — Two real gaps in the RDS-DV arbiter BFM
-- **TASK-004** — Project-area cleanup — apply the RTL-area pattern to projects/
 - **TASK-005** — Tests resolve filelists through the toml registry, not hardcoded paths
 - **TASK-006** — emit CONTRACT TABLES (proofs), not K-map pictures
 - **TASK-000** — reserved template; copy the file, do not file against it.
 
 ## Active
 
-- **TASK-001** — Migrate the remaining areas into /vault/Tasks/<area>/
 
 ## Closed
 
+- **TASK-001** — Migrate the remaining areas into /vault/Tasks/<area>/
 - **TASK-007** — Migrate the remaining method docs out of bin/ into the handbook
 - **TASK-008** — One gate that runs filelist_registry --check and --audit
 - **TASK-009** — Redo the Makefiles from scratch
 - **TASK-010** — Cohesive SKILLS strategy for the repo
 - **TASK-011** — Burn down --blindspots, then make it a gate
 - **TASK-012** — `formal/` has two competing conventions for where sv2v lives
+
+## Deferred
+
+- **TASK-004** — Project-area cleanup — apply the RTL-area pattern to projects/ -- DEFERRED by Sean until the RTL area is complete
