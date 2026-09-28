@@ -305,7 +305,7 @@ the generator's `make test` reads them, and a board flow regenerates only
 the bridge it builds. So a validator rule can land and silently break a
 consumer config that no build touches.
 
-That is what happened to `bridge_stream_char_axil.toml`. BRIDGE-014 added
+That is what happened to `bridge_stream_char_axil.toml`. Bridge TASK-004 (was BRIDGE-014) added
 "an AXI-Lite MASTER has `id_width = 0`" on 2026-09-11 (`9baaa9d65`); the mon
 config was fixed on the 19th (`d83c33971`) because a bitstream build tripped
 over it; the char config, which no build regenerates, kept `id_width = 8`

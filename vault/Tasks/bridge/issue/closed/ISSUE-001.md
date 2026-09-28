@@ -19,7 +19,7 @@ the bridge-wide monitor-lite swap of the day before (`e92a5ae2d`).
 
 Not that change. The same command at detached scratch worktrees of
 `e92a5ae2d^` and `74bad59f1^` (before any monitor-lite work) fails with the
-identical message. The rule is BRIDGE-014's (`9baaa9d65`, 2026-09-11): an
+identical message. The rule is bridge TASK-004's (was BRIDGE-014; `9baaa9d65`, 2026-09-11): an
 AXI-Lite MASTER carries no boundary ID ports, so `id_width` must be 0; the
 check is master-only. `d83c33971` (2026-09-19) applied it to
 `bridge_stream_mon_axil.toml` because the Genesys builds regenerate that
@@ -36,7 +36,7 @@ A consumer config that no build touches is checked by nothing.
 
 - `host` and `monbus_wr` in `bridge_stream_char_axil.toml` -> `id_width = 0`,
   comment rewritten to say why. Slaves keep their widths (8 on the AXI-Lite
-  slaves, 10 on desc_ram per BRIDGE-016). Same shape as `d83c33971`.
+  slaves, 10 on desc_ram per bridge TASK-005, was BRIDGE-016). Same shape as `d83c33971`.
 - Regenerated through `projects/fpga-systems/Genesys2/stream/bin/regen_bridges.sh
   bridge_stream_char_axil`. The plain bridge's top module is byte-identical
   (only `host_adapter.sv` / `monbus_wr_adapter.sv` pick up the placeholder-ID

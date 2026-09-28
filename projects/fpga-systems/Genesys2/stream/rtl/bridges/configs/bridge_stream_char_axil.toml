@@ -70,7 +70,7 @@ name        = "host"
 prefix      = "host_axi_"
 protocol    = "axil"
 channels    = "rw"
-# id_width MUST be 0 on an AXI-Lite MASTER (config_validator, BRIDGE-014,
+# id_width MUST be 0 on an AXI-Lite MASTER (config_validator, bridge TASK-004 -- was BRIDGE-014,
 # 2026-09-11): a Lite requester has no boundary ID ports, so a non-zero
 # width here sizes ports that do not exist. The adapter's internal face
 # uses a placeholder sized by the bridge (fub_id_width) and the fabric

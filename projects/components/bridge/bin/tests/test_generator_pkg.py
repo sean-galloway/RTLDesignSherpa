@@ -89,7 +89,7 @@ def test_every_batch_config_loads_and_validates(name, ports, conn):
 # ---------------------------------------------------------------------
 # Positive coverage -- every CONSUMER config in the repo, not just the
 # batch. bridge_stream_char_axil.toml (Genesys 2) carried id_width=8 on
-# two AXI-Lite masters from 2026-09-11, when BRIDGE-014 added the rule
+# two AXI-Lite masters from 2026-09-11, when bridge TASK-004 (was BRIDGE-014) added the rule
 # forbidding it, until 2026-09-26. Nothing exercised the file: the batch
 # test above only sees bridge_batch.csv, and the board flow regenerates
 # only the bridge it builds. Every agent that tried it in those two weeks
