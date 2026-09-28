@@ -191,13 +191,17 @@ The burst writer fires when **either**:
 
 …and at least `BEATS_PER_UNIT` beats are available (3 in raw mode, 1 in compressed mode).
 
-#### Burst geometry: 3-stage pipeline + fresh-FIFO cap at commit
+#### Burst geometry: 4-stage pipeline + fresh-FIFO cap at commit
 
-The drain-plan math was originally a single combinational chain off `r_wr_addr` feeding straight back into `r_wr_addr` — the 100 MHz critical path on Nexys A7 (-1) (WNS −7.06 ns post-route). Since `r_wr_addr` is stable while the writer sits in `WR_IDLE` (only `WR_W` advances it) and the write FIFO only grows there, the **address geometry** is now a **3-stage registered pipeline**:
+The drain-plan math was originally a single combinational chain off `r_wr_addr` feeding straight back into `r_wr_addr` — the 100 MHz critical path on Nexys A7 (-1) (WNS −7.06 ns post-route). Since `r_wr_addr` is stable while the writer sits in `WR_IDLE` (only `WR_W` advances it) and the write FIFO only grows there, the **address geometry** is now a **4-stage registered pipeline**, one carry chain per stage:
 
 ```
-stage 1 (caps):           s1_beats_to_limit / s1_beats_to_4kb from r_wr_addr,
-                          plus the rewind decision (geom_addr).
+stage 0 (window):         s0_in_window (r_wr_addr inside [base, limit]) and
+                          s0_gaddr, the address the geometry is measured from
+                          (r_wr_addr in window, else base). Two compares + mux.
+stage 1 (caps):           s1_beats_to_limit = (limit + 1 - s0_gaddr) >> 3,
+                          saturated (one 33-bit subtract; limit + 1 is
+                          registered with the config), and s1_beats_to_4kb.
 stage 2 (planned):        min-cap tree ONLY (min of window / 4KB).
                           u_mod3_geo is fed combinationally from this
                           register and consumed by stage 3, so
@@ -206,7 +210,9 @@ stage 3 (rounded + addr): r_plan_geo_units (address-feasible whole-
                           record count) + r_plan_addr (eff_addr).
 ```
 
-A `geom_valid` settle counter holds the plan invalid for the first few cycles after the writer **leaves `WR_IDLE`**, so the pipeline reflects the settled address before the FSM commits. The counter resets on that state exit only -- **not** when `r_wr_addr` moves *inside* `WR_IDLE`, which the rewind-snap and base-step-over branches below both do. On those paths `geom_valid` stays asserted and the FSM can act on a stale plan for a few cycles. That is tolerable rather than hazardous: a commit always consumes `r_plan_addr`, which travels through the pipeline with its own plan, so a stale plan can never be paired with a fresh address.
+Stage 0 was split out of stage 1 on 2026-09-28 (amba ISSUE-001): the window compare gating the limit subtract in one cycle was 11 CARRY4 and 16 logic levels, 10.1 ns on an Artix-7 100T -1 -- the worst register-to-register path of every monitored bridge. The plan now trails `r_wr_addr` by four cycles instead of three, which only the settle counter sees.
+
+A `geom_valid` settle counter (now four) holds the plan invalid for the first few cycles after the writer **leaves `WR_IDLE`**, so the pipeline reflects the settled address before the FSM commits. The counter resets on that state exit only -- **not** when `r_wr_addr` moves *inside* `WR_IDLE`, which the rewind-snap and base-step-over branches below both do. On those paths `geom_valid` stays asserted and the FSM can act on a stale plan for a few cycles. That is tolerable rather than hazardous: a commit always consumes `r_plan_addr`, which travels through the pipeline with its own plan, so a stale plan can never be paired with a fresh address.
 
 ##### Rewind-snap: in-window with no record-room left
 

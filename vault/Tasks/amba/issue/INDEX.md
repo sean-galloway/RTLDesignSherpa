@@ -12,17 +12,17 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-001** — monbus_axil4_axil4_group misses 10 ns on Artix-7 through the s1_beats_to_limit CARRY4 chain (found synthesizing the amba/monitor-lite TASK-001 lite fixture)
 
 ## Closed
 
+- **ISSUE-001** — monbus_axil4_axil4_group misses 10 ns on Artix-7 through the s1_beats_to_limit CARRY4 chain (found synthesizing the amba/monitor-lite TASK-001 lite fixture) -- CLOSED 2026-09-28 (fixed): planner stage split, path +3.46 ns on the same fixture; the fixture's new worst path is the lite's (monitor-lite ISSUE-002)
 - **ISSUE-003** — PKG-PAGES — CLOSED 2026-08-31: the premise did not survive measurement
 - **ISSUE-002** — cam_clear inside the reporter's emission window strands the completion packet under aggressive gating. CLOSED 2026-09-27, no-action: clearing outside idle is illegal (Sean); contract written on the clear ports and in monitor_system_architecture.md.

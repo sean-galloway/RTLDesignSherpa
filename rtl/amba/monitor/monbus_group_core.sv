@@ -781,13 +781,13 @@ module monbus_group_core
     // long combinational chain; doing it in the same cycle as the WR_IDLE
     // -> WR_AW commit was the 100 MHz critical path (it fed straight back
     // into r_wr_addr). r_wr_addr is STABLE while the writer sits in WR_IDLE
-    // (only WR_W advances it), so that math is pipelined over 3 registered
+    // (only WR_W advances it), so that math is pipelined over 4 registered
     // stages and the FSM consumes the pre-computed plan (r_plan_*).
     // geom_valid gates the commit until the pipeline reflects the settled
     // r_wr_addr.
     //
     // IMPORTANT: the FIFO-occupancy cap is NOT pipelined -- the FIFO keeps
-    // filling while the writer sits in WR_IDLE, so a pipelined (3-cycle
+    // filling while the writer sits in WR_IDLE, so a pipelined (4-cycle
     // stale) FIFO count would short the burst (e.g. drain 21 of 24 beats
     // when the watermark fires). Instead the pipeline produces a purely
     // address-feasible whole-record count (r_plan_geo_units) and the FRESH
@@ -800,7 +800,15 @@ module monbus_group_core
     // Final burst length is min(r_plan_geo_units, w_fifo_units) (16 bits) but
     // only the low 9 bits go to AWLEN (AXI4 arlen+1, max 256 beats).
     logic [15:0]                 beats_in_fifo;
-    // stage 1: per-cap geometry from a stable r_wr_addr
+    // stage 0: window test + geometry address off a stable r_wr_addr. Its own
+    // stage because the window compare (three CARRY4) used to gate the
+    // limit subtract (eight CARRY4) in ONE cycle: 16 logic levels, 10.1 ns on
+    // an Artix-7 -1, the worst path of every monitored bridge (amba
+    // ISSUE-001). Now each stage carries one carry chain.
+    logic                        s0_in_window;
+    logic [ADDR_WIDTH-1:0]       s0_gaddr;
+    logic [ADDR_WIDTH-1:0]       s0_wr_addr;
+    // stage 1: per-cap geometry from the stage-0 address
     logic [15:0]                 s1_beats_to_limit;
     logic [15:0]                 s1_beats_to_4kb;
     logic                        s1_in_window;
@@ -814,10 +822,17 @@ module monbus_group_core
     // route alone, feeding a high-fanout arithmetic net). Registering them here
     // makes stage 1 source from adjacent flops (placer can localise the adders)
     // and the max_fanout cap forces driver replication so no single window
-    // term drives ~100+ loads. Config is static during operation, so the 1-cycle
-    // latency to adopt a new base/limit is functionally harmless.
+    // term drives ~100+ loads. Config is static during operation; a change
+    // resets the geometry settle counter so no flush is planned against a
+    // half-adopted window.
     (* max_fanout = 24 *) logic [ADDR_WIDTH-1:0] r_cfg_base_addr;
     (* max_fanout = 24 *) logic [ADDR_WIDTH-1:0] r_cfg_limit_addr;
+    // limit + 1, 33 bits, registered with the config: beats_to_limit is
+    // ((limit - gaddr - 7) >> 3) + 1 == (limit + 1 - gaddr) >> 3 for every
+    // limit - gaddr, including 0xFFFF_FFFF (which is why the +1 is taken on
+    // the quasi-static side, in 33 bits). One subtract instead of a
+    // subtract, a compare and an increment.
+    logic [ADDR_WIDTH:0]                          r_cfg_limit_p1;
     // stage 2: planned beats (geometry cap only)
     logic [15:0]                 s2_beats_planned;
     logic                        s2_in_window;
@@ -838,7 +853,7 @@ module monbus_group_core
     // a short combinational op off this flop.
     logic [15:0]                 r_fifo_beats;
     // pipeline settled against the current r_wr_addr
-    logic [1:0]                  r_geom_settle;
+    logic [2:0]                  r_geom_settle;
     logic                        geom_valid;
     // flush triggers (short combinational paths off beats_in_fifo / cnt)
     logic                        flush_trigger_watermark;
@@ -848,18 +863,19 @@ module monbus_group_core
 
     assign beats_in_fifo = {{(16-WRITE_FIFO_AW-1){1'b0}}, write_fifo_beat_count};
 
-    // Pipeline reflects the settled r_wr_addr once it has been stable for
-    // the full pipeline depth (3 stages). r_geom_settle resets when the
+    // Pipeline reflects the settled r_wr_addr AND window config once both
+    // have been stable for the full depth: the config register plus the four
+    // geometry stages, five cycles. r_geom_settle resets when the
     // writer leaves WR_IDLE -- but NOT when r_wr_addr moves *inside* WR_IDLE,
     // which the rewind-snap and base-step-over branches both do. See the
     // settle block in the FSM below for why that is tolerable rather than a
     // bug (it costs a few cycles of oscillation, never a bad AW).
-    assign geom_valid = (r_geom_settle == 2'd3);
+    assign geom_valid = (r_geom_settle == 3'd5);
 
-    // 3-stage geometry pipeline. Each stage is a shallow slice of the old
+    // 4-stage geometry pipeline. Each stage is a shallow slice of the old
     // single-cycle chain that used to feed straight back into r_wr_addr
     // (the 100 MHz critical path). Stage N reads stage N-1's registers, so
-    // the plan trails r_wr_addr by 3 cycles -- harmless because r_wr_addr
+    // the plan trails r_wr_addr by 4 cycles -- harmless because r_wr_addr
     // is stable in WR_IDLE and the FIFO only grows there.
 
     // Register the (quasi-static) window config locally so stage 1 sources it
@@ -868,14 +884,19 @@ module monbus_group_core
         if (`RST_ASSERTED(axi_aresetn)) begin
             r_cfg_base_addr  <= '0;
             r_cfg_limit_addr <= '0;
+            r_cfg_limit_p1   <= '0;
         end else begin
             r_cfg_base_addr  <= cfg_base_addr;
             r_cfg_limit_addr <= cfg_limit_addr;
+            r_cfg_limit_p1   <= {1'b0, cfg_limit_addr} + 1'b1;
         end
     )
 
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
         if (`RST_ASSERTED(axi_aresetn)) begin
+            s0_in_window      <= 1'b0;
+            s0_gaddr          <= '0;
+            s0_wr_addr        <= '0;
             s1_beats_to_limit <= 16'd0;
             s1_beats_to_4kb   <= 16'd0;
             s1_in_window      <= 1'b0;
@@ -890,26 +911,31 @@ module monbus_group_core
         end else begin
             // Registered raw FIFO beat count (the trigger + cap both use it).
             r_fifo_beats <= beats_in_fifo;
-            // ---- stage 1: window test + per-cap geometry off r_wr_addr.
-            // beats_to_limit = ((limit - geom - 7) >> 3) + 1 when it fits,
-            // else 0 -- computed without the +1 overflow the legacy form
-            // hit at limit=0xFFFF_FFFF (see the flush-bug postmortem).
+            // ---- stage 0: window test off r_wr_addr, and the address the
+            // geometry is measured from (the write address when it is in the
+            // window, else the base). Two parallel compares and a mux.
+            begin : stage0
+                logic in_w;
+                in_w         = (r_wr_addr >= r_cfg_base_addr) && (r_wr_addr <= r_cfg_limit_addr);
+                s0_in_window <= in_w;
+                s0_gaddr     <= in_w ? r_wr_addr : r_cfg_base_addr;
+                s0_wr_addr   <= r_wr_addr;
+            end
+
+            // ---- stage 1: per-cap geometry off the stage-0 address.
+            // beats_to_limit = (limit + 1 - gaddr) >> 3, saturated to 16 bits;
+            // equal to ((limit - gaddr - 7) >> 3) + 1 when a beat fits and 0
+            // when none does, with the +1 carried in 33 bits on the config
+            // side so limit = 0xFFFF_FFFF cannot overflow it (the flush-bug
+            // postmortem). One subtract chain, then a bit-OR saturate.
             begin : stage1
-                logic                  in_w;
-                logic [ADDR_WIDTH-1:0] gaddr;
-                logic [ADDR_WIDTH-1:0] diff;
-                logic [ADDR_WIDTH-1:0] beats_raw;
-                logic [12:0]           bytes4;
-                in_w      = (r_wr_addr >= r_cfg_base_addr) && (r_wr_addr <= r_cfg_limit_addr);
-                gaddr     = in_w ? r_wr_addr : r_cfg_base_addr;
-                diff      = r_cfg_limit_addr - gaddr;
-                beats_raw = (diff < ADDR_WIDTH'(7)) ? '0
-                          : (((diff - ADDR_WIDTH'(7)) >> 3) + ADDR_WIDTH'(1));
-                bytes4    = 13'h1000 - {1'b0, gaddr[11:0]};
-                s1_in_window      <= in_w;
-                s1_wr_addr        <= r_wr_addr;
-                s1_beats_to_limit <= (beats_raw > ADDR_WIDTH'(16'hFFFF))
-                                     ? 16'hFFFF : beats_raw[15:0];
+                logic [ADDR_WIDTH:0] beats_raw;     // 33 bits: (limit + 1 - gaddr) >> 3 fits in 30
+                logic [12:0]         bytes4;
+                beats_raw = (r_cfg_limit_p1 - {1'b0, s0_gaddr}) >> 3;
+                bytes4    = 13'h1000 - {1'b0, s0_gaddr[11:0]};
+                s1_in_window      <= s0_in_window;
+                s1_wr_addr        <= s0_wr_addr;
+                s1_beats_to_limit <= (|beats_raw[ADDR_WIDTH:16]) ? 16'hFFFF : beats_raw[15:0];
                 s1_beats_to_4kb   <= {6'd0, bytes4[12:3]};
             end
 
@@ -1017,7 +1043,7 @@ module monbus_group_core
             r_w_beats_remaining <= 9'd0;
             r_unit_remaining    <= 16'd0;
             r_timeout_cnt       <= 32'd0;
-            r_geom_settle       <= 2'd0;
+            r_geom_settle       <= 3'd0;
         end else begin
             // Timeout counter: count up while the FIFO has data and we're
             // not currently emitting; clear on W handshake or when empty.
@@ -1035,7 +1061,7 @@ module monbus_group_core
             // NOTE: this resets on STATE EXIT only. It does not reset when
             // r_wr_addr moves inside WR_IDLE, which the rewind-snap and
             // base-step-over branches below both do -- so after a snap the
-            // FSM can act on a 3-cycle-stale plan while geom_valid is still
+            // FSM can act on a 4-cycle-stale plan while geom_valid is still
             // asserted, and r_wr_addr may oscillate (base <-> next-4KB
             // boundary) for a few cycles until the pipeline catches up.
             //
@@ -1046,10 +1072,17 @@ module monbus_group_core
             // consistent drain address. Adding a settle reset on r_wr_addr
             // change would remove the wasted cycles; deliberately not done
             // without a waveform to measure it against (qc round_24).
-            if (r_wr_state != WR_IDLE) begin
-                r_geom_settle <= 2'd0;
-            end else if (r_geom_settle != 2'd3) begin
-                r_geom_settle <= r_geom_settle + 2'd1;
+            // ...and on a window-config change: r_cfg_* adopt the new values a
+            // cycle later and the plan four cycles after that, so a flush that
+            // fires inside that window would commit an address planned against
+            // the OLD window (the group core proof found it at reset exit,
+            // where the config is first written). Config is quasi-static, so
+            // the five-cycle hold after a write costs nothing in operation.
+            if (r_wr_state != WR_IDLE
+                || cfg_base_addr != r_cfg_base_addr || cfg_limit_addr != r_cfg_limit_addr) begin
+                r_geom_settle <= 3'd0;
+            end else if (r_geom_settle != 3'd5) begin
+                r_geom_settle <= r_geom_settle + 3'd1;
             end
 
             case (r_wr_state)

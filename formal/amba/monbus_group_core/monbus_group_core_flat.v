@@ -1893,12 +1893,16 @@ module monbus_group_core (
 	reg [15:0] r_unit_remaining;
 	reg [31:0] r_timeout_cnt;
 	wire [15:0] beats_in_fifo;
+	reg s0_in_window;
+	reg [ADDR_WIDTH - 1:0] s0_gaddr;
+	reg [ADDR_WIDTH - 1:0] s0_wr_addr;
 	reg [15:0] s1_beats_to_limit;
 	reg [15:0] s1_beats_to_4kb;
 	reg s1_in_window;
 	reg [ADDR_WIDTH - 1:0] s1_wr_addr;
 	(* max_fanout = 24 *) reg [ADDR_WIDTH - 1:0] r_cfg_base_addr;
 	(* max_fanout = 24 *) reg [ADDR_WIDTH - 1:0] r_cfg_limit_addr;
+	reg [ADDR_WIDTH:0] r_cfg_limit_p1;
 	reg [15:0] s2_beats_planned;
 	reg s2_in_window;
 	reg [ADDR_WIDTH - 1:0] s2_wr_addr;
@@ -1906,37 +1910,34 @@ module monbus_group_core (
 	reg [ADDR_WIDTH - 1:0] r_plan_addr;
 	reg r_plan_ok;
 	reg [15:0] r_fifo_beats;
-	reg [1:0] r_geom_settle;
+	reg [2:0] r_geom_settle;
 	wire geom_valid;
 	wire flush_trigger_watermark;
 	wire flush_trigger_timeout;
 	wire have_one_unit;
 	wire do_flush;
 	assign beats_in_fifo = {{(16 - WRITE_FIFO_AW) - 1 {1'b0}}, write_fifo_beat_count};
-	assign geom_valid = r_geom_settle == 2'd3;
+	assign geom_valid = r_geom_settle == 3'd5;
 	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn) begin
 			r_cfg_base_addr <= 1'sb0;
 			r_cfg_limit_addr <= 1'sb0;
+			r_cfg_limit_p1 <= 1'sb0;
 		end
 		else begin
 			r_cfg_base_addr <= cfg_base_addr;
 			r_cfg_limit_addr <= cfg_limit_addr;
+			r_cfg_limit_p1 <= {1'b0, cfg_limit_addr} + 1'b1;
 		end
-	function automatic signed [ADDR_WIDTH - 1:0] sv2v_cast_A5DC5_signed;
-		input reg signed [ADDR_WIDTH - 1:0] inp;
-		sv2v_cast_A5DC5_signed = inp;
-	endfunction
-	function automatic [ADDR_WIDTH - 1:0] sv2v_cast_A5DC5;
-		input reg [ADDR_WIDTH - 1:0] inp;
-		sv2v_cast_A5DC5 = inp;
-	endfunction
 	function automatic [15:0] sv2v_cast_16;
 		input reg [15:0] inp;
 		sv2v_cast_16 = inp;
 	endfunction
 	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn) begin
+			s0_in_window <= 1'b0;
+			s0_gaddr <= 1'sb0;
+			s0_wr_addr <= 1'sb0;
 			s1_beats_to_limit <= 16'd0;
 			s1_beats_to_4kb <= 16'd0;
 			s1_in_window <= 1'b0;
@@ -1951,20 +1952,21 @@ module monbus_group_core (
 		end
 		else begin
 			r_fifo_beats <= beats_in_fifo;
-			begin : stage1
+			begin : stage0
 				reg in_w;
-				reg [ADDR_WIDTH - 1:0] gaddr;
-				reg [ADDR_WIDTH - 1:0] diff;
-				reg [ADDR_WIDTH - 1:0] beats_raw;
-				reg [12:0] bytes4;
 				in_w = (r_wr_addr >= r_cfg_base_addr) && (r_wr_addr <= r_cfg_limit_addr);
-				gaddr = (in_w ? r_wr_addr : r_cfg_base_addr);
-				diff = r_cfg_limit_addr - gaddr;
-				beats_raw = (diff < sv2v_cast_A5DC5_signed(7) ? {ADDR_WIDTH {1'sb0}} : ((diff - sv2v_cast_A5DC5_signed(7)) >> 3) + sv2v_cast_A5DC5_signed(1));
-				bytes4 = 13'h1000 - {1'b0, gaddr[11:0]};
-				s1_in_window <= in_w;
-				s1_wr_addr <= r_wr_addr;
-				s1_beats_to_limit <= (beats_raw > sv2v_cast_A5DC5(16'hffff) ? 16'hffff : beats_raw[15:0]);
+				s0_in_window <= in_w;
+				s0_gaddr <= (in_w ? r_wr_addr : r_cfg_base_addr);
+				s0_wr_addr <= r_wr_addr;
+			end
+			begin : stage1
+				reg [ADDR_WIDTH:0] beats_raw;
+				reg [12:0] bytes4;
+				beats_raw = (r_cfg_limit_p1 - {1'b0, s0_gaddr}) >> 3;
+				bytes4 = 13'h1000 - {1'b0, s0_gaddr[11:0]};
+				s1_in_window <= s0_in_window;
+				s1_wr_addr <= s0_wr_addr;
+				s1_beats_to_limit <= (|beats_raw[ADDR_WIDTH:16] ? 16'hffff : beats_raw[15:0]);
 				s1_beats_to_4kb <= {6'd0, bytes4[12:3]};
 			end
 			begin : stage2
@@ -2022,6 +2024,10 @@ module monbus_group_core (
 		input reg [8:0] inp;
 		sv2v_cast_9 = inp;
 	endfunction
+	function automatic signed [ADDR_WIDTH - 1:0] sv2v_cast_A5DC5_signed;
+		input reg signed [ADDR_WIDTH - 1:0] inp;
+		sv2v_cast_A5DC5_signed = inp;
+	endfunction
 	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn) begin
 			r_wr_state <= 3'd0;
@@ -2031,7 +2037,7 @@ module monbus_group_core (
 			r_w_beats_remaining <= 9'd0;
 			r_unit_remaining <= 16'd0;
 			r_timeout_cnt <= 32'd0;
-			r_geom_settle <= 2'd0;
+			r_geom_settle <= 3'd0;
 		end
 		else begin
 			if (write_fifo_empty)
@@ -2040,10 +2046,10 @@ module monbus_group_core (
 				r_timeout_cnt <= 32'd0;
 			else if (r_timeout_cnt < FLUSH_TIMEOUT_CYCLES)
 				r_timeout_cnt <= r_timeout_cnt + 32'd1;
-			if (r_wr_state != 3'd0)
-				r_geom_settle <= 2'd0;
-			else if (r_geom_settle != 2'd3)
-				r_geom_settle <= r_geom_settle + 2'd1;
+			if (((r_wr_state != 3'd0) || (cfg_base_addr != r_cfg_base_addr)) || (cfg_limit_addr != r_cfg_limit_addr))
+				r_geom_settle <= 3'd0;
+			else if (r_geom_settle != 3'd5)
+				r_geom_settle <= r_geom_settle + 3'd1;
 			case (r_wr_state)
 				3'd0:
 					if ((do_flush && geom_valid) && r_plan_ok) begin : sv2v_autoblock_1
