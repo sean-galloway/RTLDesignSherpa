@@ -1,10 +1,6 @@
-<!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. Move a task between pages by cutting its block, do not copy. -->
+# TASK-002: Bring the last three test areas onto the base coverage path
 
-# coverage — Open (accepted, not started)
-
----
-
-## COV-001 — Bring the last three test areas onto the base coverage path
+> Migrated 2026-09-27 from `vault/Tasks/coverage/open.md` as **COV-001** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 **Status:** open 2026-08-09 (the surviving remainder of val/COVERAGE_TODO.md,
 verified against the tree at migration)
 **Priority:** P3
@@ -30,4 +26,3 @@ Blocked variants, noted not tasked: `delta` and `hive` have no dv tests at
 all — coverage rollout there waits on tests existing.
 
 ---
-

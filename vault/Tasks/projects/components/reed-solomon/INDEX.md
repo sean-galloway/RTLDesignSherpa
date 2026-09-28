@@ -24,12 +24,11 @@ Future `projects/components/reed-solomon/` component. No RTL, DV or PRD
 exists yet — this area holds the intent so it does not vanish when
 COMMON-009 (BCH/Reed-Solomon ECC as library work) was dropped 2026-08-09.
 
-| Page | Count | What |
-|---|---|---|
-| [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 1 | accepted, not started |
-| [closed.md](closed.md) | 0 | done (kept for history) |
-| [dropped.md](dropped.md) | 0 | ended without completing |
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 1 | 0 | 0 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 
 ## Open shortlist
 

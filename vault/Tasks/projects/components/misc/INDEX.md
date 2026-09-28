@@ -28,10 +28,11 @@ observers, the monbus tally/slave-monitor register blocks and
 
 Created 2026-09-04. The area had no tracker before.
 
-| State | Count |
-|---|---|
-| [open](open.md) | 2 |
-| [closed](closed.md) | 0 |
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 2 | 0 | 0 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 
 ## Open shortlist
 

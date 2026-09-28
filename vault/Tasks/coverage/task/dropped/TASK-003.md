@@ -1,10 +1,6 @@
-<!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. Move a task between pages by cutting its block, do not copy. -->
+# TASK-003: delta has five RTL files, no tests at all, and two copies of one module
 
-# coverage — Dropped (ended without completing)
-
-_None._
-
-## COV-002: delta has five RTL files, no tests at all, and two copies of one module
+> Migrated 2026-09-27 from `vault/Tasks/coverage/dropped.md` as **COV-002** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 
 **Status:** DROPPED 2026-09-07 -- Sean: "delta should be skipped." delta is
 deliberately out of scope, not an oversight. Recorded rather than deleted so

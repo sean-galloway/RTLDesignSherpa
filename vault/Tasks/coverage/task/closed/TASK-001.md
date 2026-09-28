@@ -1,10 +1,6 @@
-<!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. Move a task between pages by cutting its block, do not copy. -->
+# TASK-001: Coverage infrastructure consolidation (historical record)
 
-# coverage — Closed (done)
-
----
-
-## COV-000 — Coverage infrastructure consolidation (historical record)
+> Migrated 2026-09-27 from `vault/Tasks/coverage/closed.md` as **COV-000** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 **Status:** CLOSED — work landed across 2026-03..2026-07; recorded at
 migration 2026-08-09 from val/COVERAGE_TODO.md
 

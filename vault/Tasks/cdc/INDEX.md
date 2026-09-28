@@ -17,9 +17,8 @@ Pick the lane before filing:
 | [bug/](bug/INDEX.md) | a defect with a reproduction | `BUG-001` |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | `ISSUE-001` |
 
-**The pages at this level are the LEGACY task lane.** They are frozen: close
-them out where they stand, and do not add to them. New work of any kind goes in
-a lane above. See [the convention](../INDEX.md) for the full definitions.
+Items live one per file under the lane directories below; this page is the
+area overview. See [the convention](../INDEX.md) for the definitions.
 
 
 Canonical tracker for `rtl/cdc/` (`bin2gray`, `gray2bin`, the async FIFOs and
@@ -30,16 +29,15 @@ Created 2026-09-04. The area had no tracker before -- CDC work was recorded in
 whichever area happened to consume it, which is why the first task here is a
 test scrub rather than a design item.
 
-| Page | Count | What |
-|---|---|---|
-| [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 0 | accepted, ready to start |
-| [closed.md](closed.md) | 5 | done (kept for history) |
-| [dropped.md](dropped.md) | 0 | ended without completing |
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 0 | 0 | 2 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 0 | 0 | 3 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 
 ## Open
 
-Nothing open -- all five tasks are closed; see [closed.md](closed.md). (CDC-001
+Nothing open -- all five tasks are closed; see the closed/ dirs (CDC-001
 was listed here as open after it had already closed, which is the stale-index
 pattern this area keeps hitting: the work lands, the closed page is updated,
 and the open page keeps advertising it.)

@@ -2,7 +2,7 @@
 
 # coverage — tasks
 
-**Next ID: TASK-001** — never recycle a number, even when its item closed.
+**Next ID: TASK-004** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,11 +12,21 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
-| [dropped/](dropped/) | 0 | ended without completing |
+| [closed/](closed/) | 1 | done (kept for history) |
+| [dropped/](dropped/) | 1 | ended without completing |
+| [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
+- **TASK-002** — Bring the last three test areas onto the base coverage path
 - **TASK-000** — reserved template; copy the file, do not file against it.
+
+## Closed
+
+- **TASK-001** — Coverage infrastructure consolidation (historical record)
+
+## Dropped
+
+- **TASK-003** — delta has five RTL files, no tests at all, and two copies of one module
