@@ -12,9 +12,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 13 | done (kept for history) |
+| [closed/](closed/) | 14 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,14 +22,15 @@ exactly one state by construction rather than by discipline.
 
 
 
-- **ISSUE-015** — `init` programs the read path as wrlat=1/rden=6/delay=7 and
-  levels against it; `char` then re-programs 1/1/2 underneath that leveling.
-  Both are on the clean diagonal, so it works -- with unmeasured margin
 
 
 - **ISSUE-000** — TEMPLATE — copy this file, never file against it
 
 ## Closed
+
+- **ISSUE-015** — measured: both read-path tuples give an IDENTICAL 10-tap eye
+  (same bitslip, same tap), so the choice costs no margin; the real hazard,
+  drifting off the `rddata_delay = t_rddata_en + 1` diagonal, is now guarded
 
 - **ISSUE-017** — `PUMICE_SYS_75` defaults ON, so `make bitstream` builds the
   board's 75 MHz design point; the frequency is announced in a banner and the

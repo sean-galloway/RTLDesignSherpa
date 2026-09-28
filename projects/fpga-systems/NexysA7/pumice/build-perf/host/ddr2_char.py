@@ -449,6 +449,8 @@ class DDR2CharDriver:
         CSR-driven, so this must land BEFORE init is released."""
         self.pumice.set_phy_timing(memtype=memtype, t_phy_wrlat=t_phy_wrlat,
                                    t_rddata_en=t_rddata_en)
+        self._t_rddata_en = t_rddata_en
+        self._warn_off_diagonal()
         # rd_in_order is the HARNESS CTRLR_CFG bit (the check engine's R
         # ordering); the controller's ordering is set_sched_policy().
 
@@ -510,6 +512,37 @@ class DDR2CharDriver:
         Sweep live over UART, no rebuild. Set while idle."""
         # rmw: DFI_TUNING also holds cmd_delay — preserve it.
         self.regs.write("DFI_TUNING", rmw=True, rddata_delay=rddata_delay & 0xF)
+        self._rddata_delay = rddata_delay & 0xF
+        self._warn_off_diagonal()
+
+    # Read-path diagonal. A joint (t_rddata_en x rddata_delay) board sweep found
+    # every clean pair on `rddata_delay = t_rddata_en + 1`: the a7ddrphy's
+    # data-vs-valid offset is a fixed 1 cycle, so ANY t_rddata_en works provided
+    # the delay tracks it. Two host paths deliberately sit on different points of
+    # that line -- `init` at 6/7, `char` at 1/2 -- and a 2026-09-28 A/B measured
+    # the leveled eye at BOTH: 10 taps wide, bitslip 0, tap 4, identical. The
+    # coarse pair and the fine eye are orthogonal, so the choice of point does
+    # not cost margin (pumice ISSUE-015).
+    #
+    # What DOES cost is leaving the line. Changing one knob without the other
+    # puts the capture window off the data, and the failure mode is the bad one:
+    # on 2026-09-21 a stale pair read healthy BANDWIDTH while every cell failed
+    # its integrity check. So the invariant is checked wherever both are known,
+    # rather than trusting two files to be edited together.
+    _rddata_delay = None
+    _t_rddata_en = None
+
+    def _warn_off_diagonal(self) -> None:
+        en, dly = self._t_rddata_en, self._rddata_delay
+        if en is None or dly is None:
+            return
+        if dly != en + 1:
+            print(f"[read-path] WARNING: t_rddata_en={en} with rddata_delay={dly} "
+                  f"is OFF the measured clean diagonal (rddata_delay should be "
+                  f"{en + 1}). Every clean pair found by the joint board sweep is "
+                  f"on that line. An off-diagonal pair can read plausible "
+                  f"bandwidth while corrupting data -- check integrity, not just "
+                  f"throughput (pumice ISSUE-015).", flush=True)
 
     def get_dfi_rddata_delay(self) -> int:
         return self.regs.field("DFI_TUNING", "rddata_delay")

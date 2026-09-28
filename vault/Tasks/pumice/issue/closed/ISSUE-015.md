@@ -1,6 +1,6 @@
 # ISSUE-015: two board host paths program two different read-path tuples
 
-**Status:** open 2026-09-27  **Priority:** P2 -- this is a read-path setting, and
+**Status:** CLOSED 2026-09-28 (measured -- see below)  **Priority:** P2 -- this is a read-path setting, and
 the last time a stale tuple was pinned here it corrupted data while still
 reporting healthy bandwidth.
 **Owner:** TBD
@@ -81,3 +81,58 @@ Recorded rather than guessed at: the honest state is that the two tuples are bot
 known to WORK and their relative margin is still unmeasured. Do not close this on
 the strength of "both pass integrity" -- that was already true, and is exactly
 what makes the question worth answering.
+
+---
+
+## Closed 2026-09-28 -- measured, and the premise does not hold
+
+The issue's worry was that "the leveling is measured against one point and used
+at another. The eye that was measured is not the eye in use." Measured at both
+points on the board (75 MHz, `host_eye_margin_ab.py`, a fresh leveling scan per
+point with no cache):
+
+| t_rddata_en | rddata_delay | bitslip | tap | eye (taps) | status |
+|---:|---:|---:|---:|---:|---|
+| 6 (`init`) | 7 | 0 | 4 | **10** | clean |
+| 1 (`char`) | 2 | 0 | 4 | **10** | clean |
+
+**Identical.** Same winning bitslip, same centred tap, same eye width.
+
+The reason is that the two knobs are ORTHOGONAL. `t_rddata_en` / `rddata_delay`
+are coarse, whole-cycle alignment: they decide which sys-cycle the read data is
+captured in. bitslip and the IDELAY tap are the fine data-eye alignment within a
+cycle, and the eye is a property of the PHY, the board traces and the part --
+not of which cycle you chose. Any point ON the diagonal presents the same eye to
+the leveling scan. So the leveling is NOT being used at a different eye than it
+was measured at, and the two host paths disagreeing costs nothing measurable.
+
+That answers "which has more margin" with "neither", so the done-when's
+"make the choice on measured eye margin" has no winner to pick. The tuples stay
+as they are.
+
+## What actually mattered, and is now guarded
+
+Not the choice of point -- leaving the LINE. `rddata_delay` must track
+`t_rddata_en + 1`, and two files each holding half of that invariant is how it
+gets broken. The failure mode is the dangerous one: on 2026-09-21 a stale pair
+reported 552.3 MB/s while all four cells failed their integrity check, so the
+number a reader would quote survived and only the integrity flag disagreed.
+
+`DDR2CharDriver` now remembers both halves and warns loudly whenever they leave
+the diagonal, wherever they are programmed from:
+
+    [read-path] WARNING: t_rddata_en=6 with rddata_delay=2 is OFF the measured
+    clean diagonal (rddata_delay should be 7). ... An off-diagonal pair can read
+    plausible bandwidth while corrupting data -- check integrity, not just
+    throughput
+
+Verified on the board: silent at (6,7), fires at (6,2), silent again at (6,7).
+
+That is a better answer than unifying the two call sites into one constant. A
+single owner would still be edited by hand, and the invariant is between two
+registers rather than between two files -- so it is checked where both values
+are actually known.
+
+`host_sweep_rddata_delay.py` also stopped carrying the stale `wrlat=0/rden=6`
+pair (now `--wrlat`/`--rden`), and `host_eye_margin_ab.py` is the tool that
+produced the table above.
