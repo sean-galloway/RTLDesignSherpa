@@ -14,11 +14,11 @@ its own ID sequence. **Every item is its own file**, `<ID>.md`, filed under
 the directory for its state (`open/`, `active/`, `closed/`, `dropped/`).
 Pick the lane before filing:
 
-| Lane | For | Next ID |
-|---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | `TASK-001` |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | `BUG-001` |
-| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | `ISSUE-001` |
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 7 | 0 | 1 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 2 | 0 | 0 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 1 | 0 | 0 | 1 | 0 |
 
 Items live one per file under the lane directories below; this page is the
 area overview. See [the convention](../INDEX.md) for the definitions.

@@ -9,15 +9,14 @@ its own ID sequence. **Every item is its own file**, `<ID>.md`, filed under
 the directory for its state (`open/`, `active/`, `closed/`, `dropped/`).
 Pick the lane before filing:
 
-| Lane | For | Next ID |
-|---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | `TASK-001` |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | `BUG-001` |
-| [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | `ISSUE-001` |
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 1 | 0 | 14 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 3 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 1 | 0 | 0 | 0 | 0 |
 
-**The pages at this level are the LEGACY task lane.** They are frozen: close
-them out where they stand, and do not add to them. New work of any kind goes in
-a lane above. See [the convention](../INDEX.md) for the full definitions.
+Items live one per file under the lane directories below; this page is the
+area overview. See [the convention](../INDEX.md) for the definitions.
 
 
 Task rollup for the retro legacy peripheral blocks (gpio, hpet, ioapic,
@@ -33,12 +32,11 @@ lanes: [gpio](gpio/INDEX.md), [hpet](hpet/INDEX.md), [ioapic](ioapic/INDEX.md),
 A block's own defects and features go there; THIS area's lanes are for
 cross-block work. The `RLB-0NN` pages below are the frozen legacy lane.
 
-| State | Count | Tasks |
-|---|---|---|
-| active | 0 | — |
-| open | 0 | — |
-| closed | 16 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README), RLB-006 (test scrub), RLB-007 (RDL relocation), RLB-008 (ioapic features -- four companions), RLB-009 (pm_acpi residual features), RLB-010 (rtc leftovers), RLB-011 (smbus residual features), RLB-012 (regblock reset polarity), RLB-013 (uart_16550 residual features), RLB-014 (800-line cap -- owner: a guideline, over is fine), RLB-015 (SYNCASYNCNET, measured + waived), RLB-016 (unmapped address hung the bus -- crossbar is generated now) |
-| dropped | 0 | — |
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 1 | 0 | 14 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 3 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 1 | 0 | 0 | 0 | 0 |
 
 ## Shortlist
 

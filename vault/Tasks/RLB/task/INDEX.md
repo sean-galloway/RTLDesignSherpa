@@ -2,7 +2,7 @@
 
 # RLB — tasks
 
-**Next ID: TASK-001** — never recycle a number, even when its item closed.
+**Next ID: TASK-015** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,10 +14,27 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 14 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
+
+## Closed
+
+- **TASK-001** — MAS/RTL quality review (9 blocks) via Kimi
+- **TASK-002** — Fix wrong-map MAS register documentation (5 blocks)
+- **TASK-003** — Fix remaining MAS register documentation (4 blocks)
+- **TASK-004** — Triage & fix the RTL bugs found by the MAS/RTL review
+- **TASK-005** — Clean up rtc wavedrom README third register-map copy
+- **TASK-006** — scrub the tests for completeness (retro legacy blocks)
+- **TASK-007** — all RDL lives in an rdl area, as it does elsewhere
+- **TASK-008** — IOAPIC features deferred past the #48 fix
+- **TASK-009** — PM_ACPI features deferred past the #54 fix
+- **TASK-010** — RTC leftovers after the #56 fix
+- **TASK-011** — SMBus features deferred past the #58 fix
+- **TASK-012** — UART 16550 features deferred past the #60 fix
+- **TASK-013** — the 800-line core cap is honored in the breach
+- **TASK-014** — pit_regmap.py regenerated to match its RDL
