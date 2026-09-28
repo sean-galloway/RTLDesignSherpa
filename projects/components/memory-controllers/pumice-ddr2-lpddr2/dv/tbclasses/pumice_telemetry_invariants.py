@@ -54,6 +54,11 @@ from __future__ import annotations
 from typing import Callable, Dict, List, NamedTuple, Optional
 
 
+# Banks in the shipping geometry. The slack in pre_le_act_plus_open_banks:
+# a window can inherit at most this many already-open rows.
+NUM_BANKS = 8
+
+
 class Violation(NamedTuple):
     rule: str
     detail: str
@@ -115,13 +120,19 @@ RULES: tuple = (
         "purpose: see WHY ACT CAN EXCEED COL_OPS in the module docstring.",
     ),
     _Rule(
-        "pre_le_act",
+        "pre_le_act_plus_open_banks",
         ("SCHED_STATS_PRE", "SCHED_STATS_ACT"),
-        lambda c: c["SCHED_STATS_PRE"] <= c["SCHED_STATS_ACT"],
-        lambda c: f"PRE+PREA={c['SCHED_STATS_PRE']} > ACT={c['SCHED_STATS_ACT']}",
-        "a bank cannot be closed more times than it was opened. One PREA closes "
-        "up to eight banks with a single command, so the command count stays at "
-        "or below ACT even under all-bank precharge.",
+        lambda c: c["SCHED_STATS_PRE"] <= c["SCHED_STATS_ACT"] + NUM_BANKS,
+        lambda c: (f"PRE+PREA={c['SCHED_STATS_PRE']} > ACT={c['SCHED_STATS_ACT']} "
+                   f"+ {NUM_BANKS} banks = {c['SCHED_STATS_ACT'] + NUM_BANKS}"),
+        "a bank cannot be closed more times than it was opened, PLUS the banks "
+        "that were already open when the window began. This shipped as the "
+        "stricter `PRE <= ACT` and layer 3's random soak disproved it: a window "
+        "starting with banks left open by the previous round measured PRE=43 "
+        "against ACT=42, on correct hardware. Refresh does the same thing -- it "
+        "issues PREA to close rows opened before the window. At most NUM_BANKS "
+        "rows can be inherited, so that is the slack, and it is a BOUND rather "
+        "than an equality for the same reason the hit relations are.",
     ),
     _Rule(
         "refresh_busy_le_refresh",

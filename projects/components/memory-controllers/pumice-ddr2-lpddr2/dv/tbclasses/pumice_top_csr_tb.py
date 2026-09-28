@@ -480,6 +480,22 @@ class PumiceTopCsrTB:
         self.axi_master_rd.r_channel.randomizer = FlexRandomizer(cfg["slave"])
         self.log.info(f"AXI timing profile = '{profile_name}'")
 
+    def set_read_gap(self, gap: int) -> None:
+        """Pin the R-channel RREADY gap to EXACTLY `gap` cycles.
+
+        This is the hazard axis pumice BUG-003 needed and no suite had: the bug
+        was policy_mode=3 crossed with rd_gap>=8, and policy_mode had been
+        exercised at three values -- just never against that gap. The named
+        profiles randomise a delay; a covering array needs the axis pinned, or
+        the cell cannot be reproduced when it fails.
+        """
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        if self.axi_master_rd is None:
+            raise RuntimeError("init_axi_masters() first")
+        self.axi_master_rd.r_channel.randomizer = FlexRandomizer(
+            {"ready_delay": ([(gap, gap)], [1])})
+        self.log.info(f"R-channel RREADY gap pinned to {gap}")
+
     def set_axi_timing_per_channel(self, aw="fast", w="fast", b="fast",
                                    ar="fast", r="fast") -> None:
         from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer

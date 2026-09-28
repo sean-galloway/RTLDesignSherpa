@@ -12,22 +12,24 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 26 | done (kept for history) |
+| [closed/](closed/) | 27 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-000** — TEMPLATE — copy this file, never file against it
-- **TASK-015** — test the DUT across configurations: 4-layer plan (reset-parity
-  gate, pairwise covering array x gap, invariant oracles, seeded soak) with a
-  reportable 2-way coverage number
 - **TASK-032** — pumice placement pass: ddr2_char loose filelists (2) and 6 loose markdown files
 
 
 ## Closed
+
+- **TASK-015** — the 4-layer config-coverage plan: reset-parity gate (L0),
+  pairwise covering array 39 vectors / 105 of 105 pairs at each of 4 gaps,
+  312 cells (L1), telemetry invariants (L2b), seeded random soak (L3).
+  L2a dropped: no assertions in RTL
 
 - **TASK-029** — all 17 signal-contract maps carry a sufficiency argument and
   the 14 two-valued ones an RTL verdict: 12 IDENTICAL, 2 DIFFERS (both redundant

@@ -72,9 +72,14 @@ def test_hits_at_least_col_ops_minus_act_fires():
     assert any(x.rule == "hits_at_least_col_ops_minus_act" for x in v), v
 
 
-def test_pre_le_act_fires():
-    v = ti.check_invariants(clean(SCHED_STATS_PRE=41))
-    assert any(x.rule == "pre_le_act" for x in v), v
+def test_pre_le_act_plus_open_banks_fires():
+    """Only beyond the inherited-open-bank slack. PRE=41 against ACT=40 is
+    LEGAL -- a window can start with up to NUM_BANKS rows already open, which
+    layer 3's soak measured on correct hardware (PRE=43, ACT=42)."""
+    assert ti.check_invariants(clean(SCHED_STATS_PRE=41)) == []
+    assert ti.check_invariants(clean(SCHED_STATS_PRE=48)) == []      # 40 + 8
+    v = ti.check_invariants(clean(SCHED_STATS_PRE=49))               # 40 + 9
+    assert any(x.rule == "pre_le_act_plus_open_banks" for x in v), v
 
 
 def test_refresh_busy_le_refresh_fires():
@@ -118,12 +123,13 @@ def test_assert_clean_returns_the_armed_count():
 
 
 def test_assert_clean_raises_on_a_violation_and_names_the_arithmetic():
-    with pytest.raises(AssertionError, match="PRE\\+PREA=41"):
-        ti.assert_clean(clean(SCHED_STATS_PRE=41), context="unit")
+    with pytest.raises(AssertionError, match="PRE\\+PREA=49"):
+        ti.assert_clean(clean(SCHED_STATS_PRE=49), context="unit")
 
 
 def test_skip_suppresses_a_named_rule():
-    assert ti.check_invariants(clean(SCHED_STATS_PRE=41), skip=("pre_le_act",)) == []
+    assert ti.check_invariants(clean(SCHED_STATS_PRE=49),
+                               skip=("pre_le_act_plus_open_banks",)) == []
 
 
 def test_sim_only_invariants_are_documented_not_silently_absent():

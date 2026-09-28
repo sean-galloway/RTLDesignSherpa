@@ -1,6 +1,6 @@
 # TASK-015: test the DUT across configurations — a 4-layer plan with a coverage number
 
-**Status:** open 2026-09-26  **Priority:** P2 — this is the systemic answer to
+**Status:** CLOSED 2026-09-28  **Priority:** P2 — this is the systemic answer to
 [[BUG-003]]; without it the next default change is the next excavation
 
 Sean, 2026-09-26, after BUG-003 was found by accident: *"Are there another 50
@@ -339,3 +339,87 @@ with the bounds that hold, and the consequence for the RDL's documented
 
 Layer 2a is DROPPED (no assertions in RTL). Layer 1 is partly built. Layer 3
 untouched.
+
+---
+
+## Delivered 2026-09-28: layers 1 and 3 (task COMPLETE)
+
+**Layer 1 -- pairwise covering array x hazard axes.**
+`dv/tbclasses/pumice_config_array.py` builds a deterministic 2-way covering
+array over 15 runtime mode selectors: **39 vectors, 105 of 105 pairs**, against
+a full cross product of ~5.9e8. Crossed with the mandatory hazard axes it is
+**39 x gap{0,4,8,15} x direction{sequential, concurrent} = 312 cells** at FULL,
+one pytest cell each so the run distributes; GATE takes 2 and FUNC 16, STRIDED
+rather than a prefix (a prefix runs the early rows at every gap and the vertical
+growth at none, which reads as coverage and is not).
+
+The coverage number is CHECKED, not claimed:
+`test_pumice_config_sweep_coverage` asserts 105/105 **at each of the four
+gaps** -- covering the pairs only in aggregate would leave a gap-specific
+interaction unreached, which is exactly BUG-003's shape.
+
+Each cell carries two oracles: golden data through the DFI slave's MemoryModel,
+and the five layer-2b telemetry invariants. Built on the existing TB
+(`PumiceTopCsrTB`, `_bringup`, `_wr_rd_check`) with one new helper,
+`set_read_gap()`, which pins the R-channel RREADY gap instead of randomising it
+-- a covering-array cell that cannot be reproduced is not a regression.
+
+**Layer 3 -- seeded random config soak.** `random_vector()` / `random_vectors()`
+plus `cocotb_test_config_soak`, seeded from the suite's `SEED`/`RDS_SEED_BASE`
+plumbing. A failure prints the round, the gap, the full vector id and the exact
+replay command. 12 rounds at FULL; green on seeds 1, 7, 42 and 99.
+
+### The selector set differs from this task's list, deliberately
+
+Dropped: `policy_scope` (made reserved when the adaptive modes were retired, so
+not software-writable at all) and `gear_ratio` / `rd_phase` / `wr_phase` /
+`memtype` (BUILD geometry -- changing them at runtime mis-describes the
+hardware rather than exploring a legal config; [[ISSUE-016]] is what that costs).
+
+Also dropped, and this one is about the ORACLE rather than the DUT: `bank_lsb`
+and `hash_en`. The top TB builds its golden `AddressMapping` once at
+construction assuming `bank_lsb == col_width`. Sweeping `bank_lsb` makes the DUT
+and the model decode the same address to different DRAM cells -- measured, the
+reads came back CORRECT and the golden side read zero. A cell whose oracle is
+invalid is worse than an absent cell. They stay covered where the oracle does
+follow them: `test_addr_mapper` at fub level, and on the board.
+
+Added in their place: `tr_init`, `age_thresh`, `postpone_limit`, `pullin_limit`,
+`wr_high_wm`, `wr_batch_max`. Still 15 selectors, so the number this task asks
+to report -- 105 -- is unchanged.
+
+### Layer 3 disproved one of layer 2b's own invariants on its first real run
+
+`pre_le_act` asserted `PRE <= ACT`. That is false over a WINDOW: a window
+inherits banks left open by the previous round, and refresh issues PREA to close
+rows opened before it began. Measured on correct hardware at seed 7, round 3:
+**PRE=43 against ACT=42**. Corrected to `pre_le_act_plus_open_banks`,
+`PRE <= ACT + NUM_BANKS`, with the measurement recorded beside it.
+
+That is the argument for layer 3 existing, and it is not the one the task
+predicted. The covering array could never have found it -- it is not a config
+interaction at all, it is a window-boundary effect. Two of the three invariant
+corrections in this task have now come from contact with real counters rather
+than from reasoning (`act_le_col_ops` was the first).
+
+### Depth, stated rather than banked
+
+The task budgeted 1-3 min per cell and 6-19 h serial. The first build ran a cell
+in well under a second: the config crossing was right, the per-cell probing was
+shallow. FULL cells now run 4 address bands and 96 concurrent bursts; 312 cells
+take **2 min 28 s at `-n 16`**, still far under the estimate. GATE and FUNC are
+unchanged and stay inside the ordinary regression.
+
+### Regression
+
+pumice from clean: **912 passed, 0 failed** (175 fub / 171 macro / 518 top /
+48 phy), up from 580 before this work and 376 before the branch landed.
+
+### What this plan still does not catch
+
+Unchanged from the analysis above: no sim layer ranks paging or scheduling
+POLICY, because the loopback models no page timing -- every bandwidth claim
+still needs the board. And 2-way coverage is 2-way: a defect needing three
+specific settings at once is reached by layer 3 only eventually and by layer 1
+never. "105 of 105 pairs" means every pair was tried, not that the design is
+correct.

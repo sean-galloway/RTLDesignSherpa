@@ -99,6 +99,89 @@ def _geom_params(name):
             {"DRAM_DEVICE_WIDTH": str(dev)})
 
 
+def _config_vector():
+    """The covering-array vector this cell runs, or None outside the sweep."""
+    idx = os.environ.get("CFG_INDEX")
+    if idx is None:
+        return None
+    sys.path.insert(0, _DV_DIR) if _DV_DIR not in sys.path else None
+    from tbclasses.pumice_config_array import covering_array
+    return covering_array()[int(idx)]
+
+
+# CSR home of each selector, by NAME -- offsets churn every respin.
+_CFG_FIELD = {
+    "policy_mode":    ("PAGE_POLICY_CFG", "policy_mode"),
+    "tr_init":        ("PAGE_TIMEOUT_CFG", "tr_init"),
+    "page_policy_or": ("REFRESH_TUNING", "page_policy_or"),
+    "order_mode":     ("SCHED_POLICY", "order_mode"),
+    "prio_sub":       ("SCHED_POLICY", "prio_sub"),
+    "row_sel":        ("SCHED_POLICY", "row_sel"),
+    "col_sel":        ("SCHED_POLICY", "col_sel"),
+    "access_pref":    ("SCHED_POLICY", "access_pref"),
+    "qos_en":         ("SCHED_POLICY", "qos_en"),
+    "age_thresh":     ("SCHED_POLICY", "age_thresh"),
+    "ref_mode":       ("REF_CTRL", "mode"),
+    "postpone_limit": ("REF_CTRL", "postpone_limit"),
+    "pullin_limit":   ("REF_CTRL", "pullin_limit"),
+    "wr_high_wm":     ("SCHED_WR_WM", "wr_high_wm"),
+    "wr_batch_max":   ("SCHED_WR_WM", "wr_batch_max"),
+}
+
+
+async def _apply_config_vector(tb):
+    """Program one covering-array vector, and pin the read gap.
+
+    Changing these between runs is integrity-safe by construction: a write and a
+    read decode a given address identically under any of them, so the same data
+    round-trips and only the TIMING changes. That is what lets one golden model
+    serve every cell.
+    """
+    vec = _config_vector()
+    if vec is None:
+        return
+    for name, val in sorted(vec.items()):
+        reg, field = _CFG_FIELD[name]
+        await tb.csr_write_field(reg, field, val)
+    gap = os.environ.get("CFG_GAP")
+    if gap is not None:
+        tb.set_read_gap(int(gap))
+    await ClockCycles(tb.dut.aclk, 64)
+    tb.log.info(f"TASK-015 cell: idx={os.environ.get('CFG_INDEX')} "
+                f"gap={gap} dir={os.environ.get('CFG_DIR')} vector={vec}")
+    tb._cfg_telemetry_before = await tb.read_telemetry()
+
+
+async def _config_cell_epilogue(tb):
+    """Layer-2b invariants over the cell's window. No-op outside the sweep.
+
+    The golden data check is the cell's primary oracle; this is the second one,
+    and it is the reason a sweep can FAIL rather than merely run.
+    """
+    if _config_vector() is None:
+        return
+    import importlib.util as _ilu
+    _sp = _ilu.spec_from_file_location(
+        "pumice_telemetry_invariants",
+        os.path.join(_DV_DIR, "tbclasses", "pumice_telemetry_invariants.py"))
+    ti = _ilu.module_from_spec(_sp)
+    _sp.loader.exec_module(ti)
+
+    before = getattr(tb, "_cfg_telemetry_before", None)
+    after = await tb.read_telemetry()
+    if before is None:
+        return
+    d = {k: (after[k] - before[k]) & 0xFFFFFFFF for k in after}
+    if d["PAGE_STATS_HIT"] == 0:
+        raise AssertionError(
+            f"config cell moved no column ops -- the cell ran no traffic, which "
+            f"must not read as a pass: {d}")
+    armed = ti.assert_clean(d, require=tuple(r.name for r in ti.RULES),
+                            context=f"config cell {os.environ.get('CFG_INDEX')}")
+    tb.log.info(f"TASK-015 cell PASS: {armed} invariants armed, 0 violations, "
+                f"col_ops={d['PAGE_STATS_HIT']} ACT={d['SCHED_STATS_ACT']}")
+
+
 async def _bringup(dut, *, mem_type="DDR2", page_policy=2, profile="backtoback",
                    t_refi=None):
     # Seed the global RNG so the AXI BFM timing randomizers are DETERMINISTIC
@@ -120,6 +203,15 @@ async def _bringup(dut, *, mem_type="DDR2", page_policy=2, profile="backtoback",
     # readies. Poking them first only creates a second driver (pumice TASK-023 (was PUMICE-014)).
     tb.init_axi_masters()
     tb.set_axi_timing_profile(profile)
+
+    # TASK-015 layer 1. When the config sweep selects a cell, overwrite the mode
+    # selectors with that covering-array vector and pin the read gap. Placed
+    # AFTER init_axi_masters + set_axi_timing_profile on purpose: the gap lives
+    # on the R-channel randomizer the profile installs, so setting it earlier
+    # would either fail (no masters yet) or be overwritten by the profile.
+    # Inert when CFG_INDEX is unset -- every existing test sees the bring-up it
+    # always did.
+    await _apply_config_vector(tb)
 
     # pumice BUG-008 (was PUMICE-012)/013: opt-in trackers. This is the MEANINGFUL place to
     # measure AXI utilization -- the masters here are real BFMs at the
@@ -1093,6 +1185,194 @@ async def cocotb_test_patho(dut):
     tb.log.info(f"PASS patho {kind} profile={profile} ({len(addrs)} bursts, BFM)")
 
 
+@cocotb.test(timeout_time=900, timeout_unit="ms")
+async def cocotb_test_config_soak(dut):
+    """TASK-015 layer 3: seeded random config soak.
+
+    The covering array reaches every 2-way interaction and, by construction,
+    nothing deeper. This reaches 3-way and beyond eventually and promises
+    nothing in particular -- that is the trade, and why it is nightly and never
+    a gate.
+
+    The seed comes from the suite's SEED / RDS_SEED_BASE plumbing, so a failure
+    REPLAYS: the message carries the seed, the round, and the full vector id, so
+    a soak failure becomes a pinned regression cell rather than an anecdote
+    (project_seed_rerun_masks_failures).
+    """
+    import importlib.util as _ilu
+    _sp = _ilu.spec_from_file_location(
+        "pumice_config_array",
+        os.path.join(_DV_DIR, "tbclasses", "pumice_config_array.py"))
+    ca = _ilu.module_from_spec(_sp)
+    _sp.loader.exec_module(ca)
+
+    seed = int(os.environ.get("SEED", "0"))
+    rounds = {"gate": 1, "basic": 1, "func": 3, "medium": 3,
+              "full": 12}.get(_LEVEL, 3)
+    rounds = int(os.environ.get("SOAK_ROUNDS", str(rounds)))
+    rng = random.Random(seed ^ 0x50AC)
+
+    tb = await _bringup(dut, profile="backtoback")
+    bpw = DW // 8
+    tb.log.info(f"TASK-015 layer 3: seed={seed} rounds={rounds} level={_LEVEL}")
+
+    for rnd in range(rounds):
+        vec = ca.random_vector(rng)
+        gap = rng.choice((0, 4, 8, 15))
+        vid = ca.vector_id(vec)
+        replay = (f"SEED={seed} SOAK_ROUNDS={rounds} REG_LEVEL={_LEVEL.upper()} "
+                  f"pytest test_pumice_top.py -k config_soak   # round {rnd}")
+        tb.log.info(f"[soak {rnd}] gap={gap} {vid}")
+
+        for name, val in sorted(vec.items()):
+            reg, field = _CFG_FIELD[name]
+            await tb.csr_write_field(reg, field, val)
+        tb.set_read_gap(gap)
+        await ClockCycles(dut.aclk, 64)
+
+        before = await tb.read_telemetry()
+        # Random address walk, so the stimulus is not the same shape every round.
+        base = BASE + rng.randrange(0, 4) * 0x2000
+        addrs = [base + rng.randrange(0, 32) * BL_WORDS * bpw
+                 + rng.randrange(0, 3) * 0x10000 for _ in range(24)]
+        addrs = list(dict.fromkeys(addrs))
+        wr, rd, _ = build_addr_pattern_sequences(
+            burst_len=BL_WORDS, data_width=DW, addresses=addrs,
+            rd_axid_fn=lambda bi: bi & 0xF)
+        try:
+            await _wr_rd_check(tb, wr, rd, drain=400)
+        except AssertionError as exc:
+            raise AssertionError(
+                f"SOAK FAILURE, round {rnd}, gap={gap}\n"
+                f"  vector: {vid}\n"
+                f"  replay: {replay}\n"
+                f"  golden check said: {exc}") from exc
+
+        after = await tb.read_telemetry()
+        d = {k: (after[k] - before[k]) & 0xFFFFFFFF for k in after}
+        if d["PAGE_STATS_HIT"] == 0:
+            raise AssertionError(
+                f"soak round {rnd} moved no column ops -- no traffic reached the "
+                f"DUT, which must not read as a pass. vector: {vid}")
+        try:
+            ti_mod = _ilu.spec_from_file_location(
+                "pumice_telemetry_invariants",
+                os.path.join(_DV_DIR, "tbclasses",
+                             "pumice_telemetry_invariants.py"))
+            ti = _ilu.module_from_spec(ti_mod)
+            ti_mod.loader.exec_module(ti)
+            ti.assert_clean(d, require=tuple(r.name for r in ti.RULES),
+                            context=f"soak round {rnd}")
+        except AssertionError as exc:
+            raise AssertionError(
+                f"SOAK FAILURE (telemetry invariant), round {rnd}, gap={gap}\n"
+                f"  vector: {vid}\n"
+                f"  replay: {replay}\n"
+                f"  {exc}") from exc
+
+    tb.log.info(f"PASS soak: {rounds} random configs, seed={seed}, "
+                f"golden data and 5 telemetry invariants clean on every round")
+
+
+@cocotb.test(timeout_time=600, timeout_unit="ms")
+async def cocotb_test_config_cell(dut):
+    """One cell of the TASK-015 layer-1 covering array.
+
+    CFG_INDEX picks the config vector, CFG_GAP the read-gap hazard axis, CFG_DIR
+    the traffic direction. `_bringup` programs the vector (see
+    `_apply_config_vector`), so everything below is ordinary traffic against a
+    DUT configured somewhere in the 15-selector space.
+
+    TWO ORACLES, because a sweep with none cannot fail: golden data through the
+    DFI slave's MemoryModel, and the layer-2b telemetry invariants in the
+    epilogue.
+    """
+    direction = os.environ.get("CFG_DIR", "sequential")
+    tb = await _bringup(dut, profile="backtoback")
+    bpw = DW // 8
+    # Per-cell depth. TASK-015 budgeted 1-3 min per cell; the first build ran a
+    # cell in well under a second, which covers the config crossing but probes
+    # each configuration shallowly. FULL spends the headroom -- more address
+    # clusters and more concurrent bursts -- while GATE and FUNC stay quick
+    # enough to sit in the ordinary regression.
+    reps = {"gate": 1, "basic": 1, "func": 1, "medium": 1, "full": 4}.get(_LEVEL, 1)
+
+    if direction == "sequential":
+        # Writes then reads over a page/bank-crossing pattern. Hits AND misses,
+        # so the paging selectors in the vector actually get to matter.
+        addrs = []
+        for r in range(reps):
+            off = r * 0x40000        # a fresh row band per repetition
+            addrs += (build_patho_addresses("page_close_boundary", burst_len=BL,
+                                            base_addr=BASE + off)
+                      + build_patho_addresses("hit_miss_oscillation", burst_len=BL,
+                                              base_addr=BASE + off)
+                      + [BASE + off + b * 0x2000 + h * BL_WORDS * bpw
+                         for b in range(8) for h in range(2)])
+        addrs = list(dict.fromkeys(addrs))
+        wr, rd, _ = build_addr_pattern_sequences(
+            burst_len=BL_WORDS, data_width=DW, addresses=addrs,
+            rd_axid_fn=lambda bi: bi & 0xF)
+        await _wr_rd_check(tb, wr, rd, drain=400)
+
+    elif direction == "concurrent":
+        # Writer and reader on DISJOINT banks, running at the same time. The two
+        # never touch the same address, so a mismatch cannot be a same-cell race
+        # between them -- it is the controller. This is the board's failing
+        # row_major shape, and the direction axis BUG-003 needed.
+        n, NB = 24 * reps, BL_WORDS
+        wr_base = BASE
+        rd_base = BASE + max(4 * 0x2000, n * NB * bpw + 0x2000)
+
+        # SEED THE READER'S REGION THROUGH THE DUT, not with preload_memory.
+        # preload writes the model at a LINEAR byte address, which silently
+        # assumes the identity address map. This sweep varies bank_lsb and
+        # hash_en, so the DUT would decode that same address to a different DRAM
+        # cell and every read would come back zero -- which is exactly what the
+        # first run of this cell did. Writing through the DUT means the seed and
+        # the later read share whatever mapping the vector selected.
+        seed_seq = AXI4Sequence(name="cfg_seed", data_width=DW)
+        for k in range(n):
+            seed_seq.add_write(rd_base + k * NB * bpw,
+                               [(0xC0DE0000 + k * NB + i) & 0xFFFFFFFF
+                                for i in range(NB)])
+        await tb.run_writes(seed_seq, drain_cycles=300)
+
+        wr_seq = AXI4Sequence(name="cfg_wr", data_width=DW)
+        rd_seq = AXI4Sequence(name="cfg_rd", data_width=DW)
+        for k in range(n):
+            wr_seq.add_write(wr_base + k * NB * bpw,
+                             [(0xA5A50000 + k * NB + i) & 0xFFFFFFFF
+                              for i in range(NB)])
+            rd_seq.add_read(rd_base + k * NB * bpw, NB)
+
+        wr_task = cocotb.start_soon(tb.run_writes(wr_seq, drain_cycles=0))
+        rd_results = await tb.run_sequence(rd_seq)
+        await wr_task
+        await ClockCycles(dut.aclk, 400)
+
+        # Each result carries a BURST: "data" is a list of beats and "addr" the
+        # burst base, so compare per beat at addr + ki*bpw -- the same shape
+        # _wr_rd_check uses.
+        bad = []
+        for d in rd_results:
+            assert d.get("data") is not None, \
+                f"concurrent cell: read @ {d.get('addr'):#x} returned no data ({d})"
+            for ki, val in enumerate(d["data"]):
+                byte_addr = d["addr"] + ki * bpw
+                g = _golden_beat(tb, byte_addr)
+                if (val & _mask()) != g:
+                    bad.append((hex(byte_addr), hex(val & _mask()), hex(g)))
+        assert not bad, (
+            f"concurrent cell: {len(bad)} read beat(s) disagree with golden "
+            f"while a writer ran on disjoint banks -- first {bad[:3]} "
+            f"(addr, got, want)")
+    else:
+        raise AssertionError(f"unknown CFG_DIR {direction!r}")
+
+    await _config_cell_epilogue(tb)
+
+
 @cocotb.test(timeout_time=180, timeout_unit="ms")
 async def cocotb_test_row_hit_counters(dut):
     """pumice BUG-020 regression: OBS_ROW_HIT[8] must actually count.
@@ -1606,6 +1886,36 @@ def test_pumice_top_nr2(request):
     _run(request, "cocotb_test_pumice_top",
          extra_env={"TEST_TYPE": "workload_mix", "MEM_TYPE": "DDR2"},
          params_over={"NUM_RANKS": "2"})
+
+
+def _sweep_cells():
+    """The layer-1 cells for this REG_LEVEL. Imported from the sweep module so
+    the array and the cell list have exactly one definition."""
+    sys.path.insert(0, _DV_DIR) if _DV_DIR not in sys.path else None
+    import importlib.util as _ilu
+    _sp = _ilu.spec_from_file_location(
+        "_cfg_sweep", os.path.join(os.path.dirname(__file__),
+                                   "test_pumice_config_sweep.py"))
+    m = _ilu.module_from_spec(_sp)
+    _sp.loader.exec_module(m)
+    return m.cells_for_level(_LEVEL)
+
+
+def test_pumice_top_config_soak(request):
+    """TASK-015 layer 3: seeded random config soak. Nightly, never a gate."""
+    _run(request, "cocotb_test_config_soak")
+
+
+@pytest.mark.parametrize("idx,gap,direction", _sweep_cells())
+def test_pumice_top_config_cell(request, idx, gap, direction):
+    """TASK-015 layer 1: one covering-array config x gap x direction.
+
+    FULL is 39 vectors x 4 gaps x 2 directions = 312 cells, which is a nightly
+    run at -n 16 and not a gate. GATE and FUNC take a strided subset.
+    """
+    _run(request, "cocotb_test_config_cell",
+         extra_env={"CFG_INDEX": str(idx), "CFG_GAP": str(gap),
+                    "CFG_DIR": direction, "MEM_TYPE": "DDR2"})
 
 
 def test_pumice_top_row_hit_counters(request):

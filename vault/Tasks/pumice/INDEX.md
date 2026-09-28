@@ -38,7 +38,7 @@ area's counts went wrong on 2026-09-27.
 
 Nothing in bug or issue. In task, one real item plus the template:
 
-- **[TASK-015](task/open/TASK-015.md)** — test the DUT across configurations: a
+- **[TASK-015](task/closed/TASK-015.md)** — test the DUT across configurations: a
   4-layer plan (reset-parity gate, pairwise covering array x gap, invariant
   oracles, seeded soak) with a reportable 2-way coverage number. Layers 1 and 3
   are now largely delivered by the 12 named DRAM operating points and the

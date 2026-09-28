@@ -129,7 +129,7 @@ needs an MRS-aware sibling rather than a change.
 
 Related: [pumice BUG-003](../../bug/closed/BUG-003.md) (the defect whose hunt
 produced the matrix this gap was found in),
-[pumice TASK-015](../open/TASK-015.md) (reset-parity and telemetry invariants -- the same
+[pumice TASK-015](../closed/TASK-015.md) (reset-parity and telemetry invariants -- the same
 "nothing checks this layer" shape).
 
 **A note on the link form, and its cost.** These are area-qualified PATHS, not
@@ -144,7 +144,7 @@ The cost is that a path ENCODES THE OTHER ITEM'S STATE, so it breaks when only
 one of the two items changes state. That happened immediately: this file was
 written in `open/` with a sibling link `TASK-015.md`, then moved to `closed/`
 while TASK-015 stayed open, and the tree-wide link ratchet went red for every
-session until it was repointed at `../open/TASK-015.md`. A peer session hit the
+session until it was repointed at `../closed/TASK-015.md`. A peer session hit the
 red gate and reported it. **Any `git mv` between state directories can do this,
 in either direction** -- moving this file, or moving the target. The ratchet is
 the backstop, so the failure is loud rather than silent; just expect to fix
