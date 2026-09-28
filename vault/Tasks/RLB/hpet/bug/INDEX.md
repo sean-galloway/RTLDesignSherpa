@@ -16,6 +16,7 @@ by construction rather than by discipline.
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
+| [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
