@@ -28,7 +28,6 @@ MODULES := \
 	datapath_rd_test \
 	datapath_wr_test \
 	descriptor_engine \
-	monbus_axil_group \
 	perf_profiler \
 	scheduler \
 	scheduler_group \

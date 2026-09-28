@@ -2,7 +2,7 @@
 
 # amba — tasks
 
-**Next ID: TASK-041** — never recycle a number, even when its item closed.
+**Next ID: TASK-042** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
+| [open/](open/) | 5 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 36 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
@@ -20,6 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
+- **TASK-041** — formal task for monbus_group_core / monbus_axil4_axil4_group (the retired stream monbus_axil_group task's replacement)
 - **TASK-034** — Performance Characterization
 - **TASK-035** — Make APB Crossbar Variants Functional
 - **TASK-036** — Write Monitor System Whitepaper

@@ -150,7 +150,7 @@ regfile stream_mon_regs {
         desc = "Descriptor AXI monitor packet type filtering (16-bit mask)";
 
         field {
-            desc = "Packet type mask [15:0] - 1=enable, 0=disable";
+            desc = "Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (stream BUG-016 corrected this description; the polarity and the reset are as intended)";
             sw = rw;
             hw = r;
         } PKT_MASK[15:0] = 16'hFFFF;
@@ -318,7 +318,7 @@ regfile stream_mon_regs {
         desc = "Read engine AXI monitor packet type filtering (16-bit mask)";
 
         field {
-            desc = "Packet type mask [15:0] - 1=enable, 0=disable";
+            desc = "Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (stream BUG-016 corrected this description; the polarity and the reset are as intended)";
             sw = rw;
             hw = r;
         } PKT_MASK[15:0] = 16'hFFFF;
@@ -486,7 +486,7 @@ regfile stream_mon_regs {
         desc = "Write engine AXI monitor packet type filtering (16-bit mask)";
 
         field {
-            desc = "Packet type mask [15:0] - 1=enable, 0=disable";
+            desc = "Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (stream BUG-016 corrected this description; the polarity and the reset are as intended)";
             sw = rw;
             hw = r;
         } PKT_MASK[15:0] = 16'hFFFF;

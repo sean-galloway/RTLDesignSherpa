@@ -1545,7 +1545,7 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 #### PKT_MASK field
 
-<p>Packet type mask [15:0] - 1=enable, 0=disable</p>
+<p>Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (stream BUG-016 corrected this description; the polarity and the reset are as intended)</p>
 
 #### RSVD field
 
@@ -1733,7 +1733,7 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 #### PKT_MASK field
 
-<p>Packet type mask [15:0] - 1=enable, 0=disable</p>
+<p>Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (stream BUG-016 corrected this description; the polarity and the reset are as intended)</p>
 
 #### RSVD field
 
@@ -1921,7 +1921,7 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 #### PKT_MASK field
 
-<p>Packet type mask [15:0] - 1=enable, 0=disable</p>
+<p>Packet type mask [15:0] - bit[type] = 1 MASKS (drops) that packet type, at the monitor and again at the monbus group. Reset = all masked: the host clears the bits of the classes it wants to see (stream BUG-016 corrected this description; the polarity and the reset are as intended)</p>
 
 #### RSVD field
 

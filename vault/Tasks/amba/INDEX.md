@@ -13,7 +13,7 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 5 | 1 | 34 | 1 | 0 |
+| [task/](task/INDEX.md) | 6 | 1 | 34 | 1 | 0 |
 | [bug/](bug/INDEX.md) | 3 | 0 | 34 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 2 | 0 | 2 | 0 | 0 |
 

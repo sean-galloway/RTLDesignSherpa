@@ -502,10 +502,13 @@ snk/src_sram_controller_beats, ctrlrd_engine, ctrlwr_engine); stream 9 re-proved
 PASS (axi_read/write_engine, descriptor_engine, scheduler, scheduler_group,
 scheduler_group_array, stream_config_block, perf_profiler, sram_controller), the
 2026-09-24 results for datapath_rd/wr_test, sram_controller_unit, stream_core and
-stream_latency_bridge stand. Not touched: `stream/monbus_axil_group` (flat and
-status from 2026-04-11; the top now instantiates `monbus_axil4_axil4_group`, so
-that task may target a retired module -- audit it separately) and the deferred
-`stream_top_ch8`.
+stream_latency_bridge stand. `stream/monbus_axil_group` RETIRED 2026-09-28: its
+DUT `projects/components/dmas/stream/rtl/macro/monbus_axil_group.sv` no longer
+exists (replaced by `rtl/amba/monitor/monbus_axil4_axil4_group` over
+`monbus_group_core`), so the task had been unrunnable since the replacement and
+its April PASS described a module that is gone. The replacement has no formal
+task in `formal/amba` -- filed as amba TASK-041 (the retired harness is in git
+history for reuse). `stream_top_ch8` stays deferred.
 
 ### Deferred (not tractable for BMC)
 
