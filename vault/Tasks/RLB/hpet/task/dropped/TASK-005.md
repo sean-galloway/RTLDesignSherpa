@@ -2,7 +2,20 @@
 > Migrated 2026-09-25 from `projects/components/retro_legacy_blocks/TASKS.md` as **TASK-006** (tooling TOOL-001). That file numbered its own items TASK-001..006, which collide with RLB-001..017 on the frozen legacy page; per-lane IDs replace them. Body preserved as written except the Status line.
 
 **Priority:** P2
-**Status:** open. Confirmed 2026-09-25: no integration or example page
+**Status:** DROPPED 2026-09-27 -- **there is nothing to integrate into.** Sean: "HPET
+is integrated into the RLB. There is no other integration. The RLB will be integrated in
+the future into an IA subsystem."
+
+So the item asks for an integration example of a block whose only integration already
+exists: `apb4_hpet` sits inside the RLB top alongside the other legacy blocks, and the
+RLB's own top-level integration is the example. A separate "HPET integration example"
+page would either duplicate the RLB top or invent a second consumer that does not exist.
+
+When the RLB is integrated into an IA subsystem, the integration document belongs to
+THAT work at the RLB level, not to hpet as a per-block example. Dropped rather than
+deferred: the deliverable as described should never be written.
+
+**Status (as filed):** open. Confirmed 2026-09-25: no integration or example page
 exists under `docs/hpet_mas/`.
 **Owner:** TBD
 
