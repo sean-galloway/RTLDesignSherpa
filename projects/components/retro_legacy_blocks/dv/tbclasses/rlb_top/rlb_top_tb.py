@@ -33,6 +33,7 @@ from cocotb.triggers import RisingEdge
 from cocotb.handle import SimHandleBase
 
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.irq import IRQMonitorGroup
 from CocoTBFramework.components.apb.apb_components import APBMaster
 from CocoTBFramework.components.apb.apb_packet import APBPacket
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -156,8 +157,36 @@ class RLBTopTB(TBBase):
         )
         await self.apb4_master.reset_bus()
         self._idle_inputs()
+
+        # Interrupt-line BFM (RLB TASK-015 follow-up). Every peripheral's IRQ
+        # is watched by one component instead of ad-hoc int(dut.sig.value)
+        # polling: a poll misses a narrow pulse between samples and cannot say
+        # WHEN a line moved, and no two call sites agreed on either.
+        #
+        # The group's value is the NEGATIVE assertion -- expect_only() lets a
+        # routing test say "GPIO fired, so exactly these lines moved and no
+        # others", and the line that must NOT have moved is where the bugs are.
+        self.irqs = IRQMonitorGroup(self.dut, self.dut.pclk, {
+            # per-block sources
+            'hpet_timer_irq':   None,   # vector: one event per timer
+            'hpet_legacy_irq0': None,
+            'hpet_legacy_irq8': None,
+            'pit_timer_irq':    None,   # vector: one event per counter
+            'rtc_alarm_irq':    None,
+            'rtc_second_irq':   None,
+            'smb_interrupt':    None,
+            'pm_interrupt':     None,
+            'gpio_irq':         None,
+            'uart_irq':         None,
+            # the controllers' own outputs
+            'pic_int_out':      None,
+            'rlb_irq_out':      None,
+        }, title="RLB", log=self.log)
+        self.irqs.start()
+
         await self.wait_clocks('pclk', 2)
-        self.log.info("APB master created, all peripheral inputs idled")
+        self.log.info("APB master created, IRQ BFM watching "
+                      f"{len(self.irqs.monitors)} lines, peripheral inputs idled")
 
     def _idle_inputs(self):
         """Idle every non-APB input. Active-low pins go HIGH (inactive)."""

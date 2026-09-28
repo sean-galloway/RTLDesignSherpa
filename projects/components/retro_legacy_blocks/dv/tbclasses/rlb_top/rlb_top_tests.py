@@ -177,11 +177,106 @@ class RLBTopTests:
                                "asserted")
                 return False
 
+            # The BFM's negative assertion, which polling could not express:
+            # exactly these lines moved and no others. The line that must NOT
+            # have moved is where the bugs are -- a fabric that ORed a source
+            # onto the wrong bit passes every positive check above.
+            ok, missing, unexpected = self.tb.irqs.expect_only(
+                ['gpio_irq', 'pic_int_out', 'rlb_irq_out'])
+            if not ok:
+                self.log.error(f"  IRQ lines wrong: missing={missing} "
+                               f"unexpected={unexpected}")
+                for pkt in self.tb.irqs.all_events():
+                    self.log.error(f"    {pkt}")
+                return False
+
             self.log.info("smoke fabric-GPIO GREEN (gpio_irq reached the 8259 "
-                          "with pic_irq_in held at 0)")
+                          "with pic_irq_in held at 0; exactly gpio_irq, "
+                          "pic_int_out and rlb_irq_out moved)")
             return True
         except Exception as e:
             self.log.error(f"fabric GPIO routing test failed: {e}")
+            return False
+
+    async def test_fabric_routes_pm_acpi_to_the_pic(self) -> bool:
+        """A PM/ACPI GPE interrupt reaches the 8259 on IRQ9, internally.
+
+        Chosen as the second block because, like GPIO, it is driven by a DUT
+        INPUT (pm_gpe_events) rather than needing a clocked count-down (PIT),
+        a simulated second (RTC) or bus modelling (SMBus). pic_irq_in is held
+        at 0 throughout, so only the internal fabric can explain the result.
+
+        PM/ACPI is IRQ9 -> slave 8259 IR1.
+        """
+        self.log.info("=== smoke: fabric routes PM/ACPI to the 8259 ===")
+        try:
+            await self.tb.assert_reset()
+            await self.tb.wait_clocks('pclk', 10)
+            await self.tb.deassert_reset()
+            await self.tb.wait_clocks('pclk', 10)
+            self.tb._idle_inputs()
+            await self.tb.wait_clocks('pclk', 5)
+
+            if not await self.tb.init_pic_cascade():
+                self.log.error("  cascade init failed; IRQ8-15 cannot arrive")
+                return False
+            self.tb.irqs.clear()
+            if self.tb.pic_int_out():
+                self.log.error("  pic_int_out already high before the stimulus")
+                return False
+
+            # ACPI_CONTROL: enable ACPI + GPE. Bit values from the pm_acpi TB,
+            # not guessed: CONTROL_ACPI_ENABLE (1<<0), CONTROL_GPE_ENABLE (1<<2).
+            await self.tb.apb_write(
+                self.tb.window_addr(self.tb.SLAVE_PM, 0x000), 0x1 | 0x4)
+            # ACPI_INT_ENABLE: INT_ENABLE_GPE (1<<5)
+            await self.tb.apb_write(
+                self.tb.window_addr(self.tb.SLAVE_PM, 0x008), 1 << 5)
+            # GPE0_ENABLE_LO: unmask GPE bit 0
+            await self.tb.apb_write(
+                self.tb.window_addr(self.tb.SLAVE_PM, 0x038), 0x1)
+            await self.tb.wait_clocks('pclk', 5)
+
+            self.tb.dut.pm_gpe_events.value = 0
+            await self.tb.wait_clocks('pclk', 5)
+            self.tb.dut.pm_gpe_events.value = 1      # rising GPE event
+            await self.tb.wait_clocks('pclk', 40)
+
+            if int(self.tb.dut.pic_irq_in.value) != 0:
+                self.log.error("  pic_irq_in is non-zero -- this would not be "
+                               "proving internal routing")
+                return False
+
+            pm = self.tb.irqs.monitors.get('pm_interrupt')
+            if pm is None or pm.assert_count == 0:
+                self.log.error("  pm_interrupt never asserted -- the PM block "
+                               "did not raise, so the fabric is untested here")
+                for pkt in self.tb.irqs.all_events():
+                    self.log.error(f"    saw: {pkt}")
+                self.tb.dut.pm_gpe_events.value = 0
+                return False
+
+            if not self.tb.pic_int_out():
+                self.log.error("  pm_interrupt asserted but pic_int_out stayed "
+                               "LOW -- the fabric did not deliver IRQ9")
+                return False
+
+            ok, missing, unexpected = self.tb.irqs.expect_only(
+                ['pm_interrupt', 'pic_int_out', 'rlb_irq_out'])
+            if not ok:
+                self.log.error(f"  IRQ lines wrong: missing={missing} "
+                               f"unexpected={unexpected}")
+                for pkt in self.tb.irqs.all_events():
+                    self.log.error(f"    {pkt}")
+                self.tb.dut.pm_gpe_events.value = 0
+                return False
+
+            self.log.info("smoke fabric-PM GREEN (pm_interrupt reached the 8259 "
+                          "on IRQ9 with pic_irq_in held at 0)")
+            self.tb.dut.pm_gpe_events.value = 0
+            return True
+        except Exception as e:
+            self.log.error(f"PM/ACPI fabric routing test failed: {e}")
             return False
 
     async def test_fabric_gpio_returns_the_slave_vector(self) -> bool:

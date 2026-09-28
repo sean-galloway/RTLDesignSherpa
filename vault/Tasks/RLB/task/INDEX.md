@@ -2,7 +2,7 @@
 
 # RLB — tasks
 
-**Next ID: TASK-017** — never recycle a number, even when its item closed.
+**Next ID: TASK-018** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -21,6 +21,7 @@ by construction rather than by discipline.
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
+- **TASK-017** — an interrupt-line BFM (`TBClasses.irq`) and per-block routing coverage for the rlb_top fabric; closes the gap TASK-015 left where only GPIO was proven end to end.
 - **TASK-016** — RLB placement pass: 7 loose markdown files (status/roadmap/audit beside the RTL, a Makefile README beside the tests)
 
 
