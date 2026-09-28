@@ -151,6 +151,8 @@ module pic_8259_config_regs
     output logic        init_mode,
     output logic        ic4,
     output logic        sngl,
+    output logic [7:0]  cascade,        // ICW3 - master: slave-present bitmap;
+                                        //        slave:  its own cascade ID
     output logic        ltim,
     output logic [7:0]  vector_base,
     output logic        aeoi,
@@ -453,17 +455,24 @@ module pic_8259_config_regs
     //========================================================================
     // Configuration Outputs
     //========================================================================
-    // ICW3 cascade, ICW4 buffered-mode/SFNM and OCW3 poll/read-select are
-    // software-visible STORAGE with no hardware effect in this implementation
-    // (see the DEVIATIONS block in pic_8259_core.sv). They are deliberately not
-    // exported: an output nobody drives anything with is worse documentation
-    // than a stated deviation.
+    // ICW3 is EXPORTED as of RLB/pic_8259 TASK-001: cascade is implemented, so
+    // the core reads the slave-present bitmap (master) / cascade ID (slave).
+    // It stays `sw = w` in the RDL -- write-only is the real 8259A behaviour,
+    // so a READ still returns zero. Declared identically to ICW1.sngl, which
+    // has always exported this way.
+    //
+    // ICW4 buffered-mode/SFNM and OCW3 poll/read-select remain software-visible
+    // STORAGE with no hardware effect (see the DEVIATIONS block in
+    // pic_8259_core.sv). Those are still deliberately not exported: an output
+    // nobody drives anything with is worse documentation than a stated
+    // deviation.
 
     assign pic_enable  = hwif_out.PIC_CONFIG.pic_enable.value;
     assign init_mode   = hwif_out.PIC_CONFIG.init_mode.value;
 
     assign ic4         = hwif_out.PIC_ICW1.ic4.value;
     assign sngl        = hwif_out.PIC_ICW1.sngl.value;
+    assign cascade     = hwif_out.PIC_ICW3.cascade.value;
     assign ltim        = hwif_out.PIC_ICW1.ltim.value;
     assign vector_base = hwif_out.PIC_ICW2.vector_base.value;
     assign aeoi        = hwif_out.PIC_ICW4.aeoi.value;

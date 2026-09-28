@@ -89,12 +89,16 @@
 // ============================================================================
 // DEVIATIONS from a real 8259A (stated, not hidden)
 // ============================================================================
-//   - No cascade. ICW3 (cascade), ICW4 buffered-mode and ICW4 SFNM are
-//     documented STORAGE in the register block. They are `sw = w`, so software
-//     can write them and the regblock holds the value, but a READ returns ZERO
-//     - they are not read back. Nothing consumes them, so they are not wired
-//     into this core. SFNM in particular is not implemented - the ordinary
-//     non-SFNM nesting rule above is what runs.
+//   - ICW4 buffered-mode and ICW4 SFNM are documented STORAGE in the register
+//     block. They are `sw = w`, so software can write them and the regblock
+//     holds the value, but a READ returns ZERO - they are not read back.
+//     Nothing consumes them, so they are not wired into this core. SFNM in
+//     particular is not implemented - the ordinary non-SFNM nesting rule above
+//     is what runs.
+//     CASCADE IS NO LONGER IN THIS LIST (RLB/pic_8259 TASK-001): ICW3 IS read
+//     by this core and drives the vector diversion below. It stays `sw = w`
+//     because write-only is the real 8259A behaviour, not because it is
+//     unimplemented.
 //   - OCW3 poll and read-register-select are likewise storage only; IRR and ISR
 //     have their own read-only registers, which is why the command is moot.
 //   - Re-initialization (an ICW1 write) clears IRR, ISR, special mask mode,
@@ -162,6 +166,7 @@ module pic_8259_core #(
     input  logic       cfg_init_mode,      // start/allow init; consumed by ICW1
     input  logic       cfg_ic4,            // ICW1.IC4  - ICW4 needed
     input  logic       cfg_sngl,           // ICW1.SNGL - single (no ICW3)
+    input  logic [7:0] cfg_cascade,        // ICW3 - slave-present bitmap
     input  logic       cfg_ltim,           // ICW1.LTIM - level triggered
     input  logic [7:0] cfg_vector_base,    // ICW2 - only [7:3] reach the vector
     input  logic       cfg_aeoi,           // ICW4.AEOI
@@ -187,6 +192,18 @@ module pic_8259_core #(
     input  logic       inta_ack,           // ONE cycle per PIC_INTA read
     output logic [7:0] inta_vector,        // pre-acknowledge vector
     output logic       inta_valid,         // pre-acknowledge valid
+
+    //========================================================================
+    // Cascade (RLB/pic_8259 TASK-001)
+    //========================================================================
+    // A real 8259A broadcasts the slave ID on CAS[2:0] during the SECOND INTA
+    // pulse, and the slave whose ICW3 ID matches drives the vector. This block
+    // acknowledges by an APB READ of PIC_INTA, so there is no second pulse to
+    // broadcast on. The equivalent: when the acknowledged level is one ICW3
+    // marks as cascaded, the master returns the SLAVE's vector and forwards the
+    // acknowledge down. Unused in single mode - tie cas_vector low.
+    output logic       cas_ack,            // forward the acknowledge to the slave
+    input  logic [7:0] cas_vector,         // the slave's pre-acknowledge vector
 
     //========================================================================
     // Status (to pic_8259_config_regs)
@@ -253,6 +270,8 @@ module pic_8259_core #(
 
     logic        w_ack_now;           // this cycle's acknowledge takes effect
     logic [7:0]  w_ack_mask;
+    logic        w_cascade_level;     // ICW3 says a slave sits on w_ack_irq
+    logic        w_cascade_hit;       // ...and the pin is offering it now
     logic        w_ocw2_exec;
     logic        w_ocw3_exec;
     logic [7:0]  w_isr_set;
@@ -486,10 +505,28 @@ module pic_8259_core #(
     assign inta_valid  = w_ack_valid && w_running;
     assign int_output  = inta_valid;
 
+    // CASCADE (RLB/pic_8259 TASK-001). The acknowledged level is a cascade level
+    // when we are not in single mode and ICW3 marks a slave on it. Both terms
+    // are gated by inta_valid / w_ack_now, so the ONE-predicate invariant above
+    // is preserved exactly: neither can fire for something the pin did not
+    // offer.
+    //
+    // This diverts the VECTOR ONLY. w_ack_irq is deliberately left alone: it
+    // also drives w_ack_mask (which clears the edge IRR) and r_priority_base on
+    // rotate-on-AEOI, and the master must still retire and rotate on ITS OWN
+    // cascade level, exactly as a real master does. Diverting w_ack_irq would
+    // corrupt EOI and nesting.
+    assign w_cascade_level = !cfg_sngl && cfg_cascade[w_ack_irq];
+    assign w_cascade_hit   = inta_valid && w_cascade_level;
+    assign cas_ack         = w_ack_now  && w_cascade_level;
+
     // ICW2[2:0] never reaches the vector: in 8086 mode the 8259A substitutes
     // the IRQ level for the low three bits. Spurious reads return level 7.
-    assign inta_vector = inta_valid ? {cfg_vector_base[7:3], w_ack_irq}
-                                    : {cfg_vector_base[7:3], 3'b111};
+    // On a cascade level the SLAVE's vector wins -- it carries the slave's own
+    // ICW2 base and its own level, which is the entire point of cascading.
+    assign inta_vector = w_cascade_hit ? cas_vector
+                       : inta_valid    ? {cfg_vector_base[7:3], w_ack_irq}
+                                       : {cfg_vector_base[7:3], 3'b111};
 
     assign w_ack_now  = inta_ack && inta_valid;
     assign w_ack_mask = w_ack_now ? (8'h01 << w_ack_irq) : 8'h00;

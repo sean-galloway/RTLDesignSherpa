@@ -50,7 +50,7 @@ and fired nothing; fixed 2026-09-09, issue #50.)
 | 0x00 | PIC_CONFIG | RW | 0x0000_0004 | Global configuration and control (gates all operation) |
 | 0x04 | PIC_ICW1 | WO | — | Initialization Command Word 1 (edge/level, single, ICW4-needed) |
 | 0x08 | PIC_ICW2 | WO | — | Initialization Command Word 2 (interrupt vector base) |
-| 0x0C | PIC_ICW3 | WO | — | Initialization Command Word 3 (cascade config; storage only) |
+| 0x0C | PIC_ICW3 | WO | — | Initialization Command Word 3 (cascade config) |
 | 0x10 | PIC_ICW4 | WO | — | Initialization Command Word 4 (mode bits) |
 | 0x14 | PIC_OCW1 | RW | 0x0000_00FF | Operation Command Word 1 - Interrupt Mask Register (IMR) |
 | 0x18 | PIC_OCW2 | WO | — | Operation Command Word 2 (EOI / priority command) |
@@ -153,10 +153,13 @@ init FSM waits for ICW3.
 
 #### PIC_ICW3 (Offset 0x0C, WO)
 
-Cascade configuration. Software-visible storage only: the value is captured
-and can be written, but this block has no cascade -- no CAS or SP/EN pins and
-nothing that reads the field. It is kept so a classic ICW1-4 sequence runs
-unchanged.
+Cascade configuration, and it is READ by the core (RLB/pic_8259 TASK-001).
+Write-only to software, which is the real 8259A behaviour -- a read returns 0.
+
+This block has no CAS or SP/EN pins: it acknowledges by an APB read of
+PIC_INTA, so there is no second INTA pulse on which a master could broadcast a
+slave ID. The equivalent is that a master whose acknowledged level is marked
+here returns the SLAVE's vector and forwards the acknowledge down. The cascade RTL has no DV coverage yet (RLB/pic_8259 TASK-001).
 
 **Master mode:**
 | Bits | Description |
@@ -371,10 +374,12 @@ the ones a datasheet reader would otherwise assume or overlook:
   about three `pclk` periods at the default. Register writes (IMR, OCW2, OCW3)
   act one cycle after the APB access phase; PIC_INTA acts in the access
   cycle.
-- **Software-visible storage with no hardware effect.** ICW3 (cascade), ICW4
-  BUF and SFNM, OCW3 read-register-select and poll, and ICW1 ADI are stored
-  and never read by the core. There is no cascade: no CAS or SP/EN pins, and
-  no special fully nested mode. IRR and ISR are dedicated registers, so the
+- **Software-visible storage with no hardware effect.** ICW4 BUF and SFNM,
+  OCW3 read-register-select and poll, and ICW1 ADI are stored and never read by
+  the core. There is no special fully nested mode. ICW3 is NO LONGER in this
+  list (RLB/pic_8259 TASK-001): it is read by the core and selects the cascade
+  level. There are still no CAS or SP/EN pins -- see the PIC_ICW3 notes above
+  for the acknowledge-by-read equivalent. IRR and ISR are dedicated registers, so the
   read-select command has nothing to select; the poll command is superseded
   by PIC_INTA, which returns the same "is there an interrupt, and which"
   answer with the acknowledge folded in. `auto_reset_init` affects only the

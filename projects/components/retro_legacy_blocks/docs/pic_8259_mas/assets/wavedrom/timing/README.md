@@ -26,8 +26,10 @@ This directory contains WaveDrom timing diagrams for PIC 8259 (Programmable Inte
 > Note: there is no INTA pin. The acknowledge is an APB read of PIC_INTA
 > (0x2C), which is what the acknowledge diagram shows. The cascade diagram
 > still depicts classic-8259A `cas[2:0]` and `sp_n/en_n` signals that this
-> RTL does **not** have - cascade is storage only. See the Chapter 5 register
-> map design notes.
+> RTL does **not** have. Cascade itself IS implemented (RLB/pic_8259
+> TASK-001): the master returns the slave's vector on its own PIC_INTA read
+> instead of broadcasting a slave ID. See the Chapter 5 register map design
+> notes.
 
 ## Functional Description
 
@@ -54,7 +56,7 @@ field definitions.
 |-----|--------|-------------|
 | ICW1 | 0x04 | Edge/level, single/cascade, ICW4 needed |
 | ICW2 | 0x08 | Vector base address |
-| ICW3 | 0x0C | Cascade configuration (master/slave; storage only) |
+| ICW3 | 0x0C | Cascade configuration (master/slave) |
 | ICW4 | 0x10 | 8086 mode, auto EOI, buffered, nested |
 
 #### Operation Command Words (OCW)
@@ -98,7 +100,9 @@ two INTA pulses:
 Shows non-specific EOI (OCW2 = 0x20). PIC finds highest priority bit in ISR and clears it (a no-op if none is set). Allows lower priority pending interrupts to be serviced.
 
 ### 4. Cascade Mode
-Classic-8259A context only - this block has no cascade. Shows master-slave cascade configuration:
+Cascade is implemented (RLB/pic_8259 TASK-001); the CAS/SP-EN signals below are
+classic-8259A context this block does not have. Shows master-slave cascade
+configuration:
 - Slave INT connects to master IR[2] (typical PC configuration)
 - During INTA, master outputs CAS[2:0] = slave ID
 - Slave with matching ID responds with its vector

@@ -174,9 +174,15 @@ to be holding.
 Stated rather than implied. In-service blocking and special mask mode are NOT
 in this list - both follow the datasheet, as described above.
 
-- **No cascade.** ICW3 (cascade), ICW4 buffered-mode and ICW4 SFNM are
-  software-visible storage with no hardware effect. Special Fully Nested Mode
-  is NOT implemented; the ordinary nesting rule runs regardless of the bit.
+- **Cascade is implemented, but there are no CAS or SP/EN pins**
+  (RLB/pic_8259 TASK-001). ICW3 is read by the core. Because this block
+  acknowledges by an APB read of PIC_INTA rather than an INTA pulse pair, there
+  is no second pulse to broadcast a slave ID on; the equivalent is that a
+  master returns the SLAVE's vector on its own PIC_INTA read and forwards the
+  acknowledge down. ICW4 buffered-mode and ICW4 SFNM remain software-visible
+  storage with no hardware effect, and Special Fully Nested Mode is NOT
+  implemented; the ordinary nesting rule runs regardless of the bit.
+  The cascade RTL has no DV coverage yet (RLB/pic_8259 TASK-001).
 - **OCW3 poll and read-register-select are storage only.** IRR and ISR have
   their own read-only registers (0x020, 0x024), which is what makes the
   register-select command moot here.

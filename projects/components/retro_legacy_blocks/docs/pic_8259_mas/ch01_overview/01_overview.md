@@ -56,7 +56,6 @@ software-visible storage with no hardware effect -- they are kept so a
 classic ICW/OCW sequence runs unchanged, and that is all they do (see the
 register map design notes):
 
-- Master/Slave cascade (ICW3). There are no CAS or SP/EN pins
 - Special fully nested mode (ICW4 SFNM)
 - Buffered mode (ICW4 BUF)
 - OCW3 read-register-select and poll. IRR and ISR have dedicated read-only
@@ -97,7 +96,7 @@ full field definitions.
 | 0x00 | PIC_CONFIG | RW | Global configuration (pic_enable, init_mode, auto_reset_init) |
 | 0x04 | PIC_ICW1 | WO | Initialization Command Word 1 |
 | 0x08 | PIC_ICW2 | WO | Initialization Command Word 2 (vector base) |
-| 0x0C | PIC_ICW3 | WO | Initialization Command Word 3 (cascade; storage only) |
+| 0x0C | PIC_ICW3 | WO | Initialization Command Word 3 (cascade config) |
 | 0x10 | PIC_ICW4 | WO | Initialization Command Word 4 |
 | 0x14 | PIC_OCW1 | RW | Interrupt Mask Register (IMR) |
 | 0x18 | PIC_OCW2 | WO | EOI / priority command |
@@ -120,7 +119,7 @@ commands are ignored until both conditions hold.
 |-----|-----------------|
 | IR0 | Highest (0) |
 | IR1 | 1 |
-| IR2 | 2 (cascade input in a classic master; cascade not implemented here) |
+| IR2 | 2 (the conventional cascade input on a master) |
 | IR3 | 3 |
 | IR4 | 4 |
 | IR5 | 5 |
@@ -193,9 +192,13 @@ Master-slave configuration for 15 IRQ sources.
 Slave INT connects to master IR2. During INTA, master outputs cascade select
 (CAS) lines. Slave with matching ID provides the interrupt vector.
 
-> Note: cascade mode is not implemented in this block. ICW3 is storage only
-> and there are no CAS or SP/EN pins. This waveform is illustrative of the
-> classic-8259A architecture, not of this RTL.
+> Note: cascade IS implemented (RLB/pic_8259 TASK-001), but this block has no
+> CAS or SP/EN pins, so the `cascade_sel` step above is architectural rather
+> than literal. Acknowledge here is an APB read of PIC_INTA, not an INTA pulse
+> pair, so there is no second pulse on which to broadcast a slave ID. The
+> equivalent, and what the RTL does: when the acknowledged level is one ICW3
+> marks as cascaded, the master returns the SLAVE's vector and forwards the
+> acknowledge down. The cascade RTL has no DV coverage yet (RLB/pic_8259 TASK-001).
 
 ### Waveform 1.5: Priority Rotation
 

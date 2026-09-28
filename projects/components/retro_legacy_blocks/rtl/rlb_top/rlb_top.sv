@@ -552,7 +552,18 @@ module rlb_top #(
         // Boot interrupt ORs in here: a masked IOAPIC pin also drives
         // its mapped legacy input. Zero unless software enables it.
         .irq_in        (pic_irq_in | w_boot_intx_pic_irq),
-        .int_out       (pic_int_out)
+        .int_out       (pic_int_out),
+        // Cascade (RLB/pic_8259 TASK-001) is not wired yet: rlb_top still has
+        // ONE 8259, so this is single mode and the pins tie off. Connected
+        // EXPLICITLY rather than omitted -- omitting a pin is PINMISSING, which
+        // is how a real gap hides (same reason as the IOAPIC's cfg_msi_* above).
+        // The slave PIC lands on crossbar slave 9 (0xFEC09000, currently
+        // Reserved) when the integration half of TASK-001 goes in, and
+        // pic_irq_in widens to [15:0] to carry IRQ8-15.
+        .cas_vector    (8'h00),
+        .cas_ack_in    (1'b0),
+        .cas_ack       (),
+        .inta_vector_o ()
     );
 
     // 8254 PIT (Programmable Interval Timer)

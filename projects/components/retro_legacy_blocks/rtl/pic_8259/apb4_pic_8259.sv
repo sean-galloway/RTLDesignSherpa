@@ -75,7 +75,24 @@ module apb4_pic_8259 #(
     // Interrupt Interface
     //========================================================================
     input  wire [7:0]              irq_in,         // IRQ inputs (IRQ0-7, async)
-    output wire                    int_out         // Interrupt output (INT pin)
+    output wire                    int_out,        // Interrupt output (INT pin)
+
+    //========================================================================
+    // Cascade (RLB/pic_8259 TASK-001)
+    //========================================================================
+    // A PC/AT pair wires the SLAVE's int_out into one of the MASTER's irq_in
+    // bits (IR2 by convention) and cross-connects the three signals below.
+    // Single mode: leave cas_vector and cas_ack_in at 0, cas_ack open.
+    //
+    // MASTER: cas_ack pulses when software acknowledges a level ICW3 marks as
+    //         cascaded; cas_vector is the slave's inta_vector_o, returned in
+    //         place of the master's own.
+    // SLAVE:  cas_ack_in comes from the master's cas_ack, so the master's
+    //         PIC_INTA read acknowledges here too; inta_vector_o feeds back up.
+    output wire                    cas_ack,        // master -> slave acknowledge
+    input  wire [7:0]              cas_vector,     // slave's vector -> master
+    input  wire                    cas_ack_in,     // master acknowledge -> slave
+    output wire [7:0]              inta_vector_o   // this PIC's vector -> master
 );
 
     //========================================================================
@@ -157,6 +174,7 @@ module apb4_pic_8259 #(
     logic [2:0]  w_ocw2_eoi_cmd;
     logic [1:0]  w_ocw3_smm_cmd;
     logic        w_inta_ack;
+    logic [7:0]  w_cascade;      // ICW3, config_regs -> core
     logic [7:0]  w_inta_vector;
     logic        w_inta_valid;
     logic [7:0]  w_irr;
@@ -192,6 +210,7 @@ module apb4_pic_8259 #(
         .init_mode             (w_init_mode),
         .ic4                   (w_ic4),
         .sngl                  (w_sngl),
+        .cascade               (w_cascade),
         .ltim                  (w_ltim),
         .vector_base           (w_vector_base),
         .aeoi                  (w_aeoi),
@@ -237,6 +256,7 @@ module apb4_pic_8259 #(
         .cfg_init_mode       (w_init_mode),
         .cfg_ic4             (w_ic4),
         .cfg_sngl            (w_sngl),
+        .cfg_cascade         (w_cascade),
         .cfg_ltim            (w_ltim),
         .cfg_vector_base     (w_vector_base),
         .cfg_aeoi            (w_aeoi),
@@ -253,10 +273,15 @@ module apb4_pic_8259 #(
         .ocw2_eoi_cmd        (w_ocw2_eoi_cmd),
         .ocw3_smm_cmd        (w_ocw3_smm_cmd),
 
-        // Acknowledge by read
-        .inta_ack            (w_inta_ack),
+        // Acknowledge by read. A cascaded SLAVE is acknowledged by its master's
+        // PIC_INTA read as well as by its own, so the two strobes OR together.
+        .inta_ack            (w_inta_ack | cas_ack_in),
         .inta_vector         (w_inta_vector),
         .inta_valid          (w_inta_valid),
+
+        // Cascade
+        .cas_ack             (cas_ack),
+        .cas_vector          (cas_vector),
 
         // Status outputs
         .irr_out             (w_irr),
@@ -274,6 +299,8 @@ module apb4_pic_8259 #(
     // Output Assignment
     //========================================================================
 
-    assign int_out = w_int_output;
+    assign int_out       = w_int_output;
+    // This PIC's own vector, for a master cascading above it.
+    assign inta_vector_o = w_inta_vector;
 
 endmodule

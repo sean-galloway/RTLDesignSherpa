@@ -29,8 +29,9 @@
 **Status:** RTL Functional -- acknowledge by read (PIC_INTA), live ISR with
 fully nested priority, all EOI/rotation variants, special mask mode, strict
 address decode with PSLVERR and a synchronized `irq_in` (issue #50 fixes,
-2026-09-09). Cascade, buffered mode, SFNM and OCW3 poll/read-select are
-software-visible storage only.
+2026-09-09). Cascade is implemented without CAS or SP/EN pins (RLB/pic_8259
+TASK-001, no DV coverage yet). Buffered mode, SFNM and OCW3 poll/read-select
+remain software-visible storage only.
 
 ## Overview
 
@@ -39,7 +40,8 @@ This is the micro-architecture specification for the pic_8259, an APB
 and the interrupt semantics are validated; every chapter in this set
 describes the RTL as it exists -- not the 8259A you remember from the
 datasheet. Where the two part ways (there is no INTA pin, so the acknowledge
-is a read; there is no cascade, so ICW3 is storage) the text says so, plainly.
+is a read; there are no CAS or SP/EN pins, so a cascading master returns the
+slave's vector on that read) the text says so, plainly.
 
 ![PIC 8259 Block Diagram](assets/svg/pic_8259_top.png)
 
