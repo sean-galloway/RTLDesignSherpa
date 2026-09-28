@@ -330,7 +330,6 @@ runs on another clock.
 | `pm_acpi_regs.sv` | GENERATED register block |
 | `pm_acpi_regs_pkg.sv` | GENERATED hwif package |
 | `../../rdl/pm_acpi/pm_acpi_regs.rdl` | the register source of truth |
-| `../../rdl/pm_acpi/pm_acpi_regs.md` | generated register documentation |
 | `filelists/apb4_pm_acpi.f` | compile closure |
 
 ## Not implemented

@@ -57,9 +57,9 @@ Everything this spec leans on: the standards, the sibling RLB documents, the too
 - `../../rdl/ioapic/ioapic_regs.rdl` - SystemRDL source specification
 
 **RLB System:**
-- `../../rtl/RLB_MODULE_AUDIT.md` - Architecture compliance verification
-- `../../rtl/RLB_STATUS_AND_ROADMAP.md` - System-wide status and planning
-- `../../rtl/RLB_FPGA_IMPLEMENTATION_GUIDE.md` - FPGA deployment guide
+- `../../../../../../vault/Tasks/RLB/RLB_MODULE_AUDIT.md` - Architecture compliance verification
+- `../../../../../../vault/Tasks/RLB/RLB_STATUS_AND_ROADMAP.md` - System-wide status and planning
+- `../../RLB_FPGA_IMPLEMENTATION_GUIDE.md` - FPGA deployment guide
 - `../../PRD.md` - Product Requirements Document
 - `../../CLAUDE.md` - AI integration guide
 

@@ -25,7 +25,7 @@ the page:
 projects/ is NOT in that list. Those links are really broken, they are merely
 DEFERRED by DOCREV-011 -- so they stay in the ratchet and must not grow.
 
-Ratcheted, not hard-gated, for the reason CONV-002 records in the pre-commit
+Ratcheted, not hard-gated, for the reason projects/components/converters BUG-002 (was CONV-002) records in the pre-commit
 hook: a wall of red "diagnoses nothing and blocks everyone". A file may carry
 its existing broken links; it may not GROW one.
 
@@ -60,10 +60,14 @@ from pathlib import Path
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+?)(?:#[^)\s]*)?\)")
 FENCE = re.compile(r"^\s*```")
 INLINE = re.compile(r"`[^`]*`")
-# file:// is a URI scheme, not a relative path. README_MAKEFILE.md links 6
-# sibling files that ALL exist; without file:// here the checker called them
-# broken, and "fixing" that would have meant damaging a correct page to
-# satisfy a defect in this script.
+# file:// is a URI scheme, not a relative path. The case that put it here:
+# README_MAKEFILE.md linked 6 sibling files that ALL existed, and without
+# file:// the checker called them broken -- "fixing" that would have meant
+# damaging a correct page to satisfy a defect in this script. That page was
+# slimmed to a pointer by RLB TASK-016 (2026-09-28) and no tracked .md uses
+# file:// today, so the entry is kept for the next one rather than for a live
+# case. Do not drop it to tidy: a scheme removed from a shared checker
+# silently reclassifies real links as broken.
 SCHEMES = ("http://", "https://", "mailto:", "ftp://", "data:", "file://")
 
 REPO = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"],

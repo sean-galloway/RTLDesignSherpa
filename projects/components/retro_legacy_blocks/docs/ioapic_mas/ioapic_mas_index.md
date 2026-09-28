@@ -174,9 +174,9 @@ business. RLB TASK-008 (was RLB-008) closed 2026-09-14 with every feature built.
 - [PeakRDL README](../../rtl/ioapic/README.md) - Register generation guide
 
 **RLB System Documentation:**
-- [RLB_STATUS_AND_ROADMAP.md](../../rtl/RLB_STATUS_AND_ROADMAP.md) - System-wide status and planning
-- [RLB_FPGA_IMPLEMENTATION_GUIDE.md](../../rtl/RLB_FPGA_IMPLEMENTATION_GUIDE.md) - FPGA deployment guide
-- [RLB_MODULE_AUDIT.md](../../rtl/RLB_MODULE_AUDIT.md) - Architecture compliance audit
+- [RLB_STATUS_AND_ROADMAP.md](../../../../../vault/Tasks/RLB/RLB_STATUS_AND_ROADMAP.md) - System-wide status and planning
+- [RLB_FPGA_IMPLEMENTATION_GUIDE.md](../RLB_FPGA_IMPLEMENTATION_GUIDE.md) - FPGA deployment guide
+- [RLB_MODULE_AUDIT.md](../../../../../vault/Tasks/RLB/RLB_MODULE_AUDIT.md) - Architecture compliance audit
 
 **Reference Specifications:**
 - [HPET Specification](../hpet_mas/hpet_mas_index.md) - Reference RLB module spec

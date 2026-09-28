@@ -318,7 +318,7 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 - `../../rtl/ioapic/README.md` - Block summary and verification entry point
 - `vault/Tasks/RLB/closed.md` - RLB TASK-008 (was RLB-008), the IOAPIC feature arc (closed)
 - `../../rtl/ioapic/README.md` - Register generation guide
-- `../../rtl/RLB_STATUS_AND_ROADMAP.md` - System-wide planning
+- `../../../../../../vault/Tasks/RLB/RLB_STATUS_AND_ROADMAP.md` - System-wide planning
 - Intel 82093AA I/O APIC Datasheet
 
 ## Navigation
