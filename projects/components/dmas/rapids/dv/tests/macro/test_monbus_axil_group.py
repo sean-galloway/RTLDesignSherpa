@@ -50,6 +50,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -169,7 +170,7 @@ monbus_axil_params = generate_monbus_axil_test_params()
 # HELPER FUNCTION - Common test setup
 # ===========================================================================
 
-def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level='gate'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run monbus_axil_group tests with common setup."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -196,7 +197,7 @@ def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_w
     aw_str = TBBase.format_dec(addr_width, 2)
     dw_str = TBBase.format_dec(data_width, 2)
     np_str = TBBase.format_dec(num_protocols, 1)
-    test_name_plus_params = f"test_{dut_name}_{testcase_name}_fde{fdepth_err_str}_fdw{fdepth_wr_str}_aw{aw_str}_dw{dw_str}_np{np_str}"
+    test_name_plus_params = f"test_{dut_name}_{testcase_name}_fde{fdepth_err_str}_fdw{fdepth_wr_str}_aw{aw_str}_dw{dw_str}_np{np_str}_{test_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -221,8 +222,7 @@ def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_w
 
     extra_env = {
         'LOG_PATH': log_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
+        **level_env(test_level),
         'TEST_FIFO_DEPTH_ERR': str(fifo_depth_err),
         'TEST_FIFO_DEPTH_WRITE': str(fifo_depth_write),
         'TEST_ADDR_WIDTH': str(addr_width),
@@ -262,41 +262,47 @@ def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_w
 
 @pytest.mark.parametrize("fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
-def test_monbus_axil_group_basic_flow(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_monbus_axil_group_basic_flow(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level):
     """MonBus AXIL Group basic flow test."""
-    run_monbus_axil_test("test_basic_flow", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
+    run_monbus_axil_test("test_basic_flow", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level=test_level)
 
 
 @pytest.mark.parametrize("fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
-def test_monbus_axil_group_error_fifo(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_monbus_axil_group_error_fifo(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level):
     """MonBus AXIL Group error FIFO test."""
-    run_monbus_axil_test("test_error_fifo", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
+    run_monbus_axil_test("test_error_fifo", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level=test_level)
 
 
 @pytest.mark.parametrize("fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
-def test_monbus_axil_group_master_write(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_monbus_axil_group_master_write(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level):
     """MonBus AXIL Group master write test."""
-    run_monbus_axil_test("test_master_write", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
+    run_monbus_axil_test("test_master_write", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level=test_level)
 
 
 @pytest.mark.parametrize("fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
-def test_monbus_axil_group_protocol_filtering(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_monbus_axil_group_protocol_filtering(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level):
     """MonBus AXIL Group protocol filtering test."""
-    run_monbus_axil_test("test_protocol_filtering", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
+    run_monbus_axil_test("test_protocol_filtering", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level=test_level)
 
 
 @pytest.mark.parametrize("fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
-def test_monbus_axil_group_concurrent_streams(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_monbus_axil_group_concurrent_streams(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level):
     """MonBus AXIL Group concurrent streams test."""
-    run_monbus_axil_test("test_concurrent_streams", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
+    run_monbus_axil_test("test_concurrent_streams", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level=test_level)
 
 
 @pytest.mark.parametrize("fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
-def test_monbus_axil_group_stress(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_monbus_axil_group_stress(request, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level):
     """MonBus AXIL Group stress test."""
-    run_monbus_axil_test("test_stress", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
+    run_monbus_axil_test("test_stress", fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols, test_level=test_level)

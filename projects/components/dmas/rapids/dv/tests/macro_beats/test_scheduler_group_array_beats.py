@@ -46,6 +46,8 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
+from projects.components.dmas.rapids.dv.tbclasses.rapids_levels import depth as _profile_depth
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -117,7 +119,7 @@ async def cocotb_test_axi_arbitration(dut):
     tb = SchedulerGroupArrayBeatsTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result, stats = await tb.test_axi_arbitration(num_operations=8)
+    result, stats = await tb.test_axi_arbitration(num_operations=_profile_depth('sga_arb_ops'))
     tb.finalize_test()
     tb.print_test_summary()
     assert result, f"AXI arbitration test failed: {stats}"
@@ -129,7 +131,7 @@ async def cocotb_test_all_channels_sequential(dut):
     tb = SchedulerGroupArrayBeatsTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result, stats = await tb.test_all_channels_sequential(descriptors_per_channel=1)
+    result, stats = await tb.test_all_channels_sequential(descriptors_per_channel=_profile_depth('sga_desc_per_ch'))
     tb.finalize_test()
     tb.print_test_summary()
     assert result, f"All channels sequential test failed: {stats}"
@@ -157,7 +159,7 @@ async def cocotb_test_stress(dut):
     tb = SchedulerGroupArrayBeatsTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result, stats = await tb.stress_test(num_operations=10)
+    result, stats = await tb.stress_test(num_operations=_profile_depth('sga_stress_ops'))
     tb.finalize_test()
     tb.print_test_summary()
     # Allow some failures in stress test
@@ -206,80 +208,88 @@ beats_scheduler_group_array_params = generate_beats_scheduler_group_array_test_p
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_scheduler_group_array_beats_single_channel(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_array_beats_single_channel(request, num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: Test single channel operation"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_single_channel",
-                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_scheduler_group_array_beats_ctrl_multi_channel_doorbell(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_array_beats_ctrl_multi_channel_doorbell(request, num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: multi-channel CTRL_WRITE doorbells through the shared serialized ctrlwr master"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_ctrl_multi_channel_doorbell",
-                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_scheduler_group_array_beats_ctrl_multi_channel_gate(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_array_beats_ctrl_multi_channel_gate(request, num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: multi-channel CTRL_READ gates through the shared arbitrated ctrlrd master"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_ctrl_multi_channel_gate",
-                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_scheduler_group_array_beats_multi_channel_concurrent(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_array_beats_multi_channel_concurrent(request, num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: Test multi-channel concurrent operations"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_multi_channel_concurrent",
-                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_scheduler_group_array_beats_axi_arbitration(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_array_beats_axi_arbitration(request, num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: Test AXI arbitration"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_axi_arbitration",
-                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_scheduler_group_array_beats_all_channels_sequential(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_array_beats_all_channels_sequential(request, num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: Test all channels sequentially"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_all_channels_sequential",
-                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_scheduler_group_array_beats_monbus_aggregation(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_array_beats_monbus_aggregation(request, num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: Test MonBus aggregation"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_monbus_aggregation",
-                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group_array
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_array_params)
-def test_scheduler_group_array_beats_stress(request, num_channels, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_array_beats_stress(request, num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: Stress test"""
     _run_beats_scheduler_group_array_test(request, "cocotb_test_stress",
-                                           num_channels, addr_width, data_width, axi_id_width, timing_profile)
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 # ===========================================================================
 # HELPER FUNCTION - AMBA PATTERN
 # ===========================================================================
 
-def _run_beats_scheduler_group_array_test(request, testcase_name, num_channels, addr_width, data_width, axi_id_width, timing_profile='default'):
+def _run_beats_scheduler_group_array_test(request, testcase_name, num_channels, addr_width, data_width, axi_id_width, timing_profile='default', test_level='gate'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run beats_scheduler_group_array tests with AMBA pattern.
 
@@ -314,7 +324,7 @@ def _run_beats_scheduler_group_array_test(request, testcase_name, num_channels, 
 
     # Extract test name from cocotb function
     test_suffix = testcase_name.replace("cocotb_test_", "")
-    test_name_plus_params = f"test_{dut_name}_{test_suffix}_nc{nc_str}_aw{aw_str}_dw{dw_str}_id{id_str}_{timing_profile}"
+    test_name_plus_params = f"test_{dut_name}_{test_suffix}_nc{nc_str}_aw{aw_str}_dw{dw_str}_id{id_str}_{timing_profile}_{test_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -340,7 +350,7 @@ def _run_beats_scheduler_group_array_test(request, testcase_name, num_channels, 
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        **level_env(test_level),
         'TEST_ADDR_WIDTH': str(addr_width),
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_AXI_ID_WIDTH': str(axi_id_width),

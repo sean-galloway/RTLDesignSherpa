@@ -44,6 +44,8 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
+from projects.components.dmas.rapids.dv.tbclasses.rapids_levels import depth as _profile_depth
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -61,7 +63,7 @@ from projects.components.dmas.rapids.dv.tbclasses.drain_ctrl_beats_tb import Dra
 
 def _depth():
     """(basic ops, stress ops) by TEST_LEVEL."""
-    return {'gate': (5, 25), 'func': (10, 50), 'full': (25, 200)}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), (10, 50))
+    return (_profile_depth('drain_basic_ops'), _profile_depth('drain_stress_ops'))
 
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
@@ -158,37 +160,41 @@ beats_drain_ctrl_params = generate_beats_drain_ctrl_test_params()
 @pytest.mark.fub
 @pytest.mark.beats_drain_ctrl
 @pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_drain_ctrl_params)
-def test_drain_ctrl_beats_basic_write_drain(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_drain_ctrl_beats_basic_write_drain(request, depth, almost_wr_margin, almost_rd_margin, timing_profile, test_level):
     """Pytest: Test basic write and drain cycle"""
     _run_beats_drain_ctrl_test(request, "cocotb_test_basic_write_drain",
-                                depth, almost_wr_margin, almost_rd_margin, timing_profile)
+                                depth, almost_wr_margin, almost_rd_margin, timing_profile, test_level=test_level)
 
 
 @pytest.mark.fub
 @pytest.mark.beats_drain_ctrl
 @pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_drain_ctrl_params)
-def test_drain_ctrl_beats_full_detection(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_drain_ctrl_beats_full_detection(request, depth, almost_wr_margin, almost_rd_margin, timing_profile, test_level):
     """Pytest: Test full flag detection"""
     _run_beats_drain_ctrl_test(request, "cocotb_test_full_detection",
-                                depth, almost_wr_margin, almost_rd_margin, timing_profile)
+                                depth, almost_wr_margin, almost_rd_margin, timing_profile, test_level=test_level)
 
 
 @pytest.mark.fub
 @pytest.mark.beats_drain_ctrl
 @pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_drain_ctrl_params)
-def test_drain_ctrl_beats_empty_detection(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_drain_ctrl_beats_empty_detection(request, depth, almost_wr_margin, almost_rd_margin, timing_profile, test_level):
     """Pytest: Test empty flag detection"""
     _run_beats_drain_ctrl_test(request, "cocotb_test_empty_detection",
-                                depth, almost_wr_margin, almost_rd_margin, timing_profile)
+                                depth, almost_wr_margin, almost_rd_margin, timing_profile, test_level=test_level)
 
 
 @pytest.mark.fub
 @pytest.mark.beats_drain_ctrl
 @pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_drain_ctrl_params)
-def test_drain_ctrl_beats_variable_size(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_drain_ctrl_beats_variable_size(request, depth, almost_wr_margin, almost_rd_margin, timing_profile, test_level):
     """Pytest: Test variable-size drains"""
     _run_beats_drain_ctrl_test(request, "cocotb_test_variable_size_drain",
-                                depth, almost_wr_margin, almost_rd_margin, timing_profile)
+                                depth, almost_wr_margin, almost_rd_margin, timing_profile, test_level=test_level)
 
 
 # ===========================================================================
@@ -199,17 +205,18 @@ def test_drain_ctrl_beats_variable_size(request, depth, almost_wr_margin, almost
 @pytest.mark.beats_drain_ctrl
 @pytest.mark.stress
 @pytest.mark.parametrize("depth, almost_wr_margin, almost_rd_margin, timing_profile", beats_drain_ctrl_params)
-def test_drain_ctrl_beats_stress(request, depth, almost_wr_margin, almost_rd_margin, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_drain_ctrl_beats_stress(request, depth, almost_wr_margin, almost_rd_margin, timing_profile, test_level):
     """Pytest: Stress test with rapid operations"""
     _run_beats_drain_ctrl_test(request, "cocotb_test_stress_rapid_operations",
-                                depth, almost_wr_margin, almost_rd_margin, timing_profile)
+                                depth, almost_wr_margin, almost_rd_margin, timing_profile, test_level=test_level)
 
 
 # ===========================================================================
 # HELPER FUNCTION - AMBA PATTERN
 # ===========================================================================
 
-def _run_beats_drain_ctrl_test(request, testcase_name, depth, almost_wr_margin, almost_rd_margin, timing_profile='default'):
+def _run_beats_drain_ctrl_test(request, testcase_name, depth, almost_wr_margin, almost_rd_margin, timing_profile='default', test_level='gate'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run beats_drain_ctrl tests with AMBA pattern.
 
@@ -245,7 +252,7 @@ def _run_beats_drain_ctrl_test(request, testcase_name, depth, almost_wr_margin, 
 
     # Extract test name from cocotb function (remove "cocotb_test_" prefix)
     test_suffix = testcase_name.replace("cocotb_test_", "")
-    test_name_plus_params = f"test_{dut_name}_{test_suffix}_d{depth_str}_aw{aw_str}_ar{ar_str}_{timing_profile}"
+    test_name_plus_params = f"test_{dut_name}_{test_suffix}_d{depth_str}_aw{aw_str}_ar{ar_str}_{timing_profile}_{test_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -274,8 +281,7 @@ def _run_beats_drain_ctrl_test(request, testcase_name, depth, almost_wr_margin, 
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
+        **level_env(test_level),
         'TEST_DEPTH': str(depth),
     }
 

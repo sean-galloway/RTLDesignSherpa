@@ -35,6 +35,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 
 # ===========================================================================
@@ -246,7 +247,8 @@ def generate_timeout_params():
 @pytest.mark.scheduler
 @pytest.mark.timeout
 @pytest.mark.parametrize("timeout_cycles", generate_timeout_params())
-def test_scheduler_beats_timeout(request, timeout_cycles):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_timeout(request, timeout_cycles, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for the scheduler watchdog timeout test"""
     # Check if coverage collection is enabled via environment variable
@@ -262,7 +264,7 @@ def test_scheduler_beats_timeout(request, timeout_cycles):
         filelist_path='projects/components/dmas/rapids/rtl/filelists/fub_beats/scheduler_beats.f'
     )
 
-    test_name = f"test_scheduler_beats_timeout_t{timeout_cycles}"
+    test_name = f"test_scheduler_beats_timeout_t{timeout_cycles}_{test_level}"
 
     # Handle pytest-xdist
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -285,8 +287,7 @@ def test_scheduler_beats_timeout(request, timeout_cycles):
         'LOG_PATH': log_path,
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
+        **level_env(test_level),
         'TEST_TIMEOUT_CYCLES': str(timeout_cycles),
     }
 

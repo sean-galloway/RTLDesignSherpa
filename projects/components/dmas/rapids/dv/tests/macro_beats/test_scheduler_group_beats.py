@@ -45,6 +45,8 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
+from projects.components.dmas.rapids.dv.tbclasses.rapids_levels import depth as _profile_depth
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -86,7 +88,7 @@ async def cocotb_test_basic_descriptor_flow(dut):
     tb = SchedulerGroupBeatsTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result = await tb.test_basic_descriptor_flow(num_descriptors=3)
+    result = await tb.test_basic_descriptor_flow(num_descriptors=_profile_depth('sg_descriptors'))
     tb.generate_test_report()
     assert result, "Basic descriptor flow test failed"
 
@@ -166,62 +168,68 @@ beats_scheduler_group_params = generate_beats_scheduler_group_test_params()
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
 @pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
-def test_scheduler_group_beats_idle_state(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_beats_idle_state(request, channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: Test idle state after reset"""
     _run_beats_scheduler_group_test(request, "cocotb_test_idle_state",
-                                     channel_id, addr_width, data_width, axi_id_width, timing_profile)
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
 @pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
-def test_scheduler_group_beats_config_interface(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_beats_config_interface(request, channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: Test configuration interface"""
     _run_beats_scheduler_group_test(request, "cocotb_test_config_interface",
-                                     channel_id, addr_width, data_width, axi_id_width, timing_profile)
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
 @pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
-def test_scheduler_group_beats_basic_descriptor_flow(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_beats_basic_descriptor_flow(request, channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: Test basic descriptor fetch and processing"""
     _run_beats_scheduler_group_test(request, "cocotb_test_basic_descriptor_flow",
-                                     channel_id, addr_width, data_width, axi_id_width, timing_profile)
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
 @pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
-def test_scheduler_group_beats_ctrl_write_doorbell(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_beats_ctrl_write_doorbell(request, channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: CTRL_WRITE descriptor -> real ctrlwr engine posts a doorbell"""
     _run_beats_scheduler_group_test(request, "cocotb_test_ctrl_write_doorbell",
-                                     channel_id, addr_width, data_width, axi_id_width, timing_profile)
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
 @pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
-def test_scheduler_group_beats_ctrl_read_gate(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_beats_ctrl_read_gate(request, channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: CTRL_READ descriptor -> real ctrlrd engine gates the chain until match"""
     _run_beats_scheduler_group_test(request, "cocotb_test_ctrl_read_gate",
-                                     channel_id, addr_width, data_width, axi_id_width, timing_profile)
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.beats_scheduler_group
 @pytest.mark.parametrize("channel_id, addr_width, data_width, axi_id_width, timing_profile", beats_scheduler_group_params)
-def test_scheduler_group_beats_monbus_events(request, channel_id, addr_width, data_width, axi_id_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_beats_monbus_events(request, channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: Test monitor bus events"""
     _run_beats_scheduler_group_test(request, "cocotb_test_monbus_events",
-                                     channel_id, addr_width, data_width, axi_id_width, timing_profile)
+                                     channel_id, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 
 # ===========================================================================
 # HELPER FUNCTION - AMBA PATTERN
 # ===========================================================================
 
-def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_width, data_width, axi_id_width, timing_profile='default'):
+def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_width, data_width, axi_id_width, timing_profile='default', test_level='gate'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run beats_scheduler_group tests with AMBA pattern.
 
@@ -256,7 +264,7 @@ def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_wid
 
     # Extract test name from cocotb function
     test_suffix = testcase_name.replace("cocotb_test_", "")
-    test_name_plus_params = f"test_{dut_name}_{test_suffix}_ch{ch_str}_aw{aw_str}_dw{dw_str}_id{id_str}_{timing_profile}"
+    test_name_plus_params = f"test_{dut_name}_{test_suffix}_ch{ch_str}_aw{aw_str}_dw{dw_str}_id{id_str}_{timing_profile}_{test_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -283,7 +291,7 @@ def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_wid
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        **level_env(test_level),
         'TEST_ADDR_WIDTH': str(addr_width),
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_AXI_ID_WIDTH': str(axi_id_width),

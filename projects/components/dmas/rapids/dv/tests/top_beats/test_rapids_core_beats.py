@@ -37,6 +37,8 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
+from projects.components.dmas.rapids.dv.tbclasses.rapids_levels import depth as _profile_depth
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -51,7 +53,7 @@ from projects.components.dmas.rapids.dv.tbclasses.rapids_core_beats_tb import Ra
 def _beats():
     """Beats per transfer by TEST_LEVEL (the build is one fixed configuration, so
     REG_LEVEL selects nothing here; depth is the only axis)."""
-    return {'gate': 4, 'func': 16, 'full': 32}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), 4)
+    return _profile_depth('top_beats')
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
@@ -92,7 +94,7 @@ params = generate_params()
 # PYTEST WRAPPERS
 # ===========================================================================
 
-def _run_core_beats(request, test_type, data_width):
+def _run_core_beats(request, test_type, data_width, test_level='gate'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -106,7 +108,7 @@ def _run_core_beats(request, test_type, data_width):
     )
 
     dw_str = TBBase.format_dec(data_width, 4)
-    test_name = f"test_rapids_core_beats_{test_type}_dw{dw_str}"
+    test_name = f"test_rapids_core_beats_{test_type}_dw{dw_str}_{test_level}"
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
         test_name = f"{test_name}_{worker_id}"
@@ -131,8 +133,7 @@ def _run_core_beats(request, test_type, data_width):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
+        **level_env(test_level),
         'TEST_NUM_CHANNELS': '8',
         'TEST_ADDR_WIDTH': '64',
         'TEST_DATA_WIDTH': str(data_width),
@@ -176,15 +177,17 @@ def _run_core_beats(request, test_type, data_width):
 @pytest.mark.top_beats
 @pytest.mark.rapids_core_beats
 @pytest.mark.parametrize("data_width", [512])
-def test_rapids_core_beats_source(request, data_width):
-    _run_core_beats(request, 'source', data_width)
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_core_beats_source(request, data_width, test_level):
+    _run_core_beats(request, 'source', data_width, test_level=test_level)
 
 
 @pytest.mark.top_beats
 @pytest.mark.rapids_core_beats
 @pytest.mark.parametrize("data_width", [512])
-def test_rapids_core_beats_sink(request, data_width):
-    _run_core_beats(request, 'sink', data_width)
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_core_beats_sink(request, data_width, test_level):
+    _run_core_beats(request, 'sink', data_width, test_level=test_level)
 
 
 if __name__ == "__main__":

@@ -23,6 +23,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -78,7 +79,8 @@ params = generate_params()
 
 @pytest.mark.fub
 @pytest.mark.parametrize("test_type, num_channels, data_width, pipeline, xfer_cfg, timing_profile", params)
-def test_axi_read_engine_beats(request, test_type, num_channels, data_width, pipeline, xfer_cfg, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi_read_engine_beats(request, test_type, num_channels, data_width, pipeline, xfer_cfg, timing_profile, test_level):
     """Pytest wrapper for axi_read_engine_beats."""
     coverage_enabled = os.environ.get('COVERAGE', '0') == '1'
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -89,7 +91,7 @@ def test_axi_read_engine_beats(request, test_type, num_channels, data_width, pip
                  f"_p{pipeline}_x{xfer_cfg}_{timing_profile}")
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
-        test_name = f"{test_name}_{worker_id}"
+        test_name = f"{test_name}_{worker_id}_{test_level}"
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
@@ -112,11 +114,10 @@ def test_axi_read_engine_beats(request, test_type, num_channels, data_width, pip
     extra_env = {
         'TEST_TYPE': test_type,
         'TEST_XFER_CFG': str(xfer_cfg),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
+        **level_env(test_level),
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
     if timing_profile != 'default':
         extra_env['GAXI_TIMING_PROFILE'] = timing_profile

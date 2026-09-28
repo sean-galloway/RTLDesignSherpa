@@ -42,6 +42,8 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
+from projects.components.dmas.rapids.dv.tbclasses.rapids_levels import depth as _profile_depth
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -56,7 +58,7 @@ from projects.components.dmas.rapids.dv.tbclasses.rapids_beats_top_tb import Rap
 def _beats():
     """Beats per transfer by TEST_LEVEL (the build is one fixed configuration, so
     REG_LEVEL selects nothing here; depth is the only axis)."""
-    return {'gate': 4, 'func': 16, 'full': 32}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), 4)
+    return _profile_depth('top_beats')
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
@@ -355,7 +357,8 @@ async def cocotb_test_perf_window(dut):
 # PYTEST WRAPPER
 # ===========================================================================
 
-def _run_top(testcase, test_name, extra_params=None):
+def _run_top(testcase, test_name, extra_params=None, test_level='gate'):
+    test_name = f"{test_name}_{test_level}"
     """Shared runner: compile rapids_beats_top (split core) and run a testcase.
 
     The split top uses a 13-bit APB (address bit[12] selects SRC/SNK), so both
@@ -412,8 +415,7 @@ def _run_top(testcase, test_name, extra_params=None):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
+        **level_env(test_level),
         'TEST_NUM_CHANNELS': '8',
         'TEST_ADDR_WIDTH': '64',
         'TEST_DATA_WIDTH': '512',
@@ -460,63 +462,71 @@ def _run_top(testcase, test_name, extra_params=None):
 
 @pytest.mark.top_beats
 @pytest.mark.rapids_beats_top
-def test_rapids_beats_top_source(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_beats_top_source(request, test_level):
     """SOURCE datapath: memory -> AXIS, config + kick over APB (by name)."""
-    _run_top("cocotb_test_source_path", "test_rapids_beats_top_source")
+    _run_top("cocotb_test_source_path", "test_rapids_beats_top_source", test_level=test_level)
 
 
 @pytest.mark.top_beats
 @pytest.mark.rapids_beats_top
-def test_rapids_beats_top_sink(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_beats_top_sink(request, test_level):
     """SINK datapath: AXIS -> memory, config + kick over APB (by name)."""
-    _run_top("cocotb_test_sink_path", "test_rapids_beats_top_sink")
+    _run_top("cocotb_test_sink_path", "test_rapids_beats_top_sink", test_level=test_level)
 
 
 @pytest.mark.top_beats
 @pytest.mark.rapids_beats_top
-def test_rapids_beats_top_control(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_beats_top_control(request, test_level):
     """CONTROL path: producer/consumer through the split TOP with a real semaphore
     memory on the control masters (CTRL_READ gate held off, CTRL_WRITE doorbell
     releases it)."""
-    _run_top("cocotb_test_control_path", "test_rapids_beats_top_control")
+    _run_top("cocotb_test_control_path", "test_rapids_beats_top_control", test_level=test_level)
 
 
 @pytest.mark.top_beats
 @pytest.mark.rapids_beats_top
-def test_rapids_beats_top_status(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_beats_top_status(request, test_level):
     """Status CSR read-back: the fields with real sources must not read 0."""
-    _run_top("cocotb_test_status_readback", "test_rapids_beats_top_status")
+    _run_top("cocotb_test_status_readback", "test_rapids_beats_top_status", test_level=test_level)
 
 
 @pytest.mark.top_beats
 @pytest.mark.rapids_beats_top
-def test_rapids_beats_top_perf_ch_readout(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_beats_top_perf_ch_readout(request, test_level):
     """Per-channel perf bucket readout through PERF_CH_SEL."""
-    _run_top("cocotb_test_perf_ch_readout", "test_rapids_beats_top_perf_ch")
+    _run_top("cocotb_test_perf_ch_readout", "test_rapids_beats_top_perf_ch", test_level=test_level)
 
 
 @pytest.mark.top_beats
 @pytest.mark.rapids_beats_top
-def test_rapids_beats_top_perf_ch_readout_wr(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_beats_top_perf_ch_readout_wr(request, test_level):
     """WRITE-side per-channel perf bucket readout through SNK.PERF_CH_SEL."""
-    _run_top("cocotb_test_perf_ch_readout_wr", "test_rapids_beats_top_perf_ch_wr")
+    _run_top("cocotb_test_perf_ch_readout_wr", "test_rapids_beats_top_perf_ch_wr", test_level=test_level)
 
 
 @pytest.mark.top_beats
 @pytest.mark.rapids_beats_top
-def test_rapids_beats_top_perf_window(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_beats_top_perf_window(request, test_level):
     """Perf window: the RDMON/WRMON CSRs must count rather than read 0."""
-    _run_top("cocotb_test_perf_window", "test_rapids_beats_top_perf_window")
+    _run_top("cocotb_test_perf_window", "test_rapids_beats_top_perf_window", test_level=test_level)
 
 
 @pytest.mark.top_beats
 @pytest.mark.rapids_beats_top
-def test_rapids_beats_top_ext_addressing(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_beats_top_ext_addressing(request, test_level):
     """EXTENDED addressing (USE_ROW_COL_MAJOR_ADDRESSING=1): a strided EXT
     descriptor must fetch chunk 1 at +0x20 and walk the addresses the
     dma_address_gen model predicts. Distinct test_name -> own sim_build."""
     _run_top("cocotb_test_ext_addressing", "test_rapids_beats_top_ext",
-             extra_params={'USE_ROW_COL_MAJOR_ADDRESSING': 1})
+             extra_params={'USE_ROW_COL_MAJOR_ADDRESSING': 1}, test_level=test_level)
 
 
 if __name__ == "__main__":

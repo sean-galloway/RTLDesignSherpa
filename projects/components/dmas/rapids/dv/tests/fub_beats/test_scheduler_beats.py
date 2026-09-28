@@ -51,6 +51,8 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
+from projects.components.dmas.rapids.dv.tbclasses.rapids_levels import depth as _profile_depth
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -68,7 +70,7 @@ from projects.components.dmas.rapids.dv.tbclasses.scheduler_tb import SchedulerT
 
 def _depth():
     """(descriptors in the basic flow, back-to-back descriptors) by TEST_LEVEL."""
-    return {'gate': (3, 5), 'func': (5, 10), 'full': (12, 30)}.get(os.environ.get('TEST_LEVEL', 'gate').lower(), (5, 10))
+    return (_profile_depth('sched_descriptors'), _profile_depth('sched_back_to_back'))
 
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
@@ -268,37 +270,41 @@ scheduler_params = generate_scheduler_test_params()
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_basic_flow(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_basic_flow(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: Test basic descriptor flow"""
     _run_scheduler_test(request, "cocotb_test_basic_descriptor_flow",
-                       channel_id, num_channels, data_width, timing_profile)
+                       channel_id, num_channels, data_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_concurrent_transfer(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_concurrent_transfer(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: Test concurrent read/write transfer"""
     _run_scheduler_test(request, "cocotb_test_concurrent_transfer",
-                       channel_id, num_channels, data_width, timing_profile)
+                       channel_id, num_channels, data_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_descriptor_chaining(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_descriptor_chaining(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: Test descriptor chaining"""
     _run_scheduler_test(request, "cocotb_test_descriptor_chaining",
-                       channel_id, num_channels, data_width, timing_profile)
+                       channel_id, num_channels, data_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_irq_generation(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_irq_generation(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: Test IRQ generation via MonBus"""
     _run_scheduler_test(request, "cocotb_test_irq_generation",
-                       channel_id, num_channels, data_width, timing_profile)
+                       channel_id, num_channels, data_width, timing_profile, test_level=test_level)
 
 
 # ===========================================================================
@@ -309,39 +315,43 @@ def test_scheduler_beats_irq_generation(request, channel_id, num_channels, data_
 @pytest.mark.scheduler
 @pytest.mark.error
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_descriptor_error(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_descriptor_error(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: Test descriptor error injection"""
     _run_scheduler_test(request, "cocotb_test_descriptor_error_injection",
-                       channel_id, num_channels, data_width, timing_profile)
+                       channel_id, num_channels, data_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.error
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_read_error(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_read_error(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: Test read engine error"""
     _run_scheduler_test(request, "cocotb_test_read_engine_error",
-                       channel_id, num_channels, data_width, timing_profile)
+                       channel_id, num_channels, data_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.error
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_write_error(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_write_error(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: Test write engine error"""
     _run_scheduler_test(request, "cocotb_test_write_engine_error",
-                       channel_id, num_channels, data_width, timing_profile)
+                       channel_id, num_channels, data_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_channel_reset(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_channel_reset(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: Test channel reset functionality"""
     _run_scheduler_test(request, "cocotb_test_channel_reset",
-                       channel_id, num_channels, data_width, timing_profile)
+                       channel_id, num_channels, data_width, timing_profile, test_level=test_level)
 
 
 # ===========================================================================
@@ -352,20 +362,22 @@ def test_scheduler_beats_channel_reset(request, channel_id, num_channels, data_w
 @pytest.mark.scheduler
 @pytest.mark.stress
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_back_to_back(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_back_to_back(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: Test back-to-back descriptors"""
     _run_scheduler_test(request, "cocotb_test_back_to_back_descriptors",
-                       channel_id, num_channels, data_width, timing_profile)
+                       channel_id, num_channels, data_width, timing_profile, test_level=test_level)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.stress
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_varying_sizes(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_varying_sizes(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: Test varying transfer sizes"""
     _run_scheduler_test(request, "cocotb_test_varying_transfer_sizes",
-                       channel_id, num_channels, data_width, timing_profile)
+                       channel_id, num_channels, data_width, timing_profile, test_level=test_level)
 
 
 # ===========================================================================
@@ -375,30 +387,33 @@ def test_scheduler_beats_varying_sizes(request, channel_id, num_channels, data_w
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_extended_addressing_off(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_extended_addressing_off(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: the parameter's OFF state, driven with EXT stimulus."""
     _run_scheduler_test(request, "cocotb_test_extended_addressing_off",
                         channel_id, num_channels, data_width, timing_profile,
-                        extra_params={'USE_ROW_COL_MAJOR_ADDRESSING': 0})
+                        extra_params={'USE_ROW_COL_MAJOR_ADDRESSING': 0}, test_level=test_level)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_extended_addressing(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_extended_addressing(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: extended addressing matrix on an ON build (15 extended + 1 legacy)."""
     _run_scheduler_test(request, "cocotb_test_extended_addressing",
                         channel_id, num_channels, data_width, timing_profile,
-                        extra_params={'USE_ROW_COL_MAJOR_ADDRESSING': 1})
+                        extra_params={'USE_ROW_COL_MAJOR_ADDRESSING': 1}, test_level=test_level)
 
 
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
-def test_scheduler_beats_fsm_transitions(request, channel_id, num_channels, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_fsm_transitions(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: Test FSM state transitions"""
     _run_scheduler_test(request, "cocotb_test_fsm_state_transitions",
-                       channel_id, num_channels, data_width, timing_profile)
+                       channel_id, num_channels, data_width, timing_profile, test_level=test_level)
 
 
 # ===========================================================================
@@ -406,7 +421,7 @@ def test_scheduler_beats_fsm_transitions(request, channel_id, num_channels, data
 # ===========================================================================
 
 def _run_scheduler_test(request, testcase_name, channel_id, num_channels, data_width,
-                        timing_profile='default', extra_params=None):
+                        timing_profile='default', extra_params=None, test_level='gate'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run scheduler tests with AMBA pattern.
 
@@ -439,7 +454,7 @@ def _run_scheduler_test(request, testcase_name, channel_id, num_channels, data_w
 
     # Extract test name from cocotb function (remove "cocotb_test_" prefix)
     test_suffix = testcase_name.replace("cocotb_test_", "")
-    test_name_plus_params = f"test_{dut_name}_{test_suffix}_cid{cid_str}_nc{nc_str}_dw{dw_str}_{timing_profile}"
+    test_name_plus_params = f"test_{dut_name}_{test_suffix}_cid{cid_str}_nc{nc_str}_dw{dw_str}_{timing_profile}_{test_level}"
 
     # Fold RTL parameter overrides into the unique name BEFORE sim_build/log
     # paths are derived below: sim_build is keyed on this string, so an ON and
@@ -477,8 +492,7 @@ def _run_scheduler_test(request, testcase_name, channel_id, num_channels, data_w
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
+        **level_env(test_level),
         'CHANNEL_ID': str(channel_id),
         'NUM_CHANNELS': str(num_channels),
         'DATA_WIDTH': str(data_width),

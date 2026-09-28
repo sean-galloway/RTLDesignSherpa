@@ -44,6 +44,8 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
+from projects.components.dmas.rapids.dv.tbclasses.rapids_levels import depth as _profile_depth
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -63,7 +65,7 @@ async def cocotb_test_basic_fill_drain(dut):
     tb = SrcSRAMControllerTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result = await tb.test_basic_fill_drain(channel=0, count=10)
+    result = await tb.test_basic_fill_drain(channel=0, count=_profile_depth('sram_fill_count'))
     tb.generate_test_report()
     assert result, "Basic fill/drain test failed"
 
@@ -85,7 +87,7 @@ async def cocotb_test_multi_channel(dut):
     tb = SrcSRAMControllerTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result = await tb.test_multi_channel(num_ops_per_channel=3)
+    result = await tb.test_multi_channel(num_ops_per_channel=_profile_depth('sram_ops_per_ch'))
     tb.generate_test_report()
     assert result, "Multi-channel test failed"
 
@@ -132,35 +134,38 @@ src_sram_controller_params = generate_src_sram_controller_test_params()
 @pytest.mark.macro_beats
 @pytest.mark.src_sram_controller
 @pytest.mark.parametrize("num_channels, data_width, sram_depth, timing_profile", src_sram_controller_params)
-def test_basic_fill_drain(request, num_channels, data_width, sram_depth, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_basic_fill_drain(request, num_channels, data_width, sram_depth, timing_profile, test_level):
     """Pytest: Test basic fill/drain cycle"""
     _run_src_sram_controller_test(request, "cocotb_test_basic_fill_drain",
-                                   num_channels, data_width, sram_depth, timing_profile)
+                                   num_channels, data_width, sram_depth, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.src_sram_controller
 @pytest.mark.parametrize("num_channels, data_width, sram_depth, timing_profile", src_sram_controller_params)
-def test_space_tracking(request, num_channels, data_width, sram_depth, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_space_tracking(request, num_channels, data_width, sram_depth, timing_profile, test_level):
     """Pytest: Test space tracking"""
     _run_src_sram_controller_test(request, "cocotb_test_space_tracking",
-                                   num_channels, data_width, sram_depth, timing_profile)
+                                   num_channels, data_width, sram_depth, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.src_sram_controller
 @pytest.mark.parametrize("num_channels, data_width, sram_depth, timing_profile", src_sram_controller_params)
-def test_multi_channel(request, num_channels, data_width, sram_depth, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_multi_channel(request, num_channels, data_width, sram_depth, timing_profile, test_level):
     """Pytest: Test multi-channel operation"""
     _run_src_sram_controller_test(request, "cocotb_test_multi_channel",
-                                   num_channels, data_width, sram_depth, timing_profile)
+                                   num_channels, data_width, sram_depth, timing_profile, test_level=test_level)
 
 
 # ===========================================================================
 # HELPER FUNCTION - AMBA PATTERN
 # ===========================================================================
 
-def _run_src_sram_controller_test(request, testcase_name, num_channels, data_width, sram_depth, timing_profile='default'):
+def _run_src_sram_controller_test(request, testcase_name, num_channels, data_width, sram_depth, timing_profile='default', test_level='gate'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run src_sram_controller tests with AMBA pattern.
 
@@ -193,7 +198,7 @@ def _run_src_sram_controller_test(request, testcase_name, num_channels, data_wid
 
     # Extract test name from cocotb function
     test_suffix = testcase_name.replace("cocotb_test_", "")
-    test_name_plus_params = f"test_{dut_name}_{test_suffix}_nc{nc_str}_dw{dw_str}_sd{sd_str}_{timing_profile}"
+    test_name_plus_params = f"test_{dut_name}_{test_suffix}_nc{nc_str}_dw{dw_str}_sd{sd_str}_{timing_profile}_{test_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -218,7 +223,7 @@ def _run_src_sram_controller_test(request, testcase_name, num_channels, data_wid
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        **level_env(test_level),
         'TEST_NUM_CHANNELS': str(num_channels),
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_SRAM_DEPTH': str(sram_depth),

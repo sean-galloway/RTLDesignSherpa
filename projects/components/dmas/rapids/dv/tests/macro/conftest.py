@@ -97,17 +97,10 @@ def coverage_config():
     return RapidsCoverageConfig.from_environment()
 
 
-# ----------------------------------------------------------------------
-# REG_LEVEL -> TEST_LEVEL bridge
-# ----------------------------------------------------------------------
-# make/tests.mk drives the level through REG_LEVEL. The test_level fixture above
-# already prefers REG_LEVEL, so this stamp is belt-and-braces for any consumer
-# reading the env var directly rather than taking the fixture. Measured
-# 2026-09-14: no rapids test module references TEST_LEVEL, and the only two files
-# that do (conftest_scheduler_beats.py, conftest_descriptor_engine_beats.py) are
-# never imported -- so it is vestigial. KEPT rather than removed: it costs
-# nothing, and deleting it is a behaviour change unrelated to converting the
-# conftest structure.
-_reg_level = os.environ.get('REG_LEVEL')
-if _reg_level:
-    os.environ['TEST_LEVEL'] = _reg_level.upper()
+# The REG_LEVEL -> TEST_LEVEL stamp that used to live here is gone (tooling
+# BUG-004, was TOOL-016, 2026-09-27). cocotb_test copies every os.environ
+# entry over a wrapper's extra_env, so stamping TEST_LEVEL at conftest import
+# made every cell of a run take the process value: the REG_LEVEL grid existed
+# in collection only. Each wrapper now exports its own cell's level through
+# TBClasses.shared.test_levels.level_env and the TBs read depth from
+# rapids_levels.PROFILE. Nothing may put TEST_LEVEL back into os.environ.

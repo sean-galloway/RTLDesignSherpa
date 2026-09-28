@@ -57,6 +57,7 @@ from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_slave
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.shared.memory_model import MemoryModel
+from projects.components.dmas.rapids.dv.tbclasses.rapids_levels import PROFILE
 
 
 def _pkt_field(pkt, *names):
@@ -396,7 +397,8 @@ class AxiReadEngineBeatsTB(TBBase):
     # tests (depth gated by TEST_LEVEL)
     # ------------------------------------------------------------------
     def _depth(self):
-        return {'gate': (16, 32), 'func': (32, 96), 'full': (64, 120)}.get(self.test_level, (16, 32))
+        # rapids_levels.PROFILE is the one depth table for the area (tooling BUG-004).
+        return PROFILE.get(self.test_level, PROFILE['gate'])['axi_engine_beats']
 
     async def test_single_channel(self):
         lo, hi = self._depth()

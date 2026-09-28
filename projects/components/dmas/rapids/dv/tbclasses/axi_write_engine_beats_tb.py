@@ -53,6 +53,7 @@ from cocotb.triggers import RisingEdge, Timer
 from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_wr
 from CocoTBFramework.components.shared.memory_model import MemoryModel
+from projects.components.dmas.rapids.dv.tbclasses.rapids_levels import PROFILE
 
 
 def _pkt_field(pkt, *names):
@@ -410,7 +411,8 @@ class AxiWriteEngineBeatsTB(TBBase):
 
     # ------------------------------------------------------------------
     def _depth(self):
-        return {'gate': (16, 32), 'func': (32, 96), 'full': (64, 120)}.get(self.test_level, (16, 32))
+        # rapids_levels.PROFILE is the one depth table for the area (tooling BUG-004).
+        return PROFILE.get(self.test_level, PROFILE['gate'])['axi_engine_beats']
 
     async def test_single_channel(self):
         lo, hi = self._depth()

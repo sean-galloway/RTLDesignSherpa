@@ -49,6 +49,8 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
+from projects.components.dmas.rapids.dv.tbclasses.rapids_levels import depth as _profile_depth
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -68,7 +70,7 @@ async def cocotb_test_basic_descriptor_flow(dut):
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
 
-    result, stats = await tb.test_basic_descriptor_flow(num_descriptors=8)
+    result, stats = await tb.test_basic_descriptor_flow(num_descriptors=_profile_depth('dp_descriptors'))
     tb.log.info(f"Basic descriptor flow: {stats}")
     assert result, f"Basic descriptor flow test failed: {stats}"
 
@@ -82,7 +84,7 @@ async def cocotb_test_multi_channel_operation(dut):
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
 
-    result, stats = await tb.test_multi_channel_operation(num_channels=4, descriptors_per_channel=2)
+    result, stats = await tb.test_multi_channel_operation(num_channels=4, descriptors_per_channel=_profile_depth('dp_desc_per_ch'))
     tb.log.info(f"Multi-channel operation: {stats}")
     assert result, f"Multi-channel operation test failed: {stats}"
 
@@ -96,7 +98,7 @@ async def cocotb_test_axi_read_operations(dut):
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
 
-    result, stats = await tb.test_axi_read_operations(num_operations=12)
+    result, stats = await tb.test_axi_read_operations(num_operations=_profile_depth('dp_ops'))
     tb.log.info(f"AXI read operations: {stats}")
     assert result, f"AXI read operations test failed: {stats}"
 
@@ -110,7 +112,7 @@ async def cocotb_test_axis_transmission(dut):
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
 
-    result, stats = await tb.test_axis_transmission(num_packets=16)
+    result, stats = await tb.test_axis_transmission(num_packets=_profile_depth('dp_packets'))
     tb.log.info(f"AXIS transmission: {stats}")
     assert result, f"AXIS transmission test failed: {stats}"
 
@@ -143,7 +145,7 @@ async def cocotb_test_end_to_end(dut):
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
 
-    result, stats = await tb.test_end_to_end_flow(num_transfers=8)
+    result, stats = await tb.test_end_to_end_flow(num_transfers=_profile_depth('dp_transfers'))
     tb.log.info(f"End-to-end flow: {stats}")
     assert result, f"End-to-end flow test failed: {stats}"
 
@@ -158,7 +160,7 @@ async def cocotb_test_stress(dut):
     await tb.initialize_test()
     tb.set_timing_profile('stress')
 
-    result, stats = await tb.stress_test(num_operations=32)
+    result, stats = await tb.stress_test(num_operations=_profile_depth('dp_stress_ops'))
     tb.log.info(f"Stress test: {stats}")
     # Allow 90% success rate for stress test
     assert stats['success_rate'] >= 0.9, f"Stress test failed: {stats}"
@@ -203,43 +205,48 @@ source_axis_test_params = generate_source_axis_test_params()
 @pytest.mark.macro_beats
 @pytest.mark.source_data_path_axis_test
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", source_axis_test_params)
-def test_basic_descriptor_flow(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_basic_descriptor_flow(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level):
     """Pytest: Test basic descriptor flow"""
     _run_source_axis_test(request, "cocotb_test_basic_descriptor_flow",
-                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
+                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.source_data_path_axis_test
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", source_axis_test_params)
-def test_multi_channel_operation(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_multi_channel_operation(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level):
     """Pytest: Test multi-channel operation"""
     _run_source_axis_test(request, "cocotb_test_multi_channel_operation",
-                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
+                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.source_data_path_axis_test
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", source_axis_test_params)
-def test_axi_read_operations(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi_read_operations(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level):
     """Pytest: Test AXI read operations"""
     _run_source_axis_test(request, "cocotb_test_axi_read_operations",
-                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
+                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.source_data_path_axis_test
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", source_axis_test_params)
-def test_axis_transmission(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axis_transmission(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level):
     """Pytest: Test AXIS transmission"""
     _run_source_axis_test(request, "cocotb_test_axis_transmission",
-                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
+                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.source_data_path_axis_test
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", source_axis_test_params)
-def test_beat_conservation(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_beat_conservation(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level):
     """Pytest: no beat read from AXI may be dropped before AXIS.
 
     Drain granularity comes from TEST_DRAIN_SIZE (default 1). Sweep it over
@@ -247,25 +254,27 @@ def test_beat_conservation(request, num_channels, addr_width, data_width, axi_id
     known_issues/resolved/drain_size_gt1_source_beat_drop.md.
     """
     _run_source_axis_test(request, "cocotb_test_beat_conservation",
-                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
+                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.source_data_path_axis_test
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", source_axis_test_params)
-def test_end_to_end(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_end_to_end(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level):
     """Pytest: Test end-to-end flow"""
     _run_source_axis_test(request, "cocotb_test_end_to_end",
-                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
+                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level=test_level)
 
 
 @pytest.mark.macro_beats
 @pytest.mark.source_data_path_axis_test
 @pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile", source_axis_test_params)
-def test_stress(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_stress(request, num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level):
     """Pytest: Stress test"""
     _run_source_axis_test(request, "cocotb_test_stress",
-                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile)
+                          num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level=test_level)
 
 
 # ===========================================================================
@@ -273,7 +282,7 @@ def test_stress(request, num_channels, addr_width, data_width, axi_id_width, sra
 # ===========================================================================
 
 def _run_source_axis_test(request, testcase_name, num_channels, addr_width, data_width, axi_id_width, sram_depth,
-                          timing_profile='default'):
+                          timing_profile='default', test_level='gate'):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run source_data_path_axis_test tests with AMBA pattern.
 
@@ -310,7 +319,7 @@ def _run_source_axis_test(request, testcase_name, num_channels, addr_width, data
 
     # Extract test name from cocotb function
     test_suffix = testcase_name.replace("cocotb_test_", "")
-    test_name_plus_params = f"test_{dut_name}_{test_suffix}_nc{nc_str}_aw{aw_str}_dw{dw_str}_id{id_str}_sd{sd_str}_{timing_profile}"
+    test_name_plus_params = f"test_{dut_name}_{test_suffix}_nc{nc_str}_aw{aw_str}_dw{dw_str}_id{id_str}_sd{sd_str}_{timing_profile}_{test_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -337,7 +346,7 @@ def _run_source_axis_test(request, testcase_name, num_channels, addr_width, data
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        **level_env(test_level),
         'TEST_ADDR_WIDTH': str(addr_width),
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_AXI_ID_WIDTH': str(axi_id_width),

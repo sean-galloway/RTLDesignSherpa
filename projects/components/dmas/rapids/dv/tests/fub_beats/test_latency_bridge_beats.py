@@ -37,6 +37,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -117,7 +118,8 @@ params = generate_params()
 @pytest.mark.fub
 @pytest.mark.beats_latency_bridge
 @pytest.mark.parametrize("test_type, data_width, timing_profile", params)
-def test_beats_latency_bridge(request, test_type, data_width, timing_profile):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_beats_latency_bridge(request, test_type, data_width, timing_profile, test_level):
     """Pytest wrapper for beats latency bridge tests - handles all test types."""
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     coverage_enabled = os.environ.get('COVERAGE', '0') == '1'
@@ -130,7 +132,7 @@ def test_beats_latency_bridge(request, test_type, data_width, timing_profile):
 
     # Format parameters for unique test name (xdist compatibility)
     dw_str = f"{data_width:04d}"
-    test_name = f"test_latency_bridge_{test_type}_dw{dw_str}_{timing_profile}"
+    test_name = f"test_latency_bridge_{test_type}_dw{dw_str}_{timing_profile}_{test_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -153,11 +155,10 @@ def test_beats_latency_bridge(request, test_type, data_width, timing_profile):
 
     extra_env = {
         'TEST_TYPE': test_type,  # Pass test type to cocotb
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
+        **level_env(test_level),
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
     if timing_profile != 'default':
         extra_env['GAXI_TIMING_PROFILE'] = timing_profile
