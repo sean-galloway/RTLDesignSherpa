@@ -42,7 +42,7 @@ The write target address must be 4-byte aligned because the transfer is a 32-bit
 - **Producer Doorbell Semantics:** Write value to target, then release the chain (no poll, no retry)
 - **Address Alignment Check:** Requires 4-byte-aligned `wr_addr`; misalignment raises an error
 - **Null-Address Skip:** `wr_addr == 0` completes as a no-op
-- **Channel Reset Support:** `cfg_channel_reset` drains and forces the FSM back to idle
+- **Channel Reset Support:** `cfg_channel_reset` returns the FSM to idle and drains any write still on the fabric
 - **MonBus Integration:** Completion and error event reporting
 
 ### Block Diagram
@@ -273,9 +273,20 @@ address (alignment error) or the captured `b_resp` code (AXI response error).
 ### Channel Reset
 
 Asserting `cfg_channel_reset` registers `r_channel_reset_active`, which blocks new
-requests, clears in-flight transaction tracking, and forces the FSM back to
-`WRITE_IDLE`. `ctrlwr_engine_idle` is only asserted in `WRITE_IDLE` when the skid
-buffer is empty and no channel reset is active.
+requests (`ctrlwr_ready` low), clears the error flag and the phase-issued state, and
+drives the FSM back to `WRITE_IDLE`.
+
+A write already on the fabric cannot be cancelled, so the engine drains it (rapids
+TASK-014, 2026-09-27): a raised AW stays up until accepted (`r_drain_aw`), an accepted
+AW is followed by its W beat with the latched data (`r_drain_w`), and the B response
+is taken and discarded (`r_drain_b`, which alone lifts `b_ready` outside
+`WRITE_WAIT_RESP`). The write that was already issued therefore lands. Until B is
+taken `ctrlwr_engine_idle` stays low and the request path stays closed. Before this
+the reset abandoned whatever phase was in flight and left a dangling response on the
+channel's ID.
+
+`ctrlwr_engine_idle` asserts only in `WRITE_IDLE` with no pending request, no active
+channel reset and nothing left to drain.
 
 ---
 

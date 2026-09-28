@@ -119,6 +119,19 @@ module ctrlwr_engine #(
     logic w_fifo_empty;
     logic w_no_active_transaction;
 
+    // Drain-on-reset (rapids TASK-014). A channel reset cannot cancel an AXI
+    // write already on the fabric: a raised AW or W must stay up until it is
+    // accepted, an accepted AW must be followed by its W beat, and the B
+    // response must be taken. Until 2026-09-27 the reset dropped the FSM to
+    // WRITE_IDLE and abandoned whatever phase was in flight (b_ready only rose
+    // in WRITE_WAIT_RESP), leaving a dangling response on this ID. The write
+    // that was already issued completes with its latched address and data;
+    // idle stays low and the request path stays closed until B is discarded.
+    logic r_drain_aw;        // AW valid and unaccepted when the reset landed
+    logic r_drain_w;         // AW accepted, W beat still to send
+    logic r_drain_b;         // W accepted, B response still owed
+    logic w_draining;
+
     // Ctrlwr operation parameters - registered
     logic [ADDR_WIDTH-1:0] r_ctrlwr_addr;
     logic [31:0] r_ctrlwr_data;
@@ -161,6 +174,43 @@ module ctrlwr_engine #(
         end
     )
 
+    // Drain tracking: captured on the reset cycle from the pre-reset state,
+    // stepped through AW -> W -> B by the handshakes the fabric still owes.
+    assign w_draining = r_drain_aw || r_drain_w || r_drain_b;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_drain_aw <= 1'b0;
+            r_drain_w  <= 1'b0;
+            r_drain_b  <= 1'b0;
+        end else begin
+            if (r_drain_aw) begin
+                if (aw_ready) begin                    // aw_valid is held while r_drain_aw
+                    r_drain_aw <= 1'b0;
+                    r_drain_w  <= 1'b1;
+                end
+            end else if (r_drain_w) begin
+                if (w_ready) begin                     // w_valid is held while r_drain_w
+                    r_drain_w <= 1'b0;
+                    r_drain_b <= 1'b1;
+                end
+            end else if (r_drain_b) begin
+                if (b_valid && b_ready) begin          // stale response taken and discarded
+                    r_drain_b <= 1'b0;
+                end
+            end else if (r_channel_reset_active) begin
+                if (aw_valid && !aw_ready) begin
+                    r_drain_aw <= 1'b1;
+                end else if ((r_addr_issued || (aw_valid && aw_ready)) && !r_data_issued && !(w_valid && w_ready)) begin
+                    r_drain_w <= 1'b1;
+                end else if ((r_addr_issued || (aw_valid && aw_ready)) && (r_data_issued || (w_valid && w_ready))
+                             && !(b_valid && b_ready)) begin
+                    r_drain_b <= 1'b1;
+                end
+            end
+        end
+    )
+
 
     // Safe to reset conditions
     assign w_fifo_empty = !w_ctrlwr_req_skid_valid_out;
@@ -168,7 +218,7 @@ module ctrlwr_engine #(
     assign w_safe_to_reset = w_fifo_empty && w_no_active_transaction && (r_current_state == WRITE_IDLE);
 
     // Engine idle signal (FIXED: Restored)
-    assign ctrlwr_engine_idle = (r_current_state == WRITE_IDLE) && !r_channel_reset_active && w_fifo_empty;
+    assign ctrlwr_engine_idle = (r_current_state == WRITE_IDLE) && !r_channel_reset_active && w_fifo_empty && !w_draining;
 
     //=========================================================================
     // Ctrlwr Request Skid Buffer
@@ -195,7 +245,7 @@ module ctrlwr_engine #(
         .rd_count()
     );
 
-    assign w_ctrlwr_req_skid_ready_out = (r_current_state == WRITE_IDLE) && w_ctrlwr_req_skid_valid_out && !r_channel_reset_active;
+    assign w_ctrlwr_req_skid_ready_out = (r_current_state == WRITE_IDLE) && w_ctrlwr_req_skid_valid_out && !r_channel_reset_active && !w_draining;
 
     //=========================================================================
     // Address and Control Logic
@@ -224,7 +274,7 @@ module ctrlwr_engine #(
     assign w_our_axi_response = b_valid && (b_id == r_expected_axi_id);
 
     // We're ready to accept AXI responses when waiting
-    assign b_ready = (r_current_state == WRITE_WAIT_RESP) && w_our_axi_response;
+    assign b_ready = ((r_current_state == WRITE_WAIT_RESP) || r_drain_b) && w_our_axi_response;
 
     //=========================================================================
     // FIXED: FSM State Machine with Channel Reset (UPDATED: Use RAPIDS package states)
@@ -248,7 +298,7 @@ module ctrlwr_engine #(
             WRITE_IDLE: begin
                 if (r_channel_reset_active) begin
                     w_next_state = WRITE_IDLE; // Stay in idle during reset
-                end else if (w_ctrlwr_req_skid_valid_out) begin
+                end else if (w_ctrlwr_req_skid_valid_out && w_ctrlwr_req_skid_ready_out) begin
                     w_next_state = WRITE_ISSUE_ADDR;
                 end
             end
@@ -379,7 +429,7 @@ module ctrlwr_engine #(
     // AXI Write Address Channel Output
     //=========================================================================
 
-    assign aw_valid = (r_current_state == WRITE_ISSUE_ADDR) && !w_null_address && !w_address_error && !r_addr_issued;
+    assign aw_valid = ((r_current_state == WRITE_ISSUE_ADDR) && !w_null_address && !w_address_error && !r_addr_issued) || r_drain_aw;
     assign aw_addr = r_ctrlwr_addr;
     assign aw_len = 8'h00;           // Single beat transfer
     assign aw_size = 3'b010;         // 4 bytes (32-bit)
@@ -395,7 +445,7 @@ module ctrlwr_engine #(
     // AXI Write Data Channel Output
     //=========================================================================
 
-    assign w_valid = (r_current_state == WRITE_ISSUE_DATA) && !w_null_address && r_addr_issued && !r_data_issued;
+    assign w_valid = ((r_current_state == WRITE_ISSUE_DATA) && !w_null_address && r_addr_issued && !r_data_issued) || r_drain_w;
     assign w_data = r_ctrlwr_data;
     assign w_strb = 4'b1111;         // All bytes valid
     assign w_last = 1'b1;            // Single beat transfer
@@ -524,6 +574,20 @@ module ctrlwr_engine #(
         ctrlwr_engine_idle |-> (r_current_state == WRITE_IDLE && !r_channel_reset_active);
     endproperty
     assert property (channel_reset_idle_signal);
+
+    // Drain-on-reset: while a pre-reset write is still on the fabric the
+    // engine is not idle and takes no new request, and a held phase stays up.
+    property no_new_request_while_draining;
+        @(posedge clk) disable iff (!rst_n)
+        (r_drain_aw || r_drain_w || r_drain_b) |-> (!ctrlwr_engine_idle && !w_ctrlwr_req_skid_ready_out);
+    endproperty
+    assert property (no_new_request_while_draining);
+
+    property drain_holds_phases;
+        @(posedge clk) disable iff (!rst_n)
+        (r_drain_aw |-> aw_valid) and (r_drain_w |-> w_valid);
+    endproperty
+    assert property (drain_holds_phases);
     `endif
 
 endmodule : ctrlwr_engine

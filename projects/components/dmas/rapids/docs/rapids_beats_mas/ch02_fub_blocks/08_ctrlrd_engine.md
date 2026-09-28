@@ -44,7 +44,7 @@ One Control-Read Engine is instantiated per channel in `scheduler_group_beats.sv
 - **1 microsecond Retry Pacing:** Retries wait for `tick_1us` from the scheduler group
 - **Error on Exhaustion:** Asserts `ctrlrd_error` if the gate never matches within budget
 - **Null Address Fast-Path:** A poll address of zero completes immediately as a match
-- **Channel Reset Support:** Drains cleanly on `cfg_channel_reset`
+- **Channel Reset Support:** `cfg_channel_reset` returns the FSM to idle and drains any read still on the fabric
 - **MonBus Integration:** Completion, retry, and error events
 
 ### Block Diagram
@@ -271,9 +271,24 @@ left unconnected there.
 ### Channel Reset
 
 `cfg_channel_reset` is registered into `r_channel_reset_active`. While asserted, the
-engine refuses new requests (`ctrlrd_ready` is forced low), any in-flight state is
-cleared, and the FSM is driven back to `READ_IDLE`. `ctrlrd_engine_idle` asserts
-only in `READ_IDLE` with no pending request and no active channel reset.
+engine refuses new requests (`ctrlrd_ready` is forced low), the retry and error state
+is cleared, and the FSM is driven back to `READ_IDLE`.
+
+What the reset cannot do is cancel a read already on the fabric, because AXI has no
+cancel. The engine therefore drains it (rapids TASK-014, 2026-09-27):
+
+- an AR that was raised and not yet accepted stays raised until the slave takes it
+  (`r_drain_ar`), then
+- the R beat that the accepted AR is owed is taken and discarded (`r_drain_pending`,
+  which alone lifts `r_ready` outside `READ_WAIT_DATA`).
+
+Until the beat is gone `ctrlrd_engine_idle` stays low and the request path stays
+closed, so the next read on this ID cannot be answered by the stale beat. Before
+this the reset dropped the FSM to idle with `r_ready` low, the beat sat on the bus,
+and a re-kicked channel took it as its own answer.
+
+`ctrlrd_engine_idle` asserts only in `READ_IDLE` with no pending request, no active
+channel reset and nothing left to drain.
 
 ---
 

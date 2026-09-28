@@ -123,6 +123,18 @@ module ctrlrd_engine #(
     logic w_fifo_empty;
     logic w_no_active_transaction;
 
+    // Drain-on-reset (rapids TASK-014). A channel reset cannot cancel an AXI
+    // transaction already on the fabric: an AR that is up must stay up until
+    // it is accepted, and an accepted AR is owed an R beat that the slave will
+    // deliver whatever the engine does. Until 2026-09-27 the reset dropped the
+    // FSM to READ_IDLE and left that beat undeliverable (r_ready only rose in
+    // READ_WAIT_DATA), so it sat on the bus and the next read on this ID took
+    // it as its own answer. These flags keep the handshake honest and hold
+    // idle low and the request path closed until the stale beat is discarded.
+    logic r_drain_ar;        // AR valid and unaccepted when the reset landed
+    logic r_drain_pending;   // AR accepted, R beat still owed
+    logic w_draining;
+
     // Ctrlrd operation parameters - registered
     logic [ADDR_WIDTH-1:0] r_ctrlrd_addr;
     logic [31:0] r_expected_data;
@@ -185,6 +197,34 @@ module ctrlrd_engine #(
         end
     )
 
+    // Drain tracking: captured on the reset cycle from the pre-reset state,
+    // released by the handshakes the fabric still owes.
+    assign w_draining = r_drain_ar || r_drain_pending;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_drain_ar      <= 1'b0;
+            r_drain_pending <= 1'b0;
+        end else begin
+            if (r_drain_ar) begin
+                if (ar_ready) begin                    // ar_valid is held while r_drain_ar
+                    r_drain_ar      <= 1'b0;
+                    r_drain_pending <= 1'b1;
+                end
+            end else if (r_drain_pending) begin
+                if (r_valid && r_ready) begin          // stale beat taken and discarded
+                    r_drain_pending <= 1'b0;
+                end
+            end else if (r_channel_reset_active) begin
+                if (ar_valid && !ar_ready) begin
+                    r_drain_ar <= 1'b1;
+                end else if ((r_addr_issued || (ar_valid && ar_ready)) && !(r_valid && r_ready)) begin
+                    r_drain_pending <= 1'b1;
+                end
+            end
+        end
+    )
+
 
     // Safe to reset conditions
     assign w_fifo_empty = !w_ctrlrd_req_skid_valid_out;
@@ -192,7 +232,7 @@ module ctrlrd_engine #(
     assign w_safe_to_reset = w_fifo_empty && w_no_active_transaction && (r_current_state == READ_IDLE);
 
     // Engine idle signal
-    assign ctrlrd_engine_idle = (r_current_state == READ_IDLE) && !r_channel_reset_active && w_fifo_empty;
+    assign ctrlrd_engine_idle = (r_current_state == READ_IDLE) && !r_channel_reset_active && w_fifo_empty && !w_draining;
 
     //=========================================================================
     // Ctrlrd Request Skid Buffer
@@ -219,7 +259,7 @@ module ctrlrd_engine #(
         .rd_count()
     );
 
-    assign w_ctrlrd_req_skid_ready_out = (r_current_state == READ_IDLE) && w_ctrlrd_req_skid_valid_out && !r_channel_reset_active;
+    assign w_ctrlrd_req_skid_ready_out = (r_current_state == READ_IDLE) && w_ctrlrd_req_skid_valid_out && !r_channel_reset_active && !w_draining;
 
     //=========================================================================
     // Control Logic
@@ -256,7 +296,7 @@ module ctrlrd_engine #(
     assign w_our_axi_response = r_valid && (r_id == r_expected_axi_id);
 
     // We're ready to accept AXI responses when waiting
-    assign r_ready = (r_current_state == READ_WAIT_DATA) && w_our_axi_response;
+    assign r_ready = ((r_current_state == READ_WAIT_DATA) || r_drain_pending) && w_our_axi_response;
 
     //=========================================================================
     // FSM State Machine with Channel Reset
@@ -280,7 +320,7 @@ module ctrlrd_engine #(
             READ_IDLE: begin
                 if (r_channel_reset_active) begin
                     w_next_state = READ_IDLE; // Stay in idle during reset
-                end else if (w_ctrlrd_req_skid_valid_out) begin
+                end else if (w_ctrlrd_req_skid_valid_out && w_ctrlrd_req_skid_ready_out) begin
                     w_next_state = READ_ISSUE_ADDR;
                 end
             end
@@ -428,7 +468,7 @@ module ctrlrd_engine #(
     // AXI Read Address Channel Output
     //=========================================================================
 
-    assign ar_valid = (r_current_state == READ_ISSUE_ADDR) && !w_null_address && !r_addr_issued;
+    assign ar_valid = ((r_current_state == READ_ISSUE_ADDR) && !w_null_address && !r_addr_issued) || r_drain_ar;
     assign ar_addr = r_ctrlrd_addr;
     assign ar_len = 8'h00;           // Single beat transfer
     assign ar_size = 3'b010;         // 4 bytes (32-bit)
@@ -598,6 +638,20 @@ module ctrlrd_engine #(
         ctrlrd_engine_idle |-> (r_current_state == READ_IDLE && !r_channel_reset_active);
     endproperty
     assert property (channel_reset_idle_signal);
+
+    // Drain-on-reset: while a pre-reset transaction is still on the fabric the
+    // engine is not idle and takes no new request, and a held AR stays up.
+    property no_new_request_while_draining;
+        @(posedge clk) disable iff (!rst_n)
+        (r_drain_ar || r_drain_pending) |-> (!ctrlrd_engine_idle && !w_ctrlrd_req_skid_ready_out);
+    endproperty
+    assert property (no_new_request_while_draining);
+
+    property drain_holds_ar;
+        @(posedge clk) disable iff (!rst_n)
+        r_drain_ar |-> ar_valid;
+    endproperty
+    assert property (drain_holds_ar);
     `endif
 
 endmodule : ctrlrd_engine

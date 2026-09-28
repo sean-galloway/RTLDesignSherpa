@@ -384,9 +384,13 @@ than mid-AXI-burst. Now 100% deterministic: 15/15 default-seed, 0/12 seed-sweep
 failures, full ctrlrd+ctrlwr suite 15/15 stable under -n8. **RTL UNCHANGED** (git diff
 on ctrlwr_engine/ctrlrd_engine empty). An attempted RTL "drain-on-reset" (Option A)
 was tried and REVERTED — it made the flaky worse, disproving the drain hypothesis.
-The harder mid-AXI-BURST abort scenario (reset with an outstanding B/R) is deferred:
-it needs either engine drain-on-reset (non-trivial — first attempt backfired, needs a
-waveform-level root cause) or a fabric-drain TB model. Not required for the integration.
+The mid-AXI abort scenario (reset with an outstanding B/R) is CLOSED by rapids
+TASK-014 (2026-09-27): both engines now drain on channel reset (a raised phase is held
+until accepted, an issued write completes, the owed R/B is taken and discarded, idle
+and the request path wait for it). The earlier drain attempt "backfired" against the
+hand-rolled TB responders of the time, which withdrew beats no real slave withdraws;
+with the framework slaves (rapids TASK-013) the behaviour is testable and tested
+(`test_reset_mid_read`, `test_reset_mid_write`).
 
 Root-cause detail (why it was flaky), NOT a blocker and NOT an `ctrlwr_engine` RTL bug:
 
