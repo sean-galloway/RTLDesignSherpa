@@ -12,15 +12,14 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 17 | done (kept for history) |
+| [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-018** — an interleaved-channel mode for the harness AXIS generator, so the sink's aggregate window can be measured
 
 ## Active
 
@@ -43,3 +42,4 @@ by construction rather than by discipline.
 - **TASK-015** — AXIS monitor-lite in each half (Option B), one arbiter entry per half (closed 2026-09-27)
 - **TASK-016** — re-prove the rapids and stream formal suites after the engine fixes; prove the control engines (closed 2026-09-28)
 - **TASK-017** — placement pass: 6 filelists into filelists/ dirs, 3 trackers into this lane, 10 stale pages deleted (closed 2026-09-28)
+- **TASK-018** — interleaved-channel schedule for the harness AXIS generator; sink aggregate window measured, no knee to 512 cycles (closed 2026-09-28)

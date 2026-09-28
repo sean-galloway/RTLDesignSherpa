@@ -1,5 +1,16 @@
 # RAPIDS Beats DMA — Performance Characterization (Genesys 2, 8 channels)
 
+> **v1.5 (2026-09-28).** The 7.5 latency sweep re-measured with the harness
+> generator's new interleaved-channel schedule (rapids TASK-018: `GEN_MODE.
+> INTERLEAVE`, `run_characterization.py --interleave`), which round-robins the
+> eight channels one beat at a time so every sink channel holds data at once.
+> The sink column therefore now measures the DUT's aggregate write window
+> instead of one channel's: Table 7.5b shows the sink write path holding 99.9 %
+> on every row to 512 cycles of injected latency, with no knee inside the sweep.
+> Table 7.5 (sequential schedule, one channel's window) stands, and re-measured
+> cell for cell on the v1.5 bitstream (observers build with `GEN_MODE`,
+> post-route WNS +0.245 ns). No other section changed.
+>
 > **v1.4 (2026-09-28).** Sections 1, 3 and 7 re-measured on a bitstream built
 > from the current RTL (rapids TASK-015 AXIS monitor-lite skids on both network
 > ports, BUG-004..007 engine fixes, PIPELINE = 1). Two things changed the numbers:
@@ -436,6 +447,25 @@ many beats the DUT keeps in flight), at 8 channels x 1024 beats:
 
 : Table 7.5 -- latency sweep (v1.4, PIPELINE = 1, `HIST_MAX_OUTSTANDING = 32`, no sample loss on any row); the latency columns are log2-histogram means, so they sit on bin midpoints
 
+The same sweep with the interleaved schedule (v1.5):
+
+| delay (cyc) | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | rd GB/s | wr GB/s | AR->first R | AR->RLAST | AW->B |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 6.39 | 6.40 | 24 | 24 | 24 |
+| 8 | 100.0 % | 99.9 % | 99.7 % | 99.7 % | 6.38 | 6.40 | 24 | 48 | 48 |
+| 16 | 100.0 % | 99.9 % | 99.6 % | 99.6 % | 6.38 | 6.40 | 48 | 48 | 48 |
+| 32 | 100.0 % | 99.9 % | 99.5 % | 99.5 % | 6.37 | 6.40 | 48 | 48 | 48 |
+| 48 | 100.0 % | 99.9 % | 99.3 % | 99.3 % | 6.35 | 6.40 | 96 | 96 | 96 |
+| 64 | 100.0 % | 99.9 % | 99.1 % | 99.1 % | 6.34 | 6.40 | 96 | 96 | 96 |
+| 96 | 100.0 % | 99.9 % | 98.7 % | 98.7 % | 6.32 | 6.40 | 96 | 96 | 96 |
+| 128 | 100.0 % | 99.9 % | 98.3 % | 98.3 % | 6.29 | 6.40 | 192 | 192 | 192 |
+| 192 | 100.0 % | 99.9 % | 97.6 % | 97.6 % | 6.24 | 6.40 | 192 | 192 | 192 |
+| 256 | 100.0 % | 99.9 % | 96.9 % | 96.8 % | 6.20 | 6.40 | 384 | 384 | 384 |
+| 384 | 100.0 % | 99.9 % | 95.4 % | 95.3 % | 6.10 | 6.40 | 384 | 384 | 384 |
+| 512 | 100.0 % | 99.9 % | 93.7 % | 93.6 % | 6.00 | 6.40 | 768 | 768 | 768 |
+
+: Table 7.5b -- latency sweep, interleaved channel schedule (v1.5, same bitstream family, PIPELINE = 1, `HIST_MAX_OUTSTANDING = 32`, no sample loss on any row; 12/12 CRC-verified). The source columns are the same run and match Table 7.5, as they must: the schedule only changes the sink's stimulus.
+
 Little's law makes the knee readable directly: sustained beats/cycle x latency =
 beats in flight. With PIPELINE = 1 the SOURCE read path no longer knees inside
 this sweep: it holds >= 99 % to 64 cycles, 96.9 % at 256 and 93.7 % at 512, so
@@ -444,19 +474,29 @@ i.e. six to seven 9-beat bursts of the eight `AR_MAX_OUTSTANDING` allows (v1.3
 measured ~20 per channel at PIPELINE = 0). The SINK write path holds 99.9 % to
 48 cycles, knees at 64 (92.8 %) and then falls as `0.752 x 96 = 72`,
 `0.637 x 128 = 82`, `0.347 x 256 = 89`, `0.182 x 512 = 93` -- an asymptote of
-**~93 beats in flight**. That is ONE channel's window, not eight: the harness's
-AXIS generator streams channels sequentially (finish one channel, then the next,
-so each channel's LFSR run stays contiguous for the golden CRC), so only one sink
-channel ever holds data, and the write engine's whole `AW_MAX_OUTSTANDING = 8`
-window (8 x 8 = 64 beats, plus the bursts in their W phase) sits on that channel.
-Rapids ISSUE-006 reproduced this row in simulation (34.7 %, the board's number)
-and read it off the engine's outstanding counters. The source column reflects
-all eight channels reading concurrently, so the two columns are not comparable
-as measured; an interleaved-channel generator mode (rapids TASK-018) would put
-the sink on the same footing. STREAM's window on the same knobs is ~128 beats per
-channel (8 outstanding x 16-beat bursts) and its knee sits at 96-112 cycles. Wider
-bursts remain a lever on both sides, and section 7.4 shows the DUT already runs
-32- and 64-beat bursts at line rate.
+**~93 beats in flight**. That is ONE channel's window, not eight: in the
+sequential schedule the harness's AXIS generator streams channels one at a time
+(finish one channel, then the next), so only one sink channel ever holds data,
+and the write engine's whole `AW_MAX_OUTSTANDING = 8` window (8 x 8 = 64 beats,
+plus the bursts in their W phase) sits on that channel. Rapids ISSUE-006
+reproduced this row in simulation (34.7 %, the board's number) and read it off
+the engine's outstanding counters.
+
+Table 7.5b is the same sweep with the generator's interleaved schedule (rapids
+TASK-018, v1.5), which round-robins the eight channels one beat at a time so
+every sink channel holds data at once -- the same footing the source column has
+always had. The sink write path then holds 99.9 % on every row to 512 cycles:
+`0.999 x 512 = 512` beats are in flight, so the aggregate window is at least
+that, consistent with eight copies of the ~93-beat per-channel window (~744
+beats) that this sweep does not reach. Compared like for like, the sink sits
+above the source at long latency (99.9 % vs 93.7 % at 512 cycles): the write
+engine keeps ~93 beats per channel in flight against the read engine's ~60.
+Table 7.5 remains the right measurement of a single channel's window; the
+sequential sweep re-run on the v1.5 bitstream reproduces every one of its
+cells. STREAM's window on the same knobs is ~128 beats per channel (8
+outstanding x 16-beat bursts) and its knee sits at 96-112 cycles. Wider bursts
+remain a lever on both sides, and section 7.4 shows the DUT already runs 32-
+and 64-beat bursts at line rate.
 
 Two notes from the instruments themselves. First, the latency columns are
 histogram means over log2 bins (bin b holds [2^b, 2^(b+1)), reported at its
@@ -479,7 +519,11 @@ ever touched the histograms.
 
 ![latency knee](plots/obs_latency_knee.png)
 
-: Figure 7.5 -- utilization vs injected memory latency, all four observers.
+: Figure 7.5 -- utilization vs injected memory latency, all four observers (sequential schedule: the sink curves are one channel's window).
+
+![latency knee, interleaved](plots/obs_latency_knee_interleave.png)
+
+: Figure 7.5b -- the same sweep with the interleaved channel schedule (v1.5): every sink channel holds data, and the write path no longer knees inside the sweep.
 
 ### 7.6 What the observers add over the bare meters
 
@@ -495,6 +539,7 @@ report generator are the same on both DMAs.
 | File | Contents |
 |------|----------|
 | `perf/json/genesys_obs_{A,B,C,E}.json` | v1.2 observer campaign: descriptors x channels, burst length, size x channels, latency |
+| `perf/json/genesys_obs_E_interleave.json` | v1.5 latency sweep with the interleaved channel schedule (`--interleave`, Table 7.5b) |
 | `perf/json/genesys_full_matrix.json` | channel × size matrix (v1.4, bare meters, PIPELINE = 1) |
 | `perf/json/genesys_full_matrix_v1.1.json` | the same matrix as measured for v1.1 (PIPELINE = 0 with the pre-BUG-005 engine) |
 | `perf/json/genesys_8ch_*.json` | earlier back-to-back runs (show the pre-fix wedge) |
@@ -527,9 +572,12 @@ python3 $H --port /dev/ttyUSB0 --channels 8 --suite --suite-bp off --suite-seeds
     --suite-channels 1,2,4,8 --suite-beats 1,4,16,64,256,1024,4096 --results $J/genesys_obs_C.json
 python3 $H --port /dev/ttyUSB0 --channels 8 --suite --suite-bp off --suite-seeds default \
     --suite-channels 8 --suite-beats 1024 --suite-delay 0,8,16,32,48,64,96,128,192,256,384,512 --results $J/genesys_obs_E.json
+# v1.5: the same latency sweep with the generator round-robining the channels per beat (Table 7.5b):
+python3 $H --port auto --channels 8 --suite --suite-bp off --suite-seeds default --interleave \
+    --suite-channels 8 --suite-beats 1024 --suite-delay 0,8,16,32,48,64,96,128,192,256,384,512 --results $J/genesys_obs_E_interleave.json
 # figures (size/channel plots from C; obs_desc_matrix / obs_xfer_knee / obs_latency_knee from A / B / E):
 python3 .../host/plot_char_reports.py --size $J/genesys_obs_C.json --outdir .../reports/perf/plots
-cd projects/fpga-systems/Genesys2/rapids_beats/reports && ./generate_reports_pdf.sh --rev 1.3 --only perf
+cd projects/fpga-systems/Genesys2/rapids_beats/reports && ./generate_reports_pdf.sh --rev 1.5 --only perf
 ```
 
 Genesys 2 host link: JTAG on the FT2232 (`200300B818A0`), UART on the separate
