@@ -85,7 +85,7 @@ to the PHY (`a7ddrphy` handles its internal read gearing).
 For `memtype_i = LPDDR2`, `dfi_cmd_formatter` takes the memtype branch and emits
 bit-exact JESD209-2F CA-bus commands (Table 60): the 10-bit CA bus over 2 edges,
 packed as a flat 20-bit word on `dfi_address`, with `ras/cas/we` idle. See
-`rtl/LPDDR2_CA_ENCODING.md` for the transcription. DDR2 uses the classic
+`docs/uarch/LPDDR2_CA_ENCODING.md` for the transcription. DDR2 uses the classic
 `ras/cas/we/cs` strobe encoding on the same pins.
 
 ## Tests

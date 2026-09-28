@@ -19,7 +19,7 @@
 // Internal datapath unit = the DFI word (dfi_wrdata width, all DFI_RATE phases).
 // One FIFO word = one DFI cycle => bubble-free.
 //
-// Documentation: rtl/PUMICE_DFI_LAYER_UARCH.md
+// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

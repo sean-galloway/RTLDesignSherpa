@@ -23,7 +23,7 @@
 //   - ragged burst (awlen+1 != AXI_BEATS_PER_BURST): sim assertion + aw_push_err_o +
 //     bresp=SLVERR (the intake self-generates the error B; downstream drops it).
 //
-// Documentation: rtl/PUMICE_AXI4_IFC_UARCH.md
+// Documentation: docs/uarch/PUMICE_AXI4_IFC_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

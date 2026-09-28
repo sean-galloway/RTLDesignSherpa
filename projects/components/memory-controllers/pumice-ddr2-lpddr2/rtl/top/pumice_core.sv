@@ -20,7 +20,7 @@
 //          Config (timings / phases / policy) is delivered on ports here; a
 //          by-name CSR register block is a clean-rebuild follow-up.
 //
-// Documentation: rtl/PUMICE_DFI_LAYER_UARCH.md (+ the IFC / scheduler specs)
+// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md (+ the IFC / scheduler specs)
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

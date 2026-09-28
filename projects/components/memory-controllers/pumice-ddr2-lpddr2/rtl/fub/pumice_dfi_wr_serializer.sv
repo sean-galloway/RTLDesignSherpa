@@ -18,7 +18,7 @@
 //
 //          AXI wstrb=1 (write byte) -> DFI mask=1 means MASK. mask = ~strb.
 //
-// Documentation: rtl/PUMICE_DFI_LAYER_UARCH.md
+// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

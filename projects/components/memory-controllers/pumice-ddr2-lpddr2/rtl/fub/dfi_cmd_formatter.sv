@@ -38,7 +38,7 @@
 //   a 10-bit CA bus over two edges, packed as a flat 20-bit word on dfi_address
 //   (bit i = CA{i} rising, bit 10+i = CA{i} falling); RAS/CAS/WE held idle, cs_n
 //   asserted on phase 0. Bit-exact per JESD209-2F Table 60 — see the w_lpddr2_ca
-//   block below and rtl/LPDDR2_CA_ENCODING.md (the shared source of truth with the
+//   block below and docs/uarch/LPDDR2_CA_ENCODING.md (the shared source of truth with the
 //   DV BFM's lpddr_ca.py).
 
 `timescale 1ns / 1ps
@@ -238,7 +238,7 @@ module dfi_cmd_formatter
 
     //=========================================================================
     // LPDDR2 CA-bus command word (bit-exact JESD209-2F Table 60).
-    // See rtl/LPDDR2_CA_ENCODING.md — the SAME layout the DV BFM encodes against
+    // See docs/uarch/LPDDR2_CA_ENCODING.md — the SAME layout the DV BFM encodes against
     // (CocoTBFramework .../dfi/lpddr_ca.py). Flat 20-bit word:
     //   w_lpddr2_ca[i]      = CA{i} rising  edge (i = 0..9)
     //   w_lpddr2_ca[10 + i] = CA{i} falling edge (i = 0..9)
@@ -256,7 +256,7 @@ module dfi_cmd_formatter
     // MRW field packing: the scheduler carries {MR index, MR data} in the ROW
     // field so the full LPDDR2 MR range (MR0..MR63 = MA[5:0]) is reachable
     // without a 3-bit bank port. row[13:8] = MA[5:0] (index), row[7:0] = OP[7:0]
-    // (data). MA[7:6] are 0 (MR<=63). See rtl/LPDDR2_CA_ENCODING.md §4.
+    // (data). MA[7:6] are 0 (MR<=63). See docs/uarch/LPDDR2_CA_ENCODING.md §4.
     assign w_mr_ma = {2'b0, w_row15[13:8]};
     assign w_mr_op = w_row15[7:0];
 

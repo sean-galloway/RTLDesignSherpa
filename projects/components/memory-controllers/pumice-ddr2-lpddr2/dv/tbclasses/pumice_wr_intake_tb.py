@@ -4,7 +4,7 @@
 """
 Testbench for `pumice_wr_intake` — the dumb AXI4 write intake.
 
-Contract under test (see rtl/PUMICE_AXI4_IFC_UARCH.md):
+Contract under test (see docs/uarch/PUMICE_AXI4_IFC_UARCH.md):
   * One AXI burst == one DFI burst: (awlen+1)*GEAR == BL.
   * AW metadata decodes to {rank,bank,row,col} on aw_push (row-major here).
   * W beats pass through the wr-data FIFO unchanged: {data,strb,last}.

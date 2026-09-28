@@ -1733,7 +1733,7 @@ def _run(request, testcase, extra_env=None, params_over=None):
 
 
 # LPDDR2 traffic (reads AND writes) now works end-to-end: bit-exact JESD209-2F CA
-# encoding (rtl/LPDDR2_CA_ENCODING.md) + the DFI slave now handling WRA/RDA
+# encoding (docs/uarch/LPDDR2_CA_ENCODING.md) + the DFI slave now handling WRA/RDA
 # (auto-precharge variants) — LPDDR2's HAPPY_HYBRID row-miss policy issues WRA, which
 # the slave previously dropped as "stray data beats". No LPDDR2 xfail remains.
 _FUNC = ["smoke", "configure_via_csr", "axi_write_smoke", "wr_rd_roundtrip",

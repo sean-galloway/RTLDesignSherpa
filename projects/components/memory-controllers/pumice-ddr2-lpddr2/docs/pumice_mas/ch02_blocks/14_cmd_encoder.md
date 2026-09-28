@@ -39,7 +39,7 @@
 > **LPDDR2 is now fully implemented.** The retired chapter listed LPDDR2 as
 > "deferred to v2." The live formatter builds the bit-exact JESD209-2F Table 60
 > CA-bus word for every command; the transcription lives in
-> `rtl/LPDDR2_CA_ENCODING.md`, and the DV BFM (`lpddr_ca.py`) encodes/decodes
+> `docs/uarch/LPDDR2_CA_ENCODING.md`, and the DV BFM (`lpddr_ca.py`) encodes/decodes
 > against the identical layout.
 >
 > **ODT is absorbed here.** There is no standalone ODT block (see the retired
@@ -168,7 +168,7 @@ half-words `w_ca_r` / `w_ca_f` and concatenates them:
 assign w_lpddr2_ca = {w_ca_f, w_ca_r};   // [19:10] = falling, [9:0] = rising
 ```
 
-This is the exact layout locked in `rtl/LPDDR2_CA_ENCODING.md` and enforced by a
+This is the exact layout locked in `docs/uarch/LPDDR2_CA_ENCODING.md` and enforced by a
 round-trip conformance test against the DV decoder (`lpddr_ca.py`). Per JEDEC,
 any other bit ordering is prohibited, so bit-exactness is a spec requirement.
 

@@ -22,7 +22,7 @@
 // A CAM hit forces snarf (DRAM is stale for in-flight writes). In-order R:
 // a snarf-ready read still waits behind an earlier DFI read at the head.
 //
-// Documentation: rtl/PUMICE_AXI4_IFC_UARCH.md
+// Documentation: docs/uarch/PUMICE_AXI4_IFC_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

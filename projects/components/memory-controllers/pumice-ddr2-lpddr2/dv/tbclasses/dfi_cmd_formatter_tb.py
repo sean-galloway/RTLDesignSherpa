@@ -47,7 +47,7 @@ from tbclasses.pumice_fub_bfm import fub_producer      # noqa: E402
 
 # LPDDR2 CA-bus conformance: the SAME encoder/decoder the DFI BFM uses, checked
 # against the RTL formatter's output. Both encode against Table 60 via
-# rtl/LPDDR2_CA_ENCODING.md.
+# docs/uarch/LPDDR2_CA_ENCODING.md.
 from CocoTBFramework.components.dfi.lpddr_ca import (  # noqa: E402
     encode_lpddr2_ca, decode_lpddr2_ca,
 )

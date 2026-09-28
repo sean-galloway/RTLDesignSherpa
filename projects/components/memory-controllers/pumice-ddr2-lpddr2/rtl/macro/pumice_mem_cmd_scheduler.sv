@@ -15,7 +15,7 @@
 //          The CAM sched-lookup / oldest / commit / issue ports are EXTERNAL
 //          (the CAMs live in pumice_axi4_ifc).
 //
-// Documentation: rtl/PUMICE_MEM_CMD_SCHEDULER_UARCH.md
+// Documentation: docs/uarch/PUMICE_MEM_CMD_SCHEDULER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

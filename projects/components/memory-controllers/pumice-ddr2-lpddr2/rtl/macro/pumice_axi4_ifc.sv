@@ -17,7 +17,7 @@
 //   external: scheduler lookup/oldest/commit(issue) ports on both CAMs,
 //             wr commit-data out (to wr_beat_sequencer), rd DFI-return in.
 //
-// Documentation: rtl/PUMICE_AXI4_IFC_UARCH.md
+// Documentation: docs/uarch/PUMICE_AXI4_IFC_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

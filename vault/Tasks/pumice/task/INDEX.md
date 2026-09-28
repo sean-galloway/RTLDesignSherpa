@@ -12,19 +12,21 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 27 | done (kept for history) |
+| [closed/](closed/) | 28 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-000** — TEMPLATE — copy this file, never file against it
-- **TASK-032** — pumice placement pass: ddr2_char loose filelists (2) and 6 loose markdown files
 
 
 ## Closed
+
+- **TASK-032** — placement pass: 2 loose filelists into `rtl/filelists/` (baseline
+  8 -> 6, no pumice entries) and 8 markdown files re-homed, 43 references repointed
 
 - **TASK-015** — the 4-layer config-coverage plan: reset-parity gate (L0),
   pairwise covering array 39 vectors / 105 of 105 pairs at each of 4 gaps,

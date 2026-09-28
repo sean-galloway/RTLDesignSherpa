@@ -32,7 +32,7 @@
 //   CSRs). At the board/default config the runtime values equal the MAX =>
 //   bit-identical. MAX==1 => legacy single-command path (one formatter, phase 0).
 //
-// Documentation: rtl/PUMICE_DFI_LAYER_UARCH.md
+// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

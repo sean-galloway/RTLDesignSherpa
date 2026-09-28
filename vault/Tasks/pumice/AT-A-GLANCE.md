@@ -65,7 +65,7 @@ rather than asserted.
 
 ## Layer 1 — AXI4 front end (`rtl/macro/pumice_axi4_ifc.sv`)
 
-Spec: `rtl/PUMICE_AXI4_IFC_UARCH.md`
+Spec: `docs/uarch/PUMICE_AXI4_IFC_UARCH.md`
 
 * **`pumice_wr_intake` / `pumice_rd_intake`** — dumb 1:1 AXI intakes. Decode
   AW/AR into `{rank,bank,row,col}`, pass W beats through unchanged, and own
@@ -180,7 +180,7 @@ manufactures a half-strobed beat).
 
 ## Layer 2 — command scheduler (`rtl/macro/pumice_mem_cmd_scheduler.sv`)
 
-Spec: `rtl/PUMICE_MEM_CMD_SCHEDULER_UARCH.md`
+Spec: `docs/uarch/PUMICE_MEM_CMD_SCHEDULER_UARCH.md`
 
 * **`pumice_cmd_arbiter`** — the pick core. Bank-parallel activate, open-page
   bank timers, and per-cycle selection of ACT / column / PRE / REF, emitting
@@ -199,7 +199,7 @@ Spec: `rtl/PUMICE_MEM_CMD_SCHEDULER_UARCH.md`
 
 ## Layer 3 — DFI layer (`rtl/macro/pumice_dfi_layer.sv`)
 
-Spec: `rtl/PUMICE_DFI_LAYER_UARCH.md`
+Spec: `docs/uarch/PUMICE_DFI_LAYER_UARCH.md`
 
 * **`pumice_dfi_cdc`** — the single controller<->PHY crossing. Async FIFOs
   for command, write data and read data; everything else is same-domain.

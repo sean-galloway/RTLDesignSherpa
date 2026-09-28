@@ -35,7 +35,7 @@
 // ap_mode_en_i/ap_close_i + the timeout-PRE request (pumice_page_policy).
 //
 // v1 scope: single-rank pick (rank 0). Documentation:
-// rtl/PUMICE_MEM_CMD_SCHEDULER_UARCH.md
+// docs/uarch/PUMICE_MEM_CMD_SCHEDULER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

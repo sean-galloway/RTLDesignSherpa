@@ -19,7 +19,7 @@
 // sticky latch. init is monotonic (once); leveling re-runs are future work.
 // Payloads are opaque buses — the DFI top packs/unpacks {op,...}/{data,...}.
 //
-// Documentation: rtl/PUMICE_DFI_LAYER_UARCH.md
+// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

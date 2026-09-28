@@ -1,7 +1,7 @@
 # TASK-032: pumice placement pass: ddr2_char loose filelists (2) and 6 loose markdown files
 
 **Priority:** P2
-**Status:** open
+**Status:** CLOSED 2026-09-28
 **Owner:** pumice session (Sean pushes pumice from the workstation)
 **Filed:** 2026-09-28 by tooling TASK-004 (fan-out)
 
@@ -27,10 +27,10 @@ overview; `README.md` beside it should link to it, not repeat it). pumice is the
 only live member of the family, so these fall to this lane.
 
 
-`projects/components/memory-controllers/pumice-ddr2-lpddr2/AT-A-GLANCE.md`
-(status page), `dv/testplans/GAP_ANALYSIS.md`, and four micro-architecture
-notes beside the RTL: `rtl/LPDDR2_CA_ENCODING.md`, `rtl/PUMICE_AXI4_IFC_UARCH.md`,
-`rtl/PUMICE_DFI_LAYER_UARCH.md`, `rtl/PUMICE_MEM_CMD_SCHEDULER_UARCH.md`. The
+`vault/Tasks/pumice/AT-A-GLANCE.md`
+(status page), `vault/Tasks/pumice/GAP_ANALYSIS.md`, and four micro-architecture
+notes beside the RTL: `docs/uarch/LPDDR2_CA_ENCODING.md`, `docs/uarch/PUMICE_AXI4_IFC_UARCH.md`,
+`docs/uarch/PUMICE_DFI_LAYER_UARCH.md`, `docs/uarch/PUMICE_MEM_CMD_SCHEDULER_UARCH.md`. The
 uarch notes are reader-facing design description: the MAS
 (`docs/pumice_mas/`) is where a reader looks for them; if a chapter already
 covers the same block, the beside-RTL copy is the second copy and goes.
@@ -65,3 +65,51 @@ This is the per-unit share; nobody outside this unit will do it.
       reason in the commit message)
 - [ ] `python3 bin/filelist_registry.py --placement` lists nothing from this unit
 - [ ] the affected tests pass from `make clean-all`
+
+---
+
+## Closed 2026-09-28
+
+**Filelists (landed separately as 11281e91d).** Both loose `.f` moved into
+`ddr2_char_framework/rtl/filelists/`, with all five referrers in the same commit
+(the `-f` self-reference inside `ddr2_char_macro.f`, `ddr2_char_harness.f`,
+`litedram_char_harness.f`, and the two `dv/filelists` TB wrappers),
+`bin/filelists.toml`'s area entry repointed and its "lives at the rtl root"
+comment removed. Placement baseline re-run: **8 stragglers -> 6, no pumice
+entries**, so `--placement` lists nothing from this unit. `--check` (0 broken
+refs), `--audit` and both ratchets PASS; char-framework gate **216 passed,
+2 xfailed** against the moved lists.
+
+It went in on its own because leaving it staged BROKE EVERY OTHER SESSION'S
+COMMITS. A pathspec commit runs pre-commit against a temporary index of HEAD plus
+the named paths, so the hook listed the `.f` files at their HEAD locations while
+reading `bin/filelists.toml` from the worktree, where the directory had already
+changed -- "unregistered_filelists 0 -> 2" for anyone committing anything. My own
+commits passed, because my paths were the ones being named, which is why I could
+not see it from here; monitor-lite diagnosed it and asked for the split.
+
+**Markdown -- 7 re-homed, 1 folded, 43 references repointed across 33 files:**
+
+| was | now | why |
+|---|---|---|
+| `memory-controllers/ADVANCED_MODES_ROADMAP.md` | `vault/Tasks/memory-controllers/` | a roadmap is a work list; both the ddr3 and ddr4 lanes already cited it |
+| `pumice-ddr2-lpddr2/AT-A-GLANCE.md` | `vault/Tasks/pumice/` | status page |
+| `dv/testplans/GAP_ANALYSIS.md` | `vault/Tasks/pumice/` | gap list = work item |
+| `rtl/LPDDR2_CA_ENCODING.md` + 3 `*_UARCH.md` | `docs/uarch/` | reader-facing design description |
+| `memory-controllers/DDR_FAMILY.md` | folded into the family `README.md`, deleted | a README is the link page for "what are these directories" |
+
+Folding `DDR_FAMILY` also fixed a stale README line calling pumice
+"HAS v0.3 published; pre-architecture stage" -- it has been board-validated for
+weeks.
+
+**The uarch notes were MOVED, not deleted.** This item offered deleting them if a
+MAS chapter already covers the block. The MAS mentions all four, but mentioning
+is not covering, and they are cited from ~25 RTL headers -- so the evidence for
+"second copy" was not there, and deleting design description on a weak signal is
+the wrong error to risk. Sean, 2026-09-28: *"Some replications is fine. See the
+at a glance. That is all replication."* So the duplication stands and no dedup
+review is filed.
+
+Checks: link checker back to its 3 pre-existing breaks with none grown; every
+`.sv` edit under this unit verified comment-only by diffing `-U0` and filtering
+for any changed line that is not `//`, `*` or `/*`.

@@ -250,7 +250,7 @@ full tables under "TASK-002 RESULTS"):
 
 The original framing ("once pumice is CLEAN, layer in the sophisticated
 features") is satisfied: the advanced-mode catalog in
-`projects/components/memory-controllers/ADVANCED_MODES_ROADMAP.md` and the
+`vault/Tasks/memory-controllers/ADVANCED_MODES_ROADMAP.md` and the
 design-requirements doc (FR-FCFS variants, paging/refresh policy modes, QoS)
 is implemented end-to-end, each mode OFF by default with encoding 0 = build
 default and every mechanism mutation-proven at the fub level.

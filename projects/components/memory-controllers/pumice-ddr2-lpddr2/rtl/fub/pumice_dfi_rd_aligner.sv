@@ -25,7 +25,7 @@
 //            BL_WORDS = DFI words captured + pushed per read.
 //          These are equal only when the pumice DRAM beat == the device word.
 //
-// Documentation: rtl/PUMICE_DFI_LAYER_UARCH.md
+// Documentation: docs/uarch/PUMICE_DFI_LAYER_UARCH.md
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"

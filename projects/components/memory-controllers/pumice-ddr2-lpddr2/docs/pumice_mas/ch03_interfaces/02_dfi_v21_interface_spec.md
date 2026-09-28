@@ -91,7 +91,7 @@ For `memtype_i = DDR2`, commands use the classic `ras/cas/we/cs` strobe
 encoding. For `memtype_i = LPDDR2`, `dfi_cmd_formatter` takes the memtype branch
 and emits bit-exact JESD209-2F CA-bus commands (Table 60): the 10-bit CA bus
 over 2 edges packed as a flat 20-bit word on `dfi_address`, with `ras/cas/we`
-idle. See `rtl/LPDDR2_CA_ENCODING.md`.
+idle. See `docs/uarch/LPDDR2_CA_ENCODING.md`.
 
 ## Write-Data Sub-Interface
 

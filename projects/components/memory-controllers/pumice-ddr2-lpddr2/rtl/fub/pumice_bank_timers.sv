@@ -19,7 +19,7 @@
 //          ANDed by the arbiter. Auto-precharge (RDA/WRA) is handled inside
 //          bank_timer via a single r_ap_pending bit.
 //
-// Documentation: rtl/PUMICE_AXI4_IFC_UARCH.md (scheduler layer)
+// Documentation: docs/uarch/PUMICE_AXI4_IFC_UARCH.md (scheduler layer)
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
