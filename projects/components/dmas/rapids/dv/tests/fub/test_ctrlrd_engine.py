@@ -132,6 +132,15 @@ async def cocotb_test_axi_error(dut):
 
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
+async def cocotb_test_reset_mid_read(dut):
+    """Channel reset with a read on the fabric: drain-on-reset (rapids TASK-014)"""
+    tb = CtrlrdEngineTB(dut)
+    await tb.setup_clocks_and_reset()
+    result = await tb.test_reset_mid_read(DelayProfile.FIXED_DELAY)
+    assert result, "Reset mid-read (drain-on-reset) test failed"
+
+
+@cocotb.test(timeout_time=100, timeout_unit="ms")
 async def cocotb_test_channel_reset(dut):
     """Test channel reset functionality"""
     tb = CtrlrdEngineTB(dut)
@@ -274,6 +283,16 @@ def test_ctrlrd_engine_axi_error(request, channel_id, num_channels, addr_width, 
 def test_ctrlrd_engine_channel_reset(request, channel_id, num_channels, addr_width, axi_data_width, test_level):
     """Pytest: Test channel reset functionality"""
     _run_ctrlrd_test(request, "cocotb_test_channel_reset",
+                     channel_id, num_channels, addr_width, axi_data_width, test_level=test_level)
+
+
+@pytest.mark.fub
+@pytest.mark.ctrlrd
+@pytest.mark.parametrize("channel_id, num_channels, addr_width, axi_data_width", ctrlrd_params)
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_ctrlrd_engine_reset_mid_read(request, channel_id, num_channels, addr_width, axi_data_width, test_level):
+    """Pytest: channel reset with a read on the fabric (drain-on-reset)"""
+    _run_ctrlrd_test(request, "cocotb_test_reset_mid_read",
                      channel_id, num_channels, addr_width, axi_data_width, test_level=test_level)
 
 

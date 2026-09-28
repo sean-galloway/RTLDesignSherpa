@@ -322,6 +322,7 @@ class CtrlrdEngineTB(TBBase):
                 dut=self.dut, clock=self.clk, prefix="", log=self.log,
                 data_width=self.axi_data_width, id_width=8, addr_width=64,
                 user_width=1, multi_sig=True, memory_model=self.memory_model,
+                response_delay=getattr(self, '_response_delay', 1),
                 resp_override=lambda addr: getattr(self, '_forced_resp', None))
             await self.axi_slave['AR'].reset_bus()
             await self.axi_slave['R'].reset_bus()
@@ -628,11 +629,10 @@ class CtrlrdEngineTB(TBBase):
         # instead of on the address-selected lanes (CocoTBFramework
         # axi4_interfaces.py _generate_read_response -- its master/write path DOES
         # lane-position, the slave read path does not). Lane coverage therefore
-        # is NOT covered by this TB any more: since rapids TASK-013 every test
-        # rides the framework slave, and test_back_to_back strides its addresses
-        # by the bus width for the same reason. Lane select on a wide bus needs
-        # the slave read path to lane-position (a cross-repo RTLDesignSherpa-DV
-        # change, tracked in TASK-013's closing note) before it can be tested here.
+        # is covered by test_back_to_back, which walks consecutive 4-byte
+        # addresses (addr[2] across 0x7000..) against the framework slave; the
+        # slave read BFM lane-positions narrow reads since RTLDesignSherpa-DV
+        # 593c279 (the gap TASK-013 recorded is closed).
         bus_stride = max(4, self.axi_data_width // 8)
         test_cases = [
             # (addr, expected, mask, actual_data, should_match)
@@ -851,6 +851,104 @@ class CtrlrdEngineTB(TBBase):
         self.log.info("Channel reset handled correctly")
         return True
 
+    async def test_reset_mid_read(self, profile: DelayProfile) -> bool:
+        """Channel reset with a read on the fabric (rapids TASK-014, drain-on-reset).
+
+        AXI cannot cancel a transaction: an AR that is up must stay up until
+        accepted, and an accepted AR is owed an R beat. The engine must take and
+        discard that beat, report busy and refuse requests until it has, and
+        answer the NEXT read with fresh data rather than the stale beat.
+
+        A) reset lands with the AR raised and not yet accepted (slave AR ready
+           delayed): ar_valid holds through the reset until the handshake.
+        B) reset lands with the AR accepted and the R beat still to come.
+        Both end with a fresh read-match that must return its own word.
+        """
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        self.log.info("=" * 70)
+        self.log.info(f"TEST: Channel Reset mid-read, drain-on-reset (Profile: {profile.value})")
+        self.log.info("=" * 70)
+        self._response_delay = 24                       # R lands well after the reset
+        await self._ensure_axi_slave()
+        self._ar_count = getattr(self, '_ar_count', 0)
+        mask = 0xFFFFFFFF
+        stale_addr, stale_data = 0x6200, 0x57A1E000     # the aborted read's word
+        fresh_addr, fresh_data = 0x6300, 0xF4E54000
+        self.memory_model.write(stale_addr, self._word(stale_data))
+        self.memory_model.write(fresh_addr, self._word(fresh_data))
+
+        obs = {'run': True, 'r_hs': 0, 'ar_dropped': 0, 'idle_seen_before_r': 0}
+
+        async def observer():
+            """DUT outputs only: R handshakes, an AR withdrawn before its handshake,
+            and idle reported while the R beat is still owed."""
+            prev_ar_valid = 0
+            owed = False
+            while obs['run']:
+                await RisingEdge(self.clk)
+                ar_v, ar_r = int(self.dut.ar_valid.value), int(self.dut.ar_ready.value)
+                if prev_ar_valid and not ar_v and not obs.get('ar_hs_last', 0):
+                    obs['ar_dropped'] += 1
+                obs['ar_hs_last'] = 1 if (ar_v and ar_r) else 0
+                if ar_v and ar_r:
+                    owed = True
+                if int(self.dut.r_valid.value) and int(self.dut.r_ready.value):
+                    obs['r_hs'] += 1
+                    owed = False
+                if owed and int(self.dut.ctrlrd_engine_idle.value):
+                    obs['idle_seen_before_r'] += 1
+                prev_ar_valid = ar_v
+
+        task = cocotb.start_soon(observer())
+        ok = True
+        try:
+            for scenario, ar_delay in (("A: AR raised, not accepted", 20), ("B: AR accepted, R owed", 0)):
+                self.log.info(f"  --- scenario {scenario} ---")
+                self.axi_slave['AR'].set_randomizer(FlexRandomizer({'ready_delay': ([(ar_delay, ar_delay)], [1])}))
+                r_hs_before, ar_before = obs['r_hs'], self._ar_count
+                if not await self.send_ctrlrd_request(stale_addr, stale_data, mask, profile):
+                    self.log.error("request not accepted"); return False
+                # wait for the AR to be raised (A) or accepted (B)
+                for _ in range(100):
+                    await self.wait_clocks(self.clk_name, 1)
+                    if ar_delay and int(self.dut.ar_valid.value):
+                        break
+                    if not ar_delay and self._ar_count > ar_before:
+                        break
+                await self.wait_clocks(self.clk_name, 2)
+                self.dut.cfg_channel_reset.value = 1
+                await self.wait_clocks(self.clk_name, 10)
+                self.dut.cfg_channel_reset.value = 0
+                # the owed beat must be taken; idle must not report before it is
+                for _ in range(200):
+                    await self.wait_clocks(self.clk_name, 1)
+                    if obs['r_hs'] > r_hs_before and int(self.dut.ctrlrd_engine_idle.value):
+                        break
+                if obs['r_hs'] != r_hs_before + 1:
+                    self.log.error(f"{scenario}: stale R beat not drained (handshakes {obs['r_hs'] - r_hs_before})")
+                    ok = False
+                if obs['idle_seen_before_r']:
+                    self.log.error(f"{scenario}: idle reported {obs['idle_seen_before_r']} cycle(s) with the R beat still owed")
+                    ok = False
+                if obs['ar_dropped']:
+                    self.log.error(f"{scenario}: AR withdrawn before its handshake ({obs['ar_dropped']}x)")
+                    ok = False
+                # fresh read after the drain must return its own word
+                self.axi_slave['AR'].set_randomizer(FlexRandomizer({'ready_delay': ([(0, 0)], [1])}))
+                if not await self.send_ctrlrd_request(fresh_addr, fresh_data, mask, profile):
+                    self.log.error(f"{scenario}: fresh request not accepted after the drain"); return False
+                success, got, err = await self.wait_for_completion(timeout_cycles=500)
+                if not success or err or got != fresh_data:
+                    self.log.error(f"{scenario}: fresh read after reset: ok={success} err={err} got=0x{got:08X} "
+                                   f"(stale word is 0x{stale_data:08X})")
+                    ok = False
+                else:
+                    self.log.info(f"  {scenario}: drained, idle held, fresh read returned 0x{got:08X}")
+        finally:
+            obs['run'] = False
+            task.kill()
+        return ok
+
     async def test_back_to_back(self, profile: DelayProfile, num_operations=5):
         """
         Test back-to-back operations.
@@ -865,11 +963,13 @@ class CtrlrdEngineTB(TBBase):
         self.log.info("="*70)
 
         # Framework read slave answers from memory: each operation's word is
-        # its own address, preloaded here. Addresses are strided by the bus
-        # width so every word sits on lane 0 (rapids TASK-013).
+        # its own address, preloaded here. Consecutive 4-byte addresses walk
+        # the byte lanes of a wide bus (addr[2] on 64 bits), which exercises
+        # the engine's lane select -- the slave read BFM lane-positions narrow
+        # reads since RTLDesignSherpa-DV 593c279 (rapids TASK-013 note).
         await self._ensure_axi_slave()
         operations_complete = [0]
-        bus_stride = max(4, self.axi_data_width // 8)
+        bus_stride = 4
         for i in range(num_operations):
             a = 0x7000 + i * bus_stride
             self.memory_model.write(a, self._word(a))

@@ -223,7 +223,8 @@ class CtrlwrEngineTB(TBBase):
             addr_width=64,   # Ctrlwr engine has 64-bit addresses
             user_width=1,    # Minimal user width
             multi_sig=True,  # Separate channel signals
-            memory_model=self.memory_model
+            memory_model=self.memory_model,
+            response_delay=getattr(self, '_response_delay', 1),
         )
 
         # Extract B channel for response control
@@ -735,6 +736,107 @@ class CtrlwrEngineTB(TBBase):
         else:
             self.log.error("❌ AXI error test FAILED - error not detected")
             return False
+
+    async def test_reset_mid_write(self, profile: DelayProfile) -> bool:
+        """Channel reset with a write on the fabric (rapids TASK-014, drain-on-reset).
+
+        AXI cannot cancel a write: a raised AW or W must stay up until accepted,
+        an accepted AW must be followed by its W beat, and the B response must
+        be taken. The write that was already issued therefore LANDS (with its
+        latched address and data); the engine reports busy and refuses requests
+        until B is taken, and a fresh write afterwards must land too.
+
+        A) reset with the AW raised and not accepted (slave AW ready delayed)
+        B) reset with the AW accepted and the W beat not yet accepted
+        C) reset with W accepted and the B response still owed (slave B delayed)
+        """
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        self.log.info("=" * 70)
+        self.log.info(f"TEST: Channel Reset mid-write, drain-on-reset (Profile: {profile.value})")
+        self.log.info("=" * 70)
+        self._response_delay = 24
+        await self.initialize_axi_slave(profile)
+        obs = {'run': True, 'b_hs': 0, 'aw_dropped': 0, 'w_dropped': 0, 'idle_before_b': 0}
+
+        async def observer():
+            prev_aw, prev_w, owed = 0, 0, False
+            while obs['run']:
+                await RisingEdge(self.clk)
+                aw_v, aw_r = int(self.dut.aw_valid.value), int(self.dut.aw_ready.value)
+                w_v, w_r = int(self.dut.w_valid.value), int(self.dut.w_ready.value)
+                if prev_aw and not aw_v and not obs.get('aw_hs_last', 0):
+                    obs['aw_dropped'] += 1
+                if prev_w and not w_v and not obs.get('w_hs_last', 0):
+                    obs['w_dropped'] += 1
+                obs['aw_hs_last'] = 1 if (aw_v and aw_r) else 0
+                obs['w_hs_last'] = 1 if (w_v and w_r) else 0
+                if aw_v and aw_r:
+                    owed = True
+                if int(self.dut.b_valid.value) and int(self.dut.b_ready.value):
+                    obs['b_hs'] += 1
+                    owed = False
+                if owed and int(self.dut.ctrlwr_engine_idle.value):
+                    obs['idle_before_b'] += 1
+                prev_aw, prev_w = aw_v, w_v
+
+        def _rdy(comp, delay):
+            comp.set_randomizer(FlexRandomizer({'ready_delay': ([(delay, delay)], [1])}))
+
+        task = cocotb.start_soon(observer())
+        ok = True
+        try:
+            scenarios = (("A: AW raised, not accepted", 20, 0, 'aw'),
+                         ("B: AW accepted, W not accepted", 0, 20, 'w'),
+                         ("C: W accepted, B owed", 0, 0, 'b'))
+            for n, (scenario, aw_delay, w_delay, phase) in enumerate(scenarios):
+                self.log.info(f"  --- scenario {scenario} ---")
+                _rdy(self.axi_slave['AW'], aw_delay)
+                _rdy(self.axi_slave['W'], w_delay)
+                addr, data = 0x1800 + n * 0x40, 0xD0A10000 + n
+                fresh_addr, fresh_data = 0x1C00 + n * 0x40, 0xF0E50000 + n
+                b_before = obs['b_hs']
+                packet = self.ctrlwr_master.create_packet(pkt_addr=addr, pkt_data=data)
+                await self.ctrlwr_master.send(packet)
+                # wait for the phase the reset must land in
+                for _ in range(100):
+                    await self.wait_clocks(self.clk_name, 1)
+                    if phase == 'aw' and int(self.dut.aw_valid.value):
+                        break
+                    if phase == 'w' and int(self.dut.w_valid.value):
+                        break
+                    if phase == 'b' and int(self.dut.w_valid.value) and int(self.dut.w_ready.value):
+                        break
+                await self.wait_clocks(self.clk_name, 2)
+                self.dut.cfg_channel_reset.value = 1
+                await self.wait_clocks(self.clk_name, 10)
+                self.dut.cfg_channel_reset.value = 0
+                for _ in range(200):
+                    await self.wait_clocks(self.clk_name, 1)
+                    if obs['b_hs'] > b_before and int(self.dut.ctrlwr_engine_idle.value):
+                        break
+                if obs['b_hs'] != b_before + 1:
+                    self.log.error(f"{scenario}: B not drained (handshakes {obs['b_hs'] - b_before})"); ok = False
+                if obs['idle_before_b']:
+                    self.log.error(f"{scenario}: idle reported {obs['idle_before_b']} cycle(s) with B still owed"); ok = False
+                if obs['aw_dropped'] or obs['w_dropped']:
+                    self.log.error(f"{scenario}: phase withdrawn before its handshake (aw {obs['aw_dropped']}, w {obs['w_dropped']})"); ok = False
+                landed = int.from_bytes(bytes(self.memory_model.read(addr, 4)), 'little')
+                if landed != data:
+                    self.log.error(f"{scenario}: the issued write did not land: mem[0x{addr:X}]=0x{landed:08X} expected 0x{data:08X}"); ok = False
+                # fresh write after the drain must land
+                _rdy(self.axi_slave['AW'], 0); _rdy(self.axi_slave['W'], 0)
+                if not await self.send_ctrlwr_request(fresh_addr, fresh_data, profile):
+                    self.log.error(f"{scenario}: fresh write did not complete after the drain"); ok = False
+                    continue
+                landed = int.from_bytes(bytes(self.memory_model.read(fresh_addr, 4)), 'little')
+                if landed != fresh_data:
+                    self.log.error(f"{scenario}: fresh write after reset did not land: 0x{landed:08X}"); ok = False
+                else:
+                    self.log.info(f"  {scenario}: drained, issued write landed, fresh write landed")
+        finally:
+            obs['run'] = False
+            task.kill()
+        return ok
 
     async def test_channel_reset(self, profile: DelayProfile) -> bool:
         """
