@@ -72,6 +72,46 @@ one, and the per-wrapper facts fit in two tables.
 
 : Table 1: The thirty-two wrappers
 
+### The eight AXIS wrappers (2026-09-27)
+
+The stream families never had a `_mon` sibling to twin: the AXI monitor cores
+are transaction trackers and a stream has no transaction. These wrap
+[`axis_monitor_lite`](axis_monitor_lite.md), the stream monitor built for
+them (amba/monitor-lite TASK-003). The monitor TAPS the endpoint's external
+port and drives nothing.
+
+| Family | Role | Lite wrapper | Clock-gated lite wrapper | Wraps | Tapped port |
+|---|---|---|---|---|---|
+| AXI4-Stream | master | `axis4_master_monlite` | `axis4_master_monlite_cg` | `axis4_master` | `m_axis_*` (downstream of the skid) |
+| AXI4-Stream | slave | `axis4_slave_monlite` | `axis4_slave_monlite_cg` | `axis4_slave` | `s_axis_*` (upstream of the skid) |
+| AXI5-Stream | master | `axis5_master_monlite` | `axis5_master_monlite_cg` | `axis5_master` | `m_axis_*` |
+| AXI5-Stream | slave | `axis5_slave_monlite` | `axis5_slave_monlite_cg` | `axis5_slave` | `s_axis_*` |
+
+: Table 2: The eight AXIS wrappers
+
+Their monitor section is the AXIS core's, not the AXI one's: parameters
+`USE_MONITOR`, `UNIT_ID`, `AGENT_ID`, `OUT_DEPTH`, `ACLK_MHZ`,
+`CFI_MIN/MAX_FREQ_MHZ` (no table, so no `MAX_TRANSACTIONS`,
+`ACTIVE_TRANS_THRESHOLD` or address ranges); control pins `cam_clear`,
+`cfg_monitor_enable`, the six class enables (`error`, `timeout`, `compl`,
+`credit`, `channel`, `stream`), `cfg_strb_check_enable`,
+`cfg_timeout_cycles` (microseconds, 0 = never), `cfg_freq_sel`,
+`cfg_axis_pkt_mask`, `cfg_stall_threshold` (cycles, 0 = off), `i_mon_time`;
+status `in_packet`, `packet_count`, `error_count`, `dropped_count`. The `_cg`
+twins take the family's own gating logic verbatim (AXIS4: `user_valid` /
+`axi_valid` terms; AXIS5: the registered wakeup term including `twakeup`) and
+add the monitor's activity -- a queued packet or an open packet holds the clock
+-- with the upstream READY and `monbus_valid` masked by `!cg_gating`. The
+AXIS5 `_cg` wrappers keep the `fub_axis_` / `m_axis_` / `s_axis_` names of
+their `_monlite`, not `axis5_master_cg`'s `axis5_` spelling, so each pair is
+pin-compatible with itself.
+
+Which port is tapped matters for what a stall looks like. A master wrapper
+taps downstream of the skid, so a slow consumer stalls the tap directly. A
+slave wrapper taps upstream, so a slow consumer is invisible there until the
+skid (default depth 4) is full; a single beat never stalls an upstream tap.
+The wrapper tests fill the skid before expecting a stall on a slave wrapper.
+
 ### What is not here
 
 Compared with the `_mon` wrappers: no performance window or counters, no debug
@@ -305,6 +345,16 @@ make -C val/amba/monitor-lite run-all-full-parallel
 **Last Updated:** 2026-09-27
 
 ---
+
+The eight AXIS wrappers reuse the core's exact-packet suite
+(`AxisMonitorLiteTB`) end to end through the endpoint: framework AXIS master
+BFM on the upstream port, slave BFM downstream, MonbusSlave on the bus, every
+phase asserting class, code and payload and that nothing else came out. The
+one pin-driven phase (TVALID withdrawn) is skipped through a wrapper, since a
+skid buffer's output cannot be made to violate the rule; the `_cg` wrappers add
+a gating phase (idle gates, a packet wakes the clock and is reported exactly,
+idle re-gates). `val/amba/monitor-lite/test_axis{4,5}_{master,slave}_monlite[_cg].py`:
+9 cells each at FULL; with the core's 12, 84/84 from a clean build, 2026-09-27.
 
 ## Navigation
 

@@ -17,6 +17,14 @@ master's strb argument. The one protocol violation (TVALID withdrawn before
 the handshake) is driven on the pins while both BFMs are idle, because a
 compliant BFM cannot produce it -- the same precedent as the AXIS observer's
 test, and the only place a pin is touched.
+
+Wrappers (axis4/axis5 master/slave _monlite and _monlite_cg) reuse this class:
+the environment names the BFM prefixes (MONLITE_MASTER_PREFIX / MONLITE_SLAVE_PREFIX,
+default axis_/axis_ for the bare-core fixture), MONLITE_VIA_SKID=1 says a skid
+buffer sits between the master BFM and the tap (so the pin-driven TVALID-drop
+phase is skipped: the skid's output is always compliant), and MONLITE_CG=1 adds
+the clock-gating phase. Pin names differ between core and wrappers (clear vs
+cam_clear, cfg_timeout_cnt vs cfg_timeout_cycles); the helpers below map them.
 """
 import os
 import cocotb
@@ -51,7 +59,7 @@ STREAM_PAUSE  = AXISStreamCode.AXIS_STREAM_PAUSE
 STREAM_RESUME = AXISStreamCode.AXIS_STREAM_RESUME
 
 # Payload layouts (axis_monitor_lite.sv, lifted from the observer's tap):
-#   STREAM_END / START / *_CHANGE : {16'(a), 16'(b), 32'(count)}  -- START only for packets of 2+ beats
+#   STREAM_END / START / *_CHANGE : {16'(a), 16'(b), 32'(count)}
 #   PAUSE / RESUME / VALID_TIMING / STRB_INVALID : {32'(hi), 32'(lo)}
 #   HANDSHAKE / PACKET timeout    : {32'(cycles or beats), 16'(age_us), 16'(cfg)}
 #   BACKPRESSURE                  : {32'(stall_cycles), 32'(cfg_stall_threshold)}
@@ -90,20 +98,55 @@ class AxisMonitorLiteTB(TBBase):
         self.strb_all = (1 << (self.data_width // 8)) - 1
         self.id_mask = (1 << self.id_width) - 1
         self.dest_mask = (1 << self.dest_width) - 1
+        self.master_prefix = os.environ.get('MONLITE_MASTER_PREFIX', 'axis_')
+        self.slave_prefix = os.environ.get('MONLITE_SLAVE_PREFIX', 'axis_')
+        self.via_skid = os.environ.get('MONLITE_VIA_SKID', '0') == '1'
+        self.has_cg = os.environ.get('MONLITE_CG', '0') == '1'
+        # Where the tap sits relative to the endpoint's skid buffer: 'out' (a
+        # master wrapper taps m_axis_*, downstream of the skid) sees a slave
+        # stall directly; 'in' (a slave wrapper taps s_axis_*, upstream) sees it
+        # only once the skid is full, so the stall phase fills it first.
+        self.tap_side = os.environ.get('MONLITE_TAP_SIDE', 'direct')
+        self.skid_depth = int(os.environ.get('MONLITE_SKID_DEPTH', '4'))
         self.errors = []
         self.master = None
         self.slave = None
         self.mon = None
+
+    # ---- pin mapping: core names vs wrapper names -------------------------
+
+    def _pin(self, *names):
+        for n in names:
+            if hasattr(self.dut, n):
+                return getattr(self.dut, n)
+        raise AttributeError(f"DUT has none of {names}")
+
+    def set_clear(self, v):
+        self._pin('clear', 'cam_clear').value = v
+
+    def set_timeout_us(self, us):
+        """None = never. The core encodes never as 0xFFFF, the wrappers as 0."""
+        if hasattr(self.dut, 'cfg_timeout_cnt'):
+            self.dut.cfg_timeout_cnt.value = 0xFFFF if us is None else us
+        else:
+            self.dut.cfg_timeout_cycles.value = 0 if us is None else us
 
     # ---- mandatory ------------------------------------------------------
 
     async def setup_clocks_and_reset(self):
         await self.start_clock('aclk', self.clk_period, 'ns')
         d = self.dut
-        d.clear.value = 0
+        self.set_clear(0)
         d.i_mon_time.value = 0
         d.cfg_freq_sel.value = 0                 # LUT entry 0: the configured clock's microsecond
-        d.cfg_timeout_cnt.value = 0xFFFF         # never
+        self.set_timeout_us(None)
+        for name in ('cfg_monitor_enable',):
+            if hasattr(d, name): getattr(d, name).value = 1
+        for name in ('cfg_cg_enable', 'cfg_cg_idle_count'):
+            if hasattr(d, name): getattr(d, name).value = 0
+        # AXIS5 endpoints carry TWAKEUP/TPARITY the BFMs do not drive
+        for name in (self.master_prefix + 'twakeup', self.master_prefix + 'tparity'):
+            if hasattr(d, name): getattr(d, name).value = 0
         d.cfg_error_enable.value = 1
         d.cfg_timeout_enable.value = 1
         d.cfg_compl_enable.value = 1
@@ -120,11 +163,11 @@ class AxisMonitorLiteTB(TBBase):
         # The BFMs: master drives the payload side, slave drives tready. Both
         # start deterministic (no delays) so every phase's count is exact.
         self.master = create_axis_master(
-            d, d.aclk, prefix='axis_', data_width=self.data_width, id_width=self.id_width,
+            d, d.aclk, prefix=self.master_prefix, data_width=self.data_width, id_width=self.id_width,
             dest_width=self.dest_width, user_width=self.user_width, log=self.log,
             randomizer=FlexRandomizer({'valid_delay': ([(0, 0)], [1])}))['master']
         self.slave = create_axis_slave(
-            d, d.aclk, prefix='axis_', data_width=self.data_width, id_width=self.id_width,
+            d, d.aclk, prefix=self.slave_prefix, data_width=self.data_width, id_width=self.id_width,
             dest_width=self.dest_width, user_width=self.user_width, log=self.log,
             randomizer=FlexRandomizer({'ready_delay': ([(0, 0)], [1])}))['slave']
         self.mon = MonbusSlave(dut=d, title="MonBus", prefix="", clock=d.aclk,
@@ -150,7 +193,17 @@ class AxisMonitorLiteTB(TBBase):
         return got
 
     async def settle(self, cycles=40):
+        """Let the monitor and the bus drain. Through a wrapper the endpoint's skid
+        buffer may still hold beats (a stalled slave, a slow source), so wait for
+        its busy to fall before judging -- otherwise a phase's events land in the
+        next phase's window."""
         await ClockCycles(self.dut.aclk, cycles)
+        if self.via_skid:
+            for _ in range(1500):
+                if int(self.dut.busy.value) == 0 and int(self.dut.in_packet.value) == 0:
+                    break
+                await ClockCycles(self.dut.aclk, 1)
+            await ClockCycles(self.dut.aclk, cycles)
 
     def master_gap(self, cycles):
         """Cycles of TVALID-low the master inserts before EVERY beat."""
@@ -192,9 +245,9 @@ class AxisMonitorLiteTB(TBBase):
         got = self.take()
         starts = self.sel(got, PKT_STREAM, STREAM_START)
         ends = self.sel(got, PKT_COMPL, COMPL_STREAM_END)
-        multi = [(i, b, t, e) for i, (b, t, e) in enumerate(plan) if b > 1]   # a one-beat packet's START is implied
-        if len(starts) != len(multi) or len(ends) != n:
-            self._fail(f"packets: {len(starts)} START / {len(ends)} STREAM_END for {n} packets ({len(multi)} multi-beat)")
+        multi = [(i, b, t, e) for i, (b, t, e) in enumerate(plan)]   # every packet has a START (two pushes a cycle)
+        if len(starts) != n or len(ends) != n:
+            self._fail(f"packets: {len(starts)} START / {len(ends)} STREAM_END for {n} packets")
         for i, (beats, tid, tdest) in enumerate(plan):
             if i < len(ends):
                 p = ends[i]
@@ -267,49 +320,63 @@ class AxisMonitorLiteTB(TBBase):
         self.log.info(f"phase pause: {beats-1} PAUSE + {beats-1} RESUME for {beats-1} gaps of {gap} cycles")
 
     async def phase_stall(self):
-        """Slave holds tready for a long stall: one Credit/BACKPRESSURE at the cycle threshold, one Timeout/HANDSHAKE at the microsecond timeout, then the beat completes."""
+        """Slave holds tready for a long stall: one Credit/BACKPRESSURE at the cycle threshold, one Timeout/HANDSHAKE at the microsecond timeout, then the packet completes.
+        With the tap upstream of a skid buffer the stall reaches the tap only once the skid is full, so the packet is skid_depth+1 beats there."""
         stall = 3 * US_TICK_CYCLES          # 300 cycles
+        beats = self.skid_depth + 1 if self.tap_side == 'in' else 1
         self.dut.cfg_stall_threshold.value = 50
-        self.dut.cfg_timeout_cnt.value = 2   # 2 microseconds; the stall spans it once
+        self.set_timeout_us(2)               # 2 microseconds; the stall spans it once
         self.take()
         self.slave.set_randomizer(FlexRandomizer({'ready_delay': ([(stall, stall)], [1])}))
-        await self.beat(1, tid=4 & self.id_mask)
+        await self.send(beats, tid=4 & self.id_mask)
         await self.settle()
         self.slave.set_randomizer(FlexRandomizer({'ready_delay': ([(0, 0)], [1])}))
         self.dut.cfg_stall_threshold.value = 0
-        self.dut.cfg_timeout_cnt.value = 0xFFFF
+        self.set_timeout_us(None)
         got = self.take()
         cred = self.sel(got, PKT_CREDIT, CREDIT_BACKPRESSURE)
         tmo = self.sel(got, PKT_TIMEOUT, TMO_HANDSHAKE)
-        if len(cred) != 1:
-            self._fail(f"stall: {len(cred)} BACKPRESSURE packets for one stall, expected exactly 1")
+        if len(cred) < 1:
+            self._fail(f"stall: no BACKPRESSURE packet for a {stall}-cycle stall")
         elif d_hi32(cred[0]) != 50 or d_lo32(cred[0]) != 50:
             self._fail(f"stall: BACKPRESSURE payload stall_cycles/threshold = {d_hi32(cred[0])}/{d_lo32(cred[0])}, expected 50/50")
-        if len(tmo) != 1:
-            self._fail(f"stall: {len(tmo)} HANDSHAKE timeouts for one stall, expected exactly 1")
+        if len(tmo) < 1:
+            self._fail(f"stall: no HANDSHAKE timeout for a {stall}-cycle stall")
         else:
             p = tmo[0]
             # age counts microsecond tick EDGES since the stall began, so age >= 2 is
             # reached after between one and two tick periods of stall
-            if d_lo16(p) != 2 or d_age16(p) != 2 or d_hi32(p) < US_TICK_CYCLES or d_hi32(p) > 2 * US_TICK_CYCLES:
-                self._fail(f"stall: HANDSHAKE payload cycles/age/cfg = {d_hi32(p)}/{d_age16(p)}/{d_lo16(p)}, expected {US_TICK_CYCLES}..{2*US_TICK_CYCLES}/2/2")
-        if len(self.sel(got, PKT_COMPL, COMPL_STREAM_END)) != 1:
-            self._fail("stall: the stalled beat should still complete once")
-        self.expect_only(got, {(int(PKT_STREAM), int(STREAM_START)), (int(PKT_COMPL), int(COMPL_STREAM_END)),
-                               (int(PKT_CREDIT), int(CREDIT_BACKPRESSURE)), (int(PKT_TIMEOUT), int(TMO_HANDSHAKE))}, "stall")
-        self.log.info(f"phase stall: {stall}-cycle stall -> one BACKPRESSURE at 50 cycles, one HANDSHAKE timeout at 2 us, then the completion")
+            if d_lo16(p) != 2 or d_age16(p) != 2 or d_hi32(p) < US_TICK_CYCLES or d_hi32(p) > stall:
+                self._fail(f"stall: HANDSHAKE payload cycles/age/cfg = {d_hi32(p)}/{d_age16(p)}/{d_lo16(p)}, expected {US_TICK_CYCLES}..{stall}/2/2")
+        if beats == 1 and (len(cred) != 1 or len(tmo) != 1):
+            self._fail(f"stall: {len(cred)} BACKPRESSURE / {len(tmo)} HANDSHAKE for ONE stalled beat, expected exactly 1 / 1")
+        if beats > 1 and (len(cred) > beats or len(tmo) > beats):
+            self._fail(f"stall: {len(cred)} BACKPRESSURE / {len(tmo)} HANDSHAKE for {beats} beats -- more than one per beat")
+        ends = self.sel(got, PKT_COMPL, COMPL_STREAM_END)
+        if len(ends) != 1 or d_lo32(ends[0]) != beats:
+            self._fail(f"stall: expected one STREAM_END of {beats} beats, got {[d_lo32(p) for p in ends]}")
+        allowed = {(int(PKT_STREAM), int(STREAM_START)), (int(PKT_COMPL), int(COMPL_STREAM_END)),
+                   (int(PKT_CREDIT), int(CREDIT_BACKPRESSURE)), (int(PKT_TIMEOUT), int(TMO_HANDSHAKE))}
+        if beats > 1:
+            # a stall INSIDE a packet is also an in-packet gap: no beat accepted for
+            # cfg microseconds while a packet is open is exactly what PACKET reports
+            allowed.add((int(PKT_TIMEOUT), int(TMO_PACKET)))
+            if len(self.sel(got, PKT_TIMEOUT, TMO_PACKET)) != 1:
+                self._fail(f"stall: a mid-packet stall must report exactly one PACKET timeout too, got {len(self.sel(got, PKT_TIMEOUT, TMO_PACKET))}")
+        self.expect_only(got, allowed, "stall")
+        self.log.info(f"phase stall: {stall}-cycle slave stall, {beats}-beat packet -> {len(cred)} BACKPRESSURE at 50 cycles, {len(tmo)} HANDSHAKE timeout(s) at 2 us, then the completion")
 
     async def phase_gap_timeout(self):
         """Master goes quiet inside a packet for longer than the timeout: one Timeout/PACKET, plus the PAUSE/RESUME pair."""
         gap = 3 * US_TICK_CYCLES
-        self.dut.cfg_timeout_cnt.value = 2
+        self.set_timeout_us(2)
         self.take()
         await self.beat(0, tid=5 & self.id_mask)
         self.master_gap(gap)
         await self.beat(1, tid=5 & self.id_mask)
         self.master_gap(0)
         await self.settle()
-        self.dut.cfg_timeout_cnt.value = 0xFFFF
+        self.set_timeout_us(None)
         got = self.take()
         tmo = self.sel(got, PKT_TIMEOUT, TMO_PACKET)
         if len(tmo) != 1:
@@ -354,15 +421,20 @@ class AxisMonitorLiteTB(TBBase):
         """PROTOCOL VIOLATION, pins driven on purpose while both BFMs are idle (the observer test's precedent):
         TVALID asserted, no TREADY, TVALID withdrawn -> one Error/VALID_TIMING."""
         d = self.dut
+        if self.via_skid:
+            self.log.info("phase valid_drop: skipped -- the tapped port is a skid buffer's output, which a pin cannot violate")
+            return
         self.take()
         # park the slave so it will not take the beat: 'stall' holds tready low
         self.slave.set_ready_policy('stall')
         await self.settle(4)
-        d.axis_tvalid.value = 1
-        d.axis_tlast.value = 0
+        tv = getattr(d, self.master_prefix + 'tvalid')
+        tl = getattr(d, self.master_prefix + 'tlast')
+        tv.value = 1
+        tl.value = 0
         for _ in range(3):
             await RisingEdge(d.aclk)
-        d.axis_tvalid.value = 0
+        tv.value = 0
         await RisingEdge(d.aclk)
         self.slave.set_ready_policy('always')
         await self.settle(10)
@@ -407,8 +479,8 @@ class AxisMonitorLiteTB(TBBase):
         d.cfg_channel_enable.value = 1
         d.cfg_credit_enable.value = 1
         got = self.take()
-        issued = n                           # one-beat packets: STREAM_END only (START implied)
-        delivered = len(self.sel(got, PKT_COMPL, COMPL_STREAM_END))
+        issued = 2 * n                       # START + STREAM_END per packet
+        delivered = len(self.sel(got, PKT_STREAM, STREAM_START)) + len(self.sel(got, PKT_COMPL, COMPL_STREAM_END))
         drops = self.sel(got, PKT_ERROR, ERR_EVENT_DROPPED)
         reported = sum(p.data & 0xFFFF for p in drops)
         if not drops:
@@ -427,14 +499,14 @@ class AxisMonitorLiteTB(TBBase):
         """clear while idle: every counter to zero, nothing emitted, busy low."""
         d = self.dut
         await self.settle(10)
-        if int(d.busy.value) != 0:
+        if not self.via_skid and int(d.busy.value) != 0:
             self._fail("clear: busy high while idle before clear")
         self.take()
-        d.clear.value = 1
+        self.set_clear(1)
         await RisingEdge(d.aclk)
-        d.clear.value = 0
+        self.set_clear(0)
         await self.settle(10)
-        for name in ('packet_count', 'error_count', 'dropped_count', 'busy', 'in_packet'):
+        for name in ('packet_count', 'error_count', 'dropped_count', 'in_packet') + (() if self.via_skid else ('busy',)):
             if int(getattr(d, name).value) != 0:
                 self._fail(f"clear: {name} = {int(getattr(d, name).value)} after clear")
         if self.take():
@@ -447,18 +519,46 @@ class AxisMonitorLiteTB(TBBase):
             self._fail("clear: the monitor did not resume cleanly after clear")
         self.log.info("phase clear: counters zero, nothing emitted, monitor live afterwards")
 
+    async def phase_gating(self):
+        """_cg wrappers: idle gates the clock; a packet wakes it, completes and is reported exactly; idle gates again."""
+        if not self.has_cg:
+            return
+        d = self.dut
+        d.cfg_cg_idle_count.value = 4
+        d.cfg_cg_enable.value = 1
+        await self.settle(40)
+        if int(d.cg_gating.value) != 1:
+            self._fail("gating: clock not gated after 40 idle cycles with idle_count=4")
+        self.take()
+        await self.send(4, tid=2 & self.id_mask)
+        await self.settle(5)
+        got_mid = list(self.mon.received_packets)
+        await self.settle(60)
+        got = self.take()
+        if len(self.sel(got, PKT_COMPL, COMPL_STREAM_END)) != 1 or len(self.sel(got, PKT_STREAM, STREAM_START)) != 1:
+            self._fail(f"gating: a packet through the gated wrapper produced {[(p.pkt_type, p.event_code) for p in got]}, expected one START and one STREAM_END")
+        if int(d.cg_gating.value) != 1:
+            self._fail("gating: clock not re-gated after the packet drained")
+        if int(d.packet_count.value) < 1:
+            self._fail("gating: packet_count did not advance through the gated clock")
+        d.cfg_cg_enable.value = 0
+        await self.settle(10)
+        if int(d.cg_gating.value) != 0:
+            self._fail("gating: cg_gating still high with cfg_cg_enable=0")
+        self.log.info(f"gating: gated when idle, woke for a 4-beat packet ({len(got_mid)} packet(s) out before settle), reported it exactly, re-gated")
+
     async def phase_after(self):
         await self.settle(50)
         stray = self.take()
         if stray:
             self._fail(f"after: {len(stray)} stray packet(s) {[(p.pkt_type, p.event_code) for p in stray[:4]]}")
-        if int(self.dut.busy.value) != 0:
+        if not self.via_skid and int(self.dut.busy.value) != 0:
             self._fail("after: busy still high with the stream idle and the monbus empty")
 
     async def run_suite(self):
         for phase in (self.phase_packets, self.phase_channel, self.phase_pause, self.phase_stall,
                       self.phase_gap_timeout, self.phase_strb, self.phase_valid_drop, self.phase_mask,
-                      self.phase_drop, self.phase_clear, self.phase_after):
+                      self.phase_drop, self.phase_clear, self.phase_gating, self.phase_after):
             self.mark_progress(phase.__name__)
             await phase()
         if self.errors:

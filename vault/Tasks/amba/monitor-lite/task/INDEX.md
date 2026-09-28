@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 2 | accepted, not started |
-| [active/](active/) | 2 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [active/](active/) | 1 | in progress right now |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -25,5 +25,8 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-003** — axis_monitor_lite: a stream monitor core in the lite discipline (there has never been an AXIS monitor), plus the axis4/axis5 master/slave monlite wrappers -- core DONE 2026-09-27 (12/12 FULL, mutation-checked); wrappers next
 - **TASK-001** — monitor-lite -- three quarters of the AXI monitor for a fifth of the gates (built and measured 2026-09-25: 677 vs 3,249 LUTs)
+
+## Closed
+
+- **TASK-003** — axis_monitor_lite core + the eight axis4/axis5 monlite wrappers -- CLOSED 2026-09-27

@@ -196,13 +196,14 @@ gaxi_fifo_sync #(.REGISTERED(0), .DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 | `axis_monitor_lite.sv` (`rtl/amba/monitor/`) | Stream monitor in the lite discipline: packets, stalls, bubbles, TID/TDEST changes as Stream/Credit/Channel/Error/Timeout/Completion monbus packets. A TAP -- drives nothing | DATA_WIDTH, ID_WIDTH, DEST_WIDTH, OUT_DEPTH | `docs/markdown/rtl-amba/monitor/axis_monitor_lite.md` |
 | `axis_bus_meter.sv` | Stream throughput / backpressure counters (the perf path; no packets) | DATA_WIDTH, NUM_CHANNELS | `docs/markdown/rtl-amba/shared/axis_bus_meter.md` |
 
+| `axis{4,5}_{master,slave}_monlite[_cg].sv` (`rtl/amba/axis4/`, `axis5/`) | The stream endpoints with `axis_monitor_lite` tapping the external port (`m_axis_*` on a master, `s_axis_*` on a slave); `_cg` = behind one `amba_clock_gate_ctrl` | the endpoint's params + UNIT_ID, AGENT_ID, OUT_DEPTH, ACLK_MHZ | `docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md` (Table 2) |
+
 > Until 2026-09-27 there was no AXIS monbus monitor at all: `axis4_master.sv`
 > and `axis4_slave.sv` are skid-buffered stream endpoints (`AXIS_DATA_WIDTH`,
 > `AXIS_ID_WIDTH`, `AXIS_DEST_WIDTH`) with zero monbus ports, and this table
-> called them "AXIS transmit/receive monitoring" for months. `axis_monitor_lite`
-> is the core (amba/monitor-lite TASK-003); the `axis4/axis5 master/slave
-> _monlite` wrappers that pair it with those endpoints are the next step of
-> that task and do NOT exist yet -- check `ls rtl/amba/axis4/` before naming one.
+> called them "AXIS transmit/receive monitoring" for months. There is NO
+> `axis*_mon` (full-monitor) variant and there never will be: the AXIS family
+> went straight to the lite (amba/monitor-lite TASK-003).
 
 ### AXI4-Lite Monitors
 

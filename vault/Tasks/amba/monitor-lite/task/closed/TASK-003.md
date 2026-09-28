@@ -1,7 +1,7 @@
 # TASK-003: axis_monitor_lite -- a stream monitor core in the lite discipline, and the AXIS monlite wrappers
 
 **Priority:** P2
-**Status:** ACTIVE 2026-09-27 -- CORE DONE (rtl/amba/monitor/axis_monitor_lite.sv, lint clean at -Wall, 12/12 at FULL from clean, two mutations caught); wrappers NEXT (Sean: "please create the new monitor lite core")
+**Status:** CLOSED 2026-09-27 -- core validated on its own (formal + yosys), eight axis4/axis5 wrappers built and tested; the observer's adoption of the core is misc TASK-003
 **Owner:** tooling/monitor-lite session (Claude)
 
 ## Why
@@ -40,11 +40,11 @@ observer's board-validated tap so the observer can move onto this core later
 | Completion | AXIS_COMPL_STREAM_END | the TLAST beat | {tid, tdest, beats} |
 | Credit | AXIS_CREDIT_BACKPRESSURE | stall of cfg_stall_threshold cycles; once per stall | {stall_cycles, cfg} |
 | Channel | AXIS_CHAN_ID_CHANGE / DEST_CHANGE | TID/TDEST differs from the previous beat inside a packet | {old, new, beats_now} |
-| Stream | AXIS_STREAM_START / PAUSE / RESUME | first beat of a 2+ beat packet (a one-beat packet's START is implied by its STREAM_END); TVALID low inside a packet; TVALID back | {tid, tdest, packets} / {beats, packets} |
+| Stream | AXIS_STREAM_START / PAUSE / RESUME | first beat of a packet; TVALID low inside a packet; TVALID back | {tid, tdest, packets} / {beats, packets} |
 
 Priority when several fire in one cycle: Error > Timeout > Completion >
-Credit > Channel > Stream; the losers and anything the queue cannot take are
-dropped and COUNTED, reported as Error/EVENT_DROPPED -- into an EMPTY queue
+Credit > Channel > Stream; TWO events are queued per cycle (see below), the
+rest and anything the queue cannot take are dropped and COUNTED, reported as Error/EVENT_DROPPED -- into an EMPTY queue
 only (stricter than the lite: a report must never take the slot a live event
 needs while the bus is congested; the first exact-packet run showed reports
 filling the queue). No Threshold class: the package has no AXIS threshold enum
@@ -93,3 +93,54 @@ as a second family table plus its own core page.
   and `rtl/amba/CLAUDE.md` no longer say "there is no AXIS monbus monitor".
 - Not done: synthesis numbers; the eight wrappers and their tests; the
   observer's tap onto this core (misc lane, after the wrappers).
+
+## Validated on its own, then the wrappers (2026-09-27, later)
+
+Sean: "Validate the code on its own. Then write the axis4/5 versions."
+
+**Two events a cycle.** The wrapper runs exposed what the bare-core test had
+worked around: on a stream, events coincide -- the beat that ends a bubble is a
+RESUME and, with TLAST, a STREAM_END; the first beat after a pause may also
+change TID. The one-per-cycle pick (the observer's) dropped and counted the
+loser every time, so `dropped_count` reported ordinary traffic and the earlier
+"a one-beat packet's START is implied" rule was a symptom of it. The queue now
+takes TWO pushes a cycle (highest two of the eleven candidates by priority;
+storage becomes flops rather than LUTRAM at this depth). START is emitted on
+every packet again; the drop count means what it says. Mutation: forcing the
+second push off fails the suite.
+
+**Formal** (`formal/amba/axis_monitor_lite/`, sv2v-flattened like the AXI
+lite): BMC depth 24 over free stream/monbus/cfg inputs -- monbus hold, AXIS
+protocol and unit/agent fields on every packet, packet_count +1 on a TLAST
+handshake and unchanged otherwise, in_packet tracking the TLAST run, clear
+zeroing every counter, dropped_count only ever falling to zero, busy whenever a
+packet is queued or open -- PASS; cover depth 40 reaches all seven classes
+(Error, Timeout, Completion, Credit, Channel, Stream, EVENT_DROPPED).
+
+**Area, standalone** (yosys generic `synth` on the sv2v flat file, NAND-2
+equivalents via bin/yosys_to_nand_equiv.py, default parameters): the AXIS core
+is ~45 k NAND2 / 539 flops against the AXI lite's ~91 k / 1,209 in the same
+flow -- half the AXI lite. Before the second push it was ~32 k; the second
+write port and its muxes are the difference. No Vivado numbers (no fixture
+build was asked for).
+
+**The eight wrappers** `axis{4,5}_{master,slave}_monlite[_cg]` (+ filelists),
+emitted by a scratch generator that reads each endpoint's own header and passes
+every parameter and port through by name; tap on the EXTERNAL port (m_axis_*
+on a master, s_axis_* on a slave); `_cg` = the family's own gating logic
+verbatim (AXIS4 user_valid/axi_valid, AXIS5 registered wakeup incl. twakeup)
+plus the monitor's activity, upstream READY and monbus_valid masked by
+!cg_gating. Verilator -Wall clean, all eight.
+
+**Tests**: the core's exact-packet TB drives every wrapper end to end (env
+names the BFM prefixes, the tap side and the skid depth). Two things the
+topology taught: through a wrapper a phase must wait for the endpoint's skid to
+drain before judging, or its events land in the next phase; and on a SLAVE
+wrapper the tap is upstream of the skid, so a single beat never stalls there --
+the stall phase fills the skid first, and a mid-packet stall then also (rightly)
+reports one PACKET timeout. Core 12 + 8 x 9 = 84 cells, 84/84 at FULL from
+clean. The TVALID-drop phase is skipped through a wrapper (a skid's output is
+always compliant); the `_cg` wrappers add a gating phase.
+
+**Handed on**: misc TASK-003 -- the observer instantiates the core. Not done:
+Vivado numbers, board run.

@@ -25,7 +25,7 @@
 **Module:** `axis_monitor_lite.sv`
 **Location:** `rtl/amba/monitor/axis_monitor_lite.sv`
 **Category:** Monitor Infrastructure
-**Status:** Core built and verified in simulation (amba/monitor-lite TASK-003, 2026-09-27). Not yet synthesized; no wrapper instantiates it yet.
+**Status:** Built, formally checked and verified in simulation, with the eight `axis{4,5}_{master,slave}_monlite[_cg]` wrappers (amba/monitor-lite TASK-003, closed 2026-09-27). Standalone area from yosys only; no Vivado fixture build yet.
 
 ---
 
@@ -53,8 +53,8 @@ tally and host tooling see one more producer and nothing new.
 The event set and payload layouts are the observer's tap, lifted unchanged so
 that the observer can later instantiate this core instead of carrying its own
 copy. What the block adds over the tap is the lite's delivery contract: a
-4-deep unreset output queue instead of a one-packet hold register,
-drop-and-count with the count reported as `Error/EVENT_DROPPED`, the
+4-deep output queue that takes two events a cycle instead of a one-packet hold
+register, drop-and-count with the count reported as `Error/EVENT_DROPPED`, the
 frequency-invariant microsecond tick for the timeouts, the lite's cfg pin set,
 and `clear`.
 
@@ -91,7 +91,8 @@ counted.
 ### Events
 
 Priority when several fire in one cycle: Error > Timeout > Completion > Credit
-> Channel > Stream. The losers are counted, never silently discarded.
+> Channel > Stream. The two highest go into the queue; anything beyond that,
+and anything offered to a full queue, is counted, never silently discarded.
 
 | Class / code | Fires when | `event_data[63:0]` |
 |---|---|---|
@@ -102,20 +103,24 @@ Priority when several fire in one cycle: Error > Timeout > Completion > Credit
 | Completion / `STREAM_END` | the TLAST beat | `{tid[15:0], tdest[15:0], beats[31:0]}` |
 | Credit / `BACKPRESSURE` | a stall of `cfg_stall_threshold` cycles; once per stall | `{stall_cycles[31:0], cfg_stall_threshold[31:0]}` |
 | Channel / `ID_CHANGE`, `DEST_CHANGE` | TID or TDEST differs from the previous accepted beat inside a packet | `{old[15:0], new[15:0], beats_now[31:0]}` |
-| Stream / `START` | the first beat of a packet of two or more beats | `{tid[15:0], tdest[15:0], packets[31:0]}` |
+| Stream / `START` | the first beat of a packet | `{tid[15:0], tdest[15:0], packets[31:0]}` |
 | Stream / `PAUSE`, `RESUME` | TVALID low inside a packet, and back again | `{beats[31:0], packets[31:0]}` |
 | Error / `EVENT_DROPPED` | the drop count, when the queue has drained and nothing else wants it | `dropped_count` |
 
 `channel_id` carries the beat's TID on every packet.
 
-Two rules differ from the observer's tap, both learned from the first run of
-the exact-packet test:
+Two rules differ from the observer's tap, both learned from the exact-packet
+tests:
 
-- **A one-beat packet reports `STREAM_END` only.** START and END would fire
-  in the same cycle, the pick takes one event a cycle, and START would lose
-  every time and be reported as a drop. Its start is implied by a
-  `STREAM_END` whose beat count is 1.
-- **The drop report goes only into an empty queue.** The lite's rule is
+- **Two events a cycle.** On a stream, events coincide: the beat that ends a
+  bubble is a RESUME and, if it carries TLAST, a STREAM_END; the first beat
+  after a pause may also change TID; a one-beat packet is a START and an END
+  in the same cycle. The observer's one-per-cycle pick dropped and counted the
+  loser every time, so its drop count reported ordinary traffic. Here the two
+  highest-priority candidates are both queued (a second write port; the queue
+  is flops rather than LUTRAM at this depth), and the drop count means what it
+  says. Forcing the second push off fails the suite.
+- **The drop report goes only into an empty queue.** The AXI lite's rule is
   "when the queue has room". Here a report pushed into a queue that is merely
   not full takes the slot the next live event needs while the bus is
   congested, which is exactly when drops happen, and each idle cycle adds
@@ -179,34 +184,54 @@ the counters instead.
   32-bit beat count, one shared microsecond counter, two stamps. The pick is
   shallow enough not to need the lite's registered event stage.
 - **Unreset queue storage**, as on `axi_monitor_lite`: pointers reset, the
-  array does not, so it infers distributed RAM or bare flops.
+  array does not. With two write ports it is flops, not LUTRAM; `OUT_DEPTH`
+  is the knob if that matters somewhere.
+- **Standalone area** (yosys generic `synth` on the sv2v-flattened core,
+  NAND-2 equivalents from `bin/yosys_to_nand_equiv.py`, default parameters):
+  about 45 k NAND2 and 539 flops, against the AXI lite's 91 k and 1,209 in the
+  same flow. The second queue push accounts for roughly 13 k of that; the
+  one-push version measured 32 k. No Vivado numbers yet.
 
 ## Related Modules
 
 - `axi_monitor_lite` -- the AXI transaction monitor whose delivery contract this block shares
 - `axis4_intf_observer` (projects/components/misc) -- the tap this block's event set comes from; a candidate to instantiate this core
+- `axis{4,5}_{master,slave}_monlite` and `_monlite_cg` -- the eight wrappers that tap this core onto the stream endpoints ([axi_monitor_lite_wrappers](axi_monitor_lite_wrappers.md), Table 2)
 - `axis_bus_meter` -- stream throughput and backpressure counters, the perf path (this block emits no perf packets)
 - `monitor_common_pkg`, `monitor_amba4_pkg` -- packet format and the AXIS event codes
 
 ## Testing
 
-`val/amba/monitor-lite/test_axis_monitor_lite.py` drives the fixture
-`tb_axis_monitor_lite.sv` (the core tapping a stream between the framework
-AXIS master and slave BFMs) through `AxisMonitorLiteTB`. Each phase asserts
-the class, code and payload of every packet and that nothing else came out:
-packets of 1 to 16 beats (START only for 2+, STREAM_END payload exact),
-TID/TDEST change under a packet, source bubbles (PAUSE/RESUME per gap), a
-300-cycle held tready (one BACKPRESSURE at 50 cycles, one HANDSHAKE timeout
-at 2 us, then the completion), a 300-cycle gap inside a packet (one PACKET
-timeout, no HANDSHAKE), a zero-strobe beat armed and unarmed, TVALID withdrawn
-(pin-driven, the one protocol violation a BFM cannot produce), the type mask, a
-held monbus (delivered + reported dropped == issued), and `clear`.
+**Formal** (`formal/amba/axis_monitor_lite/`, sv2v-flattened like the AXI
+lite, `make prove cover`): BMC to depth 24 over free stream, monbus and cfg
+inputs. Asserted: a presented packet holds until taken; every packet carries
+the AXIS protocol code and this unit/agent; `packet_count` moves by exactly one
+on a TLAST handshake and not otherwise; `in_packet` follows the TLAST run;
+`clear` zeroes every counter; `dropped_count` only ever falls to zero (a report
+or a clear); `busy` whenever a packet is queued or open. Cover to depth 40
+reaches all seven packet classes the block emits, EVENT_DROPPED included.
 
-Cells: GATE 1, FUNC 6, FULL 12 (data widths 32/64/512, TID 2/4/8 bits, TDEST
-1/2/4 bits, at gate/func/full depth). 12/12 at FULL from a clean build,
-2026-09-27. Two mutations of the RTL (credit firing every stall cycle; the
-change detector comparing against the packet's first beat) were caught by the
-stall and channel phases respectively.
+**Simulation.** `val/amba/monitor-lite/test_axis_monitor_lite.py` drives the
+fixture `tb_axis_monitor_lite.sv` (the core tapping a stream between the
+framework AXIS master and slave BFMs) through `AxisMonitorLiteTB`. Each phase
+asserts the class, code and payload of every packet and that nothing else came
+out: packets of 1 to 16 beats (START and STREAM_END on every one), TID/TDEST
+change under a packet, source bubbles (PAUSE/RESUME per gap), a 300-cycle held
+tready (one BACKPRESSURE at 50 cycles, one HANDSHAKE timeout at 2 us, then the
+completion), a 300-cycle gap inside a packet (one PACKET timeout, no
+HANDSHAKE), a zero-strobe beat armed and unarmed, TVALID withdrawn (pin-driven,
+the one protocol violation a BFM cannot produce), the type mask, a held monbus
+(delivered + reported dropped == issued), and `clear`. The same class drives
+the eight wrappers end to end (see the wrappers page): through an endpoint a
+phase waits for the skid to drain before judging, and on a slave wrapper the
+stall phase fills the skid first, since a single beat never stalls an upstream
+tap.
+
+Cells: core GATE 1 / FUNC 6 / FULL 12; wrappers 9 each at FULL. 84/84 at FULL
+from a clean build, 2026-09-27. Three mutations of the RTL were caught: the
+credit firing every stall cycle (stall phase), the change detector comparing
+against the packet's first beat (channel phase), and the second queue push
+disabled (packets phase, START lost on one-beat packets).
 
 ## Navigation
 
