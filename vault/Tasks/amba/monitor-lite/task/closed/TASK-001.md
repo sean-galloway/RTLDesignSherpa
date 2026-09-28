@@ -1,5 +1,5 @@
 # TASK-001: monitor-lite -- three quarters of the AXI monitor for a fifth of the gates
-**Status:** active (2026-09-25) -- built the same day the review was filed (Sean: "create a monitor-lite area please, follow all of your recommendations").
+**Status:** CLOSED 2026-09-28 -- every item landed (core, 16 + 16 wrappers, bridge/STREAM/RAPIDS/observers swapped, three system builds measured, board-validated); nothing was left open but the state. Was: active (2026-09-25) -- built the same day the review was filed (Sean: "create a monitor-lite area please, follow all of your recommendations").
 **Was:** open 2026-09-25 (Sean: "review `rtl/amba/monitor` with the eye of
 making a new version of some or all to get 75% of the functionality with ~20%
 of the gates; the solution space runs from a simpler `axi_monitor_trans_mgr`
@@ -494,3 +494,7 @@ none of -- unused anywhere, now refused at elaboration.
 
 Every line of the definition of done is met. Closing this task is the owner's
 call; it is the lane's anchor and still the place later sections land.
+
+## Closure (2026-09-28)
+
+Sean: "Please close out all you can." The file carried no open checkbox: the core (2026-09-25), the 16 `_monlite` and 16 `_monlite_cg` wrappers, the bridge/STREAM/RAPIDS/observer swaps, the address-range option, the three Genesys2 system measurements and the board validation are all recorded above and in the module page. The stream family followed as TASK-003 (closed 2026-09-27). Remaining lite-related work is its own item: TASK-002 (the inherited monitor suites through the lite) and amba ISSUE-001 (the group's CARRY4 chain, not the lite's).

@@ -1,7 +1,7 @@
 # TASK-037: Lighten the gate-heavy monitor modules
 
 > Migrated 2026-09-27 from `vault/Tasks/amba/open.md` as **TASK-072** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
-**Status:** open 2026-08-31 (Sean)
+**Status:** CLOSED 2026-09-28 -- superseded by monitor-lite (amba/monitor-lite TASK-001, 2026-09-25..27). Was: open 2026-08-31 (Sean)
 **Priority:** P2
 **Owner:** TBD
 
@@ -187,3 +187,29 @@ rejected with a reason in this entry. A re-synthesised `build-mon` number,
 since that is the case that made this visible.
 
 ---
+
+## Closure (2026-09-28): answered by a different module, not by lightening this one
+
+This task asked to take registers and cone width out of the full monitor
+family because `build-mon` on Genesys2 missed setup by 1.7 ns. Item 1 (the
+bank-local pre-reduction) landed and, measured, moved nothing; items 2-4 were
+never started. What happened instead: `axi_monitor_lite` (2026-09-25) keeps
+three quarters of the monitor's function at a fifth of the gates -- 677 vs
+3,249 LUTs per read monitor in the same bridge fixture -- and by 2026-09-27
+every shipped consumer is on it: the bridge generator on every monitored
+port, STREAM's in-core monitors, RAPIDS' descriptor monitor, both AXI
+observers, and now the stream endpoints through `axis_monitor_lite`. On the
+case that made this task visible, Genesys2 stream `build-perf` at 100 MHz
+with monitors on, the full family does not close (-6.061 ns) and the lite does
+(+1.312 ns), at 52,851 fewer LUTs (measured 2026-09-26; table in the lite's
+memory of the system-level cost and in
+`docs/markdown/rtl-amba/monitor/axi_monitor_lite.md`).
+
+So items 2-4 are REJECTED with a reason, which is what the definition of done
+asked for: the full family's weight no longer costs anything in a shipped
+build, and thinning `bus_transaction_t` across every producer for a module
+nothing instantiates on a board is risk without a consumer. The full family
+stays as the reference implementation and the test oracle for the lite
+(monitor-lite TASK-002 is the item that runs its suites through the lite).
+If a build ever needs the full monitor's perf window or debug packets AND
+misses timing, reopen against that build.

@@ -3,9 +3,7 @@
 > Migrated 2026-09-27 from `vault/Tasks/amba/active.md` as **TASK-025** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 
 **Priority:** Medium
-**Status:** [~] In progress (2026-07-18) — infrastructure fixed, **all 12 pass**;
-the real RTL bug the proofs surfaced (active_count underflow) is FIXED and
-functionally re-validated; some extensions + a val/amba path sweep still pending.
+**Status:** CLOSED 2026-09-28 -- all 12 monitor proofs pass (last runs 2026-09-27/28), the four pending boxes are each done or rejected with a reason below. Was: in progress since 2026-07-18.
 
 **Context:** The monitor modules moved from `rtl/amba/shared/` (and the per-protocol
 dirs) to **`rtl/amba/monitor/`**, and the monitor RTL gained new logic since the
@@ -49,15 +47,35 @@ CAM pipelining). The `formal/amba/*` Makefiles + `.sby` files were path-updated 
       **no** monitor sources, and all 31 monitor modules live in
       `rtl/amba/monitor/`. Checked by resolving each test's own `rtl_dict` keys
       and testing the joined path for existence, not by grepping one line.
-- [ ] Extend the proofs to cover the new perfmon window state machine + the four
-      utilization / beat-byte-burst counters (`axi_monitor_base`). *(pending)*
-- [ ] Add a `cam_clear` synchronous-clear property to the trans-CAM proofs. *(pending)*
-- [ ] Confirm the `ENABLE_*_LOGIC=0` cone-drop configurations still prove (or are
-      excluded intentionally). *(pending)*
-- [ ] `axi_monitor_timer` has a `formal/amba/` dir but **no Makefile/harness** — it
-      was never set up. Decide whether to author one (net-new proof) or drop it from
-      the list.
+- [x] Perfmon window proofs -- REJECTED with a reason: the perf window is the one
+      cone no shipped build carries (the lite has no perf cone by design; STREAM and
+      RAPIDS measure with axi_bus_meter), and the full monitor is now the reference
+      implementation and test oracle rather than a product. A proof over a cone
+      nothing instantiates is effort without a consumer. Reopen against a build
+      that ships it.
+- [x] Add a `cam_clear` synchronous-clear property to the trans-CAM proofs. DONE (it was already there: `ap_clear_zeroes_count` in formal_axi_monitor_trans_mgr.sv, driven from an anyseq `cam_clear`; the box was stale).
+- [x] `ENABLE_*_LOGIC=0` cone-drop configurations -- PARTLY, deliberately: the base
+      harness proves the shipped shape (`ENABLE_PERF=0`, `ENABLE_DEBUG=0`, i.e. the
+      perf and debug cones dropped, error/timeout/compl/threshold built). The
+      error/timeout/compl/threshold-off variants are not proven and are excluded
+      intentionally: no consumer builds them off, and since 2026-09-26 no shipped
+      build instantiates the full monitor at all (every consumer is on
+      axi_monitor_lite, which has its own harness, PASS).
+- [x] `axi_monitor_timer` harness -- DONE (stale box): `formal/amba/axi_monitor_timer/`
+      has its Makefile, .sby and `formal_axi_monitor_timer.sv`; prove and cover PASS,
+      last run 2026-09-27.
 - [x] Update any formal filelist/`.sby` that still assumes the old `shared/` layout —
       all Makefiles regenerated against `rtl/amba/monitor/`; all 12 flatten cleanly.
 
 ---
+
+## Closure (2026-09-28)
+
+Measured state at closure: every monitor-related harness under `formal/amba/`
+-- axi_monitor_base, trans_mgr, filtered, reporter, timeout, timer, addr_check,
+apb4_monitor, apb5_monitor, axi_monitor_lite, axis_monitor_lite -- reports
+prove PASS and cover PASS from runs on 2026-09-27/28. `monitor_trans_cam`,
+`monbus_arbiter` and `apb_monitor_addr_check` have no harness of their own; the
+CAM is proven through trans_mgr's harness, the other two were never in this
+task's list of twelve. The one real find of this task (the `active_count`
+underflow) is fixed and recorded in `rtl/amba/KNOWN_ISSUES/`.

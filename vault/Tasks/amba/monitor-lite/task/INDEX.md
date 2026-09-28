@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 2 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -25,8 +25,8 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-001** — monitor-lite -- three quarters of the AXI monitor for a fifth of the gates (built and measured 2026-09-25: 677 vs 3,249 LUTs)
 
 ## Closed
 
+- **TASK-001** — monitor-lite: three quarters of the AXI monitor for a fifth of the gates -- CLOSED 2026-09-28: everything landed by 2026-09-27; only the state was stale
 - **TASK-003** — axis_monitor_lite core + the eight axis4/axis5 monlite wrappers -- CLOSED 2026-09-27

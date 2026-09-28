@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 5 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 34 | done (kept for history) |
+| [open/](open/) | 4 | accepted, not started |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 36 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -23,15 +23,15 @@ by construction rather than by discipline.
 - **TASK-034** — Performance Characterization
 - **TASK-035** — Make APB Crossbar Variants Functional
 - **TASK-036** — Write Monitor System Whitepaper
-- **TASK-037** — Lighten the gate-heavy monitor modules
 - **TASK-000** — reserved template; copy the file, do not file against it.
 
 ## Active
 
-- **TASK-039** — Update formal proofs for the monitor logic
 
 ## Closed
 
+- **TASK-039** — Update formal proofs for the monitor logic -- CLOSED 2026-09-28: all 12 pass (2026-09-27/28); timer harness and cam_clear property existed, cone-off variants excluded on purpose, perfmon proofs rejected (no shipped build carries the cone)
+- **TASK-037** — Lighten the gate-heavy monitor modules -- CLOSED 2026-09-28: superseded by monitor-lite (every shipped consumer is on the lite; full family kept as reference and test oracle)
 - **TASK-038** — scrub the tests for completeness (amba)
 - **TASK-001** — Validate axi_monitor Base Functionality
 - **TASK-002** — Integrate axi_monitor in AXI4 Master Read
