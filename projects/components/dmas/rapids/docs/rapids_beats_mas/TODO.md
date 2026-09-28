@@ -285,6 +285,17 @@ assets/wavedrom/
 | 2.7.2 | ch02_fub_blocks/07_beats_latency_bridge.md | DONE 2026-09-27 (`assets/wavedrom/latency_bridge_beats_streaming.png`) | test_latency_bridge_beats.py |
 | 3.3.3 | ch03_macro_blocks/03_sink_data_path.md | DONE 2026-09-27 (`assets/wavedrom/snk_data_path_fill_alloc.png`, `_axi_write_aw.png`, `_axi_write_b.png`) | test_rapids_core_beats.py |
 | 3.4.3 | ch03_macro_blocks/04_sink_data_path_axis.md | DONE 2026-09-27 (`assets/wavedrom/snk_data_path_axis_ingress.png`) | test_rapids_core_beats.py |
+| 2.9.3 | ch02_fub_blocks/09_ctrlwr_engine.md | DONE 2026-09-27 (`assets/wavedrom/ctrlwr_engine_doorbell.png`) | test_ctrlwr_engine.py |
+| 3.5.2 | ch03_macro_blocks/05_snk_sram_controller.md | DONE 2026-09-27 (`assets/wavedrom/snk_sram_controller_drain_select.png`) | test_snk_sram_controller_beats.py |
+| 3.6.3 | ch03_macro_blocks/06_source_data_path.md | DONE 2026-09-27 (`assets/wavedrom/src_data_path_transfer.png`) | test_rapids_core_beats.py |
+| 3.7.3 | ch03_macro_blocks/07_source_data_path_axis.md | DONE 2026-09-27 (`assets/wavedrom/src_data_path_axis_egress.png`) | test_rapids_core_beats.py |
+| 3.8.2 | ch03_macro_blocks/08_src_sram_controller.md | DONE 2026-09-27 (`assets/wavedrom/src_sram_controller_drain_select.png`) | test_src_sram_controller_beats.py |
+| 4.1.1 | ch04_interfaces/01_axi4_interface_spec.md | DONE 2026-09-27 (`assets/wavedrom/axi4_descriptor_fetch.png`) | test_rapids_core_beats.py |
+| 4.1.2 | ch04_interfaces/01_axi4_interface_spec.md | DONE 2026-09-27 (`assets/wavedrom/axi4_sink_write_burst.png`) | test_rapids_core_beats.py |
+| 4.1.3 | ch04_interfaces/01_axi4_interface_spec.md | DONE 2026-09-27 (`assets/wavedrom/axi4_source_read_burst.png`) | test_rapids_core_beats.py |
+| 4.2.1 | ch04_interfaces/02_axis_interface_spec.md | DONE 2026-09-27 (`assets/wavedrom/axis_sink_slave.png`) | test_rapids_core_beats.py |
+| 4.2.2 | ch04_interfaces/02_axis_interface_spec.md | DONE 2026-09-27 (`assets/wavedrom/axis_source_master.png`) | test_rapids_core_beats.py |
+| 4.3.1 | ch04_interfaces/03_monbus_interface_spec.md | DONE 2026-09-27 (`assets/wavedrom/monbus_group_packet_transfer.png`) | test_monbus_axil_group.py |
 
 : Waveform Progress Tracking
 

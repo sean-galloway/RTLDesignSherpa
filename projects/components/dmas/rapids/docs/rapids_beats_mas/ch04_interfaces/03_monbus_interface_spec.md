@@ -56,20 +56,20 @@ Standard valid/ready handshaking:
 
 ### Figure 4.3.1: MonBus Packet Transfer Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    pkt_valid      _/‾\___/‾‾‾‾‾‾‾\___/‾\___:_______:_______
-    pkt_ready      _/‾\___:_______/‾\___/‾\___:_______:_______
-    pkt_data       X|PKT1|X|==PKT2==|X|PKT3|XXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-                    ^       ^       ^       ^
-                    |       |       |       |
-                  Xfer    Wait   Xfer   Xfer
-```
+![monbus_axil_group_2in - packets from two producers through the arbiter](../assets/wavedrom/monbus_group_packet_transfer.png)
 
-**TODO:** Replace with simulation-generated waveform
+**Source:** [monbus_group_packet_transfer.json](../assets/wavedrom/monbus_group_packet_transfer.json),
+captured from `dv/tests/macro/test_monbus_axil_group.py` (`basic_flow`, error FIFO
+64 x 32, `TEST_LEVEL=full`) with `WAVES=1`. The 128-bit packets are shown as their
+top 24 bits (`[127:104]`: packet type nibble, then the protocol field at `[108:105]`,
+so `0x000002` is AXIS and `0x000008` is CORE).
+
+Reading it: a MonBus link is a single-beat valid/ready handshake with the packet
+presented alongside `valid`. The group holds `ready` high on both inputs, so the
+source and sink packets are accepted the cycle they are offered, and each one
+reappears on the arbiter output three cycles later as another one-cycle
+`valid`/`ready` pair. Between packets the links idle low; nothing is held
+across transfers.
 
 ---
 

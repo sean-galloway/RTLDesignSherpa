@@ -225,22 +225,18 @@ State summary:
 
 ### Figure 2.9.3: Control-Write Doorbell Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    ctrlwr_valid   _/‾‾‾‾‾‾‾\_______:_______:_______:_______:_______
-                    :       :       :       :       :       :
-    aw_valid       _________/‾‾‾‾‾‾‾\_______:_______:_______:_______
-                    :       :       :       :       :       :
-    w_valid        _________________/‾‾‾‾‾‾‾\_______:_______:_______
-                    :       :       :       :       :       :
-    b_valid        _________________________/‾\_____:_______:_______
-                    :       :       :       :       :       :
-    ctrlwr_engine_idle‾‾‾‾‾‾\_______________________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-```
+![ctrlwr_engine - one doorbell write](../assets/wavedrom/ctrlwr_engine_doorbell.png)
 
-**TODO:** Replace with simulation-generated waveform
+**Source:** [ctrlwr_engine_doorbell.json](../assets/wavedrom/ctrlwr_engine_doorbell.json),
+captured from `dv/tests/fub/test_ctrlwr_engine.py` (`basic_write`, channel 0, 64-bit
+address, `REG_LEVEL=GATE`) with `WAVES=1`; the AXI side is the framework write slave.
+
+Reading it: the request handshakes in one cycle (`ctrlwr_ready` is held high by the
+skid buffer) with the doorbell address 0x1000 and data 0x12345678, and the engine
+leaves idle the next cycle. AW goes out two cycles after the request, W two cycles
+after AW, and the slave answers B (OKAY) two cycles after W; `ctrlwr_engine_idle`
+returns the cycle after the B handshake, eight cycles after the request. Nothing is
+pipelined across doorbells: the engine takes one request at a time.
 
 ### Request Handshake and Skid Buffer
 

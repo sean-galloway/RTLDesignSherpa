@@ -1,0 +1,74 @@
+{
+ "head": {
+  "text": "rapids_core_beats - AXIS source master timing",
+  "tock": 1
+ },
+ "signal": [
+  {
+   "name": "clk",
+   "wave": "ppppppppppppppppppp",
+   "period": 1
+  },
+  {},
+  [
+   "AXIS",
+   {
+    "name": "m_axis_tvalid",
+    "wave": "0.1................",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axis_tready",
+    "wave": "0..10......10..10.1",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "m_axis_tdata[511:0]",
+    "wave": "==..=.......=...=..",
+    "data": [
+     "0x0000",
+     "0x0000",
+     "0x0001",
+     "0x0002",
+     "0x0003"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "m_axis_tstrb[63:0]",
+    "wave": "=..................",
+    "data": [
+     "0xffff"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "m_axis_tid[7:0]",
+    "wave": "=..................",
+    "data": [
+     "0"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "m_axis_tdest[3:0]",
+    "wave": "=..................",
+    "data": [
+     "0"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "m_axis_tlast",
+    "wave": "0.1................",
+    "data": [],
+    "phase": 0
+   }
+  ]
+ ],
+ "config": {
+  "hscale": 1
+ }
+}

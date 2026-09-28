@@ -1,0 +1,86 @@
+{
+ "head": {
+  "text": "rapids_core_beats - AXIS sink slave timing, 4-beat packet",
+  "tock": 1
+ },
+ "signal": [
+  {
+   "name": "clk",
+   "wave": "pppppppppppppp",
+   "period": 1
+  },
+  {},
+  [
+   "AXIS",
+   {
+    "name": "s_axis_tvalid",
+    "wave": "0..10.10.10.10",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "s_axis_tready",
+    "wave": "0..1..........",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "s_axis_tdata[511:0]",
+    "wave": "=..==.==.==.==",
+    "data": [
+     "0x0000",
+     "0x0000",
+     "0x0000",
+     "0x0001",
+     "0x0000",
+     "0x0002",
+     "0x0000",
+     "0x0003",
+     "0x0000"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "s_axis_tstrb[63:0]",
+    "wave": "=..==.==.==.==",
+    "data": [
+     "0x0000",
+     "0xffff",
+     "0x0000",
+     "0xffff",
+     "0x0000",
+     "0xffff",
+     "0x0000",
+     "0xffff",
+     "0x0000"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "s_axis_tid[7:0]",
+    "wave": "=.............",
+    "data": [
+     "0"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "s_axis_tdest[3:0]",
+    "wave": "=.............",
+    "data": [
+     "0"
+    ],
+    "phase": 0
+   },
+   {
+    "name": "s_axis_tlast",
+    "wave": "0...........10",
+    "data": [],
+    "phase": 0
+   }
+  ]
+ ],
+ "config": {
+  "hscale": 1
+ }
+}

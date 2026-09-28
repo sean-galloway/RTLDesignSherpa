@@ -78,23 +78,16 @@ Fetches descriptor packets from system memory. Shared across all 8 channels with
 
 ### Figure 4.1.1: Descriptor Fetch Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    m_axi_arvalid  _/‾\___:_______:_______:_______:_______:_______
-    m_axi_arready  _/‾\___:_______:_______:_______:_______:_______
-    m_axi_araddr   X|DESC_ADDR|XXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-    m_axi_arid     X| CH2 |XXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-    m_axi_rvalid   _______:_/‾\___:_______:_______:_______:_______
-    m_axi_rready   _______:_/‾\___:_______:_______:_______:_______
-    m_axi_rdata    X:XXXXXXX|=DESCRIPTOR=|XXX:XXXXXXX:XXXXXXX
-    m_axi_rid      X:XXXXXXX| CH2 |XXX:XXXXXXX:XXXXXXX:XXXXXXX
-    m_axi_rlast    _______:_/‾\___:_______:_______:_______:_______
-```
+![rapids_core_beats - descriptor fetch on src_m_axi_desc_*](../assets/wavedrom/axi4_descriptor_fetch.png)
 
-**TODO:** Replace with simulation-generated waveform
+**Source:** [axi4_descriptor_fetch.json](../assets/wavedrom/axi4_descriptor_fetch.json),
+captured from `dv/tests/top_beats/test_rapids_core_beats.py` (source path, channel 0, 4 beats, 512-bit data, `REG_LEVEL=GATE`) with `WAVES=1`.
+
+Reading it: one single-beat read (`arlen = 0`) of the 256-bit descriptor at 0x30000000
+with `arid` = channel 0. The AR handshakes when the slave raises `arready` two cycles
+after `arvalid`; the R beat returns two cycles after that with `rlast` set and `rid`
+echoing the channel. The descriptor itself is the 256-bit `rdata` (its low word,
+0x10000000, is the source address).
 
 ---
 
@@ -144,26 +137,16 @@ Writes sink data from SRAM to system memory. Supports burst transactions for eff
 
 ### Figure 4.1.2: Sink AXI Write Burst Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    m_axi_awvalid  _/‾\___:_______:_______:_______:_______:_______
-    m_axi_awready  _/‾\___:_______:_______:_______:_______:_______
-    m_axi_awaddr   X|ADDR |XXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-    m_axi_awlen    X| 3  |XXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-    m_axi_wvalid   _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______:_______
-    m_axi_wready   _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______:_______
-    m_axi_wdata    X|=D0=|=D1=|=D2=|=D3=|XXX:XXXXXXX:XXXXXXX
-    m_axi_wlast    _______________/‾\___:_______:_______:_______
-                    :       :       :       :       :       :
-    m_axi_bvalid   ___________________:_/‾\___:_______:_______
-    m_axi_bready   _____________________/‾\___:_______:_______
-    m_axi_bresp    X:XXXXXXX:XXXXXXX:XXXXXXX|OK |XXX:XXXXXXX
-```
+![rapids_core_beats - one 4-beat sink write burst on m_axi_wr_*](../assets/wavedrom/axi4_sink_write_burst.png)
 
-**TODO:** Replace with simulation-generated waveform
+**Source:** [axi4_sink_write_burst.json](../assets/wavedrom/axi4_sink_write_burst.json),
+captured from `dv/tests/top_beats/test_rapids_core_beats.py` (sink path, channel 0, 4 beats, 512-bit data, `REG_LEVEL=GATE`) with `WAVES=1`; the memory is the framework AXI4 write slave with its default pacing.
+
+Reading it: the AW (`awlen = 3`, address 0x20000000) had been held for the slave and
+handshakes at cycle 3; `awaddr` steps to the next burst's 0x20000100 immediately. W
+starts two cycles later and the four beats go out on the slave's `wready` pulses, the
+low word of `wdata` counting 0 to 3 and `wlast` on the fourth; `bvalid` (OKAY) comes
+one cycle after the last W handshake.
 
 ---
 
@@ -209,22 +192,16 @@ Reads source data from system memory into SRAM. Supports burst transactions for 
 
 ### Figure 4.1.3: Source AXI Read Burst Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    m_axi_arvalid  _/‾\___:_______:_______:_______:_______:_______
-    m_axi_arready  _/‾\___:_______:_______:_______:_______:_______
-    m_axi_araddr   X|ADDR |XXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-    m_axi_arlen    X| 3  |XXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-    m_axi_rvalid   ___________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______
-    m_axi_rready   ___________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______
-    m_axi_rdata    X:XXXXXXX|=D0=|=D1=|=D2=|=D3=|XXX:XXXXXXX
-    m_axi_rlast    _______________________/‾\___:_______:_______
-```
+![rapids_core_beats - one 4-beat source read burst on m_axi_rd_*](../assets/wavedrom/axi4_source_read_burst.png)
 
-**TODO:** Replace with simulation-generated waveform
+**Source:** [axi4_source_read_burst.json](../assets/wavedrom/axi4_source_read_burst.json),
+captured from `dv/tests/top_beats/test_rapids_core_beats.py` (source path, channel 0, 4 beats, 512-bit data, `REG_LEVEL=GATE`) with `WAVES=1`.
+
+Reading it: AR for four 64-byte beats (`arlen = 3`, `arsize = 6`) at 0x10000000
+handshakes at cycle 4; the four R beats follow back to back from cycle 6 with
+`rready` held high, `rresp` OKAY and `rlast` on the fourth. `araddr` and `arlen`
+return to their idle values (the next address, 0x10000100, and 0xff) once the AR is
+accepted.
 
 ---
 

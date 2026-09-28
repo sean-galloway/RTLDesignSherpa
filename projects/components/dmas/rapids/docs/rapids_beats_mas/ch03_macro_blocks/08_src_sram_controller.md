@@ -152,20 +152,16 @@ decision, and a channel keeps presenting `drain_valid` until it is empty.
 
 ### Figure 3.8.2: Drain Selection by the Consumer
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    drain_valid[0] ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_______:_______:_______
-    drain_valid[1] _______/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-    drain_valid[2] _______________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-                    :       :       :       :       :       :
-    drain_id       X| CH0  | CH0  | CH0  | CH1  | CH1  | CH2  | CH2
-    drain_read     _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-    drain_data     X| d0.0 | d0.1 | d0.2 | d1.0 | d1.1 | d2.0 | d2.1
-```
+![src_sram_controller_beats - consumer drains eight channels in turn](../assets/wavedrom/src_sram_controller_drain_select.png)
 
-**TODO:** Replace with a simulation-generated waveform from the data-path test.
+**Source:** [src_sram_controller_drain_select.json](../assets/wavedrom/src_sram_controller_drain_select.json),
+captured from `dv/tests/macro_beats/test_src_sram_controller_beats.py` (`multi_channel`,
+8 channels, 512-bit data, 512-entry SRAM, `REG_LEVEL=GATE`) with `WAVES=1`.
+
+Reading it: the same selection contract as the sink controller (Figure 3.5.2). With
+`drain_valid` = 0xff the consumer asks for one channel at a time through `drain_req`;
+`drain_id` and `drain_data` follow the request on the same cycle and `drain_read` pops
+the word. The nine-cycle turn per channel is the test's pacing, not the controller's.
 
 ---
 

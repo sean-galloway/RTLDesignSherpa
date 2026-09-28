@@ -211,28 +211,18 @@ parameter int R_PHASE_FIFO_DEPTH = 64;
 
 ### Figure 3.6.3: Source Path Transfer Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    sched_rd_valid _/‾‾‾‾‾‾‾\___:_______:_______:_______:_______
-    sched_rd_beats X| 4 |XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-    sched_rd_addr  X|ADDR|XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-    m_axi_arvalid  _______/‾\___:_______:_______:_______:_______
-    m_axi_arlen    X:XXXXX| 3 |XXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-    m_axi_rvalid   ___________/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______
-    m_axi_rdata    X:XXXXXXX|=D0=|=D1=|=D2=|=D3=|XXX:XXXXXXX
-    m_axi_rlast    _________________________/‾\___:_______:_______
-                    :       :       :       :       :       :
-    src_drain_valid ___________________:_______/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-    src_drain_data X:XXXXXXX:XXXXXXX:XXXXXXX|=D0=|=D1=|=D2=|=D3=|
-                    :       :       :       :       :       :
-    sched_rd_done  _________________________________:_______/‾\___
-```
+![src_data_path_beats - 4-beat transfer, command to done](../assets/wavedrom/src_data_path_transfer.png)
 
-**TODO:** Replace with simulation-generated waveform showing complete source transfer
+**Source:** [src_data_path_transfer.json](../assets/wavedrom/src_data_path_transfer.json),
+captured inside `rapids_core_beats.u_src.u_source_data_path`, captured from `dv/tests/top_beats/test_rapids_core_beats.py` (source path, channel 0, 4 beats, 512-bit data, `REG_LEVEL=GATE`) with `WAVES=1`.
+
+Reading it: the scheduler holds `sched_rd_valid[0]` with 4 beats at 0x10000000. The
+read engine issues the AR (`arlen = 3`) two cycles later; the four R beats land from
+cycle 8, `rlast` on the fourth, and the cycle after it the engine pulses
+`sched_rd_done_strobe[0]` with `beats_done = 4` -- the scheduler advances its address to
+0x10000100 on that strobe. The data reaches the source SRAM two cycles after the last R
+beat (`drain_valid[0]` rises) and the AXIS side drains it one word per `drain_read`
+pulse at the pace the egress consumer allows.
 
 ---
 

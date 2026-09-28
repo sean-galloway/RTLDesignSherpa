@@ -187,25 +187,21 @@ parameter int TUSER_WIDTH = 1;
 
 ### Figure 3.7.3: AXIS Egress Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    sched_rd_valid _/‾‾‾‾‾‾‾\___:_______:_______:_______:_______
-    sched_rd_id    X| CH3 |XXXXX:XXXXXXX:XXXXXXX:XXXXXXX:XXXXXXX
-                    :       :       :       :       :       :
-    (AXI read + SRAM buffering)
-                    :       :       :       :       :       :
-    m_axis_tvalid  _______________:_/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___
-    m_axis_tready  _______________:_/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-    m_axis_tdata   X:XXXXXXX:XXXXX|=D0=|=D1=|=D2=|=D3=|XXXXXXX
-    m_axis_tid     X:XXXXXXX:XXXXX| CH3| CH3| CH3| CH3|XXXXXXX
-    m_axis_tlast   _______________:_______________/‾\___:_______
-                    :       :       :       :       :       :
-    sched_rd_done  _________________________________:_/‾\___:___
-```
+![rapids_core_beats - source egress on m_axis_*, 4 beats](../assets/wavedrom/src_data_path_axis_egress.png)
 
-**TODO:** Replace with simulation-generated waveform showing AXIS packet transmission
+**Source:** [src_data_path_axis_egress.json](../assets/wavedrom/src_data_path_axis_egress.json),
+captured from `dv/tests/top_beats/test_rapids_core_beats.py` (source path, channel 0, 4 beats, 512-bit data, `REG_LEVEL=GATE`) with `WAVES=1`; the consumer is the framework AXIS slave with its default ready pacing.
+
+Reading it: `m_axis_tvalid` rises with the first word and stays high for the whole
+burst; each beat leaves on a `tready` pulse from the consumer (cycles 4, 12, 16 and 19),
+`tdata` advancing 0, 1, 2, 3 in the low bits and `tid` naming channel 0. `tlast`
+closes each drain request's packet (`cfg_drain_size` beats at most); the words
+arrived from the read engine one at a time here, so every request carried a single
+word and every beat is marked last. `src_system_idle` is already back high:
+`system_idle` is the AND of the schedulers' idle flags, and the source scheduler
+retires a descriptor on the read engine's done strobe (Figure 3.6.3), before the
+words have drained to the AXIS side. The sink half is different -- its scheduler
+waits for the write commits, so `snk_system_idle` follows the last B response.
 
 ---
 

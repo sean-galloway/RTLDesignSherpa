@@ -96,20 +96,15 @@ TLAST marks the end of an AXIS packet. This is mapped to the internal `fill_last
 
 ### Figure 4.2.1: AXIS Sink Slave Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    s_axis_tvalid  _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______:_______
-    s_axis_tready  _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______:_______
-    s_axis_tdata   X|=D0=|=D1=|=D2=|=D3=|XXX:XXXXXXX:XXXXXXX
-    s_axis_tid     X| CH2| CH2| CH2| CH2|XXX:XXXXXXX:XXXXXXX
-    s_axis_tkeep   X|0xFF|0xFF|0xFF|0x0F|XXX:XXXXXXX:XXXXXXX
-    s_axis_tlast   _______________/‾\___:_______:_______:_______
-                    :       :       :       :       :       :
-```
+![rapids_core_beats - AXIS sink slave timing, 4-beat packet](../assets/wavedrom/axis_sink_slave.png)
 
-**TODO:** Replace with simulation-generated waveform
+**Source:** [axis_sink_slave.json](../assets/wavedrom/axis_sink_slave.json), captured from `dv/tests/top_beats/test_rapids_core_beats.py` (sink path, channel 0, 4 beats, 512-bit data, `REG_LEVEL=GATE`) with `WAVES=1`;
+the producer is the framework AXIS master.
+
+Reading it: `s_axis_tready` is high from the moment the sink has space, so each beat
+is accepted the cycle it is offered; the producer's pacing leaves two idle cycles
+between beats. `tstrb` is all ones on every beat, `tid` selects channel 0 and `tlast`
+marks the fourth beat as the end of the packet.
 
 ### Backpressure
 
@@ -145,20 +140,18 @@ Transmits streaming network data from per-channel SRAM buffers with TID indicati
 
 ### Figure 4.2.2: AXIS Source Master Timing
 
-```
-              ____    ____    ____    ____    ____    ____    ____
-    clk      |    |__|    |__|    |__|    |__|    |__|    |__|    |__
-                    :       :       :       :       :       :
-    m_axis_tvalid  _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______:_______
-    m_axis_tready  _/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\___:_______:_______
-    m_axis_tdata   X|=D0=|=D1=|=D2=|=D3=|XXX:XXXXXXX:XXXXXXX
-    m_axis_tid     X| CH5| CH5| CH5| CH5|XXX:XXXXXXX:XXXXXXX
-    m_axis_tkeep   X|0xFF|0xFF|0xFF|0xFF|XXX:XXXXXXX:XXXXXXX
-    m_axis_tlast   _______________/‾\___:_______:_______:_______
-                    :       :       :       :       :       :
-```
+![rapids_core_beats - AXIS source master timing](../assets/wavedrom/axis_source_master.png)
 
-**TODO:** Replace with simulation-generated waveform
+**Source:** [axis_source_master.json](../assets/wavedrom/axis_source_master.json),
+captured from `dv/tests/top_beats/test_rapids_core_beats.py` (source path, channel 0, 4 beats, 512-bit data, `REG_LEVEL=GATE`) with `WAVES=1`; the consumer is the framework AXIS slave with its default ready pacing.
+
+Reading it: the master raises `m_axis_tvalid` and holds it, with `tdata`, `tstrb`
+(all ones), `tid` and `tdest` stable, until the consumer's `tready` pulse takes the
+beat; it then presents the next word without dropping `tvalid`. Four beats leave on
+four `tready` pulses. `tlast` is high on every beat of this capture because the
+source packetises per drain request and each request carried one word (see
+Figure 3.7.3); with `cfg_drain_size` larger than one and data queued, a packet spans
+several beats and `tlast` marks only its final one.
 
 ### Flow Control
 

@@ -1,0 +1,104 @@
+{
+ "head": {
+  "text": "monbus_axil_group_2in - packets from two producers through the arbiter",
+  "tock": 1
+ },
+ "signal": [
+  {
+   "name": "axi_aclk",
+   "wave": "pppppppppppppppppppppppppppppppp",
+   "period": 1
+  },
+  {},
+  [
+   "SOURCE IN",
+   {
+    "name": "source_monbus_valid",
+    "wave": "010.............10..............",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "source_monbus_ready",
+    "wave": "1...............................",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "source_monbus_packet[127:0]",
+    "wave": "===.............==..............",
+    "data": [
+     "0x000000",
+     "0x000002",
+     "0x000000",
+     "0x000008",
+     "0x000000"
+    ],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "SINK IN",
+   {
+    "name": "sink_monbus_valid",
+    "wave": "0......10..................10...",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "sink_monbus_ready",
+    "wave": "1...............................",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "sink_monbus_packet[127:0]",
+    "wave": "=......==..................==...",
+    "data": [
+     "0x000000",
+     "0x000002",
+     "0x000000",
+     "0x000002",
+     "0x000000"
+    ],
+    "phase": 0
+   }
+  ],
+  {},
+  [
+   "ARBITER OUT",
+   {
+    "name": "arb_monbus_valid",
+    "wave": "0...10....10.......10.........10",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "arb_monbus_ready",
+    "wave": "0...10....10.......10.........10",
+    "data": [],
+    "phase": 0
+   },
+   {
+    "name": "arb_monbus_packet[127:0]",
+    "wave": "=...==....==.......==.........==",
+    "data": [
+     "0x000000",
+     "0x000002",
+     "0x000000",
+     "0x000002",
+     "0x000000",
+     "0x000008",
+     "0x000000",
+     "0x000002",
+     "0x000000"
+    ],
+    "phase": 0
+   }
+  ]
+ ],
+ "config": {
+  "hscale": 1
+ }
+}
