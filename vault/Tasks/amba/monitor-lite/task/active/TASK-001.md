@@ -6,7 +6,7 @@ of the gates; the solution space runs from a simpler `axi_monitor_trans_mgr`
 to a new `monitor-lite` directory built for gate count and timing")
 **Priority:** P2
 **Owner:** TBD
-**Was:** the legacy amba lane's TASK-098 (filed and committed there 2026-09-25 before this sub-area existed; re-filed here the same day at Sean's request, closed there with a pointer).
+**Was:** the legacy amba lane's TASK-098, renumbered on migration to `amba TASK-028` (filed and committed there 2026-09-25 before this sub-area existed; re-filed here the same day at Sean's request, closed there with a pointer).
 **Related:** amba TASK-072 (trim the existing family; area not speed),
 amba TASK-014 (per-monitor area, never measured until now), amba TASK-083,
 amba TASK-084.

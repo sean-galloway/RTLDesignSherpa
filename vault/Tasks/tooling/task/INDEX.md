@@ -2,7 +2,7 @@
 
 # tooling — tasks
 
-**Next ID: TASK-013** — never recycle a number, even when its item closed.
+**Next ID: TASK-014** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 6 | accepted, not started |
+| [open/](open/) | 7 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 6 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
+- **TASK-013** — source comments still cite pre-migration task IDs
 - **TASK-002** — Finish validating the cloud bootstrap on a genuinely clean box
 - **TASK-003** — Two real gaps in the RDS-DV arbiter BFM
 - **TASK-004** — Project-area cleanup — apply the RTL-area pattern to projects/
