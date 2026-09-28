@@ -2,7 +2,7 @@
 
 # projects/components/dmas/rapids — bugs
 
-**Next ID: BUG-007** — never recycle a number, even when its item closed.
+**Next ID: BUG-008** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,8 +14,9 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 6 | done (kept for history) |
+| [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
+| [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
@@ -29,3 +30,4 @@ by construction rather than by discipline.
 - **BUG-004** — the read engine issues ARs against SRAM space it has already taken (closed 2026-09-27)
 - **BUG-005** — the write engine runs two AWs per channel at PIPELINE=0 (closed 2026-09-27)
 - **BUG-006** — the descriptor engine fetches any APB-kicked address, in range or not (closed 2026-09-27)
+- **BUG-007** — a kick that ends in RD_ERROR wedges the channel's APB path through channel reset (closed 2026-09-27)

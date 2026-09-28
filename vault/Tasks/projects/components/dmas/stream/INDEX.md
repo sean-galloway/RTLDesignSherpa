@@ -14,7 +14,7 @@ is `git mv`, so an item is in exactly one state by construction.
 | Lane | For | Open | Active | Closed | Dropped |
 |---|---|---|---|---|---|
 | [task/](task/INDEX.md) | planned work we decided to do | 4 | 1 | 7 | 0 |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | 2 | 0 | 9 | 0 |
+| [bug/](bug/INDEX.md) | a defect with a reproduction | 0 | 0 | 15 | 0 |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 1 | 0 | 0 | 1 |
 
 Open counts include the reserved `-000` template in each lane, which is never a

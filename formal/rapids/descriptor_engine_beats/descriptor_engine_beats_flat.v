@@ -923,7 +923,9 @@ module descriptor_engine_beats (
 		end
 		else begin
 			r_channel_idle_prev <= channel_idle;
-			if (w_apb_skid_valid_in && w_apb_skid_ready_in)
+			if (r_channel_reset_active)
+				r_apb_ip <= 1'b0;
+			else if (w_apb_skid_valid_in && w_apb_skid_ready_in)
 				r_apb_ip <= 1'b1;
 			else if (w_channel_idle_rising && r_apb_ip)
 				r_apb_ip <= 1'b0;

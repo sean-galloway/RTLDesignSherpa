@@ -1023,8 +1023,17 @@ module descriptor_engine_beats #(
             // Track channel_idle for edge detection
             r_channel_idle_prev <= channel_idle;
 
+            // Channel reset is the documented recovery from a descriptor error.
+            // A kick that ends in RD_ERROR (range refusal, AXI error) never
+            // delivers a descriptor, so the scheduler never leaves idle and the
+            // rising-edge clear below never comes; without this clause the
+            // channel's APB path stayed wedged through channel reset until a
+            // hard reset (rapids BUG-007, 2026-09-27).
+            if (r_channel_reset_active) begin
+                r_apb_ip <= 1'b0;
+            end
             // Set apb_ip when APB transaction accepted
-            if (w_apb_skid_valid_in && w_apb_skid_ready_in) begin
+            else if (w_apb_skid_valid_in && w_apb_skid_ready_in) begin
                 r_apb_ip <= 1'b1;
             end
             // Clear apb_ip on rising edge of channel_idle

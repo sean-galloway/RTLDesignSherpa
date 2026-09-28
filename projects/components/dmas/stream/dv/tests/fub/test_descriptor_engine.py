@@ -69,6 +69,7 @@ async def cocotb_test_descriptor_engine(dut):
     - 'apb_with_delays': APB with various delay profiles (minimal delay)
     - 'apb_fast_producer': APB with fast producer profile
     - 'apb_backpressure': APB with backpressure
+    - 'address_range_reject': out-of-range kick refused (stream BUG-014)
     - 'full_protocol_coverage': Sample ALL protocol coverage points
     """
     test_type = os.environ.get('TEST_TYPE', 'apb_basic')
@@ -121,6 +122,13 @@ async def cocotb_test_descriptor_engine(dut):
         coverage.sample_axi_read(burst_type=1, burst_size=6, burst_len=0, response=2)  # SLVERR
         report_pass = tb.generate_final_report()
         assert result and report_pass, "APB backpressure test failed"
+
+    elif test_type == 'address_range_reject':
+        tb.log.info("=== Scenario DESC-ENG-11: out-of-range descriptor address refused ===")
+        result = await tb.run_address_range_reject_test()
+        coverage.sample_scenario("addr_range_reject")
+        report_pass = tb.generate_final_report()
+        assert result and report_pass, "address range reject test failed"
 
     elif test_type == 'full_protocol_coverage':
         tb.log.info("=== Comprehensive Protocol Coverage Test ===")
@@ -196,7 +204,8 @@ def generate_descriptor_engine_test_params():
     Returns:
         List of tuples: (test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth)
     """
-    test_types = ['apb_basic', 'apb_with_delays', 'apb_fast_producer', 'apb_backpressure', 'full_protocol_coverage']
+    test_types = ['apb_basic', 'apb_with_delays', 'apb_fast_producer', 'apb_backpressure',
+                  'address_range_reject', 'full_protocol_coverage']
     base_params = [
         # (channel_id, num_channels, addr_width, axi_id_width, fifo_depth)
         # Note: DATA_WIDTH removed - descriptor_engine.sv uses fixed 256-bit descriptors

@@ -440,6 +440,85 @@ class DescriptorEngineTB(TBBase):
         self.log.info(f"APB Basic Test: {descriptors_received}/{num_requests} descriptors received")
         return descriptors_received == num_requests
 
+    async def run_address_range_reject_test(self):
+        """An APB kick to an address outside BOTH configured ranges must be
+        refused: descriptor_error rises, no AR is issued, nothing is delivered
+        (stream BUG-014 -- until 2026-09-27 the range wire was never consumed
+        for the kicked address). descriptor_error is a short pulse (RD_ERROR
+        sets it, RD_IDLE clears it), so it is latched by a background sampler
+        started BEFORE the request goes out.
+        """
+        self.log.info("=== Scenario DESC-ENG-11: out-of-range descriptor address refused ===")
+        lo, hi = int(self.dut.cfg_addr0_base.value), int(self.dut.cfg_addr0_limit.value)
+        bad_addr = hi + 0x10100          # past range 0; range 1 is unconfigured (0..0)
+        descriptor = DescriptorPacketBuilder.build_descriptor_packet(
+            src_addr=0x80000000, dst_addr=0x90000000, length=64, next_ptr=0,
+            valid=True, gen_irq=False, last=True, error=False, channel_id=0, priority=0)
+        self.write_memory(bad_addr, descriptor)   # present in memory: only the range check can refuse it
+        self.log.info(f"  ranges: 0x{lo:X}..0x{hi:X}; kicking 0x{bad_addr:X}")
+
+        flag = {'seen': False, 'ar': 0, 'delivered': 0, 'run': True}
+
+        async def sampler():
+            while flag['run']:
+                await self.wait_clocks(self.clk_name, 1)
+                if int(self.dut.descriptor_error.value) == 1:
+                    flag['seen'] = True
+                if int(self.dut.ar_valid.value) == 1 and int(self.dut.ar_ready.value) == 1:
+                    flag['ar'] += 1
+                if int(self.dut.descriptor_valid.value) == 1:
+                    flag['delivered'] += 1
+
+        task = cocotb.start_soon(sampler())
+        packet = self.apb4_master.create_packet(addr=bad_addr)
+        await self.apb4_master.send(packet)
+        self.apb_requests_sent += 1
+        for _ in range(300):
+            if flag['seen']:
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        await self.wait_clocks(self.clk_name, 50)   # long enough for a wrongly-issued fetch to complete
+        flag['run'] = False
+        task.kill()
+
+        ok = True
+        if not flag['seen']:
+            self.test_errors.append(f"out-of-range address 0x{bad_addr:X} did not raise descriptor_error")
+            ok = False
+        if flag['ar']:
+            self.test_errors.append(f"out-of-range address 0x{bad_addr:X} was fetched ({flag['ar']} AR handshake(s))")
+            ok = False
+        if flag['delivered']:
+            self.test_errors.append(f"out-of-range address 0x{bad_addr:X} delivered {flag['delivered']} descriptor(s)")
+            ok = False
+
+        # Recovery is a channel reset (the documented flow: fix the descriptor,
+        # reset the channel, restart). The APB in-progress flag only clears on
+        # a scheduler idle edge, which a refused kick never produces, so
+        # channel reset must clear it too (stream BUG-015). After it, an
+        # in-range kick must deliver.
+        self.dut.cfg_channel_reset.value = 1
+        await self.wait_clocks(self.clk_name, 10)
+        self.dut.cfg_channel_reset.value = 0
+        await self.wait_clocks(self.clk_name, 20)
+        good_addr = lo + 0x100
+        self.write_memory(good_addr, descriptor)
+        packet = self.apb4_master.create_packet(addr=good_addr)
+        await self.apb4_master.send(packet)
+        self.apb_requests_sent += 1
+        got = False
+        for _ in range(300):
+            await self.wait_clocks(self.clk_name, 1)
+            if int(self.dut.descriptor_valid.value) == 1:
+                got = True
+                self.descriptors_received += 1
+                break
+        if not got:
+            self.test_errors.append("in-range kick after the refused one delivered nothing")
+            ok = False
+        self.log.info(f"  reject test: error_seen={flag['seen']} ar={flag['ar']} delivered={flag['delivered']} recovered={got}")
+        return ok
+
     async def run_test_with_profile(self, num_packets: int, profile: DelayProfile):
         """Run test with specific delay profile - tests autonomous chaining
 

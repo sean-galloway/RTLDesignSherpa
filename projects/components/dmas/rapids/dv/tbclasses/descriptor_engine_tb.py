@@ -762,6 +762,24 @@ class DescriptorEngineTB(TBBase):
             self.log.error(f"Out-of-range address 0x{bad_addr:X} still delivered a descriptor")
             return False
         self.log.info(f"Out-of-range address 0x{bad_addr:X} rejected with descriptor_error")
+
+        # Recovery is a channel reset (HAS ch05 recovery flow: fix the
+        # descriptor, reset the channel, restart). The APB in-progress flag only
+        # clears on a scheduler idle edge, which a refused kick never produces,
+        # so channel reset must clear it too (rapids BUG-007); an in-range kick
+        # afterwards must deliver.
+        self.dut.cfg_channel_reset.value = 1
+        await self.wait_clocks(self.clk_name, 10)
+        self.dut.cfg_channel_reset.value = 0
+        await self.wait_clocks(self.clk_name, 20)
+        desc4 = self.create_descriptor(src_addr=0x7000, dst_addr=0x8000, length_beats=8, valid=True, last=True)
+        self.write_descriptor_to_memory(0x10300, desc4)
+        await self.send_apb_request(0x10300)
+        recovered = await self.wait_for_descriptor(timeout_cycles=300)
+        if recovered is None:
+            self.log.error("in-range kick after the refused one (and a channel reset) delivered nothing")
+            return False
+        self.log.info("channel recovered after the refused kick: in-range descriptor delivered")
         return True
 
     async def test_channel_reset(self):

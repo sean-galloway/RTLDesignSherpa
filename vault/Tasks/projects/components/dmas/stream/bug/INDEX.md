@@ -2,7 +2,7 @@
 
 # projects/components/dmas/stream — bugs
 
-**Next ID: BUG-015** — never recycle a number, even when its item closed.
+**Next ID: BUG-016** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,15 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 13 | done (kept for history) |
+| [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
+| [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **BUG-000** — reserved template; copy the file, do not file against it.
-- **BUG-014** — the descriptor engine fetches any kicked address, in range or not (open 2026-09-27)
 
 ## Closed
 
@@ -37,3 +37,5 @@ by construction rather than by discipline.
 - **BUG-011** — sram_controller_unit's drain accounting refuses to count a write the FIFO accepted
 - **BUG-012** — axi_read_engine issues ARs against SRAM space it has already taken (closed 2026-09-27)
 - **BUG-013** — axi_write_engine runs two AWs per channel at PIPELINE=0 (closed 2026-09-27)
+- **BUG-014** — the descriptor engine fetches any kicked address, in range or not (closed 2026-09-27)
+- **BUG-015** — a kick that ends in RD_ERROR wedges the channel's APB path through channel reset (closed 2026-09-27)
