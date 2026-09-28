@@ -17,13 +17,13 @@ Block: the 8259 programmable interrupt controller. RTL under
 
 | Lane | For | Next ID |
 |---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | `TASK-001` |
+| [task/](task/INDEX.md) | planned work we decided to do | `TASK-002` |
 | [bug/](bug/INDEX.md) | a defect with a reproduction | `BUG-001` |
 | [issue/](issue/INDEX.md) | an anomaly, risk or open question | `ISSUE-001` |
 
 Open counts include the reserved `-000` template, which is never a real item.
-**This sub-area currently holds no real items** -- it was scaffolded so the
-lane exists before the first item does.
+The first real item is **TASK-001** (8259 cascade support, filed 2026-09-27);
+the bug and issue lanes are still scaffolding only.
 
 ## Why a sub-area (Sean, 2026-09-25)
 
