@@ -12,19 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-000** — reserved template; copy the file, do not file against it.
-- **TASK-003** — legacy PC/AT replacement routing; the `legacy_replacement` CSR is built and wired, the IRQ routing it gates is not.
 
 ## Closed
 
+- **TASK-003** — LegacyReplacement Route implemented: timer 0 -> IRQ0, timer 1 -> IRQ8, both suppressed on `timer_irq`; `leg_rt_cap` reads 1. 18/18 green, closed 2026-09-28.
 - **TASK-001** — Timer 2+ not firing in multi-timer tests; a test-cleanup defect, fixed 2025-10-17.
 - **TASK-002** — comparator reads returned the last software-written value, not hpet_core's live advancing comparator; fixed with `hw=rw` + `precedence=sw`, closed 2026-09-27.
 - **TASK-006** — HPET register interface now matches the published spec: spec offsets, GCAP_ID/TIMn_CONF field positions, 16-bit vendor, HPET_PERIOD, and `timer_enable` dropped. 18/18 green, closed 2026-09-28.

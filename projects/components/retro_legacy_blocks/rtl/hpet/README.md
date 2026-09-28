@@ -213,9 +213,10 @@ To modify the register map:
 
 Note: `VENDOR_ID`/`REVISION_ID` are driven into HPET_ID through the hardware
 interface (the generated register block is built once for the maximum
-configuration, so nothing about it is per-instance), and both fields are 8
-bits wide. HPET_ID[5] (legacy replacement capable) reads 0 because
-HPET_CONFIG[1] is storage with no routing behind it.
+configuration, so nothing about it is per-instance). Per the spec `vendor_id`
+is 16 bits at [31:16] and `rev_id` 8 bits at [7:0]. HPET_ID[15]
+(legacy replacement capable) reads 1: RLB/hpet TASK-003 implemented the
+routing that HPET_CONFIG[1] gates.
 
 **Intel-like (2 timers, no CDC):**
 ```systemverilog
@@ -268,7 +269,7 @@ Each timer occupies 32 bytes (0x20) starting at 0x100:
 | Offset | Register | Access | Description |
 |--------|----------|--------|-------------|
 | +0x00 | TIMER_CONFIG | RW | TN_CONF[31:0] -- configuration and control |
-| +0x04 | TIMER_INT_ROUTE_CAP | RO | TN_CONF[63:32] -- legal I/O APIC inputs (reads 0) |
+| +0x04 | TIMER_INT_ROUTE_CAP | RO | TN_CONF[63:32] -- legal I/O APIC inputs (reads 0: general routing not implemented; independent of `leg_rt_cap`) |
 | +0x08 | TIMER_COMPARATOR_LO | RW | Comparator low 32 bits |
 | +0x0C | TIMER_COMPARATOR_HI | RW | Comparator high 32 bits |
 | +0x0C | RESERVED | - | Reserved for expansion |
@@ -288,9 +289,11 @@ Each timer occupies 32 bytes (0x20) starting at 0x100:
 #### HPET_ID (0x000) - Read Only
 ```
 [31:16] VENDOR_ID     - the VENDOR_ID parameter, full 16 bits (hardware-driven)
-[15]    LEG_RT_CAP    - Reads 0: legacy replacement routing is NOT implemented.
-                        Drivers GATE on this bit, so a 0 here means legacy mode
-                        is not used at all (the HPET_CONFIG bit is storage)
+[15]    LEG_RT_CAP    - Reads 1: the LegacyReplacement Route IS implemented.
+                        Timer 0 -> legacy_irq0 (IRQ0), timer 1 -> legacy_irq8
+                        (IRQ8), both suppressed on timer_irq while
+                        HPET_CONFIG[1] is set. Drivers GATE on this bit, so a 0
+                        here would mean legacy mode is never used
 [14]    Reserved
 [13]    COUNT_SIZE_CAP - 1 = 64-bit counter capable
 [12:8]  NUM_TIM_CAP   - Number of timers - 1 (hardware-driven)
@@ -304,7 +307,8 @@ instantiation.
 #### HPET_CONFIG (0x010) - Read/Write
 ```
 [31:2] Reserved
-[1]    LEGACY_REPLACEMENT - Storage only, no hardware effect (HPET_ID[15] = 0)
+[1]    LEGACY_REPLACEMENT - Routes timer 0 -> IRQ0 and timer 1 -> IRQ8 and
+                            suppresses both on timer_irq (HPET_ID[15] = 1)
 [0]    HPET_ENABLE        - Enable main counter
 ```
 
@@ -711,6 +715,23 @@ Allows single PeakRDL generation (NUM_TIMERS=8) to correctly report timer count 
    - **Expected**: Handshake-based CDC requires round-trip synchronization
 
 ## Version History
+
+- **v2.3** (2026-09-28): LegacyReplacement Route (RLB/hpet TASK-003)
+  - `HPET_CONFIG.legacy_replacement` reaches hardware: timer 0 is
+    delivered on `legacy_irq0` (IRQ0, replacing the 8254 PIT tick) and
+    timer 1 on `legacy_irq8` (IRQ8, replacing the RTC periodic
+    interrupt), and BOTH are suppressed on `timer_irq` -- the spec
+    REPLACES their delivery rather than duplicating it
+  - `HPET_ID.leg_rt_cap` now reads 1, so the three HPET_ID example
+    words above each gained 0x8000. Drivers gate on this bit
+  - `HPET_STATUS` is deliberately unaffected: only the delivery path
+    moves, so polling software behaves identically in either mode
+  - `TIMER_INT_ROUTE_CAP` still reads 0. General per-timer I/O APIC
+    routing is a separate feature; legacy replacement OVERRIDES
+    `timer_int_route` for timers 0/1 rather than selecting through it
+  - Consuming the routes means silencing the real PIT and RTC, which
+    is an `rlb_top` duty. Timer 0 belongs on master IRQ0 and I/O APIC
+    pin 2 -- NEVER PIC IRQ2, which is the 8259 cascade input
 
 - **v2.0** (2025-10-16): PeakRDL integration complete
   - Auto-generated register blocks from SystemRDL

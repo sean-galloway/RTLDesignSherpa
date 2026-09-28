@@ -120,11 +120,11 @@ The APB HPET draws architectural inspiration from the IA-PC HPET specification (
 | **Interface** | Memory-mapped | AMBA APB4 |
 | **Timer Count** | Up to 256 | 2, 3, or 8 (configurable) |
 | **FSB Delivery** | Supported | Not supported |
-| **Legacy Replacement** | PIT/RTC emulation | Not supported |
+| **Legacy Replacement** | PIT/RTC emulation | Supported: timer 0 -> IRQ0, timer 1 -> IRQ8 (`leg_rt_cap` = 1) |
 | **Counter Size** | 64-bit mandatory | 64-bit |
 | **Comparator Size** | 64-bit or 32-bit | 64-bit or 32-bit (per-timer `timer_size`) |
 | **Clock Source** | 10 MHz minimum | User-configurable |
-| **Vendor ID** | 16-bit, read from capability | 8-bit, from the `VENDOR_ID` parameter |
+| **Vendor ID** | 16-bit, read from capability | 16-bit at GCAP_ID[31:16], from the `VENDOR_ID` parameter |
 
 **Retained Concepts:**
 - 64-bit free-running counter

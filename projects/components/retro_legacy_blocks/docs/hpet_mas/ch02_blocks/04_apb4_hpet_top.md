@@ -182,7 +182,7 @@ logic                    w_rsp_pslverr;
 ```systemverilog
 // Global configuration
 logic                    w_hpet_enable;
-logic                    w_legacy_replacement;
+logic                    w_legacy_replacement;   // -> hpet_core (TASK-003)
 
 // Counter interface (one strobe per 32-bit half)
 logic                    w_counter_write_lo;

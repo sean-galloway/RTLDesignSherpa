@@ -296,8 +296,9 @@ class HPETBasicTests:
 
         GCAP_ID[31:0] (HPET_ID, 0x000):
             [31:16] vendor_id        full 16 bits, not the old truncated byte
-            [15]    leg_rt_cap       0 -- routing not implemented. Drivers GATE on
-                                     this bit, so its position is load-bearing
+            [15]    leg_rt_cap       1 -- LegacyReplacement Route implemented
+                                     (RLB/hpet TASK-003). Drivers GATE on this
+                                     bit, so its position is load-bearing
             [13]    count_size_cap   1 -- 64-bit counter
             [12:8]  num_tim_cap      NUM_TIMERS-1
             [7:0]   rev_id
@@ -349,10 +350,11 @@ class HPETBasicTests:
                 self.log.error(f"count_size_cap[13] = {cnt_sz}, expected 1 "
                                "(64-bit counter)")
                 passed = False
-            if leg_rt != 0:
-                self.log.error(f"leg_rt_cap[15] = {leg_rt}, expected 0 -- the "
-                               "routing is not implemented, and advertising it "
-                               "would be a lie a driver acts on")
+            if leg_rt != 1:
+                self.log.error(f"leg_rt_cap[15] = {leg_rt}, expected 1 -- "
+                               "RLB/hpet TASK-003 implemented the "
+                               "LegacyReplacement Route, and a driver that "
+                               "reads 0 here will never use legacy mode")
                 passed = False
 
             _, period = await self.tb.read_register(HPETRegisterMap.HPET_PERIOD)
@@ -407,7 +409,10 @@ class HPETBasicTests:
                 HPETRegisterMap.get_timer_int_route_cap_addr(0))
             if route_cap != 0:
                 self.log.error(f"TIMER_INT_ROUTE_CAP = 0x{route_cap:08X}, expected 0 "
-                               "while no routing is implemented")
+                               "-- general I/O APIC route selection is still not "
+                               "implemented. This is INDEPENDENT of leg_rt_cap=1: "
+                               "legacy replacement OVERRIDES timer_int_route for "
+                               "timers 0/1 rather than selecting through it")
                 passed = False
 
             # Leave the block quiescent: counter halted, every timer's config

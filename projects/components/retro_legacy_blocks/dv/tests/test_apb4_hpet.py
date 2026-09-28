@@ -52,6 +52,7 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tb import HP
 from projects.components.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_basic import HPETBasicTests
 from projects.components.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_medium import HPETMediumTests
 from projects.components.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_full import HPETFullTests
+from projects.components.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_legacy import HPETLegacyTests
 
 
 # Sim-time budget scales with the configuration (set by the pytest wrapper
@@ -104,7 +105,18 @@ async def hpet_test(dut):
             # Run medium tests
             medium_tests = HPETMediumTests(tb)
             medium_passed = await medium_tests.run_all_medium_tests()
-            passed = basic_passed and medium_passed
+
+            # LegacyReplacement Route (RLB/hpet TASK-003). Runs from func
+            # upward: it needs the counter running through several
+            # fire-and-observe cycles, so it is not a gate-tier smoke test --
+            # but it must not wait for full either, because it is the ONLY
+            # coverage of the legacy routing.
+            legacy_tests = HPETLegacyTests(tb)
+            legacy_passed = await legacy_tests.run_all_legacy_tests()
+
+            passed = basic_passed and medium_passed and legacy_passed
+            if not legacy_passed:
+                tb.log.error("Legacy replacement tests failed")
         else:
             tb.log.error("Basic tests failed, skipping medium tests")
             passed = False
@@ -119,17 +131,25 @@ async def hpet_test(dut):
             medium_tests = HPETMediumTests(tb)
             medium_passed = await medium_tests.run_all_medium_tests()
 
+        legacy_passed = False
+        if basic_passed and medium_passed:
+            legacy_tests = HPETLegacyTests(tb)
+            legacy_passed = await legacy_tests.run_all_legacy_tests()
+
         full_passed = False
         if basic_passed and medium_passed:
             full_tests = HPETFullTests(tb)
             full_passed = await full_tests.run_all_full_tests()
 
-        passed = basic_passed and medium_passed and full_passed
+        passed = (basic_passed and medium_passed and legacy_passed
+                  and full_passed)
 
         if not basic_passed:
             tb.log.error("Basic tests failed")
         if not medium_passed:
             tb.log.error("Medium tests failed")
+        if not legacy_passed:
+            tb.log.error("Legacy replacement tests failed")
         if not full_passed:
             tb.log.error("Full tests failed")
 
@@ -253,11 +273,23 @@ def test_hpet(request, num_timers, vendor_id, revision_id, cdc_enable, test_leve
 
     total_complexity = complexity_factor * data_complexity * timer_complexity * clock_complexity
     timeout_s = int(30 * total_complexity)
-    # cocotb sim-time budget: 400 us covered the 2-timer suite; scale with
-    # the timer count (every Medium/Full scenario touches every timer) and
-    # give the CDC configs 50% more, since each APB access costs more sim
-    # time through the async FIFO. Measured 8T CDC FULL needs > 400 us.
-    sim_timeout_us = int(400 * timer_complexity * (1.5 if cdc_enable else 1.0))
+    # cocotb sim-time budget. Scales with the timer count (every Medium/Full
+    # scenario touches every timer) and gives the CDC configs 50% more, since
+    # each APB access costs more sim time through the async FIFO.
+    #
+    # BASE RAISED 400 -> 500 for RLB/hpet TASK-003, which added a FOURTH suite
+    # to the single cocotb test. The binding cell is 2-timer non-CDC, whose
+    # multipliers are both 1.0, so it gets the bare base -- it is the tightest
+    # cell in the grid, and the only one that failed. Measured there:
+    #     basic + medium   end at  267,610 ns
+    #     legacy suite            39,300 ns  (was 119,360 before COMPARE_TICKS)
+    #     Full suite needs      ~110,000 ns  (measured where Full COMPLETED:
+    #                                         2T CDC 109,760, 3T non-CDC 94,380)
+    #     required total          ~417,000 ns  ->  400 us is 17 us SHORT
+    # 500 us leaves ~83 us (~17%) of headroom. Adding another suite means
+    # measuring this again: three suites fitted 400 us with only ~30 us spare,
+    # which is why the previous addition also overran.
+    sim_timeout_us = int(500 * timer_complexity * (1.5 if cdc_enable else 1.0))
 
     # Environment variables
     extra_env = {

@@ -18,6 +18,9 @@
 //                       next-epoch hold bit, width-masked advance
 // Updated: 2026-09-09 - issue #46 review round_3: epoch clear E2/E3 taken at
 //                       the compare width
+// Updated: 2026-09-28 - RLB/hpet TASK-003: LegacyReplacement Route -- timer 0
+//                       diverts to legacy_irq0 (IRQ0) and timer 1 to
+//                       legacy_irq8 (IRQ8), both suppressed on timer_irq
 
 /**
  * ============================================================================
@@ -35,6 +38,11 @@
  *   - One-shot and periodic timer modes
  *   - Individual timer interrupt generation
  *   - 32-bit and 64-bit comparison modes
+ *   - LegacyReplacement Route: while legacy_replacement is set, timers 0 and 1
+ *     are delivered on legacy_irq0/legacy_irq8 (IRQ0/IRQ8) INSTEAD OF
+ *     timer_irq. The spec replaces their delivery, it does not duplicate it,
+ *     so both bits are masked off timer_irq. Timers 2+ are untouched, and
+ *     timer_int_status is unaffected in either mode.
  *
  * WRITE MODEL (issue #46 C3)
  *   Every software write into this core arrives as a one-cycle STROBE from
@@ -282,6 +290,12 @@ module hpet_core #(
     // ========================================================================
     input  logic                    hpet_enable,
 
+    // LegacyReplacement Route (HPET_CONFIG.legacy_replacement = GEN_CONF[1]).
+    // While set, timer 0 and timer 1 leave via legacy_irq0/legacy_irq8 and are
+    // SUPPRESSED on timer_irq: the spec REPLACES their normal delivery, it does
+    // not duplicate it. Timers 2+ are unaffected (RLB/hpet TASK-003).
+    input  logic                    legacy_replacement,
+
     // Main Counter Interface (64-bit, written as two independent halves)
     input  logic                    counter_write_lo,
     input  logic                    counter_write_hi,
@@ -309,7 +323,14 @@ module hpet_core #(
 
     output logic [NUM_TIMERS-1:0]   timer_int_status,
     input  logic [NUM_TIMERS-1:0]   timer_int_clear,
-    output logic [NUM_TIMERS-1:0]   timer_irq
+    output logic [NUM_TIMERS-1:0]   timer_irq,
+
+    // Legacy replacement routes. Both are 0 unless legacy_replacement is set.
+    // legacy_irq0 stands in for the 8254 PIT channel-0 tick on IRQ0;
+    // legacy_irq8 for the RTC periodic interrupt on IRQ8. Whoever consumes
+    // these must also silence the real PIT/RTC -- that is an rlb_top duty.
+    output logic                    legacy_irq0,
+    output logic                    legacy_irq8
 );
 
     // ========================================================================
@@ -711,7 +732,36 @@ module hpet_core #(
     // Output Assignments
     // ========================================================================
     assign timer_int_status = r_interrupt_status;
-    assign timer_irq        = r_interrupt_output;
+
+    // ------------------------------------------------------------------------
+    // LEGACY REPLACEMENT ROUTE (RLB/hpet TASK-003)
+    // ------------------------------------------------------------------------
+    // The spec REPLACES the normal delivery of timers 0 and 1 rather than
+    // adding to it, so legacy mode masks them off timer_irq. A mask localparam
+    // does the masking instead of indexed procedural clears: NUM_TIMERS can be
+    // 1, and `timer_irq[1] = 0` guarded by a dead `if` still constant-indexes
+    // out of range for some tools.
+    //
+    // timer_int_status is deliberately NOT masked. The sticky GINTR_STA bit and
+    // its W1C behave identically in both modes, so software polling status sees
+    // the same thing however the interrupt was delivered -- only the DELIVERY
+    // path moves.
+    localparam logic [NUM_TIMERS-1:0] LEGACY_MASK =
+        (NUM_TIMERS > 1) ? NUM_TIMERS'('h3) : NUM_TIMERS'('h1);
+
+    assign timer_irq = r_interrupt_output &
+                       ~(legacy_replacement ? LEGACY_MASK : {NUM_TIMERS{1'b0}});
+
+    assign legacy_irq0 = legacy_replacement & r_interrupt_output[0];
+
+    generate
+        if (NUM_TIMERS > 1) begin : gen_legacy_irq8
+            assign legacy_irq8 = legacy_replacement & r_interrupt_output[1];
+        end else begin : gen_no_legacy_irq8
+            // No timer 1 exists to replace the RTC with.
+            assign legacy_irq8 = 1'b0;
+        end
+    endgenerate
 
 
     // Elaboration-time parameter guard (sim only). Not an assertion in the

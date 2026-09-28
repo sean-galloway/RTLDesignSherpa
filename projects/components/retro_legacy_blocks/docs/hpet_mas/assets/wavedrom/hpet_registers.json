@@ -32,7 +32,7 @@
           {
             "bits": 1,
             "name": "leg_rt_cap",
-            "attr": "Reads 0 (routing not implemented)"
+            "attr": "Reads 1 (legacy route implemented)"
           },
           {
             "bits": 16,
@@ -62,7 +62,7 @@
           {
             "bits": 1,
             "name": "legacy_replacement",
-            "attr": "Stored, no HW effect"
+            "attr": "T0->IRQ0, T1->IRQ8"
           },
           {
             "bits": 30,
@@ -256,7 +256,7 @@
           {
             "bits": 5,
             "name": "timer_int_route",
-            "attr": "I/O APIC input (storage)"
+            "attr": "I/O APIC input (storage; legacy overrides)"
           },
           {
             "bits": 1,
@@ -286,7 +286,7 @@
       "name": "TIMER_INT_ROUTE_CAP",
       "offset": "0x104 + i*0x20",
       "access": "RO",
-      "description": "TN_CONF[63:32]: bitmap of legal I/O APIC inputs. Reads 0 until the routing is implemented.",
+      "description": "TN_CONF[63:32]: bitmap of legal I/O APIC inputs. Reads 0 -- general per-timer routing is not implemented; independent of leg_rt_cap, which reads 1.",
       "diagram": {
         "reg": [
           {

@@ -79,7 +79,7 @@ Each timer (N = 0 to NUM_TIMERS-1) has a 32-byte register block at base address 
 | Offset | Register Name | Access | Width | Description |
 |--------|---------------|--------|-------|-------------|
 | +0x00 | TIMER_CONFIG | RW | 32b | TN_CONF[31:0] - configuration and control |
-| +0x04 | TIMER_INT_ROUTE_CAP | RO | 32b | TN_CONF[63:32] - legal I/O APIC inputs (reads 0) |
+| +0x04 | TIMER_INT_ROUTE_CAP | RO | 32b | TN_CONF[63:32] - legal I/O APIC inputs (reads 0: general per-timer routing is not implemented). INDEPENDENT of `leg_rt_cap` = 1 -- legacy replacement OVERRIDES `timer_int_route` rather than selecting through this mask |
 | +0x08 | TIMER_COMPARATOR_LO | RW | 32b | Timer comparator bits [31:0] |
 | +0x0C | TIMER_COMPARATOR_HI | RW | 32b | Timer comparator bits [63:32] |
 | +0x10-0x1F | RESERVED | RO | - | The spec's FSB route registers live here; not implemented, and fsb_int_del_cap reads 0 to say so |
@@ -115,7 +115,7 @@ to its low byte. GCAP_ID[63:32] is the counter clock period, at 0x004.
 | Bits | Field | Access | Reset | Description |
 |------|-------|--------|-------|-------------|
 | [31:16] | vendor_id | RO | VENDOR_ID | Vendor identifier, full 16 bits per the spec |
-| [15] | leg_rt_cap | RO | 0 | Legacy-replacement capability. Reads 0: the routing is NOT implemented (the HPET_CONFIG bit is storage only). The POSITION matters -- drivers gate on this bit, so a 0 here means legacy mode is not used at all |
+| [15] | leg_rt_cap | RO | 1 | Legacy-replacement capability. Reads 1: the LegacyReplacement Route IS implemented (RLB/hpet TASK-003) -- timer 0 leaves on `legacy_irq0` (IRQ0) and timer 1 on `legacy_irq8` (IRQ8), both suppressed on `timer_irq`. The POSITION matters -- drivers gate on this bit, so a 0 here would mean legacy mode is never used |
 | [14] | reserved | RO | 0 | Reserved |
 | [13] | count_size_cap | RO | 1 | Counter size capability (1 = 64-bit counter) |
 | [12:8] | num_tim_cap | RO | NUM_TIMERS-1 | Number of timers minus 1 (e.g., 7 for 8 timers) |
@@ -128,12 +128,16 @@ readback):
 
 | Config | VENDOR_ID | REVISION_ID | HPET_ID reads |
 |---|---|---|---|
-| 2 timers | 0x8086 | 0x01 | `0x80862101` |
-| 3 timers | 0x1022 | 0x02 | `0x10222202` |
-| 8 timers | 0xABCD | 0x10 | `0xABCD2710` |
+| 2 timers | 0x8086 | 0x01 | `0x8086A101` |
+| 3 timers | 0x1022 | 0x02 | `0x1022A202` |
+| 8 timers | 0xABCD | 0x10 | `0xABCDA710` |
 
-Decoding the 8-timer value: vendor 0xABCD, leg_rt_cap 0, count_size_cap 1
-(bit 13), num_tim_cap 7 (bits 12:8), rev_id 0x10.
+Decoding the 8-timer value: vendor 0xABCD, leg_rt_cap 1 (bit 15),
+count_size_cap 1 (bit 13), num_tim_cap 7 (bits 12:8), rev_id 0x10.
+
+These words each carry 0x8000 because `leg_rt_cap` reads 1 since RLB/hpet
+TASK-003; before the legacy routing existed they read `0x80862101`,
+`0x10222202` and `0xABCD2710`.
 
 #### HPET_CONFIG (0x010) - Configuration Register
 
@@ -145,14 +149,22 @@ Global enable and configuration control.
 | Bits | Field | Access | Reset | Description |
 |------|-------|--------|-------|-------------|
 | [31:2] | reserved | RO | 0 | Reserved |
-| [1] | legacy_replacement | RW | 0 | Stores and reads back, but has NO hardware effect (nothing consumes the signal; legacy replacement is not implemented) |
+| [1] | legacy_replacement | RW | 0 | Enables the LegacyReplacement Route: timer 0 is delivered as IRQ0 and timer 1 as IRQ8, and BOTH stop being delivered on `timer_irq`. Timers 2+ are unaffected. `HPET_ID.leg_rt_cap` reads 1 to advertise it |
 | [0] | hpet_enable | RW | 0 | HPET main counter enable (0=stopped, 1=running) |
 
 **Usage Notes:**
 - Write `hpet_enable=1` to start the main counter
 - Write `hpet_enable=0` to stop the main counter (value preserved)
-- `legacy_replacement` is a no-op: the bit stores and reads back, but no
-  logic consumes it, and HPET_ID.leg_rt_cap reads 0 to say so
+- `legacy_replacement` REPLACES the delivery of timers 0 and 1 rather than
+  adding to it: setting it moves timer 0 to `legacy_irq0` and timer 1 to
+  `legacy_irq8` and holds both off `timer_irq`. `HPET_ID.leg_rt_cap` reads 1
+- The sticky `HPET_STATUS` bit is deliberately NOT affected by legacy mode:
+  only the delivery path moves, so software that polls status instead of
+  taking the interrupt behaves identically either way
+- Consuming the legacy routes also means silencing the 8254 PIT tick and the
+  RTC periodic interrupt. That is an integration duty at `rlb_top`, not this
+  block's, and note timer 0 belongs on master IRQ0 and I/O APIC pin 2 -- never
+  PIC IRQ2, which is the 8259 cascade input
 - Counter must be enabled for any timer to fire
 
 **Example Configuration Sequence:**
@@ -306,7 +318,7 @@ Configuration and control for individual timer.
 | [31:16] | reserved | RO | 0 | Reserved |
 | [15] | fsb_int_del_cap | RO | 0 | FSB (message) delivery capability. Reads 0, so the spec's FSB route registers at +0x10/+0x14 are not implemented |
 | [14] | timer_fsb_en | RW | 0 | FSB delivery enable. Storage only -- see fsb_int_del_cap |
-| [13:9] | timer_int_route | RW | 0 | I/O APIC input to drive, as a bit NUMBER chosen from TIMER_INT_ROUTE_CAP. Storage until RLB/hpet TASK-003 |
+| [13:9] | timer_int_route | RW | 0 | I/O APIC input to drive, as a bit NUMBER chosen from TIMER_INT_ROUTE_CAP. STORAGE ONLY: general route selection is not implemented, and the spec has legacy replacement OVERRIDE this field for timers 0/1 rather than select through it |
 | [8] | timer_32mode | RW | 0 | FORCE 32-bit operation. **Note the polarity:** 1 = 32-bit, so 64-bit operation is this bit CLEAR. The retired `timer_size` meant the opposite |
 | [7] | reserved | RO | 0 | Reserved |
 | [6] | timer_value_set | RW | 0 | Stores and reads back, but has NO hardware effect: this core always loads both the accumulator and the period, so the bit has nothing to select |
@@ -639,7 +651,7 @@ void timer1_isr(void) {
 - **Global registers:** Reset to 0x00000000 (except HPET_ID)
 - **HPET_ID:** Constant GCAP_ID[31:0]: vendor_id = VENDOR_ID (full 16 bits at
   [31:16]), rev_id = REVISION_ID ([7:0]), num_tim_cap = NUM_TIMERS-1 ([12:8]),
-  count_size_cap = 1 ([13]), leg_rt_cap = 0 ([15])
+  count_size_cap = 1 ([13]), leg_rt_cap = 1 ([15])
 - **HPET_PERIOD:** Constant GCAP_ID[63:32]: COUNTER_CLK_PERIOD_FS femtoseconds
 - **All timers:** Reset to disabled state (0x00000000)
 - **Main counter:** Reset to 0x00000000_00000000

@@ -419,6 +419,15 @@ class HPETTB(TBBase):
         self.timer_interrupt_state = [False] * self.NUM_TIMERS
         self.expected_timer_events = {}
 
+        # LegacyReplacement Route observation (RLB/hpet TASK-003). Held in its
+        # OWN state, deliberately NOT routed through
+        # scoreboard.add_interrupt_event(): that scoreboard keys on timer_id and
+        # pairs each assert with a deassert, so feeding timer 0/1's legacy
+        # delivery in under the same ids would report every legacy interrupt as
+        # an unmatched assert. Index 0 is legacy_irq0, index 1 is legacy_irq8.
+        self.legacy_irq_state = [False, False]
+        self.legacy_irq_events = []
+
         # Components will be initialized in setup
         self.apb4_master = None
         self.apb4_monitor = None
@@ -522,9 +531,22 @@ class HPETTB(TBBase):
         self.log.debug(f"APB {direction}: {reg_name} (0x{addr:02X}) = "
                     f"0x{pwdata if direction == 'WRITE' else prdata:08X}{self.get_time_ns_str()}")
 
+    def read_legacy_irq(self, name: str) -> bool:
+        """Read a 1-bit legacy route output as a bool.
+
+        Tolerates X/Z, which is what these carry before reset deasserts; an
+        unresolvable value is reported as deasserted rather than raising inside
+        the monitor coroutine, where an exception would silently stop it.
+        """
+        try:
+            return bool(int(getattr(self.dut, name).value))
+        except (AttributeError, ValueError):
+            return False
+
     async def monitor_interrupts(self):
         """Monitor timer interrupts for changes."""
         prev_state = [False] * self.NUM_TIMERS
+        prev_legacy = [False, False]
 
         while True:
             await RisingEdge(self.dut.hpet_clk)
@@ -552,6 +574,23 @@ class HPETTB(TBBase):
                         # every passing run (RLB/hpet BUG-002).
                         self.scoreboard.add_timer_event(i, 'match')
                     self.log.info(f"Timer {i} interrupt {event_type}{self.get_time_ns_str()}")
+
+            # LegacyReplacement Route edges (RLB/hpet TASK-003), kept in
+            # their own event list -- see the note in __init__ for why these do
+            # not go through the per-timer interrupt scoreboard.
+            legacy_now = [self.read_legacy_irq('legacy_irq0'),
+                          self.read_legacy_irq('legacy_irq8')]
+            for idx, sig_name in enumerate(('legacy_irq0', 'legacy_irq8')):
+                if legacy_now[idx] != prev_legacy[idx]:
+                    evt = 'assert' if legacy_now[idx] else 'deassert'
+                    self.legacy_irq_events.append({
+                        'signal': sig_name,
+                        'event_type': evt,
+                        'time': self.get_time_ns_str(),
+                    })
+                    self.log.info(f"{sig_name} {evt}{self.get_time_ns_str()}")
+            prev_legacy = legacy_now
+            self.legacy_irq_state = legacy_now
 
             prev_state = current_state
             self.timer_interrupt_state = current_state

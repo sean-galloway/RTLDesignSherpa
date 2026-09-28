@@ -86,7 +86,7 @@ The `hpet_config_regs` module is the bridge between the PeakRDL-generated regist
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
 | **hpet_enable** | logic | 1 | Output | Global HPET enable (from HPET_CONFIG[0]) |
-| **legacy_replacement** | logic | 1 | Output | Legacy replacement mode (from HPET_CONFIG[1]) |
+| **legacy_replacement** | logic | 1 | Output | LegacyReplacement Route enable (from HPET_CONFIG[1]); `hpet_core` routes timer 0 to `legacy_irq0` and timer 1 to `legacy_irq8` and suppresses both on `timer_irq` |
 
 **Counter Interface:**
 | Signal Name | Type | Width | Direction | Description |
@@ -176,6 +176,9 @@ Direct assignment from PeakRDL outputs:
 assign hpet_enable = hwif_out.HPET_CONFIG.hpet_enable.value;
 assign legacy_replacement = hwif_out.HPET_CONFIG.legacy_replacement.value;
 ```
+
+`legacy_replacement` reaches hardware since RLB/hpet TASK-003; it is no longer
+storage, and `HPET_ID.leg_rt_cap` reads 1 to advertise it.
 
 #### Counter Write Strobes
 

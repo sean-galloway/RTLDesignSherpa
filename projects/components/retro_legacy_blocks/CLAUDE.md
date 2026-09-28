@@ -280,7 +280,9 @@ Per-Timer Registers (i = 0 to NUM_TIMERS-1), fields at bits [6:2]:
 ```systemverilog
 apb4_hpet #(
     .NUM_TIMERS(3),
-    .CDC_ENABLE(0)   // VENDOR_ID/REVISION_ID exist but are unwired (fixed 0x01/0x01)
+    .VENDOR_ID(16'h8086),   // hardware-driven into GCAP_ID[31:16] (TASK-006)
+    .REVISION_ID(8'h01),    // hardware-driven into GCAP_ID[7:0]
+    .CDC_ENABLE(0)
 ) u_hpet (
     // APB interface
     .pclk         (apb_clk),
@@ -296,7 +298,14 @@ apb4_hpet #(
     // Block-specific signals
     .hpet_clk     (timer_clk),
     .hpet_resetn   (timer_rst_n),
-    .timer_irq    (timer_irq[2:0])
+    .timer_irq    (timer_irq[2:0]),
+    // LegacyReplacement Route (TASK-003): asserted only while
+    // HPET_CONFIG.legacy_replacement is set, and timers 0/1 are then
+    // SUPPRESSED on timer_irq. Consuming these also means silencing the
+    // 8254 and the RTC, and timer 0 belongs on IRQ0 / IOAPIC pin 2 --
+    // never PIC IRQ2, which is the cascade input.
+    .legacy_irq0  (hpet_legacy_irq0),
+    .legacy_irq8  (hpet_legacy_irq8)
 );
 ```
 

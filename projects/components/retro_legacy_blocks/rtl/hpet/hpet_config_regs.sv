@@ -308,9 +308,10 @@ module hpet_config_regs #(
     // ========================================================================
     assign hpet_enable = hwif_out.HPET_CONFIG.hpet_enable.value;
 
-    // NOTE: legacy_replacement is storage only. Nothing in hpet_core routes
-    // timer 0/1 to the legacy 8254/RTC interrupt lines, which is why
-    // HPET_ID.leg_rt_cap reports 0 (see hpet_regs.rdl).
+    // legacy_replacement REACHES HARDWARE since RLB/hpet TASK-003: hpet_core
+    // routes timer 0 to legacy_irq0 and timer 1 to legacy_irq8 and suppresses
+    // both on timer_irq while it is set, which is why HPET_ID.leg_rt_cap now
+    // reports 1 (see hpet_regs.rdl).
     assign legacy_replacement = hwif_out.HPET_CONFIG.legacy_replacement.value;
 
     // ========================================================================
@@ -362,7 +363,10 @@ module hpet_config_regs #(
             // here: they are storage only and nothing downstream consumes them,
             // so exporting them would create ports no logic drives anything
             // with. Their hwif_out members are simply left unread. INT_ROUTE
-            // becomes load-bearing at RLB/hpet TASK-003, and INT_TYPE/FSB_EN
+            // stays storage even after RLB/hpet TASK-003, because the spec has
+            // the LegacyReplacement Route OVERRIDE it for timers 0/1 rather
+            // than select through it, and general I/O APIC route selection is
+            // still not implemented (INT_ROUTE_CAP reads 0). INT_TYPE/FSB_EN
             // stay storage while this core delivers only the sticky
             // level-plus-W1C behaviour and has no message delivery. See their
             // field descriptions in hpet_regs.rdl.

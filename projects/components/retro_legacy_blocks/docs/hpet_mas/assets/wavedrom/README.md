@@ -78,7 +78,7 @@ Each timer has 4 registers with 0x20 byte stride:
 - **bits[12:8]**: num_tim_cap - Number of timers minus 1
 - **bit[13]**: count_size_cap (1 = 64-bit counter)
 - **bit[14]**: Reserved
-- **bit[15]**: leg_rt_cap (reads 0; the routing is not implemented, and drivers gate on this bit)
+- **bit[15]**: leg_rt_cap (reads 1; the LegacyReplacement Route is implemented, and drivers gate on this bit)
 - **bits[31:16]**: vendor_id (the VENDOR_ID parameter, full 16 bits)
 
 #### HPET_PERIOD (0x004) - Read Only, GCAP_ID[63:32]
@@ -86,7 +86,7 @@ Each timer has 4 registers with 0x20 byte stride:
 
 #### HPET_CONFIG (0x010)
 - **bit[0]**: hpet_enable - Enable HPET globally
-- **bit[1]**: legacy_replacement - stored, no hardware effect
+- **bit[1]**: legacy_replacement - routes timer 0 to IRQ0 and timer 1 to IRQ8, suppressing both on timer_irq
 - **bits[31:2]**: Reserved
 
 #### HPET_STATUS (0x008) - Write 1 to Clear
@@ -145,7 +145,7 @@ To embed these diagrams in markdown documentation:
 {
   "reg": [
     {"bits": 1, "name": "hpet_enable", "attr": "Enable HPET"},
-    {"bits": 1, "name": "legacy_replacement", "attr": "Stored, no HW effect"},
+    {"bits": 1, "name": "legacy_replacement", "attr": "T0->IRQ0, T1->IRQ8"},
     {"bits": 30, "name": "reserved", "attr": "Reserved", "type": 1}
   ],
   "config": {"hspace": 800, "bits": 32, "lanes": 1}

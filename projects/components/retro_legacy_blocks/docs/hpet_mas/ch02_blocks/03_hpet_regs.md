@@ -366,13 +366,14 @@ PeakRDL generates readback arrays for all registers:
 logic [31:0] readback_array[38];
 
 // Global registers
-assign readback_array[0][4:0]   = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 5'h0 : '0;
-assign readback_array[0][5:5]   = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h0 : '0;  // leg_rt_cap
+assign readback_array[0][7:0]   = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ?
+                                  hwif_in.HPET_ID.rev_id.next : '0;
 assign readback_array[0][12:8]  = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ?
                                   hwif_in.HPET_ID.num_tim_cap.next : '0;
-assign readback_array[0][23:16] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ?
-                                  hwif_in.HPET_ID.rev_id.next : '0;
-assign readback_array[0][31:24] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ?
+assign readback_array[0][13:13] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h1 : '0;  // count_size_cap
+assign readback_array[0][14:14] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h0 : '0;  // reserved
+assign readback_array[0][15:15] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h1 : '0;  // leg_rt_cap
+assign readback_array[0][31:16] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ?
                                   hwif_in.HPET_ID.vendor_id.next : '0;
 
 // Config/status registers
@@ -499,8 +500,8 @@ addrmap hpet_regs {
         } num_tim_cap[12:8];
 
         field {
-            hw = na; sw = r;     // Reads 0: no legacy replacement routing
-        } leg_rt_cap[5:5] = 1'b0;
+            hw = na; sw = r;     // Reads 1: legacy replacement IS routed
+        } leg_rt_cap[15:15] = 1'b1;
 
     } HPET_ID @ 0x000;
 

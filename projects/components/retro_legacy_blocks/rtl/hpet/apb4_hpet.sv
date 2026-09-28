@@ -14,6 +14,9 @@
 // Created: 2025-10-18
 // Updated: 2026-09-09 - issue #46 review: halted-counter requirement for
 //                       partial counter writes, r_ prefix on flopped strobes
+// Updated: 2026-09-28 - RLB/hpet TASK-003: legacy_irq0/legacy_irq8 outputs, and
+//                       w_legacy_replacement now reaches hpet_core (it was
+//                       declared and driven but consumed by nothing)
 
 /**
  * ============================================================================
@@ -213,7 +216,15 @@ module apb4_hpet #(
     // ========================================================================
     // Timer Interrupt Outputs (High Frequency Domain)
     // ========================================================================
-    output logic [NUM_TIMERS-1:0]   timer_irq
+    output logic [NUM_TIMERS-1:0]   timer_irq,
+
+    // ========================================================================
+    // Legacy Replacement Routes (High Frequency Domain)
+    // ========================================================================
+    // Asserted only while HPET_CONFIG.legacy_replacement is set, in which case
+    // timers 0 and 1 are suppressed on timer_irq above (RLB/hpet TASK-003).
+    output logic                    legacy_irq0,
+    output logic                    legacy_irq8
 );
 
 // ============================================================================
@@ -409,6 +420,7 @@ hpet_core #(
 
     // Configuration Interface
     .hpet_enable          (w_hpet_enable),
+    .legacy_replacement   (w_legacy_replacement),
     .counter_write_lo     (r_counter_write_lo),
     .counter_write_hi     (r_counter_write_hi),
     .counter_wdata        (w_counter_wdata),
@@ -424,7 +436,9 @@ hpet_core #(
     // Interrupt Interface
     .timer_int_status     (w_timer_int_status),
     .timer_int_clear      (w_timer_int_clear),
-    .timer_irq            (timer_irq)
+    .timer_irq            (timer_irq),
+    .legacy_irq0          (legacy_irq0),
+    .legacy_irq8          (legacy_irq8)
 );
 
 /* verilator lint_on SYNCASYNCNET */

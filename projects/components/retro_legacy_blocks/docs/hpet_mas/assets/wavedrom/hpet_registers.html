@@ -240,19 +240,17 @@
                 <span>Access: RO</span>
             </div>
         </div>
-        <div class="register-description">Identification and capabilities (read-only). Vendor/revision fixed 0x01/0x01 in the generated RTL.</div>
+        <div class="register-description">Identification and capabilities (read-only), GCAP_ID[31:0]. vendor_id and rev_id are hardware-driven from the VENDOR_ID/REVISION_ID parameters, not fixed in the generated RTL.</div>
         <div class="wavedrom-container">
             <script type="WaveDrom">
 {
   "reg": [
-    {"bits": 5, "name": "reserved", "type": 1},
-    {"bits": 1, "name": "leg_rt_cap", "attr": "Reads 1 (not implemented)"},
-    {"bits": 1, "name": "reserved", "type": 1},
-    {"bits": 1, "name": "count_size_cap", "attr": "1 = 64-bit counter"},
+    {"bits": 8, "name": "rev_id", "attr": "REVISION_ID parameter"},
     {"bits": 5, "name": "num_tim_cap", "attr": "Timers - 1"},
-    {"bits": 3, "name": "reserved", "type": 1},
-    {"bits": 8, "name": "rev_id", "attr": "Fixed 0x01"},
-    {"bits": 8, "name": "vendor_id", "attr": "Fixed 0x01"}
+    {"bits": 1, "name": "count_size_cap", "attr": "1 = 64-bit counter"},
+    {"bits": 1, "name": "reserved", "type": 1},
+    {"bits": 1, "name": "leg_rt_cap", "attr": "Reads 1 (legacy route)"},
+    {"bits": 16, "name": "vendor_id", "attr": "VENDOR_ID parameter"}
   ],
   "config": {"hspace": 800, "bits": 32, "lanes": 1}
 }

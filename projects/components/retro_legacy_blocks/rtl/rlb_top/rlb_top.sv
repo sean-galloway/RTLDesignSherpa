@@ -102,6 +102,16 @@ module rlb_top #(
     // ========================================================================
     output logic [HPET_NUM_TIMERS-1:0] hpet_timer_irq,
 
+    // HPET LegacyReplacement Route (RLB/hpet TASK-003). Asserted only while
+    // HPET_CONFIG.legacy_replacement is set, and timers 0/1 are then suppressed
+    // on hpet_timer_irq. Brought out rather than merged into the PIC/IOAPIC
+    // here: consuming them also requires silencing the 8254 and the RTC, and
+    // TRAP -- timer 0 belongs on master IRQ0 and IOAPIC pin 2, never PIC IRQ2,
+    // which is the 8259 cascade input. That merge is the rlb_top IRQ fabric
+    // item, deliberately not done inside this task.
+    output logic                  hpet_legacy_irq0,
+    output logic                  hpet_legacy_irq8,
+
     // ========================================================================
     // 8259 PIC External Interface
     // ========================================================================
@@ -517,7 +527,9 @@ module rlb_top #(
         .s_apb_PPROT   (hpet_apb_PPROT),
         .s_apb_PRDATA  (hpet_apb_PRDATA),
         .s_apb_PSLVERR (hpet_apb_PSLVERR),
-        .timer_irq     (hpet_timer_irq)
+        .timer_irq     (hpet_timer_irq),
+        .legacy_irq0   (hpet_legacy_irq0),
+        .legacy_irq8   (hpet_legacy_irq8)
     );
 
     // ========================================================================

@@ -612,7 +612,7 @@ module hpet_regs (
     assign readback_array[0][12:8] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? hwif_in.HPET_ID.num_tim_cap.next : '0;
     assign readback_array[0][13:13] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h1 : '0;
     assign readback_array[0][14:14] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h0 : '0;
-    assign readback_array[0][15:15] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h0 : '0;
+    assign readback_array[0][15:15] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h1 : '0;
     assign readback_array[0][31:16] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? hwif_in.HPET_ID.vendor_id.next : '0;
     assign readback_array[1][31:0] = (decoded_reg_strb.HPET_PERIOD && !decoded_req_is_wr) ? hwif_in.HPET_PERIOD.counter_clk_period.next : '0;
     assign readback_array[2][0:0] = (decoded_reg_strb.HPET_CONFIG && !decoded_req_is_wr) ? field_storage.HPET_CONFIG.hpet_enable.value : '0;

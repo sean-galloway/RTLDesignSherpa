@@ -28,7 +28,8 @@
  *     value (round_3 Low: rewriting the same comparator produced no strobe).
  *   - HPET_ID.vendor_id/rev_id are hw=w and driven from the SystemVerilog
  *     VENDOR_ID/REVISION_ID parameters instead of being frozen at generation
- *     time; leg_rt_cap now reports 0 (see the field descriptions).
+ *     time; leg_rt_cap reports 1 now that RLB/hpet TASK-003 implemented the
+ *     LegacyReplacement Route (see the field descriptions).
  */
 
 addrmap hpet_regs #(
@@ -89,16 +90,22 @@ addrmap hpet_regs #(
 
         field {
             name = "Legacy Replacement Capable";
-            desc = "GCAP_ID[15]. Reports 0: no legacy replacement routing is
-                    implemented, and HPET_CONFIG.legacy_replacement reaches no
-                    hardware. This bit position is load-bearing -- real drivers
-                    gate on it (FreeBSD: if ((caps & HPET_CAP_LEG_RT) == 0)
-                    legacy_route = 0), so a driver reading 0 here will not use
-                    legacy mode at all. Set to 1 only when RLB/hpet TASK-003
-                    implements the routing.";
+            desc = "GCAP_ID[15]. Reports 1: the LegacyReplacement Route is
+                    implemented (RLB/hpet TASK-003). While
+                    HPET_CONFIG.legacy_replacement is set, timer 0 leaves on
+                    the legacy_irq0 output (IRQ0, standing in for 8254 PIT
+                    channel 0) and timer 1 on legacy_irq8 (IRQ8, standing in
+                    for the RTC periodic interrupt), and BOTH are suppressed on
+                    timer_irq -- the spec REPLACES their normal delivery rather
+                    than duplicating it.
+
+                    This bit position is load-bearing -- real drivers gate on
+                    it (FreeBSD: if ((caps & HPET_CAP_LEG_RT) == 0)
+                    legacy_route = 0), so a driver reading 0 here would never
+                    use legacy mode at all.";
             sw = r;
             hw = na;
-        } leg_rt_cap[15:15] = 1'b0;
+        } leg_rt_cap[15:15] = 1'b1;
 
         field {
             name = "Vendor ID";
@@ -158,7 +165,15 @@ addrmap hpet_regs #(
 
         field {
             name = "Legacy Replacement Route";
-            desc = "Enable legacy replacement mode";
+            desc = "GEN_CONF[1]. Enables the LegacyReplacement Route: timer 0 is
+                    delivered as IRQ0 and timer 1 as IRQ8, and both stop being
+                    delivered through timer_irq. Timers 2 and above are
+                    unaffected. Reaches hardware since RLB/hpet TASK-003;
+                    HPET_ID.leg_rt_cap reports 1 accordingly.
+
+                    Consuming the legacy routes means the 8254 PIT tick and the
+                    RTC periodic interrupt must cease, which is an
+                    INTEGRATION-level duty at rlb_top, not this block's.";
             sw = rw;
             hw = r;
         } legacy_replacement[1:1] = 1'b0;
@@ -336,9 +351,15 @@ addrmap hpet_regs #(
                 name = "Interrupt Route";
                 desc = "TN_CONF[13:9]. Which I/O APIC input this timer drives,
                         as a bit NUMBER selected from TIMER_INT_ROUTE_CAP.
-                        STORAGE ONLY until RLB/hpet TASK-003 implements routing;
-                        TIMER_INT_ROUTE_CAP reads 0 meanwhile, so a driver that
-                        consults the capability first will not pick a route.";
+                        STORAGE ONLY: general per-timer I/O APIC route selection
+                        is not implemented, and TIMER_INT_ROUTE_CAP reads 0 to
+                        say so, which is what a conforming driver consults
+                        before picking a route.
+
+                        Note this field is NOT what legacy replacement uses. The
+                        spec defines the LegacyReplacement Route as OVERRIDING
+                        this field for timers 0 and 1, so RLB/hpet TASK-003
+                        needed no routing here.";
                 sw = rw;
                 hw = r;
             } timer_int_route[13:9] = 5'h0;
@@ -372,16 +393,21 @@ addrmap hpet_regs #(
         reg {
             name = "Timer Interrupt Route Capability";
             desc = "TN_CONF[63:32]: bitmap of the I/O APIC inputs this timer may
-                    be routed to. READS 0 TODAY -- no routing is implemented, so
-                    advertising legal routes would be a lie a driver could act
-                    on. RLB/hpet TASK-003 sets this alongside
-                    HPET_ID.leg_rt_cap when the routing lands. Software selects
-                    a route by writing TIMER_CONFIG.timer_int_route with a bit
-                    number from this mask.";
+                    be routed to. READS 0 -- general per-timer I/O APIC routing
+                    is not implemented, and advertising legal routes would be a
+                    lie a driver could act on. Software would select a route by
+                    writing TIMER_CONFIG.timer_int_route with a bit number from
+                    this mask.
+
+                    This is INDEPENDENT of HPET_ID.leg_rt_cap, which reads 1:
+                    the LegacyReplacement Route overrides timer_int_route for
+                    timers 0 and 1 instead of selecting through it, so legacy
+                    mode works with this mask empty.";
 
             field {
                 name = "Interrupt Route Capability";
-                desc = "One bit per legal I/O APIC input. 0 = none legal yet.";
+                desc = "One bit per legal I/O APIC input. 0 = general routing
+                        is not implemented; legacy replacement does not use it.";
                 sw = r;
                 hw = na;
             } int_route_cap[31:0] = 32'h0;
