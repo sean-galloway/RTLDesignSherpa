@@ -77,12 +77,23 @@ RAPIDS modules use the following Agent IDs:
 
 | Agent ID | Module | Description |
 |----------|--------|-------------|
+| 0x08 | Descriptor AXI monitor | `axi4_master_rd_monlite` on the descriptor read master (per half, `USE_AXI_MONITORS`) |
+| 0x09 | Sink-ingress AXIS monitor | reserved, rapids TASK-015 (`rapids_snk_beats`, `s_axis_*`) |
+| 0x0A | Source-egress AXIS monitor | reserved, rapids TASK-015 (`rapids_src_beats`, `m_axis_*`) |
 | 0x10-0x17 | Descriptor Engine | Channels 0-7 |
+| 0x20 | Control Read Engine | ctrlrd (one per half) |
+| 0x21 | Control Write Engine | ctrlwr (one per half) |
 | 0x30-0x37 | Scheduler | Channels 0-7 |
-| 0x40-0x47 | Sink Data Path | Channels 0-7 |
-| 0x50-0x57 | Source Data Path | Channels 0-7 |
 
 : RAPIDS Agent IDs
+
+These are the values the scheduler group array and the halves pass down
+(`DESC_AXI_MON_AGENT_ID`, `DESC_MON_BASE_AGENT_ID`, `CTRLRD_MON_AGENT_ID`,
+`CTRLWR_MON_AGENT_ID`, `SCHED_MON_BASE_AGENT_ID`); the module defaults inside
+the engines differ and are overridden at instantiation. An earlier revision of
+this table listed data-path agents at 0x40-0x57, which nothing emits: the data
+paths carry no MonBus emitters, and the AXIS ports are monitored only by the
+characterization harness's instruments until TASK-015 lands.
 
 ## Event Codes
 
