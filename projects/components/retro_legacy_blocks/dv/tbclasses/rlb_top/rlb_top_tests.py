@@ -279,6 +279,133 @@ class RLBTopTests:
             self.log.error(f"PM/ACPI fabric routing test failed: {e}")
             return False
 
+    async def _fabric_preamble(self) -> bool:
+        """Reset, idle every input, bring the cascaded pair up, clear the BFM.
+
+        Shared by the per-block routing tests. Each one resets first because
+        the 8259 LATCHES int_out in edge mode: without a reset between blocks
+        the second test would be reading the first one's assertion and would
+        pass for entirely the wrong reason.
+        """
+        await self.tb.assert_reset()
+        await self.tb.wait_clocks('pclk', 10)
+        await self.tb.deassert_reset()
+        await self.tb.wait_clocks('pclk', 10)
+        self.tb._idle_inputs()
+        await self.tb.wait_clocks('pclk', 5)
+        if not await self.tb.init_pic_cascade():
+            self.log.error("  cascade init failed; IRQ8-15 cannot arrive")
+            return False
+        self.tb.irqs.clear()
+        if self.tb.pic_int_out():
+            self.log.error("  pic_int_out already high before the stimulus")
+            return False
+        return True
+
+    def _routing_verdict(self, source: str, expected: list) -> bool:
+        """Shared checks: source fired, reached the PIC, and NOTHING else moved."""
+        if int(self.tb.dut.pic_irq_in.value) != 0:
+            self.log.error("  pic_irq_in is non-zero -- this would not be "
+                           "proving internal routing")
+            return False
+        mon = self.tb.irqs.monitors.get(source)
+        if mon is None or mon.assert_count == 0:
+            self.log.error(f"  {source} never asserted -- the BLOCK did not "
+                           "raise, so the fabric is untested here")
+            for pkt in self.tb.irqs.all_events():
+                self.log.error(f"    saw: {pkt}")
+            return False
+        if not self.tb.pic_int_out():
+            self.log.error(f"  {source} asserted but pic_int_out stayed LOW -- "
+                           "the fabric did not deliver it")
+            return False
+        ok, missing, unexpected = self.tb.irqs.expect_only(expected)
+        if not ok:
+            self.log.error(f"  IRQ lines wrong: missing={missing} "
+                           f"unexpected={unexpected}")
+            for pkt in self.tb.irqs.all_events():
+                self.log.error(f"    {pkt}")
+            return False
+        return True
+
+    async def test_fabric_routes_uart_to_the_pic(self) -> bool:
+        """A UART interrupt reaches the 8259 on IRQ4, internally.
+
+        Uses the TX-HOLDING-EMPTY source, not RX. RX would need the DLAB dance
+        to set a baud divisor and then real shift time for a byte to travel
+        TX->RX in loopback -- several ways to fail for reasons that have
+        nothing to do with the fabric. The transmitter is already empty at
+        reset, so enabling that interrupt asserts it almost immediately.
+
+        MCR_OUT2 is REQUIRED as well as IER: OUT2 gates the IRQ pin, and a UART
+        configured with IER alone is fully set up and still never asserts.
+
+        UART is IRQ4 -> MASTER 8259 IR4 (below 8, so it does not go via the
+        slave, unlike GPIO and PM).
+        """
+        self.log.info("=== smoke: fabric routes UART to the 8259 ===")
+        try:
+            if not await self._fabric_preamble():
+                return False
+
+            W = self.tb.SLAVE_UART
+            # MCR: OUT2 (1<<3) gates the IRQ pin
+            await self.tb.apb_write(self.tb.window_addr(W, 0x014), 1 << 3)
+            # IER: TX holding empty (1<<1)
+            await self.tb.apb_write(self.tb.window_addr(W, 0x004), 1 << 1)
+            await self.tb.wait_clocks('pclk', 40)
+
+            if not self._routing_verdict(
+                    'uart_irq', ['uart_irq', 'pic_int_out', 'rlb_irq_out']):
+                return False
+            self.log.info("smoke fabric-UART GREEN (uart_irq reached the 8259 "
+                          "on IRQ4 with pic_irq_in held at 0)")
+            return True
+        except Exception as e:
+            self.log.error(f"UART fabric routing test failed: {e}")
+            return False
+
+    async def test_fabric_routes_pit_to_the_pic(self) -> bool:
+        """A PIT counter-0 interrupt reaches the 8259 on IRQ0, internally.
+
+        Mode 0 is 'interrupt on terminal count': the output goes low on the
+        count write and HIGH when the counter reaches zero, which is the
+        interrupt. GATE must be high for counting to proceed.
+
+        NOTE the constant convention: PIT's CONFIG_PIT_ENABLE is a bit
+        POSITION (0), where RTC/SMBus/PM/UART use pre-shifted masks. Hence
+        `1 << 0` here and bare constants elsewhere -- mixing them is a silent
+        off-by-shift.
+
+        PIT is IRQ0 -> MASTER 8259 IR0.
+        """
+        self.log.info("=== smoke: fabric routes PIT to the 8259 ===")
+        try:
+            if not await self._fabric_preamble():
+                return False
+
+            W = self.tb.SLAVE_PIT
+            self.tb.dut.pit_gate_in.value = 0x1          # GATE high, counter 0
+            await self.tb.apb_write(self.tb.window_addr(W, 0x000), 1 << 0)  # enable
+            # Control word: BCD=0 (bit0), MODE=0 (bits 3:1), RW=3 LSB+MSB
+            # (bits 5:4), COUNTER=0 (bits 7:6)  ->  0x30
+            await self.tb.apb_write(self.tb.window_addr(W, 0x004), 0x30)
+            # A small initial count so terminal count arrives quickly.
+            await self.tb.apb_write(self.tb.window_addr(W, 0x010), 0x0005)
+            await self.tb.wait_clocks('pclk', 400)       # pit_clk is slower
+
+            if not self._routing_verdict(
+                    'pit_timer_irq', ['pit_timer_irq', 'pic_int_out', 'rlb_irq_out']):
+                self.tb.dut.pit_gate_in.value = 0
+                return False
+            self.log.info("smoke fabric-PIT GREEN (pit_timer_irq reached the "
+                          "8259 on IRQ0 with pic_irq_in held at 0)")
+            self.tb.dut.pit_gate_in.value = 0
+            return True
+        except Exception as e:
+            self.log.error(f"PIT fabric routing test failed: {e}")
+            return False
+
     async def test_fabric_gpio_returns_the_slave_vector(self) -> bool:
         """The GPIO interrupt is acknowledged as a SLAVE vector, not the master's.
 

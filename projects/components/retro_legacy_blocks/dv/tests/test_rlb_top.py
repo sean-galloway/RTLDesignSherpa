@@ -92,6 +92,10 @@ async def cocotb_test_rlb_top_smoke(dut):
          tests.test_fabric_gpio_returns_the_slave_vector),
         ('Fabric routes PM/ACPI to the 8259',
          tests.test_fabric_routes_pm_acpi_to_the_pic),
+        ('Fabric routes UART to the 8259',
+         tests.test_fabric_routes_uart_to_the_pic),
+        ('Fabric routes PIT to the 8259',
+         tests.test_fabric_routes_pit_to_the_pic),
     ]
 
     if test_level == 'gate':
