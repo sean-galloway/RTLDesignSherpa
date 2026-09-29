@@ -193,6 +193,13 @@ class RapidsCharHarnessTB(TBBase):
             self.log.info(f"  {label} {iface} eff={eff:.2f}GB/s{extra}"
                           if isinstance(eff, float) else
                           f"  {label} {iface} eff={eff}{extra}")
+        # The bare-meter utilization per interface, so a sim run of a board
+        # row (latency / burst knobs) reports the same figures the board does.
+        for key, m in ((detail.get('perf') or {}).get('ifaces') or {}).items():
+            b = m.get('buckets') or {}
+            self.log.info(f"  {label} {key}: util={100 * m['util']:.1f}% "
+                          f"eff={m.get('eff_bw_gb_s', 0):.2f} GB/s "
+                          f"(prod={b.get('prod')} bp={b.get('bp')} starv={b.get('starv')} idle={b.get('idle')})")
         for w in (detail.get('warnings') or []):
             self.log.warning(f"  {label}: {w}")
         for e in (detail.get('errors') or []):
@@ -213,6 +220,8 @@ class RapidsCharHarnessTB(TBBase):
             self.campaign.reset_channels()
             if rd_delay or wr_delay:
                 self.campaign.set_resp_delay(rd_delay, wr_delay)
+            if int(os.environ.get('TEST_XFER_AXLEN', '0')):
+                self.campaign.set_xfer_axlen(int(os.environ['TEST_XFER_AXLEN']))
             # TEST_GEN_INTERLEAVE=1: round-robin channel schedule (TASK-018)
             if int(os.environ.get('TEST_GEN_INTERLEAVE', '0')):
                 self.campaign.set_interleave(True)
@@ -229,8 +238,19 @@ class RapidsCharHarnessTB(TBBase):
                                    backpressure: bool = False):
         active = list(active_channels)
 
+        # Same knobs as the sink path: TEST_RESP_DELAY_RD/WR (memory latency,
+        # aclk cycles) and TEST_XFER_AXLEN (burst length, AxLEN), so a board
+        # row of the latency / burst sweeps can be reproduced in sim.
+        rd_delay = int(os.environ.get('TEST_RESP_DELAY_RD', '0'))
+        wr_delay = int(os.environ.get('TEST_RESP_DELAY_WR', '0'))
+        axlen = int(os.environ.get('TEST_XFER_AXLEN', '0'))
+
         def prog():
             self.campaign.reset_channels()
+            if rd_delay or wr_delay:
+                self.campaign.set_resp_delay(rd_delay, wr_delay)
+            if axlen:
+                self.campaign.set_xfer_axlen(axlen)
             return self.campaign.run_source_selfcheck(active, beats,
                                                       SIM_POLL_TIMEOUT_S,
                                                       backpressure=backpressure)
