@@ -56,3 +56,8 @@ derived throughput factor (PRD D1/D6, Sean). Scramblers are a separate FUB.
 
 **2026-09-29 -- decision:** the scrambler is behind `ENABLE_SCRAMBLER` (PRD D12,
 Sean); off is a tested build. ETSI direct-PDF links added to References.
+
+**2026-09-29 -- decision:** the boundary is selectable per end, `INTAKE_IF` and
+`OUTLET_IF` each AXIS or AXI4 (PRD D9, Sean). AXI4 ends are a read engine / write
+engine pair on STREAM's engine shape behind the `axi4_master_{rd,wr}` wrappers,
+with jobs from the regblock or a descriptor stream; sketch rows added.

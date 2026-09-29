@@ -34,16 +34,16 @@ every count scales with t and m as noted. Nothing here is RTL yet.
 flowchart LR
     subgraph ENC["rs_encoder"]
         direction LR
-        ES["axis4_slave<br/>(TDATA = k data symbols, TLAST)"] --> EU["symbol_unpack<br/>bus → m-bit symbols"]
+        ES["intake adapter<br/>INTAKE_IF = AXIS: axis4_slave<br/>INTAKE_IF = AXI4: rs_axi_read_engine (job addr+count)"] --> EU["symbol_unpack<br/>bus → m-bit symbols"]
         EU --> LF["gf_lfsr_encoder<br/>2t GF constant multipliers"]
         EU --> PM["parity_mux<br/>pass k, append 2t"]
         LF --> PM
-        PM --> EM["axis4_master<br/>(n symbols out)"]
+        PM --> EM["outlet adapter<br/>OUTLET_IF = AXIS: axis4_master<br/>OUTLET_IF = AXI4: rs_axi_write_engine (job addr+count)"]
     end
 
     subgraph DEC["rs_decoder"]
         direction LR
-        DS["axis4_slave<br/>(n symbols, TUSER = erasure flag)"] --> DU["symbol_unpack"]
+        DS["intake adapter<br/>AXIS: axis4_slave (TUSER = erasure flag)<br/>AXI4: rs_axi_read_engine"] --> DU["symbol_unpack"]
         DU --> BB["block_buffer<br/>gaxi_fifo_sync, n + latency deep"]
         DU --> SY["syndrome_unit<br/>2t gf_mac cells"]
         DU --> EL["erasure_locator<br/>(optional, D5)"]
@@ -54,7 +54,7 @@ flowchart LR
         CH --> FO
         FO --> CX["corrector<br/>XOR error value at located symbol"]
         BB --> CX
-        CX --> DM["axis4_master<br/>(k data or n symbols)"]
+        CX --> DM["outlet adapter<br/>AXIS: axis4_master (TUSER = block status)<br/>AXI4: rs_axi_write_engine"]
         SY -. all-zero → bypass .-> CX
         KE -. degree > t → uncorrectable .-> ST["status / counters<br/>block ok, corrected, failed"]
         CX --> ST
@@ -103,7 +103,10 @@ Each is one module in `rtl/`, one TB class, one test file, one MAS chapter.
 | `corrector` | XORs the Forney value into the symbol leaving `block_buffer` when Chien says the position is in error; counts corrections. | XOR + `counter_bin`; the FIFO read strobe is the position clock |
 | `status_counters` | Per-block: ok / corrected-n / uncorrectable; running totals; the uncorrectable flag also rides TUSER out (PRD R2). | `counter_bin` × 3, flags into the regblock's `hwif_in` |
 | `rs_regs` (generated) | Profile selection (when more than one is compiled in), enables, counters, interrupt on uncorrectable. | PeakRDL regblock via `bin/peakrdl_generate.py`; APB in through the converters' `apb4 → cpuif` path exactly as `stream_config_block` does |
-| `rs_encoder`, `rs_decoder` tops | The two deliverables; each wraps its datapath in the house AXI-Stream boundary. | `axis4_slave` in, `axis4_master` out (`SKID_DEPTH` 2-4); `axis4_*_monlite` variants when observed |
+| `rs_encoder`, `rs_decoder` tops | The two deliverables; each wraps its datapath in a selectable boundary at each end (PRD D9): `INTAKE_IF` and `OUTLET_IF` each `AXIS` or `AXI4`, independently, so AXIS-in/AXI4-out and the other three pairings are one core with different adapters generated. The core between the adapters is always the same symbol stream with a block-end flag. | AXIS end: `axis4_slave` in / `axis4_master` out (`SKID_DEPTH` 2-4; `_monlite` variants when observed). AXI4 end: the two engines below |
+| `rs_axi_read_engine` (generated when `INTAKE_IF = AXI4`) | Turns a job (source address, byte count) into AXI4 read bursts and presents the returned beats as the core's symbol stream, marking block end every n symbols; back-pressures on the core's ready. | STREAM's `axi_read_engine` shape (job valid/addr/beats in, done strobe out, `cfg_axi_rd_xfer_beats` burst cap) behind an `axi4_master_rd` timing wrapper; `gaxi_fifo_sync` as the landing buffer; `dma_address_gen` (misc) if strided / 2-D jobs are wanted |
+| `rs_axi_write_engine` (generated when `OUTLET_IF = AXI4`) | Drains the core's output stream into AXI4 write bursts at the job's destination address, one block per n (decoder: k) symbols, and reports bytes written and block status in the done strobe. | STREAM's `axi_write_engine` shape (job valid/ready/addr/beats/burst_len, done + commit strobes) behind `axi4_master_wr`; `gaxi_fifo_sync` for the drain |
+| `rs_job_ctrl` (AXI4 ends only) | Where jobs come from: the regblock (source / destination / count / kick, one job at a time) or a descriptor stream on a small AXIS port for chained jobs. Sequences read-engine and write-engine jobs so the write side knows each block's destination before its first symbol arrives. | `rs_regs` fields + `gaxi_skid_buffer` for the descriptor path; the STREAM `descriptor_engine` is the precedent if chaining grows |
 
 ## Reuse map, by repo area
 
@@ -111,7 +114,9 @@ Each is one module in `rtl/`, one TB class, one test file, one MAS chapter.
 |---|---|---|---|
 | `rtl/amba/gaxi` | `gaxi_skid_buffer` | ready/valid decoupling between FUBs (`DEPTH 2`) | one per stage boundary where a stage may stall |
 | `rtl/amba/gaxi` | `gaxi_fifo_sync` | `block_buffer` | mux read by default; `REGISTERED=1` if the corrector needs the extra cycle |
-| `rtl/amba/axis4` | `axis4_slave`, `axis4_master` (+ `_monlite`, `_cg`) | codec boundaries | the same wrappers the bridge uses at AXIS ports |
+| `rtl/amba/axis4` | `axis4_slave`, `axis4_master` (+ `_monlite`, `_cg`) | AXIS boundaries | the same wrappers the bridge uses at AXIS ports |
+| `rtl/amba/axi4` | `axi4_master_rd`, `axi4_master_wr` (+ `_monlite`, `_cg`) | AXI4 boundaries, behind the read / write engines | timing isolation and monitoring exactly as STREAM's masters |
+| `projects/components/dma-ip/stream/rtl/fub` | `axi_read_engine`, `axi_write_engine` | the shape (and, if the interfaces fit, the code) of `rs_axi_read_engine` / `rs_axi_write_engine` | STREAM's engines are multi-channel (`NC`) and SRAM-coupled; the RS engines are single-job and FIFO-coupled, so expect a reduction rather than an instantiation -- decide when the AXI4 boundary is built |
 | `rtl/amba/monitor` | `axis_monitor_lite` | throughput / stall / TLAST observation on both ports → monbus | via the monlite wrapper variants; no hand-rolled counters |
 | `rtl/amba/shared` | `axis4_master_pattern_gen`, `axis4_slave_pattern_check` | DV traffic and check at the boundaries | already used for the AXIS monitors |
 | `rtl/common` | `counter_bin`, `counter_load_clear` | position, iteration and block counters | `MAX` = n for position |
@@ -143,8 +148,9 @@ n = 544 so the buffer is 1024 deep, and D6 forces the parallel branch.
 
 ## What this sketch does not decide
 
-Everything in PRD section 3 except the solver: **riBM is decided** (Sean,
-2026-09-29; PRD D11). Euclidean was the alternative most FPGA cores use and is
+Everything in PRD section 3 except the solver and the boundary: **riBM is
+decided** (Sean, 2026-09-29; PRD D11), and **the interface at each end is
+selectable, AXIS or AXI4, independently** (PRD D9). Euclidean was the alternative most FPGA cores use and is
 easier to read, but needs an inverse in the loop or a longer datapath. Still
 open: the throughput (serial here) and whether one build carries more than one
 profile. The MAS is where those
