@@ -2,7 +2,7 @@
 
 # projects/components/dmas/rapids — bugs
 
-**Next ID: BUG-009** — never recycle a number, even when its item closed.
+**Next ID: BUG-010** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,13 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 8 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **BUG-009** — the sink wedges when a write burst equals the per-channel SRAM depth (WR_XFER_BEATS = SRAM_DEPTH - 1); found on the Genesys 2, single-channel knob sweep 2026-09-29
 
 
 ## Closed
