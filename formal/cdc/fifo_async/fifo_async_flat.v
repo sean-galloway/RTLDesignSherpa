@@ -428,7 +428,7 @@ module fifo_async (
 	localparam signed [31:0] PTRW = (USE_JOHNSON != 0 ? JCW : AW + 1);
 	generate
 		if ((USE_JOHNSON == 0) && ((DEPTH & (DEPTH - 1)) != 0)) begin : g_bad_depth
-			initial $display("Error [elaboration] /tmp/claude-1000/defork_fifo_async/fifo_async.sv:684:9 - fifo_async.g_bad_depth\n msg: ", "fifo_async: USE_JOHNSON=0 (Gray) requires a power-of-2 DEPTH, got %0d. Set USE_JOHNSON=1 for arbitrary depths.", DEPTH);
+			initial $display("Error [elaboration] /tmp/formal_fifo_async/fifo_async.sv:684:9 - fifo_async.g_bad_depth\n msg: ", "fifo_async: USE_JOHNSON=0 (Gray) requires a power-of-2 DEPTH, got %0d. Set USE_JOHNSON=1 for arbitrary depths.", DEPTH);
 		end
 	endgenerate
 	wire [AW - 1:0] r_wr_addr;

@@ -249,7 +249,7 @@ module gaxi_drop_fifo_sync (
 	endfunction
 	always @(posedge axi_aclk)
 		if ((((axi_aresetn && (r_drop_state == 2'b00)) && drop_valid) && !drop_all) && (sv2v_cast_32(drop_count) > sv2v_cast_32(count)))
-			$display("Error [%0t] /tmp/claude-1000/defork_gaxi_drop_fifo_sync/gaxi_drop_fifo_sync.sv:270:13 - gaxi_drop_fifo_sync.<unnamed_block>.<unnamed_block>\n msg: ", $time, "gaxi_drop_fifo_sync: drop_count=%0d exceeds occupancy count=%0d -- read pointer will overrun and count will wrap", drop_count, count);
+			$display("Error [%0t] /tmp/formal_gaxi_drop_fifo_sync/gaxi_drop_fifo_sync.sv:270:13 - gaxi_drop_fifo_sync.<unnamed_block>.<unnamed_block>\n msg: ", $time, "gaxi_drop_fifo_sync: drop_count=%0d exceeds occupancy count=%0d -- read pointer will overrun and count will wrap", drop_count, count);
 	wire w_write;
 	wire w_wr_load;
 	assign w_write = wr_valid && wr_ready;
