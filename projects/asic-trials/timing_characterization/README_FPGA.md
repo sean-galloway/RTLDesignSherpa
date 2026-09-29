@@ -136,7 +136,7 @@ fpga/
     ├── create_project.tcl        project gen from rtl/filelists/char_top.f
     ├── synth_only.tcl            synth + utilization_synth.txt
     ├── build_all.tcl             synth + impl + bitgen + reports
-    └── filelist_utils.tcl        env-var + +incdir + nested -f support
+    └── (filelist expansion comes from the shared make/tcl/filelist_utils.tcl)
 ```
 
 Quick start (with `REPO_ROOT` exported via the repo's `env_python`):

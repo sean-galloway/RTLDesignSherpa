@@ -143,7 +143,10 @@ if {[lsearch -exact [get_board_parts] $board_part_str] >= 0} {
 # ----------------------------------------------------------------------------
 # Expand the top-level filelist into a flat list of Verilog sources.
 # ----------------------------------------------------------------------------
-source "$script_dir/filelist_utils.tcl"
+# Shared filelist expander (tooling TASK-019): make/tcl/filelist_utils.tcl.
+# REPO_ROOT comes from the Makefile; the git fallback lets the script run by hand.
+set rds_root [expr {[info exists ::env(REPO_ROOT)] ? $::env(REPO_ROOT) : [string trim [exec git -C $script_dir rev-parse --show-toplevel]]}]
+source "$rds_root/make/tcl/filelist_utils.tcl"
 
 set top_filelist "$project_root/filelists/$top_flist_name"
 puts "\nExpanding filelist: $top_filelist"

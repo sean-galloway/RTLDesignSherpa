@@ -43,6 +43,8 @@ set TOP                   char_top
 set FILELIST              rtl/filelists/char_top.f
 set MASTER_SDC            rtl/syn/char_top.sdc
 set PARAMETERS            {}
+set SWEEP_PARAM           ""      ;# a top-level parameter to sweep at every frequency ...
+set SWEEP_VALUES          {}      ;# ... over these values; dirs become <F>MHz_<PARAM>=<v>
 set INPUT_DELAY_FRACTION  0.80
 set OUTPUT_DELAY_FRACTION 0.20
 set CLK_UNCERTAINTY_NS    0.100
@@ -96,7 +98,7 @@ foreach v {REPO_ROOT TIMING_CHAR_ROOT FPGA_FLOW_ROOT} {
         }
     }
 }
-source [file join $flow_root tcl filelist_utils.tcl]
+source [file join $::env(REPO_ROOT) make tcl filelist_utils.tcl]   ;# the shared expander (tooling TASK-019)
 lassign [filelist::flatten $FILELIST] sources incdirs defines
 foreach s $sources {
     if {![file exists $s]} { puts stderr "source listed in $FILELIST is missing: $s"; exit 2 }
@@ -109,6 +111,7 @@ puts "FAMILY / DEVICE:   $FAMILY / $DEVICE"
 puts "TOP:               $TOP  ([llength $sources] sources, [llength $incdirs] include dirs)"
 puts "FREQS_MHZ:         $FREQS_MHZ"
 puts "PARAMETERS:        [expr {$PARAMETERS eq {} ? "(RTL defaults)" : $PARAMETERS}]"
+if {$SWEEP_PARAM ne ""} { puts "SWEEP:             $SWEEP_PARAM over {$SWEEP_VALUES}" }
 puts "I/O split:         in $INPUT_DELAY_FRACTION / out $OUTPUT_DELAY_FRACTION, uncertainty $CLK_UNCERTAINTY_NS ns"
 puts "VIRTUAL_PINS:      $VIRTUAL_PINS"
 puts "BUILD_DIR:         $BUILD_DIR"
@@ -130,8 +133,8 @@ proc write_sdc_wrapper {path freq in_frac out_frac unc master} {
 }
 
 # ---- one point: project, compile, reports -------------------------------------
-proc run_point {freq point_dir sdc} {
-    global FAMILY DEVICE TOP PARAMETERS OPTIMIZATION_MODE FITTER_SEED VIRTUAL_PINS sources incdirs defines script_dir
+proc run_point {freq point_dir sdc params} {
+    global FAMILY DEVICE TOP OPTIMIZATION_MODE FITTER_SEED VIRTUAL_PINS sources incdirs defines script_dir
     load_package flow
     cd $point_dir
     project_new $TOP -overwrite -revision $TOP
@@ -146,7 +149,7 @@ proc run_point {freq point_dir sdc} {
     foreach d $incdirs { set_global_assignment -name SEARCH_PATH $d }
     foreach s $sources { set_global_assignment -name SYSTEMVERILOG_FILE $s }
     foreach d $defines { set_global_assignment -name VERILOG_MACRO $d }
-    foreach {n v} $PARAMETERS { set_parameter -name $n $v }
+    foreach {n v} $params { set_parameter -name $n $v }
     if {$VIRTUAL_PINS} { set_instance_assignment -name VIRTUAL_PIN ON -to * }
     export_assignments
     # map -> fit -> sta, no assembler (no bitstream is wanted from a sweep)
@@ -169,26 +172,40 @@ proc run_point {freq point_dir sdc} {
 }
 
 # ---- sweep ----------------------------------------------------------------------
-set failed {}
+# Each sweep point is (frequency, parameter value); with no SWEEP_PARAM the
+# value list is a single empty entry and the directory names carry no suffix.
+set points {}
 foreach freq $FREQS_MHZ {
+    if {$SWEEP_PARAM eq ""} {
+        lappend points [list $freq "" $PARAMETERS]
+    } else {
+        foreach v $SWEEP_VALUES {
+            lappend points [list $freq "_${SWEEP_PARAM}=${v}" [concat $PARAMETERS [list $SWEEP_PARAM $v]]]
+        }
+    }
+}
+set failed {}
+foreach pt $points {
+    lassign $pt freq suffix params
     set period    [format %.4f [expr {1000.0 / $freq}]]
-    set point_dir [file join $BUILD_DIR ${freq}MHz]
-    set rpt_dir   [file join $REPORTS_DIR sweep_${freq}MHz]
+    set point_dir [file join $BUILD_DIR ${freq}MHz${suffix}]
+    set rpt_dir   [file join $REPORTS_DIR sweep_${freq}MHz${suffix}]
     file mkdir $point_dir $rpt_dir
     set sdc [file join $point_dir timing_target.sdc]
     write_sdc_wrapper $sdc $freq $INPUT_DELAY_FRACTION $OUTPUT_DELAY_FRACTION $CLK_UNCERTAINTY_NS $MASTER_SDC
     puts ""
     puts "================================================================"
-    puts " sweep point: $freq MHz  (period $period ns)  -> $point_dir"
+    puts " sweep point: $freq MHz$suffix  (period $period ns)  -> $point_dir"
+    if {$params ne {}} { puts " parameters:  $params" }
     puts "================================================================"
     if {$dry_run} {
         puts "  would compile $TOP for $DEVICE with SDC $sdc"
         continue
     }
     set t0 [clock seconds]
-    if {[catch {run_point $freq $point_dir $sdc} err]} {
+    if {[catch {run_point $freq $point_dir $sdc $params} err]} {
         puts stderr "  FAILED: $err"
-        lappend failed $freq
+        lappend failed "${freq}MHz$suffix"
         continue
     }
     # archive what the aggregator and a reader need
@@ -202,11 +219,11 @@ foreach freq $FREQS_MHZ {
 
 puts ""
 if {[llength $failed]} {
-    puts stderr "sweep finished with failures at: $failed MHz"
+    puts stderr "sweep finished with failures at: $failed"
     exit 1
 }
 if {$dry_run} {
-    puts "dry run complete: [llength $FREQS_MHZ] SDC wrapper(s) written under $BUILD_DIR"
+    puts "dry run complete: [llength $points] SDC wrapper(s) written under $BUILD_DIR"
 } else {
     puts "sweep complete. Aggregate with:"
     puts "  python3 $flow_root/tools/parse_timing_sweep.py --tool quartus $REPORTS_DIR $REPORTS_DIR/sweep_wns.csv"

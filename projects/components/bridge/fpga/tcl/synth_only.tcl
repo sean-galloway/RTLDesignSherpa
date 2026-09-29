@@ -42,7 +42,10 @@ puts "reports: $rpt"
 puts "========================================================================"
 
 # ---- sources -----------------------------------------------------------------
-source "$script_dir/filelist_utils.tcl"
+# Shared filelist expander (tooling TASK-019): make/tcl/filelist_utils.tcl.
+# REPO_ROOT comes from the Makefile; the git fallback lets the script run by hand.
+set rds_root [expr {[info exists ::env(REPO_ROOT)] ? $::env(REPO_ROOT) : [string trim [exec git -C $script_dir rev-parse --show-toplevel]]}]
+source "$rds_root/make/tcl/filelist_utils.tcl"
 set fl [file normalize $::env(FPGA_FILELIST)]
 if {![file exists $fl]} { puts stderr "ERROR: filelist not found: $fl"; exit 1 }
 lassign [filelist::flatten $fl] srcs incdirs defines

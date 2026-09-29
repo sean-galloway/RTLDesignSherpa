@@ -12,15 +12,14 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 18 | done (kept for history) |
+| [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-019** — filelist_utils.tcl exists as eight copies and seven do not treat // as a comment
 
 
 ## Active
@@ -28,6 +27,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-019** — filelist_utils.tcl exists as eight copies and seven do not treat // as a comment -- CLOSED 2026-09-29: one make/tcl/filelist_utils.tcl sourced by all 8 flows + the Quartus sweep; 7 copies deleted; Tcl/Python agreement test
 - **TASK-018** — `formal/Makefile`'s `formal:` list reaches every area except `apbx_xbar` (5 proofs) and `bridge` (1), so 6 proofs never run unattended; the same file's comments warn about exactly this omission twice already. -- CLOSED 2026-09-29: formal-apbx-xbar + formal-bridge in the formal: list; area Makefiles discover <dir>/<dir>.sby; 7/7 tasks PASS=14
 - **TASK-016** — fan out the 8 doc-example findings the widened gate surfaced (converters x3, stream/regs, fpga-systems/boards); each needs its owner to triage as defect or illustrative. -- CLOSED 2026-09-29: fanned out to converters TASK-004 and stream TASK-015; the lane-less fpga-systems debounce example fixed in place; BASELINE 7
 - **TASK-015** — check_task_ids.py runs only in pre-commit; no CI step validates the tracker, so a --no-verify commit or an uninstalled hook lands a lying tracker unchecked. -- CLOSED 2026-09-29: check_task_ids runs in the filelists CI job; 5 teeth tests in bin/tests prove it fails on each planted defect

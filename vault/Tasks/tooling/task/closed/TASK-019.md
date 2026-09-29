@@ -1,7 +1,7 @@
 # TASK-019: filelist_utils.tcl exists as eight copies and seven do not treat // as a comment
 
 **Priority:** P3
-**Status:** open
+**Status:** CLOSED 2026-09-29 (done)
 **Owner:** TBD
 **Filed:** 2026-09-29 (found by timing_characterization TASK-001)
 
@@ -46,3 +46,28 @@ gotcha waiting to happen in reverse. Options, in order of preference:
       Python expander
 - [ ] a filelist with `//` headings expands identically through the Tcl and
       Python expanders (test it, do not eyeball it)
+
+---
+
+## CLOSED 2026-09-29 -- one expander, sourced by every flow, agreement tested
+
+- `make/tcl/filelist_utils.tcl` is the one Tcl copy (git-moved from the
+  timing_characterization flow, which carried the `//` fix). The seven others
+  are deleted. All eight sourcing scripts (`create_project.tcl` x6,
+  `bridge/fpga/tcl/synth_only.tcl`, `rtl/amba/fpga/tcl/monitor_synth.tcl`) and
+  the Quartus sweep source it through `$::env(REPO_ROOT)` with a
+  `git rev-parse --show-toplevel` fallback for running a script by hand.
+- `bin/tests/test_filelist_utils_tcl.py`: one filelist using `#`, `//`,
+  trailing comments, `+incdir+`, a `$REPO_ROOT`-anchored nested `-f`, an
+  anchored source and bare relative sources, expanded through
+  `filelist::flatten` (tclsh) and `get_sources_from_filelist` (Python);
+  sources and include dirs compared as sets. 2/2 pass. Skips when tclsh is
+  absent.
+- The one grammar difference that remains -- the Python side opens a nested
+  `-f` verbatim, the Tcl side resolves it against the filelist's
+  parent-of-parent -- is recorded in [[filelists]] with the convention that
+  keeps it harmless (anchor nested `-f` on a root variable, as every repo
+  filelist already does).
+- Proven on a real flow, not only the test: the timing_characterization
+  Vivado `bitstream-sweep` running during this change picked up the rewired
+  `create_project.tcl` at its second and third points and built through.

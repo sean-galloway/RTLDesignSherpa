@@ -270,3 +270,29 @@ the STREAM/RAPIDS component suites, which are their owners' to migrate.
 (`fifo_async` -> `rtl/cdc/`), an unknown module raising, module mode and path
 mode returning identical sources.
 
+## Two expanders, one grammar; one copy of each (2026-09-29)
+
+A `.f` is read by two programs: the Python `FileListProcessor`
+(`bin/FileFolderFunctions/file_list_processor.py`, behind
+`TBClasses.shared.filelist_utils.get_sources_from_filelist`) for every cocotb
+test, and the Tcl `filelist::flatten` (`make/tcl/filelist_utils.tcl`) for
+every Vivado and Quartus flow. They must agree, and until tooling TASK-019 they
+did not: the Tcl side existed as EIGHT per-flow copies, seven of which knew
+only `#` as a comment, so a `// heading` line came back as a source path
+beginning with `/ ` and project creation died on "source file missing". The
+timing_characterization flow hit it the first time its filelist -- written
+with `//` headings, as this note says is legal -- met the copy beside it. The
+other flows had not, only because their filelists happen to use `#`.
+
+- **One Tcl copy**, `make/tcl/filelist_utils.tcl`, sourced by every flow via
+  `$::env(REPO_ROOT)` (with a `git rev-parse` fallback for running a script by
+  hand). Do not copy it beside a new flow; source it.
+- **Agreement is tested**, not eyeballed: `bin/tests/test_filelist_utils_tcl.py`
+  expands one filelist that uses every form (`#`, `//`, trailing comments,
+  `+incdir+`, nested `-f`, `$REPO_ROOT` and bare relative paths) through both
+  and compares the sets.
+- **One grammar difference stands, by convention rather than code:** a nested
+  `-f` path is opened verbatim by the Python side (relative to the caller's
+  cwd), while the Tcl side resolves it against the filelist's parent-of-parent.
+  Every repo filelist anchors nested `-f` on `$REPO_ROOT` (or an area root
+  variable), which both read identically -- keep doing that.
