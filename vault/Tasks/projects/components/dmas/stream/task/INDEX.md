@@ -12,22 +12,24 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 10 | done (kept for history) |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 13 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-012** — arm the 26 signal-contract maps still rendering VERDICT: NOT CHECKED (rtl_sop / depends_only_on); the derived-vs-RTL gate is inert on them
-- **TASK-013** — stream placement pass: 9 loose markdown files (status page, coverage and perf reports beside the tests)
 
 ## Active
 
-- **TASK-004** — RFC Stage-E — in-core R/W datapath perf monitors (retire `axi_bus_meter`)
 
 ## Closed
+
+- **TASK-012** — all 38 signal-contract maps armed: 32 IDENTICAL, 3 DIFFERS justified, 0 NOT CHECKED; four rotted maps rewritten to the current RTL (closed 2026-09-28)
+- **TASK-013** — placement pass: 2 pages re-homed, 7 stale/generated pages deleted, coverage tool output ignored (closed 2026-09-28)
+
+- **TASK-004** — RFC Stage-E in-core R/W datapath perf monitors; goal met by the shared interface observers, board boxes discharged by the v1.4 campaign (closed 2026-09-28)
 
 - **TASK-003** — scrub the tests for completeness (stream)
 - **TASK-002** — gate the monitor regfile on a parameter (present + decoded)

@@ -12,17 +12,18 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 16 | done (kept for history) |
+| [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-017** — the in-core monbus group filtered every packet with DAXMON's registers (the order-dependent addr_error of amba BUG-036) -- FIXED, board evidence owed
 
 ## Closed
+
+- **BUG-017** — the in-core monbus group filtered every packet with DAXMON's registers (amba BUG-036) -- CLOSED 2026-09-28 (fix 201babbb5)
 
 - **BUG-016** — the monitor PKT_MASK registers are described as "1 = enable"; the hardware masks on 1 -- CLOSED 2026-09-28 (RDL at 02b5f4629, MAS rows with BUG-017)
 - **BUG-001** — STREAM formal proofs read a hand-copied gaxi_fifo_sync, not the RTL

@@ -1,0 +1,5 @@
+# combine_coverage.py writes its markdown reports here (combined_report_<stamp>.md,
+# combined_report_latest.md). They are run output, regenerated on demand, and are
+# not documentation (stream TASK-013): keep them out of the tree.
+*.md
+!.gitignore

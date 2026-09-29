@@ -1,7 +1,7 @@
 # TASK-013: stream placement pass: 9 loose markdown files (status page, coverage and perf reports beside the tests)
 
 **Priority:** P3
-**Status:** open
+**Status:** closed 2026-09-28 (closing note at the end)
 **Owner:** stream session
 **Filed:** 2026-09-28 by tooling TASK-004 (fan-out)
 
@@ -48,7 +48,22 @@ This is the per-unit share; nobody outside this unit will do it.
 
 ## Done when
 
-- [ ] every file below has a decided home and is there (or is deleted with the
+- [x] every file below has a decided home and is there (or is deleted with the
       reason in the commit message)
-- [ ] `python3 bin/filelist_registry.py --placement` lists nothing from this unit
-- [ ] the affected tests pass from `make clean-all`
+- [x] `python3 bin/filelist_registry.py --placement` lists nothing from this unit
+- [x] the affected tests pass from `make clean-all`
+
+---
+
+**CLOSED 2026-09-28.** No filelists were loose. Markdown, per [[doc-placement]]:
+
+| File | Decision |
+|---|---|
+| `AT-A-GLANCE.md` | status/index page: moved to this lane's directory (`vault/Tasks/projects/components/dmas/stream/AT-A-GLANCE.md`), where pumice keeps its twin; it uses no relative links, so nothing broke |
+| `dv/tbclasses/README_APB_CONFIG.md` | a real guide (the TB's two configuration modes, `init_apb4_master` and friends still exist), not a link page: moved to the component `docs/` root as `StreamCoreTB_APB_Configuration.md`, the home RLB TASK-016 set for its guides |
+| `coverage_combined/COMBINED_COVERAGE_SUMMARY.md` | generated coverage summary nothing reads: deleted (directory gone) |
+| `dv/tests/combined_coverage/{combined_legal_report,combined_report_20260117_133736,combined_report_latest}.md` | run output of `combine_coverage.py`, which regenerates `_latest` and a stamped copy on every run: deleted, and a local `.gitignore` keeps the tool's markdown out of the tree from now on (`combined_coverage.json` is not markdown and is left as it was) |
+| `dv/tests/macro/perf_results/PERFORMANCE_SUMMARY.md`, `perf_results_realistic_sram/{FINAL_SUMMARY,REALISTIC_SRAM_ANALYSIS}.md` | Nov-2025 cosim write-ups of an earlier core; the reader-facing home already exists (HAS ch05 `03_resources.md`, "SRAM Sizing") and the board report supersedes the numbers: deleted, the raw `.txt` beside them left as artifacts, and the one referrer (`test_stream_core.py`'s comment) repointed at the HAS page |
+
+`--placement` lists nothing under stream; link ratchet and task-id check pass;
+`stream_core` tests re-run from `make clean-all` (macro area, gate).

@@ -155,7 +155,9 @@ def _params_for_level(test_level):
 
     # Realistic SRAM sizing: Power-of-2 scaled depths
     # Based on testing: 128-bit works well with 4KB, but 512-bit needs 8KB minimum
-    # See REALISTIC_SRAM_ANALYSIS.md for details
+    # Rationale: docs/stream_has/ch05_performance/03_resources.md ("SRAM Sizing"); the
+    # Nov-2025 simulation write-up that sat beside these results is in git history
+    # (stream TASK-013).
     fifo_depths = {
         128: 256,  # 4KB = 4096 / 16 bytes/entry (optimal from testing)
         256: 256,  # 8KB = 8192 / 32 bytes/entry (safe, power-of-2)

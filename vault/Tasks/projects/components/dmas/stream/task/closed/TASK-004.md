@@ -2,7 +2,7 @@
 > **Was `TASK-056` until 2026-09-24.** Renamed when this area adopted per-lane ID sequences. Older references, commit messages and handbook notes use the old ID.
 
 **Priority:** Medium
-**Status:** [~] In progress (2026-07-28) — **RTL + COSIM COMPLETE (E.1–E.4)**;
+**Status:** CLOSED 2026-09-28 (Sean: done, by way of the shared observers -- closing note at the end). Was: in progress since 2026-07-28, RTL + cosim complete (E.1–E.4),
 board bring-up pending. (Migrated from the loose
 `projects/components/dmas/stream/TODO_RFC_StageE_datapath_perfmon.md`, formerly
 "task #56".)
@@ -34,6 +34,19 @@ and covered by the `val/amba` suite.
 baseline warning profile); cosim `TEST_TYPE=rw_perf` + `csr_read` pass.
 
 **Remaining (board — owner drives):**
-- [ ] `make bitstream` / `make timing` / `make utilization` / `make program`
-- [ ] run a known workload, sanity-check the in-core perf CSRs
-- [ ] the `run_characterization.py` sweep repoint is board-only-testable (not cosim)
+- [x] `make bitstream` / `make timing` / `make utilization` / `make program`
+- [x] run a known workload, sanity-check the in-core perf CSRs
+- [x] the `run_characterization.py` sweep repoint is board-only-testable (not cosim)
+
+---
+
+**CLOSED 2026-09-28 (Sean).** The goal -- utilisation measured inside the
+design rather than by the harness's bare `axi_bus_meter` -- was met by the
+shared instrumentation pair that superseded Stage-E's per-core monitors:
+`axi4_intf_master_observer` on the AXI4 masters and `axis4_intf_observer` on
+both AXIS links (stream TASK-001 / rapids TASK-001), which the STREAM harness
+instantiates (`stream_harness.sv`, `harness_csr.sv`) and which the STREAM perf
+report v1.4 and the RAPIDS perf report v1.2-v1.5 were measured through on the
+Genesys 2: buckets, bandwidth and latency histograms per interface, read by
+name over CSR. The three board boxes above are discharged by those campaigns.
+The E.1-E.4 in-core CSRs remain in the tree as built and cosim-verified.
