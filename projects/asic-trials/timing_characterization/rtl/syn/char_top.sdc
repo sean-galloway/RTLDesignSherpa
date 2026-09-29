@@ -69,7 +69,15 @@ set OUTPUT_DELAY_NS [expr {$CLK_PERIOD_NS * $OUTPUT_DELAY_FRACTION}]
 # Clock definition
 # --------------------------------------------------------------------------
 create_clock -name clk -period $CLK_PERIOD_NS [get_ports clk]
-set_clock_uncertainty $CLK_UNCERTAINTY_NS [get_clocks clk]
+# The uncertainty value is positional in DC/Genus/Vivado but LAST in the
+# Timing Analyzer, which names the clock with -to and rejects a second
+# positional argument ("More than 1 positional argument specified",
+# 2026-09-29, the first Quartus sweep). Same constraint, two spellings.
+if {$FLOW eq "quartus"} {
+    set_clock_uncertainty -to [get_clocks clk] $CLK_UNCERTAINTY_NS
+} else {
+    set_clock_uncertainty $CLK_UNCERTAINTY_NS [get_clocks clk]
+}
 
 # --------------------------------------------------------------------------
 # Reset
@@ -212,7 +220,11 @@ if {$FLOW eq "asic"} {
     #
 
     # -- I/O Models -------------------------------------------------------
-    set_load 5.0 [all_outputs]
+    # No `set_load` here: the Timing Analyzer does not implement it
+    # (Error 332139 "SDC Command entered is not currently supported", first
+    # Quartus sweep 2026-09-29) and read_sdc aborts on the first error, so the
+    # whole constraint set would be lost. Output loading on Intel FPGAs is
+    # a property of the I/O standard, set in the .qsf, not of the SDC.
 
     # -- Preserve (reinforce RTL /* synthesis preserve */ attributes) ------
     # Quartus uses "preserve" pragmas in RTL. SDC-side reinforcement:

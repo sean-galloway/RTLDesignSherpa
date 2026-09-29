@@ -41,6 +41,7 @@ BITSTREAM := $(SELF_DIR)/bitstream/timing_char.bit
 REPORTS   := $(SELF_DIR)/reports
 
 .PHONY: help project synth bitstream bitstream-mmcm bitstream-sweep program \
+        quartus-sweep quartus-sweep-dry \
         utilization timing clean clean-all cleanall \
         xlsx xlsx-asic xlsx-fpga whitepaper whitepaper-asic whitepaper-fpga \
         calibrate docs
@@ -56,6 +57,12 @@ help:
 	@echo "  make bitstream-sweep  Loop bitstream across FREQS_MHZ; emit CSV"
 	@echo "                          (override list: FREQS_MHZ=\"100 150 ...\")"
 	@echo "  make program          Flash the Nexys A7 via JTAG"
+	@echo ""
+	@echo "Quartus flow (timing_characterization TASK-001; no board, STA only):"
+	@echo "  make quartus-sweep    map/fit/sta char_top per FREQS_MHZ on QUARTUS_CFG's"
+	@echo "                          device; per-FUB slack CSV -> reports/quartus/sweep_wns.csv"
+	@echo "                          (QUARTUS_CFG=quartus/sweep_config.example.tcl, QUARTUS_SH=quartus_sh)"
+	@echo "  make quartus-sweep-dry  Same plan under plain tclsh, nothing compiled"
 	@echo ""
 	@echo "Reports:"
 	@echo "  make utilization      cat the latest utilization report"
@@ -142,6 +149,35 @@ bitstream-sweep:
 	@python3 $(SELF_DIR)/tools/parse_timing_sweep.py $(REPORTS) $(REPORTS)/sweep_wns.csv
 	@echo ""
 	@echo "Done. Feed reports/sweep_wns.csv into the spreadsheet builder."
+
+# ---- Quartus target-frequency sweep ----------------------------------------
+# The Quartus twin of bitstream-sweep: one project per frequency under
+# build/quartus/<F>MHz (git-ignored), summaries + per-FUB slack under
+# reports/quartus/sweep_<F>MHz/, rolled up by the same parser with
+# --tool quartus. Device, I/O split and parameters come from QUARTUS_CFG;
+# FREQS_MHZ from the command line overrides the config's list. Quartus Prime
+# Lite 24.1std installs to ~/intelFPGA_lite/24.1std/quartus/bin and is not on
+# PATH by default -- point QUARTUS_SH at it or add that dir to PATH.
+QUARTUS_SH  ?= quartus_sh
+QUARTUS_CFG ?= $(SELF_DIR)/quartus/sweep_config.example.tcl
+QUARTUS_REPORTS := $(REPORTS)/quartus
+
+.PHONY: quartus-sweep
+quartus-sweep:
+	@command -v $(QUARTUS_SH) >/dev/null 2>&1 || { \
+	    echo "quartus-sweep: '$(QUARTUS_SH)' not found. Quartus Prime Lite installs to"; \
+	    echo "  ~/intelFPGA_lite/<ver>/quartus/bin -- run with QUARTUS_SH=<that>/quartus_sh"; \
+	    echo "  or add the directory to PATH. Use 'make quartus-sweep-dry' to check the plan."; \
+	    exit 1; }
+	@echo "[quartus-sweep] cfg=$(QUARTUS_CFG) FREQS_MHZ=$(FREQS_MHZ)"
+	cd $(TIMING_CHAR_ROOT) && $(QUARTUS_SH) -t $(SELF_DIR)/quartus/syn_sweep_quartus.tcl $(QUARTUS_CFG) -freqs "$(FREQS_MHZ)"
+	@echo ""
+	@echo "[quartus-sweep] aggregating into $(QUARTUS_REPORTS)/sweep_wns.csv"
+	@python3 $(SELF_DIR)/tools/parse_timing_sweep.py --tool quartus $(QUARTUS_REPORTS) $(QUARTUS_REPORTS)/sweep_wns.csv
+
+.PHONY: quartus-sweep-dry
+quartus-sweep-dry:
+	cd $(TIMING_CHAR_ROOT) && TCL_LIBRARY=$${TCL_LIBRARY:-/usr/share/tcltk/tcl8.6} tclsh $(SELF_DIR)/quartus/syn_sweep_quartus.tcl $(QUARTUS_CFG) -freqs "$(FREQS_MHZ)" -dry-run
 
 # ---- Program board ---------------------------------------------------------
 # program / ports / board-info / boards come from the shared board layer. The

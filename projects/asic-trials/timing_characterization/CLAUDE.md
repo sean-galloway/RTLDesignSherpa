@@ -200,6 +200,7 @@ reuse that model.
 
 **Synthesis:**
 - `rtl/syn/char_top.sdc` -- Multi-flow SDC (ASIC/Vivado/Quartus)
+- `fpga/quartus/` -- Quartus sweep: `syn_sweep_quartus.tcl` + `sta_reports.tcl` + `sweep_config.example.tcl`; `cd fpga && make quartus-sweep`
 - `rtl/syn/SYNTHESIS_GUIDE.md` -- Complete synthesis documentation
 
 ### Test Inventory

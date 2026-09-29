@@ -108,6 +108,13 @@ module nand_chain_top #(
     // and NUM_FLOPS=256 have ACTUAL_FLOPS=256, the input width is bounded.
 
     genvar gi;
+    // Loop index for the generate-time fill loops below. Declared at module
+    // scope rather than inline (`for (genvar gb = ...)`): both are legal
+    // SystemVerilog, but Quartus Prime Lite 24.1std rejects the inline form
+    // ("expecting an identifier"), and the ASIC and Vivado flows accept
+    // either. The two forms elaborate identically.
+    genvar gb;
+
     generate
         for (gi = 0; gi < NUM_INSTANCES; gi++) begin : gen_chains
 
@@ -121,7 +128,7 @@ module nand_chain_top #(
             // Uses genvar loop to assign each bit from the 32-bit LFSR pattern
             logic [INST_ACTUAL_FLOPS-1:0] w_chain_input;
 
-            for (genvar gb = 0; gb < INST_ACTUAL_FLOPS; gb++) begin : gen_input_fill
+            for (gb = 0; gb < INST_ACTUAL_FLOPS; gb++) begin : gen_input_fill
                 assign w_chain_input[gb] = r_lfsr[gb % 32];
             end
 

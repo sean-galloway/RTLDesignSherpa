@@ -180,11 +180,18 @@ module char_top #(
     // Feature: NAND Tree
     //=========================================================================
 
+    // Loop index for the generate-time fill loops below. Declared at module
+    // scope rather than inline (`for (genvar b = ...)`): both are legal
+    // SystemVerilog, but Quartus Prime Lite 24.1std rejects the inline form
+    // ("expecting an identifier"), and the ASIC and Vivado flows accept
+    // either. The two forms elaborate identically.
+    genvar b;
+
     generate
         if (EN_NAND_TREE != 0) begin : gen_nand
 
             logic [NAND_ACTUAL_FLOPS-1:0] w_nand_input;
-            for (genvar b = 0; b < NAND_ACTUAL_FLOPS; b++) begin : gen_fill
+            for (b = 0; b < NAND_ACTUAL_FLOPS; b++) begin : gen_fill
                 assign w_nand_input[b] = r_lfsr[b % 32];
             end
 
@@ -232,7 +239,7 @@ module char_top #(
         if (EN_XOR_TREE != 0) begin : gen_xor
 
             logic [XOR_ACTUAL_FLOPS-1:0] w_xor_input;
-            for (genvar b = 0; b < XOR_ACTUAL_FLOPS; b++) begin : gen_fill
+            for (b = 0; b < XOR_ACTUAL_FLOPS; b++) begin : gen_fill
                 assign w_xor_input[b] = r_lfsr[b % 32];
             end
 
@@ -260,7 +267,7 @@ module char_top #(
 
             logic [CARRY_WIDTH-1:0] w_carry_a;
             logic [CARRY_WIDTH-1:0] w_carry_b;
-            for (genvar b = 0; b < CARRY_WIDTH; b++) begin : gen_fill
+            for (b = 0; b < CARRY_WIDTH; b++) begin : gen_fill
                 assign w_carry_a[b] = r_lfsr[b % 32];
                 assign w_carry_b[b] = r_lfsr[(b + 16) % 32];
             end
@@ -289,7 +296,7 @@ module char_top #(
 
             logic [MULT_WIDTH-1:0] w_mult_a;
             logic [MULT_WIDTH-1:0] w_mult_b;
-            for (genvar b = 0; b < MULT_WIDTH; b++) begin : gen_fill
+            for (b = 0; b < MULT_WIDTH; b++) begin : gen_fill
                 assign w_mult_a[b] = r_lfsr[b % 32];
                 assign w_mult_b[b] = r_lfsr[(b + 16) % 32];
             end
@@ -319,10 +326,10 @@ module char_top #(
 
             logic [MUX_ACTUAL_FLOPS-1:0] w_mux_data;
             logic [MUX_ACTUAL_SEL-1:0]   w_mux_sel;
-            for (genvar b = 0; b < MUX_ACTUAL_FLOPS; b++) begin : gen_fill_data
+            for (b = 0; b < MUX_ACTUAL_FLOPS; b++) begin : gen_fill_data
                 assign w_mux_data[b] = r_lfsr[b % 32];
             end
-            for (genvar b = 0; b < MUX_ACTUAL_SEL; b++) begin : gen_fill_sel
+            for (b = 0; b < MUX_ACTUAL_SEL; b++) begin : gen_fill_sel
                 assign w_mux_sel[b] = r_lfsr[(b + 7) % 32];
             end
 
@@ -350,7 +357,7 @@ module char_top #(
         if (EN_QUEUE_DEPTH != 0) begin : gen_queue
 
             logic [FIFO_DATA_WIDTH-1:0] w_fifo_wr_data;
-            for (genvar b = 0; b < FIFO_DATA_WIDTH; b++) begin : gen_fill
+            for (b = 0; b < FIFO_DATA_WIDTH; b++) begin : gen_fill
                 assign w_fifo_wr_data[b] = r_lfsr[b % 32];
             end
 

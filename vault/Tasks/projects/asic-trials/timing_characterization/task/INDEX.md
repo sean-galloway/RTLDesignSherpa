@@ -12,16 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 5 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-001** — Parameter Sweep Automation Scripts
 - **TASK-002** — Cross-Technology Comparison Reports
 - **TASK-003** — Additional FUBs
 - **TASK-004** — PDF Generation for Synthesis Guide
 - **TASK-005** — timing_characterization placement pass: 3 loose how-to guides
+
+## Closed
+
+- **TASK-001** — Parameter Sweep Automation Scripts -- CLOSED 2026-09-29: Quartus sweep (fpga/quartus) + example config built and run on Cyclone V; parser fixed for both tools

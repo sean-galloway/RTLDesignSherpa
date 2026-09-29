@@ -5,7 +5,7 @@
 #   - Environment-variable substitution ($REPO_ROOT, $STREAM_ROOT, ...)
 #   - `+incdir+` prefixes for include paths
 #   - `-f <other.f>` nested filelist includes
-#   - `#` line comments
+#   - `#` and `//` line comments (and trailing inline comments)
 #==============================================================================
 
 namespace eval filelist {
@@ -68,11 +68,20 @@ namespace eval filelist {
         foreach line [split $raw "\n"] {
             set line [string trim $line]
             if {$line eq "" || [string index $line 0] eq "#"} { continue }
+            # `//` is a comment too -- the repo's filelists use it (char_top.f
+            # is written that way), and the cocotb-side expander treats it so.
+            # Until 2026-09-29 this parser did not, and every `// heading`
+            # line came back as a source path beginning with "/ ".
+            if {[string range $line 0 1] eq "//"} { continue }
 
-            # Strip trailing inline comments
+            # Strip trailing inline comments (`#` or `//`)
             set hash_idx [string first "#" $line]
             if {$hash_idx >= 0} {
                 set line [string trim [string range $line 0 [expr {$hash_idx - 1}]]]
+            }
+            set slash_idx [string first "//" $line]
+            if {$slash_idx >= 0} {
+                set line [string trim [string range $line 0 [expr {$slash_idx - 1}]]]
             }
             if {$line eq ""} { continue }
 

@@ -1,0 +1,5 @@
+# Quartus sweep: keep the small summaries + per-FUB CSV; the full STA report,
+# the worst-path dump and the regenerated SDC wrapper are per-run debris.
+fpga/reports/quartus/sweep_*MHz/*.sta.rpt
+fpga/reports/quartus/sweep_*MHz/setup_worst.txt
+fpga/reports/quartus/sweep_*MHz/timing_target.sdc

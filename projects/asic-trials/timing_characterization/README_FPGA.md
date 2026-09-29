@@ -324,7 +324,9 @@ cat reports/sweep_wns.csv
 ```
 
 CSV columns: `freq_mhz, period_ns, group, wns_ns, slack_status,
-utilization_luts, utilization_ffs, utilization_brams, utilization_dsps`.
+utilization_luts, utilization_ffs, utilization_brams, utilization_dsps,
+data_delay_ns, logic_levels` (the last two are filled by the Quartus sweep
+below and empty here).
 That's the direct input to recalibrating
 [`work/build_fpga_characterization_xlsx.py`](work/build_fpga_characterization_xlsx.py)'s
 `PRIM_PS` dict.
@@ -333,6 +335,54 @@ Under the hood it's just a `TARGET_PERIOD_NS` env var that
 [`fpga/tcl/clock_constraint.tcl`](fpga/tcl/clock_constraint.tcl) reads at
 project-creation time and bakes into a fresh XDC fragment.  No MMCM, no
 sig_accum, no on-chip behaviour -- pure post-route Vivado STA.
+
+### 5.6a The same sweep on Quartus (Cyclone V)
+
+`make quartus-sweep` is the Quartus twin (timing_characterization TASK-001,
+2026-09-29). It compiles `char_top` itself -- not a board wrapper -- once per
+frequency on the device named in a config file, with the SAME multi-flow SDC
+the ASIC and Vivado flows use (`rtl/syn/char_top.sdc`, `FLOW "quartus"`), so
+the three flows measure one constraint:
+
+```bash
+cd fpga
+make quartus-sweep QUARTUS_SH=~/intelFPGA_lite/24.1std/quartus/bin/quartus_sh
+#   QUARTUS_CFG=quartus/sweep_config.example.tcl   (device, I/O split, parameters)
+#   FREQS_MHZ="100 150 200 250 300"                (same default list as bitstream-sweep)
+make quartus-sweep-dry   # print the plan under plain tclsh, compile nothing
+cat reports/quartus/sweep_wns.csv
+```
+
+Each point is a fresh project under `build/quartus/<F>MHz/` (map, fit, STA;
+no assembler, ~90 s on a Cyclone V GX for the full char_top). Two things the
+Vivado sweep does not give you land in `reports/quartus/sweep_<F>MHz/`:
+
+- **`fub_slack.csv`** from [`fpga/quartus/sta_reports.tcl`](fpga/quartus/sta_reports.tcl):
+  for every FUB the worst register-to-register setup path launched from its
+  flops -- slack, data-path delay and **logic levels** -- plus a `<fub>.io`
+  row for the worst path to any endpoint (the 20 % output-delay budget lands
+  on those) and a `design` row. This is the per-FUB gate-delay signal the
+  methodology is after, read straight from the Timing Analyzer's
+  `get_timing_paths` rather than eyeballed from a report.
+- **All four timing models** (slow/fast x 85C/0C) as `clk:<model>` rows.
+
+`parse_timing_sweep.py --tool quartus` rolls both into the same CSV shape
+as the Vivado sweep, with two extra columns: `data_delay_ns, logic_levels`
+(empty on Vivado rows). `utilization_luts` carries ALMs on Quartus rows -- an
+ALM is not a LUT; compare across tools by ratio, not by count.
+
+Config is a plain Tcl file of `set` statements
+([`fpga/quartus/sweep_config.example.tcl`](fpga/quartus/sweep_config.example.tcl)
+documents every key). The default device is the Cyclone V GX Starter Kit
+part, 5CGXFC5C6F27C7: the DE1-SoC's 5CSEMA5F31C6 does not have 242 user
+pins free for the fully-enabled char_top; set `VIRTUAL_PINS 1` to use it.
+Quartus Prime Lite 24.1std installs only Cyclone V and MAX 10.
+
+Two things the first Quartus run taught, both now in the SDC: the Timing
+Analyzer does not implement `set_load`, and its `set_clock_uncertainty`
+names the clock with `-to` and takes the value last -- `read_sdc` aborts on
+the first error and the fitter then reports "Can't fit design", which is the
+SDC failure wearing a resource costume.
 
 ### 5.7 What v0.1 still doesn't do
 

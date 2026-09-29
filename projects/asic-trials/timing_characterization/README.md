@@ -360,7 +360,7 @@ projects/asic-trials/timing_characterization/
     ├── fub/                     9 FUBs
     ├── filelists/char_top.f     flat source list for the multi-flow tree
     ├── top/                     char_top.sv + nand_chain_top.sv
-    └── syn/                     ASIC + FPGA flow
+    └── syn/                     ASIC + FPGA flow (the multi-flow SDC; see also fpga/quartus/ for the Quartus sweep)
         ├── char_top.sdc         multi-flow constraints (asic/vivado/quartus)
         ├── SYNTHESIS_GUIDE.md   per-FUB synthesis recipes
         ├── Makefile             Yosys + OpenSTA driver

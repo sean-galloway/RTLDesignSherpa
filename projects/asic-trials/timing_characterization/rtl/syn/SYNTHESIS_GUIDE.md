@@ -345,7 +345,7 @@ decorrelated.
 |------|------|-------------------|
 | `"asic"` | Synopsys DC / Cadence Genus | Target library, operating conditions |
 | `"vivado"` | Xilinx Vivado | Part number (e.g., `xc7a200t...`) |
-| `"quartus"` | Quartus Prime | FAMILY, DEVICE in .qsf |
+| `"quartus"` | Quartus Prime | FAMILY, DEVICE in .qsf (`fpga/quartus/sweep_config.example.tcl`) |
 
 All overridable parameters use `if {![info exists ...]}` guards so you
 can set them in your synthesis script **before** sourcing the SDC:
@@ -397,14 +397,28 @@ synth_design -top char_top -generic EN_CARRY_CHAIN=1 ...
 **Quartus:**
 ```
 # In .qsf:
-set_global_assignment -name FAMILY "Cyclone 10 LP"
-set_global_assignment -name DEVICE 10CL120YF780I7G
-set_global_assignment -name SDC_FILE char_top.sdc
+set_global_assignment -name FAMILY "Cyclone V"
+set_global_assignment -name DEVICE 5CGXFC5C6F27C7
+set_global_assignment -name SDC_FILE timing_target.sdc   ;# a 6-line wrapper, see below
 set_global_assignment -name OPTIMIZATION_MODE "HIGH PERFORMANCE EFFORT"
-set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "2.5 V"
 ```
 
-In a pre-SDC Tcl hook, set `FLOW "quartus"` before the SDC is sourced.
+The Timing Analyzer reads SDC as Tcl, so the wrapper it is pointed at sets
+the flow and sources the master file (there is no "pre-SDC hook"):
+
+```tcl
+# timing_target.sdc
+set FLOW            quartus
+set TARGET_FREQ_MHZ 200
+source "/abs/path/to/rtl/syn/char_top.sdc"
+```
+
+This is exactly what `fpga/quartus/syn_sweep_quartus.tcl` generates per
+sweep point; `cd fpga && make quartus-sweep` runs the whole loop and
+`fpga/quartus/sta_reports.tcl` adds per-FUB slack / data delay / logic
+levels. Two Timing Analyzer differences are folded into the master SDC:
+`set_clock_uncertainty` takes `-to <clock>` with the value LAST, and
+`set_load` is not implemented (`read_sdc` aborts on it).
 
 ### 5.4 The 80/20 I/O Split
 
@@ -443,7 +457,8 @@ Typical sweep points: 100, 200, 300, 400, 500, 600, 750, 1000 MHz.
 | Per-FUB path groups | `group_path` (active) | `report_timing -from` (manual) | `report_timing -from` (manual) |
 | Dont-touch enforcement | `set_dont_touch` (active) | `DONT_TOUCH` property (commented) | `PRESERVE_REGISTER` (commented) |
 | I/O driving model | `set_driving_cell` (commented, needs lib cell) | `IOSTANDARD` (commented) | Via .qsf `IO_STANDARD` |
-| Output load | Via library | `set_load 5.0` | `set_load 5.0` |
+| Output load | Via library | `set_load 5.0` | not supported by the Timing Analyzer; via .qsf `IO_STANDARD` |
+| Per-FUB slack/delay/levels | `report_timing -group` | manual | `fpga/quartus/sta_reports.tcl` -> `fub_slack.csv` (automated) |
 
 The ASIC flow enables path groups and dont-touch by default since these
 are standard DC/Genus commands.  Vivado and Quartus equivalents are
