@@ -1,10 +1,10 @@
 <!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. -->
 
-# projects/components/reed-solomon — issues
+# projects/components/ecc-ip/reed-solomon — bugs
 
-**Next ID: ISSUE-001** — never recycle a number, even when its item closed.
+**Next ID: BUG-001** — never recycle a number, even when its item closed.
 
-An observed problem that is not yet a diagnosed defect or a decided piece of work: an anomaly, a risk, an open question. It RESOLVES INTO a bug, a task, or a recorded no-action.
+A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
 Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 Moving an item between states is `git mv`, so an item is in exactly one state

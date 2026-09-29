@@ -17,10 +17,10 @@ Pick the lane before filing:
 
 **The pages at this level are the LEGACY task lane.** They are frozen: close
 them out where they stand, and do not add to them. New work of any kind goes in
-a lane above. See [the convention](../../../INDEX.md) for the full definitions.
+a lane above. See [the convention](../../../../INDEX.md) for the full definitions.
 
 
-Future `projects/components/reed-solomon/` component. No RTL, DV or PRD
+Future `projects/components/ecc-ip/reed-solomon/` component. No RTL, DV or PRD
 exists yet — this area holds the intent so it does not vanish when
 COMMON-009 (BCH/Reed-Solomon ECC as library work) was dropped 2026-08-09.
 

@@ -8,7 +8,7 @@ niche (NAND flash, deep-space comms). A docs-only `projects/components/bch/`
 placeholder was deleted 2026-07-23, leaving this task as the only place BCH
 was tracked — and it now ends here: this is not rtl/common library work.
 
-**If Reed-Solomon happens, it happens as `projects/components/reed-solomon/`**
+**If Reed-Solomon happens, it happens as `projects/components/ecc-ip/reed-solomon/`**
 — a component project with its own PRD/DV/tasks area, not a common-library
 primitive. Tracked as **RS-001** in
-[vault/Tasks/projects/components/reed-solomon/](../../../projects/components/reed-solomon/INDEX.md).
+[vault/Tasks/projects/components/ecc-ip/reed-solomon/](../../../projects/components/ecc-ip/reed-solomon/INDEX.md).

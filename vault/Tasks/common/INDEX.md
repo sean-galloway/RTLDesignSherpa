@@ -79,7 +79,7 @@ integration support.
   cascade_sel); default build is 8 bytes/cycle. See closed.md.
 - **COMMON-006** (parameterized adders/multipliers) and **COMMON-009**
   (BCH/Reed-Solomon) DROPPED 2026-08-09 — generation stays the approach for
-  the former; R/S, if it happens, is a future `projects/components/reed-solomon/`
+  the former; R/S, if it happens, is a future `projects/components/ecc-ip/reed-solomon/`
   component, not library work (see the dropped/ dirs tracked as RS-001).
 
 Practice and rationale live in the [handbook](../../handbook/INDEX.md);

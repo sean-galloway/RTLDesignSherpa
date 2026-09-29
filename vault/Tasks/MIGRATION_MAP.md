@@ -6,7 +6,7 @@ The flat per-state pages were split into one-file-per-item on 2026-09-27. Legacy
 
 | Area | Legacy ID | New location | New ID |
 |---|---|---|---|
-| projects/components/reed-solomon | `RS-001` | task/open | `TASK-001` |
+| projects/components/ecc-ip/reed-solomon | `RS-001` | task/open | `TASK-001` |
 | projects/components/misc | `MISC-001` | task/open | `TASK-001` |
 | projects/components/misc | `MISC-002` | task/open | `TASK-002` |
 | site-audit | `AUDIT-002` | task/open | `TASK-002` |

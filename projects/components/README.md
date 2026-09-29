@@ -62,7 +62,7 @@ tracker. Nothing here is a second copy of either.
 | dmas/rapids (DMA with network integration) | [dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md](dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md), [dmas/rapids/CLAUDE.md](dmas/rapids/CLAUDE.md) |
 | memory-controllers (pumice DDR2/LPDDR2; DDR3 and DDR4 placeholders) | [memory-controllers/README.md](memory-controllers/README.md) |
 | misc (ROM/RAM wrappers and utilities) | [misc/README.md](misc/README.md) |
-| reed-solomon (RS codec; stood up 2026-09-29, references + draft PRD, no RTL yet) | [reed-solomon/README.md](reed-solomon/README.md), [reed-solomon/References/README.md](reed-solomon/References/README.md) |
+| ecc-ip (error-correction IP family; reed-solomon stood up 2026-09-29, references + draft PRD, no RTL yet) | [ecc-ip/README.md](ecc-ip/README.md), [ecc-ip/reed-solomon/README.md](ecc-ip/reed-solomon/README.md) |
 | retro_legacy_blocks (HPET, 8259, 8254, RTC, SMBus, PM/ACPI, IOAPIC, GPIO, UART) | [retro_legacy_blocks/README.md](retro_legacy_blocks/README.md) |
 | delta, hive | retired 2026-09-27 (see the tracker); directories kept as they were |
 

@@ -1,6 +1,6 @@
 <!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. -->
 
-# projects/components/reed-solomon — tasks
+# projects/components/ecc-ip/reed-solomon — tasks
 
 **Next ID: TASK-002** — never recycle a number, even when its item closed.
 

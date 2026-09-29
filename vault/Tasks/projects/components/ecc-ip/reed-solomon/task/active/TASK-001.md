@@ -1,6 +1,6 @@
 # TASK-001: Stand up the Reed-Solomon component
 
-> Migrated 2026-09-27 from `vault/Tasks/projects/components/reed-solomon/open.md` as **RS-001** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
+> Migrated 2026-09-27 from `vault/Tasks/projects/components/ecc-ip/reed-solomon/open.md` as **RS-001** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 **Status:** ACTIVE 2026-09-29 (was open 2026-08-09) (created when COMMON-009 was dropped — Sean's
 call: R/S is component work, not rtl/common library work)
 **Priority:** P3 — waits on a real consumer (NAND flash, comms, storage)
@@ -17,7 +17,7 @@ When a consumer appears:
   encoder-only vs full decoder, throughput target — and whether BCH (the
   binary special case, previously tracked alongside R/S and also ended with
   COMMON-009) is in scope here or stays out.
-- Location: `projects/components/reed-solomon/` (rtl/, dv/, PRD.md),
+- Location: `projects/components/ecc-ip/reed-solomon/` (rtl/, dv/, PRD.md),
   filelists registered per [[filelists]] from day one.
 - Reuse survey per CLAUDE.md before any new RTL: `dataint_ecc_*` shows the
   house ECC interface conventions; the GF layer is new ground.
@@ -32,7 +32,7 @@ directory gets created when work actually starts.
 ## Log
 
 **2026-09-29 -- area created at Sean's request; references gathered.**
-`projects/components/reed-solomon/` now holds `README.md`, `CLAUDE.md`, a
+`projects/components/ecc-ip/reed-solomon/` now holds `README.md`, `CLAUDE.md`, a
 DRAFT `PRD.md` whose section 3 is the decision table this page asked for
 (m, t, shortening, encoder-only vs decoder, erasures, throughput, BCH,
 generator conventions, interface, first consumer) with four candidate profiles

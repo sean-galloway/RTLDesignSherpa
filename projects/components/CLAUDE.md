@@ -264,7 +264,7 @@ area you are in. Paths relative to `projects/components/`.
 | Retro Legacy Blocks | `retro_legacy_blocks/` | legacy PC peripherals (HPET, PIT 8254, PIC 8259, RTC, ...), APB register maps |
 | Bridge | `bridge/` | protocol converters, clock domain crossing |
 | misc | `misc/` | reusable utility components: ROM/RAM wrappers, pattern generators |
-| Reed-Solomon | `reed-solomon/` | RS codec (GF(2^m), BM/Euclid, Chien/Forney); stand-up only -- PRD decisions pending, References/ populated |
+| ecc-ip / Reed-Solomon | `ecc-ip/reed-solomon/` | RS codec (GF(2^m), BM/Euclid, Chien/Forney); stand-up only -- PRD decisions pending, References/ populated |
 
 ---
 

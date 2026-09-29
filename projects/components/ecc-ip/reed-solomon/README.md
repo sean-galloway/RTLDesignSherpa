@@ -24,7 +24,7 @@
 # Reed-Solomon Codec Component
 
 **Status:** Stood up 2026-09-29 -- references gathered, PRD in draft, no RTL yet
-**Tracker:** `vault/Tasks/projects/components/reed-solomon/` (TASK-001 is the stand-up)
+**Tracker:** `vault/Tasks/projects/components/ecc-ip/reed-solomon/` (TASK-001 is the stand-up)
 
 ## What this is
 

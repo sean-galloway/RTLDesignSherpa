@@ -8,7 +8,7 @@ only what is particular to this directory.
 - Stood up at Sean's request; `References/` is populated and `PRD.md` is a
   draft whose decision table is unresolved. There is NO RTL, NO DV and NO
   filelist yet. Do not create placeholder RTL, tests or a MAS skeleton.
-- Tracker: `vault/Tasks/projects/components/reed-solomon/` (task/bug/issue
+- Tracker: `vault/Tasks/projects/components/ecc-ip/reed-solomon/` (task/bug/issue
   lanes). TASK-001 (stand-up) is active and logs what exists.
 
 ## Decisions this area is waiting on (see PRD.md section 3)
