@@ -49,3 +49,7 @@ by Sean's request; it still holds for RTL/DV/MAS skeletons.
 **2026-09-29 -- decision:** the key-equation solver is riBM (Sarwate-Shanbhag
 reformulated inversionless Berlekamp-Massey); Sean, on the architecture sketch.
 Recorded as PRD D11. `docs/rs_architecture_sketch.md` added the same day.
+
+**2026-09-29 -- decision:** `SYMBOL_WIDTH` is its own parameter with an
+elaboration check that `DATA_WIDTH` is a multiple; `SYMBOLS_PER_BEAT` is the
+derived throughput factor (PRD D1/D6, Sean). Scramblers are a separate FUB.
