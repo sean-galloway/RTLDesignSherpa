@@ -202,7 +202,12 @@ coverage_db.export_to_yaml("functional_coverage.yaml")
 
 ### Create an Exclusion Manifest
 
-Maintain a file (e.g., `coverage_exclusions.md` or `coverage_waivers.yaml`) documenting each exclusion:
+Maintain an exclusion manifest documenting each exclusion. In THIS repo the
+exclusion patterns are applied in code, by
+`bin/cov_utils/calc_coverage_excluding_building_blocks.py` (`EXCLUSION_LEVELS`);
+the two standalone manifest files that used to sit in `bin/cov_utils/` were
+deleted in 2026-09 because nothing read them and they had drifted from the
+tree. If you reintroduce one, wire it into a consumer in the same commit.
 
 ```yaml
 exclusions:
