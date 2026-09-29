@@ -18,6 +18,8 @@ and rationale) > code comments. On conflict, the requirement wins.
   coverage, formal, sandboxes
 - [fpga/](fpga/INDEX.md) - board process: builds, timing triage, harness,
   board handling
+- [asic/](asic/INDEX.md) - open-source ASIC flow method: the ASAP7 predictive-PDK
+  path (yosys/slang, ORFS, OpenSTA) and how to read its numbers
 - [authoring/](authoring/INDEX.md) - documentation practice: review rounds,
   voice, generation pipeline
 - [agents/](agents/INDEX.md) - the five repo-resident agent roles: loadout,

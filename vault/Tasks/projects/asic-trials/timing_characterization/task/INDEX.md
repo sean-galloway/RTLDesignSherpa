@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -23,8 +23,8 @@ by construction rather than by discipline.
 - **TASK-002** — Cross-Technology Comparison Reports
 - **TASK-003** — Additional FUBs
 - **TASK-004** — PDF Generation for Synthesis Guide
-- **TASK-005** — timing_characterization placement pass: 3 loose how-to guides
 
 ## Closed
 
+- **TASK-005** — timing_characterization placement pass: 3 loose how-to guides -- CLOSED 2026-09-29: ASAP7 flow how-to -> new handbook asic/ area; README_FPGA (paper source) and SYNTHESIS_GUIDE (tool mechanics) stay
 - **TASK-001** — Parameter Sweep Automation Scripts -- CLOSED 2026-09-29: Quartus sweep (fpga/quartus) + example config built and run on Cyclone V; parser fixed for both tools

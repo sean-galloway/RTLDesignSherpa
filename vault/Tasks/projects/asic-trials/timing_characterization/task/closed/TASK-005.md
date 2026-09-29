@@ -1,7 +1,7 @@
 # TASK-005: timing_characterization placement pass: 3 loose how-to guides
 
 **Priority:** P3
-**Status:** open
+**Status:** CLOSED 2026-09-29 (done)
 **Owner:** asic-trials session
 **Filed:** 2026-09-28 by tooling TASK-004 (fan-out)
 
@@ -45,3 +45,15 @@ This is the per-unit share; nobody outside this unit will do it.
       reason in the commit message)
 - [ ] `python3 bin/filelist_registry.py --placement` lists nothing from this unit
 - [ ] the affected tests pass from `make clean-all`
+
+---
+
+## CLOSED 2026-09-29 -- one file moved, two stay for stated reasons
+
+| File | Decision |
+|---|---|
+| `RTL_TO_ASAP7_OSS_FLOW.md` | -> `vault/handbook/asic/rtl-to-asap7-oss-flow.md`. A toolchain how-to is method; the handbook had no ASIC area, so `vault/handbook/asic/` (INDEX + this note) is new and listed in the handbook root INDEX. Pointers added to this area's `README.md` docs list and `CLAUDE.md`. |
+| `README_FPGA.md` | **stays.** It is not a how-to; it is the SOURCE of the FPGA companion white paper (`docs/generate_wp_fpga_pdf.sh` reads `../README_FPGA.md` through md_to_docx), exactly as `README.md` is the ASIC paper's source. A file the tooling reads stays where the tooling expects it ([[doc-placement]] rule 5). |
+| `rtl/syn/SYNTHESIS_GUIDE.md` | **stays.** Tool mechanics beside the tool (the SDC parameters, per-flow setup, per-FUB recipes a reader of `rtl/syn/` needs -- the 2026-09-25 exception), referenced from the HAS and MAS indexes, `PRD.md` and `CLAUDE.md`. |
+
+`filelist_registry --placement` had nothing here before and has nothing now.

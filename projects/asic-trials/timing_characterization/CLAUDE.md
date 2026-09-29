@@ -202,6 +202,7 @@ reuse that model.
 - `rtl/syn/char_top.sdc` -- Multi-flow SDC (ASIC/Vivado/Quartus)
 - `fpga/quartus/` -- Quartus sweep: `syn_sweep_quartus.tcl` + `sta_reports.tcl` + `sweep_config.example.tcl`; `cd fpga && make quartus-sweep`
 - `rtl/syn/SYNTHESIS_GUIDE.md` -- Complete synthesis documentation
+- `vault/handbook/asic/rtl-to-asap7-oss-flow.md` -- the OSS ASAP7 toolchain how-to (moved from this area 2026-09-29)
 
 ### Test Inventory
 

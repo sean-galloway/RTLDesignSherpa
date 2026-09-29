@@ -633,6 +633,7 @@ the workflow is a spreadsheet.
 - Product requirements: [`PRD.md`](PRD.md)
 - Task tracking: [`vault/Tasks/projects/asic-trials/timing_characterization/`](../../../vault/Tasks/projects/asic-trials/timing_characterization/INDEX.md)
 - Per-FUB synthesis recipes: [`rtl/syn/SYNTHESIS_GUIDE.md`](rtl/syn/SYNTHESIS_GUIDE.md)
+- Installing and running the open-source ASAP7 flow: handbook note `vault/handbook/asic/rtl-to-asap7-oss-flow.md`
 - Multi-flow constraint file: [`rtl/syn/char_top.sdc`](rtl/syn/char_top.sdc)
 - Constraint file: [`rtl/syn/char_top.sdc`](rtl/syn/char_top.sdc)
 - Open-source flow driver: [`rtl/syn/Makefile`](rtl/syn/Makefile)

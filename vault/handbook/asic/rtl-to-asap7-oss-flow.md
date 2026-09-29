@@ -1,3 +1,13 @@
+---
+title: RTL to ASAP7 with open-source tools
+summary: Yosys/slang + OpenROAD (ORFS) or a standalone yosys+OpenSTA path against the ASAP7 predictive PDK; install, run, and what the numbers do and do not mean.
+---
+
+> Moved here 2026-09-29 from `projects/asic-trials/timing_characterization/RTL_TO_ASAP7_OSS_FLOW.md`
+> (timing_characterization TASK-005): a flow how-to is method, and method lives in
+> the handbook. The area that exercises it is `projects/asic-trials/timing_characterization/`
+> (`rtl/syn/Makefile`, `work/timing_char_sweep.py`).
+
 # RTL → ASAP7 (7 nm) Gate-Level Netlist — Fully Open-Source Flow
 
 **Goal:** take SystemVerilog RTL and produce a technology-mapped gate-level
