@@ -12,9 +12,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 29 | done (kept for history) |
+| [closed/](closed/) | 30 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -26,22 +26,6 @@ exactly one state by construction rather than by discipline.
   not when all 27 are. Per-block done criteria and the traps already paid for
   are in the item
 
-- **TASK-036** — the tRTW model says 14 and the hardware tolerates 3. Detector
-  PROVEN (4000/4000 on a known fault), tRTW swept 3..20 contiguous at two gap
-  regimes with zero corruption anywhere, and **+76%** waiting at tRTW <= 11
-  (123.2 -> 217.7 MB/s vs a 600 MB/s peak). The win sits below the derivation's
-  physical DQ-occupancy floor. ILA campaign 2026-09-29 REFUTED the hypothesis:
-  write data DOES still overlap the read return at tRTW=3 (overlap-armed trigger
-  fires) -- it simply does not corrupt, because `w_dfi_rddata_valid` is a
-  POST-CAPTURE DFI-boundary signal and the DFI boundary is one layer too high to
-  answer a DQ-contention question. PHY campaign then measured the right layer:
-  at tRTW=3 the FPGA's DQ drive NEVER coincides with the read window and stays
-  **28 cycles clear** (instrument proven -- each probe fires alone, only the
-  conjunction is silent). So the model IS conservative and tRTW is a scheduling
-  knob, not a collision guard. Still open: the historical fine-grained interleave
-  is not reproduced (`same_bank` and 4+4 generators both fail to produce it), so
-  the worst case is unexercised
-
 ## Deferred
 
 - **TASK-033** — the v2/v3 power and mode-register deferrals (6 RTL TODO markers).
@@ -50,6 +34,14 @@ exactly one state by construction rather than by discipline.
   depend on scoria and is a test, not a feature
 
 ## Closed
+
+- **TASK-036** — CLOSED: both questions answered. At the PHY layer the FPGA's DQ
+  drive never coincides with a read window at tRTW=3 and stays **28 cycles
+  clear** (instrument proven: each probe fires alone, only the conjunction is
+  silent), and the predicted danger point at tRTW≈12 shows no contention either.
+  The model is conservative in shape; `rtw_guard` guards against nothing. Taking
+  the +76% (246 → 435 MB/s total at gap 14) is now a decision with the evidence
+  in hand, not an investigation
 
 - **TASK-034** — CLOSED: option 1, document and keep. The N+1 convention is
   documented (RDL + regen, MAS, HAS, `a_*_bound_n1` properties). The board

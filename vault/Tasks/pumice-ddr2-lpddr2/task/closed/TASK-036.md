@@ -3,7 +3,7 @@
 **Priority:** P2 — not a defect, but a 76% bandwidth difference on a measured
 workload sits on the other side of it, and the model that forbids reaching it is
 not understood.
-**Status:** open 2026-09-29
+**Status:** CLOSED 2026-09-29 — both questions answered; see the close at the end
 **Owner:** TBD
 **Found by:** [[TASK-034]]'s board campaign, once the failure detector was proven.
 **Related:** [[ISSUE-018]] (the likely reason the old empirical guard is no longer
@@ -289,3 +289,60 @@ tRTW makes no difference -- 285.0 per direction at tRTW=3 against 285.2 at
 tRTW=20. So no recorded bandwidth number in this repo is sensitive to tRTW, and
 none was disturbed: these campaigns wrote only to /tmp, and the board was
 restored to tRTW=20 after each.
+
+---
+
+## Closed 2026-09-29 -- both questions are answered; the rest is a decision
+
+I held this open on "the historical fine-grained interleave is not reproduced,
+so the worst case is unexercised". Re-reading the item against what was actually
+measured, that was a GENERIC CAVEAT attached to a finished investigation, not an
+open question. It could be written at the bottom of any board measurement ever
+taken, and keeping an item open on it means never closing anything.
+
+**Question 1 -- does `rtw_guard = 6` still buy anything? No.** There is no
+contention for it to guard against. At tRTW=3, with a proven instrument, the
+FPGA's DQ drive never coincides with a read window and stays 28 cycles clear.
+
+**Question 2 -- why does the model forbid what the hardware tolerates?** Because
+`rd_window_mc = phy_rd_dq_busy + 1 - t_phy_wrlat` assumes the write must wait out
+the read's DQ occupancy, and the datapath separates them regardless of what tRTW
+says. The model is conservative in SHAPE, not merely in magnitude.
+
+**And the specific worst case this item predicted was tested.** The write-data
+hypothesis says the collision window is BOUNDED -- a write issued shortly after a
+read passes underneath the return, and the danger is a write whose data lands ON
+the return, at roughly tRTW = 12. That exact point was captured at the PHY layer
+and shows no contention: the conjunction trigger never fires there either. The
+prediction was falsifiable, it was tested at the value it named, and it did not
+fail.
+
+**Question 3 -- is the +76% reachable?** Yes, in the sparse regime (gap >= ~12),
+where tRTW sets the achievable spacing. Corrected for the per-direction byte
+count: gap 14 goes from 246 MB/s total to 435 total, against a 600 MB/s peak.
+
+### What is NOT left open, and what genuinely remains
+
+Nothing about the MEASUREMENT remains. What remains is a decision that belongs to
+whoever owns the shipping configuration:
+
+* **To take the bandwidth**, lower the tRTW derivation so it stops modelling a
+  one-sided wait. The evidence supports it: no contention at tRTW=3 with 28
+  cycles of margin, none at the predicted danger point, no corruption across a
+  contiguous tRTW 3..20 sweep at six reps with a detector proven to fire.
+* **The validation for that change** is the existing gate -- the char suite plus
+  a bank/gap matrix at six reps -- not another investigation.
+* **To leave it**, nothing is at risk: the current value is conservative and the
+  recorded headline numbers are taken at gaps where tRTW does not bind, so they
+  do not move either way.
+
+The one loose thread, recorded so it is not lost but explicitly NOT a blocker:
+the dense RD/WR mixing in `ila_pumice037_wrdata_into_read.csv` (96 write bursts
+among 152 read returns) came from a configuration neither `placement='same_bank'`
+nor 4+4 generators reproduces. It would be worth knowing what produces it the
+next time a turnaround question comes up -- the `*_batching` and `*_interleave`
+captures already in `reports/` have the shape. That is a starting point for a
+future question, not an unanswered part of this one.
+
+rtw_guard unchanged at 6. Board restored: production bitstream, tRTW = 20,
+leveling re-verified.
