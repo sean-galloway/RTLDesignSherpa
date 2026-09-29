@@ -30,8 +30,13 @@ exactly one state by construction rather than by discipline.
   PROVEN (4000/4000 on a known fault), tRTW swept 3..20 contiguous at two gap
   regimes with zero corruption anywhere, and **+76%** waiting at tRTW <= 11
   (123.2 -> 217.7 MB/s vs a 600 MB/s peak). The win sits below the derivation's
-  physical DQ-occupancy floor, so it needs an ILA of the turnaround, not another
-  sweep
+  physical DQ-occupancy floor. ILA campaign 2026-09-29 REFUTED the hypothesis:
+  write data DOES still overlap the read return at tRTW=3 (overlap-armed trigger
+  fires) -- it simply does not corrupt, because `w_dfi_rddata_valid` is a
+  POST-CAPTURE DFI-boundary signal and the DFI boundary is one layer too high to
+  answer a DQ-contention question. Next: probe the PHY DQ/DQS drive enables, and
+  build the fine-grained interleaving stimulus the historical capture shows (96
+  write bursts vs this campaign's 2)
 
 ## Deferred
 

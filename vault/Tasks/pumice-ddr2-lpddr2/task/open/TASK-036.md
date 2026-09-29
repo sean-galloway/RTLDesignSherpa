@@ -78,3 +78,94 @@ the two directions regardless of the CSR. Both are checkable.
 +76% on the gap-14 concurrent workload, against a 600 MB/s theoretical peak, from
 a single CSR. And the answer is likely to be a correction to a derivation that
 currently constrains every read-to-write turnaround on the part.
+
+---
+
+## ILA campaign 2026-09-29 -- the DFI boundary is the wrong observation point
+
+Built the ILA bitstream (17 probes, depth 4096, WNS 0.000) and captured the
+RD->WR turnaround at tRTW = 3, 12 and 20 under the saturated 1+1 concurrent
+workload. The historical `ila_pumice037_wrdata_into_read.csv` is the calibration
+throughout: it is what a real collision looks like.
+
+### The answer to the question as filed
+
+**Write data DOES still overlap the read return at tRTW = 3.** Arming the ILA on
+the conjunction itself -- `wrdata_en != 0 AND rddata_valid != 0`, the exact
+PUMICE-037 signature -- FIRES at tRTW = 3, with three overlapping samples.
+
+So the derivation's floor is NOT what keeps write data off the read return. The
+hypothesis this task was filed to test -- that something separates them which the
+model does not describe -- is **refuted**. Nothing separates them. They overlap,
+at a tRTW of 3, exactly as the model warns.
+
+**And it does not corrupt.** Mismatch count on that capture: zero.
+
+| capture | wrdata_en | rddata_valid | overlap | mismatch |
+|---|---:|---:|---:|---:|
+| HISTORIC (PUMICE-037) | 96 | 1006 | **49** | **89** |
+| tRTW=3, overlap-armed | 1201 | 893 | **3** | **0** |
+
+Same signature, opposite outcome. That is the finding.
+
+### Why, and it is the reason this measurement could not settle it
+
+`w_dfi_rddata_valid` is the **DFI-boundary** valid: it is asserted after the PHY
+has already captured the data off the DQ pins and is presenting it upstream. An
+overlap at that boundary therefore does NOT mean the write is contending with the
+read on the physical wires -- the read may be long since captured. The DFI
+boundary is where this design's marked nets are, and it is one layer too high to
+answer a DQ-contention question.
+
+That also explains the historical capture without contradicting it: back then the
+overlap coincided with corruption because the write was driving DQ early enough
+to disturb the actual capture window; today the same DFI-boundary overlap is
+benign because it is not the same physical event.
+
+**What that means for lowering tRTW: do not.** At tRTW = 3 this design is
+relying on a DFI-boundary overlap being harmless, which is a property of PHY
+timing nobody has measured, and which demonstrably has NOT always held on this
+exact board. "Benign in two workloads" is a much weaker statement than "cannot
+collide", and this is the failure mode that produces marginal silicon.
+
+### The honest state of the three sub-questions
+
+1. **Is the empirical `rtw_guard = 6` still needed?** Still unknown. The
+   historical failure does not reproduce, but the workloads available here do not
+   reproduce the historical STIMULUS either -- see below.
+2. **Why does the model say 14 when hardware tolerates 3?** Partly answered: the
+   model is about DQ-pin contention and the available observation point is the
+   DFI boundary, which is not the same thing. It is not that the model is wrong;
+   it is that this measurement cannot see what the model is about.
+3. **Is the +76% reachable?** Unchanged and still worth chasing, but not on this
+   evidence.
+
+### The stimulus gap, measured rather than asserted
+
+The two captures are structurally different in a way that matters:
+
+| capture | write bursts | read-return bursts | shape |
+|---|---:|---:|---|
+| HISTORIC | 96 | 152 | fine-grained interleave, single-cycle writes among read returns |
+| this campaign | 2 | 2 | two long same-direction phases |
+
+The concurrent 1+1 workload on disjoint banks produces LONG same-direction runs,
+so a 4096-sample window contains about two turnarounds. The historical workload
+interleaved them densely. **That is why nothing corrupts here and why the
+bank_gap sweep found nothing**: the turnaround is barely being exercised, and the
+board sweep in [[TASK-034]] inherited the same blindness.
+
+### What would actually settle it
+
+1. **Probe the PHY side, not the DFI side.** Mark the a7ddrphy DQ/DQS drive
+   enables and capture those. That is where contention either happens or does
+   not, and it is a one-line `mark_debug` plus an ILA rebuild.
+2. **Build the interleaving stimulus** -- same-bank alternating RD/WR, which is
+   what the historical capture shows and what neither the sweep nor this campaign
+   produced. Validate it by reproducing the 96-write-burst / 152-read-burst shape
+   before trusting any result from it.
+3. Only then sweep the guard.
+
+Steps 1 and 2 are independent and both are small. Neither was done here, and the
+task stays open because of it -- but it is now open on a specific, measured
+question rather than on a hypothesis.
