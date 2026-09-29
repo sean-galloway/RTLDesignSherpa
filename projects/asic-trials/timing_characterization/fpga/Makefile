@@ -63,6 +63,7 @@ help:
 	@echo "                          device; per-FUB slack CSV -> reports/quartus/sweep_wns.csv"
 	@echo "                          (QUARTUS_CFG=quartus/sweep_config.example.tcl, QUARTUS_SH=quartus_sh)"
 	@echo "  make quartus-sweep-dry  Same plan under plain tclsh, nothing compiled"
+	@echo "                          Parameter sweeps: QUARTUS_CFG=quartus/sweeps/<name>.tcl QUARTUS_REPORTS_SUB=<name>"
 	@echo ""
 	@echo "Reports:"
 	@echo "  make utilization      cat the latest utilization report"
@@ -160,7 +161,16 @@ bitstream-sweep:
 # PATH by default -- point QUARTUS_SH at it or add that dir to PATH.
 QUARTUS_SH  ?= quartus_sh
 QUARTUS_CFG ?= $(SELF_DIR)/quartus/sweep_config.example.tcl
-QUARTUS_REPORTS := $(REPORTS)/quartus
+# The sweep script cd's to the area root, so a QUARTUS_CFG given relative to
+# fpga/ (quartus/sweeps/carry_width.tcl) must be made absolute here.
+QUARTUS_CFG_ABS := $(abspath $(QUARTUS_CFG))
+# FREQS_MHZ reaches the script only when given on the command line; otherwise
+# the config's own list stands (a parameter sweep pins one frequency there).
+QUARTUS_FREQS_ARG := $(if $(filter command line,$(origin FREQS_MHZ)),-freqs "$(FREQS_MHZ)")
+# A parameter sweep (fpga/quartus/sweeps/*.tcl) writes under reports/quartus/<name>;
+# pass QUARTUS_REPORTS_SUB=<name> so the aggregation reads the same place.
+QUARTUS_REPORTS_SUB ?=
+QUARTUS_REPORTS := $(REPORTS)/quartus$(if $(QUARTUS_REPORTS_SUB),/$(QUARTUS_REPORTS_SUB))
 
 .PHONY: quartus-sweep
 quartus-sweep:
@@ -169,15 +179,15 @@ quartus-sweep:
 	    echo "  ~/intelFPGA_lite/<ver>/quartus/bin -- run with QUARTUS_SH=<that>/quartus_sh"; \
 	    echo "  or add the directory to PATH. Use 'make quartus-sweep-dry' to check the plan."; \
 	    exit 1; }
-	@echo "[quartus-sweep] cfg=$(QUARTUS_CFG) FREQS_MHZ=$(FREQS_MHZ)"
-	cd $(TIMING_CHAR_ROOT) && $(QUARTUS_SH) -t $(SELF_DIR)/quartus/syn_sweep_quartus.tcl $(QUARTUS_CFG) -freqs "$(FREQS_MHZ)"
+	@echo "[quartus-sweep] cfg=$(QUARTUS_CFG_ABS) $(if $(QUARTUS_FREQS_ARG),FREQS_MHZ=$(FREQS_MHZ),FREQS from the config)"
+	cd $(TIMING_CHAR_ROOT) && $(QUARTUS_SH) -t $(SELF_DIR)/quartus/syn_sweep_quartus.tcl $(QUARTUS_CFG_ABS) $(QUARTUS_FREQS_ARG)
 	@echo ""
 	@echo "[quartus-sweep] aggregating into $(QUARTUS_REPORTS)/sweep_wns.csv"
 	@python3 $(SELF_DIR)/tools/parse_timing_sweep.py --tool quartus $(QUARTUS_REPORTS) $(QUARTUS_REPORTS)/sweep_wns.csv
 
 .PHONY: quartus-sweep-dry
 quartus-sweep-dry:
-	cd $(TIMING_CHAR_ROOT) && TCL_LIBRARY=$${TCL_LIBRARY:-/usr/share/tcltk/tcl8.6} tclsh $(SELF_DIR)/quartus/syn_sweep_quartus.tcl $(QUARTUS_CFG) -freqs "$(FREQS_MHZ)" -dry-run
+	cd $(TIMING_CHAR_ROOT) && TCL_LIBRARY=$${TCL_LIBRARY:-/usr/share/tcltk/tcl8.6} tclsh $(SELF_DIR)/quartus/syn_sweep_quartus.tcl $(QUARTUS_CFG_ABS) $(QUARTUS_FREQS_ARG) -dry-run
 
 # ---- Program board ---------------------------------------------------------
 # program / ports / board-info / boards come from the shared board layer. The

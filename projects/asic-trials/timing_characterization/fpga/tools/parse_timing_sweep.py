@@ -10,8 +10,10 @@ sweep_*MHz/ subdirectories produced by the sweep target.  Each contains
 that run's timing_summary.txt + utilization_impl.txt.
 
 Output CSV columns:
-  freq_mhz, period_ns, group, wns_ns, slack_status, utilization_luts,
-  utilization_ffs, utilization_brams, utilization_dsps
+  freq_mhz, period_ns, variant, group, wns_ns, slack_status, utilization_luts,
+  utilization_ffs, utilization_brams, utilization_dsps, data_delay_ns,
+  logic_levels  (variant = the _<PARAM>=<value> suffix of a parameter-sweep
+  directory, empty for a plain frequency sweep)
 
 The 'group' column carries Vivado's path-group label (e.g. 'sys_clk_pin'
 plus any other clock domains the design declared).  At the SWAG level
@@ -40,7 +42,9 @@ from pathlib import Path
 
 # Match Vivado's "Inter Clock Table" / "Design Timing Summary" headers
 # and capture the per-group WNS lines that follow.
-RE_DIR_FREQ = re.compile(r"sweep_(\d+)MHz")
+# sweep_<F>MHz, optionally followed by _<PARAM>=<value> (a parameter sweep
+# point from syn_sweep_quartus.tcl SWEEP_PARAM); the suffix becomes `variant`.
+RE_DIR_FREQ = re.compile(r"sweep_(\d+)MHz(?:_(.+))?$")
 RE_GROUP_HEAD = re.compile(
     r"^\s*Clock\s+WNS\(ns\)\s+", re.MULTILINE
 )
@@ -209,8 +213,9 @@ def main(argv: list[str] | None = None):
             continue
         freq = int(m.group(1))
         period = round(1000.0 / freq, 4)
+        variant = m.group(2) or ""
         if args.tool == "quartus":
-            rows.extend(quartus_rows(sub, freq, period))
+            rows.extend({**r, "variant": variant} for r in quartus_rows(sub, freq, period))
             continue
         ts = sub / "timing_summary.txt"
         util_imp = sub / "utilization_impl.txt"
@@ -219,7 +224,7 @@ def main(argv: list[str] | None = None):
             continue
         design_wns, groups = parse_timing(ts)
         util = parse_util(util_imp)
-        base = dict(freq_mhz=freq, period_ns=period,
+        base = dict(freq_mhz=freq, period_ns=period, variant=variant,
                     utilization_luts=util.get("luts", ""),
                     utilization_ffs=util.get("ffs", ""),
                     utilization_brams=util.get("brams", ""),
@@ -239,7 +244,7 @@ def main(argv: list[str] | None = None):
         print("no sweep results found", file=sys.stderr)
         return 1
 
-    cols = ["freq_mhz", "period_ns", "group", "wns_ns", "slack_status",
+    cols = ["freq_mhz", "period_ns", "variant", "group", "wns_ns", "slack_status",
             "utilization_luts", "utilization_ffs",
             "utilization_brams", "utilization_dsps",
             "data_delay_ns", "logic_levels"]

@@ -89,3 +89,16 @@ def test_vivado_end_to_end_csv(tmp_path):
         rows = list(csv.DictReader(f))
     assert [(r["group"], r["wns_ns"], r["slack_status"]) for r in rows] == [("aclk", "1.895", "PASS")]
     assert rows[0]["utilization_luts"] == "285" and rows[0]["data_delay_ns"] == ""
+
+
+def test_variant_suffix_becomes_a_column(tmp_path):
+    """A parameter-sweep point dir (sweep_150MHz_CARRY_WIDTH=8) carries its suffix
+    in `variant`; a plain frequency dir leaves it empty."""
+    shutil.copytree(FIX, tmp_path / "sweep_150MHz_CARRY_WIDTH=8")
+    shutil.copytree(FIX, tmp_path / "sweep_100MHz")
+    out = tmp_path / "o.csv"
+    assert pts.main(["--tool", "quartus", str(tmp_path), str(out)]) == 0
+    with out.open(newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert {r["variant"] for r in rows if r["freq_mhz"] == "150"} == {"CARRY_WIDTH=8"}
+    assert {r["variant"] for r in rows if r["freq_mhz"] == "100"} == {""}

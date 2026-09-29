@@ -1,0 +1,4 @@
+freq_mhz,period_ns,variant,group,wns_ns,slack_status,utilization_luts,utilization_ffs,utilization_brams,utilization_dsps,data_delay_ns,logic_levels
+100,10.0,,sys_clk_pin,1.132,PASS,449,319,0,1,,
+200,5.0,,sys_clk_pin,-0.722,FAIL,580,346,0,1,,
+300,3.3333,,sys_clk_pin,-2.017,FAIL,644,362,0,1,,

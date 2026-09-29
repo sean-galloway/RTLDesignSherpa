@@ -1,5 +1,17 @@
 # Quartus sweep: keep the small summaries + per-FUB CSV; the full STA report,
 # the worst-path dump and the regenerated SDC wrapper are per-run debris.
-fpga/reports/quartus/sweep_*MHz/*.sta.rpt
-fpga/reports/quartus/sweep_*MHz/setup_worst.txt
-fpga/reports/quartus/sweep_*MHz/timing_target.sdc
+# (frequency sweeps sit directly under reports/quartus/, parameter sweeps one
+# level down under reports/quartus/<name>/ -- both patterns are covered)
+fpga/reports/quartus/**/sweep_*/*.sta.rpt
+fpga/reports/quartus/**/sweep_*/setup_worst.txt
+fpga/reports/quartus/**/sweep_*/timing_target.sdc
+fpga/reports/quartus/sweep_*/*.sta.rpt
+fpga/reports/quartus/sweep_*/setup_worst.txt
+fpga/reports/quartus/sweep_*/timing_target.sdc
+
+# Vivado bitstream-sweep: keep sweep_wns.csv and each point's timing_summary.txt;
+# the last build's loose reports and the per-point worst-path/utilization dumps
+# are regenerated every run.
+fpga/reports/*.txt
+fpga/reports/sweep_*MHz/timing_worst.txt
+fpga/reports/sweep_*MHz/utilization_impl.txt
