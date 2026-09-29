@@ -2,7 +2,7 @@
 
 # tooling — tasks
 
-**Next ID: TASK-018** — never recycle a number, even when its item closed.
+**Next ID: TASK-019** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -22,6 +22,7 @@ by construction rather than by discipline.
 
 - **TASK-015** — check_task_ids.py runs only in pre-commit; no CI step validates the tracker, so a --no-verify commit or an uninstalled hook lands a lying tracker unchecked.
 - **TASK-016** — fan out the 8 doc-example findings the widened gate surfaced (converters x3, stream/regs, fpga-systems/boards); each needs its owner to triage as defect or illustrative.
+- **TASK-018** — `formal/Makefile`'s `formal:` list reaches every area except `apbx_xbar` (5 proofs) and `bridge` (1), so 6 proofs never run unattended; the same file's comments warn about exactly this omission twice already.
 
 
 ## Active

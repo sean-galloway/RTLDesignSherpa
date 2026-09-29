@@ -51,7 +51,16 @@ module pumice_cmd_history_checker
     // occupancy — the flopped-ok staleness bug (issue #42) the per-bank
     // history above cannot see.
     parameter int T_WTR     = 0,   // WR -> RD (global)
-    parameter int T_RTW     = 0    // RD -> WR (global)
+    parameter int T_RTW     = 0,   // RD -> WR (global)
+    // GLOBAL (rank-wide, cross-bank) ACTIVATE rate limits. 0 disables.
+    // tRRD and tFAW are the two JEDEC windows NO per-bank history can see: they
+    // constrain ACTs to DIFFERENT banks, which is the whole reason global_timers
+    // exists alongside bank_timer. Added for pumice ISSUE-019 -- the arbiter
+    // checks both at its STAGE-1b pre-pick, two registers before the command
+    // fires, and its final-stage re-validation covers only the per-bank gate, so
+    // nothing rechecked cross-bank ACT spacing at the issuing cycle.
+    parameter int T_RRD     = 0,   // ACT -> ACT, any bank in the rank
+    parameter int T_FAW     = 0    // at most 4 ACTs per rank in any T_FAW window
 ) (
     input  logic       clk,
     input  logic       rst_n,
@@ -141,6 +150,24 @@ module pumice_cmd_history_checker
             for (int d = DEPTH - 1; d > 0; d--) r_gdir[d] <= r_gdir[d-1];
             r_gdir[0] <= (cmd_valid_i && is_rd_col(cmd_op_i)) ? 2'b01 :
                          (cmd_valid_i && is_wr_col(cmd_op_i)) ? 2'b10 : 2'b00;
+        end
+    )
+
+    // ---- GLOBAL per-rank ACTIVATE history (all banks, one stream) -----------
+    // r_gact[r][d] = an ACT was issued to rank r, ANY bank, d+1 cycles ago.
+    // Separate from r_hist because tRRD/tFAW do not care which bank: recording
+    // per bank and scanning one bank's window is exactly what misses them.
+    logic r_gact [NUM_RANKS][DEPTH];
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            for (int r = 0; r < NUM_RANKS; r++)
+                for (int d = 0; d < DEPTH; d++) r_gact[r][d] <= 1'b0;
+        end else begin
+            for (int r = 0; r < NUM_RANKS; r++) begin
+                for (int d = DEPTH - 1; d > 0; d--) r_gact[r][d] <= r_gact[r][d-1];
+                r_gact[r][0] <= cmd_valid_i && opens_row(cmd_op_i)
+                             && (int'(cmd_rank_i) == r);
+            end
         end
     )
 
@@ -246,6 +273,26 @@ module pumice_cmd_history_checker
                     assert (r_gdir[d] != 2'b01)
                       else $fatal(1, "CMD_HISTORY @%0t: GLOBAL tRTW violation -- WR only %0d cyc after a RD (need %0d) -- DQ bus turnaround contention",
                                   $time, d + 1, T_RTW);
+            end
+            // (8) GLOBAL tRRD: an ACT must be >= T_RRD cycles after ANY ACT to
+            //     the same rank, whatever bank. pumice ISSUE-019: bank_timer's
+            //     windows are per-bank and cannot see this, and the arbiter's
+            //     own check sits two registers before the fire.
+            if (T_RRD > 0 && (cmd_op_i == OP_ACT)) begin
+                for (int d = 0; d < T_RRD - 1; d++)
+                    assert (!r_gact[cmd_rank_i][d])
+                      else $fatal(1, "CMD_HISTORY @%0t: GLOBAL tRRD violation -- rank%0d bank%0d ACT only %0d cyc after another ACT (need %0d) -- cross-bank activate rate limit",
+                                  $time, cmd_rank_i, cmd_bank_i, d + 1, T_RRD);
+            end
+            // (9) GLOBAL tFAW: at most FOUR ACTs per rank inside any T_FAW
+            //     window. This ACT is the fifth if four already sit in it.
+            if (T_FAW > 0 && (cmd_op_i == OP_ACT)) begin
+                automatic int faw_n = 0;
+                for (int d = 0; d < T_FAW - 1; d++)
+                    if (r_gact[cmd_rank_i][d]) faw_n++;
+                assert (faw_n < 4)
+                  else $fatal(1, "CMD_HISTORY @%0t: GLOBAL tFAW violation -- rank%0d bank%0d is the %0dth ACT inside a %0d-cycle window (max 4)",
+                              $time, cmd_rank_i, cmd_bank_i, faw_n + 1, T_FAW);
             end
             // (5) tRFC: an ACT must be >= T_RFC cycles after a REFab (refresh
             //     recovery). REFab is recorded on every bank's history, so the

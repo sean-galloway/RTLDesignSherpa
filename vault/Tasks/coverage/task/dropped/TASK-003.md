@@ -19,7 +19,7 @@ excluded from `projects/components/Makefile`'s COMPONENTS list for exactly this
 reason, with a comment saying so, which makes the omission tidy rather than
 visible.
 
-`bch`, `hive`, `memory-controllers/ddr3-lpddr3` and `ddr4-lpddr4` are in the
+`bch`, `hive`, `scoria-ddr3-lpddr3` and `ddr4-lpddr4` are in the
 same comment but contain zero `.sv` files -- empty scaffolds, not a risk.
 delta is the only real one.
 

@@ -146,12 +146,23 @@ addrmap pumice_csr {
 
     reg {
         name = "Timings: tRC / tRCD / tRP / tRAS";
-        desc = "Packed timing parameters in MC cycles";
+        desc = "Packed core per-bank JEDEC windows, in MC (controller) cycles.
+                EVERY JEDEC timing field in this map is a count of cycles to
+                BLOCK, so a window programmed to N is enforced as N+1 cycles of
+                command spacing -- the counter is loaded with N on the event and
+                the gate opens the cycle after it would reach zero. Measured and
+                bounded tight in formal/pumice/{bank_timer,global_timers}
+                (a_*_bound_n1). Program the JEDEC value from the part datasheet;
+                do NOT subtract one to compensate, or the register stops reading
+                as the part's timing. pumice TASK-034 tracks whether to recover
+                that cycle -- it is a board measurement, because the empirical
+                rtw_guard in the host's tRTW derivation was tuned with it
+                present.";
 
-        field { sw = rw; hw = r; desc = "tRC";  } tRC[7:0]    = 8'd60;
-        field { sw = rw; hw = r; desc = "tRCD"; } tRCD[15:8]  = 8'd15;
-        field { sw = rw; hw = r; desc = "tRP";  } tRP[23:16]  = 8'd15;
-        field { sw = rw; hw = r; desc = "tRAS"; } tRAS[31:24] = 8'd40;
+        field { sw = rw; hw = r; desc = "tRC -- MC cycles to block; spacing enforced is N+1";  } tRC[7:0]    = 8'd60;
+        field { sw = rw; hw = r; desc = "tRCD -- MC cycles to block; spacing enforced is N+1"; } tRCD[15:8]  = 8'd15;
+        field { sw = rw; hw = r; desc = "tRP -- MC cycles to block; spacing enforced is N+1";  } tRP[23:16]  = 8'd15;
+        field { sw = rw; hw = r; desc = "tRAS -- MC cycles to block; spacing enforced is N+1"; } tRAS[31:24] = 8'd40;
 
     } TIMINGS_RC_RCD_RP_RAS @ 0x010;
 
@@ -171,10 +182,10 @@ addrmap pumice_csr {
         name = "Timings: tRRD / tFAW / tWTR / tCCD";
         desc = "Inter-bank + bus turn-around";
 
-        field { sw = rw; hw = r; desc = "tRRD"; } tRRD[7:0]    = 8'd6;
-        field { sw = rw; hw = r; desc = "tFAW"; } tFAW[15:8]   = 8'd35;
-        field { sw = rw; hw = r; desc = "tWTR"; } tWTR[23:16]  = 8'd4;
-        field { sw = rw; hw = r; desc = "tCCD"; } tCCD[31:24]  = 8'd4;
+        field { sw = rw; hw = r; desc = "tRRD -- MC cycles to block; spacing enforced is N+1"; } tRRD[7:0]    = 8'd6;
+        field { sw = rw; hw = r; desc = "tFAW -- MC cycles; at most 4 ACTs per rank in the window"; } tFAW[15:8]   = 8'd35;
+        field { sw = rw; hw = r; desc = "tWTR -- MC cycles to block; spacing enforced is N+1"; } tWTR[23:16]  = 8'd4;
+        field { sw = rw; hw = r; desc = "tCCD -- MC cycles to block; spacing enforced is N+1"; } tCCD[31:24]  = 8'd4;
 
     } TIMINGS_RRD_FAW_WTR_CCD @ 0x018;
 
@@ -184,7 +195,7 @@ addrmap pumice_csr {
 
         field { sw = rw; hw = r; desc = "CAS latency";        } CL[7:0]        = 8'd6;
         field { sw = rw; hw = r; desc = "CAS write latency";  } CWL[15:8]      = 8'd4;
-        field { sw = rw; hw = r; desc = "Write recovery";     } tWR[23:16]     = 8'd15;
+        field { sw = rw; hw = r; desc = "Write recovery (tWR, from end of burst) -- MC cycles to block; spacing enforced is N+1"; } tWR[23:16]     = 8'd15;
         field { sw = rw; hw = r; desc = "LPDDR2 per-bank tRFC"; } tRFCpb[31:24] = 8'd70;
 
     } TIMINGS_CL_CWL_WR @ 0x01C;
@@ -195,8 +206,8 @@ addrmap pumice_csr {
                 cycles. Previously tRTP was hardcoded (8'd4, 'not yet in CSR map')
                 and tRTW was tied to tRTP; now both are independent configs.";
 
-        field { sw = rw; hw = r; desc = "Read to precharge"; } tRTP[7:0]  = 8'd4;
-        field { sw = rw; hw = r; desc = "Read to write";     } tRTW[15:8] = 8'd6;
+        field { sw = rw; hw = r; desc = "Read to precharge (tRTP) -- MC cycles to block; spacing enforced is N+1"; } tRTP[7:0]  = 8'd4;
+        field { sw = rw; hw = r; desc = "Read to write (tRTW) -- MC cycles to block; spacing enforced is N+1"; } tRTW[15:8] = 8'd6;
         field { sw = r;  hw = na; desc = "Reserved";         } RSVD[31:16] = 16'h0;
 
     } TIMINGS_RTP_RTW @ 0x054;

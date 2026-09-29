@@ -151,16 +151,22 @@ module formal_bank_timer #(
             cnt_act <= 0; cnt_pre <= 0; cnt_rd <= 0; cnt_wr <= 0;
             seen_act <= 1'b0; seen_pre <= 1'b0; seen_rd <= 1'b0; seen_wr <= 1'b0;
         end else begin
-            if (set_act) begin cnt_act <= 0; seen_act <= 1'b1; end
+            // Seeded at 1, not 0: these are read on a LATER cycle than the
+            // command, so one cycle has elapsed by the time anyone looks. At 0
+            // every window below was asserted one cycle STRICTER than JEDEC --
+            // which passes against correct hardware, so it hides, and it makes
+            // these counters useless for measuring how conservative the block
+            // actually is (see m_* below).
+            if (set_act) begin cnt_act <= 1; seen_act <= 1'b1; end
             else if (cnt_act != {CW{1'b1}}) cnt_act <= cnt_act + 1'b1;
 
-            if (set_pre) begin cnt_pre <= 0; seen_pre <= 1'b1; end
+            if (set_pre) begin cnt_pre <= 1; seen_pre <= 1'b1; end
             else if (cnt_pre != {CW{1'b1}}) cnt_pre <= cnt_pre + 1'b1;
 
-            if (set_rd) begin cnt_rd <= 0; seen_rd <= 1'b1; end
+            if (set_rd) begin cnt_rd <= 1; seen_rd <= 1'b1; end
             else if (cnt_rd != {CW{1'b1}}) cnt_rd <= cnt_rd + 1'b1;
 
-            if (set_wr) begin cnt_wr <= 0; seen_wr <= 1'b1; end
+            if (set_wr) begin cnt_wr <= 1; seen_wr <= 1'b1; end
             else if (cnt_wr != {CW{1'b1}}) cnt_wr <= cnt_wr + 1'b1;
         end
     end
@@ -202,6 +208,25 @@ module formal_bank_timer #(
         // whose anchor was wrong once before (the pumice timing-derivation fix).
         if (seen_wr && cnt_wr < t_wr && cnt_wr <= cnt_rd)
             a_twr:  assert (!safe_pre);
+
+        // ---- THE ENFORCED BOUND IS N+1, NOT N -------------------------------
+        // Note `<=`, not `<`: the gate is still shut AT the programmed count, so
+        // a window programmed to N is enforced as N+1 MC cycles of spacing. The
+        // counter is loaded with N and the gate opens the cycle after it would
+        // reach zero.
+        //
+        // This is recorded as a property rather than a comment because it is a
+        // CONTRACT nobody wrote down: the RDL field descriptions are bare
+        // (`desc = "tCCD"`, no units), and the board host programs raw
+        // JEDEC-derived cycle counts with no -1 compensation
+        // (pumice_device.py: `tCCD=ck(DDR2_CK_MIN["tCCD"])`). So every window on
+        // silicon is over-enforced by exactly one MC cycle -- safe, never a
+        // violation, and costing bandwidth. pumice TASK-034 carries the decision
+        // and the board experiment needed to recover it; these assertions exist
+        // so that if anyone changes the convention, the proof says so.
+        if (seen_act && cnt_act <= t_rc)  a_trc_bound_n1:  assert (!safe_act);
+        if (seen_act && cnt_act <= t_rcd) a_trcd_bound_n1: assert (!(safe_rd || safe_wr));
+        if (seen_act && cnt_act <= t_ras) a_tras_bound_n1: assert (!safe_pre);
     end
 
     // =====================================================================
@@ -262,6 +287,11 @@ module formal_bank_timer #(
         c_ap_fires:      cover (r_ap_pending_d && !obs_ap_pending && !row_valid);
         // tRP elapses after a PRE and the bank may open again
         c_pre_then_act:  cover (seen_pre && safe_act);
+        // ...and the N+1 bound above is TIGHT: the gate opens at exactly one
+        // cycle past the programmed count, not two. Without this the bound
+        // assertions would also pass on a block that was far more conservative.
+        c_trc_tight:     cover (seen_act && (cnt_act == t_rc + 1) && safe_act);
+        c_tras_tight:    cover (seen_act && (cnt_act == t_ras + 1) && safe_pre);
     end
 
 endmodule

@@ -30,14 +30,23 @@ JEDEC era) into a single controller engine with a swappable command encoder.
 ## Families
 
 Each IP carries an igneous-rock codename (felsic/light -> mafic/dense, tracking
-generation and capability). The codename is the RTL identifier prefix, the
-directory name and the module/package prefix.
+generation and capability). The codename is the RTL identifier prefix and the
+module/package prefix; the DIRECTORY is the compound `<codename>-<protocols>`
+form -- `pumice-ddr2-lpddr2`, not `pumice` and not `ddr2-lpddr2`.
+
+**That compound form is the canonical name for the IP everywhere a directory
+names one**: the component directory here, the task area
+(`vault/Tasks/pumice-ddr2-lpddr2/`) and the knowledge-note mirror. Before
+2026-09-28 the three siblings were named three different ways, so a new area had
+no way to tell which was intended -- see tooling ISSUE-002. The bare codename is
+still how an IP is referred to in prose ("pumice reaches 95% of peak"); it is the
+DIRECTORY that takes the compound form.
 
 | Directory | Codename | Controller scope | DFI | RTL prefix | Status |
 |---|---|---|---|---|---|
 | [`pumice-ddr2-lpddr2/`](pumice-ddr2-lpddr2/) | **pumice** | DDR2 + LPDDR2 unified | v2.1 | `pumice_*` | Built and board-validated on the Nexys A7 |
 | [`scoria-ddr3-lpddr3/`](scoria-ddr3-lpddr3/) | **scoria** | DDR3 + LPDDR3 unified | v3.1 | `scoria_*` | Planned; structure only |
-| [`ddr4-lpddr4/`](ddr4-lpddr4/) | andesite | DDR4 + LPDDR4 unified | v4.0 | `andesite_*` | Planned; structure only |
+| [`andesite-ddr4-lpddr4/`](andesite-ddr4-lpddr4/) | **andesite** | DDR4 + LPDDR4 unified | v4.0 | `andesite_*` | Planned; structure only |
 | (planned) | basalt | DDR5 | | `basalt_*` | Not started |
 | (planned) | gabbro | DDR6 | | `gabbro_*` | Not started |
 

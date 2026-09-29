@@ -427,6 +427,12 @@ def test_pumice_sched_matrix(request, config, test_level):
         "CMD_HISTORY_EN": "1",
         "HIST_T_WTR": str(ctrl['tWTR']),
         "HIST_T_RTW": str(ctrl['tRTW']),
+        # tRRD/tFAW: the two windows NO per-bank history can see, because they
+        # constrain ACTs to DIFFERENT banks. Armed for pumice ISSUE-019 -- the
+        # arbiter checks both two registers before the command fires and nothing
+        # rechecked them at the issuing cycle.
+        "HIST_T_RRD": str(ctrl['tRRD']),
+        "HIST_T_FAW": str(ctrl['tFAW']),
     }
     extra_env = {
         "DUT": dut_name, "LOG_PATH": log_path, "COCOTB_LOG_LEVEL": "INFO",

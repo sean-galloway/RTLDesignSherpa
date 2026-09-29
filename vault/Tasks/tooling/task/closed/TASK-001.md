@@ -78,7 +78,7 @@ procedure for each so they all come out identical.
 - [x] retro-legacy — DONE 2026-09-25 -> vault/Tasks/RLB/hpet/ (all six items were
       HPET; TASK-001 closed, TASK-002 filed as BUG-001, the rest as TASK-002..005).
       The rtl/{ioapic,pm_acpi,smbus}/TODO.md files named here no longer exist.
-- [x] memory-controllers — DONE 2026-09-25 (pumice DONE 2026-07-23 -> vault/Tasks/pumice/).
+- [x] memory-controllers — DONE 2026-09-25 (pumice DONE 2026-07-23 -> vault/Tasks/pumice-ddr2-lpddr2/).
       This row contradicted the two [x] entries below it for four days; corrected.
 - [x] nexysa7 — migrated, then the AREA WAS DELETED 2026-09-27 (its items were misfiled;
       see the note below). Originally -> vault/Tasks/nexysa7/. NOTE: the timing_characterization
@@ -107,10 +107,10 @@ for stray TASKS.md / TODO*.md, which is how the list should have been built):
       blocks, not the 9 recorded here. TASK-001 filed with its PARTIAL state
       measured (Vivado sweep + parser + CSV exist under different names; Quartus
       Tcl and the example config do not). File deleted, referrers repointed.
-- [x] memory-controllers/ddr3-lpddr3/TASKS.md — DONE 2026-09-25 (1 block; it was a
-      stub) -> vault/Tasks/memory-controllers/ddr3-lpddr3/
-- [x] memory-controllers/ddr4-lpddr4/TASKS.md — DONE 2026-09-25 ->
-      vault/Tasks/memory-controllers/ddr4-lpddr4/
+- [x] scoria-ddr3-lpddr3/TASKS.md — DONE 2026-09-25 (1 block; it was a
+      stub) -> vault/Tasks/scoria-ddr3-lpddr3/
+- [x] andesite-ddr4-lpddr4/TASKS.md — DONE 2026-09-25 ->
+      vault/Tasks/andesite-ddr4-lpddr4/
 
 ddr3/ddr4 are exactly decision 2 below: `vault/Tasks/` has a `pumice` area but
 no memory-controllers grouping, so there is nowhere agreed for them to go.
@@ -123,6 +123,6 @@ originals → verify block count + links against the original.
 **Open decisions — BOTH ANSWERED 2026-09-25, batch unblocked:**
 1. ~~Is open/active/closed/dropped the right lifecycle split?~~ **Yes (Sean).**
 2. ~~Area granularity~~ **ANSWERED 2026-09-25 (Sean):** group the memory
-   controllers (pumice stays at vault/Tasks/pumice/, the only one with live
+   controllers (pumice stays at vault/Tasks/pumice-ddr2-lpddr2/, the only one with live
    work); RLB is an area that ALSO has sub-areas, one per block, created on
    demand rather than scaffolded.

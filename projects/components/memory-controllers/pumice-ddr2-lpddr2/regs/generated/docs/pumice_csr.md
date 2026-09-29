@@ -202,7 +202,18 @@ Don't override. Generated from: $root
 - Base Offset: 0x10
 - Size: 0x4
 
-<p>Packed timing parameters in MC cycles</p>
+<p>Packed core per-bank JEDEC windows, in MC (controller) cycles.
+EVERY JEDEC timing field in this map is a count of cycles to
+BLOCK, so a window programmed to N is enforced as N+1 cycles of
+command spacing -- the counter is loaded with N on the event and
+the gate opens the cycle after it would reach zero. Measured and
+bounded tight in formal/pumice/{bank_timer,global_timers}
+(a_*_bound_n1). Program the JEDEC value from the part datasheet;
+do NOT subtract one to compensate, or the register stops reading
+as the part's timing. pumice TASK-034 tracks whether to recover
+that cycle -- it is a board measurement, because the empirical
+rtw_guard in the host's tRTW derivation was tuned with it
+present.</p>
 
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|
@@ -213,19 +224,19 @@ Don't override. Generated from: $root
 
 #### tRC field
 
-<p>tRC</p>
+<p>tRC -- MC cycles to block; spacing enforced is N+1</p>
 
 #### tRCD field
 
-<p>tRCD</p>
+<p>tRCD -- MC cycles to block; spacing enforced is N+1</p>
 
 #### tRP field
 
-<p>tRP</p>
+<p>tRP -- MC cycles to block; spacing enforced is N+1</p>
 
 #### tRAS field
 
-<p>tRAS</p>
+<p>tRAS -- MC cycles to block; spacing enforced is N+1</p>
 
 ### TIMINGS_RFC_REFI register
 
@@ -265,19 +276,19 @@ Don't override. Generated from: $root
 
 #### tRRD field
 
-<p>tRRD</p>
+<p>tRRD -- MC cycles to block; spacing enforced is N+1</p>
 
 #### tFAW field
 
-<p>tFAW</p>
+<p>tFAW -- MC cycles; at most 4 ACTs per rank in the window</p>
 
 #### tWTR field
 
-<p>tWTR</p>
+<p>tWTR -- MC cycles to block; spacing enforced is N+1</p>
 
 #### tCCD field
 
-<p>tCCD</p>
+<p>tCCD -- MC cycles to block; spacing enforced is N+1</p>
 
 ### TIMINGS_CL_CWL_WR register
 
@@ -304,7 +315,7 @@ Don't override. Generated from: $root
 
 #### tWR field
 
-<p>Write recovery</p>
+<p>Write recovery (tWR, from end of burst) -- MC cycles to block; spacing enforced is N+1</p>
 
 #### tRFCpb field
 
@@ -603,11 +614,11 @@ and tRTW was tied to tRTP; now both are independent configs.</p>
 
 #### tRTP field
 
-<p>Read to precharge</p>
+<p>Read to precharge (tRTP) -- MC cycles to block; spacing enforced is N+1</p>
 
 #### tRTW field
 
-<p>Read to write</p>
+<p>Read to write (tRTW) -- MC cycles to block; spacing enforced is N+1</p>
 
 #### RSVD field
 

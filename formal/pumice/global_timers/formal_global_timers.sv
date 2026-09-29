@@ -197,16 +197,22 @@ module formal_global_timers #(
             n_act <= 0;
             for (i = 0; i < 4; i = i + 1) faw_age[i] <= {AW{1'b1}};
         end else begin
-            if (evt_act_i) begin age_act <= 0; seen_act <= 1'b1; end
+            // Seeded at 1, not 0. These are read on a LATER cycle than the
+            // event, so one cycle has elapsed by the time anyone looks. At 0
+            // every spacing assertion silently tested a bound one cycle
+            // STRICTER than JEDEC -- which passes against correct hardware, so
+            // it hides, and it makes these ages useless for measuring how
+            // conservative the block actually is (see the bound properties).
+            if (evt_act_i) begin age_act <= 1; seen_act <= 1'b1; end
             else if (age_act != {AW{1'b1}}) age_act <= age_act + 1'b1;
 
-            if (evt_rd_i) begin age_rd <= 0; seen_rd <= 1'b1; end
+            if (evt_rd_i) begin age_rd <= 1; seen_rd <= 1'b1; end
             else if (age_rd != {AW{1'b1}}) age_rd <= age_rd + 1'b1;
 
-            if (evt_wr_i) begin age_wr <= 0; seen_wr <= 1'b1; end
+            if (evt_wr_i) begin age_wr <= 1; seen_wr <= 1'b1; end
             else if (age_wr != {AW{1'b1}}) age_wr <= age_wr + 1'b1;
 
-            if (evt_rd_i || evt_wr_i) begin age_col <= 0; seen_col <= 1'b1; end
+            if (evt_rd_i || evt_wr_i) begin age_col <= 1; seen_col <= 1'b1; end
             else if (age_col != {AW{1'b1}}) age_col <= age_col + 1'b1;
 
             // tFAW history: every recorded ACT ages, and a new one shifts in.
@@ -251,6 +257,29 @@ module formal_global_timers #(
         // tRTW: and back from read to write.
         if (evt_wr_i && seen_rd)
             a_trtw: assert (age_rd >= {2'b0, t_rtw_i});
+
+        // ---- THE ENFORCED BOUND IS N+1, NOT N -------------------------------
+        // A window programmed to N is enforced as N+1 MC cycles of spacing: the
+        // counter is loaded with N and the gate opens the cycle after it would
+        // reach zero. Measured, not assumed -- the same assertions with `+ 2`
+        // fail on all four windows, so the bound is exactly N+1 and tight.
+        //
+        // This is a CONTRACT nobody wrote down. The RDL field descriptions are
+        // bare (`desc = "tCCD"`, no units, no statement of blocking-vs-spacing)
+        // and the board host programs raw JEDEC-derived cycle counts with no -1
+        // compensation (pumice_device.py: `tCCD=ck(DDR2_CK_MIN["tCCD"])`), so
+        // every window on silicon is over-enforced by one MC cycle. Safe --
+        // never a violation -- and it costs bandwidth. pumice TASK-034 carries
+        // the decision and the board experiment; these assertions exist so that
+        // changing the convention cannot happen silently.
+        if (evt_act_i && seen_act)
+            a_trrd_bound_n1: assert (age_act >= {2'b0, t_rrd_i} + 10'd1);
+        if ((evt_rd_i || evt_wr_i) && seen_col)
+            a_tccd_bound_n1: assert (age_col >= {2'b0, t_ccd_i} + 10'd1);
+        if (evt_rd_i && seen_wr)
+            a_twtr_bound_n1: assert (age_wr  >= {2'b0, t_wtr_global_i} + 10'd1);
+        if (evt_wr_i && seen_rd)
+            a_trtw_bound_n1: assert (age_rd  >= {2'b0, t_rtw_i} + 10'd1);
     end
 
     // =========================================================================
@@ -282,6 +311,13 @@ module formal_global_timers #(
         c_wr_then_rd:  cover (evt_rd_i && seen_wr);         // DQ turnaround
         c_rd_then_wr:  cover (evt_wr_i && seen_rd);
         c_ccd_blocks:  cover (!tccd_window_ok_o);
+        // the N+1 bound is TIGHT -- the gate opens at exactly one cycle past the
+        // programmed count. Without these, the bound assertions would also pass
+        // on a block that was far more conservative than it claims.
+        c_trrd_tight:  cover (evt_act_i && seen_act
+                           && (age_act == {2'b0, t_rrd_i} + 10'd1));
+        c_tccd_tight:  cover ((evt_rd_i || evt_wr_i) && seen_col
+                           && (age_col == {2'b0, t_ccd_i} + 10'd1));
     end
 
 endmodule

@@ -44,6 +44,39 @@ Most of the controller's behavior is programmed at runtime by CSR fields, not fi
 | DFI phase         | `DFI_PHASE.rd_phase` / `.wr_phase`                                  | `rd_phase_i`/`wr_phase_i` (sliced to `clog2(DFI_RATE)`) |
 | PHY data timing   | `PHY_TIMING.t_phy_wrlat` / `.t_rddata_en`                          | `t_phy_wrlat_i`/`t_rddata_en_i`         |
 
+### What a JEDEC timing value MEANS: blocking cycles, so spacing is N+1
+
+Every JEDEC timing field is a count of **MC (controller) cycles**, and the
+hardware treats it as a count of cycles to BLOCK. A window programmed to `N` is
+therefore enforced as **`N+1` cycles of command spacing**: the counter is loaded
+with `N` when the event happens, and the gate opens the cycle after it would
+reach zero.
+
+This holds for all ten enforced windows, in both timing blocks:
+
+| Block | Windows |
+|---|---|
+| `bank_timer` (per bank) | tRC, tRP, tRCD, tRAS, tRTP, tWR |
+| `global_timers` (per rank / global) | tRRD, tCCD, tWTR, tRTW |
+
+It is measured, not asserted: `formal/pumice/bank_timer` and
+`formal/pumice/global_timers` carry `a_*_bound_n1` properties proving the bound,
+and cover statements proving it is TIGHT (exactly `N+1`, never more -- the same
+assertions with `+2` fail on every window).
+
+**Nothing compensates for the extra cycle.** The board host programs raw
+JEDEC-derived cycle counts with no `-1`
+(`build-perf/host/pumice_device.py`: `tCCD=ck(DDR2_CK_MIN["tCCD"])`,
+`tRCD=ns(part["tRCD"])`), so each window on silicon is one MC cycle longer than
+JEDEC requires -- 13.3 ns at 75 MHz. That is always SAFE, never a violation, and
+it costs bandwidth. Whether to recover it is pumice TASK-034, and it is a board
+measurement rather than a code change: the empirical `rtw_guard` in the tRTW
+derivation was tuned WITH this cycle present.
+
+If you are programming a part from its datasheet, write the JEDEC value. Do not
+subtract one to "correct" for this -- the CSR would then stop reading as the
+part's timing, which is worse than the cycle it saves.
+
 CL/CWL/BL are **not** driven from the timing CSRs at the core boundary — they are decoded from the mode-register shadow inside the scheduler layer (`mode_register.sv`) as the init sequencer programs MR0..MR3 (see §5.1). The `TIMINGS_CL_CWL_WR.CL`/`.CWL` fields are informational in this build.
 
 ## Commit Semantics

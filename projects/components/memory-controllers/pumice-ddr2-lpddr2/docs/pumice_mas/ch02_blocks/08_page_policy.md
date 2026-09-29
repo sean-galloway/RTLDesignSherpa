@@ -54,7 +54,7 @@ integrity failures. Two notes for anyone changing it:
   and TR=4 already falls back to open-page numbers on plain `col_major`, so the
   cliff sits between 2 and 4.
 
-See `vault/Tasks/pumice/task/open/TASK-013.md` for the full campaign.
+See `vault/Tasks/pumice-ddr2-lpddr2/task/open/TASK-013.md` for the full campaign.
 
 ## Modes
 

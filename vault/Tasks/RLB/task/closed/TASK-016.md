@@ -99,7 +99,7 @@ silence proves nothing -- they were fixed for accuracy, not because a gate asked
 pumice MAS pages, one NexysA7 README), so no new break hides behind an
 offsetting fix; `--ratchet` PASS, no file grew. `check_task_ids.py --area RLB`
 passes with three status docs now at the lane root -- the position
-`vault/Tasks/pumice/GAP_ANALYSIS.md` already occupies. `check_rdl_regen.py`
+`vault/Tasks/pumice-ddr2-lpddr2/GAP_ANALYSIS.md` already occupies. `check_rdl_regen.py`
 in sync (silent on success; confirmed by reading main(), not assumed from a
 clean exit). pm_acpi suite 6/6 from `clean-all`. A post-move sweep across all
 file types found no stale reference outside this task file and a peer worktree.

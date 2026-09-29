@@ -728,6 +728,10 @@ def _run_scheduler(request, testcase, test_level='gate'):
         # worse than not auditing at all because it still reports success.
         "CMD_HISTORY_EN": "1",
         "HIST_T_WTR": str(_CTRL_T['tWTR']), "HIST_T_RTW": str(_CTRL_T['tRTW']),
+        # tRRD/tFAW are cross-bank, so the per-bank history cannot see them at
+        # all; armed for pumice ISSUE-019 (the arbiter checks both two registers
+        # before the fire).
+        "HIST_T_RRD": str(_CTRL_T['tRRD']), "HIST_T_FAW": str(_CTRL_T['tFAW']),
     }
     extra_env = {
         "DUT": dut_name, "LOG_PATH": log_path, "COCOTB_LOG_LEVEL": "INFO",

@@ -706,8 +706,14 @@ module pumice_cmd_arbiter
                               && !w_rd_turn_block && !w_ap_col_guard[rb]
                               && !w_pre_col_guard[rb] && !w_preact_bank_guard[rb];
                 // tFAW/tRRD are deliberately NOT gated here -- see the WRITE
-                // twin below for the reasoning. They are re-checked live at the
-                // fire stage (w_act_gate_live), which is authoritative.
+                // twin below for the reasoning. They are re-checked later, at
+                // the STAGE-1b pre-pick (w_act_gate_live). NOT at the fire
+                // stage: this comment used to say "at the fire stage ... which
+                // is authoritative", and w_act_gate_live is used exactly once,
+                // in the always_comb producing w_sel_*_act_f -- two registers
+                // ahead of the output. w_out_safe re-validates an ACT against
+                // bank_act_ready_i only, which is PER-BANK, and tFAW/tRRD are
+                // rank-global. See pumice ISSUE-019.
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
                               && r_bank_act_ready[RK0][rb] && w_act_classify_gate
                               && !w_rfc_busy;
@@ -734,7 +740,13 @@ module pumice_cmd_arbiter
                 // flow costs nothing: the classes are separate pipeline
                 // registers picked by priority at the output, so an ACT waiting
                 // on tRRD does not block a column, and w_act_gate_live re-checks
-                // both live at the fire stage (4a/4b) where it is authoritative.
+                // both at the STAGE-1b pre-pick. That re-check is LATER than the
+                // classify mask, which is what this reasoning needs -- but it is
+                // NOT the fire stage, as this comment used to claim. Two
+                // registers still separate it from the command leaving, and
+                // nothing at the output re-checks these two rank-global windows
+                // (w_out_safe covers the per-bank gate only). pumice ISSUE-019
+                // records the gap and how to settle whether it is reachable.
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
                               && r_bank_act_ready[RK0][wb] && w_act_classify_gate
                               && !w_rfc_busy;

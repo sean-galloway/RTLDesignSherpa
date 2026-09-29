@@ -33,6 +33,8 @@ module pumice_mem_cmd_scheduler
     parameter int HIST_T_RAS  = 0,
     parameter int HIST_T_RFC  = 8,
     parameter int HIST_T_WTR  = 0,   // global WR->RD turnaround window
+    parameter int HIST_T_RRD  = 0,   // global ACT->ACT rate limit (ISSUE-019)
+    parameter int HIST_T_FAW  = 0,   // global 4-ACT window (ISSUE-019)
     parameter int HIST_T_RTW  = 0,   // global RD->WR turnaround window
     parameter int NUM_BANKS   = 8,
     parameter int ROW_WIDTH   = 14,
@@ -609,7 +611,9 @@ module pumice_mem_cmd_scheduler
             .T_RAS    (HIST_T_RAS),
             .T_RFC    (HIST_T_RFC),
             .T_WTR    (HIST_T_WTR),
-            .T_RTW    (HIST_T_RTW)
+            .T_RTW    (HIST_T_RTW),
+            .T_RRD    (HIST_T_RRD),
+            .T_FAW    (HIST_T_FAW)
         ) u_cmd_history (
             .clk        (aclk),
             .rst_n      (aresetn),

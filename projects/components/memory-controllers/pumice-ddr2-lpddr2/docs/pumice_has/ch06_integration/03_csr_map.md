@@ -95,10 +95,17 @@ Packed timing parameters in MC (`aclk`) cycles. All fields are `sw = rw`,
 
 | Bits  | Field   | Reset | Description           |
 |-------|---------|-------|-----------------------|
-| 7:0   | `tRRD`  | 6     | tRRD                  |
-| 15:8  | `tFAW`  | 35    | tFAW                  |
-| 23:16 | `tWTR`  | 4     | tWTR                  |
-| 31:24 | `tCCD`  | 4     | tCCD                  |
+| 7:0   | `tRRD`  | 6     | tRRD, in MC cycles to block (spacing enforced is N+1) |
+| 15:8  | `tFAW`  | 35    | tFAW, in MC cycles    |
+| 23:16 | `tWTR`  | 4     | tWTR, in MC cycles to block (spacing enforced is N+1) |
+| 31:24 | `tCCD`  | 4     | tCCD, in MC cycles to block (spacing enforced is N+1) |
+
+Every JEDEC timing field in this map is a count of MC cycles to BLOCK, so the
+command spacing the DRAM sees is **N+1**. Proved and bounded tight in
+`formal/pumice/{bank_timer,global_timers}`; see
+`pumice_mas/ch04_apb_config/03_runtime_overrides.md` for what that means when
+programming a part from its datasheet, and pumice TASK-034 for the open question
+of recovering the cycle.
 
 ### `TIMINGS_CL_CWL_WR` (0x01C, R/W)
 
