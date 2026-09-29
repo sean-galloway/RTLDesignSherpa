@@ -69,3 +69,14 @@ weighted PWM arbiter, protocol-partitioned groups), what it costs, and how to
 validate a tweak. Linked from `rtl-amba/index.md` and `overview.md`. The
 owner line stands: Sean is the author and edits in place; this is the
 assist's draft, written so every number is cited to a page or report.
+
+**Revision 1.1, same day (Sean: "Emphasize the monlite as the more realistic
+solution").** A "Which monitor" section now follows the spine and makes the
+recommendation explicit: the lite on every port, the full monitor the
+exception you justify. It carries the characterization numbers (6.3x LUTs,
+5.1x flops, the lite meeting 6.667 ns on the Kintex-7 where the 16-slot full
+monitor does not), the honesty argument (never stalls the bus, refused and
+dropped counts, the proved accounting identity) and a table of what the
+full monitor still buys (performance windows, debug trace, ID filter, more
+slots) against the lite's substitutes. The insertion, filtering and cost
+sections were reworked to the same footing.

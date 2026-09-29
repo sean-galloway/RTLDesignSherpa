@@ -30,8 +30,10 @@ per-module pages under [monitor/](monitor/)). This paper sits one level up:
 here is the spine, here are the six axes the integrator owns, and here is
 what each choice costs.
 
-**Version:** 1.0, 2026-09-28. Numbers are from the tree at that date;
-each is cited to the page or report it comes from.
+**Version:** 1.1, 2026-09-28. Numbers are from the tree at that date;
+each is cited to the page or report it comes from. Revision 1.1 makes the
+recommendation explicit: the lite monitor is the realistic choice on every
+port, and the full monitor is the exception you justify.
 
 ---
 
@@ -47,6 +49,54 @@ per packet type. The packet layout is fixed
 else on this page is a knob.
 
 ![Monitor system spine: ports, arbiter tree, group, two drains](../assets/rtl-amba/monitor_wp_spine.png)
+
+## Which monitor: the lite, unless you can say why not
+
+Two monitors implement the port end of the spine. `axi_monitor_base`, the
+full monitor, tracks transactions in a CAM and drives six reporter cones
+(error, timeout, completion, threshold, performance, debug) with ID and
+address filtering. `axi_monitor_lite` tracks the same transactions in
+per-ID linked lists, emits errors, timeouts, completions with latency,
+thresholds and address-range events, and drops the performance and debug
+classes and the ID filter. Measured at their default parameters, out of
+context, on the Kintex-7 the boards ship on
+([monitor/monitor_characterization.md](monitor/monitor_characterization.md)):
+
+| | Full monitor | Lite | Ratio |
+|---|---:|---:|---:|
+| AXI4 read monitor, LUTs | 7,006 | 1,115 | 6.3x |
+| AXI4 read monitor, flops | 5,219 | 1,027 | 5.1x |
+| AXI-Lite read monitor, LUTs | 2,891 | 929 | 3.1x |
+| 6.667 ns on Kintex-7 325T -2, register to register | misses (CAM at 16 slots) | meets, 0.8 to 1.5 ns spare | |
+| 10 ns on Artix-7 100T -1 | misses by 1.45 ns | meets by 0.6 ns | |
+
+That is why the lite is the default: the bridge generator instantiates it on
+every monitored port, STREAM's three in-core monitors and RAPIDS' descriptor
+and AXIS monitors are lite, and every board build since 2026-09-26 carries
+it. It is also the more honest of the two under load. A full monitor that
+runs out of table entries stalls the command channel (`block_ready`); the
+lite never stalls the bus, counts the command it could not track
+(`refused_count`), and when its output queue is full it counts the events
+it could not deliver and reports the count in one `Error/EVENT_DROPPED`
+packet as soon as the bus is free. Its contract is exact and is proved in
+the tree: every command is completed, refused or live, and every generated
+event is delivered, reported dropped or pending, with no fourth outcome
+(`val/amba/test_axi_mon_block_ready.py`, `test_axi_monitor_soak.py`,
+`formal/amba/axi_monitor_lite`). A stalled bus is the one effect an
+instrument must never have on the design it watches.
+
+What you give up, and when it matters:
+
+| Full-monitor feature | Lite | Reach for the full monitor if |
+|---|---|---|
+| performance windows (`cfg_perf_enable`, byte/beat/idle counters) | none; the in-datapath `axi_bus_meter` and the pass-through observer measure throughput without a monitor | you need windowed bandwidth numbers from the monitor itself |
+| debug trace packets | none | you need per-beat trace, not events |
+| ID-range filter (`ID_FILTER_ENABLE`) | none; one lite per port, sliced by `unit_id`/`agent_id` instead | several instances must share one port by ID |
+| 16 slots | 8 by default, parameter | more than eight transactions in flight per port and every one must be tracked, not counted as refused |
+| address filter | address ranges kept (`N_ADDR_RANGES`, error or match per range) | |
+
+The rest of this paper assumes the lite at the ports. Every axis below is
+the same for both monitors; the numbers are the lite's.
 
 ## 1. Identity space allocation
 
@@ -78,7 +128,7 @@ The cost is nothing: the fields exist in every packet regardless.
 
 | Placement | What it sees | Cost | Use when |
 |---|---|---|---|
-| **Per port** (the default; the bridge generator puts a lite monitor on every monitored port) | every transaction on that port, attributed by ID, with completion latency | one monitor per port: 677 LUTs / 831 FFs for a lite read monitor, 3,249 / 1,628 for the full one ([axi_monitor_lite.md](monitor/axi_monitor_lite.md), Measured) | you need to know WHICH port misbehaved |
+| **Per port** (the default; the bridge generator puts a lite monitor on every monitored port) | every transaction on that port, attributed by ID, with completion latency | one lite per port: about 1,100 LUTs / 1,030 FFs at defaults, 677 / 831 with the bridge's narrower parameters ([monitor_characterization.md](monitor/monitor_characterization.md), [axi_monitor_lite.md](monitor/axi_monitor_lite.md)) | you need to know WHICH port misbehaved |
 | **Mid-fabric** | the traffic crossing one internal link, through a pass-through observer with its own APB configuration (`projects/components/misc/rtl/axi4_intf_master_observer.sv`) | one observer per link | localizing violations the fabric itself introduces (ordering, ID collisions between ports) |
 | **Root of tree** | the aggregate of everything below, once | one monitor | area-constrained; you only need "something is wrong", not where |
 
@@ -86,7 +136,9 @@ Per port and root of tree are the ends of one trade: resolution against
 area. A three-port read bridge with per-port lite monitors spends about
 2,000 LUTs on monitors and about 1,400 on the shared group; the same bridge
 monitored once at its root spends 677 and 1,400, and can no longer tell the
-ports apart.
+ports apart. With the full monitor the same per-port choice would cost about
+21,000 LUTs, which is why per-port monitoring was not realistic before the
+lite and is the default with it.
 
 ![Insertion points: per port, mid-fabric, root of tree](../assets/rtl-amba/monitor_wp_insertion.png)
 
@@ -144,15 +196,18 @@ Three layers, all runtime-programmable over the control APB:
    `cfg_timeout_enable`, `cfg_threshold_enable`: a class that is off is not
    generated at all, so it costs no monbus bandwidth.
 
-**The congestion pitfall.** Completion and performance packets are the
-high-rate classes; with both enabled on a busy port the monbus saturates
-and lower-priority packets are lost. The rule from
+**The congestion pitfall, and how the lite retires it.** On the full
+monitor, completion and performance packets are the high-rate classes; with
+both enabled on a busy port the monbus saturates and lower-priority packets
+are lost silently. The rule from
 [AXI_Monitor_Configuration_Guide.md](../../user-guides/AXI_Monitor_Configuration_Guide.md)
-stands: never enable `cfg_compl_enable` and `cfg_perf_enable` together on
-the full monitor. The lite has no performance class; when it cannot queue
-an event it counts the loss and reports the count in one
-`Error/EVENT_DROPPED` packet as soon as the bus is free, so the consumer
-always knows how many events it did not see.
+stands there: never enable `cfg_compl_enable` and `cfg_perf_enable`
+together. The lite has no performance class to collide with, holds a
+timeout or a latency event that loses the pick until it can go, and when
+its queue is genuinely full it counts the loss and reports the count in one
+`Error/EVENT_DROPPED` packet as soon as the bus is free. Nothing is lost
+silently; the consumer always knows how many events it did not see, which
+is the property a filtering strategy can be built on.
 
 ![Packet-type filtering: enable pins, type mask, event mask, then drain steering; the lite counts what its queue could not take](../assets/rtl-amba/monitor_wp_filtering.png)
 
@@ -171,15 +226,20 @@ AXIS, Wishbone), so partitioning is a topology decision, not a new block.
 
 ## What it costs
 
-From the bridge fixture, out of context, Vivado 2025.1
-([axi_monitor_lite.md](monitor/axi_monitor_lite.md), Measured):
+Standalone, at default parameters, from the characterization sweep
+([monitor/monitor_characterization.md](monitor/monitor_characterization.md)),
+and in place, from the bridge fixture with the bridge's parameters
+([axi_monitor_lite.md](monitor/axi_monitor_lite.md)):
 
 | | Full monitor | Lite |
 |---|---:|---:|
-| One read monitor, LUTs / FFs | 3,249 / 1,628 | 677 / 831 |
+| One AXI4 read monitor at defaults (16 / 8 slots), LUTs / FFs | 7,006 / 5,219 | 1,115 / 1,027 |
+| One read monitor in the bridge, LUTs / FFs | 3,249 / 1,628 | 677 / 831 |
 | Three-port read bridge with group, LUTs | 12,625 | 5,339 |
 | The unmonitored bridge, LUTs | 826 | 826 |
-| Kintex-7 325T -2 at 6.667 ns, WNS | +0.212 ns | +1.092 ns |
+| Kintex-7 325T -2 at 6.667 ns, bridge WNS | +0.212 ns | +1.092 ns |
+| Kintex-7 at 6.667 ns, standalone at defaults, register to register | -0.166 ns | +1.005 ns |
+| A group (error FIFO 64 records, write FIFO 96 beats), LUTs / FFs | 1,700 to 2,000 / 1,150 to 1,390 | same, shared |
 
 The lite bridge fixture meets 10 ns on the Artix-7 100T -1 since 2026-09-28
 (+0.366 ns), after the group planner and the lite's event stage were
