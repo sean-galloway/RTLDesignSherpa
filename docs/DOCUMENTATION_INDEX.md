@@ -67,7 +67,7 @@ Per-subsystem reference books; each renders to a PDF in this directory via
 | Book source | Rendered PDF |
 |---|---|
 | [markdown/rtl-common/](markdown/rtl-common/) | [RTL_Common_Library.pdf](pdfs/RTL_Common_Library.pdf), [RTL_Math_Library.pdf](pdfs/RTL_Math_Library.pdf) |
-| [markdown/rtl-amba/](markdown/rtl-amba/) | [RTL_AMBA_*.pdf](pdfs/) (APB4/APB5, AXI4, AXI4-Lite, AXI4/AXI5-Stream, AXI5, Monitor, Shared) |
+| [markdown/rtl-amba/](markdown/rtl-amba/) | [RTL_AMBA_Monitor_Whitepaper_v1.1.pdf](pdfs/RTL_AMBA_Monitor_Whitepaper_v1.1.pdf) (the monitor system white paper, `markdown/generate_monitor_whitepaper_pdf.sh`); [RTL_AMBA_*.pdf](pdfs/) (APB4/APB5, AXI4, AXI4-Lite, AXI4/AXI5-Stream, AXI5, Monitor, Shared) |
 | [markdown/rtl-cdc/](markdown/rtl-cdc/) | [RTL_CDC.pdf](pdfs/RTL_CDC.pdf) |
 | [markdown/Scripts/](markdown/Scripts/) | tooling reference (assets in [Scripts/assets/](markdown/Scripts/assets/)) |
 | [markdown/TestTutorial/](markdown/TestTutorial/) | getting started with testing |
@@ -82,8 +82,8 @@ book front-matter). [logos/](logos/) - project branding.
 Specs live WITH their components, not here:
 
 - **Components:** `projects/components/<name>/docs/` - HAS/MAS spec books
-  with per-project `generate_pdf.sh` (dmas/stream, dmas/rapids, bridge,
-  retro_legacy_blocks, memory-controllers/pumice-ddr2-lpddr2, ...)
+  with per-project `generate_pdf.sh` (dma-ip/stream, dma-ip/rapids, bridge,
+  retro_legacy_blocks, mem-ctrl-ip/pumice-ddr2-lpddr2, ...)
   Master list: [../projects/components/index.md](../projects/components/index.md)
 - **Board campaigns:** `projects/NexysA7/<campaign>/docs/` - operator guides
   and characterization reports
