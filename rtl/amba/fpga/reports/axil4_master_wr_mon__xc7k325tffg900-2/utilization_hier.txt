@@ -1,0 +1,32 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 19:00:25 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axil4_master_wr_mon__xc7k325tffg900-2/utilization_hier.txt
+| Design       : axil4_master_wr_mon
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++--------------------------------+----------------------+------------+------------+---------+------+------+--------+--------+------------+
+|            Instance            |        Module        | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++--------------------------------+----------------------+------------+------------+---------+------+------+--------+--------+------------+
+| axil4_master_wr_mon            |                (top) |       3481 |       3453 |      28 |    0 | 2955 |      0 |      0 |          0 |
+|   (axil4_master_wr_mon)        |                (top) |          8 |          8 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   axil4_master_wr_inst         |      axil4_master_wr |        184 |        184 |       0 |    0 |  164 |      0 |      0 |          0 |
+|   gen_monitor.axi_monitor_inst | axi_monitor_filtered |       3289 |       3261 |      28 |    0 | 2791 |      0 |      0 |          0 |
++--------------------------------+----------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

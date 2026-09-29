@@ -1,0 +1,32 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 19:02:23 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axis4_master_monlite__xc7a100tcsg324-1/utilization_hier.txt
+| Design       : axis4_master_monlite
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++------------------------------------------+-------------------+------------+------------+---------+------+-----+--------+--------+------------+
+|                 Instance                 |       Module      | Total LUTs | Logic LUTs | LUTRAMs | SRLs | FFs | RAMB36 | RAMB18 | DSP Blocks |
++------------------------------------------+-------------------+------------+------------+---------+------+-----+--------+--------+------------+
+| axis4_master_monlite                     |             (top) |       1524 |       1524 |       0 |    0 | 736 |      0 |      0 |          0 |
+|   (axis4_master_monlite)                 |             (top) |          0 |          0 |       0 |    0 |   0 |      0 |      0 |          0 |
+|   (gen_monitor_lite.u_axis_monitor_lite) | axis_monitor_lite |       1258 |       1258 |       0 |    0 | 516 |      0 |      0 |          0 |
+|   u_core                                 |      axis4_master |        255 |        255 |       0 |    0 | 206 |      0 |      0 |          0 |
++------------------------------------------+-------------------+------------+------------+---------+------+-----+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

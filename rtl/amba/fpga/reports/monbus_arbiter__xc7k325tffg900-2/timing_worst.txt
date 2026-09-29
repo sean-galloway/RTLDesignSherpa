@@ -1,0 +1,1037 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 19:01:42 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing -setup -max_paths 20 -nworst 1 -sort_by slack -input_pins -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/monbus_arbiter__xc7k325tffg900-2/timing_worst.txt
+| Design       : monbus_arbiter
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             2.295ns  (required time - arrival time)
+  Source:                 monbus_valid_in[2]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][26]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.881ns  (logic 0.184ns (6.387%)  route 2.697ns (93.613%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[2] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/monbus_valid_in[2]
+    SLICE_X61Y229                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/I0
+    SLICE_X61Y229        LUT2 (Prop_lut2_I0_O)        0.052     2.589 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/O
+                         net (fo=96, routed)          2.160     4.749    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1_n_0
+    SLICE_X55Y242                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][26]_i_1__1/I0
+    SLICE_X55Y242        LUT4 (Prop_lut4_I0_O)        0.132     4.881 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][26]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.881    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][26]_i_1__1_n_0
+    SLICE_X55Y242        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][26]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X55Y242        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][26]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X55Y242        FDCE (Setup_fdce_C_D)        0.034     7.176    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][26]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.881    
+  -------------------------------------------------------------------
+                         slack                                  2.295    
+
+Slack (MET) :             2.311ns  (required time - arrival time)
+  Source:                 monbus_valid_in[2]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][27]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.889ns  (logic 0.192ns (6.646%)  route 2.697ns (93.354%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[2] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/monbus_valid_in[2]
+    SLICE_X61Y229                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/I0
+    SLICE_X61Y229        LUT2 (Prop_lut2_I0_O)        0.052     2.589 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/O
+                         net (fo=96, routed)          2.160     4.749    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1_n_0
+    SLICE_X55Y242                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][27]_i_1__1/I0
+    SLICE_X55Y242        LUT4 (Prop_lut4_I0_O)        0.140     4.889 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][27]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.889    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][27]_i_1__1_n_0
+    SLICE_X55Y242        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][27]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X55Y242        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][27]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X55Y242        FDCE (Setup_fdce_C_D)        0.058     7.200    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][27]
+  -------------------------------------------------------------------
+                         required time                          7.200    
+                         arrival time                          -4.889    
+  -------------------------------------------------------------------
+                         slack                                  2.311    
+
+Slack (MET) :             2.329ns  (required time - arrival time)
+  Source:                 monbus_valid_in[2]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][52]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.877ns  (logic 0.184ns (6.395%)  route 2.693ns (93.605%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[2] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/monbus_valid_in[2]
+    SLICE_X61Y229                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/I0
+    SLICE_X61Y229        LUT2 (Prop_lut2_I0_O)        0.052     2.589 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/O
+                         net (fo=96, routed)          2.156     4.745    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1_n_0
+    SLICE_X54Y243                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][52]_i_1__1/I0
+    SLICE_X54Y243        LUT4 (Prop_lut4_I0_O)        0.132     4.877 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][52]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.877    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][52]_i_1__1_n_0
+    SLICE_X54Y243        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][52]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X54Y243        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][52]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X54Y243        FDCE (Setup_fdce_C_D)        0.064     7.206    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][52]
+  -------------------------------------------------------------------
+                         required time                          7.206    
+                         arrival time                          -4.877    
+  -------------------------------------------------------------------
+                         slack                                  2.329    
+
+Slack (MET) :             2.339ns  (required time - arrival time)
+  Source:                 monbus_valid_in[0]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][2]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.837ns  (logic 0.191ns (6.734%)  route 2.646ns (93.266%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[0] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/monbus_valid_in[0]
+    SLICE_X58Y229                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/rd_valid_i_2/I0
+    SLICE_X58Y229        LUT2 (Prop_lut2_I0_O)        0.053     2.590 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/rd_valid_i_2/O
+                         net (fo=96, routed)          2.109     4.699    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/rd_valid_i_2_n_0
+    SLICE_X76Y240                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][2]_i_1/I3
+    SLICE_X76Y240        LUT5 (Prop_lut5_I3_O)        0.138     4.837 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][2]_i_1/O
+                         net (fo=1, routed)           0.000     4.837    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][2]_i_1_n_0
+    SLICE_X76Y240        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][2]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X76Y240        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][2]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X76Y240        FDCE (Setup_fdce_C_D)        0.034     7.176    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][2]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.837    
+  -------------------------------------------------------------------
+                         slack                                  2.339    
+
+Slack (MET) :             2.343ns  (required time - arrival time)
+  Source:                 monbus_valid_in[0]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][30]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.831ns  (logic 0.191ns (6.746%)  route 2.640ns (93.254%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[0] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/monbus_valid_in[0]
+    SLICE_X58Y229                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/rd_valid_i_2/I0
+    SLICE_X58Y229        LUT2 (Prop_lut2_I0_O)        0.053     2.590 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/rd_valid_i_2/O
+                         net (fo=96, routed)          2.103     4.693    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/rd_valid_i_2_n_0
+    SLICE_X76Y240                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][30]_i_1/I3
+    SLICE_X76Y240        LUT5 (Prop_lut5_I3_O)        0.138     4.831 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][30]_i_1/O
+                         net (fo=1, routed)           0.000     4.831    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][30]_i_1_n_0
+    SLICE_X76Y240        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][30]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X76Y240        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][30]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X76Y240        FDCE (Setup_fdce_C_D)        0.033     7.175    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][30]
+  -------------------------------------------------------------------
+                         required time                          7.175    
+                         arrival time                          -4.831    
+  -------------------------------------------------------------------
+                         slack                                  2.343    
+
+Slack (MET) :             2.347ns  (required time - arrival time)
+  Source:                 monbus_valid_in[2]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][53]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.881ns  (logic 0.188ns (6.525%)  route 2.693ns (93.475%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[2] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/monbus_valid_in[2]
+    SLICE_X61Y229                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/I0
+    SLICE_X61Y229        LUT2 (Prop_lut2_I0_O)        0.052     2.589 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/O
+                         net (fo=96, routed)          2.156     4.745    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1_n_0
+    SLICE_X54Y243                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][53]_i_1__1/I0
+    SLICE_X54Y243        LUT4 (Prop_lut4_I0_O)        0.136     4.881 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][53]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.881    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][53]_i_1__1_n_0
+    SLICE_X54Y243        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][53]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X54Y243        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][53]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X54Y243        FDCE (Setup_fdce_C_D)        0.086     7.228    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][53]
+  -------------------------------------------------------------------
+                         required time                          7.228    
+                         arrival time                          -4.881    
+  -------------------------------------------------------------------
+                         slack                                  2.347    
+
+Slack (MET) :             2.392ns  (required time - arrival time)
+  Source:                 monbus_valid_in[0]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][136]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.814ns  (logic 0.086ns (3.056%)  route 2.728ns (96.944%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[0] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/monbus_valid_in[0]
+    SLICE_X58Y228                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][189]_i_2/I0
+    SLICE_X58Y228        LUT2 (Prop_lut2_I0_O)        0.043     2.580 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][189]_i_2/O
+                         net (fo=96, routed)          2.191     4.771    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][189]_i_2_n_0
+    SLICE_X78Y227                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][136]_i_1/I0
+    SLICE_X78Y227        LUT4 (Prop_lut4_I0_O)        0.043     4.814 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][136]_i_1/O
+                         net (fo=1, routed)           0.000     4.814    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][136]_i_1_n_0
+    SLICE_X78Y227        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][136]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X78Y227        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][136]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X78Y227        FDCE (Setup_fdce_C_D)        0.064     7.206    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][136]
+  -------------------------------------------------------------------
+                         required time                          7.206    
+                         arrival time                          -4.814    
+  -------------------------------------------------------------------
+                         slack                                  2.392    
+
+Slack (MET) :             2.404ns  (required time - arrival time)
+  Source:                 monbus_valid_in[2]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][2]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.772ns  (logic 0.184ns (6.639%)  route 2.588ns (93.361%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[2] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/monbus_valid_in[2]
+    SLICE_X61Y229                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/I0
+    SLICE_X61Y229        LUT2 (Prop_lut2_I0_O)        0.052     2.589 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/O
+                         net (fo=96, routed)          2.051     4.640    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1_n_0
+    SLICE_X72Y241                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][2]_i_1__1/I0
+    SLICE_X72Y241        LUT4 (Prop_lut4_I0_O)        0.132     4.772 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][2]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.772    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][2]_i_1__1_n_0
+    SLICE_X72Y241        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][2]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X72Y241        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][2]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X72Y241        FDCE (Setup_fdce_C_D)        0.034     7.176    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][2]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.772    
+  -------------------------------------------------------------------
+                         slack                                  2.404    
+
+Slack (MET) :             2.408ns  (required time - arrival time)
+  Source:                 monbus_valid_in[2]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][4]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.766ns  (logic 0.184ns (6.651%)  route 2.582ns (93.349%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[2] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/monbus_valid_in[2]
+    SLICE_X61Y229                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/I0
+    SLICE_X61Y229        LUT2 (Prop_lut2_I0_O)        0.052     2.589 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/O
+                         net (fo=96, routed)          2.045     4.634    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1_n_0
+    SLICE_X72Y241                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][4]_i_1__1/I0
+    SLICE_X72Y241        LUT4 (Prop_lut4_I0_O)        0.132     4.766 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][4]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.766    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][4]_i_1__1_n_0
+    SLICE_X72Y241        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X72Y241        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][4]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X72Y241        FDCE (Setup_fdce_C_D)        0.033     7.175    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][4]
+  -------------------------------------------------------------------
+                         required time                          7.175    
+                         arrival time                          -4.766    
+  -------------------------------------------------------------------
+                         slack                                  2.408    
+
+Slack (MET) :             2.410ns  (required time - arrival time)
+  Source:                 monbus_valid_in[0]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][137]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.818ns  (logic 0.090ns (3.193%)  route 2.728ns (96.807%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[0] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/monbus_valid_in[0]
+    SLICE_X58Y228                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][189]_i_2/I0
+    SLICE_X58Y228        LUT2 (Prop_lut2_I0_O)        0.043     2.580 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][189]_i_2/O
+                         net (fo=96, routed)          2.191     4.771    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][189]_i_2_n_0
+    SLICE_X78Y227                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][137]_i_1/I0
+    SLICE_X78Y227        LUT4 (Prop_lut4_I0_O)        0.047     4.818 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][137]_i_1/O
+                         net (fo=1, routed)           0.000     4.818    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][137]_i_1_n_0
+    SLICE_X78Y227        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][137]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X78Y227        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][137]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X78Y227        FDCE (Setup_fdce_C_D)        0.086     7.228    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][137]
+  -------------------------------------------------------------------
+                         required time                          7.228    
+                         arrival time                          -4.818    
+  -------------------------------------------------------------------
+                         slack                                  2.410    
+
+Slack (MET) :             2.419ns  (required time - arrival time)
+  Source:                 monbus_valid_in[2]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][3]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.781ns  (logic 0.193ns (6.941%)  route 2.588ns (93.059%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[2] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/monbus_valid_in[2]
+    SLICE_X61Y229                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/I0
+    SLICE_X61Y229        LUT2 (Prop_lut2_I0_O)        0.052     2.589 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/O
+                         net (fo=96, routed)          2.051     4.640    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1_n_0
+    SLICE_X72Y241                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][3]_i_1__1/I0
+    SLICE_X72Y241        LUT4 (Prop_lut4_I0_O)        0.141     4.781 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][3]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.781    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][3]_i_1__1_n_0
+    SLICE_X72Y241        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][3]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X72Y241        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][3]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X72Y241        FDCE (Setup_fdce_C_D)        0.058     7.200    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][3]
+  -------------------------------------------------------------------
+                         required time                          7.200    
+                         arrival time                          -4.781    
+  -------------------------------------------------------------------
+                         slack                                  2.419    
+
+Slack (MET) :             2.421ns  (required time - arrival time)
+  Source:                 monbus_valid_in[2]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][5]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.778ns  (logic 0.196ns (7.054%)  route 2.582ns (92.946%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[2] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/monbus_valid_in[2]
+    SLICE_X61Y229                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/I0
+    SLICE_X61Y229        LUT2 (Prop_lut2_I0_O)        0.052     2.589 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1/O
+                         net (fo=96, routed)          2.045     4.634    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][95]_i_2__1_n_0
+    SLICE_X72Y241                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][5]_i_1__1/I0
+    SLICE_X72Y241        LUT4 (Prop_lut4_I0_O)        0.144     4.778 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][5]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.778    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][5]_i_1__1_n_0
+    SLICE_X72Y241        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][5]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X72Y241        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][5]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X72Y241        FDCE (Setup_fdce_C_D)        0.058     7.200    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][5]
+  -------------------------------------------------------------------
+                         required time                          7.200    
+                         arrival time                          -4.778    
+  -------------------------------------------------------------------
+                         slack                                  2.421    
+
+Slack (MET) :             2.424ns  (required time - arrival time)
+  Source:                 monbus_valid_in[0]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][80]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.751ns  (logic 0.086ns (3.126%)  route 2.665ns (96.874%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[0] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/monbus_valid_in[0]
+    SLICE_X58Y229                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][93]_i_2/I0
+    SLICE_X58Y229        LUT2 (Prop_lut2_I0_O)        0.043     2.580 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][93]_i_2/O
+                         net (fo=96, routed)          2.128     4.708    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][93]_i_2_n_0
+    SLICE_X67Y240                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][80]_i_1/I0
+    SLICE_X67Y240        LUT4 (Prop_lut4_I0_O)        0.043     4.751 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][80]_i_1/O
+                         net (fo=1, routed)           0.000     4.751    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][80]_i_1_n_0
+    SLICE_X67Y240        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][80]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X67Y240        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][80]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X67Y240        FDCE (Setup_fdce_C_D)        0.033     7.175    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][80]
+  -------------------------------------------------------------------
+                         required time                          7.175    
+                         arrival time                          -4.751    
+  -------------------------------------------------------------------
+                         slack                                  2.424    
+
+Slack (MET) :             2.438ns  (required time - arrival time)
+  Source:                 monbus_valid_in[0]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][81]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.762ns  (logic 0.097ns (3.512%)  route 2.665ns (96.488%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[0] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/monbus_valid_in[0]
+    SLICE_X58Y229                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][93]_i_2/I0
+    SLICE_X58Y229        LUT2 (Prop_lut2_I0_O)        0.043     2.580 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][93]_i_2/O
+                         net (fo=96, routed)          2.128     4.708    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][93]_i_2_n_0
+    SLICE_X67Y240                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][81]_i_1/I0
+    SLICE_X67Y240        LUT4 (Prop_lut4_I0_O)        0.054     4.762 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][81]_i_1/O
+                         net (fo=1, routed)           0.000     4.762    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][81]_i_1_n_0
+    SLICE_X67Y240        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][81]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X67Y240        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][81]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X67Y240        FDCE (Setup_fdce_C_D)        0.058     7.200    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][81]
+  -------------------------------------------------------------------
+                         required time                          7.200    
+                         arrival time                          -4.762    
+  -------------------------------------------------------------------
+                         slack                                  2.438    
+
+Slack (MET) :             2.439ns  (required time - arrival time)
+  Source:                 monbus_valid_in[0]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][76]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.737ns  (logic 0.191ns (6.980%)  route 2.546ns (93.020%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[0] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/monbus_valid_in[0]
+    SLICE_X58Y229                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/rd_valid_i_2/I0
+    SLICE_X58Y229        LUT2 (Prop_lut2_I0_O)        0.053     2.590 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/rd_valid_i_2/O
+                         net (fo=96, routed)          2.009     4.599    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/rd_valid_i_2_n_0
+    SLICE_X76Y238                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][76]_i_1/I3
+    SLICE_X76Y238        LUT5 (Prop_lut5_I3_O)        0.138     4.737 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][76]_i_1/O
+                         net (fo=1, routed)           0.000     4.737    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][76]_i_1_n_0
+    SLICE_X76Y238        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][76]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X76Y238        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][76]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X76Y238        FDCE (Setup_fdce_C_D)        0.034     7.176    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][76]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.737    
+  -------------------------------------------------------------------
+                         slack                                  2.439    
+
+Slack (MET) :             2.441ns  (required time - arrival time)
+  Source:                 monbus_valid_in[2]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][5]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.765ns  (logic 0.086ns (3.110%)  route 2.679ns (96.890%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[2] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/monbus_valid_in[2]
+    SLICE_X61Y229                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][95]_i_2__1/I0
+    SLICE_X61Y229        LUT2 (Prop_lut2_I0_O)        0.043     2.580 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][95]_i_2__1/O
+                         net (fo=96, routed)          2.142     4.722    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][95]_i_2__1_n_0
+    SLICE_X66Y241                                                     r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][5]_i_1__1/I3
+    SLICE_X66Y241        LUT5 (Prop_lut5_I3_O)        0.043     4.765 r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][5]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.765    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][5]_i_1__1_n_0
+    SLICE_X66Y241        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][5]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X66Y241        FDCE                                         r  gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][5]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X66Y241        FDCE (Setup_fdce_C_D)        0.064     7.206    gen_input_skid[2].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][5]
+  -------------------------------------------------------------------
+                         required time                          7.206    
+                         arrival time                          -4.765    
+  -------------------------------------------------------------------
+                         slack                                  2.441    
+
+Slack (MET) :             2.443ns  (required time - arrival time)
+  Source:                 monbus_valid_in[0]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][77]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.731ns  (logic 0.191ns (6.993%)  route 2.540ns (93.007%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[0] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/monbus_valid_in[0]
+    SLICE_X58Y229                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/rd_valid_i_2/I0
+    SLICE_X58Y229        LUT2 (Prop_lut2_I0_O)        0.053     2.590 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/rd_valid_i_2/O
+                         net (fo=96, routed)          2.003     4.593    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/rd_valid_i_2_n_0
+    SLICE_X76Y238                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][77]_i_1/I3
+    SLICE_X76Y238        LUT5 (Prop_lut5_I3_O)        0.138     4.731 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][77]_i_1/O
+                         net (fo=1, routed)           0.000     4.731    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data[0][77]_i_1_n_0
+    SLICE_X76Y238        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][77]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X76Y238        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][77]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X76Y238        FDCE (Setup_fdce_C_D)        0.033     7.175    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[0].r_data_reg[0][77]
+  -------------------------------------------------------------------
+                         required time                          7.175    
+                         arrival time                          -4.731    
+  -------------------------------------------------------------------
+                         slack                                  2.443    
+
+Slack (MET) :             2.449ns  (required time - arrival time)
+  Source:                 monbus_valid_in[0]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][148]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.727ns  (logic 0.086ns (3.154%)  route 2.641ns (96.846%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[0] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/monbus_valid_in[0]
+    SLICE_X58Y228                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][189]_i_2/I0
+    SLICE_X58Y228        LUT2 (Prop_lut2_I0_O)        0.043     2.580 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][189]_i_2/O
+                         net (fo=96, routed)          2.104     4.684    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][189]_i_2_n_0
+    SLICE_X72Y228                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][148]_i_1/I0
+    SLICE_X72Y228        LUT4 (Prop_lut4_I0_O)        0.043     4.727 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][148]_i_1/O
+                         net (fo=1, routed)           0.000     4.727    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][148]_i_1_n_0
+    SLICE_X72Y228        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][148]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X72Y228        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][148]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X72Y228        FDCE (Setup_fdce_C_D)        0.034     7.176    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][148]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.727    
+  -------------------------------------------------------------------
+                         slack                                  2.449    
+
+Slack (MET) :             2.465ns  (required time - arrival time)
+  Source:                 monbus_valid_in[0]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][149]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.735ns  (logic 0.094ns (3.437%)  route 2.641ns (96.563%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[0] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/monbus_valid_in[0]
+    SLICE_X58Y228                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][189]_i_2/I0
+    SLICE_X58Y228        LUT2 (Prop_lut2_I0_O)        0.043     2.580 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][189]_i_2/O
+                         net (fo=96, routed)          2.104     4.684    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][189]_i_2_n_0
+    SLICE_X72Y228                                                     r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][149]_i_1/I0
+    SLICE_X72Y228        LUT4 (Prop_lut4_I0_O)        0.051     4.735 r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][149]_i_1/O
+                         net (fo=1, routed)           0.000     4.735    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][149]_i_1_n_0
+    SLICE_X72Y228        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][149]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X72Y228        FDCE                                         r  gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][149]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X72Y228        FDCE (Setup_fdce_C_D)        0.058     7.200    gen_input_skid[0].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][149]
+  -------------------------------------------------------------------
+                         required time                          7.200    
+                         arrival time                          -4.735    
+  -------------------------------------------------------------------
+                         slack                                  2.465    
+
+Slack (MET) :             2.466ns  (required time - arrival time)
+  Source:                 monbus_valid_in[3]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_input_skid[3].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][188]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        2.709ns  (logic 0.181ns (6.682%)  route 2.528ns (93.318%))
+  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  monbus_valid_in[3] (IN)
+                         net (fo=4, unset)            0.537     2.537    gen_input_skid[3].gen_input_skid_enabled.u_input_skid/monbus_valid_in[3]
+    SLICE_X58Y229                                                     r  gen_input_skid[3].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][191]_i_3__2/I0
+    SLICE_X58Y229        LUT2 (Prop_lut2_I0_O)        0.049     2.586 r  gen_input_skid[3].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][191]_i_3__2/O
+                         net (fo=96, routed)          1.991     4.577    gen_input_skid[3].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][191]_i_3__2_n_0
+    SLICE_X57Y218                                                     r  gen_input_skid[3].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][188]_i_1__2/I0
+    SLICE_X57Y218        LUT4 (Prop_lut4_I0_O)        0.132     4.709 r  gen_input_skid[3].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][188]_i_1__2/O
+                         net (fo=1, routed)           0.000     4.709    gen_input_skid[3].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data[1][188]_i_1__2_n_0
+    SLICE_X57Y218        FDCE                                         r  gen_input_skid[3].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][188]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1971, unset)         0.510     7.177    gen_input_skid[3].gen_input_skid_enabled.u_input_skid/axi_aclk
+    SLICE_X57Y218        FDCE                                         r  gen_input_skid[3].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][188]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X57Y218        FDCE (Setup_fdce_C_D)        0.033     7.175    gen_input_skid[3].gen_input_skid_enabled.u_input_skid/g_slot[1].r_data_reg[1][188]
+  -------------------------------------------------------------------
+                         required time                          7.175    
+                         arrival time                          -4.709    
+  -------------------------------------------------------------------
+                         slack                                  2.466    
+
+
+
+

@@ -1,0 +1,4 @@
+bridge=apb4_monitor part=xc7a100tcsg324-1 clk_ns=10.0
+luts=580 ffs=653 bram_tiles=0 dsps=0
+wns_ns=0.152 wns_reg2reg_ns=0.152 fmax_reg2reg_mhz=101.5 worst_logic_levels=13 unrouted_nets=0
+clocks=aclk io_delay_ns=3.0 seconds=39

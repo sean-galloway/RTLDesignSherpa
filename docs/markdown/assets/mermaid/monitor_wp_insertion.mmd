@@ -1,0 +1,18 @@
+flowchart TB
+  subgraph A["Per port (default)"]
+    A1["master 1"] --> AM1["mon"] --> AF["fabric"]
+    A2["master 2"] --> AM2["mon"] --> AF
+    AF --> AS1["slave 1"]
+    AF --> AS2["slave 2"]
+  end
+  subgraph B["Mid-fabric"]
+    B1["master 1"] --> BF["fabric"]
+    B2["master 2"] --> BF
+    BF --> BO["observer<br/>(pass-through meter)"] --> BS1["slave 1"]
+    BF --> BS2["slave 2"]
+  end
+  subgraph C["Root of tree"]
+    C1["master 1"] --> CF["fabric"]
+    C2["master 2"] --> CF
+    CF --> CM["one monitor<br/>on the aggregate"] --> CS["slaves"]
+  end

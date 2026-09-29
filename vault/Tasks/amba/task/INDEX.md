@@ -12,22 +12,22 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 38 | done (kept for history) |
+| [closed/](closed/) | 40 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-034** — Performance Characterization
-- **TASK-036** — Write Monitor System Whitepaper
 
 ## Active
 
 
 ## Closed
 
+- **TASK-034** — Performance Characterization -- CLOSED 2026-09-28: docs/markdown/rtl-amba/monitor/monitor_characterization.md from the new rtl/amba/fpga sweep (39 OOC runs, both parts); full ~7,000 LUTs vs lite ~1,100; AXIS lite Artix miss filed as monitor-lite ISSUE-003
+- **TASK-036** — Write Monitor System Whitepaper -- CLOSED 2026-09-28: v1.0 draft at docs/markdown/rtl-amba/monitor_system_whitepaper.md (six sections, seven diagrams, every number cited); Sean edits in place as author
 - **TASK-035** — Make APB Crossbar Variants Functional -- CLOSED 2026-09-28: satisfied by apbx-xbar TASK-001..004; re-measured (5 variants, 9/9 GATE from clean, lint clean under the area recipe, HAS/MAS v1.0)
 - **TASK-041** — formal task for monbus_group_core / monbus_axil4_axil4_group (the retired stream monbus_axil_group task's replacement) -- CLOSED 2026-09-28: formal/amba/monbus_group_core, 24 port-level assertions (routing, ready, FIFO accounting, legal flush burst) PASS at depth 14, 14/14 covers
 - **TASK-039** — Update formal proofs for the monitor logic -- CLOSED 2026-09-28: all 12 pass (2026-09-27/28); timer harness and cam_clear property existed, cone-off variants excluded on purpose, perfmon proofs rejected (no shipped build carries the cone)

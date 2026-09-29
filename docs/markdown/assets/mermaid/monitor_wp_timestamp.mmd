@@ -1,0 +1,12 @@
+flowchart TB
+  subgraph Now["As built: the group's local counter"]
+    C["monbus group r_ts_counter"] -->|"mon_time_out"| W["wrappers: i_mon_time"]
+    W --> P["packet + 64-bit monbus_timestamp"]
+    P --> R["record beat 0: {tag[3:0], ts[59:0]}"]
+  end
+  subgraph Hybrid["Tweak: hybrid time base, same 64-bit field"]
+    G["system microsecond counter"] --> H["ts[63:16] = global_us[47:0]"]
+    L["wrapper cycle counter"] --> H2["ts[15:0] = local_cyc[15:0]"]
+    H --> P2["packet + monbus_timestamp"]
+    H2 --> P2
+  end

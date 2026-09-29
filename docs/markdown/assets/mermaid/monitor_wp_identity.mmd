@@ -1,0 +1,12 @@
+flowchart LR
+  subgraph AsBuilt["As built: one unit_id per subsystem"]
+    U1["unit_id 0x01<br/>STREAM"] --> A1["agent 0x10 descriptor engine"]
+    U1 --> A2["agent 0x30 scheduler"]
+    U1 --> A3["agent 0x40 scheduler set"]
+  end
+  subgraph Split["Tweak: unit_id = {subsystem[3:0], sub_bus[3:0]}"]
+    S["subsystem 0x1"] --> B0["unit_id 0x10<br/>sub-bus 0"]
+    S --> B1["unit_id 0x11<br/>sub-bus 1"]
+    S --> BF["... unit_id 0x1F<br/>sub-bus 15"]
+    B0 --> AG["agent_id names the block on each bus"]
+  end

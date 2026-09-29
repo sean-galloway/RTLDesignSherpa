@@ -1,0 +1,1877 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 18:55:05 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing_summary -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi4_master_rd_cg__xc7k325tffg900-2/timing_summary.txt -max_paths 10
+| Design       : axi4_master_rd_cg
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Summary Report
+
+------------------------------------------------------------------------------------------------
+| Timer Settings
+| --------------
+------------------------------------------------------------------------------------------------
+
+  Enable Multi Corner Analysis               :  Yes
+  Enable Pessimism Removal                   :  Yes
+  Pessimism Removal Resolution               :  Nearest Common Node
+  Enable Input Delay Default Clock           :  No
+  Enable Preset / Clear Arcs                 :  No
+  Disable Flight Delays                      :  No
+  Ignore I/O Paths                           :  No
+  Timing Early Launch at Borrowing Latches   :  No
+  Borrow Time for Max Delay Exceptions       :  Yes
+  Merge Timing Exceptions                    :  Yes
+  Inter-SLR Compensation                     :  Conservative
+
+  Corner  Analyze    Analyze    
+  Name    Max Paths  Min Paths  
+  ------  ---------  ---------  
+  Slow    Yes        Yes        
+  Fast    Yes        Yes        
+
+
+------------------------------------------------------------------------------------------------
+| Report Methodology
+| ------------------
+------------------------------------------------------------------------------------------------
+
+No report available as report_methodology has not been run prior. Run report_methodology on the current design for the summary of methodology violations.
+
+
+
+check_timing report
+
+Table of Contents
+-----------------
+1. checking no_clock (8)
+2. checking constant_clock (0)
+3. checking pulse_width_clock (0)
+4. checking unconstrained_internal_endpoints (0)
+5. checking no_input_delay (1)
+6. checking no_output_delay (0)
+7. checking multiple_clock (0)
+8. checking generated_clocks (0)
+9. checking loops (0)
+10. checking partial_input_delay (0)
+11. checking partial_output_delay (0)
+12. checking latch_loops (0)
+
+1. checking no_clock (8)
+------------------------
+ There are 4 register/latch pins with no clock driven by root clock pin: aresetn (HIGH)
+
+ There is 1 register/latch pin with no clock driven by root clock pin: cfg_cg_idle_count[0] (HIGH)
+
+ There is 1 register/latch pin with no clock driven by root clock pin: cfg_cg_idle_count[1] (HIGH)
+
+ There is 1 register/latch pin with no clock driven by root clock pin: cfg_cg_idle_count[2] (HIGH)
+
+ There is 1 register/latch pin with no clock driven by root clock pin: cfg_cg_idle_count[3] (HIGH)
+
+
+2. checking constant_clock (0)
+------------------------------
+ There are 0 register/latch pins with constant_clock.
+
+
+3. checking pulse_width_clock (0)
+---------------------------------
+ There are 0 register/latch pins which need pulse_width check
+
+
+4. checking unconstrained_internal_endpoints (0)
+------------------------------------------------
+ There are 0 pins that are not constrained for maximum delay.
+
+ There are 0 pins that are not constrained for maximum delay due to constant clock.
+
+
+5. checking no_input_delay (1)
+------------------------------
+ There are 0 input ports with no input delay specified.
+
+ There is 1 input port with no input delay but user has a false path constraint. (MEDIUM)
+
+
+6. checking no_output_delay (0)
+-------------------------------
+ There are 0 ports with no output delay specified.
+
+ There are 0 ports with no output delay but user has a false path constraint
+
+ There are 0 ports with no output delay but with a timing clock defined on it or propagating through it
+
+
+7. checking multiple_clock (0)
+------------------------------
+ There are 0 register/latch pins with multiple clocks.
+
+
+8. checking generated_clocks (0)
+--------------------------------
+ There are 0 generated clocks that are not connected to a clock source.
+
+
+9. checking loops (0)
+---------------------
+ There are 0 combinational loops in the design.
+
+
+10. checking partial_input_delay (0)
+------------------------------------
+ There are 0 input ports with partial input delay specified.
+
+
+11. checking partial_output_delay (0)
+-------------------------------------
+ There are 0 ports with partial output delay specified.
+
+
+12. checking latch_loops (0)
+----------------------------
+ There are 0 combinational latch loops in the design through latch input
+
+
+
+------------------------------------------------------------------------------------------------
+| Design Timing Summary
+| ---------------------
+------------------------------------------------------------------------------------------------
+
+    WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+    -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+      1.029        0.000                      0                  794        0.166        0.000                      0                  794        2.933        0.000                       0                   338  
+
+
+All user specified timing constraints are met.
+
+
+------------------------------------------------------------------------------------------------
+| Clock Summary
+| -------------
+------------------------------------------------------------------------------------------------
+
+Clock  Waveform(ns)         Period(ns)      Frequency(MHz)
+-----  ------------         ----------      --------------
+aclk   {0.000 3.333}        6.667           149.992         
+
+
+------------------------------------------------------------------------------------------------
+| Intra Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+Clock             WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+-----             -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+aclk                1.029        0.000                      0                  786        0.166        0.000                      0                  786        2.933        0.000                       0                   338  
+
+
+------------------------------------------------------------------------------------------------
+| Inter Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------    --------          -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+
+
+------------------------------------------------------------------------------------------------
+| Other Path Groups Table
+| -----------------------
+------------------------------------------------------------------------------------------------
+
+Path Group         From Clock         To Clock               WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------         ----------         --------               -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+**async_default**  aclk               aclk                     3.859        0.000                      0                    8        2.205        0.000                      0                    8  
+
+
+------------------------------------------------------------------------------------------------
+| Timing Details
+| --------------
+------------------------------------------------------------------------------------------------
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  aclk
+  To Clock:  aclk
+
+Setup :            0  Failing Endpoints,  Worst Slack        1.029ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.166ns,  Total Violation        0.000ns
+PW    :            0  Failing Endpoints,  Worst Slack        2.933ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Max Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             1.029ns  (required time - arrival time)
+  Source:                 cfg_cg_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/en_out_reg/D
+                            (negative level-sensitive latch clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (aclk fall@3.333ns - aclk rise@0.000ns)
+  Data Path Delay:        0.779ns  (logic 0.043ns (5.519%)  route 0.736ns (94.481%))
+  Logic Levels:           1  (LUT3=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 3.844 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_cg_enable (IN)
+                         net (fo=7, unset)            0.537     2.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/cfg_cg_enable
+    SLICE_X31Y75         LUT3 (Prop_lut3_I2_O)        0.043     2.580 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/en_out_reg_i_1/O
+                         net (fo=1, routed)           0.199     2.779    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/p_0_in
+    SLICE_X32Y75         LDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/en_out_reg/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk fall edge)       3.333     3.333 f  
+                                                      0.000     3.333 f  aclk (IN)
+                         net (fo=10, unset)           0.510     3.844    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/en_out_reg/G  (IS_INVERTED)
+                         clock pessimism              0.000     3.844    
+                         clock uncertainty           -0.035     3.808    
+  -------------------------------------------------------------------
+                         required time                          3.808    
+                         arrival time                          -2.779    
+  -------------------------------------------------------------------
+                         slack                                  1.029    
+
+Slack (MET) :             1.509ns  (required time - arrival time)
+  Source:                 cfg_cg_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            cg_gating
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        1.123ns  (logic 0.049ns (4.363%)  route 1.074ns (95.637%))
+  Logic Levels:           1  (LUT3=1)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_cg_enable (IN)
+                         net (fo=7, unset)            0.537     2.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_enable
+    SLICE_X30Y74         LUT3 (Prop_lut3_I0_O)        0.049     2.586 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cg_gating_INST_0/O
+                         net (fo=0)                   0.537     3.123    cg_gating
+                                                                      r  cg_gating (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -3.123    
+  -------------------------------------------------------------------
+                         slack                                  1.509    
+
+Slack (MET) :             1.509ns  (required time - arrival time)
+  Source:                 cfg_cg_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            fub_axi_arready
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        1.123ns  (logic 0.049ns (4.363%)  route 1.074ns (95.637%))
+  Logic Levels:           1  (LUT4=1)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_cg_enable (IN)
+                         net (fo=7, unset)            0.537     2.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_enable
+    SLICE_X31Y75         LUT4 (Prop_lut4_I3_O)        0.049     2.586 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/fub_axi_arready_INST_0/O
+                         net (fo=0)                   0.537     3.123    fub_axi_arready
+                                                                      r  fub_axi_arready (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -3.123    
+  -------------------------------------------------------------------
+                         slack                                  1.509    
+
+Slack (MET) :             1.515ns  (required time - arrival time)
+  Source:                 cfg_cg_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            m_axi_rready
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        1.117ns  (logic 0.043ns (3.850%)  route 1.074ns (96.150%))
+  Logic Levels:           1  (LUT4=1)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_cg_enable (IN)
+                         net (fo=7, unset)            0.537     2.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_enable
+    SLICE_X30Y74         LUT4 (Prop_lut4_I3_O)        0.043     2.580 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/m_axi_rready_INST_0/O
+                         net (fo=0)                   0.537     3.117    m_axi_rready
+                                                                      r  m_axi_rready (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -3.117    
+  -------------------------------------------------------------------
+                         slack                                  1.515    
+
+Slack (MET) :             2.537ns  (required time - arrival time)
+  Source:                 i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][16]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            fub_axi_rdata[12]
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        0.796ns  (logic 0.259ns (32.538%)  route 0.537ns (67.462%))
+  Logic Levels:           0  
+  Output Delay:           2.000ns
+  Clock Path Skew:        -1.299ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 6.667 - 6.667 ) 
+    Source Clock Delay      (SCD):    1.299ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.537     0.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.043     0.580 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.719     1.299    i_axi_master_rd/r_channel/CLK
+    SLICE_X38Y65         FDCE                                         r  i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][16]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y65         FDCE (Prop_fdce_C_Q)         0.259     1.558 r  i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][16]/Q
+                         net (fo=0)                   0.537     2.095    fub_axi_rdata[12]
+                                                                      r  fub_axi_rdata[12] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -2.095    
+  -------------------------------------------------------------------
+                         slack                                  2.537    
+
+Slack (MET) :             2.577ns  (required time - arrival time)
+  Source:                 i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][14]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            fub_axi_rdata[10]
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        0.760ns  (logic 0.223ns (29.342%)  route 0.537ns (70.658%))
+  Logic Levels:           0  
+  Output Delay:           2.000ns
+  Clock Path Skew:        -1.295ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 6.667 - 6.667 ) 
+    Source Clock Delay      (SCD):    1.295ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.537     0.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.043     0.580 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.715     1.295    i_axi_master_rd/r_channel/CLK
+    SLICE_X36Y66         FDCE                                         r  i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][14]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X36Y66         FDCE (Prop_fdce_C_Q)         0.223     1.518 r  i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][14]/Q
+                         net (fo=0)                   0.537     2.055    fub_axi_rdata[10]
+                                                                      r  fub_axi_rdata[10] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -2.055    
+  -------------------------------------------------------------------
+                         slack                                  2.577    
+
+Slack (MET) :             2.577ns  (required time - arrival time)
+  Source:                 i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][24]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            fub_axi_rdata[20]
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        0.760ns  (logic 0.223ns (29.342%)  route 0.537ns (70.658%))
+  Logic Levels:           0  
+  Output Delay:           2.000ns
+  Clock Path Skew:        -1.295ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 6.667 - 6.667 ) 
+    Source Clock Delay      (SCD):    1.295ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.537     0.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.043     0.580 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.715     1.295    i_axi_master_rd/r_channel/CLK
+    SLICE_X36Y66         FDCE                                         r  i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][24]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X36Y66         FDCE (Prop_fdce_C_Q)         0.223     1.518 r  i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][24]/Q
+                         net (fo=0)                   0.537     2.055    fub_axi_rdata[20]
+                                                                      r  fub_axi_rdata[20] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -2.055    
+  -------------------------------------------------------------------
+                         slack                                  2.577    
+
+Slack (MET) :             2.577ns  (required time - arrival time)
+  Source:                 i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][25]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            fub_axi_rdata[21]
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        0.760ns  (logic 0.223ns (29.342%)  route 0.537ns (70.658%))
+  Logic Levels:           0  
+  Output Delay:           2.000ns
+  Clock Path Skew:        -1.295ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 6.667 - 6.667 ) 
+    Source Clock Delay      (SCD):    1.295ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.537     0.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.043     0.580 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.715     1.295    i_axi_master_rd/r_channel/CLK
+    SLICE_X36Y66         FDCE                                         r  i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][25]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X36Y66         FDCE (Prop_fdce_C_Q)         0.223     1.518 r  i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][25]/Q
+                         net (fo=0)                   0.537     2.055    fub_axi_rdata[21]
+                                                                      r  fub_axi_rdata[21] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -2.055    
+  -------------------------------------------------------------------
+                         slack                                  2.577    
+
+Slack (MET) :             2.607ns  (required time - arrival time)
+  Source:                 i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][31]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            fub_axi_rdata[27]
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        0.760ns  (logic 0.223ns (29.342%)  route 0.537ns (70.658%))
+  Logic Levels:           0  
+  Output Delay:           2.000ns
+  Clock Path Skew:        -1.264ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 6.667 - 6.667 ) 
+    Source Clock Delay      (SCD):    1.264ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.537     0.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.043     0.580 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.684     1.264    i_axi_master_rd/r_channel/CLK
+    SLICE_X30Y64         FDCE                                         r  i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][31]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X30Y64         FDCE (Prop_fdce_C_Q)         0.223     1.487 r  i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][31]/Q
+                         net (fo=0)                   0.537     2.024    fub_axi_rdata[27]
+                                                                      r  fub_axi_rdata[27] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -2.024    
+  -------------------------------------------------------------------
+                         slack                                  2.607    
+
+Slack (MET) :             2.607ns  (required time - arrival time)
+  Source:                 i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][36]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            fub_axi_rid[0]
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        0.760ns  (logic 0.223ns (29.342%)  route 0.537ns (70.658%))
+  Logic Levels:           0  
+  Output Delay:           2.000ns
+  Clock Path Skew:        -1.264ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 6.667 - 6.667 ) 
+    Source Clock Delay      (SCD):    1.264ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.537     0.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.043     0.580 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.684     1.264    i_axi_master_rd/r_channel/CLK
+    SLICE_X30Y64         FDCE                                         r  i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][36]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X30Y64         FDCE (Prop_fdce_C_Q)         0.223     1.487 r  i_axi_master_rd/r_channel/g_slot[0].r_data_reg[0][36]/Q
+                         net (fo=0)                   0.537     2.024    fub_axi_rid[0]
+                                                                      r  fub_axi_rid[0] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -2.024    
+  -------------------------------------------------------------------
+                         slack                                  2.607    
+
+
+
+
+
+Min Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             0.166ns  (arrival time - required time)
+  Source:                 i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][12]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][12]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.237ns  (logic 0.128ns (54.028%)  route 0.109ns (45.972%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.011ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.504ns
+    Source Clock Delay      (SCD):    0.461ns
+    Clock Pessimism Removal (CPR):    0.032ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.266     0.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.028     0.294 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.166     0.461    i_axi_master_rd/ar_channel/CLK
+    SLICE_X35Y75         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][12]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X35Y75         FDCE (Prop_fdce_C_Q)         0.100     0.561 r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][12]/Q
+                         net (fo=1, routed)           0.109     0.670    i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][12]
+    SLICE_X34Y75         LUT5 (Prop_lut5_I4_O)        0.028     0.698 r  i_axi_master_rd/ar_channel/g_slot[0].r_data[0][12]_i_1/O
+                         net (fo=1, routed)           0.000     0.698    i_axi_master_rd/ar_channel/g_slot[0].r_data[0][12]_i_1_n_0
+    SLICE_X34Y75         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][12]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.035     0.315 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.188     0.504    i_axi_master_rd/ar_channel/CLK
+    SLICE_X34Y75         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][12]/C
+                         clock pessimism             -0.032     0.472    
+    SLICE_X34Y75         FDCE (Hold_fdce_C_D)         0.060     0.532    i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][12]
+  -------------------------------------------------------------------
+                         required time                         -0.532    
+                         arrival time                           0.698    
+  -------------------------------------------------------------------
+                         slack                                  0.166    
+
+Slack (MET) :             0.185ns  (arrival time - required time)
+  Source:                 i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][47]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][47]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.379ns  (logic 0.155ns (40.927%)  route 0.224ns (59.073%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.133ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.614ns
+    Source Clock Delay      (SCD):    0.461ns
+    Clock Pessimism Removal (CPR):    0.021ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.266     0.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.028     0.294 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.166     0.461    i_axi_master_rd/ar_channel/CLK
+    SLICE_X35Y75         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][47]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X35Y75         FDCE (Prop_fdce_C_Q)         0.091     0.552 r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][47]/Q
+                         net (fo=1, routed)           0.224     0.775    i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][47]
+    SLICE_X35Y76         LUT5 (Prop_lut5_I4_O)        0.064     0.839 r  i_axi_master_rd/ar_channel/g_slot[0].r_data[0][47]_i_1/O
+                         net (fo=1, routed)           0.000     0.839    i_axi_master_rd/ar_channel/g_slot[0].r_data[0][47]_i_1_n_0
+    SLICE_X35Y76         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][47]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.035     0.315 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.299     0.614    i_axi_master_rd/ar_channel/CLK
+    SLICE_X35Y76         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][47]/C
+                         clock pessimism             -0.021     0.593    
+    SLICE_X35Y76         FDCE (Hold_fdce_C_D)         0.061     0.654    i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][47]
+  -------------------------------------------------------------------
+                         required time                         -0.654    
+                         arrival time                           0.839    
+  -------------------------------------------------------------------
+                         slack                                  0.185    
+
+Slack (MET) :             0.190ns  (arrival time - required time)
+  Source:                 i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.264ns  (logic 0.128ns (48.461%)  route 0.136ns (51.539%))
+  Logic Levels:           1  (LUT3=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.266     0.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X31Y77         FDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X31Y77         FDCE (Prop_fdce_C_Q)         0.100     0.366 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/Q
+                         net (fo=4, routed)           0.136     0.502    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C_n_0
+    SLICE_X31Y77         LUT3 (Prop_lut3_I2_O)        0.028     0.530 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter[1]_C_i_1/O
+                         net (fo=1, routed)           0.000     0.530    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter[1]_C_i_1_n_0
+    SLICE_X31Y77         FDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X31Y77         FDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X31Y77         FDCE (Hold_fdce_C_D)         0.060     0.340    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C
+  -------------------------------------------------------------------
+                         required time                         -0.340    
+                         arrival time                           0.530    
+  -------------------------------------------------------------------
+                         slack                                  0.190    
+
+Slack (MET) :             0.192ns  (arrival time - required time)
+  Source:                 i_amba_clock_gate_ctrl/r_wakeup_reg/C
+                            (rising edge-triggered cell FDPE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P/D
+                            (rising edge-triggered cell FDPE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.266ns  (logic 0.128ns (48.194%)  route 0.138ns (51.806%))
+  Logic Levels:           1  (LUT6=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.266     0.266    i_amba_clock_gate_ctrl/aclk
+    SLICE_X31Y73         FDPE                                         r  i_amba_clock_gate_ctrl/r_wakeup_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X31Y73         FDPE (Prop_fdpe_C_Q)         0.100     0.366 r  i_amba_clock_gate_ctrl/r_wakeup_reg/Q
+                         net (fo=9, routed)           0.138     0.504    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_wakeup
+    SLICE_X30Y74         LUT6 (Prop_lut6_I1_O)        0.028     0.532 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter[0]_P_i_1/O
+                         net (fo=1, routed)           0.000     0.532    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter[0]_P_i_1_n_0
+    SLICE_X30Y74         FDPE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X30Y74         FDPE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X30Y74         FDPE (Hold_fdpe_C_D)         0.060     0.340    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P
+  -------------------------------------------------------------------
+                         required time                         -0.340    
+                         arrival time                           0.532    
+  -------------------------------------------------------------------
+                         slack                                  0.192    
+
+Slack (MET) :             0.199ns  (arrival time - required time)
+  Source:                 i_axi_master_rd/ar_channel/r_data_count_reg[2]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_axi_master_rd/ar_channel/rd_valid_reg/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.270ns  (logic 0.128ns (47.331%)  route 0.142ns (52.669%))
+  Logic Levels:           1  (LUT6=1)
+  Clock Path Skew:        0.011ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.573ns
+    Source Clock Delay      (SCD):    0.524ns
+    Clock Pessimism Removal (CPR):    0.038ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.266     0.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.028     0.294 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.230     0.524    i_axi_master_rd/ar_channel/CLK
+    SLICE_X32Y73         FDCE                                         r  i_axi_master_rd/ar_channel/r_data_count_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X32Y73         FDCE (Prop_fdce_C_Q)         0.100     0.624 r  i_axi_master_rd/ar_channel/r_data_count_reg[2]/Q
+                         net (fo=9, routed)           0.142     0.766    i_axi_master_rd/ar_channel/int_ar_count[2]
+    SLICE_X33Y73         LUT6 (Prop_lut6_I3_O)        0.028     0.794 r  i_axi_master_rd/ar_channel/rd_valid_i_1/O
+                         net (fo=1, routed)           0.000     0.794    i_axi_master_rd/ar_channel/rd_valid0
+    SLICE_X33Y73         FDCE                                         r  i_axi_master_rd/ar_channel/rd_valid_reg/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.035     0.315 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.258     0.573    i_axi_master_rd/ar_channel/CLK
+    SLICE_X33Y73         FDCE                                         r  i_axi_master_rd/ar_channel/rd_valid_reg/C
+                         clock pessimism             -0.038     0.535    
+    SLICE_X33Y73         FDCE (Hold_fdce_C_D)         0.060     0.595    i_axi_master_rd/ar_channel/rd_valid_reg
+  -------------------------------------------------------------------
+                         required time                         -0.595    
+                         arrival time                           0.794    
+  -------------------------------------------------------------------
+                         slack                                  0.199    
+
+Slack (MET) :             0.207ns  (arrival time - required time)
+  Source:                 i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][52]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][52]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.363ns  (logic 0.128ns (35.288%)  route 0.235ns (64.712%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.096ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.578ns
+    Source Clock Delay      (SCD):    0.461ns
+    Clock Pessimism Removal (CPR):    0.021ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.266     0.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.028     0.294 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.166     0.461    i_axi_master_rd/ar_channel/CLK
+    SLICE_X35Y75         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][52]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X35Y75         FDCE (Prop_fdce_C_Q)         0.100     0.561 r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][52]/Q
+                         net (fo=1, routed)           0.235     0.795    i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][52]
+    SLICE_X36Y75         LUT5 (Prop_lut5_I4_O)        0.028     0.823 r  i_axi_master_rd/ar_channel/g_slot[0].r_data[0][52]_i_1/O
+                         net (fo=1, routed)           0.000     0.823    i_axi_master_rd/ar_channel/g_slot[0].r_data[0][52]_i_1_n_0
+    SLICE_X36Y75         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][52]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.035     0.315 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.262     0.578    i_axi_master_rd/ar_channel/CLK
+    SLICE_X36Y75         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][52]/C
+                         clock pessimism             -0.021     0.557    
+    SLICE_X36Y75         FDCE (Hold_fdce_C_D)         0.060     0.617    i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][52]
+  -------------------------------------------------------------------
+                         required time                         -0.617    
+                         arrival time                           0.823    
+  -------------------------------------------------------------------
+                         slack                                  0.207    
+
+Slack (MET) :             0.210ns  (arrival time - required time)
+  Source:                 i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][21]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][21]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.281ns  (logic 0.157ns (55.850%)  route 0.124ns (44.150%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.011ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.636ns
+    Source Clock Delay      (SCD):    0.573ns
+    Clock Pessimism Removal (CPR):    0.052ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.266     0.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.028     0.294 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.279     0.573    i_axi_master_rd/ar_channel/CLK
+    SLICE_X37Y77         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][21]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X37Y77         FDCE (Prop_fdce_C_Q)         0.091     0.664 r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][21]/Q
+                         net (fo=1, routed)           0.124     0.788    i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][21]
+    SLICE_X36Y77         LUT5 (Prop_lut5_I4_O)        0.066     0.854 r  i_axi_master_rd/ar_channel/g_slot[0].r_data[0][21]_i_1/O
+                         net (fo=1, routed)           0.000     0.854    i_axi_master_rd/ar_channel/g_slot[0].r_data[0][21]_i_1_n_0
+    SLICE_X36Y77         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][21]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.035     0.315 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.321     0.636    i_axi_master_rd/ar_channel/CLK
+    SLICE_X36Y77         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][21]/C
+                         clock pessimism             -0.052     0.584    
+    SLICE_X36Y77         FDCE (Hold_fdce_C_D)         0.060     0.644    i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][21]
+  -------------------------------------------------------------------
+                         required time                         -0.644    
+                         arrival time                           0.854    
+  -------------------------------------------------------------------
+                         slack                                  0.210    
+
+Slack (MET) :             0.210ns  (arrival time - required time)
+  Source:                 i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][42]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][42]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.351ns  (logic 0.128ns (36.483%)  route 0.223ns (63.517%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.080ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.646ns
+    Source Clock Delay      (SCD):    0.545ns
+    Clock Pessimism Removal (CPR):    0.021ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.266     0.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.028     0.294 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.251     0.545    i_axi_master_rd/ar_channel/CLK
+    SLICE_X33Y77         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][42]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X33Y77         FDCE (Prop_fdce_C_Q)         0.100     0.645 r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][42]/Q
+                         net (fo=1, routed)           0.223     0.868    i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][42]
+    SLICE_X34Y77         LUT5 (Prop_lut5_I4_O)        0.028     0.896 r  i_axi_master_rd/ar_channel/g_slot[0].r_data[0][42]_i_1/O
+                         net (fo=1, routed)           0.000     0.896    i_axi_master_rd/ar_channel/g_slot[0].r_data[0][42]_i_1_n_0
+    SLICE_X34Y77         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][42]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.035     0.315 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.330     0.646    i_axi_master_rd/ar_channel/CLK
+    SLICE_X34Y77         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][42]/C
+                         clock pessimism             -0.021     0.625    
+    SLICE_X34Y77         FDCE (Hold_fdce_C_D)         0.061     0.686    i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][42]
+  -------------------------------------------------------------------
+                         required time                         -0.686    
+                         arrival time                           0.896    
+  -------------------------------------------------------------------
+                         slack                                  0.210    
+
+Slack (MET) :             0.212ns  (arrival time - required time)
+  Source:                 i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][63]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][63]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.284ns  (logic 0.155ns (54.659%)  route 0.129ns (45.341%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.011ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.644ns
+    Source Clock Delay      (SCD):    0.579ns
+    Clock Pessimism Removal (CPR):    0.054ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.266     0.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.028     0.294 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.285     0.579    i_axi_master_rd/ar_channel/CLK
+    SLICE_X41Y77         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][63]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X41Y77         FDCE (Prop_fdce_C_Q)         0.091     0.670 r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][63]/Q
+                         net (fo=1, routed)           0.129     0.799    i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][63]
+    SLICE_X40Y77         LUT5 (Prop_lut5_I4_O)        0.064     0.863 r  i_axi_master_rd/ar_channel/g_slot[0].r_data[0][63]_i_1/O
+                         net (fo=1, routed)           0.000     0.863    i_axi_master_rd/ar_channel/g_slot[0].r_data[0][63]_i_1_n_0
+    SLICE_X40Y77         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][63]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.035     0.315 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.329     0.644    i_axi_master_rd/ar_channel/CLK
+    SLICE_X40Y77         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][63]/C
+                         clock pessimism             -0.054     0.590    
+    SLICE_X40Y77         FDCE (Hold_fdce_C_D)         0.061     0.651    i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][63]
+  -------------------------------------------------------------------
+                         required time                         -0.651    
+                         arrival time                           0.863    
+  -------------------------------------------------------------------
+                         slack                                  0.212    
+
+Slack (MET) :             0.212ns  (arrival time - required time)
+  Source:                 i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][31]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][31]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.284ns  (logic 0.155ns (54.659%)  route 0.129ns (45.341%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.011ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.504ns
+    Source Clock Delay      (SCD):    0.461ns
+    Clock Pessimism Removal (CPR):    0.032ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.266     0.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.028     0.294 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.166     0.461    i_axi_master_rd/ar_channel/CLK
+    SLICE_X35Y75         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][31]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X35Y75         FDCE (Prop_fdce_C_Q)         0.091     0.552 r  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][31]/Q
+                         net (fo=1, routed)           0.129     0.680    i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][31]
+    SLICE_X34Y75         LUT5 (Prop_lut5_I4_O)        0.064     0.744 r  i_axi_master_rd/ar_channel/g_slot[0].r_data[0][31]_i_1/O
+                         net (fo=1, routed)           0.000     0.744    i_axi_master_rd/ar_channel/g_slot[0].r_data[0][31]_i_1_n_0
+    SLICE_X34Y75         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][31]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X32Y75         LUT2 (Prop_lut2_I1_O)        0.035     0.315 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=328, routed)         0.188     0.504    i_axi_master_rd/ar_channel/CLK
+    SLICE_X34Y75         FDCE                                         r  i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][31]/C
+                         clock pessimism             -0.032     0.472    
+    SLICE_X34Y75         FDCE (Hold_fdce_C_D)         0.061     0.533    i_axi_master_rd/ar_channel/g_slot[0].r_data_reg[0][31]
+  -------------------------------------------------------------------
+                         required time                         -0.533    
+                         arrival time                           0.744    
+  -------------------------------------------------------------------
+                         slack                                  0.212    
+
+
+
+
+
+Pulse Width Checks
+--------------------------------------------------------------------------------------
+Clock Name:         aclk
+Waveform(ns):       { 0.000 3.333 }
+Period(ns):         6.667
+Sources:            { aclk }
+
+Check Type        Corner  Lib Pin  Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location      Pin
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X37Y73  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][11]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X35Y75  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][13]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X39Y74  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][15]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X39Y74  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][17]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X41Y75  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][19]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X41Y75  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][1]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X37Y77  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][21]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X37Y77  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][23]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X39Y76  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][25]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X39Y76  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][27]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.400         3.333       2.933      SLICE_X37Y73  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][11]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.400         3.333       2.933      SLICE_X37Y73  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][11]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X35Y75  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][13]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.400         3.333       2.933      SLICE_X35Y75  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][13]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.400         3.333       2.933      SLICE_X39Y74  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][15]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.400         3.333       2.933      SLICE_X39Y74  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][15]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.400         3.333       2.933      SLICE_X39Y74  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][17]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.400         3.333       2.933      SLICE_X39Y74  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][17]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X41Y75  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][19]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X41Y75  i_axi_master_rd/ar_channel/g_slot[1].r_data_reg[1][19]/C
+High Pulse Width  Slow    FDPE/C   n/a            0.350         3.333       2.983      SLICE_X31Y73  i_amba_clock_gate_ctrl/r_wakeup_reg/C
+High Pulse Width  Fast    FDPE/C   n/a            0.350         3.333       2.983      SLICE_X31Y73  i_amba_clock_gate_ctrl/r_wakeup_reg/C
+High Pulse Width  Slow    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X31Y75  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_C/C
+High Pulse Width  Fast    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X31Y75  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_C/C
+High Pulse Width  Slow    FDPE/C   n/a            0.350         3.333       2.983      SLICE_X30Y74  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P/C
+High Pulse Width  Fast    FDPE/C   n/a            0.350         3.333       2.983      SLICE_X30Y74  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P/C
+High Pulse Width  Slow    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X31Y77  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/C
+High Pulse Width  Fast    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X31Y77  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/C
+High Pulse Width  Slow    FDPE/C   n/a            0.350         3.333       2.983      SLICE_X30Y77  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_P/C
+High Pulse Width  Fast    FDPE/C   n/a            0.350         3.333       2.983      SLICE_X30Y77  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_P/C
+
+
+
+---------------------------------------------------------------------------------------------------
+Path Group:  **async_default**
+From Clock:  aclk
+  To Clock:  aclk
+
+Setup :            0  Failing Endpoints,  Worst Slack        3.859ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        2.205ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Max Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             3.859ns  (required time - arrival time)
+  Source:                 cfg_cg_idle_count[2]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_C/CLR
+                            (recovery check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Recovery (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        1.071ns  (logic 0.043ns (4.014%)  route 1.028ns (95.986%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_cg_idle_count[2] (IN)
+                         net (fo=2, unset)            0.537     2.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[2]
+    SLICE_X32Y76         LUT2 (Prop_lut2_I1_O)        0.043     2.580 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_LDC_i_2/O
+                         net (fo=2, routed)           0.491     3.071    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_LDC_i_2_n_0
+    SLICE_X31Y76         FDCE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_C/CLR
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=10, unset)           0.510     7.177    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X31Y76         FDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_C/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X31Y76         FDCE (Recov_fdce_C_CLR)     -0.212     6.930    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_C
+  -------------------------------------------------------------------
+                         required time                          6.930    
+                         arrival time                          -3.071    
+  -------------------------------------------------------------------
+                         slack                                  3.859    
+
+Slack (MET) :             3.867ns  (required time - arrival time)
+  Source:                 cfg_cg_idle_count[1]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_P/PRE
+                            (recovery check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Recovery (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        1.004ns  (logic 0.049ns (4.880%)  route 0.955ns (95.120%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_cg_idle_count[1] (IN)
+                         net (fo=2, unset)            0.537     2.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[1]
+    SLICE_X29Y76         LUT2 (Prop_lut2_I0_O)        0.049     2.586 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_LDC_i_1/O
+                         net (fo=2, routed)           0.418     3.004    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_LDC_i_1_n_0
+    SLICE_X30Y77         FDPE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_P/PRE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=10, unset)           0.510     7.177    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X30Y77         FDPE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_P/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X30Y77         FDPE (Recov_fdpe_C_PRE)     -0.271     6.871    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_P
+  -------------------------------------------------------------------
+                         required time                          6.871    
+                         arrival time                          -3.004    
+  -------------------------------------------------------------------
+                         slack                                  3.867    
+
+Slack (MET) :             3.894ns  (required time - arrival time)
+  Source:                 cfg_cg_idle_count[0]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_C/CLR
+                            (recovery check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Recovery (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        0.942ns  (logic 0.052ns (5.518%)  route 0.890ns (94.482%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_cg_idle_count[0] (IN)
+                         net (fo=3, unset)            0.537     2.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[0]
+    SLICE_X30Y75         LUT2 (Prop_lut2_I1_O)        0.052     2.589 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_LDC_i_2/O
+                         net (fo=2, routed)           0.353     2.942    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_LDC_i_2_n_0
+    SLICE_X31Y75         FDCE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_C/CLR
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=10, unset)           0.510     7.177    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X31Y75         FDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_C/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X31Y75         FDCE (Recov_fdce_C_CLR)     -0.305     6.837    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_C
+  -------------------------------------------------------------------
+                         required time                          6.837    
+                         arrival time                          -2.942    
+  -------------------------------------------------------------------
+                         slack                                  3.894    
+
+Slack (MET) :             3.928ns  (required time - arrival time)
+  Source:                 cfg_cg_idle_count[2]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_P/PRE
+                            (recovery check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Recovery (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        0.943ns  (logic 0.049ns (5.197%)  route 0.894ns (94.803%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_cg_idle_count[2] (IN)
+                         net (fo=2, unset)            0.537     2.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[2]
+    SLICE_X32Y76         LUT2 (Prop_lut2_I0_O)        0.049     2.586 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_LDC_i_1/O
+                         net (fo=2, routed)           0.357     2.943    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_LDC_i_1_n_0
+    SLICE_X32Y76         FDPE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_P/PRE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=10, unset)           0.510     7.177    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X32Y76         FDPE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_P/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X32Y76         FDPE (Recov_fdpe_C_PRE)     -0.271     6.871    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_P
+  -------------------------------------------------------------------
+                         required time                          6.871    
+                         arrival time                          -2.943    
+  -------------------------------------------------------------------
+                         slack                                  3.928    
+
+Slack (MET) :             3.973ns  (required time - arrival time)
+  Source:                 cfg_cg_idle_count[1]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/CLR
+                            (recovery check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Recovery (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        0.957ns  (logic 0.043ns (4.492%)  route 0.914ns (95.508%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_cg_idle_count[1] (IN)
+                         net (fo=2, unset)            0.537     2.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[1]
+    SLICE_X29Y76         LUT2 (Prop_lut2_I1_O)        0.043     2.580 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_LDC_i_2/O
+                         net (fo=2, routed)           0.377     2.957    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_LDC_i_2_n_0
+    SLICE_X31Y77         FDCE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/CLR
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=10, unset)           0.510     7.177    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X31Y77         FDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X31Y77         FDCE (Recov_fdce_C_CLR)     -0.212     6.930    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C
+  -------------------------------------------------------------------
+                         required time                          6.930    
+                         arrival time                          -2.957    
+  -------------------------------------------------------------------
+                         slack                                  3.973    
+
+Slack (MET) :             3.977ns  (required time - arrival time)
+  Source:                 cfg_cg_idle_count[3]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_P/PRE
+                            (recovery check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Recovery (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        0.894ns  (logic 0.049ns (5.482%)  route 0.845ns (94.518%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_cg_idle_count[3] (IN)
+                         net (fo=2, unset)            0.537     2.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[3]
+    SLICE_X27Y76         LUT2 (Prop_lut2_I0_O)        0.049     2.586 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_LDC_i_1/O
+                         net (fo=2, routed)           0.308     2.894    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_LDC_i_1_n_0
+    SLICE_X30Y76         FDPE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_P/PRE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=10, unset)           0.510     7.177    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X30Y76         FDPE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_P/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X30Y76         FDPE (Recov_fdpe_C_PRE)     -0.271     6.871    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_P
+  -------------------------------------------------------------------
+                         required time                          6.871    
+                         arrival time                          -2.894    
+  -------------------------------------------------------------------
+                         slack                                  3.977    
+
+Slack (MET) :             3.990ns  (required time - arrival time)
+  Source:                 cfg_cg_idle_count[0]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P/PRE
+                            (recovery check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Recovery (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        0.974ns  (logic 0.043ns (4.416%)  route 0.931ns (95.584%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_cg_idle_count[0] (IN)
+                         net (fo=3, unset)            0.537     2.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[0]
+    SLICE_X30Y75         LUT2 (Prop_lut2_I0_O)        0.043     2.580 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_LDC_i_1/O
+                         net (fo=2, routed)           0.394     2.974    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_LDC_i_1_n_0
+    SLICE_X30Y74         FDPE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P/PRE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=10, unset)           0.510     7.177    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X30Y74         FDPE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X30Y74         FDPE (Recov_fdpe_C_PRE)     -0.178     6.964    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P
+  -------------------------------------------------------------------
+                         required time                          6.964    
+                         arrival time                          -2.974    
+  -------------------------------------------------------------------
+                         slack                                  3.990    
+
+Slack (MET) :             4.014ns  (required time - arrival time)
+  Source:                 cfg_cg_idle_count[3]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_C/CLR
+                            (recovery check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Recovery (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        0.916ns  (logic 0.043ns (4.696%)  route 0.873ns (95.304%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_cg_idle_count[3] (IN)
+                         net (fo=2, unset)            0.537     2.537    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[3]
+    SLICE_X27Y76         LUT2 (Prop_lut2_I1_O)        0.043     2.580 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_LDC_i_2/O
+                         net (fo=2, routed)           0.336     2.916    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_LDC_i_2_n_0
+    SLICE_X28Y76         FDCE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_C/CLR
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=10, unset)           0.510     7.177    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X28Y76         FDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_C/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X28Y76         FDCE (Recov_fdce_C_CLR)     -0.212     6.930    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_C
+  -------------------------------------------------------------------
+                         required time                          6.930    
+                         arrival time                          -2.916    
+  -------------------------------------------------------------------
+                         slack                                  4.014    
+
+
+
+
+
+Min Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             2.205ns  (arrival time - required time)
+  Source:                 cfg_cg_idle_count[3]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_C/CLR
+                            (removal check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Removal (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.452ns  (logic 0.028ns (6.196%)  route 0.424ns (93.804%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.280ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_cg_idle_count[3] (IN)
+                         net (fo=2, unset)            0.266     2.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[3]
+    SLICE_X27Y76         LUT2 (Prop_lut2_I1_O)        0.028     2.294 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_LDC_i_2/O
+                         net (fo=2, routed)           0.158     2.452    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_LDC_i_2_n_0
+    SLICE_X28Y76         FDCE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_C/CLR
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X28Y76         FDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_C/C
+                         clock pessimism              0.000     0.280    
+                         clock uncertainty            0.035     0.316    
+    SLICE_X28Y76         FDCE (Remov_fdce_C_CLR)     -0.069     0.247    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_C
+  -------------------------------------------------------------------
+                         required time                         -0.247    
+                         arrival time                           2.452    
+  -------------------------------------------------------------------
+                         slack                                  2.205    
+
+Slack (MET) :             2.226ns  (arrival time - required time)
+  Source:                 cfg_cg_idle_count[1]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/CLR
+                            (removal check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Removal (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.473ns  (logic 0.028ns (5.925%)  route 0.445ns (94.075%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.280ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_cg_idle_count[1] (IN)
+                         net (fo=2, unset)            0.266     2.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[1]
+    SLICE_X29Y76         LUT2 (Prop_lut2_I1_O)        0.028     2.294 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_LDC_i_2/O
+                         net (fo=2, routed)           0.178     2.473    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_LDC_i_2_n_0
+    SLICE_X31Y77         FDCE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/CLR
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X31Y77         FDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C/C
+                         clock pessimism              0.000     0.280    
+                         clock uncertainty            0.035     0.316    
+    SLICE_X31Y77         FDCE (Remov_fdce_C_CLR)     -0.069     0.247    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_C
+  -------------------------------------------------------------------
+                         required time                         -0.247    
+                         arrival time                           2.473    
+  -------------------------------------------------------------------
+                         slack                                  2.226    
+
+Slack (MET) :             2.239ns  (arrival time - required time)
+  Source:                 cfg_cg_idle_count[0]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P/PRE
+                            (removal check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Removal (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.483ns  (logic 0.028ns (5.796%)  route 0.455ns (94.205%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.280ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_cg_idle_count[0] (IN)
+                         net (fo=3, unset)            0.266     2.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[0]
+    SLICE_X30Y75         LUT2 (Prop_lut2_I0_O)        0.028     2.294 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_LDC_i_1/O
+                         net (fo=2, routed)           0.189     2.483    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_LDC_i_1_n_0
+    SLICE_X30Y74         FDPE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P/PRE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X30Y74         FDPE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P/C
+                         clock pessimism              0.000     0.280    
+                         clock uncertainty            0.035     0.316    
+    SLICE_X30Y74         FDPE (Remov_fdpe_C_PRE)     -0.072     0.244    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_P
+  -------------------------------------------------------------------
+                         required time                         -0.244    
+                         arrival time                           2.483    
+  -------------------------------------------------------------------
+                         slack                                  2.239    
+
+Slack (MET) :             2.242ns  (arrival time - required time)
+  Source:                 cfg_cg_idle_count[3]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_P/PRE
+                            (removal check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Removal (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.444ns  (logic 0.030ns (6.754%)  route 0.414ns (93.246%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.280ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_cg_idle_count[3] (IN)
+                         net (fo=2, unset)            0.266     2.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[3]
+    SLICE_X27Y76         LUT2 (Prop_lut2_I0_O)        0.030     2.296 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_LDC_i_1/O
+                         net (fo=2, routed)           0.148     2.444    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_LDC_i_1_n_0
+    SLICE_X30Y76         FDPE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_P/PRE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X30Y76         FDPE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_P/C
+                         clock pessimism              0.000     0.280    
+                         clock uncertainty            0.035     0.316    
+    SLICE_X30Y76         FDPE (Remov_fdpe_C_PRE)     -0.113     0.203    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[3]_P
+  -------------------------------------------------------------------
+                         required time                         -0.203    
+                         arrival time                           2.444    
+  -------------------------------------------------------------------
+                         slack                                  2.242    
+
+Slack (MET) :             2.252ns  (arrival time - required time)
+  Source:                 cfg_cg_idle_count[0]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_C/CLR
+                            (removal check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Removal (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.458ns  (logic 0.030ns (6.556%)  route 0.428ns (93.444%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.280ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_cg_idle_count[0] (IN)
+                         net (fo=3, unset)            0.266     2.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[0]
+    SLICE_X30Y75         LUT2 (Prop_lut2_I1_O)        0.030     2.296 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_LDC_i_2/O
+                         net (fo=2, routed)           0.161     2.458    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_LDC_i_2_n_0
+    SLICE_X31Y75         FDCE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_C/CLR
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X31Y75         FDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_C/C
+                         clock pessimism              0.000     0.280    
+                         clock uncertainty            0.035     0.316    
+    SLICE_X31Y75         FDCE (Remov_fdce_C_CLR)     -0.110     0.206    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[0]_C
+  -------------------------------------------------------------------
+                         required time                         -0.206    
+                         arrival time                           2.458    
+  -------------------------------------------------------------------
+                         slack                                  2.252    
+
+Slack (MET) :             2.258ns  (arrival time - required time)
+  Source:                 cfg_cg_idle_count[2]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_P/PRE
+                            (removal check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Removal (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.461ns  (logic 0.030ns (6.506%)  route 0.431ns (93.494%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.280ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_cg_idle_count[2] (IN)
+                         net (fo=2, unset)            0.266     2.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[2]
+    SLICE_X32Y76         LUT2 (Prop_lut2_I0_O)        0.030     2.296 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_LDC_i_1/O
+                         net (fo=2, routed)           0.165     2.461    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_LDC_i_1_n_0
+    SLICE_X32Y76         FDPE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_P/PRE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X32Y76         FDPE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_P/C
+                         clock pessimism              0.000     0.280    
+                         clock uncertainty            0.035     0.316    
+    SLICE_X32Y76         FDPE (Remov_fdpe_C_PRE)     -0.113     0.203    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_P
+  -------------------------------------------------------------------
+                         required time                         -0.203    
+                         arrival time                           2.461    
+  -------------------------------------------------------------------
+                         slack                                  2.258    
+
+Slack (MET) :             2.289ns  (arrival time - required time)
+  Source:                 cfg_cg_idle_count[2]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_C/CLR
+                            (removal check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Removal (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.536ns  (logic 0.028ns (5.228%)  route 0.508ns (94.772%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.280ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_cg_idle_count[2] (IN)
+                         net (fo=2, unset)            0.266     2.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[2]
+    SLICE_X32Y76         LUT2 (Prop_lut2_I1_O)        0.028     2.294 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_LDC_i_2/O
+                         net (fo=2, routed)           0.241     2.536    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_LDC_i_2_n_0
+    SLICE_X31Y76         FDCE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_C/CLR
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X31Y76         FDCE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_C/C
+                         clock pessimism              0.000     0.280    
+                         clock uncertainty            0.035     0.316    
+    SLICE_X31Y76         FDCE (Remov_fdce_C_CLR)     -0.069     0.247    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[2]_C
+  -------------------------------------------------------------------
+                         required time                         -0.247    
+                         arrival time                           2.536    
+  -------------------------------------------------------------------
+                         slack                                  2.289    
+
+Slack (MET) :             2.292ns  (arrival time - required time)
+  Source:                 cfg_cg_idle_count[1]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_P/PRE
+                            (removal check against rising-edge clock aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             **async_default**
+  Path Type:              Removal (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.494ns  (logic 0.030ns (6.067%)  route 0.464ns (93.933%))
+  Logic Levels:           1  (LUT2=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.280ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_cg_idle_count[1] (IN)
+                         net (fo=2, unset)            0.266     2.266    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/cfg_cg_idle_count[1]
+    SLICE_X29Y76         LUT2 (Prop_lut2_I0_O)        0.030     2.296 f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_LDC_i_1/O
+                         net (fo=2, routed)           0.198     2.494    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_LDC_i_1_n_0
+    SLICE_X30Y77         FDPE                                         f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_P/PRE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.280     0.280    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/aclk
+    SLICE_X30Y77         FDPE                                         r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_P/C
+                         clock pessimism              0.000     0.280    
+                         clock uncertainty            0.035     0.316    
+    SLICE_X30Y77         FDPE (Remov_fdpe_C_PRE)     -0.113     0.203    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/r_idle_counter_reg[1]_P
+  -------------------------------------------------------------------
+                         required time                         -0.203    
+                         arrival time                           2.494    
+  -------------------------------------------------------------------
+                         slack                                  2.292    
+
+
+
+
+

@@ -1,0 +1,32 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 18:58:31 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi5_master_rd_monlite__xc7k325tffg900-2/utilization_hier.txt
+| Design       : axi5_master_rd_monlite
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++--------------------------------------------+------------------+------------+------------+---------+------+------+--------+--------+------------+
+|                  Instance                  |      Module      | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++--------------------------------------------+------------------+------------+------------+---------+------+------+--------+--------+------------+
+| axi5_master_rd_monlite                     |            (top) |       1495 |       1455 |      40 |    0 | 1471 |      0 |      0 |          0 |
+|   (axi5_master_rd_monlite)                 |            (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   (gen_monitor_lite.axi_monitor_lite_inst) | axi_monitor_lite |       1100 |       1060 |      40 |    0 | 1013 |      0 |      0 |          0 |
+|   u_core                                   |   axi5_master_rd |        385 |        385 |       0 |    0 |  444 |      0 |      0 |          0 |
++--------------------------------------------+------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

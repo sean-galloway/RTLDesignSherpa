@@ -1,0 +1,1637 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 19:01:47 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing -setup -from [all_registers] -to [all_registers] -max_paths 20 -nworst 1 -sort_by slack -input_pins -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/monbus_axil4_axil4_group__xc7k325tffg900-2/timing_worst_reg2reg.txt
+| Design       : monbus_axil4_axil4_group
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             1.152ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[0]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.487ns  (logic 1.078ns (19.646%)  route 4.409ns (80.354%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.737     5.981    u_core/r_plan_ok_i_1_n_0
+    SLICE_X3Y175                                                      r  u_core/r_plan_addr[0]_i_1/I0
+    SLICE_X3Y175         LUT4 (Prop_lut4_I0_O)        0.043     6.024 r  u_core/r_plan_addr[0]_i_1/O
+                         net (fo=1, routed)           0.000     6.024    u_core/r_plan_addr[0]_i_1_n_0
+    SLICE_X3Y175         FDCE                                         r  u_core/r_plan_addr_reg[0]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X3Y175         FDCE                                         r  u_core/r_plan_addr_reg[0]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X3Y175         FDCE (Setup_fdce_C_D)        0.034     7.176    u_core/r_plan_addr_reg[0]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -6.024    
+  -------------------------------------------------------------------
+                         slack                                  1.152    
+
+Slack (MET) :             1.162ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[3]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.507ns  (logic 1.078ns (19.576%)  route 4.429ns (80.424%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.756     6.001    u_core/r_plan_ok_i_1_n_0
+    SLICE_X6Y173                                                      r  u_core/r_plan_addr[3]_i_1/I0
+    SLICE_X6Y173         LUT4 (Prop_lut4_I0_O)        0.043     6.044 r  u_core/r_plan_addr[3]_i_1/O
+                         net (fo=1, routed)           0.000     6.044    u_core/r_plan_addr[3]_i_1_n_0
+    SLICE_X6Y173         FDCE                                         r  u_core/r_plan_addr_reg[3]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X6Y173         FDCE                                         r  u_core/r_plan_addr_reg[3]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X6Y173         FDCE (Setup_fdce_C_D)        0.064     7.206    u_core/r_plan_addr_reg[3]
+  -------------------------------------------------------------------
+                         required time                          7.206    
+                         arrival time                          -6.044    
+  -------------------------------------------------------------------
+                         slack                                  1.162    
+
+Slack (MET) :             1.215ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[1]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.454ns  (logic 1.078ns (19.766%)  route 4.376ns (80.234%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.703     5.948    u_core/r_plan_ok_i_1_n_0
+    SLICE_X6Y175                                                      r  u_core/r_plan_addr[1]_i_1/I0
+    SLICE_X6Y175         LUT4 (Prop_lut4_I0_O)        0.043     5.991 r  u_core/r_plan_addr[1]_i_1/O
+                         net (fo=1, routed)           0.000     5.991    u_core/r_plan_addr[1]_i_1_n_0
+    SLICE_X6Y175         FDCE                                         r  u_core/r_plan_addr_reg[1]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X6Y175         FDCE                                         r  u_core/r_plan_addr_reg[1]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X6Y175         FDCE (Setup_fdce_C_D)        0.064     7.206    u_core/r_plan_addr_reg[1]
+  -------------------------------------------------------------------
+                         required time                          7.206    
+                         arrival time                          -5.991    
+  -------------------------------------------------------------------
+                         slack                                  1.215    
+
+Slack (MET) :             1.218ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[2]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.452ns  (logic 1.078ns (19.773%)  route 4.374ns (80.227%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.701     5.946    u_core/r_plan_ok_i_1_n_0
+    SLICE_X6Y175                                                      r  u_core/r_plan_addr[2]_i_1/I0
+    SLICE_X6Y175         LUT4 (Prop_lut4_I0_O)        0.043     5.989 r  u_core/r_plan_addr[2]_i_1/O
+                         net (fo=1, routed)           0.000     5.989    u_core/r_plan_addr[2]_i_1_n_0
+    SLICE_X6Y175         FDCE                                         r  u_core/r_plan_addr_reg[2]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X6Y175         FDCE                                         r  u_core/r_plan_addr_reg[2]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X6Y175         FDCE (Setup_fdce_C_D)        0.065     7.207    u_core/r_plan_addr_reg[2]
+  -------------------------------------------------------------------
+                         required time                          7.207    
+                         arrival time                          -5.989    
+  -------------------------------------------------------------------
+                         slack                                  1.218    
+
+Slack (MET) :             1.239ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[8]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.432ns  (logic 1.078ns (19.845%)  route 4.354ns (80.155%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.682     5.926    u_core/r_plan_ok_i_1_n_0
+    SLICE_X6Y174                                                      r  u_core/r_plan_addr[8]_i_1/I0
+    SLICE_X6Y174         LUT4 (Prop_lut4_I0_O)        0.043     5.969 r  u_core/r_plan_addr[8]_i_1/O
+                         net (fo=1, routed)           0.000     5.969    u_core/r_plan_addr[8]_i_1_n_0
+    SLICE_X6Y174         FDCE                                         r  u_core/r_plan_addr_reg[8]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X6Y174         FDCE                                         r  u_core/r_plan_addr_reg[8]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X6Y174         FDCE (Setup_fdce_C_D)        0.066     7.208    u_core/r_plan_addr_reg[8]
+  -------------------------------------------------------------------
+                         required time                          7.208    
+                         arrival time                          -5.969    
+  -------------------------------------------------------------------
+                         slack                                  1.239    
+
+Slack (MET) :             1.242ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[6]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.428ns  (logic 1.078ns (19.860%)  route 4.350ns (80.140%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.678     5.922    u_core/r_plan_ok_i_1_n_0
+    SLICE_X6Y174                                                      r  u_core/r_plan_addr[6]_i_1/I0
+    SLICE_X6Y174         LUT4 (Prop_lut4_I0_O)        0.043     5.965 r  u_core/r_plan_addr[6]_i_1/O
+                         net (fo=1, routed)           0.000     5.965    u_core/r_plan_addr[6]_i_1_n_0
+    SLICE_X6Y174         FDCE                                         r  u_core/r_plan_addr_reg[6]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X6Y174         FDCE                                         r  u_core/r_plan_addr_reg[6]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X6Y174         FDCE (Setup_fdce_C_D)        0.065     7.207    u_core/r_plan_addr_reg[6]
+  -------------------------------------------------------------------
+                         required time                          7.207    
+                         arrival time                          -5.965    
+  -------------------------------------------------------------------
+                         slack                                  1.242    
+
+Slack (MET) :             1.243ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[7]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.428ns  (logic 1.078ns (19.860%)  route 4.350ns (80.140%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.678     5.922    u_core/r_plan_ok_i_1_n_0
+    SLICE_X6Y174                                                      r  u_core/r_plan_addr[7]_i_1/I0
+    SLICE_X6Y174         LUT4 (Prop_lut4_I0_O)        0.043     5.965 r  u_core/r_plan_addr[7]_i_1/O
+                         net (fo=1, routed)           0.000     5.965    u_core/r_plan_addr[7]_i_1_n_0
+    SLICE_X6Y174         FDCE                                         r  u_core/r_plan_addr_reg[7]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X6Y174         FDCE                                         r  u_core/r_plan_addr_reg[7]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X6Y174         FDCE (Setup_fdce_C_D)        0.066     7.208    u_core/r_plan_addr_reg[7]
+  -------------------------------------------------------------------
+                         required time                          7.208    
+                         arrival time                          -5.965    
+  -------------------------------------------------------------------
+                         slack                                  1.243    
+
+Slack (MET) :             1.255ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[24]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.384ns  (logic 1.078ns (20.023%)  route 4.306ns (79.977%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.634     5.878    u_core/r_plan_ok_i_1_n_0
+    SLICE_X7Y184                                                      r  u_core/r_plan_addr[24]_i_1/I0
+    SLICE_X7Y184         LUT4 (Prop_lut4_I0_O)        0.043     5.921 r  u_core/r_plan_addr[24]_i_1/O
+                         net (fo=1, routed)           0.000     5.921    u_core/r_plan_addr[24]_i_1_n_0
+    SLICE_X7Y184         FDCE                                         r  u_core/r_plan_addr_reg[24]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X7Y184         FDCE                                         r  u_core/r_plan_addr_reg[24]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X7Y184         FDCE (Setup_fdce_C_D)        0.034     7.176    u_core/r_plan_addr_reg[24]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -5.921    
+  -------------------------------------------------------------------
+                         slack                                  1.255    
+
+Slack (MET) :             1.260ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[21]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.378ns  (logic 1.078ns (20.043%)  route 4.300ns (79.957%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.628     5.872    u_core/r_plan_ok_i_1_n_0
+    SLICE_X3Y182                                                      r  u_core/r_plan_addr[21]_i_1/I0
+    SLICE_X3Y182         LUT4 (Prop_lut4_I0_O)        0.043     5.915 r  u_core/r_plan_addr[21]_i_1/O
+                         net (fo=1, routed)           0.000     5.915    u_core/r_plan_addr[21]_i_1_n_0
+    SLICE_X3Y182         FDCE                                         r  u_core/r_plan_addr_reg[21]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X3Y182         FDCE                                         r  u_core/r_plan_addr_reg[21]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X3Y182         FDCE (Setup_fdce_C_D)        0.034     7.176    u_core/r_plan_addr_reg[21]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -5.915    
+  -------------------------------------------------------------------
+                         slack                                  1.260    
+
+Slack (MET) :             1.278ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[4]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.392ns  (logic 1.078ns (19.993%)  route 4.314ns (80.007%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.641     5.886    u_core/r_plan_ok_i_1_n_0
+    SLICE_X6Y173                                                      r  u_core/r_plan_addr[4]_i_1/I0
+    SLICE_X6Y173         LUT4 (Prop_lut4_I0_O)        0.043     5.929 r  u_core/r_plan_addr[4]_i_1/O
+                         net (fo=1, routed)           0.000     5.929    u_core/r_plan_addr[4]_i_1_n_0
+    SLICE_X6Y173         FDCE                                         r  u_core/r_plan_addr_reg[4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X6Y173         FDCE                                         r  u_core/r_plan_addr_reg[4]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X6Y173         FDCE (Setup_fdce_C_D)        0.065     7.207    u_core/r_plan_addr_reg[4]
+  -------------------------------------------------------------------
+                         required time                          7.207    
+                         arrival time                          -5.929    
+  -------------------------------------------------------------------
+                         slack                                  1.278    
+
+Slack (MET) :             1.291ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[5]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.377ns  (logic 1.078ns (20.046%)  route 4.299ns (79.954%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.627     5.871    u_core/r_plan_ok_i_1_n_0
+    SLICE_X6Y174                                                      r  u_core/r_plan_addr[5]_i_1/I0
+    SLICE_X6Y174         LUT4 (Prop_lut4_I0_O)        0.043     5.914 r  u_core/r_plan_addr[5]_i_1/O
+                         net (fo=1, routed)           0.000     5.914    u_core/r_plan_addr[5]_i_1_n_0
+    SLICE_X6Y174         FDCE                                         r  u_core/r_plan_addr_reg[5]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X6Y174         FDCE                                         r  u_core/r_plan_addr_reg[5]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X6Y174         FDCE (Setup_fdce_C_D)        0.064     7.206    u_core/r_plan_addr_reg[5]
+  -------------------------------------------------------------------
+                         required time                          7.206    
+                         arrival time                          -5.914    
+  -------------------------------------------------------------------
+                         slack                                  1.291    
+
+Slack (MET) :             1.331ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[26]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.307ns  (logic 1.078ns (20.312%)  route 4.229ns (79.688%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.557     5.801    u_core/r_plan_ok_i_1_n_0
+    SLICE_X4Y185                                                      r  u_core/r_plan_addr[26]_i_1/I0
+    SLICE_X4Y185         LUT4 (Prop_lut4_I0_O)        0.043     5.844 r  u_core/r_plan_addr[26]_i_1/O
+                         net (fo=1, routed)           0.000     5.844    u_core/r_plan_addr[26]_i_1_n_0
+    SLICE_X4Y185         FDCE                                         r  u_core/r_plan_addr_reg[26]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X4Y185         FDCE                                         r  u_core/r_plan_addr_reg[26]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X4Y185         FDCE (Setup_fdce_C_D)        0.034     7.176    u_core/r_plan_addr_reg[26]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -5.844    
+  -------------------------------------------------------------------
+                         slack                                  1.331    
+
+Slack (MET) :             1.333ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[18]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.336ns  (logic 1.078ns (20.202%)  route 4.258ns (79.798%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.586     5.830    u_core/r_plan_ok_i_1_n_0
+    SLICE_X2Y180                                                      r  u_core/r_plan_addr[18]_i_1/I0
+    SLICE_X2Y180         LUT4 (Prop_lut4_I0_O)        0.043     5.873 r  u_core/r_plan_addr[18]_i_1/O
+                         net (fo=1, routed)           0.000     5.873    u_core/r_plan_addr[18]_i_1_n_0
+    SLICE_X2Y180         FDCE                                         r  u_core/r_plan_addr_reg[18]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X2Y180         FDCE                                         r  u_core/r_plan_addr_reg[18]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X2Y180         FDCE (Setup_fdce_C_D)        0.064     7.206    u_core/r_plan_addr_reg[18]
+  -------------------------------------------------------------------
+                         required time                          7.206    
+                         arrival time                          -5.873    
+  -------------------------------------------------------------------
+                         slack                                  1.333    
+
+Slack (MET) :             1.336ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[19]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.334ns  (logic 1.078ns (20.209%)  route 4.256ns (79.791%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.584     5.828    u_core/r_plan_ok_i_1_n_0
+    SLICE_X2Y180                                                      r  u_core/r_plan_addr[19]_i_1/I0
+    SLICE_X2Y180         LUT4 (Prop_lut4_I0_O)        0.043     5.871 r  u_core/r_plan_addr[19]_i_1/O
+                         net (fo=1, routed)           0.000     5.871    u_core/r_plan_addr[19]_i_1_n_0
+    SLICE_X2Y180         FDCE                                         r  u_core/r_plan_addr_reg[19]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X2Y180         FDCE                                         r  u_core/r_plan_addr_reg[19]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X2Y180         FDCE (Setup_fdce_C_D)        0.065     7.207    u_core/r_plan_addr_reg[19]
+  -------------------------------------------------------------------
+                         required time                          7.207    
+                         arrival time                          -5.871    
+  -------------------------------------------------------------------
+                         slack                                  1.336    
+
+Slack (MET) :             1.337ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[28]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.301ns  (logic 1.078ns (20.336%)  route 4.223ns (79.664%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.551     5.795    u_core/r_plan_ok_i_1_n_0
+    SLICE_X7Y184                                                      r  u_core/r_plan_addr[28]_i_1/I0
+    SLICE_X7Y184         LUT4 (Prop_lut4_I0_O)        0.043     5.838 r  u_core/r_plan_addr[28]_i_1/O
+                         net (fo=1, routed)           0.000     5.838    u_core/r_plan_addr[28]_i_1_n_0
+    SLICE_X7Y184         FDCE                                         r  u_core/r_plan_addr_reg[28]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X7Y184         FDCE                                         r  u_core/r_plan_addr_reg[28]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X7Y184         FDCE (Setup_fdce_C_D)        0.033     7.175    u_core/r_plan_addr_reg[28]
+  -------------------------------------------------------------------
+                         required time                          7.175    
+                         arrival time                          -5.838    
+  -------------------------------------------------------------------
+                         slack                                  1.337    
+
+Slack (MET) :             1.339ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[25]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.330ns  (logic 1.078ns (20.225%)  route 4.252ns (79.775%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.580     5.824    u_core/r_plan_ok_i_1_n_0
+    SLICE_X6Y184                                                      r  u_core/r_plan_addr[25]_i_1/I0
+    SLICE_X6Y184         LUT4 (Prop_lut4_I0_O)        0.043     5.867 r  u_core/r_plan_addr[25]_i_1/O
+                         net (fo=1, routed)           0.000     5.867    u_core/r_plan_addr[25]_i_1_n_0
+    SLICE_X6Y184         FDCE                                         r  u_core/r_plan_addr_reg[25]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X6Y184         FDCE                                         r  u_core/r_plan_addr_reg[25]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X6Y184         FDCE (Setup_fdce_C_D)        0.064     7.206    u_core/r_plan_addr_reg[25]
+  -------------------------------------------------------------------
+                         required time                          7.206    
+                         arrival time                          -5.867    
+  -------------------------------------------------------------------
+                         slack                                  1.339    
+
+Slack (MET) :             1.342ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[27]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.295ns  (logic 1.078ns (20.357%)  route 4.217ns (79.643%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.545     5.789    u_core/r_plan_ok_i_1_n_0
+    SLICE_X3Y182                                                      r  u_core/r_plan_addr[27]_i_1/I0
+    SLICE_X3Y182         LUT4 (Prop_lut4_I0_O)        0.043     5.832 r  u_core/r_plan_addr[27]_i_1/O
+                         net (fo=1, routed)           0.000     5.832    u_core/r_plan_addr[27]_i_1_n_0
+    SLICE_X3Y182         FDCE                                         r  u_core/r_plan_addr_reg[27]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X3Y182         FDCE                                         r  u_core/r_plan_addr_reg[27]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X3Y182         FDCE (Setup_fdce_C_D)        0.033     7.175    u_core/r_plan_addr_reg[27]
+  -------------------------------------------------------------------
+                         required time                          7.175    
+                         arrival time                          -5.832    
+  -------------------------------------------------------------------
+                         slack                                  1.342    
+
+Slack (MET) :             1.361ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[11]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.308ns  (logic 1.078ns (20.311%)  route 4.230ns (79.689%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.557     5.802    u_core/r_plan_ok_i_1_n_0
+    SLICE_X10Y176                                                     r  u_core/r_plan_addr[11]_i_1/I0
+    SLICE_X10Y176        LUT4 (Prop_lut4_I0_O)        0.043     5.845 r  u_core/r_plan_addr[11]_i_1/O
+                         net (fo=1, routed)           0.000     5.845    u_core/r_plan_addr[11]_i_1_n_0
+    SLICE_X10Y176        FDCE                                         r  u_core/r_plan_addr_reg[11]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X10Y176        FDCE                                         r  u_core/r_plan_addr_reg[11]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X10Y176        FDCE (Setup_fdce_C_D)        0.064     7.206    u_core/r_plan_addr_reg[11]
+  -------------------------------------------------------------------
+                         required time                          7.206    
+                         arrival time                          -5.845    
+  -------------------------------------------------------------------
+                         slack                                  1.361    
+
+Slack (MET) :             1.366ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[14]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.303ns  (logic 1.078ns (20.329%)  route 4.225ns (79.671%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.552     5.797    u_core/r_plan_ok_i_1_n_0
+    SLICE_X8Y179                                                      r  u_core/r_plan_addr[14]_i_1/I0
+    SLICE_X8Y179         LUT4 (Prop_lut4_I0_O)        0.043     5.840 r  u_core/r_plan_addr[14]_i_1/O
+                         net (fo=1, routed)           0.000     5.840    u_core/r_plan_addr[14]_i_1_n_0
+    SLICE_X8Y179         FDCE                                         r  u_core/r_plan_addr_reg[14]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X8Y179         FDCE                                         r  u_core/r_plan_addr_reg[14]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X8Y179         FDCE (Setup_fdce_C_D)        0.064     7.206    u_core/r_plan_addr_reg[14]
+  -------------------------------------------------------------------
+                         required time                          7.206    
+                         arrival time                          -5.840    
+  -------------------------------------------------------------------
+                         slack                                  1.366    
+
+Slack (MET) :             1.375ns  (required time - arrival time)
+  Source:                 u_core/s2_beats_planned_reg[8]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_core/r_plan_addr_reg[17]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        5.264ns  (logic 1.078ns (20.480%)  route 4.186ns (79.520%))
+  Logic Levels:           11  (CARRY4=1 LUT3=1 LUT4=2 LUT5=5 LUT6=2)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.537     0.537    u_core/axi_aclk
+    SLICE_X14Y179        FDCE                                         r  u_core/s2_beats_planned_reg[8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X14Y179        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_core/s2_beats_planned_reg[8]/Q
+                         net (fo=5, routed)           0.556     1.352    u_core/s2_beats_planned[8]
+    SLICE_X15Y180                                                     r  u_core/r_plan_geo_units[3]_i_25/I0
+    SLICE_X15Y180        LUT3 (Prop_lut3_I0_O)        0.043     1.395 r  u_core/r_plan_geo_units[3]_i_25/O
+                         net (fo=2, routed)           0.359     1.754    u_core/r_plan_geo_units[3]_i_25_n_0
+    SLICE_X14Y180                                                     r  u_core/r_plan_geo_units[3]_i_15/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     1.797 f  u_core/r_plan_geo_units[3]_i_15/O
+                         net (fo=4, routed)           0.587     2.384    u_core/r_plan_geo_units[3]_i_15_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_17/I0
+    SLICE_X14Y180        LUT5 (Prop_lut5_I0_O)        0.043     2.427 r  u_core/r_plan_geo_units[3]_i_17/O
+                         net (fo=2, routed)           0.415     2.842    u_core/r_plan_geo_units[3]_i_17_n_0
+    SLICE_X12Y181                                                     r  u_core/r_plan_geo_units[3]_i_12/I2
+    SLICE_X12Y181        LUT5 (Prop_lut5_I2_O)        0.043     2.885 f  u_core/r_plan_geo_units[3]_i_12/O
+                         net (fo=2, routed)           0.276     3.161    u_core/r_plan_geo_units[3]_i_12_n_0
+    SLICE_X14Y180                                                     f  u_core/r_plan_geo_units[3]_i_7/I5
+    SLICE_X14Y180        LUT6 (Prop_lut6_I5_O)        0.043     3.204 r  u_core/r_plan_geo_units[3]_i_7/O
+                         net (fo=2, routed)           0.327     3.531    u_core/r_plan_geo_units[3]_i_7_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units[3]_i_4/I2
+    SLICE_X13Y179        LUT5 (Prop_lut5_I2_O)        0.043     3.574 r  u_core/r_plan_geo_units[3]_i_4/O
+                         net (fo=1, routed)           0.000     3.574    u_core/r_plan_geo_units[3]_i_4_n_0
+    SLICE_X13Y179                                                     r  u_core/r_plan_geo_units_reg[3]_i_1/S[1]
+    SLICE_X13Y179        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     3.886 r  u_core/r_plan_geo_units_reg[3]_i_1/O[3]
+                         net (fo=2, routed)           0.545     4.431    u_core/r_plan_geo_units0[3]
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_5/I2
+    SLICE_X12Y182        LUT4 (Prop_lut4_I2_O)        0.120     4.551 r  u_core/r_plan_addr[31]_i_5/O
+                         net (fo=1, routed)           0.363     4.914    u_core/r_plan_addr[31]_i_5_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_4/I4
+    SLICE_X12Y182        LUT5 (Prop_lut5_I4_O)        0.043     4.957 r  u_core/r_plan_addr[31]_i_4/O
+                         net (fo=1, routed)           0.244     5.201    u_core/r_plan_addr[31]_i_4_n_0
+    SLICE_X12Y182                                                     r  u_core/r_plan_addr[31]_i_2/I5
+    SLICE_X12Y182        LUT6 (Prop_lut6_I5_O)        0.043     5.244 r  u_core/r_plan_addr[31]_i_2/O
+                         net (fo=33, routed)          0.513     5.758    u_core/r_plan_ok_i_1_n_0
+    SLICE_X9Y176                                                      r  u_core/r_plan_addr[17]_i_1/I0
+    SLICE_X9Y176         LUT4 (Prop_lut4_I0_O)        0.043     5.801 r  u_core/r_plan_addr[17]_i_1/O
+                         net (fo=1, routed)           0.000     5.801    u_core/r_plan_addr[17]_i_1_n_0
+    SLICE_X9Y176         FDCE                                         r  u_core/r_plan_addr_reg[17]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                                                      0.000     6.667 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.510     7.177    u_core/axi_aclk
+    SLICE_X9Y176         FDCE                                         r  u_core/r_plan_addr_reg[17]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X9Y176         FDCE (Setup_fdce_C_D)        0.034     7.176    u_core/r_plan_addr_reg[17]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -5.801    
+  -------------------------------------------------------------------
+                         slack                                  1.375    
+
+
+
+

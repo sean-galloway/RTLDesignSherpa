@@ -1,0 +1,8 @@
+flowchart LR
+  IN["accepted packet<br/>{timestamp, packet}"] --> SEL{"cfg_&lt;proto&gt;_err_select[type]"}
+  SEL -->|"1"| E["error FIFO<br/>record-granular<br/>irq_out while non-empty"]
+  SEL -->|"0"| W["write FIFO<br/>beat-granular<br/>raw 3 beats or compressed 1"]
+  E --> R["AXI-Lite slave read<br/>timestamp, packet hi, packet lo"]
+  W --> F{"beats >= cfg_flush_watermark<br/>or FLUSH_TIMEOUT_CYCLES idle"}
+  F -->|"flush"| AW["AXI write burst<br/>whole records only<br/>never across 4 KB"]
+  AW --> RING["ring in memory<br/>[cfg_base_addr, cfg_limit_addr]<br/>wraps to base"]

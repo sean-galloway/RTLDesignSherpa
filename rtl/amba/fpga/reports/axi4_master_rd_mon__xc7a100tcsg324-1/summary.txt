@@ -1,0 +1,4 @@
+bridge=axi4_master_rd_mon part=xc7a100tcsg324-1 clk_ns=10.0
+luts=7636 ffs=5547 bram_tiles=0 dsps=0
+wns_ns=-1.451 wns_reg2reg_ns=-0.868 fmax_reg2reg_mhz=92.0 worst_logic_levels=12 unrouted_nets=0
+clocks=aclk io_delay_ns=3.0 seconds=154

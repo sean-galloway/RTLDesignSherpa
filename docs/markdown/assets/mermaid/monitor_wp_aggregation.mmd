@@ -1,0 +1,19 @@
+flowchart TB
+  subgraph T["Tree of round-robin arbiters (default)"]
+    T1["mon"] --> TA1["arb"]
+    T2["mon"] --> TA1
+    T3["mon"] --> TA2["arb"]
+    T4["mon"] --> TA2
+    TA1 --> TR["arb"] --> TG["group"]
+    TA2 --> TR
+  end
+  subgraph W["Weighted"]
+    W1["busy port"] -->|"weight 4"| WA["arbiter_wrr_pwm_monbus"]
+    W2["quiet port"] -->|"weight 1"| WA
+    W3["quiet port"] -->|"weight 1"| WA
+    WA --> WG["group"]
+  end
+  subgraph P["Protocol-partitioned"]
+    PA["AXI monitors"] --> PGA["group (AXI ring, IRQ A)"]
+    PS["AXIS monitors"] --> PGS["group (AXIS ring, IRQ B)"]
+  end

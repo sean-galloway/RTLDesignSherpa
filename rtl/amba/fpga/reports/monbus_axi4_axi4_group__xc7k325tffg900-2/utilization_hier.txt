@@ -1,0 +1,33 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 19:01:49 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/monbus_axi4_axi4_group__xc7k325tffg900-2/utilization_hier.txt
+| Design       : monbus_axi4_axi4_group
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++----------------------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
+|          Instance          |       Module      | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++----------------------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
+| monbus_axi4_axi4_group     |             (top) |       1967 |       1543 |     424 |    0 | 1386 |      0 |      0 |          0 |
+|   (monbus_axi4_axi4_group) |             (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   u_axi4_rd                |     axi4_slave_rd |        274 |        274 |       0 |    0 |  336 |      0 |      0 |          0 |
+|   u_axi4_wr                |    axi4_master_wr |        268 |        268 |       0 |    0 |  362 |      0 |      0 |          0 |
+|   u_core                   | monbus_group_core |       1427 |       1003 |     424 |    0 |  688 |      0 |      0 |          0 |
++----------------------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

@@ -1,0 +1,32 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 18:58:42 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi4_slave_rd_mon__xc7k325tffg900-2/utilization_hier.txt
+| Design       : axi4_slave_rd_mon
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++--------------------------------+----------------------+------------+------------+---------+------+------+--------+--------+------------+
+|            Instance            |        Module        | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++--------------------------------+----------------------+------------+------------+---------+------+------+--------+--------+------------+
+| axi4_slave_rd_mon              |                (top) |       7269 |       7237 |      32 |    0 | 5552 |      0 |      0 |          0 |
+|   (axi4_slave_rd_mon)          |                (top) |          8 |          8 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   axi4_slave_rd_inst           |        axi4_slave_rd |        338 |        338 |       0 |    0 |  333 |      0 |      0 |          0 |
+|   gen_monitor.axi_monitor_inst | axi_monitor_filtered |       6925 |       6893 |      32 |    0 | 5219 |      0 |      0 |          0 |
++--------------------------------+----------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

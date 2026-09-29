@@ -1,0 +1,1493 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 19:00:35 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing_summary -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/apb5_monitor__xc7k325tffg900-2/timing_summary.txt -max_paths 10
+| Design       : apb5_monitor
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Summary Report
+
+------------------------------------------------------------------------------------------------
+| Timer Settings
+| --------------
+------------------------------------------------------------------------------------------------
+
+  Enable Multi Corner Analysis               :  Yes
+  Enable Pessimism Removal                   :  Yes
+  Pessimism Removal Resolution               :  Nearest Common Node
+  Enable Input Delay Default Clock           :  No
+  Enable Preset / Clear Arcs                 :  No
+  Disable Flight Delays                      :  No
+  Ignore I/O Paths                           :  No
+  Timing Early Launch at Borrowing Latches   :  No
+  Borrow Time for Max Delay Exceptions       :  Yes
+  Merge Timing Exceptions                    :  Yes
+  Inter-SLR Compensation                     :  Conservative
+
+  Corner  Analyze    Analyze    
+  Name    Max Paths  Min Paths  
+  ------  ---------  ---------  
+  Slow    Yes        Yes        
+  Fast    Yes        Yes        
+
+
+------------------------------------------------------------------------------------------------
+| Report Methodology
+| ------------------
+------------------------------------------------------------------------------------------------
+
+No report available as report_methodology has not been run prior. Run report_methodology on the current design for the summary of methodology violations.
+
+
+
+check_timing report
+
+Table of Contents
+-----------------
+1. checking no_clock (0)
+2. checking constant_clock (0)
+3. checking pulse_width_clock (0)
+4. checking unconstrained_internal_endpoints (0)
+5. checking no_input_delay (1)
+6. checking no_output_delay (0)
+7. checking multiple_clock (0)
+8. checking generated_clocks (0)
+9. checking loops (0)
+10. checking partial_input_delay (0)
+11. checking partial_output_delay (0)
+12. checking latch_loops (0)
+
+1. checking no_clock (0)
+------------------------
+ There are 0 register/latch pins with no clock.
+
+
+2. checking constant_clock (0)
+------------------------------
+ There are 0 register/latch pins with constant_clock.
+
+
+3. checking pulse_width_clock (0)
+---------------------------------
+ There are 0 register/latch pins which need pulse_width check
+
+
+4. checking unconstrained_internal_endpoints (0)
+------------------------------------------------
+ There are 0 pins that are not constrained for maximum delay.
+
+ There are 0 pins that are not constrained for maximum delay due to constant clock.
+
+
+5. checking no_input_delay (1)
+------------------------------
+ There are 0 input ports with no input delay specified.
+
+ There is 1 input port with no input delay but user has a false path constraint. (MEDIUM)
+
+
+6. checking no_output_delay (0)
+-------------------------------
+ There are 0 ports with no output delay specified.
+
+ There are 0 ports with no output delay but user has a false path constraint
+
+ There are 0 ports with no output delay but with a timing clock defined on it or propagating through it
+
+
+7. checking multiple_clock (0)
+------------------------------
+ There are 0 register/latch pins with multiple clocks.
+
+
+8. checking generated_clocks (0)
+--------------------------------
+ There are 0 generated clocks that are not connected to a clock source.
+
+
+9. checking loops (0)
+---------------------
+ There are 0 combinational loops in the design.
+
+
+10. checking partial_input_delay (0)
+------------------------------------
+ There are 0 input ports with partial input delay specified.
+
+
+11. checking partial_output_delay (0)
+-------------------------------------
+ There are 0 ports with partial output delay specified.
+
+
+12. checking latch_loops (0)
+----------------------------
+ There are 0 combinational latch loops in the design through latch input
+
+
+
+------------------------------------------------------------------------------------------------
+| Design Timing Summary
+| ---------------------
+------------------------------------------------------------------------------------------------
+
+    WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+    -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+      0.596        0.000                      0                 1711        0.108        0.000                      0                 1711        2.565        0.000                       0                   740  
+
+
+All user specified timing constraints are met.
+
+
+------------------------------------------------------------------------------------------------
+| Clock Summary
+| -------------
+------------------------------------------------------------------------------------------------
+
+Clock  Waveform(ns)         Period(ns)      Frequency(MHz)
+-----  ------------         ----------      --------------
+aclk   {0.000 3.333}        6.667           149.992         
+
+
+------------------------------------------------------------------------------------------------
+| Intra Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+Clock             WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+-----             -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+aclk                0.596        0.000                      0                 1711        0.108        0.000                      0                 1711        2.565        0.000                       0                   740  
+
+
+------------------------------------------------------------------------------------------------
+| Inter Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------    --------          -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+
+
+------------------------------------------------------------------------------------------------
+| Other Path Groups Table
+| -----------------------
+------------------------------------------------------------------------------------------------
+
+Path Group    From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------    ----------    --------          -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+
+
+------------------------------------------------------------------------------------------------
+| Timing Details
+| --------------
+------------------------------------------------------------------------------------------------
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  aclk
+  To Clock:  aclk
+
+Setup :            0  Failing Endpoints,  Worst Slack        0.596ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.108ns,  Total Violation        0.000ns
+PW    :            0  Failing Endpoints,  Worst Slack        2.565ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Max Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             0.596ns  (required time - arrival time)
+  Source:                 gen_monitor.r_trans_table_reg[0][valid]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMA_D1/I
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        5.869ns  (logic 1.661ns (28.300%)  route 4.208ns (71.700%))
+  Logic Levels:           15  (CARRY4=7 LUT2=1 LUT4=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.537     0.537    aclk
+    SLICE_X10Y151        FDCE                                         r  gen_monitor.r_trans_table_reg[0][valid]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X10Y151        FDCE (Prop_fdce_C_Q)         0.259     0.796 f  gen_monitor.r_trans_table_reg[0][valid]/Q
+                         net (fo=13, routed)          0.602     1.398    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][valid]__0
+    SLICE_X8Y153         LUT4 (Prop_lut4_I1_O)        0.043     1.441 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_transaction_count[31]_i_5/O
+                         net (fo=43, routed)          0.464     1.905    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_has_active_trans3
+    SLICE_X12Y153        LUT2 (Prop_lut2_I0_O)        0.049     1.954 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table[1][state][2]_i_3/O
+                         net (fo=35, routed)          0.717     2.671    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][state][2]
+    SLICE_X8Y161         LUT4 (Prop_lut4_I0_O)        0.132     2.803 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44/O
+                         net (fo=1, routed)           0.328     3.131    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44_n_0
+    SLICE_X11Y159        LUT6 (Prop_lut6_I1_O)        0.043     3.174 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30/O
+                         net (fo=1, routed)           0.000     3.174    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30_n_0
+    SLICE_X11Y159        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.259     3.433 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7/CO[3]
+                         net (fo=1, routed)           0.000     3.433    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7_n_0
+    SLICE_X11Y160        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.486 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20/CO[3]
+                         net (fo=1, routed)           0.000     3.486    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20_n_0
+    SLICE_X11Y161        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.539 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13/CO[3]
+                         net (fo=1, routed)           0.000     3.539    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13_n_0
+    SLICE_X11Y162        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.592 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9/CO[3]
+                         net (fo=1, routed)           0.000     3.592    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9_n_0
+    SLICE_X11Y163        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.645 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14/CO[3]
+                         net (fo=1, routed)           0.000     3.645    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14_n_0
+    SLICE_X11Y164        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.166     3.811 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_30_35_i_10/O[1]
+                         net (fo=3, routed)           0.545     4.357    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_latency_threshold_exceeded2[25]
+    SLICE_X12Y163        LUT4 (Prop_lut4_I1_O)        0.123     4.480 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12/O
+                         net (fo=1, routed)           0.000     4.480    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12_n_0
+    SLICE_X12Y163        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.246     4.726 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_reg_i_2/CO[3]
+                         net (fo=4, routed)           0.514     5.240    gen_monitor.monitor_fifo/fifo_control_inst/CO[0]
+    SLICE_X14Y159        LUT6 (Prop_lut6_I2_O)        0.043     5.283 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_0_5_i_9/O
+                         net (fo=7, routed)           0.195     5.478    gen_monitor.monitor_fifo/gen_monitor.w_generate_perf_event
+    SLICE_X15Y158        LUT6 (Prop_lut6_I4_O)        0.043     5.521 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10/O
+                         net (fo=32, routed)          0.534     6.055    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10_n_0
+    SLICE_X12Y164        LUT6 (Prop_lut6_I0_O)        0.043     6.098 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29_i_1/O
+                         net (fo=1, routed)           0.308     6.406    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/DIA1
+    SLICE_X14Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMA_D1/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=739, unset)          0.510     7.177    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/WCLK
+    SLICE_X14Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMA_D1/CLK
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X14Y165        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.140     7.002    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMA_D1
+  -------------------------------------------------------------------
+                         required time                          7.002    
+                         arrival time                          -6.406    
+  -------------------------------------------------------------------
+                         slack                                  0.596    
+
+Slack (MET) :             0.602ns  (required time - arrival time)
+  Source:                 gen_monitor.r_trans_table_reg[0][valid]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monitor_fifo/fifo_control_inst/rd_empty_reg/D
+                            (rising edge-triggered cell FDPE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        6.037ns  (logic 1.799ns (29.801%)  route 4.238ns (70.199%))
+  Logic Levels:           16  (CARRY4=7 LUT2=1 LUT4=3 LUT5=1 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.537     0.537    aclk
+    SLICE_X10Y151        FDCE                                         r  gen_monitor.r_trans_table_reg[0][valid]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X10Y151        FDCE (Prop_fdce_C_Q)         0.259     0.796 f  gen_monitor.r_trans_table_reg[0][valid]/Q
+                         net (fo=13, routed)          0.602     1.398    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][valid]__0
+    SLICE_X8Y153         LUT4 (Prop_lut4_I1_O)        0.043     1.441 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_transaction_count[31]_i_5/O
+                         net (fo=43, routed)          0.464     1.905    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_has_active_trans3
+    SLICE_X12Y153        LUT2 (Prop_lut2_I0_O)        0.049     1.954 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table[1][state][2]_i_3/O
+                         net (fo=35, routed)          0.717     2.671    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][state][2]
+    SLICE_X8Y161         LUT4 (Prop_lut4_I0_O)        0.132     2.803 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44/O
+                         net (fo=1, routed)           0.328     3.131    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44_n_0
+    SLICE_X11Y159        LUT6 (Prop_lut6_I1_O)        0.043     3.174 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30/O
+                         net (fo=1, routed)           0.000     3.174    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30_n_0
+    SLICE_X11Y159        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.259     3.433 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7/CO[3]
+                         net (fo=1, routed)           0.000     3.433    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7_n_0
+    SLICE_X11Y160        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.486 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20/CO[3]
+                         net (fo=1, routed)           0.000     3.486    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20_n_0
+    SLICE_X11Y161        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.539 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13/CO[3]
+                         net (fo=1, routed)           0.000     3.539    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13_n_0
+    SLICE_X11Y162        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.592 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9/CO[3]
+                         net (fo=1, routed)           0.000     3.592    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9_n_0
+    SLICE_X11Y163        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.645 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14/CO[3]
+                         net (fo=1, routed)           0.000     3.645    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14_n_0
+    SLICE_X11Y164        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.166     3.811 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_30_35_i_10/O[1]
+                         net (fo=3, routed)           0.545     4.357    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_latency_threshold_exceeded2[25]
+    SLICE_X12Y163        LUT4 (Prop_lut4_I1_O)        0.123     4.480 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12/O
+                         net (fo=1, routed)           0.000     4.480    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12_n_0
+    SLICE_X12Y163        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.246     4.726 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_reg_i_2/CO[3]
+                         net (fo=4, routed)           0.550     5.276    gen_monitor.monitor_fifo/fifo_control_inst/CO[0]
+    SLICE_X11Y157        LUT6 (Prop_lut6_I3_O)        0.043     5.319 r  gen_monitor.monitor_fifo/fifo_control_inst/wr_full_i_5/O
+                         net (fo=1, routed)           0.322     5.641    gen_monitor.monitor_fifo/fifo_control_inst/wr_full_i_5_n_0
+    SLICE_X15Y162        LUT6 (Prop_lut6_I5_O)        0.043     5.684 r  gen_monitor.monitor_fifo/fifo_control_inst/wr_full_i_4/O
+                         net (fo=1, routed)           0.342     6.027    gen_monitor.monitor_fifo/write_pointer_inst/wr_full_reg
+    SLICE_X16Y163        LUT5 (Prop_lut5_I2_O)        0.049     6.076 r  gen_monitor.monitor_fifo/write_pointer_inst/wr_full_i_2/O
+                         net (fo=2, routed)           0.366     6.442    gen_monitor.monitor_fifo/fifo_control_inst/wr_full_reg_1
+    SLICE_X17Y164        LUT6 (Prop_lut6_I2_O)        0.132     6.574 r  gen_monitor.monitor_fifo/fifo_control_inst/rd_empty_i_1/O
+                         net (fo=1, routed)           0.000     6.574    gen_monitor.monitor_fifo/fifo_control_inst/w_rd_empty_d
+    SLICE_X17Y164        FDPE                                         r  gen_monitor.monitor_fifo/fifo_control_inst/rd_empty_reg/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=739, unset)          0.510     7.177    gen_monitor.monitor_fifo/fifo_control_inst/aclk
+    SLICE_X17Y164        FDPE                                         r  gen_monitor.monitor_fifo/fifo_control_inst/rd_empty_reg/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X17Y164        FDPE (Setup_fdpe_C_D)        0.034     7.176    gen_monitor.monitor_fifo/fifo_control_inst/rd_empty_reg
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -6.574    
+  -------------------------------------------------------------------
+                         slack                                  0.602    
+
+Slack (MET) :             0.618ns  (required time - arrival time)
+  Source:                 gen_monitor.r_trans_table_reg[0][valid]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monitor_fifo/fifo_control_inst/wr_full_reg/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        6.021ns  (logic 1.799ns (29.879%)  route 4.222ns (70.121%))
+  Logic Levels:           16  (CARRY4=7 LUT2=1 LUT4=3 LUT5=1 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.537     0.537    aclk
+    SLICE_X10Y151        FDCE                                         r  gen_monitor.r_trans_table_reg[0][valid]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X10Y151        FDCE (Prop_fdce_C_Q)         0.259     0.796 f  gen_monitor.r_trans_table_reg[0][valid]/Q
+                         net (fo=13, routed)          0.602     1.398    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][valid]__0
+    SLICE_X8Y153         LUT4 (Prop_lut4_I1_O)        0.043     1.441 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_transaction_count[31]_i_5/O
+                         net (fo=43, routed)          0.464     1.905    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_has_active_trans3
+    SLICE_X12Y153        LUT2 (Prop_lut2_I0_O)        0.049     1.954 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table[1][state][2]_i_3/O
+                         net (fo=35, routed)          0.717     2.671    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][state][2]
+    SLICE_X8Y161         LUT4 (Prop_lut4_I0_O)        0.132     2.803 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44/O
+                         net (fo=1, routed)           0.328     3.131    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44_n_0
+    SLICE_X11Y159        LUT6 (Prop_lut6_I1_O)        0.043     3.174 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30/O
+                         net (fo=1, routed)           0.000     3.174    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30_n_0
+    SLICE_X11Y159        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.259     3.433 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7/CO[3]
+                         net (fo=1, routed)           0.000     3.433    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7_n_0
+    SLICE_X11Y160        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.486 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20/CO[3]
+                         net (fo=1, routed)           0.000     3.486    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20_n_0
+    SLICE_X11Y161        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.539 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13/CO[3]
+                         net (fo=1, routed)           0.000     3.539    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13_n_0
+    SLICE_X11Y162        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.592 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9/CO[3]
+                         net (fo=1, routed)           0.000     3.592    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9_n_0
+    SLICE_X11Y163        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.645 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14/CO[3]
+                         net (fo=1, routed)           0.000     3.645    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14_n_0
+    SLICE_X11Y164        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.166     3.811 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_30_35_i_10/O[1]
+                         net (fo=3, routed)           0.545     4.357    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_latency_threshold_exceeded2[25]
+    SLICE_X12Y163        LUT4 (Prop_lut4_I1_O)        0.123     4.480 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12/O
+                         net (fo=1, routed)           0.000     4.480    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12_n_0
+    SLICE_X12Y163        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.246     4.726 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_reg_i_2/CO[3]
+                         net (fo=4, routed)           0.550     5.276    gen_monitor.monitor_fifo/fifo_control_inst/CO[0]
+    SLICE_X11Y157        LUT6 (Prop_lut6_I3_O)        0.043     5.319 r  gen_monitor.monitor_fifo/fifo_control_inst/wr_full_i_5/O
+                         net (fo=1, routed)           0.322     5.641    gen_monitor.monitor_fifo/fifo_control_inst/wr_full_i_5_n_0
+    SLICE_X15Y162        LUT6 (Prop_lut6_I5_O)        0.043     5.684 r  gen_monitor.monitor_fifo/fifo_control_inst/wr_full_i_4/O
+                         net (fo=1, routed)           0.342     6.027    gen_monitor.monitor_fifo/write_pointer_inst/wr_full_reg
+    SLICE_X16Y163        LUT5 (Prop_lut5_I2_O)        0.049     6.076 r  gen_monitor.monitor_fifo/write_pointer_inst/wr_full_i_2/O
+                         net (fo=2, routed)           0.350     6.426    gen_monitor.monitor_fifo/fifo_control_inst/wr_full_reg_1
+    SLICE_X17Y164        LUT6 (Prop_lut6_I2_O)        0.132     6.558 r  gen_monitor.monitor_fifo/fifo_control_inst/wr_full_i_1/O
+                         net (fo=1, routed)           0.000     6.558    gen_monitor.monitor_fifo/fifo_control_inst/w_wr_full_d
+    SLICE_X17Y164        FDCE                                         r  gen_monitor.monitor_fifo/fifo_control_inst/wr_full_reg/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=739, unset)          0.510     7.177    gen_monitor.monitor_fifo/fifo_control_inst/aclk
+    SLICE_X17Y164        FDCE                                         r  gen_monitor.monitor_fifo/fifo_control_inst/wr_full_reg/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X17Y164        FDCE (Setup_fdce_C_D)        0.034     7.176    gen_monitor.monitor_fifo/fifo_control_inst/wr_full_reg
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -6.558    
+  -------------------------------------------------------------------
+                         slack                                  0.618    
+
+Slack (MET) :             0.665ns  (required time - arrival time)
+  Source:                 gen_monitor.r_trans_table_reg[0][valid]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMB_D1/I
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        5.805ns  (logic 1.661ns (28.614%)  route 4.144ns (71.386%))
+  Logic Levels:           15  (CARRY4=7 LUT2=1 LUT4=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.537     0.537    aclk
+    SLICE_X10Y151        FDCE                                         r  gen_monitor.r_trans_table_reg[0][valid]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X10Y151        FDCE (Prop_fdce_C_Q)         0.259     0.796 f  gen_monitor.r_trans_table_reg[0][valid]/Q
+                         net (fo=13, routed)          0.602     1.398    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][valid]__0
+    SLICE_X8Y153         LUT4 (Prop_lut4_I1_O)        0.043     1.441 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_transaction_count[31]_i_5/O
+                         net (fo=43, routed)          0.464     1.905    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_has_active_trans3
+    SLICE_X12Y153        LUT2 (Prop_lut2_I0_O)        0.049     1.954 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table[1][state][2]_i_3/O
+                         net (fo=35, routed)          0.717     2.671    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][state][2]
+    SLICE_X8Y161         LUT4 (Prop_lut4_I0_O)        0.132     2.803 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44/O
+                         net (fo=1, routed)           0.328     3.131    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44_n_0
+    SLICE_X11Y159        LUT6 (Prop_lut6_I1_O)        0.043     3.174 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30/O
+                         net (fo=1, routed)           0.000     3.174    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30_n_0
+    SLICE_X11Y159        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.259     3.433 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7/CO[3]
+                         net (fo=1, routed)           0.000     3.433    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7_n_0
+    SLICE_X11Y160        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.486 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20/CO[3]
+                         net (fo=1, routed)           0.000     3.486    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20_n_0
+    SLICE_X11Y161        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.539 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13/CO[3]
+                         net (fo=1, routed)           0.000     3.539    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13_n_0
+    SLICE_X11Y162        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.592 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9/CO[3]
+                         net (fo=1, routed)           0.000     3.592    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9_n_0
+    SLICE_X11Y163        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.645 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14/CO[3]
+                         net (fo=1, routed)           0.000     3.645    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14_n_0
+    SLICE_X11Y164        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.166     3.811 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_30_35_i_10/O[1]
+                         net (fo=3, routed)           0.545     4.357    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_latency_threshold_exceeded2[25]
+    SLICE_X12Y163        LUT4 (Prop_lut4_I1_O)        0.123     4.480 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12/O
+                         net (fo=1, routed)           0.000     4.480    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12_n_0
+    SLICE_X12Y163        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.246     4.726 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_reg_i_2/CO[3]
+                         net (fo=4, routed)           0.514     5.240    gen_monitor.monitor_fifo/fifo_control_inst/CO[0]
+    SLICE_X14Y159        LUT6 (Prop_lut6_I2_O)        0.043     5.283 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_0_5_i_9/O
+                         net (fo=7, routed)           0.195     5.478    gen_monitor.monitor_fifo/gen_monitor.w_generate_perf_event
+    SLICE_X15Y158        LUT6 (Prop_lut6_I4_O)        0.043     5.521 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10/O
+                         net (fo=32, routed)          0.465     5.986    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10_n_0
+    SLICE_X13Y165        LUT6 (Prop_lut6_I0_O)        0.043     6.029 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41_i_3/O
+                         net (fo=1, routed)           0.313     6.342    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/DIB1
+    SLICE_X16Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMB_D1/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=739, unset)          0.510     7.177    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/WCLK
+    SLICE_X16Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMB_D1/CLK
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X16Y165        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.135     7.007    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMB_D1
+  -------------------------------------------------------------------
+                         required time                          7.007    
+                         arrival time                          -6.342    
+  -------------------------------------------------------------------
+                         slack                                  0.665    
+
+Slack (MET) :             0.684ns  (required time - arrival time)
+  Source:                 gen_monitor.r_trans_table_reg[0][valid]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMA/I
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        5.825ns  (logic 1.661ns (28.515%)  route 4.164ns (71.485%))
+  Logic Levels:           15  (CARRY4=7 LUT2=1 LUT4=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.537     0.537    aclk
+    SLICE_X10Y151        FDCE                                         r  gen_monitor.r_trans_table_reg[0][valid]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X10Y151        FDCE (Prop_fdce_C_Q)         0.259     0.796 f  gen_monitor.r_trans_table_reg[0][valid]/Q
+                         net (fo=13, routed)          0.602     1.398    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][valid]__0
+    SLICE_X8Y153         LUT4 (Prop_lut4_I1_O)        0.043     1.441 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_transaction_count[31]_i_5/O
+                         net (fo=43, routed)          0.464     1.905    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_has_active_trans3
+    SLICE_X12Y153        LUT2 (Prop_lut2_I0_O)        0.049     1.954 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table[1][state][2]_i_3/O
+                         net (fo=35, routed)          0.717     2.671    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][state][2]
+    SLICE_X8Y161         LUT4 (Prop_lut4_I0_O)        0.132     2.803 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44/O
+                         net (fo=1, routed)           0.328     3.131    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44_n_0
+    SLICE_X11Y159        LUT6 (Prop_lut6_I1_O)        0.043     3.174 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30/O
+                         net (fo=1, routed)           0.000     3.174    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30_n_0
+    SLICE_X11Y159        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.259     3.433 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7/CO[3]
+                         net (fo=1, routed)           0.000     3.433    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7_n_0
+    SLICE_X11Y160        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.486 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20/CO[3]
+                         net (fo=1, routed)           0.000     3.486    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20_n_0
+    SLICE_X11Y161        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.539 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13/CO[3]
+                         net (fo=1, routed)           0.000     3.539    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13_n_0
+    SLICE_X11Y162        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.592 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9/CO[3]
+                         net (fo=1, routed)           0.000     3.592    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9_n_0
+    SLICE_X11Y163        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.645 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14/CO[3]
+                         net (fo=1, routed)           0.000     3.645    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14_n_0
+    SLICE_X11Y164        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.166     3.811 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_30_35_i_10/O[1]
+                         net (fo=3, routed)           0.545     4.357    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_latency_threshold_exceeded2[25]
+    SLICE_X12Y163        LUT4 (Prop_lut4_I1_O)        0.123     4.480 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12/O
+                         net (fo=1, routed)           0.000     4.480    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12_n_0
+    SLICE_X12Y163        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.246     4.726 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_reg_i_2/CO[3]
+                         net (fo=4, routed)           0.514     5.240    gen_monitor.monitor_fifo/fifo_control_inst/CO[0]
+    SLICE_X14Y159        LUT6 (Prop_lut6_I2_O)        0.043     5.283 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_0_5_i_9/O
+                         net (fo=7, routed)           0.195     5.478    gen_monitor.monitor_fifo/gen_monitor.w_generate_perf_event
+    SLICE_X15Y158        LUT6 (Prop_lut6_I4_O)        0.043     5.521 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10/O
+                         net (fo=32, routed)          0.423     5.944    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10_n_0
+    SLICE_X15Y165        LUT6 (Prop_lut6_I0_O)        0.043     5.987 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29_i_2/O
+                         net (fo=1, routed)           0.375     6.362    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/DIA0
+    SLICE_X14Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMA/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=739, unset)          0.510     7.177    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/WCLK
+    SLICE_X14Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMA/CLK
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X14Y165        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.096     7.046    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMA
+  -------------------------------------------------------------------
+                         required time                          7.046    
+                         arrival time                          -6.362    
+  -------------------------------------------------------------------
+                         slack                                  0.684    
+
+Slack (MET) :             0.687ns  (required time - arrival time)
+  Source:                 gen_monitor.r_trans_table_reg[0][valid]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMA_D1/I
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        5.778ns  (logic 1.661ns (28.746%)  route 4.117ns (71.254%))
+  Logic Levels:           15  (CARRY4=7 LUT2=1 LUT4=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.537     0.537    aclk
+    SLICE_X10Y151        FDCE                                         r  gen_monitor.r_trans_table_reg[0][valid]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X10Y151        FDCE (Prop_fdce_C_Q)         0.259     0.796 f  gen_monitor.r_trans_table_reg[0][valid]/Q
+                         net (fo=13, routed)          0.602     1.398    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][valid]__0
+    SLICE_X8Y153         LUT4 (Prop_lut4_I1_O)        0.043     1.441 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_transaction_count[31]_i_5/O
+                         net (fo=43, routed)          0.464     1.905    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_has_active_trans3
+    SLICE_X12Y153        LUT2 (Prop_lut2_I0_O)        0.049     1.954 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table[1][state][2]_i_3/O
+                         net (fo=35, routed)          0.717     2.671    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][state][2]
+    SLICE_X8Y161         LUT4 (Prop_lut4_I0_O)        0.132     2.803 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44/O
+                         net (fo=1, routed)           0.328     3.131    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44_n_0
+    SLICE_X11Y159        LUT6 (Prop_lut6_I1_O)        0.043     3.174 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30/O
+                         net (fo=1, routed)           0.000     3.174    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30_n_0
+    SLICE_X11Y159        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.259     3.433 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7/CO[3]
+                         net (fo=1, routed)           0.000     3.433    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7_n_0
+    SLICE_X11Y160        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.486 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20/CO[3]
+                         net (fo=1, routed)           0.000     3.486    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20_n_0
+    SLICE_X11Y161        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.539 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13/CO[3]
+                         net (fo=1, routed)           0.000     3.539    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13_n_0
+    SLICE_X11Y162        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.592 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9/CO[3]
+                         net (fo=1, routed)           0.000     3.592    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9_n_0
+    SLICE_X11Y163        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.645 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14/CO[3]
+                         net (fo=1, routed)           0.000     3.645    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14_n_0
+    SLICE_X11Y164        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.166     3.811 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_30_35_i_10/O[1]
+                         net (fo=3, routed)           0.545     4.357    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_latency_threshold_exceeded2[25]
+    SLICE_X12Y163        LUT4 (Prop_lut4_I1_O)        0.123     4.480 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12/O
+                         net (fo=1, routed)           0.000     4.480    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12_n_0
+    SLICE_X12Y163        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.246     4.726 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_reg_i_2/CO[3]
+                         net (fo=4, routed)           0.514     5.240    gen_monitor.monitor_fifo/fifo_control_inst/CO[0]
+    SLICE_X14Y159        LUT6 (Prop_lut6_I2_O)        0.043     5.283 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_0_5_i_9/O
+                         net (fo=7, routed)           0.195     5.478    gen_monitor.monitor_fifo/gen_monitor.w_generate_perf_event
+    SLICE_X15Y158        LUT6 (Prop_lut6_I4_O)        0.043     5.521 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10/O
+                         net (fo=32, routed)          0.471     5.992    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10_n_0
+    SLICE_X13Y165        LUT6 (Prop_lut6_I0_O)        0.043     6.035 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41_i_1/O
+                         net (fo=1, routed)           0.280     6.315    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/DIA1
+    SLICE_X16Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMA_D1/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=739, unset)          0.510     7.177    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/WCLK
+    SLICE_X16Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMA_D1/CLK
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X16Y165        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.140     7.002    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMA_D1
+  -------------------------------------------------------------------
+                         required time                          7.002    
+                         arrival time                          -6.315    
+  -------------------------------------------------------------------
+                         slack                                  0.687    
+
+Slack (MET) :             0.690ns  (required time - arrival time)
+  Source:                 gen_monitor.r_trans_table_reg[0][valid]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMC/I
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        5.803ns  (logic 1.661ns (28.623%)  route 4.142ns (71.377%))
+  Logic Levels:           15  (CARRY4=7 LUT2=1 LUT4=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.537     0.537    aclk
+    SLICE_X10Y151        FDCE                                         r  gen_monitor.r_trans_table_reg[0][valid]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X10Y151        FDCE (Prop_fdce_C_Q)         0.259     0.796 f  gen_monitor.r_trans_table_reg[0][valid]/Q
+                         net (fo=13, routed)          0.602     1.398    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][valid]__0
+    SLICE_X8Y153         LUT4 (Prop_lut4_I1_O)        0.043     1.441 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_transaction_count[31]_i_5/O
+                         net (fo=43, routed)          0.464     1.905    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_has_active_trans3
+    SLICE_X12Y153        LUT2 (Prop_lut2_I0_O)        0.049     1.954 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table[1][state][2]_i_3/O
+                         net (fo=35, routed)          0.717     2.671    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][state][2]
+    SLICE_X8Y161         LUT4 (Prop_lut4_I0_O)        0.132     2.803 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44/O
+                         net (fo=1, routed)           0.328     3.131    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44_n_0
+    SLICE_X11Y159        LUT6 (Prop_lut6_I1_O)        0.043     3.174 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30/O
+                         net (fo=1, routed)           0.000     3.174    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30_n_0
+    SLICE_X11Y159        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.259     3.433 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7/CO[3]
+                         net (fo=1, routed)           0.000     3.433    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7_n_0
+    SLICE_X11Y160        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.486 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20/CO[3]
+                         net (fo=1, routed)           0.000     3.486    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20_n_0
+    SLICE_X11Y161        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.539 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13/CO[3]
+                         net (fo=1, routed)           0.000     3.539    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13_n_0
+    SLICE_X11Y162        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.592 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9/CO[3]
+                         net (fo=1, routed)           0.000     3.592    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9_n_0
+    SLICE_X11Y163        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.645 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14/CO[3]
+                         net (fo=1, routed)           0.000     3.645    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14_n_0
+    SLICE_X11Y164        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.166     3.811 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_30_35_i_10/O[1]
+                         net (fo=3, routed)           0.545     4.357    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_latency_threshold_exceeded2[25]
+    SLICE_X12Y163        LUT4 (Prop_lut4_I1_O)        0.123     4.480 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12/O
+                         net (fo=1, routed)           0.000     4.480    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12_n_0
+    SLICE_X12Y163        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.246     4.726 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_reg_i_2/CO[3]
+                         net (fo=4, routed)           0.514     5.240    gen_monitor.monitor_fifo/fifo_control_inst/CO[0]
+    SLICE_X14Y159        LUT6 (Prop_lut6_I2_O)        0.043     5.283 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_0_5_i_9/O
+                         net (fo=7, routed)           0.195     5.478    gen_monitor.monitor_fifo/gen_monitor.w_generate_perf_event
+    SLICE_X15Y158        LUT6 (Prop_lut6_I4_O)        0.043     5.521 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10/O
+                         net (fo=32, routed)          0.473     5.994    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10_n_0
+    SLICE_X13Y165        LUT6 (Prop_lut6_I0_O)        0.043     6.037 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29_i_6/O
+                         net (fo=1, routed)           0.303     6.340    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/DIC0
+    SLICE_X14Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMC/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=739, unset)          0.510     7.177    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/WCLK
+    SLICE_X14Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMC/CLK
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X14Y165        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.112     7.030    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMC
+  -------------------------------------------------------------------
+                         required time                          7.030    
+                         arrival time                          -6.340    
+  -------------------------------------------------------------------
+                         slack                                  0.690    
+
+Slack (MET) :             0.695ns  (required time - arrival time)
+  Source:                 gen_monitor.r_trans_table_reg[0][valid]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMB/I
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        5.799ns  (logic 1.661ns (28.645%)  route 4.138ns (71.355%))
+  Logic Levels:           15  (CARRY4=7 LUT2=1 LUT4=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.537     0.537    aclk
+    SLICE_X10Y151        FDCE                                         r  gen_monitor.r_trans_table_reg[0][valid]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X10Y151        FDCE (Prop_fdce_C_Q)         0.259     0.796 f  gen_monitor.r_trans_table_reg[0][valid]/Q
+                         net (fo=13, routed)          0.602     1.398    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][valid]__0
+    SLICE_X8Y153         LUT4 (Prop_lut4_I1_O)        0.043     1.441 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_transaction_count[31]_i_5/O
+                         net (fo=43, routed)          0.464     1.905    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_has_active_trans3
+    SLICE_X12Y153        LUT2 (Prop_lut2_I0_O)        0.049     1.954 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table[1][state][2]_i_3/O
+                         net (fo=35, routed)          0.717     2.671    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][state][2]
+    SLICE_X8Y161         LUT4 (Prop_lut4_I0_O)        0.132     2.803 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44/O
+                         net (fo=1, routed)           0.328     3.131    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44_n_0
+    SLICE_X11Y159        LUT6 (Prop_lut6_I1_O)        0.043     3.174 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30/O
+                         net (fo=1, routed)           0.000     3.174    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30_n_0
+    SLICE_X11Y159        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.259     3.433 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7/CO[3]
+                         net (fo=1, routed)           0.000     3.433    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7_n_0
+    SLICE_X11Y160        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.486 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20/CO[3]
+                         net (fo=1, routed)           0.000     3.486    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20_n_0
+    SLICE_X11Y161        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.539 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13/CO[3]
+                         net (fo=1, routed)           0.000     3.539    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13_n_0
+    SLICE_X11Y162        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.592 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9/CO[3]
+                         net (fo=1, routed)           0.000     3.592    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9_n_0
+    SLICE_X11Y163        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.645 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14/CO[3]
+                         net (fo=1, routed)           0.000     3.645    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14_n_0
+    SLICE_X11Y164        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.166     3.811 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_30_35_i_10/O[1]
+                         net (fo=3, routed)           0.545     4.357    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_latency_threshold_exceeded2[25]
+    SLICE_X12Y163        LUT4 (Prop_lut4_I1_O)        0.123     4.480 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12/O
+                         net (fo=1, routed)           0.000     4.480    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12_n_0
+    SLICE_X12Y163        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.246     4.726 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_reg_i_2/CO[3]
+                         net (fo=4, routed)           0.514     5.240    gen_monitor.monitor_fifo/fifo_control_inst/CO[0]
+    SLICE_X14Y159        LUT6 (Prop_lut6_I2_O)        0.043     5.283 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_0_5_i_9/O
+                         net (fo=7, routed)           0.195     5.478    gen_monitor.monitor_fifo/gen_monitor.w_generate_perf_event
+    SLICE_X15Y158        LUT6 (Prop_lut6_I4_O)        0.043     5.521 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10/O
+                         net (fo=32, routed)          0.494     6.016    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10_n_0
+    SLICE_X13Y164        LUT6 (Prop_lut6_I0_O)        0.043     6.059 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29_i_4/O
+                         net (fo=1, routed)           0.277     6.336    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/DIB0
+    SLICE_X14Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMB/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=739, unset)          0.510     7.177    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/WCLK
+    SLICE_X14Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMB/CLK
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X14Y165        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.111     7.031    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_24_29/RAMB
+  -------------------------------------------------------------------
+                         required time                          7.031    
+                         arrival time                          -6.336    
+  -------------------------------------------------------------------
+                         slack                                  0.695    
+
+Slack (MET) :             0.696ns  (required time - arrival time)
+  Source:                 gen_monitor.r_trans_table_reg[0][valid]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_18_23/RAMC_D1/I
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        5.762ns  (logic 1.661ns (28.829%)  route 4.101ns (71.171%))
+  Logic Levels:           15  (CARRY4=7 LUT2=1 LUT4=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.537     0.537    aclk
+    SLICE_X10Y151        FDCE                                         r  gen_monitor.r_trans_table_reg[0][valid]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X10Y151        FDCE (Prop_fdce_C_Q)         0.259     0.796 f  gen_monitor.r_trans_table_reg[0][valid]/Q
+                         net (fo=13, routed)          0.602     1.398    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][valid]__0
+    SLICE_X8Y153         LUT4 (Prop_lut4_I1_O)        0.043     1.441 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_transaction_count[31]_i_5/O
+                         net (fo=43, routed)          0.464     1.905    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_has_active_trans3
+    SLICE_X12Y153        LUT2 (Prop_lut2_I0_O)        0.049     1.954 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table[1][state][2]_i_3/O
+                         net (fo=35, routed)          0.717     2.671    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][state][2]
+    SLICE_X8Y161         LUT4 (Prop_lut4_I0_O)        0.132     2.803 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44/O
+                         net (fo=1, routed)           0.328     3.131    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44_n_0
+    SLICE_X11Y159        LUT6 (Prop_lut6_I1_O)        0.043     3.174 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30/O
+                         net (fo=1, routed)           0.000     3.174    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30_n_0
+    SLICE_X11Y159        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.259     3.433 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7/CO[3]
+                         net (fo=1, routed)           0.000     3.433    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7_n_0
+    SLICE_X11Y160        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.486 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20/CO[3]
+                         net (fo=1, routed)           0.000     3.486    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20_n_0
+    SLICE_X11Y161        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.539 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13/CO[3]
+                         net (fo=1, routed)           0.000     3.539    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13_n_0
+    SLICE_X11Y162        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.592 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9/CO[3]
+                         net (fo=1, routed)           0.000     3.592    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9_n_0
+    SLICE_X11Y163        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.645 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14/CO[3]
+                         net (fo=1, routed)           0.000     3.645    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14_n_0
+    SLICE_X11Y164        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.166     3.811 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_30_35_i_10/O[1]
+                         net (fo=3, routed)           0.545     4.357    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_latency_threshold_exceeded2[25]
+    SLICE_X12Y163        LUT4 (Prop_lut4_I1_O)        0.123     4.480 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12/O
+                         net (fo=1, routed)           0.000     4.480    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12_n_0
+    SLICE_X12Y163        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.246     4.726 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_reg_i_2/CO[3]
+                         net (fo=4, routed)           0.514     5.240    gen_monitor.monitor_fifo/fifo_control_inst/CO[0]
+    SLICE_X14Y159        LUT6 (Prop_lut6_I2_O)        0.043     5.283 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_0_5_i_9/O
+                         net (fo=7, routed)           0.195     5.478    gen_monitor.monitor_fifo/gen_monitor.w_generate_perf_event
+    SLICE_X15Y158        LUT6 (Prop_lut6_I4_O)        0.043     5.521 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10/O
+                         net (fo=32, routed)          0.461     5.982    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10_n_0
+    SLICE_X13Y162        LUT6 (Prop_lut6_I3_O)        0.043     6.025 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_18_23_i_5/O
+                         net (fo=1, routed)           0.274     6.299    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_18_23/DIC1
+    SLICE_X14Y161        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_18_23/RAMC_D1/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=739, unset)          0.510     7.177    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_18_23/WCLK
+    SLICE_X14Y161        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_18_23/RAMC_D1/CLK
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X14Y161        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.147     6.995    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_18_23/RAMC_D1
+  -------------------------------------------------------------------
+                         required time                          6.995    
+                         arrival time                          -6.299    
+  -------------------------------------------------------------------
+                         slack                                  0.696    
+
+Slack (MET) :             0.717ns  (required time - arrival time)
+  Source:                 gen_monitor.r_trans_table_reg[0][valid]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMB/I
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        5.777ns  (logic 1.661ns (28.752%)  route 4.116ns (71.248%))
+  Logic Levels:           15  (CARRY4=7 LUT2=1 LUT4=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.537     0.537    aclk
+    SLICE_X10Y151        FDCE                                         r  gen_monitor.r_trans_table_reg[0][valid]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X10Y151        FDCE (Prop_fdce_C_Q)         0.259     0.796 f  gen_monitor.r_trans_table_reg[0][valid]/Q
+                         net (fo=13, routed)          0.602     1.398    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][valid]__0
+    SLICE_X8Y153         LUT4 (Prop_lut4_I1_O)        0.043     1.441 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_transaction_count[31]_i_5/O
+                         net (fo=43, routed)          0.464     1.905    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_has_active_trans3
+    SLICE_X12Y153        LUT2 (Prop_lut2_I0_O)        0.049     1.954 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table[1][state][2]_i_3/O
+                         net (fo=35, routed)          0.717     2.671    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_trans_table_reg[0][state][2]
+    SLICE_X8Y161         LUT4 (Prop_lut4_I0_O)        0.132     2.803 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44/O
+                         net (fo=1, routed)           0.328     3.131    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_44_n_0
+    SLICE_X11Y159        LUT6 (Prop_lut6_I1_O)        0.043     3.174 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30/O
+                         net (fo=1, routed)           0.000     3.174    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_30_n_0
+    SLICE_X11Y159        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.259     3.433 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7/CO[3]
+                         net (fo=1, routed)           0.000     3.433    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_7_n_0
+    SLICE_X11Y160        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.486 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20/CO[3]
+                         net (fo=1, routed)           0.000     3.486    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_12_17_i_20_n_0
+    SLICE_X11Y161        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.539 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13/CO[3]
+                         net (fo=1, routed)           0.000     3.539    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_18_23_i_13_n_0
+    SLICE_X11Y162        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.592 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9/CO[3]
+                         net (fo=1, routed)           0.000     3.592    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_9_n_0
+    SLICE_X11Y163        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     3.645 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14/CO[3]
+                         net (fo=1, routed)           0.000     3.645    gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_24_29_i_14_n_0
+    SLICE_X11Y164        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.166     3.811 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_30_35_i_10/O[1]
+                         net (fo=3, routed)           0.545     4.357    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.w_latency_threshold_exceeded2[25]
+    SLICE_X12Y163        LUT4 (Prop_lut4_I1_O)        0.123     4.480 r  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12/O
+                         net (fo=1, routed)           0.000     4.480    gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_i_12_n_0
+    SLICE_X12Y163        CARRY4 (Prop_carry4_S[0]_CO[3])
+                                                      0.246     4.726 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_monitor.r_latency_exceeded_d_reg_i_2/CO[3]
+                         net (fo=4, routed)           0.514     5.240    gen_monitor.monitor_fifo/fifo_control_inst/CO[0]
+    SLICE_X14Y159        LUT6 (Prop_lut6_I2_O)        0.043     5.283 f  gen_monitor.monitor_fifo/fifo_control_inst/gen_auto.mem_reg_0_7_0_5_i_9/O
+                         net (fo=7, routed)           0.195     5.478    gen_monitor.monitor_fifo/gen_monitor.w_generate_perf_event
+    SLICE_X15Y158        LUT6 (Prop_lut6_I4_O)        0.043     5.521 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10/O
+                         net (fo=32, routed)          0.467     5.989    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_6_11_i_10_n_0
+    SLICE_X15Y165        LUT6 (Prop_lut6_I0_O)        0.043     6.032 r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41_i_4/O
+                         net (fo=1, routed)           0.282     6.314    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/DIB0
+    SLICE_X16Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMB/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=739, unset)          0.510     7.177    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/WCLK
+    SLICE_X16Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMB/CLK
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X16Y165        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.111     7.031    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMB
+  -------------------------------------------------------------------
+                         required time                          7.031    
+                         arrival time                          -6.314    
+  -------------------------------------------------------------------
+                         slack                                  0.717    
+
+
+
+
+
+Min Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             0.108ns  (arrival time - required time)
+  Source:                 gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][0]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.209ns  (logic 0.128ns (61.382%)  route 0.081ns (38.618%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.266     0.266    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X21Y167        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X21Y167        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][0]/Q
+                         net (fo=1, routed)           0.081     0.447    gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1]_0[0]
+    SLICE_X20Y167        LUT4 (Prop_lut4_I2_O)        0.028     0.475 r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data[0][0]_i_1/O
+                         net (fo=1, routed)           0.000     0.475    gen_monitor.monbus_skid_buffer/g_slot[0].r_data[0][0]_i_1_n_0
+    SLICE_X20Y167        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][0]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.280     0.280    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X20Y167        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][0]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X20Y167        FDCE (Hold_fdce_C_D)         0.087     0.367    gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][0]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.475    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.108ns  (arrival time - required time)
+  Source:                 gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][100]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][100]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.209ns  (logic 0.128ns (61.382%)  route 0.081ns (38.618%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.266     0.266    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X21Y156        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][100]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X21Y156        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][100]/Q
+                         net (fo=1, routed)           0.081     0.447    gen_monitor.monitor_fifo/fifo_control_inst/Q[36]
+    SLICE_X20Y156        LUT4 (Prop_lut4_I2_O)        0.028     0.475 r  gen_monitor.monitor_fifo/fifo_control_inst/g_slot[0].r_data[0][100]_i_1/O
+                         net (fo=1, routed)           0.000     0.475    gen_monitor.monbus_skid_buffer/D[36]
+    SLICE_X20Y156        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][100]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.280     0.280    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X20Y156        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][100]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X20Y156        FDCE (Hold_fdce_C_D)         0.087     0.367    gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][100]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.475    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.108ns  (arrival time - required time)
+  Source:                 gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][14]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][14]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.209ns  (logic 0.128ns (61.382%)  route 0.081ns (38.618%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.266     0.266    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X21Y158        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][14]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X21Y158        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][14]/Q
+                         net (fo=1, routed)           0.081     0.447    gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1]_0[14]
+    SLICE_X20Y158        LUT4 (Prop_lut4_I2_O)        0.028     0.475 r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data[0][14]_i_1/O
+                         net (fo=1, routed)           0.000     0.475    gen_monitor.monbus_skid_buffer/g_slot[0].r_data[0][14]_i_1_n_0
+    SLICE_X20Y158        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][14]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.280     0.280    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X20Y158        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][14]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X20Y158        FDCE (Hold_fdce_C_D)         0.087     0.367    gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][14]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.475    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.108ns  (arrival time - required time)
+  Source:                 gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][188]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][188]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.209ns  (logic 0.128ns (61.382%)  route 0.081ns (38.618%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.266     0.266    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X21Y160        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][188]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X21Y160        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][188]/Q
+                         net (fo=1, routed)           0.081     0.447    gen_monitor.monitor_fifo/fifo_control_inst/Q[42]
+    SLICE_X20Y160        LUT4 (Prop_lut4_I2_O)        0.028     0.475 r  gen_monitor.monitor_fifo/fifo_control_inst/g_slot[0].r_data[0][188]_i_1/O
+                         net (fo=1, routed)           0.000     0.475    gen_monitor.monbus_skid_buffer/D[42]
+    SLICE_X20Y160        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][188]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.280     0.280    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X20Y160        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][188]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X20Y160        FDCE (Hold_fdce_C_D)         0.087     0.367    gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][188]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.475    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.108ns  (arrival time - required time)
+  Source:                 gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][28]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][28]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.209ns  (logic 0.128ns (61.382%)  route 0.081ns (38.618%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.266     0.266    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X21Y154        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][28]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X21Y154        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][28]/Q
+                         net (fo=1, routed)           0.081     0.447    gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1]_0[28]
+    SLICE_X20Y154        LUT4 (Prop_lut4_I2_O)        0.028     0.475 r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data[0][28]_i_1/O
+                         net (fo=1, routed)           0.000     0.475    gen_monitor.monbus_skid_buffer/g_slot[0].r_data[0][28]_i_1_n_0
+    SLICE_X20Y154        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][28]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.280     0.280    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X20Y154        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][28]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X20Y154        FDCE (Hold_fdce_C_D)         0.087     0.367    gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][28]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.475    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.108ns  (arrival time - required time)
+  Source:                 gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][2]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][2]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.209ns  (logic 0.128ns (61.382%)  route 0.081ns (38.618%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.266     0.266    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X21Y151        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X21Y151        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][2]/Q
+                         net (fo=1, routed)           0.081     0.447    gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1]_0[2]
+    SLICE_X20Y151        LUT4 (Prop_lut4_I2_O)        0.028     0.475 r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data[0][2]_i_1/O
+                         net (fo=1, routed)           0.000     0.475    gen_monitor.monbus_skid_buffer/g_slot[0].r_data[0][2]_i_1_n_0
+    SLICE_X20Y151        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][2]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.280     0.280    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X20Y151        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][2]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X20Y151        FDCE (Hold_fdce_C_D)         0.087     0.367    gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][2]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.475    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.108ns  (arrival time - required time)
+  Source:                 gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][30]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][30]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.209ns  (logic 0.128ns (61.382%)  route 0.081ns (38.618%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.266     0.266    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X15Y152        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][30]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X15Y152        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][30]/Q
+                         net (fo=1, routed)           0.081     0.447    gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1]_0[30]
+    SLICE_X14Y152        LUT4 (Prop_lut4_I2_O)        0.028     0.475 r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data[0][30]_i_1/O
+                         net (fo=1, routed)           0.000     0.475    gen_monitor.monbus_skid_buffer/g_slot[0].r_data[0][30]_i_1_n_0
+    SLICE_X14Y152        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][30]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.280     0.280    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X14Y152        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][30]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X14Y152        FDCE (Hold_fdce_C_D)         0.087     0.367    gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][30]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.475    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.108ns  (arrival time - required time)
+  Source:                 gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][42]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][42]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.209ns  (logic 0.128ns (61.382%)  route 0.081ns (38.618%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.266     0.266    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X15Y151        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][42]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X15Y151        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1][42]/Q
+                         net (fo=1, routed)           0.081     0.447    gen_monitor.monbus_skid_buffer/g_slot[1].r_data_reg[1]_0[42]
+    SLICE_X14Y151        LUT4 (Prop_lut4_I2_O)        0.028     0.475 r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data[0][42]_i_1/O
+                         net (fo=1, routed)           0.000     0.475    gen_monitor.monbus_skid_buffer/g_slot[0].r_data[0][42]_i_1_n_0
+    SLICE_X14Y151        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][42]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.280     0.280    gen_monitor.monbus_skid_buffer/aclk
+    SLICE_X14Y151        FDCE                                         r  gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][42]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X14Y151        FDCE (Hold_fdce_C_D)         0.087     0.367    gen_monitor.monbus_skid_buffer/g_slot[0].r_data_reg[0][42]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.475    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.113ns  (arrival time - required time)
+  Source:                 gen_monitor.monitor_fifo/write_pointer_inst/counter_bin_curr_reg[2]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMA/WADR2
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.368ns  (logic 0.118ns (32.075%)  route 0.250ns (67.925%))
+  Logic Levels:           0  
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.266     0.266    gen_monitor.monitor_fifo/write_pointer_inst/aclk
+    SLICE_X16Y163        FDCE                                         r  gen_monitor.monitor_fifo/write_pointer_inst/counter_bin_curr_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X16Y163        FDCE (Prop_fdce_C_Q)         0.118     0.384 r  gen_monitor.monitor_fifo/write_pointer_inst/counter_bin_curr_reg[2]/Q
+                         net (fo=66, routed)          0.250     0.634    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/ADDRD2
+    SLICE_X16Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMA/WADR2
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.280     0.280    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/WCLK
+    SLICE_X16Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMA/CLK
+                         clock pessimism              0.000     0.280    
+    SLICE_X16Y165        RAMD32 (Hold_ramd32_CLK_WADR2)
+                                                      0.241     0.521    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMA
+  -------------------------------------------------------------------
+                         required time                         -0.521    
+                         arrival time                           0.634    
+  -------------------------------------------------------------------
+                         slack                                  0.113    
+
+Slack (MET) :             0.113ns  (arrival time - required time)
+  Source:                 gen_monitor.monitor_fifo/write_pointer_inst/counter_bin_curr_reg[2]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMA_D1/WADR2
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.368ns  (logic 0.118ns (32.075%)  route 0.250ns (67.925%))
+  Logic Levels:           0  
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.266     0.266    gen_monitor.monitor_fifo/write_pointer_inst/aclk
+    SLICE_X16Y163        FDCE                                         r  gen_monitor.monitor_fifo/write_pointer_inst/counter_bin_curr_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X16Y163        FDCE (Prop_fdce_C_Q)         0.118     0.384 r  gen_monitor.monitor_fifo/write_pointer_inst/counter_bin_curr_reg[2]/Q
+                         net (fo=66, routed)          0.250     0.634    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/ADDRD2
+    SLICE_X16Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMA_D1/WADR2
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=739, unset)          0.280     0.280    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/WCLK
+    SLICE_X16Y165        RAMD32                                       r  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMA_D1/CLK
+                         clock pessimism              0.000     0.280    
+    SLICE_X16Y165        RAMD32 (Hold_ramd32_CLK_WADR2)
+                                                      0.241     0.521    gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_36_41/RAMA_D1
+  -------------------------------------------------------------------
+                         required time                         -0.521    
+                         arrival time                           0.634    
+  -------------------------------------------------------------------
+                         slack                                  0.113    
+
+
+
+
+
+Pulse Width Checks
+--------------------------------------------------------------------------------------
+Clock Name:         aclk
+Waveform(ns):       { 0.000 3.333 }
+Period(ns):         6.667
+Sources:            { aclk }
+
+Check Type        Corner  Lib Pin     Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location       Pin
+Min Period        n/a     FDCE/C      n/a            0.750         6.667       5.917      SLICE_X17Y162  gen_monitor.r_rsp_timeout_d_reg/C
+Min Period        n/a     FDCE/C      n/a            0.750         6.667       5.917      SLICE_X8Y163   gen_monitor.r_trans_table_reg[0][addr_timestamp][19]/C
+Min Period        n/a     FDCE/C      n/a            0.750         6.667       5.917      SLICE_X8Y163   gen_monitor.r_trans_table_reg[0][addr_timestamp][20]/C
+Min Period        n/a     FDCE/C      n/a            0.750         6.667       5.917      SLICE_X8Y163   gen_monitor.r_trans_table_reg[0][addr_timestamp][23]/C
+Min Period        n/a     FDCE/C      n/a            0.750         6.667       5.917      SLICE_X12Y167  gen_monitor.r_trans_table_reg[0][addr_timestamp][30]/C
+Min Period        n/a     FDCE/C      n/a            0.750         6.667       5.917      SLICE_X8Y161   gen_monitor.r_trans_table_reg[0][addr_timestamp][9]/C
+Min Period        n/a     FDCE/C      n/a            0.750         6.667       5.917      SLICE_X9Y163   gen_monitor.r_trans_table_reg[1][addr_timestamp][19]/C
+Min Period        n/a     FDCE/C      n/a            0.750         6.667       5.917      SLICE_X9Y163   gen_monitor.r_trans_table_reg[1][addr_timestamp][20]/C
+Min Period        n/a     FDCE/C      n/a            0.750         6.667       5.917      SLICE_X9Y163   gen_monitor.r_trans_table_reg[1][addr_timestamp][23]/C
+Min Period        n/a     FDCE/C      n/a            0.750         6.667       5.917      SLICE_X13Y167  gen_monitor.r_trans_table_reg[1][addr_timestamp][30]/C
+Low Pulse Width   Slow    RAMD32/CLK  n/a            0.768         3.334       2.566      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMA/CLK
+Low Pulse Width   Fast    RAMD32/CLK  n/a            0.768         3.334       2.566      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMA/CLK
+Low Pulse Width   Slow    RAMD32/CLK  n/a            0.768         3.334       2.566      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMA_D1/CLK
+Low Pulse Width   Fast    RAMD32/CLK  n/a            0.768         3.334       2.566      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMA_D1/CLK
+Low Pulse Width   Slow    RAMD32/CLK  n/a            0.768         3.334       2.566      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMB/CLK
+Low Pulse Width   Fast    RAMD32/CLK  n/a            0.768         3.334       2.566      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMB/CLK
+Low Pulse Width   Slow    RAMD32/CLK  n/a            0.768         3.334       2.566      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMB_D1/CLK
+Low Pulse Width   Fast    RAMD32/CLK  n/a            0.768         3.334       2.566      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMB_D1/CLK
+Low Pulse Width   Slow    RAMD32/CLK  n/a            0.768         3.334       2.566      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMC/CLK
+Low Pulse Width   Fast    RAMD32/CLK  n/a            0.768         3.334       2.566      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMC/CLK
+High Pulse Width  Slow    RAMD32/CLK  n/a            0.768         3.333       2.565      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMA/CLK
+High Pulse Width  Fast    RAMD32/CLK  n/a            0.768         3.333       2.565      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMA/CLK
+High Pulse Width  Slow    RAMD32/CLK  n/a            0.768         3.333       2.565      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMA_D1/CLK
+High Pulse Width  Fast    RAMD32/CLK  n/a            0.768         3.333       2.565      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMA_D1/CLK
+High Pulse Width  Slow    RAMD32/CLK  n/a            0.768         3.333       2.565      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMB/CLK
+High Pulse Width  Fast    RAMD32/CLK  n/a            0.768         3.333       2.565      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMB/CLK
+High Pulse Width  Slow    RAMD32/CLK  n/a            0.768         3.333       2.565      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMB_D1/CLK
+High Pulse Width  Fast    RAMD32/CLK  n/a            0.768         3.333       2.565      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMB_D1/CLK
+High Pulse Width  Slow    RAMD32/CLK  n/a            0.768         3.333       2.565      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMC/CLK
+High Pulse Width  Fast    RAMD32/CLK  n/a            0.768         3.333       2.565      SLICE_X18Y157  gen_monitor.monitor_fifo/gen_auto.mem_reg_0_7_0_5/RAMC/CLK
+
+
+

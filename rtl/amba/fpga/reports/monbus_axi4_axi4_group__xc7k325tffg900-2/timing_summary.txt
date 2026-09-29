@@ -1,0 +1,1273 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 19:01:49 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing_summary -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/monbus_axi4_axi4_group__xc7k325tffg900-2/timing_summary.txt -max_paths 10
+| Design       : monbus_axi4_axi4_group
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Summary Report
+
+------------------------------------------------------------------------------------------------
+| Timer Settings
+| --------------
+------------------------------------------------------------------------------------------------
+
+  Enable Multi Corner Analysis               :  Yes
+  Enable Pessimism Removal                   :  Yes
+  Pessimism Removal Resolution               :  Nearest Common Node
+  Enable Input Delay Default Clock           :  No
+  Enable Preset / Clear Arcs                 :  No
+  Disable Flight Delays                      :  No
+  Ignore I/O Paths                           :  No
+  Timing Early Launch at Borrowing Latches   :  No
+  Borrow Time for Max Delay Exceptions       :  Yes
+  Merge Timing Exceptions                    :  Yes
+  Inter-SLR Compensation                     :  Conservative
+
+  Corner  Analyze    Analyze    
+  Name    Max Paths  Min Paths  
+  ------  ---------  ---------  
+  Slow    Yes        Yes        
+  Fast    Yes        Yes        
+
+
+------------------------------------------------------------------------------------------------
+| Report Methodology
+| ------------------
+------------------------------------------------------------------------------------------------
+
+No report available as report_methodology has not been run prior. Run report_methodology on the current design for the summary of methodology violations.
+
+
+
+check_timing report
+
+Table of Contents
+-----------------
+1. checking no_clock (0)
+2. checking constant_clock (0)
+3. checking pulse_width_clock (0)
+4. checking unconstrained_internal_endpoints (0)
+5. checking no_input_delay (1)
+6. checking no_output_delay (0)
+7. checking multiple_clock (0)
+8. checking generated_clocks (0)
+9. checking loops (0)
+10. checking partial_input_delay (0)
+11. checking partial_output_delay (0)
+12. checking latch_loops (0)
+
+1. checking no_clock (0)
+------------------------
+ There are 0 register/latch pins with no clock.
+
+
+2. checking constant_clock (0)
+------------------------------
+ There are 0 register/latch pins with constant_clock.
+
+
+3. checking pulse_width_clock (0)
+---------------------------------
+ There are 0 register/latch pins which need pulse_width check
+
+
+4. checking unconstrained_internal_endpoints (0)
+------------------------------------------------
+ There are 0 pins that are not constrained for maximum delay.
+
+ There are 0 pins that are not constrained for maximum delay due to constant clock.
+
+
+5. checking no_input_delay (1)
+------------------------------
+ There are 0 input ports with no input delay specified.
+
+ There is 1 input port with no input delay but user has a false path constraint. (MEDIUM)
+
+
+6. checking no_output_delay (0)
+-------------------------------
+ There are 0 ports with no output delay specified.
+
+ There are 0 ports with no output delay but user has a false path constraint
+
+ There are 0 ports with no output delay but with a timing clock defined on it or propagating through it
+
+
+7. checking multiple_clock (0)
+------------------------------
+ There are 0 register/latch pins with multiple clocks.
+
+
+8. checking generated_clocks (0)
+--------------------------------
+ There are 0 generated clocks that are not connected to a clock source.
+
+
+9. checking loops (0)
+---------------------
+ There are 0 combinational loops in the design.
+
+
+10. checking partial_input_delay (0)
+------------------------------------
+ There are 0 input ports with partial input delay specified.
+
+
+11. checking partial_output_delay (0)
+-------------------------------------
+ There are 0 ports with partial output delay specified.
+
+
+12. checking latch_loops (0)
+----------------------------
+ There are 0 combinational latch loops in the design through latch input
+
+
+
+------------------------------------------------------------------------------------------------
+| Design Timing Summary
+| ---------------------
+------------------------------------------------------------------------------------------------
+
+    WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+    -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+     -1.728      -23.211                     16                 5890        0.082        0.000                      0                 5890        2.565        0.000                       0                  1810  
+
+
+Timing constraints are not met.
+
+
+------------------------------------------------------------------------------------------------
+| Clock Summary
+| -------------
+------------------------------------------------------------------------------------------------
+
+Clock     Waveform(ns)         Period(ns)      Frequency(MHz)
+-----     ------------         ----------      --------------
+axi_aclk  {0.000 3.333}        6.667           149.992         
+
+
+------------------------------------------------------------------------------------------------
+| Intra Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+Clock             WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+-----             -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+axi_aclk           -1.728      -23.211                     16                 5890        0.082        0.000                      0                 5890        2.565        0.000                       0                  1810  
+
+
+------------------------------------------------------------------------------------------------
+| Inter Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------    --------          -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+
+
+------------------------------------------------------------------------------------------------
+| Other Path Groups Table
+| -----------------------
+------------------------------------------------------------------------------------------------
+
+Path Group    From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------    ----------    --------          -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+
+
+------------------------------------------------------------------------------------------------
+| Timing Details
+| --------------
+------------------------------------------------------------------------------------------------
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  axi_aclk
+  To Clock:  axi_aclk
+
+Setup :           16  Failing Endpoints,  Worst Slack       -1.728ns,  Total Violation      -23.211ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.082ns,  Total Violation        0.000ns
+PW    :            0  Failing Endpoints,  Worst Slack        2.565ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Max Delay Paths
+--------------------------------------------------------------------------------------
+Slack (VIOLATED) :        -1.728ns  (required time - arrival time)
+  Source:                 cfg_core_error_mask[8]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            write_fifo_count[5]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        4.359ns  (logic 1.019ns (23.375%)  route 3.340ns (76.625%))
+  Logic Levels:           10  (CARRY4=2 LUT3=1 LUT4=1 LUT6=5 MUXF7=1)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_core_error_mask[8] (IN)
+                         net (fo=0)                   0.537     2.537    u_core/u_write_fifo/fifo_control_inst/cfg_core_error_mask[8]
+    SLICE_X31Y208        LUT6 (Prop_lut6_I5_O)        0.043     2.580 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_105/O
+                         net (fo=1, routed)           0.425     3.005    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_105_n_0
+    SLICE_X29Y208        LUT6 (Prop_lut6_I1_O)        0.043     3.048 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_54/O
+                         net (fo=1, routed)           0.316     3.365    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_54_n_0
+    SLICE_X28Y207        LUT6 (Prop_lut6_I3_O)        0.043     3.408 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_20/O
+                         net (fo=2, routed)           0.000     3.408    u_core/u_write_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X28Y207        MUXF7 (Prop_muxf7_I0_O)      0.120     3.528 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_6/O
+                         net (fo=1, routed)           0.437     3.964    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_6_n_0
+    SLICE_X29Y207        LUT6 (Prop_lut6_I1_O)        0.122     4.086 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=7, routed)           0.126     4.212    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X29Y207        LUT4 (Prop_lut4_I0_O)        0.043     4.255 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=82, routed)          0.409     4.665    u_core/u_write_fifo/write_pointer_inst/counter_bin_curr_reg[3]_0
+    SLICE_X30Y205        LUT6 (Prop_lut6_I3_O)        0.043     4.708 r  u_core/u_write_fifo/write_pointer_inst/i__carry_i_4/O
+                         net (fo=1, routed)           0.000     4.708    u_core/u_write_fifo/fifo_control_inst/r_fifo_beats_reg[3][1]
+    SLICE_X30Y205        CARRY4 (Prop_carry4_S[1]_CO[3])
+                                                      0.267     4.975 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/CO[3]
+                         net (fo=1, routed)           0.000     4.975    u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry_n_0
+    SLICE_X30Y206        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.166     5.141 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/O[1]
+                         net (fo=1, routed)           0.553     5.693    u_core/u_write_fifo/write_pointer_inst/r_fifo_beats_reg[7][1]
+    SLICE_X28Y206        LUT3 (Prop_lut3_I2_O)        0.129     5.822 r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[5]_INST_0/O
+                         net (fo=1, unset)            0.537     6.359    write_fifo_count[5]
+                                                                      r  write_fifo_count[5] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -6.359    
+  -------------------------------------------------------------------
+                         slack                                 -1.728    
+
+Slack (VIOLATED) :        -1.694ns  (required time - arrival time)
+  Source:                 cfg_axis_pkt_mask[12]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            err_fifo_count[5]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        4.326ns  (logic 0.857ns (19.811%)  route 3.469ns (80.189%))
+  Logic Levels:           10  (CARRY4=2 LUT3=2 LUT6=6)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_axis_pkt_mask[12] (IN)
+                         net (fo=0)                   0.537     2.537    u_core/u_write_fifo/fifo_control_inst/cfg_axis_pkt_mask[12]
+    SLICE_X36Y206        LUT6 (Prop_lut6_I5_O)        0.043     2.580 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_75/O
+                         net (fo=1, routed)           0.360     2.940    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_75_n_0
+    SLICE_X36Y206        LUT6 (Prop_lut6_I0_O)        0.043     2.983 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_31/O
+                         net (fo=1, routed)           0.553     3.536    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_31_n_0
+    SLICE_X28Y206        LUT6 (Prop_lut6_I0_O)        0.043     3.579 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=3, routed)           0.119     3.698    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X28Y206        LUT6 (Prop_lut6_I0_O)        0.043     3.741 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_4/O
+                         net (fo=4, routed)           0.461     4.202    u_core/u_err_fifo/fifo_control_inst/counter_bin_curr_reg[6]
+    SLICE_X32Y206        LUT6 (Prop_lut6_I1_O)        0.043     4.245 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_3/O
+                         net (fo=15, routed)          0.230     4.475    u_core/u_err_fifo/write_pointer_inst/counter_bin_curr_reg[6]_0
+    SLICE_X33Y205        LUT3 (Prop_lut3_I0_O)        0.043     4.518 r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/O
+                         net (fo=5, routed)           0.329     4.846    u_core/u_err_fifo/read_pointer_inst/rdom_wr_ptr_bin[0]
+    SLICE_X32Y203        LUT6 (Prop_lut6_I0_O)        0.043     4.889 r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[3]_INST_0_i_4/O
+                         net (fo=1, routed)           0.000     4.889    u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3][0]
+    SLICE_X32Y203        CARRY4 (Prop_carry4_S[1]_CO[3])
+                                                      0.267     5.156 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3]_INST_0_i_1/CO[3]
+                         net (fo=1, routed)           0.000     5.156    u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3]_INST_0_i_1_n_0
+    SLICE_X32Y204        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.166     5.322 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[6]_INST_0_i_1/O[1]
+                         net (fo=1, routed)           0.343     5.666    u_core/u_err_fifo/write_pointer_inst/err_fifo_count[6]_INST_0_i_1_n_6
+    SLICE_X35Y204        LUT3 (Prop_lut3_I2_O)        0.123     5.789 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[5]_INST_0/O
+                         net (fo=0)                   0.537     6.326    err_fifo_count[5]
+                                                                      r  err_fifo_count[5] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -6.326    
+  -------------------------------------------------------------------
+                         slack                                 -1.694    
+
+Slack (VIOLATED) :        -1.646ns  (required time - arrival time)
+  Source:                 cfg_core_error_mask[8]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            write_fifo_count[7]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        4.277ns  (logic 0.893ns (20.878%)  route 3.384ns (79.122%))
+  Logic Levels:           9  (CARRY4=1 LUT3=1 LUT4=1 LUT6=5 MUXF7=1)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_core_error_mask[8] (IN)
+                         net (fo=0)                   0.537     2.537    u_core/u_write_fifo/fifo_control_inst/cfg_core_error_mask[8]
+    SLICE_X31Y208        LUT6 (Prop_lut6_I5_O)        0.043     2.580 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_105/O
+                         net (fo=1, routed)           0.425     3.005    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_105_n_0
+    SLICE_X29Y208        LUT6 (Prop_lut6_I1_O)        0.043     3.048 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_54/O
+                         net (fo=1, routed)           0.316     3.365    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_54_n_0
+    SLICE_X28Y207        LUT6 (Prop_lut6_I3_O)        0.043     3.408 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_20/O
+                         net (fo=2, routed)           0.000     3.408    u_core/u_write_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X28Y207        MUXF7 (Prop_muxf7_I0_O)      0.120     3.528 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_6/O
+                         net (fo=1, routed)           0.437     3.964    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_6_n_0
+    SLICE_X29Y207        LUT6 (Prop_lut6_I1_O)        0.122     4.086 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=7, routed)           0.126     4.212    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X29Y207        LUT4 (Prop_lut4_I0_O)        0.043     4.255 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=82, routed)          0.229     4.484    u_core/u_write_fifo/write_pointer_inst/counter_bin_curr_reg[3]_0
+    SLICE_X30Y207        LUT6 (Prop_lut6_I3_O)        0.043     4.527 r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[4]_i_1__1/O
+                         net (fo=5, routed)           0.304     4.832    u_core/u_write_fifo/fifo_control_inst/D[4]
+    SLICE_X30Y206        CARRY4 (Prop_carry4_DI[0]_O[3])
+                                                      0.308     5.140 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/O[3]
+                         net (fo=1, routed)           0.473     5.612    u_core/u_write_fifo/write_pointer_inst/r_fifo_beats_reg[7][3]
+    SLICE_X31Y206        LUT3 (Prop_lut3_I0_O)        0.128     5.740 r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[7]_INST_0/O
+                         net (fo=1, unset)            0.537     6.277    write_fifo_count[7]
+                                                                      r  write_fifo_count[7] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -6.277    
+  -------------------------------------------------------------------
+                         slack                                 -1.646    
+
+Slack (VIOLATED) :        -1.572ns  (required time - arrival time)
+  Source:                 cfg_core_error_mask[8]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            write_fifo_count[6]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        4.204ns  (logic 0.850ns (20.218%)  route 3.354ns (79.782%))
+  Logic Levels:           9  (CARRY4=1 LUT3=1 LUT4=1 LUT6=5 MUXF7=1)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_core_error_mask[8] (IN)
+                         net (fo=0)                   0.537     2.537    u_core/u_write_fifo/fifo_control_inst/cfg_core_error_mask[8]
+    SLICE_X31Y208        LUT6 (Prop_lut6_I5_O)        0.043     2.580 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_105/O
+                         net (fo=1, routed)           0.425     3.005    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_105_n_0
+    SLICE_X29Y208        LUT6 (Prop_lut6_I1_O)        0.043     3.048 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_54/O
+                         net (fo=1, routed)           0.316     3.365    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_54_n_0
+    SLICE_X28Y207        LUT6 (Prop_lut6_I3_O)        0.043     3.408 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_20/O
+                         net (fo=2, routed)           0.000     3.408    u_core/u_write_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X28Y207        MUXF7 (Prop_muxf7_I0_O)      0.120     3.528 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_6/O
+                         net (fo=1, routed)           0.437     3.964    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_6_n_0
+    SLICE_X29Y207        LUT6 (Prop_lut6_I1_O)        0.122     4.086 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=7, routed)           0.126     4.212    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X29Y207        LUT4 (Prop_lut4_I0_O)        0.043     4.255 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=82, routed)          0.229     4.484    u_core/u_write_fifo/write_pointer_inst/counter_bin_curr_reg[3]_0
+    SLICE_X30Y207        LUT6 (Prop_lut6_I3_O)        0.043     4.527 r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[4]_i_1__1/O
+                         net (fo=5, routed)           0.393     4.921    u_core/u_write_fifo/fifo_control_inst/D[4]
+    SLICE_X29Y206        CARRY4 (Prop_carry4_DI[0]_O[2])
+                                                      0.271     5.192 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_carry__0/O[2]
+                         net (fo=1, routed)           0.353     5.545    u_core/u_write_fifo/write_pointer_inst/O[2]
+    SLICE_X31Y206        LUT3 (Prop_lut3_I0_O)        0.122     5.667 r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[6]_INST_0/O
+                         net (fo=1, unset)            0.537     6.204    write_fifo_count[6]
+                                                                      r  write_fifo_count[6] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -6.204    
+  -------------------------------------------------------------------
+                         slack                                 -1.572    
+
+Slack (VIOLATED) :        -1.560ns  (required time - arrival time)
+  Source:                 cfg_axis_pkt_mask[12]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            err_fifo_count[4]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        4.191ns  (logic 0.762ns (18.181%)  route 3.429ns (81.819%))
+  Logic Levels:           9  (CARRY4=2 LUT2=1 LUT3=1 LUT6=5)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_axis_pkt_mask[12] (IN)
+                         net (fo=0)                   0.537     2.537    u_core/u_write_fifo/fifo_control_inst/cfg_axis_pkt_mask[12]
+    SLICE_X36Y206        LUT6 (Prop_lut6_I5_O)        0.043     2.580 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_75/O
+                         net (fo=1, routed)           0.360     2.940    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_75_n_0
+    SLICE_X36Y206        LUT6 (Prop_lut6_I0_O)        0.043     2.983 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_31/O
+                         net (fo=1, routed)           0.553     3.536    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_31_n_0
+    SLICE_X28Y206        LUT6 (Prop_lut6_I0_O)        0.043     3.579 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=3, routed)           0.119     3.698    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X28Y206        LUT6 (Prop_lut6_I0_O)        0.043     3.741 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_4/O
+                         net (fo=4, routed)           0.461     4.202    u_core/u_err_fifo/fifo_control_inst/counter_bin_curr_reg[6]
+    SLICE_X32Y206        LUT6 (Prop_lut6_I1_O)        0.043     4.245 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_3/O
+                         net (fo=15, routed)          0.134     4.379    u_core/u_err_fifo/write_pointer_inst/counter_bin_curr_reg[6]_0
+    SLICE_X32Y206        LUT2 (Prop_lut2_I1_O)        0.043     4.422 r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[0]_i_1__2/O
+                         net (fo=7, routed)           0.416     4.837    u_core/u_err_fifo/fifo_control_inst/err_fifo_count[3]
+    SLICE_X33Y203        CARRY4 (Prop_carry4_DI[0]_CO[3])
+                                                      0.269     5.106 r  u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry/CO[3]
+                         net (fo=1, routed)           0.000     5.106    u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry_n_0
+    SLICE_X33Y204        CARRY4 (Prop_carry4_CI_O[0])
+                                                      0.111     5.217 r  u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry__0/O[0]
+                         net (fo=1, routed)           0.313     5.530    u_core/u_err_fifo/write_pointer_inst/err_fifo_count[5][0]
+    SLICE_X33Y205        LUT3 (Prop_lut3_I0_O)        0.124     5.654 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[4]_INST_0/O
+                         net (fo=0)                   0.537     6.191    err_fifo_count[4]
+                                                                      r  err_fifo_count[4] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -6.191    
+  -------------------------------------------------------------------
+                         slack                                 -1.560    
+
+Slack (VIOLATED) :        -1.542ns  (required time - arrival time)
+  Source:                 cfg_core_error_mask[8]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            write_fifo_count[1]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        4.174ns  (logic 0.806ns (19.311%)  route 3.368ns (80.689%))
+  Logic Levels:           9  (CARRY4=1 LUT3=1 LUT4=1 LUT6=5 MUXF7=1)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_core_error_mask[8] (IN)
+                         net (fo=0)                   0.537     2.537    u_core/u_write_fifo/fifo_control_inst/cfg_core_error_mask[8]
+    SLICE_X31Y208        LUT6 (Prop_lut6_I5_O)        0.043     2.580 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_105/O
+                         net (fo=1, routed)           0.425     3.005    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_105_n_0
+    SLICE_X29Y208        LUT6 (Prop_lut6_I1_O)        0.043     3.048 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_54/O
+                         net (fo=1, routed)           0.316     3.365    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_54_n_0
+    SLICE_X28Y207        LUT6 (Prop_lut6_I3_O)        0.043     3.408 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_20/O
+                         net (fo=2, routed)           0.000     3.408    u_core/u_write_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X28Y207        MUXF7 (Prop_muxf7_I0_O)      0.120     3.528 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_6/O
+                         net (fo=1, routed)           0.437     3.964    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_6_n_0
+    SLICE_X29Y207        LUT6 (Prop_lut6_I1_O)        0.122     4.086 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=7, routed)           0.126     4.212    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X29Y207        LUT4 (Prop_lut4_I0_O)        0.043     4.255 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=82, routed)          0.381     4.636    u_core/u_write_fifo/read_pointer_inst/w_almost_full_count0_inferred__0/i__carry
+    SLICE_X30Y205        LUT6 (Prop_lut6_I1_O)        0.043     4.679 r  u_core/u_write_fifo/read_pointer_inst/i__carry_i_5/O
+                         net (fo=1, routed)           0.000     4.679    u_core/u_write_fifo/fifo_control_inst/r_fifo_beats_reg[3][0]
+    SLICE_X30Y205        CARRY4 (Prop_carry4_S[0]_O[1])
+                                                      0.218     4.897 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/O[1]
+                         net (fo=1, routed)           0.609     5.506    u_core/u_write_fifo/fifo_control_inst/w_count0[1]
+    SLICE_X31Y205        LUT3 (Prop_lut3_I2_O)        0.131     5.637 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[1]_INST_0/O
+                         net (fo=1, unset)            0.537     6.174    write_fifo_count[1]
+                                                                      r  write_fifo_count[1] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -6.174    
+  -------------------------------------------------------------------
+                         slack                                 -1.542    
+
+Slack (VIOLATED) :        -1.529ns  (required time - arrival time)
+  Source:                 cfg_axis_pkt_mask[12]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            err_fifo_count[6]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        4.160ns  (logic 0.807ns (19.398%)  route 3.353ns (80.602%))
+  Logic Levels:           10  (CARRY4=2 LUT3=2 LUT6=6)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_axis_pkt_mask[12] (IN)
+                         net (fo=0)                   0.537     2.537    u_core/u_write_fifo/fifo_control_inst/cfg_axis_pkt_mask[12]
+    SLICE_X36Y206        LUT6 (Prop_lut6_I5_O)        0.043     2.580 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_75/O
+                         net (fo=1, routed)           0.360     2.940    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_75_n_0
+    SLICE_X36Y206        LUT6 (Prop_lut6_I0_O)        0.043     2.983 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_31/O
+                         net (fo=1, routed)           0.553     3.536    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_31_n_0
+    SLICE_X28Y206        LUT6 (Prop_lut6_I0_O)        0.043     3.579 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=3, routed)           0.119     3.698    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X28Y206        LUT6 (Prop_lut6_I0_O)        0.043     3.741 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_4/O
+                         net (fo=4, routed)           0.461     4.202    u_core/u_err_fifo/fifo_control_inst/counter_bin_curr_reg[6]
+    SLICE_X32Y206        LUT6 (Prop_lut6_I1_O)        0.043     4.245 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_3/O
+                         net (fo=15, routed)          0.230     4.475    u_core/u_err_fifo/write_pointer_inst/counter_bin_curr_reg[6]_0
+    SLICE_X33Y205        LUT3 (Prop_lut3_I0_O)        0.043     4.518 r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/O
+                         net (fo=5, routed)           0.329     4.846    u_core/u_err_fifo/read_pointer_inst/rdom_wr_ptr_bin[0]
+    SLICE_X32Y203        LUT6 (Prop_lut6_I0_O)        0.043     4.889 r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[3]_INST_0_i_4/O
+                         net (fo=1, routed)           0.000     4.889    u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3][0]
+    SLICE_X32Y203        CARRY4 (Prop_carry4_S[1]_CO[3])
+                                                      0.267     5.156 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3]_INST_0_i_1/CO[3]
+                         net (fo=1, routed)           0.000     5.156    u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3]_INST_0_i_1_n_0
+    SLICE_X32Y204        CARRY4 (Prop_carry4_CI_CO[2])
+                                                      0.110     5.266 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[6]_INST_0_i_1/CO[2]
+                         net (fo=1, routed)           0.228     5.494    u_core/u_err_fifo/write_pointer_inst/err_fifo_count[6]_INST_0_i_1_n_1
+    SLICE_X35Y203        LUT3 (Prop_lut3_I0_O)        0.129     5.623 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[6]_INST_0/O
+                         net (fo=0)                   0.537     6.160    err_fifo_count[6]
+                                                                      r  err_fifo_count[6] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -6.160    
+  -------------------------------------------------------------------
+                         slack                                 -1.529    
+
+Slack (VIOLATED) :        -1.508ns  (required time - arrival time)
+  Source:                 cfg_axis_pkt_mask[12]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            err_fifo_count[2]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        4.139ns  (logic 0.705ns (17.032%)  route 3.434ns (82.968%))
+  Logic Levels:           9  (CARRY4=1 LUT3=2 LUT6=6)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_axis_pkt_mask[12] (IN)
+                         net (fo=0)                   0.537     2.537    u_core/u_write_fifo/fifo_control_inst/cfg_axis_pkt_mask[12]
+    SLICE_X36Y206        LUT6 (Prop_lut6_I5_O)        0.043     2.580 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_75/O
+                         net (fo=1, routed)           0.360     2.940    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_75_n_0
+    SLICE_X36Y206        LUT6 (Prop_lut6_I0_O)        0.043     2.983 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_31/O
+                         net (fo=1, routed)           0.553     3.536    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_31_n_0
+    SLICE_X28Y206        LUT6 (Prop_lut6_I0_O)        0.043     3.579 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=3, routed)           0.119     3.698    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X28Y206        LUT6 (Prop_lut6_I0_O)        0.043     3.741 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_4/O
+                         net (fo=4, routed)           0.461     4.202    u_core/u_err_fifo/fifo_control_inst/counter_bin_curr_reg[6]
+    SLICE_X32Y206        LUT6 (Prop_lut6_I1_O)        0.043     4.245 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_3/O
+                         net (fo=15, routed)          0.230     4.475    u_core/u_err_fifo/write_pointer_inst/counter_bin_curr_reg[6]_0
+    SLICE_X33Y205        LUT3 (Prop_lut3_I0_O)        0.043     4.518 r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/O
+                         net (fo=5, routed)           0.329     4.846    u_core/u_err_fifo/read_pointer_inst/rdom_wr_ptr_bin[0]
+    SLICE_X32Y203        LUT6 (Prop_lut6_I0_O)        0.043     4.889 r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[3]_INST_0_i_4/O
+                         net (fo=1, routed)           0.000     4.889    u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3][0]
+    SLICE_X32Y203        CARRY4 (Prop_carry4_S[1]_O[2])
+                                                      0.282     5.171 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3]_INST_0_i_1/O[2]
+                         net (fo=1, routed)           0.309     5.480    u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3]_INST_0_i_1_n_5
+    SLICE_X31Y203        LUT3 (Prop_lut3_I2_O)        0.122     5.602 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[2]_INST_0/O
+                         net (fo=0)                   0.537     6.139    err_fifo_count[2]
+                                                                      r  err_fifo_count[2] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -6.139    
+  -------------------------------------------------------------------
+                         slack                                 -1.508    
+
+Slack (VIOLATED) :        -1.501ns  (required time - arrival time)
+  Source:                 cfg_axis_pkt_mask[12]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            err_fifo_count[3]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        4.133ns  (logic 0.733ns (17.736%)  route 3.400ns (82.264%))
+  Logic Levels:           9  (CARRY4=1 LUT3=2 LUT6=6)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_axis_pkt_mask[12] (IN)
+                         net (fo=0)                   0.537     2.537    u_core/u_write_fifo/fifo_control_inst/cfg_axis_pkt_mask[12]
+    SLICE_X36Y206        LUT6 (Prop_lut6_I5_O)        0.043     2.580 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_75/O
+                         net (fo=1, routed)           0.360     2.940    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_75_n_0
+    SLICE_X36Y206        LUT6 (Prop_lut6_I0_O)        0.043     2.983 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_31/O
+                         net (fo=1, routed)           0.553     3.536    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_31_n_0
+    SLICE_X28Y206        LUT6 (Prop_lut6_I0_O)        0.043     3.579 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=3, routed)           0.119     3.698    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X28Y206        LUT6 (Prop_lut6_I0_O)        0.043     3.741 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_4/O
+                         net (fo=4, routed)           0.461     4.202    u_core/u_err_fifo/fifo_control_inst/counter_bin_curr_reg[6]
+    SLICE_X32Y206        LUT6 (Prop_lut6_I1_O)        0.043     4.245 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_3/O
+                         net (fo=15, routed)          0.230     4.475    u_core/u_err_fifo/write_pointer_inst/counter_bin_curr_reg[6]_0
+    SLICE_X33Y205        LUT3 (Prop_lut3_I0_O)        0.043     4.518 r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/O
+                         net (fo=5, routed)           0.329     4.846    u_core/u_err_fifo/read_pointer_inst/rdom_wr_ptr_bin[0]
+    SLICE_X32Y203        LUT6 (Prop_lut6_I0_O)        0.043     4.889 r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[3]_INST_0_i_4/O
+                         net (fo=1, routed)           0.000     4.889    u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3][0]
+    SLICE_X32Y203        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     5.201 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3]_INST_0_i_1/O[3]
+                         net (fo=1, routed)           0.274     5.476    u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3]_INST_0_i_1_n_4
+    SLICE_X35Y203        LUT3 (Prop_lut3_I2_O)        0.120     5.596 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[3]_INST_0/O
+                         net (fo=0)                   0.537     6.133    err_fifo_count[3]
+                                                                      r  err_fifo_count[3] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -6.133    
+  -------------------------------------------------------------------
+                         slack                                 -1.501    
+
+Slack (VIOLATED) :        -1.484ns  (required time - arrival time)
+  Source:                 cfg_core_error_mask[8]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            write_fifo_count[3]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (axi_aclk rise@6.667ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        4.115ns  (logic 0.897ns (21.797%)  route 3.218ns (78.203%))
+  Logic Levels:           9  (CARRY4=1 LUT3=1 LUT4=1 LUT6=5 MUXF7=1)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_core_error_mask[8] (IN)
+                         net (fo=0)                   0.537     2.537    u_core/u_write_fifo/fifo_control_inst/cfg_core_error_mask[8]
+    SLICE_X31Y208        LUT6 (Prop_lut6_I5_O)        0.043     2.580 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_105/O
+                         net (fo=1, routed)           0.425     3.005    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_105_n_0
+    SLICE_X29Y208        LUT6 (Prop_lut6_I1_O)        0.043     3.048 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_54/O
+                         net (fo=1, routed)           0.316     3.365    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_54_n_0
+    SLICE_X28Y207        LUT6 (Prop_lut6_I3_O)        0.043     3.408 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_20/O
+                         net (fo=2, routed)           0.000     3.408    u_core/u_write_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X28Y207        MUXF7 (Prop_muxf7_I0_O)      0.120     3.528 f  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_6/O
+                         net (fo=1, routed)           0.437     3.964    u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_6_n_0
+    SLICE_X29Y207        LUT6 (Prop_lut6_I1_O)        0.122     4.086 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=7, routed)           0.126     4.212    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X29Y207        LUT4 (Prop_lut4_I0_O)        0.043     4.255 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=82, routed)          0.409     4.665    u_core/u_write_fifo/write_pointer_inst/counter_bin_curr_reg[3]_0
+    SLICE_X30Y205        LUT6 (Prop_lut6_I3_O)        0.043     4.708 r  u_core/u_write_fifo/write_pointer_inst/i__carry_i_4/O
+                         net (fo=1, routed)           0.000     4.708    u_core/u_write_fifo/fifo_control_inst/r_fifo_beats_reg[3][1]
+    SLICE_X30Y205        CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.312     5.020 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/O[3]
+                         net (fo=1, routed)           0.431     5.450    u_core/u_write_fifo/fifo_control_inst/w_count0[3]
+    SLICE_X31Y204        LUT3 (Prop_lut3_I2_O)        0.128     5.578 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[3]_INST_0/O
+                         net (fo=1, unset)            0.537     6.115    write_fifo_count[3]
+                                                                      r  write_fifo_count[3] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -6.115    
+  -------------------------------------------------------------------
+                         slack                                 -1.484    
+
+
+
+
+
+Min Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             0.082ns  (arrival time - required time)
+  Source:                 u_axi4_wr/aw_channel/g_slot[1].r_data_reg[1][59]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_axi4_wr/aw_channel/g_slot[0].r_data_reg[0][59]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (axi_aclk rise@0.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        0.183ns  (logic 0.128ns (70.125%)  route 0.055ns (29.875%))
+  Logic Levels:           1  (LUT6=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.266     0.266    u_axi4_wr/aw_channel/axi_aclk
+    SLICE_X43Y221        FDCE                                         r  u_axi4_wr/aw_channel/g_slot[1].r_data_reg[1][59]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X43Y221        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  u_axi4_wr/aw_channel/g_slot[1].r_data_reg[1][59]/Q
+                         net (fo=1, routed)           0.055     0.421    u_axi4_wr/aw_channel/g_slot[1].r_data_reg[1]_0[59]
+    SLICE_X42Y221        LUT6 (Prop_lut6_I5_O)        0.028     0.449 r  u_axi4_wr/aw_channel/g_slot[0].r_data[0][59]_i_1__0/O
+                         net (fo=1, routed)           0.000     0.449    u_axi4_wr/aw_channel/g_slot[0].r_data[0][59]_i_1__0_n_0
+    SLICE_X42Y221        FDCE                                         r  u_axi4_wr/aw_channel/g_slot[0].r_data_reg[0][59]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.280     0.280    u_axi4_wr/aw_channel/axi_aclk
+    SLICE_X42Y221        FDCE                                         r  u_axi4_wr/aw_channel/g_slot[0].r_data_reg[0][59]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X42Y221        FDCE (Hold_fdce_C_D)         0.087     0.367    u_axi4_wr/aw_channel/g_slot[0].r_data_reg[0][59]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.449    
+  -------------------------------------------------------------------
+                         slack                                  0.082    
+
+Slack (MET) :             0.082ns  (arrival time - required time)
+  Source:                 u_axi4_wr/w_channel/g_slot[2].r_data_reg[2][42]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_axi4_wr/w_channel/g_slot[1].r_data_reg[1][42]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (axi_aclk rise@0.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        0.183ns  (logic 0.128ns (70.125%)  route 0.055ns (29.875%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.266     0.266    u_axi4_wr/w_channel/axi_aclk
+    SLICE_X15Y205        FDCE                                         r  u_axi4_wr/w_channel/g_slot[2].r_data_reg[2][42]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X15Y205        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  u_axi4_wr/w_channel/g_slot[2].r_data_reg[2][42]/Q
+                         net (fo=1, routed)           0.055     0.421    u_axi4_wr/w_channel/g_slot[2].r_data_reg[2]_2[42]
+    SLICE_X14Y205        LUT5 (Prop_lut5_I4_O)        0.028     0.449 r  u_axi4_wr/w_channel/g_slot[1].r_data[1][42]_i_1__1/O
+                         net (fo=1, routed)           0.000     0.449    u_axi4_wr/w_channel/g_slot[1].r_data[1][42]_i_1__1_n_0
+    SLICE_X14Y205        FDCE                                         r  u_axi4_wr/w_channel/g_slot[1].r_data_reg[1][42]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.280     0.280    u_axi4_wr/w_channel/axi_aclk
+    SLICE_X14Y205        FDCE                                         r  u_axi4_wr/w_channel/g_slot[1].r_data_reg[1][42]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X14Y205        FDCE (Hold_fdce_C_D)         0.087     0.367    u_axi4_wr/w_channel/g_slot[1].r_data_reg[1][42]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.449    
+  -------------------------------------------------------------------
+                         slack                                  0.082    
+
+Slack (MET) :             0.082ns  (arrival time - required time)
+  Source:                 u_axi4_wr/w_channel/g_slot[3].r_data_reg[3][55]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_axi4_wr/w_channel/g_slot[2].r_data_reg[2][55]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (axi_aclk rise@0.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        0.183ns  (logic 0.128ns (70.125%)  route 0.055ns (29.875%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.266     0.266    u_axi4_wr/w_channel/axi_aclk
+    SLICE_X17Y207        FDCE                                         r  u_axi4_wr/w_channel/g_slot[3].r_data_reg[3][55]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X17Y207        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  u_axi4_wr/w_channel/g_slot[3].r_data_reg[3][55]/Q
+                         net (fo=1, routed)           0.055     0.421    u_axi4_wr/w_channel/g_slot[3].r_data_reg[3]_1[55]
+    SLICE_X16Y207        LUT5 (Prop_lut5_I4_O)        0.028     0.449 r  u_axi4_wr/w_channel/g_slot[2].r_data[2][55]_i_1__0/O
+                         net (fo=1, routed)           0.000     0.449    u_axi4_wr/w_channel/g_slot[2].r_data[2][55]_i_1__0_n_0
+    SLICE_X16Y207        FDCE                                         r  u_axi4_wr/w_channel/g_slot[2].r_data_reg[2][55]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.280     0.280    u_axi4_wr/w_channel/axi_aclk
+    SLICE_X16Y207        FDCE                                         r  u_axi4_wr/w_channel/g_slot[2].r_data_reg[2][55]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X16Y207        FDCE (Hold_fdce_C_D)         0.087     0.367    u_axi4_wr/w_channel/g_slot[2].r_data_reg[2][55]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.449    
+  -------------------------------------------------------------------
+                         slack                                  0.082    
+
+Slack (MET) :             0.082ns  (arrival time - required time)
+  Source:                 u_axi4_wr/w_channel/g_slot[3].r_data_reg[3][60]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_axi4_wr/w_channel/g_slot[2].r_data_reg[2][60]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (axi_aclk rise@0.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        0.183ns  (logic 0.128ns (70.125%)  route 0.055ns (29.875%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.266     0.266    u_axi4_wr/w_channel/axi_aclk
+    SLICE_X15Y203        FDCE                                         r  u_axi4_wr/w_channel/g_slot[3].r_data_reg[3][60]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X15Y203        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  u_axi4_wr/w_channel/g_slot[3].r_data_reg[3][60]/Q
+                         net (fo=1, routed)           0.055     0.421    u_axi4_wr/w_channel/g_slot[3].r_data_reg[3]_1[60]
+    SLICE_X14Y203        LUT5 (Prop_lut5_I4_O)        0.028     0.449 r  u_axi4_wr/w_channel/g_slot[2].r_data[2][60]_i_1__0/O
+                         net (fo=1, routed)           0.000     0.449    u_axi4_wr/w_channel/g_slot[2].r_data[2][60]_i_1__0_n_0
+    SLICE_X14Y203        FDCE                                         r  u_axi4_wr/w_channel/g_slot[2].r_data_reg[2][60]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.280     0.280    u_axi4_wr/w_channel/axi_aclk
+    SLICE_X14Y203        FDCE                                         r  u_axi4_wr/w_channel/g_slot[2].r_data_reg[2][60]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X14Y203        FDCE (Hold_fdce_C_D)         0.087     0.367    u_axi4_wr/w_channel/g_slot[2].r_data_reg[2][60]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.449    
+  -------------------------------------------------------------------
+                         slack                                  0.082    
+
+Slack (MET) :             0.105ns  (arrival time - required time)
+  Source:                 u_axi4_rd/i_r_channel/g_slot[2].r_data_reg[2][42]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_axi4_rd/i_r_channel/g_slot[1].r_data_reg[1][42]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (axi_aclk rise@0.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        0.180ns  (logic 0.128ns (71.200%)  route 0.052ns (28.800%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.266     0.266    u_axi4_rd/i_r_channel/axi_aclk
+    SLICE_X40Y202        FDCE                                         r  u_axi4_rd/i_r_channel/g_slot[2].r_data_reg[2][42]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X40Y202        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  u_axi4_rd/i_r_channel/g_slot[2].r_data_reg[2][42]/Q
+                         net (fo=1, routed)           0.052     0.418    u_axi4_rd/i_r_channel/g_slot[2].r_data_reg[2]_2[42]
+    SLICE_X41Y202        LUT5 (Prop_lut5_I4_O)        0.028     0.446 r  u_axi4_rd/i_r_channel/g_slot[1].r_data[1][42]_i_1/O
+                         net (fo=1, routed)           0.000     0.446    u_axi4_rd/i_r_channel/g_slot[1].r_data[1][42]_i_1_n_0
+    SLICE_X41Y202        FDCE                                         r  u_axi4_rd/i_r_channel/g_slot[1].r_data_reg[1][42]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.280     0.280    u_axi4_rd/i_r_channel/axi_aclk
+    SLICE_X41Y202        FDCE                                         r  u_axi4_rd/i_r_channel/g_slot[1].r_data_reg[1][42]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X41Y202        FDCE (Hold_fdce_C_D)         0.061     0.341    u_axi4_rd/i_r_channel/g_slot[1].r_data_reg[1][42]
+  -------------------------------------------------------------------
+                         required time                         -0.341    
+                         arrival time                           0.446    
+  -------------------------------------------------------------------
+                         slack                                  0.105    
+
+Slack (MET) :             0.107ns  (arrival time - required time)
+  Source:                 u_axi4_rd/i_r_channel/g_slot[2].r_data_reg[2][7]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_axi4_rd/i_r_channel/g_slot[1].r_data_reg[1][7]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (axi_aclk rise@0.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        0.182ns  (logic 0.128ns (70.416%)  route 0.054ns (29.584%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.266     0.266    u_axi4_rd/i_r_channel/axi_aclk
+    SLICE_X24Y201        FDCE                                         r  u_axi4_rd/i_r_channel/g_slot[2].r_data_reg[2][7]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X24Y201        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  u_axi4_rd/i_r_channel/g_slot[2].r_data_reg[2][7]/Q
+                         net (fo=1, routed)           0.054     0.420    u_axi4_rd/i_r_channel/g_slot[2].r_data_reg[2]_2[7]
+    SLICE_X25Y201        LUT5 (Prop_lut5_I4_O)        0.028     0.448 r  u_axi4_rd/i_r_channel/g_slot[1].r_data[1][7]_i_1/O
+                         net (fo=1, routed)           0.000     0.448    u_axi4_rd/i_r_channel/g_slot[1].r_data[1][7]_i_1_n_0
+    SLICE_X25Y201        FDCE                                         r  u_axi4_rd/i_r_channel/g_slot[1].r_data_reg[1][7]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.280     0.280    u_axi4_rd/i_r_channel/axi_aclk
+    SLICE_X25Y201        FDCE                                         r  u_axi4_rd/i_r_channel/g_slot[1].r_data_reg[1][7]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X25Y201        FDCE (Hold_fdce_C_D)         0.061     0.341    u_axi4_rd/i_r_channel/g_slot[1].r_data_reg[1][7]
+  -------------------------------------------------------------------
+                         required time                         -0.341    
+                         arrival time                           0.448    
+  -------------------------------------------------------------------
+                         slack                                  0.107    
+
+Slack (MET) :             0.108ns  (arrival time - required time)
+  Source:                 u_axi4_rd/i_ar_channel/g_slot[1].r_data_reg[1][24]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_axi4_rd/i_ar_channel/g_slot[0].r_data_reg[0][24]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (axi_aclk rise@0.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        0.209ns  (logic 0.128ns (61.382%)  route 0.081ns (38.618%))
+  Logic Levels:           1  (LUT6=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.266     0.266    u_axi4_rd/i_ar_channel/axi_aclk
+    SLICE_X43Y191        FDCE                                         r  u_axi4_rd/i_ar_channel/g_slot[1].r_data_reg[1][24]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X43Y191        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  u_axi4_rd/i_ar_channel/g_slot[1].r_data_reg[1][24]/Q
+                         net (fo=1, routed)           0.081     0.447    u_axi4_rd/i_ar_channel/g_slot[1].r_data_reg[1]_0[24]
+    SLICE_X42Y191        LUT6 (Prop_lut6_I5_O)        0.028     0.475 r  u_axi4_rd/i_ar_channel/g_slot[0].r_data[0][24]_i_1/O
+                         net (fo=1, routed)           0.000     0.475    u_axi4_rd/i_ar_channel/g_slot[0].r_data[0][24]_i_1_n_0
+    SLICE_X42Y191        FDCE                                         r  u_axi4_rd/i_ar_channel/g_slot[0].r_data_reg[0][24]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.280     0.280    u_axi4_rd/i_ar_channel/axi_aclk
+    SLICE_X42Y191        FDCE                                         r  u_axi4_rd/i_ar_channel/g_slot[0].r_data_reg[0][24]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X42Y191        FDCE (Hold_fdce_C_D)         0.087     0.367    u_axi4_rd/i_ar_channel/g_slot[0].r_data_reg[0][24]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.475    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.108ns  (arrival time - required time)
+  Source:                 u_axi4_rd/i_ar_channel/g_slot[1].r_data_reg[1][65]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_axi4_rd/i_ar_channel/g_slot[0].r_data_reg[0][65]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (axi_aclk rise@0.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        0.209ns  (logic 0.128ns (61.382%)  route 0.081ns (38.618%))
+  Logic Levels:           1  (LUT6=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.266     0.266    u_axi4_rd/i_ar_channel/axi_aclk
+    SLICE_X43Y190        FDCE                                         r  u_axi4_rd/i_ar_channel/g_slot[1].r_data_reg[1][65]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X43Y190        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  u_axi4_rd/i_ar_channel/g_slot[1].r_data_reg[1][65]/Q
+                         net (fo=1, routed)           0.081     0.447    u_axi4_rd/i_ar_channel/g_slot[1].r_data_reg[1]_0[65]
+    SLICE_X42Y190        LUT6 (Prop_lut6_I5_O)        0.028     0.475 r  u_axi4_rd/i_ar_channel/g_slot[0].r_data[0][65]_i_1/O
+                         net (fo=1, routed)           0.000     0.475    u_axi4_rd/i_ar_channel/g_slot[0].r_data[0][65]_i_1_n_0
+    SLICE_X42Y190        FDCE                                         r  u_axi4_rd/i_ar_channel/g_slot[0].r_data_reg[0][65]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.280     0.280    u_axi4_rd/i_ar_channel/axi_aclk
+    SLICE_X42Y190        FDCE                                         r  u_axi4_rd/i_ar_channel/g_slot[0].r_data_reg[0][65]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X42Y190        FDCE (Hold_fdce_C_D)         0.087     0.367    u_axi4_rd/i_ar_channel/g_slot[0].r_data_reg[0][65]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.475    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.108ns  (arrival time - required time)
+  Source:                 u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3][67]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_axi4_rd/i_r_channel/g_slot[2].r_data_reg[2][67]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (axi_aclk rise@0.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        0.209ns  (logic 0.128ns (61.382%)  route 0.081ns (38.618%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.266     0.266    u_axi4_rd/i_r_channel/axi_aclk
+    SLICE_X47Y193        FDCE                                         r  u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3][67]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X47Y193        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3][67]/Q
+                         net (fo=1, routed)           0.081     0.447    u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3]_1[67]
+    SLICE_X46Y193        LUT5 (Prop_lut5_I4_O)        0.028     0.475 r  u_axi4_rd/i_r_channel/g_slot[2].r_data[2][67]_i_1/O
+                         net (fo=1, routed)           0.000     0.475    u_axi4_rd/i_r_channel/g_slot[2].r_data[2][67]_i_1_n_0
+    SLICE_X46Y193        FDCE                                         r  u_axi4_rd/i_r_channel/g_slot[2].r_data_reg[2][67]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.280     0.280    u_axi4_rd/i_r_channel/axi_aclk
+    SLICE_X46Y193        FDCE                                         r  u_axi4_rd/i_r_channel/g_slot[2].r_data_reg[2][67]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X46Y193        FDCE (Hold_fdce_C_D)         0.087     0.367    u_axi4_rd/i_r_channel/g_slot[2].r_data_reg[2][67]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.475    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.108ns  (arrival time - required time)
+  Source:                 u_axi4_wr/aw_channel/g_slot[1].r_data_reg[1][33]/C
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            u_axi4_wr/aw_channel/g_slot[0].r_data_reg[0][33]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             axi_aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (axi_aclk rise@0.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        0.209ns  (logic 0.128ns (61.382%)  route 0.081ns (38.618%))
+  Logic Levels:           1  (LUT6=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.266     0.266    u_axi4_wr/aw_channel/axi_aclk
+    SLICE_X53Y212        FDCE                                         r  u_axi4_wr/aw_channel/g_slot[1].r_data_reg[1][33]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X53Y212        FDCE (Prop_fdce_C_Q)         0.100     0.366 r  u_axi4_wr/aw_channel/g_slot[1].r_data_reg[1][33]/Q
+                         net (fo=1, routed)           0.081     0.447    u_axi4_wr/aw_channel/g_slot[1].r_data_reg[1]_0[33]
+    SLICE_X52Y212        LUT6 (Prop_lut6_I5_O)        0.028     0.475 r  u_axi4_wr/aw_channel/g_slot[0].r_data[0][33]_i_1__0/O
+                         net (fo=1, routed)           0.000     0.475    u_axi4_wr/aw_channel/g_slot[0].r_data[0][33]_i_1__0_n_0
+    SLICE_X52Y212        FDCE                                         r  u_axi4_wr/aw_channel/g_slot[0].r_data_reg[0][33]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  axi_aclk (IN)
+                         net (fo=1809, unset)         0.280     0.280    u_axi4_wr/aw_channel/axi_aclk
+    SLICE_X52Y212        FDCE                                         r  u_axi4_wr/aw_channel/g_slot[0].r_data_reg[0][33]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X52Y212        FDCE (Hold_fdce_C_D)         0.087     0.367    u_axi4_wr/aw_channel/g_slot[0].r_data_reg[0][33]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.475    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+
+
+
+
+Pulse Width Checks
+--------------------------------------------------------------------------------------
+Clock Name:         axi_aclk
+Waveform(ns):       { 0.000 3.333 }
+Period(ns):         6.667
+Sources:            { axi_aclk }
+
+Check Type        Corner  Lib Pin      Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location       Pin
+Min Period        n/a     FDCE/C       n/a            0.750         6.667       5.917      SLICE_X40Y191  u_axi4_rd/i_ar_channel/r_data_count_reg[2]/C
+Min Period        n/a     FDCE/C       n/a            0.750         6.667       5.917      SLICE_X26Y200  u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3][12]/C
+Min Period        n/a     FDCE/C       n/a            0.750         6.667       5.917      SLICE_X24Y202  u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3][14]/C
+Min Period        n/a     FDCE/C       n/a            0.750         6.667       5.917      SLICE_X31Y201  u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3][16]/C
+Min Period        n/a     FDCE/C       n/a            0.750         6.667       5.917      SLICE_X39Y201  u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3][18]/C
+Min Period        n/a     FDCE/C       n/a            0.750         6.667       5.917      SLICE_X40Y203  u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3][20]/C
+Min Period        n/a     FDCE/C       n/a            0.750         6.667       5.917      SLICE_X45Y201  u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3][22]/C
+Min Period        n/a     FDCE/C       n/a            0.750         6.667       5.917      SLICE_X45Y199  u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3][24]/C
+Min Period        n/a     FDCE/C       n/a            0.750         6.667       5.917      SLICE_X41Y198  u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3][26]/C
+Min Period        n/a     FDCE/C       n/a            0.750         6.667       5.917      SLICE_X37Y200  u_axi4_rd/i_r_channel/g_slot[3].r_data_reg[3][28]/C
+Low Pulse Width   Slow    RAMD64E/CLK  n/a            0.768         3.334       2.566      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMA/CLK
+Low Pulse Width   Fast    RAMD64E/CLK  n/a            0.768         3.334       2.566      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMA/CLK
+Low Pulse Width   Slow    RAMD64E/CLK  n/a            0.768         3.334       2.566      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMB/CLK
+Low Pulse Width   Fast    RAMD64E/CLK  n/a            0.768         3.334       2.566      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMB/CLK
+Low Pulse Width   Slow    RAMD64E/CLK  n/a            0.768         3.334       2.566      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMC/CLK
+Low Pulse Width   Fast    RAMD64E/CLK  n/a            0.768         3.334       2.566      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMC/CLK
+Low Pulse Width   Slow    RAMD64E/CLK  n/a            0.768         3.334       2.566      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMD/CLK
+Low Pulse Width   Fast    RAMD64E/CLK  n/a            0.768         3.334       2.566      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMD/CLK
+Low Pulse Width   Slow    RAMD64E/CLK  n/a            0.768         3.334       2.566      SLICE_X42Y207  u_core/u_err_fifo/gen_auto.mem_reg_0_63_102_104/RAMA/CLK
+Low Pulse Width   Fast    RAMD64E/CLK  n/a            0.768         3.334       2.566      SLICE_X42Y207  u_core/u_err_fifo/gen_auto.mem_reg_0_63_102_104/RAMA/CLK
+High Pulse Width  Slow    RAMD64E/CLK  n/a            0.768         3.333       2.565      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMA/CLK
+High Pulse Width  Fast    RAMD64E/CLK  n/a            0.768         3.333       2.565      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMA/CLK
+High Pulse Width  Slow    RAMD64E/CLK  n/a            0.768         3.333       2.565      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMB/CLK
+High Pulse Width  Fast    RAMD64E/CLK  n/a            0.768         3.333       2.565      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMB/CLK
+High Pulse Width  Slow    RAMD64E/CLK  n/a            0.768         3.333       2.565      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMC/CLK
+High Pulse Width  Fast    RAMD64E/CLK  n/a            0.768         3.333       2.565      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMC/CLK
+High Pulse Width  Slow    RAMD64E/CLK  n/a            0.768         3.333       2.565      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMD/CLK
+High Pulse Width  Fast    RAMD64E/CLK  n/a            0.768         3.333       2.565      SLICE_X38Y196  u_core/u_err_fifo/gen_auto.mem_reg_0_63_0_2/RAMD/CLK
+High Pulse Width  Slow    RAMD64E/CLK  n/a            0.768         3.333       2.565      SLICE_X42Y207  u_core/u_err_fifo/gen_auto.mem_reg_0_63_102_104/RAMA/CLK
+High Pulse Width  Fast    RAMD64E/CLK  n/a            0.768         3.333       2.565      SLICE_X42Y207  u_core/u_err_fifo/gen_auto.mem_reg_0_63_102_104/RAMA/CLK
+
+
+

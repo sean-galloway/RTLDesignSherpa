@@ -1,0 +1,31 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 19:00:59 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi4_master_rd_monlite_cg__xc7a100tcsg324-1/utilization_hier.txt
+| Design       : axi4_master_rd_monlite_cg
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-------------------------------+------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|            Instance           |         Module         | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++-------------------------------+------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| axi4_master_rd_monlite_cg     |                  (top) |       1421 |       1381 |      40 |    0 | 1369 |      0 |      0 |          0 |
+|   (axi4_master_rd_monlite_cg) |                  (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   u_monlite                   | axi4_master_rd_monlite |       1398 |       1358 |      40 |    0 | 1355 |      0 |      0 |          0 |
++-------------------------------+------------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

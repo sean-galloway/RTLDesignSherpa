@@ -1,0 +1,31 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 18:59:50 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi4_master_rd__xc7a100tcsg324-1/utilization_hier.txt
+| Design       : axi4_master_rd
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++----------------+----------------------------------+------------+------------+---------+------+-----+--------+--------+------------+
+|    Instance    |              Module              | Total LUTs | Logic LUTs | LUTRAMs | SRLs | FFs | RAMB36 | RAMB18 | DSP Blocks |
++----------------+----------------------------------+------------+------------+---------+------+-----+--------+--------+------------+
+| axi4_master_rd |                            (top) |        285 |        285 |       0 |    0 | 328 |      0 |      0 |          0 |
+|   ar_channel   |                 gaxi_skid_buffer |        116 |        116 |       0 |    0 | 146 |      0 |      0 |          0 |
+|   r_channel    | gaxi_skid_buffer__parameterized0 |        169 |        169 |       0 |    0 | 182 |      0 |      0 |          0 |
++----------------+----------------------------------+------------+------------+---------+------+-----+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

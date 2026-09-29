@@ -1,0 +1,1401 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 19:03:15 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing -setup -max_paths 20 -nworst 1 -sort_by slack -input_pins -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/monbus_axil4_axil4_group__xc7a100tcsg324-1/timing_worst.txt
+| Design       : monbus_axil4_axil4_group
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.23 2018-06-13
+| Design State : Routed
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (VIOLATED) :        -4.920ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            write_fifo_count[7]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.885ns  (logic 2.049ns (23.062%)  route 6.836ns (76.938%))
+  Logic Levels:           10  (CARRY4=1 LUT3=1 LUT4=3 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 f  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           1.002     6.437    u_core/u_write_fifo/fifo_control_inst/r_lat_packet_reg[127]
+    SLICE_X8Y100                                                      r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/I1
+    SLICE_X8Y100         LUT6 (Prop_lut6_I1_O)        0.124     6.561 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/O
+                         net (fo=2, routed)           0.657     7.218    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]_0
+    SLICE_X11Y101                                                     r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/I5
+    SLICE_X11Y101        LUT6 (Prop_lut6_I5_O)        0.124     7.342 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=133, routed)         0.377     7.719    u_core/u_write_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X8Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/I0
+    SLICE_X8Y101         LUT4 (Prop_lut4_I0_O)        0.124     7.843 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/O
+                         net (fo=29, routed)          0.694     8.537    u_core/u_write_fifo/write_pointer_inst/p_0_in
+    SLICE_X9Y103                                                      r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[6]_i_1__1/I3
+    SLICE_X9Y103         LUT4 (Prop_lut4_I3_O)        0.120     8.657 f  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[6]_i_1__1/O
+                         net (fo=2, routed)           0.520     9.177    u_core/u_write_fifo/read_pointer_inst/rdom_wr_ptr_bin[2]
+    SLICE_X8Y103                                                      f  u_core/u_write_fifo/read_pointer_inst/i__carry__0_i_3/I3
+    SLICE_X8Y103         LUT4 (Prop_lut4_I3_O)        0.327     9.504 r  u_core/u_write_fifo/read_pointer_inst/i__carry__0_i_3/O
+                         net (fo=1, routed)           0.000     9.504    u_core/u_write_fifo/fifo_control_inst/r_fifo_beats_reg[7]_2[3]
+    SLICE_X8Y103                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/S[3]
+    SLICE_X8Y103         CARRY4 (Prop_carry4_S[3]_O[3])
+                                                      0.255     9.759 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/O[3]
+                         net (fo=1, routed)           0.818    10.577    u_core/u_write_fifo/write_pointer_inst/r_fifo_beats_reg[7][3]
+    SLICE_X11Y103                                                     r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[7]_INST_0/I0
+    SLICE_X11Y103        LUT3 (Prop_lut3_I0_O)        0.335    10.912 r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[7]_INST_0/O
+                         net (fo=1, unset)            0.973    11.885    write_fifo_count[7]
+                                                                      r  write_fifo_count[7] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.885    
+  -------------------------------------------------------------------
+                         slack                                 -4.920    
+
+Slack (VIOLATED) :        -4.906ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            write_fifo_count[5]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.871ns  (logic 2.313ns (26.075%)  route 6.558ns (73.925%))
+  Logic Levels:           10  (CARRY4=2 LUT3=2 LUT4=1 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 f  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           1.002     6.437    u_core/u_write_fifo/fifo_control_inst/r_lat_packet_reg[127]
+    SLICE_X8Y100                                                      r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/I1
+    SLICE_X8Y100         LUT6 (Prop_lut6_I1_O)        0.124     6.561 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/O
+                         net (fo=2, routed)           0.657     7.218    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]_0
+    SLICE_X11Y101                                                     r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/I5
+    SLICE_X11Y101        LUT6 (Prop_lut6_I5_O)        0.124     7.342 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=133, routed)         0.377     7.719    u_core/u_write_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X8Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/I0
+    SLICE_X8Y101         LUT4 (Prop_lut4_I0_O)        0.124     7.843 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/O
+                         net (fo=29, routed)          0.409     8.252    u_core/u_write_fifo/write_pointer_inst/p_0_in
+    SLICE_X9Y100                                                      r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/I1
+    SLICE_X9Y100         LUT3 (Prop_lut3_I1_O)        0.124     8.376 r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/O
+                         net (fo=3, routed)           0.544     8.920    u_core/u_write_fifo/fifo_control_inst/D[0]
+    SLICE_X8Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/DI[1]
+    SLICE_X8Y102         CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.520     9.440 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/CO[3]
+                         net (fo=1, routed)           0.000     9.440    u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry_n_0
+    SLICE_X8Y103                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/CI
+    SLICE_X8Y103         CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.323     9.763 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/O[1]
+                         net (fo=1, routed)           0.800    10.564    u_core/u_write_fifo/write_pointer_inst/r_fifo_beats_reg[7][1]
+    SLICE_X9Y104                                                      r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[5]_INST_0/I2
+    SLICE_X9Y104         LUT3 (Prop_lut3_I2_O)        0.334    10.898 r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[5]_INST_0/O
+                         net (fo=1, unset)            0.973    11.871    write_fifo_count[5]
+                                                                      r  write_fifo_count[5] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.871    
+  -------------------------------------------------------------------
+                         slack                                 -4.906    
+
+Slack (VIOLATED) :        -4.845ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            err_fifo_count[5]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.810ns  (logic 2.315ns (26.278%)  route 6.495ns (73.722%))
+  Logic Levels:           10  (CARRY4=2 LUT2=1 LUT3=1 LUT4=1 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 r  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           0.842     6.278    u_core/u_err_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X11Y99                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/I0
+    SLICE_X11Y99         LUT6 (Prop_lut6_I0_O)        0.124     6.402 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=1, routed)           1.021     7.423    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X13Y102                                                     f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/I4
+    SLICE_X13Y102        LUT6 (Prop_lut6_I4_O)        0.124     7.547 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=3, routed)           0.454     8.001    u_core/u_err_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X13Y103                                                     r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/I0
+    SLICE_X13Y103        LUT4 (Prop_lut4_I0_O)        0.124     8.125 r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/O
+                         net (fo=12, routed)          0.366     8.491    u_core/u_err_fifo/write_pointer_inst/counter_bin_curr_reg[0]_0
+    SLICE_X14Y103                                                     r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[0]_i_1__2/I1
+    SLICE_X14Y103        LUT2 (Prop_lut2_I1_O)        0.124     8.615 r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[0]_i_1__2/O
+                         net (fo=3, routed)           0.486     9.100    u_core/u_err_fifo/read_pointer_inst/D[0]
+    SLICE_X12Y102                                                     r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[3]_INST_0_i_1/DI[0]
+    SLICE_X12Y102        CARRY4 (Prop_carry4_DI[0]_CO[3])
+                                                      0.550     9.650 r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[3]_INST_0_i_1/CO[3]
+                         net (fo=1, routed)           0.000     9.650    u_core/u_err_fifo/read_pointer_inst/err_fifo_count[3]_INST_0_i_1_n_0
+    SLICE_X12Y103                                                     r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[6]_INST_0_i_1/CI
+    SLICE_X12Y103        CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.323     9.973 r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[6]_INST_0_i_1/O[1]
+                         net (fo=1, routed)           0.557    10.531    u_core/u_err_fifo/write_pointer_inst/err_fifo_count[5][1]
+    SLICE_X15Y105                                                     r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[5]_INST_0/I2
+    SLICE_X15Y105        LUT3 (Prop_lut3_I2_O)        0.306    10.837 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[5]_INST_0/O
+                         net (fo=0)                   0.973    11.810    err_fifo_count[5]
+                                                                      r  err_fifo_count[5] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.810    
+  -------------------------------------------------------------------
+                         slack                                 -4.845    
+
+Slack (VIOLATED) :        -4.771ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            err_fifo_count[4]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.735ns  (logic 2.150ns (24.613%)  route 6.585ns (75.387%))
+  Logic Levels:           11  (CARRY4=2 LUT3=1 LUT4=1 LUT5=1 LUT6=5 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 r  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           0.842     6.278    u_core/u_err_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X11Y99                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/I0
+    SLICE_X11Y99         LUT6 (Prop_lut6_I0_O)        0.124     6.402 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=1, routed)           1.021     7.423    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X13Y102                                                     f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/I4
+    SLICE_X13Y102        LUT6 (Prop_lut6_I4_O)        0.124     7.547 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=3, routed)           0.454     8.001    u_core/u_err_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X13Y103                                                     r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/I0
+    SLICE_X13Y103        LUT4 (Prop_lut4_I0_O)        0.124     8.125 r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/O
+                         net (fo=12, routed)          0.375     8.500    u_core/u_err_fifo/write_pointer_inst/counter_bin_curr_reg[0]_0
+    SLICE_X14Y103                                                     r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[3]_i_1__0/I1
+    SLICE_X14Y103        LUT5 (Prop_lut5_I1_O)        0.124     8.624 r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[3]_i_1__0/O
+                         net (fo=6, routed)           0.556     9.180    u_core/u_err_fifo/read_pointer_inst/rdom_wr_ptr_bin[2]
+    SLICE_X12Y104                                                     r  u_core/u_err_fifo/read_pointer_inst/w_almost_full_count0_carry_i_1__0/I0
+    SLICE_X12Y104        LUT6 (Prop_lut6_I0_O)        0.124     9.304 r  u_core/u_err_fifo/read_pointer_inst/w_almost_full_count0_carry_i_1__0/O
+                         net (fo=1, routed)           0.000     9.304    u_core/u_err_fifo/fifo_control_inst/S[2]
+    SLICE_X12Y104                                                     r  u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry/S[3]
+    SLICE_X12Y104        CARRY4 (Prop_carry4_S[3]_CO[3])
+                                                      0.376     9.680 r  u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry/CO[3]
+                         net (fo=1, routed)           0.000     9.680    u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry_n_0
+    SLICE_X12Y105                                                     r  u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry__0/CI
+    SLICE_X12Y105        CARRY4 (Prop_carry4_CI_O[0])
+                                                      0.219     9.899 r  u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry__0/O[0]
+                         net (fo=1, routed)           0.569    10.467    u_core/u_err_fifo/write_pointer_inst/O[0]
+    SLICE_X15Y105                                                     r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[4]_INST_0/I0
+    SLICE_X15Y105        LUT3 (Prop_lut3_I0_O)        0.295    10.762 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[4]_INST_0/O
+                         net (fo=0)                   0.973    11.735    err_fifo_count[4]
+                                                                      r  err_fifo_count[4] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.735    
+  -------------------------------------------------------------------
+                         slack                                 -4.771    
+
+Slack (VIOLATED) :        -4.710ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            err_fifo_count[2]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.674ns  (logic 2.016ns (23.241%)  route 6.658ns (76.758%))
+  Logic Levels:           9  (CARRY4=1 LUT2=1 LUT3=1 LUT4=1 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 r  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           0.842     6.278    u_core/u_err_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X11Y99                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/I0
+    SLICE_X11Y99         LUT6 (Prop_lut6_I0_O)        0.124     6.402 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=1, routed)           1.021     7.423    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X13Y102                                                     f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/I4
+    SLICE_X13Y102        LUT6 (Prop_lut6_I4_O)        0.124     7.547 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=3, routed)           0.454     8.001    u_core/u_err_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X13Y103                                                     r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/I0
+    SLICE_X13Y103        LUT4 (Prop_lut4_I0_O)        0.124     8.125 r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/O
+                         net (fo=12, routed)          0.366     8.491    u_core/u_err_fifo/write_pointer_inst/counter_bin_curr_reg[0]_0
+    SLICE_X14Y103                                                     r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[0]_i_1__2/I1
+    SLICE_X14Y103        LUT2 (Prop_lut2_I1_O)        0.124     8.615 r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[0]_i_1__2/O
+                         net (fo=3, routed)           0.486     9.100    u_core/u_err_fifo/read_pointer_inst/D[0]
+    SLICE_X12Y102                                                     r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[3]_INST_0_i_1/DI[0]
+    SLICE_X12Y102        CARRY4 (Prop_carry4_DI[0]_O[2])
+                                                      0.579     9.679 r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[3]_INST_0_i_1/O[2]
+                         net (fo=1, routed)           0.721    10.400    u_core/u_err_fifo/fifo_control_inst/err_fifo_count[3][2]
+    SLICE_X13Y104                                                     r  u_core/u_err_fifo/fifo_control_inst/err_fifo_count[2]_INST_0/I2
+    SLICE_X13Y104        LUT3 (Prop_lut3_I2_O)        0.301    10.701 r  u_core/u_err_fifo/fifo_control_inst/err_fifo_count[2]_INST_0/O
+                         net (fo=0)                   0.973    11.674    err_fifo_count[2]
+                                                                      r  err_fifo_count[2] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.674    
+  -------------------------------------------------------------------
+                         slack                                 -4.710    
+
+Slack (VIOLATED) :        -4.677ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            err_fifo_count[6]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.641ns  (logic 2.108ns (24.394%)  route 6.533ns (75.606%))
+  Logic Levels:           10  (CARRY4=1 LUT3=1 LUT4=2 LUT6=5 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 r  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           0.842     6.278    u_core/u_err_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X11Y99                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/I0
+    SLICE_X11Y99         LUT6 (Prop_lut6_I0_O)        0.124     6.402 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=1, routed)           1.021     7.423    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X13Y102                                                     f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/I4
+    SLICE_X13Y102        LUT6 (Prop_lut6_I4_O)        0.124     7.547 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=3, routed)           0.454     8.001    u_core/u_err_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X13Y103                                                     r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/I0
+    SLICE_X13Y103        LUT4 (Prop_lut4_I0_O)        0.124     8.125 r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/O
+                         net (fo=12, routed)          0.487     8.612    u_core/u_err_fifo/write_pointer_inst/counter_bin_curr_reg[0]_0
+    SLICE_X15Y104                                                     r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[4]_i_1__0/I4
+    SLICE_X15Y104        LUT6 (Prop_lut6_I4_O)        0.124     8.736 r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[4]_i_1__0/O
+                         net (fo=5, routed)           0.523     9.259    u_core/u_err_fifo/read_pointer_inst/rdom_wr_ptr_bin[3]
+    SLICE_X12Y103                                                     r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[6]_INST_0_i_4/I0
+    SLICE_X12Y103        LUT4 (Prop_lut4_I0_O)        0.124     9.383 r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[6]_INST_0_i_4/O
+                         net (fo=1, routed)           0.000     9.383    u_core/u_err_fifo/read_pointer_inst/err_fifo_count[6]_INST_0_i_4_n_0
+    SLICE_X12Y103                                                     r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[6]_INST_0_i_1/S[0]
+    SLICE_X12Y103        CARRY4 (Prop_carry4_S[0]_CO[2])
+                                                      0.538     9.921 r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[6]_INST_0_i_1/CO[2]
+                         net (fo=1, routed)           0.437    10.358    u_core/u_err_fifo/write_pointer_inst/CO[0]
+    SLICE_X13Y104                                                     r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[6]_INST_0/I0
+    SLICE_X13Y104        LUT3 (Prop_lut3_I0_O)        0.310    10.668 r  u_core/u_err_fifo/write_pointer_inst/err_fifo_count[6]_INST_0/O
+                         net (fo=0)                   0.973    11.641    err_fifo_count[6]
+                                                                      r  err_fifo_count[6] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.641    
+  -------------------------------------------------------------------
+                         slack                                 -4.677    
+
+Slack (VIOLATED) :        -4.613ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            err_fifo_count[3]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.578ns  (logic 1.890ns (22.034%)  route 6.688ns (77.966%))
+  Logic Levels:           9  (CARRY4=1 LUT3=1 LUT4=2 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 r  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           0.842     6.278    u_core/u_err_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X11Y99                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/I0
+    SLICE_X11Y99         LUT6 (Prop_lut6_I0_O)        0.124     6.402 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=1, routed)           1.021     7.423    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X13Y102                                                     f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/I4
+    SLICE_X13Y102        LUT6 (Prop_lut6_I4_O)        0.124     7.547 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=3, routed)           0.454     8.001    u_core/u_err_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X13Y103                                                     r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/I0
+    SLICE_X13Y103        LUT4 (Prop_lut4_I0_O)        0.124     8.125 r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/O
+                         net (fo=12, routed)          0.355     8.480    u_core/u_err_fifo/write_pointer_inst/counter_bin_curr_reg[0]_0
+    SLICE_X15Y103                                                     r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[2]_i_1__0/I0
+    SLICE_X15Y103        LUT4 (Prop_lut4_I0_O)        0.124     8.604 r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[2]_i_1__0/O
+                         net (fo=5, routed)           0.651     9.254    u_core/u_err_fifo/fifo_control_inst/rdom_wr_ptr_bin[1]
+    SLICE_X12Y104                                                     r  u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry/DI[2]
+    SLICE_X12Y104        CARRY4 (Prop_carry4_DI[2]_O[3])
+                                                      0.447     9.701 r  u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry/O[3]
+                         net (fo=1, routed)           0.596    10.298    u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry_n_4
+    SLICE_X13Y104                                                     r  u_core/u_err_fifo/fifo_control_inst/err_fifo_count[3]_INST_0/I0
+    SLICE_X13Y104        LUT3 (Prop_lut3_I0_O)        0.307    10.605 r  u_core/u_err_fifo/fifo_control_inst/err_fifo_count[3]_INST_0/O
+                         net (fo=0)                   0.973    11.578    err_fifo_count[3]
+                                                                      r  err_fifo_count[3] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.578    
+  -------------------------------------------------------------------
+                         slack                                 -4.613    
+
+Slack (VIOLATED) :        -4.572ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            write_fifo_count[6]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.537ns  (logic 2.196ns (25.724%)  route 6.341ns (74.276%))
+  Logic Levels:           10  (CARRY4=2 LUT3=2 LUT4=1 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 f  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           1.002     6.437    u_core/u_write_fifo/fifo_control_inst/r_lat_packet_reg[127]
+    SLICE_X8Y100                                                      r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/I1
+    SLICE_X8Y100         LUT6 (Prop_lut6_I1_O)        0.124     6.561 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/O
+                         net (fo=2, routed)           0.657     7.218    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]_0
+    SLICE_X11Y101                                                     r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/I5
+    SLICE_X11Y101        LUT6 (Prop_lut6_I5_O)        0.124     7.342 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=133, routed)         0.377     7.719    u_core/u_write_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X8Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/I0
+    SLICE_X8Y101         LUT4 (Prop_lut4_I0_O)        0.124     7.843 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/O
+                         net (fo=29, routed)          0.409     8.252    u_core/u_write_fifo/write_pointer_inst/p_0_in
+    SLICE_X9Y100                                                      r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/I1
+    SLICE_X9Y100         LUT3 (Prop_lut3_I1_O)        0.124     8.376 r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/O
+                         net (fo=3, routed)           0.544     8.920    u_core/u_write_fifo/fifo_control_inst/D[0]
+    SLICE_X8Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/DI[1]
+    SLICE_X8Y102         CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.520     9.440 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/CO[3]
+                         net (fo=1, routed)           0.000     9.440    u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry_n_0
+    SLICE_X8Y103                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/CI
+    SLICE_X8Y103         CARRY4 (Prop_carry4_CI_O[2])
+                                                      0.239     9.679 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/O[2]
+                         net (fo=1, routed)           0.583    10.263    u_core/u_write_fifo/write_pointer_inst/r_fifo_beats_reg[7][2]
+    SLICE_X11Y103                                                     r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[6]_INST_0/I2
+    SLICE_X11Y103        LUT3 (Prop_lut3_I2_O)        0.301    10.564 r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[6]_INST_0/O
+                         net (fo=1, unset)            0.973    11.537    write_fifo_count[6]
+                                                                      r  write_fifo_count[6] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.537    
+  -------------------------------------------------------------------
+                         slack                                 -4.572    
+
+Slack (VIOLATED) :        -4.569ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            err_fifo_count[1]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.534ns  (logic 1.864ns (21.842%)  route 6.670ns (78.158%))
+  Logic Levels:           9  (CARRY4=1 LUT2=1 LUT3=1 LUT4=1 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 r  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           0.842     6.278    u_core/u_err_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X11Y99                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/I0
+    SLICE_X11Y99         LUT6 (Prop_lut6_I0_O)        0.124     6.402 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=1, routed)           1.021     7.423    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X13Y102                                                     f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/I4
+    SLICE_X13Y102        LUT6 (Prop_lut6_I4_O)        0.124     7.547 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=3, routed)           0.454     8.001    u_core/u_err_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X13Y103                                                     r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/I0
+    SLICE_X13Y103        LUT4 (Prop_lut4_I0_O)        0.124     8.125 r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/O
+                         net (fo=12, routed)          0.366     8.491    u_core/u_err_fifo/write_pointer_inst/counter_bin_curr_reg[0]_0
+    SLICE_X14Y103                                                     r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[0]_i_1__2/I1
+    SLICE_X14Y103        LUT2 (Prop_lut2_I1_O)        0.124     8.615 r  u_core/u_err_fifo/write_pointer_inst/counter_bin_curr[0]_i_1__2/O
+                         net (fo=3, routed)           0.486     9.100    u_core/u_err_fifo/read_pointer_inst/D[0]
+    SLICE_X12Y102                                                     r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[3]_INST_0_i_1/DI[0]
+    SLICE_X12Y102        CARRY4 (Prop_carry4_DI[0]_O[1])
+                                                      0.422     9.522 r  u_core/u_err_fifo/read_pointer_inst/err_fifo_count[3]_INST_0_i_1/O[1]
+                         net (fo=1, routed)           0.732    10.255    u_core/u_err_fifo/fifo_control_inst/err_fifo_count[3][1]
+    SLICE_X8Y105                                                      r  u_core/u_err_fifo/fifo_control_inst/err_fifo_count[1]_INST_0/I2
+    SLICE_X8Y105         LUT3 (Prop_lut3_I2_O)        0.306    10.561 r  u_core/u_err_fifo/fifo_control_inst/err_fifo_count[1]_INST_0/O
+                         net (fo=0)                   0.973    11.534    err_fifo_count[1]
+                                                                      r  err_fifo_count[1] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.534    
+  -------------------------------------------------------------------
+                         slack                                 -4.569    
+
+Slack (VIOLATED) :        -4.516ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            write_fifo_count[4]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.480ns  (logic 2.170ns (25.589%)  route 6.310ns (74.411%))
+  Logic Levels:           10  (CARRY4=2 LUT3=2 LUT4=1 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 f  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           1.002     6.437    u_core/u_write_fifo/fifo_control_inst/r_lat_packet_reg[127]
+    SLICE_X8Y100                                                      r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/I1
+    SLICE_X8Y100         LUT6 (Prop_lut6_I1_O)        0.124     6.561 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/O
+                         net (fo=2, routed)           0.657     7.218    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]_0
+    SLICE_X11Y101                                                     r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/I5
+    SLICE_X11Y101        LUT6 (Prop_lut6_I5_O)        0.124     7.342 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=133, routed)         0.377     7.719    u_core/u_write_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X8Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/I0
+    SLICE_X8Y101         LUT4 (Prop_lut4_I0_O)        0.124     7.843 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/O
+                         net (fo=29, routed)          0.409     8.252    u_core/u_write_fifo/write_pointer_inst/p_0_in
+    SLICE_X9Y100                                                      r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/I1
+    SLICE_X9Y100         LUT3 (Prop_lut3_I1_O)        0.124     8.376 r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/O
+                         net (fo=3, routed)           0.544     8.920    u_core/u_write_fifo/fifo_control_inst/D[0]
+    SLICE_X8Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/DI[1]
+    SLICE_X8Y102         CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.520     9.440 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/CO[3]
+                         net (fo=1, routed)           0.000     9.440    u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry_n_0
+    SLICE_X8Y103                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/CI
+    SLICE_X8Y103         CARRY4 (Prop_carry4_CI_O[0])
+                                                      0.219     9.659 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/O[0]
+                         net (fo=1, routed)           0.553    10.212    u_core/u_write_fifo/write_pointer_inst/r_fifo_beats_reg[7][0]
+    SLICE_X9Y104                                                      r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[4]_INST_0/I2
+    SLICE_X9Y104         LUT3 (Prop_lut3_I2_O)        0.295    10.507 r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[4]_INST_0/O
+                         net (fo=1, unset)            0.973    11.480    write_fifo_count[4]
+                                                                      r  write_fifo_count[4] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.480    
+  -------------------------------------------------------------------
+                         slack                                 -4.516    
+
+Slack (VIOLATED) :        -4.490ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            write_fifo_count[3]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.455ns  (logic 2.066ns (24.436%)  route 6.389ns (75.564%))
+  Logic Levels:           9  (CARRY4=1 LUT3=2 LUT4=1 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 f  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           1.002     6.437    u_core/u_write_fifo/fifo_control_inst/r_lat_packet_reg[127]
+    SLICE_X8Y100                                                      r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/I1
+    SLICE_X8Y100         LUT6 (Prop_lut6_I1_O)        0.124     6.561 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/O
+                         net (fo=2, routed)           0.657     7.218    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]_0
+    SLICE_X11Y101                                                     r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/I5
+    SLICE_X11Y101        LUT6 (Prop_lut6_I5_O)        0.124     7.342 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=133, routed)         0.377     7.719    u_core/u_write_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X8Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/I0
+    SLICE_X8Y101         LUT4 (Prop_lut4_I0_O)        0.124     7.843 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/O
+                         net (fo=29, routed)          0.409     8.252    u_core/u_write_fifo/write_pointer_inst/p_0_in
+    SLICE_X9Y100                                                      r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/I1
+    SLICE_X9Y100         LUT3 (Prop_lut3_I1_O)        0.124     8.376 r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/O
+                         net (fo=3, routed)           0.355     8.731    u_core/u_write_fifo/fifo_control_inst/D[0]
+    SLICE_X9Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_carry/DI[1]
+    SLICE_X9Y102         CARRY4 (Prop_carry4_DI[1]_O[3])
+                                                      0.596     9.327 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_carry/O[3]
+                         net (fo=1, routed)           0.821    10.148    u_core/u_write_fifo/fifo_control_inst/w_almost_empty_count0[3]
+    SLICE_X9Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[3]_INST_0/I0
+    SLICE_X9Y101         LUT3 (Prop_lut3_I0_O)        0.334    10.482 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[3]_INST_0/O
+                         net (fo=1, unset)            0.973    11.455    write_fifo_count[3]
+                                                                      r  write_fifo_count[3] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.455    
+  -------------------------------------------------------------------
+                         slack                                 -4.490    
+
+Slack (VIOLATED) :        -4.379ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            write_fifo_count[2]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.344ns  (logic 1.975ns (23.670%)  route 6.369ns (76.330%))
+  Logic Levels:           9  (CARRY4=1 LUT3=2 LUT4=1 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 f  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           1.002     6.437    u_core/u_write_fifo/fifo_control_inst/r_lat_packet_reg[127]
+    SLICE_X8Y100                                                      r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/I1
+    SLICE_X8Y100         LUT6 (Prop_lut6_I1_O)        0.124     6.561 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/O
+                         net (fo=2, routed)           0.657     7.218    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]_0
+    SLICE_X11Y101                                                     r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/I5
+    SLICE_X11Y101        LUT6 (Prop_lut6_I5_O)        0.124     7.342 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=133, routed)         0.377     7.719    u_core/u_write_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X8Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/I0
+    SLICE_X8Y101         LUT4 (Prop_lut4_I0_O)        0.124     7.843 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/O
+                         net (fo=29, routed)          0.409     8.252    u_core/u_write_fifo/write_pointer_inst/p_0_in
+    SLICE_X9Y100                                                      r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/I1
+    SLICE_X9Y100         LUT3 (Prop_lut3_I1_O)        0.124     8.376 r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/O
+                         net (fo=3, routed)           0.355     8.731    u_core/u_write_fifo/fifo_control_inst/D[0]
+    SLICE_X9Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_carry/DI[1]
+    SLICE_X9Y102         CARRY4 (Prop_carry4_DI[1]_O[2])
+                                                      0.537     9.268 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_carry/O[2]
+                         net (fo=1, routed)           0.801    10.069    u_core/u_write_fifo/fifo_control_inst/w_almost_empty_count0[2]
+    SLICE_X9Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[2]_INST_0/I0
+    SLICE_X9Y101         LUT3 (Prop_lut3_I0_O)        0.302    10.371 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[2]_INST_0/O
+                         net (fo=1, unset)            0.973    11.344    write_fifo_count[2]
+                                                                      r  write_fifo_count[2] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.344    
+  -------------------------------------------------------------------
+                         slack                                 -4.379    
+
+Slack (VIOLATED) :        -4.265ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            write_fifo_count[1]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.229ns  (logic 1.899ns (23.076%)  route 6.330ns (76.924%))
+  Logic Levels:           9  (CARRY4=1 LUT3=1 LUT4=2 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 f  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           1.002     6.437    u_core/u_write_fifo/fifo_control_inst/r_lat_packet_reg[127]
+    SLICE_X8Y100                                                      r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/I1
+    SLICE_X8Y100         LUT6 (Prop_lut6_I1_O)        0.124     6.561 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/O
+                         net (fo=2, routed)           0.657     7.218    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]_0
+    SLICE_X11Y101                                                     r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/I5
+    SLICE_X11Y101        LUT6 (Prop_lut6_I5_O)        0.124     7.342 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=133, routed)         0.377     7.719    u_core/u_write_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X8Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/I0
+    SLICE_X8Y101         LUT4 (Prop_lut4_I0_O)        0.124     7.843 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/O
+                         net (fo=29, routed)          0.504     8.347    u_core/u_write_fifo/fifo_control_inst/p_0_in
+    SLICE_X8Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/i__carry_i_6/I1
+    SLICE_X8Y102         LUT4 (Prop_lut4_I1_O)        0.124     8.471 r  u_core/u_write_fifo/fifo_control_inst/i__carry_i_6/O
+                         net (fo=1, routed)           0.000     8.471    u_core/u_write_fifo/fifo_control_inst/i__carry_i_6_n_0
+    SLICE_X8Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/S[0]
+    SLICE_X8Y102         CARRY4 (Prop_carry4_S[0]_O[1])
+                                                      0.427     8.898 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/O[1]
+                         net (fo=1, routed)           1.023     9.920    u_core/u_write_fifo/fifo_control_inst/w_count0[1]
+    SLICE_X7Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[1]_INST_0/I2
+    SLICE_X7Y102         LUT3 (Prop_lut3_I2_O)        0.336    10.256 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[1]_INST_0/O
+                         net (fo=1, unset)            0.973    11.229    write_fifo_count[1]
+                                                                      r  write_fifo_count[1] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -11.229    
+  -------------------------------------------------------------------
+                         slack                                 -4.265    
+
+Slack (VIOLATED) :        -3.802ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            write_fifo_count[0]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        7.767ns  (logic 1.682ns (21.656%)  route 6.085ns (78.344%))
+  Logic Levels:           9  (CARRY4=1 LUT3=1 LUT4=2 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 f  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           1.002     6.437    u_core/u_write_fifo/fifo_control_inst/r_lat_packet_reg[127]
+    SLICE_X8Y100                                                      r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/I1
+    SLICE_X8Y100         LUT6 (Prop_lut6_I1_O)        0.124     6.561 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/O
+                         net (fo=2, routed)           0.657     7.218    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]_0
+    SLICE_X11Y101                                                     r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/I5
+    SLICE_X11Y101        LUT6 (Prop_lut6_I5_O)        0.124     7.342 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=133, routed)         0.377     7.719    u_core/u_write_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X8Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/I0
+    SLICE_X8Y101         LUT4 (Prop_lut4_I0_O)        0.124     7.843 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/O
+                         net (fo=29, routed)          0.612     8.455    u_core/u_write_fifo/fifo_control_inst/p_0_in
+    SLICE_X9Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_carry_i_5/I1
+    SLICE_X9Y102         LUT4 (Prop_lut4_I1_O)        0.124     8.579 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_carry_i_5/O
+                         net (fo=1, routed)           0.000     8.579    u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_carry_i_5_n_0
+    SLICE_X9Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_carry/S[0]
+    SLICE_X9Y102         CARRY4 (Prop_carry4_S[0]_O[0])
+                                                      0.247     8.826 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_carry/O[0]
+                         net (fo=1, routed)           0.669     9.495    u_core/u_write_fifo/fifo_control_inst/w_almost_empty_count0[0]
+    SLICE_X7Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[0]_INST_0/I0
+    SLICE_X7Y102         LUT3 (Prop_lut3_I0_O)        0.299     9.794 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[0]_INST_0/O
+                         net (fo=1, unset)            0.973    10.767    write_fifo_count[0]
+                                                                      r  write_fifo_count[0] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -10.767    
+  -------------------------------------------------------------------
+                         slack                                 -3.802    
+
+Slack (VIOLATED) :        -3.740ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            err_fifo_count[0]
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        7.704ns  (logic 1.683ns (21.845%)  route 6.021ns (78.155%))
+  Logic Levels:           9  (CARRY4=1 LUT3=1 LUT4=1 LUT6=5 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 r  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           0.842     6.278    u_core/u_err_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X11Y99                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/I0
+    SLICE_X11Y99         LUT6 (Prop_lut6_I0_O)        0.124     6.402 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=1, routed)           1.021     7.423    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X13Y102                                                     f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/I4
+    SLICE_X13Y102        LUT6 (Prop_lut6_I4_O)        0.124     7.547 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=3, routed)           0.454     8.001    u_core/u_err_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X13Y103                                                     r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/I0
+    SLICE_X13Y103        LUT4 (Prop_lut4_I0_O)        0.124     8.125 r  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/O
+                         net (fo=12, routed)          0.361     8.485    u_core/u_err_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X12Y104                                                     r  u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry_i_4__0/I1
+    SLICE_X12Y104        LUT6 (Prop_lut6_I1_O)        0.124     8.609 r  u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry_i_4__0/O
+                         net (fo=1, routed)           0.000     8.609    u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry_i_4__0_n_0
+    SLICE_X12Y104                                                     r  u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry/S[0]
+    SLICE_X12Y104        CARRY4 (Prop_carry4_S[0]_O[0])
+                                                      0.252     8.861 r  u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry/O[0]
+                         net (fo=1, routed)           0.575     9.436    u_core/u_err_fifo/fifo_control_inst/w_almost_full_count0_carry_n_7
+    SLICE_X13Y102                                                     r  u_core/u_err_fifo/fifo_control_inst/err_fifo_count[0]_INST_0/I0
+    SLICE_X13Y102        LUT3 (Prop_lut3_I0_O)        0.295     9.731 r  u_core/u_err_fifo/fifo_control_inst/err_fifo_count[0]_INST_0/O
+                         net (fo=0)                   0.973    10.704    err_fifo_count[0]
+                                                                      r  err_fifo_count[0] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                         -10.704    
+  -------------------------------------------------------------------
+                         slack                                 -3.740    
+
+Slack (VIOLATED) :        -2.321ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_ready
+                            (output port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        6.285ns  (logic 1.012ns (16.101%)  route 5.273ns (83.899%))
+  Logic Levels:           6  (LUT5=1 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Output Delay:           3.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 r  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           0.842     6.278    u_core/u_err_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X11Y99                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/I0
+    SLICE_X11Y99         LUT6 (Prop_lut6_I0_O)        0.124     6.402 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=1, routed)           1.021     7.423    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X13Y102                                                     f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/I4
+    SLICE_X13Y102        LUT6 (Prop_lut6_I4_O)        0.124     7.547 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=3, routed)           0.642     8.188    u_core/u_write_fifo/fifo_control_inst/monbus_ready_0
+    SLICE_X9Y100                                                      r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0/I1
+    SLICE_X9Y100         LUT5 (Prop_lut5_I1_O)        0.124     8.312 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0/O
+                         net (fo=0)                   0.973     9.285    monbus_ready
+                                                                      r  monbus_ready (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -9.285    
+  -------------------------------------------------------------------
+                         slack                                 -2.321    
+
+Slack (VIOLATED) :        -0.867ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_core/r_fifo_beats_reg[7]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.487ns  (logic 2.049ns (24.142%)  route 6.438ns (75.858%))
+  Logic Levels:           10  (CARRY4=1 LUT3=1 LUT4=3 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 f  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           1.002     6.437    u_core/u_write_fifo/fifo_control_inst/r_lat_packet_reg[127]
+    SLICE_X8Y100                                                      r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/I1
+    SLICE_X8Y100         LUT6 (Prop_lut6_I1_O)        0.124     6.561 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/O
+                         net (fo=2, routed)           0.657     7.218    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]_0
+    SLICE_X11Y101                                                     r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/I5
+    SLICE_X11Y101        LUT6 (Prop_lut6_I5_O)        0.124     7.342 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=133, routed)         0.377     7.719    u_core/u_write_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X8Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/I0
+    SLICE_X8Y101         LUT4 (Prop_lut4_I0_O)        0.124     7.843 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/O
+                         net (fo=29, routed)          0.694     8.537    u_core/u_write_fifo/write_pointer_inst/p_0_in
+    SLICE_X9Y103                                                      r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[6]_i_1__1/I3
+    SLICE_X9Y103         LUT4 (Prop_lut4_I3_O)        0.120     8.657 f  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[6]_i_1__1/O
+                         net (fo=2, routed)           0.520     9.177    u_core/u_write_fifo/read_pointer_inst/rdom_wr_ptr_bin[2]
+    SLICE_X8Y103                                                      f  u_core/u_write_fifo/read_pointer_inst/i__carry__0_i_3/I3
+    SLICE_X8Y103         LUT4 (Prop_lut4_I3_O)        0.327     9.504 r  u_core/u_write_fifo/read_pointer_inst/i__carry__0_i_3/O
+                         net (fo=1, routed)           0.000     9.504    u_core/u_write_fifo/fifo_control_inst/r_fifo_beats_reg[7]_2[3]
+    SLICE_X8Y103                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/S[3]
+    SLICE_X8Y103         CARRY4 (Prop_carry4_S[3]_O[3])
+                                                      0.255     9.759 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/O[3]
+                         net (fo=1, routed)           0.818    10.577    u_core/u_write_fifo/write_pointer_inst/r_fifo_beats_reg[7][3]
+    SLICE_X11Y103                                                     r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[7]_INST_0/I0
+    SLICE_X11Y103        LUT3 (Prop_lut3_I0_O)        0.335    10.912 r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[7]_INST_0/O
+                         net (fo=1, routed)           0.576    11.487    u_core/write_fifo_count[7]
+    SLICE_X7Y103         FDCE                                         r  u_core/r_fifo_beats_reg[7]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.924    10.924    u_core/axi_aclk
+    SLICE_X7Y103         FDCE                                         r  u_core/r_fifo_beats_reg[7]/C
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X7Y103         FDCE (Setup_fdce_C_D)       -0.269    10.620    u_core/r_fifo_beats_reg[7]
+  -------------------------------------------------------------------
+                         required time                         10.620    
+                         arrival time                         -11.487    
+  -------------------------------------------------------------------
+                         slack                                 -0.867    
+
+Slack (VIOLATED) :        -0.812ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_core/r_fifo_beats_reg[5]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        8.465ns  (logic 2.313ns (27.325%)  route 6.152ns (72.675%))
+  Logic Levels:           10  (CARRY4=2 LUT3=2 LUT4=1 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 f  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           1.002     6.437    u_core/u_write_fifo/fifo_control_inst/r_lat_packet_reg[127]
+    SLICE_X8Y100                                                      r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/I1
+    SLICE_X8Y100         LUT6 (Prop_lut6_I1_O)        0.124     6.561 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/O
+                         net (fo=2, routed)           0.657     7.218    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]_0
+    SLICE_X11Y101                                                     r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/I5
+    SLICE_X11Y101        LUT6 (Prop_lut6_I5_O)        0.124     7.342 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=133, routed)         0.377     7.719    u_core/u_write_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X8Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/I0
+    SLICE_X8Y101         LUT4 (Prop_lut4_I0_O)        0.124     7.843 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/O
+                         net (fo=29, routed)          0.409     8.252    u_core/u_write_fifo/write_pointer_inst/p_0_in
+    SLICE_X9Y100                                                      r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/I1
+    SLICE_X9Y100         LUT3 (Prop_lut3_I1_O)        0.124     8.376 r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/O
+                         net (fo=3, routed)           0.544     8.920    u_core/u_write_fifo/fifo_control_inst/D[0]
+    SLICE_X8Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/DI[1]
+    SLICE_X8Y102         CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.520     9.440 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry/CO[3]
+                         net (fo=1, routed)           0.000     9.440    u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry_n_0
+    SLICE_X8Y103                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/CI
+    SLICE_X8Y103         CARRY4 (Prop_carry4_CI_O[1])
+                                                      0.323     9.763 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_inferred__0/i__carry__0/O[1]
+                         net (fo=1, routed)           0.800    10.564    u_core/u_write_fifo/write_pointer_inst/r_fifo_beats_reg[7][1]
+    SLICE_X9Y104                                                      r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[5]_INST_0/I2
+    SLICE_X9Y104         LUT3 (Prop_lut3_I2_O)        0.334    10.898 r  u_core/u_write_fifo/write_pointer_inst/write_fifo_count[5]_INST_0/O
+                         net (fo=1, routed)           0.567    11.465    u_core/write_fifo_count[5]
+    SLICE_X6Y103         FDCE                                         r  u_core/r_fifo_beats_reg[5]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.924    10.924    u_core/axi_aclk
+    SLICE_X6Y103         FDCE                                         r  u_core/r_fifo_beats_reg[5]/C
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X6Y103         FDCE (Setup_fdce_C_D)       -0.236    10.653    u_core/r_fifo_beats_reg[5]
+  -------------------------------------------------------------------
+                         required time                         10.653    
+                         arrival time                         -11.465    
+  -------------------------------------------------------------------
+                         slack                                 -0.812    
+
+Slack (VIOLATED) :        -0.214ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_core/r_fifo_beats_reg[3]/D
+                            (rising edge-triggered cell FDCE clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        7.864ns  (logic 2.066ns (26.271%)  route 5.798ns (73.729%))
+  Logic Levels:           9  (CARRY4=1 LUT3=2 LUT4=1 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 f  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           1.002     6.437    u_core/u_write_fifo/fifo_control_inst/r_lat_packet_reg[127]
+    SLICE_X8Y100                                                      r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/I1
+    SLICE_X8Y100         LUT6 (Prop_lut6_I1_O)        0.124     6.561 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_8/O
+                         net (fo=2, routed)           0.657     7.218    u_core/u_write_fifo/fifo_control_inst/monbus_packet[107]_0
+    SLICE_X11Y101                                                     r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/I5
+    SLICE_X11Y101        LUT6 (Prop_lut6_I5_O)        0.124     7.342 r  u_core/u_write_fifo/fifo_control_inst/monbus_ready_INST_0_i_1/O
+                         net (fo=133, routed)         0.377     7.719    u_core/u_write_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X8Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/I0
+    SLICE_X8Y101         LUT4 (Prop_lut4_I0_O)        0.124     7.843 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[7]_INST_0_i_2/O
+                         net (fo=29, routed)          0.409     8.252    u_core/u_write_fifo/write_pointer_inst/p_0_in
+    SLICE_X9Y100                                                      r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/I1
+    SLICE_X9Y100         LUT3 (Prop_lut3_I1_O)        0.124     8.376 r  u_core/u_write_fifo/write_pointer_inst/counter_bin_curr[1]_i_1__1/O
+                         net (fo=3, routed)           0.355     8.731    u_core/u_write_fifo/fifo_control_inst/D[0]
+    SLICE_X9Y102                                                      r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_carry/DI[1]
+    SLICE_X9Y102         CARRY4 (Prop_carry4_DI[1]_O[3])
+                                                      0.596     9.327 r  u_core/u_write_fifo/fifo_control_inst/w_almost_full_count0_carry/O[3]
+                         net (fo=1, routed)           0.821    10.148    u_core/u_write_fifo/fifo_control_inst/w_almost_empty_count0[3]
+    SLICE_X9Y101                                                      r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[3]_INST_0/I0
+    SLICE_X9Y101         LUT3 (Prop_lut3_I0_O)        0.334    10.482 r  u_core/u_write_fifo/fifo_control_inst/write_fifo_count[3]_INST_0/O
+                         net (fo=1, routed)           0.383    10.864    u_core/write_fifo_count[3]
+    SLICE_X8Y102         FDCE                                         r  u_core/r_fifo_beats_reg[3]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.924    10.924    u_core/axi_aclk
+    SLICE_X8Y102         FDCE                                         r  u_core/r_fifo_beats_reg[3]/C
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X8Y102         FDCE (Setup_fdce_C_D)       -0.239    10.650    u_core/r_fifo_beats_reg[3]
+  -------------------------------------------------------------------
+                         required time                         10.650    
+                         arrival time                         -10.864    
+  -------------------------------------------------------------------
+                         slack                                 -0.214    
+
+Slack (VIOLATED) :        -0.117ns  (required time - arrival time)
+  Source:                 cfg_axi_addr_mask[4]
+                            (input port clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_core/u_err_fifo/gen_auto.mem_reg_0_63_69_71/RAMA/WE
+                            (rising edge-triggered cell RAMD64E clocked by axi_aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             axi_aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (axi_aclk rise@10.000ns - axi_aclk rise@0.000ns)
+  Data Path Delay:        7.473ns  (logic 1.136ns (15.202%)  route 6.337ns (84.798%))
+  Logic Levels:           7  (LUT2=1 LUT4=1 LUT6=4 MUXF7=1)
+  Input Delay:            3.000ns
+  Clock Path Skew:        0.924ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock axi_aclk rise edge)
+                                                      0.000     0.000 r  
+                         input delay                  3.000     3.000    
+                                                      0.000     3.000 f  cfg_axi_addr_mask[4] (IN)
+                         net (fo=0)                   0.973     3.973    u_core/u_err_fifo/fifo_control_inst/cfg_axi_addr_mask[4]
+    SLICE_X11Y98                                                      f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/I5
+    SLICE_X11Y98         LUT6 (Prop_lut6_I5_O)        0.124     4.097 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124/O
+                         net (fo=1, routed)           0.000     4.097    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_124_n_0
+    SLICE_X11Y98                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/I1
+    SLICE_X11Y98         MUXF7 (Prop_muxf7_I1_O)      0.217     4.314 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64/O
+                         net (fo=1, routed)           0.822     5.136    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_64_n_0
+    SLICE_X8Y98                                                       r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/I0
+    SLICE_X8Y98          LUT6 (Prop_lut6_I0_O)        0.299     5.435 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_27/O
+                         net (fo=2, routed)           0.842     6.278    u_core/u_err_fifo/fifo_control_inst/monbus_packet[100]
+    SLICE_X11Y99                                                      r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/I0
+    SLICE_X11Y99         LUT6 (Prop_lut6_I0_O)        0.124     6.402 r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9/O
+                         net (fo=1, routed)           1.021     7.423    u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_9_n_0
+    SLICE_X13Y102                                                     r  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/I4
+    SLICE_X13Y102        LUT6 (Prop_lut6_I4_O)        0.124     7.547 f  u_core/u_err_fifo/fifo_control_inst/monbus_ready_INST_0_i_2/O
+                         net (fo=3, routed)           0.454     8.001    u_core/u_err_fifo/fifo_control_inst/monbus_packet[107]
+    SLICE_X13Y103                                                     f  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/I0
+    SLICE_X13Y103        LUT4 (Prop_lut4_I0_O)        0.124     8.125 f  u_core/u_err_fifo/fifo_control_inst/counter_bin_curr[5]_i_2/O
+                         net (fo=12, routed)          0.888     9.012    u_core/u_err_fifo/fifo_control_inst/wr_full_reg_2
+    SLICE_X13Y111                                                     f  u_core/u_err_fifo/fifo_control_inst/gen_auto.mem_reg_0_63_0_2_i_1__0/I0
+    SLICE_X13Y111        LUT2 (Prop_lut2_I0_O)        0.124     9.136 r  u_core/u_err_fifo/fifo_control_inst/gen_auto.mem_reg_0_63_0_2_i_1__0/O
+                         net (fo=252, routed)         1.337    10.473    u_core/u_err_fifo/gen_auto.mem_reg_0_63_69_71/WE
+    SLICE_X2Y117         RAMD64E                                      r  u_core/u_err_fifo/gen_auto.mem_reg_0_63_69_71/RAMA/WE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock axi_aclk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  axi_aclk (IN)
+                         net (fo=1577, unset)         0.924    10.924    u_core/u_err_fifo/gen_auto.mem_reg_0_63_69_71/WCLK
+    SLICE_X2Y117         RAMD64E                                      r  u_core/u_err_fifo/gen_auto.mem_reg_0_63_69_71/RAMA/CLK
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X2Y117         RAMD64E (Setup_ramd64e_CLK_WE)
+                                                     -0.533    10.356    u_core/u_err_fifo/gen_auto.mem_reg_0_63_69_71/RAMA
+  -------------------------------------------------------------------
+                         required time                         10.356    
+                         arrival time                         -10.473    
+  -------------------------------------------------------------------
+                         slack                                 -0.117    
+
+
+
+

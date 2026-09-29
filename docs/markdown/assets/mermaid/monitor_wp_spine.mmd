@@ -1,0 +1,14 @@
+flowchart LR
+  subgraph Ports["Monitored ports"]
+    P1["port A<br/>lite monitor"]
+    P2["port B<br/>lite monitor"]
+    P3["port C<br/>lite monitor"]
+  end
+  P1 --> ARB["monbus_arbiter<br/>(round-robin tree)"]
+  P2 --> ARB
+  P3 --> ARB
+  ARB --> GRP["monbus group<br/>filter: pkt_mask / event masks<br/>steer: err_select"]
+  GRP -->|"err_select = 1"| EFIFO["error FIFO<br/>192-bit records<br/>irq_out"]
+  GRP -->|"else"| WFIFO["write FIFO<br/>3-beat records"]
+  EFIFO --> HOST["host reads over AXI-Lite<br/>(3 beats per record)"]
+  WFIFO -->|"watermark or timeout flush"| RING["memory ring<br/>[cfg_base_addr, cfg_limit_addr]"]

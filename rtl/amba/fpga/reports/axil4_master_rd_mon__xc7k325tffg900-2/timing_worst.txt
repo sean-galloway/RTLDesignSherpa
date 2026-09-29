@@ -1,0 +1,1172 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 18:59:20 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing -setup -max_paths 20 -nworst 1 -sort_by slack -input_pins -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axil4_master_rd_mon__xc7k325tffg900-2/timing_worst.txt
+| Design       : axil4_master_rd_mon
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             0.408ns  (required time - arrival time)
+  Source:                 cfg_axi_timeout_mask[14]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            monbus_valid
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.224ns  (logic 0.215ns (9.668%)  route 2.009ns (90.332%))
+  Logic Levels:           5  (LUT2=1 LUT4=1 LUT6=3)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_axi_timeout_mask[14] (IN)
+                         net (fo=0)                   0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/cfg_axi_timeout_mask[14]
+    SLICE_X0Y183                                                      f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0_i_16/I5
+    SLICE_X0Y183         LUT6 (Prop_lut6_I5_O)        0.043     2.580 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0_i_16/O
+                         net (fo=1, routed)           0.323     2.903    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0_i_16_n_0
+    SLICE_X2Y183                                                      f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0_i_5/I1
+    SLICE_X2Y183         LUT6 (Prop_lut6_I1_O)        0.043     2.946 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0_i_5/O
+                         net (fo=1, routed)           0.335     3.281    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0_i_5_n_0
+    SLICE_X2Y182                                                      f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0_i_2/I1
+    SLICE_X2Y182         LUT6 (Prop_lut6_I1_O)        0.043     3.324 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0_i_2/O
+                         net (fo=1, routed)           0.164     3.488    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0_i_2_n_0
+    SLICE_X2Y182                                                      f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0_i_1/I2
+    SLICE_X2Y182         LUT4 (Prop_lut4_I2_O)        0.043     3.531 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0_i_1/O
+                         net (fo=2, routed)           0.113     3.644    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/pkt_drop0_out
+    SLICE_X2Y182                                                      f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0/I1
+    SLICE_X2Y182         LUT2 (Prop_lut2_I1_O)        0.043     3.687 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_INST_0/O
+                         net (fo=0)                   0.537     4.224    monbus_valid
+                                                                      r  monbus_valid (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -4.224    
+  -------------------------------------------------------------------
+                         slack                                  0.408    
+
+Slack (MET) :             0.642ns  (required time - arrival time)
+  Source:                 cfg_axi_pkt_mask[2]
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            cfg_conflict_error
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        1.990ns  (logic 0.129ns (6.484%)  route 1.861ns (93.516%))
+  Logic Levels:           3  (LUT4=1 LUT6=2)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_axi_pkt_mask[2] (IN)
+                         net (fo=1, unset)            0.537     2.537    cfg_axi_pkt_mask[2]
+    SLICE_X83Y179                                                     r  cfg_conflict_error_INST_0_i_4/I3
+    SLICE_X83Y179        LUT4 (Prop_lut4_I3_O)        0.043     2.580 r  cfg_conflict_error_INST_0_i_4/O
+                         net (fo=1, routed)           0.354     2.934    cfg_conflict_error_INST_0_i_4_n_0
+    SLICE_X81Y179                                                     r  cfg_conflict_error_INST_0_i_2/I2
+    SLICE_X81Y179        LUT6 (Prop_lut6_I2_O)        0.043     2.977 r  cfg_conflict_error_INST_0_i_2/O
+                         net (fo=1, routed)           0.432     3.410    cfg_conflict_error_INST_0_i_2_n_0
+    SLICE_X81Y180                                                     r  cfg_conflict_error_INST_0/I1
+    SLICE_X81Y180        LUT6 (Prop_lut6_I1_O)        0.043     3.453 r  cfg_conflict_error_INST_0/O
+                         net (fo=0)                   0.537     3.990    cfg_conflict_error
+                                                                      r  cfg_conflict_error (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -3.990    
+  -------------------------------------------------------------------
+                         slack                                  0.642    
+
+Slack (MET) :             0.900ns  (required time - arrival time)
+  Source:                 gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            monbus_packet[9]
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.195ns  (logic 0.273ns (8.545%)  route 2.922ns (91.455%))
+  Logic Levels:           1  (LUT2=1)
+  Output Delay:           2.000ns
+  Clock Path Skew:        -0.537ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 6.667 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2909, unset)         0.537     0.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/aclk
+    SLICE_X4Y178         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X4Y178         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_reg/Q
+                         net (fo=146, routed)         2.385     3.145    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_reg_0
+    SLICE_X5Y155                                                      r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_packet[9]_INST_0/I0
+    SLICE_X5Y155         LUT2 (Prop_lut2_I0_O)        0.050     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_packet[9]_INST_0/O
+                         net (fo=0)                   0.537     3.732    monbus_packet[9]
+                                                                      r  monbus_packet[9] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -3.732    
+  -------------------------------------------------------------------
+                         slack                                  0.900    
+
+Slack (MET) :             0.907ns  (required time - arrival time)
+  Source:                 gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            monbus_packet[10]
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.188ns  (logic 0.266ns (8.344%)  route 2.922ns (91.656%))
+  Logic Levels:           1  (LUT2=1)
+  Output Delay:           2.000ns
+  Clock Path Skew:        -0.537ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 6.667 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2909, unset)         0.537     0.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/aclk
+    SLICE_X4Y178         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X4Y178         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_reg/Q
+                         net (fo=146, routed)         2.385     3.145    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_reg_0
+    SLICE_X5Y155                                                      r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_packet[10]_INST_0/I0
+    SLICE_X5Y155         LUT2 (Prop_lut2_I0_O)        0.043     3.188 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_packet[10]_INST_0/O
+                         net (fo=0)                   0.537     3.725    monbus_packet[10]
+                                                                      r  monbus_packet[10] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -3.725    
+  -------------------------------------------------------------------
+                         slack                                  0.907    
+
+Slack (MET) :             1.040ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][56]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.900ns  (logic 0.357ns (9.153%)  route 3.543ns (90.847%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.699     5.900    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y151         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][56]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y151         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][56]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y151         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][56]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.900    
+  -------------------------------------------------------------------
+                         slack                                  1.040    
+
+Slack (MET) :             1.040ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][57]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.900ns  (logic 0.357ns (9.153%)  route 3.543ns (90.847%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.699     5.900    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y151         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][57]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y151         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][57]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y151         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][57]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.900    
+  -------------------------------------------------------------------
+                         slack                                  1.040    
+
+Slack (MET) :             1.040ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][58]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.900ns  (logic 0.357ns (9.153%)  route 3.543ns (90.847%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.699     5.900    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y151         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][58]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y151         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][58]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y151         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][58]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.900    
+  -------------------------------------------------------------------
+                         slack                                  1.040    
+
+Slack (MET) :             1.040ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][59]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.900ns  (logic 0.357ns (9.153%)  route 3.543ns (90.847%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.699     5.900    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y151         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][59]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y151         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][59]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y151         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][59]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.900    
+  -------------------------------------------------------------------
+                         slack                                  1.040    
+
+Slack (MET) :             1.040ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][90]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.900ns  (logic 0.357ns (9.153%)  route 3.543ns (90.847%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.699     5.900    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y151         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][90]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y151         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][90]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y151         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][90]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.900    
+  -------------------------------------------------------------------
+                         slack                                  1.040    
+
+Slack (MET) :             1.040ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][91]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.900ns  (logic 0.357ns (9.153%)  route 3.543ns (90.847%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.699     5.900    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y151         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][91]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y151         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][91]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y151         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][91]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.900    
+  -------------------------------------------------------------------
+                         slack                                  1.040    
+
+Slack (MET) :             1.055ns  (required time - arrival time)
+  Source:                 cfg_timeout_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35/RAMA/I
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.991ns  (logic 0.441ns (11.050%)  route 3.550ns (88.950%))
+  Logic Levels:           7  (LUT2=2 LUT6=4 MUXF7=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 f  cfg_timeout_enable (IN)
+                         net (fo=328, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/gen_timeout.timeout/cfg_timeout_enable
+    SLICE_X20Y182                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/gen_timeout.timeout/gen_auto.mem_reg_0_7_0_5_i_74/I0
+    SLICE_X20Y182        LUT2 (Prop_lut2_I0_O)        0.043     2.580 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/gen_timeout.timeout/gen_auto.mem_reg_0_7_0_5_i_74/O
+                         net (fo=1, routed)           0.548     3.128    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/w_timeout_detected[3]
+    SLICE_X20Y177                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_0_5_i_67/I0
+    SLICE_X20Y177        LUT6 (Prop_lut6_I0_O)        0.043     3.171 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_0_5_i_67/O
+                         net (fo=2, routed)           0.544     3.715    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_0_5_i_67_n_0
+    SLICE_X19Y178                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/r_event_reported[7]_i_23/I0
+    SLICE_X19Y178        LUT6 (Prop_lut6_I0_O)        0.043     3.758 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/r_event_reported[7]_i_23/O
+                         net (fo=1, routed)           0.286     4.043    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/r_event_reported[7]_i_23_n_0
+    SLICE_X20Y178                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/r_event_reported[7]_i_11/I1
+    SLICE_X20Y178        LUT2 (Prop_lut2_I1_O)        0.043     4.086 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/r_event_reported[7]_i_11/O
+                         net (fo=70, routed)          0.616     4.702    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/r_event_reported[7]_i_23_0
+    SLICE_X20Y168                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35_i_24/I4
+    SLICE_X20Y168        LUT6 (Prop_lut6_I4_O)        0.043     4.745 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35_i_24/O
+                         net (fo=1, routed)           0.000     4.745    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35_i_24_n_0
+    SLICE_X20Y168                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35_i_9/I1
+    SLICE_X20Y168        MUXF7 (Prop_muxf7_I1_O)      0.103     4.848 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35_i_9/O
+                         net (fo=1, routed)           0.633     5.482    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35_i_9_n_0
+    SLICE_X18Y170                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35_i_2/I3
+    SLICE_X18Y170        LUT6 (Prop_lut6_I3_O)        0.123     5.605 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35_i_2/O
+                         net (fo=1, routed)           0.386     5.991    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35/DIA0
+    SLICE_X12Y174        RAMD32                                       r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35/RAMA/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35/WCLK
+    SLICE_X12Y174        RAMD32                                       r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35/RAMA/CLK
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X12Y174        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.096     7.046    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/intr_fifo/gen_auto.mem_reg_0_7_30_35/RAMA
+  -------------------------------------------------------------------
+                         required time                          7.046    
+                         arrival time                          -5.991    
+  -------------------------------------------------------------------
+                         slack                                  1.055    
+
+Slack (MET) :             1.083ns  (required time - arrival time)
+  Source:                 gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            monbus_packet[12]
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.012ns  (logic 0.277ns (9.196%)  route 2.735ns (90.804%))
+  Logic Levels:           1  (LUT2=1)
+  Output Delay:           2.000ns
+  Clock Path Skew:        -0.537ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 6.667 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2909, unset)         0.537     0.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/aclk
+    SLICE_X4Y178         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X4Y178         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_reg/Q
+                         net (fo=146, routed)         2.198     2.958    gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_valid_reg_0
+    SLICE_X4Y156                                                      r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_packet[12]_INST_0/I0
+    SLICE_X4Y156         LUT2 (Prop_lut2_I0_O)        0.054     3.012 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/reporter/monbus_packet[12]_INST_0/O
+                         net (fo=0)                   0.537     3.549    monbus_packet[12]
+                                                                      r  monbus_packet[12] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -3.549    
+  -------------------------------------------------------------------
+                         slack                                  1.083    
+
+Slack (MET) :             1.089ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][100]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.852ns  (logic 0.357ns (9.269%)  route 3.495ns (90.731%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.650     5.852    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][100]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][100]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y153         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][100]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.852    
+  -------------------------------------------------------------------
+                         slack                                  1.089    
+
+Slack (MET) :             1.089ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][101]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.852ns  (logic 0.357ns (9.269%)  route 3.495ns (90.731%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.650     5.852    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][101]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][101]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y153         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][101]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.852    
+  -------------------------------------------------------------------
+                         slack                                  1.089    
+
+Slack (MET) :             1.089ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][106]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.852ns  (logic 0.357ns (9.269%)  route 3.495ns (90.731%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.650     5.852    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][106]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][106]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y153         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][106]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.852    
+  -------------------------------------------------------------------
+                         slack                                  1.089    
+
+Slack (MET) :             1.089ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][107]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.852ns  (logic 0.357ns (9.269%)  route 3.495ns (90.731%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.650     5.852    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][107]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][107]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y153         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][107]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.852    
+  -------------------------------------------------------------------
+                         slack                                  1.089    
+
+Slack (MET) :             1.089ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][72]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.852ns  (logic 0.357ns (9.269%)  route 3.495ns (90.731%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.650     5.852    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][72]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][72]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y153         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][72]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.852    
+  -------------------------------------------------------------------
+                         slack                                  1.089    
+
+Slack (MET) :             1.089ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][73]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.852ns  (logic 0.357ns (9.269%)  route 3.495ns (90.731%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.650     5.852    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][73]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][73]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y153         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][73]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.852    
+  -------------------------------------------------------------------
+                         slack                                  1.089    
+
+Slack (MET) :             1.089ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][96]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.852ns  (logic 0.357ns (9.269%)  route 3.495ns (90.731%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.650     5.852    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][96]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][96]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y153         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][96]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.852    
+  -------------------------------------------------------------------
+                         slack                                  1.089    
+
+Slack (MET) :             1.089ns  (required time - arrival time)
+  Source:                 cfg_monitor_enable
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][97]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        3.852ns  (logic 0.357ns (9.269%)  route 3.495ns (90.731%))
+  Logic Levels:           6  (LUT3=1 LUT5=2 LUT6=3)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  cfg_monitor_enable (IN)
+                         net (fo=124, unset)          0.537     2.537    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/cfg_monitor_enable
+    SLICE_X18Y163                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/I0
+    SLICE_X18Y163        LUT5 (Prop_lut5_I0_O)        0.043     2.580 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6/O
+                         net (fo=4, routed)           0.572     3.152    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_6_n_0
+    SLICE_X19Y164                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/I0
+    SLICE_X19Y164        LUT6 (Prop_lut6_I0_O)        0.043     3.195 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_payload[0][284]_i_5/O
+                         net (fo=14, routed)          0.361     3.556    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/addr_wants_alloc
+    SLICE_X17Y161                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/I4
+    SLICE_X17Y161        LUT6 (Prop_lut6_I4_O)        0.043     3.599 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5/O
+                         net (fo=4, routed)           0.377     3.976    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_5_n_0
+    SLICE_X18Y162                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/I1
+    SLICE_X18Y162        LUT3 (Prop_lut3_I1_O)        0.051     4.027 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][277]_i_3/O
+                         net (fo=13, routed)          0.654     4.680    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/wb_data_alloc[0]_0[5]
+    SLICE_X14Y159                                                     r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/I0
+    SLICE_X14Y159        LUT5 (Prop_lut5_I0_O)        0.134     4.814 f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5/O
+                         net (fo=36, routed)          0.344     5.159    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_5_n_0
+    SLICE_X15Y159                                                     f  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/I3
+    SLICE_X15Y159        LUT6 (Prop_lut6_I3_O)        0.043     5.202 r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1/O
+                         net (fo=105, routed)         0.650     5.852    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload[5][284]_i_1_n_0
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][97]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=2909, unset)         0.510     7.177    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/aclk
+    SLICE_X5Y153         FDCE                                         r  gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][97]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X5Y153         FDCE (Setup_fdce_C_CE)      -0.201     6.941    gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][97]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -5.852    
+  -------------------------------------------------------------------
+                         slack                                  1.089    
+
+
+
+

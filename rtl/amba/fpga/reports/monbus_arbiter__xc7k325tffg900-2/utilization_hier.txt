@@ -1,0 +1,35 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 19:01:42 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/monbus_arbiter__xc7k325tffg900-2/utilization_hier.txt
+| Design       : monbus_arbiter
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++---------------------------------------------------------+---------------------+------------+------------+---------+------+------+--------+--------+------------+
+|                         Instance                        |        Module       | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++---------------------------------------------------------+---------------------+------------+------------+---------+------+------+--------+--------+------------+
+| monbus_arbiter                                          |               (top) |       1821 |       1821 |       0 |    0 | 1972 |      0 |      0 |          0 |
+|   gen_input_skid[0].gen_input_skid_enabled.u_input_skid |    gaxi_skid_buffer |        302 |        302 |       0 |    0 |  390 |      0 |      0 |          0 |
+|   gen_input_skid[1].gen_input_skid_enabled.u_input_skid |  gaxi_skid_buffer_0 |        302 |        302 |       0 |    0 |  390 |      0 |      0 |          0 |
+|   gen_input_skid[2].gen_input_skid_enabled.u_input_skid |  gaxi_skid_buffer_1 |        303 |        303 |       0 |    0 |  390 |      0 |      0 |          0 |
+|   gen_input_skid[3].gen_input_skid_enabled.u_input_skid |  gaxi_skid_buffer_2 |        303 |        303 |       0 |    0 |  390 |      0 |      0 |          0 |
+|   gen_output_skid_enabled.u_output_skid                 |  gaxi_skid_buffer_3 |         11 |         11 |       0 |    0 |  390 |      0 |      0 |          0 |
+|   u_arbiter                                             | arbiter_round_robin |        603 |        603 |       0 |    0 |   22 |      0 |      0 |          0 |
++---------------------------------------------------------+---------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

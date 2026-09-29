@@ -1,0 +1,1125 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 18:56:19 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing_summary -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi4_slave_rd__xc7k325tffg900-2/timing_summary.txt -max_paths 10
+| Design       : axi4_slave_rd
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Summary Report
+
+------------------------------------------------------------------------------------------------
+| Timer Settings
+| --------------
+------------------------------------------------------------------------------------------------
+
+  Enable Multi Corner Analysis               :  Yes
+  Enable Pessimism Removal                   :  Yes
+  Pessimism Removal Resolution               :  Nearest Common Node
+  Enable Input Delay Default Clock           :  No
+  Enable Preset / Clear Arcs                 :  No
+  Disable Flight Delays                      :  No
+  Ignore I/O Paths                           :  No
+  Timing Early Launch at Borrowing Latches   :  No
+  Borrow Time for Max Delay Exceptions       :  Yes
+  Merge Timing Exceptions                    :  Yes
+  Inter-SLR Compensation                     :  Conservative
+
+  Corner  Analyze    Analyze    
+  Name    Max Paths  Min Paths  
+  ------  ---------  ---------  
+  Slow    Yes        Yes        
+  Fast    Yes        Yes        
+
+
+------------------------------------------------------------------------------------------------
+| Report Methodology
+| ------------------
+------------------------------------------------------------------------------------------------
+
+No report available as report_methodology has not been run prior. Run report_methodology on the current design for the summary of methodology violations.
+
+
+
+check_timing report
+
+Table of Contents
+-----------------
+1. checking no_clock (0)
+2. checking constant_clock (0)
+3. checking pulse_width_clock (0)
+4. checking unconstrained_internal_endpoints (0)
+5. checking no_input_delay (1)
+6. checking no_output_delay (0)
+7. checking multiple_clock (0)
+8. checking generated_clocks (0)
+9. checking loops (0)
+10. checking partial_input_delay (0)
+11. checking partial_output_delay (0)
+12. checking latch_loops (0)
+
+1. checking no_clock (0)
+------------------------
+ There are 0 register/latch pins with no clock.
+
+
+2. checking constant_clock (0)
+------------------------------
+ There are 0 register/latch pins with constant_clock.
+
+
+3. checking pulse_width_clock (0)
+---------------------------------
+ There are 0 register/latch pins which need pulse_width check
+
+
+4. checking unconstrained_internal_endpoints (0)
+------------------------------------------------
+ There are 0 pins that are not constrained for maximum delay.
+
+ There are 0 pins that are not constrained for maximum delay due to constant clock.
+
+
+5. checking no_input_delay (1)
+------------------------------
+ There are 0 input ports with no input delay specified.
+
+ There is 1 input port with no input delay but user has a false path constraint. (MEDIUM)
+
+
+6. checking no_output_delay (0)
+-------------------------------
+ There are 0 ports with no output delay specified.
+
+ There are 0 ports with no output delay but user has a false path constraint
+
+ There are 0 ports with no output delay but with a timing clock defined on it or propagating through it
+
+
+7. checking multiple_clock (0)
+------------------------------
+ There are 0 register/latch pins with multiple clocks.
+
+
+8. checking generated_clocks (0)
+--------------------------------
+ There are 0 generated clocks that are not connected to a clock source.
+
+
+9. checking loops (0)
+---------------------
+ There are 0 combinational loops in the design.
+
+
+10. checking partial_input_delay (0)
+------------------------------------
+ There are 0 input ports with partial input delay specified.
+
+
+11. checking partial_output_delay (0)
+-------------------------------------
+ There are 0 ports with partial output delay specified.
+
+
+12. checking latch_loops (0)
+----------------------------
+ There are 0 combinational latch loops in the design through latch input
+
+
+
+------------------------------------------------------------------------------------------------
+| Design Timing Summary
+| ---------------------
+------------------------------------------------------------------------------------------------
+
+    WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+    -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+      1.515        0.000                      0                  771        0.109        0.000                      0                  771        2.934        0.000                       0                   328  
+
+
+All user specified timing constraints are met.
+
+
+------------------------------------------------------------------------------------------------
+| Clock Summary
+| -------------
+------------------------------------------------------------------------------------------------
+
+Clock  Waveform(ns)         Period(ns)      Frequency(MHz)
+-----  ------------         ----------      --------------
+aclk   {0.000 3.333}        6.667           149.992         
+
+
+------------------------------------------------------------------------------------------------
+| Intra Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+Clock             WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+-----             -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+aclk                1.515        0.000                      0                  771        0.109        0.000                      0                  771        2.934        0.000                       0                   328  
+
+
+------------------------------------------------------------------------------------------------
+| Inter Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------    --------          -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+
+
+------------------------------------------------------------------------------------------------
+| Other Path Groups Table
+| -----------------------
+------------------------------------------------------------------------------------------------
+
+Path Group    From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------    ----------    --------          -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+
+
+------------------------------------------------------------------------------------------------
+| Timing Details
+| --------------
+------------------------------------------------------------------------------------------------
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  aclk
+  To Clock:  aclk
+
+Setup :            0  Failing Endpoints,  Worst Slack        1.515ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.109ns,  Total Violation        0.000ns
+PW    :            0  Failing Endpoints,  Worst Slack        2.934ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Max Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             1.515ns  (required time - arrival time)
+  Source:                 s_axi_arvalid
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            busy
+                            (output port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        1.117ns  (logic 0.043ns (3.850%)  route 1.074ns (96.150%))
+  Logic Levels:           1  (LUT4=1)
+  Input Delay:            2.000ns
+  Output Delay:           2.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  s_axi_arvalid (IN)
+                         net (fo=1, unset)            0.537     2.537    i_ar_channel/s_axi_arvalid
+    SLICE_X30Y73         LUT4 (Prop_lut4_I3_O)        0.043     2.580 r  i_ar_channel/busy_INST_0/O
+                         net (fo=0)                   0.537     3.117    busy
+                                                                      r  busy (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                         clock pessimism              0.000     6.667    
+                         clock uncertainty           -0.035     6.632    
+                         output delay                -2.000     4.632    
+  -------------------------------------------------------------------
+                         required time                          4.632    
+                         arrival time                          -3.117    
+  -------------------------------------------------------------------
+                         slack                                  1.515    
+
+Slack (MET) :             2.826ns  (required time - arrival time)
+  Source:                 s_axi_rready
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[0].r_data_reg[0][7]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.350ns  (logic 0.086ns (3.660%)  route 2.264ns (96.340%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  s_axi_rready (IN)
+                         net (fo=0)                   0.537     2.537    i_r_channel/s_axi_rready
+    SLICE_X30Y73         LUT2 (Prop_lut2_I1_O)        0.043     2.580 r  i_r_channel/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=183, routed)         1.727     4.307    i_r_channel/p_0_in[0]
+    SLICE_X26Y77         LUT5 (Prop_lut5_I1_O)        0.043     4.350 r  i_r_channel/g_slot[0].r_data[0][7]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.350    i_r_channel/g_slot[0].r_data[0][7]_i_1__0_n_0
+    SLICE_X26Y77         FDCE                                         r  i_r_channel/g_slot[0].r_data_reg[0][7]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=327, unset)          0.510     7.177    i_r_channel/aclk
+    SLICE_X26Y77         FDCE                                         r  i_r_channel/g_slot[0].r_data_reg[0][7]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X26Y77         FDCE (Setup_fdce_C_D)        0.034     7.176    i_r_channel/g_slot[0].r_data_reg[0][7]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.350    
+  -------------------------------------------------------------------
+                         slack                                  2.826    
+
+Slack (MET) :             2.827ns  (required time - arrival time)
+  Source:                 s_axi_rready
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[0].r_data_reg[0][39]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.348ns  (logic 0.086ns (3.662%)  route 2.262ns (96.338%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  s_axi_rready (IN)
+                         net (fo=0)                   0.537     2.537    i_r_channel/s_axi_rready
+    SLICE_X30Y73         LUT2 (Prop_lut2_I1_O)        0.043     2.580 r  i_r_channel/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=183, routed)         1.725     4.305    i_r_channel/p_0_in[0]
+    SLICE_X26Y77         LUT5 (Prop_lut5_I1_O)        0.043     4.348 r  i_r_channel/g_slot[0].r_data[0][39]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.348    i_r_channel/g_slot[0].r_data[0][39]_i_1__0_n_0
+    SLICE_X26Y77         FDCE                                         r  i_r_channel/g_slot[0].r_data_reg[0][39]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=327, unset)          0.510     7.177    i_r_channel/aclk
+    SLICE_X26Y77         FDCE                                         r  i_r_channel/g_slot[0].r_data_reg[0][39]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X26Y77         FDCE (Setup_fdce_C_D)        0.034     7.176    i_r_channel/g_slot[0].r_data_reg[0][39]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.348    
+  -------------------------------------------------------------------
+                         slack                                  2.827    
+
+Slack (MET) :             2.837ns  (required time - arrival time)
+  Source:                 s_axi_rready
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[2].r_data_reg[2][26]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.339ns  (logic 0.086ns (3.677%)  route 2.253ns (96.323%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  s_axi_rready (IN)
+                         net (fo=0)                   0.537     2.537    i_r_channel/s_axi_rready
+    SLICE_X30Y73         LUT2 (Prop_lut2_I1_O)        0.043     2.580 r  i_r_channel/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=183, routed)         1.716     4.296    i_r_channel/p_0_in[0]
+    SLICE_X24Y77         LUT5 (Prop_lut5_I1_O)        0.043     4.339 r  i_r_channel/g_slot[2].r_data[2][26]_i_1/O
+                         net (fo=1, routed)           0.000     4.339    i_r_channel/g_slot[2].r_data[2][26]_i_1_n_0
+    SLICE_X24Y77         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][26]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=327, unset)          0.510     7.177    i_r_channel/aclk
+    SLICE_X24Y77         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][26]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X24Y77         FDCE (Setup_fdce_C_D)        0.034     7.176    i_r_channel/g_slot[2].r_data_reg[2][26]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.339    
+  -------------------------------------------------------------------
+                         slack                                  2.837    
+
+Slack (MET) :             2.842ns  (required time - arrival time)
+  Source:                 s_axi_rready
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[2].r_data_reg[2][1]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.334ns  (logic 0.086ns (3.685%)  route 2.248ns (96.315%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  s_axi_rready (IN)
+                         net (fo=0)                   0.537     2.537    i_r_channel/s_axi_rready
+    SLICE_X30Y73         LUT2 (Prop_lut2_I1_O)        0.043     2.580 r  i_r_channel/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=183, routed)         1.711     4.291    i_r_channel/p_0_in[0]
+    SLICE_X29Y78         LUT5 (Prop_lut5_I1_O)        0.043     4.334 r  i_r_channel/g_slot[2].r_data[2][1]_i_1/O
+                         net (fo=1, routed)           0.000     4.334    i_r_channel/g_slot[2].r_data[2][1]_i_1_n_0
+    SLICE_X29Y78         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][1]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=327, unset)          0.510     7.177    i_r_channel/aclk
+    SLICE_X29Y78         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][1]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X29Y78         FDCE (Setup_fdce_C_D)        0.034     7.176    i_r_channel/g_slot[2].r_data_reg[2][1]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.334    
+  -------------------------------------------------------------------
+                         slack                                  2.842    
+
+Slack (MET) :             2.843ns  (required time - arrival time)
+  Source:                 s_axi_rready
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[1].r_data_reg[1][7]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.333ns  (logic 0.086ns (3.687%)  route 2.247ns (96.313%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  s_axi_rready (IN)
+                         net (fo=0)                   0.537     2.537    i_r_channel/s_axi_rready
+    SLICE_X30Y73         LUT2 (Prop_lut2_I1_O)        0.043     2.580 r  i_r_channel/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=183, routed)         1.710     4.290    i_r_channel/p_0_in[0]
+    SLICE_X27Y77         LUT5 (Prop_lut5_I1_O)        0.043     4.333 r  i_r_channel/g_slot[1].r_data[1][7]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.333    i_r_channel/g_slot[1].r_data[1][7]_i_1__0_n_0
+    SLICE_X27Y77         FDCE                                         r  i_r_channel/g_slot[1].r_data_reg[1][7]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=327, unset)          0.510     7.177    i_r_channel/aclk
+    SLICE_X27Y77         FDCE                                         r  i_r_channel/g_slot[1].r_data_reg[1][7]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X27Y77         FDCE (Setup_fdce_C_D)        0.034     7.176    i_r_channel/g_slot[1].r_data_reg[1][7]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.333    
+  -------------------------------------------------------------------
+                         slack                                  2.843    
+
+Slack (MET) :             2.843ns  (required time - arrival time)
+  Source:                 s_axi_rready
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[0].r_data_reg[0][27]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.332ns  (logic 0.086ns (3.688%)  route 2.246ns (96.312%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  s_axi_rready (IN)
+                         net (fo=0)                   0.537     2.537    i_r_channel/s_axi_rready
+    SLICE_X30Y73         LUT2 (Prop_lut2_I1_O)        0.043     2.580 r  i_r_channel/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=183, routed)         1.709     4.289    i_r_channel/p_0_in[0]
+    SLICE_X25Y76         LUT5 (Prop_lut5_I1_O)        0.043     4.332 r  i_r_channel/g_slot[0].r_data[0][27]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.332    i_r_channel/g_slot[0].r_data[0][27]_i_1__0_n_0
+    SLICE_X25Y76         FDCE                                         r  i_r_channel/g_slot[0].r_data_reg[0][27]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=327, unset)          0.510     7.177    i_r_channel/aclk
+    SLICE_X25Y76         FDCE                                         r  i_r_channel/g_slot[0].r_data_reg[0][27]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X25Y76         FDCE (Setup_fdce_C_D)        0.033     7.175    i_r_channel/g_slot[0].r_data_reg[0][27]
+  -------------------------------------------------------------------
+                         required time                          7.175    
+                         arrival time                          -4.332    
+  -------------------------------------------------------------------
+                         slack                                  2.843    
+
+Slack (MET) :             2.844ns  (required time - arrival time)
+  Source:                 s_axi_rready
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[2].r_data_reg[2][38]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.332ns  (logic 0.086ns (3.688%)  route 2.246ns (96.312%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  s_axi_rready (IN)
+                         net (fo=0)                   0.537     2.537    i_r_channel/s_axi_rready
+    SLICE_X30Y73         LUT2 (Prop_lut2_I1_O)        0.043     2.580 r  i_r_channel/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=183, routed)         1.709     4.289    i_r_channel/p_0_in[0]
+    SLICE_X24Y77         LUT5 (Prop_lut5_I1_O)        0.043     4.332 r  i_r_channel/g_slot[2].r_data[2][38]_i_1/O
+                         net (fo=1, routed)           0.000     4.332    i_r_channel/g_slot[2].r_data[2][38]_i_1_n_0
+    SLICE_X24Y77         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][38]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=327, unset)          0.510     7.177    i_r_channel/aclk
+    SLICE_X24Y77         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][38]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X24Y77         FDCE (Setup_fdce_C_D)        0.034     7.176    i_r_channel/g_slot[2].r_data_reg[2][38]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.332    
+  -------------------------------------------------------------------
+                         slack                                  2.844    
+
+Slack (MET) :             2.845ns  (required time - arrival time)
+  Source:                 s_axi_rready
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[1].r_data_reg[1][15]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.331ns  (logic 0.086ns (3.690%)  route 2.245ns (96.310%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  s_axi_rready (IN)
+                         net (fo=0)                   0.537     2.537    i_r_channel/s_axi_rready
+    SLICE_X30Y73         LUT2 (Prop_lut2_I1_O)        0.043     2.580 r  i_r_channel/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=183, routed)         1.708     4.288    i_r_channel/p_0_in[0]
+    SLICE_X27Y77         LUT5 (Prop_lut5_I1_O)        0.043     4.331 r  i_r_channel/g_slot[1].r_data[1][15]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.331    i_r_channel/g_slot[1].r_data[1][15]_i_1__0_n_0
+    SLICE_X27Y77         FDCE                                         r  i_r_channel/g_slot[1].r_data_reg[1][15]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=327, unset)          0.510     7.177    i_r_channel/aclk
+    SLICE_X27Y77         FDCE                                         r  i_r_channel/g_slot[1].r_data_reg[1][15]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X27Y77         FDCE (Setup_fdce_C_D)        0.034     7.176    i_r_channel/g_slot[1].r_data_reg[1][15]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.331    
+  -------------------------------------------------------------------
+                         slack                                  2.845    
+
+Slack (MET) :             2.845ns  (required time - arrival time)
+  Source:                 s_axi_rready
+                            (input port clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[1].r_data_reg[1][39]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.331ns  (logic 0.086ns (3.690%)  route 2.245ns (96.310%))
+  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Input Delay:            2.000ns
+  Clock Path Skew:        0.510ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.000ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                         input delay                  2.000     2.000    
+                                                      0.000     2.000 r  s_axi_rready (IN)
+                         net (fo=0)                   0.537     2.537    i_r_channel/s_axi_rready
+    SLICE_X30Y73         LUT2 (Prop_lut2_I1_O)        0.043     2.580 r  i_r_channel/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=183, routed)         1.708     4.288    i_r_channel/p_0_in[0]
+    SLICE_X27Y77         LUT5 (Prop_lut5_I1_O)        0.043     4.331 r  i_r_channel/g_slot[1].r_data[1][39]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.331    i_r_channel/g_slot[1].r_data[1][39]_i_1__0_n_0
+    SLICE_X27Y77         FDCE                                         r  i_r_channel/g_slot[1].r_data_reg[1][39]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=327, unset)          0.510     7.177    i_r_channel/aclk
+    SLICE_X27Y77         FDCE                                         r  i_r_channel/g_slot[1].r_data_reg[1][39]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X27Y77         FDCE (Setup_fdce_C_D)        0.034     7.176    i_r_channel/g_slot[1].r_data_reg[1][39]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -4.331    
+  -------------------------------------------------------------------
+                         slack                                  2.845    
+
+
+
+
+
+Min Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             0.109ns  (arrival time - required time)
+  Source:                 i_ar_channel/g_slot[1].r_data_reg[1][22]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_ar_channel/g_slot[0].r_data_reg[0][22]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.184ns  (logic 0.128ns (69.672%)  route 0.056ns (30.328%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.266     0.266    i_ar_channel/aclk
+    SLICE_X37Y79         FDCE                                         r  i_ar_channel/g_slot[1].r_data_reg[1][22]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X37Y79         FDCE (Prop_fdce_C_Q)         0.100     0.366 r  i_ar_channel/g_slot[1].r_data_reg[1][22]/Q
+                         net (fo=1, routed)           0.056     0.422    i_ar_channel/g_slot[1].r_data_reg[1][22]
+    SLICE_X36Y79         LUT5 (Prop_lut5_I4_O)        0.028     0.450 r  i_ar_channel/g_slot[0].r_data[0][22]_i_1/O
+                         net (fo=1, routed)           0.000     0.450    i_ar_channel/g_slot[0].r_data[0][22]_i_1_n_0
+    SLICE_X36Y79         FDCE                                         r  i_ar_channel/g_slot[0].r_data_reg[0][22]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.280     0.280    i_ar_channel/aclk
+    SLICE_X36Y79         FDCE                                         r  i_ar_channel/g_slot[0].r_data_reg[0][22]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X36Y79         FDCE (Hold_fdce_C_D)         0.061     0.341    i_ar_channel/g_slot[0].r_data_reg[0][22]
+  -------------------------------------------------------------------
+                         required time                         -0.341    
+                         arrival time                           0.450    
+  -------------------------------------------------------------------
+                         slack                                  0.109    
+
+Slack (MET) :             0.109ns  (arrival time - required time)
+  Source:                 i_r_channel/g_slot[2].r_data_reg[2][3]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[1].r_data_reg[1][3]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.184ns  (logic 0.128ns (69.672%)  route 0.056ns (30.328%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.266     0.266    i_r_channel/aclk
+    SLICE_X27Y78         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][3]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X27Y78         FDCE (Prop_fdce_C_Q)         0.100     0.366 r  i_r_channel/g_slot[2].r_data_reg[2][3]/Q
+                         net (fo=1, routed)           0.056     0.422    i_r_channel/g_slot[2].r_data_reg[2][3]
+    SLICE_X26Y78         LUT5 (Prop_lut5_I4_O)        0.028     0.450 r  i_r_channel/g_slot[1].r_data[1][3]_i_1__0/O
+                         net (fo=1, routed)           0.000     0.450    i_r_channel/g_slot[1].r_data[1][3]_i_1__0_n_0
+    SLICE_X26Y78         FDCE                                         r  i_r_channel/g_slot[1].r_data_reg[1][3]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.280     0.280    i_r_channel/aclk
+    SLICE_X26Y78         FDCE                                         r  i_r_channel/g_slot[1].r_data_reg[1][3]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X26Y78         FDCE (Hold_fdce_C_D)         0.061     0.341    i_r_channel/g_slot[1].r_data_reg[1][3]
+  -------------------------------------------------------------------
+                         required time                         -0.341    
+                         arrival time                           0.450    
+  -------------------------------------------------------------------
+                         slack                                  0.109    
+
+Slack (MET) :             0.109ns  (arrival time - required time)
+  Source:                 i_r_channel/g_slot[2].r_data_reg[2][42]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[1].r_data_reg[1][42]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.184ns  (logic 0.128ns (69.672%)  route 0.056ns (30.328%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.266     0.266    i_r_channel/aclk
+    SLICE_X31Y79         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][42]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X31Y79         FDCE (Prop_fdce_C_Q)         0.100     0.366 r  i_r_channel/g_slot[2].r_data_reg[2][42]/Q
+                         net (fo=1, routed)           0.056     0.422    i_r_channel/g_slot[2].r_data_reg[2][42]
+    SLICE_X30Y79         LUT5 (Prop_lut5_I4_O)        0.028     0.450 r  i_r_channel/g_slot[1].r_data[1][42]_i_1__0/O
+                         net (fo=1, routed)           0.000     0.450    i_r_channel/g_slot[1].r_data[1][42]_i_1__0_n_0
+    SLICE_X30Y79         FDCE                                         r  i_r_channel/g_slot[1].r_data_reg[1][42]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.280     0.280    i_r_channel/aclk
+    SLICE_X30Y79         FDCE                                         r  i_r_channel/g_slot[1].r_data_reg[1][42]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X30Y79         FDCE (Hold_fdce_C_D)         0.061     0.341    i_r_channel/g_slot[1].r_data_reg[1][42]
+  -------------------------------------------------------------------
+                         required time                         -0.341    
+                         arrival time                           0.450    
+  -------------------------------------------------------------------
+                         slack                                  0.109    
+
+Slack (MET) :             0.109ns  (arrival time - required time)
+  Source:                 i_r_channel/g_slot[3].r_data_reg[3][30]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[2].r_data_reg[2][30]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.184ns  (logic 0.128ns (69.672%)  route 0.056ns (30.328%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.266     0.266    i_r_channel/aclk
+    SLICE_X27Y79         FDCE                                         r  i_r_channel/g_slot[3].r_data_reg[3][30]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X27Y79         FDCE (Prop_fdce_C_Q)         0.100     0.366 r  i_r_channel/g_slot[3].r_data_reg[3][30]/Q
+                         net (fo=1, routed)           0.056     0.422    i_r_channel/g_slot[3].r_data_reg[3][30]
+    SLICE_X26Y79         LUT5 (Prop_lut5_I4_O)        0.028     0.450 r  i_r_channel/g_slot[2].r_data[2][30]_i_1/O
+                         net (fo=1, routed)           0.000     0.450    i_r_channel/g_slot[2].r_data[2][30]_i_1_n_0
+    SLICE_X26Y79         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][30]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.280     0.280    i_r_channel/aclk
+    SLICE_X26Y79         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][30]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X26Y79         FDCE (Hold_fdce_C_D)         0.061     0.341    i_r_channel/g_slot[2].r_data_reg[2][30]
+  -------------------------------------------------------------------
+                         required time                         -0.341    
+                         arrival time                           0.450    
+  -------------------------------------------------------------------
+                         slack                                  0.109    
+
+Slack (MET) :             0.109ns  (arrival time - required time)
+  Source:                 i_r_channel/g_slot[3].r_data_reg[3][38]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[2].r_data_reg[2][38]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.184ns  (logic 0.128ns (69.672%)  route 0.056ns (30.328%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.266     0.266    i_r_channel/aclk
+    SLICE_X25Y77         FDCE                                         r  i_r_channel/g_slot[3].r_data_reg[3][38]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X25Y77         FDCE (Prop_fdce_C_Q)         0.100     0.366 r  i_r_channel/g_slot[3].r_data_reg[3][38]/Q
+                         net (fo=1, routed)           0.056     0.422    i_r_channel/g_slot[3].r_data_reg[3][38]
+    SLICE_X24Y77         LUT5 (Prop_lut5_I4_O)        0.028     0.450 r  i_r_channel/g_slot[2].r_data[2][38]_i_1/O
+                         net (fo=1, routed)           0.000     0.450    i_r_channel/g_slot[2].r_data[2][38]_i_1_n_0
+    SLICE_X24Y77         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][38]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.280     0.280    i_r_channel/aclk
+    SLICE_X24Y77         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][38]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X24Y77         FDCE (Hold_fdce_C_D)         0.061     0.341    i_r_channel/g_slot[2].r_data_reg[2][38]
+  -------------------------------------------------------------------
+                         required time                         -0.341    
+                         arrival time                           0.450    
+  -------------------------------------------------------------------
+                         slack                                  0.109    
+
+Slack (MET) :             0.110ns  (arrival time - required time)
+  Source:                 i_r_channel/g_slot[2].r_data_reg[2][19]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[1].r_data_reg[1][19]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.184ns  (logic 0.128ns (69.408%)  route 0.056ns (30.592%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.266     0.266    i_r_channel/aclk
+    SLICE_X29Y76         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][19]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X29Y76         FDCE (Prop_fdce_C_Q)         0.100     0.366 r  i_r_channel/g_slot[2].r_data_reg[2][19]/Q
+                         net (fo=1, routed)           0.056     0.423    i_r_channel/g_slot[2].r_data_reg[2][19]
+    SLICE_X28Y76         LUT5 (Prop_lut5_I4_O)        0.028     0.451 r  i_r_channel/g_slot[1].r_data[1][19]_i_1__0/O
+                         net (fo=1, routed)           0.000     0.451    i_r_channel/g_slot[1].r_data[1][19]_i_1__0_n_0
+    SLICE_X28Y76         FDCE                                         r  i_r_channel/g_slot[1].r_data_reg[1][19]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.280     0.280    i_r_channel/aclk
+    SLICE_X28Y76         FDCE                                         r  i_r_channel/g_slot[1].r_data_reg[1][19]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X28Y76         FDCE (Hold_fdce_C_D)         0.060     0.340    i_r_channel/g_slot[1].r_data_reg[1][19]
+  -------------------------------------------------------------------
+                         required time                         -0.340    
+                         arrival time                           0.451    
+  -------------------------------------------------------------------
+                         slack                                  0.110    
+
+Slack (MET) :             0.130ns  (arrival time - required time)
+  Source:                 i_ar_channel/g_slot[1].r_data_reg[1][18]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_ar_channel/g_slot[0].r_data_reg[0][18]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.231ns  (logic 0.128ns (55.392%)  route 0.103ns (44.608%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.266     0.266    i_ar_channel/aclk
+    SLICE_X37Y82         FDCE                                         r  i_ar_channel/g_slot[1].r_data_reg[1][18]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X37Y82         FDCE (Prop_fdce_C_Q)         0.100     0.366 r  i_ar_channel/g_slot[1].r_data_reg[1][18]/Q
+                         net (fo=1, routed)           0.103     0.469    i_ar_channel/g_slot[1].r_data_reg[1][18]
+    SLICE_X38Y82         LUT5 (Prop_lut5_I4_O)        0.028     0.497 r  i_ar_channel/g_slot[0].r_data[0][18]_i_1/O
+                         net (fo=1, routed)           0.000     0.497    i_ar_channel/g_slot[0].r_data[0][18]_i_1_n_0
+    SLICE_X38Y82         FDCE                                         r  i_ar_channel/g_slot[0].r_data_reg[0][18]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.280     0.280    i_ar_channel/aclk
+    SLICE_X38Y82         FDCE                                         r  i_ar_channel/g_slot[0].r_data_reg[0][18]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X38Y82         FDCE (Hold_fdce_C_D)         0.087     0.367    i_ar_channel/g_slot[0].r_data_reg[0][18]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.497    
+  -------------------------------------------------------------------
+                         slack                                  0.130    
+
+Slack (MET) :             0.130ns  (arrival time - required time)
+  Source:                 i_ar_channel/g_slot[1].r_data_reg[1][24]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_ar_channel/g_slot[0].r_data_reg[0][24]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.231ns  (logic 0.128ns (55.392%)  route 0.103ns (44.608%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.266     0.266    i_ar_channel/aclk
+    SLICE_X37Y77         FDCE                                         r  i_ar_channel/g_slot[1].r_data_reg[1][24]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X37Y77         FDCE (Prop_fdce_C_Q)         0.100     0.366 r  i_ar_channel/g_slot[1].r_data_reg[1][24]/Q
+                         net (fo=1, routed)           0.103     0.469    i_ar_channel/g_slot[1].r_data_reg[1][24]
+    SLICE_X38Y77         LUT5 (Prop_lut5_I4_O)        0.028     0.497 r  i_ar_channel/g_slot[0].r_data[0][24]_i_1/O
+                         net (fo=1, routed)           0.000     0.497    i_ar_channel/g_slot[0].r_data[0][24]_i_1_n_0
+    SLICE_X38Y77         FDCE                                         r  i_ar_channel/g_slot[0].r_data_reg[0][24]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.280     0.280    i_ar_channel/aclk
+    SLICE_X38Y77         FDCE                                         r  i_ar_channel/g_slot[0].r_data_reg[0][24]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X38Y77         FDCE (Hold_fdce_C_D)         0.087     0.367    i_ar_channel/g_slot[0].r_data_reg[0][24]
+  -------------------------------------------------------------------
+                         required time                         -0.367    
+                         arrival time                           0.497    
+  -------------------------------------------------------------------
+                         slack                                  0.130    
+
+Slack (MET) :             0.131ns  (arrival time - required time)
+  Source:                 i_r_channel/g_slot[3].r_data_reg[3][6]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_r_channel/g_slot[2].r_data_reg[2][6]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.206ns  (logic 0.128ns (62.063%)  route 0.078ns (37.937%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.266     0.266    i_r_channel/aclk
+    SLICE_X26Y75         FDCE                                         r  i_r_channel/g_slot[3].r_data_reg[3][6]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X26Y75         FDCE (Prop_fdce_C_Q)         0.100     0.366 r  i_r_channel/g_slot[3].r_data_reg[3][6]/Q
+                         net (fo=1, routed)           0.078     0.445    i_r_channel/g_slot[3].r_data_reg[3][6]
+    SLICE_X27Y75         LUT5 (Prop_lut5_I4_O)        0.028     0.473 r  i_r_channel/g_slot[2].r_data[2][6]_i_1/O
+                         net (fo=1, routed)           0.000     0.473    i_r_channel/g_slot[2].r_data[2][6]_i_1_n_0
+    SLICE_X27Y75         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][6]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.280     0.280    i_r_channel/aclk
+    SLICE_X27Y75         FDCE                                         r  i_r_channel/g_slot[2].r_data_reg[2][6]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X27Y75         FDCE (Hold_fdce_C_D)         0.061     0.341    i_r_channel/g_slot[2].r_data_reg[2][6]
+  -------------------------------------------------------------------
+                         required time                         -0.341    
+                         arrival time                           0.473    
+  -------------------------------------------------------------------
+                         slack                                  0.131    
+
+Slack (MET) :             0.133ns  (arrival time - required time)
+  Source:                 i_ar_channel/g_slot[1].r_data_reg[1][52]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            i_ar_channel/g_slot[0].r_data_reg[0][52]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.207ns  (logic 0.128ns (61.913%)  route 0.079ns (38.087%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.014ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.280ns
+    Source Clock Delay      (SCD):    0.266ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.266     0.266    i_ar_channel/aclk
+    SLICE_X34Y79         FDCE                                         r  i_ar_channel/g_slot[1].r_data_reg[1][52]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X34Y79         FDCE (Prop_fdce_C_Q)         0.100     0.366 r  i_ar_channel/g_slot[1].r_data_reg[1][52]/Q
+                         net (fo=1, routed)           0.079     0.445    i_ar_channel/g_slot[1].r_data_reg[1][52]
+    SLICE_X35Y79         LUT5 (Prop_lut5_I4_O)        0.028     0.473 r  i_ar_channel/g_slot[0].r_data[0][52]_i_1/O
+                         net (fo=1, routed)           0.000     0.473    i_ar_channel/g_slot[0].r_data[0][52]_i_1_n_0
+    SLICE_X35Y79         FDCE                                         r  i_ar_channel/g_slot[0].r_data_reg[0][52]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=327, unset)          0.280     0.280    i_ar_channel/aclk
+    SLICE_X35Y79         FDCE                                         r  i_ar_channel/g_slot[0].r_data_reg[0][52]/C
+                         clock pessimism              0.000     0.280    
+    SLICE_X35Y79         FDCE (Hold_fdce_C_D)         0.060     0.340    i_ar_channel/g_slot[0].r_data_reg[0][52]
+  -------------------------------------------------------------------
+                         required time                         -0.340    
+                         arrival time                           0.473    
+  -------------------------------------------------------------------
+                         slack                                  0.133    
+
+
+
+
+
+Pulse Width Checks
+--------------------------------------------------------------------------------------
+Clock Name:         aclk
+Waveform(ns):       { 0.000 3.333 }
+Period(ns):         6.667
+Sources:            { aclk }
+
+Check Type        Corner  Lib Pin  Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location      Pin
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X35Y81  i_ar_channel/g_slot[1].r_data_reg[1][11]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X37Y83  i_ar_channel/g_slot[1].r_data_reg[1][13]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X37Y79  i_ar_channel/g_slot[1].r_data_reg[1][15]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X33Y83  i_ar_channel/g_slot[1].r_data_reg[1][17]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X37Y82  i_ar_channel/g_slot[1].r_data_reg[1][19]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X35Y77  i_ar_channel/g_slot[1].r_data_reg[1][1]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X33Y83  i_ar_channel/g_slot[1].r_data_reg[1][21]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X37Y79  i_ar_channel/g_slot[1].r_data_reg[1][23]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X37Y77  i_ar_channel/g_slot[1].r_data_reg[1][25]/C
+Min Period        n/a     FDCE/C   n/a            0.750         6.667       5.917      SLICE_X35Y75  i_ar_channel/g_slot[1].r_data_reg[1][27]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X35Y81  i_ar_channel/g_slot[1].r_data_reg[1][11]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X35Y81  i_ar_channel/g_slot[1].r_data_reg[1][11]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X37Y83  i_ar_channel/g_slot[1].r_data_reg[1][13]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X37Y83  i_ar_channel/g_slot[1].r_data_reg[1][13]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X37Y79  i_ar_channel/g_slot[1].r_data_reg[1][15]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X37Y79  i_ar_channel/g_slot[1].r_data_reg[1][15]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X33Y83  i_ar_channel/g_slot[1].r_data_reg[1][17]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X33Y83  i_ar_channel/g_slot[1].r_data_reg[1][17]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X37Y82  i_ar_channel/g_slot[1].r_data_reg[1][19]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.400         3.334       2.934      SLICE_X37Y82  i_ar_channel/g_slot[1].r_data_reg[1][19]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X35Y76  i_ar_channel/g_slot[0].r_data_reg[0][0]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X35Y76  i_ar_channel/g_slot[0].r_data_reg[0][0]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X34Y81  i_ar_channel/g_slot[0].r_data_reg[0][10]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X34Y81  i_ar_channel/g_slot[0].r_data_reg[0][10]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X34Y81  i_ar_channel/g_slot[0].r_data_reg[0][11]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X34Y81  i_ar_channel/g_slot[0].r_data_reg[0][11]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X36Y83  i_ar_channel/g_slot[0].r_data_reg[0][12]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X36Y83  i_ar_channel/g_slot[0].r_data_reg[0][12]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X36Y83  i_ar_channel/g_slot[0].r_data_reg[0][13]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.350         3.333       2.983      SLICE_X36Y83  i_ar_channel/g_slot[0].r_data_reg[0][13]/C
+
+
+

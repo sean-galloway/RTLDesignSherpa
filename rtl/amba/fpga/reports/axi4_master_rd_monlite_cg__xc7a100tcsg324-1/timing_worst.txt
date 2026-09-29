@@ -1,0 +1,1019 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 19:00:59 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing -setup -max_paths 20 -nworst 1 -sort_by slack -input_pins -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi4_master_rd_monlite_cg__xc7a100tcsg324-1/timing_worst.txt
+| Design       : axi4_master_rd_monlite_cg
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.23 2018-06-13
+| Design State : Routed
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             0.341ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_valid
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.941ns  (logic 0.704ns (17.862%)  route 3.237ns (82.138%))
+  Logic Levels:           2  (LUT4=1 LUT6=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          1.164     4.302    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg_n_0_[1]
+    SLICE_X73Y104                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/monbus_valid_INST_0_i_1/I4
+    SLICE_X73Y104        LUT6 (Prop_lut6_I4_O)        0.124     4.426 f  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/monbus_valid_INST_0_i_1/O
+                         net (fo=5, routed)           1.100     5.526    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/w_q_empty
+    SLICE_X82Y95                                                      f  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/monbus_valid_INST_0/I3
+    SLICE_X82Y95         LUT4 (Prop_lut4_I3_O)        0.124     5.650 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/monbus_valid_INST_0/O
+                         net (fo=0)                   0.973     6.623    monbus_valid
+                                                                      r  monbus_valid (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.623    
+  -------------------------------------------------------------------
+                         slack                                  0.341    
+
+Slack (MET) :             0.442ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[58]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.841ns  (logic 0.602ns (15.673%)  route 3.239ns (84.327%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.266     5.404    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/ADDRA1
+    SLICE_X60Y101                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/RAMA/RADR1
+    SLICE_X60Y101        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.146     5.550 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/RAMA/O
+                         net (fo=0)                   0.973     6.523    monbus_packet[58]
+                                                                      r  monbus_packet[58] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.523    
+  -------------------------------------------------------------------
+                         slack                                  0.442    
+
+Slack (MET) :             0.444ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[60]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.839ns  (logic 0.608ns (15.838%)  route 3.231ns (84.162%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.258     5.396    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/ADDRB1
+    SLICE_X60Y101                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/RAMB/RADR1
+    SLICE_X60Y101        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.152     5.548 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/RAMB/O
+                         net (fo=0)                   0.973     6.521    monbus_packet[60]
+                                                                      r  monbus_packet[60] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.521    
+  -------------------------------------------------------------------
+                         slack                                  0.444    
+
+Slack (MET) :             0.464ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[59]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.819ns  (logic 0.580ns (15.188%)  route 3.239ns (84.812%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.266     5.404    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/ADDRA1
+    SLICE_X60Y101                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/RAMA_D1/RADR1
+    SLICE_X60Y101        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.124     5.528 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/RAMA_D1/O
+                         net (fo=0)                   0.973     6.501    monbus_packet[59]
+                                                                      r  monbus_packet[59] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.501    
+  -------------------------------------------------------------------
+                         slack                                  0.464    
+
+Slack (MET) :             0.469ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[30]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.813ns  (logic 0.602ns (15.786%)  route 3.211ns (84.214%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.238     5.376    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_30_35/ADDRA1
+    SLICE_X62Y99                                                      r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_30_35/RAMA/RADR1
+    SLICE_X62Y99         RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.146     5.522 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_30_35/RAMA/O
+                         net (fo=0)                   0.973     6.495    monbus_packet[30]
+                                                                      r  monbus_packet[30] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.495    
+  -------------------------------------------------------------------
+                         slack                                  0.469    
+
+Slack (MET) :             0.471ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[48]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.811ns  (logic 0.608ns (15.952%)  route 3.203ns (84.048%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.230     5.368    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_30_35/ADDRB1
+    SLICE_X62Y99                                                      r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_30_35/RAMB/RADR1
+    SLICE_X62Y99         RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.152     5.520 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_30_35/RAMB/O
+                         net (fo=0)                   0.973     6.493    monbus_packet[48]
+                                                                      r  monbus_packet[48] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.493    
+  -------------------------------------------------------------------
+                         slack                                  0.471    
+
+Slack (MET) :             0.472ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[61]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.811ns  (logic 0.580ns (15.219%)  route 3.231ns (84.781%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.258     5.396    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/ADDRB1
+    SLICE_X60Y101                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/RAMB_D1/RADR1
+    SLICE_X60Y101        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.124     5.520 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/RAMB_D1/O
+                         net (fo=0)                   0.973     6.493    monbus_packet[61]
+                                                                      r  monbus_packet[61] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.493    
+  -------------------------------------------------------------------
+                         slack                                  0.472    
+
+Slack (MET) :             0.475ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[22]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.808ns  (logic 0.609ns (15.994%)  route 3.199ns (84.006%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.226     5.364    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/ADDRC1
+    SLICE_X62Y106                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/RAMC/RADR1
+    SLICE_X62Y106        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.153     5.517 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/RAMC/O
+                         net (fo=0)                   0.973     6.490    monbus_packet[22]
+                                                                      r  monbus_packet[22] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.490    
+  -------------------------------------------------------------------
+                         slack                                  0.475    
+
+Slack (MET) :             0.491ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[31]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.791ns  (logic 0.580ns (15.297%)  route 3.211ns (84.703%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.238     5.376    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_30_35/ADDRA1
+    SLICE_X62Y99                                                      r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_30_35/RAMA_D1/RADR1
+    SLICE_X62Y99         RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.124     5.500 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_30_35/RAMA_D1/O
+                         net (fo=0)                   0.973     6.473    monbus_packet[31]
+                                                                      r  monbus_packet[31] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.473    
+  -------------------------------------------------------------------
+                         slack                                  0.491    
+
+Slack (MET) :             0.499ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[49]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.783ns  (logic 0.580ns (15.330%)  route 3.203ns (84.670%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.230     5.368    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_30_35/ADDRB1
+    SLICE_X62Y99                                                      r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_30_35/RAMB_D1/RADR1
+    SLICE_X62Y99         RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.124     5.492 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_30_35/RAMB_D1/O
+                         net (fo=0)                   0.973     6.465    monbus_packet[49]
+                                                                      r  monbus_packet[49] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.465    
+  -------------------------------------------------------------------
+                         slack                                  0.499    
+
+Slack (MET) :             0.504ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[23]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.779ns  (logic 0.580ns (15.349%)  route 3.199ns (84.651%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.226     5.364    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/ADDRC1
+    SLICE_X62Y106                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/RAMC_D1/RADR1
+    SLICE_X62Y106        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.124     5.488 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/RAMC_D1/O
+                         net (fo=0)                   0.973     6.461    monbus_packet[23]
+                                                                      r  monbus_packet[23] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.461    
+  -------------------------------------------------------------------
+                         slack                                  0.504    
+
+Slack (MET) :             0.536ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[56]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.747ns  (logic 0.609ns (16.253%)  route 3.138ns (83.747%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.165     5.303    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_36_41/ADDRC1
+    SLICE_X60Y98                                                      r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_36_41/RAMC/RADR1
+    SLICE_X60Y98         RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.153     5.456 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_36_41/RAMC/O
+                         net (fo=0)                   0.973     6.429    monbus_packet[56]
+                                                                      r  monbus_packet[56] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.429    
+  -------------------------------------------------------------------
+                         slack                                  0.536    
+
+Slack (MET) :             0.565ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[57]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.718ns  (logic 0.580ns (15.599%)  route 3.138ns (84.401%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.165     5.303    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_36_41/ADDRC1
+    SLICE_X60Y98                                                      r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_36_41/RAMC_D1/RADR1
+    SLICE_X60Y98         RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.124     5.427 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_36_41/RAMC_D1/O
+                         net (fo=0)                   0.973     6.400    monbus_packet[57]
+                                                                      r  monbus_packet[57] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.400    
+  -------------------------------------------------------------------
+                         slack                                  0.565    
+
+Slack (MET) :             0.568ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[62]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.715ns  (logic 0.609ns (16.393%)  route 3.106ns (83.607%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.133     5.271    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/ADDRC1
+    SLICE_X60Y101                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/RAMC/RADR1
+    SLICE_X60Y101        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.153     5.424 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/RAMC/O
+                         net (fo=0)                   0.973     6.397    monbus_packet[62]
+                                                                      r  monbus_packet[62] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.397    
+  -------------------------------------------------------------------
+                         slack                                  0.568    
+
+Slack (MET) :             0.585ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[18]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.698ns  (logic 0.602ns (16.281%)  route 3.096ns (83.719%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.123     5.260    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/ADDRA1
+    SLICE_X62Y106                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/RAMA/RADR1
+    SLICE_X62Y106        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.146     5.406 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/RAMA/O
+                         net (fo=0)                   0.973     6.379    monbus_packet[18]
+                                                                      r  monbus_packet[18] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.379    
+  -------------------------------------------------------------------
+                         slack                                  0.585    
+
+Slack (MET) :             0.587ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[20]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.696ns  (logic 0.608ns (16.452%)  route 3.088ns (83.548%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.115     5.252    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/ADDRB1
+    SLICE_X62Y106                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/RAMB/RADR1
+    SLICE_X62Y106        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.152     5.404 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/RAMB/O
+                         net (fo=0)                   0.973     6.377    monbus_packet[20]
+                                                                      r  monbus_packet[20] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.377    
+  -------------------------------------------------------------------
+                         slack                                  0.587    
+
+Slack (MET) :             0.597ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[63]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.686ns  (logic 0.580ns (15.735%)  route 3.106ns (84.265%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.133     5.271    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/ADDRC1
+    SLICE_X60Y101                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/RAMC_D1/RADR1
+    SLICE_X60Y101        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.124     5.395 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_42_47/RAMC_D1/O
+                         net (fo=0)                   0.973     6.368    monbus_packet[63]
+                                                                      r  monbus_packet[63] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.368    
+  -------------------------------------------------------------------
+                         slack                                  0.597    
+
+Slack (MET) :             0.600ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[10]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.682ns  (logic 0.609ns (16.538%)  route 3.073ns (83.462%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.100     5.238    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_6_11/ADDRC1
+    SLICE_X66Y105                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_6_11/RAMC/RADR1
+    SLICE_X66Y105        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.153     5.391 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_6_11/RAMC/O
+                         net (fo=0)                   0.973     6.364    monbus_packet[10]
+                                                                      r  monbus_packet[10] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.364    
+  -------------------------------------------------------------------
+                         slack                                  0.600    
+
+Slack (MET) :             0.607ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[19]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.676ns  (logic 0.580ns (15.780%)  route 3.096ns (84.220%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.123     5.260    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/ADDRA1
+    SLICE_X62Y106                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/RAMA_D1/RADR1
+    SLICE_X62Y106        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.124     5.384 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_18_23/RAMA_D1/O
+                         net (fo=0)                   0.973     6.357    monbus_packet[19]
+                                                                      r  monbus_packet[19] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.357    
+  -------------------------------------------------------------------
+                         slack                                  0.607    
+
+Slack (MET) :             0.608ns  (required time - arrival time)
+  Source:                 u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            monbus_packet[6]
+                            (output port clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.675ns  (logic 0.602ns (16.380%)  route 3.073ns (83.620%))
+  Logic Levels:           1  (RAMD32=1)
+  Output Delay:           3.000ns
+  Clock Path Skew:        -2.682ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    2.682ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=10, unset)           0.973     0.973    i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/aclk
+    SLICE_X87Y93                                                      r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/I1
+    SLICE_X87Y93         LUT2 (Prop_lut2_I1_O)        0.124     1.097 r  i_amba_clock_gate_ctrl/u_clock_gate_ctrl/u_icg/g_slot[0].r_data[0][43]_i_3/O
+                         net (fo=1435, routed)        1.585     2.682    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/gated_aclk
+    SLICE_X73Y104        FDCE                                         r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y104        FDCE (Prop_fdce_C_Q)         0.456     3.138 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_rp_reg[1]/Q
+                         net (fo=64, routed)          2.100     5.238    u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_6_11/ADDRA1
+    SLICE_X66Y105                                                     r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_6_11/RAMA/RADR1
+    SLICE_X66Y105        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.146     5.384 r  u_monlite/gen_monitor_lite.axi_monitor_lite_inst/r_q_reg_0_3_6_11/RAMA/O
+                         net (fo=0)                   0.973     6.357    monbus_packet[6]
+                                                                      r  monbus_packet[6] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.035     9.965    
+                         output delay                -3.000     6.965    
+  -------------------------------------------------------------------
+                         required time                          6.965    
+                         arrival time                          -6.357    
+  -------------------------------------------------------------------
+                         slack                                  0.608    
+
+
+
+

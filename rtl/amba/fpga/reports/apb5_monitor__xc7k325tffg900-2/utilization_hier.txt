@@ -1,0 +1,32 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Sep 28 19:00:34 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/apb5_monitor__xc7k325tffg900-2/utilization_hier.txt
+| Design       : apb5_monitor
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++----------------------------------+------------------+------------+------------+---------+------+-----+--------+--------+------------+
+|             Instance             |      Module      | Total LUTs | Logic LUTs | LUTRAMs | SRLs | FFs | RAMB36 | RAMB18 | DSP Blocks |
++----------------------------------+------------------+------------+------------+---------+------+-----+--------+--------+------------+
+| apb5_monitor                     |            (top) |        594 |        562 |      32 |    0 | 676 |      0 |      0 |          0 |
+|   (apb5_monitor)                 |            (top) |         94 |         94 |       0 |    0 | 438 |      0 |      0 |          0 |
+|   gen_monitor.monbus_skid_buffer | gaxi_skid_buffer |        130 |        130 |       0 |    0 | 228 |      0 |      0 |          0 |
+|   gen_monitor.monitor_fifo       |   gaxi_fifo_sync |        373 |        341 |      32 |    0 |  10 |      0 |      0 |          0 |
++----------------------------------+------------------+------------+------------+---------+------+-----+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

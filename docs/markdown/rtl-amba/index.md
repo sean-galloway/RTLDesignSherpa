@@ -30,6 +30,7 @@ This directory contains documentation for the AMBA (Advanced Microcontroller Bus
 ## Overview
 
 - **[Overview](overview.md)** - Complete overview of the RTL AMBA library architecture and protocol implementations
+- **[Monitor system whitepaper](monitor_system_whitepaper.md)** - the monitor system as a design surface: identity allocation, insertion points, timestamp policy, drain paths, filtering, aggregation topology, and what each costs
 
 ---
 

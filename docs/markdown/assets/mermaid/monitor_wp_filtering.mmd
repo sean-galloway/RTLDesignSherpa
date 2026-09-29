@@ -1,0 +1,9 @@
+flowchart LR
+  E["event fires in the monitor"] --> EN{"wrapper cfg_&lt;class&gt;_enable"}
+  EN -->|"0"| X1["not generated: no monbus bandwidth"]
+  EN -->|"1"| PM{"cfg_axi_pkt_mask[type]<br/>(lite wrapper and group)"}
+  PM -->|"1"| X2["dropped by type"]
+  PM -->|"0"| EM{"group cfg_&lt;proto&gt;_&lt;class&gt;_mask[event]"}
+  EM -->|"1"| X3["dropped by event code"]
+  EM -->|"0"| SEL["drain steering (err_select)"]
+  Q["lite: event the queue could not take"] --> D["counted; one Error/EVENT_DROPPED<br/>carries the count when the bus is free"]

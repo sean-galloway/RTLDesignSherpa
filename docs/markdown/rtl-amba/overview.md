@@ -116,6 +116,7 @@ RTL AMBA Library Architecture (134 modules under rtl/amba/)
 
  Shared Infrastructure (56 modules)
      Monitor subsystem (30 modules) -- rtl/amba/monitor/
+       (integrator's view: monitor_system_whitepaper.md)
        Transaction monitors, the six reporter sub-blocks, the monbus
        CAM/compressor/group path, and the monbus-instrumented arbiters
      Shared datapath (20 modules) -- rtl/amba/shared/
