@@ -101,9 +101,11 @@ boundary.
 Also outside the codec, though every RS-using standard has one: the
 **scrambler / pseudo-randomizer**. It is a binary LFSR applied to the data
 for energy dispersal or sync, with a size and seed the standard fixes --
-CCSDS 131.0-B-5 section 10: h(x) = x^8 + x^7 + x^5 + x^3 + 1, seeded to all
-ones, applied after RS encoding; DVB EN 300 429 / 744: x^15 + x^14 + 1,
-seeded 100101010000000, applied before it. It has nothing to do with the RS
+CCSDS 131.0-B-5 section 10 (in `References/`): h(x) = x^17 + x^14 + 1,
+seeded `11000111000111000`, a 131071-bit sequence, applied after RS encoding
+and removed before RS decoding; the legacy 255-bit option is
+h(x) = x^8 + x^7 + x^5 + x^3 + 1 seeded all-ones. DVB EN 300 429 / 744:
+x^15 + x^14 + 1, seeded 100101010000000, applied before the RS encoder. It has nothing to do with the RS
 mathematics and is a separate FUB when a profile needs it, built from
 `rtl/common/shifter_lfsr_galois` or `shifter_lfsr_fibonacci` with the
 standard's polynomial and seed as parameters.
