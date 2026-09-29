@@ -1,7 +1,7 @@
 # TASK-016: fan out the 8 doc-example findings the widened gate surfaced
 
 **Priority:** P3
-**Status:** open
+**Status:** CLOSED 2026-09-29 (done)
 **Owner:** TBD
 **Filed:** 2026-09-28
 
@@ -33,3 +33,21 @@ parent; fan it out to converters, stream and fpga-systems.
 - [ ] each of the 5 rows is triaged by its owner: fixed, or marked illustrative
 - [ ] `BASELINE` drops by one for each that closes
 - [ ] `BASELINE` reaches 2 (the pre-existing rapids TASK-008/009 debt) or lower
+
+---
+
+## CLOSED 2026-09-29 -- fanned out; BASELINE 8 -> 7
+
+The five rows went to their owners, except one that had no owner lane:
+
+| Row | Where it went |
+|---|---|
+| converters/README.md, 3 examples (`axi4_to_apb4_convert`, `axi_data_dnsize`, `peakrdl_to_cmdrsp`) | **converters TASK-004** |
+| dmas/stream/regs/README.md, `stream_regs` | **stream TASK-015** |
+| fpga-systems/boards/README.md, `debounce` | **fixed in place** -- `projects/fpga-systems` has no task lane. The example named a `CLK_FREQ_MHZ`/`DEBOUNCE_TIME_MS` pair and `i_clk`/`i_rst_n`/`i_signal_raw`/`o_signal_clean` that `rtl/common/debounce.sv` never had; it now shows the real header (N, DEBOUNCE_DELAY, PRESSED_STATE; clk, rst_n, long_tick, button_in, button_out), wired the way NexysA7/cdc_counter_display wires it. |
+
+`BASELINE` is 7 and its comment says why. The two filed items each carry the
+instruction to lower it in the same commit as their fix; the parent's third
+criterion (BASELINE reaches 2) is therefore theirs to finish, and this item
+closes as the fan-out it was filed to be (Sean, 2026-09-28: unit edits are
+filed on the unit, or they never complete).

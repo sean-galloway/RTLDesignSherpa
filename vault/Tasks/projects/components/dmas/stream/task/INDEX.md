@@ -2,7 +2,7 @@
 
 # projects/components/dmas/stream — tasks
 
-**Next ID: TASK-015** — never recycle a number, even when its item closed.
+**Next ID: TASK-016** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,13 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 13 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **TASK-015** — regs/README.md: the stream_regs example names five ports the generated block does not have
 
 
 ## Active

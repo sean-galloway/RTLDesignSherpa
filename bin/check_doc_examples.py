@@ -347,7 +347,12 @@ def main() -> int:
     # exactly as the 2 above did: tooling TASK-016 fans these out to their
     # owners, and each one that closes drops this number. Do NOT raise it to
     # make an unrelated commit pass.
-    BASELINE = 8
+    # 2026-09-29: 8 -> 7. The fan-out landed: converters TASK-004 (3 examples)
+    # and stream TASK-015 (1) are filed on their units; fpga-systems has no task
+    # lane, so its one finding (boards/README.md debounce, which named a
+    # CLK_FREQ_MHZ parameter and i_/o_ ports rtl/common/debounce.sv never had)
+    # was fixed in place against the module header.
+    BASELINE = 7
     if bad > BASELINE:
         print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} -- a doc example\n          names a port its module does not have. The backlog this ratchet\n          tracked (amba TASK-077) is CLOSED and the floor is 0, so any\n          finding here is NEW.')
         return 1

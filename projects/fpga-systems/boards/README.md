@@ -168,15 +168,20 @@ set_property -dict {...} [get_ports {led[1]}]
 All mechanical buttons require debouncing:
 
 ```systemverilog
-// Use rtldesignsherpa debounce module
+// rtl/common/debounce.sv samples on a slow tick rather than counting clocks,
+// so it takes no clock-frequency parameter: give it a ~10 ms tick (e.g. from
+// counter_freq_invariant) and a delay in ticks. This is how
+// NexysA7/cdc_counter_display wires it.
 debounce #(
-    .CLK_FREQ_MHZ(100),
-    .DEBOUNCE_TIME_MS(20)
+    .N              (1),        // one button
+    .DEBOUNCE_DELAY (4),        // stable for 4 ticks before the output moves
+    .PRESSED_STATE  (1)         // active-high button
 ) u_debounce (
-    .i_clk(CLK100MHZ),
-    .i_rst_n(rst_n),
-    .i_signal_raw(btnC),
-    .o_signal_clean(btnC_debounced)
+    .clk        (CLK100MHZ),
+    .rst_n      (rst_n),
+    .long_tick  (tick_10ms),    // ~100 Hz sampling tick
+    .button_in  (btnC),
+    .button_out (btnC_debounced)
 );
 ```
 
