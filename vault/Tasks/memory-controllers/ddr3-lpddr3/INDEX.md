@@ -1,6 +1,6 @@
 ---
 title: memory-controllers/ddr3-lpddr3 tasks
-summary: Task rollup for the ddr3-lpddr3 memory controller (projects/components/memory-controllers/ddr3-lpddr3).
+summary: Task rollup for the ddr3-lpddr3 memory controller (projects/components/memory-controllers/scoria-ddr3-lpddr3).
 ---
 
 # memory-controllers/ddr3-lpddr3 — task rollup

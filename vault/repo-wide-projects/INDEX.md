@@ -36,7 +36,7 @@ note — it belongs to that block and nowhere else.
 - [dmas/stream](projects/components/dmas/stream/INDEX.md) — reference DV implementation
 - [hive](projects/components/hive/INDEX.md)
 - [memory-controllers/pumice-ddr2-lpddr2](projects/components/memory-controllers/pumice-ddr2-lpddr2/INDEX.md) — board-validated
-- [memory-controllers/ddr3-lpddr3](projects/components/memory-controllers/ddr3-lpddr3/INDEX.md)
+- [memory-controllers/scoria-ddr3-lpddr3](projects/components/memory-controllers/scoria-ddr3-lpddr3/INDEX.md)
 - [memory-controllers/ddr4-lpddr4](projects/components/memory-controllers/ddr4-lpddr4/INDEX.md)
 - [misc](projects/components/misc/INDEX.md)
 - [retro_legacy_blocks](projects/components/retro_legacy_blocks/INDEX.md) — PIC, PIT, HPET, IOAPIC, SMBus, UART, RTC, GPIO, PM/ACPI

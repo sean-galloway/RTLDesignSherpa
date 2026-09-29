@@ -36,7 +36,7 @@ directory name and the module/package prefix.
 | Directory | Codename | Controller scope | DFI | RTL prefix | Status |
 |---|---|---|---|---|---|
 | [`pumice-ddr2-lpddr2/`](pumice-ddr2-lpddr2/) | **pumice** | DDR2 + LPDDR2 unified | v2.1 | `pumice_*` | Built and board-validated on the Nexys A7 |
-| [`ddr3-lpddr3/`](ddr3-lpddr3/) | scoria | DDR3 + LPDDR3 unified | v3.1 | `scoria_*` | Planned; structure only |
+| [`scoria-ddr3-lpddr3/`](scoria-ddr3-lpddr3/) | **scoria** | DDR3 + LPDDR3 unified | v3.1 | `scoria_*` | Planned; structure only |
 | [`ddr4-lpddr4/`](ddr4-lpddr4/) | andesite | DDR4 + LPDDR4 unified | v4.0 | `andesite_*` | Planned; structure only |
 | (planned) | basalt | DDR5 | | `basalt_*` | Not started |
 | (planned) | gabbro | DDR6 | | `gabbro_*` | Not started |

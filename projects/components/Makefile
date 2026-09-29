@@ -39,7 +39,7 @@ COMPONENTS = apbx-xbar \
 
 # Components that exist but don't yet expose run-all-* test targets (for reference):
 # - bch, delta, hive                         - no dv/tests Makefile
-# - memory-controllers/ddr3-lpddr3, ddr4-lpddr4 - tests/ dir but no test Makefile
+# - memory-controllers/scoria-ddr3-lpddr3, ddr4-lpddr4 - tests/ dir but no test Makefile
 
 # ------------------------------------------------------------------------------
 # Whole-repo "did anything break" sweep (run-all-<level>-fast)
