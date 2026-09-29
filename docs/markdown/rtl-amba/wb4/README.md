@@ -29,7 +29,7 @@
 CDC variants, with sim and formal collateral. Family FULL sweep on one pinned
 seed base (`RDS_SEED_BASE=20260910`): 379 cells across the nine wb4 suites in
 `val/amba/`, plus the two AXI4-Lite bridge suites in
-`projects/components/converters/dv/tests/`, all passing. The cell count grew
+`projects/components/utility-ip/converters/dv/tests/`, all passing. The cell count grew
 on 2026-09-11, when `USE_BURST_HINTS` became a dimension of the master and
 monitor suites.
 

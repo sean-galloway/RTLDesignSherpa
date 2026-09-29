@@ -30,7 +30,7 @@
 The read-only and write-only converters DO exist, but they belong to the
 converters component, not to `rtl/amba/axi4`, and they are documented in
 its micro-architecture spec:
-[`axi4_dwidth_converter_rd`](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/06_dwidth_converter_rd.md) and [`axi4_dwidth_converter_wr`](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/05_dwidth_converter_wr.md).
+[`axi4_dwidth_converter_rd`](../../../../projects/components/utility-ip/converters/docs/converter_mas/ch02_width_blocks/06_dwidth_converter_rd.md) and [`axi4_dwidth_converter_wr`](../../../../projects/components/utility-ip/converters/docs/converter_mas/ch02_width_blocks/05_dwidth_converter_wr.md).
 This book carried a second copy of both until 2026-08-31; a module's docs
 live with the component that owns the module.
 
@@ -43,11 +43,11 @@ live with the component that owns the module.
 > intended parameterization (`AW_FIFO_DEPTH`, `W_FIFO_DEPTH`, `B_FIFO_DEPTH`,
 > `AR_FIFO_DEPTH`, `R_FIFO_DEPTH`); none of those parameters exist in RTL today.
 > The shipping converters are the read-only and write-only variants in
-> `projects/components/converters/rtl/`, which use `SKID_DEPTH_*` skid buffers
+> `projects/components/utility-ip/converters/rtl/`, which use `SKID_DEPTH_*` skid buffers
 > rather than channel FIFOs:
 >
-> - [axi4_dwidth_converter_rd](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/06_dwidth_converter_rd.md)
-> - [axi4_dwidth_converter_wr](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/05_dwidth_converter_wr.md)
+> - [axi4_dwidth_converter_rd](../../../../projects/components/utility-ip/converters/docs/converter_mas/ch02_width_blocks/06_dwidth_converter_rd.md)
+> - [axi4_dwidth_converter_wr](../../../../projects/components/utility-ip/converters/docs/converter_mas/ch02_width_blocks/05_dwidth_converter_wr.md)
 >
 > Instantiate a `_rd` and a `_wr` converter side by side to obtain
 > full-duplex width conversion.
@@ -505,7 +505,7 @@ of <= 256 beats as it takes, recording each in a split queue so the W framing
 and the B fold stay consistent. WRAP never reaches this path: AXI4 caps WRAP
 at 16 beats, and `16 * WIDTH_RATIO <= 256` for every supported ratio.
 
-**Ordering constraint on the split fold.** The split records live in a single FIFO (`splitq_*`), and the B fold pops one entry per downstream response, forwarding a B to the slave only on the record marked final. That is correct while downstream B responses arrive in the order the split AWs were issued -- guaranteed by AXI4 within one ID, since the pieces of a split burst all carry the AWID of the burst they came from. It is NOT guaranteed across IDs: AXI4 permits a downstream to return B responses for different IDs in any order, and a single FIFO cannot tell them apart, so an interleaved response would be folded against the wrong record. Drive this converter from a single ID, or from a master that does not interleave write responses, until the fold is made ID-aware (tracked as projects/components/converters BUG-008 (was CONV-010)).
+**Ordering constraint on the split fold.** The split records live in a single FIFO (`splitq_*`), and the B fold pops one entry per downstream response, forwarding a B to the slave only on the record marked final. That is correct while downstream B responses arrive in the order the split AWs were issued -- guaranteed by AXI4 within one ID, since the pieces of a split burst all carry the AWID of the burst they came from. It is NOT guaranteed across IDs: AXI4 permits a downstream to return B responses for different IDs in any order, and a single FIFO cannot tell them apart, so an interleaved response would be folded against the wrong record. Drive this converter from a single ID, or from a master that does not interleave write responses, until the fold is made ID-aware (tracked as projects/components/utility-ip/converters BUG-008 (was CONV-010)).
 
 > The naive `(Slave AWLEN + 1) * WIDTH_RATIO - 1` this section used to give is
 > the bug the split logic replaced: computed into the 8-bit field it wrapped,
@@ -537,8 +537,8 @@ at 16 beats, and `16 * WIDTH_RATIO <= 256` for every supported ratio.
 ## Related Modules
 
 ### Specialized Converters
-- **[axi4_dwidth_converter_rd](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/06_dwidth_converter_rd.md)** - Read-only data width conversion
-- **[axi4_dwidth_converter_wr](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/05_dwidth_converter_wr.md)** - Write-only data width conversion
+- **[axi4_dwidth_converter_rd](../../../../projects/components/utility-ip/converters/docs/converter_mas/ch02_width_blocks/06_dwidth_converter_rd.md)** - Read-only data width conversion
+- **[axi4_dwidth_converter_wr](../../../../projects/components/utility-ip/converters/docs/converter_mas/ch02_width_blocks/05_dwidth_converter_wr.md)** - Write-only data width conversion
 
 ### Core Modules
 - **[axi4_master_rd](axi4_master_rd.md)** - AXI4 read master
@@ -559,8 +559,8 @@ at 16 beats, and `16 * WIDTH_RATIO <= 256` for every supported ratio.
 - Chapter 11: Data Width Conversion
 
 ### Source Code
-- RTL: none -- this page describes a PLANNED combined converter; the real modules are `projects/components/converters/rtl/axi4_dwidth_converter_{rd,wr}.sv`
-- Tests: `projects/components/converters/dv/tests/test_axi4_dwidth_converter_wr.py`
+- RTL: none -- this page describes a PLANNED combined converter; the real modules are `projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_{rd,wr}.sv`
+- Tests: `projects/components/utility-ip/converters/dv/tests/test_axi4_dwidth_converter_wr.py`
 - Framework: `bin/TBClasses/components/axi4/`
 
 ### Documentation

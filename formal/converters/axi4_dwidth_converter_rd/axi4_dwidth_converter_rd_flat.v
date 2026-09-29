@@ -175,13 +175,13 @@ module axi4_dwidth_converter_rd (
 	output wire m_axi_rready;
 	initial begin
 		if (S_AXI_DATA_WIDTH != (2 ** $clog2(S_AXI_DATA_WIDTH)))
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv:130:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "S_AXI_DATA_WIDTH must be power of 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:130:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "S_AXI_DATA_WIDTH must be power of 2");
 		if (M_AXI_DATA_WIDTH != (2 ** $clog2(M_AXI_DATA_WIDTH)))
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv:132:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "M_AXI_DATA_WIDTH must be power of 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:132:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "M_AXI_DATA_WIDTH must be power of 2");
 		if (WIDTH_RATIO < 2)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv:134:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:134:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 		if (!UPSIZE && !DOWNSIZE)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv:136:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "Must be either UPSIZE or DOWNSIZE mode");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:136:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "Must be either UPSIZE or DOWNSIZE mode");
 	end
 	wire [AR_WIDTH - 1:0] int_ar_data;
 	wire int_ar_valid;

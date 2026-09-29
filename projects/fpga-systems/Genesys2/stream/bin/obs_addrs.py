@@ -42,7 +42,7 @@ def _regmap_path() -> str:
     root = os.environ.get("REPO_ROOT") or os.path.abspath(
         os.path.join(here, *([".."] * 5)))
     return os.path.join(
-        root, "projects/components/misc/rtl/regs/generated/obs_regs_top_regmap.py")
+        root, "projects/components/utility-ip/misc/rtl/regs/generated/obs_regs_top_regmap.py")
 
 
 def registers() -> dict:

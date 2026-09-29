@@ -63,7 +63,7 @@ ALLOC = "projects/components/dma-ip/stream/rtl/fub/stream_alloc_ctrl.sv"
 DRAIN = "projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv"
 CORE = "projects/components/dma-ip/stream/rtl/macro/stream_core.sv"
 # Shared with RAPIDS since 4aeaf3e63 -- an RTL change here has two consumers.
-ADDRGEN = "projects/components/misc/rtl/stream_run_addr_gen.sv"
+ADDRGEN = "projects/components/utility-ip/misc/rtl/stream_run_addr_gen.sv"
 RD_MON = "rtl/amba/axi4/axi4_master_rd_monlite.sv"
 WR_MON = "rtl/amba/axi4/axi4_master_wr_monlite.sv"
 MON_LITE = "rtl/amba/monitor/axi_monitor_lite.sv"

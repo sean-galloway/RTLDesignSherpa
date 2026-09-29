@@ -18,7 +18,7 @@ Two things moved since the close:
    pair from 184,047 to 71,671 LUTs (-61%) with per-iteration monbus class counts
    unchanged. The rapids number below is stale and must be re-measured, not argued
    from.
-2. **`axis4_intf_observer` now exists** (`projects/components/misc/rtl/`, same
+2. **`axis4_intf_observer` now exists** (`projects/components/utility-ip/misc/rtl/`, same
    `obs_regs` map, same monbus egress, `axis_bus_meter` inside, PROTOCOL_AXIS
    packets in all six AXIS classes). There was no AXIS observer to adopt before;
    the harness's two bare `axis_bus_meter` instances (`u_meter_sin`, `u_meter_sout`)

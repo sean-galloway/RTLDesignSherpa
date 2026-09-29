@@ -257,7 +257,7 @@ Infrastructure components used across all AMBA protocols.
 - **[axi_monitor_addr_check](monitor/axi_monitor_addr_check.md)** - Per-channel address-match watchpoints
 - **[axi_monitor_lite](monitor/axi_monitor_lite.md)** - The AXI/AXIL transaction monitor at a fifth of the gates; behind every `_monlite` wrapper
 - **[axis_monitor_lite](monitor/axis_monitor_lite.md)** - The AXI4-Stream monitor in the lite discipline: packets, stalls, bubbles, TID/TDEST changes as Stream/Credit/Channel/Error/Timeout/Completion packets
-- **axi4_intf_master_observer** - Standalone, protocol-agnostic interface observer (wraps any AXI4 master interface from outside; companion to the per-DMA `axi_monitor_*` family). Includes `axi_bus_meter` and `axi_perf_latency_hist` per port. Lives at `projects/components/misc/rtl/axi4_intf_master_observer.sv`; the `axi4_dma_observer` copy in `rtl/amba/shared/` was retired 2026-08-14.
+- **axi4_intf_master_observer** - Standalone, protocol-agnostic interface observer (wraps any AXI4 master interface from outside; companion to the per-DMA `axi_monitor_*` family). Includes `axi_bus_meter` and `axi_perf_latency_hist` per port. Lives at `projects/components/utility-ip/misc/rtl/axi4_intf_master_observer.sv`; the `axi4_dma_observer` copy in `rtl/amba/shared/` was retired 2026-08-14.
 
 ### Monitor Bus Delivery + Bulk-Trace Compression
 
@@ -293,8 +293,8 @@ Path from in-flight monitor packets to host-visible memory + CPU IRQs.
 ## Protocol Bridge and Shims
 
 ### AXI4 to APB Conversion
-- **[axi4_to_apb4_convert](../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md)** - AXI4 to APB protocol converter
-- **[axi4_to_apb4_shim](../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md)** - Lightweight AXI4 to APB shim
+- **[axi4_to_apb4_convert](../../../projects/components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md)** - AXI4 to APB protocol converter
+- **[axi4_to_apb4_shim](../../../projects/components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md)** - Lightweight AXI4 to APB shim
 
 ---
 

@@ -1150,7 +1150,7 @@ The shell scripts will automatically:
 
 **Related Projects:**
 - **APB Crossbar** - Simple register bus crossbar (existing)
-- **Delta (AXIS Crossbar)** - Streaming data crossbar (projects/components/delta/)
+- **Delta (AXIS Crossbar)** - Streaming data crossbar (projects/components/noc-ip/delta/)
 - **RAPIDS** - DMA engine with AXI4 masters (projects/components/dma-ip/rapids/)
 
 **Tools:**

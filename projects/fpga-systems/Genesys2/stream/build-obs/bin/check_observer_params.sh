@@ -47,8 +47,8 @@ export FRAMEWORK_ROOT="$REPO/projects/fpga-systems/Genesys2/stream"
 export STREAM_CHAR_FRAMEWORK_ROOT="$FRAMEWORK_ROOT"
 export STREAM_CHAR_ROOT="$FRAMEWORK_ROOT"
 export STREAM_ROOT="$REPO/projects/components/dma-ip/stream"
-export CONVERTERS_ROOT="$REPO/projects/components/converters"
-export MISC_ROOT="$REPO/projects/components/misc"
+export CONVERTERS_ROOT="$REPO/projects/components/utility-ip/converters"
+export MISC_ROOT="$REPO/projects/components/utility-ip/misc"
 
 rc=0
 XML="$(mktemp -d)/elab.xml"

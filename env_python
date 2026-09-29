@@ -9,9 +9,9 @@ export REPO_ROOT=$(git rev-parse --show-toplevel)
 export APB_XBAR_ROOT=$REPO_ROOT/projects/components/fabric-gen-ip/apbx-xbar
 export BCH_ROOT=$REPO_ROOT/projects/components/bch
 export BRIDGE_ROOT=$REPO_ROOT/projects/components/fabric-gen-ip/bridge
-export CONVERTERS_ROOT=$REPO_ROOT/projects/components/converters
-export DELTA_ROOT=$REPO_ROOT/projects/components/delta
-export MISC_ROOT=$REPO_ROOT/projects/components/misc
+export CONVERTERS_ROOT=$REPO_ROOT/projects/components/utility-ip/converters
+export DELTA_ROOT=$REPO_ROOT/projects/components/noc-ip/delta
+export MISC_ROOT=$REPO_ROOT/projects/components/utility-ip/misc
 export RAPIDS_ROOT=$REPO_ROOT/projects/components/dma-ip/rapids
 export RETRO_ROOT=$REPO_ROOT/projects/components/retro_legacy_blocks
 export STREAM_ROOT=$REPO_ROOT/projects/components/dma-ip/stream
@@ -64,9 +64,9 @@ export PYTHONPATH="$REPO_ROOT/projects/fpga-systems/bin:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/fabric-gen-ip/apbx-xbar/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/bch/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/fabric-gen-ip/bridge/dv:$PYTHONPATH"
-export PYTHONPATH="$REPO_ROOT/projects/components/converters/dv:$PYTHONPATH"
-export PYTHONPATH="$REPO_ROOT/projects/components/delta/dv:$PYTHONPATH"
-export PYTHONPATH="$REPO_ROOT/projects/components/misc/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/utility-ip/converters/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/noc-ip/delta/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/utility-ip/misc/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/dma-ip/rapids/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/retro_legacy_blocks/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/dma-ip/stream/dv:$PYTHONPATH"
@@ -98,7 +98,7 @@ fi
 # VCD/FST generation". That no longer reproduces, and the pin had started
 # costing more than it bought:
 #   - 5.020 cannot build the Genesys 2 stream harness at all once
-#     projects/components/misc/rtl/obs_regs.rdl grew. It emits invalid C++ for
+#     projects/components/utility-ip/misc/rtl/obs_regs.rdl grew. It emits invalid C++ for
 #     the PeakRDL hwif struct port copy:
 #       error: cannot convert 'V..._in_t__struct__0' to 'CData'
 #     The same observers + the same regblock build fine STANDALONE on 5.020,

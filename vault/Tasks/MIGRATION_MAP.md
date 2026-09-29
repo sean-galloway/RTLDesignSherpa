@@ -7,8 +7,8 @@ The flat per-state pages were split into one-file-per-item on 2026-09-27. Legacy
 | Area | Legacy ID | New location | New ID |
 |---|---|---|---|
 | projects/components/ecc-ip/reed-solomon | `RS-001` | task/open | `TASK-001` |
-| projects/components/misc | `MISC-001` | task/open | `TASK-001` |
-| projects/components/misc | `MISC-002` | task/open | `TASK-002` |
+| projects/components/utility-ip/misc | `MISC-001` | task/open | `TASK-001` |
+| projects/components/utility-ip/misc | `MISC-002` | task/open | `TASK-002` |
 | site-audit | `AUDIT-002` | task/open | `TASK-002` |
 | site-audit | `AUDIT-001` | task/open | `TASK-001` |
 | coverage | `COV-001` | task/open | `TASK-002` |
@@ -44,16 +44,16 @@ The flat per-state pages were split into one-file-per-item on 2026-09-27. Legacy
 | math | `MATH-009` | bug/closed | `BUG-005` |
 | math | `MATH-006` | task/closed | `TASK-003` |
 | math | `MATH-008` | bug/closed | `BUG-004` |
-| projects/components/converters | `CONV-008` | task/open | `TASK-002` |
-| projects/components/converters | `CONV-010` | bug/open | `BUG-008` |
-| projects/components/converters | `CONV-006` | task/closed | `TASK-001` |
-| projects/components/converters | `CONV-007` | bug/closed | `BUG-006` |
-| projects/components/converters | `CONV-003` | bug/closed | `BUG-003` |
-| projects/components/converters | `CONV-004` | bug/closed | `BUG-004` |
-| projects/components/converters | `CONV-005` | bug/closed | `BUG-005` |
-| projects/components/converters | `CONV-009` | bug/closed | `BUG-007` |
-| projects/components/converters | `CONV-002` | bug/closed | `BUG-002` |
-| projects/components/converters | `CONV-001` | bug/closed | `BUG-001` |
+| projects/components/utility-ip/converters | `CONV-008` | task/open | `TASK-002` |
+| projects/components/utility-ip/converters | `CONV-010` | bug/open | `BUG-008` |
+| projects/components/utility-ip/converters | `CONV-006` | task/closed | `TASK-001` |
+| projects/components/utility-ip/converters | `CONV-007` | bug/closed | `BUG-006` |
+| projects/components/utility-ip/converters | `CONV-003` | bug/closed | `BUG-003` |
+| projects/components/utility-ip/converters | `CONV-004` | bug/closed | `BUG-004` |
+| projects/components/utility-ip/converters | `CONV-005` | bug/closed | `BUG-005` |
+| projects/components/utility-ip/converters | `CONV-009` | bug/closed | `BUG-007` |
+| projects/components/utility-ip/converters | `CONV-002` | bug/closed | `BUG-002` |
+| projects/components/utility-ip/converters | `CONV-001` | bug/closed | `BUG-001` |
 | math | `MATH-002` | bug/closed | `BUG-006` |
 | RLB | `RLB-017` | task/closed | `TASK-014` |
 | RLB | `RLB-001` | task/closed | `TASK-001` |

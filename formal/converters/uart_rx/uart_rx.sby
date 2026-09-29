@@ -18,6 +18,6 @@ read -formal -sv formal_uart_rx.sv
 prep -top formal_uart_rx
 
 [files]
-uart_rx.sv ../../../projects/components/converters/rtl/uart_to_axil4/uart_rx.sv
+uart_rx.sv ../../../projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_rx.sv
 formal_uart_rx.sv
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

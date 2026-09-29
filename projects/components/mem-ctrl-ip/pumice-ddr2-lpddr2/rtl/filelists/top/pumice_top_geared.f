@@ -11,10 +11,10 @@
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/filelists/top/pumice_top.f
 
 # ---- AXI data-width converters (host <-> DW), the only thing geared adds ----
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_upsize.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_dnsize.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_wr.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi_data_upsize.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi_data_dnsize.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_wr.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_rd.f
 
 # ---- geared wrapper ----
 $REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/top/pumice_top_geared.sv

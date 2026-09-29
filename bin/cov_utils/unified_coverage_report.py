@@ -261,7 +261,7 @@ _COMPONENT_SCAN_DEFS: List[Tuple[str, str, List[str]]] = [
     ),
     (
         "converters",
-        "projects/components/converters",
+        "projects/components/utility-ip/converters",
         [
             "dv/tests/coverage_data",
         ],

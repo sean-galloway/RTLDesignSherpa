@@ -52,7 +52,7 @@ _HOST = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/"
                             "build-perf/host")
 _TBC = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/"
                            "ddr2_char_framework/dv/tbclasses")
-_BRIDGE = os.path.join(_REPO, "projects/components/converters/bin")
+_BRIDGE = os.path.join(_REPO, "projects/components/utility-ip/converters/bin")
 for _p in (_HOST, _TBC, _BRIDGE):
     if _p not in sys.path:
         sys.path.insert(0, _p)

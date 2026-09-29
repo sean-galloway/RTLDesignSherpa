@@ -193,7 +193,7 @@ STREAM Architecture (as implemented)
 │   ├── stream_alloc_ctrl.sv        # Space allocation tracking
 │   ├── stream_drain_ctrl.sv        # Drain control
 │   ├── stream_latency_bridge.sv    # Latency decoupling
-│   ├── (moved) stream_run_addr_gen.sv -> projects/components/misc/rtl/  # shared with RAPIDS
+│   ├── (moved) stream_run_addr_gen.sv -> projects/components/utility-ip/misc/rtl/  # shared with RAPIDS
 │   └── perf_profiler.sv            # Performance profiling
 │
 ├── rtl/macro/                      # Integration blocks

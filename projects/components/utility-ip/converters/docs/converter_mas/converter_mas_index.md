@@ -1,0 +1,193 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
+# Converters Micro-Architecture Specification Index
+
+**Component:** Converters (Data Width and Protocol Conversion Modules)
+**Version:** 1.0
+**Date:** 2026-01-03
+**Purpose:** Detailed micro-architecture specification for Converters component
+
+---
+
+## Document Organization
+
+This specification covers the Converters component — the configurable data-width and protocol converters you drop in when two blocks disagree about data width or bus protocol.
+
+### Front Matter
+
+- [Document Information](ch00_front_matter/00_document_info.md)
+
+### Chapter 1: Introduction
+
+- [Overview](ch01_introduction/01_overview.md)
+
+### Chapter 2: Data Width Converter Blocks
+
+- [Generic Building Blocks](ch02_width_blocks/01_generic_blocks.md)
+- [axi_data_upsize Module](ch02_width_blocks/02_axi_data_upsize.md)
+- [axi_data_dnsize Module](ch02_width_blocks/03_axi_data_dnsize.md)
+- [axi4_dwidth_converter_wr](ch02_width_blocks/05_dwidth_converter_wr.md)
+- [axi4_dwidth_converter_rd](ch02_width_blocks/06_dwidth_converter_rd.md)
+- [AXIL Wide-Alignment Converters](ch02_width_blocks/07_wide_align.md)
+
+### Chapter 3: Protocol Converter Blocks
+
+- [Protocol Conversion Overview](ch03_protocol_blocks/01_overview.md)
+- [AXI4 to AXI4-Lite](ch03_protocol_blocks/02_axi4_to_axil4.md)
+- [AXI4-Lite to AXI4](ch03_protocol_blocks/03_axil4_to_axi4.md)
+- [AXI4 to APB](ch03_protocol_blocks/04_axi4_to_apb4.md)
+- [AXI4 to APB5 Shim](ch03_protocol_blocks/06_axi4_to_apb5.md)
+- [AXI4 to AXI5-Lite](ch03_protocol_blocks/09_axi4_to_axil5.md)
+- [PeakRDL Adapter](ch03_protocol_blocks/05_peakrdl_adapter.md)
+- [UART to AXI4-Lite Bridge](ch03_protocol_blocks/07_uart_to_axil4.md)
+- [Width-plus-Protocol Chains](ch03_protocol_blocks/08_dwidth_chains.md)
+- [AXI4-Lite to Wishbone B4](ch03_protocol_blocks/10_axil4_to_wb4.md)
+- [Wishbone B4 to AXI4-Lite](ch03_protocol_blocks/11_wb4_to_axil4.md)
+- [APB to AXI4 (Requester)](ch03_protocol_blocks/12_apb_to_axi4.md)
+- [AXI4 to Wishbone B4](ch03_protocol_blocks/13_axi4_to_wb4.md)
+- [Wishbone B4 to AXI4](ch03_protocol_blocks/14_wb4_to_axi4.md)
+
+### Chapter 4: FSM Design
+
+- [Upsize/Downsize FSMs](ch04_fsm_design/01_width_fsms.md)
+- [Protocol Converter FSMs](ch04_fsm_design/02_protocol_fsms.md)
+- [Burst Decomposition](ch04_fsm_design/03_burst_decomposition.md)
+
+### Chapter 5: Verification
+
+- [Test Strategy](ch05_verification/01_test_strategy.md)
+- [Debug Guide](ch05_verification/02_debug_guide.md)
+
+---
+
+## Quick Navigation
+
+### For New Users
+
+1. Start with [Overview](ch01_introduction/01_overview.md) for a tour of what the converters can do
+2. Read [Generic Building Blocks](ch02_width_blocks/01_generic_blocks.md) to understand the architecture
+3. Study [Protocol Conversion Overview](ch03_protocol_blocks/01_overview.md) for protocol handling
+4. Reference [Test Strategy](ch05_verification/01_test_strategy.md) for the verification approach
+
+### For Integration
+
+- **Width conversion:** See [axi_data_upsize](ch02_width_blocks/02_axi_data_upsize.md) and [axi_data_dnsize](ch02_width_blocks/03_axi_data_dnsize.md)
+- **Full AXI4 conversion:** See [axi4_dwidth_converter_wr](ch02_width_blocks/05_dwidth_converter_wr.md) and [axi4_dwidth_converter_rd](ch02_width_blocks/06_dwidth_converter_rd.md)
+- **Protocol bridges:** See [AXI4 to APB](ch03_protocol_blocks/04_axi4_to_apb4.md)
+
+---
+
+## Visual Assets
+
+Every diagram referenced in this book lives in two forms:
+
+- **Source Files:**
+  - `assets/mermaid/*.mmd` - Mermaid source diagrams
+
+- **Rendered Files:**
+  - `assets/mermaid/*.png` - Rendered block diagrams (PNG for PDF compatibility)
+
+### Architecture Diagrams
+
+1. **axi_data_upsize** - [assets/mermaid/axi_data_upsize.png](assets/mermaid/axi_data_upsize.png)
+2. **axi_data_dnsize_single** - [assets/mermaid/axi_data_dnsize_single.png](assets/mermaid/axi_data_dnsize_single.png)
+4. **axi4_dwidth_converter_wr** - [assets/mermaid/dwidth_converter_wr.png](assets/mermaid/dwidth_converter_wr.png)
+5. **axi4_dwidth_converter_rd** - [assets/mermaid/dwidth_converter_rd.png](assets/mermaid/dwidth_converter_rd.png)
+6. **axi4_to_axil4** - [assets/mermaid/axi4_to_axil4.png](assets/mermaid/axi4_to_axil4.png)
+7. **axi4_to_apb4** - [assets/mermaid/axi4_to_apb4.png](assets/mermaid/axi4_to_apb4.png)
+
+### FSM Diagrams
+
+1. **Upsize FSM** - [assets/mermaid/upsize_fsm.png](assets/mermaid/upsize_fsm.png)
+2. **Downsize FSM** - [assets/mermaid/dnsize_fsm.png](assets/mermaid/dnsize_fsm.png)
+3. **AXI4-to-APB FSM** - [assets/mermaid/axi4_to_apb4_fsm.png](assets/mermaid/axi4_to_apb4_fsm.png)
+4. **Burst Decomposition FSM** - [assets/mermaid/burst_decomp_fsm.png](assets/mermaid/burst_decomp_fsm.png)
+
+---
+
+## Component Overview
+
+### Key Features
+
+- **Generic Building Blocks:** `axi_data_upsize` and `axi_data_dnsize` for any width ratio
+- **Full AXI4 Converters:** Complete write path (AW+W+B) and read path (AR+R) modules
+- **Protocol Bridges:** AXI4-to-AXI4-Lite, AXI4-Lite-to-AXI4, and AXI4-to-APB conversion
+- **Downsize buffering:** a single buffer that accepts its replacement during the last narrow beat — measured at 0.992 beats/cycle, so no second buffer is needed
+- **Flexible Sideband Handling:** Concatenate, broadcast, or severity-fold modes
+
+### Module Summary
+
+| Module | Purpose | Throughput | Area |
+| --- | --- | --- | --- |
+| axi_data_upsize | Narrow-to-wide accumulator | 100% | 1x |
+| axi_data_dnsize | Wide-to-narrow splitter | 0.992 beats/cycle | 1x |
+| axi4_dwidth_converter_wr | Full write path | 100% | Standard |
+| axi4_dwidth_converter_rd | Full read path | ~0.93 beats/cycle (tracked mode; see 2.3) | 1x |
+| axi4_to_axil4 | Burst decomposition | slave-limited (not characterized) | ~450 LUTs (hand estimate) |
+| axil4_to_axi4 | Protocol upgrade | 100% | ~110 LUTs |
+| axi4_to_apb4_convert | Full protocol bridge | Sequential | Medium |
+| axi4_to_apb5_shim | APB5 sideband wrapper over the APB4 shim | Pass-through | Low |
+
+: Table 1.1: Converter Module Summary
+
+### Design Philosophy
+
+**Reusable Building Blocks:**
+- Generic modules (upsize/dnsize) work with any integer width ratio
+- Full converters compose building blocks with AXI4 channel management
+- Configurable performance vs. area trade-offs
+
+**Protocol Flexibility:**
+- Bidirectional AXI4/AXI4-Lite conversion with zero-overhead upgrade path
+- Full AXI4-to-APB protocol translation with state machine control
+- PeakRDL adapter for register interface decoupling
+
+---
+
+## Related Documentation
+
+### Companion Specifications
+
+- **Converters Spec** - the old high-level `converter_spec/` tree was migrated into this MAS (see Version History)
+
+### Project-Level
+
+- **RTL Source:** `projects/components/utility-ip/converters/rtl/`
+- **Test Suite:** `projects/components/utility-ip/converters/dv/tests/`
+- **Component Overview:** `projects/components/utility-ip/converters/README.md` (converters has no standalone PRD.md)
+
+---
+
+## Version History
+
+**Version 1.0 (2026-01-03):**
+- Initial MAS release
+- Migrated from converter_spec format
+- Added detailed micro-architecture documentation
+- Complete FSM and implementation details
+
+---
+
+**Last Updated:** 2026-01-03
+**Maintained By:** RTL Design Sherpa Project

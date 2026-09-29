@@ -8,7 +8,7 @@
 #   make formal-common  Common building blocks only
 #   make formal-cdc     CDC blocks only
 #   make formal-amba    AMBA blocks (rtl/amba/**)
-#   make formal-converters  Protocol converters (projects/components/converters)
+#   make formal-converters  Protocol converters (projects/components/utility-ip/converters)
 #   make formal-bridge  Bridge AXI4 protocol only (requires SVA-AXI4-FVIP)
 #   make formal-quick   Just counter_bin (fastest proof, ~seconds)
 #   make clean          Remove all formal artifacts

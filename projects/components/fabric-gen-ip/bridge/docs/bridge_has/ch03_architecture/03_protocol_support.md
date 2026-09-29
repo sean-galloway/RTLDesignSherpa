@@ -96,7 +96,7 @@ error, so spelling matters:
 Note the spelling: it is `axil`, not `axi4lite`. Earlier revisions of this
 page used the latter, which the generator rejects.
 
-The shim modules live in `projects/components/converters/rtl/`; the generator instantiates them into each generated top-level module. The slave port still presents the configured protocol (AXIL or APB) to the outside; inside, the crossbar core is uniformly AXI4.
+The shim modules live in `projects/components/utility-ip/converters/rtl/`; the generator instantiates them into each generated top-level module. The slave port still presents the configured protocol (AXIL or APB) to the outside; inside, the crossbar core is uniformly AXI4.
 
 ## Automatic Conversion at the Master Boundary
 

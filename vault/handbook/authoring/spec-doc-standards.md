@@ -86,5 +86,5 @@ rules above). Humanize BEFORE building versioned artifacts, not after.
 One `--rev` per released artifact set; the same revision may be
 rebuilt while unreleased. Build scripts:
 `projects/components/fabric-gen-ip/bridge/docs/generate_{has,mas}_pdf.sh`,
-`projects/components/converters/docs/generate_mas_pdf.sh` — all take
+`projects/components/utility-ip/converters/docs/generate_mas_pdf.sh` — all take
 `--rev <version>`.

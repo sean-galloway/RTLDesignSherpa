@@ -33,7 +33,7 @@ export BRIDGE_PART   := $(PART)
 export BRIDGE_CLK_NS := $(CLK_NS)
 # The generated filelists resolve through $REPO_ROOT; some closures also pull
 # the converters area.
-export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/converters
+export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/utility-ip/converters
 
 include $(RDS_ROOT)/make/fpga_flow.mk
 

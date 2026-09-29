@@ -83,8 +83,8 @@ that is the whole point of them -- so a second copy of a module to spell reset
 differently is duplication, not portability. Deleted 2026-09-07.
 
 **Status:** `rtl/` converted 2026-09-06 (45 blocks / 20 files; the claim that
-it was "already compliant" was wrong). `projects/components/converters/` done
-as projects/components/converters BUG-007 (was CONV-009). Hand-written RTL still outstanding elsewhere under `projects/`,
+it was "already compliant" was wrong). `projects/components/utility-ip/converters/` done
+as projects/components/utility-ip/converters BUG-007 (was CONV-009). Hand-written RTL still outstanding elsewhere under `projects/`,
 plus ~928 blocks in GENERATED files, which must be fixed at their generators
 and never in the emitted `.sv`.
 

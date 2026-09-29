@@ -10,7 +10,7 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
         $(REPO_ROOT)/rtl/amba/shared/axi_gen_addr.sv
 
-DUT := $(REPO_ROOT)/projects/components/converters/rtl/axi4_to_apb4_convert.sv
+DUT := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi4_to_apb4_convert.sv
 
 .PHONY: prove cover all clean
 

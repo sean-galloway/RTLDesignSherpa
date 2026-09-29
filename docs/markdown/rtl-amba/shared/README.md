@@ -41,7 +41,7 @@ inventory with RTL-extracted notes is
 Recorded here because more than one page used to contradict them:
 
 - The splitter defect cluster (intermediate RLASTs passing upstream, silent split-FIFO record drops, the write splitter's B consolidation missing the final split's error) is FIXED and closed in `vault/Tasks/amba`: RLAST is consolidated to one per original transaction, a full FIFO sets the sticky `o_split_fifo_overflow` output, and the final split's error folds into the consolidated BRESP. A generic AXI master can sit upstream of either splitter directly; both serialize acceptance (one outstanding transaction at a time) — the read side fences on its owed-beat RLAST counter, the write side on open response consolidation.
-- The interface observer produces no monbus traffic at its documented parameter defaults — the `TAP_ENABLE_*` parameters gate the tap logic off and perf packets are disabled; override them to get the dump path. It now lives at `projects/components/misc/rtl/axi4_intf_master_observer.sv`; the `axi4_dma_observer` copy that used to sit here was retired 2026-08-14 (see below).
+- The interface observer produces no monbus traffic at its documented parameter defaults — the `TAP_ENABLE_*` parameters gate the tap logic off and perf packets are disabled; override them to get the dump path. It now lives at `projects/components/utility-ip/misc/rtl/axi4_intf_master_observer.sv`; the `axi4_dma_observer` copy that used to sit here was retired 2026-08-14 (see below).
 - `o_cfg_done_clear` on the sdpram family is a sticky level, not a pulse.
 
 ## Testing

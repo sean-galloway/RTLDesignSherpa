@@ -21,6 +21,13 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 # importable name -> on-disk directory name
 _ALIASES = {
     "dma_ip": "dma-ip",
+    # 2026-09-29 (Sean): the rest of the family directories, same rule
+    "utility_ip": "utility-ip",        # converters, misc
+    "noc_ip": "noc-ip",                # delta
+    "compute_eng_ip": "compute-eng-ip",  # hive
+    "ecc_ip": "ecc-ip",                # reed-solomon
+    "fabric_gen_ip": "fabric-gen-ip",  # apbx-xbar, bridge
+    "mem_ctrl_ip": "mem-ctrl-ip",      # pumice, scoria, andesite
 }
 
 

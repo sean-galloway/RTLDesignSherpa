@@ -97,11 +97,11 @@ graph TD
 | **[STREAM](../../projects/components/dma-ip/stream)** | Ready | Tutorial DMA engine with scatter-gather |
 | **[RAPIDS](../../projects/components/dma-ip/rapids)** | In Progress | Advanced DMA with network interfaces |
 | **[Bridge](../../projects/components/fabric-gen-ip/bridge)** | Ready | AXI protocol bridges and converters |
-| **[Converters](../../projects/components/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion |
+| **[Converters](../../projects/components/utility-ip/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion |
 | **[APB Crossbar](../../projects/components/fabric-gen-ip/apbx-xbar)** | Ready | M×N APB interconnect |
 | **[Retro Legacy](../../projects/components/retro_legacy_blocks)** | Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
-| **[Delta](../../projects/components/delta)** | Planned | Network-on-Chip mesh |
-| **[HIVE](../../projects/components/hive)** | Planned | Distributed RISC-V control |
+| **[Delta](../../projects/components/noc-ip/delta)** | Planned | Network-on-Chip mesh |
+| **[HIVE](../../projects/components/compute-eng-ip/hive)** | Planned | Distributed RISC-V control |
 
 ### Verification
 - **[Common Tests](../../val/common)** - Unit tests for common modules
@@ -199,7 +199,7 @@ apb4_slave #(
 #### AXI4-Lite (Simplified Register Interface)
 - **[AXI4-Lite Masters](../../rtl/amba/axil4)** - Register-optimized masters
 - **[AXI4-Lite Slaves](../../rtl/amba/axil4)** - Configuration registers
-- **[Protocol Bridges](../../projects/components/converters/rtl/)** - APB ↔ AXI-Lite conversion (converters component)
+- **[Protocol Bridges](../../projects/components/utility-ip/converters/rtl/)** - APB ↔ AXI-Lite conversion (converters component)
 
 #### AXI4-Stream (High-Throughput Data)
 - **[Stream Masters/Slaves](../../rtl/amba/axis4/)** - Streaming interfaces
@@ -260,7 +260,7 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 |-----------|--------|-------------|
 | **[APB Crossbar](../../projects/components/fabric-gen-ip/apbx-xbar)** | Ready | Parametric M×N APB interconnect with round-robin arbitration |
 | **[Bridge](../../projects/components/fabric-gen-ip/bridge)** | Ready | AXI4 protocol bridges, width converters, CDC |
-| **[Converters](../../projects/components/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion bridges |
+| **[Converters](../../projects/components/utility-ip/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion bridges |
 
 #### Retro Legacy Blocks
 
@@ -286,8 +286,8 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[Delta](../../projects/components/delta)** | Planned | 4×4 Network-on-Chip mesh with virtual channels |
-| **[HIVE](../../projects/components/hive)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
+| **[Delta](../../projects/components/noc-ip/delta)** | Planned | 4×4 Network-on-Chip mesh with virtual channels |
+| **[HIVE](../../projects/components/compute-eng-ip/hive)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
 | **BCH** | Planned | BCH error correction encoder/decoder (no RTL yet) |
 
 ---

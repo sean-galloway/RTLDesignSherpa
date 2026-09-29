@@ -57,7 +57,7 @@ if not _repo_root:
             "Source env_python or export REPO_ROOT before running."
         )
 
-sys.path.insert(0, os.path.join(_repo_root, "projects/components/converters/bin"))
+sys.path.insert(0, os.path.join(_repo_root, "projects/components/utility-ip/converters/bin"))
 sys.path.insert(0, os.path.join(_repo_root, "bin"))
 
 # Library imports (no hardware required).

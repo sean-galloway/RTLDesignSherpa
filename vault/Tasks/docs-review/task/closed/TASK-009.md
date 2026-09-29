@@ -794,7 +794,7 @@ argument for running the checkers after a sweep rather than trusting it.
   * Rule 9 again, and it is the highest-yield rule in the list: the two docs
     the bundle NEVER sees were both wrong. `rtl-amba/overview.md` claimed "86+
     modules" with AXI4-Lite at 8 (really 16) and monitoring at 10 (really 30),
-    and listed AXI4-to-APB shims that moved to `projects/components/converters`
+    and listed AXI4-to-APB shims that moved to `projects/components/utility-ip/converters`
     entirely; `rtl-amba/index.md` had 10 links pointing at `apb/` instead of
     `apb4/`. **rtl-amba is now at zero broken links.** No reviewer would ever
     have found either -- they are not in any bundle.
@@ -1288,7 +1288,7 @@ done -- so the cycle restarted clean). Convergence: **29 -> 14 -> 10**.
 
 **UNBLOCKED 2026-08-21: the observer rework LANDED as a deletion.**
 axi4_dma_observer (module + doc page) is gone, replaced by
-axi4_intf_master/slave_observer in projects/components/misc; TASK-060 closed
+axi4_intf_master/slave_observer in projects/components/utility-ip/misc; TASK-060 closed
 obsolete. The dedicated-observer-unit plan below is MOOT for shared -- the
 successors belong to the misc book and get reviewed there. Shared's round_5
 re-critique can proceed with the current 24-page book. (Original held plan,

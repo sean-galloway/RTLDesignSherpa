@@ -83,6 +83,6 @@ set is NOT stable run to run — see [[AMBA-MONRATE-INTERMITTENT]]. Do not
 read a single differing failure as a regression.
 
 **Also outside pumice (same rule, flagged not owned):**
-`projects/components/misc/dv/tbclasses/axi4_slave_wr_crc_check_tb.py`.
+`projects/components/utility-ip/misc/dv/tbclasses/axi4_slave_wr_crc_check_tb.py`.
 
 **Rule going forward:** no NEW test may hand-poke a valid/ready interface.

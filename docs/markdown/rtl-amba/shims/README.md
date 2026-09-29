@@ -23,7 +23,7 @@
 
 # AMBA Protocol Shims
 
-**Location:** `projects/components/converters/rtl/`
+**Location:** `projects/components/utility-ip/converters/rtl/`
 **Test Location:** `val/amba/`
 **Status:** Production (see the module page history for review state)
 
@@ -55,9 +55,9 @@ family stays discoverable from the AMBA book.
 
 | Shim | Purpose | Documentation | Status |
 |------|---------|---------------|--------|
-| **axi4_to_apb4_shim** | AXI4 to APB bridge with dual-clock CDC | [converters MAS 3.4](../../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md) | Not in rtl/amba — converters component |
-| **axi4_to_apb4_convert** | Core AXI4→APB conversion logic | [converters MAS 3.4](../../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md) | Not in rtl/amba — converters component |
-| **peakrdl_to_cmdrsp** | PeakRDL passthrough → cmd/rsp adapter | [converters component](../../../../projects/components/converters/docs/peakrdl_to_cmdrsp.md) | Not in rtl/amba — converters component |
+| **axi4_to_apb4_shim** | AXI4 to APB bridge with dual-clock CDC | [converters MAS 3.4](../../../../projects/components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md) | Not in rtl/amba — converters component |
+| **axi4_to_apb4_convert** | Core AXI4→APB conversion logic | [converters MAS 3.4](../../../../projects/components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md) | Not in rtl/amba — converters component |
+| **peakrdl_to_cmdrsp** | PeakRDL passthrough → cmd/rsp adapter | [converters component](../../../../projects/components/utility-ip/converters/docs/peakrdl_to_cmdrsp.md) | Not in rtl/amba — converters component |
 
 ---
 
@@ -500,16 +500,16 @@ Solutions:
 
 ```bash
 # Test AXI to APB bridge
-pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py -v
+pytest projects/components/utility-ip/converters/dv/tests/test_axi2apb4_shim.py -v
 
 # Test PeakRDL adapter
-pytest projects/components/converters/dv/tests/test_peakrdl_to_cmdrsp.py -v
+pytest projects/components/utility-ip/converters/dv/tests/test_peakrdl_to_cmdrsp.py -v
 
 # Run all shims tests
 pytest val/amba/test_*shim*.py -v
 
 # Generate waveforms
-pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py --vcd=bridge.vcd -v
+pytest projects/components/utility-ip/converters/dv/tests/test_axi2apb4_shim.py --vcd=bridge.vcd -v
 gtkwave bridge.vcd
 ```
 
@@ -527,11 +527,11 @@ gtkwave bridge.vcd
 
 - **PeakRDL:** https://github.com/SystemRDL/PeakRDL
 - **PeakRDL regblock:** https://github.com/SystemRDL/PeakRDL-regblock
-- **PeakRDL Workflow Guide:** `projects/components/converters/rtl/peakrdl_adapter_README.md`
+- **PeakRDL Workflow Guide:** `projects/components/utility-ip/converters/rtl/peakrdl_adapter_README.md`
 
 ### Source Code
 
-- RTL: `projects/components/converters/rtl/`
+- RTL: `projects/components/utility-ip/converters/rtl/`
 - Tests: `val/amba/test_peakrdl*.py`
 - Framework: `bin/TBClasses/components/`
 

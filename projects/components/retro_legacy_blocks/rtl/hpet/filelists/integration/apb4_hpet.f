@@ -31,7 +31,7 @@ $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave_cdc.f
 
 # PeakRDL adapter (from converters component)
--f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # HPET modules (PeakRDL-based configuration registers)
 $RETRO_ROOT/rtl/hpet/hpet_regs_pkg.sv

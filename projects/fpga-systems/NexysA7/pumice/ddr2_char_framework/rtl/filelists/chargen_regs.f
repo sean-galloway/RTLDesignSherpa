@@ -25,4 +25,4 @@ $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/generate
 # The cpuif is passthrough, so the APB window in front of it is the consumer's
 # choice. This is the shim the char macro already instantiates for the pumice
 # CSR slave, and it carries the pclk -> aclk crossing the bridge needs.
--f $REPO_ROOT/projects/components/converters/rtl/filelists/apb4_to_peakrdl.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/apb4_to_peakrdl.f

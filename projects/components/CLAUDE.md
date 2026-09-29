@@ -263,7 +263,7 @@ area you are in. Paths relative to `projects/components/`.
 | RAPIDS | `dma-ip/rapids/` | descriptor-driven accelerators, scheduler groups |
 | Retro Legacy Blocks | `retro_legacy_blocks/` | legacy PC peripherals (HPET, PIT 8254, PIC 8259, RTC, ...), APB register maps |
 | Bridge | `bridge/` | protocol converters, clock domain crossing |
-| misc | `misc/` | reusable utility components: ROM/RAM wrappers, pattern generators |
+| misc | `utility-ip/misc/` | reusable utility components: ROM/RAM wrappers, pattern generators |
 | ecc-ip / Reed-Solomon | `ecc-ip/reed-solomon/` | RS codec (GF(2^m), BM/Euclid, Chien/Forney); stand-up only -- PRD decisions pending, References/ populated |
 
 ---

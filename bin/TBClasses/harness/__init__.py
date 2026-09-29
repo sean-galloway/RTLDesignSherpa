@@ -4,7 +4,7 @@
 
 Central home for the pieces that let one host program run byte-for-byte
 identically against an FPGA (pyserial) or a cocotb sim, over the shared
-`uart_axil_bridge` (projects/components/converters). Used by the NexysA7
+`uart_axil_bridge` (projects/components/utility-ip/converters). Used by the NexysA7
 characterization flows (ddr2, stream, cdc, ...) — the register map + programs
 differ per project; this transport spine is common.
 

@@ -19,8 +19,8 @@
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
 
 # TASK-101 run-base address generator dependencies (USE_ROW_COL_MAJOR_ADDRESSING)
--f $REPO_ROOT/projects/components/misc/rtl/filelists/dma_address_gen.f
--f $REPO_ROOT/projects/components/misc/rtl/filelists/stream_run_addr_gen.f
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/dma_address_gen.f
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/stream_run_addr_gen.f
 
 # Scheduler module
 $STREAM_ROOT/rtl/fub/scheduler.sv

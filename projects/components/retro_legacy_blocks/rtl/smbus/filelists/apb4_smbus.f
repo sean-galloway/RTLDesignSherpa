@@ -28,7 +28,7 @@
 -f $REPO_ROOT/rtl/cdc/filelists/glitch_free_n_dff_arn.f
 
 # PeakRDL adapter (from converters)
--f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # PeakRDL-generated registers. The .vlt comes FIRST and is not optional: it
 # waives the two Verilator rules that only the generated block trips (see the

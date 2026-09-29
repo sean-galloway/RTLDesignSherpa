@@ -21,7 +21,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave_cdc.f
 
 # Layer 2: CMD/RSP to PeakRDL Adapter
--f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # Package (must come first)
 # PeakRDL-generated registers. The .vlt comes FIRST and is not optional: it

@@ -28,17 +28,17 @@ endif
 # Paths are relative to projects/components/ (some components live under a subdir,
 # e.g. dma-ip/ and mem-ctrl-ip/).  To add a component: 1) ensure its
 # dv/tests/Makefile exposes run-all-<gate|func|full>[-parallel], 2) add it here.
-COMPONENTS = converters \
+COMPONENTS = utility-ip/converters \
              dma-ip/rapids \
              dma-ip/stream \
              fabric-gen-ip/apbx-xbar \
              fabric-gen-ip/bridge \
              mem-ctrl-ip/pumice-ddr2-lpddr2 \
-             misc \
+             utility-ip/misc \
              retro_legacy_blocks
 
 # Components that exist but don't yet expose run-all-* test targets (for reference):
-# - bch, delta, hive                         - no dv/tests Makefile
+# - noc-ip/delta, compute-eng-ip/hive       - no dv/tests Makefile (retired 2026-09-27)
 # - mem-ctrl-ip/scoria-ddr3-lpddr3, andesite-ddr4-lpddr4 - tests/ dir but no test Makefile
 
 # ------------------------------------------------------------------------------

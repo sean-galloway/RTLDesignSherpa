@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 """Host-side driver for the DDR2/LPDDR2 characterization harness.
 
-Wraps `UARTAxiBridge` (from projects/components/converters/bin) with a
+Wraps `UARTAxiBridge` (from projects/components/utility-ip/converters/bin) with a
 DDR2-specific register map (mirroring harness_csr.sv). The register
 layout is authoritative in the SV; this file must be kept in sync.
 
@@ -56,7 +56,7 @@ from typing import Dict, List, Optional, Tuple
 # `pumice_env`, which locates every layer by searching for a marker file --
 # so this module imports whether or not `env_python` has been sourced, and it
 # does not name the bridge's directory. It used to demand REPO_ROOT and insert
-# `projects/components/converters/bin` by hand; the bridge has since moved into
+# `projects/components/utility-ip/converters/bin` by hand; the bridge has since moved into
 # the shared FPGA layer, and a hardcoded path would now point at nothing.
 sys.path.insert(0, os.path.abspath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "bin")))

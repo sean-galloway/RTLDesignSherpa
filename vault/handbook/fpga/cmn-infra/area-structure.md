@@ -36,7 +36,7 @@ increasing scope:
 | One build | `build-<name>/rtl`, `/host`, `/dv` | that build's harness + top |
 | One component, all its builds | `<component>/rtl`, `/bin`, `/dv` | stream's `harness_csr.sv`, the generated bridges, `stream_env.py` |
 | Every board flow | `projects/fpga-systems/bin/` (host) | `uart_link`, the board registry, `program_fpga.tcl` |
-| Every board flow, but RTL | `projects/components/misc/rtl/` | `verilator_xilinx_stubs.sv` |
+| Every board flow, but RTL | `projects/components/utility-ip/misc/rtl/` | `verilator_xilinx_stubs.sv` |
 
 That last row is the one with a date on it. Verilator stubs for Xilinx
 primitives (`BUFG`, `IBUFDS`, `MMCME2_BASE`) are needed by every board top, and

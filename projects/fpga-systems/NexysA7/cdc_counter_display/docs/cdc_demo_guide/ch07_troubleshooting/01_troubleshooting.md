@@ -29,7 +29,7 @@ and is coherent regardless of mode.
 
 `cdc_demo_top` instantiates `MMCME2_BASE` / `BUFGMUX_CTRL` / `IBUF` / `BUFG`,
 which Verilator cannot find. The shared stub file
-(`projects/components/misc/rtl/verilator_xilinx_stubs.sv`, pulled in through
+(`projects/components/utility-ip/misc/rtl/verilator_xilinx_stubs.sv`, pulled in through
 its filelist by `build-demo/rtl/filelists/cdc_demo_top.f`) provides
 `` `ifdef VERILATOR ``-guarded pass-through stubs (Vivado uses the real unisims
 at synthesis; the create_project tcl drops the stub file from the project). If

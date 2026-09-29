@@ -9,7 +9,7 @@ The host address splits into four regions by `addr[19:16]`:
 | DUT-REG | 0x0_0000 | APB into the RAPIDS DUT (SRC 0x0000, SNK 0x1000) |
 | DESC-LOAD | 0x1_0000 | descriptor holding registers + kick |
 | HARNESS CSR | 0x2_0000 | gen / chk / mem / mon / obs + status |
-| OBSERVERS | 0x3_0000 | `USE_OBSERVERS=1` builds only: `obs_regs` of the AXI observer @ 0x0000 and of the AXIS observer @ 0x1000 (`projects/components/misc/rtl/obs_regs.rdl`, by name through `obs_regs_top_regmap.py`); PSLVERR + 0 when not built |
+| OBSERVERS | 0x3_0000 | `USE_OBSERVERS=1` builds only: `obs_regs` of the AXI observer @ 0x0000 and of the AXIS observer @ 0x1000 (`projects/components/utility-ip/misc/rtl/obs_regs.rdl`, by name through `obs_regs_top_regmap.py`); PSLVERR + 0 when not built |
 
 : Host address regions
 

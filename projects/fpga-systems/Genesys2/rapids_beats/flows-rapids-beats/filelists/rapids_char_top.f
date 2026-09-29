@@ -22,7 +22,7 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/seven_seg_4digit.sv
 
 # ---- Verilator-only Xilinx primitive stub (BUFG); guarded by `ifdef VERILATOR
 #      so Vivado ignores it and uses the real unisim BUFG at synthesis ----
--f $REPO_ROOT/projects/components/misc/rtl/filelists/verilator_xilinx_stubs.f
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/verilator_xilinx_stubs.f
 
 # ---- Board-level top (pins + host front-end + harness instantiation) ----
 $REPO_ROOT/projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/rtl/rapids_char_top.sv

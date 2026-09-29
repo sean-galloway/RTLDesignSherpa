@@ -63,8 +63,8 @@ kind = "component"
 # filelists and was unregistered until 2026-07-26, which is why --audit could not
 # see that two rtl/amba/shared filelists were hand-listing dma_address_gen.sv:
 # ownership comes from rtl_roots, and an unregistered area owns nothing.
-rtl_roots = ["projects/components/misc/rtl"]
-filelist_dirs = ["projects/components/misc/rtl/filelists"]
+rtl_roots = ["projects/components/utility-ip/misc/rtl"]
+filelist_dirs = ["projects/components/utility-ip/misc/rtl/filelists"]
 
 [[area]]
 name = "cdc"
@@ -105,8 +105,8 @@ placement_ok = ["projects/components/fabric-gen-ip/bridge/rtl/filelists_static"]
 [[area]]
 name = "converters"
 kind = "component"
-rtl_roots = ["projects/components/converters/rtl"]
-filelist_dirs = ["projects/components/converters/rtl/filelists"]
+rtl_roots = ["projects/components/utility-ip/converters/rtl"]
+filelist_dirs = ["projects/components/utility-ip/converters/rtl/filelists"]
 
 [[area]]
 name = "delta"
@@ -117,8 +117,8 @@ kind = "component"
 # either. rtl_test/ holds other shapes from the same generator and is
 # deliberately outside rtl_roots: they are generator output, not this area's
 # compile closure.
-rtl_roots = ["projects/components/delta/rtl"]
-filelist_dirs = ["projects/components/delta/rtl/filelists"]
+rtl_roots = ["projects/components/noc-ip/delta/rtl"]
+filelist_dirs = ["projects/components/noc-ip/delta/rtl/filelists"]
 
 [[area]]
 name = "stream"

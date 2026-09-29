@@ -34,7 +34,7 @@ Layers, bottom up:
   exposes `write(addr, data)` / `read(addr)` / `write_verify(addr, data)`.
   Pass `channel=` instead of `port=` and the identical byte stream is driven by
   anything satisfying `ByteChannel` -- that one keyword is the whole sim/board
-  transport swap. `projects/components/converters/bin/uart_axi_bridge.py` is a
+  transport swap. `projects/components/utility-ip/converters/bin/uart_axi_bridge.py` is a
   re-export shim for un-migrated `projects/NexysA7/` flows; never import
   through it and never edit it.
 - **By-name register access** -- `UartRegisterMap`

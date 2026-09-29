@@ -12,8 +12,8 @@ RDS_ROOT  := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-topleve
 # too, but exporting them here means lint/synth work in a bare shell with only
 # REPO_ROOT set.
 export STREAM_ROOT     ?= $(RDS_ROOT)/projects/components/dma-ip/stream
-export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/converters
-export MISC_ROOT       ?= $(RDS_ROOT)/projects/components/misc
+export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/utility-ip/converters
+export MISC_ROOT       ?= $(RDS_ROOT)/projects/components/utility-ip/misc
 # The shared stream harness collateral (harness_csr, axi_response_delay, the
 # generated bridges, instrumentation.f) is now COMPONENT-level, one directory up
 # -- it is shared by build-mon and build-perf rather than owned by either.

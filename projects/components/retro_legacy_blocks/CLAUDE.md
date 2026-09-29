@@ -145,7 +145,7 @@ rtl/{block}/
 
 The RDL lives outside `rtl/` on purpose: every SystemRDL source in the repo
 belongs in an `rdl` area rather than scattered under the RTL it generates
-(RLB TASK-007 (was RLB-007), and projects/components/misc TASK-001 (was MISC-001) repo-wide). There is no README beside it -- a file next
+(RLB TASK-007 (was RLB-007), and projects/components/utility-ip/misc TASK-001 (was MISC-001) repo-wide). There is no README beside it -- a file next
 to a tool restating how to run the tool is the copy nobody edits.
 
 **2. RTL, TB classes, test suites and runner** take the standard shapes:

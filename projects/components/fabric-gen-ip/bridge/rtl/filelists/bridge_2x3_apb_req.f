@@ -36,10 +36,10 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_2x3_apb
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f
 
 # APB4 requester front end (masters with protocol=apb)
--f $REPO_ROOT/projects/components/converters/rtl/filelists/apb4_to_axi4.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/apb4_to_axi4.f
 
 # APB5 requester front end (masters with protocol=apb5)
--f $REPO_ROOT/projects/components/converters/rtl/filelists/apb5_to_axi4.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/apb5_to_axi4.f
 
 # Per-ID response tracking (bridge_cam): enable_ooo slaves, and every AXI
 # slave of a multi-master fabric, whose IDs are {master index, id} (bridge BUG-012 (was BRIDGE-015)/016)
@@ -56,12 +56,12 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_2x3_apb
 # .sv files: a consumer that hand-lists another component's sources has
 # to track that component's internal dependencies, and rots silently
 # when they change.
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_upsize.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_dnsize.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_rd.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_wr.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi_data_upsize.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi_data_dnsize.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_wr.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f
 
 # APB protocol converter (AXI4 to APB).
 #
@@ -69,8 +69,8 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_2x3_apb
 # core, the CDC handshakes, the APB master/stub, the AXI4 slave stubs,
 # axi_gen_addr and both gaxi FIFOs. Hand-listing those here is how the
 # shim's newer gaxi_fifo_async CDC dependency went missing.
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb4_shim.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_apb4_shim.f
 
 # AXI4-to-AXI5-Lite converter dependencies (protocol=axil5 slaves)
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil5_rd.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil5_wr.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil5_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil5_wr.f

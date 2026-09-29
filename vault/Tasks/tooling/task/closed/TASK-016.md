@@ -11,9 +11,9 @@ fabricated examples, none of them in the unit that made the change:
 
 | File | Example | Names |
 |---|---|---|
-| `projects/components/converters/README.md` | `axi4_to_apb4_convert` | M_APB_ADDR_WIDTH, M_APB_DATA_WIDTH, S_AXI_ADDR_WIDTH, S_AXI_DATA_WIDTH, m_apb_paddr |
-| `projects/components/converters/README.md` | `axi_data_dnsize` | DUAL_BUFFER |
-| `projects/components/converters/README.md` | `peakrdl_to_cmdrsp` | clk, cmd_addr, cmd_data, cmd_write, reg_addr |
+| `projects/components/utility-ip/converters/README.md` | `axi4_to_apb4_convert` | M_APB_ADDR_WIDTH, M_APB_DATA_WIDTH, S_AXI_ADDR_WIDTH, S_AXI_DATA_WIDTH, m_apb_paddr |
+| `projects/components/utility-ip/converters/README.md` | `axi_data_dnsize` | DUAL_BUFFER |
+| `projects/components/utility-ip/converters/README.md` | `peakrdl_to_cmdrsp` | clk, cmd_addr, cmd_data, cmd_write, reg_addr |
 | `projects/components/dma-ip/stream/regs/README.md` | `stream_regs` | ch0_ctrl_desc_addr, ch0_rd_burst, global_ctrl_enable, paddr, pclk |
 | `projects/fpga-systems/boards/README.md` | `debounce` | CLK_FREQ_MHZ, DEBOUNCE_TIME_MS, i_clk, i_rst_n, i_signal_raw |
 

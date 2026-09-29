@@ -613,7 +613,7 @@ boundary, while the macro registers that output and resets it to '0 on purpose.
 P1 now asserts the reset value; the "starts full" property properly lives at the
 unit level, where STREAM already proves it as ap_reset_space_free.
 
-### projects/components/converters/ -- 16 of 16 PASS
+### projects/components/utility-ip/converters/ -- 16 of 16 PASS
 
 axil4_to_axi4_rd, axil4_to_axi4_wr, axi4_to_axil4_rd, axi4_to_axil4_wr,
 axi4_dwidth_converter_rd, axi4_dwidth_converter_wr, axi4_to_apb4_shim,

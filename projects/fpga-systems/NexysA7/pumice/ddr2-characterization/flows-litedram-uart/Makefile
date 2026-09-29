@@ -16,7 +16,7 @@ RDS_ROOT  := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git -C $(SELF_DIR) rev-parse
 export REPO_ROOT := $(RDS_ROOT)
 
 # Roots the filelist closure resolves against (converters -> uart bridge etc.).
-export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/converters
+export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/utility-ip/converters
 
 FLOW      := litedram_char
 TOP       := litedram_char_top

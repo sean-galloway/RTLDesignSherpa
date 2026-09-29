@@ -144,8 +144,8 @@ def test_stream_mon_perf(request, test_type):
     # so omitting it silently compiles this harness against the OLD bridge.
     area = os.path.join(repo_root_path, 'projects/fpga-systems/Genesys2/stream')
     os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/dma-ip/stream')
-    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
-    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/utility-ip/converters')
+    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/utility-ip/misc')
     os.environ['STREAM_CHAR_ROOT'] = area
     os.environ['STREAM_CHAR_FRAMEWORK_ROOT'] = area
     os.environ['FRAMEWORK_ROOT'] = area

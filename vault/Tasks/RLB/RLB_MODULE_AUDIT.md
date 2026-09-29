@@ -188,7 +188,7 @@ pic_8259_regs u_pic_8259_regs (...);
 
 **All modules should:**
 1. Use `apb4_slave_cdc` (with CDC parameter) OR `apb4_slave` based on needs
-2. Use `peakrdl_to_cmdrsp` from `projects/components/converters/rtl/`
+2. Use `peakrdl_to_cmdrsp` from `projects/components/utility-ip/converters/rtl/`
 3. Instantiate generated PeakRDL registers (`<module>_regs.sv`)
 4. Provide proper hwif_in/hwif_out signal mapping
 

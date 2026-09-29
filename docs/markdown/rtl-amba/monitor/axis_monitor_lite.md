@@ -205,7 +205,7 @@ the counters instead.
 ## Related Modules
 
 - `axi_monitor_lite` -- the AXI transaction monitor whose delivery contract this block shares
-- `axis4_intf_observer` (projects/components/misc) -- the tap this block's event set comes from; a candidate to instantiate this core
+- `axis4_intf_observer` (projects/components/utility-ip/misc) -- the tap this block's event set comes from; a candidate to instantiate this core
 - `axis{4,5}_{master,slave}_monlite` and `_monlite_cg` -- the eight wrappers that tap this core onto the stream endpoints ([axi_monitor_lite_wrappers](axi_monitor_lite_wrappers.md), Table 2)
 - `axis_bus_meter` -- stream throughput and backpressure counters, the perf path (this block emits no perf packets)
 - `monitor_common_pkg`, `monitor_amba4_pkg` -- packet format and the AXIS event codes

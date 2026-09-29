@@ -251,7 +251,7 @@ assign integrity_ok = (rd_crc[ch] == wr_crc[ch]);
 
 ### See Also
 - **axi4_master_wr_pattern_gen.sv** / **axi4_master_rd_crc_check.sv** — the master-side counterparts (drive traffic instead of terminating it)
-- **axi4_intf_master_observer.sv** — non-intrusive observability wrapper for a DMA's master ports (`projects/components/misc/rtl/`)
+- **axi4_intf_master_observer.sv** — non-intrusive observability wrapper for a DMA's master ports (`projects/components/utility-ip/misc/rtl/`)
 
 ---
 

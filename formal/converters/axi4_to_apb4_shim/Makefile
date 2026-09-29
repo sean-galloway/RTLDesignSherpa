@@ -17,9 +17,9 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/amba/axi4/stubs/axi4_slave_rd_stub.sv \
         $(REPO_ROOT)/rtl/amba/axi4/stubs/axi4_slave_wr_stub.sv \
         $(REPO_ROOT)/rtl/amba/axi4/stubs/axi4_slave_stub.sv \
-        $(REPO_ROOT)/projects/components/converters/rtl/axi4_to_apb4_convert.sv
+        $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi4_to_apb4_convert.sv
 
-DUT := $(REPO_ROOT)/projects/components/converters/rtl/axi4_to_apb4_shim.sv
+DUT := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi4_to_apb4_shim.sv
 
 .PHONY: prove cover all clean
 

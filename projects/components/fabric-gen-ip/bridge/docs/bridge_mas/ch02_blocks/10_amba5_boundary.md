@@ -263,7 +263,7 @@ the honest code.
   PPROT at the AXI4 slave, the APB5 USER bit at the AXI5-Lite slave and 0
   from the APB4 master, APB in / APB out through the fabric from both
   requesters interleaved. The converters alone:
-  `projects/components/converters/dv/tests/test_apb{4,5}_to_axi4.py`.
+  `projects/components/utility-ip/converters/dv/tests/test_apb{4,5}_to_axi4.py`.
 - AXI5 compliance at the boundary: every generated TB arms an
   `AXI5ComplianceChecker` on each AXI5 master port and every generated test
   asserts zero violations before PASSED; `dv/tests/test_bridge_1x2_rd_axi5_bfm5.py`

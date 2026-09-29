@@ -21,7 +21,7 @@ sys.path.insert(0, str(HERE))
 # imports resolve when pytest runs from anywhere.
 _repo_root = HERE.parents[5]  # repo/projects/fpga-systems/Genesys2/stream/bin/tests
 sys.path.insert(0, str(_repo_root / "bin"))
-sys.path.insert(0, str(_repo_root / "projects/components/converters/bin"))
+sys.path.insert(0, str(_repo_root / "projects/components/utility-ip/converters/bin"))
 os.environ.setdefault("REPO_ROOT", str(_repo_root))
 
 from dump_monbus import (  # noqa: E402

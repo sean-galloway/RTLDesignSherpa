@@ -128,7 +128,7 @@ Every module in the family imports the package:
 [`wb4_monitor`](wb4_monitor.md), [`wb4_retry`](wb4_retry.md),
 [`wb4_master_retry`](wb4_master_retry.md), the clock-gated and CDC
 variants, and the `axil4_to_wb4` bridge in
-`projects/components/converters`.
+`projects/components/utility-ip/converters`.
 
 The DV side mirrors the same three values in
 `CocoTBFramework.components.shared.wb4_common` (`WB4_STATUS_ACK`,

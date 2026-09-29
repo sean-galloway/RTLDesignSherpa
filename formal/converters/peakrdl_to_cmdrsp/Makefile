@@ -15,7 +15,7 @@ PKGS :=
 DEPS :=
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
+DUT := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/peakrdl_to_cmdrsp.sv
 
 .PHONY: prove cover all clean
 

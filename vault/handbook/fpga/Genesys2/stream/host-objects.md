@@ -102,7 +102,7 @@ import stream_env  # noqa: F401  (import side effect: sys.path setup)
 
 This replaced three different hand-counted walks -- one to a sibling flow
 (`../../flows-stream-bridge/host`), one `[os.pardir] * 5` to the repo root, and
-one to `projects/components/converters/bin` for the UART bridge. The last was
+one to `projects/components/utility-ip/converters/bin` for the UART bridge. The last was
 already wrong: that path now holds only a compatibility shim whose own
 docstring says new code must not import through it. See [[flow-layout]]
 "anchor paths, never count directory levels".

@@ -786,7 +786,7 @@ class HPETMediumTests:
         EMPIRICAL NOTE (traced via internal signals during test development,
         removed from the final test below): through the ACTUAL integrated
         path, this defect does not reproduce. `peakrdl_to_cmdrsp.sv`
-        (`projects/components/converters/rtl/`) asserts
+        (`projects/components/utility-ip/converters/rtl/`) asserts
         `regblk_req = (cmd_state==CMD_WAIT_ACK) || (cmd_state==CMD_IDLE &&
         cmd_valid)` -- every APB write is presented to the regblock for TWO
         consecutive clock cycles with identical (registered) data, not one.

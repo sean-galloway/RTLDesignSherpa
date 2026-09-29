@@ -214,16 +214,16 @@ When adding new projects:
 
 | Component | Status | Docs |
 |-----------|--------|------|
-| [converters](components/converters/) | Production Ready | [README](components/converters/README.md) |
+| [converters](components/utility-ip/converters/) | Production Ready | [README](components/utility-ip/converters/README.md) |
 | [apbx_xbar](components/fabric-gen-ip/apbx-xbar/) | Production Ready | [PRD](components/fabric-gen-ip/apbx-xbar/PRD.md) |
 | [stream](components/dma-ip/stream/) | Active | [PRD](components/dma-ip/stream/PRD.md) |
 | [rapids](components/dma-ip/rapids/) | Active | [PRD](components/dma-ip/rapids/PRD.md) · [spec](components/dma-ip/rapids/docs/) · char: [report](fpga-systems/Genesys2/rapids_beats/docs/rapids_beats_findings.md) |
 | [bridge](components/fabric-gen-ip/bridge/) | Active | [PRD](components/fabric-gen-ip/bridge/PRD.md) |
 | [mem-ctrl-ip](components/mem-ctrl-ip/) | Active | [README](components/mem-ctrl-ip/README.md) · char: [ddr2](fpga-systems/NexysA7/pumice/ddr2-characterization/) |
-| [hive](components/hive/) | Spec | [PRD](components/hive/PRD.md) · [spec](components/hive/docs/hive_spec/) |
-| [delta](components/delta/) | Spec | [PRD](components/delta/PRD.md) · [spec](components/delta/docs/delta_spec/) |
+| [hive](components/compute-eng-ip/hive/) | Retired 2026-09-27 | [PRD](components/compute-eng-ip/hive/PRD.md) · [spec](components/compute-eng-ip/hive/docs/hive_spec/) |
+| [delta](components/noc-ip/delta/) | Retired 2026-09-27 | [PRD](components/noc-ip/delta/PRD.md) · [spec](components/noc-ip/delta/docs/delta_spec/) |
 | [retro_legacy_blocks](components/retro_legacy_blocks/) | Active | [PRD](components/retro_legacy_blocks/PRD.md) |
-| [misc](components/misc/) | — | [README](components/misc/README.md) |
+| [misc](components/utility-ip/misc/) | — | [README](components/utility-ip/misc/README.md) |
 
 ### Characterization reports (Nexys A7-100T)
 

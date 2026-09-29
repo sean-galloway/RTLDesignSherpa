@@ -25,8 +25,8 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
 DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/projects/components/misc/rtl/dma_address_gen.sv \
-        $(REPO_ROOT)/projects/components/misc/rtl/stream_run_addr_gen.sv
+        $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/dma_address_gen.sv \
+        $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/stream_run_addr_gen.sv
 
 # Device under test
 DUT := $(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/fub_beats/scheduler_beats.sv

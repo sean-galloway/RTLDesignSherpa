@@ -7,7 +7,7 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # UART -> AXIL host bridge
--f $REPO_ROOT/projects/components/converters/rtl/filelists/uart_axil_bridge.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/uart_axil_bridge.f
 
 # Generated 1 -> 5 AXIL bridge for the DDR2 harness
 -f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_axil.f
@@ -26,7 +26,7 @@
 
 # Verilator-only Xilinx primitive stubs (BUFG). Wrapped in `ifdef VERILATOR
 # so Vivado doesn't see them.
--f $REPO_ROOT/projects/components/misc/rtl/filelists/verilator_xilinx_stubs.f
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/verilator_xilinx_stubs.f
 
 # Flat DFI -> per-phase adapter + a7ddrphy black-box stub. Vivado excludes
 # a7ddrphy_stub.sv and substitutes the LiteDRAM-generated a7ddrphy.v at

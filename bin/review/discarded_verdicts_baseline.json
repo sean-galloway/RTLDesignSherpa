@@ -1,6 +1,6 @@
 {
-  "projects/components/converters/dv/tests/test_axil4_to_wb4.py": 2,
-  "projects/components/converters/dv/tests/test_wb4_to_axil4.py": 1,
+  "projects/components/utility-ip/converters/dv/tests/test_axil4_to_wb4.py": 2,
+  "projects/components/utility-ip/converters/dv/tests/test_wb4_to_axil4.py": 1,
   "projects/components/dma-ip/rapids/dv/tests/fub_beats/test_alloc_ctrl_beats.py": 5,
   "projects/components/dma-ip/rapids/dv/tests/fub_beats/test_descriptor_engine_beats.py": 9,
   "projects/components/dma-ip/rapids/dv/tests/fub_beats/test_drain_ctrl_beats.py": 5,

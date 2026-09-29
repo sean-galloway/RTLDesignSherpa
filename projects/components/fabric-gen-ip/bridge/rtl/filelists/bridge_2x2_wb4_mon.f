@@ -35,7 +35,7 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_2x2_wb4
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f
 
 # Wishbone B4 requester front end (masters with protocol=wb4, bridge TASK-008 (was BRIDGE-019))
--f $REPO_ROOT/projects/components/converters/rtl/filelists/wb4_to_axi4.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/wb4_to_axi4.f
 
 # Per-ID response tracking (bridge_cam): enable_ooo slaves, and every AXI
 # slave of a multi-master fabric, whose IDs are {master index, id} (bridge BUG-012 (was BRIDGE-015)/016)
@@ -52,15 +52,15 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_2x2_wb4
 # .sv files: a consumer that hand-lists another component's sources has
 # to track that component's internal dependencies, and rots silently
 # when they change.
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_upsize.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_dnsize.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_rd.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_wr.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi_data_upsize.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi_data_dnsize.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_wr.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f
 
 # AXI4-to-Wishbone B4 converter (protocol=wb4 slaves)
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_wb4.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_wb4.f
 
 # Monitor-aggregation infrastructure (variant=mon)
 #

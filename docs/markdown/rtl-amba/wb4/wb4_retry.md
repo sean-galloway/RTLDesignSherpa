@@ -180,7 +180,7 @@ waiting for it, so the master is never back-pressured on a response.
 - [wb4_master_retry](wb4_master_retry.md) — this block with `wb4_master`
   behind it
 - [wb4_master](wb4_master.md) — what it drives
-- [axil4_to_wb4](../../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/10_axil4_to_wb4.md) — a bridge that maps `RTY` to an AXI error; put this block between it and the master to retry instead
+- [axil4_to_wb4](../../../../projects/components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/10_axil4_to_wb4.md) — a bridge that maps `RTY` to an AXI error; put this block between it and the master to retry instead
 
 ## Testing
 

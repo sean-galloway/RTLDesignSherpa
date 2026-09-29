@@ -50,12 +50,12 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_mix_d/s
 # .sv files: a consumer that hand-lists another component's sources has
 # to track that component's internal dependencies, and rots silently
 # when they change.
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_upsize.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_dnsize.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_rd.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_wr.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi_data_upsize.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi_data_dnsize.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_wr.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f
 
 # APB protocol converter (AXI4 to APB).
 #
@@ -63,9 +63,9 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_mix_d/s
 # core, the CDC handshakes, the APB master/stub, the AXI4 slave stubs,
 # axi_gen_addr and both gaxi FIFOs. Hand-listing those here is how the
 # shim's newer gaxi_fifo_async CDC dependency went missing.
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb4_shim.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_apb4_shim.f
 
 # AXI4-Lite protocol converter dependencies.
 # -f the converters filelists; do not hand-list its sources.
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil4_rd.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil4_wr.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil4_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil4_wr.f

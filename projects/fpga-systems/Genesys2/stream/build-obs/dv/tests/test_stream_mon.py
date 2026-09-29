@@ -59,11 +59,11 @@ SLAVE_TALLY_CFG   = bridge_windows.base('slave_tally_cfg')
 BIN_COMPLETION0 = 0x0100              # {AXI, COMPLETION, evcode 0} -- a BIN, not a register
 
 # CAM programming registers, resolved from the block that generates the decode
-# (projects/components/misc/rtl/tally_regs.rdl). These were hardcoded localparams
+# (projects/components/utility-ip/misc/rtl/tally_regs.rdl). These were hardcoded localparams
 # in the RTL and literals here; both sides now come from the one RDL.
 _TALLY_REGS = RegisterMap(
     os.path.join(os.environ['REPO_ROOT'],
-                 'projects/components/misc/rtl/regs/generated/tally_regs_top_regmap.py'),
+                 'projects/components/utility-ip/misc/rtl/regs/generated/tally_regs_top_regmap.py'),
     apb_data_width=32, apb_addr_width=32, start_address=0,
     log=logging.getLogger('tally_regs'))
 
@@ -146,7 +146,7 @@ _STREAM_REGS = RegisterMap(
 
 _OBS_REGS = RegisterMap(
     os.path.join(os.environ['REPO_ROOT'],
-                 'projects/components/misc/rtl/regs/generated/obs_regs_top_regmap.py'),
+                 'projects/components/utility-ip/misc/rtl/regs/generated/obs_regs_top_regmap.py'),
     apb_data_width=32, apb_addr_width=32, start_address=0,
     log=logging.getLogger('obs_regs'))
 
@@ -462,8 +462,8 @@ def _run_stream_mon(request, profile=False):
     dut_name = "stream_harness"
 
     os.environ['STREAM_ROOT'] = os.path.join(repo_root, 'projects/components/dma-ip/stream')
-    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root, 'projects/components/converters')
-    os.environ['MISC_ROOT'] = os.path.join(repo_root, 'projects/components/misc')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root, 'projects/components/utility-ip/converters')
+    os.environ['MISC_ROOT'] = os.path.join(repo_root, 'projects/components/utility-ip/misc')
     os.environ['STREAM_CHAR_FRAMEWORK_ROOT'] = os.path.join(repo_root, 'projects/fpga-systems/Genesys2/stream')
     os.environ['FRAMEWORK_ROOT'] = os.environ['STREAM_CHAR_FRAMEWORK_ROOT']
 

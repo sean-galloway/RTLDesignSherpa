@@ -25,7 +25,7 @@
 
 # Protocol Converters - UART to AXI4-Lite Bridge
 
-**Component:** `projects/components/converters/`
+**Component:** `projects/components/utility-ip/converters/`
 **Last Updated:** 2025-11-10
 
 ---
@@ -368,7 +368,7 @@ with serial.Serial('/dev/ttyUSB0', 115200, timeout=1) as ser:
 
 ### Known Issues
 
-None currently documented. See `projects/components/converters/known_issues/` for any active issues.
+None currently documented. See `projects/components/utility-ip/converters/known_issues/` for any active issues.
 
 ### Design Considerations
 
@@ -416,7 +416,7 @@ None currently documented. See `projects/components/converters/known_issues/` fo
 #### Running Tests
 
 ```bash
-cd projects/components/converters/dv/tests
+cd projects/components/utility-ip/converters/dv/tests
 
 # Basic test (GATE level)
 env REG_LEVEL=GATE pytest test_uart_axil_bridge.py -v
@@ -443,18 +443,18 @@ env WAVES=1 REG_LEVEL=GATE pytest test_uart_axil_bridge.py -v
 ### File Locations
 
 **RTL:**
-- `projects/components/converters/rtl/uart_to_axil4/uart_axil_bridge.sv` - Top-level bridge
-- `projects/components/converters/rtl/uart_to_axil4/uart_rx.sv` - UART receiver
-- `projects/components/converters/rtl/uart_to_axil4/uart_tx.sv` - UART transmitter
-- `projects/components/converters/rtl/filelists/uart_axil_bridge.f` - Compilation filelist
+- `projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_axil_bridge.sv` - Top-level bridge
+- `projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_rx.sv` - UART receiver
+- `projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_tx.sv` - UART transmitter
+- `projects/components/utility-ip/converters/rtl/filelists/uart_axil_bridge.f` - Compilation filelist
 
 **Verification:**
-- `projects/components/converters/dv/tbclasses/uart_axil_bridge_tb.py` - Testbench class
-- `projects/components/converters/dv/tests/test_uart_axil_bridge.py` - Test runner
+- `projects/components/utility-ip/converters/dv/tbclasses/uart_axil_bridge_tb.py` - Testbench class
+- `projects/components/utility-ip/converters/dv/tests/test_uart_axil_bridge.py` - Test runner
 - `bin/TBClasses/components/uart/` - UART BFM components
 
 **Documentation:**
-- `projects/components/converters/rtl/uart_to_axil4/README.md` - Detailed implementation guide
+- `projects/components/utility-ip/converters/rtl/uart_to_axil4/README.md` - Detailed implementation guide
 - `docs/markdown/projects/converters.md` - This document
 
 ### References

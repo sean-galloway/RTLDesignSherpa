@@ -552,7 +552,7 @@ class AdapterGenerator:
         AXI4 timing wrapper. Named for the family that came first; WB4
         (bridge TASK-008, was BRIDGE-019) rides the same path.
 
-        The converter (projects/components/converters) is the requester
+        The converter (projects/components/utility-ip/converters) is the requester
         half of the bridge's APB story: one APB transfer -> one single-beat
         AXI4 transaction, both SLVERR and DECERR folded to PSLVERR. From the
         wrapper onward the port is indistinguishable from an AXI4-Lite
@@ -2274,7 +2274,7 @@ class AdapterGenerator:
     # AXIL-master alignment helpers (drop-in replacements for the
     # axi_data_upsize-based dwidth converters when master.protocol=='axil'
     # and we're upsizing into a wider slave). See
-    # projects/components/converters/rtl/axil_to_axi4_wide_align_{wr,rd}.sv
+    # projects/components/utility-ip/converters/rtl/axil_to_axi4_wide_align_{wr,rd}.sv
     # for the SystemVerilog semantics.
     # ------------------------------------------------------------------
 

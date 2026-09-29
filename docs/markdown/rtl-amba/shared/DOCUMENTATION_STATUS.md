@@ -58,7 +58,7 @@ This is the inventory, not the documentation itself. Every module page stands on
   - Notes the bridge-case savings (ENABLE_ERROR_LOGIC=1, others 0 drops ~70% LUT/FF).
   - The six sub-block files (axi_monitor_reporter_*.sv) are explicitly covered here rather than as individual doc pages, since they are private to the reporter family.
 
-- **#18 — axi4_dma_observer.md** — RETIRED 2026-08-14 with the module (replaced by axi4_intf_master/slave_observer in projects/components/misc)
+- **#18 — axi4_dma_observer.md** — RETIRED 2026-08-14 with the module (replaced by axi4_intf_master/slave_observer in projects/components/utility-ip/misc)
   - Standalone, DMA-agnostic observability harness that wraps any AXI4-master DMA from outside the DMA (non-intrusive). Companion to the per-DMA axi_monitor_* family which wraps from inside.
   - Covers the full instantiation pattern: NUM_RD + NUM_WR axi4_master_*_mon taps, monbus_arbiter aggregator, monbus_axil4_axi4_group filter+dump, axi_bus_meter, and axi_perf_latency_hist per port.
   - Documents the runtime rid -> channel map (cfg_rd_rid_per_channel) for read-side per-channel attribution and, for writes, either the built-in AW->W awid order tracker (WR_CH_FROM_AWID=1, no DUT sideband) or the optional dma_wr_active_ch_* sideband.

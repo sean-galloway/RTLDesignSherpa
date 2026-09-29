@@ -120,7 +120,7 @@ Each is one module in `rtl/`, one TB class, one test file, one MAS chapter.
 | `rtl/common` | `cam_tag` | **not used** | error positions arrive in order from Chien; a CAM would only be needed for out-of-order multi-block decoding, which is out of scope |
 | `rtl/common` | `dataint_ecc_hamming_*` | **not used**, interface precedent only | the house ECC shape (data in, code out, error flags) that `rs_decoder`'s status follows |
 | `rtl/math` | `math_multiplier_*`, `math_adder_*` | **not used** | binary arithmetic; GF(2^m) has no carries. The multiplier trees are the structural model for `gf_mul`'s AND/XOR array, nothing more |
-| `projects/components/converters` | `apb4` → cpuif path (`peakrdl_to_cmdrsp` or the shim) | register access | exactly as STREAM's config block attaches its regblock |
+| `projects/components/utility-ip/converters` | `apb4` → cpuif path (`peakrdl_to_cmdrsp` or the shim) | register access | exactly as STREAM's config block attaches its regblock |
 | `bin/peakrdl_generate.py` | regblock, regmap, docs | `rs_regs` | never raw peakrdl |
 
 ## Sizes for the reference profile (RS(255,239), t = 8, m = 8, 1 symbol/cycle)

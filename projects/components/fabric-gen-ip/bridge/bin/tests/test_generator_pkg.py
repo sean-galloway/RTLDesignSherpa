@@ -837,7 +837,7 @@ def test_axil5_sideband_table_matches_converter_ports():
     directly rather than waiting for a lint run to notice."""
     from bridge_pkg.axil5_sideband import sideband_ports
 
-    rtl = REPO_ROOT / "projects/components/converters/rtl"
+    rtl = REPO_ROOT / "projects/components/utility-ip/converters/rtl"
     text = ((rtl / "axi4_to_axil5_wr.sv").read_text()
             + (rtl / "axi4_to_axil5_rd.sv").read_text())
     for base, _width_key, _direction in sideband_ports("rw"):
@@ -1324,7 +1324,7 @@ def test_wb4_signal_table_matches_rtl_ports():
     """The generator's table and the converters it drives must name the same
     Wishbone signals, or the instantiation dies on PINMISSING."""
     from bridge_pkg.wb4_signals import wb4_names
-    conv = REPO_ROOT / "projects/components/converters/rtl"
+    conv = REPO_ROOT / "projects/components/utility-ip/converters/rtl"
     a2w = (conv / "axi4_to_wb4.sv").read_text()
     w2a = (conv / "wb4_to_axi4.sv").read_text()
     for base in wb4_names():

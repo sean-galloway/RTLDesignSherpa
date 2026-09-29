@@ -11,7 +11,7 @@ RDS_ROOT := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-toplevel
 # Root the filelist closure resolves against beyond REPO_ROOT. env_python
 # defines it too, but exporting it here means lint/synth work in a bare shell
 # with only REPO_ROOT set.
-export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/converters
+export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/utility-ip/converters
 
 FLOW      := cdc_demo
 TOP       := cdc_demo_top

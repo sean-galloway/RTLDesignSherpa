@@ -121,7 +121,7 @@ Everything this MAS leaned on, plus the pointers you'll want when you need to go
 **APB Infrastructure:**
 - `rtl/amba/apb4/apb4_slave.sv` - Standard APB slave
 - `rtl/amba/apb4/apb4_slave_cdc.sv` - APB slave with clock domain crossing
-- `projects/components/converters/rtl/peakrdl_to_cmdrsp.sv` - PeakRDL adapter
+- `projects/components/utility-ip/converters/rtl/peakrdl_to_cmdrsp.sv` - PeakRDL adapter
 
 **Clock Domain Crossing:**
 - `rtl/amba/cdc/cdc_4_phase_handshake.sv` - CDC handshake synchronizer (renamed from `cdc_handshake.sv`)
@@ -193,7 +193,7 @@ Everything this MAS leaned on, plus the pointers you'll want when you need to go
 - APB HPET (this component)
 - AMBA AXI4 Monitors (`rtl/amba/`)
 - RAPIDS DMA Engine (`projects/components/dma-ip/rapids/`)
-- Delta Network Arbiter (`projects/components/delta/`)
+- Delta Network Arbiter (`projects/components/noc-ip/delta/`)
 
 **External Dependencies:**
 - None - APB HPET is fully self-contained within RTL Design Sherpa

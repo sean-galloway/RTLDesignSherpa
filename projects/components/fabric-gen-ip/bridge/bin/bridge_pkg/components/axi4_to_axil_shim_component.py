@@ -8,7 +8,7 @@
 # fabric; at the slave boundary AXIL-protocol slaves get a shim that
 # burst-decomposes AXI4 transactions into AXIL4 single-beat transactions.
 # Read and write are separate converter modules in
-# projects/components/converters/rtl/, so the rw case instantiates both
+# projects/components/utility-ip/converters/rtl/, so the rw case instantiates both
 # side-by-side.
 #
 # The class keeps the parameter list, port list, and tie-off widths in

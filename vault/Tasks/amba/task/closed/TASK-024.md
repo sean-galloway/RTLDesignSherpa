@@ -55,7 +55,7 @@ dead, the same shape as the four dead packages closed in `65fa8cf0`.
 
 DONE, the split half:
 
-* `projects/components/misc/rtl/axi4_intf_master_observer.sv` and
+* `projects/components/utility-ip/misc/rtl/axi4_intf_master_observer.sv` and
   `axi4_intf_slave_observer.sv` both exist.
 * The original `axi4_intf_observer.sv` is GONE from the tree.
 * The new observers are adopted in three harnesses:
@@ -70,7 +70,7 @@ independent places, so it cannot simply be deleted:
    the slave observer.
 2. Genesys2 `build-mon` has an ACTIVE FUB test,
    `build-mon/dv/tests/test_dma_slave_monitors.py`, which compiles
-   `projects/components/misc/rtl/filelists/dma_slave_monitors.f`. So the
+   `projects/components/utility-ip/misc/rtl/filelists/dma_slave_monitors.f`. So the
    misc/rtl copy is not dead code -- it is what that test builds. Decide
    whether the test is retargeted at the slave observer or retired with the
    module.
@@ -169,7 +169,7 @@ was watching. Nothing in `build-perf` even reads these monitors, and
 - [ ] Step 0 above (fixes the hang on its own).
 - [x] **DONE 2026-08-14.** Split into `axi4_intf_master_observer.sv` (taps
       `axi4_master_{rd,wr}_mon`) and `axi4_intf_slave_observer.sv` (taps
-      `axi4_slave_{rd,wr}_mon`), both in `projects/components/misc/rtl/`.
+      `axi4_slave_{rd,wr}_mon`), both in `projects/components/utility-ip/misc/rtl/`.
       Naming is the owner's: `axi4_intf_<role>_observer`, not
       `axi4_intf_observer_<role>`.
 

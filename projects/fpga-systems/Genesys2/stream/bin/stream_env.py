@@ -20,7 +20,7 @@ host layers over the same shared libraries. `STREAM_BUILD` selects one,
 defaulting to the monitor build.
 
 NOTE the deliberate omission: `uart_axi_bridge` is NOT reached through
-`projects/components/converters/bin`. That path still holds a compatibility
+`projects/components/utility-ip/converters/bin`. That path still holds a compatibility
 shim whose own docstring says new code must not import through it -- the real
 module lives in the shared FPGA layer, which `fpga_bin()` finds.
 """

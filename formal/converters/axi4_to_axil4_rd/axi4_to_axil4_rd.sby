@@ -18,5 +18,5 @@ read -formal -sv formal_axi4_to_axil4_rd.sv
 prep -top formal_axi4_to_axil4_rd
 
 [files]
-axi4_to_axil4_rd.sv ../../../projects/components/converters/rtl/axi4_to_axil4_rd.sv
+axi4_to_axil4_rd.sv ../../../projects/components/utility-ip/converters/rtl/axi4_to_axil4_rd.sv
 formal_axi4_to_axil4_rd.sv

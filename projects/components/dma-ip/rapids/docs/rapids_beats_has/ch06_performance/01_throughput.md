@@ -169,7 +169,7 @@ question from this one.
 
 As of 2026-08-05 the observer carries its OWN APB config regblock (`obs_regs`)
 instead of exporting 29 `cfg_*` ports for the instantiating harness to tie off,
-and it moved to `projects/components/misc/rtl/` so any board flow can reach it:
+and it moved to `projects/components/utility-ip/misc/rtl/` so any board flow can reach it:
 
     -f $MISC_ROOT/rtl/filelists/axi4_intf_master_observer.f
 

@@ -9,7 +9,7 @@ RDS_ROOT  := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-topleve
 # Roots this build's filelist closure resolves against. env_python defines these
 # too, but exporting them here means lint/synth work in a bare shell with only
 # REPO_ROOT set -- which is how the old flow behaved and worth keeping.
-export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/converters
+export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/utility-ip/converters
 
 FLOW      := ddr2_char
 TOP       := ddr2_char_top

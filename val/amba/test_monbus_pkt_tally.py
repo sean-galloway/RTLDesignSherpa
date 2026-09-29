@@ -5,9 +5,9 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_monbus_pkt_tally
-# Purpose: FUB cocotb tests for projects/components/misc/rtl/monbus_pkt_tally.sv
+# Purpose: FUB cocotb tests for projects/components/utility-ip/misc/rtl/monbus_pkt_tally.sv
 #
-# Documentation: projects/components/misc/rtl/monbus_pkt_tally.sv (header)
+# Documentation: projects/components/utility-ip/misc/rtl/monbus_pkt_tally.sv (header)
 # Subsystem: tests
 #
 # Author: sean galloway

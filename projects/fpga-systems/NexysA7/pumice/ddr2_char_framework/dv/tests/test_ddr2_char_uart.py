@@ -48,7 +48,7 @@ _TBC = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/"
 # The pumice sequence area. Its seq_*.py are what `make run` drives on silicon;
 # cocotb_test_uart_sequences below runs the SAME files against the sim.
 _SEQ = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/bin")
-_BRIDGE = os.path.join(_REPO, "projects/components/converters/bin")
+_BRIDGE = os.path.join(_REPO, "projects/components/utility-ip/converters/bin")
 for _p in (_HOST, _TBC, _BRIDGE, _SEQ):
     if _p not in sys.path:
         sys.path.insert(0, _p)

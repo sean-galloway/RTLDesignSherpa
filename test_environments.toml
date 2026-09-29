@@ -121,7 +121,7 @@ coverage_report_target = "coverage-report"
 # --- Converters ---
 [env.converters]
 description = "Data width and protocol converters"
-directory = "projects/components/converters/dv/tests"
+directory = "projects/components/utility-ip/converters/dv/tests"
 coverage = true
 coverage_target = "fresh-coverage"
 coverage_report_target = "coverage-report"

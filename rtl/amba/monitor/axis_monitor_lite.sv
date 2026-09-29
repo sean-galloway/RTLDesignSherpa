@@ -27,7 +27,7 @@
 // more producer and nothing new.
 //
 // The event set and payloads are the per-port tap of axis4_intf_observer
-// (projects/components/misc), which was written in the lite discipline and
+// (projects/components/utility-ip/misc), which was written in the lite discipline and
 // validated on the board; they are lifted here unchanged so the observer can
 // later instantiate this core instead of carrying its own copy. What this
 // block adds over the tap is the lite's delivery contract: a 4-deep unreset

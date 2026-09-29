@@ -19,9 +19,9 @@ TASK-084 at 5 -- it is 13, and two files were missed entirely):
 
 | File | Cites | Now |
 |---|---|---|
-| `projects/components/misc/dv/tests/fub/test_axi4_intf_observer.py` (11 lines) | `TASK-084` | amba BUG-036 |
-| `projects/components/misc/rtl/axi4_intf_master_observer.sv:483` | `AMBA-MONTRACK` | amba BUG-029 |
-| `projects/components/misc/rtl/axi4_intf_slave_observer.sv:494` | `AMBA-MONTRACK` | amba BUG-029 |
+| `projects/components/utility-ip/misc/dv/tests/fub/test_axi4_intf_observer.py` (11 lines) | `TASK-084` | amba BUG-036 |
+| `projects/components/utility-ip/misc/rtl/axi4_intf_master_observer.sv:483` | `AMBA-MONTRACK` | amba BUG-029 |
+| `projects/components/utility-ip/misc/rtl/axi4_intf_slave_observer.sv:494` | `AMBA-MONTRACK` | amba BUG-029 |
 | `projects/components/dma-ip/stream/rtl/macro/stream_core.sv:123` | `[[AMBA-MONTRACK]]` | amba BUG-029 |
 | `projects/components/dma-ip/stream/dv/tests/top/test_stream_top_mon_cfg.py:20` | `[[AMBA-MONTRACK]]` | amba BUG-029 |
 | `projects/components/dma-ip/stream/dv/tbclasses/stream_core_tb.py:39` | `TASK-084` | amba BUG-036 |

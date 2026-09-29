@@ -36,7 +36,7 @@
 # Lint/sim-only Xilinx primitive stubs (IBUF/BUFG/BUFGMUX_CTRL/MMCME2_BASE).
 # `ifdef VERILATOR guarded; the Vivado tcl additionally drops the file so the
 # real unisims are used at synthesis.
--f $REPO_ROOT/projects/components/misc/rtl/filelists/verilator_xilinx_stubs.f
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/verilator_xilinx_stubs.f
 
 # This build's RTL
 $REPO_ROOT/projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/rtl/cdc_demo_harness.sv

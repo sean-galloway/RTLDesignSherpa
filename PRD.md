@@ -437,7 +437,7 @@ endmodule
 # Pattern: test_<module_name> where <module_name> EXACTLY matches the RTL module
 
 CORRECT:
-# File: projects/components/converters/dv/tests/test_axi4_dwidth_converter_wr.py
+# File: projects/components/utility-ip/converters/dv/tests/test_axi4_dwidth_converter_wr.py
 def test_axi4_dwidth_converter_wr(request, params):  # ← Matches axi4_dwidth_converter_wr.sv
     """Test for write data width converter"""
     ...
@@ -448,7 +448,7 @@ def test_apb4_slave(request, params):  # ← Matches module
     ...
 
 WRONG - Generic names cause pytest collection conflicts:
-# File: projects/components/converters/dv/tests/test_axi4_dwidth_converter_wr.py
+# File: projects/components/utility-ip/converters/dv/tests/test_axi4_dwidth_converter_wr.py
 def test_axi4_dwidth_converter(request, params):  # ← Conflicts with _rd test!
     ...
 
@@ -458,7 +458,7 @@ def test_converter(request, params):  # ← Too generic!
 
 **Rationale:**
 - Related modules (e.g., `axi4_dwidth_converter_wr.sv`, `axi4_dwidth_converter_rd.sv`) share
-  the same test directory (`projects/components/converters/dv/tests/`)
+  the same test directory (`projects/components/utility-ip/converters/dv/tests/`)
 - Pytest collects ALL test functions across files in a directory
 - Generic function names like `test_axi4_dwidth_converter()` create collection conflicts
 - Function names appear in logs, reports, CI - must be descriptive and unique

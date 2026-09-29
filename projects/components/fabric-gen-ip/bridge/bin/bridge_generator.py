@@ -1080,18 +1080,18 @@ def _emit_bridge_variant(
         filelist_lines.append("")
         filelist_lines.append("# APB4 requester front end (masters with protocol=apb)")
         filelist_lines.append(
-            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/apb4_to_axi4.f")
+            "-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/apb4_to_axi4.f")
     if any(m.protocol.lower() == 'apb5' for m in config.masters):
         filelist_lines.append("")
         filelist_lines.append("# APB5 requester front end (masters with protocol=apb5)")
         filelist_lines.append(
-            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/apb5_to_axi4.f")
+            "-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/apb5_to_axi4.f")
 
     if any(m.protocol.lower() == 'wb4' for m in config.masters):
         filelist_lines.append("")
         filelist_lines.append("# Wishbone B4 requester front end (masters with protocol=wb4, bridge TASK-008 (was BRIDGE-019))")
         filelist_lines.append(
-            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/wb4_to_axi4.f")
+            "-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/wb4_to_axi4.f")
 
     # Atomic-enabled WRITE-ONLY AXI5 masters (A5-3a): the master adapter
     # inserts the axi5_atomic_filter between the boundary wrapper and the
@@ -1158,17 +1158,17 @@ def _emit_bridge_variant(
     filelist_lines.append("# .sv files: a consumer that hand-lists another component's sources has")
     filelist_lines.append("# to track that component's internal dependencies, and rots silently")
     filelist_lines.append("# when they change.")
-    filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_upsize.f")
-    filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_dnsize.f")
-    filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_rd.f")
-    filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_wr.f")
+    filelist_lines.append("-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi_data_upsize.f")
+    filelist_lines.append("-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi_data_dnsize.f")
+    filelist_lines.append("-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_rd.f")
+    filelist_lines.append("-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_wr.f")
     # AXIL-master alignment modules. Used by the adapter generator
     # in place of axi4_dwidth_converter_{wr,rd} when an AXIL master
     # upsizes into a wider slave (axi_data_upsize aggregates by beat
     # counter, which is wrong for single-beat narrow → wide writes —
     # see the modules' headers).
-    filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f")
-    filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f")
+    filelist_lines.append("-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f")
+    filelist_lines.append("-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f")
 
     # Check if any slaves use APB protocol
     has_apb = any(slave.protocol.lower() == 'apb' for slave in config.slaves)
@@ -1181,7 +1181,7 @@ def _emit_bridge_variant(
         filelist_lines.append("# axi_gen_addr and both gaxi FIFOs. Hand-listing those here is how the")
         filelist_lines.append("# shim's newer gaxi_fifo_async CDC dependency went missing.")
         filelist_lines.append(
-            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb4_shim.f")
+            "-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_apb4_shim.f")
 
     # APB5 slaves (A5-3c): the axi4_to_apb5_shim wrapper. Its closure
     # filelist -f's the apb4 shim's closure, so this replaces (not
@@ -1191,7 +1191,7 @@ def _emit_bridge_variant(
         filelist_lines.append("")
         filelist_lines.append("# AXI4-to-APB5 converter shim (protocol=apb5 slaves)")
         filelist_lines.append(
-            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb5_shim.f")
+            "-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_apb5_shim.f")
 
     # Check if any slaves use AXI4-Lite protocol
     has_axil = any(slave.protocol.lower() == 'axil' for slave in config.slaves)
@@ -1199,8 +1199,8 @@ def _emit_bridge_variant(
         filelist_lines.append("")
         filelist_lines.append("# AXI4-Lite protocol converter dependencies.")
         filelist_lines.append("# -f the converters filelists; do not hand-list its sources.")
-        filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil4_rd.f")
-        filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil4_wr.f")
+        filelist_lines.append("-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil4_rd.f")
+        filelist_lines.append("-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil4_wr.f")
 
     # AXI5-Lite slaves: the axi4_to_axil5_{rd,wr} wrappers. Their closure
     # filelists -f the AXI4-Lite ones, so these REPLACE rather than augment
@@ -1210,8 +1210,8 @@ def _emit_bridge_variant(
     if has_axil5:
         filelist_lines.append("")
         filelist_lines.append("# AXI4-to-AXI5-Lite converter dependencies (protocol=axil5 slaves)")
-        filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil5_rd.f")
-        filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil5_wr.f")
+        filelist_lines.append("-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil5_rd.f")
+        filelist_lines.append("-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil5_wr.f")
 
     # CDC slave ports (bridge TASK-006, was BRIDGE-017): axi4_cdc_{wr,rd} between the crossbar-side
     # wrapper and the boundary; their closures bring rtl/cdc's async FIFO.
@@ -1228,7 +1228,7 @@ def _emit_bridge_variant(
         filelist_lines.append("")
         filelist_lines.append("# AXI4-to-Wishbone B4 converter (protocol=wb4 slaves)")
         filelist_lines.append(
-            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_wb4.f")
+            "-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_wb4.f")
 
     # Monitor-aggregation dependencies. Only added for the "mon"
     # variant -- the "no" variant uses the non-_mon wrappers and has

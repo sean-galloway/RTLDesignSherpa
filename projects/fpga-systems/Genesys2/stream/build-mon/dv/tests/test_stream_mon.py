@@ -525,8 +525,8 @@ def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
     dut_name = "stream_harness"
 
     os.environ['STREAM_ROOT'] = os.path.join(repo_root, 'projects/components/dma-ip/stream')
-    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root, 'projects/components/converters')
-    os.environ['MISC_ROOT'] = os.path.join(repo_root, 'projects/components/misc')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root, 'projects/components/utility-ip/converters')
+    os.environ['MISC_ROOT'] = os.path.join(repo_root, 'projects/components/utility-ip/misc')
     os.environ['STREAM_CHAR_FRAMEWORK_ROOT'] = os.path.join(repo_root, 'projects/fpga-systems/Genesys2/stream')
     os.environ['FRAMEWORK_ROOT'] = os.environ['STREAM_CHAR_FRAMEWORK_ROOT']
 

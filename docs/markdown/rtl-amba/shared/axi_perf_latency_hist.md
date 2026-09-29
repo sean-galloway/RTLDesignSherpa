@@ -264,7 +264,7 @@ Because increments land four cycles after the completing beat (capture, subtract
 
 ### See Also
 - **axi_bus_meter.sv** - Four-bucket utilization meter, shares the window-control convention
-- **axi4_intf_master_observer.sv** - interface observability wrapper with per-port latency histograms (`projects/components/misc/rtl/`)
+- **axi4_intf_master_observer.sv** - interface observability wrapper with per-port latency histograms (`projects/components/utility-ip/misc/rtl/`)
 - **axi_monitor_base.sv** - The shared monitor scaffold this block deliberately does not touch
 
 ---

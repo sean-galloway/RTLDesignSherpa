@@ -134,7 +134,7 @@ and read back through harness CSRs. The stream flows use
 **What changed that makes this worth doing (2026-08-04):** the observer now
 carries its OWN APB config regblock (`obs_regs`) instead of exporting 29 `cfg_*`
 ports for the instantiating harness to tie off, and it moved to
-`projects/components/misc/rtl/` so it is reachable from any board flow:
+`projects/components/utility-ip/misc/rtl/` so it is reachable from any board flow:
 
     -f $MISC_ROOT/rtl/filelists/axi4_intf_master_observer.f
 

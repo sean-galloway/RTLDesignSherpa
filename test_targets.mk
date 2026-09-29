@@ -482,62 +482,62 @@ coverage-report-bridge:
 .PHONY: test-converters
 test-converters:
 	@echo "=== converters FUNC (parallel) ==="
-	@$(MAKE) -C projects/components/converters/dv/tests run-all-func-parallel
+	@$(MAKE) -C projects/components/utility-ip/converters/dv/tests run-all-func-parallel
 
 .PHONY: test-converters-gate
 test-converters-gate:
 	@echo "=== converters GATE (parallel) ==="
-	@$(MAKE) -C projects/components/converters/dv/tests run-all-gate-parallel
+	@$(MAKE) -C projects/components/utility-ip/converters/dv/tests run-all-gate-parallel
 
 .PHONY: test-converters-func
 test-converters-func:
 	@echo "=== converters FUNC (parallel) ==="
-	@$(MAKE) -C projects/components/converters/dv/tests run-all-func-parallel
+	@$(MAKE) -C projects/components/utility-ip/converters/dv/tests run-all-func-parallel
 
 .PHONY: test-converters-full
 test-converters-full:
 	@echo "=== converters FULL (parallel) ==="
-	@$(MAKE) -C projects/components/converters/dv/tests run-all-full-parallel
+	@$(MAKE) -C projects/components/utility-ip/converters/dv/tests run-all-full-parallel
 
 .PHONY: test-converters-gate-waves
 test-converters-gate-waves:
 	@echo "=== converters GATE (parallel + waves) ==="
-	@$(MAKE) -C projects/components/converters/dv/tests run-all-gate-parallel-waves
+	@$(MAKE) -C projects/components/utility-ip/converters/dv/tests run-all-gate-parallel-waves
 
 .PHONY: test-converters-func-waves
 test-converters-func-waves:
 	@echo "=== converters FUNC (parallel + waves) ==="
-	@$(MAKE) -C projects/components/converters/dv/tests run-all-func-parallel-waves
+	@$(MAKE) -C projects/components/utility-ip/converters/dv/tests run-all-func-parallel-waves
 
 .PHONY: test-converters-full-waves
 test-converters-full-waves:
 	@echo "=== converters FULL (parallel + waves) ==="
-	@$(MAKE) -C projects/components/converters/dv/tests run-all-full-parallel-waves
+	@$(MAKE) -C projects/components/utility-ip/converters/dv/tests run-all-full-parallel-waves
 
 .PHONY: test-converters-gate-serial
 test-converters-gate-serial:
 	@echo "=== converters GATE (serial) ==="
-	@$(MAKE) -C projects/components/converters/dv/tests run-all-gate-serial
+	@$(MAKE) -C projects/components/utility-ip/converters/dv/tests run-all-gate-serial
 
 .PHONY: test-converters-func-serial
 test-converters-func-serial:
 	@echo "=== converters FUNC (serial) ==="
-	@$(MAKE) -C projects/components/converters/dv/tests run-all-func-serial
+	@$(MAKE) -C projects/components/utility-ip/converters/dv/tests run-all-func-serial
 
 .PHONY: test-converters-full-serial
 test-converters-full-serial:
 	@echo "=== converters FULL (serial) ==="
-	@$(MAKE) -C projects/components/converters/dv/tests run-all-full-serial
+	@$(MAKE) -C projects/components/utility-ip/converters/dv/tests run-all-full-serial
 
 .PHONY: coverage-converters
 coverage-converters:
 	@echo "=== converters coverage ==="
-	@$(MAKE) -C projects/components/converters/dv/tests fresh-coverage
+	@$(MAKE) -C projects/components/utility-ip/converters/dv/tests fresh-coverage
 
 .PHONY: coverage-report-converters
 coverage-report-converters:
 	@echo "=== converters coverage report ==="
-	@$(MAKE) -C projects/components/converters/dv/tests coverage-report
+	@$(MAKE) -C projects/components/utility-ip/converters/dv/tests coverage-report
 
 # --- apb-xbar: APB crossbar ---
 

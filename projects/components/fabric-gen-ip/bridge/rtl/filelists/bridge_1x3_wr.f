@@ -45,9 +45,9 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_1x3_wr/
 # .sv files: a consumer that hand-lists another component's sources has
 # to track that component's internal dependencies, and rots silently
 # when they change.
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_upsize.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi_data_dnsize.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_rd.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_dwidth_converter_wr.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi_data_upsize.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi_data_dnsize.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_wr.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f

@@ -32,8 +32,8 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_latency_bridge.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/sram_controller_unit.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/sram_controller.sv \
-        $(REPO_ROOT)/projects/components/misc/rtl/dma_address_gen.sv \
-        $(REPO_ROOT)/projects/components/misc/rtl/stream_run_addr_gen.sv \
+        $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/dma_address_gen.sv \
+        $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/stream_run_addr_gen.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/scheduler.sv \
         $(TMPDIR)/axi_write_engine.sv
 

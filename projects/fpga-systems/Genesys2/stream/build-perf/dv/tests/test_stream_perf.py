@@ -191,8 +191,8 @@ def test_stream_perf(request, test_type, test_level):
     # Build source list via filelist.
     # Environment variables needed by the filelist:
     os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/dma-ip/stream')
-    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
-    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/utility-ip/converters')
+    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/utility-ip/misc')
     os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/fpga-systems/Genesys2/stream')
     # BOTH names. The harness filelist uses $FRAMEWORK_ROOT; instrumentation.f
     # (harness_csr, axi_response_delay, the GENERATED BRIDGES) uses
@@ -349,8 +349,8 @@ def test_stream_perf_ext_suite(request):
     dut_name = "stream_harness"
 
     os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/dma-ip/stream')
-    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
-    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/utility-ip/converters')
+    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/utility-ip/misc')
     os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/fpga-systems/Genesys2/stream')
     # BOTH names. The harness filelist uses $FRAMEWORK_ROOT; instrumentation.f
     # (harness_csr, axi_response_delay, the GENERATED BRIDGES) uses
@@ -447,8 +447,8 @@ def test_stream_perf_ext_chain(request):
     dut_name = "stream_harness"
 
     os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/dma-ip/stream')
-    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
-    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/utility-ip/converters')
+    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/utility-ip/misc')
     os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/fpga-systems/Genesys2/stream')
     # BOTH names. The harness filelist uses $FRAMEWORK_ROOT; instrumentation.f
     # (harness_csr, axi_response_delay, the GENERATED BRIDGES) uses
@@ -543,8 +543,8 @@ def test_stream_perf_ext_chain_soak(request):
     })
     dut_name = "stream_harness"
     os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/dma-ip/stream')
-    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
-    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/utility-ip/converters')
+    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/utility-ip/misc')
     os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/fpga-systems/Genesys2/stream')
     # BOTH names. The harness filelist uses $FRAMEWORK_ROOT; instrumentation.f
     # (harness_csr, axi_response_delay, the GENERATED BRIDGES) uses
@@ -629,8 +629,8 @@ def test_stream_perf_ext_char(request):
     dut_name = "stream_harness"
 
     os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/dma-ip/stream')
-    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
-    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/utility-ip/converters')
+    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/utility-ip/misc')
     os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/fpga-systems/Genesys2/stream')
     # BOTH names. The harness filelist uses $FRAMEWORK_ROOT; instrumentation.f
     # (harness_csr, axi_response_delay, the GENERATED BRIDGES) uses

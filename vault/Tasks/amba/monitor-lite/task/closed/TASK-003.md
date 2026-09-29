@@ -16,7 +16,7 @@ AXIS: the `axis4/axis5` master and slave wrappers with no monitor variant,
 `axis_bus_meter` (perf counters, no packets), the monbus package's AXIS
 protocol code and its Credit / Channel / Stream packet classes (designed,
 never given an emitter in rtl/amba), and the one emitter that does exist --
-the per-port tap inside `projects/components/misc/rtl/axis4_intf_observer.sv`,
+the per-port tap inside `projects/components/utility-ip/misc/rtl/axis4_intf_observer.sv`,
 written in the lite discipline when the AXIS observer was built, not
 reusable.
 

@@ -912,7 +912,7 @@ When `protocol = "axil"` is specified in the slave TOML:
 - Data width remains unchanged (upsizing/downsizing done separately)
 - Shims are inserted **between crossbar and slave port** in the generated top-level module
 
-**Modules**: `projects/components/converters/rtl/axi4_to_axil4_{rd,wr}.sv`
+**Modules**: `projects/components/utility-ip/converters/rtl/axi4_to_axil4_{rd,wr}.sv`
 
 ### AXI4 to APB Conversion
 
@@ -925,7 +925,7 @@ When `protocol = "apb"` is specified in the slave TOML:
   same shim -- see [AMBA5 Boundary](10_amba5_boundary.md).
 - Slave port externally presents APB signals; internally the crossbar is AXI4
 
-**Modules**: `projects/components/converters/rtl/axi4_to_apb4_shim.sv`
+**Modules**: `projects/components/utility-ip/converters/rtl/axi4_to_apb4_shim.sv`
 (`axi4_to_apb5_shim.sv` for `apb5`)
 
 An earlier revision of this page described the path as an `axi4_to_axil4`
@@ -947,7 +947,7 @@ When `protocol = "apb"` or `"apb5"` is specified on a **master** (bridge TASK-00
   the response mux are untouched.
 - The fabric ID is the master index alone (`id_width = 0`, bridge TASK-005 (was BRIDGE-016)).
 
-**Modules**: `projects/components/converters/rtl/apb4_to_axi4.sv`,
+**Modules**: `projects/components/utility-ip/converters/rtl/apb4_to_axi4.sv`,
 `apb5_to_axi4.sv`, `apb_cmdrsp_to_axi4.sv` -- see the converters MAS.
 
 ### Wishbone B4 at Either Boundary
@@ -966,7 +966,7 @@ When `protocol = "wb4"` is specified (bridge TASK-008, was BRIDGE-019):
   From there the port is an AXI4-Lite-shaped single-beat requester and takes
   the wide-slave aligner toward wider slaves.
 
-**Modules**: `projects/components/converters/rtl/axi4_to_wb4.sv`,
+**Modules**: `projects/components/utility-ip/converters/rtl/axi4_to_wb4.sv`,
 `wb4_to_axi4.sv` -- see the converters MAS.
 
 ### Master-Side AXI5-Lite Sideband
@@ -990,7 +990,7 @@ When an AXI4-Lite master interfaces with a wider AXI4 slave (e.g., 32-bit AXIL m
 - Preserves AXIL's single-beat constraint on the master side
 - Properly aligns partial-word reads/writes on the wide slave side
 
-**Modules**: `projects/components/converters/rtl/axil_to_axi4_wide_align_{rd,wr}.sv`
+**Modules**: `projects/components/utility-ip/converters/rtl/axil_to_axi4_wide_align_{rd,wr}.sv`
 
 **Example**: 32-bit AXIL master → 64-bit AXI4 slave
 - Master writes to addr 0x04 with data 0xAABBCCDD. The shim selects the lane

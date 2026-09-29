@@ -35,8 +35,8 @@
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_open_loop.f
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave.f
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave_cdc.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/apb4_to_peakrdl.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/apb4_to_peakrdl.f
 
 # The generator config block.
 -f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/filelists/chargen_regs.f

@@ -8,9 +8,9 @@ Both files resolved, though neither went where the task guessed — reading
 them changed the destination, which is why the task said to read first:
 
 - `rtl/amba/axi4/AXI4_DATA_WIDTH_CONVERTER_SPEC.md` — the dwidth converter
-  RTL had itself MOVED to `projects/components/converters/` since this task
+  RTL had itself MOVED to `projects/components/utility-ip/converters/` since this task
   was written, orphaning the spec from its module entirely. git mv'd to
-  `projects/components/converters/docs/` (the component owns it; the
+  `projects/components/utility-ip/converters/docs/` (the component owns it; the
   converters MAS ch02_width_blocks is the maintained reader doc — whether
   the 1313-line original spec stays or folds into the MAS is the
   component's call). Both converter test `# Documentation:` headers

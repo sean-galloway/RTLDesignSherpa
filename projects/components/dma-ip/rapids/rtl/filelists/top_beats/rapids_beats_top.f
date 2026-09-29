@@ -49,7 +49,7 @@
 
 # ---- APB -> register chain ----
 -f $REPO_ROOT/projects/components/dma-ip/stream/rtl/filelists/stream_pkg.f
--f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # ---- PeakRDL register file (split SRC/SNK) ----
 $REPO_ROOT/projects/components/dma-ip/rapids/regs/generated/rtl/rapids_regs_pkg.sv

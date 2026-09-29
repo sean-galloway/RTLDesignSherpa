@@ -104,11 +104,11 @@ def _endpoints():
         # that went wrong before -- 0x40000 was hardcoded in host tools for
         # years while the capture memory had moved.
         ("stream_tally", "stream_tally_cfg  monbus_tally_axil (tally_regs)",
-         os.path.join(REPO, "projects/components/misc/rtl/regs/generated/"
+         os.path.join(REPO, "projects/components/utility-ip/misc/rtl/regs/generated/"
                             "tally_regs_top_regmap.py"),
          bridge_windows.base("stream_tally_cfg")),
         ("slave_tally", "slave_tally_cfg   monbus_tally_axil (tally_regs)",
-         os.path.join(REPO, "projects/components/misc/rtl/regs/generated/"
+         os.path.join(REPO, "projects/components/utility-ip/misc/rtl/regs/generated/"
                             "tally_regs_top_regmap.py"),
          bridge_windows.base("slave_tally_cfg")),
     ]

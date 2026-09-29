@@ -16,7 +16,7 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv
 
-DUT := $(REPO_ROOT)/projects/components/converters/rtl/axil4_to_wb4_core.sv
+DUT := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axil4_to_wb4_core.sv
 
 .PHONY: prove cover all clean
 

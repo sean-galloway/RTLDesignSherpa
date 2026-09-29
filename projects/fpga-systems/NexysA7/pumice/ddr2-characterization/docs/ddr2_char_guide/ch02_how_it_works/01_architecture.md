@@ -14,8 +14,8 @@ slaves:
 The UART wire protocol is ASCII, line-based, 115200 8N1: a write is
 `W <hex-addr32> <hex-data32>\n` → the FPGA replies `OK\n`; a read is
 `R <hex-addr32>\n` → replies `0x<hex-data32>\n`. The bridge RTL is
-`projects/components/converters/rtl/uart_to_axil4/uart_axil_bridge.sv`; the host
-framing is `UARTAxiBridge` (`projects/components/converters/bin/uart_axi_bridge.py`).
+`projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_axil_bridge.sv`; the host
+framing is `UARTAxiBridge` (`projects/components/utility-ip/converters/bin/uart_axi_bridge.py`).
 
 ## The 1→4 AXIL bridge
 

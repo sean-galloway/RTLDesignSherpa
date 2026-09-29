@@ -63,7 +63,7 @@ pipelining it would add a reorder buffer to save nothing. The internal
 slave is built `MAX_OUTSTANDING = 1`.
 
 This is deliberately not
-[`wb4_to_axil4`](../../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/11_wb4_to_axil4.md),
+[`wb4_to_axil4`](../../../../projects/components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/11_wb4_to_axil4.md),
 which carries write channels and an outstanding queue that a read-only CSR
 port has no use for.
 

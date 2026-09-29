@@ -35,7 +35,7 @@ sys.path.insert(0, HERE)
 # stream_env is the ONE path authority for this area (shared FPGA layer, this
 # bin/, the selected build's host/). It replaces a per-file bootstrap that
 # walked up looking for .git and then added
-# projects/components/converters/bin -- a compatibility shim whose own
+# projects/components/utility-ip/converters/bin -- a compatibility shim whose own
 # docstring says new code must not import through it.
 import stream_env  # noqa: F401,E402  (import side effect: sys.path setup)
 

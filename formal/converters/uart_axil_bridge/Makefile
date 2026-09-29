@@ -16,11 +16,11 @@ PKGS :=
 DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/axil4/axil4_master_rd.sv \
         $(REPO_ROOT)/rtl/amba/axil4/axil4_master_wr.sv \
-        $(REPO_ROOT)/projects/components/converters/rtl/uart_to_axil4/uart_rx.sv \
-        $(REPO_ROOT)/projects/components/converters/rtl/uart_to_axil4/uart_tx.sv
+        $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_rx.sv \
+        $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_tx.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/converters/rtl/uart_to_axil4/uart_axil_bridge.sv
+DUT := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_axil_bridge.sv
 
 .PHONY: prove cover all clean
 

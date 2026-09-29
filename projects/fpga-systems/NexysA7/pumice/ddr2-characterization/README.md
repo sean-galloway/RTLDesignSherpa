@@ -142,7 +142,7 @@ Multi-rank (`NUM_RANKS ∈ {1, 2, 4}`) is not exercised on this board — the on
 - DFI BFM (DV side): `RTLDesignSherpa-DV/src/CocoTBFramework/components/dfi/` — released as `cocotb-framework==0.3.0`
 - Sibling characterization projects: `projects/NexysA7/stream_characterization/`, `projects/asic-trials/timing_characterization/`
 - Stream harness blocks we're adapting on the master side: `rtl/amba/shared/axi4_slave_rd_pattern_gen.sv`, `rtl/amba/shared/axi4_slave_wr_crc_check.sv`, `rtl/amba/shared/axi4_dma_slaves.sv`
-- Address generator: `projects/components/misc/rtl/dma_address_gen.sv`
+- Address generator: `projects/components/utility-ip/misc/rtl/dma_address_gen.sv`
 - LiteX upstream: https://github.com/enjoy-digital/litex
 - LiteDRAM upstream (for the `a7ddrphy` we'll consume): https://github.com/enjoy-digital/litedram
 

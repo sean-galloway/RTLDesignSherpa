@@ -30,15 +30,15 @@ note — it belongs to that block and nowhere else.
 
 - [apbx-xbar](projects/components/fabric-gen-ip/apbx-xbar/INDEX.md)
 - [bridge](projects/components/fabric-gen-ip/bridge/INDEX.md) — generated crossbar
-- [converters](projects/components/converters/INDEX.md)
-- [delta](projects/components/delta/INDEX.md)
+- [converters](projects/components/utility-ip/converters/INDEX.md)
+- [delta](projects/components/noc-ip/delta/INDEX.md)
 - [dma-ip/rapids](projects/components/dma-ip/rapids/INDEX.md) — beats rearchitecture
 - [dma-ip/stream](projects/components/dma-ip/stream/INDEX.md) — reference DV implementation
-- [hive](projects/components/hive/INDEX.md)
+- [hive](projects/components/compute-eng-ip/hive/INDEX.md)
 - [mem-ctrl-ip/pumice-ddr2-lpddr2](projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/INDEX.md) — board-validated
 - [mem-ctrl-ip/scoria-ddr3-lpddr3](projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/INDEX.md)
 - [andesite-ddr4-lpddr4](projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/INDEX.md)
-- [misc](projects/components/misc/INDEX.md)
+- [misc](projects/components/utility-ip/misc/INDEX.md)
 - [retro_legacy_blocks](projects/components/retro_legacy_blocks/INDEX.md) — PIC, PIT, HPET, IOAPIC, SMBus, UART, RTC, GPIO, PM/ACPI
 
 ## projects/fpga-systems/

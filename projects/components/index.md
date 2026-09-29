@@ -44,12 +44,12 @@ This directory contains production-ready and in-development component projects f
 | **STREAM** | Production | [stream/](dma-ip/stream/) | [Specification](dma-ip/stream/docs/stream_mas/stream_index.md) |
 | **RAPIDS** | Functional | [rapids/](dma-ip/rapids/) | [Specification](dma-ip/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md) |
 | **Bridge** | Development | [fabric-gen-ip/bridge/](fabric-gen-ip/bridge/) | See [fabric-gen-ip/bridge/docs/](fabric-gen-ip/bridge/docs/) |
-| **Converters** | Development | [converters/](converters/) | See [converters/docs/](converters/docs/) |
+| **Converters** | Development | [utility-ip/converters/](utility-ip/converters/) | See [utility-ip/converters/docs/](utility-ip/converters/docs/) |
 | **pumice (DDR2/LPDDR2 memory controller)** | Production (at rest 2026-09-10) | [mem-ctrl-ip/pumice-ddr2-lpddr2/](mem-ctrl-ip/pumice-ddr2-lpddr2/) | [Specification](mem-ctrl-ip/pumice-ddr2-lpddr2/docs/pumice_mas/pumice_mas_index.md) |
-| **misc** | Production | [misc/](misc/) | [README](misc/README.md) |
+| **misc** | Production | [utility-ip/misc/](utility-ip/misc/) | [README](utility-ip/misc/README.md) |
 | **ecc-ip / Reed-Solomon** | Stand-up (2026-09-29): references + draft PRD, no RTL | [ecc-ip/reed-solomon/](ecc-ip/reed-solomon/) | [family README](ecc-ip/README.md), [PRD (draft)](ecc-ip/reed-solomon/PRD.md), [References](ecc-ip/reed-solomon/References/README.md) |
-| **Delta** | Retired 2026-09-27 (no tests, spec unwritten) | [delta/](delta/) | [Specification](delta/docs/delta_spec/delta_index.md) |
-| **Hive** | Retired 2026-09-27 (nothing begun) | [hive/](hive/) | [Specification](hive/docs/hive_spec/hive_index.md) |
+| **Delta** | Retired 2026-09-27 (no tests, spec unwritten) | [noc-ip/delta/](noc-ip/delta/) | [Specification](noc-ip/delta/docs/delta_spec/delta_index.md) |
+| **Hive** | Retired 2026-09-27 (nothing begun) | [compute-eng-ip/hive/](compute-eng-ip/hive/) | [Specification](compute-eng-ip/hive/docs/hive_spec/hive_index.md) |
 
 ---
 
@@ -69,14 +69,14 @@ This directory contains production-ready and in-development component projects f
 
 **Integration:**
 - [Bridge](fabric-gen-ip/bridge/) - Protocol bridges
-- [Converters](converters/) - Protocol converters
+- [Converters](utility-ip/converters/) - Protocol converters
 
 **Error correction:**
 - [ecc-ip](ecc-ip/) - error-correction IP family: [Reed-Solomon](ecc-ip/reed-solomon/) stood up 2026-09-29 (references, draft PRD)
 
 **Other:**
-- [Delta](delta/) - Component description pending
-- [Hive](hive/) - Component description pending
+- [Delta](noc-ip/delta/) - retired NoC component, kept as it was
+- [Hive](compute-eng-ip/hive/) - retired compute-engine component, kept as it was
 
 ---
 

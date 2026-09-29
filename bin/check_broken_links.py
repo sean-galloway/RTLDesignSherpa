@@ -25,7 +25,7 @@ the page:
 projects/ is NOT in that list. Those links are really broken, they are merely
 DEFERRED by DOCREV-011 -- so they stay in the ratchet and must not grow.
 
-Ratcheted, not hard-gated, for the reason projects/components/converters BUG-002 (was CONV-002) records in the pre-commit
+Ratcheted, not hard-gated, for the reason projects/components/utility-ip/converters BUG-002 (was CONV-002) records in the pre-commit
 hook: a wall of red "diagnoses nothing and blocks everyone". A file may carry
 its existing broken links; it may not GROW one.
 

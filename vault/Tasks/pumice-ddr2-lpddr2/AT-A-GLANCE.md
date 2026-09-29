@@ -657,7 +657,7 @@ skew alone produced 0%-utilization windows and a meaningless number.
 ### How an address is generated
 
 Each generator walks a strided, optionally wrapped sequence
-(`projects/components/misc/rtl/dma_address_gen.sv`):
+(`projects/components/utility-ip/misc/rtl/dma_address_gen.sv`):
 
     addr[i] = start_addr + ((i * stride_0) & wrap_mask_0)
 

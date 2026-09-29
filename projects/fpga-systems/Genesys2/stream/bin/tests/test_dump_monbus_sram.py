@@ -15,7 +15,7 @@ sys.path.insert(0, str(HERE))
 
 _repo_root = HERE.parents[4]
 sys.path.insert(0, str(_repo_root / "bin"))
-sys.path.insert(0, str(_repo_root / "projects/components/converters/bin"))
+sys.path.insert(0, str(_repo_root / "projects/components/utility-ip/converters/bin"))
 os.environ.setdefault("REPO_ROOT", str(_repo_root))
 
 from dump_monbus_sram import (  # noqa: E402

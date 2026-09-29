@@ -44,7 +44,7 @@ from pathlib import Path
 
 # Path setup is delegated to stream_env, which locates every layer by searching
 # for a marker file. This used to count five levels to the repo root and reach
-# UARTAxiBridge through projects/components/converters/bin -- a hand-counted
+# UARTAxiBridge through projects/components/utility-ip/converters/bin -- a hand-counted
 # depth that the move to projects/fpga-systems would have broken silently, and
 # a path that now holds only a compatibility shim. The real module is in the
 # shared FPGA layer, which stream_env puts on sys.path.

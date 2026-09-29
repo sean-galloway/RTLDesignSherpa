@@ -142,7 +142,7 @@ up to 32K..64K cycles for b=15).
 
 ## UART bridge wire protocol
 
-Source: `projects/components/converters/rtl/uart_to_axil4/uart_axil_bridge.sv`.
+Source: `projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_axil_bridge.sv`.
 ASCII, line-based, 115200 8N1 by default (change with the `UART_BAUD`
 harness parameter and rebuild).
 
@@ -159,5 +159,5 @@ R <hex-addr-32b>\n
 FPGA replies `0x<hex-data-32b>\n`.
 
 Both hex fields are big-endian, zero-padded to 8 digits, case-insensitive.
-The Python `UARTAxiBridge` class (`projects/components/converters/bin/
+The Python `UARTAxiBridge` class (`projects/components/utility-ip/converters/bin/
 uart_axi_bridge.py`) handles the framing.

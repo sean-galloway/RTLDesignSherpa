@@ -20,8 +20,8 @@ read -formal -sv -Iincludes formal_axil4_to_axi4.sv
 prep -top formal_axil4_to_axi4
 
 [files]
-axil4_to_axi4.sv ../../../projects/components/converters/rtl/axil4_to_axi4.sv
-axil4_to_axi4_rd.sv ../../../projects/components/converters/rtl/axil4_to_axi4_rd.sv
-axil4_to_axi4_wr.sv ../../../projects/components/converters/rtl/axil4_to_axi4_wr.sv
+axil4_to_axi4.sv ../../../projects/components/utility-ip/converters/rtl/axil4_to_axi4.sv
+axil4_to_axi4_rd.sv ../../../projects/components/utility-ip/converters/rtl/axil4_to_axi4_rd.sv
+axil4_to_axi4_wr.sv ../../../projects/components/utility-ip/converters/rtl/axil4_to_axi4_wr.sv
 formal_axil4_to_axi4.sv
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

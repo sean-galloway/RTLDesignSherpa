@@ -11,7 +11,7 @@ The findings below are accurate and still describe the tree; they are simply
 not work anyone intends to do. If delta is ever brought back into scope, this
 is the starting point.
 
-**The gap.** `projects/components/delta` has no `dv/` directory. Not an empty
+**The gap.** `projects/components/noc-ip/delta` has no `dv/` directory. Not an empty
 one -- none. Its five `.sv` files all use `` `ALWAYS_FF_RST ``, so all five
 changed from SYNCHRONOUS to ASYNCHRONOUS reset when the macro became
 unconditional (2026-09-07), and not one line of that was exercised. It is

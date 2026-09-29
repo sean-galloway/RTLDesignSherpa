@@ -15,7 +15,7 @@ PKGS :=
 DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv
+DUT := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_wr.sv
 
 .PHONY: prove cover clean
 

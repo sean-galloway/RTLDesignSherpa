@@ -119,7 +119,7 @@ Protocol bridge components for bus conversion.
 
 #### Protocol Converters
 **Status:** Production Ready (UART to AXI4-Lite)
-**Location:** [`projects/components/converters/`](../../../projects/components/converters/)
+**Location:** [`projects/components/utility-ip/converters/`](../../../projects/components/utility-ip/converters/)
 
 Protocol conversion bridges for interfacing different communication standards.
 
@@ -132,7 +132,7 @@ Protocol conversion bridges for interfacing different communication standards.
 
 **Documentation:**
 - [Component Guide](converters.md) - Complete specification and usage
-- [Implementation README](../../../projects/components/converters/rtl/uart_to_axil4/README.md)
+- [Implementation README](../../../projects/components/utility-ip/converters/rtl/uart_to_axil4/README.md)
 
 ---
 
@@ -164,18 +164,18 @@ Collection of legacy and retro-computing peripherals for historical SoC designs.
 ### Other Components
 
 #### Delta
-**Location:** [`projects/components/delta/`](../../../projects/components/delta/)
+**Location:** [`projects/components/noc-ip/delta/`](../../../projects/components/noc-ip/delta/)
 
 **Documentation:**
-- [Specification](../../../projects/components/delta/docs/)
+- [Specification](../../../projects/components/noc-ip/delta/docs/)
 
 ---
 
 #### Hive
-**Location:** [`projects/components/hive/`](../../../projects/components/hive/)
+**Location:** [`projects/components/compute-eng-ip/hive/`](../../../projects/components/compute-eng-ip/hive/)
 
 **Documentation:**
-- [Specification](../../../projects/components/hive/docs/)
+- [Specification](../../../projects/components/compute-eng-ip/hive/docs/)
 
 ---
 

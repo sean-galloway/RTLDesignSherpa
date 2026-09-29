@@ -14,7 +14,7 @@ import argparse, io, contextlib, subprocess, sys
 from pathlib import Path
 
 REPO = "/mnt/data/github/RTLDesignSherpa"
-sys.path.insert(0, f"{REPO}/projects/components/converters/bin")
+sys.path.insert(0, f"{REPO}/projects/components/utility-ip/converters/bin")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from dump_monbus_sram import read_sram_region, words32_to_words64

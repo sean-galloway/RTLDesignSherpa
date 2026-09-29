@@ -22,7 +22,7 @@ stream_top_ch8 is the top-level STREAM wrapper (1648 lines) that integrates:
    and formal state space.
 
 2. **peakrdl_to_cmdrsp.sv**: Protocol converter at
-   `projects/components/converters/rtl/peakrdl_to_cmdrsp.sv`.
+   `projects/components/utility-ip/converters/rtl/peakrdl_to_cmdrsp.sv`.
    Additional dependency from a different component area.
 
 3. **apb4_slave_cdc.sv**: Clock-domain crossing module at

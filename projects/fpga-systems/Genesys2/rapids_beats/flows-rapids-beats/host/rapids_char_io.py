@@ -29,7 +29,7 @@ import time
 
 # The shared board + UART layer: uart_axi_bridge (the W/R wire protocol), plus
 # uart_link for port discovery. This used to reach the bridge through
-# projects/components/converters/bin, which is a re-export SHIM kept alive for
+# projects/components/utility-ip/converters/bin, which is a re-export SHIM kept alive for
 # un-migrated flows and whose own docstring says new code must not import
 # through it. See vault/handbook/fpga/cmn-infra/host-stack.md.
 _FPGA_BIN = os.path.join(
@@ -344,7 +344,7 @@ class RapidsCharIO:
     # axis4_intf_observer (sin = port 0, sout = port 1) on the harness, each with
     # its own 4 KB obs_regs map: AXI @ 0x0000, AXIS @ 0x1000 (paddr[12]). The
     # regmap is the SAME generated file the misc component TB and the stream host
-    # read (projects/components/misc/rtl/regs/generated/obs_regs_top_regmap.py),
+    # read (projects/components/utility-ip/misc/rtl/regs/generated/obs_regs_top_regmap.py),
     # so an observer register move breaks here loudly rather than silently.
     # The observers meter the same window as the bare meters (obs_meter_clear /
     # obs_meter_freeze), so their buckets bracket exactly the same transfer.

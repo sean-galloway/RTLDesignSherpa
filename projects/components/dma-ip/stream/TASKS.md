@@ -143,7 +143,7 @@ in the FIRST 256-bit chunk selects legacy (1 chunk) vs extended (2 chunks);
 descriptors keep this path; extended descriptors take their addresses from the
 addr-gen queues instead.
 
-**What dma_address_gen provides** (`projects/components/misc/rtl/dma_address_gen.sv`):
+**What dma_address_gen provides** (`projects/components/utility-ip/misc/rtl/dma_address_gen.sv`):
 `result_addr = base + index_0*stride_0 + index_1*stride_1`, signed strides +
 power-of-2 wrap masks → linear / row-major / col-major / circular / reverse /
 scatter. 2-stage pipelined, valid/ready. Already used this exact way in
@@ -177,7 +177,7 @@ descriptor programming → **every DV descriptor builder**. Keep additive
 - `projects/components/dma-ip/stream/rtl/fub/scheduler.sv` (param, 2× addr-gen + queues, 1/2-chunk dequeue)
 - `projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv` (type detect, conditional 2nd-half fetch)
 - `projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv` (`desc_type`, extended descriptor_t)
-- `projects/components/misc/rtl/dma_address_gen.sv` (reused as-is)
+- `projects/components/utility-ip/misc/rtl/dma_address_gen.sv` (reused as-is)
 - DV descriptor builders + register map/host (fan-out)
 
 **Descriptor layout — variable length (256b legacy / 512b extended):**

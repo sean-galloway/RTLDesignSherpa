@@ -15,7 +15,7 @@ PKGS :=
 DEPS :=
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/converters/rtl/axi_data_upsize.sv
+DUT := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv
 
 .PHONY: prove cover all clean
 

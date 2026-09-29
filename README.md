@@ -67,7 +67,7 @@ Guided progression from primitives to systems. Each level links to the correspon
 
 - **Level 1 — [Common Building Blocks](rtl/common/)** + **[Math Library](rtl/math/)** · ~230 modules · counters, FIFOs, arbiters, data integrity, clock utilities (common) + integer and floating-point math (math)
 - **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/monitor/) · [Shared observation](rtl/amba/shared/)
-- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dma-ip/stream/) · [RAPIDS](projects/components/dma-ip/rapids/) · [Bridge](projects/components/fabric-gen-ip/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/fabric-gen-ip/apbx-xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/mem-ctrl-ip/)
+- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dma-ip/stream/) · [RAPIDS](projects/components/dma-ip/rapids/) · [Bridge](projects/components/fabric-gen-ip/bridge/) · [Converters](projects/components/utility-ip/converters/) · [APB xbar](projects/components/fabric-gen-ip/apbx-xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/mem-ctrl-ip/)
 - **Level 4 — [FPGA Projects on Nexys A7](projects/fpga-systems/NexysA7/)** · [timing_characterization](projects/asic-trials/timing_characterization/) · [cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/) · [ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) · [rapids_beats](projects/fpga-systems/Genesys2/rapids_beats/)
 
 <details>
@@ -172,13 +172,13 @@ Production-shaped reusable IP. Each has its own README + dv/ + dv/tbclasses/.
 | STREAM | Ready | Tutorial DMA + scatter-gather; kick-burst multi-channel start + optional 2-D/transpose addressing | [`projects/components/dma-ip/stream/`](projects/components/dma-ip/stream/) |
 | RAPIDS | In progress | Advanced DMA with network interfaces (RAPID AXI Programmable In-band Descriptor System) | [`projects/components/dma-ip/rapids/`](projects/components/dma-ip/rapids/) |
 | Bridge | Ready | AXI protocol bridges + RDL-generated cfg | [`projects/components/fabric-gen-ip/bridge/`](projects/components/fabric-gen-ip/bridge/) |
-| Converters | Ready | UART↔AXIL, protocol conversion | [`projects/components/converters/`](projects/components/converters/) |
+| Converters | Ready | UART↔AXIL, protocol conversion | [`projects/components/utility-ip/converters/`](projects/components/utility-ip/converters/) |
 | APB Crossbar | Ready | M×N APB interconnect | [`projects/components/fabric-gen-ip/apbx-xbar/`](projects/components/fabric-gen-ip/apbx-xbar/) |
 | Memory controllers | In progress | DDR2 / LPDDR2 controller | [`projects/components/mem-ctrl-ip/`](projects/components/mem-ctrl-ip/) |
 | Retro legacy blocks | Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/) |
-| Delta | Planned | Network-on-Chip mesh | [`projects/components/delta/`](projects/components/delta/) |
-| HIVE | Planned | Distributed RISC-V control | [`projects/components/hive/`](projects/components/hive/) |
-| Misc | — | Mixed building blocks | [`projects/components/misc/`](projects/components/misc/) |
+| Delta | Planned | Network-on-Chip mesh | [`projects/components/noc-ip/delta/`](projects/components/noc-ip/delta/) |
+| HIVE | Planned | Distributed RISC-V control | [`projects/components/compute-eng-ip/hive/`](projects/components/compute-eng-ip/hive/) |
+| Misc | — | Mixed building blocks | [`projects/components/utility-ip/misc/`](projects/components/utility-ip/misc/) |
 
 ### 5. FPGA Projects — [`projects/fpga-systems/NexysA7/`](projects/fpga-systems/NexysA7/) (Digilent Nexys A7-100T)
 
@@ -317,7 +317,7 @@ apb4_slave #(
 #### AXI4-Lite (Simplified Register Interface)
 - **[AXI4-Lite Masters](rtl/amba/axil4/)** - Register-optimized masters
 - **[AXI4-Lite Slaves](rtl/amba/axil4/)** - Configuration registers
-- **[Converters](projects/components/converters/)** - Protocol and width conversion (APB, AXI-Lite, AXI4)
+- **[Converters](projects/components/utility-ip/converters/)** - Protocol and width conversion (APB, AXI-Lite, AXI4)
 
 #### AXI4-Stream (High-Throughput Data)
 - **[Stream Masters/Slaves](rtl/amba/axis4/)** - Streaming interfaces
@@ -354,7 +354,7 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 |-----------|--------|-------------|
 | **[APB Crossbar](projects/components/fabric-gen-ip/apbx-xbar/)** | Ready | Parametric M×N APB interconnect with round-robin arbitration |
 | **[Bridge](projects/components/fabric-gen-ip/bridge/)** | Ready | AXI4 protocol bridges, width converters, CDC |
-| **[Converters](projects/components/converters/)** | Ready | UART-to-AXI4-Lite, protocol conversion bridges |
+| **[Converters](projects/components/utility-ip/converters/)** | Ready | UART-to-AXI4-Lite, protocol conversion bridges |
 
 #### Retro Legacy Blocks
 
@@ -380,8 +380,8 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[Delta](projects/components/delta/)** | Planned | 4×4 Network-on-Chip mesh with virtual channels |
-| **[HIVE](projects/components/hive/)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
+| **[Delta](projects/components/noc-ip/delta/)** | Planned | 4×4 Network-on-Chip mesh with virtual channels |
+| **[HIVE](projects/components/compute-eng-ip/hive/)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
 
 ---
 

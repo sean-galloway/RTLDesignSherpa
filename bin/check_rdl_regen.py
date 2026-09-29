@@ -153,30 +153,30 @@ MANIFEST = [
     },
     {
         "name": "obs_regs (misc)",
-        "rdl": "projects/components/misc/rtl/obs_regs.rdl",
-        "sources": ["projects/components/misc/rtl/obs_regs.rdl"],
+        "rdl": "projects/components/utility-ip/misc/rtl/obs_regs.rdl",
+        "sources": ["projects/components/utility-ip/misc/rtl/obs_regs.rdl"],
         "flags": ["--no-html"],
         "regmap_output": None,
         "compare": [
-            ("projects/components/misc/rtl/regs/generated/rtl/obs_regs_top.sv", "rtl/obs_regs_top.sv"),
-            ("projects/components/misc/rtl/regs/generated/rtl/obs_regs_top_pkg.sv", "rtl/obs_regs_top_pkg.sv"),
-            ("projects/components/misc/rtl/regs/generated/obs_regs_top_regmap.py", "obs_regs_top_regmap.py"),
-            ("projects/components/misc/rtl/regs/generated/docs/obs_regs_top.md", "docs/obs_regs_top.md"),
+            ("projects/components/utility-ip/misc/rtl/regs/generated/rtl/obs_regs_top.sv", "rtl/obs_regs_top.sv"),
+            ("projects/components/utility-ip/misc/rtl/regs/generated/rtl/obs_regs_top_pkg.sv", "rtl/obs_regs_top_pkg.sv"),
+            ("projects/components/utility-ip/misc/rtl/regs/generated/obs_regs_top_regmap.py", "obs_regs_top_regmap.py"),
+            ("projects/components/utility-ip/misc/rtl/regs/generated/docs/obs_regs_top.md", "docs/obs_regs_top.md"),
         ],
     },
     {
         # Shares a generated root with obs_regs; verified to emit a DISJOINT
         # file set, so the two entries cannot overwrite each other.
         "name": "tally_regs (misc)",
-        "rdl": "projects/components/misc/rtl/tally_regs.rdl",
-        "sources": ["projects/components/misc/rtl/tally_regs.rdl"],
+        "rdl": "projects/components/utility-ip/misc/rtl/tally_regs.rdl",
+        "sources": ["projects/components/utility-ip/misc/rtl/tally_regs.rdl"],
         "flags": ["--no-html"],
         "regmap_output": None,
         "compare": [
-            ("projects/components/misc/rtl/regs/generated/rtl/tally_regs_top.sv", "rtl/tally_regs_top.sv"),
-            ("projects/components/misc/rtl/regs/generated/rtl/tally_regs_top_pkg.sv", "rtl/tally_regs_top_pkg.sv"),
-            ("projects/components/misc/rtl/regs/generated/tally_regs_top_regmap.py", "tally_regs_top_regmap.py"),
-            ("projects/components/misc/rtl/regs/generated/docs/tally_regs_top.md", "docs/tally_regs_top.md"),
+            ("projects/components/utility-ip/misc/rtl/regs/generated/rtl/tally_regs_top.sv", "rtl/tally_regs_top.sv"),
+            ("projects/components/utility-ip/misc/rtl/regs/generated/rtl/tally_regs_top_pkg.sv", "rtl/tally_regs_top_pkg.sv"),
+            ("projects/components/utility-ip/misc/rtl/regs/generated/tally_regs_top_regmap.py", "tally_regs_top_regmap.py"),
+            ("projects/components/utility-ip/misc/rtl/regs/generated/docs/tally_regs_top.md", "docs/tally_regs_top.md"),
         ],
     },
     {

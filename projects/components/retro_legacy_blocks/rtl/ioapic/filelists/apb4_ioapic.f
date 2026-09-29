@@ -32,7 +32,7 @@
 -f $REPO_ROOT/rtl/cdc/filelists/gray2bin.f
 
 # PeakRDL adapter
--f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # PeakRDL generated package and register block
 $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_regs_pkg.sv

@@ -23,7 +23,7 @@
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 
 # Layer 2: CMD/RSP to PeakRDL Adapter
--f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # Package (must come first)
 $RETRO_ROOT/rtl/pm_acpi/pm_acpi_regs_pkg.sv

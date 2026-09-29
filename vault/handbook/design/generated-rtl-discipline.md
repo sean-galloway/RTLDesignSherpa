@@ -134,7 +134,7 @@ safe; it does nothing for someone typing verilator by hand.
 Check where the build actually reads from before running the generator. A
 second, orphaned copy of generated output is a live trap: it satisfies nothing,
 drifts silently, and captures the next regen that uses a default `-o`.
-*Case: `projects/components/misc/rtl/generated/` was referenced by no filelist,
+*Case: `projects/components/utility-ip/misc/rtl/generated/` was referenced by no filelist,
 Makefile or script, had already diverged from the real
 `rtl/regs/generated/`, and swallowed the first regen attempt — the build kept
 compiling the stale copy while the "regenerated" one sat unused. It bit a second
@@ -147,8 +147,8 @@ hand-maintained `rtl/regs/obs_regs.vlt` waiver the filelists name directly.
 Regenerate with an EXPLICIT `-o`, never the default:*
 
 ```
-python3 bin/peakrdl_generate.py projects/components/misc/rtl/obs_regs.rdl \
-    -o projects/components/misc/rtl/regs/generated --no-html
+python3 bin/peakrdl_generate.py projects/components/utility-ip/misc/rtl/obs_regs.rdl \
+    -o projects/components/utility-ip/misc/rtl/regs/generated --no-html
 ```
 
 *The rule the case argues for: a shared regblock lives ONCE, in the component

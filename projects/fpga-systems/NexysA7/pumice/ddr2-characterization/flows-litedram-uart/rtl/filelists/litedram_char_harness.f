@@ -12,7 +12,7 @@
 +incdir+$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/includes
 
 # UART -> AXIL host bridge
--f $REPO_ROOT/projects/components/converters/rtl/filelists/uart_axil_bridge.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/uart_axil_bridge.f
 
 # Generated 1 -> 6 AXIL bridge (same address map as build-perf)
 -f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_axil.f
@@ -30,7 +30,7 @@
 
 # Verilator-only Xilinx primitive stubs (BUFG in led_status_driver). Wrapped
 # in `ifdef VERILATOR so Vivado never sees them.
--f $REPO_ROOT/projects/components/misc/rtl/filelists/verilator_xilinx_stubs.f
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/verilator_xilinx_stubs.f
 
 # 7-segment glyph decoder + framework blocks
 -f $REPO_ROOT/rtl/common/filelists/hex_to_7seg.f

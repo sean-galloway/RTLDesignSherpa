@@ -44,7 +44,7 @@ $STREAM_ROOT/regs/generated/rtl/stream_regs.sv
 
 
 # PeakRDL adapter (from converters component)
--f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # Configuration mapping block
 # $STREAM_ROOT/rtl/top/stream_config_block.sv

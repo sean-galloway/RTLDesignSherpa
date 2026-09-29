@@ -21,7 +21,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_mon.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_mon.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
--f $REPO_ROOT/projects/components/misc/rtl/filelists/monbus_tally_axil.f
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/monbus_tally_axil.f
 # comp_sram: compression-capture memory behind the bridge's comp_sram slave.
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axil_axil.f
 $FRAMEWORK_ROOT/rtl/stream_cfg_pkg.sv

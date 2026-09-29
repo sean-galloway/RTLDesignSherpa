@@ -130,7 +130,7 @@ module per file throughout. A further 5 modules under `rtl/amba/testcode/` are
 verification collateral, not library blocks, and are excluded above.
 
 The AXI4-to-APB protocol shims are **not** in this library. They live with the
-other converters, in `projects/components/converters/rtl/`
+other converters, in `projects/components/utility-ip/converters/rtl/`
 (`axi4_to_apb4_shim`, `axi4_to_apb4_convert`, `axi4_to_apb5_shim`).
 
 ---
@@ -527,7 +527,7 @@ module mixed_amba_system (
     // this up. Its AXI side is PACKED -- one _pkt bus per channel, not
     // per-signal -- and its APB side is a command/response stream, not APB
     // pins. An apb4_master downstream turns that stream into PSEL/PENABLE.
-    // The module lives in projects/components/converters, not rtl/amba.
+    // The module lives in projects/components/utility-ip/converters, not rtl/amba.
     axi4_to_apb4_convert u_bridge (
         .aclk            (clk),
         .aresetn         (rst_n),

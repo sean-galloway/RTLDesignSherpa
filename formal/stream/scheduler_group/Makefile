@@ -26,8 +26,8 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/monitor/monbus_arbiter.sv \
-        $(REPO_ROOT)/projects/components/misc/rtl/dma_address_gen.sv \
-        $(REPO_ROOT)/projects/components/misc/rtl/stream_run_addr_gen.sv \
+        $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/dma_address_gen.sv \
+        $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/stream_run_addr_gen.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/scheduler.sv
 
