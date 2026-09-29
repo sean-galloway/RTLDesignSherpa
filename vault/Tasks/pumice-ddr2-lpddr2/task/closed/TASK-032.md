@@ -21,7 +21,7 @@
 
 ## Markdown outside the book / known_issues / generated dirs (6, plus 2 at the family level)
 
-Family level (`projects/components/memory-controllers/`): `ADVANCED_MODES_ROADMAP.md`
+Family level (`projects/components/mem-ctrl-ip/`): `ADVANCED_MODES_ROADMAP.md`
 (a roadmap is a work list -- this lane), `DDR_FAMILY.md` (reader-facing family
 overview; `README.md` beside it should link to it, not repeat it). pumice is the
 only live member of the family, so these fall to this lane.

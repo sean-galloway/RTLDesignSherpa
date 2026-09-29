@@ -12,7 +12,7 @@ component area is created.
 The memory-controller family is one kind of thing with one naming convention --
 each IP carries an igneous-rock codename that is "the RTL identifier prefix, the
 directory name and the module/package prefix"
-(`projects/components/memory-controllers/README.md`). Their TASK AREAS do not
+(`projects/components/mem-ctrl-ip/README.md`). Their TASK AREAS do not
 follow it, and do not agree with each other:
 
 | Component directory | Task area | Shape |
@@ -84,7 +84,7 @@ areas.
 
 ### The rule is written where it will be read
 
-`projects/components/memory-controllers/README.md` states it outright now rather
+`projects/components/mem-ctrl-ip/README.md` states it outright now rather
 than leaving it to be inferred from the directories that happen to exist, which is
 what made it ambiguous: the codename is the RTL/module/package prefix, the
 DIRECTORY is the compound form, and the bare codename stays the prose form.

@@ -1,6 +1,6 @@
 ---
 title: andesite-ddr4-lpddr4 tasks
-summary: Task rollup for the ddr4-lpddr4 memory controller (projects/components/memory-controllers/andesite-ddr4-lpddr4).
+summary: Task rollup for the ddr4-lpddr4 memory controller (projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4).
 ---
 
 # andesite-ddr4-lpddr4 — task rollup
