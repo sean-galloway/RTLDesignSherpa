@@ -322,3 +322,42 @@ board was restored to tRTW = 20 with leveling re-verified (bitslip 0, tap 8).
 
 The tRTW discrepancy is far more valuable than the cycle this task chased, and it
 is a different question, so it is [[TASK-036]] rather than a footnote here.
+
+---
+
+## Correction: every "% of peak" above is understated 2x
+
+`CharRecord.bytes_moved` is documented **per phase** -- "wr == rd ==
+txn*blen*beat" -- and `measure_concurrent` sets it to the READ side only
+(`bytes_moved = per_gen_bytes * max(n_rd, 1)`). I divided that one-direction byte
+count by the full 600 MB/s peak, so every percentage in this item is half what it
+should be and every MB/s figure is one direction, not the total.
+
+Corrected, for the concurrent workload:
+
+| | as written above | actually |
+|---|---|---|
+| gap 0 | 285 MB/s, "47.5% of peak" | 285 MB/s per direction = **570 total, 95% of peak** |
+| gap 14, tRTW>=12 | 123.2 MB/s, "20.5%" | **246 total, 41%** |
+| gap 14, tRTW<=11 | 217.7 MB/s, "36.3%" | **435 total, 73%** |
+
+The 570 total at gap 0 matches this area's recorded figure exactly
+(`AT-A-GLANCE.md`: "concurrent read+write, one window | **570.1 MB/s total** |
+95.0%"), which is the cross-check that settles it -- the 285.6 in that same row
+is LiteDRAM's number, not pumice's.
+
+**One conclusion drawn from the bad figure has to go with it.** I wrote that
+"concurrent read+write is bounded at ~47% of peak by the controller, not by the
+stimulus". It is not bounded at all: it is at 95% of peak, the design point, and
+the controller is not the bottleneck. What remains true is the comparative
+statement, because both halves were measured the same way: tRTW is irrelevant in
+the dense regime and dominant in the sparse one, and the 12->11 cliff is still
++76%.
+
+**The knee relative to the recorded numbers.** This area's headline concurrent
+figure is taken at gap 0..7 (`AT-A-GLANCE.md` says outright: "do not quote a
+gap >= 8 concurrent point"), and gap 0..7 is precisely where the sweep shows
+tRTW makes no difference -- 285.0 per direction at tRTW=3 against 285.2 at
+tRTW=20. So no recorded bandwidth number in this repo is sensitive to tRTW, and
+none was disturbed: these campaigns wrote only to /tmp, and the board was
+restored to tRTW=20 after each.
