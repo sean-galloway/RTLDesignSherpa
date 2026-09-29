@@ -1,7 +1,7 @@
 # TASK-015: regs/README.md: the stream_regs example names five ports the generated block does not have
 
 **Priority:** P3
-**Status:** open
+**Status:** CLOSED 2026-09-29 (done)
 **Owner:** TBD
 **Filed:** 2026-09-29 (fanned out from tooling TASK-016)
 
@@ -26,3 +26,19 @@ prints "baseline can be lowered to N" when it can.
 - [ ] the example compiles against the generated module header, or is marked
       illustrative on the page
 - [ ] `BASELINE` lowered by one
+
+---
+
+## CLOSED 2026-09-29 -- the README is a link page now
+
+The example was not stale; the whole page was: a 2025 plan with "to be
+created" phases (its own 2026-07-22 banner said they were done), and an
+instantiation sketch naming `pclk`, `paddr`, `global_ctrl_enable`,
+`ch0_ctrl_desc_addr`, `ch0_rd_burst` -- the real block has a passthrough
+`s_cpuif_*` interface and `hwif_in`/`hwif_out` structs. Rewritten as a link
+page: what is in `regs/` (generated RTL, generated docs, the regmap Python,
+the one hand-written Verilator waiver and why it lives outside `generated/`),
+where the RDL source is, who instantiates the block (look there for wiring,
+not here), and the exact `bin/peakrdl_generate.py -o ... --no-html`
+regeneration command per the root CLAUDE.md. No instantiation example: a
+README is not a second copy of the spec. `check_doc_examples` finding gone.

@@ -352,7 +352,7 @@ def main() -> int:
     # lane, so its one finding (boards/README.md debounce, which named a
     # CLK_FREQ_MHZ parameter and i_/o_ ports rtl/common/debounce.sv never had)
     # was fixed in place against the module header.
-    BASELINE = 7
+    BASELINE = 6
     if bad > BASELINE:
         print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} -- a doc example\n          names a port its module does not have. The backlog this ratchet\n          tracked (amba TASK-077) is CLOSED and the floor is 0, so any\n          finding here is NEW.')
         return 1
