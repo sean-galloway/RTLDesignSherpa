@@ -226,7 +226,7 @@ for idx in sorted(glob.glob(f'{MD}/**/_book_*_index.md', recursive=True)):
 # RECURSIVE (2026-09-11): the non-recursive glob stopped one directory
 # short, so every component nested under a family directory was invisible
 # to the whole review pipeline -- stream and rapids under dmas/, pumice
-# under memory-controllers/. Six books, never bundled, therefore never
+# under mem-ctrl-ip/. Six books, never bundled, therefore never
 # qc'd or humanized, and nothing said so: `--only stream` simply matched
 # no units, which reads like a typo rather than a missing area.
 for idx in sorted(glob.glob('projects/components/**/docs/*/*_index.md',

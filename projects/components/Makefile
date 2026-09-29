@@ -26,20 +26,20 @@ endif
 
 # Component list - only components with a dv/tests/Makefile exposing run-all-* targets.
 # Paths are relative to projects/components/ (some components live under a subdir,
-# e.g. dmas/ and memory-controllers/).  To add a component: 1) ensure its
+# e.g. dmas/ and mem-ctrl-ip/).  To add a component: 1) ensure its
 # dv/tests/Makefile exposes run-all-<gate|func|full>[-parallel], 2) add it here.
 COMPONENTS = apbx-xbar \
              bridge \
              converters \
              dmas/rapids \
              dmas/stream \
-             memory-controllers/pumice-ddr2-lpddr2 \
+             mem-ctrl-ip/pumice-ddr2-lpddr2 \
              misc \
              retro_legacy_blocks
 
 # Components that exist but don't yet expose run-all-* test targets (for reference):
 # - bch, delta, hive                         - no dv/tests Makefile
-# - memory-controllers/scoria-ddr3-lpddr3, andesite-ddr4-lpddr4 - tests/ dir but no test Makefile
+# - mem-ctrl-ip/scoria-ddr3-lpddr3, andesite-ddr4-lpddr4 - tests/ dir but no test Makefile
 
 # ------------------------------------------------------------------------------
 # Whole-repo "did anything break" sweep (run-all-<level>-fast)
@@ -113,7 +113,7 @@ help:
 	@echo "  make lint-converters      Lint Converters RTL"
 	@echo "  make lint-retro_legacy_blocks  Lint Retro Legacy Blocks RTL"
 	@echo "  make lint-misc                 Lint misc RTL"
-	@echo "  make lint-memory-controllers/pumice-ddr2-lpddr2"
+	@echo "  make lint-mem-ctrl-ip/pumice-ddr2-lpddr2"
 	@echo "                                 Lint pumice RTL"
 	@echo ""
 	@echo "STATUS TARGETS:"

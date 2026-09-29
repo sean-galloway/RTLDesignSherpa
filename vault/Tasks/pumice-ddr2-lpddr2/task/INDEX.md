@@ -116,4 +116,4 @@ exactly one state by construction rather than by discipline.
 - **TASK-003** — was a RULE filed as a task; moved to
   `vault/handbook/dv/running-regressions.md`
 - **TASK-004** — was the AT REST handover filed as a task; moved to
-  `projects/components/memory-controllers/pumice-ddr2-lpddr2/CLAUDE.md`
+  `projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/CLAUDE.md`

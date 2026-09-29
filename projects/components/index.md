@@ -45,7 +45,7 @@ This directory contains production-ready and in-development component projects f
 | **RAPIDS** | Functional | [rapids/](dmas/rapids/) | [Specification](dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md) |
 | **Bridge** | Development | [bridge/](bridge/) | See [bridge/docs/](bridge/docs/) |
 | **Converters** | Development | [converters/](converters/) | See [converters/docs/](converters/docs/) |
-| **pumice (DDR2/LPDDR2 memory controller)** | Production (at rest 2026-09-10) | [memory-controllers/pumice-ddr2-lpddr2/](memory-controllers/pumice-ddr2-lpddr2/) | [Specification](memory-controllers/pumice-ddr2-lpddr2/docs/pumice_mas/pumice_mas_index.md) |
+| **pumice (DDR2/LPDDR2 memory controller)** | Production (at rest 2026-09-10) | [mem-ctrl-ip/pumice-ddr2-lpddr2/](mem-ctrl-ip/pumice-ddr2-lpddr2/) | [Specification](mem-ctrl-ip/pumice-ddr2-lpddr2/docs/pumice_mas/pumice_mas_index.md) |
 | **misc** | Production | [misc/](misc/) | [README](misc/README.md) |
 | **ecc-ip / Reed-Solomon** | Stand-up (2026-09-29): references + draft PRD, no RTL | [ecc-ip/reed-solomon/](ecc-ip/reed-solomon/) | [family README](ecc-ip/README.md), [PRD (draft)](ecc-ip/reed-solomon/PRD.md), [References](ecc-ip/reed-solomon/References/README.md) |
 | **Delta** | Retired 2026-09-27 (no tests, spec unwritten) | [delta/](delta/) | [Specification](delta/docs/delta_spec/delta_index.md) |

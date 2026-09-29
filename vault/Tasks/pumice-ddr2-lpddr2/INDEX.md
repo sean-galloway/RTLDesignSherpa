@@ -3,7 +3,7 @@
 # pumice — task rollup
 
 DDR2/LPDDR2 memory controller
-(`projects/components/memory-controllers/pumice-ddr2-lpddr2/`).
+(`projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/`).
 
 **There are no flat pages in this area any more.** `open.md`, `active.md`,
 `closed.md` and `dropped.md` were removed on 2026-09-27; their 35 historical

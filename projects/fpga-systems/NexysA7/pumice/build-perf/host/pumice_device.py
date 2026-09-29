@@ -188,7 +188,7 @@ def _repo_root() -> str:
 
 
 def _pumice_regmap() -> str:
-    return os.path.join(_repo_root(), "projects/components/memory-controllers/"
+    return os.path.join(_repo_root(), "projects/components/mem-ctrl-ip/"
                         "pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py")
 
 

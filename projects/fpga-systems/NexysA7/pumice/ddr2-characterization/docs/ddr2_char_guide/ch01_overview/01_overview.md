@@ -27,7 +27,7 @@ The project is organized as sibling "flows" plus a shared framework:
 
 The naming convention is `flows-<controller>-uart/` for on-Nexys builds (host
 over UART, no CPU). pumice is separate IP under
-`projects/components/memory-controllers/pumice-ddr2-lpddr2/`.
+`projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/`.
 
 ## Board and tools
 

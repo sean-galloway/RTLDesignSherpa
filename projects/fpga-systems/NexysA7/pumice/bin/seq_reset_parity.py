@@ -31,7 +31,7 @@ from sequence import Sequence
 
 _REPO = os.environ.get("REPO_ROOT") or os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-_PUMICE = os.path.join(_REPO, "projects/components/memory-controllers/pumice-ddr2-lpddr2")
+_PUMICE = os.path.join(_REPO, "projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2")
 _MANIFEST = os.path.join(_PUMICE, "dv/csr_reset_parity.py")
 _REGMAP = os.path.join(_PUMICE, "regs/generated/pumice_csr_regmap.py")
 

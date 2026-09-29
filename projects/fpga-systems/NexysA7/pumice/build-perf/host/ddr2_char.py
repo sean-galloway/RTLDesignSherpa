@@ -78,7 +78,7 @@ HARNESS_REGMAP = os.path.join(
 # in the bridge map). Used for by-name access to pumice's own runtime knobs
 # (e.g. DFI_PHASE rd_phase/wr_phase). 12-bit APB address space, 32-bit data.
 PUMICE_REGMAP = os.path.join(
-    _REPO_ROOT, "projects/components/memory-controllers/"
+    _REPO_ROOT, "projects/components/mem-ctrl-ip/"
     "pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py")
 
 # PeakRDL-generated regmap for the traffic generators (chargen_regs, APB slave

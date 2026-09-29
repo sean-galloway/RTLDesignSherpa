@@ -67,7 +67,7 @@
   "projects/components/dmas/stream/regs/README.md": 4,
   "projects/components/dmas/stream/rtl/fub/scheduler.sv": 6,
   "projects/components/dmas/stream/rtl/fub/stream_latency_bridge.sv": 6,
-  "projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/convert_mermaid_to_png.py": 2,
+  "projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/docs/convert_mermaid_to_png.py": 2,
   "projects/fpga-systems/Genesys2/stream/bin/regen_bridges.sh": 1,
   "projects/fpga-systems/Genesys2/stream/docs/PORT_MAP.md": 11,
   "projects/fpga-systems/Genesys2/stream/rtl/bridges/dv/tests/Makefile": 2

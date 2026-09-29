@@ -56,7 +56,7 @@ rtldesignsherpa/
 │
 ├── projects/
 │   ├── components/             # Component projects (bridge, dmas/{stream,rapids},
-│   │                           #   memory-controllers, retro_legacy_blocks, ...)
+│   │                           #   mem-ctrl-ip, retro_legacy_blocks, ...)
 │   └── NexysA7/                # FPGA board characterization flows
 │
 ├── bin/TBClasses/              # Shared TB classes (~156 files, flat per-protocol dirs;

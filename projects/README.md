@@ -12,7 +12,7 @@ Projects are organized by FPGA development board:
 projects/
 ├── components/        # Reusable RTL components / IP (see components/README.md)
 │   ├── apbx_xbar/  bridge/  converters/  delta/  hive/
-│   ├── memory-controllers/  misc/  rapids/  retro_legacy_blocks/  stream/
+│   ├── mem-ctrl-ip/  misc/  rapids/  retro_legacy_blocks/  stream/
 │   └── ...
 ├── NexysA7/           # Digilent Nexys A7-100T projects
 │   ├── cdc_counter_display/       # CDC teaching demo
@@ -77,7 +77,7 @@ make program  # Program FPGA
 
 **On-chip characterization of the DDR2 memory controller**
 
-- **Component:** [memory-controllers](components/memory-controllers/)
+- **Component:** [mem-ctrl-ip](components/mem-ctrl-ip/)
 - **Report:** [README + docs](fpga-systems/NexysA7/pumice/ddr2-characterization/) · [reports](fpga-systems/NexysA7/pumice/ddr2-characterization/)
 - **Board:** Nexys A7-100T (on-board DDR2)
 - **Status:** Active
@@ -219,7 +219,7 @@ When adding new projects:
 | [stream](components/dmas/stream/) | Active | [PRD](components/dmas/stream/PRD.md) |
 | [rapids](components/dmas/rapids/) | Active | [PRD](components/dmas/rapids/PRD.md) · [spec](components/dmas/rapids/docs/) · char: [report](fpga-systems/Genesys2/rapids_beats/docs/rapids_beats_findings.md) |
 | [bridge](components/bridge/) | Active | [PRD](components/bridge/PRD.md) |
-| [memory-controllers](components/memory-controllers/) | Active | [README](components/memory-controllers/README.md) · char: [ddr2](fpga-systems/NexysA7/pumice/ddr2-characterization/) |
+| [mem-ctrl-ip](components/mem-ctrl-ip/) | Active | [README](components/mem-ctrl-ip/README.md) · char: [ddr2](fpga-systems/NexysA7/pumice/ddr2-characterization/) |
 | [hive](components/hive/) | Spec | [PRD](components/hive/PRD.md) · [spec](components/hive/docs/hive_spec/) |
 | [delta](components/delta/) | Spec | [PRD](components/delta/PRD.md) · [spec](components/delta/docs/delta_spec/) |
 | [retro_legacy_blocks](components/retro_legacy_blocks/) | Active | [PRD](components/retro_legacy_blocks/PRD.md) |

@@ -20,7 +20,7 @@ sys.path.insert(0, str(_REPO / "bin"))
 
 from TBClasses.harness.device import Device, DeviceBus   # noqa: E402
 
-PUMICE_REGMAP = str(_REPO / "projects/components/memory-controllers/"
+PUMICE_REGMAP = str(_REPO / "projects/components/mem-ctrl-ip/"
                     "pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py")
 HARNESS_REGMAP = str(_REPO / "projects/fpga-systems/NexysA7/pumice/"
                      "ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py")

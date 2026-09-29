@@ -9,7 +9,7 @@
 # Root path token is $REPO_ROOT.
 
 +incdir+$REPO_ROOT/rtl/amba/includes
-+incdir+$REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/includes
++incdir+$REPO_ROOT/projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/rtl/includes
 
 # UART -> AXIL host bridge
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/uart_axil_bridge.f

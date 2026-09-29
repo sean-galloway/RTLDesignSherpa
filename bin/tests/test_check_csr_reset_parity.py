@@ -18,7 +18,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECKER = ROOT / "bin" / "check_csr_reset_parity.py"
-PUMICE_MANIFEST = (ROOT / "projects/components/memory-controllers/pumice-ddr2-lpddr2"
+PUMICE_MANIFEST = (ROOT / "projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2"
                    / "dv/csr_reset_parity.py")
 
 _spec = importlib.util.spec_from_file_location("ccrp", CHECKER)

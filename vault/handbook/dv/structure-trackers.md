@@ -4,7 +4,7 @@ Passive per-FUB monitors that emit ONE greppable markdown table per
 structure, so a decision can be followed ACROSS structures after the fact
 instead of re-deriving it with ad-hoc `$display`s every investigation.
 
-Reference implementation: `projects/components/memory-controllers/
+Reference implementation: `projects/components/mem-ctrl-ip/
 pumice-ddr2-lpddr2/dv/tbclasses/trackers/`.
 
 ## Why they exist

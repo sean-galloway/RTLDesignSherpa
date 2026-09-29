@@ -22,7 +22,7 @@ with any risk (a comment-only diff, but check lint on the touched files); the
 147 DV/host Python and markdown are mechanically safe. The tooling session's
 sweep script (`id_sweep.py`, map-keyed, skips bare ids and rows whose target no
 longer exists) is described in tooling TASK-013 and can be re-run scoped to
-`projects/components/memory-controllers/pumice-ddr2-lpddr2` and
+`projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2` and
 `projects/fpga-systems/NexysA7/pumice`.
 
 Acceptance: the count above is 0 by the same measurement, no bare-id rewrite

@@ -67,7 +67,7 @@ Guided progression from primitives to systems. Each level links to the correspon
 
 - **Level 1 — [Common Building Blocks](rtl/common/)** + **[Math Library](rtl/math/)** · ~230 modules · counters, FIFOs, arbiters, data integrity, clock utilities (common) + integer and floating-point math (math)
 - **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/monitor/) · [Shared observation](rtl/amba/shared/)
-- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dmas/stream/) · [RAPIDS](projects/components/dmas/rapids/) · [Bridge](projects/components/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/apbx-xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/memory-controllers/)
+- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dmas/stream/) · [RAPIDS](projects/components/dmas/rapids/) · [Bridge](projects/components/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/apbx-xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/mem-ctrl-ip/)
 - **Level 4 — [FPGA Projects on Nexys A7](projects/fpga-systems/NexysA7/)** · [timing_characterization](projects/asic-trials/timing_characterization/) · [cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/) · [ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) · [rapids_beats](projects/fpga-systems/Genesys2/rapids_beats/)
 
 <details>
@@ -174,7 +174,7 @@ Production-shaped reusable IP. Each has its own README + dv/ + dv/tbclasses/.
 | Bridge | Ready | AXI protocol bridges + RDL-generated cfg | [`projects/components/bridge/`](projects/components/bridge/) |
 | Converters | Ready | UART↔AXIL, protocol conversion | [`projects/components/converters/`](projects/components/converters/) |
 | APB Crossbar | Ready | M×N APB interconnect | [`projects/components/apbx-xbar/`](projects/components/apbx-xbar/) |
-| Memory controllers | In progress | DDR2 / LPDDR2 controller | [`projects/components/memory-controllers/`](projects/components/memory-controllers/) |
+| Memory controllers | In progress | DDR2 / LPDDR2 controller | [`projects/components/mem-ctrl-ip/`](projects/components/mem-ctrl-ip/) |
 | Retro legacy blocks | Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/) |
 | Delta | Planned | Network-on-Chip mesh | [`projects/components/delta/`](projects/components/delta/) |
 | HIVE | Planned | Distributed RISC-V control | [`projects/components/hive/`](projects/components/hive/) |
@@ -188,7 +188,7 @@ Things that actually run on hardware. Each project ships its own README and Viva
 |---|---|---|
 | timing_characterization | FUB delay characterization. STA-only `bitstream-sweep` is the headline path; on-board MMCM sweep is an optional gut-check (see [`README_FPGA.md`](projects/asic-trials/timing_characterization/README_FPGA.md) §5) | [`projects/asic-trials/timing_characterization/`](projects/asic-trials/timing_characterization/) |
 | cdc_counter_display | Live demo of multi-clock counter CDC on the board | [`projects/fpga-systems/NexysA7/cdc_counter_display/`](projects/fpga-systems/NexysA7/cdc_counter_display/) |
-| ddr2-characterization | DDR2 / LPDDR2 memory controller (pumice) bring-up and characterization on Nexys A7 | [`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/`](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) (RTL: [`projects/components/memory-controllers/pumice-ddr2-lpddr2/`](projects/components/memory-controllers/pumice-ddr2-lpddr2/)) |
+| ddr2-characterization | DDR2 / LPDDR2 memory controller (pumice) bring-up and characterization on Nexys A7 | [`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/`](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) (RTL: [`projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/`](projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/)) |
 | boards | Board files / pinouts / constraints | [`projects/fpga-systems/boards/`](projects/fpga-systems/boards/) |
 
 **CDC Counter Display** — a counter in a fast clock domain driving a display
@@ -533,7 +533,7 @@ rtldesignsherpa/
 │   │   ├── bridge/              # Protocol bridges
 │   │   ├── converters/          # Width/protocol converters
 │   │   ├── apbx_xbar/            # APB crossbar
-│   │   ├── memory-controllers/  # pumice DDR2/LPDDR2 controller
+│   │   ├── mem-ctrl-ip/  # pumice DDR2/LPDDR2 controller
 │   │   ├── retro_legacy_blocks/ # Legacy peripherals (HPET, RTC, PIT, ...)
 │   │   ├── delta/               # AXIS crossbar generator
 │   │   ├── hive/                # RISC-V control (planned)

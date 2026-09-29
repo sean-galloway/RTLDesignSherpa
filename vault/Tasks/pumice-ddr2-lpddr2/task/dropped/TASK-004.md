@@ -76,7 +76,7 @@ elsewhere."* This was never a work item — it had no completion condition, so
 it would have sat in the open lane forever, inflating the count and training
 readers to skim it.
 
-Content now lives at: **projects/components/memory-controllers/pumice-ddr2-lpddr2/CLAUDE.md**
+Content now lives at: **projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/CLAUDE.md**
 
 Dropped here rather than closed, because "closed" implies work finished. No
 work was done; the record moved to where the repo's own convention says it
