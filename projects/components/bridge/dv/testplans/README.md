@@ -266,7 +266,7 @@ Update testplans when:
 ## References
 
 - **Format reference**: `val/amba/testplans/axil4_slave_wr_testplan.yaml (repo root)`
-- **Bridge architecture**: `projects/components/bridge/GENERATOR_ARCHITECTURE.md` and `projects/components/bridge/docs/bridge_mas/` (the older docs/BRIDGE_ARCHITECTURE.md was superseded)
+- **Bridge architecture**: `projects/components/bridge/bin/GENERATOR_ARCHITECTURE.md` and `projects/components/bridge/docs/bridge_mas/` (the older docs/BRIDGE_ARCHITECTURE.md was superseded)
 - **Test files**: `projects/components/bridge/dv/tests/test_bridge_*.py`
 - **RTL files**: `projects/components/bridge/rtl/generated/bridge_*/`
 

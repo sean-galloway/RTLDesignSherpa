@@ -2,7 +2,7 @@
 
 # bridge — tasks
 
-**Next ID: TASK-013** — never recycle a number, even when its item closed.
+**Next ID: TASK-014** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,13 +14,13 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 7 | done (kept for history) |
+| [closed/](closed/) | 8 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-012** — bridge placement pass: 9 loose markdown files (generator design notes beside bin/, a bug write-up at the root)
+- **TASK-013** — bin/GENERATOR_ARCHITECTURE.md: reconcile the 2025-11 walkthroughs against the generator
 
 
 ## Dropped
@@ -32,6 +32,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-012** — bridge placement pass: 9 loose markdown files (generator design notes beside bin/, a bug write-up at the root) -- CLOSED 2026-09-29: 9 loose files placed: BUG-015 filed, GENERATOR_ARCHITECTURE to bin/ (rewritten where wrong), SIGNAL_NAMING collapsed, 5 stale pages deleted; TASK-013 filed for the rest
 - **TASK-002** — AMBA5 bridge support (AXI5 ports alongside AXI4)
 - **TASK-003** — scrub the tests for completeness (bridge)
 - **TASK-004** — AXI5-Lite and APB5 as MASTER protocols

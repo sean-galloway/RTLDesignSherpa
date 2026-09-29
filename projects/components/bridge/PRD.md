@@ -240,7 +240,7 @@ Bridge automates generation of AXI4 crossbar infrastructure:
 - [x] Performance models validate requirements (bridge_model.py)
 - [x] All generated RTL Verilator verified
 - [x] Integration examples provided (CSV examples)
-- [x] Comprehensive documentation (GENERATOR_ARCHITECTURE.md, docs/bridge_has/, docs/bridge_mas/)
+- [x] Comprehensive documentation (bin/GENERATOR_ARCHITECTURE.md, docs/bridge_has/, docs/bridge_mas/)
 
 ### 1.4 Implementation Status and Phases
 
@@ -298,7 +298,7 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 - `models/bridge_model/bridge_model.py` - Performance modeling (V1 Flat implemented)
 - `rtl/bridge_cam.sv` - CAM for ID tracking. **Not instantiated by any generated
   module**; kept for the OOO work FR-2 describes as not implemented.
-- See `GENERATOR_ARCHITECTURE.md` for the generator/build architecture
+- See `bin/GENERATOR_ARCHITECTURE.md` for the generator/build mechanics
 - See `docs/bridge_has/` and `docs/bridge_mas/` for architecture diagrams and specs
   (the older BRIDGE_CURRENT_STATE.md / BRIDGE_ARCHITECTURE_DIAGRAMS.md were superseded)
 

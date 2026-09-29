@@ -2,7 +2,7 @@
 
 # bridge — bugs
 
-**Next ID: BUG-015** — never recycle a number, even when its item closed.
+**Next ID: BUG-016** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 14 | done (kept for history) |
+| [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -37,3 +37,4 @@ by construction rather than by discipline.
 - **BUG-012** — Out-of-order slave tracking (enable_ooo) could not elaborate
 - **BUG-013** — REGEN — the five NexysA7 char-framework bridges cannot be regenerated in place
 - **BUG-014** — STRESS — three _mon monitor stress tests fail on a memory-bounds read
+- **BUG-015** — APB/AXIL slave adapter FIFO tracking deadlock (historical record, resolved 2026-05-13; filed from the loose root write-up 2026-09-29)
