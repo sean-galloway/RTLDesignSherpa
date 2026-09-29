@@ -2,7 +2,7 @@
 
 # RLB — tasks
 
-**Next ID: TASK-018** — never recycle a number, even when its item closed.
+**Next ID: TASK-019** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 17 | done (kept for history) |
+| [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -41,3 +41,4 @@ by construction rather than by discipline.
 - **TASK-015** — rlb_top interrupt fabric: block IRQs reach both 8259s and the IOAPIC internally, plus the aggregated `rlb_irq_out`; GPIO proven end to end, closed 2026-09-28.
 - **TASK-017** — an interrupt-line BFM (`TBClasses.irq`) and per-block routing coverage for the rlb_top fabric; all six blocks proven to their PIC input and their IOAPIC pin (vectors 0x40/0x44/0x48/0x49/0x4A/0x4B), plus a coincident-assert case, closed 2026-09-28.
 - **TASK-016** — RLB placement pass: the 7 loose markdown files rehomed (status/roadmap/audit to this lane, two reader-facing pages to `docs/`), the Makefile README slimmed to a pointer at `make help`, and a generated pm_acpi orphan deleted; closed 2026-09-28.
+- **TASK-018** — per-IR-line PIC assertions: each of the six blocks proven to its OWN IR line (`w_fabric_irq[irq]` plus an exact master set including the cascade bit), and three coincident sources spanning both PICs (UART on master IR4 with GPIO+PM under the cascade); closed 2026-09-28.

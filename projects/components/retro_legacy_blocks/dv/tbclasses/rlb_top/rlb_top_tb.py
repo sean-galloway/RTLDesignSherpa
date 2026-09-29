@@ -187,6 +187,42 @@ class RLBTopTB(TBBase):
         }, title="RLB", log=self.log)
         self.irqs.start()
 
+        # RLB TASK-018: the DESTINATION IR lines, watched as a SEPARATE group.
+        #
+        # Deliberately not added to self.irqs: that group's value is its
+        # negative assertion, and every fabric test passes a list of SOURCE
+        # names to expect_only(). Folding these probes in would make them
+        # 'unexpected' in all seven and fail the lot.
+        #
+        # w_fabric_irq is the per-IR-line claim. pic_irq_in is held at 0 for
+        # every fabric test, and the SLAVE 8259's irq_in is the inline
+        # expression `pic_irq_in[15:8] | w_fabric_irq[15:8]` -- not a named
+        # signal, so there is nothing else to probe. With pic_irq_in at 0 the
+        # slave's IR line IS w_fabric_irq[irq].
+        #
+        # Widths are explicit rather than auto-detected: a mis-sized vector
+        # would silently stop reporting the upper bits, and IRQ8-15 are exactly
+        # the ones that ride the cascade.
+        self.pic_lines = IRQMonitorGroup(self.dut, self.dut.pclk, {
+            'w_fabric_irq':     16,   # one bit per IRQ, the fabric's own output
+            'w_master_pic_irq':  8,   # the master 8259's input, IRQ0-7 + cascade
+        }, title="RLBIRline", log=self.log)
+
+        # IRQMonitorGroup WARNS AND SKIPS a signal the DUT does not expose, so a
+        # missing probe would leave the per-IR-line check quietly inspecting a
+        # monitor that is not there -- passing without proving anything. Fail
+        # here instead. Same reasoning as the RTC test's whitebox guard.
+        missing = [n for n in ('w_fabric_irq', 'w_master_pic_irq')
+                   if n not in self.pic_lines.monitors]
+        if missing:
+            raise RuntimeError(
+                f"per-IR-line probes not reachable on the DUT: {missing}. "
+                "These are module-scope logic in rlb_top; if Verilator has "
+                "optimized them away the per-IR-line assertions cannot run, "
+                "and silently skipping them would make RLB TASK-018's checks "
+                "vacuous.")
+        self.pic_lines.start()
+
         # IOAPIC delivery is a valid/ready handshake with a multi-field payload,
         # so it is GAXI's job and NOT the interrupt BFM's (RLB TASK-017 traps).
         # Auto-discovery: field_base is '{prefix}{bus_name}{pkt_prefix}{field_name}',
@@ -207,7 +243,9 @@ class RLBTopTB(TBBase):
 
         await self.wait_clocks('pclk', 2)
         self.log.info("APB master created, IRQ BFM watching "
-                      f"{len(self.irqs.monitors)} lines, peripheral inputs idled")
+                      f"{len(self.irqs.monitors)} source lines and "
+                      f"{len(self.pic_lines.monitors)} IR-line probes, "
+                      "peripheral inputs idled")
 
     def _idle_inputs(self):
         """Idle every non-APB input. Active-low pins go HIGH (inactive)."""

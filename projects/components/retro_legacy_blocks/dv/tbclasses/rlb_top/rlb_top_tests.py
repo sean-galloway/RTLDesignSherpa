@@ -239,6 +239,7 @@ class RLBTopTests:
             self.log.error("  cascade init failed; IRQ8-15 cannot arrive")
             return False
         self.tb.irqs.clear()
+        self.tb.pic_lines.clear()      # RLB TASK-018: the IR-line probes too
         self.tb.clear_ioapic_deliveries()
         if self.tb.pic_int_out():
             self.log.error("  pic_int_out already high before the stimulus")
@@ -251,6 +252,66 @@ class RLBTopTests:
         jitter = random.randint(0, 23)
         self.log.info(f"  inter-assert jitter: {jitter} pclk before stimulus")
         await self.tb.wait_clocks('pclk', jitter)
+        return True
+
+    def _ir_lines_ok(self, expected_irqs) -> bool:
+        """Exactly these IR lines carried the interrupt (RLB TASK-018).
+
+        TASK-017 proved the PIC half at the AGGREGATE -- pic_int_out plus the
+        BFM's expect_only() on SOURCE names. That says "this block fired and the
+        PIC's INT rose"; it does NOT say the interrupt arrived on the block's own
+        IR input. A fabric that ORed a source onto the wrong bit passes every
+        aggregate check.
+
+        Read from the BFM's per-bit EVENTS rather than sampling the signal live:
+        a source whose pulse ends before the verdict runs would read as a routing
+        failure, and PIT/RTC are exactly that shape.
+
+        Master-side expectation includes bit 2 whenever a slave-side IRQ is
+        expected: rlb_top masks IR2 off every other source and forces it from
+        the slave's INT, so the cascade MUST show there. Asserting the exact set
+        therefore proves both that the cascade appeared and that nothing else
+        moved on the master.
+        """
+        want = set(expected_irqs)
+
+        fab = self.tb.pic_lines.monitors.get('w_fabric_irq')
+        if fab is None:
+            self.log.error("  w_fabric_irq probe absent -- the per-IR-line "
+                           "check cannot run, and passing without it would be "
+                           "vacuous")
+            return False
+        got = {p.index for p in fab.events(event='assert')}
+        if got != want:
+            self.log.error(
+                f"  fabric IR lines wrong: asserted={sorted(got)} "
+                f"expected={sorted(want)} "
+                f"(missing={sorted(want - got)} extra={sorted(got - want)})")
+            for pkt in fab.events(event='assert'):
+                self.log.error(f"    {pkt}")
+            return False
+
+        mst = self.tb.pic_lines.monitors.get('w_master_pic_irq')
+        if mst is None:
+            self.log.error("  w_master_pic_irq probe absent -- the master-side "
+                           "per-IR-line check cannot run")
+            return False
+        want_master = {i for i in want if i < 8}
+        if any(i >= 8 for i in want):
+            want_master.add(2)          # the cascade, forced from the slave INT
+        got_master = {p.index for p in mst.events(event='assert')}
+        if got_master != want_master:
+            self.log.error(
+                f"  master IR lines wrong: asserted={sorted(got_master)} "
+                f"expected={sorted(want_master)} "
+                f"(missing={sorted(want_master - got_master)} "
+                f"extra={sorted(got_master - want_master)})")
+            for pkt in mst.events(event='assert'):
+                self.log.error(f"    {pkt}")
+            return False
+
+        self.log.info(f"  per-IR-line OK: fabric {sorted(got)}, "
+                      f"master {sorted(got_master)}")
         return True
 
     def _routing_verdict(self, source: str, expected: list,
@@ -289,6 +350,10 @@ class RLBTopTests:
         if not self.tb.cascade_invariant_ok():
             self.log.error("  IRQ2 violated: master IR2 != slave INT, so "
                            "something other than the cascade drove pin 2")
+            return False
+        # RLB TASK-018: the block's OWN IR line, not just the aggregate.
+        # ioapic_irq is the block's IRQ number, already passed by all six.
+        if ioapic_irq is not None and not self._ir_lines_ok([ioapic_irq]):
             return False
         if ioapic_irq is not None:
             want = 0x40 + ioapic_irq
@@ -508,6 +573,142 @@ class RLBTopTests:
             return True
         except Exception as e:
             self.log.error(f"SMBus fabric routing test failed: {e}")
+            return False
+
+    async def test_fabric_handles_three_coincident_asserts(self) -> bool:
+        """THREE sources coincident, spanning the master and slave 8259s.
+
+        RLB TASK-018, closing the second half of what TASK-017 declined to
+        claim: its overlap test used two sources and both were slave-side, so
+        the master's own IR path was never exercised under coincidence and the
+        cascade was never asserted alongside a direct master input.
+
+        UART (IRQ4) is MASTER-side; GPIO (IRQ11) and PM/ACPI (IRQ9) are
+        SLAVE-side. So this holds master IR4 high at the same time as the
+        cascade drives master IR2 from the slave's INT, with two slave IR lines
+        ORed together underneath.
+
+        Ordering is deliberate. UART is programmed FIRST and left asserted --
+        its TX-holding-empty source is high almost immediately and stays high --
+        then GPIO, then PM at a random offset INSIDE both. So all three overlap
+        rather than merely arriving close together.
+        """
+        self.log.info("=== smoke: three coincident asserts "
+                      "(UART master + GPIO/PM slave) ===")
+        try:
+            if not await self._fabric_preamble():
+                return False
+            for irq in (4, 11, 9):
+                await self.tb.arm_ioapic_for_fabric(irq)
+
+            # UART (IRQ4, MASTER IR4). MCR_OUT2 gates the IRQ pin -- IER alone
+            # leaves a fully configured UART that never asserts.
+            U = self.tb.SLAVE_UART
+            await self.tb.apb_write(self.tb.window_addr(U, 0x014), 1 << 3)
+            await self.tb.apb_write(self.tb.window_addr(U, 0x004), 1 << 1)
+
+            # GPIO (IRQ11, slave IR3): global enable + int enable, pin 0 edge.
+            await self.tb.gpio_write(0x000, 0x3)
+            await self.tb.gpio_write(0x010, 0x1)
+            await self.tb.gpio_write(0x014, 0x0)
+            await self.tb.gpio_write(0x018, 0x1)
+            await self.tb.gpio_write(0x01C, 0x0)
+
+            # PM/ACPI (IRQ9, slave IR1): ACPI+GPE enable, GPE int, unmask GPE0.
+            P = self.tb.SLAVE_PM
+            await self.tb.apb_write(self.tb.window_addr(P, 0x000), 0x1 | 0x4)
+            await self.tb.apb_write(self.tb.window_addr(P, 0x008), 1 << 5)
+            await self.tb.apb_write(self.tb.window_addr(P, 0x038), 0x1)
+
+            self.tb.dut.gpio_in.value = 0
+            self.tb.dut.pm_gpe_events.value = 0
+            await self.tb.wait_clocks('pclk', 40)
+
+            # UART should already be asserted; if it is not, the overlap this
+            # test claims never happens and it must fail rather than degrade
+            # into a two-source repeat of TASK-017's case.
+            uart_mon = self.tb.irqs.monitors.get('uart_irq')
+            if uart_mon is None or uart_mon.assert_count == 0:
+                self.log.error("  uart_irq did not assert, so there is no "
+                               "master-side source to be coincident with")
+                return False
+
+            gap1 = random.randint(1, 12)
+            gap2 = random.randint(1, 12)
+            self.log.info(f"  coincidence schedule: UART high, +{gap1} pclk "
+                          f"GPIO, +{gap2} pclk PM (all three then overlap)")
+            self.tb.dut.gpio_in.value = 1
+            await self.tb.wait_clocks('pclk', gap1)
+            self.tb.dut.pm_gpe_events.value = 1
+            await self.tb.wait_clocks('pclk', gap2)
+
+            # All three are high HERE -- assert that before waiting further.
+            live = []
+            for name in ('uart_irq', 'gpio_irq', 'pm_interrupt'):
+                m = self.tb.irqs.monitors.get(name)
+                live.append(bool(m) and m.is_asserted())
+            if not all(live):
+                self.log.error(
+                    "  the three sources were not simultaneously high: "
+                    f"uart={live[0]} gpio={live[1]} pm={live[2]} -- this test "
+                    "proves nothing about coincidence unless they overlap")
+                self.tb.dut.gpio_in.value = 0
+                self.tb.dut.pm_gpe_events.value = 0
+                return False
+            self.log.info("  all three sources simultaneously HIGH")
+            await self.tb.wait_clocks('pclk', 40)
+
+            ok = True
+            if int(self.tb.dut.pic_irq_in.value) != 0:
+                self.log.error("  pic_irq_in is non-zero -- not proving "
+                               "internal routing")
+                ok = False
+            if ok and not self.tb.pic_int_out():
+                self.log.error("  three sources high but pic_int_out LOW")
+                ok = False
+            if ok and not self.tb.cascade_invariant_ok():
+                self.log.error("  IRQ2 violated with a master-side and two "
+                               "slave-side sources coincident")
+                ok = False
+            if ok:
+                good, missing, unexpected = self.tb.irqs.expect_only(
+                    ['uart_irq', 'gpio_irq', 'pm_interrupt',
+                     'pic_int_out', 'rlb_irq_out'])
+                if not good:
+                    self.log.error(f"  IRQ lines wrong: missing={missing} "
+                                   f"unexpected={unexpected}")
+                    for pkt in self.tb.irqs.all_events():
+                        self.log.error(f"    {pkt}")
+                    ok = False
+            # The point of the test: three distinct IR lines, across BOTH PICs.
+            # Master must show IR4 (UART, direct) and IR2 (the cascade) and
+            # nothing else.
+            if ok and not self._ir_lines_ok([4, 9, 11]):
+                ok = False
+            if ok:
+                vectors = [int(getattr(pk, 'vector', -1))
+                           for pk in self.tb.ioapic_deliveries()]
+                for want in (0x44, 0x49, 0x4B):
+                    if want not in vectors:
+                        self.log.error(
+                            f"  IOAPIC did not deliver 0x{want:02X} under "
+                            f"three-way overlap (saw "
+                            f"{[f'0x{v:02X}' for v in vectors]})")
+                        ok = False
+                if ok:
+                    self.log.info("  IOAPIC delivered 0x44, 0x49 and 0x4B with "
+                                  "all three sources coincident")
+
+            self.tb.dut.gpio_in.value = 0
+            self.tb.dut.pm_gpe_events.value = 0
+            if not ok:
+                return False
+            self.log.info("smoke three-way overlap GREEN (UART on master IR4 "
+                          "coincident with GPIO+PM under the cascade on IR2; "
+                          "all three IR lines carried it and no others)")
+            return True
+        except Exception as e:
+            self.log.error(f"three-coincident test failed: {e}")
             return False
 
     async def test_fabric_handles_overlapping_asserts(self) -> bool:

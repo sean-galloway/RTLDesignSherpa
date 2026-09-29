@@ -102,6 +102,11 @@ async def cocotb_test_rlb_top_smoke(dut):
          tests.test_fabric_routes_smbus_to_the_pic),
         ('Overlapping asserts (GPIO + PM/ACPI coincident)',
          tests.test_fabric_handles_overlapping_asserts),
+        # RLB TASK-018: three coincident sources spanning both PICs. The
+        # two-source case above is slave-side only, so the master's own IR
+        # path was never exercised under coincidence.
+        ('Three coincident asserts (UART master + GPIO/PM slave)',
+         tests.test_fabric_handles_three_coincident_asserts),
     ]
 
     if test_level == 'gate':
