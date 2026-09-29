@@ -40,7 +40,6 @@ The Converters component provides both data width conversion and protocol conver
 - **Flexible Width Ratios** - Any integer ratio (2:1, 4:1, 8:1, 16:1, etc.)
 - **Sideband Support** - Configurable handling for WSTRB (slice) and RRESP (broadcast)
 - **Burst Tracking** - Optional burst-aware LAST signal generation (read path)
-- **High Throughput** - Optional dual-buffer mode for 100% throughput (downsize)
 - **Generic Building Blocks** - Reusable `axi_data_upsize` and `axi_data_dnsize` modules
 
 **Protocol Converters:**
@@ -52,8 +51,7 @@ The Converters component provides both data width conversion and protocol conver
 | Module | Mode | Throughput | Area | Use Case |
 |--------|------|------------|------|----------|
 | **axi_data_upsize** | Single buffer | 100% | 1× | Narrow→Wide (always optimal) |
-| **axi_data_dnsize** | Single buffer | 80% | 1× | Wide→Narrow (area-efficient) |
-| **axi_data_dnsize** | Dual buffer | 100% | 2× | Wide→Narrow (high-performance) |
+| **axi_data_dnsize** | Single buffer | 80% | 1× | Wide→Narrow (one-cycle gap per wide beat; the ping-pong `DUAL_BUFFER` mode was removed, see MAS 2.3) |
 
 ---
 
@@ -66,11 +64,10 @@ Converters Component
 ├── Data Width Converters:
 │   ├── Generic Building Blocks:
 │   │   ├── axi_data_upsize.sv      - Narrow→Wide accumulator (100% throughput)
-│   │   ├── axi_data_dnsize.sv      - Wide→Narrow splitter (80% or 100% throughput)
+│   │   ├── axi_data_dnsize.sv      - Wide→Narrow splitter (80% throughput)
 │   │   └── Key Features:
 │   │       ├── Configurable sideband handling
-│   │       ├── Optional burst tracking
-│   │       └── Dual-buffer mode (dnsize only)
+│   │       └── Optional burst tracking
 │   │
 │   └── Full AXI4 Converters:
 │       ├── axi4_dwidth_converter_wr.sv  - Write path converter (AW + W + B channels)
@@ -99,7 +96,7 @@ Converters Component
 │   └──────────┘                                     │
 │       ↓                                            │
 │   ┌──────────────────┐                             │
-│   │ axi_data_dnsize  │ (DUAL_BUFFER=1)             │
+│   │ axi_data_dnsize  │                             │
 │   │  512→128 split   │                             │
 │   └──────────────────┘                             │
 │       ↓                                            │
@@ -209,9 +206,10 @@ axi_data_upsize #(
 
 **Purpose:** Splits single wide beat into multiple narrow beats
 
-**Throughput:**
-- Single-buffer mode (DUAL_BUFFER=0): 80% (1-cycle gap per wide beat)
-- Dual-buffer mode (DUAL_BUFFER=1): 100% (continuous streaming)
+**Throughput:** 80% -- a one-cycle gap per wide beat while the single buffer
+refills. (An earlier `DUAL_BUFFER` ping-pong mode reached 100%; it was removed
+from the RTL -- `git log -S DUAL_BUFFER rtl/axi_data_dnsize.sv` -- and the
+MAS, `docs/converter_mas/ch02_width_blocks/03_axi_data_dnsize.md`, records why.)
 
 **Key Parameters:**
 ```systemverilog
@@ -222,8 +220,6 @@ parameter int NARROW_SB_WIDTH   = 2;       // Narrow sideband width
 parameter int SB_BROADCAST      = 1;       // 1=broadcast (RRESP), 0=slice (WSTRB)
 parameter int TRACK_BURSTS      = 0;       // 1=track bursts for LAST, 0=simple passthrough
 parameter int BURST_LEN_WIDTH   = 8;       // Burst length counter width
-parameter int DUAL_BUFFER       = 0;       // 1=dual buffer (100% throughput, 2× area)
-                                           // 0=single buffer (80% throughput, 1× area)
 ```
 
 **Sideband Modes:**
@@ -249,36 +245,7 @@ parameter int DUAL_BUFFER       = 0;       // 1=dual buffer (100% throughput, 2�
 - **TRACK_BURSTS=0:** Pass wide_last to last narrow beat (simple mode)
 - **TRACK_BURSTS=1:** Generate LAST on final beat of entire burst (read path)
 
-**Dual-Buffer Mode (NEW in v1.1):**
-
-Single-buffer mode achieves 80% throughput due to 1-cycle gap when transitioning between wide beats:
-```
-Cycle: 1    2    3    4    5    6    7    8    9   10
-Wide:  [====BEAT_0====]  WAIT [====BEAT_1====]  WAIT
-Narrow: n0   n1   n2   n3  IDLE  n0   n1   n2   n3  IDLE
-                            ↑ 1-cycle dead time
-```
-
-Dual-buffer mode eliminates the gap by ping-ponging between two buffers:
-```
-Cycle: 1    2    3    4    5    6    7    8    9
-Wide:  [====BEAT_0====][====BEAT_1====][====BEAT_2====]
-Narrow: n0   n1   n2   n3   n0   n1   n2   n3   n0
-Buffer: BUF0 reading────┘   BUF1 reading────┘   BUF0...
-        BUF1 writing────────┘   BUF0 writing────┘
-```
-
-**When to Use Dual-Buffer Mode:**
-- High-bandwidth DMA engines with continuous streaming
-- Performance-critical data paths where 100% utilization required
-- Sufficient area budget (~2× increase for buffer registers)
-
-**When to Use Single-Buffer Mode:**
-- Area-constrained designs
-- Throughput requirements <100%
-- Natural gaps in traffic from upstream/downstream
-
-**Usage Example (Single-Buffer):**
+**Usage Example:**
 ```systemverilog
 axi_data_dnsize #(
     .WIDE_WIDTH(512),
@@ -287,8 +254,7 @@ axi_data_dnsize #(
     .NARROW_SB_WIDTH(2),
     .SB_BROADCAST(1),       // Broadcast RRESP
     .TRACK_BURSTS(1),       // Track bursts for LAST
-    .BURST_LEN_WIDTH(8),
-    .DUAL_BUFFER(0)         // Single buffer (80% throughput, area-efficient)
+    .BURST_LEN_WIDTH(8)
 ) u_dnsize (
     .aclk             (aclk),
     .aresetn          (aresetn),
@@ -310,40 +276,6 @@ axi_data_dnsize #(
     .narrow_data      (m_rdata),
     .narrow_sideband  (m_rresp),
     .narrow_last      (m_rlast)
-);
-```
-
-**Usage Example (Dual-Buffer - High Performance):**
-```systemverilog
-axi_data_dnsize #(
-    .WIDE_WIDTH(512),
-    .NARROW_WIDTH(128),
-    .WIDE_SB_WIDTH(64),     // WSTRB: 512/8 = 64
-    .NARROW_SB_WIDTH(16),   // WSTRB: 128/8 = 16
-    .SB_BROADCAST(0),       // Slice WSTRB
-    .TRACK_BURSTS(0),       // Simple mode for write path
-    .DUAL_BUFFER(1)         // Dual buffer (100% throughput, 2× area)
-) u_dnsize_hp (
-    .aclk             (aclk),
-    .aresetn          (aresetn),
-
-    // Burst control (unused in TRACK_BURSTS=0)
-    .burst_len        (8'd0),
-    .burst_start      (1'b0),
-
-    // Wide input
-    .wide_valid       (s_wvalid),
-    .wide_ready       (s_wready),
-    .wide_data        (s_wdata),
-    .wide_sideband    (s_wstrb),
-    .wide_last        (s_wlast),
-
-    // Narrow output
-    .narrow_valid     (m_wvalid),
-    .narrow_ready     (m_wready),
-    .narrow_data      (m_wdata),
-    .narrow_sideband  (m_wstrb),
-    .narrow_last      (m_wlast)
 );
 ```
 
@@ -378,30 +310,32 @@ These integrate the generic building blocks with:
 
 **Usage Example:**
 ```systemverilog
+// axi4_to_apb4_convert works on PACKED channel beats (one vector per AXI
+// channel, as the gaxi skid buffers emit them) and a packed APB command /
+// response pair; axi4_to_apb4_shim wraps it with plain AXI4 and APB ports.
 axi4_to_apb4_convert #(
-    .S_AXI_ADDR_WIDTH(64),
-    .S_AXI_DATA_WIDTH(32),
-    .M_APB_ADDR_WIDTH(32),
-    .M_APB_DATA_WIDTH(32)
-) u_axi_apb_bridge (
-    .aclk           (clk),
-    .aresetn        (rst_n),
+    .AXI_ID_WIDTH   (8),
+    .AXI_ADDR_WIDTH (32),
+    .AXI_DATA_WIDTH (64),
+    .APB_ADDR_WIDTH (32),
+    .APB_DATA_WIDTH (32),       // AXI2APBRATIO = 64/32 = 2 narrow beats per wide beat
+    .SIDE_DEPTH     (6)
+) u_axi_apb_convert (
+    .aclk             (aclk),
+    .aresetn          (aresetn),
 
-    // AXI4 Slave Interface
-    .s_axi_awaddr   (s_awaddr),
-    .s_axi_awvalid  (s_awvalid),
-    .s_axi_awready  (s_awready),
-    // ... (full AXI4 AW/W/B/AR/R channels)
+    // AXI4 slave side: packed AW / W / B / AR / R beats
+    .r_s_axi_aw_pkt   (aw_pkt),    .r_s_axi_aw_count (aw_count),
+    .r_s_axi_awvalid  (aw_valid),  .w_s_axi_awready  (aw_ready),
+    .r_s_axi_w_pkt    (w_pkt),     .r_s_axi_wvalid   (w_valid),   .w_s_axi_wready (w_ready),
+    .r_s_axi_b_pkt    (b_pkt),     .w_s_axi_bvalid   (b_valid),   .r_s_axi_bready (b_ready),
+    .r_s_axi_ar_pkt   (ar_pkt),    .r_s_axi_ar_count (ar_count),
+    .r_s_axi_arvalid  (ar_valid),  .w_s_axi_arready  (ar_ready),
+    .r_s_axi_r_pkt    (r_pkt),     .w_s_axi_rvalid   (r_valid),   .r_s_axi_rready (r_ready),
 
-    // APB Master Interface
-    .m_apb_paddr    (m_paddr),
-    .m_apb_psel     (m_psel),
-    .m_apb_penable  (m_penable),
-    .m_apb_pwrite   (m_pwrite),
-    .m_apb_pwdata   (m_pwdata),
-    .m_apb_pready   (m_pready),
-    .m_apb_prdata   (m_prdata),
-    .m_apb_pslverr  (m_pslverr)
+    // APB master side: packed command out, packed response in
+    .w_cmd_valid      (cmd_valid), .r_cmd_ready      (cmd_ready), .r_cmd_data (cmd_data),
+    .r_rsp_valid      (rsp_valid), .w_rsp_ready      (rsp_ready), .r_rsp_data (rsp_data)
 );
 ```
 
@@ -445,31 +379,27 @@ See the MAS chapter `docs/converter_mas/ch03_protocol_blocks/10_axil4_to_wb4.md`
 **Usage Example:**
 ```systemverilog
 peakrdl_to_cmdrsp #(
-    .ADDR_WIDTH(16),
-    .DATA_WIDTH(32)
+    .ADDR_WIDTH (12),
+    .DATA_WIDTH (32)
 ) u_peakrdl_adapter (
-    .clk            (clk),
-    .rst_n          (rst_n),
+    .aclk                 (aclk),
+    .aresetn              (aresetn),
 
-    // PeakRDL Register Interface (APB-style)
-    .reg_addr       (reg_addr),
-    .reg_wdata      (reg_wdata),
-    .reg_write      (reg_write),
-    .reg_read       (reg_read),
-    .reg_rdata      (reg_rdata),
-    .reg_error      (reg_error),
+    // Command in (APB-shaped request), response out
+    .cmd_valid            (cmd_valid),  .cmd_ready  (cmd_ready),
+    .cmd_pwrite           (cmd_pwrite), .cmd_paddr  (cmd_paddr),
+    .cmd_pwdata           (cmd_pwdata), .cmd_pstrb  (cmd_pstrb),
+    .rsp_valid            (rsp_valid),  .rsp_ready  (rsp_ready),
+    .rsp_prdata           (rsp_prdata), .rsp_pslverr(rsp_pslverr),
 
-    // Command/Response Interface
-    .cmd_valid      (cmd_valid),
-    .cmd_ready      (cmd_ready),
-    .cmd_addr       (cmd_addr),
-    .cmd_data       (cmd_data),
-    .cmd_write      (cmd_write),
-
-    .rsp_valid      (rsp_valid),
-    .rsp_ready      (rsp_ready),
-    .rsp_data       (rsp_data),
-    .rsp_error      (rsp_error)
+    // PeakRDL regblock "passthrough" cpuif
+    .regblk_req           (regblk_req),          .regblk_req_is_wr    (regblk_req_is_wr),
+    .regblk_addr          (regblk_addr),         .regblk_wr_data      (regblk_wr_data),
+    .regblk_wr_biten      (regblk_wr_biten),
+    .regblk_req_stall_wr  (regblk_req_stall_wr), .regblk_req_stall_rd (regblk_req_stall_rd),
+    .regblk_rd_ack        (regblk_rd_ack),       .regblk_rd_err       (regblk_rd_err),
+    .regblk_rd_data       (regblk_rd_data),
+    .regblk_wr_ack        (regblk_wr_ack),       .regblk_wr_err       (regblk_wr_err)
 );
 ```
 
@@ -493,8 +423,7 @@ axi_data_dnsize #(
     .WIDE_SB_WIDTH(16),     // WSTRB: 128/8 = 16
     .NARROW_SB_WIDTH(4),    // WSTRB: 32/8 = 4
     .SB_BROADCAST(0),       // Slice WSTRB
-    .TRACK_BURSTS(0),       // Write path: simple mode
-    .DUAL_BUFFER(0)         // Area-efficient
+    .TRACK_BURSTS(0)        // Write path: simple mode
 ) u_wr_dnsize (
     // ... ports
 );
@@ -524,28 +453,6 @@ axi_data_upsize #(
 
 ---
 
-### Example 3: High-Performance Write Downsize (512→128 bits)
-
-**Use Case:** DMA Engine (512-bit) → PCIe Endpoint (128-bit), continuous streaming
-
-```systemverilog
-axi_data_dnsize #(
-    .WIDE_WIDTH(512),
-    .NARROW_WIDTH(128),
-    .WIDE_SB_WIDTH(64),     // WSTRB: 512/8 = 64
-    .NARROW_SB_WIDTH(16),   // WSTRB: 128/8 = 16
-    .SB_BROADCAST(0),       // Slice WSTRB
-    .TRACK_BURSTS(0),       // Write path: simple mode
-    .DUAL_BUFFER(1)         // HIGH-PERFORMANCE: 100% throughput
-) u_wr_dnsize_hp (
-    // ... ports
-);
-```
-
-**Result:** 100% throughput (no dead cycles), 2× area cost
-
----
-
 ## Testing
 
 ### Test Organization
@@ -553,14 +460,16 @@ axi_data_dnsize #(
 ```
 projects/components/converters/dv/tests/
 ├── test_axi_data_upsize.py       - Generic upsize module tests
-├── test_axi_data_dnsize.py       - Generic dnsize module tests (16 configs)
+├── test_axi_data_dnsize.py       - Generic dnsize module tests (8 configs)
 ├── test_axi4_dwidth_converter_wr.py  - Full write converter tests
 └── test_axi4_dwidth_converter_rd.py  - Full read converter tests
 ```
 
-### Test Configurations (axi_data_dnsize.py)
+### Test Configurations (test_axi_data_dnsize.py)
 
-**Single-Buffer Tests (DUAL_BUFFER=0):**
+The `test_params` table in the test file is the list; as of 2026-09-29 it holds
+eight configurations, each run at every REG_LEVEL:
+
 1. 128→32 WSTRB slice (simple mode)
 2. 256→64 WSTRB slice (simple mode)
 3. 128→32 RRESP broadcast (simple mode)
@@ -569,9 +478,6 @@ projects/components/converters/dv/tests/
 6. 256→64 RRESP broadcast (burst tracking)
 7. 512→128 RRESP broadcast (burst tracking)
 8. 128→64 no sideband (simple mode)
-
-**Dual-Buffer Tests (DUAL_BUFFER=1):**
-9-16. Same configurations as above with DUAL_BUFFER=1
 
 ### Running Tests
 
@@ -590,7 +496,7 @@ make run-all-func-parallel     # Functional coverage (default)
 make run-all-full-parallel     # Comprehensive validation
 
 # Individual test
-pytest test_axi_data_dnsize.py::test_axi_data_dnsize[128to32_wstrb_slice_simple_DUAL] -v
+pytest test_axi_data_dnsize.py -k 128to32_wstrb_slice_simple -v
 ```
 
 ---
@@ -629,29 +535,13 @@ make status
 
 ### Available Documentation
 
-- **README.md** (this file) - Quick start and overview
-- **GENERIC_MODULES_USAGE_GUIDE.md** - Detailed parameter guide for upsize/dnsize
-- **DUAL_BUFFER_IMPLEMENTATION.md** - Comprehensive dual-buffer feature documentation
-- **ANALYSIS_APB_CONVERTER.md** - APB protocol converter analysis
-
-### Key Resources
-
-**For Understanding Parameters:**
-```bash
-cat $REPO_ROOT/projects/components/converters/rtl/GENERIC_MODULES_USAGE_GUIDE.md
-```
-
-**For Dual-Buffer Mode:**
-```bash
-cat $REPO_ROOT/projects/components/converters/DUAL_BUFFER_IMPLEMENTATION.md
-```
-
-**For APB Integration:**
-```bash
-cat $REPO_ROOT/projects/components/converters/ANALYSIS_APB_CONVERTER.md
-```
-
----
+- **README.md** (this file) -- quick start and overview; a link page, not the spec
+- **`docs/converter_mas/`** -- the Micro-Architecture Spec: per-block chapters
+  (`ch02_width_blocks/` for upsize/dnsize/dwidth/wide-align, `ch03_protocol_blocks/`
+  for the APB/AXIL/WB4/PeakRDL converters), FSMs, verification. The dnsize chapter
+  records why the dual-buffer mode was removed; the APB chapter (3.4.12) records
+  why its width conversion is inline rather than built from the generic blocks.
+- **`docs/AXI4_DATA_WIDTH_CONVERTER_SPEC.md`**, **`docs/peakrdl_to_cmdrsp.md`** -- block specs
 
 ## Quick Commands
 
@@ -686,12 +576,12 @@ make clean-all
 - The `|| wide_ready` term in narrow_ready enables pipelining
 - No benefit from dual buffering
 
-### Why Optional Dual-Buffer for Dnsize?
+### Why No Dual-Buffer for Dnsize Either?
 
-**Trade-off between area and performance:**
-- Single-buffer: 80% throughput, 1× area (good for most use cases)
-- Dual-buffer: 100% throughput, 2× area (high-performance paths)
-- User can select based on system requirements
+There was one (`DUAL_BUFFER`, a ping-pong pair for 100% throughput at 2x
+area). It was removed from `axi_data_dnsize.sv`; the dwidth converters that
+need full-rate downsizing get it from their skid buffers instead. The MAS
+dnsize chapter records the reasoning; this README only points at it.
 
 ### Why Separate Upsize/Dnsize Modules?
 

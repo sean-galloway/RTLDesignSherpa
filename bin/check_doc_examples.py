@@ -352,7 +352,13 @@ def main() -> int:
     # lane, so its one finding (boards/README.md debounce, which named a
     # CLK_FREQ_MHZ parameter and i_/o_ ports rtl/common/debounce.sv never had)
     # was fixed in place against the module header.
-    BASELINE = 6
+    # 2026-09-29, later: 7 -> 0. stream TASK-015 rewrote regs/README.md as a
+    # link page (no example at all); converters TASK-004 fixed the three
+    # README examples against the module headers (DUAL_BUFFER is gone from
+    # axi_data_dnsize; axi4_to_apb4_convert takes packed channel beats;
+    # peakrdl_to_cmdrsp's ports are cmd_p*/rsp_p*/regblk_*). The floor is 0
+    # again: any finding is NEW and blocks the commit.
+    BASELINE = 0
     if bad > BASELINE:
         print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} -- a doc example\n          names a port its module does not have. The backlog this ratchet\n          tracked (amba TASK-077) is CLOSED and the floor is 0, so any\n          finding here is NEW.')
         return 1

@@ -12,19 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-003** — converters placement pass: 2 loose analysis notes at the component root
-- **TASK-004** — converters/README.md: three instantiation examples name parameters and ports the modules do not have
 
 
 ## Closed
 
+- **TASK-004** — converters/README.md: three instantiation examples name parameters and ports the modules do not have -- CLOSED 2026-09-29: dnsize/apb4/peakrdl examples fixed against the headers; check_doc_examples 0, BASELINE 0
+- **TASK-003** — converters placement pass: 2 loose analysis notes at the component root -- CLOSED 2026-09-29: DUAL_BUFFER note deleted (feature removed); APB analysis folded into MAS 3.4.12 and deleted
 - **TASK-002** — scrub the tests for completeness (converters)
 - **TASK-001** — upsize paths now support mid-wide-word INCR burst starts

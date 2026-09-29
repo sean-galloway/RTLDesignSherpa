@@ -377,3 +377,27 @@ axi4_to_apb4_shim #(
 ---
 
 **Next:** [AXI4 to APB5 Shim](06_axi4_to_apb5.md)
+
+## 3.4.12 Design Decision: Inline Width Conversion
+
+The converter narrows AXI write data to the APB width and widens APB read data
+back with its own pointer logic rather than instantiating `axi_data_dnsize` /
+`axi_data_upsize` (Chapter 2). This was examined on 2025-10-25 and kept
+deliberately:
+
+- The conversion is incremental and interlocked with the protocol FSM: the
+  pointer advances on each APB transfer's completion, and FIRST/LAST for the
+  side queue depend on both the burst state and the conversion state. The
+  generic blocks consume whole beats and would need glue FIFOs and a second
+  state machine around them for no functional gain.
+- A refactor would add latency and registers while making the design harder
+  to reason about and to cover in verification.
+- The two implementations were compared line for line and use the same
+  algorithm (lane pointer = address bits above the APB width, same strobe
+  slicing, same accumulate-then-present read path), so the generic blocks were
+  independently validated by this converter rather than duplicated by it.
+
+Standing rule: `axi4_dwidth_converter_{wr,rd}` (Chapter 2) are the reusable
+width converters; this block keeps its inline conversion. (The analysis note
+that recorded this, `ANALYSIS_APB_CONVERTER.md`, lived at the component root
+until 2026-09-29 and was folded into this section; `git log --follow` has it.)
