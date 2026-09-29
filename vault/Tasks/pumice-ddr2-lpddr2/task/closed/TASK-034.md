@@ -2,9 +2,8 @@
 
 **Priority:** P3 — it is CONSERVATIVE, so nothing is at risk; it costs bandwidth,
 and the cost is unmeasured.
-**Status:** open 2026-09-28 — **narrowed the same day: the documentation half is
-DONE (option 1 below), and all that remains is the board experiment for option
-2.** Nothing in this item can progress without board time.
+**Status:** CLOSED 2026-09-29 — option 1 (document and keep), on measured
+evidence. The board campaign ran to completion; see the final section.
 **Owner:** TBD
 **Found by:** `formal/pumice/{bank_timer,global_timers}` — measured, not inferred.
 **Related:** [[ISSUE-018]] (the other readiness off-by-one in the same block,
@@ -247,3 +246,79 @@ the measurement runs, while still reading back correctly at the moment you write
 it. Override the CONFIG (or the derivation behind it), never the register, and
 confirm it took by reading the per-point `[config ...] jedec timings` line rather
 than a readback.
+
+---
+
+## Closed 2026-09-29 -- option 1, and the measurement is what decided it
+
+### The detector, finally proven
+
+The correction above was right that nothing had ever made this harness report a
+non-zero mismatch. It is proven now, and the injection that worked is
+ELECTRICAL, not logical: move the read IDELAY tap off the levelled eye
+(`set_analog_eye(drv, 0, 26)` against an eye of taps 0..9).
+
+    eye centred (as levelled)   mismatched=0     ok=True
+    read tap 26 = off the eye   mismatched=4000  ok=False      <-- 500 txn x 8 beats, every beat
+    re-levelled                 mismatched=0     ok=True
+
+Every beat wrong, then clean again. The counter works, it is wired to the reader
+this campaign uses, and it recovers -- so a zero from it is now evidence.
+
+Two earlier injections failed for reasons worth keeping: writing `rddata_delay`
+at runtime was undone by the per-point `Config.apply`, and patching
+`CFG.rddata_delay` broke the link hard enough to hang the harness rather than
+produce a count. A fault has to be big enough to corrupt and small enough to
+survive.
+
+### The full sweep, with the detector proven
+
+tRTW **3 to 20 contiguous**, at gap 0 (saturated, 47.5% of peak) and gap 14, six
+reps per point. **Zero mismatched beats at every single point.**
+
+Bandwidth, gap 14:
+
+| tRTW | MB/s | % of 600 MB/s peak |
+|---:|---:|---:|
+| 12 .. 20 (shipping = 20) | 123.2 | 20.5% |
+| 3 .. 11 | 217.6-217.9 | 36.3% |
+
+At gap 0 it is flat at 285.3 MB/s (47.6%) for every tRTW.
+
+### What that settles, and what it does not
+
+**The historical failure does not reproduce.** The RTL comment records tRTW=18
+failing 5 of 6 reps at gap 14 and tRTW=8 failing gaps 13/15. Today neither fails,
+and neither does tRTW=3 -- a value no DDR2 part at CL=3 could tolerate if the DQ
+bus were genuinely colliding. Something between then and now removed the need for
+the guard, and [[ISSUE-018]] is the obvious candidate: the guard's own comment
+says it covers "the arbiter's registered turnaround ok", which is exactly what
+that fix repaired at the source.
+
+**But the bandwidth win is not reachable by removing the guard.** Dropping
+`rtw_guard` from 6 to 0 takes tRTW from 20 to 14 and buys NOTHING -- 123.2 MB/s
+either side. The win needs tRTW <= 11, and 11 is BELOW the derivation's physical
+floor: `rd_window_mc = phy_rd_dq_busy + 1 - t_phy_wrlat` = 14. Reaching it means
+overriding the DQ-occupancy model, not trimming an empirical margin, and "no
+corruption observed in two workloads" is not the same as "the DQ bus cannot
+collide". A model that says 14 and hardware that tolerates 3 is a discrepancy to
+UNDERSTAND, not to exploit.
+
+### The decision on the question this task was filed about
+
+**Option 1: document and keep.** The N+1 enforcement stays.
+
+The measurement is what makes that the right call rather than the timid one. This
+board's read-to-write turnaround can be cut by seventeen cycles with no observable
+effect on correctness, and the only place bandwidth moves at all is a cliff that
+sits below the physical model. Against that, one cycle of conservatism on each of
+ten windows is not worth an RTL change, a rebuild, and a re-validation of margins
+that were bought with measurements. The convention is documented now -- RDL,
+MAS, HAS and executable `a_*_bound_n1` properties -- which was always the half of
+this task that mattered.
+
+`rtw_guard` stays at 6 and nothing in the shipping configuration changed. The
+board was restored to tRTW = 20 with leveling re-verified (bitslip 0, tap 8).
+
+The tRTW discrepancy is far more valuable than the cycle this task chased, and it
+is a different question, so it is [[TASK-036]] rather than a footnote here.

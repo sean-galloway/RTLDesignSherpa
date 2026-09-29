@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-036** — never recycle a number, even when its item closed.
+**Next ID: TASK-037** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -14,32 +14,24 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 28 | done (kept for history) |
+| [closed/](closed/) | 29 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
-
-- **TASK-034** — every JEDEC window is enforced as N+1 MC cycles where N is the
-  programmed CSR value, measured and proved tight on all ten windows across
-  `bank_timer` and `global_timers`. Nothing compensates (the RDL descriptions
-  carry no units, the host writes raw JEDEC-derived counts), so every window on
-  silicon is one cycle long. Conservative, so nothing is at risk; recovering it
-  needs a board re-measurement because the empirical `rtw_guard` was tuned with
-  the extra cycle present. **Documentation half DONE 2026-09-28** (RDL field
-  descriptions + regen, MAS runtime-overrides, HAS csr_map, and `a_*_bound_n1`
-  formal properties). Board campaign 2026-09-29 ran and its NEGATIVE CONTROL
-  FAILED -- tRTW=3, physically impossible, passes 0/6 -- so the stimulus cannot
-  see turnaround violations and the guard must not be lowered on it. It did
-  measure the prize: a cliff at tRTW 12->11 worth **+76%** on this workload
-  (123.2 -> 217.1 MB/s against a 600 MB/s peak). The task is now to build a
-  stimulus that fails at tRTW=3 first
 
 - **TASK-035** — finish pumice's formal coverage. 5 of 27 blocks proven (11/11
   sby tasks); closes when TIER 1 is done — `pumice_cmd_arbiter` (which settles
   [[ISSUE-019]]), `pumice_wr_data_cam`, `pumice_rd_cmd_cam`, `pumice_dfi_cdc` —
   not when all 27 are. Per-block done criteria and the traps already paid for
   are in the item
+
+- **TASK-036** — the tRTW model says 14 and the hardware tolerates 3. Detector
+  PROVEN (4000/4000 on a known fault), tRTW swept 3..20 contiguous at two gap
+  regimes with zero corruption anywhere, and **+76%** waiting at tRTW <= 11
+  (123.2 -> 217.7 MB/s vs a 600 MB/s peak). The win sits below the derivation's
+  physical DQ-occupancy floor, so it needs an ILA of the turnaround, not another
+  sweep
 
 ## Deferred
 
@@ -49,6 +41,12 @@ exactly one state by construction rather than by discipline.
   depend on scoria and is a test, not a feature
 
 ## Closed
+
+- **TASK-034** — CLOSED: option 1, document and keep. The N+1 convention is
+  documented (RDL + regen, MAS, HAS, `a_*_bound_n1` properties). The board
+  campaign showed this design's turnaround can be cut by 17 cycles with no
+  observable effect, so one cycle on each of ten windows does not justify an RTL
+  change; the real bandwidth question became [[TASK-036]]
 
 - **TASK-032** — placement pass: 2 loose filelists into `rtl/filelists/` (baseline
   8 -> 6, no pumice entries) and 8 markdown files re-homed, 43 references repointed
