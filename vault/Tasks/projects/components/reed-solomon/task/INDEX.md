@@ -12,12 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
+## Active
+
+- **TASK-001** — Stand up the Reed-Solomon component -- ACTIVE 2026-09-29: area created, References/ + draft PRD; RTL waits on the PRD decisions
+
 ## Open
 
-- **TASK-001** — Stand up the Reed-Solomon component

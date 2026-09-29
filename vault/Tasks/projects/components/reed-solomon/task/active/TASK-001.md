@@ -1,7 +1,7 @@
 # TASK-001: Stand up the Reed-Solomon component
 
 > Migrated 2026-09-27 from `vault/Tasks/projects/components/reed-solomon/open.md` as **RS-001** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
-**Status:** open 2026-08-09 (created when COMMON-009 was dropped — Sean's
+**Status:** ACTIVE 2026-09-29 (was open 2026-08-09) (created when COMMON-009 was dropped — Sean's
 call: R/S is component work, not rtl/common library work)
 **Priority:** P3 — waits on a real consumer (NAND flash, comms, storage)
 
@@ -26,3 +26,22 @@ History: a docs-only `projects/components/bch/` placeholder (PRD/README/
 TASKS, no RTL, no tests) was deleted 2026-07-23. Do not recreate
 placeholder collateral — this task page IS the placeholder; the component
 directory gets created when work actually starts.
+
+---
+
+## Log
+
+**2026-09-29 -- area created at Sean's request; references gathered.**
+`projects/components/reed-solomon/` now holds `README.md`, `CLAUDE.md`, a
+DRAFT `PRD.md` whose section 3 is the decision table this page asked for
+(m, t, shortening, encoder-only vs decoder, erasures, throughput, BCH,
+generator conventions, interface, first consumer) with four candidate profiles
+(CCSDS RS(255,223), DVB RS(204,188), 802.3 RS-FEC, RAID erasure), and
+`References/`: six stored public documents (NASA TM-102162 tutorial, CCSDS
+131.0-B-5 and 130.1-G-3, BBC WHP031, Plank 1997 + 2003 correction) with
+source and licence each, plus the cited classics, the standards that name RS
+codes, open-access arXiv reading and the open-source implementations for the
+reuse survey and the DV golden model (`reedsolo`, `galois`). Still true: no
+RTL, no DV, no filelist -- those wait on the PRD decisions. The "do not
+recreate placeholder collateral" rule above is superseded for the area shell
+by Sean's request; it still holds for RTL/DV/MAS skeletons.

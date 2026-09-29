@@ -47,6 +47,7 @@ This directory contains production-ready and in-development component projects f
 | **Converters** | Development | [converters/](converters/) | See [converters/docs/](converters/docs/) |
 | **pumice (DDR2/LPDDR2 memory controller)** | Production (at rest 2026-09-10) | [memory-controllers/pumice-ddr2-lpddr2/](memory-controllers/pumice-ddr2-lpddr2/) | [Specification](memory-controllers/pumice-ddr2-lpddr2/docs/pumice_mas/pumice_mas_index.md) |
 | **misc** | Production | [misc/](misc/) | [README](misc/README.md) |
+| **Reed-Solomon** | Stand-up (2026-09-29): references + draft PRD, no RTL | [reed-solomon/](reed-solomon/) | [PRD (draft)](reed-solomon/PRD.md), [References](reed-solomon/References/README.md) |
 | **Delta** | Retired 2026-09-27 (no tests, spec unwritten) | [delta/](delta/) | [Specification](delta/docs/delta_spec/delta_index.md) |
 | **Hive** | Retired 2026-09-27 (nothing begun) | [hive/](hive/) | [Specification](hive/docs/hive_spec/hive_index.md) |
 
@@ -69,6 +70,9 @@ This directory contains production-ready and in-development component projects f
 **Integration:**
 - [Bridge](bridge/) - Protocol bridges
 - [Converters](converters/) - Protocol converters
+
+**Error correction:**
+- [Reed-Solomon](reed-solomon/) - RS codec, stood up 2026-09-29 (references, draft PRD)
 
 **Other:**
 - [Delta](delta/) - Component description pending
