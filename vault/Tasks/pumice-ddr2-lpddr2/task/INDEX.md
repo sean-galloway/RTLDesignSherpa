@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-037** — never recycle a number, even when its item closed.
+**Next ID: TASK-038** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 30 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
@@ -25,6 +25,13 @@ exactly one state by construction rather than by discipline.
   [[ISSUE-019]]), `pumice_wr_data_cam`, `pumice_rd_cmd_cam`, `pumice_dfi_cdc` —
   not when all 27 are. Per-block done criteria and the traps already paid for
   are in the item
+
+- **TASK-037** — reconcile the 16 stale testplans in `dv/testplans/` with the
+  modules that actually exist, or delete them. 29 of 50 `rtl_file`/`test_file`
+  refs name pre-rearchitecture blocks (`axi_intake.sv`, `wr_cmd_cam.sv`,
+  `xbank_timers.sv`). All 50 were broken before the `mem-ctrl-ip` rename
+  normalized the directory part, which is what exposed these as a separate
+  problem; no gate parses these files, which is why they rotted
 
 ## Deferred
 
