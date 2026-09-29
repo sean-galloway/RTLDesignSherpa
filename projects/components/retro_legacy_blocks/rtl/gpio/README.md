@@ -62,8 +62,11 @@ The APB port is fixed at 32-bit data / 12-bit address (localparams in
 Thirteen 32-bit registers at word offsets 0x000-0x030. The authoritative map,
 field definitions, and software caveats (atomic-register change detection,
 GPIO_OUTPUT readback) live in the MAS register chapter:
-`docs/gpio_mas/ch05_registers/01_register_map.md`. An earlier revision of
-this README carried a 16-bit LO/HI split map that never matched the RTL.
+[ch05_registers/01_register_map.md](../../docs/gpio_mas/ch05_registers/01_register_map.md).
+An earlier revision of this README carried a 16-bit LO/HI split map that never
+matched the RTL. The path here was previously a backticked string, which does
+not resolve from this directory and which the link checker classifies as
+inline-code and never validates; it is a real link now.
 
 ## FPGA Integration
 

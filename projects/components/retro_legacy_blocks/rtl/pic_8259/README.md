@@ -249,20 +249,10 @@ Layer 3: pic_8259_core.sv
 
 ## Register Map
 
-| Address | Register    | Access | Description |
-|---------|-------------|--------|-------------|
-| 0x000   | PIC_CONFIG  | RW     | Global configuration and control |
-| 0x004   | PIC_ICW1    | WO     | Initialization Command Word 1 |
-| 0x008   | PIC_ICW2    | WO     | Initialization Command Word 2 (vector base) |
-| 0x00C   | PIC_ICW3    | WO     | Initialization Command Word 3 (cascade) |
-| 0x010   | PIC_ICW4    | WO     | Initialization Command Word 4 (modes) |
-| 0x014   | PIC_OCW1    | RW     | Operation Command Word 1 (IMR) |
-| 0x018   | PIC_OCW2    | WO     | Operation Command Word 2 (EOI/priority) |
-| 0x01C   | PIC_OCW3    | WO     | Operation Command Word 3 (special modes) |
-| 0x020   | PIC_IRR     | RO     | Interrupt Request Register |
-| 0x024   | PIC_ISR     | RO     | In-Service Register |
-| 0x028   | PIC_STATUS  | RO     | Status and diagnostics |
-| 0x02C   | PIC_INTA    | RO     | Interrupt acknowledge BY READ (side-effecting) |
+Twelve 32-bit registers at word offsets 0x000-0x02C. The authoritative map,
+field definitions and access rules live in the MAS register chapter:
+[ch05_registers/01_register_map.md](../../docs/pic_8259_mas/ch05_registers/01_register_map.md).
+Note PIC_INTA is side-effecting: reading it acknowledges.
 
 Everything else in the 4 KB window is dropped with PSLVERR.
 

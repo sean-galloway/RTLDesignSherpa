@@ -20,6 +20,10 @@ summary: Documentation practice - external review rounds, voice, and the generat
 - [[checkable-claims]] - every number and duration must be measurable or must
   not be written; the area-estimate and "long-standing" sweeps, and why the
   review rounds could not catch either
+- [[register-map-links]] - a beside-code README links to the MAS register
+  chapter instead of restating the map; the exact `../../docs/...` link form,
+  why a backticked path is invisible to the link checker rather than merely
+  unvalidated, and the two table shapes that correctly stay
 - [[task-premises-rot]] - a parked task's justification is a timestamped claim;
   re-verify its premises before executing it, and re-check what it gates.
   PUMICE-016 sat ACTIVE four weeks on five premises that had all become false

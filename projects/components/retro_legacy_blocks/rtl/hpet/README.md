@@ -250,29 +250,19 @@ apb4_hpet #(
 
 ### Global Registers (0x000-0x0FF)
 
-| Offset | Name | Access | Description |
-|--------|------|--------|-------------|
-| 0x000 | HPET_ID | RO | GCAP_ID[31:0] -- capabilities and identification |
-| 0x004 | HPET_PERIOD | RO | GCAP_ID[63:32] -- counter tick period in femtoseconds |
-| 0x010 | HPET_CONFIG | RW | GEN_CONF -- global configuration |
-| 0x020 | HPET_STATUS | RW/W1C | GINTR_STA -- interrupt status (W1C) |
-| 0x0F0 | HPET_COUNTER_LO | RW | MAIN_CNT low 32 bits |
-| 0x0F4 | HPET_COUNTER_HI | RW | MAIN_CNT high 32 bits |
+The authoritative map, and the per-register bit fields, live in the MAS
+register chapter:
+[ch05_registers/01_register_map.md](../../docs/hpet_mas/ch05_registers/01_register_map.md).
 
 These are the published spec offsets (RLB/hpet TASK-006). Undeclared space in
 between is not decoded and answers with PSLVERR.
 
 ### Timer Registers (0x100-0x1FF)
 
-Each timer occupies 32 bytes (0x20) starting at 0x100:
-
-| Offset | Register | Access | Description |
-|--------|----------|--------|-------------|
-| +0x00 | TIMER_CONFIG | RW | TN_CONF[31:0] -- configuration and control |
-| +0x04 | TIMER_INT_ROUTE_CAP | RO | TN_CONF[63:32] -- legal I/O APIC inputs (reads 0: general routing not implemented; independent of `leg_rt_cap`) |
-| +0x08 | TIMER_COMPARATOR_LO | RW | Comparator low 32 bits |
-| +0x0C | TIMER_COMPARATOR_HI | RW | Comparator high 32 bits |
-| +0x0C | RESERVED | - | Reserved for expansion |
+Each timer occupies 32 bytes (0x20) starting at 0x100. The per-timer register
+layout is in the same MAS chapter, under
+"Per-Timer Register Descriptions". (The table previously here listed `+0x0C`
+twice -- once as TIMER_COMPARATOR_HI and again as RESERVED.)
 
 **Timer Base Addresses**:
 - Timer 0: 0x100-0x11F
@@ -283,62 +273,6 @@ Each timer occupies 32 bytes (0x20) starting at 0x100:
 - Timer 5: 0x1A0-0x1BF (if NUM_TIMERS ≥ 6)
 - Timer 6: 0x1C0-0x1DF (if NUM_TIMERS ≥ 7)
 - Timer 7: 0x1E0-0x1FF (if NUM_TIMERS = 8)
-
-### Register Bit Fields
-
-#### HPET_ID (0x000) - Read Only
-```
-[31:16] VENDOR_ID     - the VENDOR_ID parameter, full 16 bits (hardware-driven)
-[15]    LEG_RT_CAP    - Reads 1: the LegacyReplacement Route IS implemented.
-                        Timer 0 -> legacy_irq0 (IRQ0), timer 1 -> legacy_irq8
-                        (IRQ8), both suppressed on timer_irq while
-                        HPET_CONFIG[1] is set. Drivers GATE on this bit, so a 0
-                        here would mean legacy mode is never used
-[14]    Reserved
-[13]    COUNT_SIZE_CAP - 1 = 64-bit counter capable
-[12:8]  NUM_TIM_CAP   - Number of timers - 1 (hardware-driven)
-[7:0]   REV_ID        - the REVISION_ID parameter (hardware-driven)
-```
-
-**Note**: `NUM_TIM_CAP`, `VENDOR_ID` and `REV_ID` are all **hardware-written**
-from the module parameters, so one generated register block serves every
-instantiation.
-
-#### HPET_CONFIG (0x010) - Read/Write
-```
-[31:2] Reserved
-[1]    LEGACY_REPLACEMENT - Routes timer 0 -> IRQ0 and timer 1 -> IRQ8 and
-                            suppresses both on timer_irq (HPET_ID[15] = 1)
-[0]    HPET_ENABLE        - Enable main counter
-```
-
-#### HPET_STATUS (0x020) - Read/Write (W1C)
-```
-[31:NUM_TIMERS] Reserved
-[NUM_TIMERS-1:0] TIMER_INT_STATUS - Interrupt status (write 1 to clear)
-```
-
-**Semantics**:
-- **Owned by `hpet_core`**: the register is a mirror of the core's
-  `r_interrupt_status`, driven from its live level every cycle. The core
-  holds the sticky state; the register block does not.
-- **W1C, per bit**: writing 1 to bit N clears only timer N. Writing 0 to a
-  bit leaves it alone, and writing 0x00000000 is a complete no-op.
-- **Fire beats clear**: a timer firing in the same cycle as a clear of its
-  own bit wins - a new event is never dropped in favour of a clear that
-  software can simply repeat.
-- **Reset**: reads 0x00000000 out of reset.
-
-#### TIMER_CONFIG (+0x00) - Read/Write
-```
-[31:7] Reserved
-[6]    TIMER_VALUE_SET    - Stored, no hardware effect (unconsumed)
-[5]    TIMER_SIZE         - 0=32-bit, 1=64-bit comparator
-[4]    TIMER_TYPE         - 0=one-shot, 1=periodic
-[3]    TIMER_INT_ENABLE   - Interrupt enable
-[2]    TIMER_ENABLE       - Timer enable
-[1:0]  Reserved
-```
 
 ## Programming Requirements
 

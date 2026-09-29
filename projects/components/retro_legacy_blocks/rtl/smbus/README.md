@@ -485,25 +485,10 @@ acknowledged; a dropped access that is never acknowledged hangs the bus.
 
 ## Register map
 
-| Offset | Register | Type | Notes |
-|--------|----------|------|-------|
-| 0x000 | SMBUS_CONTROL | RW | master/target/PEC enables, fast_mode, fifo_reset, soft_reset |
-| 0x004 | SMBUS_STATUS | RO | busy, errors, FSM state |
-| 0x008 | SMBUS_COMMAND | RW | transaction type, command code, start, stop |
-| 0x00C | SMBUS_SLAVE_ADDR | RW | target address |
-| 0x010 | SMBUS_DATA | RW | single data byte, both directions |
-| 0x014 | SMBUS_TX_FIFO | WO | TX FIFO write port |
-| 0x018 | SMBUS_RX_FIFO | RO | RX FIFO read port |
-| 0x01C | SMBUS_FIFO_STATUS | RO | levels and flags |
-| 0x020 | SMBUS_CLK_DIV | RW | SCL divider |
-| 0x024 | SMBUS_TIMEOUT | RW | SCL-low limit, 0 = disabled |
-| 0x028 | SMBUS_OWN_ADDR | RW | the address this target answers, and its enable |
-| 0x02C | SMBUS_INT_ENABLE | RW | interrupt mask |
-| 0x030 | SMBUS_INT_STATUS | RW1C | sticky interrupt status |
-| 0x034 | SMBUS_PEC | RW | PEC value |
-| 0x038 | SMBUS_BLOCK_COUNT | RW | block length |
-| 0x03C | SMBUS_SLAVE_CTRL | RW | general call, NAK-all, target PEC, stretching |
-| 0x040 | SMBUS_SLAVE_STATUS | RO | direction, stretching, PEC verdict and value |
+Seventeen 32-bit registers at word offsets 0x000-0x040, covering the master,
+the target engine, both FIFOs and PEC. The authoritative map lives in the MAS
+register chapter:
+[ch05_registers/01_register_map.md](../../docs/smbus_mas/ch05_registers/01_register_map.md).
 
 Field detail is not restated here - `../../rdl/smbus/smbus_regs.rdl` is the single
 source of truth, and a second copy is what rots.

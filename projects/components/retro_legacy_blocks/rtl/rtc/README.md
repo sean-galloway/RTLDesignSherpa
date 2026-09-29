@@ -406,21 +406,10 @@ generated output is a live trap.
 
 ## Register map
 
-| Offset | Register | Access | Description |
-|--------|----------|--------|-------------|
-| 0x000  | RTC_CONFIG | RW | enable, hour mode, BCD mode, clock select, time_set_mode |
-| 0x004  | RTC_CONTROL | RW | alarm enable, alarm interrupt enable, second interrupt enable |
-| 0x008  | RTC_STATUS | RW | alarm_flag (W1C), second_tick (W1C), time_valid, pm_indicator, commit_timeout (W1C) |
-| 0x00C  | RTC_SECONDS | RW | seconds (0-59 / 0x00-0x59) |
-| 0x010  | RTC_MINUTES | RW | minutes (0-59 / 0x00-0x59) |
-| 0x014  | RTC_HOURS | RW | hours; bit 7 = PM in 12-hour mode |
-| 0x018  | RTC_DAY | RW | day of month |
-| 0x01C  | RTC_MONTH | RW | month |
-| 0x020  | RTC_YEAR | RW | year, base 2000 |
-| 0x024  | RTC_ALARM_SEC | RW | alarm seconds |
-| 0x028  | RTC_ALARM_MIN | RW | alarm minutes |
-| 0x02C  | RTC_ALARM_HOUR | RW | alarm hours |
-| 0x030  | RTC_ALARM_MASK | RW | per-field alarm compare enables |
+Thirteen 32-bit registers at word offsets 0x000-0x030. The authoritative map,
+including the W1C status bits and the alarm compare masks, lives in the MAS
+register chapter:
+[ch05_registers/01_register_map.md](../../docs/rtc_mas/ch05_registers/01_register_map.md).
 
 Field detail lives in `../../rdl/rtc/rtc_regs.rdl`, which is the source both the
 RTL and `rtc_regmap.py` are generated from.

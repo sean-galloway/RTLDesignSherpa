@@ -44,7 +44,10 @@ the next session reads. This note is the authority on where each kind goes.
    guide moved to `docs/markdown/rtl-common/quickstart.md` and the README shrank
    to a pointer -- and then the pointers went too. Outside `rtl/`, in project
    areas, a README is still allowed and still must be a link rather than a
-   second copy; the template below is for those.
+   second copy; the template below is for those. For the case that produces the
+   most drift in practice -- a register map restated beside the code -- the
+   method, the exact link form and the two shapes that correctly keep their
+   table are in [[register-map-links]].
 
 3. **One source per fact.** The same count, spec, or port list must not be
    stated in two files. A structural change updates one and forgets the other -

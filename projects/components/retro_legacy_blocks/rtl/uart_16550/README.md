@@ -242,19 +242,12 @@ The five 16550 features this block used to leave out are implemented:
 
 ## Register Map
 
-| Offset | Register | Access | Description |
-|--------|----------|--------|-------------|
-| 0x00 | UART_DATA | R / W | Read = RBR (received byte, pops RX FIFO). Write = THR (write-only, no readback) |
-| 0x04 | UART_IER | RW | Interrupt Enable (RX data, THR empty, line status, modem) |
-| 0x08 | UART_IIR | RO | Interrupt Identification. Reading clears the THR-empty interrupt when THR empty is the reported source |
-| 0x0C | UART_FCR | RW | FIFO Control (enable, resets, RX trigger level) |
-| 0x10 | UART_LCR | RW | Line Control (word length, stop bits, parity, break, DLAB) |
-| 0x14 | UART_MCR | RW | Modem Control (DTR, RTS, OUT1, OUT2, loopback, AFE) |
-| 0x18 | UART_LSR | RO, read-clear | Line Status. Bits [4:1] (OE, PE, FE, BI) clear on read |
-| 0x1C | UART_MSR | RO, read-clear | Modem Status. Bits [3:0] (the deltas) clear on read |
-| 0x20 | UART_SCR | RW | Scratch Register |
-| 0x24 | UART_DLL | RW | Divisor Latch Low |
-| 0x28 | UART_DLM | RW | Divisor Latch High |
+Eleven 32-bit registers at offsets 0x00-0x28. The authoritative map lives in
+the MAS register chapter:
+[ch05_registers/01_register_map.md](../../docs/uart_16550_mas/ch05_registers/01_register_map.md).
+It names the registers by their 16550 spec names (RBR/THR, IER, IIR, ...) where
+the RDL and this README use the `UART_`-prefixed form; the offsets are the
+same.
 
 
 `UART_DATA[15:8]` is a read-only alias of the received byte; see the RBR/THR

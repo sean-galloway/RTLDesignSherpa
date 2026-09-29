@@ -136,15 +136,9 @@ apb4_pit_8254.sv         → APB wrapper, CDC select
 
 ## Register Map
 
-| Address | Register        | Access | Description                           |
-|---------|-----------------|--------|---------------------------------------|
-| 0x000   | PIT_CONFIG      | RW     | Global config (enable, clock select)  |
-| 0x004   | PIT_CONTROL     | WO     | Control word (8254-compatible)        |
-| 0x008   | PIT_STATUS      | RO     | Read-back status (3×8-bit)            |
-| 0x00C   | RESERVED        | RO     | Reserved                              |
-| 0x010   | COUNTER0_DATA   | RW     | Counter 0 value (16-bit)              |
-| 0x014   | COUNTER1_DATA   | RW     | Counter 1 value (16-bit)              |
-| 0x018   | COUNTER2_DATA   | RW     | Counter 2 value (16-bit)              |
+Seven 32-bit registers at word offsets 0x000-0x018. The authoritative map
+lives in the MAS register chapter:
+[ch05_registers/01_register_map.md](../../docs/pit_8254_mas/ch05_registers/01_register_map.md).
 
 Nothing else in the 4 KB window is decoded. Any other address is dropped -
 write ignored, read returns zero - and answers with PSLVERR.
