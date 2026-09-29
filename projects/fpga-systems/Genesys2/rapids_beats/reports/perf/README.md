@@ -1,5 +1,16 @@
 # RAPIDS Beats DMA — Performance Characterization (Genesys 2, 8 channels)
 
+> **v2.1 (2026-09-29).** Section 7.5c added: the latency sweep in 8-cycle steps
+> on the 4 KB build and on a 16 KB-per-channel variant of the same 256-bit
+> design (512 beats; `RAPIDS_SRAM_DEPTH=512`, WNS +0.651 ns). Sean's point,
+> measured: at 8 channels the deeper buffer moves the sink knee out (85.9 %
+> vs 55.2 % at 128 cycles) because the generator can run ahead into the next
+> channels' buffers while the current one drains; at one channel the two
+> buffers coincide to the decimal, since there is no next channel to run into
+> and the window is the outstanding cap. v2.0's 7.5 text said the buffer was
+> not in the knee; that was wrong for the 8-channel sequential rows and is
+> corrected below. The design point stays 4 KB.
+>
 > **v2.0 (2026-09-29).** New design point. Sean: AXI4 read/write engines at
 > **256 bits**, the AXIS links halved to 256 with them (RAPIDS has one
 > `DATA_WIDTH` for both), and **4 KB of SRAM per channel** (128 beats x 32 B;
@@ -518,10 +529,8 @@ i.e. six to seven 9-beat bursts of the eight `AR_MAX_OUTSTANDING` allows (v1.3
 measured ~20 per channel at PIPELINE = 0). The SINK write path holds 99.9 % to
 48 cycles, knees at 64 (90.0 %) and then falls as `0.683 x 96 = 66`,
 `0.552 x 128 = 71`, `0.299 x 256 = 77`, `0.156 x 512 = 80` -- an asymptote of
-**~80 beats in flight** (the 512-bit build with 16 KB buffers measured ~93: the
-outstanding cap is the same eight 8-beat AWs, and the difference is how many
-beats the smaller buffer can stage in their W phase). That is ONE channel's
-window, not eight: in the
+**~80 beats in flight** (the 512-bit build with 16 KB buffers measured ~93).
+That is mostly ONE channel's window: in the
 sequential schedule the harness's AXIS generator streams channels one at a time
 (finish one channel, then the next), so only one sink channel ever holds data,
 and the write engine's whole `AW_MAX_OUTSTANDING = 8` window (8 x 8 = 64 beats,
@@ -543,6 +552,54 @@ window on the same knobs is ~128 beats per channel (8 outstanding x 16-beat
 bursts) and its knee sits at 96-112 cycles. Wider bursts are the lever on the
 write side and section 7.7 measures exactly how far it reaches; on the read
 side the per-channel SRAM is the bound, and at 4 KB it binds early.
+
+### 7.5c Buffer depth in the sequential knee (8-cycle steps, 4 KB vs 16 KB)
+
+The sequential sink rows are not purely one channel's window: the buffer is in
+them too. The generator hands a channel its 1024 beats and moves to the next;
+with 16 KB per channel (512 beats at this width) it can run ahead into the next
+channels' buffers while the current one drains, so several channels hold data
+and issue AWs at once, and with 4 KB (128 beats) it fills one channel and
+waits for it. The same 256-bit design was built with `RAPIDS_SRAM_DEPTH=512`
+(16 KB, post-route WNS +0.651 ns) and swept in 8-cycle steps against the 4 KB
+build, 1024 beats per channel, 8-beat bursts:
+
+| delay (cyc) | 8 ch AXI4-wr, 4 KB / 16 KB | 8 ch AXI4-rd, 4 KB / 16 KB | 1 ch AXI4-wr, 4 KB / 16 KB | 1 ch AXI4-rd, 4 KB / 16 KB |
+|---:|---|---|---|---|
+| 0 | 99.9 / 99.9 | 99.8 / 99.8 | 99.4 / 99.4 | 98.7 / 98.7 |
+| 8 | 99.9 / 99.9 | 99.7 / 99.7 | 99.4 / 99.4 | 98.0 / 98.0 |
+| 16 | 99.9 / 99.9 | 99.6 / 99.6 | 99.4 / 99.4 | 97.2 / 97.2 |
+| 24 | 99.9 / 99.9 | 99.6 / 99.6 | 99.4 / 99.4 | 96.5 / 96.5 |
+| 32 | 99.9 / 99.9 | 99.5 / 99.5 | 99.4 / 99.4 | 95.8 / 95.8 |
+| 40 | 99.9 / 99.9 | 99.4 / 99.4 | 99.4 / 99.4 | 95.1 / 95.1 |
+| 48 | 99.9 / 99.9 | 99.3 / 99.3 | 99.4 / 99.4 | 94.4 / 94.4 |
+| 56 | 97.8 / 98.4 | 99.2 / 99.2 | 96.8 / 96.8 | 93.7 / 93.7 |
+| 64 | 90.0 / 95.9 | 99.1 / 99.1 | 87.5 / 87.5 | 85.4 / 85.4 |
+| 72 | 83.4 / 94.9 | 99.0 / 99.0 | 79.9 / 79.9 | 77.6 / 77.6 |
+| 80 | 77.7 / 94.3 | 98.9 / 98.9 | 73.5 / 73.5 | 71.2 / 71.2 |
+| 88 | 72.6 / 93.5 | 98.8 / 98.8 | 68.0 / 68.0 | 65.7 / 65.7 |
+| 96 | 68.3 / 92.7 | 98.7 / 98.7 | 63.3 / 63.3 | 61.0 / 61.0 |
+| 112 | 61.3 / 89.8 | 98.5 / 98.5 | 55.6 / 55.6 | 53.4 / 53.4 |
+| 128 | 55.2 / 85.9 | 98.3 / 98.3 | 49.6 / 49.6 | 47.4 / 47.4 |
+| 160 | 45.6 / 70.9 | 97.9 / 97.9 | 40.7 / 40.7 | 38.8 / 38.8 |
+
+: Table 7.5c -- fine-step latency sweep, 4 KB (128-beat) vs 16 KB (512-beat) buffers, 256-bit build, sequential schedule (`genesys_dw256_fine_{4kb,16kb}_{8ch,1ch}.json`, 64/64 CRC-verified)
+
+Three readings. At **one channel the two buffers coincide to the decimal** on
+both paths: there is no next channel to run ahead into, so the window is the
+outstanding cap (eight 8-beat AWs, eight 9-beat ARs) and the knee sits between
+56 and 64 cycles whatever the buffer. At **8 channels the sink knee moves with
+the buffer**: the 16 KB build holds 95.9 % at 64 cycles and 85.9 % at 128
+where the 4 KB build reads 90.0 % and 55.2 %, because the deeper buffer lets
+the generator arm the next channels while the current one drains -- more AWs
+in flight, from more channels. In beats, at 128 cycles: 128-beat buffers
+55.2 %, 256-beat (the v1.5 512-bit build) 63.7 %, 512-beat 85.9 %. The **read
+side is identical on both buffers at 8 channels** (every channel's reads run
+ahead by their own eight ARs regardless of buffer, and 72 beats per channel is
+under either depth), which is the same statement as 7.7: the buffer bounds
+reads only once outstanding x burst exceeds it. And the 8-cycle steps show the
+sink knee itself sits between 48 and 56 cycles on both buffers -- the depth
+changes how fast the curve falls past the knee, not where it starts.
 
 Two notes from the instruments themselves. First, the latency columns are
 histogram means over log2 bins (bin b holds [2^b, 2^(b+1)), reported at its
@@ -625,6 +682,7 @@ it is fixed the register limit is `WR_XFER_BEATS + 1 < SRAM_DEPTH`.
 | `perf/json/genesys_dw256_full_matrix.json` | v2.0 channel x size matrix, 256-bit / 4 KB-per-channel build (bare meters); every file of this build carries a `design` record read from the bitstream |
 | `perf/json/genesys_dw256_obs_{A,B,C,E}.json`, `genesys_dw256_obs_E_interleave.json` | v2.0 observer campaign on that build: descriptors x channels, burst length, size x channels, latency (both schedules) |
 | `perf/json/genesys_dw256_one_channel_xfer_latency.json`, `genesys_one_channel_xfer_latency.json` | section 7.7: one channel, burst x latency, on the 256-bit and the 512-bit build |
+| `perf/json/genesys_dw256_fine_{4kb,16kb}_{8ch,1ch}.json` | section 7.5c: 8-cycle-step latency sweep, 4 KB build and the 16 KB (`RAPIDS_SRAM_DEPTH=512`) variant, 8 and 1 channels |
 | `perf/json/genesys_obs_{A,B,C,E}.json` | v1.2-v1.4 observer campaign, 512-bit build: descriptors x channels, burst length, size x channels, latency |
 | `perf/json/genesys_obs_E_interleave.json` | v1.5 latency sweep with the interleaved channel schedule (`--interleave`, Table 7.5b) |
 | `perf/json/genesys_full_matrix.json` | channel × size matrix (v1.4, bare meters, PIPELINE = 1) |
@@ -646,7 +704,7 @@ python3 projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/host/plot
     --outdir projects/fpga-systems/Genesys2/rapids_beats/reports/perf/plots
 
 # this report (DOCX + PDF, house style):
-cd projects/fpga-systems/Genesys2/rapids_beats/reports && ./generate_reports_pdf.sh --rev 2.0
+cd projects/fpga-systems/Genesys2/rapids_beats/reports && ./generate_reports_pdf.sh --rev 2.1
 
 # v2.0 (256-bit / 4 KB-per-channel design point: the Makefile's DATA_WIDTH / SRAM_DEPTH defaults):
 #   make bitstream BOARD=genesys2 USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0 && make program BOARD=genesys2
