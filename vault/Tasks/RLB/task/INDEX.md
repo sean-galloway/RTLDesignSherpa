@@ -12,15 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 18 | done (kept for history) |
+| [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-019** — the RLB follow-up batch: three DV coverage gaps (per-IR-line at FULL tier only; a set fabric bit proves the line not the sub-source; four-or-more coincident sources) and two documentation inconsistencies (no RLB block has generated markdown checked; eleven beside-code READMEs are standalone guides). From TASK-016 and TASK-018.
+
 
 ## Closed
 
@@ -42,3 +42,4 @@ by construction rather than by discipline.
 - **TASK-017** — an interrupt-line BFM (`TBClasses.irq`) and per-block routing coverage for the rlb_top fabric; all six blocks proven to their PIC input and their IOAPIC pin (vectors 0x40/0x44/0x48/0x49/0x4A/0x4B), plus a coincident-assert case, closed 2026-09-28.
 - **TASK-016** — RLB placement pass: the 7 loose markdown files rehomed (status/roadmap/audit to this lane, two reader-facing pages to `docs/`), the Makefile README slimmed to a pointer at `make help`, and a generated pm_acpi orphan deleted; closed 2026-09-28.
 - **TASK-018** — per-IR-line PIC assertions: each of the six blocks proven to its OWN IR line (`w_fabric_irq[irq]` plus an exact master set including the cascade bit), and three coincident sources spanning both PICs (UART on master IR4 with GPIO+PM under the cascade); closed 2026-09-28.
+- **TASK-019** — the RLB follow-up batch, all five resolved: the per-IR-line check promoted to `func` (0 -> 1 logged line); a source/line cross-check so the source-name and per-IR-line halves cannot pass while disagreeing; a four-coincident test spanning both PICs (`fabric [4,9,10,11]`, `master [2,4]`); 8 MB of committed generated docs deleted and RLB's divergence recorded as deliberate; and all eleven beside-code READMEs justified in place rather than converted. Closed 2026-09-29.

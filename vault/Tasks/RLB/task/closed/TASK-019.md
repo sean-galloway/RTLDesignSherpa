@@ -1,8 +1,9 @@
 # TASK-019: the RLB follow-up batch -- three DV coverage gaps and two documentation inconsistencies
 
 **Priority:** P3
-**Status:** OPEN
-**Owner:** unassigned
+**Status:** CLOSED 2026-09-29 -- all five items resolved; see each item's
+outcome, including what item 5 deliberately did NOT change.
+**Owner:** done
 **Filed:** 2026-09-29 at the owner's direction ("file the batch into 19"). These
 five were RECORDED in closed tasks but never filed, so nothing tracked them.
 Sources: TASK-018's "Deliberately not claimed" list (items 1-3) and TASK-016's
@@ -204,8 +205,8 @@ they are the only copy, and two (`apbx_xbar`, `hpet/filelists`) stay under rule
       generated artifact that nothing compares -- recreating the orphan closed
       TASK-016 deleted. The tracked copy had already drifted 224 lines and been
       hand-edited by a tracker-id sweep, which is that failure in progress.
-- [ ] item 5: each of the eleven READMEs is a pointer, or is justified under
-      rule 1 as directory mechanics
+- [x] **item 5 DONE 2026-09-29 -- all eleven JUSTIFIED, none converted**, at the
+      owner's direction (Option B). See the item 5 outcome below.
 - [x] **DONE 2026-09-29 for items 1-3.** `rlb_top` full from `clean-all`:
       **16/16 with 8 per-IR-line lines** (was 15/15 with 7); `func` **7/7 with 1**
       (was 5/5 with 0); `gate` 1/1. Area sign-off `run-all-full-parallel`:
@@ -216,3 +217,54 @@ they are the only copy, and two (`apbx_xbar`, `hpet/filelists`) stay under rule
 ## Dependencies
 
 RLB TASK-016 and TASK-018 -- both CLOSED; this is their unfiled remainder.
+
+## Item 5 outcome (2026-09-29): all eleven justified, none converted
+
+**Decision: Option B**, chosen by the owner. Every beside-code README is kept as
+it stands, with a recorded reason. Nothing was converted to a pointer.
+
+**Why this is a legitimate completion, not a dodge.** The criterion was "each of
+the eleven READMEs is a pointer, OR is justified under rule 1 as directory
+mechanics". [[doc-placement]] rule 2 forbids a README anywhere under the
+top-level `rtl/` tree, but its next sentence explicitly permits one in a PROJECT
+area provided it is a link rather than a second copy. These are in a project
+area, so the question was only ever the second clause.
+
+**Evidence, and its varying strength -- stated so nobody re-derives from a
+weaker basis than they think:**
+
+| README | Verdict | Evidence |
+|---|---|---|
+| `rtl/gpio/` | keep | **read in full.** Already defers: "The authoritative map ... live in the MAS register chapter". Remainder is Xilinx `IOBUF` / Quartus `altbidir` integration examples, file structure, dependencies, plus a fact the book lacks (the APB port is fixed by localparams, not parameters) |
+| `rtl/ioapic/` | keep | defers to `docs/ioapic_mas/`; headings are design rationale ("LowestPriority is delegated, and that is not a dodge") |
+| `rtl/hpet/` | keep | structural read: Programming Requirements ("four rules the hardware does not enforce"), Design Decisions, Known Limitations, Version History citing RLB/hpet TASK-003 -- original design record |
+| `rtl/pit_8254/` | keep | structural read: "Stated deviations from the 8254 -- modes 1-5 do not exist" is design record |
+| `rtl/smbus/` | keep | headings: open-drain contract, bit timing, clock stretching, timeout, bus recovery, PEC, FIFO contract, against a FIVE-page book |
+| `rtl/rtc/` | keep | 468 lines against a 6-page book |
+| `rtl/pic_8259/` | keep | 395 lines against a 5-page book |
+| `rtl/pm_acpi/` | keep | 344 lines against a 5-page book |
+| `rtl/uart_16550/` | keep | headings are GitHub #60 behavioural traps ("RBR and THR are different registers at the same offset") |
+| `rtl/apbx_xbar/` | keep | **no MAS book exists** -- there is nothing to point at |
+| `rtl/hpet/filelists/` | keep | a FILELISTS directory README: rule 1 tool mechanics |
+
+Only `gpio` was read end to end; `hpet` and `pit_8254` were read structurally;
+the rest rest on section headings plus a concrete deferral scan (only 2 of 11
+currently reference their MAS book).
+
+**Residual, recorded rather than buried.** `pit_8254` carries a Register Map
+table and a Counter Modes table, and `hpet` a Register Map section, which ARE
+duplication of their books and remain unconverted under Option B. The clean fix
+is not "convert the README" but "replace that one table with a pointer", exactly
+as `gpio` already does -- a per-section edit across nine files, which is a
+materially larger job than this item was scoped for. File it separately if it
+is wanted.
+
+**A measurement used while deciding this was INVALID and its numbers must not be
+reused.** An attempt to score duplication by counting UPPER_CASE identifier
+overlap between each README and its book put `smbus` at 88% -- the highest of
+six -- and labelled it a duplicate. `smbus` is the clearest only-copy case in
+the set. The method measured REGISTER-NAME overlap, and any book with a register
+map scores high regardless of whether the README's prose is duplicated. It was
+caught only because `smbus` had been designated a control in advance. Three
+successive proxies (page counts, keyword counts, identifier overlap) each
+pointed the wrong way; reading one file reversed the conclusion completely.
