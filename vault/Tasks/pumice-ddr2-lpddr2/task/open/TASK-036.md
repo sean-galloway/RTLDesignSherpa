@@ -169,3 +169,84 @@ board sweep in [[TASK-034]] inherited the same blindness.
 Steps 1 and 2 are independent and both are small. Neither was done here, and the
 task stays open because of it -- but it is now open on a specific, measured
 question rather than on a hypothesis.
+
+---
+
+## PHY campaign 2026-09-29 -- the model IS conservative, measured at the right layer
+
+The ILA campaign above ended at the DFI boundary, which is post-capture and
+therefore cannot answer a DQ-contention question. Built a second ILA that adds
+the PHY's tristate controls (`fpga/tcl/build_ila_phy.tcl`, 22 probes, WNS 0.006):
+
+    probe13  u_a7ddrphy/a7ddrphy_dq_oe_delay_tappeddelayline_tappeddelayline
+    probe16  u_a7ddrphy/a7ddrphy_dqs_oe_delay_tappeddelayline_tappeddelayline
+
+`dq_oe` is the DQ tristate control -- it is asserted exactly when the FPGA is
+DRIVING the wires. Marked on the SYNTHESIZED NETLIST rather than in the RTL,
+because `a7ddrphy_generated.v` is generated and a hand-edit would vanish at the
+next regen.
+
+### The measurement, at tRTW = 3
+
+| capture | dq_oe | rddata_en | rddata_valid | COINCIDENT | closest separation |
+|---|---:|---:|---:|---:|---:|
+| PHY, tRTW=3 | 1120 | 818 | 810 | **0** | **28 cycles** |
+
+**The FPGA never drives DQ while a read is in its data window, and stays 28
+cycles clear of it -- at a tRTW of 3.**
+
+### The instrument is proven, which is what makes the silence mean something
+
+A trigger that cannot fire proves nothing, so each probe was armed alone first:
+
+    mode=dqonly   -> FIRED        (CSV in ~2 s)
+    mode=rdonly   -> FIRED        (CSV in ~2 s)
+    mode=contend  -> never fired  (no capture in 180 s)
+
+Both probes demonstrably work; only their conjunction is silent. The `rdonly`
+capture is the decisive one because it contains BOTH signals in one window --
+1120 dq_oe samples and 818 rddata_en samples, zero coincident.
+
+### What this settles
+
+**Question 2 is answered: the model is conservative, and now by how much.**
+`rd_window_mc = phy_rd_dq_busy + 1 - t_phy_wrlat` = 14 models the write waiting
+out the read's DQ occupancy. The PHY already separates them by 28 cycles at
+tRTW=3, so that term is guarding against contention the datapath structurally
+prevents. On this design tRTW is a COMMAND-SCHEDULING knob -- which is why it
+moves bandwidth in the sparse regime -- not a DQ-collision guard.
+
+**It also explains the DFI-boundary result** rather than contradicting it. The
+overlap seen there at tRTW=3 was real but harmless because `dfi_rddata_valid` is
+asserted after the PHY has captured off DQ; the wires were free 28 cycles
+earlier. Two layers, two different events, and only one of them is contention.
+
+### What is still NOT established, and it is the same gap as before
+
+1. **One traffic pattern.** 1+1 concurrent, gap 0, `banks` placement. The 28
+   cycles is what THAT pattern produces. A different interleave could close it.
+2. **The historical interleave is still not reproduced.** `placement='same_bank'`
+   was the obvious lever and is not one: it produces bandwidth identical to
+   `banks` to within 0.1 MB/s at every tRTW and gap. Nor is generator count --
+   4+4 gives 275 MB/s against 1+1's 285, LOWER, and both tRTW-invariant. So the
+   dense RD/WR mixing in `ila_pumice037_wrdata_into_read.csv` (96 write bursts
+   among 152 read returns, against 2 and 2 here) came from a configuration this
+   campaign has not identified.
+3. Concurrent read+write is bounded at ~47% of peak by the controller, not by
+   the stimulus -- which is why tRTW is irrelevant at gap 0 and dominant at
+   gap 14.
+
+### Recommendation
+
+The evidence is now strong enough to justify lowering tRTW **as a measured
+change with board validation**, not as a config edit: the contention the floor
+guards against does not occur, with 28 cycles of margin, on a proven instrument.
+It is NOT strong enough to lower it blind, because point 2 means the worst-case
+interleave has not been exercised.
+
+Concrete next step, and it is small: find what produces the historical
+interleave (start with the `*_batching` and `*_interleave` captures already in
+`reports/`, which have the shape), reproduce it, confirm the 28-cycle margin
+under it, and only then reduce `rtw_guard`.
+
+Board restored: production bitstream, tRTW = 20, leveling re-verified.

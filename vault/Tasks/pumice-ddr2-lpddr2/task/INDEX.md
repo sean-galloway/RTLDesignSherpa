@@ -34,9 +34,13 @@ exactly one state by construction rather than by discipline.
   write data DOES still overlap the read return at tRTW=3 (overlap-armed trigger
   fires) -- it simply does not corrupt, because `w_dfi_rddata_valid` is a
   POST-CAPTURE DFI-boundary signal and the DFI boundary is one layer too high to
-  answer a DQ-contention question. Next: probe the PHY DQ/DQS drive enables, and
-  build the fine-grained interleaving stimulus the historical capture shows (96
-  write bursts vs this campaign's 2)
+  answer a DQ-contention question. PHY campaign then measured the right layer:
+  at tRTW=3 the FPGA's DQ drive NEVER coincides with the read window and stays
+  **28 cycles clear** (instrument proven -- each probe fires alone, only the
+  conjunction is silent). So the model IS conservative and tRTW is a scheduling
+  knob, not a collision guard. Still open: the historical fine-grained interleave
+  is not reproduced (`same_bank` and 4+4 generators both fail to produce it), so
+  the worst case is unexercised
 
 ## Deferred
 
