@@ -80,16 +80,26 @@ async def cocotb_test_rlb_top_smoke(dut):
         ('Unmapped address errors instead of hanging',
          tests.test_unmapped_address_errors),
         ('Aggregated interrupt output', tests.test_aggregated_irq_output),
-    ]
-    full_methods = [
-        ('Boot interrupt reaches the 8259',
-         tests.test_boot_interrupt_reaches_the_pic),
-        # RLB TASK-015. The routing test must run BEFORE the vector test --
-        # the latter acknowledges the interrupt the former raises.
+        # RLB TASK-019 item 1: the per-IR-line check is reached only from the
+        # fabric tests, which were all in full_methods, so gate and func logged
+        # zero `per-IR-line OK` lines by construction. Measured, the whole
+        # 15-method full list runs in 6.15s -- the tiering was not buying
+        # anything, so one representative block moves down to func.
+        #
+        # The PAIR moves together. The vector test has no preamble: it requires
+        # the interrupt the routing test raised to still be pending. The real
+        # constraint is NOT "routing runs before vector" but "nothing RESETS
+        # between them" -- splitting them across tiers put the boot-interrupt
+        # test (which calls reset_and_init_pic) in the gap and failed the
+        # precondition. Keep them adjacent.
         ('Fabric routes GPIO to the 8259',
          tests.test_fabric_routes_gpio_to_the_pic),
         ('GPIO acknowledges as a slave vector',
          tests.test_fabric_gpio_returns_the_slave_vector),
+    ]
+    full_methods = [
+        ('Boot interrupt reaches the 8259',
+         tests.test_boot_interrupt_reaches_the_pic),
         ('Fabric routes PM/ACPI to the 8259',
          tests.test_fabric_routes_pm_acpi_to_the_pic),
         ('Fabric routes UART to the 8259',
@@ -107,6 +117,10 @@ async def cocotb_test_rlb_top_smoke(dut):
         # path was never exercised under coincidence.
         ('Three coincident asserts (UART master + GPIO/PM slave)',
          tests.test_fabric_handles_three_coincident_asserts),
+        # RLB TASK-019 item 3: four sources, including the two SLOW ones that
+        # had never been in a coincident set (SMBus ~1500 pclk, PIT ~400).
+        ('Four coincident asserts (UART master + SMBus/PM/GPIO slave)',
+         tests.test_fabric_handles_four_coincident_asserts),
     ]
 
     if test_level == 'gate':

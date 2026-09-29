@@ -38,7 +38,8 @@ import sys
 # and no repo root on the path.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ir_lines import CASCADE_IR, ir_lines_verdict, master_expectation
+from ir_lines import (CASCADE_IR, FABRIC_SOURCE_IRQ, ir_lines_verdict,
+                      master_expectation, source_irq_consistent)
 
 
 # --- the cascade rule, stated directly -------------------------------------
@@ -145,3 +146,36 @@ def test_accepts_any_iterable_not_just_sets():
 
 def test_duplicate_expected_irqs_are_harmless():
     assert ir_lines_verdict({11}, {2}, [11, 11]) == (True, None)
+
+
+# --- the source/line cross-check (TASK-019 item 2) -------------------------
+def test_each_known_source_matches_its_line():
+    for src, irq in FABRIC_SOURCE_IRQ.items():
+        assert source_irq_consistent(src, irq) == (True, None), src
+
+
+def test_a_source_asserted_against_the_wrong_line_fails():
+    # The exact hole: gpio_irq named, but fabric line 9 asserted. Each half of
+    # the verdict passes on its own; together they must not.
+    ok, reason = source_irq_consistent('gpio_irq', 9)
+    assert ok is False
+    assert 'drives fabric line 11' in reason
+
+
+def test_unknown_source_fails_rather_than_skipping():
+    ok, reason = source_irq_consistent('not_a_real_irq', 4)
+    assert ok is False
+    assert 'not in FABRIC_SOURCE_IRQ' in reason
+
+
+def test_or_ed_lines_accept_every_sub_source():
+    # Bit 0 and bit 8 are ORs; each contributor must map to the same line.
+    assert source_irq_consistent('pit_timer_irq', 0)[0] is True
+    assert source_irq_consistent('hpet_legacy_irq0', 0)[0] is True
+    for s in ('rtc_alarm_irq', 'rtc_second_irq', 'hpet_legacy_irq8'):
+        assert source_irq_consistent(s, 8)[0] is True
+
+
+def test_map_covers_every_line_the_fabric_drives():
+    # rlb_top.sv drives exactly these six lines.
+    assert set(FABRIC_SOURCE_IRQ.values()) == {0, 4, 8, 9, 10, 11}

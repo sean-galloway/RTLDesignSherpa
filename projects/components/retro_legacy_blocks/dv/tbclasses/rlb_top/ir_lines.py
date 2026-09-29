@@ -30,6 +30,48 @@ while asserting nothing.
 CASCADE_IR = 2
 
 
+# Which fabric IRQ line each SOURCE signal drives, from rlb_top.sv's
+# w_fabric_irq assignment block. Several lines are ORs of more than one source,
+# which is exactly why a set bit proves the LINE and not the sub-source:
+#   w_fabric_irq[IRQ_TIMER] = pit_timer_irq[0] | hpet_legacy_irq0
+#   w_fabric_irq[IRQ_RTC]   = rtc_alarm_irq | rtc_second_irq | hpet_legacy_irq8
+FABRIC_SOURCE_IRQ = {
+    'pit_timer_irq':    0,
+    'hpet_legacy_irq0': 0,
+    'uart_irq':         4,
+    'rtc_alarm_irq':    8,
+    'rtc_second_irq':   8,
+    'hpet_legacy_irq8': 8,
+    'pm_interrupt':     9,
+    'smb_interrupt':   10,
+    'gpio_irq':        11,
+}
+
+
+def source_irq_consistent(source, irq):
+    """-> (ok, reason). Does this SOURCE actually drive this fabric LINE?
+
+    RLB TASK-019 item 2. `_routing_verdict` checks two things independently: the
+    BFM's `expect_only()` on source NAMES, and `_ir_lines_ok` on fabric BITS.
+    Both can pass while disagreeing with each other -- a test naming `gpio_irq`
+    but asserting fabric bit 9 satisfies each half separately. This ties them
+    together, so a mis-declared test fails instead of passing vacuously.
+
+    An unknown source is an ERROR, not a skip: silently passing a name that is
+    not in the map is how the check would rot the next time a source is added.
+    """
+    if source not in FABRIC_SOURCE_IRQ:
+        return False, (f"source {source!r} is not in FABRIC_SOURCE_IRQ -- add it "
+                       "with the fabric line it drives, or the cross-check "
+                       "silently stops covering it")
+    want = FABRIC_SOURCE_IRQ[source]
+    if want != irq:
+        return False, (f"source {source!r} drives fabric line {want}, but this "
+                       f"test asserted line {irq} -- the source-name check and "
+                       "the per-IR-line check would each pass while disagreeing")
+    return True, None
+
+
 def master_expectation(expected_irqs):
     """The master 8259's expected IR set for these fabric IRQs.
 

@@ -60,6 +60,7 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb i
 # without a simulator -- see rlb_top/tests/test_ir_lines.py.
 from projects.components.retro_legacy_blocks.dv.tbclasses.rlb_top.ir_lines import (
     ir_lines_verdict,
+    source_irq_consistent,
 )
 
 
@@ -336,6 +337,16 @@ class RLBTopTests:
             self.log.error("  IRQ2 violated: master IR2 != slave INT, so "
                            "something other than the cascade drove pin 2")
             return False
+        # RLB TASK-019 item 2: tie the two halves together. The source-name
+        # check above and the per-IR-line check below can BOTH pass while
+        # disagreeing with each other, so assert this source really drives this
+        # line before trusting either.
+        if ioapic_irq is not None:
+            ok, reason = source_irq_consistent(source, ioapic_irq)
+            if not ok:
+                self.log.error(f"  {reason}")
+                return False
+
         # RLB TASK-018: the block's OWN IR line, not just the aggregate.
         # ioapic_irq is the block's IRQ number, already passed by all six.
         if ioapic_irq is not None and not self._ir_lines_ok([ioapic_irq]):
@@ -558,6 +569,140 @@ class RLBTopTests:
             return True
         except Exception as e:
             self.log.error(f"SMBus fabric routing test failed: {e}")
+            return False
+
+    async def test_fabric_handles_four_coincident_asserts(self) -> bool:
+        """FOUR sources coincident, including the two SLOW ones.
+
+        RLB TASK-019 item 3. TASK-018 proved three, all of them fast: UART is
+        register-programmed and GPIO/PM are level inputs. SMBus (~1500 pclk to
+        its NAK error) and PIT (~400 pclk to terminal count) had never been in a
+        coincident set at all, because arranging overlap around a slow source is
+        harder than around a level pin.
+
+        SMBus (IRQ10) is started FIRST precisely because it is the slowest: its
+        error interrupt has to work its way through a whole quick-command
+        transaction. UART (IRQ4, MASTER side) is armed next and holds, then
+        GPIO (IRQ11) and PM/ACPI (IRQ9) arrive as level inputs at random offsets.
+
+        Expected: fabric [4, 9, 10, 11] and master [2, 4] -- UART direct on its
+        own IR line, and ONE cascade bit standing for all three slave-side
+        sources ORed together.
+        """
+        self.log.info("=== smoke: four coincident asserts "
+                      "(UART master + SMBus/PM/GPIO slave) ===")
+        try:
+            if not await self._fabric_preamble():
+                return False
+            for irq in (4, 10, 9, 11):
+                await self.tb.arm_ioapic_for_fabric(irq)
+
+            # SMBus FIRST -- the slowest source. An absent slave NAKs the quick
+            # command, which sets the sticky error and raises smb_interrupt.
+            W = self.tb.SLAVE_SMBUS
+            await self.tb.apb_write(self.tb.window_addr(W, 0x020), 6)
+            await self.tb.apb_write(self.tb.window_addr(W, 0x030), 0xFF)
+            await self.tb.apb_write(self.tb.window_addr(W, 0x02C), 1 << 1)
+            await self.tb.apb_write(self.tb.window_addr(W, 0x000), 1 << 0)
+            await self.tb.wait_clocks('pclk', 10)
+            await self.tb.apb_write(self.tb.window_addr(W, 0x00C), 0x50)
+            await self.tb.apb_write(self.tb.window_addr(W, 0x008),
+                                    0x0 | (1 << 16) | (1 << 17))
+
+            # UART (master side) while SMBus is still transacting.
+            U = self.tb.SLAVE_UART
+            await self.tb.apb_write(self.tb.window_addr(U, 0x014), 1 << 3)
+            await self.tb.apb_write(self.tb.window_addr(U, 0x004), 1 << 1)
+
+            # GPIO and PM/ACPI: level inputs, armed now, driven below.
+            await self.tb.gpio_write(0x000, 0x3)
+            await self.tb.gpio_write(0x010, 0x1)
+            await self.tb.gpio_write(0x014, 0x0)
+            await self.tb.gpio_write(0x018, 0x1)
+            await self.tb.gpio_write(0x01C, 0x0)
+            P = self.tb.SLAVE_PM
+            await self.tb.apb_write(self.tb.window_addr(P, 0x000), 0x1 | 0x4)
+            await self.tb.apb_write(self.tb.window_addr(P, 0x008), 1 << 5)
+            await self.tb.apb_write(self.tb.window_addr(P, 0x038), 0x1)
+            self.tb.dut.gpio_in.value = 0
+            self.tb.dut.pm_gpe_events.value = 0
+
+            gap1 = random.randint(1, 12)
+            gap2 = random.randint(1, 12)
+            self.log.info(f"  coincidence schedule: SMBus running, UART high, "
+                          f"+{gap1} pclk GPIO, +{gap2} pclk PM")
+            self.tb.dut.gpio_in.value = 1
+            await self.tb.wait_clocks('pclk', gap1)
+            self.tb.dut.pm_gpe_events.value = 1
+            await self.tb.wait_clocks('pclk', gap2)
+
+            # Settle for the SLOWEST source, not the last one armed. SMBus needs
+            # its whole transaction; sampling at the jitter offset is the defect
+            # TASK-018's three-source test shipped with and TASK-019 records.
+            # All four are level-held, so waiting cannot break the overlap.
+            await self.tb.wait_clocks('pclk', 1500)
+
+            live = {}
+            for name in ('uart_irq', 'smb_interrupt', 'pm_interrupt', 'gpio_irq'):
+                m = self.tb.irqs.monitors.get(name)
+                live[name] = bool(m) and m.is_asserted()
+            if not all(live.values()):
+                self.log.error(
+                    "  the four sources were not simultaneously high: "
+                    f"{live} -- this test proves nothing about coincidence "
+                    "unless they overlap")
+                self.tb.dut.gpio_in.value = 0
+                self.tb.dut.pm_gpe_events.value = 0
+                return False
+            self.log.info("  all four sources simultaneously HIGH")
+
+            ok = True
+            if int(self.tb.dut.pic_irq_in.value) != 0:
+                self.log.error("  pic_irq_in is non-zero -- not proving "
+                               "internal routing")
+                ok = False
+            if ok and not self.tb.pic_int_out():
+                self.log.error("  four sources high but pic_int_out LOW")
+                ok = False
+            if ok and not self.tb.cascade_invariant_ok():
+                self.log.error("  IRQ2 violated with one master-side and three "
+                               "slave-side sources coincident")
+                ok = False
+            if ok:
+                good, missing, unexpected = self.tb.irqs.expect_only(
+                    ['uart_irq', 'smb_interrupt', 'pm_interrupt', 'gpio_irq',
+                     'pic_int_out', 'rlb_irq_out'])
+                if not good:
+                    self.log.error(f"  IRQ lines wrong: missing={missing} "
+                                   f"unexpected={unexpected}")
+                    ok = False
+            # Four distinct IR lines, across BOTH PICs, in one assertion.
+            if ok and not self._ir_lines_ok([4, 9, 10, 11]):
+                ok = False
+            if ok:
+                vectors = [int(getattr(pk, 'vector', -1))
+                           for pk in self.tb.ioapic_deliveries()]
+                for want in (0x44, 0x49, 0x4A, 0x4B):
+                    if want not in vectors:
+                        self.log.error(
+                            f"  IOAPIC did not deliver 0x{want:02X} under "
+                            f"four-way overlap (saw "
+                            f"{[f'0x{v:02X}' for v in vectors]})")
+                        ok = False
+                if ok:
+                    self.log.info("  IOAPIC delivered 0x44, 0x49, 0x4A and 0x4B "
+                                  "with all four sources coincident")
+
+            self.tb.dut.gpio_in.value = 0
+            self.tb.dut.pm_gpe_events.value = 0
+            if not ok:
+                return False
+            self.log.info("smoke four-way overlap GREEN (UART on master IR4 "
+                          "coincident with SMBus+PM+GPIO under the cascade; "
+                          "four IR lines carried it and no others)")
+            return True
+        except Exception as e:
+            self.log.error(f"four-coincident test failed: {e}")
             return False
 
     async def test_fabric_handles_three_coincident_asserts(self) -> bool:
