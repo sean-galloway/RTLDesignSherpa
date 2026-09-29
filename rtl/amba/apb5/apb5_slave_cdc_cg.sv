@@ -150,7 +150,7 @@ module apb5_slave_cdc_cg #(
     )
 
     `ALWAYS_FF_RST(pclk, presetn,
-        if (!presetn)
+        if (`RST_ASSERTED(presetn))
             r_wakeup <= 1'b1;
         else
             // Keep active when APB transaction in progress or aclk-domain activity

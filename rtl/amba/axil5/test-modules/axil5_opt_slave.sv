@@ -249,7 +249,7 @@ module axil5_opt_slave
 
     // ---- AW capture ------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (!aresetn) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_aw_full  <= 1'b0;
             r_aw_idx   <= '0;
             r_aw_lock  <= 1'b0;
@@ -272,7 +272,7 @@ module axil5_opt_slave
 
     // ---- W capture -------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (!aresetn) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_w_full   <= 1'b0;
             r_w_data   <= '0;
             r_w_strb   <= '0;
@@ -293,7 +293,7 @@ module axil5_opt_slave
     // POISON is stored with the word, so a later read of the same address
     // returns it: the round trip is the property under test.
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (!aresetn) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_b_valid <= 1'b0;
             r_b_resp  <= RESP_OKAY;
             r_b_user  <= '0;
@@ -319,7 +319,7 @@ module axil5_opt_slave
 
     // ---- AR accept + R response ------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (!aresetn) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_r_valid  <= 1'b0;
             r_r_data   <= '0;
             r_r_resp   <= RESP_OKAY;
@@ -361,7 +361,7 @@ module axil5_opt_slave
     // Captured on acceptance, held until the next transaction of that
     // direction, so a testbench can sample after the response completes.
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (!aresetn) begin
+        if (`RST_ASSERTED(aresetn)) begin
             o_last_aw_prot  <= '0;
             o_last_aw_mpam  <= '0;
             o_last_aw_mecid <= '0;

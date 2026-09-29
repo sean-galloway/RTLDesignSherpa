@@ -100,7 +100,7 @@ module axis5_slave_cg
     // 3. Backend has pending data
     // 4. Wakeup signal is asserted
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (!aresetn)
+        if (`RST_ASSERTED(aresetn))
             r_wakeup <= 1'b1;
         else
             r_wakeup <= s_axis_tvalid || core_busy || fub_axis5_tvalid || s_axis_twakeup;

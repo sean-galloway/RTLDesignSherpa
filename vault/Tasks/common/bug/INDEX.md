@@ -12,18 +12,18 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 12 | done (kept for history) |
+| [closed/](closed/) | 13 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-013** — non-FIFO reset bodies hardcoded active-low
 
 ## Closed
 
+- **BUG-013** — non-FIFO reset bodies hardcoded active-low -- CLOSED 2026-09-29: 16 sites in 11 files on RST_ASSERTED; lint both polarities 22/22; sims 33/33 amba, 24/24 common
 - **BUG-001** — ISSUE-001: counter.sv tick not gated during reset
 - **BUG-002** — arbiter_round_robin_simple starved agents (Kimi round_2)
 - **BUG-003** — RTL fixes surfaced by Kimi round_2 common review

@@ -101,7 +101,7 @@ module axis5_master_cg
     // 4. Downstream is ready (accepting data)
     // 5. Wakeup signal is asserted
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (!aresetn)
+        if (`RST_ASSERTED(aresetn))
             r_wakeup <= 1'b1;
         else
             r_wakeup <= fub_axis5_tvalid || core_busy || m_axis5_tvalid || fub_axis5_twakeup;

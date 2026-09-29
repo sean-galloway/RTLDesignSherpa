@@ -78,7 +78,7 @@ module apb4_slave_cg #(
     logic  gated_pclk;
 
     `ALWAYS_FF_RST(pclk, presetn,
-        if (!presetn)
+        if (`RST_ASSERTED(presetn))
             r_wakeup <= 1'b1;
         else
             // Keep active when APB transaction in progress or command/response activity

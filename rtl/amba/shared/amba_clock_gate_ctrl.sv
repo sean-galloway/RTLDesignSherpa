@@ -46,7 +46,7 @@ module amba_clock_gate_ctrl #(
     // Combine activity signals
     // flop the wakeup signal
     `ALWAYS_FF_RST(clk_in, aresetn,
-        if (!aresetn) r_wakeup <= 'h1;
+        if (`RST_ASSERTED(aresetn)) r_wakeup <= 'h1;
         else r_wakeup <= user_valid || axi_valid;
     )
 

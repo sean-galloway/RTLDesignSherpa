@@ -121,7 +121,7 @@ module apb5_master_cg #(
     logic gated_pclk;
 
     `ALWAYS_FF_RST(pclk, presetn,
-        if (!presetn)
+        if (`RST_ASSERTED(presetn))
             r_wakeup <= 1'b1;
         else
             // Wake up when there's a command, a response pending,
