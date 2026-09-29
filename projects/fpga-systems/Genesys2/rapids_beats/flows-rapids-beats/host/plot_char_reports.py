@@ -25,8 +25,8 @@ GREEN = "#228B22"   # AXI4 (the memory-bus side)
 GRAY = "#404040"
 BLUE = "#1f6fb4"    # AXIS (the network/stream side)
 ORANGE = "#cc6600"
-BYTES_PER_BEAT = 64
-PEAK_GB_S = BYTES_PER_BEAT * 100e6 / 1e9   # 6.4 GB/s at 100 MHz
+BYTES_PER_BEAT = 64                       # overwritten by load() from the file's 'design'
+PEAK_GB_S = BYTES_PER_BEAT * 100e6 / 1e9   # 6.4 GB/s at 100 MHz and 64 B beats
 
 # iface key -> (display label, colour, marker)
 IFACE = {
@@ -38,8 +38,17 @@ IFACE = {
 
 
 def load(path):
+    """Load a results file and take the beat size from its 'design' record
+    (written by run_characterization.py from the bitstream's BUILD register);
+    files from before that record are 512-bit / 64 B beats."""
+    global BYTES_PER_BEAT, PEAK_GB_S
     with open(path) as fh:
-        return json.load(fh)
+        payload = json.load(fh)
+    d = payload.get('design') or {}
+    if d.get('beat_bytes'):
+        BYTES_PER_BEAT = int(d['beat_bytes'])
+        PEAK_GB_S = BYTES_PER_BEAT * float(d.get('aclk_hz', 100e6)) / 1e9
+    return payload
 
 
 def _save(fig, outdir, name):

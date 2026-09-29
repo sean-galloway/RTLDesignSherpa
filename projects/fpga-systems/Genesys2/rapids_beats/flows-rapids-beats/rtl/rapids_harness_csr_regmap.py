@@ -13,7 +13,21 @@
 
 """RAPIDS Characterization Harness CSR Register Map."""
 
-top_block = {'CHK_ACT_CRC': {'VALUE': {'default': '0x0', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+top_block = {'BUILD': {'AXI_MONITORS': {'default': '0x0', 'offset': '24:24', 'sw': 'r', 'type': 'field'},
+           'BEAT_BYTES': {'default': '0x0', 'offset': '7:0', 'sw': 'r', 'type': 'field'},
+           'CHANNELS': {'default': '0x0', 'offset': '15:8', 'sw': 'r', 'type': 'field'},
+           'GEN_MON': {'default': '0x0', 'offset': '26:26', 'sw': 'r', 'type': 'field'},
+           'OBSERVERS': {'default': '0x0', 'offset': '25:25', 'sw': 'r', 'type': 'field'},
+           'RSVD': {'default': '0x0', 'offset': '31:27', 'sw': 'r', 'type': 'field'},
+           'SRAM_DEPTH_LOG2': {'default': '0x0', 'offset': '23:16', 'sw': 'r', 'type': 'field'},
+           'address': '0x4',
+           'default': '0x00000000',
+           'name': 'BUILD',
+           'offset': '0x4',
+           'size': 4,
+           'sw': 'r',
+           'type': 'reg'},
+ 'CHK_ACT_CRC': {'VALUE': {'default': '0x0', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
                  'address': '0xa4',
                  'default': '0x00000000',
                  'name': 'CHK_ACT_CRC',

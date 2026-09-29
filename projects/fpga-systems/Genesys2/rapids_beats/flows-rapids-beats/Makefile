@@ -82,6 +82,18 @@ BEATS    ?= 8
 # (see 'make board-info'), so its tty number depends on enumeration order.
 PORT     ?= auto
 export RAPIDS_NUM_CHANNELS := $(CHANNELS)
+# ---- Datapath design point (Sean, 2026-09-29) -----------------------------
+# 256-bit AXI4 read/write engines AND 256-bit AXIS (RAPIDS has one DATA_WIDTH
+# for both), with 4 KB of SRAM per channel: 128 beats x 32 B. The earlier
+# 512-bit / 256-deep (16 KB) point is the one perf reports v1.0-v1.5 measured.
+# Exported as build generics AND handed to verify-sim/sim, so the sim gate
+# builds exactly the geometry the bitstream does. The bitstream's own copy is
+# readable back over CSR (harness BUILD register), which the host uses for its
+# byte and bandwidth math instead of a constant.
+DATA_WIDTH ?= 256
+SRAM_DEPTH ?= 128
+export RAPIDS_DATA_WIDTH := $(DATA_WIDTH)
+export RAPIDS_SRAM_DEPTH := $(SRAM_DEPTH)
 # ---- Monitor knobs -- the SAME names STREAM's build-*/Makefile export ------
 # USE_AXI_MONITORS: in-core AXI/descriptor monitors + MonBus egress in the DUT.
 # GEN_MON:          the per-channel completion/error MonBus emitters (the
@@ -118,6 +130,7 @@ help:
 	@echo "  make clean / clean-all"
 	@echo ""
 	@echo "  CHANNELS=$(CHANNELS) ACTIVE=$(ACTIVE) BEATS=$(BEATS) PORT=$(PORT)"
+	@echo "  DATA_WIDTH=$(DATA_WIDTH) SRAM_DEPTH=$(SRAM_DEPTH)   (256-bit datapath, 4 KB/channel; generics + verify-sim)"
 	@echo "  USE_AXI_MONITORS=$(USE_AXI_MONITORS) GEN_MON=$(GEN_MON)   (both 0: monitors compiled out)"
 	@echo "  USE_OBSERVERS=$(USE_OBSERVERS) OBS_ENABLE_MON_TAPS=$(OBS_ENABLE_MON_TAPS)   (both 0: observers compiled out)"
 
@@ -127,7 +140,7 @@ help:
 # source pass (m_axi_rd -> source -> m_axis, per-channel CRC == chk actual).
 sim:
 	cd $(REPO_ROOT) && . ./env_python && \
-	    pytest $(DV_TESTS) -v
+	    TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) pytest $(DV_TESTS) -v
 
 # ---- Pre-bitstream sim gate -----------------------------------------------
 # Cheap insurance: the sink self-check must pass before a 10-30 min build.
@@ -136,9 +149,9 @@ verify-sim:
 	@if [ "$(BITSTREAM_SKIP_VERIFY)" = "1" ]; then \
 	    echo "[verify-sim] skipped (BITSTREAM_SKIP_VERIFY=1)"; \
 	else \
-	    echo "[verify-sim] running rapids_char harness sink self-check"; \
+	    echo "[verify-sim] running rapids_char harness sink self-check (DATA_WIDTH=$(DATA_WIDTH) SRAM_DEPTH=$(SRAM_DEPTH))"; \
 	    cd $(REPO_ROOT) && . ./env_python && \
-	      pytest $(HARNESS_TEST) -q -k sink \
+	      TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) pytest $(HARNESS_TEST) -q -k sink \
 	      || (echo "[verify-sim] FAILED — refusing to start synth/bitstream" && exit 1); \
 	fi
 

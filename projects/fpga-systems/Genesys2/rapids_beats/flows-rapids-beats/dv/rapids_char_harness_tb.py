@@ -219,6 +219,9 @@ class RapidsCharHarnessTB(TBBase):
             return self.campaign.run_sink_selfcheck(active, beats,
                                                     SIM_POLL_TIMEOUT_S)
         ok, detail = await cocotb.external(prog)()
+        # The geometry the host read back from the harness BUILD register: a
+        # passing run states what it simulated (sim == board is the contract).
+        self.log.info(f"BUILD (from CSR): {self.campaign.design}")
         self._log_detail('SINK', ok, detail)
         return ok, detail
 

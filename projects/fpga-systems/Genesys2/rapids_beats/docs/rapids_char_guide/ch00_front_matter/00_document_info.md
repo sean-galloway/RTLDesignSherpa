@@ -36,8 +36,12 @@ memory. They share one APB decode (SRC @ 0x0000, SNK @ 0x1000).
 
 **Beats**
 
-The fixed-quantum transfer variant of RAPIDS. `DATA_WIDTH = 512` (64 bytes per
-beat); peak per-direction bandwidth = 64 B × 100 MHz = 6.4 GB/s.
+The fixed-quantum transfer variant of RAPIDS. The Genesys 2 build is
+`DATA_WIDTH = 256` (32 bytes per beat, AXI4 and AXIS alike) since 2026-09-29;
+peak per-direction bandwidth = 32 B × 100 MHz = 3.2 GB/s. Perf reports v1.0 to
+v1.5 measured the earlier 512-bit build (64 B/beat, 6.4 GB/s). The bitstream
+reports its own geometry in the harness `BUILD` register and the host takes
+its byte and bandwidth math from there.
 
 **Region**
 

@@ -33,11 +33,12 @@ of RAPIDS).
 
 | Parameter | Value |
 |-----------|-------|
-| Data width | 512 bits (64 B/beat) |
+| Data width | 256 bits (32 B/beat), AXI4 and AXIS; 512 bits (64 B) through perf report v1.5 |
 | Address width | 64 bits |
 | Descriptor | fixed 256-bit |
-| Peak per direction | 6.4 GB/s (64 B × 100 MHz) |
-| Peak full-duplex | 12.8 GB/s |
+| SRAM per channel | 128 beats = 4 KB (was 256 x 64 B = 16 KB) |
+| Peak per direction | 3.2 GB/s (32 B × 100 MHz) |
+| Peak full-duplex | 6.4 GB/s |
 
 : Datapath geometry
 
@@ -46,5 +47,8 @@ of RAPIDS).
 Silicon-validated: `make smoke` passes both paths; `make suite` passes 48/48
 (channels {1,2,4} × beats {1,4,8,16} × backpressure {off,on} × 2 seeds). Timing
 closes at 100 MHz (WNS +0.007 ns, 0 failing endpoints) at the board-fit geometry
-`NUM_CHANNELS = 4`, `SRAM_DEPTH = 256`. On Genesys 2 the 8-channel build reaches
-99.8–100% line rate (6.40 GB/s per direction) — see `reports/perf/`.
+`NUM_CHANNELS = 4`, `SRAM_DEPTH = 256`. On Genesys 2 the 8-channel 512-bit build
+reached 99.8–100% line rate (6.40 GB/s per direction, perf report v1.5); the
+256-bit / 4 KB-per-channel build is the current design point (Makefile
+`DATA_WIDTH` / `SRAM_DEPTH`, exported to the build and to `verify-sim`) — see
+`reports/perf/`.

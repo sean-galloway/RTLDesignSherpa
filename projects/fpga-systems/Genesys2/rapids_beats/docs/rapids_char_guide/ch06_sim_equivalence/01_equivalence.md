@@ -34,7 +34,9 @@ CRC-32 asserted in both places.
   - `cocotb_test_source_selfcheck` — `m_axi_rd → source → m_axis`; asserts
     `chk_actual_crc[ch] == rd_crc[ch]` and `data_error == 0`.
 - **Params:** `NUM_CHANNELS=8` (env `TEST_NUM_CHANNELS`), `NUM_ACTIVE=4`,
-  `NUM_BEATS=8`, `DATA_WIDTH=512`, `SRAM_DEPTH=512`. Waves via `WAVES=1`.
+  `NUM_BEATS=8`, `DATA_WIDTH=512`, `SRAM_DEPTH=512` when run bare; `make sim` /
+  `make verify-sim` pass the build's `DATA_WIDTH` / `SRAM_DEPTH` (256 / 128 on
+  the Genesys 2) as `TEST_DATA_WIDTH` / `TEST_SRAM_DEPTH`. Waves via `WAVES=1`.
 - **Gate:** `make verify-sim` runs the sink self-check before a bitstream build,
   so a broken elaboration is caught before a long Vivado run.
 

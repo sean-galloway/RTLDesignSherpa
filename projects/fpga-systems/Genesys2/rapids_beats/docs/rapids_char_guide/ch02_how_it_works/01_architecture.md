@@ -65,8 +65,8 @@ bottleneck. The harness instantiates (all sharing LFSR `0xDEADBEEF`, taps
 |-------|------|
 | `axis4_master_pattern_gen` | drives the DUT `s_axis` (sink ingress stimulus) |
 | `axis4_slave_pattern_check` | checks the DUT `m_axis` (source egress) |
-| `axi4_slave_rd_pattern_gen` | backs the DUT `m_axi_rd` (512-bit source data) |
-| `axi4_slave_wr_crc_check` | backs the DUT `m_axi_wr` (512-bit sink data verify) |
+| `axi4_slave_rd_pattern_gen` | backs the DUT `m_axi_rd` (`DATA_WIDTH`-bit source data; 256 on the Genesys 2 build) |
+| `axi4_slave_wr_crc_check` | backs the DUT `m_axi_wr` (`DATA_WIDTH`-bit sink data verify) |
 | `sdpram_slave_axi4_axi4` ×4 | descriptor + control RAM per half (DUT reads, host writes) |
 | `axi_bus_meter` / `axis_bus_meter` | prod/bp/starv/idle buckets + exact AXIS byte/packet counters |
 

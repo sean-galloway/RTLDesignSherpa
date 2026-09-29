@@ -65,6 +65,12 @@ DESC += [
 CSR = [
     # ---- writable control ----
     (0x000, 'CTRL',        'w',  [('CAM_CLEAR', 0, 0, 'w')]),          # 1-cycle pulse
+    (0x004, 'BUILD',       'r',  [('BEAT_BYTES', 7, 0, 'r'),           # DATA_WIDTH/8 of THIS bitstream
+                                  ('CHANNELS', 15, 8, 'r'),
+                                  ('SRAM_DEPTH_LOG2', 23, 16, 'r'),
+                                  ('AXI_MONITORS', 24, 24, 'r'),
+                                  ('OBSERVERS', 25, 25, 'r'),
+                                  ('GEN_MON', 26, 26, 'r')]),
     (0x010, 'GEN_CTRL',    'w',  [('GEN_START', 0, 0, 'w')]),         # cfg_gen_start pulse
     (0x014, 'GEN_SEED',    'rw', None),
     (0x018, 'GEN_NBEATS',  'rw', None),

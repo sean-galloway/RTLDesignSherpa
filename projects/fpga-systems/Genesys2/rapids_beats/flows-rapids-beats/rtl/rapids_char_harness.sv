@@ -215,6 +215,7 @@ module rapids_char_harness #(
     localparam logic [11:0] CSR_RESP_DELAY  = 12'h0C4;
 
     localparam logic [11:0] CSR_ID          = 12'h000;
+    localparam logic [11:0] CSR_BUILD       = 12'h004;  // geometry of THIS bitstream (read-only)
     localparam logic [11:0] CSR_STATUS      = 12'h080;
     localparam logic [11:0] CSR_GEN_BEATS_T = 12'h084;
     localparam logic [11:0] CSR_CHK_BEATS_T = 12'h088;
@@ -617,6 +618,14 @@ module rapids_char_harness #(
             REGION_CSR: begin
                 case (w_roff)
                     CSR_ID:          w_readmux = 32'h5241_5031;  // "RAP1"
+                    // What was built, so the host never assumes the beat size:
+                    // [7:0] bytes per beat, [15:8] channels, [23:16] log2(SRAM_DEPTH),
+                    // [24] USE_AXI_MONITORS, [25] USE_OBSERVERS, [26] GEN_MON.
+                    CSR_BUILD:       w_readmux = {5'b0, GEN_MON, USE_OBSERVERS,
+                                                  (USE_AXI_MONITORS != 0),
+                                                  8'($clog2(SRAM_DEPTH)),
+                                                  8'(NUM_CHANNELS),
+                                                  8'(DATA_WIDTH / 8)};
                     CSR_STATUS:      w_readmux = {24'b0,
                                         wr_mem_busy, rd_mem_busy, o_data_error,
                                         gen_done, gen_busy,

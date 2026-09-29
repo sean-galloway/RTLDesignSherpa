@@ -125,7 +125,9 @@ def _run_harness(testcase, test_name):
         'NUM_CHANNELS': num_channels,
         'FPGA_CLK_HZ': fpga_clk_hz,
         'UART_BAUD': fpga_clk_hz // clks_per_bit,
-        'DATA_WIDTH': 512,
+        # 512 is the RTL default; the Genesys 2 build is 256 (Makefile DATA_WIDTH),
+        # and verify-sim passes the build's value so sim == board.
+        'DATA_WIDTH': int(os.environ.get('TEST_DATA_WIDTH', '512')),
         'ADDR_WIDTH': 64,
         'AXI_ID_WIDTH': 8,
         # 512 by default; the Genesys 2 build is 256 (rapids_char_genesys2_top), so
@@ -150,7 +152,7 @@ def _run_harness(testcase, test_name):
         'TEST_NUM_ACTIVE': str(num_active),
         'TEST_NUM_BEATS': str(num_beats),
         'TEST_ADDR_WIDTH': '64',
-        'TEST_DATA_WIDTH': '512',
+        'TEST_DATA_WIDTH': os.environ.get('TEST_DATA_WIDTH', '512'),
         'TEST_AXI_ID_WIDTH': '8',
         'TEST_APB_ADDR_WIDTH': '13',
         'TEST_APB_DATA_WIDTH': '32',

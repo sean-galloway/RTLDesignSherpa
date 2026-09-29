@@ -67,7 +67,14 @@ if {[info exists ::env(RAPIDS_NUM_CHANNELS)]} {
 # buffers -- the fmax-limiting paths are control/datapath logic, not memory
 # depth -- so we shrink them here (mirrors stream_char's SRAM_DEPTH=256).
 # Override via env if a campaign needs deeper buffers and the area allows.
-set sram_depth 256
+# Datapath design point (Sean, 2026-09-29): 256-bit AXI4 + AXIS (one DATA_WIDTH
+# in RAPIDS) and 4 KB of SRAM per channel = 128 beats x 32 B. The Makefile
+# exports both (RAPIDS_DATA_WIDTH / RAPIDS_SRAM_DEPTH) and hands the same
+# values to verify-sim; these are only the fallbacks for a bare tcl run.
+# Perf reports v1.0-v1.5 were measured at 512-bit / 256-deep (16 KB).
+set data_width 256
+if {[info exists ::env(RAPIDS_DATA_WIDTH)]}       { set data_width $::env(RAPIDS_DATA_WIDTH) }
+set sram_depth 128
 if {[info exists ::env(RAPIDS_SRAM_DEPTH)]}       { set sram_depth $::env(RAPIDS_SRAM_DEPTH) }
 set desc_ram_entries 256
 if {[info exists ::env(RAPIDS_DESC_RAM_ENTRIES)]} { set desc_ram_entries $::env(RAPIDS_DESC_RAM_ENTRIES) }
@@ -110,6 +117,7 @@ puts "GEN_MON:           $gen_mon"
 puts "USE_OBSERVERS:     $use_observers"
 puts "OBS_ENABLE_MON_TAPS: $obs_enable_mon_taps"
 puts "NUM_CHANNELS:      $num_channels"
+puts "DATA_WIDTH:        $data_width"
 puts "SRAM_DEPTH:        $sram_depth"
 puts "DESC_RAM_ENTRIES:  $desc_ram_entries"
 puts "========================================================================"
@@ -178,7 +186,7 @@ puts "Setting top module: $top_name"
 set_property top $top_name $src_fs
 
 # Narrow the board geometry + memory sizing via top-level generics (see header).
-set_property generic "NUM_CHANNELS=$num_channels SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col USE_AXI_MONITORS=$use_axi_monitors GEN_MON=$gen_mon USE_OBSERVERS=$use_observers OBS_ENABLE_MON_TAPS=$obs_enable_mon_taps" $src_fs
+set_property generic "NUM_CHANNELS=$num_channels DATA_WIDTH=$data_width SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col USE_AXI_MONITORS=$use_axi_monitors GEN_MON=$gen_mon USE_OBSERVERS=$use_observers OBS_ENABLE_MON_TAPS=$obs_enable_mon_taps" $src_fs
 
 update_compile_order -fileset sources_1
 

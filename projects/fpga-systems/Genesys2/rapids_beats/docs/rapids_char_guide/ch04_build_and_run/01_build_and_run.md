@@ -41,6 +41,12 @@ make suite CHANNELS=4
 
 The Vivado build targets part `xc7a100tcsg324-1`, top `rapids_char_top`, with
 board-fit generics `NUM_CHANNELS=4`, `SRAM_DEPTH=256`, `DESC_RAM_ENTRIES=256`.
+The Genesys 2 build (`BOARD=genesys2`) is 8 channels at the 256-bit / 4 KB per
+channel design point: Makefile `DATA_WIDTH=256 SRAM_DEPTH=128`, exported as the
+`RAPIDS_DATA_WIDTH` / `RAPIDS_SRAM_DEPTH` generics and handed to `verify-sim`,
+so the sim gate builds the same geometry as the bitstream. Override both on the
+`make` line to build another point; the host reads the result back from the
+harness `BUILD` register and refuses a `--channels` that disagrees with it.
 Programming is pinned to a specific JTAG serial so the flash and the UART
 campaign land on the same board (override `RAPIDS_CHAR_JTAG_SERIAL`).
 

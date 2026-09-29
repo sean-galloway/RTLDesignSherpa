@@ -72,13 +72,42 @@ CHANNEL_OFFSET = 0x0010_0000
 # be hardcoded region-2 offsets here, which is what TASK-057 removed.
 KICK_STRIDE      = 0x1000  # per-channel descriptor stride (matches DESC_BASE math)
 
-# Bus-meter throughput math. The data masters are DATA_WIDTH=512b = 64 B/beat,
-# and one PRODUCTIVE meter cycle == one 512b beat transferred. Peak per-direction
-# bandwidth = BYTES_PER_BEAT * ACLK_HZ; effective BW = peak * utilization
-# (util = prod / (prod+bp+starv+idle)).
+# Bus-meter throughput math. One PRODUCTIVE meter cycle == one data beat
+# transferred, so peak per-direction bandwidth = BYTES_PER_BEAT * ACLK_HZ and
+# effective BW = peak * utilization (util = prod / (prod+bp+starv+idle)).
+# BYTES_PER_BEAT is NOT a constant of this program: the bitstream reports its
+# own geometry in the harness BUILD register and read_build() sets it from
+# there (the Genesys 2 build moved from 512-bit / 64 B to 256-bit / 32 B beats
+# on 2026-09-29, and a host that assumed 64 would have doubled every GB/s).
+# The values below only hold until read_build() runs.
 BYTES_PER_BEAT = 64
 ACLK_HZ = 100_000_000
-PEAK_BW_PER_DIR = BYTES_PER_BEAT * ACLK_HZ   # 6.4 GB/s at 100 MHz
+PEAK_BW_PER_DIR = BYTES_PER_BEAT * ACLK_HZ
+DESIGN = {}   # what read_build() found; written into every results file
+
+
+def read_build(io) -> dict:
+    """Read the harness BUILD register (by name) and set the beat/bandwidth
+    math from it. Returns the design point so callers can print/record it."""
+    global BYTES_PER_BEAT, PEAK_BW_PER_DIR
+    d = {
+        'beat_bytes': io.csr_field("BUILD", "BEAT_BYTES"),
+        'data_width': io.csr_field("BUILD", "BEAT_BYTES") * 8,
+        'channels': io.csr_field("BUILD", "CHANNELS"),
+        'sram_depth': 1 << io.csr_field("BUILD", "SRAM_DEPTH_LOG2"),
+        'axi_monitors': bool(io.csr_field("BUILD", "AXI_MONITORS")),
+        'observers': bool(io.csr_field("BUILD", "OBSERVERS")),
+        'gen_mon': bool(io.csr_field("BUILD", "GEN_MON")),
+        'aclk_hz': ACLK_HZ,
+    }
+    if d['beat_bytes'] == 0:
+        raise RuntimeError("BUILD register reads 0 bytes/beat: bitstream predates the BUILD register?")
+    d['sram_bytes_per_channel'] = d['sram_depth'] * d['beat_bytes']
+    d['peak_bw_gb_s'] = d['beat_bytes'] * ACLK_HZ / 1e9
+    BYTES_PER_BEAT = d['beat_bytes']
+    PEAK_BW_PER_DIR = BYTES_PER_BEAT * ACLK_HZ
+    DESIGN.clear(); DESIGN.update(d)
+    return d
 
 # APB half bases (DUT-REG region) — match the RegisterMap start_addresses.
 APB_SRC_BASE = rio.APB_SRC_BASE
@@ -93,6 +122,11 @@ class RapidsCharCampaign:
         self.num_channels = num_channels
         self.verbose = verbose
         self.log = logging.getLogger('rapids_char')
+        # The bitstream's own geometry (beat size, channels, SRAM depth): every
+        # byte and bandwidth figure below derives from it, in sim and on the
+        # board. Read lazily -- the cocotb TB constructs this object before its
+        # clock runs, so a CSR read here would hang the simulated UART.
+        self.design = None
 
         # Two by-name register maps: SRC half @ 0x0000, SNK half @ 0x1000.
         from TBClasses.apb.register_map import RegisterMap
@@ -221,7 +255,15 @@ class RapidsCharCampaign:
             out.append((daddr, desc))
         return out
 
+    def ensure_build(self) -> dict:
+        """Read the harness BUILD register once (first hardware contact) and set
+        the beat/bandwidth math from it."""
+        if self.design is None:
+            self.design = read_build(self.io)
+        return self.design
+
     def configure(self) -> None:
+        self.ensure_build()
         # Monitor egress window: sane constants (never 0/0, which stalls the
         # monitor path) — mirrors the cocotb TB's reset defaults.
         self.io.csr_write_reg("MON_BASE", VALUE=0x0000_1000)
@@ -287,6 +329,7 @@ class RapidsCharCampaign:
         fails the run. base_seed selects the LFSR seed (the sink honors it via
         CSR_GEN_SEED); the golden reference uses the same base_seed.
         """
+        self.ensure_build()
         self.log.info(f"=== SINK self-check: channels={active_channels}, "
                       f"{beats} beats/channel, base_seed=0x{base_seed:08X} ===")
         n_active = len(active_channels)
@@ -373,6 +416,7 @@ class RapidsCharCampaign:
         we pulse it low/high across the poll loop). Data integrity (golden CRC)
         must still hold under the stalls.
         """
+        self.ensure_build()
         self.log.info(f"=== SOURCE self-check: channels={active_channels}, "
                       f"{beats} beats/channel, "
                       f"backpressure={'ON' if backpressure else 'off'} ===")
@@ -834,6 +878,7 @@ def _write_results(rows, path: str) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     payload = {
         'timestamp': datetime.now().isoformat(timespec='seconds'),
+        'design': dict(DESIGN),           # geometry read back from the bitstream
         'total': len(rows),
         'passed': sum(1 for r in rows if r['pass']),
         'failed': sum(1 for r in rows if not r['pass']),
@@ -1010,8 +1055,18 @@ def main() -> int:
                   f"0x{rio.CSR_ID_EXPECTED:08X} on {port}")
             return 2
         print(f"Link OK: rapids_char_top ID = 0x{rio.CSR_ID_EXPECTED:08X}")
-
         campaign = RapidsCharCampaign(io, args.channels, verbose=args.verbose)
+        d = campaign.ensure_build()
+        print(f"Build: {d['data_width']}-bit datapath ({d['beat_bytes']} B/beat, "
+              f"{d['peak_bw_gb_s']:.2f} GB/s per direction), {d['channels']} channels, "
+              f"SRAM {d['sram_depth']} beats = {d['sram_bytes_per_channel'] // 1024} KB per channel, "
+              f"axi_monitors={int(d['axi_monitors'])} observers={int(d['observers'])} "
+              f"gen_mon={int(d['gen_mon'])}")
+        if d['channels'] != args.channels:
+            print(f"FAIL: --channels {args.channels} but the bitstream was built with "
+                  f"{d['channels']} channels (BUILD register); pass --channels {d['channels']}")
+            return 2
+
         campaign.configure()
         campaign.set_interleave(bool(args.interleave))
 
