@@ -12,20 +12,20 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 12 | done (kept for history) |
+| [closed/](closed/) | 13 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-013** — `check_port_consumers.py` cannot see unpacked-array ports, so it
   filters out the `PINMISSING` it exists to report; pumice lost 16 tests to it
 
 
 ## Closed
 
+- **BUG-013** — `check_port_consumers.py` cannot see unpacked-array ports, so it -- CLOSED 2026-09-29: regex takes unpacked dims; unexplained-pin guard reports shapes the parser misses; end-to-end test in bin/tests
 - **BUG-004** — conftests stamp TEST_LEVEL, killing per-cell depth -- CLOSED 2026-09-27: mechanism + checker done, 7 of 8 areas converted; pumice's conversion is pumice BUG-019
 - **BUG-005** — concurrent deletion of local_sim_build -- CLOSED 2026-09-27: marker-aware cleaner on every clean target on main; the ddr2_char Makefile is pumice TASK-031
 - **BUG-006** — env_python hardcodes /mnt/data/tools

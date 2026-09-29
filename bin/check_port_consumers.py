@@ -63,10 +63,18 @@ from pathlib import Path
 PIN_ERRORS = ("PINMISSING", "PINNOTFOUND")
 
 # `module foo #(...) ( ... );` -- we only need the port NAME set, so match the
-# direction keyword and take the last identifier before , or ) or a comment.
+# direction keyword and take the identifier before , or ) or a comment or end
+# of line, allowing UNPACKED dimensions after it: `output logic [31:0] x
+# [NUM_BANKS],` ends in `] ,`, not `x ,`, and the earlier pattern did not match
+# that line at all, so the port never entered the set and a consumer that
+# forgot it passed clean -- tooling BUG-013, found when 16 pumice tests
+# failed to build behind a green run. The lazy prefix stops at the FIRST
+# identifier the tail can follow, so a packed range's parameter (`[W-1:0]`)
+# is not taken for the name.
 PORT_RE = re.compile(
-    r"^\s*(?:input|output|inout)\b[^;]*?([A-Za-z_]\w*)\s*(?:,|\)|$)", re.M
+    r"^\s*(?:input|output|inout)\b[^;]*?([A-Za-z_]\w*)\s*(?:\[[^\]]*\]\s*)*(?:,|\)|//|$)", re.M
 )
+PIN_NAME_RE = re.compile(r"'([A-Za-z_]\w*)'")
 MODULE_RE = re.compile(r"^\s*module\s+([A-Za-z_]\w*)", re.M)
 
 
@@ -74,6 +82,33 @@ def repo_root() -> Path:
     return Path(subprocess.run(
         ["git", "rev-parse", "--show-toplevel"],
         capture_output=True, text=True, check=True).stdout.strip())
+
+
+def unexplained_pins(lint_lines: list[str], touched: set[str],
+                     old_text: str, new_text: str) -> list[str]:
+    """Pin errors the touched-set filter would DROP but the change explains.
+
+    The filter reports only pins in the symmetric difference of the parsed
+    port sets, so a port shape the parser does not model is a break it cannot
+    report -- the exact failure of BUG-013, where Verilator said PINMISSING
+    and this script said clean. Guard: a pin Verilator names that is not in
+    `touched` but whose name is present in exactly one of the old and new
+    module headers was added or removed by this change whatever the parser
+    thought, and is reported with a note that the parser missed its shape.
+    """
+    def in_head(text: str, name: str) -> bool:
+        head = text.split("endmodule", 1)[0]
+        return re.search(rf"\b{re.escape(name)}\b", head) is not None
+    out = []
+    for ln in lint_lines:
+        for name in PIN_NAME_RE.findall(ln):
+            if name in touched:
+                continue
+            if in_head(old_text, name) != in_head(new_text, name):
+                out.append(f"{ln.strip()}  [port shape not parsed; "
+                           f"'{name}' differs between HEAD and the worktree header]")
+                break
+    return out
 
 
 def port_set(text: str) -> set[str]:
@@ -243,11 +278,13 @@ def main(argv: list[str]) -> int:
         # people learn to bypass, which is the same as not having one. The
         # symmetric difference is the right filter both ways: an ADDED port
         # shows up as PINMISSING at a consumer, a REMOVED one as PINNOTFOUND.
-        touched = port_set(head_blob(root, rel) or "") ^ \
-            port_set((root / rel).read_text(errors="ignore"))
+        old_text = head_blob(root, rel) or ""
+        new_text = (root / rel).read_text(errors="ignore")
+        touched = port_set(old_text) ^ port_set(new_text)
         for fl in cons:
-            bad = [ln for ln in lint(root, fl)
-                   if any(f"'{t}'" in ln for t in touched)]
+            lines = lint(root, fl)
+            bad = [ln for ln in lines if any(f"'{t}'" in ln for t in touched)]
+            bad += unexplained_pins(lines, touched, old_text, new_text)
             if bad:
                 failures.setdefault(fl.stem, []).extend(bad)
 
