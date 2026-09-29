@@ -41,8 +41,8 @@ This directory contains production-ready and in-development component projects f
 |-----------|--------|----------|---------------|
 | **Retro Legacy Blocks (HPET, PIT, ...)** | Production | [retro_legacy_blocks/](retro_legacy_blocks/) | [HPET Specification](retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) |
 | **APB Crossbar** | Production | [fabric-gen-ip/apbx-xbar/](fabric-gen-ip/apbx-xbar/) | [Specification](fabric-gen-ip/apbx-xbar/docs/apbx_xbar_mas/apbx_xbar_mas_index.md) |
-| **STREAM** | Production | [stream/](dmas/stream/) | [Specification](dmas/stream/docs/stream_mas/stream_index.md) |
-| **RAPIDS** | Functional | [rapids/](dmas/rapids/) | [Specification](dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md) |
+| **STREAM** | Production | [stream/](dma-ip/stream/) | [Specification](dma-ip/stream/docs/stream_mas/stream_index.md) |
+| **RAPIDS** | Functional | [rapids/](dma-ip/rapids/) | [Specification](dma-ip/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md) |
 | **Bridge** | Development | [fabric-gen-ip/bridge/](fabric-gen-ip/bridge/) | See [fabric-gen-ip/bridge/docs/](fabric-gen-ip/bridge/docs/) |
 | **Converters** | Development | [converters/](converters/) | See [converters/docs/](converters/docs/) |
 | **pumice (DDR2/LPDDR2 memory controller)** | Production (at rest 2026-09-10) | [mem-ctrl-ip/pumice-ddr2-lpddr2/](mem-ctrl-ip/pumice-ddr2-lpddr2/) | [Specification](mem-ctrl-ip/pumice-ddr2-lpddr2/docs/pumice_mas/pumice_mas_index.md) |
@@ -64,8 +64,8 @@ This directory contains production-ready and in-development component projects f
 - [APB Crossbar](fabric-gen-ip/apbx-xbar/) - MxN APB interconnect
 
 **DMA and Data Transfer:**
-- [STREAM](dmas/stream/) - Tutorial DMA engine
-- [RAPIDS](dmas/rapids/) - Advanced DMA with network
+- [STREAM](dma-ip/stream/) - Tutorial DMA engine
+- [RAPIDS](dma-ip/rapids/) - Advanced DMA with network
 
 **Integration:**
 - [Bridge](fabric-gen-ip/bridge/) - Protocol bridges

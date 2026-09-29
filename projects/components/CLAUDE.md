@@ -36,8 +36,8 @@
 **Your Role:** Help users develop new components following repository standards
 
 **Key Projects:**
-- **STREAM** - Streaming datapath engine with AXI and SRAM control (`dmas/stream/`)
-- **RAPIDS** - Rapid AXI Programmable In-band Descriptor System (`dmas/rapids/`)
+- **STREAM** - Streaming datapath engine with AXI and SRAM control (`dma-ip/stream/`)
+- **RAPIDS** - Rapid AXI Programmable In-band Descriptor System (`dma-ip/rapids/`)
 - **Bridge** - Protocol bridges and converters
 - **Retro Legacy Blocks** - Legacy PC peripherals (HPET, PIT 8254, PIC 8259, RTC, ...) in `retro_legacy_blocks/` (absorbed the old apb4_hpet component)
 
@@ -169,15 +169,15 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
-from projects.components.dmas.stream.dv.tbclasses.scheduler_tb import SchedulerTB
+from projects.components.dma_ip.stream.dv.tbclasses.scheduler_tb import SchedulerTB
 
 # Shared framework components (CocoTBFramework is editable-installed from RTLDesignSherpa-DV)
 from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd
 ```
 
 **Examples:**
-- `projects/components/dmas/rapids/dv/tbclasses/` - RAPIDS TBs
-- `projects/components/dmas/stream/dv/tbclasses/` - STREAM TBs
+- `projects/components/dma-ip/rapids/dv/tbclasses/` - RAPIDS TBs
+- `projects/components/dma-ip/stream/dv/tbclasses/` - STREAM TBs
 
 ---
 
@@ -191,9 +191,9 @@ opened a four-state FSM one section after Pattern 1 said "NO FSM!".
 
 | Shape | Read the real thing | The rule it follows |
 |---|---|---|
-| Streaming datapath, AXI read/write engine | `dmas/stream/rtl/fub/axi_read_engine.sv`, `axi_write_engine.sv` | no FSM in a streaming path -- `vault/handbook/design/streaming-no-fsm.md`, `vault/handbook/design/valid-ready-contracts.md` |
-| Descriptor-driven engine, scheduler | `dmas/stream/rtl/fub/descriptor_engine.sv`, `dmas/rapids/rtl/fub_beats/descriptor_engine_beats.sv` | keep the state count minimal -- `vault/handbook/design/minimal-fsm.md` |
-| Buffer over SRAM | `dmas/stream/rtl/fub/sram_controller.sv`, `sram_controller_unit.sv` | the SRAM primitive is shared and takes no reset -- `vault/handbook/design/sram-and-memories.md` |
+| Streaming datapath, AXI read/write engine | `dma-ip/stream/rtl/fub/axi_read_engine.sv`, `axi_write_engine.sv` | no FSM in a streaming path -- `vault/handbook/design/streaming-no-fsm.md`, `vault/handbook/design/valid-ready-contracts.md` |
+| Descriptor-driven engine, scheduler | `dma-ip/stream/rtl/fub/descriptor_engine.sv`, `dma-ip/rapids/rtl/fub_beats/descriptor_engine_beats.sv` | keep the state count minimal -- `vault/handbook/design/minimal-fsm.md` |
+| Buffer over SRAM | `dma-ip/stream/rtl/fub/sram_controller.sv`, `sram_controller_unit.sv` | the SRAM primitive is shared and takes no reset -- `vault/handbook/design/sram-and-memories.md` |
 
 Paths above are relative to `projects/components/`. The shared primitives they
 build on: `rtl/amba/shared/sdpram_core.sv`, `rtl/amba/gaxi/gaxi_fifo_sync.sv`,
@@ -212,16 +212,16 @@ build on: `rtl/amba/shared/sdpram_core.sv`, `rtl/amba/gaxi/gaxi_fifo_sync.sv`,
 **Usage:**
 ```bash
 # Dry-run to see what would change
-python3 bin/update_resets.py projects/components/dmas/stream/rtl/ --dry-run
+python3 bin/update_resets.py projects/components/dma-ip/stream/rtl/ --dry-run
 
 # Convert files (writes to UPDATED/ directory)
-python3 bin/update_resets.py projects/components/dmas/stream/rtl/
+python3 bin/update_resets.py projects/components/dma-ip/stream/rtl/
 
 # Review changes (UPDATED/ mirrors the tree relative to the source root)
-diff -u projects/components/dmas/stream/rtl/fub/scheduler.sv UPDATED/fub/scheduler.sv
+diff -u projects/components/dma-ip/stream/rtl/fub/scheduler.sv UPDATED/fub/scheduler.sv
 
 # Copy corrected files back
-cp UPDATED/fub/*.sv projects/components/dmas/stream/rtl/fub/
+cp UPDATED/fub/*.sv projects/components/dma-ip/stream/rtl/fub/
 ```
 
 **What it does:**
@@ -259,8 +259,8 @@ area you are in. Paths relative to `projects/components/`.
 
 | Component | Path | Focus |
 |---|---|---|
-| STREAM | `dmas/stream/` | streaming datapath engines, AXI masters, SRAM control |
-| RAPIDS | `dmas/rapids/` | descriptor-driven accelerators, scheduler groups |
+| STREAM | `dma-ip/stream/` | streaming datapath engines, AXI masters, SRAM control |
+| RAPIDS | `dma-ip/rapids/` | descriptor-driven accelerators, scheduler groups |
 | Retro Legacy Blocks | `retro_legacy_blocks/` | legacy PC peripherals (HPET, PIT 8254, PIC 8259, RTC, ...), APB register maps |
 | Bridge | `bridge/` | protocol converters, clock domain crossing |
 | misc | `misc/` | reusable utility components: ROM/RAM wrappers, pattern generators |

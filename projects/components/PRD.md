@@ -353,7 +353,7 @@ SRAM modules without reset:
 
 Reference implementations:
 - `rtl/amba/shared/sdpram_core.sv` - SRAM core (no-reset memory; replaced the old `simple_sram.sv`)
-- `projects/components/dmas/stream/rtl/fub/sram_controller.sv` - Controller with reset
+- `projects/components/dma-ip/stream/rtl/fub/sram_controller.sv` - Controller with reset
 
 ---
 
@@ -574,7 +574,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import from project area
-from projects.components.dmas.stream.dv.tbclasses.scheduler_tb import SchedulerTB
+from projects.components.dma_ip.stream.dv.tbclasses.scheduler_tb import SchedulerTB
 
 # Import shared framework components
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
@@ -818,8 +818,8 @@ for why this template used to say the opposite.
 ### 8.2 Component-Specific Documents
 
 Each component has detailed documentation:
-- `projects/components/dmas/stream/CLAUDE.md` and `PRD.md`
-- `projects/components/dmas/rapids/CLAUDE.md` and `PRD.md`
+- `projects/components/dma-ip/stream/CLAUDE.md` and `PRD.md`
+- `projects/components/dma-ip/rapids/CLAUDE.md` and `PRD.md`
 - `projects/components/retro_legacy_blocks/CLAUDE.md` and `PRD.md` (includes the former apb4_hpet)
 - `projects/components/fabric-gen-ip/bridge/CLAUDE.md` and `PRD.md`
 

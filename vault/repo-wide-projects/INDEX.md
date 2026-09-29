@@ -32,8 +32,8 @@ note — it belongs to that block and nowhere else.
 - [bridge](projects/components/fabric-gen-ip/bridge/INDEX.md) — generated crossbar
 - [converters](projects/components/converters/INDEX.md)
 - [delta](projects/components/delta/INDEX.md)
-- [dmas/rapids](projects/components/dmas/rapids/INDEX.md) — beats rearchitecture
-- [dmas/stream](projects/components/dmas/stream/INDEX.md) — reference DV implementation
+- [dma-ip/rapids](projects/components/dma-ip/rapids/INDEX.md) — beats rearchitecture
+- [dma-ip/stream](projects/components/dma-ip/stream/INDEX.md) — reference DV implementation
 - [hive](projects/components/hive/INDEX.md)
 - [mem-ctrl-ip/pumice-ddr2-lpddr2](projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/INDEX.md) — board-validated
 - [mem-ctrl-ip/scoria-ddr3-lpddr3](projects/components/mem-ctrl-ip/scoria-ddr3-lpddr3/INDEX.md)

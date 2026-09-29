@@ -135,9 +135,9 @@ Performance modeling, tradeoffs, and verification strategy.
 
 ## Related Specifications
 
-- **[RAPIDS Beats HAS](../../../dmas/rapids/docs/rapids_beats_has/rapids_beats_has_index.md)** - DMA engine controlled by HIVE-C
+- **[RAPIDS Beats HAS](../../../dma-ip/rapids/docs/rapids_beats_has/rapids_beats_has_index.md)** - DMA engine controlled by HIVE-C
 - **[Delta Network Specification](../../../delta/docs/delta_spec/delta_index.md)** - 4×4 mesh NoC for compute fabric
-- **[STREAM Specification](../../../dmas/stream/PRD.md)** - Simplified DMA tutorial project
+- **[STREAM Specification](../../../dma-ip/stream/PRD.md)** - Simplified DMA tutorial project
 
 ---
 

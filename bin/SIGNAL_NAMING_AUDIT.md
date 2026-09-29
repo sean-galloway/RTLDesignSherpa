@@ -54,16 +54,16 @@ chmod +x bin/audit_signal_naming_conflicts.py
 
 ```bash
 # Scan a single file
-./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_beats.sv
+./bin/audit_signal_naming_conflicts.py projects/components/dma-ip/rapids/rtl/macro_beats/scheduler_group_beats.sv
 
 # Scan entire directory
-./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/
+./bin/audit_signal_naming_conflicts.py projects/components/dma-ip/rapids/rtl/
 
 # Generate markdown report
-./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ --markdown projects/components/dmas/rapids/rtl/signal_conflicts.md
+./bin/audit_signal_naming_conflicts.py projects/components/dma-ip/rapids/rtl/ --markdown projects/components/dma-ip/rapids/rtl/signal_conflicts.md
 
 # Verbose output with code context
-./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ -v
+./bin/audit_signal_naming_conflicts.py projects/components/dma-ip/rapids/rtl/ -v
 ```
 
 ---
@@ -269,7 +269,7 @@ Add to your CI/CD pipeline:
 
 ```bash
 # In .git/hooks/pre-commit or CI script
-./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ || exit 1
+./bin/audit_signal_naming_conflicts.py projects/components/dma-ip/rapids/rtl/ || exit 1
 ```
 
 The script returns exit code 1 if conflicts are found.
@@ -289,7 +289,7 @@ Generate reports for design reviews:
 
 ```bash
 # Scan all RTL subsystems
-./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ --markdown docs/rapids_signal_conflicts.md
+./bin/audit_signal_naming_conflicts.py projects/components/dma-ip/rapids/rtl/ --markdown docs/rapids_signal_conflicts.md
 ./bin/audit_signal_naming_conflicts.py rtl/amba/ --markdown docs/amba_signal_conflicts.md
 ./bin/audit_signal_naming_conflicts.py rtl/common/ --markdown docs/common_signal_conflicts.md
 ```
@@ -301,7 +301,7 @@ Generate reports for design reviews:
 ### Example 1: Scan Single File
 
 ```bash
-$ ./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_beats.sv
+$ ./bin/audit_signal_naming_conflicts.py projects/components/dma-ip/rapids/rtl/macro_beats/scheduler_group_beats.sv
 
 Scanned scheduler_group_beats.sv: 115 signals
 
@@ -312,9 +312,9 @@ Scanned scheduler_group_beats.sv: 115 signals
 ### Example 2: Scan Directory with Verbose Output
 
 ```bash
-$ ./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ -v
+$ ./bin/audit_signal_naming_conflicts.py projects/components/dma-ip/rapids/rtl/ -v
 
-Scanning 18 SystemVerilog files in projects/components/dmas/rapids/rtl...
+Scanning 18 SystemVerilog files in projects/components/dma-ip/rapids/rtl...
   scheduler_beats.sv: 45 signals
   descriptor_engine_beats.sv: 38 signals
   axi_read_engine_beats.sv: 32 signals
@@ -334,14 +334,14 @@ Internal Signals (4):
 ### Example 3: Generate Markdown Report
 
 ```bash
-$ ./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ --markdown projects/components/dmas/rapids/rtl/signal_conflicts_report.md
+$ ./bin/audit_signal_naming_conflicts.py projects/components/dma-ip/rapids/rtl/ --markdown projects/components/dma-ip/rapids/rtl/signal_conflicts_report.md
 
-Scanning 18 SystemVerilog files in projects/components/dmas/rapids/rtl...
+Scanning 18 SystemVerilog files in projects/components/dma-ip/rapids/rtl...
 
  Found 2 potential signal naming conflicts:
 ...
 
-Markdown report written to: projects/components/dmas/rapids/rtl/signal_conflicts_report.md
+Markdown report written to: projects/components/dma-ip/rapids/rtl/signal_conflicts_report.md
 ```
 
 ### Example 4: No Conflicts Found
@@ -417,7 +417,7 @@ chmod +x bin/audit_signal_naming_conflicts.py
 
 - **Signal Helper Implementation:** `src/CocoTBFramework/components/shared/signal_mapping_helper.py` (RTLDesignSherpa-DV repo)
 - **AXI Factory Functions:** `src/CocoTBFramework/components/axi4/axi4_factories.py` (RTLDesignSherpa-DV repo)
-- **Known Issues:** `projects/components/dmas/rapids/known_issues/scheduler_group_signal_naming_conflicts.md`
+- **Known Issues:** `projects/components/dma-ip/rapids/known_issues/scheduler_group_signal_naming_conflicts.md`
 - **Example Report:** generate with `--markdown <path>` (tool output, not committed)
 
 ---

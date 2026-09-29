@@ -16,7 +16,7 @@
 SELF_DIR  := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 RDS_ROOT  := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-toplevel))
 
-export STREAM_ROOT     ?= $(RDS_ROOT)/projects/components/dmas/stream
+export STREAM_ROOT     ?= $(RDS_ROOT)/projects/components/dma-ip/stream
 export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/converters
 export MISC_ROOT       ?= $(RDS_ROOT)/projects/components/misc
 # ':=' not '?=': env_python exports these pointing at the pre-migration tree.

@@ -6,10 +6,10 @@ explains what the project characterizes, how the harness works, how to build /
 simulate / program / run it, and how the harness CSR is configured.
 
 The device under test is the in-house **STREAM scatter-gather DMA**
-(`stream_top_ch8`, from `projects/components/dmas/stream/`). This guide documents
+(`stream_top_ch8`, from `projects/components/dma-ip/stream/`). This guide documents
 how the harness drives and measures it — not the DMA core's internals. The
 STREAM core's own architecture specifications (HAS/MAS) live under
-`projects/components/dmas/stream/docs/`.
+`projects/components/dma-ip/stream/docs/`.
 
 ---
 

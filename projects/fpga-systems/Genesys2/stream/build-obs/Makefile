@@ -11,7 +11,7 @@ RDS_ROOT  := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-topleve
 # Roots this build's filelist closure resolves against. env_python defines these
 # too, but exporting them here means lint/synth work in a bare shell with only
 # REPO_ROOT set.
-export STREAM_ROOT     ?= $(RDS_ROOT)/projects/components/dmas/stream
+export STREAM_ROOT     ?= $(RDS_ROOT)/projects/components/dma-ip/stream
 export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/converters
 export MISC_ROOT       ?= $(RDS_ROOT)/projects/components/misc
 # The shared stream harness collateral (harness_csr, axi_response_delay, the

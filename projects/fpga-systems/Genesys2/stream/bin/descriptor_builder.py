@@ -47,7 +47,7 @@ from typing import List, Tuple
 # char flow LINKS to it (never the reverse) so cocotb sim and the board build
 # byte-identical descriptors from ONE definition.
 try:
-    from projects.components.dmas.stream.dv.tbclasses.descriptor_packet_builder import (
+    from projects.components.dma_ip.stream.dv.tbclasses.descriptor_packet_builder import (
         DescriptorPacketBuilder,
     )
 except ModuleNotFoundError:  # standalone host run: put repo root on the path
@@ -60,7 +60,7 @@ except ModuleNotFoundError:  # standalone host run: put repo root on the path
     _root = _env.repo_root()
     if _root not in _sys.path:
         _sys.path.insert(0, _root)
-    from projects.components.dmas.stream.dv.tbclasses.descriptor_packet_builder import (
+    from projects.components.dma_ip.stream.dv.tbclasses.descriptor_packet_builder import (
         DescriptorPacketBuilder,
     )
 

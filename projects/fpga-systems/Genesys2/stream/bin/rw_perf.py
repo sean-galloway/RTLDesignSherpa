@@ -56,7 +56,7 @@ sys.path.insert(0, HERE)
 import stream_env  # noqa: F401,E402  (import side effect: sys.path setup)
 
 # STREAM regblock lives at bridge slave 0 (base 0x0). Block bases + the shared
-# per-register offsets mirror projects/components/dmas/stream/rtl/stream_regmap.py.
+# per-register offsets mirror projects/components/dma-ip/stream/rtl/stream_regmap.py.
 STREAM_APB_BASE = 0x0000_0000
 # Monitor CSRs relocated to the 0x1000+ MON regfile (STREAM APB now 8 KB);
 # addresses from stream_regmap.py. The char harness stream_apb window was widened

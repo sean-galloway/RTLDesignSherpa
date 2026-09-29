@@ -32,7 +32,7 @@ projects/fpga-systems/Genesys2/stream/reports/
 - All 8 channels pass CRC; bitstream timing clean (built on `893d43e0`)
 
 **Source monitor:** `axi4_master_rd_mon` inside
-`projects/components/dmas/stream/rtl/macro/scheduler_group_array.sv`, the
+`projects/components/dma-ip/stream/rtl/macro/scheduler_group_array.sv`, the
 descriptor-fetch read-bus monitor between `scheduler_group` and
 `desc_ram`. Cones enabled via `DAXMON_ENABLE = 0x1F` (`mon` +
 `error` + `compl` + `timeout` + `perf`; debug stays off until

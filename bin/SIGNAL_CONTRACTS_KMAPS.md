@@ -10,7 +10,7 @@ Existing instances:
         pumice_signal_contracts.xlsx + gen_pumice_signal_contracts.py
           (pumice merged its four workbooks into this one on 2026-09-10;
            stream still uses the older per-component generator below)
-    projects/components/dmas/stream/docs/
+    projects/components/dma-ip/stream/docs/
         stream_signal_contracts.xlsx + gen_signal_contracts_kmaps.py
 
 TODO (tooling TASK-006 (was TOOLING-KMAP) step 5, vault/Tasks/tooling/open.md): the common generator machinery belongs in

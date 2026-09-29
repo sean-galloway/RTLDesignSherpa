@@ -91,8 +91,8 @@ before anything else runs:
 
 | Component | Regmap |
 |---|---|
-| STREAM | `dmas/stream/rtl/stream_regmap.py` (139 regs, 86 of them monitor) |
-| RAPIDS-beats | `dmas/rapids/rtl/*_regmap.py` |
+| STREAM | `dma-ip/stream/rtl/stream_regmap.py` (139 regs, 86 of them monitor) |
+| RAPIDS-beats | `dma-ip/rapids/rtl/*_regmap.py` |
 | pumice (DDR2/LPDDR2) | `mem-ctrl-ip/pumice-ddr2-lpddr2/regs/generated/` |
 | observer (master + slave roles) | `misc/rtl/regs/generated/` (`obs_regs`) |
 | retro legacy blocks | `retro_legacy_blocks/rtl/{hpet,pic_8259,pit_8254,rtc}/` |
@@ -100,9 +100,9 @@ before anything else runs:
 
 Reference implementations:
 
-- **sim:** `dmas/stream/dv/tests/top/test_stream_top_regs.py` -- both monitor
+- **sim:** `dma-ip/stream/dv/tests/top/test_stream_top_regs.py` -- both monitor
   configurations, and the monitors-absent case is an `xfail` gate for
-  STREAM [TASK-002](../../Tasks/projects/components/dmas/stream/task/closed/TASK-002.md) rather than a silent gap
+  STREAM [TASK-002](../../Tasks/projects/components/dma-ip/stream/task/closed/TASK-002.md) rather than a silent gap
 - **board:** `Genesys2/stream/build-mon/host/host_reg_walk.py` -- four endpoints,
   258 registers, bases taken from the address modules that own them and never
   re-typed ([[registers-by-name]])

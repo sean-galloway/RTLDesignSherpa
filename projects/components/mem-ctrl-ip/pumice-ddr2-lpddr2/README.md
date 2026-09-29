@@ -80,6 +80,6 @@ On Ubuntu 23.10+ / Debian 12+ (PEP 668 systems), add
 ## See Also
 
 - Parent: [`../README.md`](../README.md)
-- Sibling: [`../../dmas/stream/README.md`](../../dmas/stream/README.md) — the layout reference
+- Sibling: [`../../dma-ip/stream/README.md`](../../dma-ip/stream/README.md) — the layout reference
 - Research material (research dirs, oppo, JEDEC links): kept at
   `/mnt/data/github/dfi-specs/pumice/` (local-only working area)

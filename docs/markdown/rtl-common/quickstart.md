@@ -623,7 +623,7 @@ grep -r "module_name" rtl/
 ### Explore Other Subsystems
 
 - **`rtl/amba/`** - AMBA protocol infrastructure (AXI, APB, AXIS monitors)
-- **`projects/components/dmas/rapids/`** - Rapid AXI Programmable In-band Descriptor System (example accelerator)
+- **`projects/components/dma-ip/rapids/`** - Rapid AXI Programmable In-band Descriptor System (example accelerator)
 - **`bin/TBClasses/`** - Verification infrastructure
 
 ### Create Your Own Modules

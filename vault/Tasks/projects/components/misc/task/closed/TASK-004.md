@@ -53,7 +53,7 @@ This is the per-unit share; nobody outside this unit will do it.
 `FUTURE.md` held a single item, FUTURE-001 (drive STREAM's scheduler with two
 `dma_address_gen` instances for strided / 2-D / circular / transpose DMA), and
 said itself that the authoritative spec is STREAM TASK-101 in
-`projects/components/dmas/stream/TASKS.md`. A work list beside the RTL is the
+`projects/components/dma-ip/stream/TASKS.md`. A work list beside the RTL is the
 copy nobody updates; the pointer now sits in this component's `CLAUDE.md`
 module table, on the `dma_address_gen.sv` row, where a reader of the directory
 looks. Nothing was filed as a misc task because nothing in the page was misc

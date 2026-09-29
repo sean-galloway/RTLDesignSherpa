@@ -239,7 +239,7 @@ class ComponentCoverage:
 _COMPONENT_SCAN_DEFS: List[Tuple[str, str, List[str]]] = [
     (
         "stream",
-        "projects/components/dmas/stream",
+        "projects/components/dma-ip/stream",
         [
             "dv/tests/coverage_data",
             "coverage_data",
@@ -247,7 +247,7 @@ _COMPONENT_SCAN_DEFS: List[Tuple[str, str, List[str]]] = [
     ),
     (
         "rapids",
-        "projects/components/dmas/rapids",
+        "projects/components/dma-ip/rapids",
         [
             "dv/tests/coverage_data",
         ],

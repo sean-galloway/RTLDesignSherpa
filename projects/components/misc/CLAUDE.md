@@ -186,7 +186,7 @@ forbids. Build against what is actually here.
 |---|---|
 | `axi4_slave_rom.sv`, `rom.sv` | the ROM, behind a standard AXI4 slave wrapper |
 | `axi4_intf_master_observer.sv`, `axi4_intf_slave_observer.sv` | bus observers |
-| `dma_address_gen.sv`, `stream_run_addr_gen.sv` | address generators. The idea of driving STREAM's scheduler with two `dma_address_gen` instances (strided / 2-D / circular / transpose DMA, gated by `USE_ROW_COL_MAJOR_ADDRESSING`) is STREAM TASK-101 in `projects/components/dmas/stream/TASKS.md`; the `FUTURE.md` that used to point there from this directory was folded into that row 2026-09-29 (misc TASK-004) |
+| `dma_address_gen.sv`, `stream_run_addr_gen.sv` | address generators. The idea of driving STREAM's scheduler with two `dma_address_gen` instances (strided / 2-D / circular / transpose DMA, gated by `USE_ROW_COL_MAJOR_ADDRESSING`) is STREAM TASK-101 in `projects/components/dma-ip/stream/TASKS.md`; the `FUTURE.md` that used to point there from this directory was folded into that row 2026-09-29 (misc TASK-004) |
 | `monbus_legal_cam.sv`, `monbus_pkt_tally.sv`, `monbus_tally_axil.sv` | monbus collateral |
 
 Tests are `dv/tests/fub/test_*.py` over TB classes in `dv/tbclasses/` -- four of

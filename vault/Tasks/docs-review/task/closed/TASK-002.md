@@ -10,7 +10,7 @@ files cleared between those two, by owners fixing pages for other reasons. The
 rule never changed; only the backlog did.
 
 **RE-MEASURED 2026-09-24 with the tool: 309 glyphs in 13 of 1557 files, and
-every one of the 13 is `dmas/stream`, `dmas/rapids` or `Genesys2/stream`.**
+every one of the 13 is `dma-ip/stream`, `dma-ip/rapids` or `Genesys2/stream`.**
 Outside those areas the `.md` half of this task is DONE -- zero glyphs in
 anything not owned by another session.
 

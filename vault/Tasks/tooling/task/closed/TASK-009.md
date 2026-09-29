@@ -151,8 +151,8 @@ in the first place.
   `-parallel`, `-gate`, `-func`, `-full`, plus per-module variants
   (`run-apb5-master`, `run-apb5-slave`, `run-apb5-monitor`, `run-apb5-cg`,
   `run-apb5-cdc`, `run-apb5-stub`, ...). This is exactly what R2+R3 replace.
-- The `fub/` / `macro/` / `top/` split repeats across `dmas/stream`,
-  `dmas/rapids`, `pumice`, `misc`, `timing_characterization` — each with its own
+- The `fub/` / `macro/` / `top/` split repeats across `dma-ip/stream`,
+  `dma-ip/rapids`, `pumice`, `misc`, `timing_characterization` — each with its own
   divergent Makefile doing the same job. These are the R4 four-liners.
 - The existing three-tier description lives in
   `projects/components/MAKEFILE_HIERARCHY.md` and `MAKEFILE_GUIDE.md`

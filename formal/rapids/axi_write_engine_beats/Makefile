@@ -8,7 +8,7 @@ TMPDIR    := .sv2v_prep
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/dmas/rapids/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/includes
 
 # Package files (order matters: dependencies first)
 PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
@@ -16,7 +16,7 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_amba5_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_pkg.sv \
-        $(REPO_ROOT)/projects/components/dmas/rapids/rtl/includes/rapids_pkg.sv
+        $(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/includes/rapids_pkg.sv
 
 # RTL dependencies (write engine uses gaxi_fifo_sync which needs counter_bin + fifo_control)
 DEPS := $(REPO_ROOT)/rtl/common/arbiter_round_robin.sv \
@@ -26,7 +26,7 @@ DEPS := $(REPO_ROOT)/rtl/common/arbiter_round_robin.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/dmas/rapids/rtl/fub_beats/axi_write_engine_beats.sv
+DUT := $(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/fub_beats/axi_write_engine_beats.sv
 
 .PHONY: prove cover clean
 

@@ -133,7 +133,7 @@ IDs are scoped to the area AND the lane, so `RLB/hpet BUG-001` and a future
 `RLB/ioapic BUG-001` are different bugs. Cite one as "RLB/hpet BUG-001".
 
 Contrast a **grouping** directory, which carries no INDEX and no items of its
-own: `projects/`, `projects/components/`, `projects/components/dmas/`, and
+own: `projects/`, `projects/components/`, `projects/components/dma-ip/`, and
 `memory-controllers/`. A grouping is a path; a sub-area is an area.
 
 **SCAFFOLD a sub-area set when the blocks are known (Sean, 2026-09-25).** All
@@ -326,8 +326,8 @@ reviewed tree starts until the review is back and integrated.
 | [math](math/INDEX.md) | **native** | rtl/math arithmetic library (MATH-001: bf16 rounding decision) | — (new 2026-07-29) |
 | [cdc](cdc/INDEX.md) | **native** | rtl/cdc clock-domain crossing (gray/binary converters, async FIFOs, pointer synchronisers) | — (new 2026-09-04) |
 | [misc](projects/components/misc/INDEX.md) | **native** | shared odds and ends: AXI4 interface observers, tally/slvmon register blocks, dma_address_gen | — (new 2026-09-04) |
-| [stream](projects/components/dmas/stream/INDEX.md) | **started** | dmas/stream DMA (nested to mirror repo path) | TASK-056 migrated from TODO_RFC_StageE; [TASKS.md](../../projects/components/dmas/stream/TASKS.md) (v1.0 complete) still to fold in |
-| [rapids](projects/components/dmas/rapids/INDEX.md) | **started** | dmas/rapids DMA (beats, nested to mirror repo) | TASK-057 regmap hygiene (ported from STREAM); [TASKS.md](../../projects/components/dmas/rapids/TASKS.md) still to fold in; rapids_beats_mas/TODO.md deleted 2026-09-28 (every figure DONE, history in TASK-010) |
+| [stream](projects/components/dma-ip/stream/INDEX.md) | **started** | dma-ip/stream DMA (nested to mirror repo path) | TASK-056 migrated from TODO_RFC_StageE; [TASKS.md](../../projects/components/dma-ip/stream/TASKS.md) (v1.0 complete) still to fold in |
+| [rapids](projects/components/dma-ip/rapids/INDEX.md) | **started** | dma-ip/rapids DMA (beats, nested to mirror repo) | TASK-057 regmap hygiene (ported from STREAM); [TASKS.md](../../projects/components/dma-ip/rapids/TASKS.md) still to fold in; rapids_beats_mas/TODO.md deleted 2026-09-28 (every figure DONE, history in TASK-010) |
 | [bridge](bridge/INDEX.md) | **migrated** | bridge crossbar generator | TASKS.md folded in 2026-09-10 (ledger in closed.md); nothing open since 2026-09-13 (BRIDGE-017 and 018 closed, WB4 gaps dropped by decision) |
 | delta | **retired 2026-09-27** | AXI-Stream crossbar generator. 5 .sv under rtl/ and rtl_test/ but no tests; its 13 open items were unwritten spec chapters. DELETED by decision (Sean): an unstarted component cannot hold work items. Items are in git history at `vault/Tasks/projects/components/delta/`. | — |
 | [reed-solomon](projects/components/ecc-ip/reed-solomon/INDEX.md) | **migrated** | future R/S ECC component (intent only, no RTL yet; holds RS-001) | successor to dropped COMMON-009 |

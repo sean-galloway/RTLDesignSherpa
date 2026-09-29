@@ -16,7 +16,7 @@ PKGS :=
 DEPS :=
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/top/stream_config_block.sv
+DUT := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/top/stream_config_block.sv
 
 .PHONY: prove cover clean
 

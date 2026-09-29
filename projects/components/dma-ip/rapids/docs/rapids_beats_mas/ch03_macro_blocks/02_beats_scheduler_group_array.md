@@ -1,0 +1,325 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
+# Beats Scheduler Group Array Specification
+
+**Module:** `scheduler_group_array_beats.sv`
+**Location:** `projects/components/dma-ip/rapids/rtl/macro_beats/`
+**Status:** Implemented
+**Last Updated:** 2025-01-10
+
+---
+
+## Overview
+
+The Beats Scheduler Group Array instantiates 8 scheduler groups with a shared descriptor AXI master and unified MonBus output. It provides the complete scheduler infrastructure for all RAPIDS channels.
+
+### Key Features
+
+- **8-Channel Array:** One scheduler_group per channel
+- **Shared Descriptor AXI:** Round-robin arbitration for descriptor fetches
+- **Unified MonBus:** Aggregates 9 MonBus sources (8 scheduler + 1 arbiter)
+- **Per-Channel Configuration:** Individual enable/reset per channel
+- **Aggregate Status:** Combined idle and error flags
+
+### Block Diagram
+
+### Figure 3.2.1: Beats Scheduler Group Array Block Diagram
+
+```
+                    beats_scheduler_group_array
+    +------------------------------------------------------------------+
+    |                                                                  |
+    |  +------------------+  +------------------+  +------------------+ |
+    |  | scheduler_group  |  | scheduler_group  |  | scheduler_group  | |
+    |  |      [0]         |  |      [1]         |  |      [7]         | |
+    |  +--------+---------+  +--------+---------+  +--------+---------+ |
+    |           |                     |                     |          |
+    |           | AXI AR/R            | AXI AR/R            | AXI AR/R |
+    |           v                     v                     v          |
+    |  +----------------------------------------------------------+   |
+    |  |              Round-Robin AXI AR/R Arbiter                |   |
+    |  +----------------------------+-----------------------------+   |
+    |                               |                                  |
+    |                               v                                  |
+    |                     Shared Descriptor AXI                        |
+    |                                                                  |
+    |  MonBus from each group:                                        |
+    |           |                     |                     |          |
+    |           v                     v                     v          |
+    |  +----------------------------------------------------------+   |
+    |  |            MonBus Round-Robin Arbiter (9 sources)        |   |
+    |  +----------------------------+-----------------------------+   |
+    |                               |                                  |
+    +-------------------------------|----------------------------------+
+                                    v
+                          mon_valid/mon_packet
+```
+
+---
+
+## Parameters
+
+```systemverilog
+parameter int NUM_CHANNELS = 8;                  // Number of channels
+parameter int ADDR_WIDTH = 64;                   // Address bus width
+parameter int DATA_WIDTH = 512;                  // Data bus width
+parameter int DESC_DATA_WIDTH = 256;             // Descriptor width
+
+// AXI ID Management
+parameter int AXI_ID_WIDTH = 8;                  // ID field width
+parameter int MAX_OUTSTANDING = 8;               // Outstanding descriptors
+
+// Monitor Bus Parameters
+parameter int MON_UNIT_ID = 1;                   // Unit ID for MonBus
+```
+
+: Table 3.2.1: Beats Scheduler Group Array Parameters
+
+---
+
+## Port List
+
+### Clock and Reset
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `clk` | input | 1 | System clock |
+| `rst_n` | input | 1 | Active-low reset |
+
+: Table 3.2.2: Clock and Reset
+
+### Per-Channel APB Programming
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `apb_valid` | input | NC | Channel kick-off (per-channel) |
+| `apb_ready` | output | NC | Ready for kick-off |
+| `apb_addr` | input | NC*AW | First descriptor address |
+
+: Table 3.2.3: APB Programming Interface
+
+### Per-Channel Configuration
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `cfg_channel_enable` | input | NC | Enable per channel |
+| `cfg_channel_reset` | input | NC | Soft reset per channel |
+| `cfg_sched_timeout_cycles` | input | NC*16 | Timeout threshold |
+| `cfg_sched_timeout_enable` | input | NC | Enable timeout |
+| `cfg_desceng_enable` | input | NC | Enable descriptor engine |
+| `cfg_desceng_prefetch` | input | NC | Enable prefetching |
+| `cfg_desceng_fifo_thresh` | input | NC*4 | Prefetch threshold |
+| `cfg_desceng_addr0_base` | input | NC*AW | Address range 0 base |
+| `cfg_desceng_addr0_limit` | input | NC*AW | Address range 0 limit |
+
+: Table 3.2.4: Per-Channel Configuration
+
+### Shared Descriptor AXI Master Interface
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `desc_axi_arvalid` | output | 1 | AR valid |
+| `desc_axi_arready` | input | 1 | AR ready |
+| `desc_axi_araddr` | output | ADDR_WIDTH | Descriptor fetch address |
+| `desc_axi_arlen` | output | 8 | Burst length - 1 |
+| `desc_axi_arsize` | output | 3 | Burst size |
+| `desc_axi_arburst` | output | 2 | Burst type |
+| `desc_axi_arid` | output | AXI_ID_WIDTH | Transaction ID |
+| `desc_axi_arlock` | output | 1 | Lock type |
+| `desc_axi_arcache` | output | 4 | Cache attributes |
+| `desc_axi_arprot` | output | 3 | Protection attributes |
+| `desc_axi_arqos` | output | 4 | Quality of service |
+| `desc_axi_arregion` | output | 4 | Region identifier |
+| `desc_axi_rvalid` | input | 1 | R valid |
+| `desc_axi_rready` | output | 1 | R ready |
+| `desc_axi_rdata` | input | 256 | Descriptor payload (fixed 256-bit) |
+| `desc_axi_rresp` | input | 2 | Read response |
+| `desc_axi_rlast` | input | 1 | Last beat |
+| `desc_axi_rid` | input | AXI_ID_WIDTH | Response ID |
+
+: Table 3.2.5: Shared Descriptor AXI Master Interface
+
+### Per-Channel Scheduler Data Interfaces
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `sched_rd_valid` | output | NC | Read request per channel |
+| `sched_rd_addr` | output | NC*AW | Read address |
+| `sched_rd_beats` | output | NC*32 | Read beats |
+| `sched_rd_done_strobe` | input | NC | Read complete |
+| `sched_wr_valid` | output | NC | Write request per channel |
+| `sched_wr_addr` | output | NC*AW | Write address |
+| `sched_wr_beats` | output | NC*32 | Write beats |
+| `sched_wr_done_strobe` | input | NC | Write complete |
+
+: Table 3.2.6: Per-Channel Scheduler Data Interfaces
+
+### Aggregate Status
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `descriptor_engine_idle` | output | NC | Per-channel descriptor engine idle |
+| `scheduler_idle` | output | NC | Per-channel scheduler idle |
+| `scheduler_state` | output | NC x 7 | Per-channel FSM state (one-hot) |
+| `sched_error` | output | NC | Per-channel scheduler error (sticky) |
+
+: Table 3.2.7: Aggregate Status
+
+### Unified MonBus Interface
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `i_mon_time` | input | monbus_timestamp_t | Shared monitor timebase |
+| `mon_valid` | output | 1 | Monitor packet valid |
+| `mon_ready` | input | 1 | Consumer ready |
+| `mon_packet` | output | monitor_packet_t | Monitor packet |
+| `mon_timestamp` | output | monbus_timestamp_t | Packet timestamp |
+
+: Table 3.2.8: Unified MonBus Interface
+
+### Descriptor-AXI Perf Window
+
+The descriptor monitor is `axi_monitor_lite`, which has no performance cone.
+The DAXMON_PERF_* CSRs are fed instead by an always-on `axi_bus_meter` on the
+descriptor R channel plus window/beat/byte/burst accumulators beside it, the
+same meter `rapids_beats_top` uses for RDMON/WRMON. `cfg_desc_mon_perf_run`
+(DAXMON_PERF_CTRL.RUN) opens the window: counters clear on its rising edge,
+count while it is high and hold while it is low. The meter is not gated by
+`USE_AXI_MONITORS`.
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `cfg_desc_mon_perf_run` | input | 1 | Window control (DAXMON_PERF_CTRL.RUN) |
+| `sts_desc_mon_win_active` | output | 1 | Window open (equals RUN) |
+| `sts_desc_mon_win_cycles` | output | 32 | Live cycle count; reads 0 while the window is closed |
+| `sts_desc_mon_prod_cycles` | output | 32 | R valid and ready |
+| `sts_desc_mon_bp_cycles` | output | 32 | R valid, not ready (backpressure) |
+| `sts_desc_mon_starv_cycles` | output | 32 | R ready, not valid (starvation) |
+| `sts_desc_mon_idle_cycles` | output | 32 | R neither valid nor ready |
+| `sts_desc_mon_beat_count` | output | 32 | R handshakes in the window |
+| `sts_desc_mon_byte_count` | output | 64 | 32 bytes per 256-bit descriptor beat |
+| `sts_desc_mon_burst_count` | output | 32 | AR handshakes in the window |
+
+: Table 3.2.9: Descriptor-AXI Perf Window
+
+---
+
+## AXI Arbitration
+
+### Figure 3.2.2: Descriptor AXI Arbitration Sequence
+
+```
+        Channel[0]    Channel[1]    Arbiter        AXI Master
+            |             |            |               |
+    AR REQ  |------------>|            |               |
+            |             | AR REQ     |               |
+            |             |----------->|               |
+            |             |            | GRANT[0]      |
+            |<-------------------------|               |
+            |             |            |  AR VALID     |
+            |             |            |-------------->|
+            |             |            |  AR READY     |
+            |             |            |<--------------|
+            |             |            | GRANT[1]      |
+            |             |<-----------|               |
+            |             |            |  AR VALID     |
+            |             |            |-------------->|
+            |             |            |  R DATA       |
+            |             |            |<--------------|
+            |    R DATA   |            |               |
+            |<-------------------------|               |
+            |             |    R DATA  |               |
+            |             |<-----------|               |
+            |             |            |               |
+```
+
+---
+
+## MonBus Aggregation
+
+The unified MonBus output aggregates 9 sources using round-robin arbitration:
+
+| Source ID | Origin | Description |
+|-----------|--------|-------------|
+| 0-7 | scheduler_group[0:7] | Per-channel aggregated MonBus |
+| 8 | AXI Arbiter | Arbitration events |
+
+: Table 3.2.10: MonBus Source Assignment
+
+Each scheduler_group provides a single MonBus output that combines both scheduler and descriptor engine packets (2:1 internal arbitration).
+
+---
+
+## Integration Context
+
+```systemverilog
+scheduler_group_array_beats #(
+    .NUM_CHANNELS(8),
+    .ADDR_WIDTH(64),
+    .DATA_WIDTH(512)
+) u_scheduler_array (
+    .clk                    (clk),
+    .rst_n                  (rst_n),
+
+    // APB programming (per-channel)
+    .apb_valid              (apb_kick_valid),
+    .apb_ready              (apb_kick_ready),
+    .apb_addr               (apb_kick_addr),
+
+    // Configuration (per-channel)
+    .cfg_channel_enable     (cfg_ch_enable),
+    .cfg_sched_timeout_cycles(cfg_timeout_cycles),
+    // ... additional config ...
+
+    // Shared descriptor AXI
+    .desc_axi_arvalid       (desc_axi_arvalid),
+    .desc_axi_arready       (desc_axi_arready),
+    .desc_axi_araddr        (desc_axi_araddr),
+    .desc_axi_rvalid        (desc_axi_rvalid),
+    .desc_axi_rready        (desc_axi_rready),
+    .desc_axi_rdata         (desc_axi_rdata),
+
+    // Per-channel scheduler outputs
+    .sched_rd_valid         (sched_rd_valid),
+    .sched_rd_addr          (sched_rd_addr),
+    .sched_rd_beats         (sched_rd_beats),
+    .sched_rd_done_strobe   (sched_rd_done_strobe),
+    .sched_wr_valid         (sched_wr_valid),
+    .sched_wr_addr          (sched_wr_addr),
+    .sched_wr_beats         (sched_wr_beats),
+    .sched_wr_done_strobe   (sched_wr_done_strobe),
+
+    // Status
+    .scheduler_idle         (all_schedulers_idle),
+
+    // Unified MonBus
+    .mon_valid              (sched_array_monbus_valid),
+    .mon_ready              (sched_array_monbus_ready),
+    .mon_packet             (sched_array_monbus_data)
+);
+```
+
+---
+
+**Last Updated:** 2025-01-10

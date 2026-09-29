@@ -192,7 +192,7 @@ Everything this MAS leaned on, plus the pointers you'll want when you need to go
 **RTL Design Sherpa Components:**
 - APB HPET (this component)
 - AMBA AXI4 Monitors (`rtl/amba/`)
-- RAPIDS DMA Engine (`projects/components/dmas/rapids/`)
+- RAPIDS DMA Engine (`projects/components/dma-ip/rapids/`)
 - Delta Network Arbiter (`projects/components/delta/`)
 
 **External Dependencies:**

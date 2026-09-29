@@ -55,7 +55,7 @@ from descriptor_builder import (  # noqa: E402
 from rapids_char_golden import golden_crc, LFSR_SEED_DEFAULT  # noqa: E402
 
 RAPIDS_REGMAP_PATH = os.path.join(
-    _REPO_ROOT, 'projects/components/dmas/rapids/rtl/rapids_regmap.py')
+    _REPO_ROOT, 'projects/components/dma-ip/rapids/rtl/rapids_regmap.py')
 
 # Address layout — identical to rapids_char_harness_tb.py so the on-chip fetch
 # address equals the host-load address.

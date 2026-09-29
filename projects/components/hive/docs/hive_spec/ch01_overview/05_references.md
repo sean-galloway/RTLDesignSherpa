@@ -32,9 +32,9 @@
 - **[HIVE Clocks and Reset](03_clocks_and_reset.md)** - Chapter 1.3: Clock domains and reset strategy
 
 ### Related Component Specifications
-- **[RAPIDS Beats HAS](../../../../dmas/rapids/docs/rapids_beats_has/rapids_beats_has_index.md)** - DMA engine controlled by HIVE-C
+- **[RAPIDS Beats HAS](../../../../dma-ip/rapids/docs/rapids_beats_has/rapids_beats_has_index.md)** - DMA engine controlled by HIVE-C
 - **[Delta Network Specification](../../../../delta/docs/delta_spec/delta_index.md)** - 4×4 mesh NoC for compute fabric
-- **[STREAM Specification](../../../../dmas/stream/PRD.md)** - Simplified DMA tutorial project (educational reference)
+- **[STREAM Specification](../../../../dma-ip/stream/PRD.md)** - Simplified DMA tutorial project (educational reference)
 
 ---
 
@@ -248,7 +248,7 @@
   - `sw/` - VexRiscv and SERV firmware
 
 ### Related Projects
-- **RAPIDS:** `projects/components/dmas/rapids/`
+- **RAPIDS:** `projects/components/dma-ip/rapids/`
 - **Delta Network:** `projects/components/delta/`
 - **Common RTL:** `rtl/common/`, `rtl/amba/`
 

@@ -180,11 +180,11 @@ module ctrlrd_engine (
 	output wire [63:0] mon_timestamp;
 	initial begin
 		if (AXI_ID_WIDTH < CHAN_WIDTH) begin
-			$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/rapids/rtl/fub/ctrlrd_engine.sv:94:13 - ctrlrd_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CHAN_WIDTH);
+			$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/rtl/fub/ctrlrd_engine.sv:94:13 - ctrlrd_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CHAN_WIDTH);
 			$finish(1);
 		end
 		if (AXI_DATA_WIDTH < 32) begin
-			$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dmas/rapids/rtl/fub/ctrlrd_engine.sv:97:13 - ctrlrd_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_DATA_WIDTH (%0d) must be >= 32 for 32-bit reads", AXI_DATA_WIDTH);
+			$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/rtl/fub/ctrlrd_engine.sv:97:13 - ctrlrd_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_DATA_WIDTH (%0d) must be >= 32 for 32-bit reads", AXI_DATA_WIDTH);
 			$finish(1);
 		end
 	end

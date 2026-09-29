@@ -14,7 +14,7 @@ fabricated examples, none of them in the unit that made the change:
 | `projects/components/converters/README.md` | `axi4_to_apb4_convert` | M_APB_ADDR_WIDTH, M_APB_DATA_WIDTH, S_AXI_ADDR_WIDTH, S_AXI_DATA_WIDTH, m_apb_paddr |
 | `projects/components/converters/README.md` | `axi_data_dnsize` | DUAL_BUFFER |
 | `projects/components/converters/README.md` | `peakrdl_to_cmdrsp` | clk, cmd_addr, cmd_data, cmd_write, reg_addr |
-| `projects/components/dmas/stream/regs/README.md` | `stream_regs` | ch0_ctrl_desc_addr, ch0_rd_burst, global_ctrl_enable, paddr, pclk |
+| `projects/components/dma-ip/stream/regs/README.md` | `stream_regs` | ch0_ctrl_desc_addr, ch0_rd_burst, global_ctrl_enable, paddr, pclk |
 | `projects/fpga-systems/boards/README.md` | `debounce` | CLK_FREQ_MHZ, DEBOUNCE_TIME_MS, i_clk, i_rst_n, i_signal_raw |
 
 They are held by `BASELINE = 8` in that script so the widening could land
@@ -43,7 +43,7 @@ The five rows went to their owners, except one that had no owner lane:
 | Row | Where it went |
 |---|---|
 | converters/README.md, 3 examples (`axi4_to_apb4_convert`, `axi_data_dnsize`, `peakrdl_to_cmdrsp`) | **converters TASK-004** |
-| dmas/stream/regs/README.md, `stream_regs` | **stream TASK-015** |
+| dma-ip/stream/regs/README.md, `stream_regs` | **stream TASK-015** |
 | fpga-systems/boards/README.md, `debounce` | **fixed in place** -- `projects/fpga-systems` has no task lane. The example named a `CLK_FREQ_MHZ`/`DEBOUNCE_TIME_MS` pair and `i_clk`/`i_rst_n`/`i_signal_raw`/`o_signal_clean` that `rtl/common/debounce.sv` never had; it now shows the real header (N, DEBOUNCE_DELAY, PRESSED_STATE; clk, rst_n, long_tick, button_in, button_out), wired the way NexysA7/cdc_counter_display wires it. |
 
 `BASELINE` is 7 and its comment says why. The two filed items each carry the

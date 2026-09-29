@@ -2,7 +2,7 @@
 # AMBA Monitor System Whitepaper
 #
 # This file is a near-copy of
-# projects/components/dmas/stream/docs/stream_mas/stream_styles.yaml
+# projects/components/dma-ip/stream/docs/stream_mas/stream_styles.yaml
 # (the corporate single-source-of-truth for spec docs). Only the
 # title_page block is customized for this document; fonts, colors,
 # heading rules, table styling, headers/footers, and margins follow

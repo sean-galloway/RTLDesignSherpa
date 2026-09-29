@@ -51,8 +51,8 @@ formal/
 ├── converters/                      Width/protocol converter proofs
 ├── bridge/                          Bridge AXI4 protocol verification
 │   └── axi4_protocol/               Uses SVA-AXI4-FVIP for protocol checking
-├── stream/                          STREAM DMA blocks (dmas/stream RTL)
-├── rapids/                          RAPIDS DMA blocks (dmas/rapids *_beats RTL)
+├── stream/                          STREAM DMA blocks (dma-ip/stream RTL)
+├── rapids/                          RAPIDS DMA blocks (dma-ip/rapids *_beats RTL)
 └── ext/                             External formal verification IP
     └── SVA-AXI4-FVIP/               YosysHQ AXI4 protocol checker (git submodule)
 ```

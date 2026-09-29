@@ -240,8 +240,8 @@ def main():
     repo_root = Path('/mnt/data/github/rtldesignsherpa')
 
     # Process RAPIDS beats testplans
-    testplan_dir = repo_root / 'projects/components/dmas/rapids/dv/testplans'
-    coverage_dir = repo_root / 'projects/components/dmas/rapids/dv/tests/fub_beats/local_sim_build'
+    testplan_dir = repo_root / 'projects/components/dma-ip/rapids/dv/testplans'
+    coverage_dir = repo_root / 'projects/components/dma-ip/rapids/dv/tests/fub_beats/local_sim_build'
 
     if not coverage_dir.exists():
         print(f"Coverage directory not found: {coverage_dir}")

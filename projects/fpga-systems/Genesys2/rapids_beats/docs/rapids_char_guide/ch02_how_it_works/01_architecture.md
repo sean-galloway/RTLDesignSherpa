@@ -36,7 +36,7 @@ The UART wire protocol is ASCII (`W <addr> <data>\n` / `R <addr>\n`), 115200
 ## The DUT and the on-chip harness
 
 The DUT is `rapids_beats_top` (`u_dut`), from
-`projects/components/dmas/rapids/`. Two build-time overrides matter for the char
+`projects/components/dma-ip/rapids/`. Two build-time overrides matter for the char
 build: `USE_AXI_MONITORS = 0` and `GEN_MON = 0` — the in-core AXI/descriptor
 monitors and MonBus egress are compiled **out** so utilization is metered
 externally and 8-channel timing closes. Two more knobs, also default off, add

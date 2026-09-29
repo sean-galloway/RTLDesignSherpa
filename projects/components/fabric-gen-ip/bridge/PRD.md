@@ -1151,7 +1151,7 @@ The shell scripts will automatically:
 **Related Projects:**
 - **APB Crossbar** - Simple register bus crossbar (existing)
 - **Delta (AXIS Crossbar)** - Streaming data crossbar (projects/components/delta/)
-- **RAPIDS** - DMA engine with AXI4 masters (projects/components/dmas/rapids/)
+- **RAPIDS** - DMA engine with AXI4 masters (projects/components/dma-ip/rapids/)
 
 **Tools:**
 - Verilator - RTL linting and simulation

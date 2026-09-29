@@ -99,7 +99,7 @@ def test_basic(request, addr_width, data_width):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/dmas/stream/rtl/filelists/fub/sram_controller.f'
+        filelist_path='projects/components/dma-ip/stream/rtl/filelists/fub/sram_controller.f'
     )
 
     run(
@@ -156,7 +156,7 @@ def test_stress(request, addr_width, data_width):
 
 **Complete Working Example (Pattern B):**
 
-See `projects/components/dmas/stream/dv/tests/fub/test_sram_controller.py` for reference implementation.
+See `projects/components/dma-ip/stream/dv/tests/fub/test_sram_controller.py` for reference implementation.
 
 **MANDATORY: Pytest Function Naming Convention**
 

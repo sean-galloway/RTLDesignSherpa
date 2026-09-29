@@ -29,7 +29,7 @@
 //   Read and write use independent instances, so a transpose reads with bursts
 //   (contiguous side) and writes single-beat (strided side), or vice versa.
 //
-// Documentation: projects/components/dmas/stream/TASKS.md (TASK-101)
+// Documentation: projects/components/dma-ip/stream/TASKS.md (TASK-101)
 // Subsystem: stream
 //
 // Author: sean galloway

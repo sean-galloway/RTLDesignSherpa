@@ -218,15 +218,15 @@ If you find generated files at the top level:
 **See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1 for complete TB location requirements
 
 **Quick Summary - Project-Specific TB Classes:**
-- **RAPIDS:** `projects/components/dmas/rapids/dv/tbclasses/`
-- **STREAM:** `projects/components/dmas/stream/dv/tbclasses/`
+- **RAPIDS:** `projects/components/dma-ip/rapids/dv/tbclasses/`
+- **STREAM:** `projects/components/dma-ip/stream/dv/tbclasses/`
 - **Bridge:** `projects/components/fabric-gen-ip/bridge/dv/tbclasses/`
 - **Framework (shared only):** `bin/TBClasses/`
 
 **Import Pattern:**
 ```python
 # Project-specific TBs
-from projects.components.dmas.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
+from projects.components.dma_ip.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 
 # Shared infrastructure
 from TBClasses.shared.tbbase import TBBase
@@ -293,13 +293,13 @@ When using AXI factory functions with pattern matching, internal signals can con
 
 ```bash
 # Audit single file before writing testbench
-./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/macro_beats/scheduler_group_beats.sv
+./bin/audit_signal_naming_conflicts.py projects/components/dma-ip/rapids/rtl/macro_beats/scheduler_group_beats.sv
 
 # Audit entire directory
-./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/
+./bin/audit_signal_naming_conflicts.py projects/components/dma-ip/rapids/rtl/
 
 # Generate markdown report for documentation
-./bin/audit_signal_naming_conflicts.py projects/components/dmas/rapids/rtl/ --markdown projects/components/dmas/rapids/rtl/signal_conflicts.md
+./bin/audit_signal_naming_conflicts.py projects/components/dma-ip/rapids/rtl/ --markdown projects/components/dma-ip/rapids/rtl/signal_conflicts.md
 ```
 
 **Why This Matters:**
@@ -414,8 +414,8 @@ demand rather than every session; invoke it before writing or changing a test.
 **Scheduler Credit Counter Bug (historical, pre-beats scheduler)**
 - **Issue:** Credit counter initialized to 0 instead of `cfg_initial_credit`
 - **Status:** Obsolete - the rearchitected beats scheduler
-  (`projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv`) has no credit
-  management yet; current issues are tracked in `projects/components/dmas/rapids/known_issues/`
+  (`projects/components/dma-ip/rapids/rtl/fub_beats/scheduler_beats.sv`) has no credit
+  management yet; current issues are tracked in `projects/components/dma-ip/rapids/known_issues/`
 
 ### General RTL
 
@@ -441,7 +441,7 @@ demand rather than every session; invoke it before writing or changing a test.
 
 **Version History:**
 - v1.0 (2025-09-30): Initial creation
-- v1.1 (2026-07-22): Path refresh - dmas relocation (projects/components/dmas/), RAPIDS beats
+- v1.1 (2026-07-22): Path refresh - dmas relocation (projects/components/dma-ip/), RAPIDS beats
   rearchitecture, monitor move to rtl/amba/monitor/, math split to rtl/math/, TBClasses layout
 - v1.2 (2026-08-31): Trimmed to what a session cannot derive. Removed the directory
   tree, subsystem module inventories, quick-reference tables, generic SystemVerilog

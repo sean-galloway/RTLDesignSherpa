@@ -85,7 +85,7 @@ coverage = true
 # sub_areas lists each sub-directory for per-sub-area aggregation results.
 [env.stream]
 description = "STREAM scatter-gather DMA engine"
-directory = "projects/components/dmas/stream/dv/tests"
+directory = "projects/components/dma-ip/stream/dv/tests"
 reg_level_var = "TEST_LEVEL"
 # STREAM uses lowercase gate/func/full for TEST_LEVEL
 reg_level_values = { gate = "gate", func = "func", full = "full" }
@@ -100,7 +100,7 @@ sub_areas = ["fub", "macro", "top"]
 # Root Makefile delegates to fub/, fub_beats/, macro/, macro_beats/.
 [env.rapids]
 description = "RAPIDS descriptor-driven accelerator"
-directory = "projects/components/dmas/rapids/dv/tests"
+directory = "projects/components/dma-ip/rapids/dv/tests"
 coverage = true
 coverage_extra_env = { COVERAGE_LEGAL = "1" }
 coverage_target = "coverage-full-report"

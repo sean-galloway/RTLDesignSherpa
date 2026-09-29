@@ -55,7 +55,7 @@ rtldesignsherpa/
 │   └── integ_*/                # Integration tests
 │
 ├── projects/
-│   ├── components/             # Component projects (bridge, dmas/{stream,rapids},
+│   ├── components/             # Component projects (bridge, dma-ip/{stream,rapids},
 │   │                           #   mem-ctrl-ip, retro_legacy_blocks, ...)
 │   └── NexysA7/                # FPGA board characterization flows
 │
@@ -77,7 +77,7 @@ Each major subsystem has its own detailed PRD:
 
 - **`docs/markdown/rtl-common/index.md`** - Reusable Building Blocks Library
 - **`docs/markdown/rtl-amba/index.md`** - AMBA Protocol Infrastructure
-- **`projects/components/dmas/rapids/PRD.md`** - Rapid AXI Programmable In-band Descriptor System Specification
+- **`projects/components/dma-ip/rapids/PRD.md`** - Rapid AXI Programmable In-band Descriptor System Specification
 - **RTLDesignSherpa-DV repo** - Verification Framework Guide (shared TB classes: `bin/TBClasses/`)
 
 ### 2.3 Organizational Standards - MANDATORY PROJECT STRUCTURE
@@ -145,8 +145,8 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA
-from projects.components.dmas.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
-from projects.components.dmas.stream.dv.tbclasses.descriptor_engine_tb import DescriptorEngineTB
+from projects.components.dma_ip.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
+from projects.components.dma_ip.stream.dv.tbclasses.descriptor_engine_tb import DescriptorEngineTB
 
 # Shared infrastructure still comes from framework
 from TBClasses.shared.tbbase import TBBase
@@ -187,8 +187,8 @@ Is this code specific to a single project component (RAPIDS, STREAM, Bridge)?
 
 | Project | Location | Status | TB Classes Location |
 |---------|----------|--------|---------------------|
-| **RAPIDS** | `projects/components/dmas/rapids/` | Active | `rapids/dv/tbclasses/` |
-| **STREAM** | `projects/components/dmas/stream/` | Initial | `stream/dv/tbclasses/` |
+| **RAPIDS** | `projects/components/dma-ip/rapids/` | Active | `rapids/dv/tbclasses/` |
+| **STREAM** | `projects/components/dma-ip/stream/` | Initial | `stream/dv/tbclasses/` |
 | **Bridge** | `projects/components/fabric-gen-ip/bridge/` | Planning | `bridge/dv/tbclasses/` |
 
 #### 2.3.7 Benefits of This Organization
@@ -274,11 +274,11 @@ If project-specific code is found in the framework area, it MUST be moved:
 
 ---
 
-### 3.3 Rapid AXI Programmable In-band Descriptor System (`projects/components/dmas/rapids/`)
+### 3.3 Rapid AXI Programmable In-band Descriptor System (`projects/components/dma-ip/rapids/`)
 
 **Purpose:** Custom accelerator for memory-to-memory operations
 **Status:** Active development ("beats" rearchitecture), validation in progress
-**Documentation:** `projects/components/dmas/rapids/PRD.md`, `.../docs/rapids_beats_has/`, `.../docs/rapids_beats_mas/`
+**Documentation:** `projects/components/dma-ip/rapids/PRD.md`, `.../docs/rapids_beats_has/`, `.../docs/rapids_beats_mas/`
 
 **Architecture Blocks:**
 
@@ -309,10 +309,10 @@ RAPIDS Architecture
 - Example of complex FSM coordination
 
 **Test Coverage:** fub_beats/macro_beats/top_beats regressions passing
-**Verification:** `projects/components/dmas/rapids/dv/tests/{fub,fub_beats,macro_beats,top_beats}/`
+**Verification:** `projects/components/dma-ip/rapids/dv/tests/{fub,fub_beats,macro_beats,top_beats}/`
 
 **Known Issues:**
-- See `projects/components/dmas/rapids/known_issues/` for the current list
+- See `projects/components/dma-ip/rapids/known_issues/` for the current list
   (the historical scheduler credit-counter bug applied to the retired pre-beats scheduler)
 
 ---
@@ -343,7 +343,7 @@ RTLDesignSherpa-DV framework repo, editable-installed into the venv)
 
 **Usage Examples:**
 - See `val/amba/test_axi4_monitor.py` for comprehensive AXI monitor testing
-- See `projects/components/dmas/rapids/dv/tests/fub_beats/` for RAPIDS validation patterns
+- See `projects/components/dma-ip/rapids/dv/tests/fub_beats/` for RAPIDS validation patterns
 
 ---
 
@@ -489,7 +489,7 @@ All verification follows a strict three-layer architecture for reusability and m
 
 **Example:**
 ```python
-# projects/components/dmas/rapids/dv/tbclasses/scheduler_tb.py
+# projects/components/dma-ip/rapids/dv/tbclasses/scheduler_tb.py
 from TBClasses.shared.tbbase import TBBase
 
 class SchedulerTB(TBBase):
@@ -523,8 +523,8 @@ class SchedulerTB(TBBase):
 
 **Example:**
 ```python
-# projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py
-from projects.components.dmas.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
+# projects/components/dma-ip/rapids/dv/tests/fub_beats/test_scheduler_beats.py
+from projects.components.dma_ip.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 
 @cocotb.test()
 async def cocotb_test_basic_flow(dut):
@@ -553,7 +553,7 @@ def test_basic_flow(num_ops, ...):
 
 **Example:**
 ```python
-# Example scoreboard (project-local, e.g. projects/components/dmas/rapids/dv/components/)
+# Example scoreboard (project-local, e.g. projects/components/dma-ip/rapids/dv/components/)
 class ProgramEngineScoreboard:
     """Scoreboard for program engine verification"""
 
@@ -649,14 +649,14 @@ class ProgramEngineScoreboard:
 
 **Wrong:** Testbench class defined inside test file
 ```python
-# projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py - WRONG!
+# projects/components/dma-ip/rapids/dv/tests/fub_beats/test_scheduler_beats.py - WRONG!
 class SchedulerTB:  # Should be in dv/tbclasses/
     """This makes TB completely unreusable!"""
 ```
 
 **Wrong:** BFM code in test file
 ```python
-# projects/components/dmas/rapids/dv/tests/fub_beats/test_scheduler_beats.py - WRONG!
+# projects/components/dma-ip/rapids/dv/tests/fub_beats/test_scheduler_beats.py - WRONG!
 async def send_apb_transaction():  # Should be in TB class
     """BFM logic embedded in test - not reusable!"""
 ```
@@ -686,7 +686,7 @@ w_pkt = self.w_monitor._recvQ.popleft()
 **See:**
 - **`docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md`** - Complete guide with examples for all subsystems
 - RTLDesignSherpa-DV repo CLAUDE.md - Framework-specific patterns
-- `projects/components/dmas/rapids/CLAUDE.md` - Detailed testbench architecture
+- `projects/components/dma-ip/rapids/CLAUDE.md` - Detailed testbench architecture
 - `val/amba/test_apb4_slave.py` - Reference example following this pattern
 
 ---
@@ -720,7 +720,7 @@ w_pkt = self.w_monitor._recvQ.popleft()
 ### 5.5 Researcher/Prototyper (Tertiary)
 **Background:** Rapid prototyping of custom accelerators
 **Needs:** Reusable components, quick integration
-**Uses:** `rtl/common/` + `rtl/amba/`, RAPIDS (`projects/components/dmas/rapids/`) as example
+**Uses:** `rtl/common/` + `rtl/amba/`, RAPIDS (`projects/components/dma-ip/rapids/`) as example
 **Skill Level:** Variable, functional focus
 
 ---
@@ -855,7 +855,7 @@ pytest val/amba/ --cov=rtl/amba/ --cov-report=html
 |-----------|--------|---------------|--------------|
 | rtl/common/ | Stable | ~90% | None blocking |
 | rtl/amba/ | Active | 6/8 (75%) | 1 test config issue |
-| RAPIDS (projects/components/dmas/rapids/) | Active | ~80% | see known_issues/ |
+| RAPIDS (projects/components/dma-ip/rapids/) | Active | ~80% | see known_issues/ |
 | CocoTBFramework | Stable | N/A (library) | None |
 
 ### 8.2 Quality Metrics
@@ -891,7 +891,7 @@ pytest val/amba/ --cov=rtl/amba/ --cov-report=html
 - Document integration examples
 - Performance characterization
 
-**RAPIDS Priorities** (as of 2026-07-22: RAPIDS moved to `projects/components/dmas/rapids/`
+**RAPIDS Priorities** (as of 2026-07-22: RAPIDS moved to `projects/components/dma-ip/rapids/`
 and was rearchitected as the beats design; the credit-counter bug applied to the retired
 pre-beats scheduler):
 - Complete descriptor engine stress testing
@@ -929,7 +929,7 @@ pre-beats scheduler):
 
 2. **RAPIDS: Scheduler Credit Counter Init** (historical)
    - Applied to the retired pre-beats scheduler; the beats scheduler has no credit management yet
-   - Current RAPIDS issues: `projects/components/dmas/rapids/known_issues/`
+   - Current RAPIDS issues: `projects/components/dma-ip/rapids/known_issues/`
 
 ### 10.3 Documentation
 
@@ -990,14 +990,14 @@ See `CLAUDE.md` for comprehensive guide on:
 
 - `docs/markdown/rtl-common/index.md` - Common Library detailed spec
 - `docs/markdown/rtl-amba/index.md` - AMBA Infrastructure detailed spec
-- `projects/components/dmas/rapids/PRD.md` - RAPIDS detailed spec
+- `projects/components/dma-ip/rapids/PRD.md` - RAPIDS detailed spec
 - RTLDesignSherpa-DV repo - Verification framework guide
 
 ### 12.2 Design Guides
 
 - `docs/user-guides/AXI_Monitor_Configuration_Guide.md` - Monitor setup best practices
-- `vault/Tasks/projects/components/dmas/rapids/RAPIDS_Validation_Status_Report.md` - RAPIDS test status (pre-beats snapshot)
-- `projects/components/dmas/rapids/docs/rapids_beats_has/`, `.../rapids_beats_mas/` - RAPIDS architecture specification
+- `vault/Tasks/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md` - RAPIDS test status (pre-beats snapshot)
+- `projects/components/dma-ip/rapids/docs/rapids_beats_has/`, `.../rapids_beats_mas/` - RAPIDS architecture specification
 
 ### 12.3 External Resources
 

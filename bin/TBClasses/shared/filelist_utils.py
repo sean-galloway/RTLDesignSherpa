@@ -182,9 +182,9 @@ def get_sources_from_filelist(repo_root, filelist_path=None, *, module=None):
         'CONVERTERS_ROOT': os.path.join(components_root, 'converters'),
         'DELTA_ROOT': os.path.join(components_root, 'delta'),
         'MISC_ROOT': os.path.join(components_root, 'misc'),
-        'RAPIDS_ROOT': os.path.join(components_root, 'dmas', 'rapids'),
+        'RAPIDS_ROOT': os.path.join(components_root, 'dma-ip', 'rapids'),
         'RETRO_ROOT': os.path.join(components_root, 'retro_legacy_blocks'),
-        'STREAM_ROOT': os.path.join(components_root, 'dmas', 'stream'),
+        'STREAM_ROOT': os.path.join(components_root, 'dma-ip', 'stream'),
         # Nexys stream_characterization deleted 2026-08-30; both now point at
         # the Genesys 2 flow that absorbed the collateral.
         'STREAM_CHAR_ROOT': genesys2_stream,

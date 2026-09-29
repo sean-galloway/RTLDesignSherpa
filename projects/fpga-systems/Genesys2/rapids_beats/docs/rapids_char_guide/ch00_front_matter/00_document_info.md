@@ -6,7 +6,7 @@ explains what the project characterizes, how the harness works, how to build /
 simulate / program / run it, and how the harness CSR is configured.
 
 The device under test is the **RAPIDS beats DMA** (`rapids_beats_top`, from
-`projects/components/dmas/rapids/`). This guide documents how the harness drives
+`projects/components/dma-ip/rapids/`). This guide documents how the harness drives
 it and the harness control surface — not the DMA core's internals.
 
 ---

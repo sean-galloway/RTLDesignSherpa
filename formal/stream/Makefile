@@ -1,5 +1,5 @@
 # ==============================================================================
-# Formal Verification - STREAM DMA blocks (dmas/stream RTL)
+# Formal Verification - STREAM DMA blocks (dma-ip/stream RTL)
 # ==============================================================================
 # Usage:
 #   make prove-all             Prove ALL active blocks (excludes DEFERRED)

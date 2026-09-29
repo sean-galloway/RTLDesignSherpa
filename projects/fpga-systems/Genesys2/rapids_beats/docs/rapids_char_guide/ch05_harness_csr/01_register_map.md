@@ -20,7 +20,7 @@ regmaps, regenerated from the SV by `flows-rapids-beats/bin/gen_rapids_harness_r
 - `flows-rapids-beats/rtl/rapids_harness_csr_regmap.py`
 - `flows-rapids-beats/rtl/rapids_harness_desc_regmap.py`
 
-The **DUT** (RAPIDS core) does use PeakRDL — `projects/components/dmas/rapids/rtl/rapids_regmap.py`
+The **DUT** (RAPIDS core) does use PeakRDL — `projects/components/dma-ip/rapids/rtl/rapids_regmap.py`
 — loaded by the host as two `RegisterMap` instances (SRC `start_address=0x0000`,
 SNK `0x1000`, 13-bit APB) for by-name DUT config.
 

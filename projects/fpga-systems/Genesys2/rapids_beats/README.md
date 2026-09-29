@@ -64,5 +64,5 @@ data paths CRC-verified against the golden. Timing closed at 100 MHz
 
 ## Related
 
-- Component: [rapids](../../../components/dmas/rapids/) — [PRD](../../../components/dmas/rapids/PRD.md) · [spec](../../../components/dmas/rapids/docs/)
+- Component: [rapids](../../../components/dma-ip/rapids/) — [PRD](../../../components/dma-ip/rapids/PRD.md) · [spec](../../../components/dma-ip/rapids/docs/)
 - Sibling flow (template): [stream](../stream/)

@@ -7,12 +7,12 @@ SV2V      ?= sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/dmas/stream/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
 PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/includes/stream_pkg.sv
+        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv
 
 # RTL dependencies. The old comment here said "scheduler is pure logic + FSM,
 # no submodule instantiations" -- that stopped being true when scheduler gained
@@ -25,7 +25,7 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/projects/components/misc/rtl/stream_run_addr_gen.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/scheduler.sv
+DUT := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/scheduler.sv
 
 .PHONY: prove cover clean
 

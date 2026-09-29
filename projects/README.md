@@ -66,7 +66,7 @@ make program  # Program FPGA
 
 **On-chip characterization of the split RAPIDS "beats" DMA (two wholly-separate src/snk engines)**
 
-- **Component:** [rapids](components/dmas/rapids/) — docs: [PRD](components/dmas/rapids/PRD.md) · [spec](components/dmas/rapids/docs/)
+- **Component:** [rapids](components/dma-ip/rapids/) — docs: [PRD](components/dma-ip/rapids/PRD.md) · [spec](components/dma-ip/rapids/docs/)
 - **Report:** [characterization findings](fpga-systems/Genesys2/rapids_beats/docs/rapids_beats_findings.md) (regenerate the PDF with `fpga-systems/Genesys2/rapids_beats/docs/generate_pdf.sh`) · host flow: [flows-rapids-beats](fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/)
 - **Board:** Nexys A7-100T · timing-closed @ 100 MHz; both data paths CRC-validated on silicon (`make smoke` / `make suite`)
 - **Status:** Characterized (split engines, golden-CRC suite 48/48 on hardware)
@@ -216,8 +216,8 @@ When adding new projects:
 |-----------|--------|------|
 | [converters](components/converters/) | Production Ready | [README](components/converters/README.md) |
 | [apbx_xbar](components/fabric-gen-ip/apbx-xbar/) | Production Ready | [PRD](components/fabric-gen-ip/apbx-xbar/PRD.md) |
-| [stream](components/dmas/stream/) | Active | [PRD](components/dmas/stream/PRD.md) |
-| [rapids](components/dmas/rapids/) | Active | [PRD](components/dmas/rapids/PRD.md) · [spec](components/dmas/rapids/docs/) · char: [report](fpga-systems/Genesys2/rapids_beats/docs/rapids_beats_findings.md) |
+| [stream](components/dma-ip/stream/) | Active | [PRD](components/dma-ip/stream/PRD.md) |
+| [rapids](components/dma-ip/rapids/) | Active | [PRD](components/dma-ip/rapids/PRD.md) · [spec](components/dma-ip/rapids/docs/) · char: [report](fpga-systems/Genesys2/rapids_beats/docs/rapids_beats_findings.md) |
 | [bridge](components/fabric-gen-ip/bridge/) | Active | [PRD](components/fabric-gen-ip/bridge/PRD.md) |
 | [mem-ctrl-ip](components/mem-ctrl-ip/) | Active | [README](components/mem-ctrl-ip/README.md) · char: [ddr2](fpga-systems/NexysA7/pumice/ddr2-characterization/) |
 | [hive](components/hive/) | Spec | [PRD](components/hive/PRD.md) · [spec](components/hive/docs/hive_spec/) |

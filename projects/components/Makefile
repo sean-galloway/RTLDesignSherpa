@@ -26,11 +26,11 @@ endif
 
 # Component list - only components with a dv/tests/Makefile exposing run-all-* targets.
 # Paths are relative to projects/components/ (some components live under a subdir,
-# e.g. dmas/ and mem-ctrl-ip/).  To add a component: 1) ensure its
+# e.g. dma-ip/ and mem-ctrl-ip/).  To add a component: 1) ensure its
 # dv/tests/Makefile exposes run-all-<gate|func|full>[-parallel], 2) add it here.
 COMPONENTS = converters \
-             dmas/rapids \
-             dmas/stream \
+             dma-ip/rapids \
+             dma-ip/stream \
              fabric-gen-ip/apbx-xbar \
              fabric-gen-ip/bridge \
              mem-ctrl-ip/pumice-ddr2-lpddr2 \

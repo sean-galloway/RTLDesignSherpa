@@ -274,8 +274,8 @@ def main() -> int:
     # MORE findings, all the same gaxi_fifo_sync shape that amba BUG-001 fixed
     # (the module takes axi_aclk/axi_aresetn/wr_*/rd_*; the docs connect
     # i_clk/i_rst_n/i_valid/i_data/i_ready). All three are FIXED (d2062a097):
-    #   projects/components/dmas/rapids/CLAUDE.md  x2  -- fixed by rapids owner
-    #   projects/components/dmas/stream/CLAUDE.md  x1  -- fixed by stream owner
+    #   projects/components/dma-ip/rapids/CLAUDE.md  x2  -- fixed by rapids owner
+    #   projects/components/dma-ip/stream/CLAUDE.md  x1  -- fixed by stream owner
     # so the ratchet drops 4 -> 1. Measured in a detached worktree at that HEAD,
     # not the working tree, per the warning above.
     #
@@ -341,7 +341,7 @@ def main() -> int:
     # 2026-09-28: widening the walk to beside-code PRD.md/README.md (RLB
     # BUG-005) brought 79 more pages into scope and surfaced 8 findings, all
     # in units this change does not own -- converters/README.md (3 examples),
-    # dmas/stream/regs/README.md and fpga-systems/boards/README.md. RLB's own
+    # dma-ip/stream/regs/README.md and fpga-systems/boards/README.md. RLB's own
     # three were FIXED in the same commit rather than baselined, which is why
     # retro_legacy_blocks does not appear here. The floor records filed debt,
     # exactly as the 2 above did: tooling TASK-016 fans these out to their

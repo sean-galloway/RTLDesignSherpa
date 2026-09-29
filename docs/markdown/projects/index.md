@@ -45,7 +45,7 @@ This index provides links to component project documentation within the RTL Desi
 
 #### STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory
 **Status:** Ready (Tutorial DMA engine)
-**Location:** [`projects/components/dmas/stream/`](../../../projects/components/dmas/stream/)
+**Location:** [`projects/components/dma-ip/stream/`](../../../projects/components/dma-ip/stream/)
 
 Beginner-friendly descriptor-based DMA engine for memory-to-memory transfers.
 
@@ -57,16 +57,16 @@ Beginner-friendly descriptor-based DMA engine for memory-to-memory transfers.
 - Tutorial focus - intentional simplifications
 
 **Documentation:**
-- [Complete Specification](../../../projects/components/dmas/stream/docs/stream_mas/stream_index.md)
-- [Product Requirements](../../../projects/components/dmas/stream/PRD.md)
-- [AI Guide](../../../projects/components/dmas/stream/CLAUDE.md)
+- [Complete Specification](../../../projects/components/dma-ip/stream/docs/stream_mas/stream_index.md)
+- [Product Requirements](../../../projects/components/dma-ip/stream/PRD.md)
+- [AI Guide](../../../projects/components/dma-ip/stream/CLAUDE.md)
 - Architectural Notes *(documentation planned)*
 
 ---
 
 #### RAPIDS - Rapid Application Processing and I/O Data Streams
 **Status:** In Progress (Test cleanup in progress)
-**Location:** [`projects/components/dmas/rapids/`](../../../projects/components/dmas/rapids/)
+**Location:** [`projects/components/dma-ip/rapids/`](../../../projects/components/dma-ip/rapids/)
 
 Advanced descriptor-based DMA with network interfaces and complex features.
 
@@ -78,9 +78,9 @@ Advanced descriptor-based DMA with network interfaces and complex features.
 - Production-ready complexity
 
 **Documentation:**
-- [Complete Specification](../../../projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md)
-- [Product Requirements](../../../projects/components/dmas/rapids/PRD.md)
-- [AI Guide](../../../projects/components/dmas/rapids/CLAUDE.md)
+- [Complete Specification](../../../projects/components/dma-ip/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md)
+- [Product Requirements](../../../projects/components/dma-ip/rapids/PRD.md)
+- [AI Guide](../../../projects/components/dma-ip/rapids/CLAUDE.md)
 
 ---
 

@@ -33,7 +33,7 @@ of work.
       (Sean, 2026-07-24) — make the pumice changes but do NOT push them; Sean
       pushes pumice from the workstation. See Tasks/pumice.
 - [ ] the remaining components (converters, delta, hive, misc, apbx_xbar,
-      dmas/{stream,rapids}, memory-controllers/{ddr3,ddr4}) get the same
+      dma-ip/{stream,rapids}, memory-controllers/{ddr3,ddr4}) get the same
       treatment as they are reached.
 
 **Gate:** RTL area first (Tasks/INDEX.md sequencing). Do not start until the

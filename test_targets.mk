@@ -296,124 +296,124 @@ coverage-val-amba-monitor-lite:
 .PHONY: test-stream
 test-stream:
 	@echo "=== stream FUNC (parallel) ==="
-	@$(MAKE) -C projects/components/dmas/stream/dv/tests run-all-func-parallel
+	@$(MAKE) -C projects/components/dma-ip/stream/dv/tests run-all-func-parallel
 
 .PHONY: test-stream-gate
 test-stream-gate:
 	@echo "=== stream GATE (parallel) ==="
-	@$(MAKE) -C projects/components/dmas/stream/dv/tests run-all-gate-parallel
+	@$(MAKE) -C projects/components/dma-ip/stream/dv/tests run-all-gate-parallel
 
 .PHONY: test-stream-func
 test-stream-func:
 	@echo "=== stream FUNC (parallel) ==="
-	@$(MAKE) -C projects/components/dmas/stream/dv/tests run-all-func-parallel
+	@$(MAKE) -C projects/components/dma-ip/stream/dv/tests run-all-func-parallel
 
 .PHONY: test-stream-full
 test-stream-full:
 	@echo "=== stream FULL (parallel) ==="
-	@$(MAKE) -C projects/components/dmas/stream/dv/tests run-all-full-parallel
+	@$(MAKE) -C projects/components/dma-ip/stream/dv/tests run-all-full-parallel
 
 .PHONY: test-stream-gate-waves
 test-stream-gate-waves:
 	@echo "=== stream GATE (parallel + waves) ==="
-	@$(MAKE) -C projects/components/dmas/stream/dv/tests run-all-gate-parallel-waves
+	@$(MAKE) -C projects/components/dma-ip/stream/dv/tests run-all-gate-parallel-waves
 
 .PHONY: test-stream-func-waves
 test-stream-func-waves:
 	@echo "=== stream FUNC (parallel + waves) ==="
-	@$(MAKE) -C projects/components/dmas/stream/dv/tests run-all-func-parallel-waves
+	@$(MAKE) -C projects/components/dma-ip/stream/dv/tests run-all-func-parallel-waves
 
 .PHONY: test-stream-full-waves
 test-stream-full-waves:
 	@echo "=== stream FULL (parallel + waves) ==="
-	@$(MAKE) -C projects/components/dmas/stream/dv/tests run-all-full-parallel-waves
+	@$(MAKE) -C projects/components/dma-ip/stream/dv/tests run-all-full-parallel-waves
 
 .PHONY: test-stream-gate-serial
 test-stream-gate-serial:
 	@echo "=== stream GATE (serial) ==="
-	@$(MAKE) -C projects/components/dmas/stream/dv/tests run-all-gate-serial
+	@$(MAKE) -C projects/components/dma-ip/stream/dv/tests run-all-gate-serial
 
 .PHONY: test-stream-func-serial
 test-stream-func-serial:
 	@echo "=== stream FUNC (serial) ==="
-	@$(MAKE) -C projects/components/dmas/stream/dv/tests run-all-func-serial
+	@$(MAKE) -C projects/components/dma-ip/stream/dv/tests run-all-func-serial
 
 .PHONY: test-stream-full-serial
 test-stream-full-serial:
 	@echo "=== stream FULL (serial) ==="
-	@$(MAKE) -C projects/components/dmas/stream/dv/tests run-all-full-serial
+	@$(MAKE) -C projects/components/dma-ip/stream/dv/tests run-all-full-serial
 
 .PHONY: coverage-stream
 coverage-stream:
 	@echo "=== stream coverage ==="
-	@$(MAKE) -C projects/components/dmas/stream/dv/tests fresh-coverage
+	@$(MAKE) -C projects/components/dma-ip/stream/dv/tests fresh-coverage
 
 .PHONY: coverage-report-stream
 coverage-report-stream:
 	@echo "=== stream coverage report ==="
-	@$(MAKE) -C projects/components/dmas/stream/dv/tests coverage-report
+	@$(MAKE) -C projects/components/dma-ip/stream/dv/tests coverage-report
 
 # --- rapids: RAPIDS descriptor-driven accelerator ---
 
 .PHONY: test-rapids
 test-rapids:
 	@echo "=== rapids FUNC (parallel) ==="
-	@$(MAKE) -C projects/components/dmas/rapids/dv/tests run-all-func-parallel
+	@$(MAKE) -C projects/components/dma-ip/rapids/dv/tests run-all-func-parallel
 
 .PHONY: test-rapids-gate
 test-rapids-gate:
 	@echo "=== rapids GATE (parallel) ==="
-	@$(MAKE) -C projects/components/dmas/rapids/dv/tests run-all-gate-parallel
+	@$(MAKE) -C projects/components/dma-ip/rapids/dv/tests run-all-gate-parallel
 
 .PHONY: test-rapids-func
 test-rapids-func:
 	@echo "=== rapids FUNC (parallel) ==="
-	@$(MAKE) -C projects/components/dmas/rapids/dv/tests run-all-func-parallel
+	@$(MAKE) -C projects/components/dma-ip/rapids/dv/tests run-all-func-parallel
 
 .PHONY: test-rapids-full
 test-rapids-full:
 	@echo "=== rapids FULL (parallel) ==="
-	@$(MAKE) -C projects/components/dmas/rapids/dv/tests run-all-full-parallel
+	@$(MAKE) -C projects/components/dma-ip/rapids/dv/tests run-all-full-parallel
 
 .PHONY: test-rapids-gate-waves
 test-rapids-gate-waves:
 	@echo "=== rapids GATE (parallel + waves) ==="
-	@$(MAKE) -C projects/components/dmas/rapids/dv/tests run-all-gate-parallel-waves
+	@$(MAKE) -C projects/components/dma-ip/rapids/dv/tests run-all-gate-parallel-waves
 
 .PHONY: test-rapids-func-waves
 test-rapids-func-waves:
 	@echo "=== rapids FUNC (parallel + waves) ==="
-	@$(MAKE) -C projects/components/dmas/rapids/dv/tests run-all-func-parallel-waves
+	@$(MAKE) -C projects/components/dma-ip/rapids/dv/tests run-all-func-parallel-waves
 
 .PHONY: test-rapids-full-waves
 test-rapids-full-waves:
 	@echo "=== rapids FULL (parallel + waves) ==="
-	@$(MAKE) -C projects/components/dmas/rapids/dv/tests run-all-full-parallel-waves
+	@$(MAKE) -C projects/components/dma-ip/rapids/dv/tests run-all-full-parallel-waves
 
 .PHONY: test-rapids-gate-serial
 test-rapids-gate-serial:
 	@echo "=== rapids GATE (serial) ==="
-	@$(MAKE) -C projects/components/dmas/rapids/dv/tests run-all-gate-serial
+	@$(MAKE) -C projects/components/dma-ip/rapids/dv/tests run-all-gate-serial
 
 .PHONY: test-rapids-func-serial
 test-rapids-func-serial:
 	@echo "=== rapids FUNC (serial) ==="
-	@$(MAKE) -C projects/components/dmas/rapids/dv/tests run-all-func-serial
+	@$(MAKE) -C projects/components/dma-ip/rapids/dv/tests run-all-func-serial
 
 .PHONY: test-rapids-full-serial
 test-rapids-full-serial:
 	@echo "=== rapids FULL (serial) ==="
-	@$(MAKE) -C projects/components/dmas/rapids/dv/tests run-all-full-serial
+	@$(MAKE) -C projects/components/dma-ip/rapids/dv/tests run-all-full-serial
 
 .PHONY: coverage-rapids
 coverage-rapids:
 	@echo "=== rapids coverage ==="
-	@$(MAKE) -C projects/components/dmas/rapids/dv/tests coverage-full-report
+	@$(MAKE) -C projects/components/dma-ip/rapids/dv/tests coverage-full-report
 
 .PHONY: coverage-report-rapids
 coverage-report-rapids:
 	@echo "=== rapids coverage report ==="
-	@$(MAKE) -C projects/components/dmas/rapids/dv/tests coverage-report
+	@$(MAKE) -C projects/components/dma-ip/rapids/dv/tests coverage-report
 
 # --- bridge: AXI4 crossbar bridge (sequential only — ~1GB per test) ---
 

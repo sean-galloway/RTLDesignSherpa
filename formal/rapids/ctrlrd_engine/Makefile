@@ -7,18 +7,18 @@ REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/dmas/rapids/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/includes
 
 PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_amba5_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
         $(CURDIR)/monitor_pkg_stub.sv \
-        $(REPO_ROOT)/projects/components/dmas/rapids/rtl/includes/rapids_pkg.sv
+        $(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/includes/rapids_pkg.sv
 
 DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv
 
-DUT := $(REPO_ROOT)/projects/components/dmas/rapids/rtl/fub/ctrlrd_engine.sv
+DUT := $(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/fub/ctrlrd_engine.sv
 
 .PHONY: prove cover clean
 prove: ctrlrd_engine_flat.v

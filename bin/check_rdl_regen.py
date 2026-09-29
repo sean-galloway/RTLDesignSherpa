@@ -47,7 +47,7 @@ GENERATOR = REPO_ROOT / "bin" / "peakrdl_generate.py"
 # Adding a block: run its real invocation into a scratch dir, confirm the
 # output matches what is committed, then record it here. Do NOT guess the
 # flags -- a wrong entry reports permanent staleness and blocks every commit.
-STREAM = "projects/components/dmas/stream"
+STREAM = "projects/components/dma-ip/stream"
 STREAM_SOURCES = [
     f"{STREAM}/rtl/macro/stream_regs.rdl",
     f"{STREAM}/rtl/macro/stream_mon_regs.rdl",   # `include`d by stream_regs.rdl
@@ -230,16 +230,16 @@ MANIFEST = [
         # (the per-engine file) and rapids_regmap (the two-half `rapids` map).
         # rapids_regs_regmap.py is not committed, so it is not compared.
         "name": "rapids_regs (regblock + docs)",
-        "rdl": "projects/components/dmas/rapids/rtl/macro_beats/rapids_regs.rdl",
-        "sources": ["projects/components/dmas/rapids/rtl/macro_beats/rapids_regs.rdl",
-                    "projects/components/dmas/rapids/rtl/macro_beats/rapids_engine_regs.rdl",
-                    "projects/components/dmas/rapids/rtl/macro_beats/rapids_mon_regs.rdl"],
+        "rdl": "projects/components/dma-ip/rapids/rtl/macro_beats/rapids_regs.rdl",
+        "sources": ["projects/components/dma-ip/rapids/rtl/macro_beats/rapids_regs.rdl",
+                    "projects/components/dma-ip/rapids/rtl/macro_beats/rapids_engine_regs.rdl",
+                    "projects/components/dma-ip/rapids/rtl/macro_beats/rapids_mon_regs.rdl"],
         "flags": ["--no-html"],
         "regmap_output": None,
         "compare": [
-            ("projects/components/dmas/rapids/regs/generated/rtl/rapids_regs.sv", "rtl/rapids_regs.sv"),
-            ("projects/components/dmas/rapids/regs/generated/rtl/rapids_regs_pkg.sv", "rtl/rapids_regs_pkg.sv"),
-            ("projects/components/dmas/rapids/regs/generated/docs/rapids_regs.md", "docs/rapids_regs.md"),
+            ("projects/components/dma-ip/rapids/regs/generated/rtl/rapids_regs.sv", "rtl/rapids_regs.sv"),
+            ("projects/components/dma-ip/rapids/regs/generated/rtl/rapids_regs_pkg.sv", "rtl/rapids_regs_pkg.sv"),
+            ("projects/components/dma-ip/rapids/regs/generated/docs/rapids_regs.md", "docs/rapids_regs.md"),
         ],
     },
     {
@@ -248,14 +248,14 @@ MANIFEST = [
         # are loaded at start_address 0x0000 (SRC) / 0x1000 (SNK) -- something
         # a generated docstring cannot say. The registers are what must match.
         "name": "rapids_regmap (DV-facing regmap, semantic)",
-        "rdl": "projects/components/dmas/rapids/rtl/macro_beats/rapids_regmap.rdl",
-        "sources": ["projects/components/dmas/rapids/rtl/macro_beats/rapids_regmap.rdl",
-                    "projects/components/dmas/rapids/rtl/macro_beats/rapids_regs.rdl",
-                    "projects/components/dmas/rapids/rtl/macro_beats/rapids_engine_regs.rdl",
-                    "projects/components/dmas/rapids/rtl/macro_beats/rapids_mon_regs.rdl"],
+        "rdl": "projects/components/dma-ip/rapids/rtl/macro_beats/rapids_regmap.rdl",
+        "sources": ["projects/components/dma-ip/rapids/rtl/macro_beats/rapids_regmap.rdl",
+                    "projects/components/dma-ip/rapids/rtl/macro_beats/rapids_regs.rdl",
+                    "projects/components/dma-ip/rapids/rtl/macro_beats/rapids_engine_regs.rdl",
+                    "projects/components/dma-ip/rapids/rtl/macro_beats/rapids_mon_regs.rdl"],
         "flags": ["--no-html"],
         "regmap_output": "rapids_regmap.py",
-        "compare": [("projects/components/dmas/rapids/rtl/rapids_regmap.py", "rapids_regmap.py", "semantic")],
+        "compare": [("projects/components/dma-ip/rapids/rtl/rapids_regmap.py", "rapids_regmap.py", "semantic")],
     },
     {
         # REGMAP ONLY: the demo tracks no generated RTL or docs for this block,

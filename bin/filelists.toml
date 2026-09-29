@@ -123,16 +123,16 @@ filelist_dirs = ["projects/components/delta/rtl/filelists"]
 [[area]]
 name = "stream"
 kind = "component"
-rtl_roots = ["projects/components/dmas/stream/rtl"]
-filelist_dirs = ["projects/components/dmas/stream/rtl/filelists"]
+rtl_roots = ["projects/components/dma-ip/stream/rtl"]
+filelist_dirs = ["projects/components/dma-ip/stream/rtl/filelists"]
 
 [[area]]
 name = "rapids"
 kind = "component"
-rtl_roots = ["projects/components/dmas/rapids/rtl"]
+rtl_roots = ["projects/components/dma-ip/rapids/rtl"]
 filelist_dirs = [
-    "projects/components/dmas/rapids/rtl/filelists",
-    "projects/components/dmas/rapids/dv/filelists",
+    "projects/components/dma-ip/rapids/rtl/filelists",
+    "projects/components/dma-ip/rapids/dv/filelists",
 ]
 
 [[area]]
@@ -251,7 +251,7 @@ filelist_dirs = ["val/amba/filelists"]
 [exempt]
 
 # arbiter_single_client: verified one level up, in STREAM
-# (projects/components/dmas/stream/rtl/macro/scheduler_group_array.sv:434
+# (projects/components/dma-ip/stream/rtl/macro/scheduler_group_array.sv:434
 # is its only instantiation anywhere). No val/common test is wanted --
 # Sean, 2026-08-07 -- so it will never appear in this area's line-coverage
 # denominator, and that absence is a decision rather than a gap.

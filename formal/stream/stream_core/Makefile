@@ -29,11 +29,11 @@ SV2V      ?= sv2v
 PYTHON    ?= python3
 TMPDIR    := .sv2v_prep
 
-FILELIST  := $(REPO_ROOT)/projects/components/dmas/stream/rtl/filelists/macro/stream_core.f
+FILELIST  := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/filelists/macro/stream_core.f
 FLATTEN   := $(PYTHON) $(REPO_ROOT)/bin/flatten_filelist.py
 
 # The single file needing preprocessing, and its prepped copy.
-AWE_SRC   := $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/axi_write_engine.sv
+AWE_SRC   := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/axi_write_engine.sv
 AWE_PREP  := $(TMPDIR)/axi_write_engine.sv
 
 .PHONY: prove cover clean srcs

@@ -40,7 +40,7 @@ now stage an address and **silently never launch**. This is the dominant risk: t
 error, they will hang or report zero work. Every caller must add a `KICK_ENABLE` write.
 
 Known call sites (`grep -rn "CH[0-9]_CTRL_"`):
-- `projects/components/dmas/stream/dv/tbclasses/stream_core_tb.py` (7)
+- `projects/components/dma-ip/stream/dv/tbclasses/stream_core_tb.py` (7)
 - `projects/fpga-systems/Genesys2/stream/build-perf/dv/tests/test_stream_device.py` (6)
 - `projects/fpga-systems/Genesys2/stream/bin/stream_device.py` (3)
 - `projects/fpga-systems/Genesys2/stream/build-perf/dv/tests/test_stream_ext_suite.py` (2)
@@ -69,7 +69,7 @@ Known call sites (`grep -rn "CH[0-9]_CTRL_"`):
   synthesis inlines purely combinational blocks so `g_err`/`g_to`/`g_compl` are invisible.
   Use `bin/check_observer_params.sh`, which elaborates via Verilator `--xml-only`.
 - **Regenerate regs only via `bin/peakrdl_generate.py`**, and pass
-  `--regmap-output projects/components/dmas/stream/rtl/stream_regmap.py` — the RTL is
+  `--regmap-output projects/components/dma-ip/stream/rtl/stream_regmap.py` — the RTL is
   consumed from `regs/generated/rtl/` but DV/host read `rtl/stream_regmap.py`. Two paths,
   one invocation, or they drift.
 

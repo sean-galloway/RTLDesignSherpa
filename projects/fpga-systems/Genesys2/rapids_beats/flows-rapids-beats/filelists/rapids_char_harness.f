@@ -14,11 +14,11 @@
 
 # ---- Include directories ----
 +incdir+$REPO_ROOT/rtl/amba/includes
-+incdir+$REPO_ROOT/projects/components/dmas/rapids/rtl/includes
-+incdir+$REPO_ROOT/projects/components/dmas/stream/rtl/includes
++incdir+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/includes
++incdir+$REPO_ROOT/projects/components/dma-ip/stream/rtl/includes
 
 # ---- DUT: split RAPIDS beats top (+ all its deps) ----
--f $REPO_ROOT/projects/components/dmas/rapids/rtl/filelists/top_beats/rapids_beats_top.f
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/top_beats/rapids_beats_top.f
 
 # ---- CRC + LFSR leaves (not pulled by the DUT filelist) ----
 -f $REPO_ROOT/rtl/common/filelists/dataint_crc_xor_shift.f

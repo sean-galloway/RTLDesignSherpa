@@ -58,8 +58,8 @@ tracker. Nothing here is a second copy of either.
 | apbx-xbar (generated APB crossbars) | [fabric-gen-ip/apbx-xbar/README.md](fabric-gen-ip/apbx-xbar/README.md) |
 | bridge (generated AXI4/AXI5/APB/WB4 crossbar bridges) | [fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md](fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md), [fabric-gen-ip/bridge/CLAUDE.md](fabric-gen-ip/bridge/CLAUDE.md) |
 | converters (width and protocol converters) | [converters/README.md](converters/README.md) |
-| dmas/stream (tutorial scatter-gather DMA) | [dmas/stream/README.md](dmas/stream/README.md) |
-| dmas/rapids (DMA with network integration) | [dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md](dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md), [dmas/rapids/CLAUDE.md](dmas/rapids/CLAUDE.md) |
+| dma-ip/stream (tutorial scatter-gather DMA) | [dma-ip/stream/README.md](dma-ip/stream/README.md) |
+| dma-ip/rapids (DMA with network integration) | [dma-ip/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md](dma-ip/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md), [dma-ip/rapids/CLAUDE.md](dma-ip/rapids/CLAUDE.md) |
 | mem-ctrl-ip (pumice DDR2/LPDDR2; DDR3 and DDR4 placeholders) | [mem-ctrl-ip/README.md](mem-ctrl-ip/README.md) |
 | misc (ROM/RAM wrappers and utilities) | [misc/README.md](misc/README.md) |
 | ecc-ip (error-correction IP family; reed-solomon stood up 2026-09-29, references + draft PRD, no RTL yet) | [ecc-ip/README.md](ecc-ip/README.md), [ecc-ip/reed-solomon/README.md](ecc-ip/reed-solomon/README.md) |

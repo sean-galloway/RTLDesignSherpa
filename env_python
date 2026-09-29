@@ -12,9 +12,9 @@ export BRIDGE_ROOT=$REPO_ROOT/projects/components/fabric-gen-ip/bridge
 export CONVERTERS_ROOT=$REPO_ROOT/projects/components/converters
 export DELTA_ROOT=$REPO_ROOT/projects/components/delta
 export MISC_ROOT=$REPO_ROOT/projects/components/misc
-export RAPIDS_ROOT=$REPO_ROOT/projects/components/dmas/rapids
+export RAPIDS_ROOT=$REPO_ROOT/projects/components/dma-ip/rapids
 export RETRO_ROOT=$REPO_ROOT/projects/components/retro_legacy_blocks
-export STREAM_ROOT=$REPO_ROOT/projects/components/dmas/stream
+export STREAM_ROOT=$REPO_ROOT/projects/components/dma-ip/stream
 
 # NexysA7 characterization roots. These are referenced by .f filelists, so they
 # must be defined here (not only by the per-flow Makefiles) or the filelists
@@ -67,9 +67,9 @@ export PYTHONPATH="$REPO_ROOT/projects/components/fabric-gen-ip/bridge/dv:$PYTHO
 export PYTHONPATH="$REPO_ROOT/projects/components/converters/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/delta/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/misc/dv:$PYTHONPATH"
-export PYTHONPATH="$REPO_ROOT/projects/components/dmas/rapids/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/dma-ip/rapids/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/retro_legacy_blocks/dv:$PYTHONPATH"
-export PYTHONPATH="$REPO_ROOT/projects/components/dmas/stream/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/dma-ip/stream/dv:$PYTHONPATH"
 
 # Where install_tools.sh put the toolchain. Override with RTLDS_TOOLS_PREFIX
 # when tools live elsewhere -- install_tools.sh --prefix used to print three

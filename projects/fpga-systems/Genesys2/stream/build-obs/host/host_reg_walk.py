@@ -68,7 +68,7 @@ def _endpoints():
 
     return [
         ("stream", "stream_apb  STREAM + MON",
-         os.path.join(REPO, "projects/components/dmas/stream/rtl/stream_regmap.py"),
+         os.path.join(REPO, "projects/components/dma-ip/stream/rtl/stream_regmap.py"),
          stream_addrs.STREAM_APB_BASE),
         ("harness", "harness_csr",
          os.path.join(REPO, "projects/fpga-systems/Genesys2/stream/rtl/regs/generated/harness_csr_regs_top_regmap.py"),

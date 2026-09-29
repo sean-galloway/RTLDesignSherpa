@@ -1,5 +1,5 @@
 # ==============================================================================
-# Formal Verification - RAPIDS DMA blocks (dmas/rapids *_beats RTL)
+# Formal Verification - RAPIDS DMA blocks (dma-ip/rapids *_beats RTL)
 # ==============================================================================
 # Usage:
 #   make prove-all             Prove ALL blocks

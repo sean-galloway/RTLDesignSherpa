@@ -61,10 +61,10 @@ procedure for each so they all come out identical.
 - [x] common — rtl/common/TASKS.md (DONE 2026-07-23 -> vault/Tasks/common/)
 - [x] stream — DONE. TASKS.md was folded in earlier; its flat pages (open/active/
       closed/dropped.md, all item-free by then) were retired in da5a84eb0. Items
-      live at vault/Tasks/projects/components/dmas/stream/.
+      live at vault/Tasks/projects/components/dma-ip/stream/.
 - [x] rapids — DONE. Same shape as stream: TASKS.md folded in earlier, the two
       item-free flat pages retired in da5a84eb0. Items live at
-      vault/Tasks/projects/components/dmas/rapids/.
+      vault/Tasks/projects/components/dma-ip/rapids/.
 - [x] bridge — bridge/TASKS.md (DONE -> vault/Tasks/bridge/; source gone)
 - [x] delta — migrated 2026-09-25, AREA DELETED 2026-09-27 (Sean: an unstarted
       component cannot hold items; 5 .sv exist under rtl/ and rtl_test/, no tests). (16 items;

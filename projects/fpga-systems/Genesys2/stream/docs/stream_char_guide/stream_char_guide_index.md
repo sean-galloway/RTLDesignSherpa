@@ -31,7 +31,7 @@ configuration. The STREAM scatter-gather DMA is the device under test.
 
 > This is the **characterization project** guide (`projects/NexysA7/stream_characterization/`).
 > The STREAM core's architecture specs (HAS/MAS) live separately under
-> `projects/components/dmas/stream/docs/`.
+> `projects/components/dma-ip/stream/docs/`.
 
 ---
 

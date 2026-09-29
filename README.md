@@ -67,7 +67,7 @@ Guided progression from primitives to systems. Each level links to the correspon
 
 - **Level 1 — [Common Building Blocks](rtl/common/)** + **[Math Library](rtl/math/)** · ~230 modules · counters, FIFOs, arbiters, data integrity, clock utilities (common) + integer and floating-point math (math)
 - **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/monitor/) · [Shared observation](rtl/amba/shared/)
-- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dmas/stream/) · [RAPIDS](projects/components/dmas/rapids/) · [Bridge](projects/components/fabric-gen-ip/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/fabric-gen-ip/apbx-xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/mem-ctrl-ip/)
+- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dma-ip/stream/) · [RAPIDS](projects/components/dma-ip/rapids/) · [Bridge](projects/components/fabric-gen-ip/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/fabric-gen-ip/apbx-xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/mem-ctrl-ip/)
 - **Level 4 — [FPGA Projects on Nexys A7](projects/fpga-systems/NexysA7/)** · [timing_characterization](projects/asic-trials/timing_characterization/) · [cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/) · [ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) · [rapids_beats](projects/fpga-systems/Genesys2/rapids_beats/)
 
 <details>
@@ -169,8 +169,8 @@ Production-shaped reusable IP. Each has its own README + dv/ + dv/tbclasses/.
 
 | Project | Status | Domain | Where |
 |---|---|---|---|
-| STREAM | Ready | Tutorial DMA + scatter-gather; kick-burst multi-channel start + optional 2-D/transpose addressing | [`projects/components/dmas/stream/`](projects/components/dmas/stream/) |
-| RAPIDS | In progress | Advanced DMA with network interfaces (RAPID AXI Programmable In-band Descriptor System) | [`projects/components/dmas/rapids/`](projects/components/dmas/rapids/) |
+| STREAM | Ready | Tutorial DMA + scatter-gather; kick-burst multi-channel start + optional 2-D/transpose addressing | [`projects/components/dma-ip/stream/`](projects/components/dma-ip/stream/) |
+| RAPIDS | In progress | Advanced DMA with network interfaces (RAPID AXI Programmable In-band Descriptor System) | [`projects/components/dma-ip/rapids/`](projects/components/dma-ip/rapids/) |
 | Bridge | Ready | AXI protocol bridges + RDL-generated cfg | [`projects/components/fabric-gen-ip/bridge/`](projects/components/fabric-gen-ip/bridge/) |
 | Converters | Ready | UART↔AXIL, protocol conversion | [`projects/components/converters/`](projects/components/converters/) |
 | APB Crossbar | Ready | M×N APB interconnect | [`projects/components/fabric-gen-ip/apbx-xbar/`](projects/components/fabric-gen-ip/apbx-xbar/) |
@@ -345,8 +345,8 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[STREAM](projects/components/dmas/stream/)** | Ready | Tutorial DMA with 8 channels, scatter-gather, APB config |
-| **[RAPIDS](projects/components/dmas/rapids/)** | In Progress | Advanced DMA with alignment fixup, network TX/RX, credit flow |
+| **[STREAM](projects/components/dma-ip/stream/)** | Ready | Tutorial DMA with 8 channels, scatter-gather, APB config |
+| **[RAPIDS](projects/components/dma-ip/rapids/)** | In Progress | Advanced DMA with alignment fixup, network TX/RX, credit flow |
 
 #### Interconnect and Bridges
 
@@ -528,8 +528,8 @@ rtldesignsherpa/
 │
 ├── projects/                     # Component projects (10+)
 │   ├── components/
-│   │   ├── dmas/stream/         # STREAM DMA engine
-│   │   ├── dmas/rapids/         # RAPIDS DMA engine
+│   │   ├── dma-ip/stream/         # STREAM DMA engine
+│   │   ├── dma-ip/rapids/         # RAPIDS DMA engine
 │   │   ├── bridge/              # Protocol bridges
 │   │   ├── converters/          # Width/protocol converters
 │   │   ├── apbx_xbar/            # APB crossbar

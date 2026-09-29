@@ -81,9 +81,9 @@ ROOT_VARS = {
     "CONVERTERS_ROOT": "projects/components/converters",
     "DELTA_ROOT": "projects/components/delta",
     "MISC_ROOT": "projects/components/misc",
-    "RAPIDS_ROOT": "projects/components/dmas/rapids",
+    "RAPIDS_ROOT": "projects/components/dma-ip/rapids",
     "RETRO_ROOT": "projects/components/retro_legacy_blocks",
-    "STREAM_ROOT": "projects/components/dmas/stream",
+    "STREAM_ROOT": "projects/components/dma-ip/stream",
     # The Nexys stream_characterization area was deleted 2026-08-30 and its
     # collateral consolidated into the Genesys 2 flow, which is where every
     # consumer of this variable now lives.
@@ -557,7 +557,7 @@ def _owner_of(reg: dict, path: Path) -> str | None:
     best, best_len = None, -1
     for area in reg.get("area", []):
         for root in area.get("rtl_roots", []):
-            # longest matching root wins, so dmas/stream beats a broader prefix
+            # longest matching root wins, so dma-ip/stream beats a broader prefix
             if (rp == root or rp.startswith(root.rstrip("/") + "/")) and len(root) > best_len:
                 best, best_len = area["name"], len(root)
     return best

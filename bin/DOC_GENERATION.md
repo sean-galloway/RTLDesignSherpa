@@ -25,7 +25,7 @@ non-obvious parts (the caption encoding, the LibreOffice `--style` path, the
 
 Reference implementations to clone:
 - **Guide** (per-project, operator/dev): `projects/fpga-systems/NexysA7/cdc_counter_display/docs/cdc_demo_guide/` + `docs/generate_guide_pdf.sh`
-- **Spec** (HAS/MAS): `projects/components/dmas/stream/docs/stream_mas/` + `generate_mas_pdf.sh`
+- **Spec** (HAS/MAS): `projects/components/dma-ip/stream/docs/stream_mas/` + `generate_mas_pdf.sh`
 - **Report** (single-file): `projects/NexysA7/stream_characterization/docs/generate_pdf.sh`
 
 ---

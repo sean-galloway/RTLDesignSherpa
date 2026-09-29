@@ -508,7 +508,7 @@ PASS (axi_read/write_engine, descriptor_engine, scheduler, scheduler_group,
 scheduler_group_array, stream_config_block, perf_profiler, sram_controller), the
 2026-09-24 results for datapath_rd/wr_test, sram_controller_unit, stream_core and
 stream_latency_bridge stand. `stream/monbus_axil_group` RETIRED 2026-09-28: its
-DUT `projects/components/dmas/stream/rtl/macro/monbus_axil_group.sv` no longer
+DUT `projects/components/dma-ip/stream/rtl/macro/monbus_axil_group.sv` no longer
 exists (replaced by `rtl/amba/monitor/monbus_axil4_axil4_group` over
 `monbus_group_core`), so the task had been unrunnable since the replacement and
 its April PASS described a module that is gone. The replacement has no formal
@@ -579,7 +579,7 @@ axi_monitor_base (prove only), axi_monitor_filtered (prove only),
 axi_monitor_trans_mgr (prove only), axi_monitor_reporter, axi_monitor_timeout,
 axi_monitor_timer, amba_clock_gate_ctrl
 
-### projects/components/dmas/stream/ -- 19 of 30 PASS
+### projects/components/dma-ip/stream/ -- 19 of 30 PASS
 
 **FUB (11 PASS):** stream_alloc_ctrl, stream_drain_ctrl, stream_latency_bridge,
 axi_read_engine (prove), axi_write_engine (prove), descriptor_engine,

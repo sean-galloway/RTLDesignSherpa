@@ -7,12 +7,12 @@ SV2V      ?= sv2v
 
 # Include paths for sv2v preprocessing
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/dmas/stream/rtl/includes
+       -I$(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
 PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/includes/stream_pkg.sv
+        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv
 
 # RTL dependencies (transitive closure for datapath_rd_test):
 #   datapath_rd_test -> scheduler (no sub-deps)
@@ -26,18 +26,18 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/arbiter_round_robin.sv \
         $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/stream_alloc_ctrl.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/stream_drain_ctrl.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/stream_latency_bridge.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/sram_controller_unit.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/sram_controller.sv \
+        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_alloc_ctrl.sv \
+        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv \
+        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_latency_bridge.sv \
+        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/sram_controller_unit.sv \
+        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/sram_controller.sv \
         $(REPO_ROOT)/projects/components/misc/rtl/dma_address_gen.sv \
         $(REPO_ROOT)/projects/components/misc/rtl/stream_run_addr_gen.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/scheduler.sv \
-        $(REPO_ROOT)/projects/components/dmas/stream/rtl/fub/axi_read_engine.sv
+        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/scheduler.sv \
+        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/axi_read_engine.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/dmas/stream/rtl/macro/datapath_rd_test.sv
+DUT := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/macro/datapath_rd_test.sv
 
 .PHONY: prove cover clean
 

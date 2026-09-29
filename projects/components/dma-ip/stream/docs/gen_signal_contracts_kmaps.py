@@ -1,0 +1,1850 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 sean galloway
+"""Generate stream_signal_contracts.xlsx for the current STREAM RTL.
+
+Modeled on pumice-ddr2-lpddr2/docs/gen_signal_contracts_kmaps.py.
+
+Builds, from scratch (rerunnable / idempotent):
+  * CONTRACT sheets -- per interface group, a table of Signal / Width / Dir /
+    Driver / "Legal / Correct behavior": when the signal may assert, what it
+    must hold across, what violating it means. Rows that were the subject of a
+    known bug fix say so (known_issues reference) -- those are the rows a
+    future reader needs most.
+  * K-MAP sheets -- for each important COMBINATIONAL decision signal in the
+    engines / scheduler / descriptor engine / SRAM controller / core monitor
+    gating, a Karnaugh map computed from a PYTHON MIRROR of the exact RTL
+    expression (file:line cited next to the map, RTL quoted verbatim). Gray
+    order 00 01 11 10; >4 vars = one 4x4 grid per page-variable value; 1-cells
+    green, 0-cells grey; an "inspection check" note states what a healthy map
+    looks like so a bad future edit is visible on sight. Grid and RTL agree BY
+    CONSTRUCTION: the map is computed by evaluating the mirrored expression
+    over all input combinations, never by hand.
+
+Every citation is VERIFIED at build time: a registry of (file, line, snippet)
+is checked against the RTL before the workbook is written, so a rerun after an
+RTL edit that moves or changes a cited expression fails loudly instead of
+publishing a stale map.
+
+Rerun after engine / scheduler / descriptor / SRAM-controller RTL changes:
+    python3 docs/gen_signal_contracts_kmaps.py
+"""
+import os
+import sys
+
+import openpyxl
+from openpyxl.styles import Font
+
+# Shared machinery, promoted to bin/kmaps by tooling TASK-006 (was TOOLING-KMAP) step 5. What stays
+# here is what describes STREAM specifically: the RTL path constants, the
+# CITES registry, and the build_* sheet builders.
+from kmaps.citations import verify_citations
+from kmaps.styles import (CENTER, DCFILL, GRAY2, GREEN, GREY, HDR, MONO,
+                          THIN, TITLE, WRAP)
+from kmaps.writer import (CONTRACT_HDRS, KmapWriter, contract_sheet,
+                          new_kmap_sheet)
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+XLSX = os.path.join(HERE, "stream_signal_contracts.xlsx")
+REPO = os.path.abspath(os.path.join(HERE, *([".."] * 5)))
+
+
+# ---------------------------------------------------------------------------
+# Citation registry: (path-relative-to-repo, line-number, snippet-that-must-
+# appear-on-that-line). Checked before the workbook is written.
+# ---------------------------------------------------------------------------
+RD_ENG = "projects/components/dma-ip/stream/rtl/fub/axi_read_engine.sv"
+WR_ENG = "projects/components/dma-ip/stream/rtl/fub/axi_write_engine.sv"
+SCHED = "projects/components/dma-ip/stream/rtl/fub/scheduler.sv"
+DESC_ENG = "projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv"
+SRAM_CTL = "projects/components/dma-ip/stream/rtl/fub/sram_controller.sv"
+SRAM_UNIT = "projects/components/dma-ip/stream/rtl/fub/sram_controller_unit.sv"
+ALLOC = "projects/components/dma-ip/stream/rtl/fub/stream_alloc_ctrl.sv"
+DRAIN = "projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv"
+CORE = "projects/components/dma-ip/stream/rtl/macro/stream_core.sv"
+# Shared with RAPIDS since 4aeaf3e63 -- an RTL change here has two consumers.
+ADDRGEN = "projects/components/misc/rtl/stream_run_addr_gen.sv"
+RD_MON = "rtl/amba/axi4/axi4_master_rd_monlite.sv"
+WR_MON = "rtl/amba/axi4/axi4_master_wr_monlite.sv"
+MON_LITE = "rtl/amba/monitor/axi_monitor_lite.sv"
+MON_PKG = "rtl/amba/includes/monitor_common_pkg.sv"
+
+KI_WLAST = ("projects/components/dma-ip/stream/known_issues/resolved/"
+            "axi_write_engine_wlast_drain.md")
+KI_DBLCNT = ("projects/components/dma-ip/stream/known_issues/resolved/"
+             "sram_drain_bridge_double_count.md")
+
+CITES = [
+    (RD_ENG, 370, "w_space_ok[i] = (w_effective_space[i] >= SCW'(w_transfer_size[i] + 8'd1))"),
+    (RD_ENG, 381, "w_arb_request[i] = sched_rd_valid[i] && w_space_ok[i]"),
+    (RD_ENG, 475, 'm_axi_arvalid = w_arb_grant_valid && w_arb_request'),
+    (RD_ENG, 492, 'w_stale_grant = w_arb_grant & ~w_arb_request'),
+    (RD_ENG, 493, "w_arb_grant_ack = (w_arb_grant & {NC{(m_axi_arvalid"),
+    (RD_ENG, 199, "if (m_axi_arvalid && m_axi_arready && (w_arb_grant_id"),
+    (RD_ENG, 204, "if (m_axi_rvalid && m_axi_rready && m_axi_rlast"),
+    (RD_ENG, 532, "axi_rd_sram_valid = m_axi_rvalid"),
+    (RD_ENG, 535, "m_axi_rready = axi_rd_sram_ready"),
+    (RD_ENG, 583, "if (m_axi_rvalid && m_axi_rready && (m_axi_rresp != 2'b00))"),
+    (WR_ENG, 407, "w_effective_avail[i] = (axi_wr_drain_data_avail[i]"),
+    (WR_ENG, 427, "w_has_data[i] = (SCW'(w_effective_avail[i])"),
+    (WR_ENG, 430, "w_final_burst[i] = (sched_wr_beats[i] > 0)"),
+    (WR_ENG, 434, "w_data_ok[i] = w_has_data[i] || w_final_burst[i]"),
+    (WR_ENG, 452, "w_arb_request[i] = sched_wr_valid[i] && w_data_ok[i]"),
+    (WR_ENG, 573, 'if (w_arb_grant_valid && !r_aw_valid && w_arb_request'),
+    (WR_ENG, 587, "m_axi_awvalid = r_aw_valid"),
+    (WR_ENG, 715, "axi_wr_sram_drain = m_axi_wvalid && m_axi_wready"),
+    (WR_ENG, 731, "m_axi_wvalid = r_w_active"),
+    (WR_ENG, 736, "m_axi_wlast = (r_w_beats_remaining == 8'd1)"),
+    (WR_ENG, 791, "if (!r_w_active && !w_phase_txn_fifo_empty)"),
+    (WR_ENG, 795, "else if (m_axi_wvalid && m_axi_wready && m_axi_wlast"),
+    (WR_ENG, 952, "m_axi_bready = 1'b1"),
+    (WR_ENG, 962, "if (m_axi_bvalid && m_axi_bready && (m_axi_bresp != 2'b00))"),
+    (SCHED, 832, "w_read_complete = (r_read_beats_remaining == 32'h0)"),
+    (SCHED, 902, "w_write_issued   = (r_write_beats_remaining == 32'h0)"),
+    (SCHED, 907, "w_write_complete = (r_write_beats_to_commit == 32'h0)"),
+    (SCHED, 909, "w_transfer_complete = w_read_complete && w_write_issued"),
+    (SCHED, 927, "w_rd_prefetch_en = cfg_rd_prefetch_enable && !w_is_ext"),
+    (SCHED, 932, "w_rd_peek   = w_rd_prefetch_en && w_state_xfer_data"),
+    (SCHED, 942, "w_wr_advance = w_rd_prefetch_en && w_state_xfer_data"),
+    (SCHED, 963, "w_sched_rd_completing_this_cycle = sched_rd_done_strobe"),
+    (SCHED, 978, "sched_rd_valid = (r_current_state == CH_XFER_DATA)"),
+    (SCHED, 1004, "sched_wr_valid = (r_current_state == CH_XFER_DATA)"),
+    (SCHED, 270, "w_is_ext = r_is_ext"),
+    (SCHED, 317, "w_addrgen_start = w_state_fetch_desc && !r_fetch_desc_d && w_is_ext"),
+    (SCHED, 523, "if (w_wr_advance) begin"),
+    (SCHED, 525, "end else if (w_transfer_complete && !r_rd_ahead) begin"),
+    (SCHED, 540, "if (r_descriptor.next_descriptor_ptr != 32'h0"),
+    (SCHED, 542, "end else if (w_write_complete) begin"),
+    (SCHED, 1080, "descriptor_ready = (r_current_state == CH_IDLE)"),
+    (SCHED, 1118, "if (sched_wr_done_strobe || sched_wr_commit_strobe)"),
+    (SCHED, 1163, "w_timeout_expired = cfg_sched_timeout_enable"),
+    (SCHED, 1168, "w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0)"),
+    (SCHED, 1173, "w_hard_error = descriptor_error || sched_rd_error"),
+    (DESC_ENG, 333, "w_apb_skid_valid_in = apb_valid && !r_channel_reset_active"),
+    (DESC_ENG, 449, "w_next_addr_valid = (w_next_addr_extended >= cfg_addr0_base"),
+    (DESC_ENG, 454, "w_chain_condition = (w_next_addr != '0) && !w_desc_last"),
+    (DESC_ENG, 457, "w_chain_eligible = w_chain_condition"),
+    (DESC_ENG, 462, "w_desc_committed = (r_current_state == RD_COMPLETE)"),
+    (DESC_ENG, 476, "w_prefetch_allows = (w_desc_fifo_count < w_prefetch_limit)"),
+    (DESC_ENG, 479, "w_should_chain = w_chain_eligible && w_desc_committed"),
+    (DESC_ENG, 485, "w_pending_push_fire = r_chain_pending && w_prefetch_allows"),
+    (DESC_ENG, 644, "r_ready = ((r_current_state == RD_WAIT_DATA)"),
+    (DESC_ENG, 929, 'ar_valid = (((r_current_state == RD_ISSUE_ADDR) && w_addr_range_valid)'),
+    (DESC_ENG, 1056, "descriptor_valid = w_desc_fifo_rd_valid && !r_descriptor_error"),
+    (SRAM_UNIT, 141, "rd_valid           (axi_wr_sram_valid && axi_wr_sram_ready)"),
+    (SRAM_UNIT, 202, "wr_valid           (axi_rd_sram_valid && axi_rd_sram_ready)"),
+    (SRAM_UNIT, 207, "rd_valid           (axi_wr_drain_req)"),
+    (SRAM_UNIT, 325, "axi_wr_drain_data_avail = drain_data_available"),
+    (ALLOC, 76, "w_write = wr_valid && wr_ready"),
+    (ALLOC, 86, "if (w_write && !r_wr_full) begin"),
+    (ALLOC, 141, "space_free = (AW+1)'(D) - w_count"),
+    (DRAIN, 101, "if (w_read && !r_rd_empty) begin"),
+    (DRAIN, 142, "rd_ready = !r_rd_empty"),
+    (DRAIN, 145, "data_available = w_count"),
+    (CORE, 126, "parameter int RD_MON_MAX_TRANS = ((NUM_CHANNELS * AR_MAX_OUTSTANDING + MON_TRANS_MARGIN) < 16)"),
+    (CORE, 805, "int_cfg_rdeng_mon_enable = cfg_rdeng_mon_enable"),
+    (CORE, 866, "int_cfg_rdeng_mon_enable = 1'b0"),
+    (RD_MON, 191, ".fub_axi_arready             (fub_axi_arready),"),
+    (WR_MON, 207, ".fub_axi_awready             (fub_axi_awready),"),
+    (MON_LITE, 346, "wire w_refused    = cmd_hs  && !w_have_free;"),
+    (MON_LITE, 741, "wire [3:0] w_lost    = w_offered - 4'(w_take_fresh) - 4'(w_tmo_saved) + 4'(w_lat_lost);"),
+    (MON_LITE, 756, "else                          r_dropped <= r_dropped + 16'(w_lost);"),
+    (MON_LITE, 896, "assign dropped_count        = r_dropped;"),
+    (MON_LITE, 897, "assign refused_count        = r_refused;"),
+    (SCHED, 440, "r_channel_reset_active <= cfg_channel_reset;"),
+    (SCHED, 468, "if (r_channel_reset_active) begin"),
+    (SCHED, 1025, ".FIFO_DEPTH   (4),"),
+    (SCHED, 1029, ".rst_n           (rst_n),"),
+    (SCHED, 1030, ".start           (w_addrgen_start),"),
+    (SCHED, 1051, ".rst_n           (rst_n),"),
+    (ADDRGEN, 152, "end else if (start) begin"),
+    (ADDRGEN, 210, ".DEPTH(FIFO_DEPTH)"),
+    (ADDRGEN, 213, ".axi_aresetn (rst_n),"),
+    (ADDRGEN, 217, ".rd_valid    (o_base_valid),"),
+
+    # --- TASK-001 #1: monitor cfg -> packet-class qualification -------------
+    (CORE, 784, "if (USE_AXI_MONITORS == 1) begin : g_monitors_enabled"),
+    (CORE, 808, "int_cfg_rdeng_mon_compl_enable = cfg_rdeng_mon_compl_enable"),
+    (CORE, 869, "int_cfg_rdeng_mon_compl_enable = 1'b0"),
+    (CORE, 883, "int_cfg_rdeng_mon_perf_run = cfg_rdeng_mon_perf_run"),
+    (CORE, 1601, ".cfg_compl_enable     (int_cfg_rdeng_mon_compl_enable),"),
+    (MON_LITE, 642, "wire w_cmp_en = cfg_compl_enable && type_allowed(PktTypeCompletion);"),
+    (MON_LITE, 675, "wire       w_cmp_v = r_e_compl  && w_cmp_en;"),
+
+    # --- relations converted from prose claims (criterion 5) ----------------
+    (WR_ENG, 731, "assign m_axi_wvalid = r_w_active"),
+    (SCHED, 228, "w_state_idle        = (r_current_state == CH_IDLE)"),
+    (SCHED, 230, "w_state_xfer_data   = (r_current_state == CH_XFER_DATA)"),
+    (SCHED, 232, "w_state_next_desc   = (r_current_state == CH_NEXT_DESC)"),
+    (SCHED, 907, "w_write_complete = (r_write_beats_to_commit == 32'h0)"),
+    (SCHED, 1005, "(r_write_beats_remaining != 32'h0)"),
+    (SCHED, 1080, "assign descriptor_ready = (r_current_state == CH_IDLE)"),
+    (DESC_ENG, 728, "RD_ISSUE_ADDR: begin"),
+    (DESC_ENG, 762, "RD_ISSUE_ADDR2: begin"),
+
+    # --- TASK-001 #2: axi_write_engine drain strobe / WLAST -----------------
+    (WR_ENG, 715, "axi_wr_sram_drain = m_axi_wvalid && m_axi_wready"),
+    (WR_ENG, 732, "axi_wr_sram_valid[r_w_channel_id]"),
+    (WR_ENG, 733, "axi_wr_sram_valid_comb[r_w_channel_id]"),
+
+    # --- TASK-001 #3: descriptor_engine prefetch + fifo_threshold -----------
+    (DESC_ENG, 457, "w_chain_eligible = w_chain_condition"),
+    (DESC_ENG, 462, "w_desc_committed = (r_current_state == RD_COMPLETE)"),
+    (DESC_ENG, 469, "if (!cfg_prefetch_enable)"),
+    (DESC_ENG, 471, "else if (cfg_fifo_threshold == 4'h0)"),
+    (DESC_ENG, 476, "w_prefetch_allows = (w_desc_fifo_count < w_prefetch_limit)"),
+    (DESC_ENG, 479, "w_should_chain = w_chain_eligible && w_desc_committed"),
+
+    # --- TASK-001 #4: scheduler timeout / error latch and clear -------------
+    (SCHED, 1141, "if (sched_rd_error) r_read_error_sticky <= 1'b1;"),
+    (SCHED, 1142, "if (sched_wr_error) r_write_error_sticky <= 1'b1;"),
+    (SCHED, 1147, "if (sched_rd_error || sched_wr_error || w_timeout_escalate) begin"),
+    (SCHED, 1163, "w_timeout_expired = cfg_sched_timeout_enable"),
+    (SCHED, 1168, "w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0)"),
+
+    # --- TASK-001 #5: alloc / drain space accounting ------------------------
+    (ALLOC, 92, "w_wr_ptr_bin_next = r_wr_ptr_bin"),
+    (ALLOC, 141, "space_free = (AW+1)'(D) - w_count"),
+    (DRAIN, 111, "w_rd_ptr_bin_next = r_rd_ptr_bin"),
+    (DRAIN, 145, "data_available = w_count"),
+    (DRAIN, 176, "((AW+1)'(rd_size) > data_available)"),
+    (RD_ENG, 493, 'w_arb_grant_ack = (w_arb_grant & {NC{(m_axi_arvalid'),
+    (WR_ENG, 418, 'if (sched_wr_valid[i]) begin'),
+    (WR_ENG, 559, 'w_stale_grant = w_arb_grant & ~w_arb_request'),
+    (DESC_ENG, 621, 'w_addr_range_valid = ((r_axi_read_addr >= cfg_addr0_base'),
+    (DESC_ENG, 335, 'apb_ready = w_apb_skid_ready_in && !r_channel_reset_active'),
+    (ALLOC, 103, 'enable           (w_read && !r_rd_empty)'),
+    (DRAIN, 89, 'enable           (w_write && !r_wr_full)'),
+    (DRAIN, 111, 'w_rd_ptr_bin_next = r_rd_ptr_bin + (w_read && !r_rd_empty'),
+    (SRAM_UNIT, 185, 'Doubling the virtual depth gives the count the headroom'),
+]
+
+
+def build_desc_axi_contract(wb):
+    rows = [
+        ("AR", "m_axi_desc_arvalid", "1", "out", "descriptor_engine FSM",
+         "Asserted only in RD_ISSUE_ADDR (chunk 0) or RD_ISSUE_ADDR2 (EXT "
+         "chunk 1) and only while !r_axi_read_active; FSM holds the state "
+         "until arready, so arvalid is stable until the handshake. At most "
+         "one AR in flight per channel engine.",
+         "ar_valid |-> state is RD_ISSUE_ADDR/RD_ISSUE_ADDR2; no second AR "
+         "until R (rlast) returns",
+         f"{DESC_ENG}:929"),
+        ("AR", "m_axi_desc_araddr", "64", "out", "descriptor_engine",
+         "Descriptor fetch address popped from the descriptor-address FIFO "
+         "(APB kick or chain push). Chunk-1 fetch = chunk-0 addr + 0x20. "
+         "Chained addresses were range-validated BEFORE being pushed "
+         "(cfg_addr0/1 windows); APB addr 0 is rejected at the APB gate.",
+         "araddr in [cfg_addr0_base..limit] or [cfg_addr1_base..limit]; "
+         "araddr != 0",
+         f"{DESC_ENG}:922 (addr mux), :449 (range check)"),
+        ("AR", "m_axi_desc_arlen / arsize / arburst", "8/3/2", "out",
+         "descriptor_engine",
+         "Constants: arlen=0 (single beat), arsize=3'b110 (64 bytes), "
+         "arburst=INCR. A descriptor chunk is always one 512-bit beat "
+         "carrying the 256-bit descriptor in [255:0].",
+         "arlen==0, arsize==6, arburst==01 always",
+         f"{DESC_ENG}:924-926"),
+        ("AR", "m_axi_desc_arid", "IW", "out", "descriptor_engine",
+         "{0, CHANNEL_ID}: the shared descriptor master carries the channel "
+         "in the low ID bits so the R beat routes back to the issuing "
+         "channel engine.",
+         "ar_id[CHAN_WIDTH-1:0] == CHANNEL_ID (formal property in-module)",
+         f"{DESC_ENG}:927"),
+        ("AR", "arlock/arcache/arprot/arqos/arregion", "-", "out",
+         "descriptor_engine",
+         "Constants: 0 / 4'b0010 (normal non-cacheable bufferable) / 0 / 0 "
+         "/ 0.", "constant", f"{DESC_ENG}:928-932"),
+        ("R", "m_axi_desc_rvalid / rready", "1/1", "in/out",
+         "fabric / descriptor_engine",
+         "r_ready asserted only in RD_WAIT_DATA or RD_WAIT_DATA2 AND only "
+         "when r_id matches this channel (w_our_axi_response). Beats for "
+         "other channels are NOT accepted by this engine instance - the "
+         "shared-master mux relies on that.",
+         "r_ready |-> (state==RD_WAIT_DATA||RD_WAIT_DATA2) && "
+         "r_id[CHAN_WIDTH-1:0]==CHANNEL_ID",
+         f"{DESC_ENG}:644"),
+        ("R", "m_axi_desc_rdata", "256", "in", "fabric",
+         "One descriptor chunk per beat. Chunk 0 layout: src[63:0], "
+         "dst[127:64], length-in-BEATS[159:128], next_ptr[191:160], "
+         "valid[192], gen_irq[193], last[194], desc_type[210:208]. "
+         "valid bit 0 => r_descriptor_error latched.",
+         "descriptor.valid==1 for every consumed descriptor; "
+         "length in beats (NOT bytes)",
+         f"{DESC_ENG}:840 (valid check)"),
+        ("R", "m_axi_desc_rresp", "2", "in", "fabric",
+         "OKAY(00) expected. Any other response takes the FSM to RD_ERROR: "
+         "descriptor discarded, r_descriptor_error sticky, chain broken "
+         "(w_chain_eligible requires !r_descriptor_error).",
+         "rresp!=OKAY |-> no FIFO push, descriptor_valid forced 0",
+         f"{DESC_ENG}:633, :743"),
+        ("R", "m_axi_desc_rlast", "1", "in", "fabric",
+         "Single-beat reads: rlast must be 1 on the (only) data beat.",
+         "rvalid && our-id |-> rlast", ""),
+        ("Monitor", "(desc AXI monitor)", "-", "-", "axi4_master_rd_monlite",
+         "The descriptor master is wrapped by an axi4_master_rd_monlite inside "
+         "scheduler_group_array; stream_core defaults its error/timeout/"
+         "compl/threshold/debug cones OFF (perf-only) for FPGA fit.",
+         "DESC_MON_ENABLE_* params default 0 except perf",
+         f"{CORE}:105-115 (param block)"),
+    ]
+    contract_sheet(
+        wb, "Desc AXI master",
+        "STREAM descriptor-fetch AXI master (m_axi_desc_*) signal contracts",
+        "Shared 256-bit read-only master; one descriptor_engine per channel "
+        "issues single-beat fetches tagged with its CHANNEL_ID. Sources: "
+        f"{DESC_ENG}, {CORE} ports 284-305.",
+        rows)
+
+
+def build_data_axi_contract(wb):
+    rows = [
+        ("Data RD / AR", "m_axi_arvalid", "1", "out", "axi_read_engine",
+         "COMBINATIONAL: w_arb_grant_valid && sched_rd_valid[grant_id]. "
+         "Grant is registered and held until ack, so arvalid normally holds "
+         "until arready. The live sched_rd_valid AND-term exists to kill "
+         "stale grants from the 1-cycle r_arb_request pipeline.",
+         "arvalid stable until arready in normal operation; grant one-hot "
+         "($onehot0 formal property in-module)",
+         f"{RD_ENG}:413. DESIGN NOTE: on the error/reset/timeout paths "
+         "sched_rd_valid can drop while an unaccepted AR is pending, "
+         "retracting arvalid (AXI stability violation risk) - see K-maps "
+         "rd engine sheet."),
+        ("Data RD / AR", "m_axi_arid / araddr / arlen", "IW/64/8", "out",
+         "axi_read_engine",
+         "arid={0,grant_id} (channel in low bits routes R data to the right "
+         "SRAM channel). araddr = sched_rd_addr[grant] LIVE from the "
+         "scheduler (scheduler advances it only on the done strobe, which "
+         "fires on the AR handshake itself). arlen = w_transfer_size = "
+         "min(sched_rd_beats-1, cfg_axi_rd_xfer_beats).",
+         "sched_rd_addr stable while a grant is pending; arlen+1 <= "
+         "sched_rd_beats",
+         f"{RD_ENG}:414-419"),
+        ("Data RD / AR", "(outstanding gate)", "-", "-", "axi_read_engine",
+         "PIPELINE=0: r_outstanding_limit[ch] set on AR handshake, cleared "
+         "on rlast handshake; a channel cannot arbitrate while set (one "
+         "burst in flight). PIPELINE=1: counter capped at "
+         "AR_MAX_OUTSTANDING. Same-cycle AR+rlast handled (independent "
+         "ifs, clear wins).",
+         "never >1 (or >AR_MAX_OUTSTANDING) outstanding AR per channel",
+         f"{RD_ENG}:193-248"),
+        ("Data RD / R", "m_axi_rvalid / rready / rdata / rid", "-", "in/out",
+         "fabric / axi_read_engine",
+         "Pure passthrough to the SRAM controller: sram_valid=rvalid, "
+         "sram_data=rdata, sram_id=rid, rready=sram_ready. No internal "
+         "buffering - R-channel backpressure IS SRAM backpressure.",
+         "beat accepted (rvalid&&rready) == beat written to SRAM ctrl",
+         f"{RD_ENG}:532-535"),
+        ("Data RD / R", "m_axi_rresp", "2", "in", "fabric",
+         "Non-OKAY on an accepted beat sets sched_rd_error[rid] STICKY; "
+         "cleared only by external logic (channel reset). Scheduler "
+         "escalates to CH_ERROR via w_hard_error.",
+         "rresp!=OKAY |=> sched_rd_error[ch] until reset",
+         f"{RD_ENG}:583"),
+        ("Data WR / AW", "m_axi_awvalid", "1", "out", "axi_write_engine",
+         "REGISTERED (r_aw_valid): set when a grant is accepted (grant "
+         "valid, no AW pending, live sched_wr_valid), cleared on awready. "
+         "Properly holds until the handshake (unlike the read side).",
+         "awvalid holds until awready; at most one AW pending in the "
+         "register",
+         f"{WR_ENG}:573, :587"),
+        ("Data WR / AW", "m_axi_awaddr / awlen / awid", "64/8/IW", "out",
+         "axi_write_engine",
+         "awaddr = sched_wr_addr[r_aw_channel_id] LIVE from the scheduler "
+         "(len and channel are latched at grant, the address is NOT). "
+         "Contract: the scheduler must hold sched_wr_addr stable while "
+         "r_aw_valid is pending - guaranteed because it only advances on "
+         "the AW-handshake done strobe.",
+         "sched_wr_addr[ch] stable from grant-capture to awready",
+         f"{WR_ENG}:579-580"),
+        ("Data WR / W", "m_axi_wvalid", "1", "out", "axi_write_engine",
+         "r_w_active && sram_valid_reg[ch] && sram_valid_comb[ch]. The "
+         "registered valid is the arbitration/timing term; the "
+         "combinational valid filters the 1-cycle dry window after the "
+         "latency-bridge skid empties, so stale skid data never rides a "
+         "wvalid pulse.",
+         "wvalid |-> selected channel really has a data beat on "
+         "axi_wr_sram_data",
+         f"{WR_ENG}:720-722. Dropping the comb term reproduces the dma_2ch "
+         "CRC-mismatch (stale-data leak)."),
+        ("Data WR / W", "axi_wr_sram_drain (SRAM pop)", "1", "out",
+         "axi_write_engine",
+         "EXACTLY m_axi_wvalid && m_axi_wready: pop the SRAM unit only on "
+         "a real W handshake, so beats consumed == beats transmitted.",
+         "SRAM pops == W-channel handshakes, per channel",
+         f"{WR_ENG}:704. BUG FIX (deadlock): the previous r_w_active && "
+         "wready form popped a beat while wvalid was suppressed; the lost "
+         "beat could be the burst's final beat, so WLAST never rode a "
+         f"valid beat and the channel hung. See {KI_WLAST}."),
+        ("Data WR / W", "m_axi_wlast / wstrb / wuser", "1/DW8/UW", "out",
+         "axi_write_engine",
+         "wlast = (r_w_beats_remaining==1) - counted down per W handshake "
+         "from the shared in-order W-phase FIFO entry. wstrb all-1s "
+         "(full-beat writes only). wuser = channel id (instrumentation).",
+         "exactly one wlast per awlen+1 beats; W bursts in AW order "
+         "(single shared W-phase FIFO)",
+         f"{WR_ENG}:736-726"),
+        ("Data WR / B", "m_axi_bvalid / bready / bid / bresp", "-", "in/out",
+         "fabric / axi_write_engine",
+         "bready constant 1 (always ready). bid routes: commit strobe + "
+         "beats to the scheduler's commit accumulator, B-phase FIFO pop, "
+         "outstanding clear. bresp!=OKAY sets sched_wr_error[bid] sticky.",
+         "one B per AW; commit beats == that AW's awlen+1 (B-phase FIFO "
+         "entry)",
+         f"{WR_ENG}:952, :962"),
+        ("Both", "(monitor wrapper)", "-", "-",
+         "axi4_master_rd_monlite / axi4_master_wr_monlite",
+         "Both data masters pass through skid+monitor wrappers in "
+         "stream_core; the monitor can stall AR/AW via block_ready (see "
+         "K-maps core monitors sheet). Sized so this never happens in "
+         "normal operation.",
+         "RD/WR_MON_MAX_TRANS = NUM_CHANNELS*MAX_OUTSTANDING+4",
+         f"{CORE}:73-74. BUG FIX: the previous hardwired 16 compared "
+         "against the PER-CHANNEL limit; at >=2 channels the monitor "
+         "throttled the datapath."),
+    ]
+    contract_sheet(
+        wb, "Data RD+WR AXI (fub)",
+        "STREAM data-path AXI masters (fub side of the skid/monitor "
+        "wrappers) signal contracts",
+        "Read engine: source memory -> SRAM (AR/R). Write engine: SRAM -> "
+        f"destination (AW/W/B). Sources: {RD_ENG}, {WR_ENG}.",
+        rows)
+
+
+def build_apb_csr_contract(wb):
+    rows = [
+        ("APB kick", "apb_valid / apb_ready / apb_addr", "NCx(1/1/64)",
+         "in/out/in", "regfile / descriptor_engine",
+         "Per-channel descriptor kick. Accepted ONLY when: addr != 0, no "
+         "channel reset, descriptor-address FIFO empty, channel_idle "
+         "(scheduler finished all prior work), and no APB op already in "
+         "progress (r_apb_ip). apb_addr==0 latches descriptor_error "
+         "instead of fetching.",
+         "apb handshake |-> channel_idle && addr-FIFO empty && !r_apb_ip; "
+         "addr==0 never fetches",
+         f"{DESC_ENG}:333-336, :889-891"),
+        ("Channel ctrl", "cfg_channel_enable", "NC", "in", "regfile",
+         "Gates CH_IDLE -> CH_FETCH_DESC only: a descriptor already in "
+         "flight is NOT stopped by dropping enable.",
+         "IDLE exit requires descriptor_valid && cfg_channel_enable",
+         f"{SCHED}:501"),
+        ("Channel ctrl", "cfg_channel_reset", "NC", "in", "regfile",
+         "Registered internally; forces the scheduler FSM to CH_IDLE with "
+         "top priority, clears beat counters and r_rd_ahead; descriptor "
+         "engine aborts in-flight ops and drains to RD_IDLE. The only exit "
+         "from sticky CH_ERROR.",
+         "reset active |=> FSM==CH_IDLE next cycle; sticky errors clear on "
+         "CH_IDLE entry",
+         f"{SCHED}:467-469, :810-815"),
+        ("Timeout", "cfg_sched_timeout_cycles / _enable / _limit",
+         "32/1/8", "in", "regfile",
+         "Soft write-progress watchdog: counter runs while sched_wr_valid "
+         "&& !sched_wr_ready with no AW-issue and no B-commit; each "
+         "elapsed window pulses w_timeout_expired and RE-ARMS. Only "
+         "_limit consecutive windows (0 = never) escalate to fatal "
+         "CH_ERROR. Any write progress clears the strikes.",
+         "bare timeout window never wedges the channel; escalation only "
+         "at strikes >= limit",
+         f"{SCHED}:1115-1123, :1160-1166. Size cycles to the workload: an "
+         "undersized 1000-cycle default falsely timed out 8-channel "
+         "contention (top multi_channel hang, fixed by programming the "
+         "timeout via APB)."),
+        ("Prefetch", "cfg_rd_prefetch_enable", "1", "in", "regfile",
+         "Scheduler read-ahead: on a chained LEGACY descriptor the read "
+         "side may load descriptor N+1 from the FIFO head (peek, no pop) "
+         "while writes still drain N. Capped at ONE ahead. EXT (TASK-101) "
+         "descriptors always run lockstep. Clearing it reduces to the "
+         "original lockstep FSM verbatim.",
+         "r_rd_ahead <= 1 descriptor; disabled => w_rd_peek==w_wr_advance"
+         "==0",
+         f"{SCHED}:924-940"),
+        ("Prefetch", "cfg_prefetch_enable / cfg_fifo_threshold", "1/4",
+         "in", "regfile",
+         "Descriptor-engine chain throttle: bounds fetched-but-unconsumed "
+         "descriptors in the output FIFO. Disabled => on-demand (limit 1); "
+         "enabled => up to cfg_fifo_threshold (0 guarded to 1). A "
+         "throttled chain fetch is DEFERRED (r_chain_pending), never "
+         "dropped.",
+         "desc-FIFO occupancy < limit whenever a chain push fires; owed "
+         "fetch always issues after drain",
+         f"{DESC_ENG}:468-486. BUG FIX: these CSRs were previously "
+         "dead (unwired); wiring them + TB timeout sizing fixed the "
+         "top-level multi_channel/stress hang."),
+        ("Fetch window", "cfg_addr0_base/limit, cfg_addr1_base/limit",
+         "4x64", "in", "regfile",
+         "Two inclusive address windows; a chained next_descriptor_ptr "
+         "must fall inside one of them or the chain stops (no fetch, no "
+         "error escalation - engine just goes idle). Also validates the "
+         "fetched-from address.",
+         "every autonomous fetch address in window0 or window1",
+         f"{DESC_ENG}:449-450"),
+        ("Engine cfg", "cfg_axi_rd_xfer_beats / cfg_axi_wr_xfer_beats",
+         "8/8", "in", "regfile",
+         "Stored as the AxLEN VALUE (0 = 1 beat): the engines burst "
+         "min(remaining-1, cfg) per transaction. Applies to all channels.",
+         "arlen/awlen <= cfg value; final burst may be shorter",
+         f"{RD_ENG}:312-313, {WR_ENG}:421-422"),
+        ("Monitors", "cfg_desc/rdeng/wreng_mon_enable (+masks)", "-", "in",
+         "regfile",
+         "Monitor enables are ANDed with the USE_AXI_MONITORS parameter "
+         "(tied 0 when the build omits monitors). A DISABLED monitor "
+         "never stalls the datapath: the ready gate ORs in "
+         "~cfg_monitor_enable.",
+         "USE_AXI_MONITORS=0 or cfg off => zero datapath interference",
+         f"{CORE}:779/:840; {RD_MON}:496-480"),
+    ]
+    contract_sheet(
+        wb, "APB-CSR config",
+        "STREAM configuration / CSR interface contracts (stream_core cfg "
+        "ports; register fields live in stream_regs.rdl / stream_mon_regs"
+        ".rdl and are accessed BY NAME via the generated regmap)",
+        "Every row is checkable against the consuming RTL. Sources: "
+        f"{SCHED}, {DESC_ENG}, {CORE}.",
+        rows)
+
+
+def build_monbus_contract(wb):
+    rows = [
+        ("MonBus", "mon_valid", "1", "out", "scheduler_group_array arbiter",
+         "One-cycle PULSE per event packet (state-entry emitters in "
+         "scheduler / descriptor_engine, arbitrated up through the group). "
+         "Source emitters do NOT wait for mon_ready - a busy consumer "
+         "loses the packet at the emitter register.",
+         "downstream MUST provide a FIFO (or be always-ready); "
+         "mon_valid is never held for backpressure at the source",
+         f"{SCHED}:1199-1330 (emitter). Standard integration: gaxi FIFO "
+         "or monbus_group SRAM behind the port."),
+        ("MonBus", "mon_ready", "1", "in", "consumer",
+         "Consumer flow control into the group arbiter. Sustained "
+         "backpressure drops packets at the per-source registers, never "
+         "corrupts them.",
+         "no partial/torn packets under backpressure", ""),
+        ("MonBus", "mon_packet", "128", "out", "arbiter",
+         "monitor_common_pkg::monitor_packet_t. STREAM events: DESC_START "
+         "(CH_FETCH_DESC), DESC_COMPLETE / IRQ (CH_COMPLETE, or in-place "
+         "advance under read-ahead), ERROR (CH_ERROR, one-shot), plus "
+         "descriptor-engine DESCRIPTOR_LOADED / error packets.",
+         "per-descriptor MonBus parity holds with prefetch on or off "
+         "(the w_wr_advance path emits the completion the lockstep "
+         "CH_COMPLETE path would have)",
+         f"{SCHED}:1247-1261"),
+        ("MonBus", "mon_timestamp / i_mon_time", "64", "out/in",
+         "arbiter / core",
+         "Free-running monitor time broadcast; SAMPLED at packet emission "
+         "and carried side-band (not inside the 128-bit packet). Held "
+         "stable between pulses.",
+         "timestamp corresponds to the emit cycle of the packet beside it",
+         f"{SCHED}:1222"),
+        ("MonBus", "(CH_ERROR one-shot)", "-", "-", "scheduler",
+         "CH_ERROR is sticky; the error packet is emitted ONCE per visit "
+         "(r_error_pkt_sent latch, cleared on CH_IDLE). Without it the "
+         "emitter would flood the trace every cycle.",
+         "at most one STREAM_EVENT_ERROR packet per CH_ERROR entry",
+         f"{SCHED}:1309-1322"),
+        ("MonBus", "(decode discipline)", "-", "-", "DV",
+         "Testbenches decode packets via the shared TBClasses.monbus "
+         "parser only - never inline bit-shift decodes.",
+         "single decoder, split-proof against packet layout changes", ""),
+    ]
+    contract_sheet(
+        wb, "MonBus out",
+        "STREAM unified monitor-bus output contracts (stream_core "
+        "mon_valid/ready/packet/timestamp)",
+        "128-bit packet + 64-bit side-band timestamp. Sources: "
+        f"{CORE}:446-450, {SCHED}, {DESC_ENG}.",
+        rows)
+
+
+# ---------------------------------------------------------------------------
+# K-map sheets
+# ---------------------------------------------------------------------------
+def build_rd_engine_kmaps(wb):
+    km = new_kmap_sheet(wb, "K-maps rd engine")
+    km.sheet_intro(
+        f"axi_read_engine - decision K-maps ({RD_ENG})",
+        ["Each grid is computed from a python mirror of the exact RTL "
+         "expression (file:line cited, RTL quoted). Gray order 00 01 11 10; "
+         ">4 vars page into multiple grids.",
+         "Comparator sub-terms (space/beat counts) enter the maps as their "
+         "1-bit results, factored the way the RTL factors them."])
+
+    km.kmap(
+        "w_arb_request[i]", f"{RD_ENG}:381",
+        "w_arb_request[i] = sched_rd_valid[i] && w_space_ok[i] && "
+        "w_below_outstanding_limit[i]",
+        # AXES as (name, defining expression, cite). Each axis is a ONE-TERM
+        # signal here, which is what makes this map trustworthy: nothing is
+        # collapsed, so no logic hides inside an axis.
+        [("sched_rd_valid",
+          "sched_rd_valid[i]  -- scheduler's per-channel read request (input port)",
+          f"{RD_ENG}:381"),
+         ("space_ok",
+          "w_space_ok[i] = w_effective_space[i] >= w_transfer_size[i]+1, with "
+          "w_effective_space = registered space_free minus the allocations "
+          "that handshook in the last two cycles (the read-side twin of the "
+          "write engine's w_effective_avail)",
+          f"{RD_ENG}:355, :370"),
+         ("below_limit",
+          "w_below_outstanding_limit[i] = !r_outstanding_limit[i]",
+          f"{RD_ENG}:321")],
+        lambda v, s, b: v and s and b,
+        "EXACTLY ONE 1-cell, at all-ones. A 1 with space_ok=0 over-fills "
+        "the SRAM allocation; a 1 with below_limit=0 exceeds the "
+        "per-channel outstanding cap. Registered into r_arb_request "
+        "(1-cycle pipeline) before the arbiter - stale-grant guards below "
+        "exist because of that register.",
+        depends_only_on=(
+            "these three and nothing else. The per-channel index i is a "
+            "generate replication, not a variable of the decision. Everything "
+            "else the read engine knows (burst size, addresses, IDs) affects "
+            "WHAT is issued, never WHETHER: w_transfer_size feeds space_ok and "
+            "is already folded into that axis, and the arbiter's own state is "
+            "downstream of this signal, not upstream. No don't-cares: all 8 "
+            "combinations are reachable, since the three axes come from three "
+            "independent sources (scheduler, SRAM allocator, outstanding "
+            "counter)."),
+        rtl_sop="sched_rd_valid & space_ok & below_limit")
+
+    km.table(
+        "w_space_ok / w_transfer_size sub-terms", f"{RD_ENG}:330-370",
+        ["term", "RTL (mirror of)", "meaning"],
+        [("w_transfer_size[i]",
+          "(sched_rd_beats <= cfg+1) ? sched_rd_beats-1 : cfg",
+          "AxLEN value: full configured burst, or the shorter final burst"),
+         ("w_pending_alloc[i]",
+          "r_alloc_tminus1[i] + r_alloc_tminus2[i]",
+          "beats whose ARs handshook in the last two cycles: reserved, but "
+          "not yet visible in the registered space_free"),
+         ("w_effective_space[i]",
+          "space_free >= pending ? space_free - pending : 0",
+          "the count the allocator will reach once those reservations land"),
+         ("w_space_ok[i]",
+          "w_effective_space[i] >= w_transfer_size[i]+1",
+          "SRAM channel can hold the whole burst BEFORE the AR issues "
+          "(pre-allocation against the corrected view)")],
+        note="space_free is registered twice on its way out of the SRAM "
+             "controller (2-cycle-stale view). Comparing the raw view let a "
+             "channel re-granted on consecutive cycles reserve against space "
+             "its previous AR had already taken (stream BUG-012 / rapids "
+             "BUG-004: 'alloc 8 beats with only 7 free'); the pending "
+             "subtraction is the same closure the write engine applies to "
+             "drain_data_avail.")
+
+    km.kmap(
+        "m_axi_arvalid", f"{RD_ENG}:475",
+        "m_axi_arvalid = w_arb_grant_valid && w_arb_request[w_arb_grant_id]",
+        [("grant_valid",
+          "w_arb_grant_valid -- the round-robin arbiter holds a grant",
+          f"{RD_ENG}:475"),
+         ("request_gnt",
+          "w_arb_request[w_arb_grant_id] -- the LIVE request of the granted "
+          "channel (sched_rd_valid && space_ok && below_limit, the map above)",
+          f"{RD_ENG}:381")],
+        lambda g, q: g and q,
+        "Single 1-cell at (1,1). The live-request term masks stale grants "
+        "(r_arb_request pipeline) -- and since stream BUG-012 / rapids "
+        "BUG-004 it is the WHOLE request, not sched_rd_valid alone: gating "
+        "on valid only let a re-granted channel issue a second AR while its "
+        "first was outstanding at PIPELINE=0. DESIGN NOTE: arvalid is "
+        "combinational - if the request drops (error/reset/timeout "
+        "escalation, or space_ok falling) while an AR waits for arready, "
+        "arvalid retracts, which violates AXI valid-stability. Benign in "
+        "the normal flow (valid only drops via the done-strobe look-ahead, "
+        "i.e. after the handshake), but real on the abort paths.",
+        depends_only_on=(
+            "these two. Address, ID and length ride the grant and select "
+            "WHAT is issued, never whether. The arbiter's grant is a "
+            "registered one-hot and the request is the per-channel cone "
+            "already mapped above, so both axes are single signals and all "
+            "four cells are reachable (a grant to a channel whose request "
+            "just dropped is exactly the stale-grant case)."),
+        rtl_sop="grant_valid & request_gnt")
+
+    km.kmap(
+        "w_arb_grant_ack[i]", f"{RD_ENG}:492-494",
+        "ack = (grant & {NC{m_axi_arvalid && m_axi_arready}}) | "
+        "w_stale_grant, with w_stale_grant = grant & ~w_arb_request   "
+        "[for the granted channel m_axi_arvalid == w_arb_request[i]]",
+        [("grant_i",
+          "w_arb_grant[i] -- arbiter one-hot grant",
+          f"{RD_ENG}:493"),
+         ("request_i",
+          "w_arb_request[i] -- the channel's live request; for the granted "
+          "channel this IS m_axi_arvalid",
+          f"{RD_ENG}:475"),
+         ("arready",
+          "m_axi_arready -- downstream AR ready (input port)",
+          f"{RD_ENG}:493")],
+        lambda g, q, r: g and ((q and r) or (not q)),
+        "1s ONLY in the grant_i=1 half: at (1,1,1) the AR fired, at "
+        "(1,0,x) the grant is STALE (request gone) and auto-releases so "
+        "the arbiter advances instead of waiting for an AR that can never "
+        "fire. The (1,1,0) cell MUST be 0 - releasing a live grant before "
+        "arready would re-arbitrate mid-handshake. VERDICT DIFFERS BY "
+        "DESIGN: the minimal cover is grant_i & !request_i | grant_i & "
+        "arready (request_i is absorbed from the fired arm, since a stale "
+        "grant releases whether or not arready happens to be high). The RTL "
+        "keeps the two arms explicit -- 'the AR fired' and 'the grant is "
+        "stale' -- so each reads as its own mechanism; same logic, one "
+        "redundant literal, kept for readability.",
+        depends_only_on=(
+            "these three. Other channels' requests reach this cone only "
+            "through the arbiter, i.e. through grant_i; arvalid for the "
+            "granted channel is request_i by the line above, so it is not a "
+            "fourth input. All eight cells are reachable: grant is registered "
+            "a cycle behind the request it answers."),
+        rtl_sop="grant_i & request_i & arready | grant_i & !request_i")
+
+    km.kmap(
+        "r_outstanding_limit[i] next (PIPELINE=0)", f"{RD_ENG}:193-210",
+        "set on (arvalid && arready && grant_id==i); clear on (rvalid && "
+        "rready && rlast && rid==i); independent ifs, clear written last "
+        "so same-cycle AR+RLAST resolves to CLEAR (0)",
+        ["ar_fire_i", "rlast_fire_i"],
+        lambda a, r: ("clear" if r else ("set" if a else "hold")),
+        "clear wins the (1,1) cell - the same-cycle AR/R fix (was "
+        "else-if, which wedged the flag at 1). set only at (1,0).",
+        values={},
+        depends_only_on=(
+            "these two. The flag is per channel; ar_fire_i already folds the grant-id "
+            "compare and rlast_fire_i the rid compare, so the channel index is "
+            "not an axis. This is the PIPELINE=0 generate branch only (the "
+            "default is PIPELINE=1 since 2adc46169, where an outstanding COUNTER "
+            "replaces the flag); a multi-valued next-state map, so no SOP."))
+
+    km.kmap(
+        "sched_rd_error[i] latch enable", f"{RD_ENG}:583",
+        "latch r_rd_error[rid] on: m_axi_rvalid && m_axi_rready && "
+        "(m_axi_rresp != 2'b00)   [resp_ok = (rresp==OKAY)]",
+        ["rvalid", "rready", "resp_ok"],
+        lambda v, r, ok: v and r and (not ok),
+        "Single 1-cell at (1,1,0): only an ACCEPTED bad beat latches the "
+        "sticky error. A 1 with rready=0 would latch errors for beats "
+        "that were never taken.",
+        depends_only_on=(
+            "these three. rid selects WHICH channel's sticky bit latches, not "
+            "whether; the sticky itself is a set-only flop cleared by channel "
+            "reset outside this cone. All eight cells are reachable."),
+        rtl_sop="rvalid & rready & !resp_ok")
+
+    km.table(
+        "R-channel accept / drain wiring (passthrough)",
+        f"{RD_ENG}:532-535",
+        ["signal", "RTL", "contract"],
+        [("axi_rd_sram_valid", "= m_axi_rvalid", "no buffering"),
+         ("axi_rd_sram_id", "= m_axi_rid", "channel routing"),
+         ("axi_rd_sram_data", "= m_axi_rdata", ""),
+         ("m_axi_rready", "= axi_rd_sram_ready",
+          "SRAM backpressure is the ONLY R backpressure")],
+        note="A beat accepted on R is by construction a beat written to "
+             "the SRAM controller - the two counters (dbg_r_beats_rcvd / "
+             "dbg_sram_writes) must always match.")
+
+
+def build_wr_engine_kmaps(wb):
+    km = new_kmap_sheet(wb, "K-maps wr engine")
+    km.sheet_intro(
+        f"axi_write_engine - decision K-maps ({WR_ENG})",
+        ["Same conventions as the read-engine sheet. The two bug-fix maps "
+         "(axi_wr_sram_drain, m_axi_wvalid) are the ones to re-check after "
+         "ANY edit near the W path."])
+
+    km.kmap(
+        "w_arb_request[i]", f"{WR_ENG}:452",
+        "w_arb_request[i] = sched_wr_valid[i] && w_data_ok[i] && "
+        "w_no_outstanding[i]",
+        ["sched_wr_valid", "data_ok", "no_outstanding"],
+        lambda v, d, n: v and d and n,
+        "EXACTLY ONE 1-cell, at all-ones - mirror of the read engine. A 1 "
+        "with data_ok=0 issues an AW without backing data (the phantom-"
+        "burst class).",
+        depends_only_on=(
+            "these three and nothing else, per channel. data_ok folds the "
+            "availability comparators (next map) and no_outstanding folds the "
+            "per-channel outstanding flag; addresses and sizes decide what the "
+            "AW carries, never whether it is requested."),
+        rtl_sop="sched_wr_valid & data_ok & no_outstanding")
+
+    km.kmap(
+        "w_data_ok[i]  (given sched_wr_valid[i])", f"{WR_ENG}:427-434",
+        "w_data_ok = w_has_data || w_final_burst ; has_data = "
+        "(w_effective_avail >= transfer_size+1) ; final_burst = "
+        "(0 < sched_wr_beats <= cfg+1) && (w_effective_avail >= "
+        "sched_wr_beats)",
+        ["has_data", "final_burst"],
+        lambda h, f: h or f,
+        "OR of the two comparator results: zero only at (0,0). "
+        "final_burst lets the LAST, shorter burst of a descriptor go "
+        "with exactly its remaining beats available.",
+        depends_only_on=(
+            "these two, inside the sched_wr_valid[i] arm ({WR_ENG}:418; the else "
+            "arm zeros all three, so the map is the valid=1 slice and the "
+            "valid=0 slice is identically 0). Both comparators read the same "
+            "w_effective_avail, so has_data=1 with final_burst=0 and the reverse "
+            "are both reachable; nothing is excluded."),
+        rtl_sop="has_data | final_burst")
+
+    km.table(
+        "w_effective_avail (stale-view race closure)", f"{WR_ENG}:384-411",
+        ["term", "RTL (mirror of)", "why"],
+        [("w_drain_t[ch]", "awlen+1 on this cycle's AW handshake",
+          "drain_req size firing NOW"),
+         ("r_drain_tminus1[ch]", "registered w_drain_t",
+          "drain_req that fired LAST cycle"),
+         ("w_pending_drain", "r_drain_tminus1 + w_drain_t",
+          "in-flight drains not yet visible in the registered avail"),
+         ("w_effective_avail", "avail >= pending ? avail - pending : 0",
+          "the 'true' count drain_ctrl will reach when our drain lands")],
+        note="axi_wr_drain_data_avail is registered twice on its way out "
+             "of sram_controller (2-cycle-stale view). Without this "
+             "subtraction the engine could fire an AW against beats an "
+             "in-flight prior drain_req already claimed -> over-drain -> "
+             "permanent occupancy corruption (see K-maps sram ctrl).")
+
+    km.kmap(
+        "AW grant-capture enable", f"{WR_ENG}:573",
+        "capture if (w_arb_grant_valid && !r_aw_valid && "
+        "w_arb_request[w_arb_grant_id])",
+        [("grant_valid",
+          "w_arb_grant_valid -- the arbiter holds a grant",
+          f"{WR_ENG}:573"),
+         ("r_aw_valid",
+          "r_aw_valid -- an AW is already captured and waiting for awready",
+          f"{WR_ENG}:574"),
+         ("request_gnt",
+          "w_arb_request[w_arb_grant_id] -- the granted channel's LIVE "
+          "request (sched_wr_valid && data_ok && no_outstanding)",
+          f"{WR_ENG}:452")],
+        lambda g, p, q: g and (not p) and q,
+        "Single 1-cell at (1,0,1): a new AW is captured only when no AW "
+        "is pending and the grant's request is still live. The (1,0,0) "
+        "cell MUST be 0 - that is the stale-grant guard (grant released "
+        f"via w_stale_grant = grant & ~request, {WR_ENG}:559). Keying on "
+        "the whole request rather than sched_wr_valid is the write-side "
+        "twin of the read engine's BUG-012 fix.",
+        depends_only_on=(
+            "these three. The captured payload (address, len, id) is a "
+            "function of the grant, not a gate. r_aw_valid clears on the "
+            "AW handshake outside this cone. All eight cells are reachable."),
+        rtl_sop="grant_valid & !r_aw_valid & request_gnt")
+
+    km.kmap(
+        "m_axi_wvalid", f"{WR_ENG}:731-733",
+        "m_axi_wvalid = r_w_active && axi_wr_sram_valid[ch] && "
+        "axi_wr_sram_valid_comb[ch]",
+        ["r_w_active", "valid_reg", "valid_comb"],
+        lambda a, vr, vc: a and vr and vc,
+        "Single 1-cell at (1,1,1). The (1,1,0) cell is the STALE-SKID "
+        "window: registered valid still 1, but the muxed data wire shows "
+        "stale skid contents - it MUST be 0 or stale data leaks onto AXI "
+        "(the dma_2ch CRC-mismatch shape).",
+        depends_only_on=(
+            "these three; the drain map below adds wready as the fourth term of "
+            "the pop and carries the independence note for the two valids. "
+            "wlast and the beat counter select the last beat, never whether a "
+            "beat is offered."),
+        rtl_sop="r_w_active & valid_reg & valid_comb")
+
+    km.kmap(
+        "axi_wr_sram_drain  (SRAM pop)", f"{WR_ENG}:715",
+        "axi_wr_sram_drain = m_axi_wvalid && m_axi_wready, with "
+        "m_axi_wvalid = r_w_active && axi_wr_sram_valid[id] && "
+        "axi_wr_sram_valid_comb[id]",
+        [("r_w_active",
+          "burst in progress; set on W-phase FIFO pop, cleared on WLAST",
+          f"{WR_ENG}:731"),
+         ("sram_valid_reg",
+          "axi_wr_sram_valid[r_w_channel_id] -- REGISTERED per-channel valid",
+          f"{WR_ENG}:732"),
+         ("sram_valid_comb",
+          "axi_wr_sram_valid_comb[r_w_channel_id] -- COMBINATIONAL valid; "
+          "filters the 1-cycle dry window the registered one misses",
+          f"{WR_ENG}:733"),
+         ("wready",
+          "m_axi_wready -- downstream W-channel ready (input port)",
+          f"{WR_ENG}:715")],
+        lambda a_, vr, vc, r: a_ and vr and vc and r,
+        "Single 1-cell at all-ones. BUG FIX (lost-WLAST deadlock): the "
+        "pre-fix 'r_w_active && m_axi_wready' form put a 1 wherever the "
+        "SRAM valids were low - the beat was consumed but never "
+        "transmitted, and when it was the burst's final beat WLAST never "
+        "rode a valid beat and the channel hung (found via the "
+        "per-channel timing-skew 'mixed' profile, kept as regression "
+        f"sentinel). See {KI_WLAST}. NOTE the axes are DECOMPOSED: "
+        "m_axi_wvalid is itself three terms, and mapping it as one axis "
+        "would hide the registered-vs-combinational AND that fixes a "
+        "separate defect (a 1-cycle dry window leaking stale data onto "
+        f"the bus, {WR_ENG}:709-719).",
+        depends_only_on=(
+            "these four. wdata/wstrb/wuser ride the same beat but cannot "
+            "gate it; m_axi_wlast selects WHICH beat is last, not whether "
+            "this one pops; the channel id only selects which SRAM lane is "
+            "read. Burst bookkeeping (r_w_beats_remaining) reaches this cone "
+            "only via r_w_active."),
+        relations=[
+            ("sram_valid_comb is the combinational view of the same per-"
+             "channel valid that sram_valid_reg registers, so the registered "
+             "one cannot be high in a cycle the combinational one was never "
+             "high in the preceding cycle -- but within a single cycle both "
+             "orders occur, so no cell is excluded on that basis. Recorded as "
+             "an INDEPENDENCE note so the pair is not assumed related.",
+             None,
+             f"{WR_ENG}:731-733")],
+        rtl_sop="r_w_active & sram_valid_reg & sram_valid_comb & wready")
+
+    km.kmap(
+        "w_phase_fifo_pop", f"{WR_ENG}:776-787",
+        "pop = (!r_w_active && !fifo_empty) || (m_axi_wvalid && "
+        "m_axi_wready && m_axi_wlast && !fifo_empty)   [w_fire = "
+        "wvalid && wready]",
+        ["r_w_active", "fifo_empty", "w_fire", "wlast"],
+        lambda a, e, f, l: ((not a) and (not e)) or (f and l and (not e)),
+        "1s only in the fifo_empty=0 columns: start-from-idle (active=0) "
+        "and burst-chain-through (w_fire && wlast, no bubble between "
+        "back-to-back bursts).",
+        relations=[
+            ("w_fire implies r_w_active: m_axi_wvalid IS r_w_active, so a "
+             "beat cannot fire while the burst is inactive. The active=0 && "
+             "w_fire=1 cells are unreachable, not 0.",
+             lambda a, e, f, l: not (f and not a),
+             f"{WR_ENG}:731")],
+        depends_only_on=(
+            "these four. The FIFO carries the next burst's channel and length "
+            "(what is loaded), the pop decides only when. r_w_active clears "
+            "on the WLAST beat in the same cycle the chain-through pop fires, "
+            "which is why the second arm needs w_fire && wlast rather than "
+            "!r_w_active a cycle later (that would open a bubble)."),
+        rtl_sop="!r_w_active & !fifo_empty | w_fire & wlast & !fifo_empty")
+
+    km.kmap(
+        "sched_wr_error[i] latch enable", f"{WR_ENG}:962",
+        "latch r_wr_error[bid] on: m_axi_bvalid && m_axi_bready && "
+        "(m_axi_bresp != 2'b00)   [bready is constant 1]",
+        ["bvalid", "resp_ok"],
+        lambda v, ok: v and (not ok),
+        "Single 1-cell at (1,0). bready==1 always "
+        f"({WR_ENG}:941), so bvalid alone qualifies the beat.",
+        depends_only_on=(
+            "these two. bid selects which channel's sticky bit latches; bready is "
+            "the constant 1 and is therefore not an axis. All four cells are "
+            "reachable."),
+        rtl_sop="bvalid & !resp_ok")
+
+
+def build_scheduler_kmaps(wb):
+    km = new_kmap_sheet(wb, "K-maps scheduler")
+    km.sheet_intro(
+        f"scheduler - decision K-maps ({SCHED})",
+        ["Per-channel FSM: CH_IDLE -> CH_FETCH_DESC -> CH_XFER_DATA -> "
+         "CH_COMPLETE -> (CH_NEXT_DESC | CH_IDLE); CH_ERROR sticky. "
+         "Flags: rd_done=(r_read_beats_remaining==0), "
+         "issue_rem_nz=(r_write_beats_remaining!=0), "
+         "commit_zero=(r_write_beats_to_commit==0).",
+         "The issue/commit split is the streaming contract: per-descriptor "
+         "ADVANCE is issue-based, final channel-done is commit-based."])
+
+    km.kmap(
+        "sched_rd_valid  (channel read kick)", f"{SCHED}:975-978",
+        "sched_rd_valid = (state==CH_XFER_DATA) && !w_read_complete && "
+        "!w_sched_rd_completing_this_cycle && !w_rd_need_base",
+        ["state_xfer", "rd_done", "completing_now", "rd_need_base"],
+        lambda s, d, c, nb: s and (not d) and (not c) and (not nb),
+        "Single 1-cell at (1,0,0,0). completing_now (done-strobe "
+        "look-ahead) MUST kill valid the same cycle the final AR's strobe "
+        "arrives, or the engine issues one extra transaction against the "
+        "not-yet-updated beat counter. rd_need_base stalls reads between "
+        "TASK-101 runs.",
+        depends_only_on=(
+            "these four. sched_rd_addr/beats are payload. rd_done folds the beat "
+            "counter compare and completing_now the done-strobe look-ahead; "
+            "the error/timeout paths leave CH_XFER_DATA and so enter only via "
+            "state_xfer. All 16 cells are reachable (the counter and the "
+            "strobe are independent within a cycle)."),
+        rtl_sop="state_xfer & !rd_done & !completing_now & !rd_need_base")
+
+    km.kmap(
+        "sched_wr_valid  (channel write kick)", f"{SCHED}:1001-1005",
+        "sched_wr_valid = (state==CH_XFER_DATA) && "
+        "(r_write_beats_remaining != 0) && !w_write_complete && "
+        "!w_sched_wr_completing_this_cycle && !w_wr_need_base",
+        ["state_xfer", "issue_rem_nz", "commit_zero",
+         "completing_now", "wr_need_base"],
+        lambda s, rem, cz, c, nb:
+            s and rem and (not cz) and (not c) and (not nb),
+        "1s ONLY on the wr_need_base=0 page, in the completing_now=0 "
+        "columns, only at (state=1, rem=1, commit_zero=0). The explicit "
+        "issue_rem_nz term is load-bearing: w_write_complete tracks "
+        "COMMITS now, so without it the engine would keep valid high "
+        "through the commit-wait with sched_wr_beats==0 and issue a "
+        "garbage AW (transfer-size underflow -> awlen=0xFF). VERDICT "
+        "DIFFERS BY DESIGN: given the ordering invariant below (commits "
+        "trail issues, so commit_zero implies !issue_rem_nz), the minimal "
+        "cover drops !commit_zero; the RTL keeps it as the defensive twin "
+        "of issue_rem_nz so the kick still dies if the two counters were "
+        "ever cleared out of order. One redundant literal, on purpose.",
+        relations=[
+            ("commit_zero mirrors w_write_complete = (r_write_beats_to_commit "
+             "== 0); issue_rem_nz mirrors r_write_beats_remaining != 0. These "
+             "are DIFFERENT counters -- beats-to-commit vs beats-to-issue -- "
+             "and commits trail issues, so 'all committed' while beats remain "
+             "to issue does not occur. NOTE this is an ORDERING invariant on "
+             "two counters, not a one-hot impossibility: the checker confirms "
+             "it excludes cells, not that the ordering holds.",
+             lambda s_, rem, cz, c, nb: not (cz and rem),
+             f"{SCHED}:907, :1005, :999")],
+        depends_only_on=(
+            "these five. The same slice argument as sched_rd_valid; the commit "
+            "counter enters only via commit_zero. Given the ordering invariant "
+            "in the relation, ~commit_zero is implied by issue_rem_nz and the "
+            "minimal cover drops it -- the RTL keeps BOTH terms on purpose: "
+            "issue_rem_nz is the load-bearing one (see the check text) and "
+            "!w_write_complete is the defensive twin that holds even if the "
+            "counters were ever reset out of order. A DIFFERS verdict here "
+            "is the documented redundancy, not a defect."),
+        rtl_sop="state_xfer & issue_rem_nz & !commit_zero & !completing_now & !wr_need_base")
+
+    km.kmap(
+        "w_addrgen_start  (run-base generator start; EXT only)",
+        f"{SCHED}:317",
+        "w_addrgen_start = w_state_fetch_desc && !r_fetch_desc_d && w_is_ext",
+        ["state_fetch_desc", "entry_edge", "is_ext"],
+        lambda s, e, x: s and e and x,
+        "Single 1-cell at (1,1,1). The is_ext term is the TASK-059 FIX: without "
+        "it a LEGACY descriptor also pulses start, running stream_run_addr_gen "
+        "with its own base and STALE r_descriptor_ext strides. The generator's "
+        "run-base FIFO has no flush (gaxi_fifo_sync clears only on rst_n) and "
+        "legacy never consumes bases, so those bogus bases are consumed by the "
+        "NEXT chained strided/transpose descriptor -> reads the wrong source and "
+        "writes into the previous descriptor's region (silent corruption). A "
+        "contiguous EXT descriptor hides it (single-run generation emits zero "
+        "bases). See known_issues/resolved/extended_chained_transpose.md.",
+        depends_only_on=(
+            "these three. The generator's stride/base payload is loaded by the same "
+            "pulse but does not gate it; entry_edge is the registered "
+            "one-cycle delay of state_fetch_desc, so (0,1,x) is reachable "
+            "(the cycle after leaving FETCH) and nothing is excluded."),
+        rtl_sop="state_fetch_desc & entry_edge & is_ext")
+
+    km.kmap(
+        "w_transfer_complete  (per-descriptor advance gate)",
+        f"{SCHED}:906",
+        "w_transfer_complete = w_read_complete && w_write_issued   "
+        "[ISSUE-based on purpose: chained descriptors stream while "
+        "their writes commit in the background]",
+        ["read_complete", "write_issued"],
+        lambda r, w: r and w,
+        "Single 1-cell at (1,1). Commit-gating this (as a past edit did) "
+        "serializes the write drain at every descriptor boundary - the "
+        "regression that motivated the issue/commit split.",
+        depends_only_on=(
+            "these two. Both are counter-zero compares on independent counters "
+            "(reads received vs writes issued), so all four cells are "
+            "reachable; the commit counter is deliberately absent."),
+        rtl_sop="read_complete & write_issued")
+
+    km.kmap(
+        "CH_XFER_DATA exit decision", f"{SCHED}:523-527",
+        "if (w_wr_advance) stay-XFER (in-place descriptor advance) ; "
+        "else if (w_transfer_complete && !r_rd_ahead) -> CH_COMPLETE ; "
+        "else hold",
+        ["wr_advance", "transfer_complete", "rd_ahead"],
+        lambda a, t, h: ("advance" if a else
+                         ("COMPLETE" if (t and not h) else "hold")),
+        "advance fills the whole wr_advance=1 half (priority). COMPLETE "
+        "only at (0,1,0): while read runs ahead (rd_ahead=1) the "
+        "completion exit is SUPPRESSED because w_transfer_complete keys "
+        "off the READ counter which already refers to descriptor N+1.",
+        values={},
+        depends_only_on=(
+            "these three, inside the CH_XFER_DATA arm of the next-state case "
+            "({SCHED}:523-527); the error escalation that also leaves this "
+            "state is a separate, earlier arm and is not part of this "
+            "decision. Multi-valued next-state map, so no SOP."))
+
+    km.kmap(
+        "CH_COMPLETE exit decision", f"{SCHED}:540-544",
+        "if (next_ptr != 0 && !last) -> CH_NEXT_DESC (advance NOW, "
+        "issue-based) ; else if (w_write_complete) -> CH_IDLE ; else hold",
+        ["chained", "write_complete"],
+        lambda c, w: ("NEXT_DESC" if c else ("IDLE" if w else "hold")),
+        "chained=1 half advances immediately regardless of commits "
+        "(streaming). IDLE only at (0,1): the LAST descriptor holds here "
+        "until every write has COMMITTED - the channel is never reported "
+        "done while data still drains.",
+        values={},
+        depends_only_on=(
+            "these two, inside the CH_COMPLETE arm; chained folds "
+            "(next_descriptor_ptr != 0 && !last) from the current descriptor "
+            "register. Multi-valued next-state map, so no SOP."))
+
+    km.kmap(
+        "w_rd_peek  (read-ahead loads next descriptor)", f"{SCHED}:929-931",
+        "w_rd_peek = w_rd_prefetch_en && w_state_xfer_data && !r_rd_ahead "
+        "&& (r_read_beats_remaining==0) && !w_write_issued && "
+        "w_desc_chained && descriptor_valid   [head_ok = w_desc_chained "
+        "&& descriptor_valid]",
+        ["prefetch_en", "state_xfer", "rd_ahead", "rd_done",
+         "write_issued", "head_ok"],
+        lambda p, s, a, d, w, h:
+            p and s and (not a) and d and (not w) and h,
+        "1s ONLY on the [write_issued=0, head_ok=1] page, single cell "
+        "(prefetch_en=1, state_xfer=1, rd_ahead=0, rd_done=1). rd_ahead=0 "
+        "caps read-ahead at ONE descriptor; write_issued=0 means the "
+        "write side still owns the FIFO head, so peek must NOT pop it.",
+        depends_only_on=(
+            "these six (head_ok folds w_desc_chained && descriptor_valid, two "
+            "signals that must both hold and are not observed separately at "
+            "this cone). The descriptor payload is what is peeked, never a "
+            "gate. rd_ahead is set by this very signal a cycle later, so "
+            "rd_ahead=1 cells are the post-peek state and are reachable."),
+        rtl_sop="prefetch_en & state_xfer & !rd_ahead & rd_done & !write_issued & head_ok")
+
+    km.kmap(
+        "w_wr_advance  (in-place descriptor advance + FIFO pop)",
+        f"{SCHED}:939-940",
+        "w_wr_advance = w_rd_prefetch_en && w_state_xfer_data && "
+        "w_write_issued && w_desc_chained && descriptor_valid",
+        ["prefetch_en", "state_xfer", "write_issued", "chained",
+         "desc_valid"],
+        lambda p, s, w, c, v: p and s and w and c and v,
+        "1s ONLY on the [desc_valid=1] page, single cell at all-ones. "
+        "This is the ONLY XFER-state descriptor_ready source: it pops "
+        "the FIFO head that peek borrowed. prefetch_en=0 forces the "
+        "whole map to 0 (lockstep A/B on one bitstream).",
+        depends_only_on=(
+            "these five. Same slice as w_rd_peek; the read-side terms are absent "
+            "because the advance is keyed on the WRITE side having issued, "
+            "independent of how far the read side ran ahead."),
+        rtl_sop="prefetch_en & state_xfer & write_issued & chained & desc_valid")
+
+    km.kmap(
+        "descriptor_ready  (FIFO pop)", f"{SCHED}:1077-1079",
+        "descriptor_ready = (state==CH_IDLE) || (state==CH_NEXT_DESC) || "
+        "w_wr_advance",
+        ["state_idle", "state_next_desc", "wr_advance"],
+        lambda i, n, a: i or n or a,
+        "OR of three sources; zero only at all-zeros.",
+        relations=[
+            ("state_idle and state_next_desc are equality tests on the SAME "
+             "one-hot channel_state_t register, so they cannot both be 1.",
+             lambda i, n, a_: not (i and n),
+             f"{SCHED}:228, :232"),
+            ("wr_advance is live only in CH_XFER_DATA, which is neither "
+             "CH_IDLE nor CH_NEXT_DESC -- so it cannot coincide with either.",
+             lambda i, n, a_: not (a_ and (i or n)),
+             f"{SCHED}:230, :1080")],
+        depends_only_on=(
+            "these three: the pop is a pure OR of two state decodes and one "
+            "composite (w_wr_advance, mapped above). With both relations the "
+            "reachable cells are exactly the one-hot ones, so the minimal cover "
+            "over the don't-cares may collapse to a single term -- the RTL's "
+            "three-way OR is the honest form and any DIFFERS here is that "
+            "simplification, not a defect."),
+        rtl_sop="state_idle | state_next_desc | wr_advance")
+
+    km.kmap(
+        "w_hard_error  (fatal -> sticky CH_ERROR)", f"{SCHED}:1170-1171",
+        "w_hard_error = descriptor_error || sched_rd_error || "
+        "sched_wr_error || r_read_error_sticky || r_write_error_sticky   "
+        "[rd_any = live|sticky, wr_any = live|sticky]",
+        [("descriptor_error",
+          "r_descriptor_error -- latched fatal fault OR escalated timeout",
+          f"{SCHED}:1147"),
+         ("rd_any",
+          "sched_rd_error | r_read_error_sticky  (live OR sticky)",
+          f"{SCHED}:1141"),
+         ("wr_any",
+          "sched_wr_error | r_write_error_sticky (live OR sticky)",
+          f"{SCHED}:1142")],
+        lambda d, r, w: d or r or w,
+        "Zero ONLY at all-zeros (pure OR). THE WORD 'TIMEOUT' IS OVERLOADED "
+        "HERE AND THAT IS THE HAZARD: this is the SCHEDULER timeout "
+        "(cfg_sched_timeout_cycles), NOT the monitor timeout. A bare "
+        "scheduler timeout window is recoverable and deliberately NOT "
+        "latched into this cone -- only an ESCALATED one is, after "
+        "cfg_sched_timeout_limit consecutive windows "
+        f"({SCHED}:1144-1147). Two mechanisms sharing a word is how the "
+        "monitor's timeout went untested at this level for so long.",
+        depends_only_on=(
+            "these three. The timeout counter reaches this cone ONLY via "
+            "w_timeout_escalate folded into descriptor_error; the counter "
+            "itself re-arms per window and never latches "
+            f"({SCHED}:1120-1121). Channel reset is a CLEAR, not an input to "
+            "the OR: it zeroes all three stickies together "
+            f"({SCHED}:1154-1156), which is why no clear term appears as an "
+            "axis."),
+        relations=[
+            ("Every axis is sticky-or-live: once set, a sticky holds until "
+             "channel reset, so all eight combinations are reachable and "
+             "NOTHING is excluded. Stated explicitly -- an OR cone with no "
+             "unreachable cells is a real result, not a missing argument.",
+             None,
+             f"{SCHED}:1141-1142, :1154-1156")],
+        rtl_sop="descriptor_error | rd_any | wr_any")
+
+    km.table(
+        "r_timeout_counter next-value (priority order)",
+        f"{SCHED}:1118-1126",
+        ["condition (first match wins)", "next", "meaning"],
+        [("sched_wr_done_strobe || sched_wr_commit_strobe", "0",
+          "ANY write progress (AW issue OR B commit) re-arms - commits "
+          "count as progress because completion is commit-gated"),
+         ("w_timeout_expired", "0",
+          "window elapsed -> re-arm and keep waiting (SOFT timeout, one "
+          "pulse per window)"),
+         ("sched_wr_valid && !sched_wr_ready", "counter + 1",
+          "genuinely waiting on the write engine"),
+         ("otherwise", "0", "not waiting")],
+        note="w_timeout_expired = cfg_sched_timeout_enable && (counter >= "
+             f"cfg_sched_timeout_cycles) ({SCHED}:1147-1148). Escalation: "
+             "w_timeout_escalate = (limit != 0) && (strikes >= limit) "
+             f"({SCHED}:1152-1153); strikes clear on any progress or "
+             "CH_IDLE.")
+
+    km.table(
+        "FSM transition priority", f"{SCHED}:464-478",
+        ["#", "condition", "action"],
+        [(1, "r_channel_reset_active", "-> CH_IDLE (overrides all)"),
+         (2, "w_hard_error || w_timeout_escalate", "-> CH_ERROR (sticky)"),
+         (3, "state case (normal transitions)", "see exit-decision maps")],
+        note="CH_ERROR self-loops until channel reset; scheduler_idle "
+             "reports CH_IDLE only (a wedged channel must NOT read idle).")
+
+    # ---- run-base generator survives channel reset (TASK-058 contract) -------
+    # Three-part CONTRACT TABLE per the 2026-08-28 direction: terms, then the
+    # invariants that relate them, then the decision table.
+    km.table(
+        "run-base generator: TERMS",
+        f"{SCHED}:1021-1062, {ADDRGEN}:152-221",
+        ["term", "defining expression", "source"],
+        [("chan_reset", "r_channel_reset_active (registered cfg_channel_reset)",
+          f"{SCHED}:440"),
+         ("start", "w_addrgen_start -> stream_run_addr_gen.start",
+          f"{SCHED}:1030"),
+         ("fifo_nonempty", "o_base_valid (i_addr_fifo rd_valid)",
+          f"{ADDRGEN}:217"),
+         ("gen_rst", "i_addr_fifo.axi_aresetn == rst_n (BLOCK reset)",
+          f"{ADDRGEN}:213")],
+        note="u_rd_addr_gen / u_wr_addr_gen are instantiated per direction; "
+             "the block is shared with RAPIDS, so an RTL change has two "
+             "consumers.")
+
+    km.table(
+        "run-base generator: INVARIANTS",
+        f"{SCHED}:1029, {ADDRGEN}:152",
+        ["#", "invariant", "citation", "consequence for the table"],
+        [("I1", "channel reset NEVER reaches the generator: .rst_n is wired "
+                "to the block reset, not r_channel_reset_active",
+          f"{SCHED}:1029, :1051",
+          "chan_reset cannot empty i_addr_fifo"),
+         ("I2", "start re-arms the WALKER only (r_inner_count, r_gen_beats, "
+                "indices); it does not clear i_addr_fifo",
+          f"{ADDRGEN}:152",
+          "a new descriptor generates BEHIND whatever is still queued"),
+         ("I3", "i_addr_fifo depth is 4 per direction",
+          f"{SCHED}:1025, {ADDRGEN}:210",
+          "bounds the stale-base exposure at 4 addresses per direction")],
+        note="I1 and I2 do not EXCLUDE the hazard rows below -- they produce "
+             "them. That is the finding, not a footnote.")
+
+    km.table(
+        "run-base generator: DECISION TABLE (FIFO content at next start)",
+        f"{SCHED}:1021-1062, {ADDRGEN}:152-221",
+        ["chan_reset", "start", "fifo_nonempty", "verdict",
+         "behaviour / excluded by"],
+        [(0, 0, 0, "legal", "idle, nothing queued"),
+         (0, 0, 1, "legal", "normal drain: consumer pops generated bases"),
+         (0, 1, 0, "legal", "intended case - start on an empty FIFO"),
+         (0, 1, 1, "legal (benign)",
+          "start while this descriptor's own bases are still queued; the "
+          "walker reloads and appends in order"),
+         (1, 0, 0, "legal", "channel reset with an already-empty FIFO"),
+         (1, 0, 1, "HAZARD",
+          "reset returns the FSM to CH_IDLE but leaves up to 4 stale bases "
+          "per direction (I1, I2, I3)"),
+         (1, 1, 0, "legal", "reset then restart with an empty FIFO"),
+         (1, 1, 1, "HAZARD",
+          "next descriptor generates behind stale bases; the consumer pops "
+          "the STALE ones first (I1, I2, I3)")],
+        note="NO row is ILLEGAL: every combination is reachable, so nothing "
+             "structurally prevents the stale-base case -- it is bounded (4 "
+             "per direction), not excluded. Severity is low because "
+             "w_addrgen_start only pulses for EXT descriptors "
+             f"({SCHED}:1030) and channel reset mid-generation is rare. "
+             "A gaxi_drop_fifo_sync drop_all flush-on-start was attempted "
+             "and reverted after it regressed working cases on a flush/read "
+             "timing interaction; that attempt was never committed, so it "
+             "cannot be inspected. Note gaxi_drop_fifo_sync blocks normal "
+             "read/write for the duration of a drop, which is the likely "
+             "mechanism. Documented rather than fixed: see STREAM TASK-058.")
+
+
+def build_desc_engine_kmaps(wb):
+    km = new_kmap_sheet(wb, "K-maps desc engine")
+    km.sheet_intro(
+        f"descriptor_engine - decision K-maps ({DESC_ENG})",
+        ["Fetch FSM: RD_IDLE -> RD_ISSUE_ADDR -> RD_WAIT_DATA "
+         "(-> RD_ISSUE_ADDR2 -> RD_WAIT_DATA2 for EXT) -> RD_COMPLETE; "
+         "RD_ERROR on bad response. Chaining pushes next_descriptor_ptr "
+         "back into the address FIFO, throttled by the prefetch limit."])
+
+    km.kmap(
+        "w_chain_condition  (level 1: basic eligibility)",
+        f"{DESC_ENG}:454",
+        "w_chain_condition = (w_next_addr != '0) && !w_desc_last && "
+        "w_desc_valid",
+        ["next_addr_nz", "last", "valid"],
+        lambda n, l, v: n and (not l) and v,
+        "Single 1-cell at (1,0,1). last=1 overrides a non-zero pointer "
+        "(explicit termination); valid=0 never chains.",
+        depends_only_on=(
+            "these three fields of the fetched descriptor and nothing else; the "
+            "window and error gates are applied one level up (next map). All "
+            "eight cells are reachable since the fields are independent bits "
+            "of host-written memory."),
+        rtl_sop="next_addr_nz & !last & valid")
+
+    km.kmap(
+        "w_chain_eligible  (level 2+3, throttle-independent)",
+        f"{DESC_ENG}:457-459",
+        "w_chain_eligible = w_chain_condition && w_next_addr_valid && "
+        "!r_descriptor_error   [next_addr_valid = in cfg_addr0 or "
+        "cfg_addr1 window]",
+        ["chain_condition", "addr_in_window", "descriptor_error"],
+        lambda c, a, e: c and a and (not e),
+        "Single 1-cell at (1,1,0). The window check is the runaway-chain "
+        "guard: an out-of-window pointer silently ENDS the chain (engine "
+        "idles; no error escalation).",
+        depends_only_on=(
+            "these three. addr_in_window folds the two range compares against "
+            "cfg_addr0/1 base and limit (a 4-term OR of comparators, taken as "
+            "one bit because the map cares only whether SOME window holds); "
+            "descriptor_error is the sticky fetch-error flop. All eight cells "
+            "are reachable."),
+        rtl_sop="chain_condition & addr_in_window & !descriptor_error")
+
+    km.kmap(
+        "w_should_chain  (immediate chain push)", f"{DESC_ENG}:496-480",
+        "w_should_chain = w_chain_eligible && w_desc_committed && "
+        "w_prefetch_allows && w_desc_addr_fifo_wr_ready   [committed = "
+        "(state==RD_COMPLETE) && desc-FIFO wr_ready]",
+        [("eligible",
+          "w_chain_eligible = w_chain_condition && <window/enable terms>",
+          f"{DESC_ENG}:457"),
+         ("committed",
+          "w_desc_committed = (r_current_state == RD_COMPLETE) && "
+          "w_desc_fifo_wr_ready  -- COMPOSITE, see the invariant below",
+          f"{DESC_ENG}:462"),
+         ("prefetch_allows",
+          "w_prefetch_allows = (w_desc_fifo_count < w_prefetch_limit)",
+          f"{DESC_ENG}:476"),
+         ("addr_fifo_ready",
+          "w_desc_addr_fifo_wr_ready -- address FIFO has room",
+          f"{DESC_ENG}:479")],
+        lambda e, c, p, f: e and c and p and f,
+        "Single 1-cell at all-ones. eligible && committed && !push "
+        "(throttled or FIFO full) does NOT lose the fetch - it arms "
+        "r_chain_pending (deferred path below). BUG FIX: "
+        "cfg_prefetch_enable and cfg_fifo_threshold were previously DEAD -- "
+        "wired nowhere. They reach this cone ONLY through prefetch_allows, "
+        "via w_prefetch_limit's three-arm mux: disabled -> 1 (on-demand), "
+        "threshold==0 -> 1 (guard, since 0 would stall chaining outright), "
+        f"else the threshold ({DESC_ENG}:469-474). An axis list carrying "
+        "defining expressions is what shows an axis that no RTL drives.",
+        depends_only_on=(
+            "these four. The descriptor payload (address, length, flags) "
+            "decides WHAT is fetched, never whether the chain pushes. The "
+            "deferred path (r_chain_pending) is downstream of this signal, "
+            "not upstream. cfg_prefetch_enable / cfg_fifo_threshold are NOT "
+            "separate axes on purpose: they enter only via prefetch_allows, "
+            "and collapsing them there is licensed by the invariant below."),
+        relations=[
+            ("committed is COMPOSITE: (state==RD_COMPLETE) && "
+             "w_desc_fifo_wr_ready. Kept as one axis because both conjuncts "
+             "must hold to commit and neither can be observed separately at "
+             "this cone -- the collapse is recorded here rather than hidden, "
+             "per criterion 3.",
+             None,
+             f"{DESC_ENG}:462"),
+            ("prefetch_allows already folds cfg_prefetch_enable and "
+             "cfg_fifo_threshold through w_prefetch_limit; the guard arm "
+             "means limit is never 0, so prefetch_allows cannot be "
+             "permanently false from a zero threshold.",
+             None,
+             f"{DESC_ENG}:469-476")],
+        rtl_sop="eligible & committed & prefetch_allows & addr_fifo_ready")
+
+    km.kmap(
+        "w_pending_push_fire  (deferred chain push)", f"{DESC_ENG}:485-486",
+        "w_pending_push_fire = r_chain_pending && w_prefetch_allows && "
+        "w_desc_addr_fifo_wr_ready && !w_desc_committed",
+        ["chain_pending", "prefetch_allows", "addr_fifo_ready",
+         "committed"],
+        lambda p, a, f, c: p and a and f and (not c),
+        "Single 1-cell at (1,1,1,0). The !committed term keeps the "
+        "commit cycle reserved for the immediate path - both pushing in "
+        "one cycle would double-write the address FIFO mux.",
+        depends_only_on=(
+            "these four. chain_pending is the deferred-fetch flop armed by the "
+            "immediate path when it was throttled; prefetch_allows and "
+            "addr_fifo_ready are the same axes as w_should_chain. All 16 cells "
+            "are reachable: pending and committed can coincide (a new commit "
+            "while an older chain is still owed), which is exactly the cell "
+            "the !committed term resolves."),
+        rtl_sop="chain_pending & prefetch_allows & addr_fifo_ready & !committed")
+
+    km.table(
+        "w_prefetch_limit  (chain throttle)", f"{DESC_ENG}:468-476",
+        ["cfg_prefetch_enable", "cfg_fifo_threshold", "limit",
+         "behavior"],
+        [("0", "x", "1", "on-demand: fetch next only after the scheduler "
+          "drains the current descriptor"),
+         ("1", "0", "1", "guard: threshold 0 would stall chaining "
+          "forever"),
+         ("1", "N>0", "N", "buffer up to N fetched-but-unconsumed "
+          "descriptors ahead of the scheduler")],
+        note="w_prefetch_allows = (w_desc_fifo_count < w_prefetch_limit) "
+             f"({DESC_ENG}:476). BUG FIX: cfg_prefetch_enable / "
+             "cfg_fifo_threshold were previously DEAD (unwired) - wiring "
+             "them into this throttle was half of the top-level "
+             "multi_channel/stress hang fix.")
+
+    km.kmap(
+        "APB accept  (w_apb_skid_valid_in / apb_ready)",
+        f"{DESC_ENG}:333-336",
+        "accept = apb_valid && !r_channel_reset_active && "
+        "w_desc_addr_fifo_empty && channel_idle && !r_apb_ip   "
+        "[apb_ready has the same gate off the skid ready]",
+        ["apb_valid", "reset_active", "addr_fifo_empty", "channel_idle",
+         "apb_ip"],
+        lambda v, r, e, i, p: v and (not r) and e and i and (not p),
+        "1s ONLY on the apb_ip=0 page, in the channel_idle=1 columns, "
+        "single cell (valid=1, reset=0, fifo_empty=1). fifo_empty "
+        "prevents APB from "
+        "clobbering a queued chain address; apb_ip prevents accepting a "
+        "second kick before the first chain completes (cleared on the "
+        "channel_idle falling edge).",
+        depends_only_on=(
+            "these five. The APB address itself is payload. apb_ready carries the "
+            "identical gate off the skid's ready ({DESC_ENG}:335-336), so the "
+            "accept and the ready are one decision. All 32 cells are "
+            "reachable: reset_active, fifo_empty, channel_idle and apb_ip are "
+            "independent flops."),
+        rtl_sop="apb_valid & !reset_active & addr_fifo_empty & channel_idle & !apb_ip")
+
+    km.kmap(
+        "ar_valid  (descriptor fetch AR)", f"{DESC_ENG}:929-930",
+        "ar_valid = (((state==RD_ISSUE_ADDR) && w_addr_range_valid) || "
+        "(state==RD_ISSUE_ADDR2)) && !r_axi_read_active",
+        [("st_issue_addr",
+          "r_current_state == RD_ISSUE_ADDR -- first (or only) 32-byte fetch",
+          f"{DESC_ENG}:929"),
+         ("st_issue_addr2",
+          "r_current_state == RD_ISSUE_ADDR2 -- second fetch of an EXT "
+          "descriptor, at r_axi_read_addr + 32",
+          f"{DESC_ENG}:930-932"),
+         ("range_ok",
+          "w_addr_range_valid = r_axi_read_addr inside cfg_addr0 or "
+          "cfg_addr1 [base, limit]",
+          f"{DESC_ENG}:621"),
+         ("read_active",
+          "r_axi_read_active -- an AR has been accepted and its R is owed",
+          f"{DESC_ENG}:831, :845")],
+        lambda s1, s2, ok, a: ((s1 and ok) or s2) and (not a),
+        "1s only in the read_active=0 half, and on the st_issue_addr arm "
+        "only when range_ok=1: a descriptor address outside both windows "
+        "never issues its AR (the FSM takes the error arm instead). The "
+        "second fetch (st_issue_addr2) is NOT range-gated on purpose: it "
+        "is base+32 of a first fetch that already passed, and gating it "
+        "would need the limit compare on base+63. read_active latches on "
+        "ar_ready and clears on the R response, so a state re-entry cannot "
+        "double-issue the same AR.",
+        depends_only_on=(
+            "these four. ar_addr is payload (the +32 mux keys on the same "
+            "state decode). The first-fetch range gate is the only "
+            "configuration input; the address FIFO and the chain logic are "
+            "upstream of the state register, not of this cone."),
+        relations=[
+            ("RD_ISSUE_ADDR and RD_ISSUE_ADDR2 are distinct arms of one case "
+             "on the same state register, so both cannot hold at once.",
+             lambda s1, s2, ok, a_: not (s1 and s2),
+             f"{DESC_ENG}:728, :762")],
+        rtl_sop="st_issue_addr & range_ok & !read_active | "
+                "st_issue_addr2 & !read_active")
+
+    km.kmap(
+        "descriptor_valid  (to scheduler)", f"{DESC_ENG}:1037",
+        "descriptor_valid = w_desc_fifo_rd_valid && !r_descriptor_error",
+        ["fifo_rd_valid", "descriptor_error"],
+        lambda v, e: v and (not e),
+        "Single 1-cell at (1,0): a latched fetch error blocks ALL "
+        "buffered descriptors from reaching the scheduler until the "
+        "error clears (RD_IDLE re-entry / channel reset).",
+        depends_only_on=(
+            "these two. The descriptor words are payload; the scheduler's ready "
+            "is the other half of the handshake and gates the POP, not the "
+            "valid. All four cells are reachable."),
+        rtl_sop="fifo_rd_valid & !descriptor_error")
+
+
+def build_sram_kmaps(wb):
+    km = new_kmap_sheet(wb, "K-maps sram ctrl")
+    km.sheet_intro(
+        "sram_controller / stream_alloc_ctrl / stream_drain_ctrl - "
+        f"accounting K-maps ({SRAM_UNIT}, {ALLOC}, {DRAIN})",
+        ["Two virtual FIFOs of POINTERS bracket the real per-channel data "
+         "FIFO: alloc_ctrl tracks RESERVED-vs-landed space (read engine "
+         "side), drain_ctrl tracks LANDED-vs-reserved data (write engine "
+         "side). All engine-visible counts derive from these pointers."])
+
+    km.kmap(
+        "alloc reserve advance  (wr_ptr += size)",
+        f"{ALLOC}:76-92 via {SRAM_UNIT}:134",
+        "advance = wr_valid && wr_ready && !r_wr_full   [wr_valid = "
+        "axi_rd_alloc_req (fires 1 cycle after each AR handshake); "
+        "wr_ready = !full]",
+        ["alloc_req", "wr_full"],
+        lambda q, f: q and (not f),
+        "Single 1-cell at (1,0). The reservation is made AFTER the AR "
+        "already issued - safety comes from the read engine's w_space_ok "
+        "pre-check, not from this full flag.",
+        depends_only_on=(
+            "these two. In stream_alloc_ctrl the pointer enable is w_write && "
+            "!r_wr_full with w_write = wr_valid && wr_ready and wr_ready = "
+            "!r_wr_full ({ALLOC}:76, :92, :137): the full flag appears twice "
+            "and collapses to one axis. wr_size is the advance AMOUNT, not a "
+            "gate. All four cells are reachable."),
+        rtl_sop="alloc_req & !wr_full")
+
+    km.kmap(
+        "alloc release  (rd_ptr += 1, space freed)", f"{SRAM_UNIT}:141",
+        ".rd_valid(axi_wr_sram_valid && axi_wr_sram_ready)   [release "
+        "fires on the BRIDGE-OUTPUT handshake, i.e. when a beat leaves "
+        "the channel unit toward the write engine]",
+        ["bridge_out_valid", "bridge_out_ready"],
+        lambda v, r: v and r,
+        "Single 1-cell at (1,1). Space is freed at unit EXIT (not FIFO "
+        "entry): a beat parked in the latency-bridge skid still occupies "
+        "its reservation, so space_free can never over-report.",
+        depends_only_on=(
+            "these two, as a SLICE with the alloc FIFO's rd_empty held at 0: the "
+            "pointer enable is w_read && !r_rd_empty with w_read = rd_valid && "
+            "!r_rd_empty ({ALLOC}:77, :103, :138). A beat can only leave the "
+            "unit after its AR reserved it (the reservation lands one cycle "
+            "after the AR, the data many cycles later), so the reservation "
+            "FIFO cannot be empty on the cycle a beat exits; the !empty term "
+            "guards a state the datapath cannot reach and is not an axis."),
+        rtl_sop="bridge_out_valid & bridge_out_ready")
+
+    km.kmap(
+        "over-drain reachability  (drain reserve vs occupancy)",
+        f"{DRAIN}:111, :145, :176",
+        "rd_ptr advances by the FULL rd_size gated only on !rd_empty: "
+        "w_rd_ptr_bin_next = r_rd_ptr_bin + (w_read && !r_rd_empty ? "
+        "rd_size : 0); data_available = w_count",
+        [("rd_valid",
+          "drain request presented this cycle",
+          f"{DRAIN}:176"),
+         ("not_empty",
+          "!r_rd_empty -- the only structural gate on the pointer advance",
+          f"{DRAIN}:111"),
+         ("size_gt_avail",
+          "(AW+1)'(rd_size) > data_available  -- the over-reservation",
+          f"{DRAIN}:176")],
+        lambda v, ne, over: v and ne and over,
+        "The 1-cell at all-ones is the CORRUPTING case, and it is "
+        "REACHABLE -- that is the finding. rd_ptr overshoots wr_ptr, the "
+        "wrap-corrected occupancy computes as ~DEPTH instead of a small "
+        "number, both pointers then advance in lockstep and the channel "
+        "reports a nearly-full FIFO forever, stalling the shared in-order "
+        f"W-phase FIFO and freezing every channel ({DRAIN}:156-162).",
+        depends_only_on=(
+            "these three. wr_size and the write side cannot prevent this: "
+            "the advance is gated on !rd_empty ALONE, never on whether "
+            "rd_size fits. The alloc side is a separate FIFO with its own "
+            f"pointers ({ALLOC}:92, :141) and does not constrain this cone."),
+        relations=[
+            ("NOTHING here is structurally unreachable. TASK-001 expected "
+             "don't-cares resting on 'ordering guarantees elsewhere'; the "
+             "RTL does not provide one. The only protection is a CALLER "
+             "CONTRACT -- the write engine's w_effective_avail stale-view "
+             f"correction ({WR_ENG}:366-383) -- plus a SIMULATION-ONLY "
+             f"$error inside translate_off ({DRAIN}:171-181). A caller "
+             "contract and a sim assertion are not the same thing as an "
+             "impossible state, so no cell is marked X.",
+             None,
+             f"{DRAIN}:156-181"),
+        ],
+        rtl_sop="rd_valid & not_empty & size_gt_avail")
+
+    km.table(
+        "space_free accounting chain (read side)",
+        f"{ALLOC}:141, {SRAM_UNIT}:310-316, {SRAM_CTL}:257-267",
+        ["stage", "expression / register", "staleness"],
+        [("alloc_ctrl", "space_free = DEPTH - (wr_ptr - rd_ptr)",
+          "combinational"),
+         ("sram_controller_unit", "registered once",
+          "1 cycle"),
+         ("sram_controller wrapper", "registered again "
+          "(axi_rd_alloc_space_free port)", "2 cycles total"),
+         ("axi_read_engine", "w_space_ok compares the stale view minus "
+          "the last two cycles' allocations (w_effective_space)",
+          "safe: the in-flight reservations are subtracted before the "
+          "compare (BUG-012 closure)")],
+        note="The 2-flop stage is the 100 MHz timing closure for the "
+             "8-channel arbitration cone; false-pathing it was rejected "
+             "because a stale grant handshake could latch the wrong "
+             "channel.")
+
+    km.kmap(
+        "drain occupancy advance  (wr_ptr += 1)", f"{SRAM_UNIT}:202",
+        ".wr_valid(axi_rd_sram_valid && axi_rd_sram_ready)   [data beat "
+        "lands in the channel FIFO -> data_available += 1]",
+        ["rd_sram_valid", "rd_sram_ready"],
+        lambda v, r: v and r,
+        "Single 1-cell at (1,1): occupancy counts only ACCEPTED beats.",
+        depends_only_on=(
+            "these two, as a SLICE with the drain FIFO's wr_full held at 0: the "
+            "pointer enable is w_write && !r_wr_full ({DRAIN}:77, :89, :141). "
+            "The drain accounting FIFO is instantiated at TWICE the real data "
+            "FIFO depth ({SRAM_UNIT}:185-191, the bridge-occupancy headroom "
+            "fix), so it cannot be full on a cycle the real FIFO accepts a "
+            "beat; the !full term is a guard on an unreachable state, not an "
+            "axis."),
+        rtl_sop="rd_sram_valid & rd_sram_ready")
+
+    km.kmap(
+        "drain reserve advance  (rd_ptr += rd_size)", f"{DRAIN}:97-105",
+        "advance = rd_valid && rd_ready && !r_rd_empty   [rd_valid = "
+        "axi_wr_drain_req (fires on AW handshake); rd_ready = !empty; "
+        "advances by the FULL rd_size]",
+        ["drain_req", "rd_empty"],
+        lambda q, e: q and (not e),
+        "Single 1-cell at (1,0). DANGER cell: the advance is gated only "
+        "on not-EMPTY, not on size<=available - a reservation larger "
+        "than the real occupancy makes rd_ptr overshoot wr_ptr and the "
+        "wrap-corrected count reads ~DEPTH FOREVER (permanent corruption, "
+        "all-channel freeze). A sim-only $error at "
+        f"{DRAIN}:172-181 fires at the bad reservation; the write "
+        "engine's w_effective_avail pipeline is the synthesis-side "
+        "guarantee the reservation is never oversized.",
+        depends_only_on=(
+            "these two. The pointer enable is w_read && !r_rd_empty with "
+            f"w_read = rd_valid && rd_ready and rd_ready = !r_rd_empty ({DRAIN}:78, "
+            ":111, :142): the empty flag appears twice and collapses to one "
+            "axis. rd_size is the advance AMOUNT and, as the over-drain map "
+            "above records, is NOT a gate -- which is the whole finding. All "
+            "four cells are reachable."),
+        rtl_sop="drain_req & !rd_empty")
+
+    km.table(
+        "axi_wr_drain_data_avail contract (write side)",
+        f"{SRAM_UNIT}:282-325",
+        ["rule", "detail"],
+        [("avail = drain_ctrl occupancy ONLY",
+          "assign axi_wr_drain_data_avail = drain_data_available; "
+          "(w_count of the drain virtual FIFO)"),
+         ("bridge_occupancy is EXCLUDED",
+          "a beat in the latency-bridge skid is still counted by "
+          "drain_ctrl (its rd_ptr only moves on drain_req), so adding "
+          "bridge_occupancy counted it TWICE"),
+         ("registered once more at the wrapper",
+          f"{SRAM_CTL}:257-267 -> the write engine sees a 2-cycle-stale "
+          "view and compensates with w_effective_avail")],
+        note="BUG FIX (all-channel deadlock): the double-count let the "
+             "write engine size a burst against beats that did not "
+             "exist -> over-drain -> permanent occupancy corruption -> "
+             "stall at the head of the shared in-order W-phase FIFO "
+             f"froze all 8 channels (slow_producer profile). See "
+             f"{KI_DBLCNT}. Excluding skid beats is conservative-safe: "
+             "it can only delay an AW, never over-issue one.")
+
+
+def build_core_monitor_kmaps(wb):
+    km = new_kmap_sheet(wb, "K-maps core monitors")
+    km.sheet_intro(
+        f"stream_core monitors: no gating, drop-and-count ({CORE}, {RD_MON}, "
+        f"{WR_MON}, {MON_LITE})",
+        ["The data-path AXI masters run through axi4_master_rd_monlite / "
+         "axi4_master_wr_monlite (axi_monitor_lite, since 2026-09-26). The lite "
+         "never touches the traffic it watches: there is no block_ready and the "
+         "core's fub-side ready is the wrapper's ready, verbatim. Capacity "
+         "pressure is COUNTED instead of applied -- a command that finds no "
+         "free table entry is refused (counted, its beats then report as "
+         "orphans) and an event the monbus cannot take is dropped (counted, "
+         "the count reported as Error/EVENT_DROPPED). The full monitor's "
+         "block_ready contract and its saturation-recovery margin no longer "
+         "exist in this design; they are on the axi_monitor_base page."])
+
+    km.kmap(
+        "fub_axi_arready pass-through  (read datapath)", f"{RD_MON}:191",
+        ".fub_axi_arready (fub_axi_arready)   -- the core's ready is the "
+        f"port's ready, no monitor term [identical for AW: {WR_MON}:206]",
+        ["core_ready", "mon_enable"],
+        lambda c, e: c,
+        "Equals core_ready in every cell. The mon_enable column is drawn to "
+        "make the point: nothing the monitor knows (enable, table state, "
+        "monbus backpressure) reaches this handshake. The old full-monitor "
+        "map had a third axis, block_ready, and a 0 at (core_ready=1, "
+        "block_ready=0, mon_enable=1); that cell is gone with the term.",
+        depends_only_on=(
+            "core_ready alone. The lite has no path from its table or its "
+            "output queue to any AXI handshake -- that is the design rule "
+            "(vault/handbook/design/observers-do-not-drive.md)."),
+        rtl_sop="core_ready")
+
+    km.kmap(
+        "table refusal  (lite capacity)", f"{MON_LITE}:346",
+        "w_refused = cmd_hs && !w_have_free   [a command that finds no free "
+        "entry is counted in refused_count and NOT tracked; its data/response "
+        "beats then surface as DATA_ORPHAN / RESP_ORPHAN errors naming it]",
+        ["cmd_hs", "have_free"],
+        lambda h, f: h and not f,
+        "One cell: a handshake with a full table. The command still completes "
+        "on the bus (nothing gates it); the monitor loses the entry, says so "
+        f"({MON_LITE}:783), and the orphan errors that follow name the id.",
+        depends_only_on=(
+            "these two. have_free is the OR of the free-slot mask; the id, "
+            "address and length of the command do not enter the decision."),
+        rtl_sop="cmd_hs & !have_free")
+
+    km.kmap(
+        "event loss  (lite monbus backpressure)", f"{MON_LITE}:739-741",
+        "w_lost = w_offered - w_take_fresh - w_tmo_saved + w_lat_lost; "
+        "r_dropped += w_lost   [w_offered = events fired this cycle; "
+        "w_take_fresh = the pick queued a NEWLY fired event (a held timeout or "
+        "latency event going out is not a fired event and no longer counts "
+        "against the offer -- the earlier form underflowed the 4-bit count by "
+        "15); w_tmo_saved = a timeout parked in its hold slot; w_lat_lost = a "
+        "latency hit that arrived while one was already held and not leaving; "
+        "the count is reported as Error/EVENT_DROPPED when the queue next has "
+        "room and nothing else wants it]",
+        ["event_fired", "queue_room"],
+        lambda e, q: e and not q,
+        "A fired event with no queue room is lost and counted. Two events in one "
+        "cycle lose one even with room (the pick takes one), which this two-axis "
+        "map folds into event_fired; the arithmetic at :741 is exact, and since "
+        "monitor-lite TASK-002 / the latency-threshold fix it also nets out the "
+        "hold slots so a held event leaving is neither a fire nor a loss.",
+        depends_only_on=(
+            "these two plus the per-cycle event count. Which class won the "
+            "pick (error > timeout > completion > threshold) decides WHICH "
+            "event was lost, never whether one was."),
+        rtl_sop="event_fired & !queue_room")
+
+    # ---- monitor cfg -> packet-class qualification (STREAM TASK-001 #1) -----
+    # The defect this commemorates: cfg_compl_enable was once aliased to
+    # int_cfg_*_mon_enable and cfg_threshold_enable to *_mon_perf_enable. A map
+    # whose axes carry their DEFINING EXPRESSIONS shows two axes resolving to
+    # one signal immediately; a map with bare string axes cannot. The lite has
+    # no synthesis cone for completions (ENABLE_COMPL_LOGIC is gone), so the map
+    # lost its build axis; the runtime chain is what remains to protect.
+    km.kmap(
+        "COMPL packet emission  (monitor cfg -> packet class)",
+        f"{MON_LITE}:675",
+        "w_cmp_v = r_e_compl && w_cmp_en;  w_cmp_en = cfg_compl_enable && "
+        "type_allowed(PktTypeCompletion)   [r_e_compl: a clean completion "
+        "registered from the attribution cycle]",
+        [("use_mon",
+          "USE_AXI_MONITORS: selects the g_monitors_enabled generate that "
+          "feeds every int_cfg_*",
+          f"{CORE}:784"),
+         ("cfg_compl",
+          "cfg_compl_enable <- int_cfg_rdeng_mon_compl_enable "
+          "(= cfg_rdeng_mon_compl_enable when monitors are built)",
+          f"{CORE}:808, :1601"),
+         ("type_allowed",
+          "!cfg_axi_pkt_mask[PktTypeCompletion]",
+          f"{MON_LITE}:642"),
+         ("is_complete",
+          "r_e_compl: last beat (read) or B (write) on a tracked entry with no "
+          "error recorded",
+          f"{MON_LITE}:675")],
+        lambda u, c, t, k: u and c and t and k,
+        "Single 1-cell at all-ones. Each axis is ONE term with its own "
+        "equation -- two axes resolving to the same signal would be visible "
+        "here, which is exactly the aliasing defect that shipped. "
+        "VERDICT READS 'DIFFERS' ON PURPOSE -- and it is the finding: the "
+        "derived cover drops use_mon, because the invariant below makes "
+        "cfg_compl=1 imply use_mon=1, so the use_mon=0 && cfg_compl=1 cells "
+        "are X and Quine-McCluskey absorbs them. The RTL's use_mon term is "
+        "REDUNDANT GIVEN THE INVARIANT -- defence in depth, not logic; if the "
+        "tie-off at CORE:869 were ever removed it would become load-bearing.",
+        depends_only_on=(
+            "these four. The other class enables (error/timeout/threshold) "
+            "gate their own events in the same registered stage and cannot "
+            "change COMPL emission. There is no per-slot retire guard any "
+            "more: the lite frees an entry on its last beat whether or not a "
+            "packet was emitted, so a runtime-disabled class cannot wedge the "
+            "table."),
+        relations=[
+            ("use_mon=0 forces cfg_compl to 0: the g_monitors_disabled arm "
+             "ties every int_cfg_*_enable to 1'b0, so (use_mon=0, cfg_compl=1) "
+             "is unreachable, not a 0.",
+             lambda u, c, t, k: not (c and not u),
+             f"{CORE}:869"),
+            ("perf_run is the deliberate exception to the monitors-off "
+             "tie-off: it passes through to drive the always-on datapath perf "
+             "window, so monitors-off does NOT zero every cfg signal.",
+             None,
+             f"{CORE}:883")],
+        rtl_sop="use_mon & cfg_compl & type_allowed & is_complete")
+
+    km.table(
+        "capacity contract (stream default sizing, lite)",
+        f"{MON_LITE}:346, :741, :896-897, {CORE}:125-129",
+        ["quantity", "expression", "8ch default value"],
+        [("MAX_TRANSACTIONS",
+          "max(16, NUM_CHANNELS * AR_MAX_OUTSTANDING + MON_TRANS_MARGIN)",
+          "72"),
+         ("table entries", "MAX_TRANSACTIONS (no command-entry reserve)", "72"),
+         ("on a full table", "refuse the command: refused_count += 1, no stall",
+          "counted"),
+         ("on a full monbus queue", "drop the event: dropped_count += lost, "
+          "reported as EVENT_DROPPED", "counted")],
+        note="The full monitor gated AR/AW through block_ready with a "
+             "saturation-recovery margin (the stream_core multi-channel wedge "
+             "was a margin defect). The lite has neither: it never applies "
+             "pressure, so there is nothing to recover from, and the cost of "
+             "undersizing MAX_TRANSACTIONS is refused entries whose beats "
+             "report as orphans -- visible, counted, and never a stall.")
+
+    km.table(
+        "monitor enable tie-off (build-level gate)", f"{CORE}:641-732",
+        ["USE_AXI_MONITORS", "int_cfg_*_mon_enable", "effect"],
+        [("1", "= cfg_*_mon_enable (CSR)", "runtime on/off; wrapper "
+          "instantiates the lite (USE_MONITOR=1)"),
+         ("0", "= 1'b0 (tied)", "monitor logic absent: bare skid, zero "
+          "datapath interference (the lite has none even when built)")],
+        note=f"e.g. {CORE}:660 (enabled branch) vs :715 (tied-off "
+             "branch). The always-on axi_bus_meter perf buckets survive "
+             "USE_AXI_MONITORS=0 by design - only the monitors and "
+             "histograms are gated.")
+
+
+def main():
+    verify_citations(CITES, REPO)
+    wb = openpyxl.Workbook()
+    del wb[wb.sheetnames[0]]           # drop the default sheet
+
+    build_desc_axi_contract(wb)
+    build_data_axi_contract(wb)
+    build_apb_csr_contract(wb)
+    build_monbus_contract(wb)
+
+    build_rd_engine_kmaps(wb)
+    build_wr_engine_kmaps(wb)
+    build_scheduler_kmaps(wb)
+    build_desc_engine_kmaps(wb)
+    build_sram_kmaps(wb)
+    build_core_monitor_kmaps(wb)
+
+    wb.save(XLSX)
+    print(f"wrote {XLSX}")
+    for name in wb.sheetnames:
+        print(" ", name)
+
+
+if __name__ == "__main__":
+    main()

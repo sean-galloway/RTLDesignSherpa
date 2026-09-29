@@ -139,7 +139,7 @@ OBS_CLASSES = {
 
 _STREAM_REGS = RegisterMap(
     os.path.join(os.environ['REPO_ROOT'],
-                 'projects/components/dmas/stream/regs/generated/stream_regs_regmap.py'),
+                 'projects/components/dma-ip/stream/regs/generated/stream_regs_regmap.py'),
     apb_data_width=32, apb_addr_width=32, start_address=0,
     log=logging.getLogger('stream_regs'))
 
@@ -461,7 +461,7 @@ def _run_stream_mon(request, profile=False):
     })
     dut_name = "stream_harness"
 
-    os.environ['STREAM_ROOT'] = os.path.join(repo_root, 'projects/components/dmas/stream')
+    os.environ['STREAM_ROOT'] = os.path.join(repo_root, 'projects/components/dma-ip/stream')
     os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root, 'projects/components/converters')
     os.environ['MISC_ROOT'] = os.path.join(repo_root, 'projects/components/misc')
     os.environ['STREAM_CHAR_FRAMEWORK_ROOT'] = os.path.join(repo_root, 'projects/fpga-systems/Genesys2/stream')

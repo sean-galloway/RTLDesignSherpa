@@ -15,7 +15,7 @@ module with no matching `.sv`. 4 are rapids and deliberately held
 | `projects/components/fabric-gen-ip/bridge/docs` | 12 |
 | `projects/components/delta` | 9 |
 | `projects/components/converters/docs` | 5 |
-| `projects/components/dmas/stream` | 4 |
+| `projects/components/dma-ip/stream` | 4 |
 | `projects/components/hive/PRD.md` | 3 |
 | apbx-xbar, misc, RLB, user-guides | 10 |
 

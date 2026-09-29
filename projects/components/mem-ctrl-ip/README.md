@@ -60,5 +60,5 @@ memtype config and timing docs.
 Per-IP detail is in each directory's `CLAUDE.md` and `PRD.md`; the DDR3/DDR4
 mode roadmap is `vault/Tasks/memory-controllers/ADVANCED_MODES_ROADMAP.md`.
 
-See [`../dmas/stream/README.md`](../dmas/stream/README.md) for the per-component
+See [`../dma-ip/stream/README.md`](../dma-ip/stream/README.md) for the per-component
 layout convention this directory follows.

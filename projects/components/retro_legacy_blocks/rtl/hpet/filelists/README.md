@@ -281,7 +281,7 @@ verilator --lint-only \
 - **PeakRDL Specification:** `../../../rdl/hpet/hpet_regs.rdl`
 - **Integration Status:** `../../../docs/IMPLEMENTATION_STATUS.md` (PeakRDL HPET integration final status)
 - **Test Examples:** `projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py`
-- **RAPIDS File Lists:** `projects/components/dmas/rapids/rtl/filelists/` (reference methodology)
+- **RAPIDS File Lists:** `projects/components/dma-ip/rapids/rtl/filelists/` (reference methodology)
 
 ---
 

@@ -94,8 +94,8 @@ graph TD
 ### Component Projects
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[STREAM](../../projects/components/dmas/stream)** | Ready | Tutorial DMA engine with scatter-gather |
-| **[RAPIDS](../../projects/components/dmas/rapids)** | In Progress | Advanced DMA with network interfaces |
+| **[STREAM](../../projects/components/dma-ip/stream)** | Ready | Tutorial DMA engine with scatter-gather |
+| **[RAPIDS](../../projects/components/dma-ip/rapids)** | In Progress | Advanced DMA with network interfaces |
 | **[Bridge](../../projects/components/fabric-gen-ip/bridge)** | Ready | AXI protocol bridges and converters |
 | **[Converters](../../projects/components/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion |
 | **[APB Crossbar](../../projects/components/fabric-gen-ip/apbx-xbar)** | Ready | M×N APB interconnect |
@@ -251,8 +251,8 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[STREAM](../../projects/components/dmas/stream)** | Ready | Tutorial DMA with 8 channels, scatter-gather, APB config |
-| **[RAPIDS](../../projects/components/dmas/rapids)** | In Progress | Advanced DMA with alignment fixup, network TX/RX, credit flow |
+| **[STREAM](../../projects/components/dma-ip/stream)** | Ready | Tutorial DMA with 8 channels, scatter-gather, APB config |
+| **[RAPIDS](../../projects/components/dma-ip/rapids)** | In Progress | Advanced DMA with alignment fixup, network TX/RX, credit flow |
 
 #### Interconnect and Bridges
 
