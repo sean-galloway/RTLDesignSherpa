@@ -12,15 +12,14 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 8 | done (kept for history) |
+| [closed/](closed/) | 9 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-013** — bin/GENERATOR_ARCHITECTURE.md: reconcile the 2025-11 walkthroughs against the generator
 
 
 ## Dropped
@@ -32,6 +31,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-013** — bin/GENERATOR_ARCHITECTURE.md: reconcile the 2025-11 walkthroughs against the generator -- CLOSED 2026-09-29: GENERATOR_ARCHITECTURE.md rewritten from the code, 434 lines, every path/symbol checked; no 64-bit-internal or YAML claims, no line numbers
 - **TASK-012** — bridge placement pass: 9 loose markdown files (generator design notes beside bin/, a bug write-up at the root) -- CLOSED 2026-09-29: 9 loose files placed: BUG-015 filed, GENERATOR_ARCHITECTURE to bin/ (rewritten where wrong), SIGNAL_NAMING collapsed, 5 stale pages deleted; TASK-013 filed for the rest
 - **TASK-002** — AMBA5 bridge support (AXI5 ports alongside AXI4)
 - **TASK-003** — scrub the tests for completeness (bridge)

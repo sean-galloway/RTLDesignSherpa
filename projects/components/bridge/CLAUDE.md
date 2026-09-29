@@ -33,7 +33,7 @@
 
 **Before making ANY changes to bridge generator or understanding signal flow:**
 
-**READ:** `projects/components/bridge/bin/GENERATOR_ARCHITECTURE.md` (generator build mechanics; its 2025-11 component walkthroughs are under reconciliation, bridge TASK-013) and `projects/components/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.7.pdf`)
+**READ:** `projects/components/bridge/bin/GENERATOR_ARCHITECTURE.md` (generator build mechanics, reconciled against the code 2026-09-29) and `projects/components/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.7.pdf`)
 
 These documents contain the **definitive bridge architecture** including:
 - Correct signal flow (wrappers → decoder → converters → crossbar → slaves)
