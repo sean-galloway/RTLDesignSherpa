@@ -101,3 +101,86 @@ sweep, which is how an earlier "0 of 192 clean" result was mistaken for closure.
 
 If step 1 already recovers the cycle's worth of bandwidth through a smaller
 guard, step 2 may not be worth its risk at all.
+
+---
+
+## Board campaign 2026-09-29 -- the prize is measured; the safety case is NOT
+
+Nexys A7 (serial 210292BFA3EE) programmed with the ISSUE-018-fixed bitstream
+(post-physopt WNS +0.031). `init` PASS, geometry confirmed from the hardware:
+`dfi_rate=2 gear=1 bl=4 row=13 bank=6 axi=64b beat=32b dev=16b clk=75.00MHz`.
+Workload: the 1+1 concurrent read+write point on disjoint banks, FAM_INCREMENTAL,
+2000 x 64 B bursts per engine -- the point TASK-034 named, because it has the
+LEAST overlap and is the one that historically failed.
+
+### Step 1 as written: no failures anywhere from guard 6 down to 2
+
+90 points, six reps each, gaps 13/14/15, `rtw_guard` 6 -> 2 (tRTW 20 -> 16):
+**0 mismatched beats everywhere**, and the throughput did not move by more than
+0.1 MB/s across the whole range (gap 14: 123.2 MB/s at every guard).
+
+Taken at face value that says "drop the guard". **It does not, and the reason is
+the control.**
+
+### The negative control FAILED, so step 1 is unanswered
+
+tRTW = 8 -- the value the OLD buggy formula derived, which the RTL comment
+records as failing gaps 13 and 15 "exactly as they had before the fix" -- is
+**0/6 clean at all three gaps**. The historical failure does not reproduce.
+
+Pushed further: tRTW = **3**, physically impossible for a CL=3 / BL=4 DDR2 part
+(a read owns DQ far longer than three MC cycles), is **also 0/6 clean**.
+
+So this stimulus cannot detect a read-to-write turnaround violation AT ALL. The
+clean sweep above is therefore evidence about the workload, not about safety, and
+**the guard must not be lowered on the strength of it**. A sweep that passes at a
+setting that cannot possibly be safe has demonstrated only that it is not looking
+at the thing it is named after.
+
+Why it is blind is worth recording: writers and readers start on disjoint banks
+and the reader gap is 13-15 cycles, so genuine back-to-back RD->WR on the shared
+DQ bus is rare in this pattern. The historical failure needed an interleaving
+this point does not produce.
+
+### What the campaign DID establish: the prize, and it is large
+
+Sweeping tRTW down at gap 14 finds a CLIFF, not a curve:
+
+| tRTW | MB/s | % of 600 MB/s peak |
+|---:|---:|---:|
+| 20 (shipping) | 123.2 | 20.5% |
+| 16 | 123.2 | 20.5% |
+| 13 | 123.2 | 20.5% |
+| 12 | 123.2 | 20.5% |
+| **11** | **217.1** | **36.2%** |
+| 10 | 217.8 | 36.3% |
+| 9 | 217.7 | 36.3% |
+| 8 | 217.4 | 36.2% |
+| 3 | 217.9 | 36.3% |
+
+One cycle -- 12 to 11 -- nearly doubles this workload's throughput (+76%), and
+nothing below 11 buys anything more. That is a quantization boundary, not a
+gradual cost, and it is worth understanding on its own: something takes an extra
+slot at tRTW >= 12 and fits at <= 11.
+
+Shipping tRTW is 20, so this workload is leaving ~76% on the table IF 11 is safe.
+That is a far bigger prize than the one cycle this task was filed about, and it
+raises the value of doing the experiment properly rather than lowering the case
+for it.
+
+### What a valid experiment needs (this is now the task)
+
+1. **A stimulus that actually stresses RD->WR turnaround** -- interleaved reads
+   and writes to the SAME bank, or a pattern that forces bus turnaround every few
+   commands, rather than disjoint banks with a 13-15 cycle gap.
+2. **Validated by a negative control before any conclusion is drawn**: it must
+   FAIL at tRTW = 3. If it does not, it is not measuring the turnaround and no
+   result from it means anything. That check costs one run and it is what this
+   campaign was missing.
+3. Only then sweep the guard down, six reps per point, and find the minimum that
+   is clean.
+4. Then, separately, the N+1 question this task was filed about -- which is a
+   much smaller effect than the tRTW cliff and should be measured after it.
+
+The `rtw_guard` stays at 6. Nothing about the shipping configuration changed, and
+the board was restored to tRTW = 20 after the campaign.

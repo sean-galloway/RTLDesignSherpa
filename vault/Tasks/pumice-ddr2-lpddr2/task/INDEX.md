@@ -28,7 +28,12 @@ exactly one state by construction rather than by discipline.
   needs a board re-measurement because the empirical `rtw_guard` was tuned with
   the extra cycle present. **Documentation half DONE 2026-09-28** (RDL field
   descriptions + regen, MAS runtime-overrides, HAS csr_map, and `a_*_bound_n1`
-  formal properties); only the board experiment remains
+  formal properties). Board campaign 2026-09-29 ran and its NEGATIVE CONTROL
+  FAILED -- tRTW=3, physically impossible, passes 0/6 -- so the stimulus cannot
+  see turnaround violations and the guard must not be lowered on it. It did
+  measure the prize: a cliff at tRTW 12->11 worth **+76%** on this workload
+  (123.2 -> 217.1 MB/s against a 600 MB/s peak). The task is now to build a
+  stimulus that fails at tRTW=3 first
 
 - **TASK-035** — finish pumice's formal coverage. 5 of 27 blocks proven (11/11
   sby tasks); closes when TIER 1 is done — `pumice_cmd_arbiter` (which settles
