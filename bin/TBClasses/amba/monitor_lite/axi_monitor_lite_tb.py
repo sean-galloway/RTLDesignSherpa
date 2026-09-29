@@ -351,6 +351,13 @@ class AxiMonitorLiteTB:
                 self._fail(f"latency: packet names 0x{compl_addr(p):08X}/id {p.channel_id}, latency {compl_latency(p)}")
         if len(find_packets_by_criteria(got, pkt_type=int(PKT_COMPL))) != 1:
             self._fail("latency: the slow transaction should still complete once")
+        # A held event going out is not a fired event: the drop counter must not
+        # move (the pre-2026-09-28 accounting subtracted the held take from the
+        # fired total and underflowed by 15, which surfaced as a bogus
+        # EVENT_DROPPED report after every latency packet).
+        bogus = find_packets_by_criteria(got, pkt_type=int(PKT_ERROR), event_code=int(ERR_EVENT_DROPPED))
+        if bogus:
+            self._fail(f"latency: {len(bogus)} EVENT_DROPPED report(s) ({[p.data for p in bogus]}) after a latency packet with the bus free")
         d.cfg_latency_threshold.value = 0x0FFF_FFFF
         slave.response_delay_cycles = saved
         self.log.info("phase latency: one Threshold/LATENCY with address, id and latency, plus the completion")

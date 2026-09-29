@@ -294,6 +294,14 @@ rounding error against a microsecond tick -- and reported once. A command
 channel that holds VALID without READY for the same threshold reports
 `Timeout/CMD`.
 
+A timeout is a one-cycle event and an Error fired in the same cycle outranks
+it. Since 2026-09-28 one fired timeout the pick could not take is held with
+its own payload (code, id, address) and offered on the following cycles,
+oldest first, so a sustained error stream delays a timeout rather than losing
+it (the inherited starvation suite had measured the loss at one error per
+cycle; monitor-lite TASK-004). A second timeout arriving while the hold is
+full is still lost and counted.
+
 ### Latency threshold
 
 A clean completion whose latency (cycle stamp at completion minus the cycle
@@ -311,7 +319,8 @@ the subtract, the compare and the drop-count adder into 21 logic levels
 
 Events go into the output queue. If the queue is full when an event fires, or
 two events fire in one cycle (error > timeout > completion > threshold picks
-the one that goes), the rest are dropped and counted. The next time the queue
+the one that goes), the rest are dropped and counted -- except the one
+timeout and the one latency event the holds above can keep. The next time the queue
 has room and nothing else wants it, one `Error/EVENT_DROPPED` packet carries
 the count and the counter restarts. The consumer therefore always knows how
 many events it did not see.

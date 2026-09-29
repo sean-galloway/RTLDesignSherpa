@@ -539,6 +539,20 @@ module axi_monitor_lite
     logic [15:0]        r_lat_latency;
     logic               w_lat_take;   // the pick queued the held latency event this cycle
     logic               w_lat_hit;    // stage 2: the registered completion crossed the threshold
+    // A timeout is a one-cycle pulse from the rotating scan (or the command
+    // stall detector), and an Error fired in the same cycle outranks it. Under
+    // a sustained error stream it was lost and counted every time (the
+    // inherited starvation suite, monitor-lite TASK-004). One fired timeout the
+    // pick could not take is HELD here with its payload (code, id, address)
+    // and offered on the following cycles, oldest first; a second one arriving
+    // while the hold is full is still lost and counted.
+    logic               r_tmo_pend;
+    logic [7:0]         r_tmo_code;
+    logic [IW-1:0]      r_tmo_id;
+    logic [AW-1:0]      r_tmo_addr;
+    logic               w_tmo_held_take;   // the pick queued the held timeout this cycle
+    logic               w_tmo_saved;       // a fresh timeout went into the hold this cycle
+    logic               w_tmo_save_scan;   // ...and it was the scan hit (else the command stall)
     logic               r_e_scan_phase, r_e_data_decerr, r_e_resp_decerr;
     logic [SW-1:0]      r_e_dslot, r_e_bslot, r_e_tslot, r_e_cslot;
     logic [IW-1:0]      r_e_data_id, r_e_resp_id, r_e_cmd_id;
@@ -552,6 +566,7 @@ module axi_monitor_lite
             r_e_resp_orph <= 1'b0; r_e_data_orph <= 1'b0; r_e_early_ovf <= 1'b0;
             r_e_scan_hit <= 1'b0; r_e_cmd_tmo <= 1'b0; r_e_compl <= 1'b0; r_e_thresh <= 1'b0;
             r_lat_pend <= 1'b0; r_lat_id <= '0; r_lat_addr <= '0; r_lat_latency <= '0;
+            r_tmo_pend <= 1'b0; r_tmo_code <= '0; r_tmo_id <= '0; r_tmo_addr <= '0;
             r_e_scan_phase <= 1'b0; r_e_data_decerr <= 1'b0; r_e_resp_decerr <= 1'b0;
             r_e_dslot <= '0; r_e_bslot <= '0; r_e_tslot <= '0; r_e_cslot <= '0;
             r_e_data_id <= '0; r_e_resp_id <= '0; r_e_cmd_id <= '0; r_e_cmd_addr <= '0;
@@ -575,6 +590,21 @@ module axi_monitor_lite
                 r_lat_addr    <= r_addr[r_e_cslot];
                 r_lat_latency <= r_e_latency;
             end else if (w_lat_take)            r_lat_pend <= 1'b0;
+            // held timeout: load the fresh one the pick left behind (the slot
+            // still holds the timed-out entry this cycle), else release on take
+            if (clear)                          r_tmo_pend <= 1'b0;
+            else if (w_tmo_saved) begin
+                r_tmo_pend <= 1'b1;
+                if (w_tmo_save_scan) begin
+                    r_tmo_code <= r_e_scan_phase ? AXI_TIMEOUT_RESP : AXI_TIMEOUT_DATA;
+                    r_tmo_id   <= r_id[r_e_tslot];
+                    r_tmo_addr <= r_addr[r_e_tslot];
+                end else begin
+                    r_tmo_code <= AXI_TIMEOUT_CMD;
+                    r_tmo_id   <= r_e_cmd_id;
+                    r_tmo_addr <= r_e_cmd_addr;
+                end
+            end else if (w_tmo_held_take)       r_tmo_pend <= 1'b0;
             r_e_scan_phase <= r_phase[r_scan];
             r_e_data_decerr <= data_resp[0];
             r_e_resp_decerr <= resp_code[0];
@@ -636,8 +666,11 @@ module axi_monitor_lite
         if (!w_err_en) w_err_fired = '0;
     end
 
-    wire       w_tmo_v    = (r_e_scan_hit || r_e_cmd_tmo) && w_tmo_en;
-    wire [7:0] w_tmo_code = r_e_scan_hit ? (r_e_scan_phase ? AXI_TIMEOUT_RESP : AXI_TIMEOUT_DATA) : AXI_TIMEOUT_CMD;
+    wire       w_tmo_fresh = (r_e_scan_hit || r_e_cmd_tmo) && w_tmo_en;
+    wire       w_tmo_v     = w_tmo_fresh || (r_tmo_pend && w_tmo_en);
+    // held first (oldest), then the scan hit, then the command stall
+    wire [7:0] w_tmo_code = r_tmo_pend   ? r_tmo_code :
+                            r_e_scan_hit ? (r_e_scan_phase ? AXI_TIMEOUT_RESP : AXI_TIMEOUT_DATA) : AXI_TIMEOUT_CMD;
     wire [1:0] w_tmo_fired = w_tmo_en ? (2'(r_e_scan_hit) + 2'(r_e_cmd_tmo)) : 2'd0;
     wire       w_cmp_v = r_e_compl  && w_cmp_en;
     wire       w_thr_v = (r_e_thresh || r_lat_pend) && w_thr_en;
@@ -660,8 +693,12 @@ module axi_monitor_lite
             w_evt_from_slot = w_err_has_slot; w_evt_slot = w_err_slot; w_evt_id_alt = w_err_id;
         end else if (w_tmo_v) begin
             w_evt_v = 1'b1; w_evt_type = PktTypeTimeout; w_evt_code = w_tmo_code;
-            w_evt_from_slot = r_e_scan_hit; w_evt_slot = r_e_tslot;
-            w_evt_id_alt = r_e_cmd_id; w_evt_addr_alt = r_e_cmd_addr;
+            if (r_tmo_pend) begin
+                w_evt_id_alt = r_tmo_id; w_evt_addr_alt = r_tmo_addr;        // held: its own payload
+            end else begin
+                w_evt_from_slot = r_e_scan_hit; w_evt_slot = r_e_tslot;
+                w_evt_id_alt = r_e_cmd_id; w_evt_addr_alt = r_e_cmd_addr;
+            end
         end else if (w_cmp_v) begin
             w_evt_v = 1'b1; w_evt_type = PktTypeCompletion; w_evt_code = AXI_COMPL_TRANS_COMPLETE;
             w_evt_from_slot = 1'b1; w_evt_slot = r_e_cslot; w_evt_hi = r_e_latency;
@@ -686,10 +723,22 @@ module axi_monitor_lite
     wire [3:0] w_offered = w_err_fired + 4'(w_tmo_fired) + 4'(w_cmp_v) + 4'(w_thr_fired);
     wire       w_take    = w_evt_v && w_wr_ready;
     assign     w_lat_take = w_take && w_thr_v && !w_err_v && !w_tmo_v && !w_cmp_v && !r_e_thresh;   // the winner was the held latency event
-    // lost: every fired event the pick could not queue this cycle, plus a latency
-    // event that arrived while one was already held and not leaving
+    // timeout class won the pick: the held one goes first, else one fresh one
+    wire       w_tmo_take  = w_take && w_tmo_v && !w_err_v;
+    assign     w_tmo_held_take = w_tmo_take && r_tmo_pend;
+    wire       w_tmo_fresh_taken = w_tmo_take && !r_tmo_pend;              // the scan hit if it fired, else the stall
+    wire [1:0] w_tmo_left  = w_tmo_fired - 2'(w_tmo_fresh_taken);           // fresh timeouts the pick did not take
+    assign     w_tmo_saved = (w_tmo_left != 2'd0) && (!r_tmo_pend || w_tmo_held_take);
+    // which fresh one is saved: the scan hit unless it was the one just taken
+    assign     w_tmo_save_scan = r_e_scan_hit && !(w_tmo_fresh_taken && r_e_scan_hit);
+    // lost: every FIRED event the pick could not queue and the hold could not
+    // keep, plus a latency hit that arrived while one was already held and not
+    // leaving. A held event going out is not a fired event, so it does not
+    // count against the offered total (the earlier form subtracted it and
+    // underflowed the 4-bit count by 15 when a held latency event went out).
+    wire       w_take_fresh = w_take && !w_lat_take && !w_tmo_held_take;
     wire       w_lat_lost = w_lat_hit && r_lat_pend && !w_lat_take;
-    wire [3:0] w_lost    = w_offered - 4'(w_take) + 4'(w_lat_lost);
+    wire [3:0] w_lost    = w_offered - 4'(w_take_fresh) - 4'(w_tmo_saved) + 4'(w_lat_lost);
 
     logic [15:0] r_dropped, r_refused, r_completed, r_errors;
     // pending drop report: emitted when the queue has room and nothing else wants it
@@ -841,7 +890,7 @@ module axi_monitor_lite
     )
 
     assign active_count         = 8'(w_occupancy);
-    assign busy                 = (|r_valid) || monbus_valid || w_addr_valid;
+    assign busy                 = (|r_valid) || monbus_valid || w_addr_valid || r_lat_pend || r_tmo_pend;
     assign perf_completed_count = r_completed;
     assign perf_error_count     = r_errors;
     assign dropped_count        = r_dropped;

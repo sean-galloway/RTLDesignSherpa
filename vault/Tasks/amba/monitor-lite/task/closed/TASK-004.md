@@ -1,7 +1,7 @@
 # TASK-004: timeout and latency events lose the one-per-cycle pick to a sustained error stream; hold the payload until queued
 
 **Priority:** P3
-**Status:** open
+**Status:** CLOSED 2026-09-28
 **Owner:** TBD (monitor-lite)
 **Filed:** 2026-09-28 from amba/monitor-lite TASK-002 (the inherited starvation suite)
 **Related:** amba TASK-083 (the full monitor's starvation measurement)
@@ -38,13 +38,42 @@ stays as the report of last resort for a queue that is genuinely full.
 
 ## Done when
 
-- [ ] the duty-1 arm of the lite starvation test delivers the victim's timeout
-- [ ] the soak's accounting identity still closes exactly
+- [x] the duty-1 arm of the lite starvation test delivers the victim's timeout
+- [x] the soak's accounting identity still closes exactly
       (`test_axi_monitor_soak_monlite`)
-- [ ] formal/amba/axi_monitor_lite prove + cover still pass
+- [x] formal/amba/axi_monitor_lite prove + cover still pass
 
 **2026-09-28, later:** the LATENCY half is done under ISSUE-002 -- the latency
 event is now decided a stage after its completion and held with its own
 payload (id, address, latency). What remains here is the TIMEOUT half: hold
 the scan-hit event (with `r_id`/`r_addr` of the timed-out slot and its code)
 until the pick takes it, using the same shape.
+
+---
+
+## CLOSED 2026-09-28
+
+Both halves done. The latency half landed under ISSUE-002 (compare a stage
+later, payload held). The timeout half: one fired timeout the pick could not
+take (an Error outranked it, or the queue was full) is held with its own
+payload -- code, id, address captured while the timed-out slot still holds
+them -- and offered on the following cycles, oldest first; a second fresh
+timeout arriving while the hold is full is still lost and counted. Both
+holds are now in `busy`.
+
+The drop accounting was restructured with it, and that fixed a latent bug:
+`w_lost = offered - take` subtracted the take of a HELD event from a total
+that only counts FIRED events, so a held latency packet going out with the
+bus free underflowed the 4-bit count by 15 and produced a bogus
+`EVENT_DROPPED(15)` report. Nothing checked for it; the lite TB's latency
+phase now asserts no drop report follows a latency packet.
+
+| Check | Result |
+|---|---|
+| `test_axi_monitor_pktgen_timeout_starvation_monlite`, duty 1 per cycle | victim timeout DELIVERED, 400/400 errors, 0 drops (was LOST) |
+| same, duty 1 in 2 | DELIVERED, 0 drops |
+| `test_axi_monitor_soak_monlite` 60k cycles | 10,663 generated == 7,583 + 982 + 2,005 delivered + 93 reported + 0 pending |
+| `val/amba/monitor-lite` from clean | GATE 108/108, FUNC 201/201 |
+| `val/amba` from clean | GATE 839/839, FUNC 1055/1055 |
+| `formal/amba/axi_monitor_lite` | prove + cover PASS |
+| Artix-7 lite bridge fixture, 10 ns | WNS +0.366 ns, 0 failing; worst path is the lite's timeout scan, 8.8 ns, 10 levels |

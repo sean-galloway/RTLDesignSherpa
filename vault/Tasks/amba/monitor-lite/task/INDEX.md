@@ -12,15 +12,14 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-004** — timeout and latency events lose the one-per-cycle pick to a sustained error stream; hold the payload until queued
 
 
 ## Active
@@ -28,6 +27,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-004** — timeout and latency events lose the one-per-cycle pick to a sustained error stream; hold the payload until queued -- CLOSED 2026-09-28: timeout held with its payload (latency half under ISSUE-002); starvation test delivers at 1 error/cycle; a latent drop-count underflow fixed with it
 - **TASK-002** — run the inherited monitor suites against the lite with per-class skips -- CLOSED 2026-09-28: lite cells in all six inherited suites (28 cells + 108 area tests green from clean); two lite RTL defects fixed (same-cycle AW+W, early-beat count); timeout loss under an error flood measured and filed as TASK-004
 - **TASK-001** — monitor-lite: three quarters of the AXI monitor for a fifth of the gates -- CLOSED 2026-09-28: everything landed by 2026-09-27; only the state was stale
 - **TASK-003** — axis_monitor_lite core + the eight axis4/axis5 monlite wrappers -- CLOSED 2026-09-27

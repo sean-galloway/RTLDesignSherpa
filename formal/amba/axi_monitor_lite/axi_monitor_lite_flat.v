@@ -951,6 +951,13 @@ module axi_monitor_lite (
 	reg [15:0] r_lat_latency;
 	wire w_lat_take;
 	wire w_lat_hit;
+	reg r_tmo_pend;
+	reg [7:0] r_tmo_code;
+	reg [IW - 1:0] r_tmo_id;
+	reg [AW - 1:0] r_tmo_addr;
+	wire w_tmo_held_take;
+	wire w_tmo_saved;
+	wire w_tmo_save_scan;
 	reg r_e_scan_phase;
 	reg r_e_data_decerr;
 	reg r_e_resp_decerr;
@@ -981,6 +988,10 @@ module axi_monitor_lite (
 			r_lat_id <= 1'sb0;
 			r_lat_addr <= 1'sb0;
 			r_lat_latency <= 1'sb0;
+			r_tmo_pend <= 1'b0;
+			r_tmo_code <= 1'sb0;
+			r_tmo_id <= 1'sb0;
+			r_tmo_addr <= 1'sb0;
 			r_e_scan_phase <= 1'b0;
 			r_e_data_decerr <= 1'b0;
 			r_e_resp_decerr <= 1'b0;
@@ -1017,6 +1028,23 @@ module axi_monitor_lite (
 			end
 			else if (w_lat_take)
 				r_lat_pend <= 1'b0;
+			if (clear)
+				r_tmo_pend <= 1'b0;
+			else if (w_tmo_saved) begin
+				r_tmo_pend <= 1'b1;
+				if (w_tmo_save_scan) begin
+					r_tmo_code <= (r_e_scan_phase ? 8'h02 : 8'h01);
+					r_tmo_id <= r_id[r_e_tslot * IW+:IW];
+					r_tmo_addr <= r_addr[r_e_tslot * AW+:AW];
+				end
+				else begin
+					r_tmo_code <= 8'h00;
+					r_tmo_id <= r_e_cmd_id;
+					r_tmo_addr <= r_e_cmd_addr;
+				end
+			end
+			else if (w_tmo_held_take)
+				r_tmo_pend <= 1'b0;
 			r_e_scan_phase <= r_phase[r_scan];
 			r_e_data_decerr <= data_resp[0];
 			r_e_resp_decerr <= resp_code[0];
@@ -1109,8 +1137,9 @@ module axi_monitor_lite (
 		if (!w_err_en)
 			w_err_fired = 1'sb0;
 	end
-	wire w_tmo_v = (r_e_scan_hit || r_e_cmd_tmo) && w_tmo_en;
-	wire [7:0] w_tmo_code = (r_e_scan_hit ? (r_e_scan_phase ? 8'h02 : 8'h01) : 8'h00);
+	wire w_tmo_fresh = (r_e_scan_hit || r_e_cmd_tmo) && w_tmo_en;
+	wire w_tmo_v = w_tmo_fresh || (r_tmo_pend && w_tmo_en);
+	wire [7:0] w_tmo_code = (r_tmo_pend ? r_tmo_code : (r_e_scan_hit ? (r_e_scan_phase ? 8'h02 : 8'h01) : 8'h00));
 	function automatic [1:0] sv2v_cast_2;
 		input reg [1:0] inp;
 		sv2v_cast_2 = inp;
@@ -1154,10 +1183,16 @@ module axi_monitor_lite (
 			w_evt_v = 1'b1;
 			w_evt_type = monitor_common_pkg_PktTypeTimeout;
 			w_evt_code = w_tmo_code;
-			w_evt_from_slot = r_e_scan_hit;
-			w_evt_slot = r_e_tslot;
-			w_evt_id_alt = r_e_cmd_id;
-			w_evt_addr_alt = r_e_cmd_addr;
+			if (r_tmo_pend) begin
+				w_evt_id_alt = r_tmo_id;
+				w_evt_addr_alt = r_tmo_addr;
+			end
+			else begin
+				w_evt_from_slot = r_e_scan_hit;
+				w_evt_slot = r_e_tslot;
+				w_evt_id_alt = r_e_cmd_id;
+				w_evt_addr_alt = r_e_cmd_addr;
+			end
 		end
 		else if (w_cmp_v) begin
 			w_evt_v = 1'b1;
@@ -1188,8 +1223,15 @@ module axi_monitor_lite (
 	wire [3:0] w_offered = ((w_err_fired + sv2v_cast_4(w_tmo_fired)) + sv2v_cast_4(w_cmp_v)) + sv2v_cast_4(w_thr_fired);
 	wire w_take = w_evt_v && w_wr_ready;
 	assign w_lat_take = ((((w_take && w_thr_v) && !w_err_v) && !w_tmo_v) && !w_cmp_v) && !r_e_thresh;
+	wire w_tmo_take = (w_take && w_tmo_v) && !w_err_v;
+	assign w_tmo_held_take = w_tmo_take && r_tmo_pend;
+	wire w_tmo_fresh_taken = w_tmo_take && !r_tmo_pend;
+	wire [1:0] w_tmo_left = w_tmo_fired - sv2v_cast_2(w_tmo_fresh_taken);
+	assign w_tmo_saved = (w_tmo_left != 2'd0) && (!r_tmo_pend || w_tmo_held_take);
+	assign w_tmo_save_scan = r_e_scan_hit && !(w_tmo_fresh_taken && r_e_scan_hit);
+	wire w_take_fresh = (w_take && !w_lat_take) && !w_tmo_held_take;
 	wire w_lat_lost = (w_lat_hit && r_lat_pend) && !w_lat_take;
-	wire [3:0] w_lost = (w_offered - sv2v_cast_4(w_take)) + sv2v_cast_4(w_lat_lost);
+	wire [3:0] w_lost = ((w_offered - sv2v_cast_4(w_take_fresh)) - sv2v_cast_4(w_tmo_saved)) + sv2v_cast_4(w_lat_lost);
 	reg [15:0] r_dropped;
 	reg [15:0] r_refused;
 	reg [15:0] r_completed;
@@ -1347,7 +1389,7 @@ module axi_monitor_lite (
 		sv2v_cast_8 = inp;
 	endfunction
 	assign active_count = sv2v_cast_8(w_occupancy);
-	assign busy = (|r_valid || monbus_valid) || w_addr_valid;
+	assign busy = (((|r_valid || monbus_valid) || w_addr_valid) || r_lat_pend) || r_tmo_pend;
 	assign perf_completed_count = r_completed;
 	assign perf_error_count = r_errors;
 	assign dropped_count = r_dropped;
