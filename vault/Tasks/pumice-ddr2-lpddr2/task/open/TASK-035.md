@@ -80,3 +80,69 @@ Per block, "proven" means all four of:
   is vacuous while every cover still passes. `a_tfaw` survived a mutation that
   broke the tFAW window outright because tRRD's range already forced the spacing.
 * Flat files are untracked in this area on purpose — see `formal/pumice/.gitignore`.
+
+---
+
+## Tier-1 sweep, 2026-09-29 -- what landed and what did not
+
+The area is now **9 modules / 19 sby tasks, all green**
+(`make -C formal formal-pumice`). All four tier-1 blocks have proofs running in
+the gate. Two are complete against this item's own criteria and two are not, and
+the difference is worth stating precisely rather than averaging away.
+
+| block | state | headline property |
+|---|---|---|
+| `pumice_cmd_arbiter` | **complete** | composed with the real `global_timers`; **found [[BUG-021]]** |
+| `pumice_rd_cmd_cam` | **complete** | ticket integrity + the age-order matrix as a strict order |
+| `pumice_wr_data_cam` | partial | framing + lifecycle proved; **commit data integrity NOT** |
+| `pumice_dfi_cdc` | partial | init-latch monotonicity only; **token/data pairing NOT** |
+
+### The result that justifies the exercise
+
+`pumice_cmd_arbiter` was the block this tier existed for, and composing it with
+the REAL `global_timers` -- not free `*_ok_i` inputs, which would prove nothing --
+produced [[BUG-021]]: two ACTs to different banks one cycle apart with `t_rrd=3`,
+the second firing while the timers already say not-ok. It survives the CAM
+age-order invariant **proved** in `rd_cmd_cam`, so it does not rest on a CAM
+state the real CAMs cannot produce. That is exactly the hazard [[ISSUE-019]]
+predicted and closed on "not observed", and it is now reproducible in one
+command.
+
+### What remains: two properties, each blocked on something specific
+
+**1. `wr_data_cam`: "a beat written is the beat drained".** Five models of it
+were wrong, each recorded in the wrapper. The blocker is attribution: the drain
+is started by an upstream DECISION rather than by `commit_valid/ready` (a beat
+fires at cycle 11 for a commit whose handshake lands at cycle 12), and entry
+slots are not SRAM slots. The fifth model -- shadowing the SRAM by the DUT's own
+`w_fill_idx`/`w_rd_idx` -- produces a readback counterexample that is left
+DISABLED and uncorroborated. **Corroborating or refuting that counterexample is
+the first step**, and it is the one piece of this item that could be a
+data-corruption defect.
+
+**2. `dfi_cdc`: token/data pairing and the rising-edge push.** Blocked on
+hierarchical NAME RESOLUTION in that block specifically: it instantiates five
+FIFOs with near-identical flattened net names, and the first version asserted on
+wires that demonstrably were not the source signals. Hierarchical access itself
+works here -- `wr_data_cam` uses it -- so the fix is to check the flattened names
+against the source instance by instance, which is mechanical.
+
+### A capability worth knowing about, discovered doing this
+
+**Hierarchical references into the sv2v-flattened DUT work under yosys.**
+`dut.w_dq_rd_slot` elaborates. That was assumed impossible when this item was
+written, and it is what makes SRAM-level and internal-anchor properties
+expressible at all. It is also what makes remaining item 1 tractable.
+
+### Traps paid for, added to the list at the top of this item
+
+* **Labelled assertions inside a `for` loop** create one cell per iteration with
+  the same name and yosys rejects the build. Compute a predicate in the loop and
+  assert it ONCE -- which also keeps the failure named.
+* **Counters must start where the assertion starts.** Counting from reset while
+  asserting from `f_past_valid > 2` lets the two diverge in the untested window
+  and reports it as a mismatch for ever, with the instantaneous property holding.
+* **Count handshakes, not offered signals.** A push qualified by only half its
+  ready condition asserts into a full FIFO and stores nothing.
+* **The filelist is the dependency authority.** Hand-assembling `dfi_cdc`'s
+  closure missed `gray2bin` and `counter_bingray` and the build failed outright.
