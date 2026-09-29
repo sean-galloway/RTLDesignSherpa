@@ -68,6 +68,32 @@ PUMICE_SOURCES = [f"{PUMICE}/rtl/macro/pumice_csr.rdl"]
 #                                     bridge config; nothing committed.
 # Every other .rdl in the tree is either an entry below or a `sources` include
 # of one.
+#
+# RLB DOES NOT TRACK GENERATED DOCS, DELIBERATELY (RLB TASK-019 item 4,
+# decided 2026-09-29). STREAM, pumice, rapids, misc and the Genesys2 harnesses
+# all compare a `generated/docs/<name>.md`. RLB has thirteen entries -- nine
+# regblock entries comparing only `<block>_regs.sv` and `<block>_regs_pkg.sv`,
+# plus four regmap entries (pit_8254, hpet, pic_8259, rtc) comparing a
+# `<block>_regmap.py`. None of the thirteen compares a docs `.md`. That
+# asymmetry is intentional, not an oversight:
+#
+#   * RLB emits its regblock straight into `rtl/<block>/` rather than a
+#     `generated/` tree, so a tracked docs .md would sit beside hand-written
+#     RTL with nothing marking it as generated -- which is how it gets edited.
+#   * That is not hypothetical here. `rtl/smbus/docs/smbus_regs.md` WAS tracked,
+#     and had drifted 224 lines from its RDL: it carried a 23-line documentation
+#     header the generator never emits, and its last touch was a tracker-id
+#     repointing sweep (2026-09-27) while its RDL last changed 2026-09-11. A
+#     docs sweep had edited a generated file. Closed RLB TASK-016 deleted
+#     `rdl/pm_acpi/pm_acpi_regs.md` for exactly the same reason.
+#   * Where RLB does keep generated docs -- `rdl/{hpet,ioapic}/generated/` --
+#     they are UNTRACKED and gitignored (`rdl/.gitignore:5 generated/`), so they
+#     are local build output and cannot drift into the repo.
+#
+# The reader-facing register documentation for RLB is the per-block MAS book
+# under `docs/<block>_mas/`, which is written, not generated. If RLB ever moves
+# its regblock output into a `generated/` tree, add the docs .md to `compare`
+# then -- and only then.
 
 MANIFEST = [
     {

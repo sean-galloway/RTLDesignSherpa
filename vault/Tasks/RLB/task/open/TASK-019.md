@@ -68,18 +68,19 @@ generator never emits -- and its git history shows it last touched 2026-09-27 by
 a tracker-id repointing sweep while its RDL last changed 2026-09-11. A docs
 sweep edited a generated artifact.
 
-**And beside it, `rtl/smbus/docs/` holds 8.0 MB across 75 TRACKED files**: a
-complete PeakRDL HTML export (`smbus_regs.html/`) with 34 binary font files, 3
-Windows `.bat` launchers, a Firefox `user.js`, JS, CSS and search indices.
+**And beside it, `rtl/smbus/docs/` HELD 8.0 MB across 75 TRACKED files**
+(deleted 2026-09-29): a complete PeakRDL HTML export (`smbus_regs.html/`) with
+34 binary font files, 3 Windows `.bat` launchers, a Firefox `user.js`, JS, CSS
+and search indices.
 Nothing references it -- zero external references to either the bundle or the
 markdown. Every RLB manifest entry passes `--no-html`, so the current toolchain
 would never reproduce it. Repo-wide only three such exports exist and the other
 two sit in gitignored or proper `generated/` trees, so committing one into
 `rtl/` is an outlier rather than a convention.
 
-Deleting 75 tracked files including binaries is consequential and is left for an
-explicit decision, not folded into this task silently. Either RLB joins the
-convention, or the divergence is recorded as deliberate. Note the trap closed TASK-016 already hit: a hand-written
+Deleting 75 tracked files including binaries was consequential, so it was put to
+the owner rather than folded in silently; approved 2026-09-29 ("follow your
+recommendations"). Note the trap closed TASK-016 already hit: a hand-written
 `pm_acpi_regs.md` sat outside any generated tree, nothing regenerated it and
 nothing compared it, and it had drifted -- it was deleted for exactly that
 reason. Regenerate ONLY via `bin/peakrdl_generate.py` with an explicit `-o`
@@ -183,8 +184,26 @@ they are the only copy, and two (`apbx_xbar`, `hpet/filelists`) stay under rule
       with: it sampled at the jitter offset, read `pm=False` with gap2=2, and
       failed its own simultaneity guard. All four sources are level-held, so
       waiting cannot weaken the overlap claim.
-- [ ] item 4: RLB either joins the generated-docs convention or the divergence
-      is recorded as deliberate in the manifest
+- [x] **item 4 DONE 2026-09-29.** RLB does NOT join the convention; the
+      divergence is recorded as deliberate in `bin/check_rdl_regen.py`, above
+      the MANIFEST, with the reasoning and the evidence.
+
+      **Deleted:** `rtl/smbus/docs/` entirely -- 75 tracked files, 8.0 MB. That
+      was a complete PeakRDL HTML export (34 binary font files, three Windows
+      `.bat` launchers, a Firefox `user.js`, JS/CSS/search indices) plus the
+      tracked generated `smbus_regs.md`. Nothing referenced either: the only
+      hit for `smbus_regs.html` anywhere was this task file describing it, and
+      the MAS book's `smbus_regs` mentions all point at the RDL and the module,
+      not the artifact. Every RLB manifest entry passes `--no-html`, so the
+      current toolchain could not reproduce the bundle at all.
+
+      **Why delete rather than regenerate the markdown.** RLB's real convention
+      is that generated docs are NOT tracked: seven of nine blocks have none,
+      and the two that do (`rdl/{hpet,ioapic}/generated/`) are untracked and
+      gitignored. Regenerating into the tree would have committed a tracked
+      generated artifact that nothing compares -- recreating the orphan closed
+      TASK-016 deleted. The tracked copy had already drifted 224 lines and been
+      hand-edited by a tracker-id sweep, which is that failure in progress.
 - [ ] item 5: each of the eleven READMEs is a pointer, or is justified under
       rule 1 as directory mechanics
 - [x] **DONE 2026-09-29 for items 1-3.** `rlb_top` full from `clean-all`:
