@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-021** — never recycle a number, even when its item closed.
+**Next ID: BUG-022** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
@@ -20,7 +20,13 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
-
+- **BUG-021** — the arbiter issues two ACTs to different banks one cycle apart,
+  violating tRRD, because `w_act_gate_live` checks the rank-global windows at the
+  STAGE-1b pre-pick while `w_out_safe` re-validates only the per-bank gate.
+  Proved by composing the arbiter with the real `global_timers`; survives the
+  CAM age-order invariant proved in rd_cmd_cam. Reproduce with
+  `make -C formal/pumice/cmd_arbiter issue019`. Not observed in sim (ISSUE-019:
+  171 tests, tightest real spacing 10 cycles against tRRD 2)
 
 ## Closed
 

@@ -1,0 +1,30 @@
+[tasks]
+prove
+issue019
+cover
+
+[options]
+# Four ACTs at tRRD>=2 spans >=8 cycles and the fifth must clear tFAW (up to
+# 18), so the interesting trace is ~30 cycles. The arbiter is 1613 lines with a
+# 3-4 stage pick pipeline, so this is the expensive proof in the area.
+prove:    mode bmc
+prove:    depth 30
+issue019: mode bmc
+issue019: depth 30
+cover: mode cover
+cover: depth 30
+
+[engines]
+prove:    smtbmc bitwuzla
+issue019: smtbmc bitwuzla
+cover: smtbmc bitwuzla
+
+[script]
+read_verilog -formal arb_flat.v
+read -formal -sv formal_cmd_arbiter.sv
+issue019: chparam -set ISSUE019 1 formal_cmd_arbiter
+prep -top formal_cmd_arbiter
+
+[files]
+formal_cmd_arbiter.sv
+arb_flat.v
