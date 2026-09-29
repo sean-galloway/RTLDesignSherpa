@@ -53,7 +53,7 @@ check-tools:
 # 2026-09-11: `make formal` ran neither, so ninety task directories had no
 # entry point and nobody noticed twelve flat files drifting from their RTL.
 .PHONY: formal
-formal: formal-rtl formal-converters formal-stream formal-rapids formal-rlb formal-pumice
+formal: formal-rtl formal-converters formal-stream formal-rapids formal-rlb formal-pumice formal-apbx-xbar formal-bridge
 
 # Everything whose RTL lives in repo-root rtl/.
 .PHONY: formal-rtl
@@ -106,13 +106,18 @@ formal-rlb:
 .PHONY: formal-dma
 formal-dma: formal-stream formal-rapids
 
+# APB crossbar family and bridge. Both had passing proofs and NO entry point
+# until 2026-09-29 (tooling TASK-018): formal-bridge existed but was not in
+# the `formal:` list, and apbx_xbar had neither a target nor an area Makefile.
+# Third time the same omission was found in this file -- see the 2026-09-11
+# comment above -- so both were added to the `formal:` list in the SAME edit.
+.PHONY: formal-apbx-xbar
+formal-apbx-xbar:
+	$(MAKE) -C apbx_xbar prove-all
+
 .PHONY: formal-bridge
 formal-bridge:
-	@if [ -d bridge ]; then \
-		$(MAKE) -C bridge all; \
-	else \
-		echo "Bridge formal not yet set up. See formal/README.md"; \
-	fi
+	$(MAKE) -C bridge prove-all
 
 .PHONY: formal-quick
 formal-quick:
@@ -123,4 +128,5 @@ clean:
 	$(MAKE) -C common clean
 	$(MAKE) -C cdc clean
 	$(MAKE) -C amba clean
-	@if [ -d bridge ]; then $(MAKE) -C bridge clean 2>/dev/null; fi
+	$(MAKE) -C bridge clean
+	$(MAKE) -C apbx_xbar clean

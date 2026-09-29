@@ -2,7 +2,7 @@
 
 **Priority:** P3 — the proofs exist and pass; they simply never run unattended,
 which is how a proof stops noticing it has broken.
-**Status:** open 2026-09-28
+**Status:** CLOSED 2026-09-29 (done)
 **Owner:** TBD
 **Found by:** opening `formal/pumice/` and wiring it in — the same check showed
 two areas already unwired.
@@ -64,3 +64,29 @@ Then confirm both areas have an area-level `Makefile` with `prove-all` /
 `make formal` reaches every directory under `formal/` that holds a `.sby`, and
 `bin/formal_status.py` with no `--areas` argument (it discovers them as of
 2026-09-28) reports the same area count that `ls formal/` shows holds proofs.
+
+---
+
+## CLOSED 2026-09-29 -- both areas reachable from `make formal`; 7 tasks, 14/14
+
+1. `formal/Makefile`: `formal-apbx-xbar` added, and `formal-bridge` -- which
+   already existed but was NOT in the `formal:` list, the third such omission in
+   that file -- is unconditional now. Both were added to the `formal:` list in
+   the same edit. `clean` covers both areas.
+2. `formal/apbx_xbar/Makefile` created on the `formal/cdc` pattern; the five
+   configurations are DISCOVERED as `<dir>/<dir>.sby`, not listed. The
+   discovery is tightened over cdc's: sby writes a `config.sby` into every work
+   dir it creates, so a bare `*/*.sby` matched `bridge_1x2_rd_prove/` on the
+   first run.
+3. `formal/bridge/Makefile` rewritten on the same pattern. The top-level
+   `bridge_1x2_rd.sby` and its harness moved into `bridge_1x2_rd/`: at the
+   area root, its work dirs and `status.sqlite` landed beside the Makefile and
+   `bin/formal_status.py` read them as a NOSBY task and a NORESULT task.
+   **Finding for bridge, recorded in the Makefile header:** that harness is a
+   protocol MODEL with no DUT (every port is an assumption; it passes in 0.4 s)
+   and says nothing about the generated bridge RTL. `bridge_cam` is the one
+   real bridge proof.
+4. Ran through the entry point: `make -C formal formal-apbx-xbar formal-bridge`
+   exit 0, all 7 proves PASS. `python3 bin/formal_status.py --areas apbx_xbar
+   bridge`: 7/7 tasks, PASS=14 (prove + cover each), no NOSBY/NORESULT.
+   `filelist_registry --blindspots --ratchet` still PASS after the sby move.
