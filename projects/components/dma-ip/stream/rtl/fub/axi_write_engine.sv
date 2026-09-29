@@ -168,6 +168,20 @@ module axi_write_engine #(
     localparam int AXSIZE = $clog2(BYTES_PER_BEAT);
     localparam int MOW = $clog2(AW_MAX_OUTSTANDING + 1);  // Max Outstanding Width (bits needed for 0..AW_MAX_OUTSTANDING)
 
+    // stream BUG-018 (2026-09-29, the rapids BUG-009 lines): a burst can never
+    // be larger than the SRAM that stages it. cfg_axi_wr_xfer_beats is an
+    // AWLEN (0..255); AWLEN 255 asked for 256 beats, and the 8-bit "+ 1" in
+    // the gate below wrapped that to 0: w_has_data passed on an empty buffer,
+    // the AW went out, drain_ctrl reserved 0 beats and the W phase pulled 256
+    // beats that were never reserved, leaving the channel's drain count wrong
+    // for good. The configured AWLEN is clamped to the buffer depth SCW
+    // encodes, and to 254 beyond it so every beat count here and on the 8-bit
+    // size ports shared with sram_controller stays below 256.
+    localparam int SD_BEATS = 1 << (SCW - 1);                          // buffer depth SEG_COUNT_WIDTH encodes
+    localparam int XFER_MAX = (SD_BEATS < 256) ? SD_BEATS - 1 : 254;   // AWLEN cap
+    logic [7:0] w_xfer_cfg;                                             // cfg_axi_wr_xfer_beats, clamped
+    assign w_xfer_cfg = (cfg_axi_wr_xfer_beats > 8'(XFER_MAX)) ? 8'(XFER_MAX) : cfg_axi_wr_xfer_beats;
+
     //=========================================================================
     // Forward Declarations (signals/typedefs used in always blocks below
     // before their natural definition site - hoisted to satisfy declaration-
@@ -417,9 +431,9 @@ module axi_write_engine #(
             // This prevents issues with uninitialized/inactive channels
             if (sched_wr_valid[i]) begin
                 // Find the amount to transfer now (cast to 8-bit for AXI burst length)
-                // sched_wr_beats uses 0==0 encoding, cfg_axi_wr_xfer_beats stores ARLEN (0==1 beat)
-                w_transfer_size[i] = 8'((sched_wr_beats[i] <= (32'(cfg_axi_wr_xfer_beats) + 32'd1)) ?
-                            (sched_wr_beats[i] - 32'd1) : 32'(cfg_axi_wr_xfer_beats));
+                // sched_wr_beats uses 0==0 encoding, w_xfer_cfg is the clamped AWLEN (0==1 beat)
+                w_transfer_size[i] = 8'((sched_wr_beats[i] <= (32'(w_xfer_cfg) + 32'd1)) ?
+                            (sched_wr_beats[i] - 32'd1) : 32'(w_xfer_cfg));
                 // Check if channel has enough data for configured burst size.
                 // Use w_effective_avail (= registered avail minus drain_reqs
                 // still in flight) so the stale-view race against drain_ctrl
@@ -428,7 +442,7 @@ module axi_write_engine #(
 
                 // OR if this is the final burst (remaining beats < burst size AND all data available)
                 w_final_burst[i] = (sched_wr_beats[i] > 0) &&
-                                    (sched_wr_beats[i] <= (32'(cfg_axi_wr_xfer_beats) + 32'd1)) &&
+                                    (sched_wr_beats[i] <= (32'(w_xfer_cfg) + 32'd1)) &&
                                     (SCW'(w_effective_avail[i]) >= SCW'(sched_wr_beats[i]));
 
                 w_data_ok[i] = w_has_data[i] || w_final_burst[i];

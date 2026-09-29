@@ -28,7 +28,7 @@
 **Category:** FUB (Functional Unit Block)
 **Parent:** `stream_core.sv`
 **Status:** Implemented
-**Last Updated:** 2025-11-30
+**Last Updated:** 2026-09-29
 
 ---
 
@@ -238,6 +238,22 @@ The write engine drives `axi_wr_sram_id` to select which channel's data to drain
 ---
 
 ## Operation
+
+### Burst Length Cap (stream BUG-018)
+
+`cfg_axi_wr_xfer_beats` is an AWLEN (0..255), but a burst can never be larger
+than the SRAM that stages it: the request mask below waits for the whole
+burst to be in the buffer, and a burst the buffer cannot hold would wait
+forever. The engine clamps the configured value to `XFER_MAX = min(2^(SCW-1)
+- 1, 254)` -- the buffer depth `SEG_COUNT_WIDTH` encodes, minus one, and 254
+beyond that so every beat count fits the 8-bit size ports shared with
+`sram_controller`. On the 512-deep default AWLEN 255 runs as 255-beat bursts.
+
+Before the clamp (2026-09-29, found as rapids BUG-009 on the identical lines),
+AWLEN 255 was taken literally and the 8-bit `AWLEN + 1` in the gate wrapped to
+0: `w_has_data` passed on an empty buffer, the AW went out, `drain_ctrl`
+reserved 0 beats and the W phase pulled 256 beats that were never reserved,
+leaving the channel's drain count wrong until the next full reset.
 
 ### Data-Aware Request Masking
 
@@ -468,4 +484,4 @@ The write engine now uses **post-flop gating on wvalid** to defeat a stale-view 
 
 ---
 
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-09-29

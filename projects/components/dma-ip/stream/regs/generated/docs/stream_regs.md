@@ -1022,11 +1022,11 @@ datapath streams continuously across descriptor boundaries.</p>
 
 #### RD_XFER_BEATS field
 
-<p>AXI read transfer beats [7:0] - ARLEN value (0-255 represents 1-256 beats)</p>
+<p>AXI read transfer beats [7:0] - ARLEN value (0-255 represents 1-256 beats). The engine clamps it to the per-channel SRAM depth minus one, and to 254 beyond that (stream BUG-018): a burst is never larger than the buffer that stages it</p>
 
 #### WR_XFER_BEATS field
 
-<p>AXI write transfer beats [15:8] - AWLEN value (0-255 represents 1-256 beats)</p>
+<p>AXI write transfer beats [15:8] - AWLEN value (0-255 represents 1-256 beats). The engine clamps it to the per-channel SRAM depth minus one, and to 254 beyond that (stream BUG-018): a burst is never larger than the buffer that stages it</p>
 
 #### RSVD field
 

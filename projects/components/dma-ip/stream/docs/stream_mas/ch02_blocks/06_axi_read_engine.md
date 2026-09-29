@@ -28,7 +28,7 @@
 **Category:** FUB (Functional Unit Block)
 **Parent:** `stream_core.sv`
 **Status:** Implemented
-**Last Updated:** 2025-11-30
+**Last Updated:** 2026-09-29
 
 ---
 
@@ -221,6 +221,21 @@ When ALL channels complete their work (`w_arb_request == 0`), the engine becomes
 
 ## Operation
 
+### Burst Length Cap (stream BUG-018)
+
+`cfg_axi_rd_xfer_beats` is an ARLEN (0..255), but a burst can never be larger
+than the SRAM it lands in: the space mask below pre-allocates the whole burst
+before the AR, and a burst the buffer cannot hold would never be allocatable.
+The engine clamps the configured value to `XFER_MAX = min(2^(SCW-1) - 1, 254)`
+-- the buffer depth `SEG_COUNT_WIDTH` encodes, minus one, and 254 beyond that
+so every beat count fits the 8-bit size port shared with `sram_controller`. On
+the 512-deep default ARLEN 255 runs as 255-beat bursts.
+
+Before the clamp (2026-09-29, found as rapids BUG-009 on the identical lines),
+ARLEN 255 was taken literally and the 8-bit `ARLEN + 1` in the gate wrapped to
+0: `w_space_ok` passed on any free count, the AR for 256 beats allocated 0,
+and the engine over-fetched past the buffer.
+
 ### Space-Aware Request Masking
 
 ```systemverilog
@@ -406,4 +421,4 @@ At 8 channels, the arbiter request combinational path from scheduler to AXI mast
 
 ---
 
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-09-29

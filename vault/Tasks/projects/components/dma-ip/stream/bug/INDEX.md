@@ -12,17 +12,18 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 17 | done (kept for history) |
+| [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-018** — both AXI engines wrap a 256-beat burst to 0 beats (8-bit "AxLEN + 1"); the rapids copy is rapids BUG-009, fixed there by clamping the burst to the buffer -- OPEN 2026-09-29, the same lines in STREAM's engines await Sean's scope call
 
 ## Closed
+
+- **BUG-018** — both AXI engines wrap a 256-beat burst to 0 beats (8-bit "AxLEN + 1"); the rapids BUG-009 lines, fixed the same way (burst clamped to the buffer) with the rapids engine unit suites ported -- CLOSED 2026-09-29
 
 - **BUG-017** — the in-core monbus group filtered every packet with DAXMON's registers (amba BUG-036) -- CLOSED 2026-09-28 (fix 201babbb5)
 

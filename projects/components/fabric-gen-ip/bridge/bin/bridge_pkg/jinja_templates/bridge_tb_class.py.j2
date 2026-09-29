@@ -86,7 +86,7 @@ from CocoTBFramework.components.apb5.apb5_components import APB5Master
 {% endif %}
 {% set has_wb4 = (masters + slaves) | selectattr('protocol', 'equalto', 'wb4') | list %}
 {% if has_wb4 %}
-# Wishbone B4 ports (BRIDGE-019): WB4Master drives a requester port, WB4Slave
+# Wishbone B4 ports (bridge TASK-008, was BRIDGE-019): WB4Master drives a requester port, WB4Slave
 # completes a completer port over its own MemoryModel (base_addr-relative,
 # out-of-range answers ERR). Terminations are ACK/ERR/RTY, never a code.
 from CocoTBFramework.components.wb4.wb4_components import WB4Master, WB4Slave
@@ -253,12 +253,12 @@ class {{ tb_class_name }}(TBBase):
     # access maps) = ~576 KB per slave, against the multi-GB windows the cap
     # exists to stop. A slave larger than this is still capped, and a probe
     # past the cap is answered by the ONE out-of-range contract every slave
-    # BFM now follows (RDS-DV shared/memory_model.py, BRIDGE-008 closed
+    # BFM now follows (RDS-DV shared/memory_model.py, bridge BUG-006 (was BRIDGE-008) closed
     # 2026-09-09): SLVERR, nothing written, 0xDEADDEAD data, one warning.
     # The probe still proves routing -- the error comes back from the slave
     # the address decodes to -- and is data-checked only inside the seeded
     # region. That is the model's limit; an address the bridge does not
-    # decode at all is the subtractive slave's DECERR (BRIDGE-009), a
+    # decode at all is the subtractive slave's DECERR (bridge BUG-007, was BRIDGE-009), a
     # different thing.
     SLAVE_MEM_CAP_BYTES = 64 * 1024
 
@@ -704,7 +704,7 @@ class {{ tb_class_name }}(TBBase):
             log=self.log,
             data_width={{ slave.data_width }},
             addr_width={{ slave.addr_width }},
-            id_width={{ slave_id_width }},  # {master index, master id} (BRIDGE-016)
+            id_width={{ slave_id_width }},  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[{{ loop.index0 }}],
@@ -724,7 +724,7 @@ class {{ tb_class_name }}(TBBase):
             log=self.log,
             data_width={{ slave.data_width }},
             addr_width={{ slave.addr_width }},
-            id_width={{ slave_id_width }},  # {master index, master id} (BRIDGE-016)
+            id_width={{ slave_id_width }},  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[{{ loop.index0 }}],
@@ -749,7 +749,7 @@ class {{ tb_class_name }}(TBBase):
 
 {% set cdc_slaves = slaves | selectattr('cdc') | list %}
 {% if cdc_slaves %}
-    # BRIDGE-017 CDC slave ports run on their own clock. The period comes from
+    # bridge TASK-006 (was BRIDGE-017) CDC slave ports run on their own clock. The period comes from
     # BRIDGE_CDC_PERIOD_NS (default 7 ns against the fabric's 10 ns, so the
     # crossing is exercised, not degenerate); a directed test sweeps it.
     CDC_PERIOD_NS = int(os.environ.get('BRIDGE_CDC_PERIOD_NS', '7'))
@@ -846,7 +846,7 @@ class {{ tb_class_name }}(TBBase):
         slave port and pops it on the response, so OUTSTANDING DEPTH is only
         reachable when a slave is slow. The default BFM slave answers in ~1
         cycle, which is why no test got anywhere near the depth where
-        BRIDGE-011 bit until this knob existed. APB slaves have no such
+        bridge BUG-009 (was BRIDGE-011) bit until this knob existed. APB slaves have no such
         attribute and are left alone.
         """
         for container in (self.slave_wr, self.slave_rd):
