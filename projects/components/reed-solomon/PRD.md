@@ -62,6 +62,7 @@ with t and m; the standards below span the practical range.
 | D8 | Generator polynomial / primitive element / first root | per standard: CCSDS uses a dual basis and `b = 112`, DVB uses `b = 0`, 802.3 its own | a fixed choice per profile, parameterised in the encoder taps and Forney |
 | D9 | Interface | AXI4-Stream in the house style (TDATA = one or more symbols, TLAST on block end, TUSER for erasure flags / status) | how consumers attach; monitor-able with the existing axis observers |
 | D10 | First consumer | none named yet. Candidates in-repo: none today. External: a NAND/DDR ECC layer, a serial link | picks D1-D9 |
+| D12 | Scrambler / randomizer | **DECIDED 2026-09-29 (Sean): a parameter, `ENABLE_SCRAMBLER` (0/1), on both tops.** When 1 the `line_randomizer` FUB is generated in the encoder's output path and the decoder's input path with the profile's polynomial, seed and placement (`SCRAMBLER_POLY`, `SCRAMBLER_SEED`, `SCRAMBLER_AFTER_ENCODER`); when 0 no LFSR logic exists and the ports are unchanged. Off is a tested configuration, not an assumption (a parameter's OFF state needs its own test). | one optional FUB per top; DV matrix gains the on/off axis |
 | D11 | Key-equation solver | **DECIDED 2026-09-29 (Sean): riBM** -- the reformulated inversionless Berlekamp-Massey of Sarwate and Shanbhag (References, classic paper 7). Euclidean (Sugiyama) rejected: it needs a GF inverse in the loop or a longer systolic array. | 3t + 1 GF multipliers, 2t iterations, no inverse until Forney |
 
 ## 4. Candidate profiles (each fixes D1-D3 and D8)
@@ -106,6 +107,7 @@ seeded `11000111000111000`, a 131071-bit sequence, applied after RS encoding
 and removed before RS decoding; the legacy 255-bit option is
 h(x) = x^8 + x^7 + x^5 + x^3 + 1 seeded all-ones. DVB EN 300 429 / 744:
 x^15 + x^14 + 1, seeded 100101010000000, applied before the RS encoder. It has nothing to do with the RS
-mathematics and is a separate FUB when a profile needs it, built from
-`rtl/common/shifter_lfsr_galois` or `shifter_lfsr_fibonacci` with the
-standard's polynomial and seed as parameters.
+mathematics and is a separate FUB, present only when `ENABLE_SCRAMBLER = 1`
+(D12), built from `rtl/common/shifter_lfsr_galois` or
+`shifter_lfsr_fibonacci` with the standard's polynomial and seed as
+parameters.

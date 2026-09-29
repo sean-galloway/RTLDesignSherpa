@@ -21,7 +21,8 @@ the first table, top to bottom.
 
 | Standard | Code | Where | Access |
 |---|---|---|---|
-| ETSI EN 300 429 (DVB-C) and EN 300 744 (DVB-T) | RS(204,188), t = 8, shortened RS(255,239), GF(2^8) with x^8 + x^4 + x^3 + x^2 + 1 | https://www.etsi.org/deliver/etsi_en/300400_300499/300429/ (free PDF after ETSI's download form) | free download, redistribution restricted |
+| ETSI EN 300 429 V1.2.1 (DVB-C) | RS(204,188), t = 8, shortened RS(255,239), GF(2^8) with x^8 + x^4 + x^3 + x^2 + 1; scrambler x^15 + x^14 + 1 seeded 100101010000000 | direct PDF: https://www.etsi.org/deliver/etsi_en/300400_300499/300429/01.02.01_60/en_300429v010201p.pdf ; directory: https://www.etsi.org/deliver/etsi_en/300400_300499/300429/ ; search page: https://www.etsi.org/standards#page=1&search=300%20429 | ETSI standards are free to download (the search page asks for a one-time form); redistribution restricted, so not stored here |
+| ETSI EN 300 744 V1.6.2 (DVB-T) | same outer code and scrambler as DVB-C | direct PDF: https://www.etsi.org/deliver/etsi_en/300700_300799/300744/01.06.02_60/en_300744v010602p.pdf ; directory: https://www.etsi.org/deliver/etsi_en/300700_300799/300744/ | as above |
 | IEEE 802.3 Clause 91 (RS-FEC for 100GBASE-R) and Clause 108 / 119 | RS(528,514) and RS(544,514) over GF(2^10) | https://standards.ieee.org/ieee/802.3/ (IEEE GET Program, free with an account) | free with login, no redistribution |
 | ISO/IEC 10149 / ECMA-130 (CD-ROM) | cross-interleaved RS (CIRC), RS(32,28) and RS(28,24) | https://ecma-international.org/publications-and-standards/standards/ecma-130/ | ECMA-130 is a free download |
 
