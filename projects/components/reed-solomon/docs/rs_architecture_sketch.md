@@ -142,8 +142,9 @@ n = 544 so the buffer is 1024 deep, and D6 forces the parallel branch.
 
 ## What this sketch does not decide
 
-Everything in PRD section 3. In particular the solver choice (riBM here;
-Euclidean is the alternative most FPGA cores use and is easier to read but
-needs an inverse or a longer datapath), the throughput (serial here), and
-whether one build carries more than one profile. The MAS is where those
+Everything in PRD section 3 except the solver: **riBM is decided** (Sean,
+2026-09-29; PRD D11). Euclidean was the alternative most FPGA cores use and is
+easier to read, but needs an inverse in the loop or a longer datapath. Still
+open: the throughput (serial here) and whether one build carries more than one
+profile. The MAS is where those
 become chapters; this page is the map that gets it started.

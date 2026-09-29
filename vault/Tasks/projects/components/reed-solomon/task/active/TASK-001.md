@@ -45,3 +45,7 @@ reuse survey and the DV golden model (`reedsolo`, `galois`). Still true: no
 RTL, no DV, no filelist -- those wait on the PRD decisions. The "do not
 recreate placeholder collateral" rule above is superseded for the area shell
 by Sean's request; it still holds for RTL/DV/MAS skeletons.
+
+**2026-09-29 -- decision:** the key-equation solver is riBM (Sarwate-Shanbhag
+reformulated inversionless Berlekamp-Massey); Sean, on the architecture sketch.
+Recorded as PRD D11. `docs/rs_architecture_sketch.md` added the same day.

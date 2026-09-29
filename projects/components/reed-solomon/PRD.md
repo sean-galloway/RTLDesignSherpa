@@ -62,6 +62,7 @@ with t and m; the standards below span the practical range.
 | D8 | Generator polynomial / primitive element / first root | per standard: CCSDS uses a dual basis and `b = 112`, DVB uses `b = 0`, 802.3 its own | a fixed choice per profile, parameterised in the encoder taps and Forney |
 | D9 | Interface | AXI4-Stream in the house style (TDATA = one or more symbols, TLAST on block end, TUSER for erasure flags / status) | how consumers attach; monitor-able with the existing axis observers |
 | D10 | First consumer | none named yet. Candidates in-repo: none today. External: a NAND/DDR ECC layer, a serial link | picks D1-D9 |
+| D11 | Key-equation solver | **DECIDED 2026-09-29 (Sean): riBM** -- the reformulated inversionless Berlekamp-Massey of Sarwate and Shanbhag (References, classic paper 7). Euclidean (Sugiyama) rejected: it needs a GF inverse in the loop or a longer systolic array. | 3t + 1 GF multipliers, 2t iterations, no inverse until Forney |
 
 ## 4. Candidate profiles (each fixes D1-D3 and D8)
 
