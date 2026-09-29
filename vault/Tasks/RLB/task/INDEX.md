@@ -2,7 +2,7 @@
 
 # RLB — tasks
 
-**Next ID: TASK-019** — never recycle a number, even when its item closed.
+**Next ID: TASK-020** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-
+- **TASK-019** — the RLB follow-up batch: three DV coverage gaps (per-IR-line at FULL tier only; a set fabric bit proves the line not the sub-source; four-or-more coincident sources) and two documentation inconsistencies (no RLB block has generated markdown checked; eleven beside-code READMEs are standalone guides). From TASK-016 and TASK-018.
 
 ## Closed
 

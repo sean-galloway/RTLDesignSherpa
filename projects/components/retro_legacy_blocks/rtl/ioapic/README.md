@@ -25,7 +25,7 @@
 
 **Status:** Implemented - 37/37 in all six DV configurations (2026-09-09)
 **Priority:** Medium
-**Address:** `0x4000_6000 - 0x4000_6FFF` (4KB window)
+**Address:** `0xFEC0_6000 - 0xFEC0_6FFF` (4KB window)
 
 ---
 

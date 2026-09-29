@@ -127,10 +127,9 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 
 ### 3.1 8259 - Programmable Interrupt Controller (PIC)
 
-**Status:** Planned
+**Status:** Implemented (see dv/tests and the block MAS; per-block defects tracked in known_issues/)
 **Priority:** High
-**Effort:** 6-8 weeks
-**Address:** `0x4000_1000 - 0x4000_1FFF` (4KB window)
+**Address:** `0xFEC0_1000 - 0xFEC0_1FFF` (4KB window, master of the cascaded pair)
 
 **Planned Features:**
 - 8259A-compatible register interface
@@ -151,10 +150,9 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 
 ### 3.2 8254 - Programmable Interval Timer (PIT)
 
-**Status:** Planned
+**Status:** Implemented (see dv/tests and the block MAS; per-block defects tracked in known_issues/)
 **Priority:** High
-**Effort:** 4-5 weeks
-**Address:** `0x4000_2000 - 0x4000_2FFF` (4KB window)
+**Address:** `0xFEC0_2000 - 0xFEC0_2FFF` (4KB window)
 
 **Planned Features:**
 - 8254-compatible register interface
@@ -183,10 +181,9 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 
 ### 3.3 GPIO - General Purpose I/O
 
-**Status:** Planned
+**Status:** Implemented (see dv/tests and the block MAS; per-block defects tracked in known_issues/)
 **Priority:** Medium
-**Effort:** 4-6 weeks
-**Address:** TBD (not in primary ILB address map)
+**Address:** `0xFEC0_7000 - 0xFEC0_7FFF` (4KB window)
 
 **Planned Features:**
 - Configurable pin count (8, 16, 32 pins)
@@ -211,7 +208,7 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 time-set path are broken, tracked in issue #56)
 **Priority:** Medium
 **Effort:** 3-4 weeks
-**Address:** `0x4000_3000 - 0x4000_3FFF` (4KB window)
+**Address:** `0xFEC0_3000 - 0xFEC0_3FFF` (4KB window)
 
 **Planned Features:**
 - 32.768 kHz clock input (typical RTC crystal frequency)
@@ -230,10 +227,9 @@ time-set path are broken, tracked in issue #56)
 
 ### 3.5 SMBus Controller
 
-**Status:** Planned
+**Status:** Implemented (see dv/tests and the block MAS; per-block defects tracked in known_issues/)
 **Priority:** Medium
-**Effort:** 6-8 weeks
-**Address:** `0x4000_4000 - 0x4000_4FFF` (4KB window)
+**Address:** `0xFEC0_4000 - 0xFEC0_4FFF` (4KB window)
 
 **Planned Features:**
 - SMBus 2.0 compliance
@@ -257,8 +253,7 @@ time-set path are broken, tracked in issue #56)
 note the shipped block has 1/2 stop bits only and no automatic flow
 control, and issue #60 tracks its RTL defects)
 **Priority:** Medium
-**Effort:** 4-5 weeks
-**Address:** TBD (not in primary ILB address map)
+**Address:** `0xFEC0_8000 - 0xFEC0_8FFF` (4KB window)
 
 **Planned Features:**
 - 16550-compatible register interface
@@ -342,10 +337,9 @@ control, and issue #60 tracks its RTL defects)
 
 ### 3.10 Power Management / ACPI Controller
 
-**Status:** Planned
+**Status:** Implemented (see dv/tests and the block MAS; per-block defects tracked in known_issues/)
 **Priority:** Medium
-**Effort:** 8-10 weeks
-**Address:** `0x4000_5000 - 0x4000_5FFF` (4KB window)
+**Address:** `0xFEC0_5000 - 0xFEC0_5FFF` (4KB window)
 
 **Planned Features:**
 - Clock gating control per block
@@ -365,10 +359,9 @@ control, and issue #60 tracks its RTL defects)
 
 ### 3.11 IOAPIC - I/O Advanced Programmable Interrupt Controller
 
-**Status:** Planned
+**Status:** Implemented (see dv/tests and the block MAS; per-block defects tracked in known_issues/)
 **Priority:** Medium
-**Effort:** 6-8 weeks
-**Address:** `0x4000_6000 - 0x4000_6FFF` (4KB window)
+**Address:** `0xFEC0_6000 - 0xFEC0_6FFF` (4KB window)
 
 **Planned Features:**
 - I/O APIC CSR model (register-based interface)
@@ -388,10 +381,13 @@ control, and issue #60 tracks its RTL defects)
 
 ### 3.12 Interconnect ID / Version Registers
 
-**Status:** Planned
+**Status:** Planned -- NOT present in the shipped design
 **Priority:** Low
 **Effort:** 1-2 weeks
-**Address:** `0x4000_F000 - 0x4000_FFFF` (4KB window)
+**Address:** unallocated. The shipped decoder is the generated
+`apbx_xbar_1to10`, whose ten windows (`0x0000`-`0x9FFF`) are fully assigned, so
+adding this block needs a window assignment AND a crossbar regeneration -- it
+cannot simply occupy `0xF000` as earlier drafts of this document assumed.
 
 **Planned Features:**
 - Vendor ID register
@@ -472,48 +468,57 @@ apb4_hpet #(
 
 **Address Map:**
 
-Base address: `0x4000_0000` (1GB region in typical 32-bit system)
+Base address: `0xFEC0_0000` -- the `BASE_ADDR` parameter default in
+`rlb_top.sv`, and the conventional location for this class of block. It is a
+PARAMETER: an integrator may relocate the whole window set.
 Window size: 4KB per block (clean power-of-2 decode)
 
 | Address Range | Block | Size | Function |
 |---------------|-------|------|----------|
-| `0x4000_0000 - 0x4000_0FFF` | HPET | 4KB | High Precision Event Timer |
-| `0x4000_1000 - 0x4000_1FFF` | 8259 | 4KB | Programmable Interrupt Controller (PIC) |
-| `0x4000_2000 - 0x4000_2FFF` | 8254 | 4KB | Programmable Interval Timer (PIT) |
-| `0x4000_3000 - 0x4000_3FFF` | RTC | 4KB | Real-Time Clock |
-| `0x4000_4000 - 0x4000_4FFF` | SMBus | 4KB | SMBus Host Controller |
-| `0x4000_5000 - 0x4000_5FFF` | PM/ACPI | 4KB | Power Management / ACPI Registers |
-| `0x4000_6000 - 0x4000_6FFF` | IOAPIC | 4KB | I/O Advanced PIC (CSR model) |
-| `0x4000_7000 - 0x4000_EFFF` | *Reserved* | 32KB | Future expansion |
-| `0x4000_F000 - 0x4000_FFFF` | Interconnect | 4KB | ID/Version/Control registers |
-| All other addresses | Error Slave | - | Returns DECERR/SLVERR |
+| `0xFEC0_0000 - 0xFEC0_0FFF` | HPET | 4KB | High Precision Event Timer |
+| `0xFEC0_1000 - 0xFEC0_1FFF` | 8259 PIC (master) | 4KB | Programmable Interrupt Controller |
+| `0xFEC0_2000 - 0xFEC0_2FFF` | 8254 PIT | 4KB | Programmable Interval Timer |
+| `0xFEC0_3000 - 0xFEC0_3FFF` | RTC | 4KB | Real-Time Clock |
+| `0xFEC0_4000 - 0xFEC0_4FFF` | SMBus | 4KB | SMBus Host Controller |
+| `0xFEC0_5000 - 0xFEC0_5FFF` | PM/ACPI | 4KB | Power Management / ACPI Registers |
+| `0xFEC0_6000 - 0xFEC0_6FFF` | IOAPIC | 4KB | I/O Advanced PIC (CSR model) |
+| `0xFEC0_7000 - 0xFEC0_7FFF` | GPIO | 4KB | General Purpose I/O |
+| `0xFEC0_8000 - 0xFEC0_8FFF` | UART 16550 | 4KB | Serial port |
+| `0xFEC0_9000 - 0xFEC0_9FFF` | 8259 PIC (slave) | 4KB | Cascade slave of the PC/AT pair |
+| All other addresses | decode-miss agent | - | Accepted and answered locally with PSLVERR |
+
+The decoder is the GENERATED `apbx_xbar_1to10` (one master, ten slaves), so the
+window count and the base both come from the generator invocation recorded in
+`rlb_top.sv`. There is no window above `0x9FFF`.
 
 **Decoder Implementation:**
 ```systemverilog
 // Address decode logic (simplified)
-localparam BASE_ADDR = 32'h4000_0000;
+localparam BASE_ADDR = 32'hFEC0_0000;
 localparam BLOCK_SIZE = 12;  // 4KB = 2^12
 
 logic [3:0] block_sel;
 assign block_sel = paddr[15:12];  // Extract window number
 
 always_comb begin
-    psel_hpet      = (block_sel == 4'h0) & psel;  // 0x4000_0xxx
-    psel_pic8259   = (block_sel == 4'h1) & psel;  // 0x4000_1xxx
-    psel_pit8254   = (block_sel == 4'h2) & psel;  // 0x4000_2xxx
-    psel_rtc       = (block_sel == 4'h3) & psel;  // 0x4000_3xxx
-    psel_smbus     = (block_sel == 4'h4) & psel;  // 0x4000_4xxx
-    psel_pm        = (block_sel == 4'h5) & psel;  // 0x4000_5xxx
-    psel_ioapic    = (block_sel == 4'h6) & psel;  // 0x4000_6xxx
-    psel_id        = (block_sel == 4'hF) & psel;  // 0x4000_Fxxx
+    psel_hpet      = (block_sel == 4'h0) & psel;  // 0xFEC0_0xxx
+    psel_pic8259   = (block_sel == 4'h1) & psel;  // 0xFEC0_1xxx
+    psel_pit8254   = (block_sel == 4'h2) & psel;  // 0xFEC0_2xxx
+    psel_rtc       = (block_sel == 4'h3) & psel;  // 0xFEC0_3xxx
+    psel_smbus     = (block_sel == 4'h4) & psel;  // 0xFEC0_4xxx
+    psel_pm        = (block_sel == 4'h5) & psel;  // 0xFEC0_5xxx
+    psel_ioapic    = (block_sel == 4'h6) & psel;  // 0xFEC0_6xxx
+    psel_gpio      = (block_sel == 4'h7) & psel;  // 0xFEC0_7xxx
+    psel_uart      = (block_sel == 4'h8) & psel;  // 0xFEC0_8xxx
+    psel_pic_slave = (block_sel == 4'h9) & psel;  // 0xFEC0_9xxx
     psel_error     = !(|{psel_hpet, psel_pic8259, psel_pit8254,
-                         psel_rtc, psel_smbus, psel_pm,
-                         psel_ioapic, psel_id}) & psel;
+                         psel_rtc, psel_smbus, psel_pm, psel_ioapic,
+                         psel_gpio, psel_uart, psel_pic_slave}) & psel;
 end
 ```
 
 **Interface:**
-- **Single APB slave port** at base address 0x4000_0000
+- **Single APB slave port** at base address `0xFEC0_0000` (the `BASE_ADDR` parameter)
 - **Aggregated interrupt output** combining all block IRQs
 - **Per-block clock/reset control** for power management
 - **External I/O signals** (GPIO, UART, I2C/SMBus, etc.)
@@ -523,7 +528,7 @@ end
 - Simplified system integration (single APB slave)
 - Consistent 4KB window addressing
 - Clean power-of-2 address decode
-- Easy expansion (32KB reserved space)
+- Ten 4KB windows, fully assigned; expansion needs a crossbar regeneration
 - Single verification target
 - Drop-in retro-compatible peripheral subsystem
 

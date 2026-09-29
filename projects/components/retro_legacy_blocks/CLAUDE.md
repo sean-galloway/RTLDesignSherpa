@@ -40,7 +40,8 @@
 - `projects/components/retro_legacy_blocks/README.md` ← Component overview and usage guide
 - `docs/hpet_mas/hpet_mas_index.md` ← HPET complete specification
 
-**RLB Address Map:** Single APB entry point at `0x4000_0000`, 4KB windows for clean decode
+**RLB Address Map:** Single APB entry point at `0xFEC0_0000` (the `BASE_ADDR`
+parameter default), ten 4KB windows decoded by the generated `apbx_xbar_1to10`
 
 ---
 
@@ -257,19 +258,20 @@ Per-Timer Registers (i = 0 to NUM_TIMERS-1), fields at bits [6:2]:
 
 | Block | Priority | Status | Address | Documentation |
 |-------|----------|--------|---------|---------------|
-| **HPET** | High | Production | 0x4000_0000-0x0FFF | Complete |
-| **8259 PIC** | High | Implemented | 0x4000_1000-0x1FFF | MAS (docs/pic_8259_mas) |
-| **8254 PIT** | High | Implemented | 0x4000_2000-0x2FFF | MAS (docs/pit_8254_mas) |
-| **RTC** | Medium | Implemented | 0x4000_3000-0x3FFF | MAS (docs/rtc_mas) |
-| **SMBus** | Medium | Implemented | 0x4000_4000-0x4FFF | MAS (docs/smbus_mas) |
-| **PM/ACPI** | Medium | Implemented | 0x4000_5000-0x5FFF | MAS (docs/pm_acpi_mas) |
-| **IOAPIC** | Medium | Implemented | 0x4000_6000-0x6FFF | MAS (docs/ioapic_mas) |
-| GPIO | Medium | Implemented | TBD | MAS (docs/gpio_mas) |
-| UART | Medium | Implemented | TBD | MAS (docs/uart_16550_mas) |
-| SPI | Low | Planned | TBD | N/A |
-| I2C | Low | Planned | TBD | N/A |
-| Watchdog | Low | Planned | TBD | N/A |
-| **Interconnect** | Low | Planned | 0x4000_F000-0xFFFF | N/A |
+| **HPET** | High | Production | 0xFEC0_0000-0x0FFF | Complete |
+| **8259 PIC** (master) | High | Implemented | 0xFEC0_1000-0x1FFF | MAS (docs/pic_8259_mas) |
+| **8254 PIT** | High | Implemented | 0xFEC0_2000-0x2FFF | MAS (docs/pit_8254_mas) |
+| **RTC** | Medium | Implemented | 0xFEC0_3000-0x3FFF | MAS (docs/rtc_mas) |
+| **SMBus** | Medium | Implemented | 0xFEC0_4000-0x4FFF | MAS (docs/smbus_mas) |
+| **PM/ACPI** | Medium | Implemented | 0xFEC0_5000-0x5FFF | MAS (docs/pm_acpi_mas) |
+| **IOAPIC** | Medium | Implemented | 0xFEC0_6000-0x6FFF | MAS (docs/ioapic_mas) |
+| **GPIO** | Medium | Implemented | 0xFEC0_7000-0x7FFF | MAS (docs/gpio_mas) |
+| **UART 16550** | Medium | Implemented | 0xFEC0_8000-0x8FFF | MAS (docs/uart_16550_mas) |
+| **8259 PIC** (cascade slave) | High | Implemented | 0xFEC0_9000-0x9FFF | MAS (docs/pic_8259_mas) |
+| SPI | Low | Planned | unallocated | N/A |
+| I2C | Low | Planned | unallocated | N/A |
+| Watchdog | Low | Planned | unallocated | N/A |
+| Interconnect | Low | Planned | unallocated -- all ten windows are assigned | N/A |
 
 **See:** `PRD.md` Section 3 for planned block details and Section 4.2 for complete address map
 
@@ -319,19 +321,21 @@ apb4_hpet #(
 RLB Wrapper Architecture:
 
 Single APB Slave → APB Decoder/Bridge → Individual Blocks
-(0x4000_0000)    (4KB window decode)   (HPET, 8259, 8254, etc.)
+(0xFEC0_0000)    (4KB window decode)   (HPET, 8259, 8254, etc.)
 ```
 
 **Address Map (4KB windows):**
-- `0x4000_0000-0x0FFF`: HPET
-- `0x4000_1000-0x1FFF`: 8259 PIC
-- `0x4000_2000-0x2FFF`: 8254 PIT
-- `0x4000_3000-0x3FFF`: RTC
-- `0x4000_4000-0x4FFF`: SMBus
-- `0x4000_5000-0x5FFF`: PM/ACPI
-- `0x4000_6000-0x6FFF`: IOAPIC
-- `0x4000_F000-0xFFFF`: Interconnect/ID/Version
-- All others → Error Slave (DECERR/SLVERR)
+- `0xFEC0_0000-0x0FFF`: HPET
+- `0xFEC0_1000-0x1FFF`: 8259 PIC (master)
+- `0xFEC0_2000-0x2FFF`: 8254 PIT
+- `0xFEC0_3000-0x3FFF`: RTC
+- `0xFEC0_4000-0x4FFF`: SMBus
+- `0xFEC0_5000-0x5FFF`: PM/ACPI
+- `0xFEC0_6000-0x6FFF`: IOAPIC
+- `0xFEC0_7000-0x7FFF`: GPIO
+- `0xFEC0_8000-0x8FFF`: UART 16550
+- `0xFEC0_9000-0x9FFF`: 8259 PIC (cascade slave)
+- All others → decode-miss agent, answered locally with PSLVERR
 
 **Benefits:**
 - Single APB slave port (easy integration)

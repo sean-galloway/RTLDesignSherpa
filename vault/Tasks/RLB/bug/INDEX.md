@@ -12,15 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 4 | done (kept for history) |
+| [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-004** — PRD.md gives the subsystem base as 0x4000_0000 in three places; the RTL uses BASE_ADDR 0xFEC00000, which the PRD never mentions.
+
 
 ## Closed
 
@@ -28,3 +28,4 @@ by construction rather than by discipline.
 - **BUG-002** — SYNCASYNCNET under -DRESET_ACTIVE_HIGH, family-wide
 - **BUG-003** — an unmapped APB address hung the RLB bus
 - **BUG-005** — the apb4_hpet example connected 9 nonexistent ports in PRD.md, README.md and rtl/apbx_xbar/README.md; fixed, and check_doc_examples.py widened to scan beside-code PRD/README, closed 2026-09-28.
+- **BUG-004** — the PRD's address map was wrong four ways, not one: the base in eleven places, three shipped blocks (GPIO/UART/slave-PIC) documented as reserved, a nonexistent block at an unreachable window 0xF, and six "Planned" statuses for shipped blocks. Fixed in PRD.md and RLB_FPGA_IMPLEMENTATION_GUIDE.md; closed 2026-09-29.

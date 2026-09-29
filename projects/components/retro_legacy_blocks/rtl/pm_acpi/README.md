@@ -26,7 +26,7 @@
 
 **Status:** Implemented and defect-clean against GitHub #54
 **Priority:** Medium
-**Address:** `0x4000_5000 - 0x4000_5FFF` (4KB window)
+**Address:** `0xFEC0_5000 - 0xFEC0_5FFF` (4KB window)
 
 **Test status:** 6/6 configurations green at FULL (CDC_ENABLE 0/1, 2026-09-09):
 basic 8/8, medium 10/10, full 12/12, GH#54 defect suite 17/17 in each.

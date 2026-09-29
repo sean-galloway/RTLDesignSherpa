@@ -25,7 +25,8 @@
 
 **Status:** Implementation complete; GitHub #50 defects fixed (2026-09-09)
 **Priority:** High
-**Address:** `0x4000_1000 - 0x4000_1FFF` (4 KB window, only 0x000-0x02C decoded)
+**Address:** `0xFEC0_1000 - 0xFEC0_1FFF` (4 KB window, only 0x000-0x02C decoded;
+the cascade SLAVE of the pair is a second instance at `0xFEC0_9000`)
 
 ---
 

@@ -33,30 +33,34 @@
 
 This component contains production-quality implementations of legacy peripheral blocks, designed for use in systems requiring retro-compatible peripheral interfaces. The blocks are organized for easy integration with modern SoC designs.
 
-**Current Blocks:**
-- **HPET** - High Precision Event Timer (APB interface, `0x4000_0000-0x0FFF`)
+**Shipped Blocks** -- all ten windows of the RLB address map are assigned and
+each block has its own DV suite and MAS book:
 
-**Future Blocks (Planned - RLB Address Map):**
+- **HPET** - High Precision Event Timer (`0xFEC0_0000-0x0FFF`)
+- **8259 PIC** (master) - Programmable Interrupt Controller (`0xFEC0_1000-0x1FFF`)
+- **8254 PIT** - Programmable Interval Timer (`0xFEC0_2000-0x2FFF`)
+- **RTC** - Real-Time Clock (`0xFEC0_3000-0x3FFF`)
+- **SMBus** - System Management Bus Controller (`0xFEC0_4000-0x4FFF`)
+- **PM/ACPI** - Power Management / ACPI Registers (`0xFEC0_5000-0x5FFF`)
+- **IOAPIC** - I/O Advanced PIC (`0xFEC0_6000-0x6FFF`)
+- **GPIO** - General Purpose I/O (`0xFEC0_7000-0x7FFF`)
+- **UART 16550** - Serial port (`0xFEC0_8000-0x8FFF`)
+- **8259 PIC** (cascade slave) - the PC/AT pair's slave half (`0xFEC0_9000-0x9FFF`)
 
-**High Priority:**
-- **8259 PIC** - Programmable Interrupt Controller (`0x4000_1000-0x1FFF`)
-- **8254 PIT** - Programmable Interval Timer (`0x4000_2000-0x2FFF`)
+Per-block defects are tracked in `known_issues/` and in `vault/Tasks/RLB/`.
 
-**Medium Priority:**
-- **RTC** - Real-Time Clock (`0x4000_3000-0x3FFF`)
-- **SMBus** - System Management Bus Controller (`0x4000_4000-0x4FFF`)
-- **PM/ACPI** - Power Management / ACPI Registers (`0x4000_5000-0x5FFF`)
-- **IOAPIC** - I/O Advanced PIC (`0x4000_6000-0x6FFF`)
-- GPIO - General Purpose I/O
-- UART - Universal Asynchronous Receiver/Transmitter
+**Planned Blocks** -- not present in the shipped design, and with no window
+available: the decoder is the generated `apbx_xbar_1to10` and all ten of its
+windows are taken, so any of these needs a window assignment AND a crossbar
+regeneration.
 
-**Low Priority:**
 - SPI - Serial Peripheral Interface
 - I2C - Inter-Integrated Circuit Controller
 - Watchdog - Watchdog Timer
-- **Interconnect** - ID/Version Registers (`0x4000_F000-0xFFFF`)
+- Interconnect - ID/Version Registers
 
-**RLB Wrapper:** Single APB slave entry point at `0x4000_0000` with 4KB window decode routing to individual blocks
+**RLB Wrapper:** Single APB slave entry point at `0xFEC0_0000` (the `BASE_ADDR`
+parameter default) with 4KB window decode routing to individual blocks
 
 ---
 

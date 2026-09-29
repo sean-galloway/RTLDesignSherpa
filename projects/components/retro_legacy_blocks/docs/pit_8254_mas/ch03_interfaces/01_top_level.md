@@ -130,7 +130,7 @@ ioapic and pic_8259 blocks.
 | `0x01C` | - | - | Unmapped: dropped with PSLVERR (reads 0, write ignored) |
 | `0x020-0xFFF` | - | - | Unmapped: dropped with PSLVERR (reads 0, write ignored) |
 
-**Integration Note:** When integrating into a larger address space, these addresses are relative to the base address assigned to the PIT. For example, if the PIT is assigned base address `0x4000_2000`, then PIT_CONFIG would be at absolute address `0x4000_2000`.
+**Integration Note:** When integrating into a larger address space, these addresses are relative to the base address assigned to the PIT. In the shipped RLB the PIT occupies window 2, so its base is `0xFEC0_2000` and PIT_CONFIG is at absolute address `0xFEC0_2000`.
 
 ### Error Response
 

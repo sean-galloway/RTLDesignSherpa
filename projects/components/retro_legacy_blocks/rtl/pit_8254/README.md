@@ -25,7 +25,7 @@
 
 **Status:** Mode 0 complete and defect-clean against GitHub #52
 **Priority:** High
-**Address:** `0x4000_2000 - 0x4000_2FFF` (4KB window)
+**Address:** `0xFEC0_2000 - 0xFEC0_2FFF` (4KB window)
 
 **Test status:** 31/32 in all six configurations (CDC_ENABLE 0/1 x
 gate/func/full, 2026-09-09). The one failure,

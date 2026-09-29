@@ -482,19 +482,21 @@ PM_ACPI     - Optional (if power features needed)
 ```
 Base Address | Module      | Size | Description
 -------------|-------------|------|------------------------
-0x4000_0000  | HPET        | 4KB  | High Precision Timer
-0x4000_1000  | PIT_8254    | 4KB  | Programmable Interval Timer
-0x4000_2000  | RTC         | 4KB  | Real-Time Clock
-0x4000_3000  | PIC_8259    | 4KB  | Interrupt Controller
-0x4000_4000  | SMBus       | 4KB  | System Management Bus
-0x4000_5000  | PM_ACPI     | 4KB  | Power Management
-0x4000_6000  | IOAPIC      | 4KB  | I/O APIC
-0x4000_7000  | GPIO        | 4KB  | General Purpose I/O
-0x4000_8000  | UART_16550  | 4KB  | Serial Port
-0x4000_9000  | (Reserved)  | -    | Future expansion
+0xFEC0_0000  | HPET        | 4KB  | High Precision Timer
+0xFEC0_1000  | PIC_8259    | 4KB  | Interrupt Controller (master)
+0xFEC0_2000  | PIT_8254    | 4KB  | Programmable Interval Timer
+0xFEC0_3000  | RTC         | 4KB  | Real-Time Clock
+0xFEC0_4000  | SMBus       | 4KB  | System Management Bus
+0xFEC0_5000  | PM_ACPI     | 4KB  | Power Management
+0xFEC0_6000  | IOAPIC      | 4KB  | I/O APIC
+0xFEC0_7000  | GPIO        | 4KB  | General Purpose I/O
+0xFEC0_8000  | UART_16550  | 4KB  | Serial Port
+0xFEC0_9000  | PIC_8259    | 4KB  | Interrupt Controller (cascade slave)
 ```
 
-All accessible via APB from soft processor.
+All accessible via APB from soft processor. The base is the `BASE_ADDR`
+parameter of `rlb_top` (default `0xFEC00000`); the window order is the
+generated `apbx_xbar_1to10`'s and is not free to rearrange.
 
 ---
 

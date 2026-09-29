@@ -31,7 +31,7 @@ everything the one below it runs), so `gate` reports 6/6, `func` 44/44 and
 `COMMIT_TIMEOUT_CYCLES = 200`) reports 8/8 - GH56-16, GH56-R8-1..R8-4 and
 GH56-R9-1..R9-3, which are the commit-watchdog and queued-slot cases that
 need a window short enough to hit inside a test.
-**Address:** `0x4000_3000 - 0x4000_3FFF` (4 KB window, 13 registers decoded)
+**Address:** `0xFEC0_3000 - 0xFEC0_3FFF` (4 KB window, 13 registers decoded)
 
 ---
 
