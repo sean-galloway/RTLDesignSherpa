@@ -26,7 +26,7 @@ components suites as well as rtl/.
 and BEFORE coverage and formal are driven clean. Doing it after coverage would
 mean chasing numbers produced by tests nobody has audited.
 
-**Scope:** `projects/components/bridge/dv/tests/` -- 39 test files, the largest components suite, and almost all of it is generated.
+**Scope:** `projects/components/fabric-gen-ip/bridge/dv/tests/` -- 39 test files, the largest components suite, and almost all of it is generated.
 
 **The capability already exists and was simply never run here.**
 `bin/review/run_batch.py` has a `testqc` mode alongside `qc` and `humanize`,

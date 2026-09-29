@@ -19,7 +19,7 @@ summary: PeakRDL regmaps; hardcoded offsets are forbidden everywhere.
 
 ## Case: the bridge stress flow's three constants (2026-09-26)
 
-`projects/components/bridge/dv/tests/monitor_stress_common.py` programmed
+`projects/components/fabric-gen-ip/bridge/dv/tests/monitor_stress_common.py` programmed
 the regblock fixture's MON_GROUP window at `0x90/0x94/0x98`, written by
 poking `s_cfg_axil_*` by hand. It passed for weeks because nothing above
 those registers changed. Swapping the bridge monitors for the lite dropped

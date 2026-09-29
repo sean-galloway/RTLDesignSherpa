@@ -1,6 +1,6 @@
 # TASK-003: APB5 parity across the fabric
 
-> Migrated 2026-09-27 from `vault/Tasks/projects/components/apbx-xbar/closed.md` as **APBX-003** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
+> Migrated 2026-09-27 from `vault/Tasks/projects/components/fabric-gen-ip/apbx-xbar/closed.md` as **APBX-003** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 **Status:** closed 2026-08-16 — decc2110 (thin core) + 6491f7df (generator)
 
 **Decision (owner, 2026-08-15):** a mixed pairing ignores parity. An

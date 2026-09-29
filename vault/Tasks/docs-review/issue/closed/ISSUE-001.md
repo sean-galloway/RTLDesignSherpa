@@ -12,7 +12,7 @@ module with no matching `.sv`. 4 are rapids and deliberately held
 | Area | Ghosts |
 |---|---|
 | `docs/markdown` (RTL library book) | 31 |
-| `projects/components/bridge/docs` | 12 |
+| `projects/components/fabric-gen-ip/bridge/docs` | 12 |
 | `projects/components/delta` | 9 |
 | `projects/components/converters/docs` | 5 |
 | `projects/components/dmas/stream` | 4 |

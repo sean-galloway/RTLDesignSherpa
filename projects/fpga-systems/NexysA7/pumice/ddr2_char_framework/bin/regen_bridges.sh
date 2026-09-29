@@ -43,7 +43,7 @@ BRIDGES_DIR="$FRAMEWORK_ROOT/rtl/bridges"
 CONFIGS_DIR="$BRIDGES_DIR/configs"
 RTL_OUT="$BRIDGES_DIR/generated"
 
-GENERATOR="$REPO_ROOT/projects/components/bridge/bin/bridge_generator.py"
+GENERATOR="$REPO_ROOT/projects/components/fabric-gen-ip/bridge/bin/bridge_generator.py"
 if [ ! -f "$GENERATOR" ]; then
     echo "ERROR: bridge_generator.py not found at $GENERATOR"
     exit 1

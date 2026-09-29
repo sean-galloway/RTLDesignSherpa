@@ -1,0 +1,957 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
+# Claude Code Guide: Bridge Subsystem
+
+**Version:** 2.3
+**Last Updated:** 2026-09-13
+**Purpose:** AI-specific guidance for working with Bridge subsystem
+
+---
+
+## CRITICAL: Read Architecture Documents First
+
+**Before making ANY changes to bridge generator or understanding signal flow:**
+
+**READ:** `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` (generator build mechanics, reconciled against the code 2026-09-29) and `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.7.pdf`)
+
+These documents contain the **definitive bridge architecture** including:
+- Correct signal flow (wrappers → decoder → converters → crossbar → slaves)
+- Component purposes and placement
+- Common misconceptions that previous agents made
+- Why there's NO fixed crossbar width
+
+**If you skip these documents, you WILL make incorrect assumptions.**
+
+---
+
+## Quick Context
+
+**What:** Bridge - one AXI4/AXI5 crossbar generator, `bin/bridge_generator.py`,
+taking TOML or CSV configuration. There is no second generator: the separate
+`bridge_csv_generator.py` was merged into it and no longer exists.
+**Status:** Phase 2 Complete - CSV generator with channel-specific masters (wr/rd/rw)
+**Your Role:** Help users configure CSV files, generate bridges, understand architecture, and create tests
+
+**Complete Documentation (Read in This Order):**
+1. `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` ← **START HERE** (generator build mechanics; the design lives in the MAS below)
+2. `projects/components/fabric-gen-ip/bridge/PRD.md` ← Product requirements
+3. `vault/Tasks/bridge/INDEX.md` ← Task tracking (open / closed / dropped; the old TASKS.md was folded in 2026-09-10)
+4. `projects/components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.7.pdf`)
+5. `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.7.pdf`)
+
+(The older BRIDGE_ARCHITECTURE.md, BRIDGE_CURRENT_STATE.md, BRIDGE_ARCHITECTURE_DIAGRAMS.md, CSV_BRIDGE_STATUS.md, and docs/bridge_spec/ documents were superseded by the HAS/MAS above.)
+
+---
+
+## Target Architecture: Intelligent Width-Aware Routing
+
+**Core Principle:** Direct connections where possible, converters only where needed, no fixed crossbar width.
+
+### Efficient Multi-Width Design
+
+```
+Master_A (64b)
+  ├─ Direct → Slave_0 (64b)           [0 conversions, minimal latency]
+  ├─ Conv(64→128) → Slave_1 (128b)    [1 conversion]
+  └─ Conv(64→512) → Slave_2 (512b)    [1 conversion]
+
+Master_B (512b)
+  ├─ Conv(512→64) → Slave_0 (64b)     [1 conversion]
+  ├─ Conv(512→128) → Slave_1 (128b)   [1 conversion]
+  └─ Direct → Slave_2 (512b)          [0 conversions, full bandwidth]
+```
+
+**Router Logic:** Address decoder determines target slave, selects correctly-sized path for that master-slave pair.
+
+### Why This Architecture
+
+**Naive Fixed-Width Approach (Don't Do This):**
+```
+Master (64b) → Upsize(64→256) → Fixed 256b Crossbar → Downsize(256→64) → Slave (64b)
+```
+- TWO conversions for same-width connections (wasteful!)
+- Reduced bandwidth on narrow paths
+- Unnecessary logic and area
+- Higher latency
+
+**Intelligent Routing (Target):**
+```
+Master (64b) → Router → Direct Connection → Slave (64b)
+```
+- ZERO conversions for matching widths
+- Full native bandwidth
+- Minimal logic
+- Lowest latency
+
+### Per-Master Output Paths
+
+Each master has N output paths (one per unique slave width it connects to):
+
+```systemverilog
+// Master_A connects to slaves at 64b, 128b, 512b
+// Generate 3 output paths:
+
+logic [63:0]  master_a_64b_wdata;   // For 64b slaves (direct)
+logic [127:0] master_a_128b_wdata;  // For 128b slaves (via converter)
+logic [511:0] master_a_512b_wdata;  // For 512b slaves (via converter)
+
+// Router selects based on address decode:
+always_comb begin
+    case (decoded_slave_id)
+        SLAVE_0: select master_a_64b_wdata;   // Slave_0 is 64b
+        SLAVE_1: select master_a_128b_wdata;  // Slave_1 is 128b
+        SLAVE_2: select master_a_512b_wdata;  // Slave_2 is 512b
+    endcase
+end
+```
+
+### Benefits
+
+1. **Resource Efficient** - Only instantiate converters actually needed
+2. **Maximum Performance** - Direct paths have zero conversion overhead
+3. **Optimal Bandwidth** - No artificial width bottlenecks
+4. **Lower Latency** - Minimal logic in critical path for matching widths
+5. **Scalable** - Works for any combination of master/slave widths
+
+### Implementation Status
+
+**Current State:** Intelligent per-master multi-width routing -- DELIVERED.
+`cpu_master_adapter.sv` in `bridge_4x4_rw` carries separate 32b, 64b, 128b and
+256b paths and converts only where a master and its slave disagree. There is no
+fixed internal crossbar width.
+
+This block described the Phase-1 fixed-width crossbar as current and the
+per-width routing as a future migration "requiring generator architecture
+rework". That rework has happened; the block outlived it.
+
+---
+
+## CRITICAL RULE #0: RTL Regeneration Requirements
+
+Change any generator, delete every generated bridge, regenerate all of them.
+The rule itself, why partial regeneration fails silently, and the symptom list
+are the root `/CLAUDE.md` Rule #0 and
+`vault/handbook/design/generated-rtl-discipline.md`. What is bridge-specific:
+
+**Generators whose change forces a full regeneration**
+- `bin/bridge_generator.py`
+- **any** Python file under `bin/bridge_pkg/` (components/, generators/,
+  config, csv_parser, signal_naming, ...)
+- any Jinja template in `bin/bridge_pkg/jinja_templates/`
+
+**The workflow**
+```bash
+cd projects/components/fabric-gen-ip/bridge/bin
+make clean          # removes rtl/generated/
+make all            # regenerates from bridge_batch.csv
+
+cd ../dv/tests
+make clean-all && make run-all-func    # ALL tests; bridge runs serial, ~1GB each
+```
+
+`clean-all` is not optional here. You have just regenerated every `.sv`, so a
+stale build directory reports green for the old design -- precisely the failure
+this workflow exists to prevent (`vault/handbook/dv/running-regressions.md`).
+
+**Never regenerated:** `rtl/bridge_cam.sv` (hand-written, and instantiated by
+zero generated bridges) and anything in `rtl/` outside `rtl/generated/`.
+
+**Identifying a generated file takes five strings, not one.** Each generator
+class stamps its own header, and `bridge_generator.py` appears in none of them:
+
+| File | Header |
+|---|---|
+| `<name>.sv` | `// Generated by: BridgeModuleGenerator` |
+| `<name>_pkg.sv` | `// Generated by: PackageGenerator` |
+| `<name>_xbar.sv` | `// Generated by: CrossbarGenerator` |
+| `<master>_adapter.sv` | `// Generated by: AdapterGenerator` |
+| `<slave>_adapter.sv` | `// Generated by: SlaveAdapterGenerator` |
+
+Grepping for `bridge_generator.py` finds nothing; grepping only for
+`BridgeModuleGenerator` finds one file in five.
+
+---
+
+## Critical Pitfalls: slave_select_* Reversion After Handshake
+
+### The Problem: Combinational Address Decode
+
+The master adapter's R/B response MUX and the crossbar's AR/AW gating both relied on `<master>_slave_select_{ar,aw}` — a combinational decode of `fub_axi_{ar,aw}addr`. This signal reverts immediately when the address port is freed:
+
+1. AR/AW handshake completes (arvalid && arready, awvalid && awready)
+2. Wrapper pops skid buffer and releases the address port
+3. fub_axi_araddr / fub_axi_awaddr reverts to next transaction or zero
+4. Decode flips to different slave
+5. Response MUX is now gated on WRONG slave
+6. Response path closes, transaction hangs
+
+**This happens BEFORE the converter even finishes pushing to the crossbar, and ALWAYS before response arrives.**
+
+### Visible Symptoms
+
+- Fails: Multi-slave multi-master bridges hang (timeout)
+- Fails: Multi-width masters fail basic connectivity
+- Fails: APB/AXIL slaves consistently timeout (longer converter latency = more decode changes)
+- Works: Single-slave or single-master systems (no decode change)
+
+### The Solution (MANDATORY in All Generators)
+
+**For Crossbar AR/AW Gating:**
+- Replace `<master>_slave_select_ar/aw` gates with **inline address re-decode** on stable m_axi buses
+- Address on m_axi is held stable across the entire AXI handshake
+
+**For Master Adapter Response MUX:**
+- Add **per-channel response-tracking FIFOs** that capture slave index at request time
+- Use FIFO head for response MUX instead of live combinational decode
+
+**Crossbar Code Pattern:**
+```systemverilog
+// WRONG (old implementation):
+assign gate_ar_s0 = m0_slave_select_ar && m0_arvalid;
+//                  ^^^^^^^^^^^^^^^^^ Reverts after handshake!
+
+// CORRECT (new implementation):
+assign gate_ar_s0 = ((m0_m_axi_araddr >= S0_BASE) && 
+                      (m0_m_axi_araddr < S0_END) && 
+                      m0_arvalid);  // Re-decode on stable m_axi address
+```
+
+**Master Adapter Code Pattern:**
+```systemverilog
+// WRONG (old implementation):
+assign r_slave_select = comb_slave_select_ar;  // Stale after pop!
+
+// CORRECT (new implementation):
+// Capture at request time
+always_ff @(posedge aclk) begin
+    if (fub_axi_arvalid && fub_axi_arready) begin
+        ar_trk_fifo <= comb_slave_select_ar;
+    end
+end
+
+// Use stable value for response MUX
+assign r_slave_select = ar_trk_fifo_out;
+```
+
+### When This Bug Appears
+
+- Works: Single-master, single-slave systems (no address re-evaluation)
+- Fails: Multi-master to same slave (multiple addresses decode differently)
+- Fails: Multi-slave same master (address decode changes per transaction)
+- Fails: Multi-width paths (W beats re-evaluate AW decode mid-burst)
+
+---
+
+## MANDATORY: Project Organization Pattern
+
+**THIS SUBSYSTEM MUST FOLLOW THE RAPIDS/AMBA ORGANIZATIONAL PATTERN - NO EXCEPTIONS**
+
+### Required Directory Structure
+
+```
+projects/components/fabric-gen-ip/bridge/
+├── bin/                           # Bridge-specific tools (generators, scripts)
+│   ├── bridge_generator.py       # AXI4 crossbar generator (CSV/TOML driven)
+│   ├── bridge_pkg/                # Generator implementation package
+│   ├── test_configs/              # TOML port configs + CSV connectivity
+│   └── Makefile                   # make all / make single / make clean
+├── docs/                          # Design documentation (bridge_has/, bridge_mas/, PDFs)
+├── dv/                            # Design Verification (MANDATORY structure)
+│   ├── tbclasses/                 # Testbench classes (MANDATORY - TB classes here!)
+│   │   ├── __init__.py
+│   │   └── bridge2x2_rw_tb.py     # Per-config generated TB classes
+│   ├── components/                # Bridge-specific BFMs (if needed)
+│   ├── scoreboards/               # Bridge-specific scoreboards (if needed)
+│   ├── testplans/                 # Test plans
+│   └── tests/                     # All test files (test runners only, flat)
+│       ├── conftest.py            # Pytest configuration (MANDATORY)
+│       └── test_bridge_*.py       # Per-config tests (test_bridge_2x2_rw.py, ...)
+├── rtl/                           # RTL source files
+│   ├── bridge_cam.sv              # Hand-written CAM (unused by every generated bridge)
+│   ├── filelists/                 # Generated filelists
+│   └── generated/                 # Generated bridges (one subdir per config)
+├── CLAUDE.md                      # This file
+├── PRD.md                         # Product requirements
+└── TASKS.md                       # Task history and status
+```
+
+### Testbench Class Location (MANDATORY)
+
+TB classes live in `dv/tbclasses/`, never inside a test runner. The rule and
+the reasoning are in `vault/handbook/dv/tb-structure.md` and
+`/GLOBAL_REQUIREMENTS.md` 2.1. The bridge layout that satisfies it is the
+tree under Rule #0.1 below.
+
+### Test File Pattern (MANDATORY)
+
+Pattern B -- `cocotb_test_*` functions with pytest wrappers at the bottom, each
+naming its `testcase=` -- is the `test-patterns` skill and
+`/GLOBAL_REQUIREMENTS.md` 3.2. Read the real thing rather than a template:
+`dv/tests/test_bridge_2x2_rw.py`. Tests and TB classes are generated per bridge
+configuration alongside the RTL, so the generated file is the pattern.
+
+---
+
+## Critical Rules for This Subsystem
+
+### Rule #0.1: Testbench Architecture - MANDATORY SEPARATION
+
+TB classes live in `dv/tbclasses/`, one per config (`bridge2x2_rw_tb.py`);
+runners stay flat in `dv/tests/`. That layout is the tree above -- it is not
+repeated here. Why the separation matters for bridge specifically is that one
+TB is shared by the per-config test, the `*_mon_monitor.py` stress test and
+external imports: `vault/handbook/dv/tb-structure.md`.
+
+---
+
+### Rule #1: TBBase and the three mandatory methods
+
+*(Former Rule #2 is folded in here; #3 and #4 keep their numbers so
+existing references to them still resolve.)*
+
+Every TB inherits `TBBase` and implements `setup_clocks_and_reset` /
+`assert_reset` / `deassert_reset`. The requirement is
+`/GLOBAL_REQUIREMENTS.md` 2.2 and 2.3; what TBBase provides and why the
+three methods are mandatory is `vault/handbook/dv/tb-structure.md`.
+
+Bridge-specific: the class is `BridgeAXI4FlatTB(TBBase)`, the clock is
+`aclk` and reset is `aresetn` (active-low), so `assert_reset` drives
+`self.dut.aresetn.value = 0`.
+
+---
+
+### Rule #3: Use GAXI Components for Protocol Handling
+
+Use the framework BFMs; never hand-drive AXI4 valid/ready. The map and trap
+list are in `vault/handbook/dv/bfm-usage.md`. Bridge wires GAXI onto the
+AXI4 channels with the `s0_axi4_` prefix:
+
+```python
+from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
+from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
+from CocoTBFramework.components.axi4.axi4_field_configs import AXI4FieldConfigHelper
+
+# CORRECT: Use GAXI for AXI4 channels
+self.aw_master = GAXIMaster(
+    dut=dut,
+    title="AW_M0",
+    prefix="s0_axi4_",
+    clock=clock,
+    field_config=AXI4FieldConfigHelper.create_aw_field_config(id_width, addr_width, 1),
+    pkt_prefix="aw",
+    multi_sig=True,
+    log=log
+)
+```
+
+---
+
+### Rule #4: Queue-Based Verification
+
+**For simple in-order verification, use direct monitor queue access:**
+
+```python
+# CORRECT: Direct queue access
+aw_pkt = self.aw_slave._recvQ.popleft()
+w_pkt = self.w_slave._recvQ.popleft()
+
+# Verify
+assert aw_pkt.addr == expected_addr
+assert w_pkt.data == expected_data
+
+# WRONG: Memory model for simple test
+memory_model = MemoryModel()  # Unnecessary complexity
+```
+
+**When to Use Memory Models:**
+- Simple in-order tests → Use queue access
+- Single-master systems → Use queue access
+- Complex out-of-order scenarios → not supported; slaves must respond in request order
+- Multi-master with address overlap → Memory model tracks state
+
+---
+
+## TOML/CSV-Based Bridge Generator (Phase 2 Complete)
+
+### Overview
+
+The Bridge generator creates parameterized SystemVerilog crossbars from TOML configuration files with CSV connectivity matrices, eliminating manual RTL editing for complex interconnects.
+
+**Key Benefits:**
+- **Human-readable configuration** - TOML for ports, CSV for connectivity
+- **Custom signal prefixes** - Each port has unique prefix (rapids_m_axi_, apb0_, etc.)
+- **Channel-specific masters** - Write-only (wr), read-only (rd), or full (rw)
+- **Interface modules** - Timing isolation via axi4_master/slave wrappers with configurable skid depths
+- **Automatic converters** - Width and protocol conversion inserted automatically
+- **Resource efficient** - Only generates needed channels and converters
+
+### Quick Start
+
+**1. Create bridge_mybridge.toml:**
+```toml
+[bridge]
+  name = "bridge_mybridge"
+  description = "Custom bridge example"
+
+  # Default skid buffer depths (can be overridden per port)
+  defaults.skid_depths = {ar = 2, r = 4, aw = 2, w = 4, b = 2}
+
+  masters = [
+    {name = "cpu", prefix = "cpu_m_axi", id_width = 4, addr_width = 32, data_width = 64, user_width = 1,
+     interface = {type = "axi4_master"}},
+    {name = "dma", prefix = "dma_m_axi", id_width = 4, addr_width = 32, data_width = 512, user_width = 1,
+     interface = {type = "axi4_master", skid_depths = {ar = 4, r = 8, aw = 4, w = 8, b = 4}}}
+  ]
+
+  slaves = [
+    {name = "ddr", prefix = "ddr_s_axi", id_width = 4, addr_width = 32, data_width = 512, user_width = 1,
+     base_addr = 0x00000000, addr_range = 0x80000000, interface = {type = "axi4_slave"}},
+    {name = "sram", prefix = "sram_s_axi", id_width = 4, addr_width = 32, data_width = 256, user_width = 1,
+     base_addr = 0x80000000, addr_range = 0x80000000, interface = {type = "axi4_slave"}}
+  ]
+```
+
+**2. Create bridge_mybridge_connectivity.csv:**
+```csv
+master\slave,ddr,sram
+cpu,1,1
+dma,1,1
+```
+
+**3. Generate bridge:**
+```bash
+cd projects/components/fabric-gen-ip/bridge/bin
+python3 bridge_generator.py --ports test_configs/bridge_mybridge.toml
+# Auto-finds bridge_mybridge_connectivity.csv
+
+# Or use bulk generation
+python3 bridge_generator.py --bulk bridge_batch.csv
+```
+
+**Result:** Complete SystemVerilog module with:
+- Custom port prefixes per port
+- Timing isolation via interface wrappers
+- Only needed AXI4 channels (wr/rd/rw optimized)
+- Width converters for data mismatches
+- Internal crossbar instantiation
+- APB/AXI4-Lite converter integration points
+
+### Configuration Format Details
+
+**TOML Port Configuration:**
+
+The primary format is now **TOML** (preferred over CSV for better structure and interface configuration):
+
+**Port Specifications:**
+- `name` - Unique identifier (cpu, dma, ddr, etc.)
+- `prefix` - Signal prefix (cpu_m_axi_, ddr_s_axi_, etc.)
+- `id_width` - AXI4 ID width in bits
+- `addr_width` - Address width in bits
+- `data_width` - Data width in bits (32, 64, 128, 256, 512)
+- `user_width` - AXI4 user signal width
+- `base_addr` - Slave base address (slaves only)
+- `addr_range` - Slave address range (slaves only)
+- `interface` - Interface wrapper configuration (optional)
+  - `type` - "axi4_master", "axi4_slave", "axi4_master_mon", "axi4_slave_mon", or omit for direct connection
+  - `skid_depths` - Per-channel buffer depths: {ar, r, aw, w, b}.
+    Valid range is **2..8 inclusive, any integer** -- odd depths are legal.
+    `gaxi_skid_buffer` says so at its parameter: "Must be 2..8 inclusive".
+    An earlier `{2, 4, 6, 8}` here was an inference, not the contract.
+
+**CSV Connectivity Matrix:**
+```csv
+master\slave,slave0,slave1,slave2
+master0,1,0,1
+master1,0,1,1
+```
+- `1` = connected, `0` = not connected
+- Partial connectivity supported (not all masters to all slaves)
+- Auto-detected based on TOML filename: `bridge_name.toml` → `bridge_name_connectivity.csv`
+
+**Legacy CSV Format:**
+
+For backwards compatibility, the generator still supports CSV port files:
+- See `bin/test_configs/README.md` for migration guide from CSV to TOML
+- TOML is now preferred for new bridges (better structure, interface config support)
+
+### Channel-Specific Masters (Phase 2 Feature)
+
+**Why Channel-Specific?**
+Real hardware often has dedicated read or write masters. Generating all 5 AXI4 channels wastes resources:
+
+**Traditional (wasteful):**
+```systemverilog
+// Write-only master gets unused read channels
+input  logic [63:0]  rapids_descr_m_axi_awaddr,  // USED
+input  logic [511:0] rapids_descr_m_axi_wdata,   // USED
+output logic [7:0]   rapids_descr_m_axi_bid,     // USED
+input  logic [63:0]  rapids_descr_m_axi_araddr,  // UNUSED (50% waste!)
+output logic [511:0] rapids_descr_m_axi_rdata,   // UNUSED
+```
+
+**Channel-Specific (optimized):**
+```csv
+rapids_descr_wr,master,axi4,wr,rapids_descr_m_axi_,512,64,8,N/A,N/A
+```
+
+**Generated:**
+```systemverilog
+// Write-only master - only AW, W, B channels
+input  logic [63:0]  rapids_descr_m_axi_awaddr,
+input  logic [511:0] rapids_descr_m_axi_wdata,
+output logic [7:0]   rapids_descr_m_axi_bid,
+// NO READ CHANNELS (araddr, rdata, etc.)
+```
+
+**Resource Savings:**
+- 40-60% fewer ports for dedicated masters
+- Only necessary width converters instantiated
+- Channel-aware direct connection wiring
+- Faster synthesis, smaller netlists
+
+### Example: RAPIDS-Style Configuration
+
+**RAPIDS Architecture:**
+- Descriptor write master (wr) - Writes descriptors to memory
+- Sink write master (wr) - Writes incoming packets to memory
+- Source read master (rd) - Reads outgoing packets from memory
+- CPU master (rw) - Full access for configuration
+
+**TOML Configuration (bridge_rapids.toml):**
+```toml
+[bridge]
+  name = "bridge_rapids"
+  description = "RAPIDS accelerator bridge"
+  defaults.skid_depths = {ar = 2, r = 4, aw = 2, w = 4, b = 2}
+
+  masters = [
+    {name = "rapids_descr_wr", prefix = "rapids_descr_m_axi", channels = "wr",
+     id_width = 8, addr_width = 64, data_width = 512, user_width = 1,
+     interface = {type = "axi4_master"}},
+    {name = "rapids_sink_wr", prefix = "rapids_sink_m_axi", channels = "wr",
+     id_width = 8, addr_width = 64, data_width = 512, user_width = 1,
+     interface = {type = "axi4_master"}},
+    {name = "rapids_src_rd", prefix = "rapids_src_m_axi", channels = "rd",
+     id_width = 8, addr_width = 64, data_width = 512, user_width = 1,
+     interface = {type = "axi4_master"}},
+    {name = "cpu", prefix = "cpu_m_axi", channels = "rw",
+     id_width = 4, addr_width = 32, data_width = 64, user_width = 1,
+     interface = {type = "axi4_master"}}
+  ]
+
+  slaves = [
+    {name = "ddr", prefix = "ddr_s_axi", protocol = "axi4",
+     id_width = 8, addr_width = 64, data_width = 512, user_width = 1,
+     base_addr = 0x80000000, addr_range = 0x80000000,
+     interface = {type = "axi4_slave"}},
+    {name = "apb_periph", prefix = "apb0_", protocol = "apb",
+     addr_width = 32, data_width = 32,
+     base_addr = 0x00000000, addr_range = 0x00010000}
+  ]
+```
+
+**Connectivity CSV (bridge_rapids_connectivity.csv):**
+```csv
+master\slave,ddr,apb_periph
+rapids_descr_wr,1,0
+rapids_sink_wr,1,0
+rapids_src_rd,1,0
+cpu,1,1
+```
+
+**Generated RTL Features:**
+- rapids_descr_wr: write channels only
+- rapids_sink_wr: write channels only
+- rapids_src_rd: read channels only
+
+The specific counts this list used to give (37 wr / 24 rd against 61 full, for
+39% and 61% reductions) reproduce from no port structure in the tree and are
+not recoverable -- the RAPIDS bridges they describe are not in the generated
+set here. For scale, counted on the shipped variants: an AXI4 `rw` master port
+is 44 signals, a write-only master 24, a read-only master 20. Channel trimming
+is real and worth doing; the old percentages were not measurements.
+- cpu_master: Width converters for 64b→512b upsize (both wr and rd converters)
+- ddr_controller: Direct 512b connection (no conversion)
+- apb_periph0: APB slave -- `axi4_to_apb4_shim`, a real conversion
+
+### Common User Questions
+
+**Q: "How do I generate a bridge?"**
+
+**A: Three steps:**
+
+1. Create TOML port configuration file
+2. Create CSV connectivity matrix
+3. Run bridge_generator.py
+
+```bash
+# Create bridge_mybridge.toml (port configuration)
+# Create bridge_mybridge_connectivity.csv (connectivity matrix)
+
+cd projects/components/fabric-gen-ip/bridge/bin
+python3 bridge_generator.py --ports test_configs/bridge_mybridge.toml
+# Auto-finds bridge_mybridge_connectivity.csv
+
+# Or use bulk generation for multiple bridges
+python3 bridge_generator.py --bulk bridge_batch.csv
+```
+
+**Q: "What's the difference between wr/rd/rw channels?"**
+
+**A: Number of AXI4 channels generated:**
+
+- **rw** (read/write) - All 5 channels: AW, W, B, AR, R
+- **wr** (write-only) - 3 channels: AW, W, B (no read channels)
+- **rd** (read-only) - 2 channels: AR, R (no write channels)
+
+**Benefits:** 40-60% fewer ports for dedicated masters, less logic, faster synthesis
+
+**Q: "Can I add timing isolation to ports?"**
+
+**A: Yes, use interface configuration:**
+
+```toml
+masters = [
+  {name = "cpu", prefix = "cpu_m_axi", ...,
+   interface = {type = "axi4_master", skid_depths = {ar = 2, r = 4, aw = 2, w = 4, b = 2}}}
+]
+```
+
+Available interface types:
+- `"axi4_master"` - Timing isolation on master port
+- `"axi4_slave"` - Timing isolation on slave port
+- `"axi4_master_mon"` - Timing + monitoring
+- `"axi4_slave_mon"` - Timing + monitoring
+- Omit `interface` field for direct connection
+
+**Q: "Can I mix AXI4 and APB slaves?"**
+
+**A: Yes, use protocol field in TOML:**
+
+```toml
+slaves = [
+  {name = "ddr", prefix = "ddr_s_axi", protocol = "axi4", ...},
+  {name = "apb0", prefix = "apb0_", protocol = "apb", ...}
+]
+```
+
+Generator inserts `axi4_to_apb4_shim` automatically. This is a real,
+complete conversion -- burst decomposition, width slicing and response
+mapping -- not a Phase-3 placeholder.
+
+**Q: "Can ports be AMBA5 (AXI5 / APB5)?"**
+
+**A: Yes — per port; every wrapper feature rides the fabric natively
+(bridge TASK-002 (was BRIDGE-002), bridge TASK-004 (was BRIDGE-014), bridge TASK-007 (was BRIDGE-018)):**
+
+```toml
+[[bridge.masters]]
+protocol = "axi5"
+axi5_features = ["trace", "atomic"]  # nsaid/trace/mpam/mecid/unique/chunking are
+                                     # droppable sideband; poison/atomic/mte are
+                                     # connectivity-gated (every connected path
+                                     # must be AXI5 + feature + width-matched);
+                                     # mte and chunking need 128-bit ports
+
+[[bridge.slaves]]
+protocol = "apb5"   # APB4 rules apply (rw-only, 32-bit); adds the APB5 pins
+```
+
+Sideband passes natively on width-matched AXI5<->AXI5 paths and terminates
+with a generation-time warning elsewhere. Read-return atomics forward
+natively on rw master ports (per-ID return tracker at the slave adapter);
+on write-only ports the boundary's `axi5_atomic_filter` answers them with
+DECERR. AXI5-Lite and APB5 are legal as MASTER protocols too (front-end
+converters). Details: `docs/bridge_has/ch04_interfaces/04_axi5_apb5_interfaces.md`
+and `docs/bridge_mas/ch02_blocks/10_amba5_boundary.md`.
+
+**Q: "Wishbone?"** `protocol = "wb4"` on either side (bridge TASK-008 (was BRIDGE-019), HAS 4.6):
+`channels = "rw"`, `id_width = 0`, 8/16/32/64-bit. One Wishbone transfer is
+one single-beat AXI4 transaction; AXI bursts decompose to single Wishbone
+transfers; burst hints are carried, not formed. Best effort by decision --
+do not propose burst formation or a WB4 CDC port without a consumer.
+
+**Q: "What if data widths don't match?"**
+
+**A: Generator inserts width converters automatically:**
+
+```toml
+masters = [
+  {name = "cpu", data_width = 64, ...},  # 64b master
+]
+slaves = [
+  {name = "ddr", data_width = 512, ...}  # 512b slave
+]
+# Generator creates width converter: 64b → 512b
+```
+
+**Q: "Do all masters need to connect to all slaves?"**
+
+**A: No, use partial connectivity in CSV:**
+
+```csv
+master\slave,ddr,sram,apb
+rapids_descr,1,1,0     # Connects to ddr and sram only
+cpu,1,1,1              # Connects to all three
+```
+
+### Generator Output Structure
+
+**Generated File Contains:**
+
+1. **Module Header** - NOT parameterized. The generator resolves every width
+   and count at emission time, so the top module has no NUM_MASTERS /
+   NUM_SLAVES parameters to override.
+2. **Port Declarations** - custom prefix per port, channel-specific signals
+3. **Internal Signals** - crossbar interface nets
+4. **Width Converters** - master-side upsize instances (channel-aware)
+5. **Crossbar Instance** - internal AXI4 crossbar
+6. **Slave Adapters** - one per slave, carrying the in-order `bridge_id` FIFO
+7. **Subtractive slave** - `axi4_subtractive_slave`, ALWAYS emitted, wired to
+   the decode `else`; answers unmapped addresses with DECERR (HAS 4.5)
+8. **Protocol shims** - `axi4_to_apb4_shim` / `axi4_to_axil4_*` for apb/axil
+   slaves. These are real conversions, not the Phase-3 TODO placeholders this
+   list used to claim.
+9. **Monitor subsystem** (monitored variants) - per-port wrappers, a
+   `monbus_arbiter` tree and one `monbus_axil4_axil4_group`
+
+**Example Output Size:**
+- Simple 2x2 bridge: 1,237 lines in the top file; 4,651 across all generated
+  files for that variant (measured, not estimated). Formerly "~400" (plus per-master
+  and per-slave adapters, a crossbar and a package). The "~400" this line
+  used to claim predates monitors, the cfg subsystem and sideband routing.
+- Complex 5x3 with mixed protocols: 1,776 in the top file; 7,556 across all
+  files. The old "~900" was smaller than the 2x2 figure beside it, which alone
+  showed both were guesses.
+- Includes comprehensive comments and structure
+
+### Testing Generated Bridges
+
+**For Pure AXI4 Bridges (Working Now):**
+```bash
+# Generate bridge (outputs to rtl/generated/<bridge_name>/)
+python3 bridge_generator.py --ports test_configs/bridge_2x2_rw.toml
+
+# Run its test (per-config TB classes live in dv/tbclasses/, e.g. bridge2x2_rw_tb.py)
+cd ../dv/tests
+make clean-all && make run-bridge_2x2_rw-gate-parallel   # or -func / -full, [-waves]
+```
+
+Tests are GENERATED too. `make regen` in `bin/` regenerates RTL only; the
+tests and TB classes come from `bridge_generator.py --bulk bridge_batch.csv
+--generate-tests`, which writes into `dv/tests` and `dv/tbclasses` per the
+manifest's own output columns (the `--output-*` flags do not override a
+bulk run). Regenerate them the same way you regenerate RTL: delete every
+file marked "Generated by bridge test generator", regenerate all, never
+hand-edit one. Hand-written tests for a generated DUT live in their own
+file beside it (`test_bridge_2x2_rw_tracking.py`,
+`test_bridge_*_sideband*.py`, `*_atomics.py`, `*_bfm5.py`).
+
+**For Mixed AXI4/APB:**
+the APB path is complete: `axi4_to_apb4_shim` does real burst decomposition,
+width slicing and response mapping, and six configurations ship APB slaves with
+tests in the FULL regression. This line claimed placeholders long after the
+converter shipped.
+
+---
+
+## Bridge Architecture Quick Reference
+
+### Generated Bridge Crossbar Structure
+
+Illustrative shape (see `rtl/generated/bridge_2x2_rw/bridge_2x2_rw.sv` for a real example):
+
+The generated top takes **no parameters at all** -- every width is fixed at
+generation time and reaches the module through its package:
+
+```systemverilog
+module bridge_2x2_rw
+    import bridge_2x2_rw_pkg::*;
+(
+    input  logic aclk,
+    input  logic aresetn,
+
+    // Master-side interfaces (slave ports on bridge)
+    // AW, W, B, AR, R channels for each master
+
+    // Slave-side interfaces (master ports on bridge)
+    // AW, W, B, AR, R channels for each slave
+);
+```
+
+### Key Features
+
+1. **5-Channel Implementation:** Complete AW, W, B, AR, R routing
+2. **Round-Robin Arbitration:** Per-slave arbitration with grant locking
+3. **Response routing:** a small in-order FIFO per direction in each slave
+   adapter, holding the `bridge_id` of the master whose request was
+   accepted. Not a RAM, and not indexed by AXI ID.
+4. **`bridge_id` sideband routing:** responses return IN ORDER. The slave
+   must complete in the order its requests were accepted; a reordering
+   slave misroutes silently (see FR-2 in the PRD).
+5. **Configurable Parameters:** NxM topology, data/addr/ID widths
+
+### Address Map
+
+There is no default address map and no 0x10000000 stride. Windows come from
+each slave's `base_addr` / `addr_range` in the TOML and are baked into the
+decode. `bridge_2x2_rw` splits the space in half:
+
+- Slave 0 (ddr):  0x00000000 - 0x7FFFFFFF
+- Slave 1 (sram): 0x80000000 - 0xFFFFFFFF
+
+Probing 0x1000_0000 expecting "slave 1" hits slave 0.
+
+---
+
+## Test Organization
+
+Runners are flat in `dv/tests/`: `test_bridge_<config>.py` per configuration,
+`test_bridge_*_mon_monitor.py` for monitor-stress builds, plus
+`monitor_stress_common.py` and `conftest.py`. `make list` enumerates them.
+
+### Test Levels
+
+Three real levels, both mechanisms, every test (45 of 45 under
+`bin/review/check_test_levels.py`): each wrapper's `generate_bridge_levels()`
+branches on `REG_LEVEL` (GATE 72 / FUNC 144 / FULL 216 cells) and exports
+`TEST_LEVEL` + `SEED` per cell; the TB reads the depth profile from
+`dv/tbclasses/bridge_levels.py`. Do NOT stamp `TEST_LEVEL` into `os.environ`
+from a conftest -- cocotb_test lets the environment override `extra_env`,
+and that ran all 216 cells at one depth once (tooling BUG-004, was TOOL-016).
+
+**Per-Config Functional Tests** (generated): basic connectivity, boundary
+probe, arbitration (multi-master). Every AXI5 master port carries an
+`AXI5ComplianceChecker`; every test asserts zero violations.
+
+**Monitor Stress Tests (`*_mon_monitor.py`)** (generated): bridges built
+with monitor interfaces, monbus traffic / WRITE_BP / ERR_BP phases scaled
+by level.
+
+**Hand-written**: bridge BUG-009 (was BRIDGE-011) tracking + latency on 2x2; the AMBA5 sign-off
+tests (sideband values, sideband through arbitration, sideband across a
+width converter, atomics incl. Compare, AXI5 read BFM sign-off).
+
+---
+
+## Common User Questions and Responses
+
+### Q: "How does the Bridge work?"
+
+**A: Direct answer:**
+
+The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
+
+1. **Address Decode (AW/AR):** Routes master requests to appropriate slave based on address
+2. **Write Path:** AW → arbitration → slave, W follows locked grant
+3. **Read Path:** AR → arbitration → slave, R returns via the slave adapter's
+   in-order `bridge_id` FIFO
+4. **Arbitration:** Per-slave round-robin, AW and AR only, with the grant
+   locked until the ADDRESS handshake -- not until burst complete. W is
+   owned via a FIFO; B and R have no arbiter.
+5. **Response Routing:** each slave adapter keeps an IN-ORDER FIFO of the
+   originating master's `bridge_id`, pushed on the address handshake and
+   popped on the response. Routing is keyed on FIFO POSITION, not on the
+   returned BID/RID -- IDs are pass-through and never widened. There are no
+   ID lookup tables; `bridge_cam.sv` is instantiated in zero generated
+   bridges.
+
+**Key Features:**
+- Configurable NxM topology
+- One fabric clock; an AXI4 slave port declared `cdc = true` runs on its own
+  clock behind `axi4_cdc_{wr,rd}` (HAS 4.5a), and an `apb`/`apb5` slave
+  crosses domains inside its own shim (two async FIFOs)
+- Crossbar options: `xbar_pipeline = true` (registered slave-side channels --
+  needed on the Artix-7 at 100 MHz beyond a plain 2x2, HAS 6.4) and
+  `arbitration = "qos"` with `qos_aging_shift` (HAS 6.8a)
+- Out-of-context synthesis of any fixture: `projects/components/fabric-gen-ip/bridge/fpga/`
+  (`make synth BRIDGE=<fixture> PART=<part> CLK_NS=<ns>`), measured tables in
+  HAS 5.3
+- Subtractive catch-all: an unmapped address gets DECERR + 0xDEADBEEF and a
+  sticky status/IRQ instead of hanging the master (HAS 4.5)
+
+**Deliberately NOT supported** -- these were claimed here for months and none
+of them is built:
+- Out-of-order responses. Ordering is structural: one target slave per master
+  at a time (`aw_gate_ok`), and each slave port must return B/R in request
+  order across all IDs (bridge BUG-008, was BRIDGE-010).
+- Burst-locked arbitration. The grant releases at the address handshake, as
+  item 4 above already said -- this bullet contradicted it directly.
+- Configurable arbitration policy. Round-robin is hard-coded.
+
+**See:**
+- `projects/components/fabric-gen-ip/bridge/PRD.md` - Complete specification
+- `projects/components/fabric-gen-ip/bridge/bin/bridge_generator.py` - Generator implementation
+
+### Q: "How do I generate a Bridge?"
+
+**A: Use the bridge_generator.py tool:**
+
+```bash
+cd projects/components/fabric-gen-ip/bridge/bin
+python3 bridge_generator.py --ports test_configs/bridge_2x2_rw.toml
+# Auto-finds test_configs/bridge_2x2_rw_connectivity.csv
+# Or regenerate everything: make all  (bulk from bridge_batch.csv)
+```
+
+**Generated files:**
+- RTL: `projects/components/fabric-gen-ip/bridge/rtl/generated/<bridge_name>/` (top module, crossbar, adapters, package)
+- Contains complete 5-channel crossbar with ID tracking
+
+### Q: "How do I test a Bridge?"
+
+Import the generated TB for that configuration; the runner is generated beside
+it.
+
+```bash
+cd projects/components/fabric-gen-ip/bridge/dv/tests
+make clean-all && make run-bridge_2x2_rw-gate   # serial by design, ~1GB per test
+```
+
+`dv/tests/test_bridge_2x2_rw.py` is the full shape.
+
+---
+
+## PDF Generation Location
+
+Both books build into `docs/` through the wrapper scripts, which apply the
+house style:
+
+```bash
+cd projects/components/fabric-gen-ip/bridge/docs
+./generate_has_pdf.sh    # Bridge_HAS_v<rev> from bridge_has/
+./generate_mas_pdf.sh    # Bridge_MAS_v<rev> from bridge_mas/
+```
+
+They call `bin/md_to_docx.py`, which follows the index links, demotes headings
+and builds the ToC. Pipeline detail:
+`vault/handbook/authoring/doc-pipeline.md`.
+
+---
+
+**Maintained By:** RTL Design Sherpa Project
+
+(The version and date for this file are in the header at the top. A second
+stamp here said 1.0 / 2025-10-18 while the header said 2.1 / 2025-11-03 --
+two stamps in one file guarantee one of them is wrong.)

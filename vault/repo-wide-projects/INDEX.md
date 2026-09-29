@@ -28,8 +28,8 @@ note — it belongs to that block and nowhere else.
 
 ## projects/components/
 
-- [apbx-xbar](projects/components/apbx-xbar/INDEX.md)
-- [bridge](projects/components/bridge/INDEX.md) — generated crossbar
+- [apbx-xbar](projects/components/fabric-gen-ip/apbx-xbar/INDEX.md)
+- [bridge](projects/components/fabric-gen-ip/bridge/INDEX.md) — generated crossbar
 - [converters](projects/components/converters/INDEX.md)
 - [delta](projects/components/delta/INDEX.md)
 - [dmas/rapids](projects/components/dmas/rapids/INDEX.md) — beats rearchitecture

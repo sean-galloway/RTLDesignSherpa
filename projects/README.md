@@ -215,10 +215,10 @@ When adding new projects:
 | Component | Status | Docs |
 |-----------|--------|------|
 | [converters](components/converters/) | Production Ready | [README](components/converters/README.md) |
-| [apbx_xbar](components/apbx-xbar/) | Production Ready | [PRD](components/apbx-xbar/PRD.md) |
+| [apbx_xbar](components/fabric-gen-ip/apbx-xbar/) | Production Ready | [PRD](components/fabric-gen-ip/apbx-xbar/PRD.md) |
 | [stream](components/dmas/stream/) | Active | [PRD](components/dmas/stream/PRD.md) |
 | [rapids](components/dmas/rapids/) | Active | [PRD](components/dmas/rapids/PRD.md) · [spec](components/dmas/rapids/docs/) · char: [report](fpga-systems/Genesys2/rapids_beats/docs/rapids_beats_findings.md) |
-| [bridge](components/bridge/) | Active | [PRD](components/bridge/PRD.md) |
+| [bridge](components/fabric-gen-ip/bridge/) | Active | [PRD](components/fabric-gen-ip/bridge/PRD.md) |
 | [mem-ctrl-ip](components/mem-ctrl-ip/) | Active | [README](components/mem-ctrl-ip/README.md) · char: [ddr2](fpga-systems/NexysA7/pumice/ddr2-characterization/) |
 | [hive](components/hive/) | Spec | [PRD](components/hive/PRD.md) · [spec](components/hive/docs/hive_spec/) |
 | [delta](components/delta/) | Spec | [PRD](components/delta/PRD.md) · [spec](components/delta/docs/delta_spec/) |

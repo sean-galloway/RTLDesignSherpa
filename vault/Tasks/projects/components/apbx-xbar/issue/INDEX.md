@@ -1,6 +1,6 @@
 <!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. -->
 
-# projects/components/apbx-xbar — issues
+# projects/components/fabric-gen-ip/apbx-xbar — issues
 
 **Next ID: ISSUE-001** — never recycle a number, even when its item closed.
 

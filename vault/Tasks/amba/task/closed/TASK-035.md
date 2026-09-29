@@ -52,7 +52,7 @@ rather than doing.**
 
 This item was written when `apbx_xbar_thin` was the only proven variant and
 was filed in amba although the crossbar is a component (its own lane,
-`vault/Tasks/projects/components/apbx-xbar/`). That lane did the work as
+`vault/Tasks/projects/components/fabric-gen-ip/apbx-xbar/`). That lane did the work as
 TASK-001 (generalize to APB4 / APB5 / mixed), TASK-002 (formal coverage of
 the version gating), TASK-003 (APB5 parity across the fabric) and TASK-004
 (scrub the tests for completeness), all closed. Checked today against the

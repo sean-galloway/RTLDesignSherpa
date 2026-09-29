@@ -1,6 +1,6 @@
 # TASK-001: Generalize apbx_xbar to apbx_xbar (APB4 / APB5 / mixed)
 
-> Migrated 2026-09-27 from `vault/Tasks/projects/components/apbx-xbar/closed.md` as **APBX-001** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
+> Migrated 2026-09-27 from `vault/Tasks/projects/components/fabric-gen-ip/apbx-xbar/closed.md` as **APBX-001** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 **Status:** closed 2026-08-14 — all acceptance criteria met
 **Priority:** P2
 **Owner:** TBD
@@ -41,7 +41,7 @@ assets (mmd/svg) and overview pages, `.claude/settings.json`.
   sideband on each port (bridge-style surface discipline), tying the
   rest inside. All-apb4 configs regenerate today's surfaces exactly
   (modulo the module rename) — that is the regression bar.
-- *Naming/moves*: component dir -> `projects/components/apbx-xbar`;
+- *Naming/moves*: component dir -> `projects/components/fabric-gen-ip/apbx-xbar`;
   all `apbx_xbar_*` modules/files/filelists/tests ->
   `apbx_xbar_*`; consumers updated (RLB rlb_1to10 instantiation +
   its own module name stays RLB-owned, integ example, env_python
@@ -75,7 +75,7 @@ versioned ports and widening the cmd/rsp routing; then wrappers,
 generator config, regen, docs.
 
 **Progress (2026-08-12, cont.):** step 2b LANDED + dir renamed to
-projects/components/apbx-xbar (hyphenated, house style; module names
+projects/components/fabric-gen-ip/apbx-xbar (hyphenated, house style; module names
 keep underscores). Generator takes master_versions/slave_versions
 ('apb4'|'apb5') + name_suffix; apb5 ports swap in apb5_slave /
 apb5_master boundary IP (1-bit user widths, parity feature pins tied

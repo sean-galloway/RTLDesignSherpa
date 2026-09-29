@@ -67,7 +67,7 @@ The bridge generator instantiates this shim for `protocol = "apb5"`
 slaves (bridge TASK-002 (was BRIDGE-002) A5-3c) through the same component path as the APB4
 shim — the `Axi4ToApbShim` component takes `protocol='apb5'` and wires
 the five extra pairs. Verified by
-`projects/components/bridge/dv/tests/test_bridge_1x2_rw_apb5.py`
+`projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_1x2_rw_apb5.py`
 (APB4 BFM legally drives the port: same transfer protocol).
 
 ## Navigation

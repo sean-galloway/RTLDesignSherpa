@@ -57,7 +57,7 @@ tree was cleaned.
 not from its own location. Sourced from inside RDS-DV (say, after editing a
 BFM there), it points `REPO_ROOT`, `PATH` and `PYTHONPATH` at the DV repo,
 and a bridge test then dies with "File list not found:
-/mnt/data/github/RTLDesignSherpa-DV/projects/components/bridge/rtl/filelists/..."
+/mnt/data/github/RTLDesignSherpa-DV/projects/components/fabric-gen-ip/bridge/rtl/filelists/..."
 -- a path that names the wrong repository, which is the only clue. Measured
 2026-09-10: four fresh tests failed at collection in 0.6 s with exactly that
 message. `cd` into the main repo, source, then go where the tests are; and

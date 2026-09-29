@@ -70,7 +70,7 @@ container's bytes. A raw scan reports 168 for Bridge_MAS_v1.0 (141 real) and 107
 for APB_Crossbar_MAS_v1.0 (**0** real).
 
 **One deliberate exception, not a miss:** the check mark in
-`projects/components/apbx-xbar/docs/apbx_xbar_mas/assets/graphviz/address_decode_flow.gv`.
+`projects/components/fabric-gen-ip/apbx-xbar/docs/apbx_xbar_mas/assets/graphviz/address_decode_flow.gv`.
 That `.gv` is the source for a committed SVG and PNG, and regeneration is not
 byte-stable on this box (graphviz rewrites 182 lines including its version
 banner), so fixing one decorative glyph would either bundle a whole-asset

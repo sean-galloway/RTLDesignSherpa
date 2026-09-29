@@ -154,7 +154,7 @@ slaves through the same component path as the AXI4-Lite ones -- the
 live comes from the port's `axi5_features`, which on an `axil5` port accepts
 only `user` and `exclusive`: naming a tied group there would suggest it changes
 something, so the validator rejects it rather than ignoring it. Verified by
-`projects/components/bridge/dv/tests/test_bridge_1x2_rw_axil5.py`.
+`projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_1x2_rw_axil5.py`.
 
 ## Navigation
 

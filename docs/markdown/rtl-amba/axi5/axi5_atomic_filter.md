@@ -224,7 +224,7 @@ and asserts `s_bid`/`s_bresp` hold for eight cycles. Removing the hold from the
 RTL fails that phase at cycle 0; nothing else in the suite notices.
 End-to-end behavior (real ATOP values through a generated bridge, memory
 side-effect checks) is covered by
-`projects/components/bridge/dv/tests/test_bridge_1x2_wr_axi5a_atomics.py`.
+`projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_1x2_wr_axi5a_atomics.py`.
 
 ## Related Modules
 

@@ -55,8 +55,8 @@ tracker. Nothing here is a second copy of either.
 
 | Component | Entry point |
 |---|---|
-| apbx-xbar (generated APB crossbars) | [apbx-xbar/README.md](apbx-xbar/README.md) |
-| bridge (generated AXI4/AXI5/APB/WB4 crossbar bridges) | [bridge/docs/bridge_has/bridge_has_index.md](bridge/docs/bridge_has/bridge_has_index.md), [bridge/CLAUDE.md](bridge/CLAUDE.md) |
+| apbx-xbar (generated APB crossbars) | [fabric-gen-ip/apbx-xbar/README.md](fabric-gen-ip/apbx-xbar/README.md) |
+| bridge (generated AXI4/AXI5/APB/WB4 crossbar bridges) | [fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md](fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md), [fabric-gen-ip/bridge/CLAUDE.md](fabric-gen-ip/bridge/CLAUDE.md) |
 | converters (width and protocol converters) | [converters/README.md](converters/README.md) |
 | dmas/stream (tutorial scatter-gather DMA) | [dmas/stream/README.md](dmas/stream/README.md) |
 | dmas/rapids (DMA with network integration) | [dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md](dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md), [dmas/rapids/CLAUDE.md](dmas/rapids/CLAUDE.md) |

@@ -1,5 +1,5 @@
 # ==============================================================================
-# Formal Verification - APB crossbar family (projects/components/apbx-xbar)
+# Formal Verification - APB crossbar family (projects/components/fabric-gen-ip/apbx-xbar)
 # ==============================================================================
 # Five generated fixed-configuration crossbars, one proof directory each. This
 # Makefile did not exist until 2026-09-29 (tooling TASK-018): the five proofs

@@ -320,7 +320,7 @@ validator says which one moved. Do that before believing "you broke it".
 The rule: every hand-written bridge config in the repo must load and
 validate against the generator in the repo, and the check must live in the
 generator's own suite so a validator change runs it.
-`projects/components/bridge/bin/tests/test_generator_pkg.py::test_every_consumer_config_loads_and_validates`
+`projects/components/fabric-gen-ip/bridge/bin/tests/test_generator_pkg.py::test_every_consumer_config_loads_and_validates`
 globs `projects/fpga-systems/**/rtl/bridges/configs/*.toml` plus the
 `test_configs/` fixtures the batch does not reference, and a companion test
 asserts the glob actually reached both board areas (an empty glob passes

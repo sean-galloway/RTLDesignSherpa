@@ -18,6 +18,6 @@ read -formal -sv -Iincludes formal_bridge_cam.sv
 prep -top formal_bridge_cam
 
 [files]
-bridge_cam.sv ../../../projects/components/bridge/rtl/bridge_cam.sv
+bridge_cam.sv ../../../projects/components/fabric-gen-ip/bridge/rtl/bridge_cam.sv
 formal_bridge_cam.sv
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

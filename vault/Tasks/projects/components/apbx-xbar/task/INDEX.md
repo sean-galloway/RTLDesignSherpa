@@ -1,6 +1,6 @@
 <!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. -->
 
-# projects/components/apbx-xbar — tasks
+# projects/components/fabric-gen-ip/apbx-xbar — tasks
 
 **Next ID: TASK-005** — never recycle a number, even when its item closed.
 

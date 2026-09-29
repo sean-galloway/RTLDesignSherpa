@@ -1,0 +1,295 @@
+# ==============================================================================
+# Bridge RTL - Lint & Synthesis Makefile
+# ==============================================================================
+
+# Optional: Use common.mk for color functions and REPO_ROOT check
+-include $(REPO_ROOT)/makefiles/common.mk
+
+# Find all SystemVerilog files
+SV_FILES := $(shell find . -name "*.sv" -type f)
+SV_COUNT := $(words $(SV_FILES))
+
+# Lint runs PER VARIANT. There is no master filelist and there cannot be a
+# useful one: every variant's filelist pulls the same rtl/amba leaves, so a
+# concatenation of all 35 collides on MODDUP for every shared module. The
+# Makefile pointed at filelists/bridge_all.f, which nothing generates and
+# which has never existed -- so `make verilator` failed on "Cannot open -f
+# command file" and wrote a report that read like a lint failure. It sat that
+# way while 253 generated files changed underneath it.
+BRIDGE_FILELISTS := $(wildcard filelists/*.f)
+FLATTEN          := $(REPO_ROOT)/bin/flatten_filelist.py
+
+# Shared-leaf noise. These fire inside rtl/amba wrappers the bridge only
+# instantiates, and are that library's business, not this one's. UNDRIVEN is
+# deliberately NOT waived: an undriven output on a generated bridge port is a
+# routing defect, which is exactly what this gate exists to catch.
+#
+# PINCONNECTEMPTY is waived because a deliberately-open pin is idiomatic here
+# and pervasive (`.busy()`, `.count()`, the two overridden USER outputs in the
+# AXI5-Lite converters). Without the waiver this gate failed on ALL 36
+# variants, and a gate that fails on everything reports nothing -- it went
+# unread while the real defects below sat in the tree.
+LINT_WAIVERS = -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-VARHIDDEN \
+               -Wno-SYNCASYNCNET -Wno-DECLFILENAME -Wno-PINCONNECTEMPTY
+
+# The build gate (`make build-check`) runs the SAME sources through a real
+# model build with the flags cocotb passes. This is not redundant with lint.
+# --lint-only never runs the scheduling analysis that finds circular
+# combinational logic, and a plain `-cc` build optimises across such a loop and
+# reports nothing either. It takes --public-flat-rw -- which cocotb always
+# passes, so every signal stays addressable and nothing is flattened -- to make
+# the cycle real. A UNOPTFLAT in rtl/amba/monitor went unseen that way and
+# broke every *_mon variant's build; see TASK-081.
+BUILD_FLAGS = -cc --public-flat-rw --trace --trace-structs
+# WIDTH* and MULTIDRIVEN are lint's job (above); this pass exists for the
+# scheduling classes lint structurally cannot see.
+BUILD_WAIVERS = $(LINT_WAIVERS) -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-MULTIDRIVEN
+
+# Lint output directories
+LINT_DIR = lint_reports
+VERILATOR_DIR = $(LINT_DIR)/verilator
+VERIBLE_DIR = $(LINT_DIR)/verible
+YOSYS_DIR = $(LINT_DIR)/yosys
+
+# Include paths
+INCLUDES = -I$(REPO_ROOT)/rtl/common -I$(REPO_ROOT)/rtl/amba/includes
+
+# Tool options
+VERILATOR = verilator
+VERILATOR_FLAGS = --lint-only -Wall -Wno-TIMESCALEMOD $(INCLUDES)
+
+VERIBLE = verible-verilog-lint
+VERIBLE_FLAGS = --rules_config_search --rules=-parameter-name-style,-line-length
+
+YOSYS = yosys
+YOSYS_FLAGS = -p "read_verilog -sv"
+
+# ==============================================================================
+# Targets
+# ==============================================================================
+
+.PHONY: verilator
+verilator: ## Run Verilator lint on all files
+	$(call print_header,Running Verilator Lint on Bridge RTL ($(SV_COUNT) files))
+	@mkdir -p $(VERILATOR_DIR)
+	@rm -f $(VERILATOR_DIR)/bridge_all.log
+	@fail=0; n=0; \
+	for fl in $(BRIDGE_FILELISTS); do \
+		top=$$(basename $$fl .f); n=$$((n+1)); \
+		REPO_ROOT=$(REPO_ROOT) python3 $(FLATTEN) $$fl --resolve-env --absolute-paths \
+			> $(VERILATOR_DIR)/.flat.f 2>/dev/null; \
+		echo "===== $$top =====" >> $(VERILATOR_DIR)/bridge_all.log; \
+		if $(VERILATOR) $(VERILATOR_FLAGS) $(LINT_WAIVERS) --top-module $$top \
+			-f $(VERILATOR_DIR)/.flat.f >> $(VERILATOR_DIR)/bridge_all.log 2>&1; then \
+			:; \
+		else \
+			echo "  FAIL $$top"; fail=$$((fail+1)); \
+		fi; \
+	done; \
+	rm -f $(VERILATOR_DIR)/.flat.f; \
+	if [ $$fail -eq 0 ]; then \
+		echo "$(GREEN)Bridge RTL lint passed$(RESET)" | tee $(VERILATOR_DIR)/summary.txt; \
+		echo "" >> $(VERILATOR_DIR)/summary.txt; \
+		echo "All $$n bridge variants passed lint checks" >> $(VERILATOR_DIR)/summary.txt; \
+	else \
+		echo "$(RED)Bridge RTL lint failed: $$fail of $$n variants$(RESET)" | tee $(VERILATOR_DIR)/summary.txt; \
+		echo "" >> $(VERILATOR_DIR)/summary.txt; \
+		echo "See $(VERILATOR_DIR)/bridge_all.log" >> $(VERILATOR_DIR)/summary.txt; \
+		grep -E "%Warning|%Error" $(VERILATOR_DIR)/bridge_all.log | \
+			sed 's/.*\(%[A-Za-z]*-[A-Z]*\).*/\1/' | sort | uniq -c | sort -rn \
+			>> $(VERILATOR_DIR)/summary.txt; \
+		exit 1; \
+	fi
+	$(call print_success,Verilator lint complete. Reports: $(VERILATOR_DIR)/)
+
+.PHONY: build-check
+build-check: ## Build every variant with the cocotb flag set (catches UNOPTFLAT)
+	$(call print_header,Building every bridge variant (cocotb flag set))
+	@mkdir -p $(VERILATOR_DIR)
+	@rm -f $(VERILATOR_DIR)/build_all.log
+	@fail=0; n=0; \
+	for fl in $(BRIDGE_FILELISTS); do \
+		top=$$(basename $$fl .f); n=$$((n+1)); \
+		REPO_ROOT=$(REPO_ROOT) python3 $(FLATTEN) $$fl --resolve-env --absolute-paths \
+			> $(VERILATOR_DIR)/.flat.f 2>/dev/null; \
+		echo "===== $$top =====" >> $(VERILATOR_DIR)/build_all.log; \
+		if $(VERILATOR) $(BUILD_FLAGS) --Mdir $(VERILATOR_DIR)/.build -Wall \
+			$(BUILD_WAIVERS) --top-module $$top \
+			-f $(VERILATOR_DIR)/.flat.f >> $(VERILATOR_DIR)/build_all.log 2>&1; then \
+			:; \
+		else \
+			echo "  FAIL $$top"; fail=$$((fail+1)); \
+		fi; \
+		rm -rf $(VERILATOR_DIR)/.build; \
+	done; \
+	rm -f $(VERILATOR_DIR)/.flat.f; \
+	if [ $$fail -eq 0 ]; then \
+		echo "$(GREEN)All $$n variants build clean$(RESET)"; \
+	else \
+		echo "$(RED)Build check failed: $$fail of $$n variants$(RESET)"; \
+		grep -E "%Warning|%Error" $(VERILATOR_DIR)/build_all.log | \
+			sed 's/.*\(%[A-Za-z]*-[A-Z]*\).*/\1/' | sort | uniq -c | sort -rn; \
+		exit 1; \
+	fi
+
+.PHONY: verible
+verible: ## Run Verible lint on all files
+	$(call print_header,Running Verible Lint on Bridge RTL ($(SV_COUNT) files))
+	@mkdir -p $(VERIBLE_DIR)
+	@if command -v $(VERIBLE) &> /dev/null; then \
+		echo "Lint results:" > $(VERIBLE_DIR)/summary.txt; \
+		pass_count=0; fail_count=0; \
+		for file in $(SV_FILES); do \
+			echo "Linting $$file..."; \
+			if $(VERIBLE) $(VERIBLE_FLAGS) $$file > $(VERIBLE_DIR)/$$(basename $$file .sv).log 2>&1; then \
+				echo "PASS $$file" >> $(VERIBLE_DIR)/summary.txt; \
+				pass_count=$$((pass_count + 1)); \
+			else \
+				echo "FAIL $$file" >> $(VERIBLE_DIR)/summary.txt; \
+				fail_count=$$((fail_count + 1)); \
+			fi; \
+		done; \
+		echo "" >> $(VERIBLE_DIR)/summary.txt; \
+		echo "Summary: $$pass_count passed, $$fail_count failed" >> $(VERIBLE_DIR)/summary.txt; \
+		cat $(VERIBLE_DIR)/summary.txt; \
+		echo "Verible lint complete. Reports: $(VERIBLE_DIR)/"; \
+	else \
+		echo "Verible not found. Install: https://github.com/chipsalliance/verible"; \
+		echo "Skipping Verible lint."; \
+	fi
+
+.PHONY: yosys
+yosys: ## Run Yosys synthesis check on all files
+	$(call print_header,Running Yosys Synthesis Check on Bridge RTL ($(SV_COUNT) files))
+	@mkdir -p $(YOSYS_DIR)
+	@if command -v $(YOSYS) &> /dev/null; then \
+		echo "Synthesis check results:" > $(YOSYS_DIR)/summary.txt; \
+		pass_count=0; fail_count=0; \
+		for file in $(SV_FILES); do \
+			echo "Checking $$file..."; \
+			if $(YOSYS) $(YOSYS_FLAGS) $$file -p "hierarchy -check" > $(YOSYS_DIR)/$$(basename $$file .sv).log 2>&1; then \
+				echo "PASS $$file" >> $(YOSYS_DIR)/summary.txt; \
+				pass_count=$$((pass_count + 1)); \
+			else \
+				echo "FAIL $$file" >> $(YOSYS_DIR)/summary.txt; \
+				fail_count=$$((fail_count + 1)); \
+			fi; \
+		done; \
+		echo "" >> $(YOSYS_DIR)/summary.txt; \
+		echo "Summary: $$pass_count passed, $$fail_count failed" >> $(YOSYS_DIR)/summary.txt; \
+		cat $(YOSYS_DIR)/summary.txt; \
+		echo "Yosys synthesis check complete. Reports: $(YOSYS_DIR)/"; \
+	else \
+		echo "Yosys not found. Install: http://www.clifford.at/yosys/"; \
+		echo "Skipping Yosys synthesis check."; \
+	fi
+
+.PHONY: lint-all
+lint-all: verilator verible ## Run all lint tools on all files
+	$(call print_success,All lint tools completed)
+
+.PHONY: synth-all
+synth-all: yosys ## Run synthesis checks
+	$(call print_success,Synthesis checks completed)
+
+.PHONY: report
+report: ## Generate lint summary report
+	$(call print_header,Bridge RTL Lint Summary Report)
+	@echo ""
+	@echo "Files found: $(SV_COUNT)"
+	@echo ""
+	@if [ -f $(VERILATOR_DIR)/summary.txt ]; then \
+		echo "=== Verilator Results ==="; \
+		cat $(VERILATOR_DIR)/summary.txt; \
+		echo ""; \
+	fi
+	@if [ -f $(VERIBLE_DIR)/summary.txt ]; then \
+		echo "=== Verible Results ==="; \
+		cat $(VERIBLE_DIR)/summary.txt; \
+		echo ""; \
+	fi
+	@if [ -f $(YOSYS_DIR)/summary.txt ]; then \
+		echo "=== Yosys Results ==="; \
+		cat $(YOSYS_DIR)/summary.txt; \
+		echo ""; \
+	fi
+
+.PHONY: status
+status: ## Show file counts and lint status
+	$(call print_header,Bridge RTL Status)
+	@echo "Location: $(REPO_ROOT)/projects/components/fabric-gen-ip/bridge/rtl/"
+	@echo ""
+	@echo "SystemVerilog files: $(SV_COUNT)"
+	@echo ""
+	@echo "Lint reports:"
+	@echo "  Verilator: $$(find $(VERILATOR_DIR) -name '*.log' 2>/dev/null | wc -l) reports"
+	@echo "  Verible:   $$(find $(VERIBLE_DIR) -name '*.log' 2>/dev/null | wc -l) reports"
+	@echo "  Yosys:     $$(find $(YOSYS_DIR) -name '*.log' 2>/dev/null | wc -l) reports"
+	@echo ""
+	@echo "Environment:"
+	@echo "  REPO_ROOT: $(REPO_ROOT)"
+
+.PHONY: clean-verilator
+clean-verilator: ## Remove Verilator reports
+	$(call print_info,Cleaning Verilator reports...)
+	@rm -rf $(VERILATOR_DIR)
+	$(call print_success,Verilator reports cleaned)
+
+.PHONY: clean-verible
+clean-verible: ## Remove Verible reports
+	$(call print_info,Cleaning Verible reports...)
+	@rm -rf $(VERIBLE_DIR)
+	$(call print_success,Verible reports cleaned)
+
+.PHONY: clean-yosys
+clean-yosys: ## Remove Yosys reports
+	$(call print_info,Cleaning Yosys reports...)
+	@rm -rf $(YOSYS_DIR)
+	$(call print_success,Yosys reports cleaned)
+
+.PHONY: clean-all
+clean-all: clean-verilator clean-verible clean-yosys ## Remove all lint artifacts
+	$(call print_info,Cleaning all lint artifacts...)
+	@rm -rf $(LINT_DIR)
+	$(call print_success,All lint artifacts cleaned)
+
+# Quick aliases
+.PHONY: lint
+lint: lint-all
+
+.PHONY: synth
+synth: synth-all
+
+.PHONY: clean
+clean: clean-all
+
+# ==============================================================================
+# Help
+# ==============================================================================
+
+.PHONY: help
+help: ## Show this help message
+	@echo "$(BOLD)$(CYAN)╔════════════════════════════════════════╗$(RESET)"
+	@echo "$(BOLD)$(CYAN)║   Bridge RTL - Lint & Synthesis Makefile║$(RESET)"
+	@echo "$(BOLD)$(CYAN)╚════════════════════════════════════════╝$(RESET)"
+	@echo ""
+	@echo "$(GREEN)Targets:$(RESET)"
+	@/bin/sh -c "grep -h -E '^[a-zA-Z_-]+:.*?## .*\$$' $(MAKEFILE_LIST) | sed -E 's/^([a-zA-Z_-]+):.*## (.*)\$$/\1@@@\2/' | awk -F'@@@' '{printf \"  %-30s %s\\n\", \$$1, \$$2}'"
+	@echo ""
+	@echo "$(GREEN)Environment:$(RESET)"
+	@echo "  REPO_ROOT: $(REPO_ROOT)"
+	@echo "  SystemVerilog files: $(SV_COUNT)"
+	@echo ""
+
+.PHONY: help-vars
+help-vars: ## Show Makefile variables
+	@echo "$(BOLD)Makefile Variables:$(RESET)"
+	@echo "  SV_FILES = $(SV_FILES)"
+	@echo "  SV_COUNT = $(SV_COUNT)"
+	@echo "  MASTER_FILELIST = $(MASTER_FILELIST)"
+	@echo "  LINT_DIR = $(LINT_DIR)"
+
+.PHONY: all
+all: lint-all synth-all
+
+.DEFAULT_GOAL := help

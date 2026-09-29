@@ -6,7 +6,7 @@
 **Found:** 2026-09-25, synthesizing the amba/monitor-lite TASK-001 lite fixture
 
 **Observed.** `bridge_1x2_rd_lite_mon` routed out of context on the Artix-7
-100T -1 at 10 ns (Vivado 2025.1, `projects/components/bridge/fpga/`) misses
+100T -1 at 10 ns (Vivado 2025.1, `projects/components/fabric-gen-ip/bridge/fpga/`) misses
 by 0.160 ns. The worst register-to-register path is not in a monitor:
 
 ```

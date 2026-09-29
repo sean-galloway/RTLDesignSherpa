@@ -18,7 +18,7 @@ the lite design. Nothing here is built yet.
 ### 1. What one monitor costs, measured
 
 Out-of-context synthesis, Vivado 2025.1, Artix-7 100T -1 at 10 ns, through
-`projects/components/bridge/fpga/` (`make synth BRIDGE=bridge_1x2_rd` and
+`projects/components/fabric-gen-ip/bridge/fpga/` (`make synth BRIDGE=bridge_1x2_rd` and
 `bridge_1x2_rd_mon`). The `_mon` bridge is the same 1x2 read fabric with an
 `axi4_*_rd_mon` wrapper on each of its three ports, every monitor at the
 generator's default preset: `MAX_TRANSACTIONS=16`, `ID_WIDTH=4`,

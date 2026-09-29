@@ -75,9 +75,9 @@ UNRESOLVED_VAR = re.compile(r"\$\{?[A-Z_][A-Z0-9_]*\}?")
 # handled by _scan_flow_roots(), which tries every real value.
 ROOT_VARS = {
     "REPO_ROOT": "",
-    "APB_XBAR_ROOT": "projects/components/apbx-xbar",
+    "APB_XBAR_ROOT": "projects/components/fabric-gen-ip/apbx-xbar",
     "BCH_ROOT": "projects/components/bch",
-    "BRIDGE_ROOT": "projects/components/bridge",
+    "BRIDGE_ROOT": "projects/components/fabric-gen-ip/bridge",
     "CONVERTERS_ROOT": "projects/components/converters",
     "DELTA_ROOT": "projects/components/delta",
     "MISC_ROOT": "projects/components/misc",

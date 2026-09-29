@@ -1,4 +1,4 @@
-# TASK-006: Legacy backlog carried over from projects/components/bridge/TASKS.md
+# TASK-006: Legacy backlog carried over from projects/components/fabric-gen-ip/bridge/TASKS.md
 
 > Migrated 2026-09-27 from `vault/Tasks/bridge/closed.md` as **BRIDGE-017** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 **Status:** CLOSED 2026-09-11. Every item done, none dropped: perf characterization (327953a84), then pipelined crossbar, QoS with aging, CDC slave ports, and the synthesis flow whose first run found and fixed the CAM ordering-count scan (40f645cd2, c321259a2). The board bridges (pumice ddr2_char, stream Genesys2) pick up the CAM fix through the shared filelist on their next build.
@@ -23,7 +23,7 @@ still "Planned" and describe real engineering that has not happened:
   `test_bridge_2x2_rw_latency`. Not measured: width-converted and shim
   paths -- the HAS note on that stays.
 - ~~**Synthesis and implementation guide** (TASK-010)~~ -- **done 2026-09-11.**
-  `projects/components/bridge/fpga/` is a standard `fpga_flow.mk` build
+  `projects/components/fabric-gen-ip/bridge/fpga/` is a standard `fpga_flow.mk` build
   with no bitstream: `make synth BRIDGE=<fixture> PART=<part> CLK_NS=<ns>`
   takes any generated bridge out of context through synth/place/route on
   Vivado 2025.1, constrains it from its port list (one clock per `*aclk`,

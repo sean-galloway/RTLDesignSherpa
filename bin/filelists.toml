@@ -88,19 +88,19 @@ filelist_dirs = ["rtl/cdc/filelists"]
 name = "bridge"
 kind = "component"
 generated = true
-regen = "cd projects/components/bridge/bin && make regen"
-rtl_roots = ["projects/components/bridge/rtl"]
+regen = "cd projects/components/fabric-gen-ip/bridge/bin && make regen"
+rtl_roots = ["projects/components/fabric-gen-ip/bridge/rtl"]
 # filelists/        -- emitted by bridge_generator.py; never hand-edit.
 # filelists_static/ -- hand-written lists for the hand-written bridge RTL
 #                      (bridge_cam), kept in a separate directory so a clean or
 #                      regen of the generated half cannot delete them.
 filelist_dirs = [
-    "projects/components/bridge/rtl/filelists",
-    "projects/components/bridge/rtl/filelists_static",
+    "projects/components/fabric-gen-ip/bridge/rtl/filelists",
+    "projects/components/fabric-gen-ip/bridge/rtl/filelists_static",
 ]
 # --placement accepts filelists_static/ as a placed dir for the reason above;
 # every other .f must sit in a filelists/ subdir.
-placement_ok = ["projects/components/bridge/rtl/filelists_static"]
+placement_ok = ["projects/components/fabric-gen-ip/bridge/rtl/filelists_static"]
 
 [[area]]
 name = "converters"
@@ -147,8 +147,8 @@ filelist_dirs = [
 [[area]]
 name = "apbx_xbar"
 kind = "component"
-rtl_roots = ["projects/components/apbx-xbar/rtl"]
-filelist_dirs = ["projects/components/apbx-xbar/rtl/filelists"]
+rtl_roots = ["projects/components/fabric-gen-ip/apbx-xbar/rtl"]
+filelist_dirs = ["projects/components/fabric-gen-ip/apbx-xbar/rtl/filelists"]
 
 [[area]]
 name = "pumice"

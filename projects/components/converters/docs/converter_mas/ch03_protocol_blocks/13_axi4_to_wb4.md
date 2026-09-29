@@ -80,7 +80,7 @@ stalling and slow completer profiles; pipelined and classic builds.
 The bridge generator's slave adapter instantiates this for a slave port
 declared `protocol = "wb4"` (bridge TASK-008, was BRIDGE-019), through `Axi4ToWb4Shim`, with
 the same monitor-wrapper sandwich and response intercepts the APB shim
-gets. Sign-off: `projects/components/bridge/dv/tests/test_bridge_2x2_wb4_paths.py`.
+gets. Sign-off: `projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_2x2_wb4_paths.py`.
 
 ## Navigation
 

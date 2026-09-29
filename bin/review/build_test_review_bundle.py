@@ -240,7 +240,7 @@ def main():
     out_root = argv[1] if len(argv) > 1 else os.path.expanduser("~/rtl-test-review")
 
     # A bare name means val/<name>; a path means itself, so a Pattern B area
-    # (projects/components/bridge/dv/tests) can be bundled too. The output
+    # (projects/components/fabric-gen-ip/bridge/dv/tests) can be bundled too. The output
     # directory is named for the component, not the whole path.
     if os.path.isdir(os.path.join(REPO, "val", area_arg)):
         test_dir, area = os.path.join(REPO, "val", area_arg), area_arg

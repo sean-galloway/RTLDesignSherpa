@@ -2,7 +2,7 @@
 # Monitor characterization sweep (amba TASK-034): every monitor variant, the
 # plain master/slave it wraps (to subtract), and the aggregation blocks, each
 # synthesized and routed out of context with tcl/monitor_synth.tcl -- the
-# bridge fixture's recipe (projects/components/bridge/fpga) plus report_power.
+# bridge fixture's recipe (projects/components/fabric-gen-ip/bridge/fpga) plus report_power.
 # One Vivado per module, JOBS of them at a time, each in its own scratch cwd so
 # the journals do not collide; reports land in reports/<top>__<part>/ and one
 # row per run is appended to reports/summary.csv.

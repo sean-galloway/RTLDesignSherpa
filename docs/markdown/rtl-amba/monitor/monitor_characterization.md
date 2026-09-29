@@ -40,7 +40,7 @@ rtl/amba/fpga/bin/summary_table.py                        # the tables below, fr
 
 Each module is synthesized, placed and routed **out of context** by
 `rtl/amba/fpga/tcl/monitor_synth.tcl` -- the same recipe as the bridge
-fixture (`projects/components/bridge/fpga`): Vivado 2025.1, one clock at the
+fixture (`projects/components/fabric-gen-ip/bridge/fpga`): Vivado 2025.1, one clock at the
 stated period, 30 % input/output delays, reset false-pathed. Utilization is
 post-route. Power is Vivado's vectorless estimate (`report_power`, confidence
 "Medium"): it ranks variants against each other and says nothing absolute.

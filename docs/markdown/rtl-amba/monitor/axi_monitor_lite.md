@@ -120,7 +120,7 @@ and the skid with a four-entry unreset queue.
 Same fixture, same flow: `bridge_1x2_rd` regenerated with `mon_preset =
 "error_only"` (the full monitor, 16 slots, error+timeout+compl+threshold
 cones) and with `mon_preset = "lite"` (this block, 8 slots), synthesized and
-routed out of context through `projects/components/bridge/fpga/` on
+routed out of context through `projects/components/fabric-gen-ip/bridge/fpga/` on
 2026-09-25, Vivado 2025.1. (Since 2026-09-26 the bridge generator builds the
 lite on every monitored port, so `bridge_1x2_rd_mon` regenerated today is a
 lite bridge too; the full-monitor column is the 2026-09-25 baseline.) Per-instance numbers are the hierarchical

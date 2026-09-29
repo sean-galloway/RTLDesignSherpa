@@ -1,0 +1,1571 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2026 sean galloway
+#
+# Unit tests for the bridge generator Python package (bin/bridge_pkg).
+#
+# Until now the generator had zero automated coverage — `make test` ran
+# --help, and the four hand-written illegal-config fixtures in
+# test_configs/ were executed by nothing. These tests are the safety
+# net for refactoring the package: config validation (negative +
+# positive), and a golden generation smoke that asserts the emitted
+# xbar is declaration-order clean and parameterized.
+#
+# Run:  pytest projects/components/fabric-gen-ip/bridge/bin/tests -q   (or `make test`)
+
+from __future__ import annotations
+
+import csv
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+BIN_DIR = Path(__file__).resolve().parents[1]
+REPO_ROOT = BIN_DIR.parents[4]
+sys.path.insert(0, str(BIN_DIR))
+
+from bridge_pkg.config_loader import load_config          # noqa: E402
+from bridge_pkg.config_validator import ValidationError   # noqa: E402
+
+
+def _fixture(name: str) -> str:
+    return str(BIN_DIR / "test_configs" / name)
+
+
+# ---------------------------------------------------------------------
+# Negative fixtures — designed to trip the validator, never before run
+# ---------------------------------------------------------------------
+
+
+def test_illegal_wr_master_to_rd_slave_rejected():
+    """A write-only master wired to a read-only slave must not
+    validate."""
+    with pytest.raises(ValidationError):
+        load_config(
+            _fixture("test_illegal_wr_to_rd.toml"),
+            _fixture("test_illegal_wr_to_rd_connectivity.csv"),
+        )
+
+
+def test_illegal_apb_write_config_rejected():
+    """APB constraint violations must not validate."""
+    with pytest.raises(ValidationError):
+        load_config(
+            _fixture("test_illegal_apb_wr.toml"),
+            _fixture("test_illegal_apb_wr_connectivity.csv"),
+        )
+
+
+# ---------------------------------------------------------------------
+# Positive coverage — every manifest config must load and validate
+# ---------------------------------------------------------------------
+
+
+def _batch_rows():
+    rows = []
+    with open(BIN_DIR / "bridge_batch.csv", newline="") as f:
+        for row in csv.DictReader(
+                r for r in f if not r.lstrip().startswith("#")):
+            if row.get("name") and row.get("ports"):
+                rows.append((row["name"], row["ports"],
+                             row["connectivity"]))
+    return rows
+
+
+@pytest.mark.parametrize("name,ports,conn",
+                         _batch_rows(),
+                         ids=[r[0] for r in _batch_rows()])
+def test_every_batch_config_loads_and_validates(name, ports, conn):
+    cfg = load_config(str(BIN_DIR / ports), str(BIN_DIR / conn))
+    assert cfg.masters, f"{name}: no masters parsed"
+    assert cfg.slaves, f"{name}: no slaves parsed"
+    for s in cfg.slaves:
+        assert s.channels, f"{name}: slave {s.name} has no channels"
+
+
+# ---------------------------------------------------------------------
+# Positive coverage -- every CONSUMER config in the repo, not just the
+# batch. bridge_stream_char_axil.toml (Genesys 2) carried id_width=8 on
+# two AXI-Lite masters from 2026-09-11, when bridge TASK-004 (was BRIDGE-014) added the rule
+# forbidding it, until 2026-09-26. Nothing exercised the file: the batch
+# test above only sees bridge_batch.csv, and the board flow regenerates
+# only the bridge it builds. Every agent that tried it in those two weeks
+# concluded the generator was broken. A config that lives in the repo
+# must load and validate against the generator that lives in the repo.
+# ---------------------------------------------------------------------
+
+
+def _consumer_configs():
+    """(id, toml, csv-or-None) for every hand-written bridge config.
+
+    Covers projects/fpga-systems/**/rtl/bridges/configs/ and the
+    test_configs/ fixtures the batch does not reference. Generated
+    copies (under a generated/ directory) and the deliberately illegal
+    fixtures are excluded. The CSV is optional: a TOML may carry an
+    inline [connectivity] table instead (bridge_2x2_simple.toml does).
+    """
+    in_batch = {r[1] for r in _batch_rows()}
+    found = []
+    for t in sorted(REPO_ROOT.glob(
+            "projects/fpga-systems/**/rtl/bridges/configs/*.toml")):
+        if "generated" in t.parts or t.name.endswith("_connectivity.toml"):
+            continue
+        found.append(t)
+    for t in sorted((BIN_DIR / "test_configs").glob("*.toml")):
+        rel = t.relative_to(BIN_DIR).as_posix()
+        if rel in in_batch or t.name.startswith("test_illegal_"):
+            continue
+        found.append(t)
+    rows = []
+    for t in found:
+        csv_path = t.with_name(t.stem + "_connectivity.csv")
+        rows.append((t.relative_to(REPO_ROOT).as_posix(), str(t),
+                     str(csv_path) if csv_path.exists() else None))
+    return rows
+
+
+@pytest.mark.parametrize("rel,ports,conn",
+                         _consumer_configs(),
+                         ids=[Path(r[0]).stem for r in _consumer_configs()])
+def test_every_consumer_config_loads_and_validates(rel, ports, conn):
+    cfg = load_config(ports, conn)
+    assert cfg.masters, f"{rel}: no masters parsed"
+    assert cfg.slaves, f"{rel}: no slaves parsed"
+
+
+def test_consumer_config_sweep_found_the_board_configs():
+    # The sweep above is only a gate if it actually reaches the board
+    # areas; an empty glob would pass forever.
+    rels = {r[0] for r in _consumer_configs()}
+    assert any("Genesys2/stream" in r for r in rels), sorted(rels)
+    assert any("NexysA7" in r for r in rels), sorted(rels)
+
+
+# ---------------------------------------------------------------------
+# Golden generation smoke
+# ---------------------------------------------------------------------
+
+
+def test_generation_smoke_is_decl_order_clean(tmp_path):
+    """Generate one bridge end-to-end; the emitted xbar must have the
+    parameter-port-list form and every .sv must pass the repo's
+    declaration-order checker."""
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture("bridge_1x2_rd_matched.toml"),
+         "--connectivity", _fixture("bridge_1x2_rd_matched_connectivity.csv"),
+         "--name", "bridge_1x2_rd",
+         "--output-dir", str(tmp_path)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+
+    xbar = tmp_path / "bridge_1x2_rd" / "bridge_1x2_rd_xbar.sv"
+    assert xbar.exists(), "xbar not emitted"
+    text = xbar.read_text()
+    assert "parameter int NUM_SLAVES" in text, (
+        "xbar lost the parameter-port-list form"
+    )
+    # Package import must be in the MODULE header (LRM-portable), not
+    # at $unit scope where strict front ends can't resolve ANSI-port
+    # references to package types and two bridges in one compilation
+    # unit collide.
+    assert "module bridge_1x2_rd_xbar\n    import bridge_1x2_rd_pkg::*;" in text, (
+        "xbar package import is not module-header scoped"
+    )
+    assert "\nimport bridge_1x2_rd_pkg" not in text, (
+        "xbar still has a $unit-scope package import"
+    )
+
+    sv_files = sorted((tmp_path / "bridge_1x2_rd").glob("*.sv"))
+    chk = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "bin" / "check_sv_decl_order.py"),
+         *map(str, sv_files)],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert chk.returncode == 0, (
+        f"declaration-order issues in generated RTL:\n{chk.stdout}"
+    )
+
+
+def test_generation_is_deterministic(tmp_path):
+    """Two runs from the same config must emit identical RTL."""
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    outs = []
+    for sub in ("a", "b"):
+        d = tmp_path / sub
+        r = subprocess.run(
+            [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+             "--ports", _fixture("bridge_1x2_rd_matched.toml"),
+             "--connectivity",
+             _fixture("bridge_1x2_rd_matched_connectivity.csv"),
+             "--name", "bridge_1x2_rd", "--output-dir", str(d)],
+            cwd=str(BIN_DIR), env=env,
+            capture_output=True, text=True, timeout=300,
+        )
+        assert r.returncode == 0, r.stdout + r.stderr
+        outs.append({
+            f.name: f.read_text()
+            for f in sorted((d / "bridge_1x2_rd").glob("*.sv"))
+        })
+    assert outs[0].keys() == outs[1].keys()
+    for name in outs[0]:
+        assert outs[0][name] == outs[1][name], f"{name} not deterministic"
+
+
+# ---------------------------------------------------------------------
+# Correctness-batch regressions (hex parse, explicit channels,
+# invalid-channels rejection)
+# ---------------------------------------------------------------------
+
+
+def test_parse_csv_value_decimal_not_hex():
+    """All-digit values are DECIMAL. The old parser tried base-16
+    first, so '16' became 22 and '1000' became 4096 — silently."""
+    from bridge_pkg.csv_parser import parse_csv_value
+    assert parse_csv_value("16", "id_width") == 16
+    assert parse_csv_value("1000", "addr_range") == 1000
+    assert parse_csv_value("0x1000", "base_addr") == 0x1000
+    assert parse_csv_value("0X10", "base_addr") == 16
+    assert parse_csv_value("N/A", "x") is None
+    assert parse_csv_value("hello", "name") == "hello"
+
+
+def _write_min_toml(tmp_path, slave_extra="", master_extra="", data_width=32):
+    toml = tmp_path / "b.toml"
+    conn = tmp_path / "c.csv"
+    toml.write_text(f"""
+[bridge]
+name = "b"
+variants = ["no"]
+
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+addr_width = 32
+data_width = {data_width}
+id_width = 4
+channels = "rd"
+{master_extra}
+
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = {data_width}
+id_width = 4
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+{slave_extra}
+""")
+    conn.write_text("master,s0\nm0,1\n")
+    return str(toml), str(conn)
+
+
+def test_slave_without_channels_rejected(tmp_path):
+    """validate_slave_channels_explicit is finally reachable: the
+    loader no longer injects a 'rw' default for slaves."""
+    toml, conn = _write_min_toml(tmp_path)   # no channels on slave
+    with pytest.raises(ValidationError, match="channels"):
+        load_config(toml, conn)
+
+
+def test_slave_with_explicit_channels_accepted(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    cfg = load_config(toml, conn)
+    assert cfg.slaves[0].channels == "rd"
+
+
+def test_invalid_channels_is_error_not_silent_downgrade(tmp_path):
+    """Invalid channels used to WARN and default to 'rw'; now fatal."""
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "bogus"')
+    with pytest.raises(ValidationError, match="invalid channels"):
+        load_config(toml, conn)
+
+
+# ---------------------------------------------------------------------
+# AXI5 master ports (bridge TASK-002 (was BRIDGE-002) phase A5-1)
+# ---------------------------------------------------------------------
+
+
+def test_axi5_atomic_rejected_on_non_native_path(tmp_path):
+    """A5-3a: 'atomic' is connectivity-gated like poison — a master
+    whose connected slave is plain AXI4 is a config error."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra='channels = "rd"',
+        master_extra='protocol = "axi5"\naxi5_features = ["atomic"]',
+    )
+    with pytest.raises(ValidationError, match="cannot carry it natively"):
+        load_config(toml, conn)
+
+
+def test_axi5_atomic_accepted_native_both_ends(tmp_path):
+    """A5-3a: 'atomic' validates when every connected path is
+    AXI5-both-ends, atomic-enabled, and width-matched (store-class
+    rides natively; the boundary filter DECERRs read-return classes)."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        master_extra='protocol = "axi5"\naxi5_features = ["atomic"]',
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\n'
+                     'axi5_features = ["atomic"]'),
+    )
+    cfg = load_config(toml, conn)
+    assert 'atomic' in cfg.masters[0].axi5_features
+
+
+@pytest.mark.parametrize("feat", ["mte", "chunking"])
+def test_axi5_wide_features_need_128_bits(tmp_path, feat):
+    """bridge TASK-007 (was BRIDGE-018): mte/chunking are native now, but tags are per 16 bytes
+    and chunks are 128 bits -- a 32-bit port asking for them is an error."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra='channels = "rd"',
+        master_extra=f'protocol = "axi5"\naxi5_features = ["{feat}"]',
+    )
+    with pytest.raises(ValidationError, match="data_width >= 128"):
+        load_config(toml, conn)
+
+
+def test_axi5_mte_rejected_on_non_native_path(tmp_path):
+    """mte is connectivity-gated: a 128-bit MTE master into an AXI4 slave
+    would drop the tag operation silently."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra='channels = "rd"',
+        master_extra='protocol = "axi5"\naxi5_features = ["mte"]',
+        data_width=128,
+    )
+    with pytest.raises(ValidationError, match="cannot carry it natively"):
+        load_config(toml, conn)
+
+
+def test_axi5_chunking_drops_to_axi4_slave(tmp_path, capsys):
+    """chunking is droppable: the AXI4 slave simply never chunks, and the
+    build log says so."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra='channels = "rd"',
+        master_extra='protocol = "axi5"\naxi5_features = ["chunking"]',
+        data_width=128,
+    )
+    cfg = load_config(toml, conn)
+    assert 'chunking' in cfg.masters[0].axi5_features
+    assert "sideband 'chunking' terminates" in capsys.readouterr().out
+
+
+def test_axi5_mte_chunking_accepted_native_both_ends(tmp_path):
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\n'
+                     'axi5_features = ["mte", "chunking"]'),
+        master_extra='protocol = "axi5"\naxi5_features = ["mte", "chunking"]',
+        data_width=128,
+    )
+    cfg = load_config(toml, conn)
+    assert set(cfg.slaves[0].axi5_features) == {"mte", "chunking"}
+
+
+def test_axi5_slave_accepted(tmp_path):
+    """A5-2 slice 1: an AXI5 slave (interop mode) validates -- an AXI4
+    master driving an AXI5 slave is the interop pairing."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra='channels = "rd"\nprotocol = "axi5"',
+    )
+    cfg = load_config(toml, conn)
+    assert cfg.slaves[0].protocol == "axi5"
+    assert cfg.slaves[0].axi5_features == []
+
+
+def test_axi5_features_on_axi4_port_rejected(tmp_path):
+    """axi5_features on a non-axi5 port is a config error, not a no-op."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra='channels = "rd"',
+        master_extra='axi5_features = ["trace"]',
+    )
+    with pytest.raises(ValidationError, match="axi5_features"):
+        load_config(toml, conn)
+
+
+def test_axi5_unknown_feature_rejected(tmp_path):
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra='channels = "rd"',
+        master_extra='protocol = "axi5"\naxi5_features = ["bogus"]',
+    )
+    with pytest.raises(ValidationError, match="unknown"):
+        load_config(toml, conn)
+
+
+def test_axi5_sideband_features_accepted(tmp_path):
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra='channels = "rd"',
+        master_extra=('protocol = "axi5"\n'
+                      'axi5_features = ["nsaid", "trace", "mpam", '
+                      '"mecid", "unique"]'),
+    )
+    cfg = load_config(toml, conn)
+    assert cfg.masters[0].protocol == "axi5"
+    assert cfg.masters[0].axi5_features == [
+        "nsaid", "trace", "mpam", "mecid", "unique"]
+
+
+def test_axi5_generation_smoke(tmp_path):
+    """Generate the axi5 fixture end-to-end. The bridge top must expose
+    ONLY the enabled sideband signals (trace, unique) on the axi5
+    master port -- no region, no disabled-feature signals -- and every
+    emitted .sv (both no/mon variants) must pass the declaration-order
+    checker. The adapter must instantiate axi5_slave_rd."""
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture("bridge_1x2_rd_axi5.toml"),
+         "--connectivity", _fixture("bridge_1x2_rd_axi5_connectivity.csv"),
+         "--name", "bridge_1x2_rd_axi5",
+         "--output-dir", str(tmp_path)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+
+    top = tmp_path / "bridge_1x2_rd_axi5" / "bridge_1x2_rd_axi5.sv"
+    assert top.exists(), "bridge top not emitted"
+    text = top.read_text()
+
+    # Enabled sideband features exposed on the external surface.
+    assert "cpu_rd_axi_artrace" in text
+    assert "cpu_rd_axi_arunique" in text
+    assert "cpu_rd_axi_rtrace" in text
+    # Disabled features are NOT exposed; AXI5 has no REGION.
+    assert "arnsaid" not in text
+    assert "armpam" not in text
+    assert "armecid" not in text
+    assert "rpoison" not in text
+    assert "archunken" not in text
+    assert "cpu_rd_axi_arregion" not in text
+
+    adapter = (tmp_path / "bridge_1x2_rd_axi5" / "cpu_rd_adapter.sv").read_text()
+    assert "axi5_slave_rd #(" in adapter, "adapter lost the axi5 wrapper"
+    assert ".ENABLE_TRACE(1'b1)" in adapter
+    assert ".ENABLE_UNIQUE(1'b1)" in adapter
+    assert ".ENABLE_NSAID(1'b0)" in adapter
+    assert ".ENABLE_CHUNKING(1'b0)" in adapter
+    # Disabled-feature external inputs tie to '0. ENABLED features now
+    # ride the fabric structs natively (A5-2 slice 2): the fub side
+    # binds the adapter's sideband wires instead of terminating.
+    assert ".s_axi_arnsaid('0)" in adapter
+    assert ".fub_axi_artrace(fub_axi_artrace)" in adapter
+    assert ".fub_axi_rtrace(fub_axi_rtrace)" in adapter
+    assert "_ar.trace = fub_axi_artrace" in adapter
+    # Disabled features still terminate on the fub side.
+    assert ".fub_axi_arnsaid()" in adapter
+    assert ".fub_axi_rpoison('0)" in adapter
+
+    # Both variants (no + mon) must be decl-order clean.
+    sv_files = sorted(tmp_path.glob("bridge_1x2_rd_axi5*/*.sv"))
+    assert any("mon" in str(p) for p in sv_files), "mon variant missing"
+    chk = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "bin" / "check_sv_decl_order.py"),
+         *map(str, sv_files)],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert chk.returncode == 0, (
+        f"declaration-order issues in generated axi5 RTL:\n{chk.stdout}"
+    )
+
+
+# ---------------------------------------------------------------------
+# AXI5 slave ports (bridge TASK-002 (was BRIDGE-002) phase A5-2 slice 1) -- mirror of A5-1
+# ---------------------------------------------------------------------
+
+
+def test_axi5_slave_sideband_features_accepted(tmp_path):
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\n'
+                     'axi5_features = ["nsaid", "trace", "mpam", '
+                     '"mecid", "unique"]'),
+    )
+    cfg = load_config(toml, conn)
+    assert cfg.slaves[0].protocol == "axi5"
+    assert cfg.slaves[0].axi5_features == [
+        "nsaid", "trace", "mpam", "mecid", "unique"]
+
+
+def test_axi5_slave_atomic_rejected_on_non_native_path(tmp_path):
+    """A5-3a: 'atomic' on a slave whose connected master is plain AXI4
+    is a config error (the master side cannot source it)."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\n'
+                     'axi5_features = ["atomic"]'),
+    )
+    with pytest.raises(ValidationError, match="cannot carry it natively"):
+        load_config(toml, conn)
+
+
+@pytest.mark.parametrize("feat", ["mte", "chunking"])
+def test_axi5_slave_wide_features_need_128_bits(tmp_path, feat):
+    """The 128-bit rule applies to slave ports too."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=(f'channels = "rd"\nprotocol = "axi5"\n'
+                     f'axi5_features = ["{feat}"]'),
+    )
+    with pytest.raises(ValidationError, match="data_width >= 128"):
+        load_config(toml, conn)
+
+
+def test_axi5_master_to_axi5_slave_accepted(tmp_path):
+    """AXI5 master -> AXI5 slave validates (sideband still terminates
+    at both boundaries in this slice -- no extra rules needed)."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        master_extra='protocol = "axi5"\naxi5_features = ["trace"]',
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\n'
+                     'axi5_features = ["trace", "unique"]'),
+    )
+    cfg = load_config(toml, conn)
+    assert cfg.masters[0].protocol == "axi5"
+    assert cfg.slaves[0].protocol == "axi5"
+
+
+def test_axi5_slave_generation_smoke(tmp_path):
+    """Generate the axi5-slave fixture end-to-end. The bridge top must
+    expose ONLY the enabled sideband signals (trace, unique) on the
+    axi5 slave port -- ar-side extras as OUTPUTS toward the external
+    slave, rtrace as an INPUT from it -- with no region and no
+    disabled-feature signals; the sibling AXI4 slave port must be
+    untouched. Every emitted .sv (both no/mon variants) must pass the
+    declaration-order checker. The adapter must instantiate
+    axi5_master_rd."""
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture("bridge_1x2_rd_axi5s.toml"),
+         "--connectivity", _fixture("bridge_1x2_rd_axi5s_connectivity.csv"),
+         "--name", "bridge_1x2_rd_axi5s",
+         "--output-dir", str(tmp_path)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+
+    top = tmp_path / "bridge_1x2_rd_axi5s" / "bridge_1x2_rd_axi5s.sv"
+    assert top.exists(), "bridge top not emitted"
+    text = top.read_text()
+
+    # Enabled sideband features exposed on the axi5 slave port, with
+    # slave-port directions (bridge is the master here).
+    assert "output  logic         sram_rd_axi_artrace" in text
+    assert "output  logic         sram_rd_axi_arunique" in text
+    assert "input  logic         sram_rd_axi_rtrace" in text
+    # Disabled features are NOT exposed; AXI5 has no REGION.
+    assert "arnsaid" not in text
+    assert "armpam" not in text
+    assert "armecid" not in text
+    assert "rpoison" not in text
+    assert "archunken" not in text
+    # No EXTERNAL region port on the axi5 slave. The internal
+    # xbar_sram_rd_axi_arregion net legitimately exists -- the fabric
+    # side stays AXI4 -- so exclude the xbar_-prefixed occurrences.
+    assert not any("sram_rd_axi_arregion" in ln and "xbar_" not in ln
+                   for ln in text.splitlines()), (
+        "external region port leaked onto the axi5 slave surface")
+    # The sibling AXI4 slave port keeps its full AXI4 surface.
+    assert "ddr_rd_axi_arregion" in text
+    assert "ddr_rd_axi_artrace" not in text
+
+    adapter = (tmp_path / "bridge_1x2_rd_axi5s" / "sram_rd_adapter.sv").read_text()
+    assert "axi5_master_rd #(" in adapter, "adapter lost the axi5 wrapper"
+    assert ".ENABLE_TRACE(1'b1)" in adapter
+    assert ".ENABLE_UNIQUE(1'b1)" in adapter
+    assert ".ENABLE_NSAID(1'b0)" in adapter
+    assert ".ENABLE_CHUNKING(1'b0)" in adapter
+    # Enabled external extras pass through with the slave prefix.
+    assert ".m_axi_artrace(sram_rd_axi_artrace)" in adapter
+    assert ".m_axi_rtrace(sram_rd_axi_rtrace)" in adapter
+    # Disabled-feature external INPUTS (b/r-side, from the external
+    # slave) tie to '0; fabric-side req-direction extras (fub inputs
+    # from the AXI4 fabric) tie to '0 as well.
+    assert ".m_axi_rpoison('0)" in adapter
+    assert ".fub_axi_arnsaid('0)" in adapter
+    # ENABLED features ride the fabric natively (A5-2 slice 2):
+    # the fub side binds the xbar sideband nets.
+    assert ".fub_axi_artrace(xbar_sram_rd_axi_artrace)" in adapter
+    assert ".fub_axi_rtrace(xbar_sram_rd_axi_rtrace)" in adapter
+    # The sibling AXI4 slave adapter keeps axi4_master_rd.
+    ddr_adapter = (tmp_path / "bridge_1x2_rd_axi5s" / "ddr_rd_adapter.sv").read_text()
+    assert "axi4_master_rd #(" in ddr_adapter
+    # (the bridge name itself contains 'axi5', so match the module family)
+    assert "axi5_master" not in ddr_adapter
+
+    # Both variants (no + mon) must be decl-order clean.
+    sv_files = sorted(tmp_path.glob("bridge_1x2_rd_axi5s*/*.sv"))
+    assert any("mon" in str(p) for p in sv_files), "mon variant missing"
+    chk = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "bin" / "check_sv_decl_order.py"),
+         *map(str, sv_files)],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert chk.returncode == 0, (
+        f"declaration-order issues in generated axi5-slave RTL:\n{chk.stdout}"
+    )
+
+
+# ---------------------------------------------------------------------
+# Dead-code sweep / helper-consolidation locks
+# ---------------------------------------------------------------------
+
+
+def test_width_utils_pure_functions():
+    """width_utils is the single source of truth for the width /
+    connectivity queries every generator must agree on. Pure: config
+    objects in, plain values out."""
+    from bridge_pkg.width_utils import (
+        get_connected_slave_widths,
+        get_masters_connecting_to_slave,
+    )
+    from bridge_pkg.generators.adapter_generator import MasterConfig, SlaveInfo
+
+    slaves = [
+        SlaveInfo("s0", "s0_", 0x0000_0000, 0x1000, 64, 32),
+        SlaveInfo("s1", "s1_", 0x0001_0000, 0x1000, 32, 32, protocol="apb"),
+        SlaveInfo("s2", "s2_", 0x0002_0000, 0x1000, 64, 32),
+    ]
+    m0 = MasterConfig("m0", "m0_", 64, 32, 4, "rd", [0, 1, 2])
+    m1 = MasterConfig("m1", "m1_", 32, 32, 4, "rd", [1])
+    masters = [m0, m1]
+
+    # Duplicate slave widths collapse; result is sorted and always uses
+    # slave.data_width (never the retired LCD-for-APB width).
+    assert get_connected_slave_widths(m0, slaves) == [32, 64]
+    assert get_connected_slave_widths(m1, slaves) == [32]
+
+    assert get_masters_connecting_to_slave(slaves[0], masters, slaves) == [m0]
+    assert get_masters_connecting_to_slave(slaves[1], masters, slaves) == [m0, m1]
+    # A slave object not in the list -> no masters, not an exception.
+    orphan = SlaveInfo("sx", "sx_", 0xF000_0000, 0x1000, 32, 32)
+    assert get_masters_connecting_to_slave(orphan, masters, slaves) == []
+
+
+def test_pre_consolidation_components_are_gone():
+    """The orphaned pre-consolidation components were deleted; the
+    package must no longer export them."""
+    with pytest.raises(ImportError):
+        from bridge_pkg.components import ArbiterComponent  # noqa: F401
+
+
+def test_parse_bulk_csv_tolerates_expose_column_absence_and_presence(tmp_path):
+    """The retired expose_arbiter_signals column must be ignored when
+    present (old manifests) and not required when absent (new ones)."""
+    from bridge_generator import parse_bulk_csv
+
+    without = tmp_path / "without.csv"
+    without.write_text(
+        "name,ports,connectivity,output_dir,output_tb,output_test\n"
+        "b1,p.toml,c.csv,out,tb,tst\n"
+    )
+    with_col = tmp_path / "with.csv"
+    with_col.write_text(
+        "name,ports,connectivity,output_dir,output_tb,output_test,"
+        "expose_arbiter_signals\n"
+        "b1,p.toml,c.csv,out,tb,tst,true\n"
+    )
+    for manifest in (without, with_col):
+        rows = parse_bulk_csv(str(manifest))
+        assert len(rows) == 1, f"{manifest.name}: row not parsed"
+        assert rows[0]["name"] == "b1"
+        assert rows[0]["ports"] == "p.toml"
+        assert "expose_arbiter" not in rows[0]
+
+
+def test_axi5_poison_rejected_on_non_native_path(tmp_path):
+    """A5-2 slice 2: poison on a master whose connected slave is plain
+    AXI4 is a config ERROR (silently dropping POISON would launder
+    corrupted data), with a self-documenting message."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra='channels = "rd"',
+        master_extra='protocol = "axi5"\naxi5_features = ["poison"]',
+    )
+    with pytest.raises(ValidationError, match="cannot carry it natively"):
+        load_config(toml, conn)
+
+
+def test_axi5_slave_poison_rejected_on_non_native_path(tmp_path):
+    """A5-2 slice 2: poison on a slave whose connected master is plain
+    AXI4 is a config ERROR (the master side cannot source/sink it)."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\n'
+                     'axi5_features = ["poison"]'),
+    )
+    with pytest.raises(ValidationError, match="cannot carry it natively"):
+        load_config(toml, conn)
+
+
+def test_axi5_poison_accepted_native_both_ends(tmp_path):
+    """A5-2 slice 2: poison validates when every connected path is
+    AXI5-both-ends, poison-enabled, and width-matched."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        master_extra='protocol = "axi5"\naxi5_features = ["poison"]',
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\n'
+                     'axi5_features = ["poison"]'),
+    )
+    cfg = load_config(toml, conn)
+    assert 'poison' in cfg.masters[0].axi5_features
+    assert 'poison' in cfg.slaves[0].axi5_features
+
+
+# ---------------------------------------------------------------------
+# AXI5-Lite slaves (protocol="axil5")
+# ---------------------------------------------------------------------
+
+def test_axil5_forwardable_features_accepted(tmp_path):
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rd"\nprotocol = "axil5"\n'
+                     'axi5_features = ["user", "exclusive"]'),
+    )
+    cfg = load_config(toml, conn)
+    assert cfg.slaves[0].protocol == "axil5"
+    assert cfg.slaves[0].axi5_features == ["user", "exclusive"]
+
+
+@pytest.mark.parametrize("feat", ["trace", "loop", "mpam", "mecid",
+                                  "nsaid", "poison"])
+def test_axil5_tied_features_rejected(tmp_path, feat):
+    """A tied group named in axi5_features would read as a request that
+    changes something. It cannot: axi4_to_axil5_* drives those to zero
+    unconditionally, and their ports exist either way. Rejected rather
+    than ignored, so the config cannot lie about what the design does."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=(f'channels = "rd"\nprotocol = "axil5"\n'
+                     f'axi5_features = ["{feat}"]'),
+    )
+    with pytest.raises(ValidationError, match="no AXI4 source"):
+        load_config(toml, conn)
+
+
+def test_axil5_unknown_feature_rejected(tmp_path):
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rd"\nprotocol = "axil5"\n'
+                     'axi5_features = ["telepathy"]'),
+    )
+    with pytest.raises(ValidationError, match="unknown axi5_features"):
+        load_config(toml, conn)
+
+
+def test_axil5_generation_smoke(tmp_path):
+    """Generate the axil5 fixture end-to-end.
+
+    The bridge top must expose the FULL AXI5-Lite surface on the axil5
+    port -- every sideband group, enabled or not, because a boundary
+    whose shape depends on a config knob cannot be wired to a fixed
+    external slave. Request-side groups are outputs, response-side ones
+    inputs. The adapter must instantiate the AXI5-Lite converters, not
+    the AXI4-Lite ones, and the sibling AXI4 slave port must be
+    untouched."""
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture("bridge_1x2_rw_axil5.toml"),
+         "--connectivity", _fixture("bridge_1x2_rw_axil5_connectivity.csv"),
+         "--name", "bridge_1x2_rw_axil5",
+         "--output-dir", str(tmp_path)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+
+    top = (tmp_path / "bridge_1x2_rw_axil5" / "bridge_1x2_rw_axil5.sv").read_text()
+
+    # Request-side sideband: outputs toward the external AXI5-Lite slave.
+    for base in ("awlock", "awuser", "awloop", "awmpam", "awmecid",
+                 "awnsaid", "awtrace", "wuser", "wpoison",
+                 "arlock", "aruser", "arloop", "armpam", "armecid",
+                 "arnsaid", "artrace"):
+        assert f"output logic" in top and f"cfg_axil_{base}" in top, base
+
+    # Response-side sideband: inputs from it.
+    for base in ("buser", "bloop", "btrace", "ruser", "rloop", "rtrace",
+                 "rpoison"):
+        assert f"cfg_axil_{base}" in top, base
+
+    # The AXI4 sibling keeps its own surface; no sideband leaked onto it.
+    assert "ddr_axi_awid" in top
+    assert "ddr_axi_awmpam" not in top
+
+    # Widths come from the shared table, not from a retyped literal.
+    from bridge_pkg.axil5_sideband import MPAM_WIDTH, MECID_WIDTH, NSAID_WIDTH
+    assert f"[{MPAM_WIDTH-1}:0] cfg_axil_awmpam" in top
+    assert f"[{MECID_WIDTH-1}:0] cfg_axil_awmecid" in top
+    assert f"[{NSAID_WIDTH-1}:0] cfg_axil_arnsaid" in top
+
+    adapter = (tmp_path / "bridge_1x2_rw_axil5" / "cfg_adapter.sv").read_text()
+    assert "axi4_to_axil5_wr" in adapter
+    assert "axi4_to_axil5_rd" in adapter
+    # The AXI4-Lite modules are wrapped BY those, never instantiated here.
+    assert "axi4_to_axil4_wr #(" not in adapter
+    assert "axi4_to_axil4_rd #(" not in adapter
+
+    # Only the two gating parameters exist on the converter -- the tied
+    # groups deliberately have none (see axil5_sideband.FEATURE_TO_ENABLE).
+    assert ".ENABLE_USER(1)" in adapter
+    assert ".ENABLE_LOCK(1)" in adapter
+    for absent in ("ENABLE_TRACE", "ENABLE_LOOP", "ENABLE_MPAM",
+                   "ENABLE_MECID", "ENABLE_NSAID", "ENABLE_POISON"):
+        assert absent not in adapter, f"{absent} is a parameter that does not exist"
+
+
+def test_axil5_sideband_table_matches_converter_ports():
+    """The generator's table and the RTL it drives must name the same
+    ports. A mismatch here is a PINMISSING in every generated bridge --
+    the failure this table exists to prevent, so it is worth asserting
+    directly rather than waiting for a lint run to notice."""
+    from bridge_pkg.axil5_sideband import sideband_ports
+
+    rtl = REPO_ROOT / "projects/components/converters/rtl"
+    text = ((rtl / "axi4_to_axil5_wr.sv").read_text()
+            + (rtl / "axi4_to_axil5_rd.sv").read_text())
+    for base, _width_key, _direction in sideband_ports("rw"):
+        assert f"m_axil_{base}" in text, (
+            f"axil5_sideband names m_axil_{base}, the RTL does not")
+
+
+# ---------------------------------------------------------------------
+# AXI5 read-return atomics (bridge TASK-002 (was BRIDGE-002) phase A5-3b)
+# ---------------------------------------------------------------------
+
+
+def _write_rw_atomic_toml(tmp_path, slave_channels="rw", slave_extra=""):
+    """One rw AXI5 atomic master to one AXI5 atomic slave."""
+    toml = tmp_path / "b.toml"
+    conn = tmp_path / "c.csv"
+    toml.write_text(f"""
+[bridge]
+name = "b"
+variants = ["no"]
+
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["atomic"]
+
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "{slave_channels}"
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+protocol = "axi5"
+axi5_features = ["atomic"]
+{slave_extra}
+""")
+    conn.write_text("master,s0\nm0,1\n")
+    return str(toml), str(conn)
+
+
+def test_axi5_rr_atomic_master_needs_rw_slave(tmp_path):
+    """A5-3b: an rw atomic master has no boundary filter, so its read-return
+    atomics reach the slave and answer on R. A write-only slave cannot
+    return read data: config error, not a hang."""
+    toml, conn = _write_rw_atomic_toml(tmp_path, slave_channels="wr")
+    with pytest.raises(ValidationError, match="cannot return read data"):
+        load_config(toml, conn)
+
+
+def test_axi5_rr_atomic_with_ooo_slave_accepted(tmp_path):
+    """A5-3b + bridge BUG-012 (was BRIDGE-015): the per-ID return tracker sits beside whichever
+    read tracker the slave uses, so an enable_ooo slave is accepted."""
+    toml, conn = _write_rw_atomic_toml(tmp_path, slave_extra="enable_ooo = true")
+    cfg = load_config(toml, conn)
+    assert cfg.slaves[0].enable_ooo
+
+
+def test_ooo_slave_adapter_generates_and_gates(tmp_path):
+    """bridge BUG-012 (was BRIDGE-015): CAM-mode tracking lost its not-full nets in c64660f47 and
+    could not elaborate. The CAM paths must declare wr_trk_full / rd_trk_full
+    and drive them from tags_full, and an atomic slave must get the return
+    tracker beside the CAM."""
+    out = _generate(tmp_path, "bridge_2x2_ooo")
+    for slave in ("ddr", "sram"):
+        sv = (out / f"{slave}_adapter.sv").read_text()
+        assert "u_wr_cam" in sv and "u_rd_cam" in sv, f"{slave}: CAM tracking not selected"
+        assert "logic wr_trk_full;" in sv and "logic rd_trk_full;" in sv, f"{slave}: not-full nets undeclared (the c64660f47 regression)"
+        assert ".tags_full(wr_trk_full)" in sv and ".tags_full(rd_trk_full)" in sv, f"{slave}: full flags not driven by the CAM"
+        assert "&& !wr_trk_full" in sv and "&& !rd_trk_full" in sv, f"{slave}: readies not gated on the CAM being full"
+    sv_files = sorted(tmp_path.glob("bridge_2x2_ooo*/*.sv"))
+    chk = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "bin" / "check_sv_decl_order.py"), *map(str, sv_files)],
+        capture_output=True, text=True, timeout=120)
+    assert chk.returncode == 0, f"declaration-order issues:\n{chk.stdout}"
+
+
+# ---------------------------------------------------------------------
+# Master-unique transaction IDs (bridge TASK-005, was BRIDGE-016)
+# ---------------------------------------------------------------------
+
+
+def test_id_prefix_slave_too_narrow_rejected(tmp_path):
+    """Two 4-bit masters give 5-bit IDs at every slave; a slave declaring 4
+    would truncate the master index and let two masters alias again."""
+    toml = tmp_path / "b.toml"
+    conn = tmp_path / "c.csv"
+    toml.write_text("""
+[bridge]
+name = "b"
+variants = ["no"]
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+[[bridge.masters]]
+name = "m1"
+prefix = "m1_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+""")
+    conn.write_text("master,s0\nm0,1\nm1,1\n")
+    with pytest.raises(ValidationError, match="carries 5-bit IDs"):
+        load_config(str(toml), str(conn))
+
+
+def test_id_prefix_generated_on_multi_master(tmp_path):
+    """The master adapter forms {BRIDGE_ID, id} on its fabric-facing nets,
+    the package exports the widths, and the slave ports carry them."""
+    out = _generate(tmp_path, "bridge_2x2_ooo")
+    pkg = (out / "bridge_2x2_ooo_pkg.sv").read_text()
+    assert "MASTER_ID_WIDTH = 4" in pkg and "ID_PREFIX_WIDTH = 1" in pkg and "XBAR_ID_WIDTH   = 5" in pkg
+    for m in ("cpu", "dma"):
+        sv = (out / f"{m}_adapter.sv").read_text()
+        assert "assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};" in sv
+        assert "_aw.id     = xbar_axi_awid;" in sv and "_ar.id     = xbar_axi_arid;" in sv
+    top = (out / "bridge_2x2_ooo.sv").read_text()
+    assert "[4:0]" in top and "ddr_axi_awid" in top, "slave ports not widened"
+
+
+def test_multi_master_axi_slaves_track_by_id(tmp_path):
+    """bridge BUG-012 (was BRIDGE-015)/016: with more than one master a real AXI slave tracks by
+    ID in bridge_cam even without enable_ooo (the FIFO needs the slave to
+    complete in request order across all IDs); the subtractive slave and a
+    single-master bridge keep the FIFO."""
+    out = _generate(tmp_path, "bridge_2x2_rw")
+    for slave in ("ddr", "sram"):
+        assert "u_rd_cam" in (out / f"{slave}_adapter.sv").read_text(), f"{slave}: expected CAM tracking"
+    assert "u_rd_cam" not in (out / "subtractive_adapter.sv").read_text()
+    out1 = _generate(tmp_path / "single", "bridge_1x2_rd_axi5")
+    assert "u_rd_cam" not in (out1 / "ddr_rd_adapter.sv").read_text()
+
+
+def test_id_prefix_absent_on_single_master(tmp_path):
+    """One master: nothing to disambiguate, no prefix, and the pre-existing
+    single-master bridges stay byte-identical apart from the package."""
+    out = _generate(tmp_path, "bridge_1x2_rd_axi5")
+    pkg = (out / "bridge_1x2_rd_axi5_pkg.sv").read_text()
+    assert "ID_PREFIX_WIDTH = 0" in pkg
+    assert "xbar_axi_arid" not in (out / "cpu_rd_adapter.sv").read_text()
+
+
+def test_axi5_rr_atomic_accepted(tmp_path):
+    toml, conn = _write_rw_atomic_toml(tmp_path)
+    cfg = load_config(toml, conn)
+    assert cfg.masters[0].channels == "rw"
+    assert 'atomic' in cfg.slaves[0].axi5_features
+
+
+def _generate(tmp_path, name):
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture(f"{name}.toml"),
+         "--connectivity", _fixture(f"{name}_connectivity.csv"),
+         "--name", name,
+         "--output-dir", str(tmp_path)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+    return tmp_path / name
+
+
+def test_axi5_rr_atomic_generation(tmp_path):
+    """A5-3b fixture: the rw atomic master has NO boundary filter and its
+    AR->R tracker takes a slot at the atomic AW; the atomic slaves route the
+    R beat by ID through axi5_atomic_rr_tracker; the filelist pulls the
+    tracker and not the filter."""
+    out = _generate(tmp_path, "bridge_1x2_rw_axi5a")
+
+    cpu = (out / "cpu_adapter.sv").read_text()
+    assert "u_atomic_filter" not in cpu, "rw atomic master must not filter read-return atomics"
+    assert "ar_trk_push_aw" in cpu, "atomic AW must claim an AR->R tracker slot"
+    assert "aw_rr_gate_ok" in cpu, "atomic AW must pass the read-side single-target gate"
+    assert "ar_trk_wptr + (AR_TRK_AW+1)'(2)" in cpu, "dual push (AR + atomic AW in one cycle) missing"
+
+    for slave in ("ddr", "sram"):
+        sv = (out / f"{slave}_adapter.sv").read_text()
+        assert "u_atom_rd" in sv, f"{slave}: per-ID read-return tracker missing"
+        assert "aw_rr_blocked" in sv, f"{slave}: AW not held while the tracker is full"
+        assert "&& !atom_hit" in sv, f"{slave}: tracked R beats must not pop the in-order FIFO"
+        assert "atom_hit ? atom_bridge_id" in sv, f"{slave}: R routing does not consult the tracker"
+
+    # The generator writes the bridge filelist at <output-dir>/../filelists/,
+    # a sibling of the RTL dir, mirroring rtl/generated -> rtl/filelists.
+    filelists = list((tmp_path.parent / "filelists").glob("bridge_1x2_rw_axi5a*.f"))
+    assert filelists, "no filelist emitted"
+    text = "\n".join(p.read_text() for p in filelists)
+    assert "axi5_atomic_rr_tracker.f" in text
+    assert "axi5_atomic_filter.f" not in text
+
+    sv_files = sorted(tmp_path.glob("bridge_1x2_rw_axi5a*/*.sv"))
+    chk = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "bin" / "check_sv_decl_order.py"),
+         *map(str, sv_files)],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert chk.returncode == 0, f"declaration-order issues:\n{chk.stdout}"
+
+
+def test_axi5_wr_atomic_keeps_filter(tmp_path):
+    """Regression guard for A5-3a: a write-only atomic master has no R path,
+    so it must still terminate read-return atomics at the boundary."""
+    out = _generate(tmp_path, "bridge_1x2_wr_axi5a")
+    cpu = (out / "cpu_wr_adapter.sv").read_text()
+    assert "u_atomic_filter" in cpu
+    assert "u_atom_rd" not in (out / "ddr_wr_adapter.sv").read_text()
+    text = "\n".join(p.read_text()
+                     for p in (tmp_path.parent / "filelists").glob("bridge_1x2_wr_axi5a*.f"))
+    assert "axi5_atomic_filter.f" in text
+    assert "axi5_atomic_rr_tracker.f" not in text
+
+
+# ---------------------------------------------------------------------
+# Lite and APB REQUESTER ports (bridge TASK-004, was BRIDGE-014)
+# ---------------------------------------------------------------------
+
+def _write_req_toml(tmp_path, master_block, slave_block=None):
+    """A one-master, one-slave TOML whose master block is supplied whole,
+    so the Lite/APB master rules (id_width, addr_width) can be exercised
+    without colliding with _write_min_toml's fixed keys."""
+    toml = tmp_path / "r.toml"
+    conn = tmp_path / "r.csv"
+    slave_block = slave_block or """
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi4"
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+"""
+    toml.write_text(f"""
+[bridge]
+name = "r"
+variants = ["no"]
+
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+{master_block}
+{slave_block}
+""")
+    conn.write_text("master,s0\nm0,1\n")
+    return str(toml), str(conn)
+
+
+def test_lite_master_id_width_rejected(tmp_path):
+    """AXI-Lite has no transaction IDs; a non-zero id_width would size
+    ports that do not exist on the boundary."""
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axil"
+""")
+    with pytest.raises(ValidationError, match="must have id_width=0"):
+        load_config(toml, conn)
+
+
+def test_apb_master_addr_width_rejected(tmp_path):
+    """An APB requester supplies the full fabric address, unlike an APB
+    slave port whose PADDR is a window offset."""
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 16
+data_width = 32
+id_width = 0
+channels = "rw"
+protocol = "apb5"
+""")
+    with pytest.raises(ValidationError, match="must have addr_width=32"):
+        load_config(toml, conn)
+
+
+@pytest.mark.parametrize("feat", ["trace", "loop", "mpam", "mecid", "nsaid", "poison"])
+def test_axil5_master_tied_feature_rejected(tmp_path, feat):
+    """On a master port the tied groups have no AXI4 DESTINATION: the bridge
+    top terminates them whether or not they are named. Rejected, same as
+    the slave side, so the config cannot claim a feature the design drops."""
+    toml, conn = _write_req_toml(tmp_path, f"""
+addr_width = 32
+data_width = 32
+id_width = 0
+channels = "rw"
+protocol = "axil5"
+axi5_features = ["{feat}"]
+""")
+    with pytest.raises(ValidationError, match="no AXI4 destination"):
+        load_config(toml, conn)
+
+
+def test_axil5_master_forwardable_features_accepted(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 0
+channels = "rw"
+protocol = "axil5"
+axi5_features = ["user", "exclusive"]
+""")
+    cfg = load_config(toml, conn)
+    assert cfg.masters[0].protocol == "axil5"
+    assert cfg.masters[0].axi5_features == ["user", "exclusive"]
+
+
+def _generate_fixture(tmp_path, name):
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    out = tmp_path / "rtl"
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture(f"{name}.toml"),
+         "--connectivity", _fixture(f"{name}_connectivity.csv"),
+         "--name", name,
+         "--output-dir", str(out)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+    # Filelists land beside the output dir, in <parent>/filelists.
+    return out / name, tmp_path / "filelists" / f"{name}.f"
+
+
+def test_lite_req_generation_smoke(tmp_path):
+    """bridge_2x2_lite_req: an AXI4-Lite and an AXI5-Lite REQUESTER.
+
+    The AXI5-Lite master exposes the full sideband with master-port
+    directions (requester-driven groups are bridge INPUTS), the enabled
+    forwardable groups reach its adapter, and every other group is
+    terminated at the top -- inputs consumed, outputs driven to 0. Both
+    Lite masters take the wide-slave aligner toward the 64-bit memory, and
+    neither has an ID on the boundary."""
+    gen, filelist = _generate_fixture(tmp_path, "bridge_2x2_lite_req")
+    top = (gen / "bridge_2x2_lite_req.sv").read_text()
+
+    # Requester-driven sideband: INPUTS on a master port (the slave-port
+    # table says 'out' for these; the direction flips).
+    for base in ("awlock", "awuser", "awloop", "awtrace", "wuser", "wpoison",
+                 "arlock", "aruser", "armpam", "arnsaid"):
+        assert re.search(rf"input\s+logic[^\n]*lite5_axil_{base},", top), base
+    for base in ("buser", "bloop", "btrace", "ruser", "rloop", "rtrace", "rpoison"):
+        assert re.search(rf"output logic[^\n]*lite5_axil_{base},", top), base
+    from bridge_pkg.axil5_sideband import MPAM_WIDTH, MECID_WIDTH
+    assert f"[{MPAM_WIDTH-1}:0] lite5_axil_awmpam" in top
+    assert f"[{MECID_WIDTH-1}:0] lite5_axil_armecid" in top
+
+    # Forwardable groups ('user', 'exclusive') are wired into the adapter.
+    for base in ("awlock", "awuser", "wuser", "buser", "arlock", "aruser", "ruser"):
+        assert f".lite5_axil_{base}(lite5_axil_{base})" in top, base
+    # Everything else is terminated at the top, not left floating.
+    for base in ("bloop", "btrace", "rloop", "rtrace", "rpoison"):
+        assert f"assign lite5_axil_{base} = '0;" in top, base
+    assert "_unused_lite5_axil5_sb" in top
+    for base in ("awloop", "awmpam", "awmecid", "awnsaid", "awtrace", "wpoison"):
+        assert re.search(rf"_unused_lite5_axil5_sb[^\n]*lite5_axil_{base}", top), base
+
+    # No ID PORT on either Lite boundary, and no sideband port on the
+    # AXI4-Lite one. (The names do appear inside the top, as the tied-off
+    # connections to the adapter's AXI4 face -- `.lite4_axil_awid(1'h0)` --
+    # which is exactly the point: the boundary has no such pin.)
+    for name in ("lite4_axil_awid", "lite5_axil_awid", "lite4_axil_awuser",
+                 "lite4_axil_awlock", "lite4_axil_awlen"):
+        assert not re.search(rf"(input|output)\s+logic[^\n]*\b{name}\b", top), name
+
+    # Both Lite masters take the aligner toward the 64-bit slave.
+    for m in ("lite4", "lite5"):
+        adapter = (gen / f"{m}_adapter.sv").read_text()
+        assert "axil_to_axi4_wide_align_wr" in adapter, m
+        assert "axil_to_axi4_wide_align_rd" in adapter, m
+        assert "apb4_to_axi4" not in adapter and "apb5_to_axi4" not in adapter
+
+    fl = filelist.read_text()
+    assert "axil_to_axi4_wide_align_wr.f" in fl
+    assert "apb4_to_axi4.f" not in fl and "apb5_to_axi4.f" not in fl
+
+
+def test_apb_req_generation_smoke(tmp_path):
+    """bridge_2x3_apb_req: an APB4 and an APB5 REQUESTER.
+
+    The bridge top is the APB completer (PSEL..PPROT in, PREADY/PRDATA/
+    PSLVERR out; apb5 adds PAUSER/PWUSER/PWAKEUP in, PRUSER/PBUSER out),
+    each adapter puts apb{4,5}_to_axi4 in front of the same axi4_slave_*
+    timing wrapper an AXI4 master gets, and the filelist pulls both
+    converter closures."""
+    gen, filelist = _generate_fixture(tmp_path, "bridge_2x3_apb_req")
+    top = (gen / "bridge_2x3_apb_req.sv").read_text()
+
+    for m in ("apb4m", "apb5m"):
+        for sig in ("PSEL", "PENABLE", "PADDR", "PWRITE", "PWDATA", "PSTRB", "PPROT"):
+            assert re.search(rf"input\s+logic[^\n]*{m}_apb_{sig},", top), (m, sig)
+        for sig in ("PREADY", "PRDATA", "PSLVERR"):
+            assert re.search(rf"output logic[^\n]*{m}_apb_{sig},", top), (m, sig)
+        # No AXI signal of any kind on an APB requester boundary.
+        assert f"{m}_apb_awaddr" not in top and f"{m}_apb_awvalid" not in top
+    for sig in ("PAUSER", "PWUSER", "PWAKEUP"):
+        assert re.search(rf"input\s+logic[^\n]*apb5m_apb_{sig},", top), sig
+    for sig in ("PRUSER", "PBUSER"):
+        assert re.search(rf"output logic[^\n]*apb5m_apb_{sig},", top), sig
+    assert "apb4m_apb_PWAKEUP" not in top
+
+    a4 = (gen / "apb4m_adapter.sv").read_text()
+    a5 = (gen / "apb5m_adapter.sv").read_text()
+    assert "apb4_to_axi4 #(" in a4 and "apb5_to_axi4 #(" not in a4
+    assert "apb5_to_axi4 #(" in a5 and "apb4_to_axi4 #(" not in a5
+    for adapter in (a4, a5):
+        # The front end feeds the ordinary timing wrapper on the internal
+        # AXI4 face: same wrapper, different connector prefix.
+        assert ".m_axi_awvalid(apbx_axi_awvalid)" in adapter
+        assert ".s_axi_awvalid(apbx_axi_awvalid)" in adapter
+        assert "axi4_slave_wr" in adapter and "axi4_slave_rd" in adapter
+    assert ".s_apb_PWAKEUP(apb5m_apb_PWAKEUP)" in a5
+
+    fl = filelist.read_text()
+    assert "converters/rtl/filelists/apb4_to_axi4.f" in fl
+    assert "converters/rtl/filelists/apb5_to_axi4.f" in fl
+
+
+# ---------------------------------------------------------------------
+# Wishbone B4 ports, both sides (bridge TASK-008, was BRIDGE-019)
+# ---------------------------------------------------------------------
+
+def test_wb4_port_must_be_rw(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 0
+channels = "rd"
+protocol = "wb4"
+""")
+    with pytest.raises(ValidationError, match="must have channels='rw'"):
+        load_config(toml, conn)
+
+
+def test_wb4_port_data_width_rejected(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 128
+id_width = 0
+channels = "rw"
+protocol = "wb4"
+""")
+    with pytest.raises(ValidationError, match="8, 16, 32 or 64"):
+        load_config(toml, conn)
+
+
+def test_wb4_master_addr_width_rejected(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 16
+data_width = 32
+id_width = 0
+channels = "rw"
+protocol = "wb4"
+""")
+    with pytest.raises(ValidationError, match="WB4 master 'm0' must have addr_width=32"):
+        load_config(toml, conn)
+
+
+def test_wb4_signal_table_matches_rtl_ports():
+    """The generator's table and the converters it drives must name the same
+    Wishbone signals, or the instantiation dies on PINMISSING."""
+    from bridge_pkg.wb4_signals import wb4_names
+    conv = REPO_ROOT / "projects/components/converters/rtl"
+    a2w = (conv / "axi4_to_wb4.sv").read_text()
+    w2a = (conv / "wb4_to_axi4.sv").read_text()
+    for base in wb4_names():
+        assert re.search(rf"\bm_wb_{base}\b", a2w), f"axi4_to_wb4 lacks m_wb_{base}"
+        assert re.search(rf"\bs_wb_{base}\b", w2a), f"wb4_to_axi4 lacks s_wb_{base}"
+
+
+def test_wb4_generation_smoke(tmp_path):
+    """bridge_2x2_wb4: a Wishbone requester and a Wishbone completer.
+
+    Master port: the bridge is the completer (CYC/STB/... in, STALL/ACK/
+    ERR/RTY/DAT_R out), the adapter puts wb4_to_axi4 in front of the AXI4
+    timing wrapper. Slave port: the bridge drives the bus (CYC/STB/... out),
+    the adapter converts with axi4_to_wb4. Both closures in the filelist."""
+    gen, filelist = _generate_fixture(tmp_path, "bridge_2x2_wb4")
+    top = (gen / "bridge_2x2_wb4.sv").read_text()
+
+    for sig in ("CYC", "STB", "WE", "ADR", "DAT_W", "SEL", "CTI", "BTE"):
+        assert re.search(rf"input\s+logic[^\n]*wbm_wb_{sig},", top), ("master in", sig)
+        assert re.search(rf"output logic[^\n]*wbp_wb_{sig},", top), ("slave out", sig)
+    for sig in ("STALL", "ACK", "ERR", "RTY", "DAT_R"):
+        assert re.search(rf"output logic[^\n]*wbm_wb_{sig},", top), ("master out", sig)
+        assert re.search(rf"input\s+logic[^\n]*wbp_wb_{sig}", top), ("slave in", sig)
+    assert "wbm_wb_awvalid" not in top and "wbp_wb_awvalid" not in top
+
+    adapter = (gen / "wbm_adapter.sv").read_text()
+    assert "wb4_to_axi4 #(" in adapter
+    assert ".s_wb_CYC(wbm_wb_CYC)" in adapter
+    assert ".m_axi_awvalid(wbx_axi_awvalid)" in adapter
+    assert ".s_axi_awvalid(wbx_axi_awvalid)" in adapter     # the timing wrapper's external side
+    assert "axil_to_axi4_wide_align_wr" in adapter          # 32b requester -> 64b memory
+
+    slave = (gen / "wbp_adapter.sv").read_text()
+    assert "axi4_to_wb4 #(" in slave
+    assert ".m_wb_CYC(wbp_wb_CYC)" in slave
+    assert "converter_bvalid" in slave and "converter_rlast" in slave
+
+    fl = filelist.read_text()
+    assert "converters/rtl/filelists/wb4_to_axi4.f" in fl
+    assert "converters/rtl/filelists/axi4_to_wb4.f" in fl
+
+
+# ---------------------------------------------------------------------
+# Registered crossbar (bridge TASK-006 (was BRIDGE-017) xbar_pipeline)
+# ---------------------------------------------------------------------
+
+def test_xbar_pipeline_off_by_default(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    cfg = load_config(toml, conn)
+    assert cfg.xbar_pipeline is False
+
+
+def test_xbar_pipeline_generation_smoke(tmp_path):
+    """bridge_2x2_rw_pipe: every slave-side channel gets a skid stage inside
+    the xbar, the routing drives xs_* nets, the ports are driven by the
+    stages, and the bridge id rides in the request payload. The baseline
+    fixture's xbar has none of it."""
+    gen, _fl = _generate_fixture(tmp_path, "bridge_2x2_rw_pipe")
+    xbar = (gen / "bridge_2x2_rw_pipe_xbar.sv").read_text()
+    for slave in ("ddr", "sram"):
+        for ch in ("aw", "w", "ar", "b", "r"):
+            assert f"u_xs_{slave}_{ch} (" in xbar, (slave, ch)
+        # The routing targets the pre-stage nets ...
+        assert f"assign xs_{slave}_axi_awvalid" in xbar
+        # ... and the bridge id travels with the AW/AR beats.
+        assert f"xs_{slave}_axi_bridge_id_aw" in xbar and f"xs_{slave}_axi_bridge_id_ar" in xbar
+        # Response mux keys on the STAGED id/valid, never the raw port flag.
+        assert f"xs_{slave}_axi_bid_valid" in xbar and f"xs_{slave}_axi_rid_valid" in xbar
+    # Five channels per slave port, the internal subtractive slave included.
+    assert "u_xs_subtractive_aw (" in xbar
+    assert xbar.count("gaxi_skid_buffer #(.DEPTH(2)") == 15
+
+    base, _ = _generate_fixture(tmp_path / "base", "bridge_2x2_rw")
+    base_xbar = (base / "bridge_2x2_rw_xbar.sv").read_text()
+    assert "gaxi_skid_buffer" not in base_xbar and "xs_ddr_axi_" not in base_xbar
+
+
+# ---------------------------------------------------------------------
+# QoS-with-aging arbitration (bridge TASK-006 (was BRIDGE-017) arbitration = "qos")
+# ---------------------------------------------------------------------
+
+def test_arbitration_defaults_to_rr(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    cfg = load_config(toml, conn)
+    assert cfg.arbitration == 'rr' and cfg.qos_aging_shift == 4
+
+
+def test_arbitration_bad_value_rejected(tmp_path):
+    toml = tmp_path / "b.toml"
+    conn = tmp_path / "c.csv"
+    toml.write_text("""
+[bridge]
+name = "b"
+variants = ["no"]
+arbitration = "lottery"
+
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+""")
+    conn.write_text("master,s0\nm0,1\n")
+    with pytest.raises(ValueError, match="arbitration must be 'rr' or 'qos'"):
+        load_config(str(toml), str(conn))
+
+
+def test_qos_generation_smoke(tmp_path):
+    """bridge_2x2_rw_qos: every multi-master slave arbiter carries the
+    effective-priority compare and the per-master age counters; the
+    round-robin baseline carries none of it."""
+    gen, _fl = _generate_fixture(tmp_path, "bridge_2x2_rw_qos")
+    xbar = (gen / "bridge_2x2_rw_qos_xbar.sv").read_text()
+    for slave in ("ddr", "sram"):
+        for ch in ("aw", "ar"):
+            arb = f"{slave}_{ch}_arb"
+            assert f"{arb}_age_0" in xbar and f"{arb}_age_1" in xbar, arb
+            assert f"{arb}_best" in xbar and f"{arb}_elig" in xbar, arb
+            # AxQOS is the priority source, aging shifts by the configured amount.
+            assert re.search(rf"5'\(cpu_32b_{ch}\.qos\)", xbar), (slave, ch)
+            assert f"{arb}_age_0 >> 4" in xbar
+    base, _ = _generate_fixture(tmp_path / "base", "bridge_2x2_rw")
+    base_xbar = (base / "bridge_2x2_rw_xbar.sv").read_text()
+    assert "_age_0" not in base_xbar and "_elig" not in base_xbar
+
+
+# ---------------------------------------------------------------------
+# CDC slave ports (bridge TASK-006 (was BRIDGE-017) cdc = true)
+# ---------------------------------------------------------------------
+
+def test_cdc_on_master_rejected(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi4"
+cdc = true
+""")
+    with pytest.raises(ValidationError, match="only legal on a slave port"):
+        load_config(toml, conn)
+
+
+def test_cdc_needs_axi4_slave(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi4"
+""", slave_block="""
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 0
+channels = "rw"
+protocol = "apb"
+cdc = true
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+""")
+    with pytest.raises(ValidationError, match='needs protocol = "axi4"'):
+        load_config(toml, conn)
+
+
+def test_cdc_generation_smoke(tmp_path):
+    """bridge_2x2_rw_cdc: ddr has its own clock pins on the top, its adapter
+    takes s_aclk/s_aresetn and puts axi4_cdc_{wr,rd} between the wrapper and
+    the port; sram is unchanged; the filelist pulls the CDC closures."""
+    gen, fl = _generate_fixture(tmp_path, "bridge_2x2_rw_cdc")
+    top = (gen / "bridge_2x2_rw_cdc.sv").read_text()
+    assert re.search(r"input\s+logic[^\n]*ddr_aclk,", top) and re.search(r"input\s+logic[^\n]*ddr_aresetn,", top)
+    assert "sram_aclk" not in top
+    assert ".s_aclk(ddr_aclk)" in top and ".s_aresetn(ddr_aresetn)" in top
+    ddr = (gen / "ddr_adapter.sv").read_text()
+    assert "input  logic s_aclk" in ddr and "axi4_cdc_wr #(" in ddr and "axi4_cdc_rd #(" in ddr
+    # wrapper drives the aclk-side nets; the crossing drives the port
+    assert ".m_axi_awvalid(cdc_ddr_axi_awvalid)" in ddr          # wrapper -> aclk-side net
+    assert ".s_axi_awvalid(cdc_ddr_axi_awvalid)" in ddr          # crossing takes it ...
+    assert ".m_axi_awvalid(ddr_s_axi_awvalid)" in ddr            # ... and drives the port
+    assert ".m_aclk(s_aclk), .m_aresetn(s_aresetn)" in ddr
+    sram = (gen / "sram_adapter.sv").read_text()
+    assert "axi4_cdc" not in sram and "s_aclk" not in sram
+    text = fl.read_text()
+    assert "axi4_cdc_wr.f" in text and "axi4_cdc_rd.f" in text
+
+
+# ---------------------------------------------------------------------
+# bridge TASK-007 (was BRIDGE-018): native AXI5 -- MTE and chunking through the fabric
+# ---------------------------------------------------------------------
+
+def test_axi5_native_generation_smoke(tmp_path):
+    """bridge_2x2_axi5_native: the structs carry the tag and chunk fields
+    sized for 128-bit data (one 4-bit tag, one chunk strobe), the crossbar
+    drives them to the slave ports, the adapters bind them to the wrapper
+    pins, and the top exposes them on every port."""
+    gen, fl = _generate_fixture(tmp_path, "bridge_2x2_axi5_native")
+    pkg = (gen / "bridge_2x2_axi5_native_pkg.sv").read_text()
+    for field in ("tagop;", "tag;", "tagupdate;", "tagmatch;", "chunken;", "chunkv;", "chunknum;", "chunkstrb;"):
+        assert field in pkg, field
+    assert "logic [3:0]  tag;" in pkg and "logic [3:0]  chunknum;" in pkg
+    assert "logic         tagupdate;" in pkg and "logic         chunkstrb;" in pkg
+    xbar = (gen / "bridge_2x2_axi5_native_xbar.sv").read_text()
+    for sig in ("ddr_axi_awtagop", "ddr_axi_wtag", "ddr_axi_wtagupdate", "ddr_axi_archunken",
+                "sram_axi_rchunkv", "sram_axi_rchunknum", "sram_axi_rtag", "sram_axi_btagmatch"):
+        assert sig in xbar, sig
+    assert "cpu_128b_r.chunkv" in xbar and "dma_128b_b.tagmatch" in xbar
+    cpu = (gen / "cpu_adapter.sv").read_text()
+    for w in ("fub_axi_awtagop", "fub_axi_wtag", "fub_axi_btag", "fub_axi_archunken", "fub_axi_rchunknum"):
+        assert w in cpu, w
+    assert "ENABLE_MTE(1'b1" in cpu and "ENABLE_CHUNKING(1'b1" in cpu   # wrapper parameter overrides
+    top = (gen / "bridge_2x2_axi5_native.sv").read_text()
+    for port in ("cpu_axi_awtag", "cpu_axi_wtagupdate", "cpu_axi_btagmatch", "cpu_axi_archunken",
+                 "cpu_axi_rchunkstrb", "ddr_axi_awtag", "ddr_axi_rtag", "sram_axi_rchunknum"):
+        assert re.search(rf"\b{port}\b", top), port
+
+
+def test_axi5_native_tag_widths_follow_data_width(tmp_path):
+    """A 256-bit MTE port carries two tags per beat: 8-bit tag fields, 2-bit
+    tagupdate and chunk strobe; the fabric sizes struct and port alike."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\naxi5_features = ["mte", "chunking"]'),
+        master_extra='protocol = "axi5"\naxi5_features = ["mte", "chunking"]',
+        data_width=256,
+    )
+    from bridge_pkg.sideband import field_width, WIDTH_TAGS, WIDTH_NTAGS, WIDTH_CHUNKSTRB
+    assert field_width(WIDTH_TAGS, 256) == 8 and field_width(WIDTH_NTAGS, 256) == 2
+    assert field_width(WIDTH_CHUNKSTRB, 128) == 1 and field_width(WIDTH_TAGS, 32) == 4
+    load_config(toml, conn)   # accepted: both ends AXI5, mte, width-matched, wide enough

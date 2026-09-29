@@ -1,5 +1,5 @@
 # ==============================================================================
-# Formal Verification - Bridge (projects/components/bridge)
+# Formal Verification - Bridge (projects/components/fabric-gen-ip/bridge)
 # ==============================================================================
 # Two kinds of collateral live here, and they are not the same thing:
 #

@@ -112,7 +112,7 @@ sub_areas = ["fub", "fub_beats", "macro", "macro_beats", "top_beats"]
 # --- Bridge ---
 [env.bridge]
 description = "AXI4 crossbar bridge (sequential only — ~1GB per test)"
-directory = "projects/components/bridge/dv/tests"
+directory = "projects/components/fabric-gen-ip/bridge/dv/tests"
 parallel_workers = 0                  # 0 = serial only (memory safety)
 coverage = true
 coverage_target = "fresh-coverage"
@@ -129,7 +129,7 @@ coverage_report_target = "coverage-report"
 # --- APB Crossbar ---
 [env.apb-xbar]
 description = "APB crossbar"
-directory = "projects/components/apbx-xbar/dv/tests"
+directory = "projects/components/fabric-gen-ip/apbx-xbar/dv/tests"
 coverage = true
 
 # --- Retro Legacy Blocks ---

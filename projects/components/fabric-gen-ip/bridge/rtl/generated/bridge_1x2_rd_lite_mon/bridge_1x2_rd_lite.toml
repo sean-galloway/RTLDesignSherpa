@@ -1,0 +1,53 @@
+# Bridge Configuration: bridge_1x2_rd with the LITE monitors (amba/monitor-lite TASK-001).
+#
+# Same fabric as bridge_1x2_rd. Filed 2026-09-25 as the fixture that measured
+# axi_monitor_lite against the full monitor (same ports, a fifth of the gates,
+# see projects/components/fabric-gen-ip/bridge/fpga). Since 2026-09-26 every monitored port
+# in every generated bridge builds the lite through the _monlite wrappers, so
+# this fixture is no longer special; it stays as the sizing fixture the module
+# page's numbers refer to. Connectivity comes from bridge_1x2_rd_lite_connectivity.csv.
+[bridge]
+name = "bridge_1x2_rd_lite"
+variants = ["no", "mon"]
+description = "1 master x 2 slave read-only bridge, monitors are axi_monitor_lite (mon_preset = lite, amba/monitor-lite TASK-001)"
+# Monitors: every monitored port builds axi_monitor_lite through the _monlite
+# wrapper (2026-09-26). The cone presets and per-port mon_add/mon_remove this
+# file once carried no longer select hardware; which packets a port emits is
+# the runtime cfg_*_enable pins. use_monitor = false removes a port's monitor.
+mon_preset = "lite"
+
+[[bridge.masters]]
+name = "cpu_rd"  # Descriptive identifier (cpu read master)
+prefix = "cpu_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels)
+# monitor capture/irq tests assert on completion packets at every
+# wrapper boundary (the most reliably-produced packet type), so the
+# No interface module = direct connection (for testing)
+
+[[bridge.slaves]]
+name = "ddr_rd"  # Descriptive identifier (ddr read slave)
+prefix = "ddr_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels) - must match master
+base_addr = "0x00000000"
+addr_range = "0x80000000"  # 2GB
+# No interface module = direct connection
+
+[[bridge.slaves]]
+name = "sram_rd"  # Descriptive identifier (sram read slave)
+prefix = "sram_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels) - must match master
+base_addr = "0x80000000"
+addr_range = "0x80000000"  # 2GB
+# No interface module = direct connection

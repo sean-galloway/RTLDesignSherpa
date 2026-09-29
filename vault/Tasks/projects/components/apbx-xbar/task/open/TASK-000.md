@@ -13,7 +13,7 @@ repo has shipped that failure more than once. Real tasks start at TASK-001.
 
 ## How to file one
 
-1. `bin/check_task_ids.py --next projects/components/apbx-xbar/task` gives you the ID.
+1. `bin/check_task_ids.py --next projects/components/fabric-gen-ip/apbx-xbar/task` gives you the ID.
 2. `cp open/TASK-000.md open/<ID>.md`, then edit the H1 to `# <ID>: <title>`.
    The filename and the H1 must agree -- the checker enforces it.
 3. Bump the `Next ID:` line in `INDEX.md` and add the item to its list.

@@ -41,7 +41,7 @@ the generator emits the id.** Measured 2026-09-27 after the monitor-lite session
 raised it; counts verified independently here.
 
   279 files cite BRIDGE-014 or BRIDGE-016
-  157 of them are GENERATED (134 under projects/components/bridge/rtl/generated/,
+  157 of them are GENERATED (134 under projects/components/fabric-gen-ip/bridge/rtl/generated/,
       23 under projects/fpga-systems/**/bridges/generated/)
   122 are hand-written
     5 of those 122 are already repointed (ce173c994, monitor-lite)
@@ -61,7 +61,7 @@ present:
 rather than done:
 
 1. edit the six generator sites
-2. `cd projects/components/bridge/bin && make regen`
+2. `cd projects/components/fabric-gen-ip/bridge/bin && make regen`
 3. `python3 bridge_generator.py --bulk bridge_batch.csv --generate-tests`
 4. `make clean-all && make run-all-func` against the regenerated tree
 

@@ -28,11 +28,11 @@ endif
 # Paths are relative to projects/components/ (some components live under a subdir,
 # e.g. dmas/ and mem-ctrl-ip/).  To add a component: 1) ensure its
 # dv/tests/Makefile exposes run-all-<gate|func|full>[-parallel], 2) add it here.
-COMPONENTS = apbx-xbar \
-             bridge \
-             converters \
+COMPONENTS = converters \
              dmas/rapids \
              dmas/stream \
+             fabric-gen-ip/apbx-xbar \
+             fabric-gen-ip/bridge \
              mem-ctrl-ip/pumice-ddr2-lpddr2 \
              misc \
              retro_legacy_blocks
@@ -108,8 +108,8 @@ help:
 	@echo "  make lint-all             Lint ALL component RTL"
 	@echo "  make lint-stream          Lint STREAM RTL"
 	@echo "  make lint-rapids          Lint RAPIDS RTL"
-	@echo "  make lint-bridge          Lint Bridge RTL"
-	@echo "  make lint-apbx-xbar       Lint APB Crossbar RTL"
+	@echo "  make lint-fabric-gen-ip/bridge     Lint Bridge RTL"
+	@echo "  make lint-fabric-gen-ip/apbx-xbar  Lint APB Crossbar RTL"
 	@echo "  make lint-converters      Lint Converters RTL"
 	@echo "  make lint-retro_legacy_blocks  Lint Retro Legacy Blocks RTL"
 	@echo "  make lint-misc                 Lint misc RTL"

@@ -118,7 +118,7 @@ This finds all test_*.py files in val/ and all subdirectories.
 
 Update specific test category:
 ```bash
-python3 bin/update_fst_tracing.py projects/components/bridge/dv/tests
+python3 bin/update_fst_tracing.py projects/components/fabric-gen-ip/bridge/dv/tests
 ```
 
 ## Configuration Added

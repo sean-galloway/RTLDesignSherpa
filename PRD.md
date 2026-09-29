@@ -189,7 +189,7 @@ Is this code specific to a single project component (RAPIDS, STREAM, Bridge)?
 |---------|----------|--------|---------------------|
 | **RAPIDS** | `projects/components/dmas/rapids/` | Active | `rapids/dv/tbclasses/` |
 | **STREAM** | `projects/components/dmas/stream/` | Initial | `stream/dv/tbclasses/` |
-| **Bridge** | `projects/components/bridge/` | Planning | `bridge/dv/tbclasses/` |
+| **Bridge** | `projects/components/fabric-gen-ip/bridge/` | Planning | `bridge/dv/tbclasses/` |
 
 #### 2.3.7 Benefits of This Organization
 

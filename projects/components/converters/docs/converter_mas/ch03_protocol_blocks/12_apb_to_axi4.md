@@ -145,7 +145,7 @@ The bridge generator's master adapter instantiates `apb4_to_axi4` /
 result to the same `axi4_slave_{wr,rd}` timing wrapper an AXI4 master port
 gets, so decode, width adaptation (including the wide-slave aligner) and
 the response mux are untouched. Sign-off:
-`projects/components/bridge/dv/tests/test_bridge_2x3_apb_req_paths.py`.
+`projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_2x3_apb_req_paths.py`.
 
 ## Navigation
 

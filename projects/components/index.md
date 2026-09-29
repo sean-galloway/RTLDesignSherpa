@@ -40,10 +40,10 @@ This directory contains production-ready and in-development component projects f
 | Component | Status | Location | Documentation |
 |-----------|--------|----------|---------------|
 | **Retro Legacy Blocks (HPET, PIT, ...)** | Production | [retro_legacy_blocks/](retro_legacy_blocks/) | [HPET Specification](retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) |
-| **APB Crossbar** | Production | [apbx-xbar/](apbx-xbar/) | [Specification](apbx-xbar/docs/apbx_xbar_mas/apbx_xbar_mas_index.md) |
+| **APB Crossbar** | Production | [fabric-gen-ip/apbx-xbar/](fabric-gen-ip/apbx-xbar/) | [Specification](fabric-gen-ip/apbx-xbar/docs/apbx_xbar_mas/apbx_xbar_mas_index.md) |
 | **STREAM** | Production | [stream/](dmas/stream/) | [Specification](dmas/stream/docs/stream_mas/stream_index.md) |
 | **RAPIDS** | Functional | [rapids/](dmas/rapids/) | [Specification](dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md) |
-| **Bridge** | Development | [bridge/](bridge/) | See [bridge/docs/](bridge/docs/) |
+| **Bridge** | Development | [fabric-gen-ip/bridge/](fabric-gen-ip/bridge/) | See [fabric-gen-ip/bridge/docs/](fabric-gen-ip/bridge/docs/) |
 | **Converters** | Development | [converters/](converters/) | See [converters/docs/](converters/docs/) |
 | **pumice (DDR2/LPDDR2 memory controller)** | Production (at rest 2026-09-10) | [mem-ctrl-ip/pumice-ddr2-lpddr2/](mem-ctrl-ip/pumice-ddr2-lpddr2/) | [Specification](mem-ctrl-ip/pumice-ddr2-lpddr2/docs/pumice_mas/pumice_mas_index.md) |
 | **misc** | Production | [misc/](misc/) | [README](misc/README.md) |
@@ -61,14 +61,14 @@ This directory contains production-ready and in-development component projects f
 - [Retro Legacy Blocks](retro_legacy_blocks/) - HPET, 8254 PIT, and other legacy timers/peripherals (absorbed the old apb4_hpet)
 
 **Interconnect:**
-- [APB Crossbar](apbx-xbar/) - MxN APB interconnect
+- [APB Crossbar](fabric-gen-ip/apbx-xbar/) - MxN APB interconnect
 
 **DMA and Data Transfer:**
 - [STREAM](dmas/stream/) - Tutorial DMA engine
 - [RAPIDS](dmas/rapids/) - Advanced DMA with network
 
 **Integration:**
-- [Bridge](bridge/) - Protocol bridges
+- [Bridge](fabric-gen-ip/bridge/) - Protocol bridges
 - [Converters](converters/) - Protocol converters
 
 **Error correction:**

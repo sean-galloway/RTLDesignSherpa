@@ -48,7 +48,7 @@ Not owed until a consumer appears. Related: [[BRIDGE-002]], [[BRIDGE-014]]
 
 ---
 
-## Pre-migration ledger: projects/components/bridge/TASKS.md (retired 2026-09-10)
+## Pre-migration ledger: projects/components/fabric-gen-ip/bridge/TASKS.md (retired 2026-09-10)
 
 The component's own task file predated the vault and was folded in here, one
 line per item with its disposition. It described the generator as of 2025-11;

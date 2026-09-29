@@ -86,7 +86,7 @@ with t and m; the standards below span the practical range.
   (`reedsolo` or `galois`), across random data, random error patterns up to t
   and beyond t (to prove R2), and every profile in section 4 that D1-D3 admit.
 - R5 FPGA cost is reported the way the repo does it (an out-of-context
-  synthesis fixture like `projects/components/bridge/fpga/` or the
+  synthesis fixture like `projects/components/fabric-gen-ip/bridge/fpga/` or the
   timing_characterization sweeps), per profile, before the MAS claims a number.
 - R6 No assertions in RTL (`vault/handbook/design/`); properties go in
   `formal/` blocks. The key-equation solver's invariants are a natural formal

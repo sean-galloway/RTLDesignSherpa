@@ -420,62 +420,62 @@ coverage-report-rapids:
 .PHONY: test-bridge
 test-bridge:
 	@echo "=== bridge FUNC (serial) ==="
-	@$(MAKE) -C projects/components/bridge/dv/tests run-all-func-serial
+	@$(MAKE) -C projects/components/fabric-gen-ip/bridge/dv/tests run-all-func-serial
 
 .PHONY: test-bridge-gate
 test-bridge-gate:
 	@echo "=== bridge GATE (serial) ==="
-	@$(MAKE) -C projects/components/bridge/dv/tests run-all-gate-serial
+	@$(MAKE) -C projects/components/fabric-gen-ip/bridge/dv/tests run-all-gate-serial
 
 .PHONY: test-bridge-func
 test-bridge-func:
 	@echo "=== bridge FUNC (serial) ==="
-	@$(MAKE) -C projects/components/bridge/dv/tests run-all-func-serial
+	@$(MAKE) -C projects/components/fabric-gen-ip/bridge/dv/tests run-all-func-serial
 
 .PHONY: test-bridge-full
 test-bridge-full:
 	@echo "=== bridge FULL (serial) ==="
-	@$(MAKE) -C projects/components/bridge/dv/tests run-all-full-serial
+	@$(MAKE) -C projects/components/fabric-gen-ip/bridge/dv/tests run-all-full-serial
 
 .PHONY: test-bridge-gate-waves
 test-bridge-gate-waves:
 	@echo "=== bridge GATE (serial + waves) ==="
-	@$(MAKE) -C projects/components/bridge/dv/tests run-all-gate-serial-waves
+	@$(MAKE) -C projects/components/fabric-gen-ip/bridge/dv/tests run-all-gate-serial-waves
 
 .PHONY: test-bridge-func-waves
 test-bridge-func-waves:
 	@echo "=== bridge FUNC (serial + waves) ==="
-	@$(MAKE) -C projects/components/bridge/dv/tests run-all-func-serial-waves
+	@$(MAKE) -C projects/components/fabric-gen-ip/bridge/dv/tests run-all-func-serial-waves
 
 .PHONY: test-bridge-full-waves
 test-bridge-full-waves:
 	@echo "=== bridge FULL (serial + waves) ==="
-	@$(MAKE) -C projects/components/bridge/dv/tests run-all-full-serial-waves
+	@$(MAKE) -C projects/components/fabric-gen-ip/bridge/dv/tests run-all-full-serial-waves
 
 .PHONY: test-bridge-gate-serial
 test-bridge-gate-serial:
 	@echo "=== bridge GATE (serial) ==="
-	@$(MAKE) -C projects/components/bridge/dv/tests run-all-gate-serial
+	@$(MAKE) -C projects/components/fabric-gen-ip/bridge/dv/tests run-all-gate-serial
 
 .PHONY: test-bridge-func-serial
 test-bridge-func-serial:
 	@echo "=== bridge FUNC (serial) ==="
-	@$(MAKE) -C projects/components/bridge/dv/tests run-all-func-serial
+	@$(MAKE) -C projects/components/fabric-gen-ip/bridge/dv/tests run-all-func-serial
 
 .PHONY: test-bridge-full-serial
 test-bridge-full-serial:
 	@echo "=== bridge FULL (serial) ==="
-	@$(MAKE) -C projects/components/bridge/dv/tests run-all-full-serial
+	@$(MAKE) -C projects/components/fabric-gen-ip/bridge/dv/tests run-all-full-serial
 
 .PHONY: coverage-bridge
 coverage-bridge:
 	@echo "=== bridge coverage ==="
-	@$(MAKE) -C projects/components/bridge/dv/tests fresh-coverage
+	@$(MAKE) -C projects/components/fabric-gen-ip/bridge/dv/tests fresh-coverage
 
 .PHONY: coverage-report-bridge
 coverage-report-bridge:
 	@echo "=== bridge coverage report ==="
-	@$(MAKE) -C projects/components/bridge/dv/tests coverage-report
+	@$(MAKE) -C projects/components/fabric-gen-ip/bridge/dv/tests coverage-report
 
 # --- converters: Data width and protocol converters ---
 
@@ -544,57 +544,57 @@ coverage-report-converters:
 .PHONY: test-apb-xbar
 test-apb-xbar:
 	@echo "=== apb-xbar FUNC (parallel) ==="
-	@$(MAKE) -C projects/components/apbx-xbar/dv/tests run-all-func-parallel
+	@$(MAKE) -C projects/components/fabric-gen-ip/apbx-xbar/dv/tests run-all-func-parallel
 
 .PHONY: test-apb-xbar-gate
 test-apb-xbar-gate:
 	@echo "=== apb-xbar GATE (parallel) ==="
-	@$(MAKE) -C projects/components/apbx-xbar/dv/tests run-all-gate-parallel
+	@$(MAKE) -C projects/components/fabric-gen-ip/apbx-xbar/dv/tests run-all-gate-parallel
 
 .PHONY: test-apb-xbar-func
 test-apb-xbar-func:
 	@echo "=== apb-xbar FUNC (parallel) ==="
-	@$(MAKE) -C projects/components/apbx-xbar/dv/tests run-all-func-parallel
+	@$(MAKE) -C projects/components/fabric-gen-ip/apbx-xbar/dv/tests run-all-func-parallel
 
 .PHONY: test-apb-xbar-full
 test-apb-xbar-full:
 	@echo "=== apb-xbar FULL (parallel) ==="
-	@$(MAKE) -C projects/components/apbx-xbar/dv/tests run-all-full-parallel
+	@$(MAKE) -C projects/components/fabric-gen-ip/apbx-xbar/dv/tests run-all-full-parallel
 
 .PHONY: test-apb-xbar-gate-waves
 test-apb-xbar-gate-waves:
 	@echo "=== apb-xbar GATE (parallel + waves) ==="
-	@$(MAKE) -C projects/components/apbx-xbar/dv/tests run-all-gate-parallel-waves
+	@$(MAKE) -C projects/components/fabric-gen-ip/apbx-xbar/dv/tests run-all-gate-parallel-waves
 
 .PHONY: test-apb-xbar-func-waves
 test-apb-xbar-func-waves:
 	@echo "=== apb-xbar FUNC (parallel + waves) ==="
-	@$(MAKE) -C projects/components/apbx-xbar/dv/tests run-all-func-parallel-waves
+	@$(MAKE) -C projects/components/fabric-gen-ip/apbx-xbar/dv/tests run-all-func-parallel-waves
 
 .PHONY: test-apb-xbar-full-waves
 test-apb-xbar-full-waves:
 	@echo "=== apb-xbar FULL (parallel + waves) ==="
-	@$(MAKE) -C projects/components/apbx-xbar/dv/tests run-all-full-parallel-waves
+	@$(MAKE) -C projects/components/fabric-gen-ip/apbx-xbar/dv/tests run-all-full-parallel-waves
 
 .PHONY: test-apb-xbar-gate-serial
 test-apb-xbar-gate-serial:
 	@echo "=== apb-xbar GATE (serial) ==="
-	@$(MAKE) -C projects/components/apbx-xbar/dv/tests run-all-gate-serial
+	@$(MAKE) -C projects/components/fabric-gen-ip/apbx-xbar/dv/tests run-all-gate-serial
 
 .PHONY: test-apb-xbar-func-serial
 test-apb-xbar-func-serial:
 	@echo "=== apb-xbar FUNC (serial) ==="
-	@$(MAKE) -C projects/components/apbx-xbar/dv/tests run-all-func-serial
+	@$(MAKE) -C projects/components/fabric-gen-ip/apbx-xbar/dv/tests run-all-func-serial
 
 .PHONY: test-apb-xbar-full-serial
 test-apb-xbar-full-serial:
 	@echo "=== apb-xbar FULL (serial) ==="
-	@$(MAKE) -C projects/components/apbx-xbar/dv/tests run-all-full-serial
+	@$(MAKE) -C projects/components/fabric-gen-ip/apbx-xbar/dv/tests run-all-full-serial
 
 .PHONY: coverage-apb-xbar
 coverage-apb-xbar:
 	@echo "=== apb-xbar FUNC (parallel + coverage) ==="
-	@COVERAGE=1 $(MAKE) -C projects/components/apbx-xbar/dv/tests run-all-func-parallel
+	@COVERAGE=1 $(MAKE) -C projects/components/fabric-gen-ip/apbx-xbar/dv/tests run-all-func-parallel
 
 # --- retro-legacy: Retro legacy blocks ---
 

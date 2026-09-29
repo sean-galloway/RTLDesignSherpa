@@ -377,7 +377,7 @@ def main():
               f"(measured: re-stamping from the wrapper does NOT beat it). Convert the "
               f"area in one go -- give every wrapper a reg_level_grid()/level_env() pair "
               f"AND delete the stamp; removing the stamp alone drops this area to the "
-              f"default depth. projects/components/bridge is the worked example.")
+              f"default depth. projects/components/fabric-gen-ip/bridge is the worked example.")
         bad.append(('conftest.py', ['stamps TEST_LEVEL into os.environ']))
     for n, reasons in bad:
         print(f"  MISSING {n:46} {', '.join(reasons)}")

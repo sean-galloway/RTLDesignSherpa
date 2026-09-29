@@ -14,7 +14,7 @@ an index, not storage). Most of the 366 `.f` follow this
 **Naming -- not called `filelists/`:**
 - [ ] `projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/flists/`
       (3 files) -> `filelists/`
-- [ ] `projects/components/bridge/rtl/filelists_static/` -> fold into
+- [ ] `projects/components/fabric-gen-ip/bridge/rtl/filelists_static/` -> fold into
       `filelists/` (or justify why "static" is a distinct dir)
 
 **Loose `.f` directly beside RTL, no `filelists/` subdir:**

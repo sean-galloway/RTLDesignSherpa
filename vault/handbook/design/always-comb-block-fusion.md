@@ -56,5 +56,5 @@ optimises across the loop and it vanishes. It takes `--public-flat-rw` -
 which cocotb always passes, so every signal stays addressable and nothing is
 flattened - to make the cycle real. See [[silent-fallbacks]] rule 9:
 elaborating is necessary and not sufficient, the gate must run the flags the
-consumer runs. `make build-check` in `projects/components/bridge/rtl` is the
+consumer runs. `make build-check` in `projects/components/fabric-gen-ip/bridge/rtl` is the
 gate that does.

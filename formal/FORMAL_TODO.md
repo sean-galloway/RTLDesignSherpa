@@ -620,11 +620,11 @@ axi4_dwidth_converter_rd, axi4_dwidth_converter_wr, axi4_to_apb4_shim,
 axi4_to_apb4_convert, axi_data_upsize, axi_data_dnsize, peakrdl_to_cmdrsp,
 uart_axil_bridge, uart_rx, uart_tx, axi4_to_axil4, axil4_to_axi4
 
-### projects/components/bridge/ -- 1 of 1 PASS
+### projects/components/fabric-gen-ip/bridge/ -- 1 of 1 PASS
 
 bridge_1x2_rd (address decode mutex, DDR/SRAM range, AXI handshake model)
 
-### projects/components/apbx-xbar/ -- 5 of 5 PASS
+### projects/components/fabric-gen-ip/apbx-xbar/ -- 5 of 5 PASS
 
 apbx_xbar_wrap_1x2, apbx_xbar_wrap_1x3, apbx_xbar_wrap_2x3,
 apbx_xbar_wrap_3x3, apbx_xbar_wrap_4x4

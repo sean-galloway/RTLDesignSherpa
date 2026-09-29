@@ -37,6 +37,6 @@ by construction rather than by discipline.
 - **TASK-003** — scrub the tests for completeness (bridge)
 - **TASK-004** — AXI5-Lite and APB5 as MASTER protocols
 - **TASK-005** — Master-unique transaction IDs: prepend the master index
-- **TASK-006** — Legacy backlog carried over from projects/components/bridge/TASKS.md
+- **TASK-006** — Legacy backlog carried over from projects/components/fabric-gen-ip/bridge/TASKS.md
 - **TASK-007** — A native-AXI5 fabric
 - **TASK-008** — Wishbone B4 as a bridge protocol, both sides

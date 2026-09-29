@@ -19,13 +19,13 @@ The flat per-state pages were split into one-file-per-item on 2026-09-27. Legacy
 | cdc | `CDC-004` | task/closed | `TASK-002` |
 | cdc | `CDC-002` | bug/closed | `BUG-001` |
 | cdc | `CDC-003` | bug/closed | `BUG-002` |
-| projects/components/apbx-xbar | `APBX-007` | task/open | `TASK-004` |
-| projects/components/apbx-xbar | `APBX-004` | bug/closed | `BUG-001` |
-| projects/components/apbx-xbar | `APBX-005` | bug/closed | `BUG-002` |
-| projects/components/apbx-xbar | `APBX-003` | task/closed | `TASK-003` |
-| projects/components/apbx-xbar | `APBX-002` | task/closed | `TASK-002` |
-| projects/components/apbx-xbar | `APBX-001` | task/closed | `TASK-001` |
-| projects/components/apbx-xbar | `APBX-006` | bug/dropped | `BUG-003` |
+| projects/components/fabric-gen-ip/apbx-xbar | `APBX-007` | task/open | `TASK-004` |
+| projects/components/fabric-gen-ip/apbx-xbar | `APBX-004` | bug/closed | `BUG-001` |
+| projects/components/fabric-gen-ip/apbx-xbar | `APBX-005` | bug/closed | `BUG-002` |
+| projects/components/fabric-gen-ip/apbx-xbar | `APBX-003` | task/closed | `TASK-003` |
+| projects/components/fabric-gen-ip/apbx-xbar | `APBX-002` | task/closed | `TASK-002` |
+| projects/components/fabric-gen-ip/apbx-xbar | `APBX-001` | task/closed | `TASK-001` |
+| projects/components/fabric-gen-ip/apbx-xbar | `APBX-006` | bug/dropped | `BUG-003` |
 | nexysa7 | `NEXYS-004` | task/open | `TASK-004`   **AREA DELETED 2026-09-27** -- in git history only |
 | nexysa7 | `NEXYS-001` | task/open | `TASK-001`   **AREA DELETED 2026-09-27** -- in git history only |
 | nexysa7 | `NEXYS-002` | task/open | `TASK-002`   **AREA DELETED 2026-09-27** -- in git history only |

@@ -36,7 +36,7 @@ from bridge_stream_char_axil_mon_tb import BridgeStreamCharAxilMonTB  # noqa: E4
 # monitor_stress_common is shared collateral that lives with the bridge
 # component, not in this area. Put its directory on sys.path rather than
 # copying the module (a second copy is how the two drift apart).
-sys.path.insert(0, os.path.join(_REPO_ROOT_FOR_SHARED, 'projects/components/bridge/dv/tests'))
+sys.path.insert(0, os.path.join(_REPO_ROOT_FOR_SHARED, 'projects/components/fabric-gen-ip/bridge/dv/tests'))
 from monitor_stress_common import run_comprehensive, run_monitor_sim  # noqa: E402
 # The area's bin/ must be on sys.path HERE, not only via conftest: cocotb
 # re-imports this module inside the SIMULATOR process, where pytest's

@@ -228,7 +228,7 @@ Clean view without temporary files:
 
 ```bash
 python3 bin/pytree.py \
-    --path projects/components/bridge \
+    --path projects/components/fabric-gen-ip/bridge \
     --exclude-dir sim_build __pycache__ \
     --exclude-file *.vcd *.fst *.log
 ```

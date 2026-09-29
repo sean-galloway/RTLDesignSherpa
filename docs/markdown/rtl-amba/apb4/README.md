@@ -87,7 +87,7 @@ still built entirely from the APB4 primitives here, which is why the entry
 remains listed.
 
 The RTL, generator, and testbenches live in the component area
-(`projects/components/apbx-xbar/`), not under `rtl/amba/apb4/`.
+(`projects/components/fabric-gen-ip/apbx-xbar/`), not under `rtl/amba/apb4/`.
 
 ### Clock-Gated Variants
 
@@ -323,7 +323,7 @@ pytest val/amba/test_apb4_monitor.py -v
 pytest val/amba/test_apb4_slave_cdc_cg.py -v
 
 # Generated crossbars (component area)
-pytest projects/components/apbx-xbar/dv/tests/ -v
+pytest projects/components/fabric-gen-ip/apbx-xbar/dv/tests/ -v
 
 # Run with waveform generation
 env ENABLE_WAVEDROM=1 pytest val/amba/test_apb4_slave_wavedrom.py -v
@@ -378,7 +378,7 @@ Specification v2.0" without the IHI number is ambiguous.
 - APB Slave Tests: `val/amba/test_apb4_slave.py`
 - APB CDC Tests: `val/amba/test_apb4_slave_cdc.py`
 - APB Monitor Tests: `val/amba/test_apb4_monitor.py`
-- APB Crossbar Tests: `projects/components/apbx-xbar/dv/tests/`
+- APB Crossbar Tests: `projects/components/fabric-gen-ip/apbx-xbar/dv/tests/`
 
 ---
 

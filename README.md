@@ -67,7 +67,7 @@ Guided progression from primitives to systems. Each level links to the correspon
 
 - **Level 1 — [Common Building Blocks](rtl/common/)** + **[Math Library](rtl/math/)** · ~230 modules · counters, FIFOs, arbiters, data integrity, clock utilities (common) + integer and floating-point math (math)
 - **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/monitor/) · [Shared observation](rtl/amba/shared/)
-- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dmas/stream/) · [RAPIDS](projects/components/dmas/rapids/) · [Bridge](projects/components/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/apbx-xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/mem-ctrl-ip/)
+- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dmas/stream/) · [RAPIDS](projects/components/dmas/rapids/) · [Bridge](projects/components/fabric-gen-ip/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/fabric-gen-ip/apbx-xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/mem-ctrl-ip/)
 - **Level 4 — [FPGA Projects on Nexys A7](projects/fpga-systems/NexysA7/)** · [timing_characterization](projects/asic-trials/timing_characterization/) · [cdc_counter_display](projects/fpga-systems/NexysA7/cdc_counter_display/) · [ddr2-characterization](projects/fpga-systems/NexysA7/pumice/ddr2-characterization/) · [rapids_beats](projects/fpga-systems/Genesys2/rapids_beats/)
 
 <details>
@@ -171,9 +171,9 @@ Production-shaped reusable IP. Each has its own README + dv/ + dv/tbclasses/.
 |---|---|---|---|
 | STREAM | Ready | Tutorial DMA + scatter-gather; kick-burst multi-channel start + optional 2-D/transpose addressing | [`projects/components/dmas/stream/`](projects/components/dmas/stream/) |
 | RAPIDS | In progress | Advanced DMA with network interfaces (RAPID AXI Programmable In-band Descriptor System) | [`projects/components/dmas/rapids/`](projects/components/dmas/rapids/) |
-| Bridge | Ready | AXI protocol bridges + RDL-generated cfg | [`projects/components/bridge/`](projects/components/bridge/) |
+| Bridge | Ready | AXI protocol bridges + RDL-generated cfg | [`projects/components/fabric-gen-ip/bridge/`](projects/components/fabric-gen-ip/bridge/) |
 | Converters | Ready | UART↔AXIL, protocol conversion | [`projects/components/converters/`](projects/components/converters/) |
-| APB Crossbar | Ready | M×N APB interconnect | [`projects/components/apbx-xbar/`](projects/components/apbx-xbar/) |
+| APB Crossbar | Ready | M×N APB interconnect | [`projects/components/fabric-gen-ip/apbx-xbar/`](projects/components/fabric-gen-ip/apbx-xbar/) |
 | Memory controllers | In progress | DDR2 / LPDDR2 controller | [`projects/components/mem-ctrl-ip/`](projects/components/mem-ctrl-ip/) |
 | Retro legacy blocks | Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/) |
 | Delta | Planned | Network-on-Chip mesh | [`projects/components/delta/`](projects/components/delta/) |
@@ -352,8 +352,8 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[APB Crossbar](projects/components/apbx-xbar/)** | Ready | Parametric M×N APB interconnect with round-robin arbitration |
-| **[Bridge](projects/components/bridge/)** | Ready | AXI4 protocol bridges, width converters, CDC |
+| **[APB Crossbar](projects/components/fabric-gen-ip/apbx-xbar/)** | Ready | Parametric M×N APB interconnect with round-robin arbitration |
+| **[Bridge](projects/components/fabric-gen-ip/bridge/)** | Ready | AXI4 protocol bridges, width converters, CDC |
 | **[Converters](projects/components/converters/)** | Ready | UART-to-AXI4-Lite, protocol conversion bridges |
 
 #### Retro Legacy Blocks
@@ -618,7 +618,7 @@ pytest val/amba/test_apb4_slave.py -v -m basic
 #### Level 3: Test APB Crossbar
 ```bash
 # Run 2-to-4 crossbar test
-pytest projects/components/apbx-xbar/dv/tests/test_apbx_xbar_2to4.py -v
+pytest projects/components/fabric-gen-ip/apbx-xbar/dv/tests/test_apbx_xbar_2to4.py -v
 ```
 
 #### Level 4: Test Retro Legacy Block Component

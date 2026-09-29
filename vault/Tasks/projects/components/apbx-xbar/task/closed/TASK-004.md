@@ -1,6 +1,6 @@
 # TASK-004: scrub the tests for completeness (apbx crossbar)
 
-> Migrated 2026-09-27 from `vault/Tasks/projects/components/apbx-xbar/open.md` as **APBX-007** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
+> Migrated 2026-09-27 from `vault/Tasks/projects/components/fabric-gen-ip/apbx-xbar/open.md` as **APBX-007** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** CLOSED 2026-09-27 -- the owner confirmed the scrub was already done. No measurement was taken in this session to support that: the basis is Sean's statement, recorded here rather than dressed up as verification. The sibling closures give it weight -- the same campaign closed in bridge (TASK-003, 2026-09-10), cdc (TASK-001, 2026-09-16), RLB (TASK-006, 2026-09-14) and rapids (TASK-003, 2026-09-27), each with a testqc round named in its closing note. These seven were the stragglers nobody re-statused.
@@ -12,7 +12,7 @@ components suites as well as rtl/.
 and BEFORE coverage and formal are driven clean. Doing it after coverage would
 mean chasing numbers produced by tests nobody has audited.
 
-**Scope:** `projects/components/apbx-xbar/dv/tests/` -- 6 test files, four of which drive a hand-written `*_wrap` scaffold.
+**Scope:** `projects/components/fabric-gen-ip/apbx-xbar/dv/tests/` -- 6 test files, four of which drive a hand-written `*_wrap` scaffold.
 
 **The capability already exists and was simply never run here.**
 `bin/review/run_batch.py` has a `testqc` mode alongside `qc` and `humanize`,

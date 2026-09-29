@@ -1,7 +1,7 @@
 #==============================================================================
 # synth_only.tcl -- out-of-context synth + place + route of ONE generated bridge
 #==============================================================================
-# Invoked by `make synth` (projects/components/bridge/fpga/Makefile), which
+# Invoked by `make synth` (projects/components/fabric-gen-ip/bridge/fpga/Makefile), which
 # exports BRIDGE_TOP, BRIDGE_PART, BRIDGE_CLK_NS, FPGA_FILELIST and
 # FPGA_PROJECT_ROOT. Non-project batch flow: the whole run is one process and
 # leaves nothing but reports behind.
@@ -23,7 +23,7 @@ set project_root [expr {[info exists ::env(FPGA_PROJECT_ROOT)] \
                         ? [file normalize $::env(FPGA_PROJECT_ROOT)] \
                         : [file normalize "$script_dir/.."]}]
 # Monitor characterization (amba TASK-034): one monitor wrapper or block, out of
-# context, same recipe as the bridge fixture (projects/components/bridge/fpga/tcl/
+# context, same recipe as the bridge fixture (projects/components/fabric-gen-ip/bridge/fpga/tcl/
 # synth_only.tcl) plus report_power and a clock-port rule that also accepts pclk
 # and clk. Driven by bin/monitor_synth_sweep.sh.
 foreach var {BRIDGE_TOP BRIDGE_PART BRIDGE_CLK_NS FPGA_FILELIST REPO_ROOT} {

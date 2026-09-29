@@ -32,7 +32,7 @@ endif
 # ------------------------------------------------------------------------------
 # Paths
 # ------------------------------------------------------------------------------
-BRIDGE_BIN     = $(REPO_ROOT)/projects/components/bridge/bin
+BRIDGE_BIN     = $(REPO_ROOT)/projects/components/fabric-gen-ip/bridge/bin
 BRIDGE_GEN     = $(BRIDGE_BIN)/bridge_generator.py
 
 # Everything bridge-related lives under stream_char_framework/rtl/bridges/.

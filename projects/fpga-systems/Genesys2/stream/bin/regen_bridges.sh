@@ -4,7 +4,7 @@
 # ==============================================================================
 #
 # Walks $FRAMEWORK_ROOT/rtl/bridges/configs/*.toml and runs the bridge
-# generator (projects/components/bridge/bin/bridge_generator.py) on each
+# generator (projects/components/fabric-gen-ip/bridge/bin/bridge_generator.py) on each
 # one, dropping outputs into:
 #   $FRAMEWORK_ROOT/rtl/bridges/generated/<bridge>/   ← RTL package + adapters
 #   $FRAMEWORK_ROOT/rtl/bridges/filelists/<bridge>.f  ← filelist (REPO_ROOT-anchored)
@@ -86,7 +86,7 @@ if [ -z "${REGEN_LOCKED:-}" ]; then
     exec env REGEN_LOCKED=1 flock "$REGEN_LOCK" bash "$0" "$@"
 fi
 
-GENERATOR="$REPO_ROOT/projects/components/bridge/bin/bridge_generator.py"
+GENERATOR="$REPO_ROOT/projects/components/fabric-gen-ip/bridge/bin/bridge_generator.py"
 
 if [ ! -x "$GENERATOR" ] && [ ! -f "$GENERATOR" ]; then
     echo "ERROR: bridge_generator.py not found at $GENERATOR"

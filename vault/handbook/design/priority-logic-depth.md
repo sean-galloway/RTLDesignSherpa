@@ -41,7 +41,7 @@ and its data are OR-reductions, not a last-match-wins priority chain.
   one-hot OR once the invariant is named -- shallower than any tree and
   cheaper than the O(N^2) parallel select.
 - **Any block with a for-loop feeding a flop goes through synthesis before
-  it is called done.** `projects/components/bridge/fpga/` runs a whole
+  it is called done.** `projects/components/fabric-gen-ip/bridge/fpga/` runs a whole
   bridge out of context in minutes; a component without such a flow has no
   timing gate at all.
 
@@ -56,7 +56,7 @@ neighbours span 1, 2, 4, 8; each level independent of the last) is log2(N)
 compares deep and identical in function.
 
 Knowing the rule is not the check. The check is the synthesis run, and
-`projects/components/bridge/fpga` makes one cost minutes: anything with a
+`projects/components/fabric-gen-ip/bridge/fpga` makes one cost minutes: anything with a
 `for` whose body reads what an earlier iteration wrote goes through it
 before it is called done -- the comment in the RTL now says so at the
 function that had the chain.

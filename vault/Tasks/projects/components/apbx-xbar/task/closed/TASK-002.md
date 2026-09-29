@@ -1,6 +1,6 @@
 # TASK-002: Formal coverage for the APB4/APB5 version gating
 
-> Migrated 2026-09-27 from `vault/Tasks/projects/components/apbx-xbar/closed.md` as **APBX-002** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
+> Migrated 2026-09-27 from `vault/Tasks/projects/components/fabric-gen-ip/apbx-xbar/closed.md` as **APBX-002** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
 **Status:** closed 2026-08-14 — `formal/apbx_xbar/apbx_xbar_thin_mixed/`,
 prove and cover both PASS
 

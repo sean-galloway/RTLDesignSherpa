@@ -334,7 +334,7 @@ slave-only too; a master-side AXI5-Lite requester is a different piece of
 work and nothing in-tree needs one.
 
 *Adjacent finding, now RESOLVED:* `make verilator` in
-`projects/components/bridge/rtl` used to fail -- measured 2026-09-10 as 13
+`projects/components/fabric-gen-ip/bridge/rtl` used to fail -- measured 2026-09-10 as 13
 of 38 variants, all PINMISSING on one instance, and not deliberate. (An
 earlier version of this note said "all 36 variants, entirely from
 pre-existing PINCONNECTEMPTY on deliberate open pins"; both halves were

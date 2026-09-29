@@ -32,6 +32,6 @@ apb5_slave.sv ../../../rtl/amba/apb5/apb5_slave.sv
 apb5_master.sv ../../../rtl/amba/apb5/apb5_master.sv
 arbiter_priority_encoder.sv ../../../rtl/common/arbiter_priority_encoder.sv
 arbiter_round_robin.sv ../../../rtl/common/arbiter_round_robin.sv
-apbx_xbar_2to2_mixed.sv ../../../projects/components/apbx-xbar/rtl/apbx_xbar_2to2_mixed.sv
+apbx_xbar_2to2_mixed.sv ../../../projects/components/fabric-gen-ip/apbx-xbar/rtl/apbx_xbar_2to2_mixed.sv
 formal_apbx_xbar_2to2_mixed.sv
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

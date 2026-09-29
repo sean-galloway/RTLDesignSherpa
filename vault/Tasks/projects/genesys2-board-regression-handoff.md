@@ -119,7 +119,7 @@ zeros; it is called by no flow, Makefile or doc.
 
 ## Uncommitted -- belongs to ANOTHER agent, do not commit over it
 
-- Bridge regeneration across four areas (components/bridge, Genesys2, both
+- Bridge regeneration across four areas (components/fabric-gen-ip/bridge, Genesys2, both
   NexysA7 frameworks) after the converter refactor.
 - `formal/converters/axi4_to_axil4_{rd,wr}/formal_axi4_to_axil4_{rd,wr}.sv` --
   hand-written harnesses that forwarded removed skid-depth params. Fixed here;

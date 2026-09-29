@@ -44,7 +44,7 @@ touch the same event stage.
 
 ## Done when
 
-- [x] `make -C projects/components/bridge/fpga BRIDGE=bridge_1x2_rd_lite_mon PART=xc7a100tcsg324-1 CLK_NS=10.0 synth`
+- [x] `make -C projects/components/fabric-gen-ip/bridge/fpga BRIDGE=bridge_1x2_rd_lite_mon PART=xc7a100tcsg324-1 CLK_NS=10.0 synth`
       shows no failing path into `r_dropped` (the worst lite path named and its slack recorded here)
 - [x] `val/amba/monitor-lite` GATE from clean, `formal/amba/axi_monitor_lite` prove + cover, `test_axi_monitor_soak_monlite`
 

@@ -821,7 +821,7 @@ Each component has detailed documentation:
 - `projects/components/dmas/stream/CLAUDE.md` and `PRD.md`
 - `projects/components/dmas/rapids/CLAUDE.md` and `PRD.md`
 - `projects/components/retro_legacy_blocks/CLAUDE.md` and `PRD.md` (includes the former apb4_hpet)
-- `projects/components/bridge/CLAUDE.md` and `PRD.md`
+- `projects/components/fabric-gen-ip/bridge/CLAUDE.md` and `PRD.md`
 
 ---
 

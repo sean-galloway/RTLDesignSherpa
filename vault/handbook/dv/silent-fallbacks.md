@@ -109,7 +109,7 @@ the cycle to exist at all:
 Elaborating the design is necessary and NOT sufficient. Before trusting a green
 gate, ask what its invocation differs from the one that actually consumes the
 RTL -- and close the gap rather than the ticket. `make build-check` in
-`projects/components/bridge/rtl` exists for this. See
+`projects/components/fabric-gen-ip/bridge/rtl` exists for this. See
 [[always-comb-block-fusion]] for the defect itself and [[TASK-081]].
 
 ### 10. A gate that fails on everything reports nothing

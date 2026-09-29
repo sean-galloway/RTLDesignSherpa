@@ -37,9 +37,9 @@ independent version, so one fabric can be all-APB4, all-APB5, or a mix.
 
 | Book | Covers |
 |------|--------|
-| [Micro-Architecture Spec (MAS)](../../../../projects/components/apbx-xbar/docs/apbx_xbar_mas/apbx_xbar_mas_index.md) | Architecture, address decode and arbitration, the RTL generator |
-| [Hardware Architecture Spec (HAS)](../../../../projects/components/apbx-xbar/docs/apbx_xbar_has/) | Use cases, interfaces, performance, integration |
-| [Component README](../../../../projects/components/apbx-xbar/README.md) | Quick start, variant list, generation |
+| [Micro-Architecture Spec (MAS)](../../../../projects/components/fabric-gen-ip/apbx-xbar/docs/apbx_xbar_mas/apbx_xbar_mas_index.md) | Architecture, address decode and arbitration, the RTL generator |
+| [Hardware Architecture Spec (HAS)](../../../../projects/components/fabric-gen-ip/apbx-xbar/docs/apbx_xbar_has/) | Use cases, interfaces, performance, integration |
+| [Component README](../../../../projects/components/fabric-gen-ip/apbx-xbar/README.md) | Quick start, variant list, generation |
 
 ## One architecture
 
@@ -60,7 +60,7 @@ The RTL, generator, and testbenches are in the component area, not under
 `rtl/amba/`:
 
 ```
-projects/components/apbx-xbar/
+projects/components/fabric-gen-ip/apbx-xbar/
  bin/                    generator + convenience driver
     apbx_xbar_generator.py
     generate_xbars.py

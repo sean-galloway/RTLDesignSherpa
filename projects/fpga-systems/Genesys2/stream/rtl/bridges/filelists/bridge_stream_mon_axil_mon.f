@@ -36,7 +36,7 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_st
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil_mon/subtractive_adapter.sv
 
 # Verilator waiver: PeakRDL field_combo MULTIDRIVEN (see file)
-$REPO_ROOT/projects/components/bridge/rtl/regs/bridge_regblock.vlt
+$REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/regs/bridge_regblock.vlt
 
 # AXI4 Wrapper modules (timing isolation)
 #
@@ -54,7 +54,7 @@ $REPO_ROOT/projects/components/bridge/rtl/regs/bridge_regblock.vlt
 
 # Per-ID response tracking (bridge_cam): enable_ooo slaves, and every AXI
 # slave of a multi-master fabric, whose IDs are {master index, id} (bridge BUG-012 (was BRIDGE-015)/016)
--f $REPO_ROOT/projects/components/bridge/rtl/filelists_static/bridge_cam.f
+-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_cam.f
 
 # GAXI skid buffers (used by wrappers and converters)
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f

@@ -9,7 +9,7 @@ Library ECC is Hamming SECDED only. BCH/Reed-Solomon was tracked as a
 common-library enhancement (COMMON-009) and dropped: an R/S codec brings a
 GF(2^m) arithmetic layer, syndrome/Berlekamp-Massey/Chien machinery and
 configuration surface that belongs in its own component with its own PRD,
-DV area and task pages — the shape of `projects/components/bridge/` or the
+DV area and task pages — the shape of `projects/components/fabric-gen-ip/bridge/` or the
 dmas, not a single-file primitive.
 
 When a consumer appears:

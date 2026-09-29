@@ -57,7 +57,7 @@ WaveDrom is a digital timing diagram rendering engine that uses JSON to describe
 
 **Project Locations:**
 ```
-projects/components/bridge/docs/bridge_has/assets/wavedrom/
+projects/components/fabric-gen-ip/bridge/docs/bridge_has/assets/wavedrom/
 projects/components/dmas/stream/docs/stream_spec/assets/wavedrom/
 projects/components/retro_legacy_blocks/docs/pit_8254_mas/assets/wavedrom/
 ```

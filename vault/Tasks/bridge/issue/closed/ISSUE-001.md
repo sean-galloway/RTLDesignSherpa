@@ -43,7 +43,7 @@ A consumer config that no build touches is checked by nothing.
   comment); the `_mon` variant picks up the `_monlite` wrappers like every
   other bridge. Both lint clean under verilator. The area's hand-maintained
   DV for the char bridge passes from a clean build.
-- Gate: `projects/components/bridge/bin/tests/test_generator_pkg.py::
+- Gate: `projects/components/fabric-gen-ip/bridge/bin/tests/test_generator_pkg.py::
   test_every_consumer_config_loads_and_validates` loads and validates every
   hand-written bridge config under `projects/fpga-systems/**/rtl/bridges/configs/`
   and the non-batch `test_configs/` fixtures; a companion test asserts the
@@ -60,7 +60,7 @@ bridges set `use_cfg_regblock = true`, so their `_mon` tops have no `cfg_*`
 pins and a `s_cfg_axil_*` port, yet their monitor tests were emitted (and
 hand-copied) with `IS_REGBLOCK = False` -- the pin-driven stress flow, whose
 cfg helpers no-op against absent pins. The regmap path was also hard-wired to
-`projects/components/bridge/rtl/generated/`. Both now derive from the config
+`projects/components/fabric-gen-ip/bridge/rtl/generated/`. Both now derive from the config
 and the output directory. Batch output is byte-identical (the one regblock
 fixture already had the name); the two Genesys hand-maintained monitor tests
 now say `IS_REGBLOCK = True`, name their `*_cfg_regmap.py`, and carry

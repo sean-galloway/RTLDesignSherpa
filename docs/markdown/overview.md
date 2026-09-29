@@ -96,9 +96,9 @@ graph TD
 |-----------|--------|-------------|
 | **[STREAM](../../projects/components/dmas/stream)** | Ready | Tutorial DMA engine with scatter-gather |
 | **[RAPIDS](../../projects/components/dmas/rapids)** | In Progress | Advanced DMA with network interfaces |
-| **[Bridge](../../projects/components/bridge)** | Ready | AXI protocol bridges and converters |
+| **[Bridge](../../projects/components/fabric-gen-ip/bridge)** | Ready | AXI protocol bridges and converters |
 | **[Converters](../../projects/components/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion |
-| **[APB Crossbar](../../projects/components/apbx-xbar)** | Ready | M×N APB interconnect |
+| **[APB Crossbar](../../projects/components/fabric-gen-ip/apbx-xbar)** | Ready | M×N APB interconnect |
 | **[Retro Legacy](../../projects/components/retro_legacy_blocks)** | Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
 | **[Delta](../../projects/components/delta)** | Planned | Network-on-Chip mesh |
 | **[HIVE](../../projects/components/hive)** | Planned | Distributed RISC-V control |
@@ -176,7 +176,7 @@ Apply common building blocks to implement industry-standard protocols (**124 mod
 #### APB (Advanced Peripheral Bus)
 - **[APB Masters](../../rtl/amba/apb4)** - Command/response interfaces with FIFO buffering
 - **[APB Slaves](../../rtl/amba/apb4)** - Register interfaces with address decoding
-- **APB Interconnect** - Multi-master/multi-slave crossbar (the `rtl/integ_*` examples were retired in `41e587b1`; see `projects/components/apbx-xbar/`)
+- **APB Interconnect** - Multi-master/multi-slave crossbar (the `rtl/integ_*` examples were retired in `41e587b1`; see `projects/components/fabric-gen-ip/apbx-xbar/`)
 - **[APB Bridges](../../rtl/amba/apb4)** - Protocol conversion, CDC
 
 **Example:** APB register slave demonstrates parameter-driven design
@@ -217,7 +217,7 @@ apb4_slave #(
 
 ### Level 3: Integration Examples
 
-**Locations:** retired in `41e587b1` — the integration examples are gone; the crossbar lives in `projects/components/apbx-xbar/`
+**Locations:** retired in `41e587b1` — the integration examples are gone; the crossbar lives in `projects/components/fabric-gen-ip/apbx-xbar/`
 
 Practice integrating multiple modules into working systems:
 
@@ -258,8 +258,8 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[APB Crossbar](../../projects/components/apbx-xbar)** | Ready | Parametric M×N APB interconnect with round-robin arbitration |
-| **[Bridge](../../projects/components/bridge)** | Ready | AXI4 protocol bridges, width converters, CDC |
+| **[APB Crossbar](../../projects/components/fabric-gen-ip/apbx-xbar)** | Ready | Parametric M×N APB interconnect with round-robin arbitration |
+| **[Bridge](../../projects/components/fabric-gen-ip/bridge)** | Ready | AXI4 protocol bridges, width converters, CDC |
 | **[Converters](../../projects/components/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion bridges |
 
 #### Retro Legacy Blocks
@@ -523,7 +523,7 @@ pytest val/amba/test_apb4_slave.py -v -m basic
 #### Level 3: Test APB Crossbar Integration
 ```bash
 # Run 2-to-4 crossbar test
-pytest projects/components/apbx-xbar/dv/tests/test_apbx_xbar_2to4.py -v -k "2to4"
+pytest projects/components/fabric-gen-ip/apbx-xbar/dv/tests/test_apbx_xbar_2to4.py -v -k "2to4"
 ```
 
 #### Level 4: Test Retro Legacy Block Component
