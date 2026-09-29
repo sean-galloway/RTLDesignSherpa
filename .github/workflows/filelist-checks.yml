@@ -114,3 +114,12 @@ jobs:
       # so this needs no PYTHONPATH (verified with env -u PYTHONPATH).
       - name: Interrupt BFM decomposition logic (simulator-free)
         run: python3 -m pytest bin/TBClasses/irq/tests/ -q
+
+      # RLB TASK-018. The per-IR-line verdict's value is entirely in FAILING:
+      # its fail-closed branch is one line, and if that regressed to True all
+      # seven rlb_top fabric tests would still report PASSED while asserting
+      # nothing. Nothing else in CI runs the RLB area, so without this step the
+      # check is unprotected. Imports only the extracted pure module -- no
+      # cocotb, no TB, no DUT.
+      - name: rlb_top per-IR-line verdict (simulator-free)
+        run: python3 -m pytest projects/components/retro_legacy_blocks/dv/tbclasses/rlb_top/tests/ -q

@@ -56,6 +56,11 @@ from cocotb.triggers import ClockCycles
 from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import (
     PIC8259RegisterMap,
 )
+# RLB TASK-018: the per-IR-line verdict is a PURE function so it can be tested
+# without a simulator -- see rlb_top/tests/test_ir_lines.py.
+from projects.components.retro_legacy_blocks.dv.tbclasses.rlb_top.ir_lines import (
+    ir_lines_verdict,
+)
 
 
 class RLBTopTests:
@@ -273,41 +278,21 @@ class RLBTopTests:
         therefore proves both that the cascade appeared and that nothing else
         moved on the master.
         """
-        want = set(expected_irqs)
-
         fab = self.tb.pic_lines.monitors.get('w_fabric_irq')
-        if fab is None:
-            self.log.error("  w_fabric_irq probe absent -- the per-IR-line "
-                           "check cannot run, and passing without it would be "
-                           "vacuous")
-            return False
-        got = {p.index for p in fab.events(event='assert')}
-        if got != want:
-            self.log.error(
-                f"  fabric IR lines wrong: asserted={sorted(got)} "
-                f"expected={sorted(want)} "
-                f"(missing={sorted(want - got)} extra={sorted(got - want)})")
-            for pkt in fab.events(event='assert'):
-                self.log.error(f"    {pkt}")
-            return False
-
         mst = self.tb.pic_lines.monitors.get('w_master_pic_irq')
-        if mst is None:
-            self.log.error("  w_master_pic_irq probe absent -- the master-side "
-                           "per-IR-line check cannot run")
-            return False
-        want_master = {i for i in want if i < 8}
-        if any(i >= 8 for i in want):
-            want_master.add(2)          # the cascade, forced from the slave INT
-        got_master = {p.index for p in mst.events(event='assert')}
-        if got_master != want_master:
-            self.log.error(
-                f"  master IR lines wrong: asserted={sorted(got_master)} "
-                f"expected={sorted(want_master)} "
-                f"(missing={sorted(want_master - got_master)} "
-                f"extra={sorted(got_master - want_master)})")
-            for pkt in mst.events(event='assert'):
-                self.log.error(f"    {pkt}")
+        got = None if fab is None else {p.index for p in fab.events(event='assert')}
+        got_master = (None if mst is None
+                      else {p.index for p in mst.events(event='assert')})
+
+        ok, reason = ir_lines_verdict(got, got_master, expected_irqs)
+        if not ok:
+            self.log.error(f"  {reason}")
+            # Dump the packets behind the verdict -- the whole diagnostic value
+            # of the per-bit events is saying WHICH line moved and when.
+            for mon in (fab, mst):
+                if mon is not None:
+                    for pkt in mon.events(event='assert'):
+                        self.log.error(f"    {pkt}")
             return False
 
         self.log.info(f"  per-IR-line OK: fabric {sorted(got)}, "
@@ -642,7 +627,20 @@ class RLBTopTests:
             self.tb.dut.pm_gpe_events.value = 1
             await self.tb.wait_clocks('pclk', gap2)
 
-            # All three are high HERE -- assert that before waiting further.
+            # Let the LAST source propagate before sampling. gap1/gap2 are the
+            # coincidence -- when each source ARRIVES -- but PM/ACPI needs tens
+            # of cycles to get from pm_gpe_events through GPE status latching to
+            # pm_interrupt. Both proven tests wait 40 there (the single-block PM
+            # test and the two-source overlap test); sampling at gap2 instead
+            # read pm=False with gap2=2 and failed this test's own simultaneity
+            # guard (SEED=41404).
+            #
+            # Waiting does NOT weaken the coincidence claim: all three are LEVEL
+            # sources held high -- UART holds, gpio_in stays 1, pm_gpe_events
+            # stays 1 -- so they are still simultaneously high after the settle.
+            await self.tb.wait_clocks('pclk', 40)
+
+            # All three are high HERE.
             live = []
             for name in ('uart_irq', 'gpio_irq', 'pm_interrupt'):
                 m = self.tb.irqs.monitors.get(name)
@@ -656,7 +654,6 @@ class RLBTopTests:
                 self.tb.dut.pm_gpe_events.value = 0
                 return False
             self.log.info("  all three sources simultaneously HIGH")
-            await self.tb.wait_clocks('pclk', 40)
 
             ok = True
             if int(self.tb.dut.pic_irq_in.value) != 0:

@@ -148,9 +148,15 @@ repeated:**
 
 **Deliberately not claimed, worth a follow-up:**
 
-- `_ir_lines_ok` has NO permanent test. The 8/8 control above was an ad-hoc
-  script and is gone; a future edit could silently lose the fail-closed
-  behaviour. `bin/TBClasses/irq/tests/` is the precedent for where one would go.
+- ~~`_ir_lines_ok` has NO permanent test.~~ **DONE 2026-09-29.** The set logic
+  (including the fail-closed branches, reached with `None` for an absent probe)
+  was extracted to `rlb_top/ir_lines.py` as a pure function, and
+  `rlb_top/tests/test_ir_lines.py` covers it with 18 simulator-free cases --
+  eleven of them negative. It is wired into the CI job that already runs the
+  other two simulator-free suites, because a test nothing runs has the same
+  defect as a waiver file nothing reads. Mutation-tested 7/7: flipping either
+  fail-closed branch to `True`, dropping or forcing the cascade bit, relaxing
+  either exact-set to a subset, or moving `CASCADE_IR` all turn the suite red.
 - The per-IR-line check runs at the FULL tier only, because the fabric tests are
   in `full_methods`. gate and func log zero such lines by construction.
 - `w_fabric_irq[IRQ_TIMER]` is `pit_timer_irq[0] | hpet_legacy_irq0` and
