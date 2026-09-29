@@ -21,13 +21,8 @@
 
 <!-- End Header -->
 
-# The Monitor System as a Design Surface
+# Out of scope
 
-**Moved 2026-09-29.** The white paper is now a book with one chapter per file,
-so it renders through the same PDF flow as the module references:
-
-- Chapters and build order: [rtl-amba-monitors/whitepaper/index.md](../rtl-amba-monitors/whitepaper/index.md)
-- Orientation: [rtl-amba-monitors/whitepaper/overview.md](../rtl-amba-monitors/whitepaper/overview.md)
-- Branded PDF: `docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf`, built by `docs/markdown/generate_rtl_pdfs.sh monitor-wp`
-
-This page stays only so that older links resolve; nothing else lives here.
+Packet bit layout ([monitor_package_spec.md](../../rtl-amba/includes/monitor_package_spec.md)),
+per-module ports and timing ([monitor/](../../rtl-amba/monitor/)), and test recipes (the
+test sources).

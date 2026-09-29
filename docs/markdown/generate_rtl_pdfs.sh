@@ -63,8 +63,11 @@ build_book() {
   for a in "$@"; do case "$a" in lot) lot=true;; lof) lof=true;; low) low=true;; esac; done
   local outbase="${OUTDIR}/${name}"
   local tmpstyle="${SCRIPT_DIR}/.book_styles.yaml"
+  # The template's title-page date is a literal ("July 2026"); stamp the build
+  # month instead so a rebuilt book does not claim a date months old.
   sed -e "s|__TITLE__|${title}|" -e "s|__SUBTITLE__|${subtitle}|" \
       -e "s|__LOT__|${lot}|" -e "s|__LOF__|${lof}|" -e "s|__LOW__|${low}|" \
+      -e "s|date: \"July 2026\"|date: \"$(date +'%B %Y')\"|" \
       "${STYLE_TMPL}" > "${tmpstyle}"
   echo "------------------------------------------------------------"
   echo " Building: ${title}  (${subtitle})  ->  docs/pdfs/${name}.pdf"
@@ -135,6 +138,16 @@ if want monitor; then
   mapfile -t MON < <(ls rtl-amba/monitor/*.md rtl-amba/includes/monitor_*.md 2>/dev/null | grep -vE '_book_')
   gen_index rtl-amba/_book_monitor_index.md "RTL AMBA Monitor Subsystem" "${MON[@]}"
   build_book "RTL AMBA Monitor Subsystem" "${SUB}" rtl-amba/_book_monitor_index.md RTL_AMBA_Monitor
+fi
+
+# ---- Monitor system white paper (rtl-amba-monitors/whitepaper, one chapter per file) ----
+# A paper, not a module reference: its own subtitle, revision read from the
+# front matter's "**Version:**" line, no LoF/LoT (the figures are plain image
+# embeds without caption encoding). The index IS the chapter order.
+if want monitor-wp; then
+  WP_REV="$(grep -oE '^\*\*Version:\*\* [0-9]+\.[0-9]+' rtl-amba-monitors/whitepaper/00_front_matter.md | grep -oE '[0-9]+\.[0-9]+' | head -1)"
+  build_book "The Monitor System as a Design Surface" "AMBA Monitor System White Paper — Rev ${WP_REV:-?}" \
+             rtl-amba-monitors/whitepaper/index.md RTL_AMBA_Monitor_Whitepaper
 fi
 
 # ---- AMBA, split by protocol ----

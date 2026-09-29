@@ -21,13 +21,11 @@
 
 <!-- End Header -->
 
-# The Monitor System as a Design Surface
+# rtl-amba-monitors -- Orientation
 
-**Moved 2026-09-29.** The white paper is now a book with one chapter per file,
-so it renders through the same PDF flow as the module references:
-
-- Chapters and build order: [rtl-amba-monitors/whitepaper/index.md](../rtl-amba-monitors/whitepaper/index.md)
-- Orientation: [rtl-amba-monitors/whitepaper/overview.md](../rtl-amba-monitors/whitepaper/overview.md)
-- Branded PDF: `docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf`, built by `docs/markdown/generate_rtl_pdfs.sh monitor-wp`
-
-This page stays only so that older links resolve; nothing else lives here.
+`rtl-amba/monitor/` answers "what does this module do and what are its
+ports". This directory answers the question one level up: how to use the
+monitor system as a design surface. Today it holds one document, the white
+paper, split into chapters under [whitepaper/](whitepaper/overview.md); a
+future characterization or campaign write-up would sit beside it as its own
+directory. Catalogue: [index.md](index.md).

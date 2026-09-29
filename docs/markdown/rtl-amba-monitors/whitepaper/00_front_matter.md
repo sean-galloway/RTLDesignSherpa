@@ -23,11 +23,16 @@
 
 # The Monitor System as a Design Surface
 
-**Moved 2026-09-29.** The white paper is now a book with one chapter per file,
-so it renders through the same PDF flow as the module references:
+**Audience:** SoC integrators deciding how to instrument a design with the
+RTL Design Sherpa monitor system. **Not** a status snapshot of what is in the
+tree (that is [overview.md](../../rtl-amba/overview.md)) and not a port list (those are the
+per-module pages under [monitor/](../../rtl-amba/monitor/)). This paper sits one level up:
+here is the spine, here are the six axes the integrator owns, and here is
+what each choice costs.
 
-- Chapters and build order: [rtl-amba-monitors/whitepaper/index.md](../rtl-amba-monitors/whitepaper/index.md)
-- Orientation: [rtl-amba-monitors/whitepaper/overview.md](../rtl-amba-monitors/whitepaper/overview.md)
-- Branded PDF: `docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf`, built by `docs/markdown/generate_rtl_pdfs.sh monitor-wp`
+**Version:** 1.1, 2026-09-28. Numbers are from the tree at that date;
+each is cited to the page or report it comes from. Revision 1.1 makes the
+recommendation explicit: the lite monitor is the realistic choice on every
+port, and the full monitor is the exception you justify.
 
-This page stays only so that older links resolve; nothing else lives here.
+---
