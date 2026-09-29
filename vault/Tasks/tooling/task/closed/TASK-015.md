@@ -1,7 +1,7 @@
 # TASK-015: check_task_ids.py runs only in pre-commit; CI never validates the tracker
 
 **Priority:** P2
-**Status:** open
+**Status:** CLOSED 2026-09-29 (done)
 **Owner:** TBD
 **Filed:** 2026-09-28
 
@@ -33,3 +33,20 @@ the file sat in `open/`.
 - [ ] the step fails the build on a non-zero exit, not just prints
 - [ ] a deliberately wrong count is shown to fail it (the gate must have teeth,
       not merely run -- see [[silent-fallbacks]])
+
+---
+
+## CLOSED 2026-09-29 -- gate in CI, with teeth
+
+1. `.github/workflows/filelist-checks.yml`, `filelists` job (the pip-free one;
+   the checker is stdlib + git): step "Task tracker agrees with disk" runs
+   `python3 bin/check_task_ids.py` over every area. A non-zero exit fails the
+   job like every other step there -- no `|| true`.
+2. Teeth: `bin/tests/test_check_task_ids.py` builds a one-lane scratch git
+   repo and plants one defect per case -- a count table that disagrees with
+   the directory, an INDEX that omits an item on disk, a stale `Next ID`, a
+   filename/H1 mismatch -- and pins that the checker returns 1 and names it;
+   a consistent lane returns 0. 5/5 pass, with and without PYTHONPATH. Runs in
+   the `board-layer` job (the one with pytest) as its own step.
+3. Not a document-only claim: the wrong-count case is the exact failure
+   tooling TASK-014 was filed on (`closed: 15` beside a file in `open/`).

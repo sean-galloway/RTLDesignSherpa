@@ -49,6 +49,14 @@ jobs:
       - name: No NEW broken markdown link
         run: python3 bin/check_broken_links.py --ratchet
 
+      # tooling TASK-015. Until 2026-09-29 this ran only in the local pre-commit
+      # hook, so a --no-verify commit or a checkout with no hooks installed
+      # could land an INDEX saying `closed: 15` beside a file still in open/,
+      # with nothing downstream to catch it. Stdlib only, same as the rest of
+      # this job. Its teeth are proven in the board-layer job below.
+      - name: Task tracker agrees with disk (counts, listings, Next ID, filename==H1)
+        run: python3 bin/check_task_ids.py
+
       - name: Show the outstanding backlog
         if: always()
         run: python3 bin/filelist_registry.py --blindspots || true
@@ -123,3 +131,11 @@ jobs:
       # cocotb, no TB, no DUT.
       - name: rlb_top per-IR-line verdict (simulator-free)
         run: python3 -m pytest projects/components/retro_legacy_blocks/dv/tbclasses/rlb_top/tests/ -q
+
+      # tooling TASK-015 criterion 3: the tracker gate above must FAIL on a
+      # wrong count, an unlisted item, a stale Next ID and a filename/H1
+      # mismatch -- not merely run. Each case is a scratch lane mutated one
+      # way. Only this file: bin/tests/ also holds a check_port_consumers test
+      # that needs verilator, which this job does not install.
+      - name: Task-tracker checker has teeth (fails on each planted defect)
+        run: python3 -m pytest bin/tests/test_check_task_ids.py -q
