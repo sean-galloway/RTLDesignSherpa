@@ -65,7 +65,7 @@ made the drop safe rather than merely reasoned.
 Drop the task *with the evidence in it* -- premise by premise, with the
 measurement. A task deleted quietly gets re-proposed on the same reasoning by
 the next person who has the same good idea. See the entry in
-`vault/Tasks/pumice/dropped.md`.
+`vault/Tasks/pumice-ddr2-lpddr2/task/dropped/TASK-025.md`.
 
 
 ## A cross-item link encodes the OTHER item's state, and breaks on its move

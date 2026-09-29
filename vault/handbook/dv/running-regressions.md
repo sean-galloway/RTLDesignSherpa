@@ -157,7 +157,7 @@ Two rules follow, and they generalise beyond pumice:
   `OK: ... passed at BOTH geometries` line — were absent and neither was
   checked.
 
-(Was `vault/Tasks/pumice/task/open/TASK-003.md`, which was a rule filed as a
+(Was `vault/Tasks/pumice-ddr2-lpddr2/task/dropped/TASK-003.md`, which was a rule filed as a
 task and therefore could never be closed.)
 
 ## Serial ordering that matters

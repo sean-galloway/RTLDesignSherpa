@@ -21,7 +21,7 @@ runs, two seeds, two outcomes, and no way to reproduce the failing one.
 
 Randomised stimulus exists to find bugs the directed tests miss.
 Retry-until-green is precisely the policy that discards those finds: the suite
-does the search and then throws away the hits. See TOOL-015 and
+does the search and then throws away the hits. See tooling BUG-008 (was TOOL-015) and
 vault/handbook/dv/silent-fallbacks.md rule 13.
 
 WHAT IT DOES

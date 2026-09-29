@@ -41,6 +41,6 @@ OPEN at 7.1 cyc/beat is the single-op FSM streaming a row (S_IDLE->NEED_RDWR->DO
 ->S_IDLE + real CAS). The residual gap to ~1 cyc/beat + random/multi-bank
 parallelism is exactly what the issue-per-clock scheduler rewrite targets
 (SCHEDULER_ANATOMY.md at the time; that rewrite LANDED and the doc was deleted
-2026-08-27 -- current design: `rtl/PUMICE_MEM_CMD_SCHEDULER_UARCH.md`).
+2026-08-27 -- current design: `projects/components/mem-ctrl-ip/pumice-ddr2-lpddr2/docs/uarch/PUMICE_MEM_CMD_SCHEDULER_UARCH.md`).
 This A/B confirms the page-policy lever alone recovers
 most of the *streaming* loss; the FSM serialization is the next lever.

@@ -40,6 +40,11 @@ apb4_slave_cdc_cg.s_apb_PRDATA[31:0]
 @28
 apb4_slave_cdc_cg.s_apb_PSLVERR
 @200
+-whole-module gating (aggregate)
+@28
+apb4_slave_cdc_cg.cg_gating
+apb4_slave_cdc_cg.cg_idle
+@200
 -apb clock gating
 @28
 apb4_slave_cdc_cg.pclk_cg_idle
