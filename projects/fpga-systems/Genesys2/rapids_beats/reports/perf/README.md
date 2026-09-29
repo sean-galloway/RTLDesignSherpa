@@ -1,5 +1,24 @@
 # RAPIDS Beats DMA — Performance Characterization (Genesys 2, 8 channels)
 
+> **v2.0 (2026-09-29).** New design point. Sean: AXI4 read/write engines at
+> **256 bits**, the AXIS links halved to 256 with them (RAPIDS has one
+> `DATA_WIDTH` for both), and **4 KB of SRAM per channel** (128 beats x 32 B;
+> the v1.x builds had 16 KB = 256 x 64 B). Line rate is therefore **3.20 GB/s**
+> per direction (32 B x 100 MHz) instead of 6.40. Every table and figure in
+> sections 1, 3 and 7 is re-measured on one observers bitstream of this build
+> (post-route WNS +0.608 ns, 75679 LUTs, 44 BRAM tiles, against +0.351 / 80040 /
+> 65.5 at 512 bits); the bitstream reports its geometry in the harness `BUILD`
+> register and the host takes its byte and bandwidth math from there. The
+> result, cell for cell: the same utilization at the same beat count as the
+> 512-bit build, so the engine's per-beat behaviour is width-independent and
+> every GB/s figure simply halves. Two things the smaller buffer changed: the
+> sink ingress now pays a fixed 82-cycle fill stall per run (AXIS-in reads
+> 96.1 % at 8 KB and 99.7 % at 128 KB per channel instead of 100 %), and the
+> single-channel write window in the latency sweep shrank from ~93 to ~80 beats.
+> Section 7.7 (new) is the single-channel burst-length sweep behind the knob
+> answer. The v1.5 PDF stands as the record of the 512-bit build; its data files
+> stay in the appendix.
+>
 > **v1.5 (2026-09-28).** The 7.5 latency sweep re-measured with the harness
 > generator's new interleaved-channel schedule (rapids TASK-018: `GEN_MODE.
 > INTERLEAVE`, `run_characterization.py --interleave`), which round-robins the
@@ -43,8 +62,9 @@
 
 **Bitstream:** RAPIDS beats split SOURCE + SINK DMA, 8 concurrent channels, on the
 Digilent **Genesys 2 (Kintex-7 XC7K325T-2)** at 100 MHz. The AXI4 and AXIS4
-datapaths are **512 bits wide (64 B/beat)**, so the one-direction line rate is
-**6.40 GB/s** (`64 B × 100 MHz`). The characterization harness wraps the DUT with
+datapaths are **256 bits wide (32 B/beat)** since v2.0 (512 bits / 64 B through
+v1.5), so the one-direction line rate is **3.20 GB/s** (`32 B × 100 MHz`; 6.40
+at 512 bits). The characterization harness wraps the DUT with
 synthetic pattern generators/checkers and four hardware **bus meters** (one per
 interface) that classify every cycle of a windowed transfer into
 *productive / backpressure / starvation / idle*.
@@ -68,7 +88,8 @@ data. **Source of truth:** the on-chip bus meters, read over CSR.
 > **Metric note.** The headline efficiency is **engaged utilization** —
 > `productive / (productive + backpressure + starvation)`, i.e. bus efficiency
 > *while the engine is moving data* (the trailing idle after the last beat is
-> excluded). Effective bandwidth is `engaged_util × 6.40 GB/s`. On the two AXIS
+> excluded). Effective bandwidth is `engaged_util × line rate` (3.20 GB/s at
+> 32 B/beat; the v1.x tables were at 6.40). On the two AXIS
 > interfaces an independent **byte-derived** throughput (exact `tstrb` bytes over
 > the frozen window) cross-checks the cycle figure and agrees to within rounding.
 
@@ -82,7 +103,7 @@ runs require per-width bitstreams — see *Limitations*). The axes exercised her
 
 | # | Knob | What it is | Set by | Values in this report |
 |---|------|------------|--------|-----------------------|
-| **1** | **Transfer size** (beats/channel) | beats moved per channel per descriptor — the amortization axis | descriptor `length` / `GEN_NBEATS` | **256 B (4 beats) … 256 KB (4096 beats)** |
+| **1** | **Transfer size** (beats/channel) | beats moved per channel per descriptor — the amortization axis | descriptor `length` / `GEN_NBEATS` | **128 B (4 beats) … 128 KB (4096 beats)** |
 | **2** | **Path** | SOURCE (mem-read → AXIS-out) vs SINK (AXIS-in → mem-write) | which half is kicked | both, every config |
 | **3** | **Interface** | the four monitored buses | — | AXIS-in, AXI4-wr, AXI4-rd, AXIS-out |
 | **4** | **Channels** | concurrent DMA channels | build generic | **8** (full width) |
@@ -98,25 +119,30 @@ interface.
 
 ## 1. Headline
 
-At a 256 KB/channel transfer across all 8 channels, every interface runs at
-**100 % of line rate** — the engine is gapless on both the memory bus and the
+At a 128 KB/channel transfer (4096 beats) across all 8 channels, every interface
+runs at **line rate** — the engine is gapless on both the memory bus and the
 network bus, in both directions, simultaneously.
 
-| Path | Interface | Engaged util | Effective BW | Window (prod / starv) |
+| Path | Interface | Engaged util | Effective BW | Window (prod / bp / starv) |
 |------|-----------|-------------:|-------------:|-----------------------|
-| SINK   | AXIS-in (ingress)  | **100.0 %** | 6.40 GB/s | 32768 / 1 |
-| SINK   | AXI4-wr (egress)   | **100.0 %** | 6.40 GB/s | 32768 / 6 |
-| SOURCE | AXI4-rd (ingress)  | **100.0 %** | 6.40 GB/s | 32768 / 14 |
-| SOURCE | AXIS-out (egress)  | **100.0 %** | 6.40 GB/s | 32768 / 14 |
+| SINK   | AXIS-in (ingress)  | **99.7 %** | 3.19 GB/s | 32768 / 82 / 1 |
+| SINK   | AXI4-wr (egress)   | **100.0 %** | 3.20 GB/s | 32768 / 0 / 6 |
+| SOURCE | AXI4-rd (ingress)  | **100.0 %** | 3.20 GB/s | 32768 / 0 / 14 |
+| SOURCE | AXIS-out (egress)  | **100.0 %** | 3.20 GB/s | 32768 / 0 / 14 |
 
-: Headline — 8-channel line-rate at 256 KB/channel (Genesys 2)
+: Headline — 8-channel line-rate at 128 KB/channel (Genesys 2, 256-bit build)
 
 `prod = 32768 = 8 channels × 4096 beats` on every interface: every expected beat
-is accounted for, and the non-productive residue is a handful of cycles of
-one-time fill latency (the single AXIS-in cycle is the registered window close
-landing one cycle after the last accepted beat).
+is accounted for. The non-productive residue is one-time: a handful of fill
+cycles on the three DMA-side interfaces (the single AXIS-in starvation cycle is
+the registered window close landing one cycle after the last accepted beat), and
+on AXIS-in 82 cycles of backpressure that the 4 KB per-channel buffer added --
+the generator fills the first channel's 128 beats before the write engine has
+started draining, and the ingress waits those cycles once per run. It is the
+same 82 at 8 KB, 32 KB and 128 KB per channel, so it is a startup cost, not a
+throughput one (the 16 KB buffers of v1.x absorbed it: AXIS-in read 100.0 %).
 
-![8-channel line-rate bar](plots/headline_8ch.png)
+![8-channel line-rate bar](plots/dw256_headline_8ch.png)
 
 : Figure — all four interfaces at the largest transfer sit on the 100 % line.
 
@@ -152,52 +178,58 @@ handshakes at line rate, freeze one cycle after the last beat.
 
 ## 3. Single-axis sweep — transfer size
 
-Sweeping beats/channel from 4 (256 B) to 4096 (256 KB) at fixed 8-channel width
+Sweeping beats/channel from 4 (128 B) to 4096 (128 KB) at fixed 8-channel width
 shows the classic amortization curve: a fixed per-transfer startup cost (descriptor
 dispatch + `AR→first-R` / SRAM fill) is a large fraction of a tiny transfer and a
 vanishing fraction of a large one.
 
-![utilization vs transfer size](plots/size_util.png)
+![utilization vs transfer size](plots/dw256_size_util.png)
 
 : Figure — engaged utilization vs transfer size, all four interfaces.
 
-![bandwidth vs transfer size](plots/size_bw.png)
+![bandwidth vs transfer size](plots/dw256_size_bw.png)
 
-: Figure — effective per-direction bandwidth vs transfer size (line rate 6.40 GB/s).
+: Figure — effective per-direction bandwidth vs transfer size (line rate 3.20 GB/s).
 
-| Transfer / ch | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | wr BW | sout BW |
+| Transfer / ch | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | wr BW | rd BW |
 |---------------|--------:|--------:|--------:|---------:|------:|--------:|
-| 256 B (4 b)   |  97.0 % |  84.2 % |  69.6 % |   69.6 % | 5.39 | 4.45 |
-| 1 KB (16 b)   |  99.2 % |  95.5 % |  90.1 % |   90.1 % | 6.11 | 5.77 |
-| 4 KB (64 b)   |  99.8 % |  98.5 % |  97.3 % |   97.3 % | 6.30 | 6.23 |
-| 16 KB (256 b) | 100.0 % |  99.7 % |  99.3 % |   99.3 % | 6.38 | 6.36 |
-| 64 KB (1024 b)| 100.0 % |  99.9 % |  99.8 % |   99.8 % | 6.40 | 6.39 |
-| 256 KB (4096 b)| 100.0 %| 100.0 % | 100.0 % |  100.0 % | 6.40 | 6.40 |
+| 128 B (4 b)   |  97.0 % |  84.2 % |  69.6 % |   69.6 % | 2.69 | 2.23 |
+| 512 B (16 b)  |  99.2 % |  95.5 % |  90.1 % |   90.1 % | 3.06 | 2.88 |
+| 2 KB (64 b)   |  99.8 % |  98.5 % |  97.3 % |   97.3 % | 3.15 | 3.11 |
+| 8 KB (256 b)  |  96.1 % |  99.7 % |  99.3 % |   99.3 % | 3.19 | 3.18 |
+| 32 KB (1024 b)|  99.0 % |  99.9 % |  99.8 % |   99.8 % | 3.20 | 3.19 |
+| 128 KB (4096 b)| 99.7 % | 100.0 % | 100.0 % |  100.0 % | 3.20 | 3.20 |
 
-: Table — engaged utilization (%) and effective bandwidth (GB/s) vs transfer size (8 ch)
+: Table — engaged utilization (%) and effective bandwidth (GB/s) vs transfer size (8 ch, 256-bit build)
 
-By 4 KB/channel every interface is already above 97 %, and by 64 KB the whole
-engine is within 0.2 % of line rate. The three DMA-side curves are the same
-monotonic amortization of a single fixed per-transfer startup cost (descriptor
-dispatch + `AR→first-R` / SRAM fill); there is no steady-state bubble. AXIS-in
-sits above them because its window starts at the first offered beat, so the
-launch cost is not in it -- it reports what the ingress link itself did, which
-at 8 channels x 4 beats is 32 beats in 33 cycles.
+Every utilization cell is the 512-bit build's to the decimal (compare the v1.5
+table: the engine's cycle behaviour is per beat, so halving the beat halves the
+bytes and nothing else). By 2 KB/channel every DMA-side interface is above
+97 %, and by 32 KB the whole engine is within 0.2 % of line rate. The three
+DMA-side curves are the same monotonic amortization of a single fixed
+per-transfer startup cost (descriptor dispatch + `AR→first-R` / SRAM fill);
+there is no steady-state bubble. AXIS-in reports the ingress link itself (its
+window starts at the first offered beat, so the launch cost is not in it: 32
+beats in 33 cycles at 8 x 4 beats) -- and from 8 KB up it now dips below the
+others, because the 128-beat per-channel buffer fills before the write engine
+starts draining and the ingress waits a fixed 82 cycles once per run; the dip
+is largest where the run is shortest relative to it (96.1 % at 256 beats) and
+gone to 99.7 % by 4096.
 
-![where the cycles go](plots/size_buckets.png)
+![where the cycles go](plots/dw256_size_buckets.png)
 
 : Figure — productive vs startup/bubble cycles of the AXI4-wr window; the bubble
 fraction collapses as the transfer grows.
 
 ### 3.1 Channel count — per-channel independence
 
-Sweeping active channels from 1 to 8 at a fixed 256 KB/channel transfer, every
+Sweeping active channels from 1 to 8 at a fixed 128 KB/channel transfer, every
 channel count holds line rate: the shared scheduler and SRAM fabric add no
 per-channel penalty as the engine scales out.
 
-![utilization vs channel count](plots/channel_scaling.png)
+![utilization vs channel count](plots/dw256_channel_scaling.png)
 
-: Figure — engaged utilization vs active channel count (256 KB/ch).
+: Figure — engaged utilization vs active channel count (128 KB/ch).
 
 | Channels | AXI4-wr | AXIS-out |
 |----------|--------:|---------:|
@@ -206,18 +238,22 @@ per-channel penalty as the engine scales out.
 | 4 | 100.0 % | 99.9 % |
 | 8 | 100.0 % | 100.0 % |
 
-: Table — utilization vs channel count (256 KB/ch)
+: Table — utilization vs channel count (128 KB/ch; identical to the 512-bit build)
 
 ---
 
 ## 4. What we learned
 
-- **The datapath is gapless.** At realistic transfer sizes (≥ 64 KB/ch) all four
-  interfaces sit at 99.4–100 % engaged utilization, in both directions, on all 8
+- **The datapath is gapless.** At realistic transfer sizes (≥ 32 KB/ch) all four
+  interfaces sit at 99.0–100 % engaged utilization, in both directions, on all 8
   channels at once — the memory bus and the network bus are both saturated.
 - **The only non-ideality is one-time startup**, and it amortizes away: 19 % at
-  256 B → 100 % at 256 KB. There is no steady-state bubble, no per-beat gap, and no
+  128 B → 100 % at 128 KB. There is no steady-state bubble, no per-beat gap, and no
   back-pressure or starvation once data is flowing.
+- **Width does not enter.** The 256-bit build (v2.0) reproduces every utilization
+  cell of the 512-bit build (v1.5) at the same beat count; bandwidth halves with
+  the beat and nothing else moves. The one new term is the 4 KB per-channel
+  buffer's fixed 82-cycle ingress fill stall per run.
 - **Per-channel independence.** 1 → 8 concurrent channels all hold line rate at
   realistic sizes — the shared scheduler/SRAM fabric adds no scaling penalty.
 - **Invariance is the result.** Across a 1000× range of transfer sizes and both
@@ -292,7 +328,11 @@ does the same on RAPIDS beats, with two changes to the v1.1 setup:
   descriptor follows from beats per descriptor over burst length.
 
 Bitstream: `USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0` (meters and latency
-histograms, no monbus event taps). Every v1.4 row of 7.1-7.5 is from one build
+histograms, no monbus event taps). Every v2.0 row of 7.1-7.7 is from one build
+of the 256-bit / 4 KB-per-channel design point (post-route WNS +0.608 ns at
+100 MHz, 75679 LUTs, 44 BRAM tiles; all 79 configurations of A, B, C+D, E and
+E-interleaved pass the golden CRC on both paths, no observer sticky flag on any
+row). The v1.4 rows they replace were from one build
 of the current RTL (PIPELINE = 1, AXIS monitor-lite skids on both network
 ports, `HIST_MAX_OUTSTANDING = 32`): post-route WNS +0.351 ns at 100 MHz,
 80040 LUTs, 65.5 BRAM tiles (the 512-deep R-channel delay queue is in block
@@ -316,62 +356,63 @@ BUG-011 carry the waveform evidence; rapids 589/589 and STREAM 856/859 after.
 
 ### 7.1 Headline: line rate on all four interfaces
 
-At 8 channels x 256 KB the four observers read **100.0 / 100.0 / 100.0 / 100.0 %**
-(AXIS-in, AXI4-wr, AXI4-rd, AXIS-out), i.e. **6.36 / 6.40 / 6.40 / 6.40 GB/s**
-against the **6.40 GB/s** one-direction line rate (64 B x 100 MHz); the AXIS
-byte-derived cross-check gives 6.36 and 6.40 GB/s. Channel scaling is flat:
+At 8 channels x 128 KB the four observers read **99.7 / 100.0 / 100.0 / 100.0 %**
+(AXIS-in, AXI4-wr, AXI4-rd, AXIS-out), i.e. **3.19 / 3.20 / 3.20 / 3.20 GB/s**
+against the **3.20 GB/s** one-direction line rate (32 B x 100 MHz); the AXIS
+byte-derived cross-check gives 3.19 and 3.20 GB/s. Channel scaling is flat:
 
 | Channels (4096 beats/ch) | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out |
 |---:|---:|---:|---:|---:|
 | 1 | 100.0 % | 99.9 % | 99.7 % | 99.7 % |
 | 2 | 100.0 % | 99.9 % | 99.8 % | 99.8 % |
 | 4 | 100.0 % | 100.0 % | 99.9 % | 99.9 % |
-| 8 | 100.0 % | 100.0 % | 100.0 % | 100.0 % |
+| 8 | 99.7 % | 100.0 % | 100.0 % | 100.0 % |
 
-: Table 7.1 -- observer engaged utilization vs active channels (phase D)
+: Table 7.1 -- observer engaged utilization vs active channels (phase D, 256-bit build)
 
-![observer utilization vs channel count](plots/obs_channel_scaling.png)
+![observer utilization vs channel count](plots/dw256_obs_channel_scaling.png)
 
-: Figure 7.1 -- observer utilization vs channel count at 256 KB/channel.
+: Figure 7.1 -- observer utilization vs channel count at 128 KB/channel.
 
 ### 7.2 Transfer size (phase C): the amortization knee
 
 | beats/ch | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | wr GB/s | rd GB/s | rd bursts | AR->RLAST | AW->B |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1 | 88.9 % | 38.1 % | 27.6 % | 27.6 % | 2.44 | 1.77 | 8 | 6 | 6 |
-| 4 | 97.0 % | 84.2 % | 69.6 % | 69.6 % | 5.39 | 4.45 | 8 | 12 | 12 |
-| 16 | 99.2 % | 95.5 % | 90.1 % | 90.1 % | 6.11 | 5.77 | 16 | 23 | 23 |
-| 64 | 99.8 % | 98.5 % | 97.3 % | 97.3 % | 6.30 | 6.23 | 64 | 22 | 23 |
-| 256 | 100.0 % | 99.7 % | 99.3 % | 99.3 % | 6.38 | 6.36 | 232 | 24 | 24 |
-| 1024 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 6.40 | 6.39 | 912 | 24 | 24 |
-| 4096 | 100.0 % | 100.0 % | 100.0 % | 100.0 % | 6.40 | 6.40 | 3648 | 24 | 24 |
+| 1 | 88.9 % | 38.1 % | 27.6 % | 27.6 % | 1.22 | 0.88 | 8 | 6 | 6 |
+| 4 | 97.0 % | 84.2 % | 69.6 % | 69.6 % | 2.69 | 2.23 | 8 | 12 | 12 |
+| 16 | 99.2 % | 95.5 % | 90.1 % | 90.1 % | 3.06 | 2.88 | 16 | 23 | 23 |
+| 64 | 99.8 % | 98.5 % | 97.3 % | 97.3 % | 3.15 | 3.11 | 64 | 22 | 23 |
+| 256 | 96.1 % | 99.7 % | 99.3 % | 99.3 % | 3.19 | 3.18 | 232 | 24 | 24 |
+| 1024 | 99.0 % | 99.9 % | 99.8 % | 99.8 % | 3.20 | 3.19 | 912 | 24 | 24 |
+| 4096 | 99.7 % | 100.0 % | 100.0 % | 100.0 % | 3.20 | 3.20 | 3648 | 24 | 24 |
 
-: Table 7.2 -- size sweep at 8 channels; latencies are observer-histogram means in aclk cycles
+: Table 7.2 -- size sweep at 8 channels (256-bit build); latencies are observer-histogram means in aclk cycles
 
-The three DMA-side interfaces are above 90 % from 16 beats (1 KB) per channel
-and within 0.3 % of line rate from 1024. The AXIS-in column now leads them:
-its window brackets first offered beat to last accepted beat (rapids ISSUE-001),
-so it reports the ingress link itself rather than the launch cost, and reads
-97 % at 4 beats and 100 % from 256. `rd bursts` confirms the 9-beat burst shape
+The three DMA-side interfaces are above 90 % from 16 beats (512 B) per channel
+and within 0.3 % of line rate from 1024, cell for cell as at 512 bits. The
+AXIS-in column reports the ingress link itself (its window brackets first
+offered beat to last accepted beat, rapids ISSUE-001): 97 % at 4 beats, and
+from 256 beats the fixed 82-cycle buffer-fill stall of the 4 KB per-channel
+SRAM shows as 96.1 / 99.0 / 99.7 % where the 16 KB build read 100. `rd bursts` confirms the 9-beat burst shape
 (`AxLEN` 8) from 64 beats up. AR->RLAST settles at 24 cycles: the pattern slave's
 fixed response plus a 9-beat burst.
 
-![observer utilization vs size](plots/obs_size_util.png)
+![observer utilization vs size](plots/dw256_obs_size_util.png)
 
 : Figure 7.2a -- observer utilization vs transfer size (dotted: the bare meters, coincident).
 
-![observer bandwidth vs size](plots/obs_size_bw.png)
+![observer bandwidth vs size](plots/dw256_obs_size_bw.png)
 
 : Figure 7.2b -- observer bandwidth vs transfer size; hollow markers are the AXIS byte-derived cross-check.
 
-![AXI latency vs size](plots/obs_latency.png)
+![AXI latency vs size](plots/dw256_obs_latency.png)
 
 : Figure 7.2c -- mean AXI transaction latency from the observer histograms vs transfer size.
 
 ### 7.3 Descriptors x channels (phase A): the STREAM matrix
 
 {1, 2, 4, 8, 16} descriptors per channel x {1, 2, 4, 8} channels, 1024 beats
-(64 KB) per descriptor, chained through `next_ptr` and closed with `last`:
+(32 KB) per descriptor, chained through `next_ptr` and closed with `last`:
 
 | descs/ch | 1 ch wr / sout | 2 ch | 4 ch | 8 ch |
 |---:|---:|---:|---:|---:|
@@ -381,7 +422,7 @@ fixed response plus a 9-beat burst.
 | 8 | 98.7 / 99.8 % | 98.7 / 99.9 % | 98.7 / 100.0 % | 98.7 / 100.0 % |
 | 16 | 98.6 / 99.9 % | 98.6 / 100.0 % | 98.6 / 100.0 % | 98.6 / 100.0 % |
 
-: Table 7.3 -- AXI4-wr (sink) / AXIS-out (source) utilization over the descriptor x channel matrix
+: Table 7.3 -- AXI4-wr (sink) / AXIS-out (source) utilization over the descriptor x channel matrix (256-bit build; every cell equals the 512-bit build's)
 
 Flat, as STREAM's is: neither chain length nor channel count moves the datapath
 off line rate. The one visible structure is the sink write side settling 1.4 %
@@ -389,7 +430,7 @@ below the source as chains lengthen -- the per-descriptor dispatch on the write
 engine costs a fixed handful of cycles per descriptor boundary, which the source
 egress does not pay.
 
-![descriptor matrix](plots/obs_desc_matrix.png)
+![descriptor matrix](plots/dw256_obs_desc_matrix.png)
 
 : Figure 7.3 -- the descriptor x channel matrix from the observers.
 
@@ -400,18 +441,21 @@ channels x 1024 beats:
 
 | beats/burst | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | AR->RLAST | AW->B |
 |---:|---:|---:|---:|---:|---:|---:|
-| 1 | 39.8 % | 38.8 % | 99.8 % | 99.8 % | 6 | 6 |
-| 2 | 78.4 % | 77.1 % | 99.8 % | 99.8 % | 12 | 12 |
-| 4 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 12 | 12 |
-| 8 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 24 | 24 |
-| 16 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 48 | 48 |
-| 32 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 96 | 96 |
-| 64 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 191 | 191 |
+| 1 | 35.9 % | 35.6 % | 99.8 % | 99.8 % | 6 | 6 |
+| 2 | 71.0 % | 71.0 % | 99.8 % | 99.8 % | 12 | 12 |
+| 4 | 99.0 % | 99.9 % | 99.8 % | 99.8 % | 12 | 12 |
+| 8 | 99.0 % | 99.9 % | 99.8 % | 99.8 % | 24 | 24 |
+| 16 | 99.0 % | 99.9 % | 99.8 % | 99.8 % | 48 | 48 |
+| 32 | 99.0 % | 99.9 % | 99.8 % | 99.8 % | 96 | 96 |
+| 64 | 99.0 % | 99.9 % | 99.8 % | 99.8 % | 191 | 96 |
 
-: Table 7.4 -- burst-length sweep; latencies in aclk cycles
+: Table 7.4 -- burst-length sweep (256-bit build); latencies in aclk cycles
 
-The knee is at **4 beats**: below it the SINK path falls (39 % at single-beat
-bursts, 77 % at 2) while the SOURCE path holds 99.8 % at every burst length.
+The knee is at **4 beats**: below it the SINK path falls (36 % at single-beat
+bursts, 71 % at 2; 39 / 77 at 512 bits, where the 16 KB buffer let the ingress
+run a little further ahead) while the SOURCE path holds 99.8 % at every burst
+length. AXIS-in's flat 99.0 % is the 82-cycle buffer-fill stall of section 3
+over a 1024-beat run.
 PIPELINE = 1 moved the sink's short-burst numbers up from the 23 % / 42 % of
 v1.2 (up to eight AWs in flight per channel instead of one), but at one beat
 per AW the sink is still AW-issue bound: one address handshake per data beat is
@@ -420,7 +464,7 @@ its ARs. STREAM's knee sits at the same place (~3 beats). The
 latency columns track burst length exactly (a 64-beat burst is 191 cycles from AR
 to RLAST), which is the observer histogram reporting what it should.
 
-![burst-length knee](plots/obs_xfer_knee.png)
+![burst-length knee](plots/dw256_obs_xfer_knee.png)
 
 : Figure 7.4 -- utilization vs burst length; the sink write path needs >= 4-beat bursts.
 
@@ -432,39 +476,39 @@ many beats the DUT keeps in flight), at 8 channels x 1024 beats:
 
 | delay (cyc) | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | rd GB/s | wr GB/s | AR->first R | AR->RLAST | AW->B |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 6.39 | 6.40 | 24 | 24 | 24 |
-| 8 | 100.0 % | 99.9 % | 99.7 % | 99.7 % | 6.38 | 6.40 | 24 | 48 | 48 |
-| 16 | 100.0 % | 99.9 % | 99.6 % | 99.6 % | 6.38 | 6.40 | 48 | 48 | 48 |
-| 32 | 100.0 % | 99.9 % | 99.5 % | 99.5 % | 6.37 | 6.40 | 48 | 48 | 48 |
-| 48 | 100.0 % | 99.9 % | 99.3 % | 99.3 % | 6.35 | 6.40 | 96 | 96 | 96 |
-| 64 | 93.7 % | 92.8 % | 99.1 % | 99.1 % | 6.34 | 5.94 | 96 | 96 | 96 |
-| 96 | 76.7 % | 75.2 % | 98.7 % | 98.7 % | 6.32 | 4.81 | 96 | 96 | 96 |
-| 128 | 65.5 % | 63.7 % | 98.3 % | 98.3 % | 6.29 | 4.08 | 192 | 192 | 192 |
-| 192 | 46.5 % | 44.9 % | 97.6 % | 97.6 % | 6.24 | 2.88 | 192 | 192 | 192 |
-| 256 | 36.0 % | 34.7 % | 96.9 % | 96.8 % | 6.20 | 2.22 | 384 | 384 | 384 |
-| 384 | 24.8 % | 23.8 % | 95.4 % | 95.3 % | 6.10 | 1.53 | 384 | 384 | 384 |
-| 512 | 19.0 % | 18.2 % | 93.7 % | 93.6 % | 6.00 | 1.16 | 768 | 768 | 768 |
+| 0 | 99.0 % | 99.9 % | 99.8 % | 99.8 % | 3.19 | 3.20 | 24 | 24 | 24 |
+| 8 | 99.0 % | 99.9 % | 99.7 % | 99.7 % | 3.19 | 3.20 | 24 | 48 | 48 |
+| 16 | 99.0 % | 99.9 % | 99.6 % | 99.6 % | 3.19 | 3.20 | 48 | 48 | 48 |
+| 32 | 99.0 % | 99.9 % | 99.5 % | 99.5 % | 3.18 | 3.20 | 48 | 48 | 48 |
+| 48 | 99.0 % | 99.9 % | 99.3 % | 99.3 % | 3.18 | 3.20 | 96 | 96 | 96 |
+| 64 | 89.4 % | 90.0 % | 99.1 % | 99.1 % | 3.17 | 2.88 | 96 | 96 | 96 |
+| 96 | 68.2 % | 68.3 % | 98.7 % | 98.7 % | 3.16 | 2.18 | 96 | 96 | 96 |
+| 128 | 55.5 % | 55.2 % | 98.3 % | 98.3 % | 3.15 | 1.77 | 192 | 192 | 192 |
+| 192 | 39.2 % | 38.8 % | 97.6 % | 97.6 % | 3.12 | 1.24 | 192 | 192 | 192 |
+| 256 | 30.3 % | 29.9 % | 96.9 % | 96.8 % | 3.10 | 0.96 | 384 | 384 | 384 |
+| 384 | 20.8 % | 20.5 % | 95.4 % | 95.3 % | 3.05 | 0.66 | 384 | 384 | 384 |
+| 512 | 15.9 % | 15.6 % | 93.7 % | 93.6 % | 3.00 | 0.50 | 768 | 768 | 768 |
 
-: Table 7.5 -- latency sweep (v1.4, PIPELINE = 1, `HIST_MAX_OUTSTANDING = 32`, no sample loss on any row); the latency columns are log2-histogram means, so they sit on bin midpoints
+: Table 7.5 -- latency sweep, sequential channel schedule (v2.0, 256-bit build, PIPELINE = 1, `HIST_MAX_OUTSTANDING = 32`, no sample loss on any row); the latency columns are log2-histogram means, so they sit on bin midpoints
 
 The same sweep with the interleaved schedule (v1.5):
 
 | delay (cyc) | AXIS-in | AXI4-wr | AXI4-rd | AXIS-out | rd GB/s | wr GB/s | AR->first R | AR->RLAST | AW->B |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 6.39 | 6.40 | 24 | 24 | 24 |
-| 8 | 100.0 % | 99.9 % | 99.7 % | 99.7 % | 6.38 | 6.40 | 24 | 48 | 48 |
-| 16 | 100.0 % | 99.9 % | 99.6 % | 99.6 % | 6.38 | 6.40 | 48 | 48 | 48 |
-| 32 | 100.0 % | 99.9 % | 99.5 % | 99.5 % | 6.37 | 6.40 | 48 | 48 | 48 |
-| 48 | 100.0 % | 99.9 % | 99.3 % | 99.3 % | 6.35 | 6.40 | 96 | 96 | 96 |
-| 64 | 100.0 % | 99.9 % | 99.1 % | 99.1 % | 6.34 | 6.40 | 96 | 96 | 96 |
-| 96 | 100.0 % | 99.9 % | 98.7 % | 98.7 % | 6.32 | 6.40 | 96 | 96 | 96 |
-| 128 | 100.0 % | 99.9 % | 98.3 % | 98.3 % | 6.29 | 6.40 | 192 | 192 | 192 |
-| 192 | 100.0 % | 99.9 % | 97.6 % | 97.6 % | 6.24 | 6.40 | 192 | 192 | 192 |
-| 256 | 100.0 % | 99.9 % | 96.9 % | 96.8 % | 6.20 | 6.40 | 384 | 384 | 384 |
-| 384 | 100.0 % | 99.9 % | 95.4 % | 95.3 % | 6.10 | 6.40 | 384 | 384 | 384 |
-| 512 | 100.0 % | 99.9 % | 93.7 % | 93.6 % | 6.00 | 6.40 | 768 | 768 | 768 |
+| 0 | 100.0 % | 99.9 % | 99.8 % | 99.8 % | 3.19 | 3.20 | 24 | 24 | 24 |
+| 8 | 100.0 % | 99.9 % | 99.7 % | 99.7 % | 3.19 | 3.20 | 24 | 48 | 48 |
+| 16 | 100.0 % | 99.9 % | 99.6 % | 99.6 % | 3.19 | 3.20 | 48 | 48 | 48 |
+| 32 | 100.0 % | 99.9 % | 99.5 % | 99.5 % | 3.18 | 3.20 | 48 | 48 | 48 |
+| 48 | 100.0 % | 99.9 % | 99.3 % | 99.3 % | 3.18 | 3.20 | 96 | 96 | 96 |
+| 64 | 100.0 % | 99.9 % | 99.1 % | 99.1 % | 3.17 | 3.20 | 96 | 96 | 96 |
+| 96 | 100.0 % | 99.9 % | 98.7 % | 98.7 % | 3.16 | 3.20 | 96 | 96 | 96 |
+| 128 | 100.0 % | 99.9 % | 98.3 % | 98.3 % | 3.15 | 3.20 | 192 | 192 | 192 |
+| 192 | 100.0 % | 99.9 % | 97.6 % | 97.6 % | 3.12 | 3.20 | 192 | 192 | 192 |
+| 256 | 100.0 % | 99.9 % | 96.9 % | 96.8 % | 3.10 | 3.20 | 384 | 384 | 384 |
+| 384 | 100.0 % | 99.9 % | 95.4 % | 95.3 % | 3.05 | 3.20 | 384 | 384 | 384 |
+| 512 | 100.0 % | 99.9 % | 93.7 % | 93.6 % | 3.00 | 3.20 | 768 | 768 | 768 |
 
-: Table 7.5b -- latency sweep, interleaved channel schedule (v1.5, same bitstream family, PIPELINE = 1, `HIST_MAX_OUTSTANDING = 32`, no sample loss on any row; 12/12 CRC-verified). The source columns are the same run and match Table 7.5, as they must: the schedule only changes the sink's stimulus.
+: Table 7.5b -- latency sweep, interleaved channel schedule (v2.0, same bitstream, PIPELINE = 1, `HIST_MAX_OUTSTANDING = 32`, no sample loss on any row; 12/12 CRC-verified). The source columns are the same run and match Table 7.5, as they must: the schedule only changes the sink's stimulus. With every channel holding data the sink ingress reads 100.0 % here: the 82-cycle fill stall of the sequential schedule is one channel filling alone.
 
 Little's law makes the knee readable directly: sustained beats/cycle x latency =
 beats in flight. With PIPELINE = 1 the SOURCE read path no longer knees inside
@@ -472,31 +516,33 @@ this sweep: it holds >= 99 % to 64 cycles, 96.9 % at 256 and 93.7 % at 512, so
 `0.937 x 512 = 480` beats are in flight across 8 channels -- ~60 per channel,
 i.e. six to seven 9-beat bursts of the eight `AR_MAX_OUTSTANDING` allows (v1.3
 measured ~20 per channel at PIPELINE = 0). The SINK write path holds 99.9 % to
-48 cycles, knees at 64 (92.8 %) and then falls as `0.752 x 96 = 72`,
-`0.637 x 128 = 82`, `0.347 x 256 = 89`, `0.182 x 512 = 93` -- an asymptote of
-**~93 beats in flight**. That is ONE channel's window, not eight: in the
+48 cycles, knees at 64 (90.0 %) and then falls as `0.683 x 96 = 66`,
+`0.552 x 128 = 71`, `0.299 x 256 = 77`, `0.156 x 512 = 80` -- an asymptote of
+**~80 beats in flight** (the 512-bit build with 16 KB buffers measured ~93: the
+outstanding cap is the same eight 8-beat AWs, and the difference is how many
+beats the smaller buffer can stage in their W phase). That is ONE channel's
+window, not eight: in the
 sequential schedule the harness's AXIS generator streams channels one at a time
 (finish one channel, then the next), so only one sink channel ever holds data,
 and the write engine's whole `AW_MAX_OUTSTANDING = 8` window (8 x 8 = 64 beats,
 plus the bursts in their W phase) sits on that channel. Rapids ISSUE-006
-reproduced this row in simulation (34.7 %, the board's number) and read it off
-the engine's outstanding counters.
+reproduced the 512-bit build's 256-cycle row in simulation (34.7 %, the board's
+number) and read it off the engine's outstanding counters.
 
 Table 7.5b is the same sweep with the generator's interleaved schedule (rapids
 TASK-018, v1.5), which round-robins the eight channels one beat at a time so
 every sink channel holds data at once -- the same footing the source column has
 always had. The sink write path then holds 99.9 % on every row to 512 cycles:
 `0.999 x 512 = 512` beats are in flight, so the aggregate window is at least
-that, consistent with eight copies of the ~93-beat per-channel window (~744
+that, consistent with eight copies of the ~80-beat per-channel window (~640
 beats) that this sweep does not reach. Compared like for like, the sink sits
 above the source at long latency (99.9 % vs 93.7 % at 512 cycles): the write
-engine keeps ~93 beats per channel in flight against the read engine's ~60.
-Table 7.5 remains the right measurement of a single channel's window; the
-sequential sweep re-run on the v1.5 bitstream reproduces every one of its
-cells. STREAM's window on the same knobs is ~128 beats per channel (8
-outstanding x 16-beat bursts) and its knee sits at 96-112 cycles. Wider bursts
-remain a lever on both sides, and section 7.4 shows the DUT already runs 32-
-and 64-beat bursts at line rate.
+engine keeps ~80 beats per channel in flight against the read engine's ~60.
+Table 7.5 remains the right measurement of a single channel's window. STREAM's
+window on the same knobs is ~128 beats per channel (8 outstanding x 16-beat
+bursts) and its knee sits at 96-112 cycles. Wider bursts are the lever on the
+write side and section 7.7 measures exactly how far it reaches; on the read
+side the per-channel SRAM is the bound, and at 4 KB it binds early.
 
 Two notes from the instruments themselves. First, the latency columns are
 histogram means over log2 bins (bin b holds [2^b, 2^(b+1)), reported at its
@@ -517,13 +563,13 @@ for both observers. The utilization and bandwidth columns are identical between
 the two runs, which is what the design of the meters predicts: sample loss only
 ever touched the histograms.
 
-![latency knee](plots/obs_latency_knee.png)
+![latency knee](plots/dw256_obs_latency_knee.png)
 
 : Figure 7.5 -- utilization vs injected memory latency, all four observers (sequential schedule: the sink curves are one channel's window).
 
-![latency knee, interleaved](plots/obs_latency_knee_interleave.png)
+![latency knee, interleaved](plots/dw256_obs_latency_knee_interleave.png)
 
-: Figure 7.5b -- the same sweep with the interleaved channel schedule (v1.5): every sink channel holds data, and the write path no longer knees inside the sweep.
+: Figure 7.5b -- the same sweep with the interleaved channel schedule: every sink channel holds data, and the write path no longer knees inside the sweep.
 
 ### 7.6 What the observers add over the bare meters
 
@@ -534,16 +580,57 @@ as a cross-check, and a sticky bit that says when a number undercounts. All of i
 through one register map shared with STREAM's harness, so the host code and the
 report generator are the same on both DMAs.
 
+### 7.7 One channel under latency: burst length is the write side's lever, SRAM depth the read side's bound
+
+The question behind this sweep: what does it take to hold ONE channel at line
+rate through 256 and 512 cycles of memory latency? One channel, 4096 beats,
+`AXI_XFER_CONFIG` bursts of 8 to 128 beats at `RESP_DELAY` 0 / 256 / 512, bare
+meters, AXI4-wr / AXI4-rd engaged utilization. Two builds, same RTL:
+
+| burst (beats) | 512-bit, 16 KB/ch: 0 cyc | 256 cyc | 512 cyc | 256-bit, 4 KB/ch: 0 cyc | 256 cyc | 512 cyc |
+|---:|---|---|---|---|---|---|
+| 8 (default) | 99.9 / 99.7 | 23.7 / 23.6 | 12.3 / 12.1 | 99.9 / 99.7 | 23.7 / 23.6 | 12.3 / 12.1 |
+| 16 | 99.9 / 99.7 | 46.3 / 45.4 | 24.4 / 23.4 | 99.9 / 99.7 | 46.3 / 44.3 | 24.4 / 23.1 |
+| 32 | 99.9 / 99.7 | 86.8 / 81.3 | 47.9 / 43.4 | 99.9 / 99.7 | 86.8 / 41.9 | 47.9 / 22.5 |
+| 64 | 99.5 / 99.7 | **99.5** / 74.0 | 88.5 / 41.3 | 99.5 / 99.7 | **99.5** / 37.9 | 88.5 / 21.4 |
+| 128 | 97.9 / 99.7 | **97.9** / 62.5 | **97.9** / 37.7 | wedge / 90.1 | wedge / 31.6 | wedge / 19.4 |
+| 256 | wedge / 99.8 | wedge / 94.0 | wedge / 88.6 | -- | -- | -- |
+
+: Table 7.7 -- one channel, AXI4-wr / AXI4-rd utilization (%) vs burst length and injected latency, on both design points (`genesys_one_channel_xfer_latency.json`, `genesys_dw256_one_channel_xfer_latency.json`)
+
+Three things fall out. First, the **write side needs no rebuild**: its window is
+outstanding x burst because the sink frees SRAM on the W handshake, not on B, so
+B latency costs no buffer. 64-beat bursts hold one channel at 99.5 % through 256
+cycles on either build, and on the 16 KB build 128-beat bursts hold 97.9 %
+through 512 (the 2 % is the cost of staging a 128-beat burst before its AW; 16
+outstanding at 32 beats would give the same 512-beat window without it, and
+`AW_MAX_OUTSTANDING` is a top-level parameter, not yet a build generic).
+Second, the **read side is bounded by the per-channel SRAM** and burst length
+cannot fix it: the read engine pre-allocates SRAM for every AR, so in-flight
+reads never exceed the buffer, and longer bursts only make it worse (fewer fit).
+The best any burst reaches at 256 cycles is 81 % with 16 KB and 44 % with 4 KB
+-- the ratio of the buffer to the round trip -- and holding one read channel at
+line rate through 512 cycles needs about 1024 beats of SRAM per channel, which
+fits the XC7K325T at 64 B beats (about 230 of 445 BRAM tiles) but is the
+opposite direction from the 4 KB point. Third, **a burst equal to the SRAM depth
+deadlocks the sink**: 256 beats on the 16 KB build and 128 on the 4 KB build
+accept exactly one buffer of ingress and never issue an AW (rapids BUG-009, the
+same row on both builds); the read side with the same burst does not wedge. Until
+it is fixed the register limit is `WR_XFER_BEATS + 1 < SRAM_DEPTH`.
+
 ## Appendix: data files & reproduce
 
 | File | Contents |
 |------|----------|
-| `perf/json/genesys_obs_{A,B,C,E}.json` | v1.2 observer campaign: descriptors x channels, burst length, size x channels, latency |
+| `perf/json/genesys_dw256_full_matrix.json` | v2.0 channel x size matrix, 256-bit / 4 KB-per-channel build (bare meters); every file of this build carries a `design` record read from the bitstream |
+| `perf/json/genesys_dw256_obs_{A,B,C,E}.json`, `genesys_dw256_obs_E_interleave.json` | v2.0 observer campaign on that build: descriptors x channels, burst length, size x channels, latency (both schedules) |
+| `perf/json/genesys_dw256_one_channel_xfer_latency.json`, `genesys_one_channel_xfer_latency.json` | section 7.7: one channel, burst x latency, on the 256-bit and the 512-bit build |
+| `perf/json/genesys_obs_{A,B,C,E}.json` | v1.2-v1.4 observer campaign, 512-bit build: descriptors x channels, burst length, size x channels, latency |
 | `perf/json/genesys_obs_E_interleave.json` | v1.5 latency sweep with the interleaved channel schedule (`--interleave`, Table 7.5b) |
 | `perf/json/genesys_full_matrix.json` | channel × size matrix (v1.4, bare meters, PIPELINE = 1) |
 | `perf/json/genesys_full_matrix_v1.1.json` | the same matrix as measured for v1.1 (PIPELINE = 0 with the pre-BUG-005 engine) |
 | `perf/json/genesys_8ch_*.json` | earlier back-to-back runs (show the pre-fix wedge) |
-| `perf/plots/*.png` | figures above (`flows-rapids-beats/host/plot_char_reports.py`) |
+| `perf/plots/dw256_*.png` | v2.0 figures (`flows-rapids-beats/host/report_figures.py` over the dw256 files); the unprefixed PNGs are the v1.x figures |
 
 ```bash
 # full channel x size matrix in ONE programming (CHANNEL_RESET per run):
@@ -559,7 +646,16 @@ python3 projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/host/plot
     --outdir projects/fpga-systems/Genesys2/rapids_beats/reports/perf/plots
 
 # this report (DOCX + PDF, house style):
-cd projects/fpga-systems/Genesys2/rapids_beats/reports && ./generate_reports_pdf.sh --rev 1.0
+cd projects/fpga-systems/Genesys2/rapids_beats/reports && ./generate_reports_pdf.sh --rev 2.0
+
+# v2.0 (256-bit / 4 KB-per-channel design point: the Makefile's DATA_WIDTH / SRAM_DEPTH defaults):
+#   make bitstream BOARD=genesys2 USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0 && make program BOARD=genesys2
+#   the same campaign lines as below with --port auto and genesys_dw256_* result names, plus
+#   python3 $H --port auto --channels 8 --suite --suite-bp off --suite-seeds default \
+#       --suite-channels 1 --suite-beats 4096 --suite-xfer 7,15,31,63,127 --suite-delay 0,256,512 \
+#       --results $J/genesys_dw256_one_channel_xfer_latency.json          # section 7.7
+#   python3 flows-rapids-beats/host/report_tables.py  $J genesys_dw256_        # every table above
+#   python3 flows-rapids-beats/host/report_figures.py $J genesys_dw256_ reports/perf/plots dw256_
 
 # v1.2 observer campaign (USE_OBSERVERS=1 bitstream: make bitstream BOARD=genesys2 USE_OBSERVERS=1):
 H=projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/host/run_characterization.py
