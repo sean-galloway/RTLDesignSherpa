@@ -1,0 +1,24 @@
+[tasks]
+prove
+cover
+
+[options]
+# 4 entries: filling the window, ordering it and issuing takes ~12 cycles.
+# 24 leaves room for the tracked slot to be inserted, aged and issued.
+prove: mode bmc
+prove: depth 24
+cover: mode cover
+cover: depth 24
+
+[engines]
+prove: smtbmc bitwuzla
+cover: smtbmc bitwuzla
+
+[script]
+read_verilog -formal cam_flat.v
+read -formal -sv formal_rd_cmd_cam.sv
+prep -top formal_rd_cmd_cam
+
+[files]
+formal_rd_cmd_cam.sv
+cam_flat.v
