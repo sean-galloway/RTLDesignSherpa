@@ -146,6 +146,21 @@ async def cocotb_test_stress(dut):
     assert stats['success_rate'] >= 0.9, f"Stress test failed: {stats}"
 
 
+@cocotb.test(timeout_time=1000, timeout_unit="ms")
+async def cocotb_test_residue_full_burst(dut):
+    """rapids BUG-009: a partial segment left by a short packet must not make a
+    full-depth burst impossible."""
+    from projects.components.dma_ip.rapids.dv.tbclasses.snk_data_path_axis_test_beats_tb import SnkDataPathAxisTestBeatsTB
+
+    tb = SnkDataPathAxisTestBeatsTB(dut, clk=dut.clk, rst_n=dut.rst_n)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+
+    result, stats = await tb.test_residue_full_burst()
+    tb.log.info(f"Residue then full-depth burst: {stats}")
+    assert result, f"Residue then full-depth burst failed: {stats}"
+
+
 # ===========================================================================
 # PARAMETER GENERATION - AMBA PATTERN
 # ===========================================================================
@@ -240,6 +255,18 @@ def test_stress(request, num_channels, addr_width, data_width, axi_id_width, sra
     """Pytest: Stress test"""
     _run_sink_axis_test(request, "cocotb_test_stress",
                         num_channels, addr_width, data_width, axi_id_width, sram_depth, timing_profile, test_level=test_level)
+
+
+@pytest.mark.macro_beats
+@pytest.mark.sink_data_path_axis_test
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_residue_full_burst(request, test_level):
+    """Pytest: rapids BUG-009 -- a short packet, then bursts equal to the buffer
+    depth, on the Genesys 2 shape (256-bit, 128-deep per channel: SRAM_DEPTH here
+    is the total over 8 channels). One cell at every level: it is the
+    regression for a board deadlock."""
+    _run_sink_axis_test(request, "cocotb_test_residue_full_burst",
+                        8, 64, 256, 8, 1024, 'default', test_level=test_level)
 
 
 # ===========================================================================

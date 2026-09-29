@@ -844,6 +844,64 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
 
         return failed == 0, stats
 
+    async def _wait_memory(self, relative_addr: int, beats, polls: int, clocks: int = 100) -> str:
+        """Poll the AXI slave's memory until every beat landed, or the budget
+        (polls x clocks) runs out. Returns '' on success, else the mismatch."""
+        bad = "nothing landed"
+        for _ in range(polls):
+            await self.wait_clocks(self.clk_name, clocks)
+            bad = self._compare_memory(relative_addr, beats)
+            if not bad:
+                return ""
+        return bad
+
+    async def test_residue_full_burst(self) -> Tuple[bool, Dict[str, Any]]:
+        """rapids BUG-009, second mechanism: a packet that ends mid-segment
+        shifts the ingress allocation phase, and a later transfer whose burst
+        equals the buffer depth must still complete.
+
+        The ingress allocates SRAM in ALLOC_SIZE segments. Before the fix it
+        allocated only whole segments, so after a 4-beat packet (12 beats of
+        its segment left allocated) the last 4 slots of a 128-deep buffer could
+        never be allocated again until something drained -- and the write
+        engine, waiting for a 128-beat burst, needed exactly those slots. On
+        the Genesys 2 the second run accepted 124 beats and issued no AW.
+        Here: a 4-beat transfer, then 2 x depth beats with the burst set to the
+        depth; the second transfer must land in memory."""
+        depth = self.SRAM_DEPTH // self.NUM_CHANNELS   # the DUT's SRAM_DEPTH is the total; per channel is what the burst sees
+        ch = 0
+        addr = self.BASE_ADDRESS + ch * self.CHANNEL_OFFSET
+        short = [random.getrandbits(self.DATA_WIDTH) for _ in range(4)]
+        await self.send_axis_packet(ch, short, last=True)
+        await self.wait_clocks(self.clk_name, 20)
+        await self.send_descriptor(ch, addr, len(short))
+        bad = await self._wait_memory(addr - self.BASE_ADDRESS, short, polls=20)
+        if bad:
+            return False, {'phase': 'short transfer', 'error': bad}
+        self.log.info("short transfer landed; ingress now holds a partial segment")
+
+        self.dut.cfg_axi_wr_xfer_beats.value = depth - 1
+        await self.wait_clocks(self.clk_name, 5)
+        # 32 buffers' worth, as on the board (4096 beats at 128 deep): the
+        # partial allocations the residue forces recur at every refill, and the
+        # allocation-view race they expose (an allocation that returns to
+        # "nothing pending" before the space view reports it) needs the
+        # repetition to surface.
+        n = 32 * depth
+        data = [random.getrandbits(self.DATA_WIDTH) for _ in range(n)]
+        addr2 = addr + 0x8000
+        # The packet is longer than the buffer, so it can only finish while the
+        # engine drains: descriptor first, the packet streams in the background.
+        await self.send_descriptor(ch, addr2, n)
+        sender = cocotb.start_soon(self.send_axis_packet(ch, data, last=True))
+        bad = await self._wait_memory(addr2 - self.BASE_ADDRESS, data, polls=800, clocks=100)
+        if bad:
+            sender.cancel()   # the ingress is wedged; do not hang the test on it
+            self.log.error(f"full-depth burst after a partial segment: {bad}")
+            return False, {'phase': 'full-depth burst', 'depth': depth, 'error': bad}
+        await sender
+        return True, {'phase': 'done', 'depth': depth, 'beats': n}
+
     async def stress_test(self, num_operations: int = 32) -> Tuple[bool, Dict[str, Any]]:
         """Stress test with high throughput
 

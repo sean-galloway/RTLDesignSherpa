@@ -97,6 +97,11 @@ class AxiWriteEngineBeatsTB(TBBase):
                       f"SCW={self.SCW} PIPELINE={self.PIPELINE} level={self.test_level} seed={self.seed}")
 
         self.xfer_cfg = int(os.environ.get('TEST_XFER_CFG', '7'))       # cfg_axi_wr_xfer_beats (AxLEN-style)
+        # rapids BUG-009: a burst can never exceed the buffer SEG_COUNT_WIDTH
+        # encodes (2^(SCW-1) beats), nor 255 beats (the 8-bit size ports). The
+        # engine clamps the configured AxLEN to this; every AW must honour it.
+        self.awlen_cap = min(self.xfer_cfg, (1 << (self.SCW - 1)) - 1, 254)
+        self.max_awlen_seen = -1
         self.fill_mode = os.environ.get('TEST_FILL_MODE', 'prefill')     # prefill | trickle
         self.trickle_gap = int(os.environ.get('TEST_TRICKLE_GAP', '3'))  # cycles between trickled beats
         # sram_controller flops data_avail at its boundary: the engine sees a
@@ -197,8 +202,9 @@ class AxiWriteEngineBeatsTB(TBBase):
             bad.append(f"ch{ch} awaddr 0x{awaddr:x}, expected 0x{self.next_addr[ch]:x}")
         self.next_addr[ch] = awaddr + (awlen + 1) * self.bytes_per_beat
         self.open_bursts[ch] += 1
-        if awlen > self.xfer_cfg:
-            bad.append(f"len {awlen} > cfg {self.xfer_cfg}")
+        self.max_awlen_seen = max(self.max_awlen_seen, awlen)
+        if awlen > self.awlen_cap:
+            bad.append(f"len {awlen} > cap {self.awlen_cap} (cfg {self.xfer_cfg}, SCW {self.SCW})")
         if awsize != (self.DW // 8).bit_length() - 1:
             bad.append(f"size {awsize}")
         if awburst != 1:
@@ -435,3 +441,17 @@ class AxiWriteEngineBeatsTB(TBBase):
         self.fill_mode = 'trickle'
         lo, hi = self._depth()
         await self.run_transfer({ch: random.randint(lo, hi) for ch in range(self.NC)})
+
+    async def test_burst_cap(self):
+        """rapids BUG-009: cfg AxLEN above what the buffer holds. Every AW must
+        carry the cap (the final burst of a channel may be shorter), the
+        transfer must complete, and at least one full-cap AW must be seen so
+        the check is not vacuous. Before the fix the 8-bit '+1' wrapped a
+        256-beat request to 0: the AW went out on an empty buffer, reserved
+        nothing, and the channel's bookkeeping never recovered."""
+        cap = self.awlen_cap
+        assert cap < self.xfer_cfg, f"cfg {self.xfer_cfg} does not exceed the cap {cap}; nothing to test"
+        plan = {ch: (cap + 1) * (2 + ch % 2) + ch for ch in range(self.NC)}   # >= 2 full bursts each
+        await self.run_transfer(plan)
+        assert self.max_awlen_seen == cap, \
+            f"no AW carried the cap length {cap} (longest seen {self.max_awlen_seen})"

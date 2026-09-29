@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/stream — bugs
 
-**Next ID: BUG-018** — never recycle a number, even when its item closed.
+**Next ID: BUG-019** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
+- **BUG-018** — both AXI engines wrap a 256-beat burst to 0 beats (8-bit "AxLEN + 1"); the rapids copy is rapids BUG-009, fixed there by clamping the burst to the buffer -- OPEN 2026-09-29, the same lines in STREAM's engines await Sean's scope call
 
 ## Closed
 

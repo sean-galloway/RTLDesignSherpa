@@ -26,7 +26,7 @@
 **Module:** `snk_data_path_axis_beats.sv`
 **Location:** `projects/components/dma-ip/rapids/rtl/macro_beats/`
 **Status:** Implemented
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-09-29
 
 ---
 
@@ -213,7 +213,26 @@ would need a fresh allocation (Figure 3.3.3a).
 2. **Allocation Required:** Space must be allocated via `snk_alloc_*` before AXIS data arrives
 3. **Backpressure:** `s_axis_tready` deasserts when SRAM space exhausted
 4. **Packet Boundaries:** TLAST marks end of AXIS packets, mapped to fill_last
+5. **Partial segments (rapids BUG-009, 2026-09-29):** allocation is in
+   `cfg_alloc_size` segments, and a packet that ends mid-segment leaves the
+   rest of its segment allocated for the channel's next packet (`r_pending_alloc`).
+   That shifts the allocation phase: with whole-segment-only allocation the
+   last `segment - residue` slots of the buffer could never be allocated again
+   until something drained, and a write burst equal to the buffer depth --
+   which needs every slot -- waited forever (Genesys 2: a 4-beat run, then a
+   128-beat-burst run accepted 124 beats and issued no AW). The ingress now
+   allocates the remainder when less than a segment is free
+   (`fill_alloc_size = min(cfg_alloc_size, space_free)`), so the buffer can
+   always be filled to the top. Regression: `test_residue_full_burst`.
+6. **Allocation settle and no dropped beats (same bug, third finding):**
+   `fill_space_free` reflects an allocation three cycles after its handshake.
+   A one- or two-beat partial allocation is consumed before that, and a second
+   allocation against the stale view over-allocated the buffer (the 8-bit
+   space count wrapped to 254 and the ingress ran into a full FIFO). Each
+   channel now holds its next allocation for three cycles after the last
+   (`r_alloc_settle`), and `s_axis_tready` includes `fill_ready` on allocation
+   cycles as well, so a beat is never accepted that the FIFO cannot store.
 
 ---
 
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-09-29

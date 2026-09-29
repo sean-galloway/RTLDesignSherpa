@@ -12,19 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 8 | done (kept for history) |
+| [closed/](closed/) | 9 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-009** — the sink wedges when a write burst equals the per-channel SRAM depth (WR_XFER_BEATS = SRAM_DEPTH - 1); found on the Genesys 2, single-channel knob sweep 2026-09-29
 
 
 ## Closed
 
+- **BUG-009** — a 256-beat burst (AxLEN 255) wrapped its size to 0 and poisoned the channel's SRAM bookkeeping; underneath it, whole-segment-only ingress allocation and a stale-view allocation race made a full-depth burst unsatisfiable -- CLOSED 2026-09-29 (three ILA-traced mechanisms, three ingress/engine fixes, board history replays clean on build 3)
 - **BUG-001** — the board kick sequencer never writes KICK_ENABLE, and no sim can catch it
 - **BUG-002** — the sink-ingress AXIS meter reads zero on hardware
 - **BUG-003** — the source path stops 3-4 beats short of a long transfer and drains at 50%

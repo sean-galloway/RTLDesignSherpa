@@ -26,7 +26,7 @@
 **Module:** `axi_read_engine_beats.sv`
 **Location:** `projects/components/dma-ip/rapids/rtl/fub_beats/`
 **Status:** Implemented
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-09-29
 
 ---
 
@@ -149,6 +149,22 @@ parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS);
 
 ## Operation
 
+### Burst Length Cap (rapids BUG-009)
+
+`cfg_axi_rd_xfer_beats` is an ARLEN (0..255), but a burst can never be larger
+than the SRAM it lands in: `w_space_ok` pre-allocates the whole burst before
+the AR, and a burst the buffer cannot hold would never be allocatable. The
+engine therefore clamps the configured value to `XFER_MAX = min(2^(SCW-1) - 1,
+254)` -- the buffer depth `SEG_COUNT_WIDTH` encodes, minus one, and 254 beyond
+that so every beat count fits the 8-bit size ports shared with
+`sram_controller`. On the Genesys 2 build (128-deep) ARLEN 255 runs as
+128-beat bursts.
+
+Before the clamp (2026-09-29), ARLEN 255 was taken literally and the 8-bit
+`ARLEN + 1` in the gate wrapped to 0: `w_space_ok` passed on any free count,
+the AR for 256 beats allocated 0, and the engine over-fetched past the buffer
+(4103 R beats for a 4096-beat descriptor on the board, golden mismatch).
+
 ### Streaming Pipeline Architecture
 
 The AXI read engine uses a **streaming pipeline** with no FSM:
@@ -211,4 +227,4 @@ Bursts issued:
 
 ---
 
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-09-29

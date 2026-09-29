@@ -149,12 +149,24 @@ module snk_data_path_axis_beats #(
     //=========================================================================
 
     // Fill interface to sink_data_path
+`ifdef RAPIDS_CHAR_ILA
+    (* mark_debug = "true" *)
+`endif
     logic                        fill_alloc_req;
     logic [7:0]                  fill_alloc_size;
     logic [CIW-1:0]              fill_alloc_id;
+`ifdef RAPIDS_CHAR_ILA
+    (* mark_debug = "true" *)
+`endif
     logic [NC-1:0][SCW-1:0]      fill_space_free;
 
+`ifdef RAPIDS_CHAR_ILA
+    (* mark_debug = "true" *)
+`endif
     logic                        fill_valid;
+`ifdef RAPIDS_CHAR_ILA
+    (* mark_debug = "true" *)
+`endif
     logic                        fill_ready;
     logic [CIW-1:0]              fill_id;
     logic [DW-1:0]               fill_data;
@@ -163,6 +175,9 @@ module snk_data_path_axis_beats #(
     logic [CIW-1:0]              axis_channel_id;
 
     // Allocation tracking per channel
+`ifdef RAPIDS_CHAR_ILA
+    (* mark_debug = "true" *)
+`endif
     logic [NC-1:0][15:0]         r_pending_alloc;  // Beats allocated but not yet filled
     // cfg_alloc_size is software-writable. At 0 the space test (space_free >= 0)
     // is vacuously true and fill_alloc_size is 0, so the same-cycle
@@ -194,13 +209,55 @@ module snk_data_path_axis_beats #(
     assign fill_id = axis_channel_id;
 
     // Determine if we need allocation before accepting data
-    wire w_channel_needs_alloc = (r_pending_alloc[axis_channel_id] == '0);
+    // An allocation reaches fill_space_free three cycles after its handshake
+    // (alloc_ctrl's count, then sram_controller's boundary flop, then the
+    // registered view). A whole-segment allocation keeps r_pending_alloc
+    // above zero for that long, so the stale view was never consulted; a
+    // partial allocation of one or two beats (below) is consumed before the
+    // view moves, and a second allocation against the stale count
+    // over-allocated the buffer: on the Genesys 2 alloc_ctrl's count ran
+    // past the depth, space_free wrapped to 246, the ingress kept
+    // allocating, and 30 beats vanished (fifo 94 + bridge 4 for 128
+    // accepted). Hold a channel's next allocation until its view is current.
+    logic [NC-1:0][1:0] r_alloc_settle;   // cycles until fill_space_free reflects the last allocation
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_alloc_settle <= '{default:'0};
+        end else begin
+            for (int ch = 0; ch < NC; ch++) begin
+                if (fill_alloc_req && (fill_alloc_id == ch[CIW-1:0]))
+                    r_alloc_settle[ch] <= 2'd3;
+                else if (r_alloc_settle[ch] != 2'd0)
+                    r_alloc_settle[ch] <= r_alloc_settle[ch] - 2'd1;
+            end
+        end
+    )
+
+    wire w_channel_needs_alloc = (r_pending_alloc[axis_channel_id] == '0) &&
+                                 (r_alloc_settle[axis_channel_id] == 2'd0);
     assign w_eff_alloc_size = (cfg_alloc_size == 8'd0) ? 8'd1 : cfg_alloc_size;
-    wire w_channel_has_space = (fill_space_free[axis_channel_id] >= w_eff_alloc_size);
+
+    // rapids BUG-009, second mechanism (Genesys 2 ILA, 2026-09-29): allocate
+    // what is left when less than a segment is free. Allocation is
+    // segment-granular (cfg_alloc_size, 16 by default) and a packet that ends
+    // mid-segment leaves the phase shifted: after a 4-beat packet 12 beats of
+    // its segment stay allocated, the next packet consumes them, and from then
+    // on the last 4 slots of a 128-deep buffer could never be allocated again
+    // until something drained -- while the write engine, configured for a
+    // 128-beat burst, waited for exactly those slots. The channel accepted 124
+    // beats and never issued an AW. With a partial allocation the buffer can
+    // always be filled to the top, so a burst up to the depth is always
+    // satisfiable. r_pending_alloc adds fill_alloc_size, so nothing else
+    // changes; alloc_ctrl takes any size.
+    logic [SCW-1:0] w_space_now;      // free beats of the channel presenting data
+    logic [7:0]     w_alloc_now;      // this cycle's allocation: a segment, or the remainder
+    assign w_space_now = fill_space_free[axis_channel_id];
+    assign w_alloc_now = (w_space_now >= SCW'(w_eff_alloc_size)) ? w_eff_alloc_size : 8'(w_space_now);
+    wire w_channel_has_space = (w_space_now != '0);
 
     // Generate allocation request when needed and space available
     assign fill_alloc_req = s_axis_tvalid && w_channel_needs_alloc && w_channel_has_space;
-    assign fill_alloc_size = w_eff_alloc_size;
+    assign fill_alloc_size = w_alloc_now;
     assign fill_alloc_id = axis_channel_id;
 
     // Data valid when:
@@ -211,11 +268,17 @@ module snk_data_path_axis_beats #(
                         ((r_pending_alloc[axis_channel_id] > 0) ||
                          (w_channel_needs_alloc && w_channel_has_space));
 
-    // AXIS ready when:
-    // 1. Fill interface is ready
-    // 2. OR we're doing an allocation request (will accept data next cycle)
-    assign s_axis_tready = (fill_ready && (r_pending_alloc[axis_channel_id] > 0)) ||
-                           (fill_alloc_req);
+    // AXIS ready when the fill interface can take the beat AND the channel
+    // either holds an allocation or is allocating this cycle. The allocation
+    // cycle used to be accepted regardless of fill_ready: the beat was taken
+    // from AXIS while fill_valid && !fill_ready dropped it on the floor. That
+    // only bites when the FIFO is full at an allocation, which the wrapped
+    // space count above made routine (Genesys 2, `trace_E`: eight beats lost
+    // per 1024 cycles, every one on an allocation cycle with fill_ready low).
+    // The allocation itself still goes through without the beat; the beat is
+    // taken the cycle fill_ready returns.
+    assign s_axis_tready = fill_ready &&
+                           ((r_pending_alloc[axis_channel_id] > 0) || fill_alloc_req);
 
     //=========================================================================
     // Allocation Tracking

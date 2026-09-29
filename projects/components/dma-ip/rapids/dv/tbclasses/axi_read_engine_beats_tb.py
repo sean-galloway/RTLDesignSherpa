@@ -110,6 +110,11 @@ class AxiReadEngineBeatsTB(TBBase):
         # tested against the staleness it meets in the data path.
         self.report_delay = int(os.environ.get('TEST_REPORT_DELAY', '2'))
         assert self.sram_depth < (1 << self.SCW), "modelled depth must fit SEG_COUNT_WIDTH"
+        # rapids BUG-009: a burst can never exceed the buffer SEG_COUNT_WIDTH
+        # encodes (2^(SCW-1) beats), nor 255 beats (the 8-bit size ports). The
+        # engine clamps the configured AxLEN to this; every AR must honour it.
+        self.arlen_cap = min(self.xfer_cfg, (1 << (self.SCW - 1)) - 1, 254)
+        self.max_arlen_seen = -1
 
         # models / scoreboard
         self.space_free: List[int] = [self.sram_depth] * self.NC
@@ -245,8 +250,9 @@ class AxiReadEngineBeatsTB(TBBase):
             bad.append(f"ch{ch} araddr 0x{araddr:x}, expected 0x{self.next_addr[ch]:x}")
         self.next_addr[ch] = araddr + (arlen + 1) * self.bytes_per_beat
         self.outstanding[ch].append(arlen + 1)
-        if arlen > self.xfer_cfg:
-            bad.append(f"len {arlen} > cfg {self.xfer_cfg}")
+        self.max_arlen_seen = max(self.max_arlen_seen, arlen)
+        if arlen > self.arlen_cap:
+            bad.append(f"len {arlen} > cap {self.arlen_cap} (cfg {self.xfer_cfg}, SCW {self.SCW})")
         if arsize != (self.DW // 8).bit_length() - 1:
             bad.append(f"size {arsize}")
         if arburst != 1:
@@ -425,3 +431,20 @@ class AxiReadEngineBeatsTB(TBBase):
         self.release_delay = max(self.release_delay, 8)
         lo, hi = self._depth()
         await self.run_transfer({ch: random.randint(lo, hi) for ch in range(self.NC)})
+
+    async def test_burst_cap(self):
+        """rapids BUG-009: cfg AxLEN above what the buffer holds, with the space
+        model sized to that buffer. Every AR must carry the cap (the final
+        burst of a channel may be shorter), no allocation may exceed the free
+        space, the transfer must complete, and at least one full-cap AR must
+        be seen so the check is not vacuous. Before the fix the 8-bit '+1'
+        wrapped a 256-beat request to 0: space_ok passed on any free count and
+        the engine over-fetched past the buffer."""
+        cap = self.arlen_cap
+        assert cap < self.xfer_cfg, f"cfg {self.xfer_cfg} does not exceed the cap {cap}; nothing to test"
+        self.sram_depth = 1 << (self.SCW - 1)
+        self.space_free = [self.sram_depth] * self.NC
+        plan = {ch: (cap + 1) * (2 + ch % 2) + ch for ch in range(self.NC)}   # >= 2 full bursts each
+        await self.run_transfer(plan)
+        assert self.max_arlen_seen == cap, \
+            f"no AR carried the cap length {cap} (longest seen {self.max_arlen_seen})"

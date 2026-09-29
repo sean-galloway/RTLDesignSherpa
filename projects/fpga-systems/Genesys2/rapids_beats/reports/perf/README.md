@@ -1,5 +1,23 @@
 # RAPIDS Beats DMA — Performance Characterization (Genesys 2, 8 channels)
 
+> **v2.2 (2026-09-29).** rapids BUG-009 root-caused and fixed, and section 7.7
+> corrected. Three mechanisms, each caught on the ILA. The "burst equal to
+> the SRAM depth" wedge was an 8-bit `AxLEN + 1` wrapping to 0 at AxLEN 255
+> in both engines: a 256-beat burst reserved nothing, and the write side's
+> drain count on that channel never recovered (`CHANNEL_RESET` does not reach
+> it), so every later run with a burst of 120 beats or more wedged -- which is
+> where v2.1's "128 beats on the 4 KB build" rows came from. Underneath it,
+> the sink ingress allocated SRAM only in whole 16-beat segments, so any run
+> that ended mid-segment left the last few slots unreachable and a burst that
+> needs every slot waited forever; and the partial allocation that fixes that
+> had to respect the three-cycle lag of the space view, or it over-allocated
+> and dropped beats. The engines clamp the burst to the buffer (AxLEN 255 runs
+> as 128-beat bursts on this build), the ingress allocates the remainder when
+> less than a segment is free and settles three cycles after every
+> allocation, Table 7.7 and the channel x size matrix are re-measured on the
+> fixed bitstream (no other cell moved by more than 0.5 pt), and every results
+> row carries `xfer_axlen_effective`. Build: WNS +0.286 ns.
+
 > **v2.1 (2026-09-29).** Section 7.5c added: the latency sweep in 8-cycle steps
 > on the 4 KB build and on a 16 KB-per-channel variant of the same 256-bit
 > design (512 beats; `RAPIDS_SRAM_DEPTH=512`, WNS +0.651 ns). Sean's point,
@@ -650,8 +668,8 @@ meters, AXI4-wr / AXI4-rd engaged utilization. Two builds, same RTL:
 | 16 | 99.9 / 99.7 | 46.3 / 45.4 | 24.4 / 23.4 | 99.9 / 99.7 | 46.3 / 44.3 | 24.4 / 23.1 |
 | 32 | 99.9 / 99.7 | 86.8 / 81.3 | 47.9 / 43.4 | 99.9 / 99.7 | 86.8 / 41.9 | 47.9 / 22.5 |
 | 64 | 99.5 / 99.7 | **99.5** / 74.0 | 88.5 / 41.3 | 99.5 / 99.7 | **99.5** / 37.9 | 88.5 / 21.4 |
-| 128 | 97.9 / 99.7 | **97.9** / 62.5 | **97.9** / 37.7 | wedge / 90.1 | wedge / 31.6 | wedge / 19.4 |
-| 256 | wedge / 99.8 | wedge / 94.0 | wedge / 88.6 | -- | -- | -- |
+| 128 | 97.9 / 99.7 | **97.9** / 62.5 | **97.9** / 37.7 | 89.9 / 90.1 | 89.9 / 31.6 | 89.9 / 19.4 |
+| 256 (v2.1: wedge) | wedge / 99.8 | wedge / 94.0 | wedge / 88.6 | ran as 128: 89.9 / 90.1 | 89.9 / 31.6 | 89.9 / 19.4 |
 
 : Table 7.7 -- one channel, AXI4-wr / AXI4-rd utilization (%) vs burst length and injected latency, on both design points (`genesys_one_channel_xfer_latency.json`, `genesys_dw256_one_channel_xfer_latency.json`)
 
@@ -669,11 +687,34 @@ The best any burst reaches at 256 cycles is 81 % with 16 KB and 44 % with 4 KB
 -- the ratio of the buffer to the round trip -- and holding one read channel at
 line rate through 512 cycles needs about 1024 beats of SRAM per channel, which
 fits the XC7K325T at 64 B beats (about 230 of 445 BRAM tiles) but is the
-opposite direction from the 4 KB point. Third, **a burst equal to the SRAM depth
-deadlocks the sink**: 256 beats on the 16 KB build and 128 on the 4 KB build
-accept exactly one buffer of ingress and never issue an AW (rapids BUG-009, the
-same row on both builds); the read side with the same burst does not wedge. Until
-it is fixed the register limit is `WR_XFER_BEATS + 1 < SRAM_DEPTH`.
+opposite direction from the 4 KB point. Third, **AxLEN 255 was a bug, not a limit** (rapids BUG-009, fixed in v2.2).
+Both engines computed the burst's beat count as an 8-bit `AxLEN + 1`, which
+wraps to 0 at 255: the write gate passed on an empty buffer, the AW went out,
+`drain_ctrl` reserved nothing while the W phase pulled 256 beats, and the
+channel's drain count sat at 0 for good (`CHANNEL_RESET` does not reach
+`sram_controller`; only a reprogram does). The read engine's mirror image
+allocated 0 beats and over-fetched (4103 R beats for 4096). Every later run on
+a poisoned channel with a burst of 120 beats or more accepted one buffer of
+ingress and issued no AW -- the v2.1 "128-beat wedge" on the 4 KB build was
+that aftermath, measured after an AxLEN 255 row; on the fixed build 128-beat
+bursts hold 89.9 % at every latency (Table 7.7: the write window is the full
+buffer, so latency costs nothing, and the 10 % is the cost of staging a
+128-beat burst before its AW). The engines now clamp the configured AxLEN to
+the buffer depth minus one (and to 254 beyond it), so a burst is never larger
+than the SRAM that stages it; the AxLEN 255 rows below therefore ran as
+128-beat bursts (`xfer_axlen_effective` in the data file), which is why they
+repeat the 128 row. Two smaller mechanisms sat underneath. The sink ingress
+allocated SRAM only in whole 16-beat segments, so any packet that ended
+mid-segment (a 4-beat smoke run, say) left the last few slots of the buffer
+unreachable, and a burst equal to the depth -- which needs every slot --
+waited forever; the ingress now allocates the remainder when less than a
+segment is free. And that partial allocation, consumed in a cycle or two, was
+made against a space view that lags an allocation by three cycles: the
+allocator over-committed, its space count wrapped, and beats were dropped on
+allocation cycles; each channel now settles three cycles after an allocation
+and never accepts a beat the FIFO cannot take. A burst up to the depth is
+satisfiable after any history (`test_residue_full_burst`, and the board
+replay of the exact run sequence that used to wedge).
 
 ## Appendix: data files & reproduce
 
@@ -704,7 +745,7 @@ python3 projects/fpga-systems/Genesys2/rapids_beats/flows-rapids-beats/host/plot
     --outdir projects/fpga-systems/Genesys2/rapids_beats/reports/perf/plots
 
 # this report (DOCX + PDF, house style):
-cd projects/fpga-systems/Genesys2/rapids_beats/reports && ./generate_reports_pdf.sh --rev 2.1
+cd projects/fpga-systems/Genesys2/rapids_beats/reports && ./generate_reports_pdf.sh --rev 2.2
 
 # v2.0 (256-bit / 4 KB-per-channel design point: the Makefile's DATA_WIDTH / SRAM_DEPTH defaults):
 #   make bitstream BOARD=genesys2 USE_OBSERVERS=1 OBS_ENABLE_MON_TAPS=0 && make program BOARD=genesys2

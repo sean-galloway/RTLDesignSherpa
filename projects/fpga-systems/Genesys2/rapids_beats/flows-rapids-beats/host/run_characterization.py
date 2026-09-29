@@ -206,6 +206,7 @@ class RapidsCharCampaign:
         self.log.info(f"{half.upper()} half configured via APB (by name)")
 
     xfer_axlen = 8   # AXI_XFER_CONFIG.{RD,WR}_XFER_BEATS as programmed (AxLEN)
+    xfer_axlen_effective = 8   # ... as the engines run it (clamped to the SRAM depth, rapids BUG-009)
     resp_delay = 0   # RESP_DELAY: rd (R) and wr (B) hold, aclk cycles (STREAM knob 5)
     interleave = False   # GEN_MODE.INTERLEAVE: round-robin the active channels per beat
 
@@ -225,10 +226,27 @@ class RapidsCharCampaign:
         self.interleave = bool(on)
         self.io.csr_write_reg("GEN_MODE", INTERLEAVE=int(self.interleave))
 
+    def xfer_axlen_cap(self) -> int:
+        """The AxLEN the engines actually run (rapids BUG-009): the register
+        takes 0..255, the hardware clamps it to the per-channel SRAM depth
+        minus one, and to 254 beyond that."""
+        depth = self.ensure_build()['sram_depth']
+        return min(depth - 1, 254)
+
     def set_xfer_axlen(self, axlen: int) -> None:
         """Re-program the per-transaction burst length (AxLEN, 0..255) on BOTH
-        halves; takes effect on the next descriptor. STREAM knob 1."""
+        halves; takes effect on the next descriptor. STREAM knob 1.
+
+        A value above the hardware cap is programmed as asked (the RTL clamp is
+        what is under test) but flagged, and every results row carries the
+        effective AxLEN so a table never labels a 128-beat burst as 256."""
         self.xfer_axlen = int(axlen)
+        cap = self.xfer_axlen_cap()
+        self.xfer_axlen_effective = min(self.xfer_axlen, cap)
+        if self.xfer_axlen > cap:
+            print(f"WARNING: AxLEN {self.xfer_axlen} exceeds this build's cap {cap} "
+                  f"(SRAM depth {self.ensure_build()['sram_depth']}); the engines run "
+                  f"{self.xfer_axlen_effective + 1}-beat bursts (rapids BUG-009)")
         for half in ('src', 'snk'):
             self.write_fields(half, 'AXI_XFER_CONFIG',
                               RD_XFER_BEATS=self.xfer_axlen, WR_XFER_BEATS=self.xfer_axlen,
@@ -730,7 +748,9 @@ class RapidsCharCampaign:
                             'descs': descs,                 # per channel (chain)
                             'total_beats': beats * descs,   # per channel
                             'xfer_axlen': xfer,
-                            'xfer_beats': xfer + 1,         # burst length in beats
+                            'xfer_beats': xfer + 1,         # burst length in beats, as programmed
+                            'xfer_axlen_effective': self.xfer_axlen_effective,   # as the engines run it (BUG-009 cap)
+                            'xfer_beats_effective': self.xfer_axlen_effective + 1,
                             'resp_delay': delay,            # R/B hold, aclk cycles
                             'gen_interleave': self.interleave,  # sink channel schedule
                             'source_backpressure': bp,
@@ -889,26 +909,31 @@ def _write_results(rows, path: str) -> None:
     print(f"Results written to {path}")
 
 
-def _single_row(name, active, beats, bp, seed, sink, source, interleave=False):
+def _single_row(name, active, beats, bp, seed, sink, source, interleave=False, campaign=None):
     """One result row for a non-suite run, in the SAME schema run_suite emits.
 
     Deliberately identical to the suite row: a smoke/single run is one config,
     and giving it its own shape would mean every tool that reads these files
     needs two readers. `sink`/`source` are the (ok, detail) pairs, or None when
-    that half was skipped (--sink-only / --source-only).
+    that half was skipped (--sink-only / --source-only). `campaign` supplies
+    the knobs as programmed on THIS run; without it the class defaults are
+    recorded (which is what every row said before --xfer-axlen existed).
     """
     sink_ok, sink_d = sink if sink else (None, None)
     src_ok, src_d = source if source else (None, None)
     verdicts = [v for v in (sink_ok, src_ok) if v is not None]
+    knobs = campaign if campaign is not None else RapidsCharCampaign
     return {
         'name': name,
         'active_channels': len(active),
         'channels': list(active),
         'beats': beats,
         'descs': 1, 'total_beats': beats,
-        'xfer_axlen': RapidsCharCampaign.xfer_axlen,
-        'xfer_beats': RapidsCharCampaign.xfer_axlen + 1,
-        'resp_delay': RapidsCharCampaign.resp_delay,
+        'xfer_axlen': knobs.xfer_axlen,
+        'xfer_beats': knobs.xfer_axlen + 1,
+        'xfer_axlen_effective': knobs.xfer_axlen_effective,   # as the engines run it (BUG-009 cap)
+        'xfer_beats_effective': knobs.xfer_axlen_effective + 1,
+        'resp_delay': knobs.resp_delay,
         'gen_interleave': bool(interleave),
         'source_backpressure': bp,
         'base_seed': seed,
@@ -997,6 +1022,8 @@ Examples:
     p.add_argument('--timeout', type=float, default=30.0,
                    help='per-pass completion timeout (seconds)')
     p.add_argument('--sink-only', action='store_true')
+    p.add_argument('--xfer-axlen', type=int, default=None,
+                   help='single run: program AXI_XFER_CONFIG RD/WR_XFER_BEATS (AxLEN 0..255) before the run')
     p.add_argument('--interleave', action='store_true',
                    help='sink runs: the AXIS generator round-robins the active channels '
                         'beat by beat (GEN_MODE.INTERLEAVE), so every active channel holds '
@@ -1069,6 +1096,8 @@ def main() -> int:
 
         campaign.configure()
         campaign.set_interleave(bool(args.interleave))
+        if args.xfer_axlen is not None:
+            campaign.set_xfer_axlen(args.xfer_axlen)
 
         # ---- SMOKE mode --------------------------------------------------
         if args.smoke:
@@ -1088,7 +1117,7 @@ def main() -> int:
                   f"{'PASS' if all_pass else 'FAIL'}")
             _write_results([_single_row(
                 f"smoke_ch{n_active}_b{beats}", active, beats, False,
-                args.base_seed, (sink_ok, sink_d), (src_ok, src_d))],
+                args.base_seed, (sink_ok, sink_d), (src_ok, src_d), campaign=campaign)],
                 _results_path(args, 'smoke'))
             return 0 if all_pass else 1
 
@@ -1146,7 +1175,7 @@ def main() -> int:
             f"{'_il' if args.interleave else ''}",
             active_channels, args.beats, bool(args.backpressure),
             args.base_seed, sink_res, source_res,
-            interleave=campaign.interleave)],
+            interleave=campaign.interleave, campaign=campaign)],
             _results_path(args, 'run'))
         return 0 if all_pass else 1
 

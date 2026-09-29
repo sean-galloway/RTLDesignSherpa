@@ -26,7 +26,7 @@
 **Module:** `axi_write_engine_beats.sv`
 **Location:** `projects/components/dma-ip/rapids/rtl/fub_beats/`
 **Status:** Implemented
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-09-29
 
 ---
 
@@ -173,6 +173,23 @@ landing in memory:
 
 ## Operation
 
+### Burst Length Cap (rapids BUG-009)
+
+`cfg_axi_wr_xfer_beats` is an AWLEN (0..255), but a burst can never be larger
+than the SRAM that stages it: `w_has_data` waits for the whole burst to be in
+the buffer, and a burst the buffer cannot hold would wait forever. The engine
+therefore clamps the configured value to `XFER_MAX = min(2^(SCW-1) - 1, 254)`
+-- the buffer depth `SEG_COUNT_WIDTH` encodes, minus one, and 254 beyond that
+so every beat count fits the 8-bit size ports shared with `sram_controller`.
+On the Genesys 2 build (128-deep) AWLEN 255 runs as 128-beat bursts.
+
+Before the clamp (2026-09-29), AWLEN 255 was taken literally and the 8-bit
+`AWLEN + 1` in the gate wrapped to 0: `w_has_data` passed on an empty buffer,
+the AW went out, `drain_ctrl` reserved 0 beats and the W phase pulled 256
+beats that were never reserved. The channel's `drain_data_available` then read
+0 for good (`CHANNEL_RESET` does not reach `sram_controller`), and every later
+run on the channel accepted one buffer of ingress and never issued an AW.
+
 ### Write Transaction Phases
 
 AXI writes have three phases that can overlap:
@@ -227,4 +244,4 @@ included: `0` is selectable, never the default.
 
 ---
 
-**Last Updated:** 2026-07-02
+**Last Updated:** 2026-09-29

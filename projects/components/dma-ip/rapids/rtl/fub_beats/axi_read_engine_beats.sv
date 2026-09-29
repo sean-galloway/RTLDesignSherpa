@@ -163,6 +163,20 @@ module axi_read_engine_beats #(
     localparam int AXSIZE = $clog2(BYTES_PER_BEAT);
     localparam int MOW = $clog2(AR_MAX_OUTSTANDING + 1);  // Max Outstanding Width (bits needed for 0..AR_MAX_OUTSTANDING)
 
+    // rapids BUG-009 (2026-09-29): a burst can never be larger than the SRAM
+    // it lands in. cfg_axi_rd_xfer_beats is an ARLEN (0..255); with a
+    // 128-deep buffer ARLEN 255 asked for 256 beats, and the 8-bit "+ 1" in
+    // w_space_ok wrapped that to 0: the gate passed on any free count, the AR
+    // for 256 beats allocated 0 and the engine over-fetched past the buffer
+    // (4103 R beats for a 4096-beat descriptor on the Genesys 2). The
+    // configured ARLEN is clamped to the buffer depth SCW encodes, and to 254
+    // beyond it so every beat count here and on the 8-bit size port shared
+    // with sram_controller stays below 256.
+    localparam int SD_BEATS = 1 << (SCW - 1);                          // buffer depth SEG_COUNT_WIDTH encodes
+    localparam int XFER_MAX = (SD_BEATS < 256) ? SD_BEATS - 1 : 254;   // ARLEN cap
+    logic [7:0] w_xfer_cfg;                                             // cfg_axi_rd_xfer_beats, clamped
+    assign w_xfer_cfg = (cfg_axi_rd_xfer_beats > 8'(XFER_MAX)) ? 8'(XFER_MAX) : cfg_axi_rd_xfer_beats;
+
     //=========================================================================
     // Outstanding Transaction Tracking
     //=========================================================================
@@ -362,8 +376,8 @@ module axi_read_engine_beats #(
     always_comb begin
         for (int i = 0; i < NC; i++) begin
             // Calculate actual transfer size for this channel
-            w_transfer_size[i] = 8'((sched_rd_beats[i] <= (32'(cfg_axi_rd_xfer_beats) + 32'd1)) ?
-                        (sched_rd_beats[i] - 32'd1) : 32'(cfg_axi_rd_xfer_beats));
+            w_transfer_size[i] = 8'((sched_rd_beats[i] <= (32'(w_xfer_cfg) + 32'd1)) ?
+                        (sched_rd_beats[i] - 32'd1) : 32'(w_xfer_cfg));   // w_xfer_cfg: the clamped ARLEN
 
             // Check if channel has enough space for actual transfer size,
             // net of the ARs still in flight through the reporting chain

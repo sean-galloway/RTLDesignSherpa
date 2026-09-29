@@ -504,13 +504,13 @@ regfile rapids_engine_regs {
         desc = "AXI read and write transfer burst sizes";
 
         field {
-            desc = "AXI read transfer beats [7:0] - ARLEN value (0-255 represents 1-256 beats)";
+            desc = "AXI read transfer beats [7:0] - ARLEN value (0-255 represents 1-256 beats). The engine clamps it to the per-channel SRAM depth minus one, and to 254 beyond that (rapids BUG-009): a burst is never larger than the buffer that stages it";
             sw = rw;
             hw = r;
         } RD_XFER_BEATS[7:0] = 8'd15;
 
         field {
-            desc = "AXI write transfer beats [15:8] - AWLEN value (0-255 represents 1-256 beats)";
+            desc = "AXI write transfer beats [15:8] - AWLEN value (0-255 represents 1-256 beats). The engine clamps it to the per-channel SRAM depth minus one, and to 254 beyond that (rapids BUG-009): a burst is never larger than the buffer that stages it";
             sw = rw;
             hw = r;
         } WR_XFER_BEATS[15:8] = 8'd15;

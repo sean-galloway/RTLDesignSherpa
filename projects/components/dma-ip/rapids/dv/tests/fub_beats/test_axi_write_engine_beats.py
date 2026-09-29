@@ -42,6 +42,7 @@ async def cocotb_test_axi_write_engine_beats(dut):
         'all': tb.test_all_channels,
         'odd': tb.test_odd_sizes,
         'trickle': tb.test_trickle,
+        'cap': tb.test_burst_cap,
     }
     if test_type not in dispatch:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -73,6 +74,10 @@ def generate_params():
         for (nc, dw, pipe, cfg) in shapes:
             for prof in profiles:
                 params.append((tt, nc, dw, pipe, cfg, prof))
+    # rapids BUG-009 at every level: AxLEN 255 against a 128-deep buffer
+    # (SEG_COUNT_WIDTH 8, the Genesys 2 design point). The engine must clamp
+    # the burst to the buffer instead of wrapping its size to 0.
+    params.append(('cap', 4, 256, 1, 255, 'default'))
     return params
 
 
@@ -109,7 +114,9 @@ def test_axi_write_engine_beats(request, test_type, num_channels, data_width, pi
         'NUM_CHANNELS': str(num_channels),
         'DATA_WIDTH': str(data_width),
         'ID_WIDTH': '8',
-        'SEG_COUNT_WIDTH': '10',       # $clog2(512) + 1, as the data path instantiates it
+        # $clog2(SRAM_DEPTH) + 1, as the data path instantiates it: 512-deep
+        # for the sweep, 128-deep (the Genesys 2 build) for the burst-cap cell
+        'SEG_COUNT_WIDTH': '8' if test_type == 'cap' else '10',
         'PIPELINE': str(pipeline),
         'AW_MAX_OUTSTANDING': '4',
         'USER_WIDTH': '8',
