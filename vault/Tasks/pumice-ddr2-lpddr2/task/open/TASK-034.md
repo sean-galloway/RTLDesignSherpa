@@ -184,3 +184,66 @@ for it.
 
 The `rtw_guard` stays at 6. Nothing about the shipping configuration changed, and
 the board was restored to tRTW = 20 after the campaign.
+
+---
+
+## Correction, same session: the pass/fail axis was never validated
+
+The section above reports "0 mismatched beats everywhere" and then argues from
+the negative control that the stimulus is blind. **That framing is too generous
+to the campaign, and the correction matters more than the original point.**
+
+I never once saw a NON-ZERO mismatch count from this harness -- not at tRTW=20,
+not at tRTW=3, not at gap 0 with the bus at 47% of peak. A detector that has
+never fired is not a detector, so I tried to prove it could, by injecting the
+fault the codebase records as mismatching 100%: `rddata_delay` one cycle off
+valid.
+
+Two attempts, two different failures of the control itself:
+
+1. **First attempt invalid.** I wrote `drv.set_dfi_rddata_delay(8)` at runtime.
+   `pumice_char.Config.apply` re-programs `rddata_delay` on EVERY point, so the
+   injected fault was reset before the measurement ran and the point came back
+   clean. Same clobbering that had already invalidated the tRTW override -- the
+   THIRD time in this campaign that a runtime override was silently undone by the
+   per-point re-apply.
+2. **Second attempt inconclusive.** Patching `CFG.rddata_delay` (which does
+   survive the re-apply) makes the point produce no result at all -- no counter,
+   no exception, the link stops responding and the process dies on its timeout.
+   The fault is real enough to hang the harness, which is not the same as being
+   COUNTED, so it still does not prove the counter works.
+
+So the honest state of the pass/fail axis is: **unvalidated**. Every "0/6
+FAILING" line above should be read as "produced no signal", not "passed".
+
+**What survives this correction:** the BANDWIDTH measurements. Those varied,
+repeatably, to within 0.1 MB/s across reps, and responded sharply and
+monotonically to the variable under test -- a detector that reports 123.2 at
+tRTW=12 and 217.1 at tRTW=11, six times each, is demonstrably measuring
+something. The cliff and its size stand.
+
+**What does not survive:** any statement about safety, in either direction. The
+guard stays at 6.
+
+### So the task now needs TWO instruments, not one
+
+1. A stimulus that actually stresses RD->WR turnaround (same-bank interleave;
+   disjoint banks with a 13-15 cycle gap does not).
+2. **A failure detector proven to fire** -- a fault injection that yields a
+   non-zero mismatch COUNT, not a hang and not a clean pass. Until something has
+   made this harness report a non-zero mismatch, no clean result from it is
+   evidence of anything.
+
+Instrument 2 is the one that was missing and the one nobody would have thought to
+check, because a clean sweep looks exactly like a working one. It is also cheap:
+it is a single run, once, before any campaign that intends to conclude "safe".
+
+### A trap worth naming for anyone using this harness
+
+`pumice_char.Config.apply` re-derives and re-programs the controller CSRs on
+every point -- JEDEC timings, DFI phase, `rddata_delay`, the controller config.
+Any value written directly to a CSR between points is therefore gone by the time
+the measurement runs, while still reading back correctly at the moment you write
+it. Override the CONFIG (or the derivation behind it), never the register, and
+confirm it took by reading the per-point `[config ...] jedec timings` line rather
+than a readback.
